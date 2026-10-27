@@ -338,8 +338,25 @@ void Plugin::build_call_config(const ov::AnyMap& properties, TPConfig& config, o
     }
     config.set_user_property(own, ov::OptionVisibility::RELEASE);
 
+    // The TP blob contains the rank blobs, and the core caches it as a whole;
+    // a rank compilation must not add a cache entry of its own.
+    forwarded[ov::cache_dir.name()] = std::string{};
+
     // Reads the environment and the config file, then locks the values down.
     config.finalize(nullptr, nullptr);
+}
+
+std::vector<std::string> Plugin::resolve_rank_devices(const TPConfig& config) const {
+    auto names = config.resolve_device_names();
+    // The plugin still drives Level Zero itself, which only the GPU plugin can
+    // serve. Device-agnostic selection comes with the L3 collective contract.
+    const auto type = TPConfig::device_type(names);
+    OPENVINO_ASSERT(type == "GPU",
+                    get_device_name(),
+                    ": rank devices of type ",
+                    type,
+                    " are not supported; ranks run on GPU devices only");
+    return names;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -348,7 +365,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ov::AnyMap config;
     build_call_config(properties, cfg, config);
 
-    auto device_names = cfg.resolve_device_names();
+    auto device_names = resolve_rank_devices(cfg);
     // Weights are always divided by however many devices were asked for.
     // Under shard_only only the first rank is built and run, so the number of
     // ranks drops to one while the sharding degree does not.
@@ -474,8 +491,7 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         };
     } else if (name == ov::internal::caching_properties.name()) {
         auto properties = gpu_caching_properties(arguments);
-        properties.emplace_back(ov::tp::tp_size.name(), ov::PropertyMutability::RW);
-        properties.emplace_back(ov::tp::device_ids.name(), ov::PropertyMutability::RW);
+        properties.emplace_back(ov::device::priorities.name(), ov::PropertyMutability::RW);
         return properties;
     } else if (m_config.owns(name)) {
         // Unset options answer with their default rather than refusing: the
@@ -508,7 +524,7 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     ov::AnyMap config;
     build_call_config(properties, cfg, config);
 
-    const auto device_names = cfg.resolve_device_names();
+    const auto device_names = resolve_rank_devices(cfg);
 
     // Every rank compiles the same op set, so whatever the GPU plugin supports
     // on one rank is what TP supports as a whole. The collectives inserted

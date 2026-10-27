@@ -12,7 +12,7 @@ device memory through a shared Level Zero context.
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                     User Application                         │
-│   core.compile_model(model, "TP", config)                │
+│   core.compile_model(model, "TP:GPU.0,GPU.1", config)        │
 │   request = compiled.create_infer_request()                  │
 │   request.infer()                                            │
 └─────────────────────────────┬────────────────────────────────┘
@@ -420,8 +420,8 @@ importing it against a different device set is rejected.
 
 `ov::cache_dir` works because the plugin advertises
 `ov::device::capability::EXPORT_IMPORT` and answers
-`ov::internal::caching_properties` — the GPU list plus `TP_SIZE` and
-`DEVICE_IDS`, so two topologies cannot collide on one hash. Values of GPU
+`ov::internal::caching_properties` — the GPU list plus the device list
+(`ov::device::priorities`), so two topologies cannot collide on one hash. Values of GPU
 caching properties are aggregated across the rank devices and joined with `;`.
 
 ## Lifetime and Threading

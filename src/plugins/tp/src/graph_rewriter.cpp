@@ -1438,8 +1438,8 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     // heads -- cap how many ranks the model can use.
     OPENVINO_ASSERT(static_cast<int>(tp_degree) <= plan.num_kv_heads,
                     "[TP] The model has ", plan.num_kv_heads, " KV heads, so it can be split "
-                    "across at most that many ranks; TP_SIZE=", tp_degree,
-                    " was requested. Replicating KV heads across ranks is not supported yet.");
+                    "across at most that many ranks; ", tp_degree,
+                    " devices were requested. Replicating KV heads across ranks is not supported yet.");
 
     auto cloned = model->clone();
 

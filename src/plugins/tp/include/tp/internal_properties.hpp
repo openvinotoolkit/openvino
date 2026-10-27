@@ -8,24 +8,12 @@
 #include <istream>
 #include <ostream>
 #include <string>
-#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace tp {
-
-/// \brief Number of tensor-parallel ranks.
-///
-/// Must match the size of `device_ids` when both are set. At least one of the
-/// two has to be provided.
-static constexpr Property<uint32_t> tp_size{"TP_SIZE"};
-
-/// \brief Explicit per-rank device names, e.g. {"GPU.0", "GPU.1"}.
-///
-/// When omitted, ranks are mapped to GPU.0 .. GPU.{tp_size - 1}.
-static constexpr Property<std::vector<std::string>> device_ids{"DEVICE_IDS"};
 
 /// \brief Upper bound, in milliseconds, on how long a rank waits inside a
 /// collective before the whole group is aborted.

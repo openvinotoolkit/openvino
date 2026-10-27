@@ -39,16 +39,21 @@ struct TPConfig : public ov::PluginConfig {
         return *this;
     }
 
-    /// The device names of every rank, resolved from TP_SIZE and DEVICE_IDS.
+    /// The rank devices in rank order, from ov::device::priorities ("TP:GPU.0,GPU.1").
     ///
-    /// Empty only when neither was set, which is legal on import: the blob
-    /// carries the topology it was produced on and the config only gets a say
-    /// when it asks for a different one. `compile_model` requires a topology
-    /// and calls `resolve_device_names` instead.
+    /// Empty when no device was listed, which is legal on import: the blob
+    /// carries the devices it was produced on and the config only gets a say
+    /// when it asks for different ones. `compile_model` requires devices and
+    /// calls `resolve_device_names` instead.
     std::vector<std::string> requested_device_names() const;
 
-    /// A version of `requested_device_names()` with stricter validation
+    /// `requested_device_names()` checked for compilation: at least two
+    /// devices, all of one device type.
     std::vector<std::string> resolve_device_names() const;
+
+    /// The device type shared by all `names` ("GPU" for "GPU.0,GPU.1"); throws
+    /// when they have different types.
+    static std::string device_type(const std::vector<std::string>& names);
 
     /// Whether `name` is one of this plugin's own options rather than
     /// something meant for the per-rank GPU compilations.

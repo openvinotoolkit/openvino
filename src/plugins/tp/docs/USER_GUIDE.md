@@ -46,8 +46,8 @@ Level Zero context — no host round-trip and no copy through CPU memory.
 - A decoder whose attention is `PagedAttentionExtension` or
   `ScaledDotProductAttention`, with the Q/K/V/O and MLP projections being
   MatMuls over constant-derived weights.
-- `TP_SIZE` may not exceed the model's KV head count: attention is split by KV
-  head, so there is nothing left to give the extra ranks.
+- The number of rank devices may not exceed the model's KV head count:
+  attention is split by KV head, so there is nothing left to give the extra ranks.
 
 ## Is It Worth It
 
@@ -67,11 +67,8 @@ hardware rather than assuming a break-even point.
 ov::Core core;
 auto model = core.read_model("openvino_model.xml");
 
-// Either say how many ranks to use...
-auto compiled = core.compile_model(model, "TP", {{"TP_SIZE", 2}});
-
-// ...or name the devices explicitly.
-auto compiled2 = core.compile_model(model, "TP", {{"DEVICE_IDS", {"GPU.0", "GPU.1"}}});
+// One rank per listed device, in rank order.
+auto compiled = core.compile_model(model, "TP:GPU.0,GPU.1");
 
 auto request = compiled.create_infer_request();
 request.set_input_tensor(input_tensor);
@@ -87,7 +84,7 @@ import openvino as ov
 core = ov.Core()
 model = core.read_model("openvino_model.xml")
 
-compiled = core.compile_model(model, "TP", {"TP_SIZE": 2})
+compiled = core.compile_model(model, "TP:GPU.0,GPU.1")
 
 request = compiled.create_infer_request()
 request.infer({0: input_data})
@@ -98,11 +95,15 @@ output = request.get_output_tensor().data
 
 | Property                   | Type                       | Default     | Description                                                                                                                    |
 |----------------------------|----------------------------|-------------|--------------------------------------------------------------------------------------------------------------------------------|
-| `TP_SIZE`                  | `uint32_t`                 | `0` (unset) | Number of ranks. Either this or `DEVICE_IDS` must be set, otherwise `compile_model` throws. When both are set they must agree. |
-| `DEVICE_IDS`               | `std::vector<std::string>` | empty       | Explicit per-rank devices. When omitted, defaults to `GPU.0 .. GPU.{TP_SIZE-1}`.                                               |
-| `COMMUNICATION_TIMEOUT_MS` | `uint32_t`                 | `5000`      | Longest a rank waits inside a collective before the group is aborted. `0` waits forever.                                       |
+The rank devices are part of the device name, as for `HETERO`:
+`"TP:GPU.0,GPU.1,GPU.2,GPU.3"` runs one rank per listed device, in rank order
+(the list is `ov::device::priorities`). At least two devices of one device type
+are required; `compile_model` throws otherwise. Only GPU devices can host ranks
+today.
 
-At least two devices are required; `compile_model` throws otherwise.
+| Property                   | Type       | Default | Description                                                                              |
+|----------------------------|------------|---------|------------------------------------------------------------------------------------------|
+| `COMMUNICATION_TIMEOUT_MS` | `uint32_t` | `5000`  | Longest a rank waits inside a collective before the group is aborted. `0` waits forever. |
 
 A collective needs all ranks to participate. If one rank never arrives or its
 device work never completes, `COMMUNICATION_TIMEOUT_MS` is what turns that into
@@ -115,7 +116,9 @@ Raise the value for very large payloads on slow interconnects; lower it if you
 want a stuck rank reported sooner.
 
 Any additional properties are passed through to the underlying
-`intel_gpu` plugin used to compile each per-rank submodel.
+`intel_gpu` plugin used to compile each per-rank submodel. Properties for one
+device or device type go through `ov::device::properties`, e.g.
+`ov::device::properties("GPU.1", ...)` reaches rank 1 only.
 
 ## Profiling
 
@@ -134,7 +137,7 @@ both explicit export/import and the standard `ov::cache_dir` flow:
 ```cpp
 core.set_property(ov::cache_dir("/path/to/cache"));
 // First call compiles every rank and writes one cache entry.
-auto compiled = core.compile_model(model, "TP", {{"TP_SIZE", uint32_t(2)}});
+auto compiled = core.compile_model(model, "TP:GPU.0,GPU.1");
 // Any later call with the same model and the same TP topology imports it.
 ```
 
@@ -143,7 +146,7 @@ Explicit form:
 ```cpp
 std::stringstream blob;
 compiled.export_model(blob);
-auto imported = core.import_model(blob, "TP", {{"TP_SIZE", uint32_t(2)}});
+auto imported = core.import_model(blob, "TP:GPU.0,GPU.1");
 ```
 
 Things to know:
@@ -151,8 +154,9 @@ Things to know:
 - **The blob is bound to the topology it was produced on.** It records the
   device of every rank, and rank `r`'s graph only makes sense on that device.
   Importing it against a different device set is rejected rather than silently
-  retargeted. `TP_SIZE` and `DEVICE_IDS` are part of the cache hash, so
-  different topologies get separate cache entries.
+  retargeted. The device list is part of the cache hash, so different
+  topologies get separate cache entries. The ranks write no cache entries of
+  their own: the TP entry already contains them.
 - **It is not portable.** Like any GPU blob, it is tied to the driver and
   hardware it was compiled on.
 - **Weights are stored in full.** Weightless caching is not wired up, so the
@@ -224,7 +228,7 @@ again.
 
 ### `[TP] Warning: N KV heads do not divide evenly across M ranks`
 
-Not an error: dimensions do not have to divide evenly by `TP_SIZE`, and the
+Not an error: dimensions do not have to divide evenly by the number of ranks, and the
 remainder goes to the first ranks, one unit each. The model runs.
 
 It costs latency, though. Every layer ends in a collective, so the ranks that
@@ -232,7 +236,7 @@ got an extra head do more work while the rest wait at the barrier, and the
 whole model moves at their pace. The percentage in the message is how much
 longer those ranks have to work; the warning only appears past roughly 10%.
 
-Choose a `TP_SIZE` that divides the KV head count to make it go away.
+Choose a number of devices that divides the KV head count to make it go away.
 
 ### A collective times out or the group aborts
 

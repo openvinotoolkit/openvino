@@ -4,53 +4,49 @@
 
 #include "tp/tp_config.hpp"
 
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace tp {
 
 std::vector<std::string> TPConfig::requested_device_names() const {
-    if (get_tp_size() == 0 && get_device_ids().empty()) {
-        return {};
+    const auto& list = get_priorities();
+    std::vector<std::string> names;
+    std::stringstream entries(list);
+    std::string entry;
+    while (std::getline(entries, entry, ',')) {
+        const auto name = ov::util::trim(entry);
+        OPENVINO_ASSERT(!name.empty(), "TP: the device list \"", list, "\" has an empty entry");
+        names.emplace_back(name);
     }
-    return resolve_device_names();
+    return names;
 }
 
 std::vector<std::string> TPConfig::resolve_device_names() const {
-    std::vector<std::string> names = get_device_ids();
-    const uint32_t size = get_tp_size();
-
-    OPENVINO_ASSERT(size != 0 || !names.empty(),
-                    "[TP] Neither ",
-                    tp_size.name(),
-                    " nor ",
-                    device_ids.name(),
-                    " was set, at least one of them must be specified");
-
-    const std::size_t count = size != 0 ? static_cast<std::size_t>(size) : names.size();
-
-    if (names.empty()) {
-        names.reserve(count);
-        for (std::size_t i = 0; i < count; ++i) {
-            names.push_back("GPU." + std::to_string(i));
-        }
-    } else {
-        OPENVINO_ASSERT(names.size() == count,
-                        "[TP] ",
-                        device_ids.name(),
-                        " lists ",
-                        names.size(),
-                        " devices, which does not match ",
-                        tp_size.name(),
-                        "=",
-                        count);
-    }
-
-    OPENVINO_ASSERT(names.size() >= 2, "[TP] Need at least 2 devices, got ", names.size());
+    auto names = requested_device_names();
+    OPENVINO_ASSERT(names.size() >= 2,
+                    "TP requires at least 2 devices, got ",
+                    names.size(),
+                    ". List them in the device name, e.g. \"TP:GPU.0,GPU.1\".");
+    device_type(names);
     return names;
+}
+
+std::string TPConfig::device_type(const std::vector<std::string>& names) {
+    OPENVINO_ASSERT(!names.empty(), "TP: no rank devices");
+    const auto type = ov::DeviceIDParser(names.front()).get_device_name();
+    for (const auto& name : names) {
+        OPENVINO_ASSERT(ov::DeviceIDParser(name).get_device_name() == type,
+                        "TP: all rank devices must have one device type, got ",
+                        ov::util::join(names, ","));
+    }
+    return type;
 }
 
 bool TPConfig::owns(const std::string& name) const {

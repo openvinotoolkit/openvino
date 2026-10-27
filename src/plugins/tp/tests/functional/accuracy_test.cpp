@@ -25,7 +25,6 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/core.hpp"
-#include "tp/internal_properties.hpp"
 #include "tp_test_models.hpp"
 
 namespace ov::tp::tests {
@@ -73,7 +72,7 @@ protected:
     /// down when this returns.
     std::pair<ov::Tensor, ov::Tensor> run_both(const std::shared_ptr<ov::Model>& model, const ov::Tensor& input) {
         auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
-        auto parallel = core.compile_model(model, "TP", tp_config()).create_infer_request();
+        auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
 
         reference.set_input_tensor(input);
         parallel.set_input_tensor(input);
@@ -125,9 +124,7 @@ protected:
     }
 
     static ov::AnyMap tp_config() {
-        ov::AnyMap config = precision_config();
-        config.emplace(ov::tp::tp_size(world_size()));
-        return config;
+        return precision_config();
     }
 
     ov::Core core;
@@ -186,7 +183,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuAcrossStatefulSteps) {
     auto model = make_transformer_block(config);
 
     auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
-    auto parallel = core.compile_model(model, "TP", tp_config()).create_infer_request();
+    auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
 
     for (size_t step = 0; step < 2; ++step) {
         SCOPED_TRACE("step " + std::to_string(step));
@@ -215,7 +212,7 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuAfterKvCacheTrim) {
     auto model = make_transformer_block(config);
 
     auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
-    auto parallel = core.compile_model(model, "TP", tp_config()).create_infer_request();
+    auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
 
     auto prefill = make_input(config, sequence_length, 1);
     reference.set_input_tensor(prefill);

@@ -18,10 +18,10 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/core.hpp"
-#include "tp/internal_properties.hpp"
 #include "tp_test_models.hpp"
 
 namespace ov::tp::tests {
@@ -68,7 +68,7 @@ protected:
     }
 
     static ov::AnyMap tp_config() {
-        return {ov::hint::inference_precision(ov::element::f32), ov::tp::tp_size(world_size)};
+        return {ov::hint::inference_precision(ov::element::f32)};
     }
 
     static ov::Tensor make_input(const BlockConfig& config) {
@@ -119,13 +119,13 @@ TEST_F(TPSerializationTest, ImportedModelMatchesExportedOne) {
     std::stringstream blob;
     ov::Tensor exported;
     {
-        auto compiled = core.compile_model(model, "TP", tp_config());
+        auto compiled = core.compile_model(model, tp_device(world_size), tp_config());
         exported = infer_to_host(compiled, input);
         compiled.export_model(blob);
     }
     ASSERT_GT(blob.str().size(), 0u);
 
-    auto imported = core.import_model(blob, "TP", tp_config());
+    auto imported = core.import_model(blob, tp_device(world_size), tp_config());
     EXPECT_TRUE(imported.get_property(ov::loaded_from_cache));
     expect_identical(exported, infer_to_host(imported, input));
 }
@@ -139,10 +139,10 @@ TEST_F(TPSerializationTest, ImportedModelKeepsPorts) {
     auto model = make_transformer_block(config);
 
     std::stringstream blob;
-    auto compiled = core.compile_model(model, "TP", tp_config());
+    auto compiled = core.compile_model(model, tp_device(world_size), tp_config());
     compiled.export_model(blob);
 
-    auto imported = core.import_model(blob, "TP", tp_config());
+    auto imported = core.import_model(blob, tp_device(world_size), tp_config());
 
     ASSERT_EQ(imported.inputs().size(), compiled.inputs().size());
     ASSERT_EQ(imported.outputs().size(), compiled.outputs().size());
@@ -169,15 +169,32 @@ TEST_F(TPSerializationTest, CacheDirTurnsSecondCompileIntoImport) {
 
     core.set_property(ov::cache_dir(cache_dir()));
 
-    auto first = core.compile_model(model, "TP", tp_config());
+    auto first = core.compile_model(model, tp_device(world_size), tp_config());
     EXPECT_FALSE(first.get_property(ov::loaded_from_cache));
     const auto reference = infer_to_host(first, input);
 
-    auto second = core.compile_model(model, "TP", tp_config());
+    auto second = core.compile_model(model, tp_device(world_size), tp_config());
     EXPECT_TRUE(second.get_property(ov::loaded_from_cache));
     expect_identical(reference, infer_to_host(second, input));
 
     core.set_property(ov::cache_dir(""));
+}
+
+// The TP blob already holds the rank blobs: the ranks must not write cache
+// entries of their own, even with a core-wide cache directory.
+TEST_F(TPSerializationTest, RanksAddNoCacheEntries) {
+    BlockConfig config;
+    auto model = make_transformer_block(config);
+
+    core.set_property(ov::cache_dir(cache_dir()));
+    core.compile_model(model, tp_device(world_size), tp_config());
+    core.set_property(ov::cache_dir(""));
+
+    std::vector<std::string> entries;
+    for (const auto& entry : std::filesystem::directory_iterator(cache_dir())) {
+        entries.push_back(entry.path().filename().string());
+    }
+    EXPECT_EQ(entries.size(), 1u) << "cache entries: " << ov::Any(entries).as<std::string>();
 }
 
 // A cache entry is keyed on the rank topology as well as on the model: the same
@@ -192,10 +209,10 @@ TEST_F(TPSerializationTest, DifferentWorldSizeGetsItsOwnCacheEntry) {
 
     core.set_property(ov::cache_dir(cache_dir()));
 
-    auto two_ranks = core.compile_model(model, "TP", {ov::tp::tp_size(2u)});
+    auto two_ranks = core.compile_model(model, tp_device(2));
     EXPECT_FALSE(two_ranks.get_property(ov::loaded_from_cache));
 
-    auto three_ranks = core.compile_model(model, "TP", {ov::tp::tp_size(3u)});
+    auto three_ranks = core.compile_model(model, tp_device(3));
     EXPECT_FALSE(three_ranks.get_property(ov::loaded_from_cache));
 
     core.set_property(ov::cache_dir(""));
@@ -211,15 +228,15 @@ TEST_F(TPSerializationTest, ImportRejectsMismatchedTopology) {
     auto model = make_transformer_block(config);
 
     std::stringstream blob;
-    core.compile_model(model, "TP", tp_config()).export_model(blob);
+    core.compile_model(model, tp_device(world_size), tp_config()).export_model(blob);
 
-    EXPECT_THROW(core.import_model(blob, "TP", {ov::tp::tp_size(3u)}), ov::Exception);
+    EXPECT_THROW(core.import_model(blob, tp_device(3)), ov::Exception);
 }
 
 TEST_F(TPSerializationTest, ImportRejectsForeignBlob) {
     std::stringstream blob;
     blob << "this is not a TP blob, not even close";
-    EXPECT_THROW(core.import_model(blob, "TP", tp_config()), ov::Exception);
+    EXPECT_THROW(core.import_model(blob, tp_device(world_size), tp_config()), ov::Exception);
 }
 
 // A blob that ends inside the TP header must be refused before any of it is
@@ -230,14 +247,14 @@ TEST_F(TPSerializationTest, ImportRejectsTruncatedHeader) {
     auto model = make_transformer_block(config);
 
     std::stringstream blob;
-    core.compile_model(model, "TP", tp_config()).export_model(blob);
+    core.compile_model(model, tp_device(world_size), tp_config()).export_model(blob);
 
     const auto full = blob.str();
     // Past the magic and the version, short of the device names.
     ASSERT_GT(full.size(), 14u);
     std::stringstream truncated(full.substr(0, 14));
 
-    EXPECT_THROW(core.import_model(truncated, "TP", tp_config()), ov::Exception);
+    EXPECT_THROW(core.import_model(truncated, tp_device(world_size), tp_config()), ov::Exception);
 }
 
 }  // namespace

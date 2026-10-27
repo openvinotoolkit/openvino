@@ -23,7 +23,6 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/tp_gpu/paged_attention_cache_controller.hpp"
-#include "tp/internal_properties.hpp"
 #include "tp_test_models.hpp"
 
 namespace ov::tp::tests {
@@ -60,9 +59,7 @@ protected:
     }
 
     static ov::AnyMap tp_config() {
-        ov::AnyMap config = gpu_config();
-        config.emplace(ov::tp::tp_size(world_size));
-        return config;
+        return gpu_config();
     }
 
     static ov::tp_gpu::PagedAttentionCacheControllerPtr controller_of(const ov::CompiledModel& compiled) {
@@ -175,7 +172,7 @@ std::string TPPagedAttentionTest::gpu_error;
 // ---------------------------------------------------------------------------
 
 TEST_F(TPPagedAttentionTest, OffersAControllerOnlyForPagedAttentionModels) {
-    auto paged = core.compile_model(make_paged_attention_block(BlockConfig{}), "TP", tp_config());
+    auto paged = core.compile_model(make_paged_attention_block(BlockConfig{}), tp_device(world_size), tp_config());
     EXPECT_TRUE(offers_controller(paged));
     EXPECT_NE(controller_of(paged), nullptr);
 
@@ -184,12 +181,12 @@ TEST_F(TPPagedAttentionTest, OffersAControllerOnlyForPagedAttentionModels) {
     // path.
     BlockConfig stateful;
     stateful.stateful = true;
-    auto sdpa = core.compile_model(make_transformer_block(stateful), "TP", tp_config());
+    auto sdpa = core.compile_model(make_transformer_block(stateful), tp_device(world_size), tp_config());
     EXPECT_FALSE(offers_controller(sdpa));
 }
 
 TEST_F(TPPagedAttentionTest, ReportsTheCacheGeometry) {
-    auto compiled = core.compile_model(make_paged_attention_block(BlockConfig{}), "TP", tp_config());
+    auto compiled = core.compile_model(make_paged_attention_block(BlockConfig{}), tp_device(world_size), tp_config());
     auto controller = controller_of(compiled);
 
     EXPECT_EQ(controller->get_num_layers(), 1u);
@@ -204,13 +201,13 @@ TEST_F(TPPagedAttentionTest, ReportsTheWholeBlockNotOneRanksShare) {
     // rank's slice would let it believe the cache is `world_size` times
     // cheaper than it is.
     auto reference = core.compile_model(make_paged_attention_block(BlockConfig{}), "GPU", gpu_config());
-    auto parallel = core.compile_model(make_paged_attention_block(BlockConfig{}), "TP", tp_config());
+    auto parallel = core.compile_model(make_paged_attention_block(BlockConfig{}), tp_device(world_size), tp_config());
 
     EXPECT_EQ(controller_of(parallel)->get_block_size_in_bytes(), block_bytes_of(reference));
 }
 
 TEST_F(TPPagedAttentionTest, AllocatesGrowsAndClears) {
-    auto compiled = core.compile_model(make_paged_attention_block(BlockConfig{}), "TP", tp_config());
+    auto compiled = core.compile_model(make_paged_attention_block(BlockConfig{}), tp_device(world_size), tp_config());
     auto controller = controller_of(compiled);
 
     controller->allocate_cache_if_needed(4);
@@ -233,7 +230,7 @@ TEST_F(TPPagedAttentionTest, AllocatesGrowsAndClears) {
 }
 
 TEST_F(TPPagedAttentionTest, CopiesBlocksOnEveryRank) {
-    auto compiled = core.compile_model(make_paged_attention_block(BlockConfig{}), "TP", tp_config());
+    auto compiled = core.compile_model(make_paged_attention_block(BlockConfig{}), tp_device(world_size), tp_config());
     auto controller = controller_of(compiled);
 
     controller->allocate_cache_if_needed(8);
@@ -246,7 +243,7 @@ TEST_F(TPPagedAttentionTest, CopiesBlocksOnEveryRank) {
 }
 
 TEST_F(TPPagedAttentionTest, RefusesToInferWithoutACache) {
-    auto compiled = core.compile_model(make_paged_attention_block(BlockConfig{}), "TP", tp_config());
+    auto compiled = core.compile_model(make_paged_attention_block(BlockConfig{}), tp_device(world_size), tp_config());
     auto request = compiled.create_infer_request();
 
     BlockConfig config;
@@ -269,7 +266,7 @@ TEST_F(TPPagedAttentionTest, MatchesSingleGpuOnAPrefill) {
     auto reference_model = core.compile_model(model, "GPU", gpu_config());
     auto reference = reference_model.create_infer_request();
 
-    auto parallel_model = core.compile_model(model, "TP", tp_config());
+    auto parallel_model = core.compile_model(model, tp_device(world_size), tp_config());
     auto parallel = parallel_model.create_infer_request();
 
     auto controller = controller_of(parallel_model);
@@ -303,7 +300,7 @@ TEST_F(TPPagedAttentionTest, MatchesSingleGpuAcrossTwoSteps) {
     auto reference_model = core.compile_model(model, "GPU", gpu_config());
     auto reference = reference_model.create_infer_request();
 
-    auto parallel_model = core.compile_model(model, "TP", tp_config());
+    auto parallel_model = core.compile_model(model, tp_device(world_size), tp_config());
     auto parallel = parallel_model.create_infer_request();
 
     auto controller = controller_of(parallel_model);

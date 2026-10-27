@@ -72,7 +72,7 @@ They are plugin options, not bare environment reads: the table lives in
 getter, a default, validation, and environment and config-file support. An
 option's environment variable is `OV_` plus its property key.
 
-Public properties (`TP_SIZE`, `DEVICE_IDS`, `COMMUNICATION_TIMEOUT_MS`) are
+The device list (`"TP:GPU.0,GPU.1"`) and `COMMUNICATION_TIMEOUT_MS` are
 documented in [USER_GUIDE.md § Configuration Properties](USER_GUIDE.md#configuration-properties).
 Everything below is reachable through the environment or a config file only.
 

@@ -85,6 +85,10 @@ private:
     /// in `forwarded`, ready for the per-rank GPU compilations.
     void build_call_config(const ov::AnyMap& properties, TPConfig& config, ov::AnyMap& forwarded) const;
 
+    /// The rank devices a model is compiled for, checked against what this
+    /// plugin can run ranks on.
+    std::vector<std::string> resolve_rank_devices(const TPConfig& config) const;
+
     /// Only ever holds what was explicitly set -- defaults, environment and
     /// config file are resolved per call.
     TPConfig m_config;

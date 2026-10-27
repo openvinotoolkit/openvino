@@ -18,8 +18,7 @@
 // `TP_HALVING_MAX_BYTES` is set through `OV_TP_HALVING_MAX_BYTES`.
 
 // Namespace, property name, default value, [validator], description
-OV_CONFIG_RELEASE_OPTION(ov::tp, tp_size, 0u, "Number of tensor-parallel ranks used for inference.")
-OV_CONFIG_RELEASE_OPTION(ov::tp, device_ids, std::vector<std::string>{}, "Explicit per-rank device names, e.g. {\"GPU.0\", \"GPU.1\"}. Defaults to GPU.0 .. GPU.{TP_SIZE-1}")
+OV_CONFIG_RELEASE_OPTION(ov::device, priorities, "", "Rank devices, one rank per entry in rank order; set through the device name, e.g. \"TP:GPU.0,GPU.1\"")
 OV_CONFIG_RELEASE_OPTION(ov::tp, communication_timeout_ms, 5000u, "Milliseconds a rank waits inside a collective before the whole group is aborted. 0 waits indefinitely")
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp, enable_halving, true, "Use recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes")
