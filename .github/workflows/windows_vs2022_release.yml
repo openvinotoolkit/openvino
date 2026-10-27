@@ -34,6 +34,7 @@ jobs:
     if: github.event.pull_request.draft == false || github.run_attempt > 1
     outputs:
       affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
       skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
       target_branch: ${{ steps.set_target_branch.outputs.target_branch }}
     steps:
@@ -560,13 +561,14 @@ jobs:
     if: >-
       ${{
         fromJSON(needs.smart_ci.outputs.affected_components).NPU.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).JAX_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
+        fromJSON(needs.smart_ci.outputs.changed_components).TF_FE ||
+        fromJSON(needs.smart_ci.outputs.changed_components).JAX_FE ||
+        fromJSON(needs.smart_ci.outputs.changed_components).PyTorch_FE
       }}
     with:
       runner: 'aks-win-4-cores-8gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      changed-components: ${{ needs.smart_ci.outputs.changed_components }}
 
   CXX_Unit_Tests:
     name: C++ unit tests
