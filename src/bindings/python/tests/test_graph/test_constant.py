@@ -814,3 +814,33 @@ def test_const_from_tensor_with_shared_memory_by_default():
     arr += 1
     assert np.array_equal(ov_const.data, arr)
     assert np.shares_memory(arr, ov_const.data)
+
+
+@pytest.mark.parametrize(
+    ("src_dtype", "ov_type"),
+    [
+        (np.float16, Type.f16),
+        (np.float32, Type.f32),
+        (np.int8, Type.i8),
+        (np.uint16, Type.u16),
+        (np.bool_, Type.boolean),
+    ],
+)
+@pytest.mark.parametrize(
+    "make_view",
+    [
+        lambda arr: arr[:, ::2],
+        lambda arr: arr.T,
+        lambda arr: arr[::-1],
+    ],
+)
+def test_constant_from_non_contiguous_array_keeps_type(src_dtype, ov_type, make_view):
+    arr = make_view(np.arange(24).reshape(4, 6).astype(src_dtype))
+    assert not arr.flags["C_CONTIGUOUS"]
+
+    ov_const = ops.constant(arr)
+
+    assert ov_const.get_element_type() == ov_type
+    assert list(ov_const.shape) == list(arr.shape)
+    assert ov_const.data.dtype == arr.dtype
+    assert np.array_equal(ov_const.data, arr)
