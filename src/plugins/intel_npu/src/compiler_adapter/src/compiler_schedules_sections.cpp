@@ -115,7 +115,10 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFMainScheduleSecti
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::decode");
     const Logger logger("ELFMainScheduleSection", Logger::global().level());
     // TODO test these
-    OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::ELF_MAIN_SCHEDULE),
+    // The dynamic schedule section leverages the ELF main schedule one. So, the tag of the section may be either of
+    // these two.
+    OPENVINO_ASSERT(section.tag().id() == static_cast<uint32_t>(SectionTypeCode::ELF_MAIN_SCHEDULE) ||
+                        section.tag().id() == static_cast<uint32_t>(SectionTypeCode::DYNAMIC_SCHEDULE),
                     "Logic error: the decoder received a section of the wrong type");
     OPENVINO_ASSERT(section.tag().is_pointer(), "Logic error: the payload is inline");
 
@@ -276,10 +279,11 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> ELFInitSchedulesSect
 
     // TODO comment
     offset = section.size() - sizeof(number_of_inits) - number_of_inits * SIZE_OF_INIT_SCHEDULE_SIZE;
+    uint16_t remaining_inits = number_of_inits;
     size_t total_init_sizes = 0;
     std::vector<uint64_t> init_sizes;
     uint64_t value;
-    while (number_of_inits--) {
+    while (remaining_inits--) {
         section.read(offset, sizeof(value), &value);
         offset += sizeof(value);
         init_sizes.push_back(value);

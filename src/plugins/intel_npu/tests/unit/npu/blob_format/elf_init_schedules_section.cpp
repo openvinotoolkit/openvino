@@ -110,7 +110,7 @@ TEST_F(ELFInitSchedulesSectionTest, InvalidStateWrite) {
     const std::shared_ptr<ELFInitSchedulesSection> section = create_section_using_dummy_content();
     std::ostringstream stream;
     // Invalid state. The attribute should have been a graph
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    OV_EXPECT_THROW(section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream)), ov::Exception, _);
 }
 
 TEST_F(ELFInitSchedulesSectionTest, DecryptThrowsIfMissingCallback) {
@@ -164,10 +164,9 @@ TEST_F(ELFInitSchedulesSectionTest, ReadingATooSmallSection) {
 }
 
 TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooBig) {
-    std::string section_content("\x02\x00", 2);                             // number of inits
+    std::string section_content("dummy");                                   // the content of init schedule 1
     section_content += std::string("\x05\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
-    section_content += std::string("\x00\x00", 2);                          // padding size
-    section_content += "dummy";                                             // the content of init schedule 1
+    section_content += std::string("\x02\x00", 2);                          // number of inits
 
     ov::runtime::hsm::ManifestEntry manifest_entry =
         ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
@@ -187,10 +186,9 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooBig) {
 }
 
 TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooSmall) {
-    std::string section_content("\x00\x00", 2);                             // number of inits
+    std::string section_content("dummy");                                   // the content of init schedule 1
     section_content += std::string("\x05\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
-    section_content += std::string("\x00\x00", 2);                          // padding size
-    section_content += "dummy";                                             // the content of init schedule 1
+    section_content += std::string("\x00\x00", 2);                          // number of inits
 
     ov::runtime::hsm::ManifestEntry manifest_entry =
         ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
@@ -209,11 +207,12 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooSmall) {
     ASSERT_FALSE(read_section);
 }
 
+// TODO test that checks page alignment using the OV HSM writer/reader
+// TODO compare the coverage with the old branch
 TEST_F(ELFInitSchedulesSectionTest, ReadInitSizeTooBig) {
-    std::string section_content("\x01\x00", 2);                             // number of inits
+    std::string section_content("dummy");                                   // the content of init schedule 1
     section_content += std::string("\x06\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
-    section_content += std::string("\x00\x00", 2);                          // padding size
-    section_content += "dummy";                                             // the content of init schedule 1
+    section_content += std::string("\x01\x00", 2);                          // number of inits
 
     ov::runtime::hsm::ManifestEntry manifest_entry =
         ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
@@ -233,12 +232,11 @@ TEST_F(ELFInitSchedulesSectionTest, ReadInitSizeTooBig) {
 }
 
 TEST_F(ELFInitSchedulesSectionTest, ReadIntegerOverflow) {
-    std::string section_content("\x02\x00", 2);                             // number of inits
+    std::string section_content("dummy");                                   // the content of init schedule 1
+    section_content += "dummy";                                             // the content of init schedule 2
     section_content += std::string("\x05\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
     section_content += std::string("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 8);  // the size of init schedule 2
-    section_content += std::string("\x00\x00", 2);                          // padding size
-    section_content += "dummy";                                             // the content of init schedule 1
-    section_content += "dummy";                                             // the content of init schedule 2
+    section_content += std::string("\x02\x00", 2);                          // number of inits
 
     ov::runtime::hsm::ManifestEntry manifest_entry =
         ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
@@ -260,9 +258,8 @@ TEST_F(ELFInitSchedulesSectionTest, ReadIntegerOverflow) {
 TEST_F(ELFInitSchedulesSectionTest, ReadEmptySchedule) {
     std::shared_ptr<ELFInitSchedulesSection> casted_section;
 
-    std::string section_content("\x01\x00", 2);                             // number of inits
-    section_content += std::string("\x00\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
-    section_content += std::string("\x00\x00", 2);                          // padding size
+    std::string section_content("\x00\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
+    section_content += std::string("\x01\x00", 2);                       // number of inits
 
     ov::runtime::hsm::ManifestEntry manifest_entry =
         ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
@@ -287,29 +284,6 @@ TEST_F(ELFInitSchedulesSectionTest, ReadEmptySchedule) {
     ASSERT_TRUE(casted_section);
     ASSERT_EQ(casted_section->get_schedules().size(), 1);
     ASSERT_EQ(casted_section->get_schedules().at(0).get_byte_size(), 0);
-}
-
-TEST_F(ELFInitSchedulesSectionTest, ReadPaddingTooBig) {
-    std::string section_content("\x01\x00", 2);                             // number of inits
-    section_content += std::string("\x05\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
-    section_content += std::string("\x06\x00", 2);                          // padding size
-    section_content += "dummy";                                             // the content of init schedule 1
-
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
-    manifest_entry.size = section_content.size();
-
-    auto read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(
-        manifest_entry,
-        ov::util::MemoryView(reinterpret_cast<const std::byte*>(section_content.data()), section_content.size())));
-    ASSERT_FALSE(read_section);
-
-    std::istringstream stream(section_content);
-    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
-    manifest_entry.size = section_content.size();
-
-    read_section = ELFInitSchedulesSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
-    ASSERT_FALSE(read_section);
 }
 
 TEST_F(ELFInitSchedulesSectionTest, WrongTagToDecoder) {
@@ -336,31 +310,30 @@ TEST_F(ELFInitSchedulesSectionTest, InlineTagToDecoder) {
                     testing::_);
 }
 
-class ELFInitSchedulesSectionReadTest : public testing::TestWithParam<std::tuple<size_t, bool, bool>> {
+class ELFInitSchedulesSectionReadTest : public testing::TestWithParam<std::tuple<bool, bool>> {
 public:
     ELFInitSchedulesSectionReadTest() : section({}) {}
 
-    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<size_t, bool, bool>>& obj) {
-        size_t padding_size;
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<bool, bool>>& obj) {
         bool tensor_source;
         bool empty_schedule;
-        std::tie(padding_size, tensor_source, empty_schedule) = obj.param;
+        std::tie(tensor_source, empty_schedule) = obj.param;
 
-        return std::to_string(padding_size) + "_" + (tensor_source ? "tensor" : "stream") + "_" +
-               (empty_schedule ? "empty" : "not_empty");
+        return std::string(tensor_source ? "tensor" : "stream") + "_" + (empty_schedule ? "empty" : "not_empty");
     }
 
 protected:
     void SetUp() override {
-        uint16_t padding_size;
-        std::tie(padding_size, is_tensor_source, is_empty) = GetParam();
+        std::tie(is_tensor_source, is_empty) = GetParam();
 
         if (is_empty) {
             section_content = std::string(reinterpret_cast<const char*>(&NO_INIT_SCHEDULE_SERIALIZED_VALUE),
                                           sizeof(NO_INIT_SCHEDULE_SERIALIZED_VALUE));
         } else {
-            section_content = std::string(reinterpret_cast<const char*>(&TWO_INIT_SCHEDULES_SERIALIZED_VALUE),
-                                          sizeof(TWO_INIT_SCHEDULES_SERIALIZED_VALUE));
+            section_content = COMPILER_SCHEDULES_CONTENT.at(0);
+            after_schedule1_offset = section_content.size();
+            section_content += COMPILER_SCHEDULES_CONTENT.at(1);
+            after_schedule2_offset = section_content.size();
 
             uint64_t size_of_init_schedule_1 = COMPILER_SCHEDULES_CONTENT.at(0).size();
             uint64_t size_of_init_schedule_2 = COMPILER_SCHEDULES_CONTENT.at(1).size();
@@ -369,12 +342,8 @@ protected:
             section_content +=
                 std::string(reinterpret_cast<char*>(&size_of_init_schedule_2), sizeof(size_of_init_schedule_2));
 
-            section_content += std::string(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
-            section_content += std::string(padding_size, 0);
-            after_padding_offset = section_content.size();
-            section_content += COMPILER_SCHEDULES_CONTENT.at(0);
-            after_schedule1_offset = section_content.size();
-            section_content += COMPILER_SCHEDULES_CONTENT.at(1);
+            section_content += std::string(reinterpret_cast<const char*>(&TWO_INIT_SCHEDULES_SERIALIZED_VALUE),
+                                           sizeof(TWO_INIT_SCHEDULES_SERIALIZED_VALUE));
         }
 
         ov::runtime::hsm::ManifestEntry manifest_entry =
@@ -394,8 +363,8 @@ protected:
     bool is_tensor_source;
     bool is_empty;
     std::string section_content;
-    size_t after_padding_offset;
     size_t after_schedule1_offset;
+    size_t after_schedule2_offset;
     std::istringstream stream;
     ov::runtime::hsm::Section section;
 };
@@ -409,38 +378,31 @@ TEST_P(ELFInitSchedulesSectionReadTest, SuccessfulRead) {
     if (is_empty) {
         ASSERT_EQ(casted_section->get_schedules().size(), 0);
     } else {
-        const std::string parsed_schedule1(casted_section->get_schedules().at(0).data<char>(),
-                                           casted_section->get_schedules().at(0).get_byte_size());
-        const std::string parsed_schedule2(casted_section->get_schedules().at(1).data<char>(),
-                                           casted_section->get_schedules().at(1).get_byte_size());
-        // The padding should be skipped by the parser
+        const ov::Tensor tensor1 = casted_section->get_schedules().at(0);
+        const ov::Tensor tensor2 = casted_section->get_schedules().at(1);
+
+        const std::string parsed_schedule1(tensor1.data<char>(), tensor1.get_byte_size());
+        const std::string parsed_schedule2(tensor2.data<char>(), tensor2.get_byte_size());
         ASSERT_EQ(parsed_schedule1,
-                  std::string(section_content.begin() + after_padding_offset,
-                              section_content.begin() + after_schedule1_offset));
+                  std::string(section_content.begin(), section_content.begin() + after_schedule1_offset));
         ASSERT_EQ(parsed_schedule2,
-                  std::string(section_content.begin() + after_schedule1_offset, section_content.end()));
+                  std::string(section_content.begin() + after_schedule1_offset,
+                              section_content.begin() + after_schedule2_offset));
 
         if (is_tensor_source) {
-            // The parsed content should point towards the original buffer (past the padding region). This implies no
+            // The parsed content should point towards the original buffer. This implies no
             // copies have been performed, and page aligment has been preserved.
-            ASSERT_EQ(casted_section->get_schedules().at(0).data(), section_content.data() + after_padding_offset);
-            ASSERT_EQ(casted_section->get_schedules().at(1).data(), section_content.data() + after_schedule1_offset);
+            ASSERT_EQ(tensor1.data(), section_content.data());
+            ASSERT_EQ(tensor2.data(), section_content.data() + after_schedule1_offset);
         } else {
             // Stream case: a page aligned buffer should have been allocated for the parsed content
-            ASSERT_EQ(
-                reinterpret_cast<size_t>(casted_section->get_schedules().at(0).data()) % utils::STANDARD_PAGE_SIZE,
-                0);
+            ASSERT_EQ(reinterpret_cast<size_t>(tensor1.data()) % utils::STANDARD_PAGE_SIZE, 0);
         }
     }
 }
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,
                          ELFInitSchedulesSectionReadTest,
-                         testing::Combine(testing::ValuesIn(std::vector<size_t>{0,
-                                                                                1,
-                                                                                utils::STANDARD_PAGE_SIZE - 1,
-                                                                                utils::STANDARD_PAGE_SIZE,
-                                                                                utils::STANDARD_PAGE_SIZE + 1}),
-                                          testing::ValuesIn(std::vector<bool>{true, false}),
+                         testing::Combine(testing::ValuesIn(std::vector<bool>{true, false}),
                                           testing::ValuesIn(std::vector<bool>{true, false})),
                          ELFInitSchedulesSectionReadTest::getTestCaseName);

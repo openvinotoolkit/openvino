@@ -91,7 +91,8 @@ TEST_F(DynamicScheduleSectionTest, InvalidStateWrite) {
     const std::shared_ptr<DynamicScheduleSection> section = create_section_using_dummy_content();
     std::ostringstream stream;
     // Invalid state. The attribute should have been a graph
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    // TODO consider adding error messages to asserts
+    OV_EXPECT_THROW(section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream)), ov::Exception, _);
 }
 
 TEST_F(DynamicScheduleSectionTest, DecryptThrowsIfMissingCallback) {

@@ -91,7 +91,7 @@ TEST_F(ELFMainScheduleSectionTest, InvalidStateWrite) {
     const std::shared_ptr<ELFMainScheduleSection> section = create_section_using_dummy_content();
     std::ostringstream stream;
     // Invalid state. The attribute should have been a graph
-    section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream));
+    OV_EXPECT_THROW(section->encode(ov::unit_test::intel_npu::create_generic_section_sink(stream)), ov::Exception, _);
 }
 
 TEST_F(ELFMainScheduleSectionTest, DecryptThrowsIfMissingCallback) {
