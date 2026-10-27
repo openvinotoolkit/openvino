@@ -12,10 +12,10 @@
 //     `history_len - key_length`, and a left-padding query (`q_abs < 0`) attends nothing;
 //   - K/V for one (batch, kv_head) is one contiguous `[history_len, head_size]` region,
 //     so the "coalesced 16-row step" fast path has no page-boundary term;
-//   - Q for one token is `HEADS` rows of a `[B, Hq, L, Dh]` buffer, `row_pitch =
-//     seq_len * Dh` apart (heads are NOT interleaved per token in this layout, unlike
-//     paged's single `[tokens, Hq*Dh]` buffer) - still exactly one 2D block load, just
-//     with a different (runtime) row pitch and no q_base/q_pitch scalars at all;
+//   - Q for one token is `HEADS` rows of a `[B, Hq, L, Dh]` buffer, `seq_len * Dh`
+//     elements apart (heads are NOT interleaved per token in this layout, unlike
+//     paged's single `[tokens, Hq*Dh]` buffer), loaded per head (see the Q load below)
+//     with no q_base/q_pitch scalars at all;
 //   - the selection plan is read using the flat row index `row = batch*seq_len + l`.
 //
 // JIT constants: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE,
@@ -153,16 +153,22 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     cmtl::cm_vector_assign(lane.select_all(), 0, 1);
     const vector<ushort, 16> valid_head = lane < HEADS;
 
-    // Memory ROWS are heads of this ONE token: in [B,Hq,L,Dh], consecutive heads of one
-    // (batch, l) are seq_len*Dh elements apart (heads are not interleaved per token, as
-    // paged's single [tokens, Hq*Dh] buffer is) - still exactly one 2D block load, with a
-    // runtime row pitch instead of a compile-time-contiguous one.
+    // In [B,Hq,L,Dh] consecutive heads of one (batch, l) are seq_len*Dh elements apart. That
+    // pitch exceeds the 2D block descriptor limit (16 MiB) from seq_len = 32768 on, so each
+    // head's 16-half K slice is loaded separately and written as one column of the
+    // VNNI-transposed B tile (dword j of column h = halves 2j,2j+1 of head h); columns
+    // >= HEADS stay zero.
     const half* q_base_ptr = query + ((batch * HQ + head_base) * (uint)seq_len + l) * DH;
-    const uint q_row_pitch_bytes = seq_len * DH * (uint)sizeof(half);
-    matrix<half, GQA_KT, 16 * 16> rq;
+    matrix<half, GQA_KT, 16 * 16> rq = (half)0.0f;
 #pragma unroll
     for (uint k = 0; k < GQA_KT; k++) {
-        qsa_dpas::load_vnni_tile(rq.row(k), q_base_ptr, HEADS, q_row_pitch_bytes, DH * (uint)sizeof(half), worker * GQA_DH + k * 16);
+        auto cols = rq.row(k).format<uint, 8, 16>();
+#pragma unroll
+        for (uint h = 0; h < HEADS; h++) {
+            vector<half, 16> qh;
+            qsa_gr::load_hv<16>(qh, q_base_ptr, h * (uint)seq_len * DH + worker * GQA_DH + k * 16);
+            cols.select<8, 1, 1, 1>(0, h) = qh.format<uint>();
+        }
         rq.row(k) = cm_mul<half>(rq.row(k), (half)((float)QSA_SCALE * 1.4426950408889634f));
     }
     vector<float, 16> running_max = GQA_NEG_INF, running_sum = 0.0f;
