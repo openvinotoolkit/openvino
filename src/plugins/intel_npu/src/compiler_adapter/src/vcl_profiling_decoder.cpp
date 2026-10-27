@@ -9,6 +9,8 @@
 #include <ze_graph_profiling_ext.h>
 
 #include <cstring>
+#include <memory>
+#include <type_traits>
 
 #include "intel_npu/profiling.hpp"
 #include "vcl_error_utils.hpp"
@@ -40,6 +42,13 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
                           "vclProfilingCreate",
                           _functions->vclProfilingCreate(&profilingInput, &profilingHandle, &logHandle),
                           nullptr);
+    // Destroys the handle if a later step throws. The success path releases it and destroys it explicitly, so a
+    // destroy failure there is still reported.
+    auto profilingHandleDeleter = [functions = _functions](vcl_profiling_handle_t handle) {
+        functions->vclProfilingDestroy(handle);  // best-effort: runs during stack unwinding, must not throw
+    };
+    std::unique_ptr<std::remove_pointer_t<vcl_profiling_handle_t>, decltype(profilingHandleDeleter)>
+        profilingHandleGuard(profilingHandle, profilingHandleDeleter);
 
     vcl_profiling_properties_t profProperties;
     THROW_ON_FAIL_FOR_VCL(*_functions,
@@ -72,7 +81,7 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
 
     THROW_ON_FAIL_FOR_VCL(*_functions,
                           "vclProfilingDestroy",
-                          _functions->vclProfilingDestroy(profilingHandle),
+                          _functions->vclProfilingDestroy(profilingHandleGuard.release()),
                           logHandle);
 
     // Return processed profiling info
