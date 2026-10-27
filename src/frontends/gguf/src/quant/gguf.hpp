@@ -95,7 +95,7 @@ using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::vector<std::shared_ptr<ov::MappedMemory>>>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
-// (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights; Q1_0: u1 weights).
+// (Q8_0/Q8_1/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights; Q1_0: u1 weights).
 // Integer weights are centered during unpacking; Q1_0 keeps binary codes and applies 2 * bit - 1 in the graph.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
 
@@ -126,6 +126,8 @@ bool requantize_q8_0_channelwise_faithful(const GgufTensor& tensor,
                                           GgufTensorType qtype,
                                           int8_t* out_weights,
                                           ov::float16* out_scales);
+
+void gguf_fill_q5_k_i8(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
 
 // Test-only accessors for the per-row faithful K-quant dequant (see test_dequant_vs_ggml.cpp).
 void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
