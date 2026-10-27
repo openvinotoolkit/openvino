@@ -9,13 +9,13 @@
 #include <numeric>
 
 #include "cpu_parallel.hpp"
+#include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
-#    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #endif
 
 // Defined outside XARCH, like QuantizeParam, so the cross-compiled dispatcher can name it in the signature.
@@ -40,59 +40,11 @@ struct SparsePAQuant {
     }
 };
 
-/// @brief Query heads that share both K/V rows and the selected blocks, so a work item can process them together:
-/// q_head_pack_size = gcd(q_heads_per_k_head, q_heads_per_sel_head) with q_heads_per_k_head = q_head_num / k_head_num
-/// and q_heads_per_sel_head = q_head_num / sel_head_num (query head h reads K head h / q_heads_per_k_head and uses
-/// selection head h / q_heads_per_sel_head). sel_head_num of 1 or k_head_num gives the whole K-head group, q_head_num
-/// gives 1.
-inline size_t max_q_head_pack_size(size_t q_head_num, size_t k_head_num, size_t sel_head_num) {
-    return std::gcd(q_head_num / k_head_num, q_head_num / sel_head_num);
-}
-
-/// @brief Optional AMX matrix-matrix path for prefill (see sparse_pa_kernel.cpp): oneDNN brgemm kernels (BrgemmKernel)
-/// whose M is the query-head pack. Null when the node did not build them (no AMX, data type other than bf16/f16, pack
-/// of one head).
-struct SparsePABrgemm {
-    void* qk = nullptr;         ///< scores[pack, 32 rows] = query[pack, k_head_size] x keys[32 rows, k_head_size]^T
-    void* pv = nullptr;         ///< acc[pack, v_head_size] = weights[pack, 32 rows] x values[32 rows, v_head_size]
-    void* pv_acc = nullptr;     ///< the same, accumulating into acc
-    size_t weights_stride = 0;  ///< floats per head row of the weights buffer: the padded row capacity of one item
-    [[nodiscard]] bool enabled() const {
-        return qk != nullptr;
-    }
-};
-
-/// @brief Scratch sizes of the brgemm kernels (bytes), used by SparsePAScratchLayout.
-struct SparsePABrgemmSizes {
-    size_t weights_stride = 0;  ///< 0 when the brgemm path is not used
-    size_t scratch_a = 0;
-    size_t scratch_b = 0;
-    size_t wsp = 0;
-};
-
-/// @brief Scratch the brgemm kernels of `brgemm` need per thread (zeros when the path is not used).
-inline SparsePABrgemmSizes sparse_pa_brgemm_sizes([[maybe_unused]] const SparsePABrgemm& brgemm) {
-#ifdef OPENVINO_ARCH_X86_64
-    if (brgemm.enabled()) {
-        const auto* qk = static_cast<const ov::intel_cpu::BrgemmKernel*>(brgemm.qk);
-        const auto* pv = static_cast<const ov::intel_cpu::BrgemmKernel*>(brgemm.pv);
-        return {brgemm.weights_stride,
-                std::max(qk->get_scratch_a_size(), pv->get_scratch_a_size()),
-                std::max(qk->get_scratch_b_size(), pv->get_scratch_b_size()),
-                ov::intel_cpu::BrgemmKernel::get_wsp_size()};
-    }
-#endif
-    return {};
-}
-
 /// @brief Byte layout of the per-thread scratch of the sparse PA kernel. The node allocates one such block per worker
 /// thread (so nothing is allocated while computing) and the kernel carves it up with the same layout. Every part is
 /// 64-byte aligned. Sizes are for the largest query-head pack, max_q_head_pack_size().
 struct SparsePAScratchLayout {
     size_t q = 0;            ///< float[pack, k_head_size]: query rows of the pack, f32
-    size_t acc = 0;          ///< float[pack, v_head_size]: attention accumulators
-    size_t running_max = 0;  ///< float[pack]: online-softmax maximum per query head
-    size_t running_sum = 0;  ///< float[pack]: online-softmax sum per query head
     size_t scores = 0;       ///< float[pack, max_run_rows]: scores, then weights, of a run of key rows
     size_t raw = 0;          ///< float[pack, 4 * amx_unit_blocks * key_block_size]: AMX chunk scores / weights
     size_t runs = 0;         ///< 3 * int64[max_selected_blocks]: AMX run decomposition
@@ -100,13 +52,8 @@ struct SparsePAScratchLayout {
     size_t v_run = 0;        ///< quantized caches, pack > 1: float[max_run_rows, v_head_size] dequantized value run
     size_t k_dq = 0;         ///< quantized + AMX: data-type[4 * amx_unit_blocks * key_block_size, k_head_size]
     size_t v_dq = 0;         ///< quantized + AMX: data-type[4 * amx_unit_blocks * key_block_size, v_head_size]
-    size_t k_rows = 0;       ///< brgemm: data-type[weights_stride, k_head_size] gathered key rows of the item
-    size_t v_rows = 0;       ///< brgemm: data-type[weights_stride, v_head_size] gathered value rows of the item
-    size_t weights = 0;      ///< brgemm: float[pack, weights_stride] scores, then (data type) weights
-    size_t brg_a = 0;        ///< brgemm: A scratch
-    size_t brg_b = 0;        ///< brgemm: packed B scratch
-    size_t brg_wsp = 0;      ///< brgemm: workspace
-    size_t total = 0;        ///< bytes per thread
+    SparseBrgemmLayout brgemm;  ///< the tile buffers of the brgemm path
+    size_t total = 0;           ///< bytes per thread
 
     /// @param max_run_rows most key rows of one run: the page size when adjacent selected blocks are merged inside a
     /// page, key_block_size when they are not
@@ -122,36 +69,27 @@ struct SparsePAScratchLayout {
                           size_t max_pack_size,
                           size_t data_size,
                           const SparsePAQuant& quant,
-                          const SparsePABrgemmSizes& brgemm = {}) {
+                          const SparseBrgemmSizes& brgemm_sizes = {}) {
         const size_t amx_rows = amx_unit_blocks * 4 * key_block_size;  // 0 when AMX is not used
         const bool amx_quant = amx_unit_blocks != 0 && quant.enabled();
         // Quantized keys are dequantized to f32 for by-channel keys and for packs; values for packs.
         const size_t k_run_rows = quant.enabled() && (quant.key_bychannel || max_pack_size > 1) ? max_run_rows : 0;
         const size_t v_run_rows = quant.enabled() && max_pack_size > 1 ? max_run_rows : 0;
         q = 0;
-        acc = q + aligned(max_pack_size * k_head_size * sizeof(float));
-        running_max = acc + aligned(max_pack_size * v_head_size * sizeof(float));
-        running_sum = running_max + aligned(max_pack_size * sizeof(float));
-        scores = running_sum + aligned(max_pack_size * sizeof(float));
+        scores = q + aligned(max_pack_size * k_head_size * sizeof(float));
         raw = scores + aligned(max_pack_size * max_run_rows * sizeof(float));
         runs = raw + aligned(max_pack_size * amx_rows * sizeof(float));
         k_run = runs + aligned(amx_unit_blocks != 0 ? 3 * max_selected_blocks * sizeof(int64_t) : 0);
         v_run = k_run + aligned(k_run_rows * k_head_size * sizeof(float));
         k_dq = v_run + aligned(v_run_rows * v_head_size * sizeof(float));
         v_dq = k_dq + aligned(amx_quant ? amx_rows * k_head_size * data_size : 0);
-        k_rows = v_dq + aligned(amx_quant ? amx_rows * v_head_size * data_size : 0);
-        v_rows = k_rows + aligned(brgemm.weights_stride * k_head_size * data_size);
-        weights = v_rows + aligned(brgemm.weights_stride * v_head_size * data_size);
-        brg_a = weights + aligned(max_pack_size * brgemm.weights_stride * sizeof(float));
-        brg_b = brg_a + aligned(brgemm.scratch_a);
-        brg_wsp = brg_b + aligned(brgemm.scratch_b);
-        total = brg_wsp + aligned(brgemm.wsp);
-    }
-
-private:
-    static constexpr size_t alignment = 64;
-    static size_t aligned(size_t bytes) {
-        return ov::intel_cpu::div_up(bytes, alignment) * alignment;
+        brgemm = SparseBrgemmLayout(v_dq + aligned(amx_quant ? amx_rows * v_head_size * data_size : 0),
+                                    k_head_size,
+                                    v_head_size,
+                                    max_pack_size,
+                                    data_size,
+                                    brgemm_sizes);
+        total = brgemm.total;
     }
 };
 
@@ -189,9 +127,10 @@ void sparse_pa_compute(const ov::intel_cpu::PlainTensor& query,
                        void* gemv_qk4,
                        size_t amx_unit_blocks,
                        size_t max_run_rows,
-                       const SparsePABrgemm& brgemm,
+                       const SparseBrgemm& brgemm,
                        uint8_t* scratch,
                        size_t scratch_bytes_per_thread,
+                       int32_t* token_ids,
                        const ov::intel_cpu::CpuParallelPtr& cpu_parallel);
 
 }  // namespace ov::Extensions::Cpu::XARCH

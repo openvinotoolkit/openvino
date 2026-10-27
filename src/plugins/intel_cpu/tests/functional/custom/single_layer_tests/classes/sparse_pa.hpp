@@ -41,10 +41,6 @@ struct SparsePAConfig {
     // sequences in one call -- sequence s gets L tokens if s % 3 == 0, a single decode token if s % 3 == 1 and
     // (L + 1) / 2 tokens if s % 3 == 2, so the sequences also have different past lengths.
     bool mixed_lengths = false;
-    // Worker threads of the plugin, 0 for its default. The kernel packs the query heads of a K head into one work item
-    // only when there is enough work for every thread, so a single thread selects the packed path for every shape here
-    // while the default thread count selects it only for large batches.
-    size_t num_threads = 0;
 };
 
 // Data precision (query, key, value, scale, sinks, plain caches and the inference precision), the steps and the config.

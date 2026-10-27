@@ -16,6 +16,7 @@
 #include "node.h"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/sparse_attention.hpp"
@@ -152,6 +153,9 @@ private:
     std::shared_ptr<ov::Extensions::Cpu::JitMatMulVecAMX> m_gemv_qk1;
     std::shared_ptr<ov::Extensions::Cpu::JitMatMulVecAMX> m_gemv_qk4;
     size_t m_amx_unit_blocks = 0;
+    // AMX matrix products of the prefill over a pack of query heads (empty when the node is not eligible: no AMX, a non
+    // bf16/f16 cache, a non-causal op, dynamic head counts or a pack of one head), see SparseBrgemm.
+    ov::Extensions::Cpu::SparseBrgemmKernels m_brgemm;
 #endif
 };
 

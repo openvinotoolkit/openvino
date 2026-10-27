@@ -18,7 +18,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_Hsel1,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(static_cast<size_t>(16)),
                                           testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(std::vector<size_t>{})),
+                                          testing::Values(std::vector<size_t>{}),
+                                          testing::Values(SparseSDPAShape{})),
                          SparseSDPALayerCPUTest::getTestCaseName);
 
 // h_sel == Hkv: one selection head per kv head, exercises the sh = h / (Hq/h_sel) grouping path.
@@ -31,7 +32,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_HselEqualsHkv,
                                           testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
                                           testing::Values(static_cast<size_t>(16)),
                                           testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(std::vector<size_t>{})),
+                                          testing::Values(std::vector<size_t>{}),
+                                          testing::Values(SparseSDPAShape{})),
                          SparseSDPALayerCPUTest::getTestCaseName);
 
 // AMX QK^T fast path: bf16 end-to-end, k_head_size % 32 == 0, sel_block_size == 4 -- the real
@@ -49,7 +51,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_AMX,
                                           // AMX kernel and takes its K-chunk loop.
                                           testing::Values(static_cast<size_t>(32), static_cast<size_t>(256)),
                                           testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(std::vector<size_t>{})),
+                                          testing::Values(std::vector<size_t>{}),
+                                          testing::Values(SparseSDPAShape{})),
                          SparseSDPALayerCPUTest::getTestCaseName);
 
 // Left-padded batches: KEY_LENGTH input present, one entry per batch item (kCacheLen == kL == 40,
@@ -66,7 +69,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_Padded,
                                           testing::Values(static_cast<size_t>(4)),
                                           testing::Values(static_cast<size_t>(16)),
                                           testing::Values(static_cast<size_t>(2)),
-                                          testing::Values(std::vector<size_t>{40, 37, 32, 4})),
+                                          testing::Values(std::vector<size_t>{40, 37, 32, 4}),
+                                          testing::Values(SparseSDPAShape{})),
                          SparseSDPALayerCPUTest::getTestCaseName);
 
 // Same left-padded batches as smoke_SparseSDPA_CPU_Padded, but with the AMX-eligible shape
@@ -83,7 +87,51 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_AMX_Padded,
                                           testing::Values(static_cast<size_t>(4)),
                                           testing::Values(static_cast<size_t>(32)),
                                           testing::Values(static_cast<size_t>(4)),
-                                          testing::Values(std::vector<size_t>{40, 37, 32, 4})),
+                                          testing::Values(std::vector<size_t>{40, 37, 32, 4}),
+                                          testing::Values(SparseSDPAShape{})),
+                         SparseSDPALayerCPUTest::getTestCaseName);
+
+namespace {
+
+SparseSDPALayerTestParams packed_case(size_t h_sel,
+                                      size_t batch,
+                                      size_t k_head_size,
+                                      std::vector<size_t> key_length,
+                                      SparseSDPAShape shape) {
+    return {ov::test::utils::DEVICE_CPU,
+            ov::element::bf16,
+            h_sel,
+            true,
+            batch,
+            k_head_size,
+            4,
+            std::move(key_length),
+            shape};
+}
+
+// AMX prefill over packs of query heads: bf16, sel_block_size 4, causal. The shapes are {seq_len, max_blocks,
+// block_step}. The suites above already run the prefill over the 2 query heads of a K head as brgemm products (the test
+// derives the worker threads from the shape, see SetUp); these add
+//  - a selection of every second block (no adjacent runs) and a selection head per query head (no pack: the per-head
+//  AMX
+//    path);
+//  - prefill lengths around the 32 rows of a brgemm chunk (31, 32) and the 128 rows of a tile (254, 256 tokens: with
+//    adjacent blocks the selection of the token at position p has p + 1 rows, so every row count up to the length
+//    occurs, the tails of every length, a tile that is exactly full and a partial last tile).
+std::vector<SparseSDPALayerTestParams> packed_cases() {
+    return {packed_case(1, 1, 256, {}, {40, 10, 2}),
+            packed_case(4, 1, 32, {}, {40, 10, 1}),
+            packed_case(1, 1, 32, {}, {31, 128, 1}),
+            packed_case(1, 1, 32, {}, {32, 128, 1}),
+            packed_case(1, 1, 32, {}, {254, 128, 1}),
+            packed_case(1, 1, 256, {}, {256, 128, 1})};
+}
+
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_AMX_Packed,
+                         SparseSDPALayerCPUTest,
+                         testing::ValuesIn(packed_cases()),
                          SparseSDPALayerCPUTest::getTestCaseName);
 
 }  // namespace test

@@ -7,6 +7,7 @@
 #include <cstdint>
 
 #include "cpu_parallel.hpp"
+#include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
@@ -71,6 +72,10 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          size_t amx_unit_blocks,
                          int64_t* scratch_runs,
                          size_t runs_per_thread,
+                         const SparseBrgemm& brgemm,
+                         const SparseBrgemmLayout& brgemm_layout,
+                         uint8_t* brgemm_scratch,
+                         size_t brgemm_bytes_per_thread,
                          const int32_t* key_length,
                          size_t key_length_batch_stride,
                          const SparseKVQuant& key_quant,

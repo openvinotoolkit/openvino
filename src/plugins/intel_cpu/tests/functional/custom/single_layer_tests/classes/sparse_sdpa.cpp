@@ -19,27 +19,20 @@
 
 namespace {
 
-// Fixed small configuration exercised by this test: B independent batch items, each with its own
-// dense [Hkv, S, D] K/V history and L query positions. S == L (kCacheLen == kL), so the
-// bottom-right-aligned logical position q_abs = S - L + l reduces to q_abs == l, matching a
-// straightforward causal prefill over the whole history. k_head_size / sel_block_size are
-// parameterized (see SparseSDPALayerTestParams) so the AMX QK^T fast path -- which requires
-// k_head_size % 32 == 0 && k_head_size <= 192, merging adjacent selected blocks up to a 16-row
-// multiple when sel_block_size itself isn't one (see m_amx_unit_blocks in sparse_sdpa.cpp) -- can
-// be exercised by a dedicated instantiation without touching the other dimensions below. The
-// synthetic selection below selects up to kKmax immediately-preceding complete blocks (ascending,
-// duplicate-free, matching the real producer contract), so query rows near the end of the sequence
-// build up a long run of physically-adjacent selected blocks; kL=40 together with kKmax=10 gives
-// the sel_block_size == 4 AMX instantiation a run of up to 9 adjacent blocks for its largest query
-// row -- enough to exercise both a complete 16-row merge-unit AMX chunk and a leftover remainder
-// that falls back to the scalar path, while remaining a harmless shape for the other
-// instantiations' smaller sel_block_size values.
+// Fixed configuration of this test: B independent batch items, each with its own dense [Hkv, S, D] K/V history and L
+// query positions. S == L (see SparseSDPAShape), so the bottom-right-aligned logical position q_abs = S - L + l reduces
+// to q_abs == l, matching a straightforward causal prefill over the whole history. k_head_size / sel_block_size are
+// parameterized (see SparseSDPALayerTestParams) so the AMX paths -- which require k_head_size % 32 == 0, merging
+// adjacent selected blocks up to a 16-row multiple when sel_block_size itself isn't one (see m_amx_unit_blocks in
+// sparse_sdpa.cpp)
+// -- can be exercised by dedicated instantiations. The synthetic selection below selects up to max_blocks complete
+// blocks before the query's own block, block_step apart (ascending, duplicate-free, matching the real producer
+// contract): with step 1 the query rows near the end of the sequence build up a long run of physically-adjacent
+// selected blocks (L = 40 and K_max = 10 give the sel_block_size == 4 AMX instantiation a run of up to 9 adjacent
+// blocks), with step 2 there are none.
 constexpr size_t kHq = 4;
 constexpr size_t kHkv = 2;
 constexpr size_t kDv = 16;
-constexpr size_t kL = 40;
-constexpr size_t kCacheLen = kL;
-constexpr size_t kKmax = 10;
 
 void fill_pseudo_random(std::vector<float>& v, uint32_t seed_base) {
     for (size_t i = 0; i < v.size(); i++) {
@@ -54,11 +47,13 @@ void fill_pseudo_random(std::vector<float>& v, uint32_t seed_base) {
 // Independent (host-vector based) re-implementation of the sparse-pa.rst non-paged consumer
 // spec, used purely as a test oracle -- NOT a copy of the CPU node's PlainTensor-based indexing.
 // `query`/`key`/`value` are plain batched [B, H, {L|S}, D]; `sel_indices`/`sel_count` are
-// [B, h_sel, L, Kmax] / [B, h_sel, L]. Since kCacheLen == kL, the bottom-right-aligned logical
+// [B, h_sel, L, Kmax] / [B, h_sel, L]. Since S == L, the bottom-right-aligned logical
 // position q_abs = S - L + l reduces to q_abs == l. When causal, the current (possibly
 // incomplete) block is never in sel_indices/sel_count -- this oracle derives and attends it
 // itself, matching the CPU node's own automatic tail derivation.
-std::vector<float> run_sparse_sdpa_reference(size_t batch,
+std::vector<float> run_sparse_sdpa_reference(size_t len,
+                                             size_t kmax,
+                                             size_t batch,
                                              size_t h_sel,
                                              bool causal,
                                              size_t k_head_size,
@@ -71,31 +66,30 @@ std::vector<float> run_sparse_sdpa_reference(size_t batch,
                                              const std::vector<int32_t>& sel_count,
                                              const std::vector<size_t>& key_length) {
     auto key_at = [&](size_t b, size_t head, size_t pos) {
-        return &key[((b * kHkv + head) * kCacheLen + pos) * k_head_size];
+        return &key[((b * kHkv + head) * len + pos) * k_head_size];
     };
     auto value_at = [&](size_t b, size_t head, size_t pos) {
-        return &value[((b * kHkv + head) * kCacheLen + pos) * kDv];
+        return &value[((b * kHkv + head) * len + pos) * kDv];
     };
 
-    std::vector<float> output(batch * kHq * kL * kDv, 0.0F);
+    std::vector<float> output(batch * kHq * len * kDv, 0.0F);
     const size_t group = kHq / kHkv;
     const size_t q_per_sel = kHq / h_sel;
     for (size_t b = 0; b < batch; b++) {
         // pad = physically-empty rows at the front of batch b's dense [Hkv, S, D] K/V history;
         // key_length empty means no padding (pad == 0 for every batch), matching today's behavior.
-        const int64_t pad = key_length.empty() ? 0
-                                                : static_cast<int64_t>(kCacheLen) - static_cast<int64_t>(key_length[b]);
-        for (size_t l = 0; l < kL; l++) {
+        const int64_t pad = key_length.empty() ? 0 : static_cast<int64_t>(len) - static_cast<int64_t>(key_length[b]);
+        for (size_t l = 0; l < len; l++) {
             const int64_t token_pos = static_cast<int64_t>(l);
             for (size_t h = 0; h < kHq; h++) {
                 const size_t kv_head = h / group;
                 const size_t sh = h / q_per_sel;
-                const float* q = &query[((b * kHq + h) * kL + l) * k_head_size];
+                const float* q = &query[((b * kHq + h) * len + l) * k_head_size];
                 std::vector<float> acc(kDv, 0.0F);
                 float running_max = -std::numeric_limits<float>::infinity();
                 float running_sum = 0.0F;
                 auto consume = [&](int64_t kpos) {
-                    if (kpos < pad || kpos >= static_cast<int64_t>(kCacheLen)) {
+                    if (kpos < pad || kpos >= static_cast<int64_t>(len)) {
                         return;
                     }
                     if (causal && kpos > token_pos) {
@@ -118,9 +112,9 @@ std::vector<float> run_sparse_sdpa_reference(size_t batch,
                     running_max = new_max;
                 };
 
-                const size_t nblocks = static_cast<size_t>(sel_count[(b * h_sel + sh) * kL + l]);
+                const size_t nblocks = static_cast<size_t>(sel_count[(b * h_sel + sh) * len + l]);
                 for (size_t i = 0; i < nblocks; i++) {
-                    const int64_t block_id = sel_indices[((b * h_sel + sh) * kL + l) * kKmax + i];
+                    const int64_t block_id = sel_indices[((b * h_sel + sh) * len + l) * kmax + i];
                     const int64_t block_start = pad + block_id * static_cast<int64_t>(sel_block_size);
                     for (int64_t p = block_start; p < block_start + static_cast<int64_t>(sel_block_size); p++) {
                         consume(p);
@@ -141,7 +135,7 @@ std::vector<float> run_sparse_sdpa_reference(size_t batch,
 
                 const float inv_sum = running_sum > 0.0F ? 1.0F / running_sum : 0.0F;
                 for (size_t d = 0; d < kDv; d++) {
-                    output[((b * kHq + h) * kL + l) * kDv + d] = acc[d] * inv_sum;
+                    output[((b * kHq + h) * len + l) * kDv + d] = acc[d] * inv_sum;
                 }
             }
         }
@@ -155,11 +149,13 @@ namespace ov {
 namespace test {
 
 std::string SparseSDPALayerCPUTest::getTestCaseName(const testing::TestParamInfo<SparseSDPALayerTestParams>& obj) {
-    const auto& [device, data_precision, h_sel, causal, batch, k_head_size, sel_block_size, key_length] = obj.param;
+    const auto& [device, data_precision, h_sel, causal, batch, k_head_size, sel_block_size, key_length, shape] =
+        obj.param;
     std::string name = "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() +
                        "_Hsel=" + std::to_string(h_sel) + "_Causal=" + std::to_string(causal) +
                        "_Batch=" + std::to_string(batch) + "_Dh=" + std::to_string(k_head_size) +
-                       "_Bk=" + std::to_string(sel_block_size);
+                       "_Bk=" + std::to_string(sel_block_size) + "_Len=" + std::to_string(shape.seq_len) +
+                       "_Kmax=" + std::to_string(shape.max_blocks) + "_Step=" + std::to_string(shape.block_step);
     if (!key_length.empty()) {
         name += "_KeyLength";
         for (auto len : key_length) {
@@ -170,7 +166,8 @@ std::string SparseSDPALayerCPUTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void SparseSDPALayerCPUTest::SetUp() {
-    const auto& [device, data_precision, h_sel, causal, batch, k_head_size, sel_block_size, key_length] = GetParam();
+    const auto& [device, data_precision, h_sel, causal, batch, k_head_size, sel_block_size, key_length, shape] =
+        GetParam();
     targetDevice = device;
     m_data_precision = data_precision;
     m_h_sel = h_sel;
@@ -179,6 +176,7 @@ void SparseSDPALayerCPUTest::SetUp() {
     m_k_head_size = k_head_size;
     m_sel_block_size = sel_block_size;
     m_key_length = key_length;
+    m_shape = shape;
     m_scale = 1.0F / std::sqrt(static_cast<float>(m_k_head_size));
     rel_threshold = 1e-3F;
     abs_threshold = 1e-4F;
@@ -190,12 +188,17 @@ void SparseSDPALayerCPUTest::SetUp() {
         abs_threshold = 1e-3F;
     }
 
-    auto p_query = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{m_batch, kHq, kL, m_k_head_size});
-    auto p_key =
-        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{m_batch, kHkv, kCacheLen, m_k_head_size});
-    auto p_value = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{m_batch, kHkv, kCacheLen, kDv});
-    auto p_sel_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_batch, m_h_sel, kL, kKmax});
-    auto p_sel_count = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_batch, m_h_sel, kL});
+    auto p_query = std::make_shared<ov::op::v0::Parameter>(data_precision,
+                                                           ov::Shape{m_batch, kHq, m_shape.seq_len, m_k_head_size});
+    auto p_key = std::make_shared<ov::op::v0::Parameter>(data_precision,
+                                                         ov::Shape{m_batch, kHkv, m_shape.seq_len, m_k_head_size});
+    auto p_value =
+        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{m_batch, kHkv, m_shape.seq_len, kDv});
+    auto p_sel_indices =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::i32,
+                                                ov::Shape{m_batch, m_h_sel, m_shape.seq_len, m_shape.max_blocks});
+    auto p_sel_count =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_batch, m_h_sel, m_shape.seq_len});
 
     std::vector<ov::Shape> input_shapes = {p_query->get_shape(),
                                            p_key->get_shape(),
@@ -257,14 +260,14 @@ void SparseSDPALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 
     const auto& params = function->get_parameters();
     std::vector<ov::Tensor> tensors(params.size());
-    tensors[0] = make_data(ov::Shape{m_batch, kHq, kL, m_k_head_size}, 1);
+    tensors[0] = make_data(ov::Shape{m_batch, kHq, m_shape.seq_len, m_k_head_size}, 1);
     {
         // Each batch slot gets a distinct seed so a kernel bug that reused batch 0's cache slot
         // for batch 1 produces numerically different (and thus detectable) output.
-        ov::Tensor key(m_data_precision, ov::Shape{m_batch, kHkv, kCacheLen, m_k_head_size});
-        ov::Tensor value(m_data_precision, ov::Shape{m_batch, kHkv, kCacheLen, kDv});
-        const size_t key_per_batch = kHkv * kCacheLen * m_k_head_size;
-        const size_t value_per_batch = kHkv * kCacheLen * kDv;
+        ov::Tensor key(m_data_precision, ov::Shape{m_batch, kHkv, m_shape.seq_len, m_k_head_size});
+        ov::Tensor value(m_data_precision, ov::Shape{m_batch, kHkv, m_shape.seq_len, kDv});
+        const size_t key_per_batch = kHkv * m_shape.seq_len * m_k_head_size;
+        const size_t value_per_batch = kHkv * m_shape.seq_len * kDv;
         std::vector<float> key_data(key.get_size());
         std::vector<float> value_data(value.get_size());
         for (size_t b = 0; b < m_batch; b++) {
@@ -281,7 +284,7 @@ void SparseSDPALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         tensors[2] = value;
     }
 
-    // Synthetic selection: the up-to-kKmax *complete* blocks immediately strictly before the
+    // Synthetic selection: the up-to-m_shape.max_blocks *complete* blocks immediately strictly before the
     // query's own block, in ascending order -- per the documented producer contract, the current
     // (possibly incomplete) block must never appear in sel_indices/sel_count, and sel_indices must
     // be strictly ascending and duplicate-free; the consumer derives and attends the current block
@@ -293,28 +296,29 @@ void SparseSDPALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     // physical row `pad + block_id * sel_block_size`, per the producer contract -- so with padding
     // the query's own logical block is (l - pad) / sel_block_size rather than l / sel_block_size.
     // pad == 0 for every batch when m_key_length is empty, reducing to the original formula exactly.
-    std::vector<int32_t> sel_indices_flat(m_batch * m_h_sel * kL * kKmax, -1);
-    std::vector<int32_t> sel_count_flat(m_batch * m_h_sel * kL, 0);
+    std::vector<int32_t> sel_indices_flat(m_batch * m_h_sel * m_shape.seq_len * m_shape.max_blocks, -1);
+    std::vector<int32_t> sel_count_flat(m_batch * m_h_sel * m_shape.seq_len, 0);
     for (size_t b = 0; b < m_batch; b++) {
         const int64_t pad =
-            m_key_length.empty() ? 0 : static_cast<int64_t>(kCacheLen) - static_cast<int64_t>(m_key_length[b]);
-        for (size_t l = 0; l < kL; l++) {
+            m_key_length.empty() ? 0 : static_cast<int64_t>(m_shape.seq_len) - static_cast<int64_t>(m_key_length[b]);
+        for (size_t l = 0; l < m_shape.seq_len; l++) {
             const int64_t rel_pos = static_cast<int64_t>(l) - pad;
             const int32_t cur_block =
                 rel_pos >= 0 ? static_cast<int32_t>(rel_pos / static_cast<int64_t>(m_sel_block_size)) : 0;
-            const size_t num_sel = rel_pos >= 0 ? std::min(static_cast<size_t>(cur_block), kKmax) : 0;
+            const size_t num_sel =
+                rel_pos >= 0 ? std::min(static_cast<size_t>(cur_block) / m_shape.block_step, m_shape.max_blocks) : 0;
             for (size_t sh = 0; sh < m_h_sel; sh++) {
-                const size_t base = (b * m_h_sel + sh) * kL + l;
+                const size_t base = (b * m_h_sel + sh) * m_shape.seq_len + l;
                 for (size_t k = 0; k < num_sel; k++) {
-                    sel_indices_flat[base * kKmax + k] =
-                        cur_block - static_cast<int32_t>(num_sel) + static_cast<int32_t>(k);
+                    sel_indices_flat[base * m_shape.max_blocks + k] =
+                        cur_block - static_cast<int32_t>(m_shape.block_step * (num_sel - k));
                 }
                 sel_count_flat[base] = static_cast<int32_t>(num_sel);
             }
         }
     }
-    tensors[3] = make_index(sel_indices_flat, ov::Shape{m_batch, m_h_sel, kL, kKmax});
-    tensors[4] = make_index(sel_count_flat, ov::Shape{m_batch, m_h_sel, kL});
+    tensors[3] = make_index(sel_indices_flat, ov::Shape{m_batch, m_h_sel, m_shape.seq_len, m_shape.max_blocks});
+    tensors[4] = make_index(sel_count_flat, ov::Shape{m_batch, m_h_sel, m_shape.seq_len});
 
     if (!m_key_length.empty()) {
         std::vector<int32_t> key_length_flat(m_key_length.size());
@@ -359,20 +363,22 @@ std::vector<ov::Tensor> SparseSDPALayerCPUTest::calculate_refs() {
     auto sel_indices = to_i32(params[3]);
     auto sel_count = to_i32(params[4]);
 
-    auto output = run_sparse_sdpa_reference(m_batch,
-                                             m_h_sel,
-                                             m_causal,
-                                             m_k_head_size,
-                                             m_sel_block_size,
-                                             m_scale,
-                                             query,
-                                             key,
-                                             value,
-                                             sel_indices,
-                                             sel_count,
-                                             m_key_length);
+    auto output = run_sparse_sdpa_reference(m_shape.seq_len,
+                                            m_shape.max_blocks,
+                                            m_batch,
+                                            m_h_sel,
+                                            m_causal,
+                                            m_k_head_size,
+                                            m_sel_block_size,
+                                            m_scale,
+                                            query,
+                                            key,
+                                            value,
+                                            sel_indices,
+                                            sel_count,
+                                            m_key_length);
 
-    ov::Tensor output_tensor(ov::element::f32, ov::Shape{m_batch, kHq, kL, kDv});
+    ov::Tensor output_tensor(ov::element::f32, ov::Shape{m_batch, kHq, m_shape.seq_len, kDv});
     std::copy(output.begin(), output.end(), output_tensor.data<float>());
     return {output_tensor};
 }

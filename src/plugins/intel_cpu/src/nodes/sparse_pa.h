@@ -91,7 +91,6 @@ private:
         size_t k_head_size = 0;
         size_t v_head_size = 0;
         size_t key_block_size = 0;
-        size_t max_selected_blocks = 0;  ///< K_max: the width of selected_block_indices
         bool causal = true;
     };
     static bool deriveConfig(const ov::op::internal::PagedSparseAttention& op, Config& config, std::string& reason);
@@ -101,18 +100,15 @@ private:
     /// @brief Writes the current-step K/V into the paged caches (parallel over token x kv head), quantizing them for
     /// u8/u4 caches. The attention kernel only reads the caches, so this is its barrier-separated first phase.
     void writeKV();
+    /// @brief Per-thread scratch layout of the kernel for a selected_block_indices width.
+    [[nodiscard]] ov::Extensions::Cpu::SparsePAScratchLayout scratchLayout(size_t max_selected_blocks) const;
 
     Config m_config{};
     ov::Extensions::Cpu::SparsePAQuant m_quant{};
 #ifdef OPENVINO_ARCH_X86_64
-    // AMX matrix products of the prefill path, see SparsePABrgemm.
-    std::shared_ptr<ov::intel_cpu::BrgemmKernel> m_brgemm_qk;
-    std::shared_ptr<ov::intel_cpu::BrgemmKernel> m_brgemm_pv;
-    std::shared_ptr<ov::intel_cpu::BrgemmKernel> m_brgemm_pv_acc;
+    // AMX matrix products of the prefill path (empty when the node is not eligible), see SparseBrgemm.
+    ov::Extensions::Cpu::SparseBrgemmKernels m_brgemm;
 #endif
-    ov::Extensions::Cpu::SparsePABrgemm m_brgemm_handles{};
-    MemoryPtr m_scratch;  // per-worker-thread scratch of the kernel, see SparsePAScratchLayout
-    size_t m_scratch_bytes_per_thread = 0;
     size_t m_max_run_rows = 0;                  // most key rows of one run, see SparsePAScratchLayout
     ov::intel_cpu::PlainTensor m_slot_mapping;  // [tokens], physical slot of every new token
     ov::intel_cpu::PlainTensor m_temp_buffer;   // by-channel requantization scratch of paged_attn_quantkv

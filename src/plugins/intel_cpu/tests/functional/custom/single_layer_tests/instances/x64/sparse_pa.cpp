@@ -20,10 +20,16 @@ const std::vector<size_t> kBoundarySteps = {3, 1, 1, 1, 1, 1, 1, 5, 1};
 // A prefill that stops in the middle of a page, a chunked prefill that crosses a page boundary (29 + 8 > 32), decode
 // steps on the partially filled pages and another chunk: every call continues the caches the previous ones wrote.
 const std::vector<size_t> kChunkedSteps = {29, 8, 1, 1, 32, 1};
+// Prefill lengths around the 32 rows of a brgemm chunk (31, 32) and the 128 rows of a tile (the 254-token chunk after
+// 64 tokens of history: the selection of a token grows from 65 to 318 rows, so it crosses one tile boundary at 128 rows
+// and ends exactly on the next one at 256), then a chunk after a long history. 128 selectable blocks of 4 tokens,
+// kRecent.
+const std::vector<size_t> kLongSteps = {31, 1, 32, 254, 2};
 
 enum class Batch {
     kSingle,  // one sequence
     kMixed,   // three sequences: a prefill, a decode and a shorter chunk in the same call (see SparsePAConfig)
+    kLong,    // one sequence, long steps
 };
 
 // One test: the steps follow the PagedAttention tests' [L, B, H, S] form (consecutive calls of the same B sequences).
@@ -31,7 +37,7 @@ SparsePALayerTestParams make_case(ov::element::Type data_precision, size_t head_
     const bool mixed = batch == Batch::kMixed;
     const size_t sequences = mixed ? 3 : 1;
     std::vector<ov::Shape> targets;
-    for (const auto len : mixed ? kChunkedSteps : kBoundarySteps) {
+    for (const auto len : batch == Batch::kLong ? kLongSteps : mixed ? kChunkedSteps : kBoundarySteps) {
         targets.push_back({len, sequences, kNumHeads, head_size});
     }
     cfg.mixed_lengths = mixed;
@@ -48,8 +54,7 @@ SparsePAConfig plain_config(size_t sel_head_num,
                             size_t page_size,
                             size_t max_selected_blocks,
                             SparsePASelection selection,
-                            size_t v_head_size = 16,
-                            size_t num_threads = 0) {
+                            size_t v_head_size = 16) {
     SparsePAConfig cfg;
     cfg.num_selection_heads = sel_head_num;
     cfg.v_head_size = v_head_size;
@@ -57,7 +62,6 @@ SparsePAConfig plain_config(size_t sel_head_num,
     cfg.page_size = page_size;
     cfg.max_selected_blocks = max_selected_blocks;
     cfg.selection = selection;
-    cfg.num_threads = num_threads;
     return cfg;
 }
 
@@ -68,9 +72,8 @@ SparsePAConfig quantized_config(ov::element::Type cache_precision,
                                 size_t sel_head_num,
                                 SparsePASelection selection,
                                 size_t v_head_size = 16,
-                                size_t max_selected_blocks = 8,
-                                size_t num_threads = 0) {
-    auto cfg = plain_config(sel_head_num, 4, 32, max_selected_blocks, selection, v_head_size, num_threads);
+                                size_t max_selected_blocks = 8) {
+    auto cfg = plain_config(sel_head_num, 4, 32, max_selected_blocks, selection, v_head_size);
     cfg.cache_precision = cache_precision;
     cfg.key_bychannel = key_bychannel;
     cfg.group_size = group_size;
@@ -82,8 +85,8 @@ constexpr auto kRandom = SparsePASelection::kRandom;
 constexpr auto kEmpty = SparsePASelection::kEmpty;
 
 // Plain caches on the vector kernels: every data precision, selection head counts of 1 / K heads / query heads, tiny
-// pages (selected blocks straddle pages), every selection mode, and a single thread, which makes every work item a
-// whole query-head pack (the kernel packs only when there is enough work for every thread).
+// pages (selected blocks straddle pages) and every selection mode. The worker threads follow from the steps (see the
+// test's SetUp): the multi-token calls pack the query heads of a K head, the decode steps do not.
 std::vector<SparsePALayerTestParams> plain_cases() {
     const auto f32 = ov::element::f32;
     const auto f16 = ov::element::f16;
@@ -92,30 +95,36 @@ std::vector<SparsePALayerTestParams> plain_cases() {
             make_case(f16, 16, Batch::kSingle, plain_config(2, 2, 8, 4, kRandom)),
             make_case(bf16, 16, Batch::kMixed, plain_config(kNumHeads, 2, 8, 4, kRandom)),
             make_case(f32, 16, Batch::kMixed, plain_config(1, 2, 4, 4, kEmpty)),
-            make_case(bf16, 16, Batch::kMixed, plain_config(2, 2, 8, 4, kRecent, 16, 1)),
-            make_case(f16, 16, Batch::kMixed, plain_config(1, 2, 4, 4, kRandom, 16, 1))};
+            make_case(bf16, 16, Batch::kMixed, plain_config(2, 2, 8, 4, kRecent)),
+            make_case(f16, 16, Batch::kMixed, plain_config(1, 2, 4, 4, kRandom))};
 }
 
 // AMX QK^T path, bf16 end to end (AMX f16 needs amx_fp16): key_block_size 4 (smaller than the JIT kernel's 16-row
 // granularity, so adjacent blocks are merged) with pages that fit several merged blocks or only one unit. Head sizes 32
 // and 128 fit the kernel's six B tiles; 256 (the Qwen head size, 4 + 4 tiles) and 512 (6 + 5 + 5, an uneven split) take
-// its K-chunk loop. v_head_size differs from the key head size to catch any coupling of the two.
+// its K-chunk loop. v_head_size differs from the key head size to catch any coupling of the two. A selection head per
+// query head (no pack) keeps the prefill on the per-head AMX path.
 std::vector<SparsePALayerTestParams> amx_cases() {
     const auto bf16 = ov::element::bf16;
     return {make_case(bf16, 32, Batch::kMixed, plain_config(1, 4, 16, 4, kRecent)),
             make_case(bf16, 32, Batch::kMixed, plain_config(1, 4, 64, 16, kRandom)),
-            make_case(bf16, 32, Batch::kMixed, plain_config(2, 4, 64, 16, kRecent, 16, 1)),
+            make_case(bf16, 32, Batch::kMixed, plain_config(kNumHeads, 4, 32, 8, kRandom)),
+            // one sequence: the decode steps pack the query heads (the mixed batches run one head per decode item)
+            make_case(bf16, 32, Batch::kSingle, plain_config(1, 4, 32, 8, kRandom)),
+            make_case(bf16, 32, Batch::kMixed, plain_config(2, 4, 64, 16, kRecent)),
             make_case(bf16, 128, Batch::kMixed, plain_config(1, 4, 32, 8, kRandom, 64)),
             make_case(bf16, 256, Batch::kMixed, plain_config(1, 4, 16, 8, kRecent, 256)),
             make_case(bf16, 256, Batch::kMixed, plain_config(1, 4, 64, 8, kRandom, 128)),
-            make_case(bf16, 256, Batch::kMixed, plain_config(2, 4, 32, 8, kRandom, 256, 1)),
-            make_case(bf16, 512, Batch::kMixed, plain_config(1, 4, 32, 8, kRandom, 256))};
+            make_case(bf16, 256, Batch::kMixed, plain_config(2, 4, 32, 8, kRandom, 256)),
+            make_case(bf16, 512, Batch::kMixed, plain_config(1, 4, 32, 8, kRandom, 256)),
+            // selections of up to 3 tiles of rows, tails of every length
+            make_case(bf16, 256, Batch::kLong, plain_config(1, 4, 32, 128, kRecent, 256))};
 }
 
 // Quantized (u8 / u4) caches: by-token and by-channel keys, one group per row or several, one or several selection
-// heads, and a single thread (query-head packs). Quantized chunks are dequantized to the AMX type, so with bf16 data
-// and a head size that fits the AMX kernel the prefill steps run on it (quantized decode uses the fused
-// direct-quantized kernels).
+// heads (a selection head per query head keeps the prefill unpacked). Quantized chunks are dequantized to the AMX type,
+// so with bf16 data and a head size that fits the AMX kernel the prefill steps run on it (quantized decode uses the
+// fused direct-quantized kernels).
 std::vector<SparsePALayerTestParams> quantized_cases() {
     const auto f32 = ov::element::f32;
     const auto bf16 = ov::element::bf16;
@@ -124,12 +133,14 @@ std::vector<SparsePALayerTestParams> quantized_cases() {
     return {make_case(f32, 32, Batch::kMixed, quantized_config(u8, false, 0, 1, kRecent)),
             make_case(f32, 32, Batch::kMixed, quantized_config(u4, true, 0, 2, kRandom)),
             make_case(bf16, 32, Batch::kMixed, quantized_config(u8, true, 16, 1, kRandom)),
+            make_case(bf16, 32, Batch::kMixed, quantized_config(u8, false, 0, kNumHeads, kRecent)),
+            make_case(bf16, 32, Batch::kSingle, quantized_config(u4, false, 16, 1, kRandom)),
             make_case(bf16, 32, Batch::kMixed, quantized_config(u4, false, 16, 1, kRecent)),
-            make_case(bf16, 32, Batch::kMixed, quantized_config(u8, true, 0, 2, kRandom, 16, 8, 1)),
-            make_case(bf16, 32, Batch::kMixed, quantized_config(u4, false, 16, 1, kRecent, 16, 8, 1)),
+            make_case(bf16, 32, Batch::kMixed, quantized_config(u8, true, 0, 2, kRandom)),
             // 16 selected blocks span two 32-token pages, so four adjacent blocks inside one page (an AMX chunk) occur.
             make_case(bf16, 256, Batch::kMixed, quantized_config(u8, true, 0, 1, kRecent, 128, 16)),
-            make_case(bf16, 256, Batch::kMixed, quantized_config(u4, false, 16, 1, kRandom, 256, 16, 1))};
+            make_case(bf16, 256, Batch::kMixed, quantized_config(u4, false, 16, 1, kRandom, 256, 16)),
+            make_case(bf16, 256, Batch::kLong, quantized_config(u8, false, 0, 1, kRecent, 256, 128))};
 }
 
 }  // namespace

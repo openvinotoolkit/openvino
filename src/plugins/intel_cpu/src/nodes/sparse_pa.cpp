@@ -189,7 +189,7 @@ bool SparsePA::deriveConfig(const ov::op::internal::PagedSparseAttention& op, Co
     };
     if (!rank_is(query_ps, 2) || !rank_is(key_ps, 2) || !rank_is(value_ps, 2) || !rank_is(key_cache_ps, 4) ||
         !rank_is(selected_ps, 3) || !query_ps[1].is_static() || !key_ps[1].is_static() || !value_ps[1].is_static() ||
-        !key_cache_ps[1].is_static() || !selected_ps[1].is_static() || !selected_ps[2].is_static()) {
+        !key_cache_ps[1].is_static() || !selected_ps[1].is_static()) {
         reason = "PagedSparseAttention CPU implementation requires static head dimensions.";
         return false;
     }
@@ -199,7 +199,6 @@ bool SparsePA::deriveConfig(const ov::op::internal::PagedSparseAttention& op, Co
     config.v_head_size = static_cast<size_t>(value_ps[1].get_length()) / config.num_kv_heads;
     config.num_heads = static_cast<size_t>(query_ps[1].get_length()) / config.k_head_size;
     config.key_block_size = static_cast<size_t>(op.get_key_block_size());
-    config.max_selected_blocks = static_cast<size_t>(selected_ps[2].get_length());
     config.causal = true;
     if (config.num_selection_heads != 1 && config.num_selection_heads != config.num_kv_heads &&
         config.num_selection_heads != config.num_heads) {
@@ -264,73 +263,47 @@ void SparsePA::createPrimitive() {
         }
     }
 #endif
-    // Per-worker-thread scratch of the kernel, so nothing is allocated while computing.
 #ifdef OPENVINO_ARCH_X86_64
-    const size_t amx_unit_blocks = m_amx_prec != ov::element::dynamic ? m_amx_unit_blocks : 0;
-#else
-    const size_t amx_unit_blocks = 0;
-#endif
-#ifdef OPENVINO_ARCH_X86_64
-    // Prefill with AMX matrix products over the whole selection of a work item (see attend_rows_brgemm in the kernel):
-    // bf16 / f16 data on hardware with the matching AMX, a pack of several query heads (the M of the products; the
-    // kernel runs them as an M tail, so fewer than 32), and the causal selection.
-    {
-        const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
-        const bool amx =
-            (query_prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) ||
-            (query_prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16));
-        const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
-                                                                      m_config.num_kv_heads,
-                                                                      m_config.num_selection_heads);
-        if (amx && m_config.causal && pack > 1 && pack < ov::intel_cpu::BrgemmKernel::get_mblk_size()) {
-            constexpr size_t chunk_rows = 32;  // kBrgemmChunkRows in the kernel
-            // Rows of one item: the selected blocks and the causal tail (fewer than key_block_size rows).
-            const size_t stride =
-                ov::intel_cpu::rnd_up(m_config.max_selected_blocks * m_config.key_block_size + m_config.key_block_size,
-                                      chunk_rows);
-            const auto Dv = m_config.v_head_size;
-            m_brgemm_qk =
-                std::make_shared<ov::intel_cpu::BrgemmKernel>(pack, chunk_rows, Dh, Dh, Dh, stride, true, query_prec);
-            // The weights are stored in the data type over the f32 score rows, so the row stride doubles.
-            m_brgemm_pv = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
-                                                                        Dv,
-                                                                        chunk_rows,
-                                                                        2 * stride,
-                                                                        Dv,
-                                                                        Dv,
-                                                                        false,
-                                                                        query_prec);
-            m_brgemm_pv_acc = std::make_shared<ov::intel_cpu::BrgemmKernel>(pack,
-                                                                            Dv,
-                                                                            chunk_rows,
-                                                                            2 * stride,
-                                                                            Dv,
-                                                                            Dv,
-                                                                            false,
-                                                                            query_prec,
-                                                                            true);
-            m_brgemm_handles = {m_brgemm_qk.get(), m_brgemm_pv.get(), m_brgemm_pv_acc.get(), stride};
-        }
+    // Prefill with AMX matrix products over the selected rows of a work item (see sparse_brgemm_kernel.hpp): bf16 / f16
+    // data on hardware with the matching AMX, a pack of several query heads (the M of the products), and the causal
+    // selection.
+    const auto query_prec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
+    const bool amx =
+        (query_prec == ov::element::bf16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) ||
+        (query_prec == ov::element::f16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16));
+    const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
+                                                                  m_config.num_kv_heads,
+                                                                  m_config.num_selection_heads);
+    if (amx && m_config.causal && ov::Extensions::Cpu::SparseBrgemmKernels::supports_pack(pack)) {
+        m_brgemm = ov::Extensions::Cpu::SparseBrgemmKernels(pack,
+                                                            Dh,
+                                                            m_config.v_head_size,
+                                                            ov::Extensions::Cpu::kBrgemmTileRows,
+                                                            query_prec);
     }
 #endif
-    const ov::Extensions::Cpu::SparsePAScratchLayout layout(
-        Dh,
-        m_config.v_head_size,
-        m_config.key_block_size,
-        m_max_run_rows,
-        m_config.max_selected_blocks,
-        amx_unit_blocks,
-        ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
-                                                  m_config.num_kv_heads,
-                                                  m_config.num_selection_heads),
-        getOriginalInputPrecisionAtPort(InputIdx::QUERY).size(),
-        m_quant,
-        ov::Extensions::Cpu::sparse_pa_brgemm_sizes(m_brgemm_handles));
-    m_scratch_bytes_per_thread = layout.total;
-    const auto num_worker_threads = context->getCpuParallel()->get_num_worker_threads();
-    m_scratch = context->getScratchPad()->createScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(
-        ov::element::u8,
-        ov::intel_cpu::Shape{static_cast<size_t>(num_worker_threads), m_scratch_bytes_per_thread}));
+}
+
+ov::Extensions::Cpu::SparsePAScratchLayout SparsePA::scratchLayout(size_t max_selected_blocks) const {
+#ifdef OPENVINO_ARCH_X86_64
+    const size_t amx_unit_blocks = m_amx_prec != ov::element::dynamic ? m_amx_unit_blocks : 0;
+    const auto brgemm_sizes = ov::Extensions::Cpu::sparse_brgemm_sizes(m_brgemm.handle);
+#else
+    const size_t amx_unit_blocks = 0;
+    const ov::Extensions::Cpu::SparseBrgemmSizes brgemm_sizes{};
+#endif
+    return {m_config.k_head_size,
+            m_config.v_head_size,
+            m_config.key_block_size,
+            m_max_run_rows,
+            max_selected_blocks,
+            amx_unit_blocks,
+            ov::Extensions::Cpu::max_q_head_pack_size(m_config.num_heads,
+                                                      m_config.num_kv_heads,
+                                                      m_config.num_selection_heads),
+            getOriginalInputPrecisionAtPort(InputIdx::QUERY).size(),
+            m_quant,
+            brgemm_sizes};
 }
 
 void SparsePA::initSupportedPrimitiveDescriptors() {
@@ -385,42 +358,57 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
     // Phase 1: write the current K/V into the caches (parallel over token x kv head); it completes before phase 2,
     // the sparse attention, reads them.
     writeKV();
-    // Phase 2: sparse attention, parallel over (query token, query head), with per-thread scratch.
-    ov::Extensions::Cpu::XARCH::sparse_pa_compute(query,
-                                                  key_cache,
-                                                  value_cache,
-                                                  block_indices,
-                                                  block_indices_begins,
-                                                  subsequence_begins,
-                                                  past_lens,
-                                                  sel_indices,
-                                                  sel_count,
-                                                  out,
-                                                  c.num_heads,
-                                                  c.num_kv_heads,
-                                                  c.k_head_size,
-                                                  c.v_head_size,
-                                                  c.key_block_size,
-                                                  c.num_selection_heads,
-                                                  c.causal,
-                                                  scale,
-                                                  m_quant,
+    // Phase 2: sparse attention, parallel over (query token, query head pack), with per-thread scratch that the kernel
+    // carves with the same layout. The width of selected_block_indices is only needed here (it sizes the AMX run
+    // decomposition), so it need not be static.
+    const auto layout = scratchLayout(sel_indices.size(2));
+    // One block per worker thread, then one token id per token for the kernel's work list (see WorkList).
+    const size_t thread_scratch_bytes =
+        static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()) * layout.total;
+    const auto scratch = context->getScratchPad()->createScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(
+        ov::element::u8,
+        ov::intel_cpu::Shape{thread_scratch_bytes + query.size(0) * sizeof(int32_t)}));
+    ov::Extensions::Cpu::XARCH::sparse_pa_compute(
+        query,
+        key_cache,
+        value_cache,
+        block_indices,
+        block_indices_begins,
+        subsequence_begins,
+        past_lens,
+        sel_indices,
+        sel_count,
+        out,
+        c.num_heads,
+        c.num_kv_heads,
+        c.k_head_size,
+        c.v_head_size,
+        c.key_block_size,
+        c.num_selection_heads,
+        c.causal,
+        scale,
+        m_quant,
 #ifdef OPENVINO_ARCH_X86_64
-                                                  m_amx_prec,
-                                                  m_gemv_qk1.get(),
-                                                  m_gemv_qk4.get(),
-                                                  m_amx_unit_blocks,
+        m_amx_prec,
+        m_gemv_qk1.get(),
+        m_gemv_qk4.get(),
+        m_amx_unit_blocks,
 #else
-                                                  ov::element::dynamic,
-                                                  nullptr,
-                                                  nullptr,
-                                                  0,
+        ov::element::dynamic,
+        nullptr,
+        nullptr,
+        0,
 #endif
-                                                  m_max_run_rows,
-                                                  m_brgemm_handles,
-                                                  m_scratch->getDataAs<uint8_t>(),
-                                                  m_scratch_bytes_per_thread,
-                                                  context->getCpuParallel());
+        m_max_run_rows,
+#ifdef OPENVINO_ARCH_X86_64
+        m_brgemm.handle,
+#else
+        ov::Extensions::Cpu::SparseBrgemm{},
+#endif
+        scratch->getDataAs<uint8_t>(),
+        layout.total,
+        reinterpret_cast<int32_t*>(scratch->getDataAs<uint8_t>() + thread_scratch_bytes),
+        context->getCpuParallel());
 }
 
 bool SparsePA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

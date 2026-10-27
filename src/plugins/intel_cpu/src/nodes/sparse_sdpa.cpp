@@ -181,6 +181,22 @@ void SparseSDPA::createPrimitive() {
         m_gemv_qk4 = std::make_shared<ov::Extensions::Cpu::JitMatMulVecAMX>(static_cast<int>(Dh),
                                                                              static_cast<int>(4 * unit_rows),
                                                                              m_amx_prec);
+        // Prefill over packs of query heads: the pack is the M of the brgemm products, so the head counts must be
+        // static.
+        const auto q_heads = getInputShapeAtPort(InputIdx::QUERY).getDims()[1];
+        const auto k_heads = getInputShapeAtPort(InputIdx::KEY).getDims()[1];
+        const auto sel_heads = getInputShapeAtPort(InputIdx::SEL_INDICES).getDims()[1];
+        const auto Dv = getInputShapeAtPort(InputIdx::VALUE).getDims()[3];
+        if (m_causal && none_of(Shape::UNDEFINED_DIM, q_heads, k_heads, sel_heads, Dv)) {
+            const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(q_heads, k_heads, sel_heads);
+            if (ov::Extensions::Cpu::SparseBrgemmKernels::supports_pack(pack)) {
+                m_brgemm = ov::Extensions::Cpu::SparseBrgemmKernels(pack,
+                                                                    Dh,
+                                                                    Dv,
+                                                                    ov::Extensions::Cpu::kBrgemmTileRows,
+                                                                    m_amx_prec);
+            }
+        }
     }
 #endif
 }
@@ -312,13 +328,32 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t float_bytes = num_threads * per_thread_floats * sizeof(float);
     const size_t float_bytes_aligned = (float_bytes + 7U) & ~size_t{7U};
     const size_t runs_bytes = num_threads * runs_per_thread * sizeof(int64_t);
-    auto scratch_desc =
-        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8, ov::intel_cpu::Shape{float_bytes_aligned + runs_bytes});
+    // Third region: the per-thread buffers of the brgemm prefill (64-byte aligned parts, see SparseBrgemmLayout).
+    ov::Extensions::Cpu::SparseBrgemmLayout brgemm_layout;
+    size_t brgemm_bytes_per_thread = 0;
+#ifdef OPENVINO_ARCH_X86_64
+    if (m_brgemm.handle.enabled()) {
+        brgemm_layout =
+            ov::Extensions::Cpu::SparseBrgemmLayout(0,
+                                                    Dh,
+                                                    Dv,
+                                                    ov::Extensions::Cpu::max_q_head_pack_size(Hq, Hkv, H_sel),
+                                                    query.get_precision().size(),
+                                                    ov::Extensions::Cpu::sparse_brgemm_sizes(m_brgemm.handle),
+                                                    true);
+        brgemm_bytes_per_thread = brgemm_layout.total;
+    }
+#endif
+    const size_t brgemm_offset = ov::Extensions::Cpu::aligned(float_bytes_aligned + runs_bytes);
+    auto scratch_desc = std::make_shared<CpuBlockedMemoryDesc>(
+        ov::element::u8,
+        ov::intel_cpu::Shape{brgemm_offset + num_threads * brgemm_bytes_per_thread});
     const MemoryPtr scratch = context->getScratchPad()->createScratchPadMem(scratch_desc);
     uint8_t* const scratch_base_bytes = scratch->getDataAs<uint8_t>();
     float* const scratch_base = reinterpret_cast<float*>(scratch_base_bytes);
     int64_t* const runs_base =
         runs_per_thread > 0 ? reinterpret_cast<int64_t*>(scratch_base_bytes + float_bytes_aligned) : nullptr;
+    uint8_t* const brgemm_base = brgemm_bytes_per_thread > 0 ? scratch_base_bytes + brgemm_offset : nullptr;
 
     ov::Extensions::Cpu::XARCH::sparse_sdpa_compute(query,
                                                     key,
@@ -343,7 +378,19 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                     m_amx_unit_blocks,
                                                     runs_base,
                                                     runs_per_thread,
+                                                    m_brgemm.handle,
+#else
+                                                    ov::element::dynamic,
+                                                    nullptr,
+                                                    nullptr,
+                                                    0,
+                                                    nullptr,
+                                                    0,
+                                                    ov::Extensions::Cpu::SparseBrgemm{},
 #endif
+                                                    brgemm_layout,
+                                                    brgemm_base,
+                                                    brgemm_bytes_per_thread,
                                                     key_length_ptr,
                                                     key_length_batch_stride,
                                                     key_quant,

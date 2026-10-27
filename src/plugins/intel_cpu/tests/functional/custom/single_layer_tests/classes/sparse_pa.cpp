@@ -250,8 +250,7 @@ std::string SparsePALayerCPUTest::getTestCaseName(const testing::TestParamInfo<S
            << "_Page=" << cfg.page_size << "_Kmax=" << cfg.max_selected_blocks
            << "_Sel=" << selection_name(cfg.selection)
            << "_Cache=" << (cfg.cache_precision == ov::element::dynamic ? "plain" : cfg.cache_precision.get_type_name())
-           << "_KeyByChannel=" << cfg.key_bychannel << "_Group=" << cfg.group_size << "_Mixed=" << cfg.mixed_lengths
-           << "_Threads=" << cfg.num_threads;
+           << "_KeyByChannel=" << cfg.key_bychannel << "_Group=" << cfg.group_size << "_Mixed=" << cfg.mixed_lengths;
     return result.str();
 }
 
@@ -314,9 +313,12 @@ void SparsePALayerCPUTest::SetUp() {
     abs_threshold = 1e-4F;
     // Every floating-point input follows the data precision, which is also the inference precision.
     configuration.insert(ov::hint::inference_precision(data_precision));
-    if (m_cfg.num_threads != 0) {
-        configuration[ov::inference_num_threads.name()] = static_cast<int32_t>(m_cfg.num_threads);
-    }
+    // A prefill (several new tokens in a sequence) runs as AMX matrix products over the query heads of a K head
+    // whatever the thread count. A decode packs the query heads only with at least 2 work items per worker thread: one
+    // thread packs it (the SIMD pack paths), two threads give a decode of one sequence fewer items than that, so it
+    // runs one head per item next to the prefill items of a mixed call (the layout on many cores). Single-sequence
+    // cases take the first, mixed batches the second.
+    configuration[ov::inference_num_threads.name()] = m_cfg.mixed_lengths ? 2 : 1;
     if (data_precision == ov::element::bf16) {
         rel_threshold = 5e-2F;
         abs_threshold = 5e-2F;

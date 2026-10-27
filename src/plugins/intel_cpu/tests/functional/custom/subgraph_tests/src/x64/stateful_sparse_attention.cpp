@@ -314,19 +314,6 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
         // the key groups are 32 tokens long: the prefill ends in a partial group that the decodes keep filling
         config[ov::internal::key_cache_quant_mode.name()] = ov::internal::CacheQuantMode::BY_CHANNEL;
     }
-    auto compiled = core->compile_model(make_stateful_model(prec, E, Bk, Hs), ov::test::utils::DEVICE_CPU, config);
-    auto compiled_ref =
-        core->compile_model(make_reference_model(prec, E, Bk, Hs), ov::test::utils::DEVICE_CPU, ref_config);
-    check_fused(compiled);
-
-    // bf16 inference rounds the cache once, in both models
-    float threshold = prec == ov::element::bf16 ? 2e-2F : 1e-4F;
-    if (cache_prec == ov::element::u8) {
-        threshold = 3e-2F;
-    } else if (cache_prec == ov::element::u4) {
-        threshold = 0.15F;
-    }
-
     // the random selection of blocks below; the K/V/Q values come from the common tensor helper
     std::mt19937 gen(1234);
     int seed = 1;
@@ -340,6 +327,19 @@ TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
         steps.push_back({1, false});
     }
     steps.push_back({3, false});
+
+    auto compiled = core->compile_model(make_stateful_model(prec, E, Bk, Hs), ov::test::utils::DEVICE_CPU, config);
+    auto compiled_ref =
+        core->compile_model(make_reference_model(prec, E, Bk, Hs), ov::test::utils::DEVICE_CPU, ref_config);
+    check_fused(compiled);
+
+    // bf16 inference rounds the cache once, in both models
+    float threshold = prec == ov::element::bf16 ? 2e-2F : 1e-4F;
+    if (cache_prec == ov::element::u8) {
+        threshold = 3e-2F;
+    } else if (cache_prec == ov::element::u4) {
+        threshold = 0.15F;
+    }
 
     auto request = compiled.create_infer_request();
     auto request_ref = compiled_ref.create_infer_request();

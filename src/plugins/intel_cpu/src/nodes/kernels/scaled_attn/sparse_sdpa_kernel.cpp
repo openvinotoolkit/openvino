@@ -7,12 +7,15 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <numeric>
 
 #include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
+#include "nodes/kernels/scaled_attn/sparse_brgemm_kernel.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -274,6 +277,145 @@ void run_amx_qk_chunks(const PlainTensor& query,
     }
     gemv1.tile_release();
 }
+
+// ---- AMX prefill over a pack of query heads (sparse_brgemm_kernel.hpp) ----
+
+// The dense caches for the shared tile loop: the key/value rows of (batch b, kv head) are contiguous in positions; the
+// rows [pad, row_limit) are the ones the query attends.
+struct DenseRowSource {
+    const PlainTensor& key;
+    const PlainTensor& value;
+    const SparseKVQuant& key_quant;
+    const SparseKVQuant& value_quant;
+    size_t b;
+    size_t kv;
+    size_t k_head_size;
+    size_t v_head_size;
+    int64_t pad;
+    int64_t row_limit;
+
+    [[nodiscard]] int64_t visible(int64_t kpos0, int64_t n) const {
+        return kpos0 < pad ? 0 : std::max<int64_t>(std::min(kpos0 + n, row_limit) - kpos0, 0);
+    }
+
+    template <typename T>
+    void gather(int64_t kpos0, size_t rows, T* k_dst, T* v_dst) const {
+        const auto pos = static_cast<size_t>(kpos0);
+        if (key_quant.enabled()) {
+            dequant_rows<T>(key, key_quant, b, kv, pos, rows, k_head_size, k_dst);
+        } else {
+            std::memcpy(k_dst, key.ptr<T>(b, kv, pos), rows * k_head_size * sizeof(T));
+        }
+        if (value_quant.enabled()) {
+            dequant_rows<T>(value, value_quant, b, kv, pos, rows, v_head_size, v_dst);
+        } else {
+            std::memcpy(v_dst, value.ptr<T>(b, kv, pos), rows * v_head_size * sizeof(T));
+        }
+    }
+};
+
+struct SdpaBrgemmArgs {
+    const PlainTensor& query;
+    const PlainTensor& key;
+    const PlainTensor& value;
+    const PlainTensor& sel_indices;
+    const PlainTensor& sel_count;
+    PlainTensor& out;
+    size_t Hq;
+    size_t Hkv;
+    size_t Dh;
+    size_t Dv;
+    size_t Bk;
+    size_t H_sel;
+    float scale;
+    const int32_t* key_length;
+    size_t key_length_batch_stride;
+    const SparseKVQuant& key_quant;
+    const SparseKVQuant& value_quant;
+    const SparseBrgemm& brgemm;
+    const SparseBrgemmLayout& layout;
+    uint8_t* scratch;
+    size_t bytes_per_thread;
+    size_t pack_size;
+};
+
+// One work item: causal attention of query l of batch b for the pack `pack_index` of query heads that share a K head
+// and a selection head, over its selected blocks and its causal tail.
+template <typename T>
+void attention_item_brgemm(const SdpaBrgemmArgs& a, size_t b, size_t l, size_t pack_index) {
+    const size_t first_head = pack_index * a.pack_size;
+    const size_t kv = first_head / (a.Hq / a.Hkv);
+    const size_t sh = first_head / (a.Hq / a.H_sel);
+    const auto S = static_cast<int64_t>(a.key.size(2));
+    // Bottom-right-aligned logical position of the query, see the per-head loop of sparse_sdpa_compute().
+    const int64_t token_pos = S - static_cast<int64_t>(a.query.size(2)) + static_cast<int64_t>(l);
+    const int64_t pad = a.key_length ? S - static_cast<int64_t>(a.key_length[a.key_length_batch_stride * b]) : 0;
+
+    uint8_t* ws = a.scratch + static_cast<size_t>(parallel_get_thread_num()) * a.bytes_per_thread;
+    const auto& lay = a.layout;
+    auto* q_rows = reinterpret_cast<T*>(ws + lay.q_rows);
+    for (size_t head = 0; head < a.pack_size; head++) {
+        std::memcpy(q_rows + head * a.Dh, a.query.ptr<T>(b, first_head + head, l), a.Dh * sizeof(T));
+    }
+    auto* acc = reinterpret_cast<float*>(ws + lay.acc);
+    auto* running_max = reinterpret_cast<float*>(ws + lay.running_max);
+    auto* running_sum = reinterpret_cast<float*>(ws + lay.running_sum);
+    std::fill_n(acc, a.pack_size * a.Dv, 0.0F);
+    std::fill_n(running_max, a.pack_size, -std::numeric_limits<float>::infinity());
+    std::fill_n(running_sum, a.pack_size, 0.0F);
+
+    const BrgemmBuffers<T> buffers{static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.qk),
+                                   static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.pv),
+                                   static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.pv_acc),
+                                   reinterpret_cast<T*>(ws + lay.k_rows),
+                                   reinterpret_cast<T*>(ws + lay.v_rows),
+                                   reinterpret_cast<float*>(ws + lay.weights),
+                                   ws + lay.brg_wsp,
+                                   ws + lay.brg_a,
+                                   ws + lay.brg_b,
+                                   a.brgemm.tile_rows};
+    const BrgemmPack pack{q_rows, a.pack_size, a.Dh, a.Dv, a.scale, acc, running_max, running_sum};
+
+    // sel_indices / sel_count carry complete selected blocks only; the incomplete trailing block of the query is
+    // attended as the causal tail, from the pad-aligned start of its block up to the query position.
+    const auto nblocks = static_cast<size_t>(*a.sel_count.ptr<int32_t>(b, sh, l));
+    OPENVINO_ASSERT(nblocks <= a.sel_indices.size(3),
+                    "[CPU] sparse_sdpa: block_count exceeds the width of block_indices");
+    const auto key_block_size = static_cast<int64_t>(a.Bk);
+    const int64_t tail_start = pad + ((token_pos - pad + 1) / key_block_size) * key_block_size;
+    const BrgemmSelection selection{a.sel_indices.ptr<int32_t>(b, sh, l),
+                                    nblocks,
+                                    pad,
+                                    key_block_size,
+                                    std::numeric_limits<int64_t>::max(),  // dense cache: no pages
+                                    std::numeric_limits<int64_t>::max(),
+                                    tail_start,
+                                    std::max<int64_t>(token_pos - tail_start + 1, 0)};
+    const DenseRowSource
+        src{a.key, a.value, a.key_quant, a.value_quant, b, kv, a.Dh, a.Dv, pad, std::min(S, token_pos + 1)};
+    attention_over_selection_tiles<T>(src, pack, buffers, selection);
+
+    for (size_t head = 0; head < a.pack_size; head++) {
+        float* head_acc = acc + head * a.Dv;
+        const float inv_sum = running_sum[head] > 0.0F ? 1.0F / running_sum[head] : 0.0F;
+        for (size_t d = 0; d < a.Dv; d++) {
+            head_acc[d] *= inv_sum;
+        }
+        store_row_f32(a.out, a.Dv, head_acc, b, first_head + head, l);
+    }
+}
+
+// Causal prefill (more than one query) of packs of query heads with bf16 / f16 data on AMX, parallel over (batch,
+// query, pack).
+template <typename T>
+void sparse_sdpa_brgemm(const SdpaBrgemmArgs& a, const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+    cpu_parallel->parallel_for3d(a.query.size(0),
+                                 a.query.size(2),
+                                 a.Hq / a.pack_size,
+                                 [&](size_t b, size_t l, size_t pack_index) {
+                                     attention_item_brgemm<T>(a, b, l, pack_index);
+                                 });
+}
 #endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace
@@ -300,6 +442,10 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          size_t amx_unit_blocks,
                          int64_t* scratch_runs,
                          size_t runs_per_thread,
+                         const SparseBrgemm& brgemm,
+                         const SparseBrgemmLayout& brgemm_layout,
+                         uint8_t* brgemm_scratch,
+                         size_t brgemm_bytes_per_thread,
                          const int32_t* key_length,
                          size_t key_length_batch_stride,
                          const SparseKVQuant& key_quant,
@@ -313,6 +459,41 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
     const size_t B = query.size(0);
     const size_t L = query.size(2);
     const size_t S = key.size(2);
+
+#ifdef OPENVINO_ARCH_X86_64
+    // Prefill (more than one query): the query heads that share a K head and a selection head are one work item (matrix
+    // products over the gathered rows), whatever the thread count. Decode (one query) keeps the per-head loop below.
+    if (brgemm.enabled() && causal && L > 1) {
+        const SdpaBrgemmArgs args{query,
+                                  key,
+                                  value,
+                                  sel_indices,
+                                  sel_count,
+                                  out,
+                                  Hq,
+                                  Hkv,
+                                  Dh,
+                                  Dv,
+                                  Bk,
+                                  H_sel,
+                                  scale,
+                                  key_length,
+                                  key_length_batch_stride,
+                                  key_quant,
+                                  value_quant,
+                                  brgemm,
+                                  brgemm_layout,
+                                  brgemm_scratch,
+                                  brgemm_bytes_per_thread,
+                                  max_q_head_pack_size(Hq, Hkv, H_sel)};
+        if (amx_prec == ov::element::bf16) {
+            sparse_sdpa_brgemm<ov::bfloat16>(args, cpu_parallel);
+        } else {
+            sparse_sdpa_brgemm<ov::float16>(args, cpu_parallel);
+        }
+        return;
+    }
+#endif
 
     cpu_parallel->parallel_for3d(B, Hq, L, [&](size_t b, size_t h, size_t l) {
         // Bottom-right-aligned logical position: the query at index l aligns with the last l-th
