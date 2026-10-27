@@ -84,6 +84,7 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_micro_gemm_prefill, tru
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_gpu_mask_gen_prefill, false, "MoE 3GEMM: generate routing masks on GPU instead of CPU for the micro-kernel prefill path")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_use_grouped_gemm_prefill, true, "MoE 3GEMM: use a single OneDNN grouped matmul per GEMM layer for the prefill path. Takes priority over micro-kernel GEMM")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_batched_gemv_threshold, 32, "MoE 3-GEMM: token count (<=) that selects the batched GEMV decode path instead of the prefill path")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_u3_batched_gemv_threshold, 6, "MoE 3-GEMM: GPU_MOE_BATCHED_GEMV_THRESHOLD for u3 weights, which are decoded by the u3 batched GEMV")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_disable_fusion, false, "Disable fusion of MoE subgraph to composite MoE operation")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_ternocl_int2, true, "Enable/Disable the TernOCL implementation of FullyConnected with ternary (u2) weights; when disabled the stock kernels are used")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, enable_rms_rope_fusion, true, "Enable/Disable the pass which folds per-head Q/K RMSNorm into RoPE")

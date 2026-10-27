@@ -1437,7 +1437,8 @@ public:
                                << ", decode_impl=" << static_cast<int>(decode_impl) << ", use_int3_gemm=" << use_int3_gemm
                                << ", use_int3_gemv=" << use_int3_gemv << std::endl;
 
-        batched_gemv_threshold = config.get_moe_batched_gemv_threshold();
+        // The u3 GEMV loses to the grouped GEMM paths from a few tokens on (~6 on LNL), much earlier than the other GEMVs
+        batched_gemv_threshold = use_int3_gemv ? config.get_moe_u3_batched_gemv_threshold() : config.get_moe_batched_gemv_threshold();
         if (batched_gemv_threshold == 0) {
             batched_gemv_threshold = 1;
         }

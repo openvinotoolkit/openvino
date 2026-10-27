@@ -1762,7 +1762,7 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
 
     auto net_config = get_test_default_config(engine);
     net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    net_config.set_property(ov::intel_gpu::moe_batched_gemv_threshold(param.batched_gemv_threshold));
+    net_config.set_property(ov::intel_gpu::moe_u3_batched_gemv_threshold(param.batched_gemv_threshold));
     if (param.dyn_quan == U3DynQuan::group_size_0) {
         net_config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
     } else if (param.dyn_quan == U3DynQuan::group_size_max_below) {
