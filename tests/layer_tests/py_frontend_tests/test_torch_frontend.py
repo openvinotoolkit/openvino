@@ -1013,6 +1013,30 @@ def test_make_16bit_traceable_packed_experts_freeze(dtype):
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_make_16bit_traceable_scripted_experts_fall_back_to_fp32(dtype):
+    from openvino.frontend.pytorch import patch_model
+
+    class Experts(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.num_experts = 4
+            self.gate_up_proj = torch.nn.Parameter(torch.ones(4, 4, 2, dtype=dtype), requires_grad=False)
+
+        def forward(self, value):
+            return value + self.gate_up_proj.sum()
+
+    model = torch.nn.Sequential(torch.jit.script(Experts().eval()))
+    try:
+        patch_model.__make_16bit_traceable(model)
+        parameter = model[0].gate_up_proj
+        assert parameter.dtype == torch.float32
+        assert parameter.untyped_storage().nbytes() == parameter.numel() * 4
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 def test_make_16bit_traceable_casts_other_raw_weights(dtype):
     """Only packed expert weights get placeholders; other raw parameters are cast to FP32."""
     from openvino.frontend.pytorch import patch_model

@@ -165,6 +165,8 @@ _PACKED_EXPERT_WEIGHT_NAMES = ("gate_up_proj", "up_proj", "down_proj")
 
 def _packed_expert_weight_names(module, supported):
     """Return names of packed 16-bit expert weights, which are too large to copy to FP32."""
+    if isinstance(module, torch.jit.ScriptModule):
+        return ()  # parameters cannot be added to a scripted module
     num_experts = getattr(module, "num_experts", None)
     return tuple(name for name, param in module.named_parameters(recurse=False)
                  if name in _PACKED_EXPERT_WEIGHT_NAMES and param.dtype in supported
