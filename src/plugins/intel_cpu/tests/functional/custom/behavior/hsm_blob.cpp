@@ -4,174 +4,233 @@
 
 #include <algorithm>
 #include <cstring>
+#include <fstream>
 #include <sstream>
 #include <string>
 
 #include "behavior/compiled_model/import_export.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "internal_properties.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/memory.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "utils/graph_serializer/hsm_common.hpp"
 
 namespace ov::test {
 
-namespace hsm = ov::intel_cpu::hsm;
+namespace hsm = intel_cpu::hsm;
 using behavior::HsmEntry;
 using behavior::hsm_repack;
 using behavior::is_hsm;
 
-static bool is_section(const HsmEntry& entry, const hsm::SectionId& id) {
-    return entry.device == id.device && entry.tag.tag.id() == id.tag.id();
+static bool has_section_id(runtime::hsm::DeviceId device,
+                           runtime::hsm::SectionTag tag,
+                           const hsm::SectionId& id) {
+    return hsm::section_key(device, tag.id()) == hsm::section_key(id);
 }
 
-// TODO: when HSM becomes the default, compile() no longer needs export_hsm_format(true); the legacy interop test then
-// needs export_hsm_format(false) and goes away with the legacy format.
+static bool is_page_aligned(size_t offset) {
+    return util::align_size_up(offset, util::min_page_alignment) == offset;
+}
+
+// TODO: when HSM becomes the default, compile() no longer needs export_hsm_format(true).
 class CpuHsmBlobTest : public ::testing::Test {
 protected:
     void SetUp() override {
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
-        model = ov::test::utils::make_conv_pool_relu({1, 3, 16, 16}, ov::element::f32);
-        input = ov::test::utils::create_and_fill_tensor(ov::element::f32, model->input().get_shape());
-        reference = infer(core.compile_model(model, ov::test::utils::DEVICE_CPU), input);
+        model = utils::make_conv_pool_relu({1, 3, 16, 16}, element::f32);
     }
 
-    ov::CompiledModel compile(const std::shared_ptr<ov::Model>& m, bool hsm_format) {
-        return core.compile_model(m, ov::test::utils::DEVICE_CPU, ov::intel_cpu::export_hsm_format(hsm_format));
+    CompiledModel compile(const std::shared_ptr<Model>& m, AnyMap config = {}) {
+        config.emplace(intel_cpu::export_hsm_format(true));
+        return core.compile_model(m, utils::DEVICE_CPU, config);
     }
 
-    std::string export_blob(bool hsm_format) {
+    std::string export_blob(const std::shared_ptr<Model>& m, const AnyMap& config = {}) {
         std::stringstream stream;
-        compile(model, hsm_format).export_model(stream);
+        compile(m, config).export_model(stream);
         return stream.str();
     }
 
-    static ov::Tensor infer(ov::CompiledModel compiled, const ov::Tensor& in) {
+    static Tensor infer(CompiledModel compiled, const Tensor& in) {
         auto request = compiled.create_infer_request();
         request.set_input_tensor(in);
         request.infer();
         const auto out = request.get_output_tensor();
-        ov::Tensor result(out.get_element_type(), out.get_shape());
+        Tensor result(out.get_element_type(), out.get_shape());
         out.copy_to(result);
         return result;
     }
 
-    void expect_import_matches_reference(const std::string& blob) {
-        std::stringstream stream(blob);
-        auto from_stream = core.import_model(stream, ov::test::utils::DEVICE_CPU);
-        ov::test::utils::compare(reference, infer(from_stream, input));
+    static size_t weights_section_size(const std::string& blob) {
+        const auto reader =
+            runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(blob.data()), blob.size());
+        OPENVINO_ASSERT(reader.has_value(), "Not an HSM blob");
+        const auto section = reader->section(hsm::weights.device, hsm::weights.tag.id());
+        return section ? section->size() : 0;
+    }
 
-        ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()});
-        std::memcpy(tensor.data(), blob.data(), blob.size());
-        auto from_tensor = core.import_model(tensor, ov::test::utils::DEVICE_CPU);
-        ov::test::utils::compare(reference, infer(from_tensor, input));
+    std::string export_blob_without(const hsm::SectionId& id) {
+        return hsm_repack(export_blob(model), [&](std::vector<HsmEntry>& entries) {
+            entries.erase(std::remove_if(entries.begin(),
+                                         entries.end(),
+                                         [&](const HsmEntry& entry) {
+                                             return has_section_id(entry.device, entry.tag.tag, id);
+                                         }),
+                          entries.end());
+        });
+    }
+
+    std::string export_blob_with_duplicate(const hsm::SectionId& id) {
+        return hsm_repack(export_blob(model), [&](std::vector<HsmEntry>& entries) {
+            const auto found = std::find_if(entries.begin(), entries.end(), [&](const HsmEntry& entry) {
+                return has_section_id(entry.device, entry.tag.tag, id);
+            });
+            ASSERT_NE(found, entries.end());
+            entries.push_back(*found);
+        });
     }
 
     void expect_import_rejected(const std::string& blob) {
         std::stringstream stream(blob);
-        EXPECT_THROW((void)core.import_model(stream, ov::test::utils::DEVICE_CPU), ov::Exception);
+        EXPECT_THROW((void)core.import_model(stream, utils::DEVICE_CPU), Exception);
 
-        ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()});
+        Tensor tensor(element::u8, Shape{blob.size()});
         std::memcpy(tensor.data(), blob.data(), blob.size());
-        EXPECT_THROW((void)core.import_model(tensor, ov::test::utils::DEVICE_CPU), ov::Exception);
+        EXPECT_THROW((void)core.import_model(tensor, utils::DEVICE_CPU), Exception);
     }
 
-    ov::Core core;
-    std::shared_ptr<ov::Model> model;
-    ov::Tensor input;
-    ov::Tensor reference;
+    Core core;
+    std::shared_ptr<Model> model;
 };
 
 TEST_F(CpuHsmBlobTest, exported_blob_is_hsm_with_cpu_sections) {
-    const auto blob = export_blob(true);
+    const auto blob = export_blob(model);
     ASSERT_TRUE(is_hsm(blob));
 
-    const auto reader = ov::runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(blob.data()), blob.size());
+    const auto reader = runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(blob.data()), blob.size());
     ASSERT_TRUE(reader.has_value());
     EXPECT_EQ(reader->count(hsm::runtime_requirements.device, hsm::runtime_requirements.tag.id()), 1u);
-    EXPECT_EQ(reader->count(hsm::serialized_model.device, hsm::serialized_model.tag.id()), 1u);
+    EXPECT_EQ(reader->count(hsm::model_struct.device, hsm::model_struct.tag.id()), 1u);
+    EXPECT_EQ(reader->count(hsm::weights.device, hsm::weights.tag.id()), 1u);
 
     const auto requirements = reader->section(hsm::runtime_requirements.device, hsm::runtime_requirements.tag.id());
     ASSERT_TRUE(requirements.has_value());
     const auto bytes = requirements->to_bytes();
     ASSERT_TRUE(bytes.has_value());
     EXPECT_EQ(std::string(reinterpret_cast<const char*>(bytes->data()), bytes->size()),
-              compile(model, true).get_property(ov::runtime_requirements));
+              compile(model).get_property(runtime_requirements));
 }
 
-TEST_F(CpuHsmBlobTest, hsm_blob_is_imported_from_stream_and_tensor) {
-    expect_import_matches_reference(export_blob(true));
+TEST_F(CpuHsmBlobTest, weights_and_model_are_separate_page_aligned_sections) {
+    const auto blob = export_blob(model);
+    const auto reader = runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(blob.data()), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    const auto find_manifest_entry = [&](const hsm::SectionId& id) {
+        const auto found = std::find_if(reader->entries().begin(), reader->entries().end(), [&](const auto& entry) {
+            return has_section_id(entry.device, entry.tag, id);
+        });
+        EXPECT_NE(found, reader->entries().end());
+        return *found;
+    };
+    const auto weights = find_manifest_entry(hsm::weights);
+    const auto model_struct = find_manifest_entry(hsm::model_struct);
+
+    EXPECT_GT(weights.size, 0u);
+    EXPECT_GT(model_struct.size, 0u);
+    EXPECT_TRUE(is_page_aligned(weights.offset));
+    EXPECT_TRUE(is_page_aligned(model_struct.offset));
+    EXPECT_LE(weights.offset + weights.size, model_struct.offset);
+    // The model slot is padded to whole pages, so the manifest after it starts on a page boundary.
+    EXPECT_TRUE(is_page_aligned(runtime::hsm::Header::view(blob.data()).manifest_offset));
 }
 
-TEST_F(CpuHsmBlobTest, legacy_blob_is_imported_by_the_hsm_capable_reader) {
-    const auto blob = export_blob(false);
-    EXPECT_FALSE(is_hsm(blob));
-    expect_import_matches_reference(blob);
-}
-
-TEST_F(CpuHsmBlobTest, model_without_constants_round_trips) {
-    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 8});
-    auto relu = std::make_shared<ov::op::v0::Relu>(parameter);
-    auto no_constants = std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(relu),
-                                                    ov::ParameterVector{parameter},
+TEST_F(CpuHsmBlobTest, model_without_constants_has_an_empty_weights_section_and_round_trips) {
+    auto parameter = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 8});
+    auto relu = std::make_shared<op::v0::Relu>(parameter);
+    auto no_constants = std::make_shared<Model>(std::make_shared<op::v0::Result>(relu),
+                                                    ParameterVector{parameter},
                                                     "no_constants");
-    std::stringstream stream;
-    compile(no_constants, true).export_model(stream);
+    const auto blob = export_blob(no_constants);
+    EXPECT_EQ(weights_section_size(blob), 0u);
 
-    auto imported = core.import_model(stream, ov::test::utils::DEVICE_CPU);
+    std::stringstream stream(blob);
+    auto imported = core.import_model(stream, utils::DEVICE_CPU);
 
-    const auto in = ov::test::utils::create_and_fill_tensor(ov::element::f32, ov::Shape{1, 8});
-    ov::test::utils::compare(infer(compile(no_constants, true), in), infer(imported, in));
+    const auto in = utils::create_and_fill_tensor(element::f32, Shape{1, 8});
+    utils::compare(infer(compile(no_constants), in), infer(imported, in));
 }
 
-TEST_F(CpuHsmBlobTest, unknown_sections_are_skipped) {
-    const auto repacked = hsm_repack(export_blob(true), [](std::vector<HsmEntry>& entries) {
-        const std::string payload = "future section";
-        entries.push_back({hsm::device_id,
-                           ov::runtime::hsm::SectionTag::make_device_tag(0x123, false),
-                           {reinterpret_cast<const std::byte*>(payload.data()),
-                            reinterpret_cast<const std::byte*>(payload.data()) + payload.size()}});
-    });
-    expect_import_matches_reference(repacked);
+TEST_F(CpuHsmBlobTest, weightless_constants_are_not_stored_in_the_weights_section) {
+    // The first constant is weightless and restored from a file on import; the second has no attribute, so it is
+    // still exported.
+    const auto weightless_data = utils::create_and_fill_tensor(element::f32, Shape{256, 512});
+    const auto plain_data = utils::create_and_fill_tensor(element::f32, Shape{512, 128});
+    auto weightless_constant = std::make_shared<op::v0::Constant>(weightless_data);
+    weightless_constant->get_rt_info()[WeightlessCacheAttribute::get_type_info_static()] =
+        WeightlessCacheAttribute(weightless_data.get_byte_size(), 0, element::f32);
+    auto parameter = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 256});
+    auto first = std::make_shared<op::v0::MatMul>(parameter, weightless_constant);
+    auto second = std::make_shared<op::v0::MatMul>(first, std::make_shared<op::v0::Constant>(plain_data));
+    auto weightless_model = std::make_shared<Model>(std::make_shared<op::v0::Result>(second),
+                                                        ParameterVector{parameter},
+                                                        "weightless");
+    const auto in = utils::create_and_fill_tensor(element::f32, Shape{1, 256});
+    const auto expected = infer(compile(weightless_model), in);
+
+    const auto weights_file = utils::generateTestFilePrefix() + "_weights.bin";
+    std::ofstream(weights_file, std::ios::binary)
+        .write(static_cast<const char*>(weightless_data.data()),
+               static_cast<std::streamsize>(weightless_data.get_byte_size()));
+
+    const AnyMap weightless_config{cache_mode(CacheMode::OPTIMIZE_SIZE)};
+    const auto blob = export_blob(weightless_model, weightless_config);
+    EXPECT_GE(weights_section_size(blob), plain_data.get_byte_size());
+    EXPECT_LT(weights_section_size(blob), weightless_data.get_byte_size());
+
+    std::stringstream stream(blob);
+    auto import_config = weightless_config;
+    import_config.emplace(weights_path(weights_file));
+    utils::compare(expected, infer(core.import_model(stream, utils::DEVICE_CPU, import_config), in));
+    utils::removeFile(weights_file);
 }
 
-TEST_F(CpuHsmBlobTest, import_rejects_blob_without_a_mandatory_section) {
-    for (const auto& mandatory : {hsm::runtime_requirements, hsm::serialized_model}) {
-        const auto repacked = hsm_repack(export_blob(true), [&](std::vector<HsmEntry>& entries) {
-            entries.erase(std::remove_if(entries.begin(),
-                                         entries.end(),
-                                         [&](const HsmEntry& entry) {
-                                             return is_section(entry, mandatory);
-                                         }),
-                          entries.end());
-        });
-        SCOPED_TRACE("missing section tag id " + std::to_string(mandatory.tag.id()));
-        expect_import_rejected(repacked);
-    }
+TEST_F(CpuHsmBlobTest, import_rejects_blob_without_runtime_requirements) {
+    expect_import_rejected(export_blob_without(hsm::runtime_requirements));
 }
 
-TEST_F(CpuHsmBlobTest, import_rejects_duplicated_section) {
-    const auto repacked = hsm_repack(export_blob(true), [](std::vector<HsmEntry>& entries) {
-        const auto model_entry = std::find_if(entries.begin(), entries.end(), [](const HsmEntry& entry) {
-            return is_section(entry, hsm::serialized_model);
-        });
-        ASSERT_NE(model_entry, entries.end());
-        entries.push_back(*model_entry);
-    });
-    expect_import_rejected(repacked);
+TEST_F(CpuHsmBlobTest, import_rejects_blob_without_model_struct) {
+    expect_import_rejected(export_blob_without(hsm::model_struct));
+}
+
+TEST_F(CpuHsmBlobTest, import_rejects_blob_without_the_weights_of_a_model_with_constants) {
+    expect_import_rejected(export_blob_without(hsm::weights));
+}
+
+TEST_F(CpuHsmBlobTest, import_rejects_duplicated_model_struct) {
+    expect_import_rejected(export_blob_with_duplicate(hsm::model_struct));
+}
+
+TEST_F(CpuHsmBlobTest, import_rejects_duplicated_weights) {
+    expect_import_rejected(export_blob_with_duplicate(hsm::weights));
 }
 
 TEST_F(CpuHsmBlobTest, import_rejects_mismatched_runtime_requirements) {
-    const auto repacked = hsm_repack(export_blob(true), [](std::vector<HsmEntry>& entries) {
+    const auto repacked = hsm_repack(export_blob(model), [](std::vector<HsmEntry>& entries) {
         for (auto& entry : entries) {
-            if (is_section(entry, hsm::runtime_requirements)) {
+            if (has_section_id(entry.device, entry.tag.tag, hsm::runtime_requirements)) {
                 entry.payload.front() ^= std::byte{0x01};
             }
         }

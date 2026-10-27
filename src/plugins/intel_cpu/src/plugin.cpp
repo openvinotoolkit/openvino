@@ -847,19 +847,12 @@ static void read_header(std::istream& model_stream) {
     model_stream.seekg(-remaining_unread_bytes, std::ios_base::cur);
 }
 
-static HsmReaderHandler read_hsm_sections(const ov::runtime::hsm::Reader& reader,
-                                          std::shared_ptr<ov::AlignedBuffer> source_blob) {
+static HsmModelDeserializer::Sections read_hsm_sections(const ov::runtime::hsm::Reader& reader,
+                                                        std::shared_ptr<ov::AlignedBuffer> source_blob) {
     HsmReaderHandler handler{std::move(source_blob)};
     reader.read_sections({&handler});
     handler.check_mandatory_sections();
-    if (const auto& requirements = handler.runtime_requirements) {
-        OPENVINO_ASSERT(is_runtime_requirements_compatible(*requirements),
-                        "[CPU] Cannot import compiled blob: incompatible runtime requirements, blob: ",
-                        *requirements,
-                        ", current: ",
-                        build_runtime_requirements());
-    }
-    return handler;
+    return {std::move(handler.model_struct), std::move(handler.weights)};
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
@@ -871,12 +864,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
 
     const auto blob_start = model_stream.tellg();
     if (auto reader = ov::runtime::hsm::Reader::open(model_stream)) {
-        auto handler = read_hsm_sections(*reader, nullptr);
-        ModelDeserializer deserializer(handler.serialized_model,
-                                       get_core(),
-                                       decrypt,
-                                       decrypt_from_string,
-                                       origin_weights_path);
+        HsmModelDeserializer deserializer(read_hsm_sections(*reader, nullptr),
+                                          get_core(),
+                                          decrypt,
+                                          decrypt_from_string,
+                                          origin_weights_path);
         return deserialize_model(deserializer, config);
     } else {
         // Not an HSM container: rewind and read the legacy layout.
@@ -905,23 +897,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     // but is used as read-only in deserializer
     auto* base_ptr = reinterpret_cast<char*>(const_cast<void*>(model_tensor.data()));
 
-    std::shared_ptr<ov::AlignedBuffer> model_buffer;
     if (auto reader = ov::runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(base_ptr), total_bytes)) {
         auto source_blob = std::make_shared<ov::SharedBuffer<ov::Tensor>>(base_ptr, total_bytes, model_tensor);
-        model_buffer = read_hsm_sections(*reader, std::move(source_blob)).serialized_model;
+        HsmModelDeserializer deserializer(read_hsm_sections(*reader, std::move(source_blob)),
+                                          get_core(),
+                                          decrypt,
+                                          decrypt_from_string,
+                                          origin_weights_path);
+        return deserialize_model(deserializer, config);
     } else {
         size_t offset = 0;
         validate_runtime_requirements(base_ptr, total_bytes, offset);
-        model_buffer =
+        std::shared_ptr<ov::AlignedBuffer> model_buffer =
             std::make_shared<ov::SharedBuffer<ov::Tensor>>(base_ptr + offset, total_bytes - offset, model_tensor);
+
+        ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
+
+        return deserialize_model(deserializer, config);
     }
-
-    ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
-
-    return deserialize_model(deserializer, config);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer& deserializer,
+std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializerBase& deserializer,
                                                               const ov::AnyMap& config) const {
     std::shared_ptr<ov::Model> model;
     deserializer >> model;

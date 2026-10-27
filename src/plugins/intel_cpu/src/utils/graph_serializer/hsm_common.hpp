@@ -5,6 +5,18 @@
 // Wire contract of the CPU HSM blob, shared by HsmReaderHandler and HsmWriterHandler. Keep it free of reader and
 // writer code - the two handlers must stay independent. `hsm` is this plugin's own namespace; the runtime API is
 // spelled runtime::hsm.
+//
+// Layout of the container, in file order (the legacy stream was [DataHeader][Custom data][Blobs][IR] behind a
+// requirements prefix; the manifest now replaces the DataHeader, and the custom data is no longer written):
+//
+//   [ HSM header           ]  32 bytes
+//   [ runtime_requirements ]  common section, checked first so an incompatible blob is rejected before any payload
+//   [ padding              ]
+//   [ weights              ]  page-aligned offset and slot size; may be empty (no constants, or weightless cache)
+//   [ model_struct         ]  page-aligned offset and slot size; IR XML, encrypted when cache encryption is on
+//   [ manifest             ]  one entry per section, starts on a page boundary
+//
+// The XML refers to constants by offset from the start of the weights section.
 
 #pragma once
 
@@ -32,11 +44,12 @@ constexpr uint32_t section_key(const SectionId& id) noexcept {
 /// Core-owned: the string checked by is_runtime_requirements_compatible() on import.
 // TODO CVS-196454: use the common Runtime Requirements codec instead of the plain string.
 inline constexpr SectionId runtime_requirements{runtime::hsm::any_device_id, runtime::hsm::runtime_requirements_tag};
-/// Layout 1: the whole legacy ModelSerializer stream (DataHeader, custom data, constants, XML), unchanged.
-// TODO CVS-196450, CVS-196451: replace with the common Model Struct and Weights sections.
+/// The compiled model's IR XML (encrypted when cache encryption is on), without constants.
+// TODO CVS-196450: replace with the common Model Struct section once its payload is defined.
 // TODO CVS-196456, CVS-196452: add the common Model Id and Compiled Options sections; CPU keeps its options in the
 // model rt_info until then.
-inline constexpr SectionId serialized_model{device_id,
-                                            runtime::hsm::SectionTag::make_device_tag(0, /*is_inline=*/false)};
+inline constexpr SectionId model_struct{device_id, runtime::hsm::model_tag};
+// TODO CVS-196451: replace with the common Weights section once its payload is defined.
+inline constexpr SectionId weights{device_id, runtime::hsm::weights_tag};
 
 }  // namespace ov::intel_cpu::hsm

@@ -17,17 +17,17 @@ namespace ov::intel_cpu {
 class HsmReaderHandler final : public runtime::hsm::ISectionReaderHandler {
 public:
     /// @p source_blob keeps the memory behind the sections alive. Pass it when the Reader was opened over a buffer,
-    /// so the model is mapped from it instead of copied.
+    /// so the sections are mapped from it instead of copied.
     explicit HsmReaderHandler(std::shared_ptr<ov::AlignedBuffer> source_blob = {});
 
-    /// Unrecognized sections are skipped. Throws if a recognized section is duplicated or cannot be read.
     bool handle_section(const runtime::hsm::ManifestEntry& entry, const runtime::hsm::Section& section) override;
 
-    /// Throws if the blob lacks a mandatory section or was written with a newer, unsupported layout.
+    /// Throws if the blob lacks a mandatory section.
     void check_mandatory_sections() const;
 
     std::optional<std::string> runtime_requirements;
-    std::shared_ptr<ov::AlignedBuffer> serialized_model;  //!< The legacy stream, see hsm::serialized_model.
+    std::shared_ptr<ov::AlignedBuffer> model_struct;  //!< See hsm::model_struct.
+    std::shared_ptr<ov::AlignedBuffer> weights;       //!< See hsm::weights; null if it is absent or empty.
 
 private:
     using Decoder = void (*)(HsmReaderHandler&, const runtime::hsm::Section&);

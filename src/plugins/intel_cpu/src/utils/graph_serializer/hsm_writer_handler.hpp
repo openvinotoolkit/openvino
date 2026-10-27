@@ -25,6 +25,7 @@ public:
 
 private:
     std::string m_runtime_requirements;
+    runtime::hsm::SectionEncoderPtr m_weights_encoder;
     runtime::hsm::SectionEncoderPtr m_model_encoder;
 };
 
