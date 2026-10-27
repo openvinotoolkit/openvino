@@ -1496,9 +1496,9 @@ public:
             scratch.x = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_UP_INPUT];
             scratch.gate = intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT];
         }
-        // Per-expert masks feed only the per-expert onednn loop; the sync-free grouped decode path does not need them
-        const bool grouped_decode = token_num <= batched_gemv_threshold && decode_impl == MoeGemmImpl::grouped_gemm;
-        const bool needs_expert_masks = !grouped_decode || _weight_provider->is_offloaded();
+        // Per-expert masks feed only the per-expert onednn loop, which the other paths fall back to only with offloaded
+        // experts. Creating them costs two sub-buffers per expert in every layer (~0.4 ms per layer for 256 experts).
+        const bool needs_expert_masks = select_impl(token_num) == MoeGemmImpl::per_expert_onednn || _weight_provider->is_offloaded();
         if (token_num > 1 && needs_expert_masks) {
             const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
             int expert_num = static_cast<int>(config.num_expert);
