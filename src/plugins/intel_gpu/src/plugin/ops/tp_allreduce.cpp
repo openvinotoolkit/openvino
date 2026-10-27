@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_TP_GPU
+#ifdef ENABLE_TP
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/tp_allreduce.hpp"
 
-#include "tp_gpu/op/tp_all_reduce.hpp"
+#include "tp/op/tp_all_reduce.hpp"
 
 namespace ov {
 namespace op {
-namespace tp_gpu {
-using TPAllReduce = ov::tp_gpu::op::TPAllReduce;
-}  // namespace tp_gpu
+namespace tp {
+using TPAllReduce = ov::tp::op::TPAllReduce;
+}  // namespace tp
 }  // namespace op
 }  // namespace ov
 
 namespace ov::intel_gpu {
 
 static void CreateTPAllReduceOp(ProgramBuilder& p,
-                                const std::shared_ptr<ov::tp_gpu::op::TPAllReduce>& op) {
+                                const std::shared_ptr<ov::tp::op::TPAllReduce>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
@@ -34,8 +34,8 @@ static void CreateTPAllReduceOp(ProgramBuilder& p,
     p.add_primitive(*op, prim);
 }
 
-REGISTER_FACTORY_IMPL(tp_gpu, TPAllReduce);
+REGISTER_FACTORY_IMPL(tp, TPAllReduce);
 
 }  // namespace ov::intel_gpu
 
-#endif  // ENABLE_TP_GPU
+#endif  // ENABLE_TP

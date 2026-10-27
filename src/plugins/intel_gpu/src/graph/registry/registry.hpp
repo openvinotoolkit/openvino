@@ -199,7 +199,7 @@ REGISTER_IMPLS(paged_qsa_indexer);
 REGISTER_IMPLS(qsa_indexer);
 REGISTER_IMPLS(sparse_pa);
 REGISTER_IMPLS(sparse_sdpa);
-#ifdef ENABLE_TP_GPU
+#ifdef ENABLE_TP
 REGISTER_IMPLS(tp_allreduce);
 REGISTER_IMPLS(tp_gather);
 #endif

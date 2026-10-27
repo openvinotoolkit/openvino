@@ -4,7 +4,7 @@
 
 #pragma once
 
-#ifdef ENABLE_TP_GPU
+#ifdef ENABLE_TP
 
 #include "intel_gpu/primitives/tp_gather.hpp"
 #include "primitive_inst.h"
@@ -45,4 +45,4 @@ using tp_gather_inst = typed_primitive_inst<tp_gather>;
 
 }  // namespace cldnn
 
-#endif  // ENABLE_TP_GPU
+#endif  // ENABLE_TP

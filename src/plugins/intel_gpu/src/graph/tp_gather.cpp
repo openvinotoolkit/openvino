@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_TP_GPU
+#ifdef ENABLE_TP
 
 #include "tp_gather_inst.h"
 #include "primitive_type_base.h"
@@ -73,4 +73,4 @@ tp_gather_inst::typed_primitive_inst(network& network, const tp_gather_node& nod
 
 }  // namespace cldnn
 
-#endif  // ENABLE_TP_GPU
+#endif  // ENABLE_TP

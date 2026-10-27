@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_TP_GPU
+#ifdef ENABLE_TP
 
 #include "ze/ze_stream.hpp"
 
@@ -11,7 +11,7 @@
 #include "tp_allreduce_inst.h"
 #include "registry/implementation_map.hpp"
 
-#include "tp_gpu/tp_device_coordinator.hpp"
+#include "tp/tp_device_coordinator.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -118,7 +118,7 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
 
     /// The coordinator is runtime state of the network, injected by the
     /// TP plugin after this model was compiled or imported.
-    const ov::tp_gpu::TPDeviceCoordinatorPtr& coordinator_of(tp_allreduce_inst& instance) const {
+    const ov::tp::TPDeviceCoordinatorPtr& coordinator_of(tp_allreduce_inst& instance) const {
         const auto& registry = instance.get_network().get_collective_comm_registry();
         OPENVINO_ASSERT(registry != nullptr,
             "[GPU] tp_allreduce requires a collective registry; the TP plugin must inject "
@@ -181,4 +181,4 @@ attach_tp_allreduce_impl::attach_tp_allreduce_impl() {
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::tp_allreduce_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::tp_allreduce)
 
-#endif  // ENABLE_TP_GPU
+#endif  // ENABLE_TP

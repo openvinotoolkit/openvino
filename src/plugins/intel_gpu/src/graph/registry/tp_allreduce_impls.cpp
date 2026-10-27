@@ -7,7 +7,7 @@
 #include "intel_gpu/primitives/tp_allreduce.hpp"
 #include "primitive_inst.h"
 
-#ifdef ENABLE_TP_GPU
+#ifdef ENABLE_TP
 
 namespace ov::intel_gpu {
 
@@ -24,4 +24,4 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<tp_al
 
 }  // namespace ov::intel_gpu
 
-#endif  // ENABLE_TP_GPU
+#endif  // ENABLE_TP

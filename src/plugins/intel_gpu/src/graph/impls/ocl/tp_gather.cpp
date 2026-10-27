@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_TP_GPU
+#ifdef ENABLE_TP
 
 #include "ze/ze_stream.hpp"
 
@@ -11,7 +11,7 @@
 #include "tp_gather_inst.h"
 #include "registry/implementation_map.hpp"
 
-#include "tp_gpu/tp_device_coordinator.hpp"
+#include "tp/tp_device_coordinator.hpp"
 
 #include <cstdlib>
 
@@ -169,4 +169,4 @@ attach_tp_gather_impl::attach_tp_gather_impl() {
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::tp_gather_impl)
 
-#endif  // ENABLE_TP_GPU
+#endif  // ENABLE_TP

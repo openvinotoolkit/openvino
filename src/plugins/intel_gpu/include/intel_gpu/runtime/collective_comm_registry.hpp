@@ -10,9 +10,9 @@
 #include "openvino/core/except.hpp"
 
 namespace ov {
-namespace tp_gpu {
+namespace tp {
 class TPDeviceCoordinator;
-}  // namespace tp_gpu
+}  // namespace tp
 
 namespace intel_gpu {
 
@@ -30,17 +30,17 @@ namespace intel_gpu {
 /// request exists and is read-only afterwards.
 class CollectiveCommRegistry {
 public:
-    void set_coordinator(std::shared_ptr<ov::tp_gpu::TPDeviceCoordinator> coordinator) {
+    void set_coordinator(std::shared_ptr<ov::tp::TPDeviceCoordinator> coordinator) {
         m_coordinator = std::move(coordinator);
     }
 
-    const std::shared_ptr<ov::tp_gpu::TPDeviceCoordinator>& coordinator() const {
+    const std::shared_ptr<ov::tp::TPDeviceCoordinator>& coordinator() const {
         OPENVINO_ASSERT(m_coordinator != nullptr, "No collective coordinator registered");
         return m_coordinator;
     }
 
 private:
-    std::shared_ptr<ov::tp_gpu::TPDeviceCoordinator> m_coordinator;
+    std::shared_ptr<ov::tp::TPDeviceCoordinator> m_coordinator;
 };
 
 using CollectiveCommRegistryPtr = std::shared_ptr<CollectiveCommRegistry>;
