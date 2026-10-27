@@ -51,6 +51,7 @@
 #define GQA_ST_BYTES (16 * 16 * 4)
 #define GQA_SLM_BYTES (2 * GQA_W * GQA_ST_BYTES)
 #define GQA_NEG_INF (-3.0e38f)
+#define GQA_RESCALE_LOG2 8.0f
 
 // The split and non-split variants are batched into one program; define helpers once.
 #ifndef SPARSE_ATTENTION_PAGED_GQA_HELPERS
@@ -149,9 +150,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     cm_slm_init(GQA_SLM_BYTES);
     auto slm = cm_slm_alloc(GQA_SLM_BYTES);
-    vector<uint, 16> lane;
-    cmtl::cm_vector_assign(lane.select_all(), 0, 1);
-    const vector<ushort, 16> valid_head = lane < HEADS;
 
     // Memory ROWS are heads of this ONE token, not neighboring tokens. Descriptor
     // height=HEADS (e.g.12) zero-pads remaining columns through the N16 transpose.
@@ -289,33 +287,38 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             }
         }
         gqa_paged_reduce_st16(st.select_all(), slm, (step & 1) * GQA_W * GQA_ST_BYTES, worker);
+        // Padded head lanes see zero Q (finite scores, never stored), so only the rows past
+        // valid_kv of a partial step need masking; exp() of those is then exactly 0.
+        if (valid_kv != 16) {
 #pragma unroll
-        for (uint i = 0; i < 16; i++) {
-            const vector<ushort, 16> keep = valid_head & (i < valid_kv);
-            st.row(i).merge(GQA_NEG_INF, keep == 0);
+            for (uint i = 0; i < 16; i++) {
+                if (i >= valid_kv) st.row(i) = GQA_NEG_INF;
+            }
         }
         vector<float, 16> tile_max = st.row(0);
 #pragma unroll
         for (uint i = 1; i < 16; i++) tile_max = cm_max<float>(tile_max, st.row(i));
-        const vector<float, 16> new_max = cm_max<float>(running_max, tile_max);
-        const vector<float, 16> corr = cm_exp(running_max - new_max);
+        // Lazy rescale: move the running max only when some lane grows by more than
+        // 2^GQA_RESCALE_LOG2 (scores are log2-scaled), so p stays <= 2^GQA_RESCALE_LOG2 in half.
+        const vector<ushort, 16> grow = tile_max > running_max + GQA_RESCALE_LOG2;
+        if (grow.any()) {
+            const vector<float, 16> new_max = cm_max<float>(running_max, tile_max);
+            const vector<float, 16> corr = cm_exp(running_max - new_max);
+            running_sum = running_sum * corr;
+            running_max = new_max;
+#pragma unroll
+            for (uint t = 0; t < 2 * GQA_VT; t++) {
+                auto o = ro.row(t).format<float, 8, 16>();
+#pragma unroll
+                for (uint row = 0; row < 8; row++) o.row(row) *= corr[(t / GQA_VT) * 8 + row];
+            }
+        }
         matrix<half, 16, 16> p;
-        vector<float, 16> tile_sum = 0.0f;
 #pragma unroll
         for (uint i = 0; i < 16; i++) {
-            vector<float, 16> e = cm_exp(st.row(i) - new_max);
-            e.merge(0.0f, st.row(i) <= GQA_NEG_INF);
-            tile_sum += e;
+            vector<float, 16> e = cm_exp(st.row(i) - running_max);
+            running_sum += e;
             p.row(i) = e;
-        }
-        running_sum = running_sum * corr + tile_sum;
-        running_max = new_max;
-        // Rescale the running accumulator before this K16 PV contribution.
-#pragma unroll
-        for (uint t = 0; t < 2 * GQA_VT; t++) {
-            auto o = ro.row(t).format<float, 8, 16>();
-#pragma unroll
-            for (uint row = 0; row < 8; row++) o.row(row) *= corr[(t / GQA_VT) * 8 + row];
         }
         matrix<half, 16, 16> pt;
         qsa_dpas::transpose_16x16(p.select_all(), pt.select_all());
