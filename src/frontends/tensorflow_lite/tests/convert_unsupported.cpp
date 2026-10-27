@@ -97,3 +97,35 @@ INSTANTIATE_TEST_SUITE_P(OobBuiltinOpcode,
                          ::testing::Values("oob_builtin_opcode/oob_deprecated_builtin_code.tflite",
                                            "oob_builtin_opcode/oob_builtin_code.tflite",
                                            "oob_builtin_opcode/null_sentinel_builtin_code.tflite"));
+
+// Verifier-valid files whose load() must throw, not crash:
+//   empty_dense_buffer        - dense constant with a present-but-empty Buffer.data vector; before the
+//                               decoder check the loader copied the 16 KiB its shape requires out of it
+//   empty_dense_buffer_large  - the same with a 1 MiB shape; before the check loading it crashed
+//   operator_without_inputs   - operator whose 'inputs' vector field is absent
+//   negative_input_index      - operator input tensor index negative and not the -1 optional sentinel
+// The last two are already rejected by the graph iterator; they pin that rejection in place.
+// (squeeze_without_dims is handled gracefully rather than rejected; see the SqueezeWithoutDims test.)
+INSTANTIATE_TEST_SUITE_P(DecoderNullAndEmptyBuffer,
+                         MalformedModelLoadTest,
+                         ::testing::Values("decoder_null_and_empty_buffer/empty_dense_buffer.tflite",
+                                           "decoder_null_and_empty_buffer/empty_dense_buffer_large.tflite",
+                                           "decoder_null_and_empty_buffer/operator_without_inputs.tflite",
+                                           "decoder_null_and_empty_buffer/negative_input_index.tflite"));
+
+// A SQUEEZE op whose SqueezeOptions table is present but whose optional squeeze_dims vector is absent
+// previously dereferenced the null vector. It must now load and convert, treating the missing field
+// as an empty axis list (squeeze all size-1 dimensions).
+TEST(TensorFlowLiteSqueezeWithoutDims, loads_and_converts) {
+    FrontEndManager fem;
+    auto fe = fem.load_by_framework(TF_LITE_FE);
+    ASSERT_NE(fe, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(
+        std::string(TEST_TENSORFLOW_LITE_MODELS_DIRNAME) + "decoder_null_and_empty_buffer/squeeze_without_dims.tflite");
+    InputModel::Ptr input_model;
+    OV_ASSERT_NO_THROW(input_model = fe->load(model_filename));
+    ASSERT_NE(input_model, nullptr);
+    std::shared_ptr<ov::Model> model;
+    OV_ASSERT_NO_THROW(model = fe->convert(input_model));
+    ASSERT_NE(model, nullptr);
+}

@@ -9,6 +9,7 @@
 
 void ov::frontend::tensorflow_lite::TensorLitePlace::translate(ov::Output<ov::Node>& output,
                                                                bool convert_tensor_attrs_to_nodes) {
+    FRONT_END_GENERAL_CHECK(!get_names().empty(), "TensorFlow Lite Frontend: tensor place has no name to translate.");
     output.set_names({*get_names().begin()});
     output.get_rt_info()[ov::frontend::tensorflow_lite::QuantizationInfo::get_type_info_static()] = m_quantization;
     output.get_rt_info()[ov::frontend::tensorflow_lite::SparsityInfo::get_type_info_static()] = m_sparsity;
