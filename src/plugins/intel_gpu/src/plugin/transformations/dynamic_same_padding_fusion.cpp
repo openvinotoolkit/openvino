@@ -62,11 +62,11 @@ bool resolve(Scalar& scalar) {
         if (scalar.index >= small_tensor_size(scalar.value))
             return false;
         const auto node = scalar.value.get_node_shared_ptr();
-        if (is_type<op::v1::Reshape>(node) || is_type<op::v0::Squeeze>(node) || is_type<op::v0::Unsqueeze>(node)) {
+        if (is_type<ov::op::v1::Reshape>(node) || is_type<ov::op::v0::Squeeze>(node) || is_type<ov::op::v0::Unsqueeze>(node)) {
             if (small_tensor_size(node->input_value(0)) != small_tensor_size(scalar.value))
                 return false;
             scalar.value = node->input_value(0);
-        } else if (const auto concat = as_type_ptr<op::v0::Concat>(node)) {
+        } else if (const auto concat = as_type_ptr<ov::op::v0::Concat>(node)) {
             if (scalar.value.get_shape().size() != 1 || (concat->get_axis() != 0 && concat->get_axis() != -1))
                 return false;
             bool found = false;
@@ -81,9 +81,9 @@ bool resolve(Scalar& scalar) {
             }
             if (!found)
                 return false;
-        } else if (const auto gather = as_type_ptr<op::util::GatherBase>(node)) {
-            const auto indices = as_type_ptr<op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
-            const auto axis = as_type_ptr<op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
+        } else if (const auto gather = as_type_ptr<ov::op::util::GatherBase>(node)) {
+            const auto indices = as_type_ptr<ov::op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
+            const auto axis = as_type_ptr<ov::op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
             const auto& input = gather->input_value(0);
             const auto size = small_tensor_size(input);
             if (!indices || !axis || shape_size(axis->get_shape()) != 1 || size == 0 || input.get_shape().size() != 1 || gather->get_batch_dims() != 0)
@@ -100,8 +100,8 @@ bool resolve(Scalar& scalar) {
             if (index < 0 || static_cast<size_t>(index) >= size)
                 return false;
             scalar = {input, static_cast<size_t>(index)};
-        } else if (const auto split = as_type_ptr<op::v1::Split>(node)) {
-            const auto axis = as_type_ptr<op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
+        } else if (const auto split = as_type_ptr<ov::op::v1::Split>(node)) {
+            const auto axis = as_type_ptr<ov::op::v0::Constant>(split->input_value(1).get_node_shared_ptr());
             const auto& input = split->input_value(0);
             if (!axis || shape_size(axis->get_shape()) != 1 || small_tensor_size(input) == 0)
                 return false;
@@ -125,7 +125,7 @@ bool resolve(Scalar& scalar) {
 bool constant(Scalar scalar, double& value) {
     if (!resolve(scalar))
         return false;
-    const auto c = as_type_ptr<op::v0::Constant>(scalar.value.get_node_shared_ptr());
+    const auto c = as_type_ptr<ov::op::v0::Constant>(scalar.value.get_node_shared_ptr());
     if (!c)
         return false;
     value = c->cast_vector<double>()[scalar.index];
@@ -153,7 +153,7 @@ bool is_shape_float(const element::Type& type) {
 bool unwrap_integer_convert(Scalar& scalar) {
     if (!resolve(scalar))
         return false;
-    if (const auto convert = as_type_ptr<op::v0::Convert>(scalar.value.get_node_shared_ptr())) {
+    if (const auto convert = as_type_ptr<ov::op::v0::Convert>(scalar.value.get_node_shared_ptr())) {
         const auto type = convert->get_destination_type();
         if ((type != element::i32 && type != element::i64) || !is_shape_float(convert->get_input_element_type(0)))
             return false;
@@ -165,12 +165,12 @@ bool unwrap_integer_convert(Scalar& scalar) {
 bool is_dimension(Scalar scalar, const Output<Node>& data, size_t axis) {
     if (!resolve(scalar))
         return false;
-    if (const auto convert = as_type_ptr<op::v0::Convert>(scalar.value.get_node_shared_ptr())) {
+    if (const auto convert = as_type_ptr<ov::op::v0::Convert>(scalar.value.get_node_shared_ptr())) {
         if (!is_shape_float(convert->get_destination_type()) ||
             (convert->get_input_element_type(0) != element::i32 && convert->get_input_element_type(0) != element::i64) || !input_scalar(scalar, 0, scalar))
             return false;
     }
-    const auto shape = as_type_ptr<op::util::ShapeOfBase>(scalar.value.get_node_shared_ptr());
+    const auto shape = as_type_ptr<ov::op::util::ShapeOfBase>(scalar.value.get_node_shared_ptr());
     return shape && shape->input_value(0) == data && scalar.index == axis;
 }
 
@@ -179,9 +179,9 @@ bool divided_by(Scalar scalar, double divisor, Scalar& numerator) {
         return false;
     Scalar a, b;
     const auto node = scalar.value.get_node_shared_ptr();
-    if ((!is_type<op::v1::Divide>(node) && !is_type<op::v1::Multiply>(node)) || !input_scalar(scalar, 0, a) || !input_scalar(scalar, 1, b))
+    if ((!is_type<ov::op::v1::Divide>(node) && !is_type<ov::op::v1::Multiply>(node)) || !input_scalar(scalar, 0, a) || !input_scalar(scalar, 1, b))
         return false;
-    if (is_type<op::v1::Divide>(node)) {
+    if (is_type<ov::op::v1::Divide>(node)) {
         if (!constant_is(b, divisor))
             return false;
         numerator = a;
@@ -231,16 +231,16 @@ bool with_constant(Scalar scalar, double expected, Scalar& other) {
 // Match only subtraction and its exported Add(lhs, Multiply(rhs, -1)) form.
 // Do not cancel or reassociate float expressions: (x + C) - C can differ from x.
 bool subtraction(Scalar scalar, Scalar& lhs, Scalar& rhs) {
-    if (binary_inputs<op::v1::Subtract>(scalar, lhs, rhs))
+    if (binary_inputs<ov::op::v1::Subtract>(scalar, lhs, rhs))
         return true;
     Scalar a, b;
-    if (!binary_inputs<op::v1::Add>(scalar, a, b))
+    if (!binary_inputs<ov::op::v1::Add>(scalar, a, b))
         return false;
-    if (with_constant<op::v1::Multiply>(b, -1, rhs)) {
+    if (with_constant<ov::op::v1::Multiply>(b, -1, rhs)) {
         lhs = a;
         return true;
     }
-    if (with_constant<op::v1::Multiply>(a, -1, rhs)) {
+    if (with_constant<ov::op::v1::Multiply>(a, -1, rhs)) {
         lhs = b;
         return true;
     }
@@ -266,7 +266,7 @@ public:
 
 private:
     bool total(Scalar scalar) const {
-        if (!resolve(scalar) || !is_type<op::v1::Maximum>(scalar.value.get_node()))
+        if (!resolve(scalar) || !is_type<ov::op::v1::Maximum>(scalar.value.get_node()))
             return false;
         Scalar a, b;
         if (!input_scalar(scalar, 0, a) || !input_scalar(scalar, 1, b))
@@ -281,7 +281,7 @@ private:
 
     bool output_size(Scalar scalar) const {
         Scalar numerator;
-        return resolve(scalar) && is_type<op::v0::Ceiling>(scalar.value.get_node()) && input_scalar(scalar, 0, scalar) &&
+        return resolve(scalar) && is_type<ov::op::v0::Ceiling>(scalar.value.get_node()) && input_scalar(scalar, 0, scalar) &&
                divided_by(scalar, m_stride, numerator) && is_dimension(numerator, m_data, m_axis);
     }
 
@@ -289,21 +289,23 @@ private:
         Scalar product, size;
         // Constant-folded form: S * ceil(I / S) + (Keff - S).
         // NopElimination may have removed the Add when Keff equals S.
-        if (m_kernel == m_stride && with_constant<op::v1::Multiply>(scalar, m_stride, size) && output_size(size))
+        if (m_kernel == m_stride && with_constant<ov::op::v1::Multiply>(scalar, m_stride, size) && output_size(size))
             return true;
-        if (with_constant<op::v1::Add>(scalar, m_kernel - m_stride, product) && with_constant<op::v1::Multiply>(product, m_stride, size) && output_size(size))
+        if (with_constant<ov::op::v1::Add>(scalar, m_kernel - m_stride, product) && with_constant<ov::op::v1::Multiply>(product, m_stride, size) &&
+            output_size(size))
             return true;
 
         // Expanded form: (ceil(I / S) - 1) * S + Keff.
-        if (!with_constant<op::v1::Add>(scalar, m_kernel, product) || !with_constant<op::v1::Multiply>(product, m_stride, size))
+        if (!with_constant<ov::op::v1::Add>(scalar, m_kernel, product) || !with_constant<ov::op::v1::Multiply>(product, m_stride, size))
             return false;
         Scalar ceil, one;
-        return (subtraction(size, ceil, one) && constant_is(one, 1) && output_size(ceil)) || (with_constant<op::v1::Add>(size, -1, ceil) && output_size(ceil));
+        return (subtraction(size, ceil, one) && constant_is(one, 1) && output_size(ceil)) ||
+               (with_constant<ov::op::v1::Add>(size, -1, ceil) && output_size(ceil));
     }
 
     bool half(Scalar scalar) const {
         Scalar numerator;
-        return resolve(scalar) && is_type<op::v0::Floor>(scalar.value.get_node()) && input_scalar(scalar, 0, scalar) && divided_by(scalar, 2, numerator) &&
+        return resolve(scalar) && is_type<ov::op::v0::Floor>(scalar.value.get_node()) && input_scalar(scalar, 0, scalar) && divided_by(scalar, 2, numerator) &&
                total(numerator);
     }
 

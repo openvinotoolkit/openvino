@@ -33,7 +33,7 @@
 
 ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() {
     auto check_reduce_shape = [=](Output<Node> output) -> bool {
-        const auto reduce = ov::as_type_ptr<op::util::ArithmeticReductionKeepDims>(output.get_node_shared_ptr());
+        const auto reduce = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(output.get_node_shared_ptr());
         OPENVINO_ASSERT(reduce != nullptr, "output is not reduce.");
         const auto& input_shape = reduce->input_value(0).get_partial_shape();
         const auto& reduce_shape = reduce->input_value(1).get_partial_shape();
@@ -67,8 +67,7 @@ ov::intel_gpu::DecomposeReduceForScalarOutput::DecomposeReduceForScalarOutput() 
     // register callback
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto reduce_orig =
-            as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
+        auto reduce_orig = as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
         if (!reduce_orig || transformation_callback(reduce_orig)) {
             return false;
         }

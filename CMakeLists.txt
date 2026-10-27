@@ -198,6 +198,14 @@ if(CMAKE_UNITY_BUILD)
         # In a unity source the merged .cpp files are not the main file, so GCC reports
         # every anonymous-namespace type used as a base or member of another type.
         add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-subobject-linkage>)
+        # Merged sources give GCC more inlining context, and its flow-sensitive diagnostics then
+        # report false positives in code that is clean when compiled file by file. Keep them as
+        # warnings, but do not fail -Werror builds on them.
+        add_compile_options(-Wno-error=free-nonheap-object
+                            -Wno-error=maybe-uninitialized
+                            -Wno-error=array-bounds
+                            -Wno-error=stringop-overflow
+                            -Wno-error=stringop-overread)
     endif()
 endif()
 include(thirdparty/dependencies.cmake)
