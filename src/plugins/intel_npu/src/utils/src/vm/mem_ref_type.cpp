@@ -69,12 +69,33 @@ void MemRefType::setStrides(const ov::Strides& strides, int32_t elementSize) {
     }
 }
 
+ov::Strides MemRefType::getElementStrides(const ov::ITensor& tensor) {
+    const auto type = tensor.get_element_type();
+    if (type.bitwidth() < 8) {
+        const auto& shape = tensor.get_shape();
+        ov::Strides strides(shape.size());
+        size_t stride = 1;
+        for (size_t dim = shape.size(); dim > 0; --dim) {
+            strides[dim - 1] = stride;
+            stride *= shape[dim - 1];
+        }
+        return strides;
+    }
+
+    auto strides = tensor.get_strides();
+    const auto elementSize = type.size();
+    for (auto& stride : strides) {
+        OPENVINO_ASSERT(stride % elementSize == 0, "Tensor byte stride must be a multiple of element size");
+        stride /= elementSize;
+    }
+    return strides;
+}
+
 void MemRefType::set(const void* arg, int64_t offset, std::shared_ptr<ov::ITensor> tensor) {
     setArg(arg);
     setOffset(offset);
     setSize(tensor->get_shape());
-    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    setStrides(tensor->get_strides(), static_cast<int32_t>(elementSize));
+    setStrides(getElementStrides(*tensor));
 }
 
 void MemRefType::updateStride() {

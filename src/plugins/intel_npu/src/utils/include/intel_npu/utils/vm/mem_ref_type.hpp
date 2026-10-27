@@ -78,6 +78,7 @@ struct MemRefType {
     void setArg(const void* arg);
     void setOffset(int64_t offset);
     void setSize(const ov::Shape& shape);
+    static ov::Strides getElementStrides(const ov::ITensor& tensor);
     void setStrides(const ov::Strides& strides, int32_t elementSize = 1);
     void set(const void* basePtr, int64_t offset, std::shared_ptr<ov::ITensor> tensor);
     void updateStride();
