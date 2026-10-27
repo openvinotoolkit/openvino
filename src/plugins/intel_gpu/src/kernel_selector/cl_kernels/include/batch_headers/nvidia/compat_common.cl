@@ -20,14 +20,13 @@
 #ifndef cl_khr_fp16
 #define cl_khr_fp16 1
 #endif
-// The host reports supports_intel_subgroups_short when OV_NV_EMULATE_SUBGROUP_SIZES is on, so the kernel selector
+// The host reports supports_intel_subgroups_short for NVIDIA devices (sycl_device.cpp), so the kernel selector
 // can pick kernels whose whole body sits under #if defined(cl_intel_subgroups_short) (convolution_gpu_bfyx_direct_
 // 10_12_16, convolution_gpu_bfyx_gemm_like_fp16). The NVIDIA compiler never defines the macro, so without this those
 // kernels preprocess to nothing and the batch comes back one entry point short. The 16-bit block accessors the
 // extension would supply are the intel_sub_group_block_{read,write}_us* macros defined in compat_sg.cl, so
 // sub_group_block_read.cl and sub_group_block_write.cl reach the same helpers either way; compat_sg_overrides.cl
-// then #undefs the _sub_group_block_*_us* spellings those headers define and binds them again. With the emulation off
-// the host flag stays false and none of these kernels is selected.
+// then #undefs the _sub_group_block_*_us* spellings those headers define and binds them again.
 #ifndef cl_intel_subgroups_short
 #define cl_intel_subgroups_short 1
 #endif
@@ -44,7 +43,7 @@
 // does not show the problem, since the OpenCL runtime does set %envreg9 there.
 // The asm is not volatile, here and for _nv_laneid in compat_sg.cl: these registers do not change while a work-item
 // runs, so the compiler may fold repeated reads, which cuts the S2R count. The code shape this gives exposed three
-// problems on an A100 with OV_NV_EMULATE_SUBGROUP_SIZES=1, each fixed where it lies rather than by keeping volatile:
+// problems on an A100 with the sub-group size emulation on, each fixed where it lies rather than by keeping volatile:
 //  - convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32: with the lane and sub-group ids from one %tid read, the x-boundary
 //    test was unswitched out of the SLM fill loop and a race between the SLM stores of two sub-groups returned wrong
 //    values (fusings_gpu/conv_int8_*). The kernel now guards those stores.

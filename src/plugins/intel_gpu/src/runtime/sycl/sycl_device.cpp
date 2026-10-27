@@ -286,6 +286,33 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
         info.has_separate_cache = false; // no corresponding info in SYCL
     } else if (info.vendor_id == NVIDIA_VENDOR_ID) {
         info.gfx_ver = {0, 0, 0}; // no corresponding info in SYCL
+
+        // NVIDIA hardware only has 32-wide warps, so sub_group_sizes reports {32} and every kernel that needs a
+        // narrower sub-group is rejected by IsSIMDSizeSupported(). Sub-groups of 8 and 16 can be emulated on top of
+        // a warp by confining each shuffle to an aligned segment of it, which nvidia/compat_sg.cl does for every
+        // kernel built through the NVIDIA kernel builder.
+        //
+        // There is no cl_intel_subgroups here, but what the kernel selector asks this flag about is whether the
+        // built-ins the extension would supply are available, and with the emulation they are: the prelude provides
+        // the shuffles - the relative ones included, which the generic emulation path in sub_group_shuffle.cl leaves
+        // undefined and which get_supported_device_features_key() gates on this flag alone - along with the block
+        // reads/writes and the reductions.
+        info.supports_intel_subgroups = true;
+
+        // Same reasoning for the 16-bit family. The kernels that ask for it - the f16 paths of
+        // fully_connected_gpu_bs_f_bsv16_af8_vload, fully_connected_gpu_bs_f_bsv8_af8 and
+        // convolution_gpu_bfyx_direct_10_12_16 - reach the built-ins through the _sub_group_block_read_us* /
+        // _sub_group_block_write_us* spellings and the short/ushort/half shuffles, all of which
+        // nvidia/compat_sg_overrides.cl binds to the parameterised helpers in the prelude.
+        info.supports_intel_subgroups_short = true;
+
+        for (size_t simd : {static_cast<size_t>(8), static_cast<size_t>(16)}) {
+            if (std::find(info.supported_simd_sizes.begin(), info.supported_simd_sizes.end(), simd) ==
+                info.supported_simd_sizes.end()) {
+                info.supported_simd_sizes.push_back(simd);
+            }
+        }
+        std::sort(info.supported_simd_sizes.begin(), info.supported_simd_sizes.end());
     } else {
         info.gfx_ver = {0, 0, 0};
         info.device_id = driver_dev_id();
