@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
 
+#include "impls/ocl_v2/sdpa/sdpa_gen_opt.hpp"
 #include "impls/ocl_v2/sdpa/sdpa_opt.hpp"
 #include "impls/ocl_v2/sdpa/sdpa_ref.hpp"
 #include "openvino/reference/scaled_dot_product_attention.hpp"
@@ -22,6 +23,8 @@
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <optional>
+#include <string>
 #include <tuple>
 #include <iostream>
 #include <fstream>
@@ -734,6 +737,300 @@ INSTANTIATE_TEST_SUITE_P(
     sdpa_micro_prefetch_k_test::PrintToStringParamName
 );
 
+// use_onednn_sdpa is a debug-caps-only option.
+#ifdef ENABLE_DEBUG_CAPS
+struct onednn_sdpa_test_params {
+    int batch;
+    int num_heads;
+    int sequence_length_q;
+    int sequence_length_kv;
+    int head_size;
+    std::optional<float> scale_val;
+    bool use_runtime_scale = false;
+    bool use_runtime_mask = false;
+    bool dynamic = false;
+    bool is_causal = false;
+    bool causal_lower_right = false;
+};
+
+struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_params> {
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
+    void fill_random(const memory::ptr& mem) {
+        const auto shape = mem->get_layout().get_shape();
+        const size_t elements_num = ov::shape_size(shape);
+        auto data = rg.generate_random_1d<ov::float16>(elements_num, -0.5f, 0.5f);
+        set_values(mem, data);
+    }
+
+    static network::ptr build_network(const layout& q_layout,
+                                      const layout& k_layout,
+                                      const layout& v_layout,
+                                      const std::optional<layout>& mask_layout,
+                                      const std::optional<layout>& scale_layout,
+                                      bool use_onednn,
+                                      const std::optional<float>& scale_val,
+                                      bool is_causal = false,
+                                      bool causal_lower_right = false,
+                                      int64_t sliding_window = 0) {
+        auto& engine = get_test_engine();
+
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", v_layout));
+        if (mask_layout.has_value())
+            topo.add(input_layout("mask", mask_layout.value()));
+        if (scale_layout.has_value())
+            topo.add(input_layout("scale", scale_layout.value()));
+
+        std::vector<input_info> inputs{input_info("q"), input_info("k"), input_info("v")};
+        if (mask_layout.has_value())
+            inputs.emplace_back("mask");
+        if (scale_layout.has_value())
+            inputs.emplace_back("scale");
+
+        auto sdpa = scaled_dot_product_attention("sdpa",
+                                                 inputs,
+                                                 is_causal,
+                                                 -1,
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {0, 1, 2, 3},
+                                                 {},
+                                                 false,
+                                                 causal_lower_right);
+        if (scale_val.has_value()) {
+            sdpa.scale_val = scale_val.value();
+        }
+        sdpa.sliding_window = sliding_window;
+
+        topo.add(sdpa);
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::use_onednn(use_onednn));
+        if (use_onednn) {
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_property(ov::intel_gpu::use_onednn_sdpa(true));
+        }
+        if (!use_onednn) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"sdpa", {format::type::bfyx, "sdpa_ref", impl_types::ocl}}
+            }));
+        }
+
+        return get_network(engine, topo, config, get_test_stream_ptr(), false);
+    }
+
+    static void assert_onednn_sdpa_selected(const network::ptr& net) {
+        auto inst = net->get_primitive("sdpa");
+        ASSERT_NE(inst, nullptr);
+        auto impl = inst->get_impl();
+        ASSERT_NE(impl, nullptr);
+        ASSERT_NE(impl->m_manager, nullptr);
+        EXPECT_TRUE(impl->is_onednn());
+        EXPECT_EQ(impl->m_manager->get_impl_type(), impl_types::onednn);
+        EXPECT_STREQ(impl->m_manager->get_type_info().name, "onednn::sdpa");
+    }
+
+    static void assert_onednn_sdpa_not_selected(const network::ptr& net) {
+        auto inst = net->get_primitive("sdpa");
+        ASSERT_NE(inst, nullptr);
+        auto impl = inst->get_impl();
+        ASSERT_NE(impl, nullptr);
+        EXPECT_FALSE(impl->is_onednn());
+    }
+
+    void execute() {
+        const auto p = GetParam();
+        auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown) {
+            GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU with known architecture";
+        }
+
+        const layout q_layout({p.batch, p.num_heads, p.sequence_length_q, p.head_size}, data_types::f16, format::bfyx);
+        const layout k_layout({p.batch, p.num_heads, p.sequence_length_kv, p.head_size}, data_types::f16, format::bfyx);
+        const layout v_layout({p.batch, p.num_heads, p.sequence_length_kv, p.head_size}, data_types::f16, format::bfyx);
+        const layout mask_layout({p.batch, p.num_heads, 1, p.sequence_length_kv}, data_types::f16, format::bfyx);
+        const layout scale_layout({1}, data_types::f16, format::bfyx);
+
+        const layout q_topology_layout = p.dynamic ? layout({-1, p.num_heads, -1, p.head_size}, data_types::f16, format::bfyx) : q_layout;
+        const layout k_topology_layout = p.dynamic ? layout({-1, p.num_heads, -1, p.head_size}, data_types::f16, format::bfyx) : k_layout;
+        const layout v_topology_layout = p.dynamic ? layout({-1, p.num_heads, -1, p.head_size}, data_types::f16, format::bfyx) : v_layout;
+        const auto mask_topology_layout = p.use_runtime_mask ? std::optional<layout>(p.dynamic ? layout({-1, p.num_heads, 1, -1}, data_types::f16, format::bfyx) : mask_layout)
+                                                            : std::nullopt;
+        const auto scale_topology_layout = p.use_runtime_scale ? std::optional<layout>(p.dynamic ? layout({1}, data_types::f16, format::bfyx) : scale_layout)
+                                                              : std::nullopt;
+
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(k_layout);
+        auto v_mem = engine.allocate_memory(v_layout);
+        auto mask_mem = p.use_runtime_mask ? engine.allocate_memory(mask_layout) : memory::ptr{};
+        auto scale_mem = p.use_runtime_scale ? engine.allocate_memory(scale_layout) : memory::ptr{};
+
+        fill_random(q_mem);
+        fill_random(k_mem);
+        fill_random(v_mem);
+        if (mask_mem)
+            fill_random(mask_mem);
+        if (scale_mem) {
+            std::vector<ov::float16> scale_data(scale_layout.count(), ov::float16(0.125f));
+            set_values(scale_mem, scale_data);
+        }
+
+        auto onednn_net = build_network(q_topology_layout, k_topology_layout, v_topology_layout, mask_topology_layout, scale_topology_layout, true, p.scale_val,
+                                        p.is_causal, p.causal_lower_right);
+        assert_onednn_sdpa_selected(onednn_net);
+
+        auto set_inputs = [&](const network::ptr& net) {
+            net->set_input_data("q", q_mem);
+            net->set_input_data("k", k_mem);
+            net->set_input_data("v", v_mem);
+            if (mask_mem)
+                net->set_input_data("mask", mask_mem);
+            if (scale_mem)
+                net->set_input_data("scale", scale_mem);
+        };
+
+        set_inputs(onednn_net);
+
+        auto ref_net = build_network(q_topology_layout, k_topology_layout, v_topology_layout, mask_topology_layout, scale_topology_layout, false, p.scale_val,
+                                     p.is_causal, p.causal_lower_right);
+        set_inputs(ref_net);
+
+        auto ref_output = ref_net->execute().at("sdpa").get_memory();
+        auto onednn_output = onednn_net->execute().at("sdpa").get_memory();
+
+        mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_output, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::read> onednn_data(onednn_output, get_test_stream());
+
+        ASSERT_EQ(ref_data.size(), onednn_data.size());
+
+        float max_abs_diff = 0.0f;
+        float mean_abs_diff = 0.0f;
+        for (size_t idx = 0; idx < ref_data.size(); ++idx) {
+            ASSERT_FALSE(std::isnan(static_cast<float>(ref_data[idx]))) << "NaN in OCL reference output at " << idx;
+            ASSERT_FALSE(std::isnan(static_cast<float>(onednn_data[idx]))) << "NaN in oneDNN output at " << idx;
+
+            const auto diff = std::abs(static_cast<float>(ref_data[idx]) - static_cast<float>(onednn_data[idx]));
+            max_abs_diff = std::max(max_abs_diff, diff);
+            mean_abs_diff += diff;
+        }
+        mean_abs_diff /= static_cast<float>(ref_data.size());
+
+        EXPECT_LT(max_abs_diff, 0.06f);
+        EXPECT_LT(mean_abs_diff, 0.01f);
+    }
+
+    static std::string PrintToStringParamName(const testing::TestParamInfo<onednn_sdpa_test_params>& info) {
+        std::string result = "onednn_sdpa_" + std::to_string(info.param.batch) + "_" +
+                             std::to_string(info.param.num_heads) + "_" +
+                             std::to_string(info.param.sequence_length_q) + "_" +
+                             std::to_string(info.param.sequence_length_kv) + "_" +
+                             std::to_string(info.param.head_size);
+        if (info.param.scale_val.has_value()) {
+            result += "_scale_" + std::to_string(static_cast<int>(info.param.scale_val.value() * 1000));
+        } else {
+            result += "_default_scale";
+        }
+        if (info.param.use_runtime_scale) {
+            result += "_runtime_scale";
+        }
+        if (info.param.use_runtime_mask) {
+            result += "_runtime_mask";
+        }
+        if (info.param.dynamic) {
+            result += "_dynamic";
+        }
+        if (info.param.is_causal) {
+            result += info.param.causal_lower_right ? "_causal_lower_right" : "_causal_top_left";
+        }
+        return result;
+    }
+};
+
+TEST_P(onednn_sdpa_gpu_test, selects_onednn_and_validates_output) {
+    execute();
+}
+
+TEST(onednn_sdpa_gpu_validation_test, rejects_unsupported_runtime_scale_and_batch_broadcast) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown) {
+        GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU with known architecture";
+    }
+
+    const layout q_layout({2, 2, 4, 32}, data_types::f16, format::bfyx);
+    const layout k_layout({2, 2, 6, 32}, data_types::f16, format::bfyx);
+    const layout v_layout({2, 2, 6, 32}, data_types::f16, format::bfyx);
+    // A valid mask must be supplied so that scale lands on input index SCALE(4); without it the
+    // scale would be consumed as ATTN_MASK(3) and the scale validation path would never run.
+    const layout valid_mask_layout({2, 2, 1, 6}, data_types::f16, format::bfyx);
+    const layout invalid_scale_layout({1, 2, 1, 1}, data_types::f16, format::bfyx);
+
+    auto invalid_scale_net = onednn_sdpa_gpu_test::build_network(q_layout,
+                                                                 k_layout,
+                                                                 v_layout,
+                                                                 valid_mask_layout,
+                                                                 invalid_scale_layout,
+                                                                 true,
+                                                                 std::nullopt);
+    onednn_sdpa_gpu_test::assert_onednn_sdpa_not_selected(invalid_scale_net);
+
+    const layout broadcast_k_layout({1, 2, 6, 32}, data_types::f16, format::bfyx);
+    const layout broadcast_v_layout({1, 2, 6, 32}, data_types::f16, format::bfyx);
+    auto batch_broadcast_net = onednn_sdpa_gpu_test::build_network(q_layout,
+                                                                  broadcast_k_layout,
+                                                                  broadcast_v_layout,
+                                                                  std::nullopt,
+                                                                  std::nullopt,
+                                                                  true,
+                                                                  std::nullopt);
+    onednn_sdpa_gpu_test::assert_onednn_sdpa_not_selected(batch_broadcast_net);
+}
+
+TEST(onednn_sdpa_gpu_validation_test, rejects_sliding_window) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown) {
+        GTEST_SKIP() << "oneDNN SDPA requires IMMAD-capable GPU with known architecture";
+    }
+
+    const layout q_layout({1, 2, 6, 32}, data_types::f16, format::bfyx);
+    const layout kv_layout({1, 2, 6, 32}, data_types::f16, format::bfyx);
+
+    auto sliding_window_net = onednn_sdpa_gpu_test::build_network(q_layout,
+                                                                  kv_layout,
+                                                                  kv_layout,
+                                                                  std::nullopt,
+                                                                  std::nullopt,
+                                                                  true,
+                                                                  std::nullopt,
+                                                                  true,
+                                                                  true,
+                                                                  2);
+    onednn_sdpa_gpu_test::assert_onednn_sdpa_not_selected(sliding_window_net);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_onednn_sdpa_gpu_test,
+    onednn_sdpa_gpu_test,
+    ::testing::Values(
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt},
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, 0.125f},
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, true, true},
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, true, true, true},
+        // Causal masking: top-left and lower-right alignment must both match the OCL reference.
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, false, false, true, false},
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, false, false, true, true},
+        onednn_sdpa_test_params{1, 2, 6, 6, 32, std::nullopt, false, false, false, true, true}
+    ),
+    onednn_sdpa_gpu_test::PrintToStringParamName);
+#endif  // ENABLE_DEBUG_CAPS
 
 TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
     constexpr int batch = 1;
@@ -933,6 +1230,121 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
     }
 }
 
+// Masks broadcast over keys: [1, H, Q, 1] (param false) and [1, H, 1, 1] (param true).
+class sdpa_micro_key_broadcast_mask_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(sdpa_micro_key_broadcast_mask_test, matches_reference) {
+    const bool broadcast_q = GetParam();
+    constexpr size_t heads = 8;
+    constexpr size_t seq_q = 100;
+    constexpr size_t seq_kv = 160;
+    constexpr size_t head_size = 128;
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "SDPA micro requires IMMAD support";
+
+    const ov::Shape q_shape{1, heads, seq_q, head_size};
+    const ov::Shape kv_shape{1, heads, seq_kv, head_size};
+    const ov::Shape mask_shape{1, heads, broadcast_q ? 1 : seq_q, 1};
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto q_data = rg.generate_random_1d<ov::float16>(ov::shape_size(q_shape), -1.0f, 1.0f);
+    const auto k_data = rg.generate_random_1d<ov::float16>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+    const auto v_data = rg.generate_random_1d<ov::float16>(ov::shape_size(kv_shape), -1.0f, 1.0f);
+    // Distinct neighbouring values, so a mask read with a per-key stride changes the result.
+    std::vector<ov::float16> mask_data(ov::shape_size(mask_shape));
+    for (size_t i = 0; i < mask_data.size(); ++i)
+        mask_data[i] = ov::float16(-2.0f * static_cast<float>((i * 7) % 11));
+
+    const layout q_layout(q_shape, data_types::f16, format::bfyx);
+    const layout kv_layout(kv_shape, data_types::f16, format::bfyx);
+    const layout mask_layout(mask_shape, data_types::f16, format::bfyx);
+
+    topology topo;
+    topo.add(input_layout("q", q_layout));
+    topo.add(input_layout("k", kv_layout));
+    topo.add(input_layout("v", kv_layout));
+    topo.add(input_layout("mask", mask_layout));
+    topo.add(scaled_dot_product_attention("sdpa",
+                                          {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                          false,
+                                          -1,
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {},
+                                          false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+    auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+
+    std::string sdpa_info;
+    for (const auto& info : network->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention") {
+            sdpa_info = network->get_primitive_info(info.original_id);
+            break;
+        }
+    }
+    ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
+        << "sdpa_micro was not selected; node description was:\n" << sdpa_info;
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(kv_layout);
+    auto v_mem = engine.allocate_memory(kv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+    set_values(mask_mem, mask_data);
+
+    network->set_input_data("q", q_mem);
+    network->set_input_data("k", k_mem);
+    network->set_input_data("v", v_mem);
+    network->set_input_data("mask", mask_mem);
+    auto output = network->execute().at("sdpa").get_memory();
+
+    auto to_float = [](const std::vector<ov::float16>& src) {
+        return std::vector<float>(src.begin(), src.end());
+    };
+    const auto q_ref = to_float(q_data);
+    const auto k_ref = to_float(k_data);
+    const auto v_ref = to_float(v_data);
+    const auto mask_ref = to_float(mask_data);
+    std::vector<float> expected(ov::shape_size(q_shape));
+    ov::reference::scaled_dot_product_attention<float, float>(q_ref.data(),
+                                                             k_ref.data(),
+                                                             v_ref.data(),
+                                                             mask_ref.data(),
+                                                             nullptr,
+                                                             nullptr,
+                                                             expected.data(),
+                                                             false,
+                                                             q_shape,
+                                                             kv_shape,
+                                                             kv_shape,
+                                                             mask_shape,
+                                                             {},
+                                                             q_shape);
+
+    mem_lock<ov::float16, mem_lock_type::read> out(output, get_test_stream());
+    ASSERT_EQ(out.size(), expected.size());
+    for (size_t i = 0; i < out.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(out[i]), expected[i], 5e-3f) << "Mismatch at index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_micro_key_broadcast_mask,
+                         sdpa_micro_key_broadcast_mask_test,
+                         ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                             return std::string(info.param ? "mask_1_h_1_1" : "mask_1_h_q_1");
+                         });
 
 // ---------------------------------------------------------------------------
 // Compressed (int8 / int4) KV-cache SDPA tests.
@@ -1649,6 +2061,91 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 8, false},
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, false}),
                          sdpa_gpu_gqa_decomp_test::PrintToStringParamName);
+// A [1, 1, 1, K] mask holds one row shared by all queries. Before the fix, PREFETCH_MASK strode by the row
+// pitch per query and prefetched up to seq_len * seq_len * 2 bytes (~128 MB here) past the 16 KB mask, which
+// fails with CL_OUT_OF_RESOURCES wherever the GPU faults on unmapped addresses.
+TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
+    constexpr size_t heads = 1;
+    constexpr size_t seq_len = 8192;
+    constexpr size_t head_size = 128;
+
+    auto& engine = get_test_engine();
+    const auto& device_info = engine.get_device_info();
+    if (!device_info.supports_immad)
+        GTEST_SKIP() << "SDPA micro requires IMMAD support";
+    if (device_info.arch < cldnn::gpu_arch::xe_hpc)
+        GTEST_SKIP() << "PREFETCH_MASK is only emitted for arch >= xe_hpc";
+
+    const layout qkv_layout({1, heads, seq_len, head_size}, data_types::f16, format::bfyx);
+    const layout mask_layout({1, 1, 1, seq_len}, data_types::f16, format::bfyx);
+
+    topology topo;
+    topo.add(input_layout("q", qkv_layout));
+    topo.add(input_layout("k", qkv_layout));
+    topo.add(input_layout("v", qkv_layout));
+    topo.add(input_layout("mask", mask_layout));
+    topo.add(scaled_dot_product_attention("sdpa",
+                                          {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                          false,
+                                          -1,
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {},
+                                          false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+    auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+
+    std::string sdpa_info;
+    for (const auto& info : network->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention") {
+            sdpa_info = network->get_primitive_info(info.original_id);
+            break;
+        }
+    }
+    ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
+        << "sdpa_micro was not selected; node description was:\n" << sdpa_info;
+
+    // The second half of the keys is masked out and has V = -1, so the exact output is 1 everywhere.
+    const size_t qkv_count = heads * seq_len * head_size;
+    std::vector<ov::float16> v_data(qkv_count);
+    std::vector<ov::float16> mask_data(seq_len);
+    for (size_t s = 0; s < seq_len; ++s) {
+        const bool masked = s >= seq_len / 2;
+        mask_data[s] = ov::float16(masked ? -65504.0f : 0.0f);
+        for (size_t h = 0; h < heads; ++h)
+            std::fill_n(v_data.begin() + (h * seq_len + s) * head_size, head_size, ov::float16(masked ? -1.0f : 1.0f));
+    }
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto q_mem = engine.allocate_memory(qkv_layout);
+    auto k_mem = engine.allocate_memory(qkv_layout);
+    auto v_mem = engine.allocate_memory(qkv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+    set_values(q_mem, rg.generate_random_1d<ov::float16>(qkv_count, -1.0f, 1.0f));
+    set_values(k_mem, rg.generate_random_1d<ov::float16>(qkv_count, -1.0f, 1.0f));
+    set_values(v_mem, v_data);
+    set_values(mask_mem, mask_data);
+
+    network->set_input_data("q", q_mem);
+    network->set_input_data("k", k_mem);
+    network->set_input_data("v", v_mem);
+    network->set_input_data("mask", mask_mem);
+    auto output = network->execute().at("sdpa").get_memory();
+
+    mem_lock<ov::float16, mem_lock_type::read> out(output, get_test_stream());
+    ASSERT_EQ(out.size(), qkv_count);
+    for (size_t i = 0; i < out.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(out[i]), 1.0f, 1e-2f) << "Mismatch at index " << i;
+    }
+}
+
 #endif
 
 enum class sdpa_ref_accuracy_case { uniform_16, uniform_32, uniform_64, nonuniform, nonuniform_33, nonuniform_100, mask, causal };
@@ -1908,6 +2405,104 @@ TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {
         ASSERT_NEAR(static_cast<float>(output_data[i]), static_cast<float>(ref_output_data[i]), 1e-3f)
             << "Mismatch at index " << i;
     }
+}
+
+TEST(sdpa_gpu_custom, static_mismatched_kv_head_size_multi_token_uses_sg_scale_factor_2) {
+    // The multi-token (prefill) SDPA kernel must keep using SG_SCALE_FACTOR=2 even when K and V
+    // head sizes differ (e.g. k_head_size=16, v_head_size=32).
+    // Unlike `dynamic_mismatched_v_head_size` above,  this test uses *static* shapes and multiple
+    // query tokens so sdpa_opt (not sdpa_ref) is  actually selected and dispatches through
+    // the multi-token kernel, allowing us to catch this kind of dispatch regression.
+    auto& engine = get_test_engine();
+
+    const ov::Shape q_shape{1, 4, 32, 16};   // batch=1, heads=4, seq_len=32, q_head_size=16
+    const ov::Shape k_shape{1, 4, 32, 16};   // k_head_size=16
+    const ov::Shape v_shape{1, 4, 32, 32};   // v_head_size=32 (mismatched vs k/q head size)
+    const size_t v_head_size = v_shape[3];
+
+    auto q_mem = engine.allocate_memory(layout(q_shape, data_types::f16, format::bfyx));
+    auto k_mem = engine.allocate_memory(layout(k_shape, data_types::f16, format::bfyx));
+    auto v_mem = engine.allocate_memory(layout(v_shape, data_types::f16, format::bfyx));
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto fill_random = [&](const memory::ptr& mem) {
+        auto data = rg.generate_random_1d<ov::float16>(mem->get_layout().count(), -1.0f, 1.0f);
+        set_values(mem, data);
+    };
+    fill_random(q_mem);
+    fill_random(k_mem);
+    fill_random(v_mem);
+
+    topology topology;
+    topology.add(input_layout("q", q_mem->get_layout()));
+    topology.add(input_layout("k", k_mem->get_layout()));
+    topology.add(input_layout("v", v_mem->get_layout()));
+    topology.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v")},
+                                              false,
+                                              -1,
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+    topology.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+    auto run_network = [&](bool force_ref) {
+        ExecutionConfig config = get_test_default_config(engine);
+        if (force_ref) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"sdpa", {format::type::bfyx, "sdpa_ref"}}
+            }));
+        }
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        auto output = network->execute().at("result").get_memory();
+        return std::make_pair(network, output);
+    };
+
+    auto [network, output] = run_network(false);
+    auto [ref_network, ref_output] = run_network(true);
+
+    // With unforced implementation selection, this static, multi-token, mismatched K/V head-size
+    // shape must still be handled by the optimized sdpa_opt kernel (not fall back to sdpa_ref).
+    auto sdpa_inst = network->get_primitive("sdpa");
+    ASSERT_EQ(sdpa_inst->get_impl()->m_manager->get_type_info(), ov::intel_gpu::ocl::SDPAOpt::get_type_info_static());
+
+    // Correctness: sdpa_opt output must match the sdpa_ref output.
+    ASSERT_EQ(output->get_layout().get_shape(), ref_output->get_layout().get_shape());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_output_data(ref_output, get_test_stream());
+    ASSERT_EQ(output_data.size(), ref_output_data.size());
+    for (size_t i = 0; i < output_data.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(output_data[i]), static_cast<float>(ref_output_data[i]), 1e-2f)
+            << "Mismatch at index " << i;
+    }
+
+    // Directly verify the restored dispatch logic: the multi-token kernel must still select
+    // SG_SCALE_FACTOR=2 for this head size, regardless of the (mismatched) K head size.
+    const auto sg_scale_factor =
+        ov::intel_gpu::ocl::get_sg_number_scale_factor(engine.get_device_info(), v_head_size, ov::intel_gpu::ocl::SDPAStage::MULTI_TOKENS);
+    ASSERT_EQ(sg_scale_factor, 2U);
+
+    // And verify this is actually what the multi-token dispatch-data function computes for the
+    // exact runtime parameters used by the executed instance, i.e. the generated OpenCL
+    // work-group uses a local Z-dimension of v_head_size * SG_SCALE_FACTOR (aligned to the
+    // subgroup size), not v_head_size * 1.
+    ov::intel_gpu::ocl::SDPAOptGeneratorMultiToken generator(/*indirect=*/false);
+    auto kd = generator.get_kernel_data(*sdpa_inst->get_impl_params());
+    kd.update_dispatch_data_func(*sdpa_inst->get_impl_params(), kd, nullptr);
+
+    const size_t subgroup_size = 16;
+    const size_t expected_local_z = align_to(v_head_size * 2, subgroup_size);
+    const size_t regressed_local_z = align_to(v_head_size * 1, subgroup_size);
+    ASSERT_EQ(kd.params.workGroups.local.size(), 3u);
+    ASSERT_EQ(kd.params.workGroups.local[2], expected_local_z);
+    ASSERT_NE(kd.params.workGroups.local[2], regressed_local_z);
 }
 
 TEST(sdpa_gpu_custom, different_rank_orders_dynamic_v_head_size_rejects_opt) {
@@ -2973,5 +3568,169 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_broadcast_test_params(1, 1, 4, 16, 1, 1024, 64, true, 0),
         sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, true, 2),
         sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, false, 1)));
+
+// The multi-token sdpa_opt kernel reads keys in blocks of 16 rows, and a head size that is not a multiple of 16
+// as 16-wide chunks plus a leftover. In the last, partial block, the leftover read must skip the rows past the
+// source length: they are past the end of the key buffer, and reading them can fault the GPU. Whether it faults
+// depends on what is mapped after the key, so this checks the result and that the kernel ran.
+//
+// A non-const scalar mask input keeps sdpa_micro out, so sdpa_opt runs on every device. sdpa_opt ignores the mask
+// when is_causal is set. With the lower-right causal mask and seq_q <= seq_kv, the last query sees every key, so the
+// partial key block is computed.
+struct sdpa_opt_key_leftover_params {
+    data_types dt;
+    int num_heads;
+    int seq_q;
+    int seq_kv;
+    int head_size;
+    bool transposed;  // [B, L, H, E] inputs with order {0, 2, 1, 3}, otherwise [B, H, L, E]
+};
+
+class sdpa_opt_key_leftover_test : public ::testing::TestWithParam<sdpa_opt_key_leftover_params> {
+public:
+    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_opt_key_leftover_params>& info) {
+        const auto& p = info.param;
+        return std::string(p.dt == data_types::bf16 ? "bf16" : "f16") + "_h" + std::to_string(p.num_heads) + "_q" +
+               std::to_string(p.seq_q) + "_kv" + std::to_string(p.seq_kv) + "_e" + std::to_string(p.head_size) +
+               (p.transposed ? "_blhe" : "_bhle");
+    }
+
+protected:
+    template <typename T>
+    void run() {
+        const auto& p = GetParam();
+        auto& engine = get_test_engine();
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+
+        const size_t heads = p.num_heads;
+        const size_t seq_q = p.seq_q;
+        const size_t seq_kv = p.seq_kv;
+        const size_t head_size = p.head_size;
+        auto make_shape = [&](size_t seq) {
+            return p.transposed ? ov::Shape{1, seq, heads, head_size} : ov::Shape{1, heads, seq, head_size};
+        };
+        auto index = [&](size_t seq_len, size_t h, size_t s, size_t e) {
+            return (p.transposed ? s * heads + h : h * seq_len + s) * head_size + e;
+        };
+
+        const layout q_layout(make_shape(seq_q), p.dt, format::bfyx);
+        const layout kv_layout(make_shape(seq_kv), p.dt, format::bfyx);
+        const layout mask_layout({1}, p.dt, format::bfyx);
+
+        const auto q_data = rg.generate_random_1d<T>(q_layout.count(), -1.0f, 1.0f);
+        const auto k_data = rg.generate_random_1d<T>(kv_layout.count(), -1.0f, 1.0f);
+        const auto v_data = rg.generate_random_1d<T>(kv_layout.count(), -1.0f, 1.0f);
+
+        auto q_mem = engine.allocate_memory(q_layout);
+        auto k_mem = engine.allocate_memory(kv_layout);
+        auto v_mem = engine.allocate_memory(kv_layout);
+        auto mask_mem = engine.allocate_memory(mask_layout);
+        set_values(q_mem, q_data);
+        set_values(k_mem, k_data);
+        set_values(v_mem, v_data);
+        set_values(mask_mem, std::vector<T>{T(0.0f)});
+
+        const std::vector<int64_t> order = p.transposed ? std::vector<int64_t>{0, 2, 1, 3} : std::vector<int64_t>{0, 1, 2, 3};
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", kv_layout));
+        topo.add(input_layout("v", kv_layout));
+        topo.add(input_layout("mask", mask_layout));
+        topo.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                              true,
+                                              -1,
+                                              order,
+                                              order,
+                                              order,
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false,
+                                              /*causal_lower_right=*/true));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        net->set_input_data("mask", mask_mem);
+        auto output = net->execute().at("result").get_memory();
+
+        std::string sdpa_id;
+        for (const auto& info : net->get_primitives_info()) {
+            if (info.type_id == "scaled_dot_product_attention")
+                sdpa_id = info.original_id;
+        }
+        ASSERT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
+        const auto inst = net->get_primitive(sdpa_id);
+        const auto kernels = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+        ASSERT_NE(kernels.find("sdpa_opt__multi_reg"), std::string::npos) << "Executed kernels: " << kernels;
+
+        const float scale = 1.0f / std::sqrt(static_cast<float>(head_size));
+        std::vector<float> expected(heads * seq_q * head_size, 0.0f);
+        std::vector<float> weights(seq_kv);
+        for (size_t h = 0; h < heads; ++h) {
+            for (size_t i = 0; i < seq_q; ++i) {
+                const size_t visible = i + seq_kv - seq_q + 1;
+                float max_logit = -std::numeric_limits<float>::infinity();
+                for (size_t j = 0; j < visible; ++j) {
+                    float dot = 0.0f;
+                    for (size_t e = 0; e < head_size; ++e) {
+                        dot += static_cast<float>(q_data[index(seq_q, h, i, e)]) * static_cast<float>(k_data[index(seq_kv, h, j, e)]);
+                    }
+                    weights[j] = dot * scale;
+                    max_logit = std::max(max_logit, weights[j]);
+                }
+                float sum = 0.0f;
+                for (size_t j = 0; j < visible; ++j) {
+                    weights[j] = std::exp(weights[j] - max_logit);
+                    sum += weights[j];
+                }
+                auto* out = &expected[(h * seq_q + i) * head_size];
+                for (size_t j = 0; j < visible; ++j) {
+                    for (size_t e = 0; e < head_size; ++e) {
+                        out[e] += weights[j] / sum * static_cast<float>(v_data[index(seq_kv, h, j, e)]);
+                    }
+                }
+            }
+        }
+
+        ASSERT_EQ(output->get_layout().get_shape(), (ov::Shape{1, heads, seq_q, head_size}));
+        cldnn::mem_lock<float, mem_lock_type::read> output_data(output, get_test_stream());
+        ASSERT_EQ(output_data.size(), expected.size());
+        const float tolerance = p.dt == data_types::bf16 ? 1e-2f : 5e-3f;
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_NEAR(output_data[i], expected[i], tolerance) << "index " << i;
+        }
+    }
+};
+
+TEST_P(sdpa_opt_key_leftover_test, matches_reference) {
+    if (GetParam().dt == data_types::bf16)
+        run<ov::bfloat16>();
+    else
+        run<ov::float16>();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_opt_key_leftover,
+    sdpa_opt_key_leftover_test,
+    ::testing::Values(
+        // [B, L, H, E] as in smoke_ScaledAttnStatic_GPU bf16 [1.8.1.72] with_transpose1: rows 96-99 are the partial block.
+        sdpa_opt_key_leftover_params{data_types::bf16, 8, 1, 100, 72, true},
+        sdpa_opt_key_leftover_params{data_types::f16, 8, 1, 100, 72, true},
+        // One row in the partial block: the leftover read would reach 15 rows of 32 * 72 elements past the key.
+        sdpa_opt_key_leftover_params{data_types::f16, 32, 1, 97, 72, true},
+        sdpa_opt_key_leftover_params{data_types::bf16, 32, 20, 97, 72, true},
+        sdpa_opt_key_leftover_params{data_types::f16, 4, 3, 50, 76, true},
+        // [B, H, L, E]: only the last head reads past the end of the key.
+        sdpa_opt_key_leftover_params{data_types::bf16, 8, 1, 100, 72, false},
+        sdpa_opt_key_leftover_params{data_types::f16, 4, 16, 33, 40, false},
+        // Head size >= 128 loads the full chunks in the calc loop on systolic devices.
+        sdpa_opt_key_leftover_params{data_types::f16, 2, 1, 50, 136, false}),
+    sdpa_opt_key_leftover_test::PrintToStringParamName);
 
 } // namespace

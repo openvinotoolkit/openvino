@@ -26,6 +26,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/is_inf.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "utils/general_utils.h"
@@ -329,9 +330,16 @@ jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host,
                                        x64::cpu_isa_t host_isa,
                                        const std::shared_ptr<ov::Node>& node,
                                        ov::element::Type /*exec_prc*/)
-    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)),
+      m_pythondiv(ov::as_type_ptr<ov::op::v1::Divide>(node)->is_pythondiv()) {}
 jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
+jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host,
+                                       x64::cpu_isa_t host_isa,
+                                       bool pythondiv,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc),
+      m_pythondiv(pythondiv) {}
 
 size_t jit_divide_emitter::get_inputs_num() const {
     return 2;
@@ -372,7 +380,7 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             h->uni_vcvtdq2ps(vmm_dst, vmm_src0);
             h->uni_vcvtdq2ps(vmm_aux0, vmm_src1);
             h->uni_vdivps(vmm_dst, vmm_dst, vmm_aux0);
-            h->uni_vroundps(vmm_dst, vmm_dst, 3);  // rounding to zero
+            h->uni_vroundps(vmm_dst, vmm_dst, m_pythondiv ? 1 : 3);
             h->uni_vcvtps2dq(vmm_dst, vmm_dst);
             break;
         }
