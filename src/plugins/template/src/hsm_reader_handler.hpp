@@ -27,13 +27,13 @@ public:
 
     void check_mandatory_sections() const;
 
-    std::shared_ptr<ov::AlignedBuffer> source_blob;  // Set before read_sections() when importing ov::Tensor
-    std::optional<uint64_t> model_id;
-    std::optional<std::string> runtime_requirements;
-    std::shared_ptr<ov::AlignedBuffer> model;
-    std::shared_ptr<ov::AlignedBuffer> weights;
-    std::optional<hsm::BlobInfo> blob_info;
-    ov::AnyMap compiled_options;
+    std::shared_ptr<ov::AlignedBuffer> m_source_blob;  // Set before read_sections() when importing ov::Tensor
+    std::optional<uint64_t> m_model_id;
+    std::optional<std::string> m_runtime_requirements;
+    std::shared_ptr<ov::AlignedBuffer> m_model;
+    std::shared_ptr<ov::AlignedBuffer> m_weights;
+    std::optional<hsm::BlobInfo> m_blob_info;
+    ov::AnyMap m_compiled_options;
 
 private:
     using Decoder = void (*)(HsmReaderHandler&, const runtime::hsm::Section&);

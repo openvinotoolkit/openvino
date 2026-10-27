@@ -223,29 +223,29 @@ HsmWriterHandler::HsmWriterHandler(const std::shared_ptr<ov::Model>& model,
 HsmWriterHandler::Slot::Slot(const hsm::SectionId& id,
                              const std::shared_ptr<BytesEncoder>& bytes,
                              runtime::hsm::SectionAlignment align)
-    : id(id),
-      align(align),
-      encoder(bytes),
-      size(bytes->size()),
-      view(bytes->view()) {}
+    : m_id(id),
+      m_align(align),
+      m_encoder(bytes),
+      m_size(bytes->size()),
+      m_view(bytes->view()) {}
 
 HsmWriterHandler::Slot::Slot(const hsm::SectionId& id,
                              runtime::hsm::SectionEncoderPtr encoder,
                              std::optional<size_t> size,
                              runtime::hsm::SectionAlignment align)
-    : id(id),
-      align(align),
-      encoder(std::move(encoder)),
-      size(size),
-      view{} {}
+    : m_id(id),
+      m_align(align),
+      m_encoder(std::move(encoder)),
+      m_size(size),
+      m_view{} {}
 
 bool HsmWriterHandler::Slot::add_to(runtime::hsm::IWriter& writer) const {
-    if (id.tag.is_inline()) {
-        return writer.add_section(id.device, id.tag, view);
-    } else if (size) {
-        return writer.add_section(id.device, id.tag, *size, encoder, align);
+    if (m_id.tag.is_inline()) {
+        return writer.add_section(m_id.device, m_id.tag, m_view);
+    } else if (m_size) {
+        return writer.add_section(m_id.device, m_id.tag, *m_size, m_encoder, m_align);
     } else {
-        return writer.add_section(id.device, id.tag, encoder, align);
+        return writer.add_section(m_id.device, m_id.tag, m_encoder, m_align);
     }
 }
 

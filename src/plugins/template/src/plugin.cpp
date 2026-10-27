@@ -128,22 +128,22 @@ std::pair<std::shared_ptr<ov::Model>, Configuration> read_hsm_blob(
     ov::Tensor properties_weights_hint,
     std::shared_ptr<ov::AlignedBuffer> source_blob = {}) {
     HsmReaderHandler handler;
-    handler.source_blob = source_blob;
+    handler.m_source_blob = source_blob;
     reader.read_sections({&handler});
     handler.check_mandatory_sections();
 
     // Opaque and optional, like NPU's own ov::runtime_requirements: absent means "nothing to check", not
     // an import failure - only a present-but-mismatched descriptor rejects the blob.
-    if (const auto& requirements = handler.runtime_requirements) {
+    if (const auto& requirements = handler.m_runtime_requirements) {
         OPENVINO_ASSERT(requirements->find(runtime_requirements) == 0,
                         "TEMPLATE: unsupported blob runtime requirements: ",
                         *requirements);
     }
 
-    auto config = Configuration{properties, Configuration{handler.compiled_options, default_cfg, false}};
+    auto config = Configuration{properties, Configuration{handler.m_compiled_options, default_cfg, false}};
 
-    const bool weightless = handler.blob_info->flags & ov::template_plugin::hsm::BlobInfo::weightless;
-    auto weights = handler.weights;
+    const bool weightless = handler.m_blob_info->flags & ov::template_plugin::hsm::BlobInfo::weightless;
+    auto weights = handler.m_weights;
     if (!weights) {
         weights = to_aligned_buffer(properties_weights_hint);
     }
@@ -156,7 +156,7 @@ std::pair<std::shared_ptr<ov::Model>, Configuration> read_hsm_blob(
                     "TEMPLATE: missing mandatory weights section (model is not weightless and no external "
                     "weights were provided)");
 
-    return {core->read_model(handler.model, weights), std::move(config)};
+    return {core->read_model(handler.m_model, weights), std::move(config)};
 }
 // ! [plugin:read_hsm_blob]
 }  // namespace

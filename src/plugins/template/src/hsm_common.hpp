@@ -22,12 +22,13 @@ struct SectionId {
     runtime::hsm::SectionTag tag;
 };
 
-constexpr uint32_t section_key(runtime::hsm::DeviceId device, uint32_t tag_id) noexcept {
-    return (static_cast<uint32_t>(device) << 24) | tag_id;
+constexpr uint32_t section_key(runtime::hsm::DeviceId device, runtime::hsm::SectionTag tag) noexcept {
+    return (static_cast<uint32_t>(device) << 24) | (static_cast<uint32_t>(tag.value[0]) << 16) |
+           (static_cast<uint32_t>(tag.value[1]) << 8) | static_cast<uint32_t>(tag.value[2]);
 }
 
 constexpr uint32_t section_key(const SectionId& id) noexcept {
-    return section_key(id.device, id.tag.id());
+    return section_key(id.device, id.tag);
 }
 
 inline constexpr SectionId model_id{runtime::hsm::any_device_id, runtime::hsm::model_id_tag};

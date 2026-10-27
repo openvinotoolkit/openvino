@@ -25,15 +25,15 @@ std::optional<hsm::BlobInfo> decode_blob_info(const runtime::hsm::Section& secti
 }
 
 // Zero-copy only when the section's bytes are addressable AND something keeps them alive past this call
-// (source_blob) - a stream-backed import has neither, so it always copies into an owned buffer.
+// (m_source_blob) - a stream-backed import has neither, so it always copies into an owned buffer.
 std::shared_ptr<ov::AlignedBuffer> decode_buffer(const HsmReaderHandler& handler,
                                                  const runtime::hsm::Section& section) {
     const auto section_view = section.view();
-    if (handler.source_blob && !section_view.empty()) {
+    if (handler.m_source_blob && !section_view.empty()) {
         return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
             const_cast<std::byte*>(section_view.data()),
             section_view.size(),
-            handler.source_blob);
+            handler.m_source_blob);
     } else {
         auto buffer = std::make_shared<ov::AlignedBuffer>(section.size());
         return section.read(buffer->get_ptr()) ? buffer : nullptr;
@@ -55,38 +55,38 @@ ov::AnyMap decode_compiled_options(std::string_view encoded) {
 }
 
 void set_model_id(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-    handler.model_id = runtime::hsm::decode_model_id(section);
+    handler.m_model_id = runtime::hsm::decode_model_id(section);
 }
 
 void set_runtime_requirements(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-    handler.runtime_requirements = decode_string(section);
+    handler.m_runtime_requirements = decode_string(section);
 }
 
 void set_model(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-    handler.model = decode_buffer(handler, section);
+    handler.m_model = decode_buffer(handler, section);
 }
 
 void set_weights(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
     // An empty section means "no weights embedded" (weightless) - a null buffer represents that, matching
     // check_mandatory_sections()/read_hsm_blob()'s "falsy means absent" convention.
-    handler.weights = section.size() == 0 ? nullptr : decode_buffer(handler, section);
+    handler.m_weights = section.size() == 0 ? nullptr : decode_buffer(handler, section);
 }
 
 void set_compiled_options(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-    handler.compiled_options = decode_compiled_options(decode_string(section).value_or(""));
+    handler.m_compiled_options = decode_compiled_options(decode_string(section).value_or(""));
 }
 
 void set_blob_info(HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-    handler.blob_info = decode_blob_info(section);
+    handler.m_blob_info = decode_blob_info(section);
 }
 }  // namespace
 
 const std::map<uint32_t, HsmReaderHandler::Decoder> HsmReaderHandler::s_decoders = {
     // model id and weights are each registered under BOTH device scopes - a blob may carry either as a
     // common (any_device_id) tag or scoped to this device, decoded identically either way.
-    {hsm::section_key(runtime::hsm::any_device_id, hsm::weights.tag.id()), set_weights},
+    {hsm::section_key(runtime::hsm::any_device_id, hsm::weights.tag), set_weights},
     {hsm::section_key(hsm::model_id), set_model_id},
-    {hsm::section_key(hsm::device_id, hsm::model_id.tag.id()), set_model_id},
+    {hsm::section_key(hsm::device_id, hsm::model_id.tag), set_model_id},
     {hsm::section_key(hsm::runtime_requirements), set_runtime_requirements},
     {hsm::section_key(hsm::model_struct), set_model},
     {hsm::section_key(hsm::weights), set_weights},
@@ -95,8 +95,7 @@ const std::map<uint32_t, HsmReaderHandler::Decoder> HsmReaderHandler::s_decoders
 };
 
 bool HsmReaderHandler::handle_section(const runtime::hsm::ManifestEntry& entry, const runtime::hsm::Section& section) {
-    if (const auto decoder = s_decoders.find(hsm::section_key(entry.device, entry.tag.id()));
-        decoder != s_decoders.end()) {
+    if (const auto decoder = s_decoders.find(hsm::section_key(entry.device, entry.tag)); decoder != s_decoders.end()) {
         decoder->second(*this, section);
         return true;
     } else {
@@ -105,9 +104,9 @@ bool HsmReaderHandler::handle_section(const runtime::hsm::ManifestEntry& entry, 
 }
 
 void HsmReaderHandler::check_mandatory_sections() const {
-    OPENVINO_ASSERT(blob_info && blob_info->layout_version <= hsm::BlobInfo::current_layout_version,
+    OPENVINO_ASSERT(m_blob_info && m_blob_info->layout_version <= hsm::BlobInfo::current_layout_version,
                     "TEMPLATE: missing or unsupported blob info section");
-    OPENVINO_ASSERT(model, "TEMPLATE: missing mandatory model struct section");
+    OPENVINO_ASSERT(m_model, "TEMPLATE: missing mandatory model struct section");
 }
 
 }  // namespace ov::template_plugin

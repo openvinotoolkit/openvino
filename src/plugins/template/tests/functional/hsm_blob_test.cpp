@@ -188,6 +188,12 @@ protected:
         return export_blob(compiled);
     }
 
+    static auto find_entry(std::vector<behavior::HsmEntry>& entries, hsm::DeviceId device, hsm::SectionTag tag) {
+        return std::find_if(entries.begin(), entries.end(), [&](const auto& entry) {
+            return entry.device == device && entry.tag.tag.id() == tag.id();
+        });
+    }
+
     // Saves the weights embedded in @p blob to a file that can be used as ov::weights_path.
     std::string save_weights(const std::string& blob) {
         std::stringstream stream(blob);
@@ -281,6 +287,39 @@ TEST_F(TemplateHsmBlobTest, missing_mandatory_model_struct_section_is_rejected) 
     std::stringstream stream(blob);
 
     OV_EXPECT_THROW_HAS_SUBSTRING(core.import_model(stream, device), ov::Exception, "missing mandatory model struct");
+}
+
+TEST_F(TemplateHsmBlobTest, model_struct_stored_inline_is_not_recognized) {
+    const auto blob = behavior::hsm_repack(export_hsm(), [](std::vector<behavior::HsmEntry>& entries) {
+        const auto entry = find_entry(entries, template_device_id, hsm::model_tag);
+        ASSERT_NE(entry, entries.end());
+        entry->tag = hsm::SectionTag::make(hsm::model_tag.id(), /*is_inline=*/true);
+        entry->payload.resize(8);
+    });
+    std::stringstream stream(blob);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.import_model(stream, device), ov::Exception, "missing mandatory model struct");
+}
+
+TEST_F(TemplateHsmBlobTest, blob_info_stored_as_pointer_is_not_recognized) {
+    const auto blob = behavior::hsm_repack(export_hsm(), [](std::vector<behavior::HsmEntry>& entries) {
+        const auto entry = find_entry(entries, template_device_id, blob_info_tag);
+        ASSERT_NE(entry, entries.end());
+        entry->tag = hsm::SectionTag::make(blob_info_tag.id(), /*is_inline=*/false);
+    });
+    std::stringstream stream(blob);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(core.import_model(stream, device), ov::Exception, "missing or unsupported blob info");
+}
+
+TEST_F(TemplateHsmBlobTest, unknown_sections_are_skipped) {
+    const auto blob = behavior::hsm_repack(export_hsm(), [](std::vector<behavior::HsmEntry>& entries) {
+        entries.push_back({template_device_id, hsm::SectionTag::make_device_tag(100, false), {std::byte{1}}});
+        entries.push_back({hsm::any_device_id, hsm::SectionTag::make(hsm::core_tag_id_range_end - 1, true), {}});
+    });
+    std::stringstream stream(blob);
+
+    OV_ASSERT_NO_THROW(core.import_model(stream, device));
 }
 
 TEST_F(TemplateHsmBlobTest, model_id_section_is_optional) {

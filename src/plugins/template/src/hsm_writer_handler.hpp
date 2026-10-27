@@ -48,11 +48,11 @@ private:
 
         bool add_to(runtime::hsm::IWriter& writer) const;
 
-        hsm::SectionId id;
-        runtime::hsm::SectionAlignment align;
-        runtime::hsm::SectionEncoderPtr encoder;
-        std::optional<size_t> size;  // unset: the size is known only after encoding
-        ov::util::MemoryView view;   // set for the sections small enough to be borrowed as inline
+        hsm::SectionId m_id;
+        runtime::hsm::SectionAlignment m_align;
+        runtime::hsm::SectionEncoderPtr m_encoder;
+        std::optional<size_t> m_size;  // unset: the size is known only after encoding
+        ov::util::MemoryView m_view;   // set for the sections small enough to be borrowed as inline
     };
 
     std::map<uint32_t, Slot> m_encoders;
