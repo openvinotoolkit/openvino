@@ -14,6 +14,8 @@
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 
@@ -32,6 +34,20 @@ constexpr const char* to_string(GraphKind kind) noexcept {
     }
     return "unknown";
 }
+
+/**
+ * @brief The subset of the configuration needed to create the command queue of a graph.
+ */
+struct CommandQueueParams {
+    ov::hint::Priority modelPriority = ov::hint::Priority::MEDIUM;
+    std::optional<ov::WorkloadType> workloadType = std::nullopt;
+    std::optional<ov::QoS> qos = std::nullopt;
+    bool turbo = false;
+    bool runInferencesSequentially = false;
+    bool sharedCommonQueue = true;
+
+    static CommandQueueParams from_config(const Config& config);
+};
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
@@ -88,6 +104,8 @@ public:
 
     virtual CommandQueueDesc get_command_queue_desc() const;
     virtual void set_workload_type(const ov::WorkloadType workloadType);
+    virtual void set_qos(const ov::QoS qos);
+    virtual ov::QoSInfo get_qos_info(const CommandQueueParams& commandQueueParams) const;
     virtual void set_model_priority(const ov::hint::Priority modelPriority);
 
     std::mutex& get_mutex() {
