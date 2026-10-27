@@ -550,10 +550,17 @@ private:
     void halving_range(std::size_t n, int rank, int level,
                        std::size_t& lo, std::size_t& hi) const;
 
-    /// Where the partner of step `step` deposits its half on this rank. One
-    /// region per step, because a partner may deliver step j+1 while this
-    /// rank's kernel is still reading what arrived at step j.
-    void* halving_stage(int rank, int step, int buffer) const;
+    /// Where a partner deposits data on this rank for one halving step of a
+    /// `payload_bytes` collective. Regions [0, levels) take the scatter steps,
+    /// [levels, 2 * levels) the gather steps; every step has its own, because a
+    /// partner may deliver the next step while this rank still reads the last.
+    void* halving_stage(int rank, std::size_t payload_bytes, int region, int buffer) const;
+
+    /// Whether a payload of this size is reduced by recursive halving.
+    bool uses_halving(std::size_t payload_bytes) const;
+
+    /// Staging bytes per rank and buffer that a payload of this size needs.
+    std::size_t staging_bytes(std::size_t payload_bytes) const;
 
     /// How many independent sets of plans and staging exist per collective.
     ///

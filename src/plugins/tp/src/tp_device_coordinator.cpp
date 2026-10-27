@@ -477,9 +477,9 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
 
     // Ring: N slots per rank, one per chunk, so concurrent steps never share
     // a slot. The stride is the largest chunk rounded up for alignment; the
-    // total lands within one payload per rank. The halving slack rides along:
-    // halving lays its steps out inside the same region, and its steps are
-    // slightly larger than half of what they split (see kHalvingSlackBytes).
+    // total lands within one payload per rank. Halving lays its scatter and
+    // gather regions out inside the same space; the caller asks for what they
+    // need (staging_bytes), which can exceed the payload.
     const std::size_t chunk_stride =
         m_use_ring ? align_up((payload_bytes + m_world_size - 1) / m_world_size + kHalvingSlackBytes, 256)
                    : 0;
@@ -663,6 +663,24 @@ std::size_t halving_mid(std::size_t lo, std::size_t hi) {
     }
     return mid;
 }
+
+int halving_levels(int world_size) {
+    int levels = 0;
+    while ((1 << levels) < world_size) {
+        ++levels;
+    }
+    return levels;
+}
+
+// Bytes of one halving staging region at `level`: half of what `level` halvings left, plus the
+// slack halving_mid may add at every split.
+std::size_t halving_region_bytes(std::size_t payload_bytes, int level) {
+    std::size_t span = payload_bytes;
+    for (int j = 0; j < level; ++j) {
+        span = (span + 1) / 2 + kHalvingSlackBytes;
+    }
+    return align_up((span + 1) / 2 + kHalvingSlackBytes, 256);
+}
 }  // namespace
 
 void TPDeviceCoordinator::halving_range(std::size_t n, int rank, int level,
@@ -679,26 +697,36 @@ void TPDeviceCoordinator::halving_range(std::size_t n, int rank, int level,
     }
 }
 
-void* TPDeviceCoordinator::halving_stage(int rank, int step, int buffer) const {
-    // Each step stages at most half of what the previous one left, plus the
-    // alignment slack halving_mid can introduce. Laying the steps end to end
-    // still costs about one payload, which the ring arena reserves per buffer
-    // -- ensure_scratch_capacity adds the slack on top.
+void* TPDeviceCoordinator::halving_stage(int rank, std::size_t payload_bytes, int region, int buffer) const {
+    const int levels = halving_levels(m_world_size);
+    OPENVINO_ASSERT(region >= 0 && region < 2 * levels, "[TP][L0] halving staging region out of range: ", region);
     std::size_t offset = 0;
-    std::size_t span = m_scratch.payload_capacity_bytes.load(std::memory_order_relaxed);
-    auto step_bytes = [](std::size_t range) {
-        return (range + 1) / 2 + kHalvingSlackBytes;
-    };
-    for (int j = 0; j < step; ++j) {
-        const std::size_t staged = step_bytes(span);
-        offset += align_up(staged, 256);
-        span = staged;
+    for (int k = 0; k < region; ++k) {
+        offset += halving_region_bytes(payload_bytes, k % levels);
     }
-    const std::size_t region =
+    const std::size_t region_size =
         static_cast<std::size_t>(m_world_size) * m_scratch.chunk_capacity_bytes;
-    OPENVINO_ASSERT(offset + align_up(step_bytes(span), 256) <= region,
+    OPENVINO_ASSERT(offset + halving_region_bytes(payload_bytes, region % levels) <= region_size,
                     "[TP][L0] halving staging does not fit the ring arena");
     return static_cast<uint8_t*>(ring_slot(rank, 0, buffer)) + offset;
+}
+
+bool TPDeviceCoordinator::uses_halving(std::size_t payload_bytes) const {
+    const bool power_of_two = (m_world_size & (m_world_size - 1)) == 0;
+    return m_use_ring && power_of_two && m_config.get_enable_halving() &&
+           payload_bytes <= m_config.get_halving_max_bytes();
+}
+
+std::size_t TPDeviceCoordinator::staging_bytes(std::size_t payload_bytes) const {
+    if (!uses_halving(payload_bytes)) {
+        return payload_bytes;
+    }
+    const int levels = halving_levels(m_world_size);
+    std::size_t total = 0;
+    for (int k = 0; k < 2 * levels; ++k) {
+        total += halving_region_bytes(payload_bytes, k % levels);
+    }
+    return std::max(total, payload_bytes);
 }
 
 void TPDeviceCoordinator::create_plan_events(Plan& plan) {
@@ -1016,11 +1044,9 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
     const std::size_t elem = plan.dtype.size();
     OPENVINO_ASSERT(n > 0, "[TP][L0] halving requires a non-empty payload");
 
-    int levels = 0;
-    while ((1 << levels) < N) {
-        ++levels;
-    }
+    const int levels = halving_levels(N);
     OPENVINO_ASSERT((1 << levels) == N, "[TP][L0] halving requires a power-of-two world size");
+    const std::size_t payload_bytes = n * elem;
 
     // Steps are numbered 0..2*levels-1: the first half scatters, the second
     // gathers. ev(step, who) is signalled by `who` and waited on by its
@@ -1068,7 +1094,7 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
             // needs.
             ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
                 list,
-                halving_stage(partner, j, plan.buffer),
+                halving_stage(partner, payload_bytes, j, plan.buffer),
                 byte_at(mine, send_lo),
                 (send_hi - send_lo) * elem,
                 ev(j, r),
@@ -1084,7 +1110,7 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
         if (keep_hi > keep_lo) {
             void* dst  = byte_at(plan.out_ptrs[r], keep_lo);
             void* src0 = byte_at(mine, keep_lo);
-            void* src1 = halving_stage(r, j, plan.buffer);
+            void* src1 = halving_stage(r, payload_bytes, j, plan.buffer);
             uint64_t cnt = keep_hi - keep_lo;
             ze_group_count_t gc{launch_groups(keep_hi - keep_lo, kGroupSize), 1, 1};
             ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
@@ -1098,19 +1124,23 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
         order(list);
     }
 
-    // ---- Gather: the same partners in reverse, writing into their output ----
-    // Each rank owns a distinct range, so the writers never overlap and no
-    // staging -- and no local delivery copy -- is needed at all.
+    // ---- Gather: the same partners in reverse ----
+    // Like the ring, a rank never writes into a peer's output: that memory was
+    // just written by the peer's own kernels, and a remote write into it was
+    // measured to lose against them now and then (about 1 decode run in 12 on
+    // four ranks). The finished range goes into the partner's staging and the
+    // partner copies it into its output itself.
     for (int j = levels - 1; j >= 0; --j) {
         const int partner = r ^ (1 << j);
         const int step = 2 * levels - 1 - j;
+        const int region = levels + j;
         std::size_t lo = 0, hi = 0;
         halving_range(n, r, j + 1, lo, hi);
 
         if (hi > lo) {
             ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
                 list,
-                byte_at(plan.out_ptrs[partner], lo),
+                halving_stage(partner, payload_bytes, region, plan.buffer),
                 byte_at(plan.out_ptrs[r], lo),
                 (hi - lo) * elem,
                 ev(step, r),
@@ -1119,11 +1149,23 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
             ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(step, r)));
         }
 
-        // Waiting here also orders the next step's send, which reads the
-        // range the partner has just filled in.
         ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &plan.ev_ring[
             static_cast<std::size_t>(step) * static_cast<std::size_t>(N) +
             static_cast<std::size_t>(partner)]));
+
+        std::size_t partner_lo = 0, partner_hi = 0;
+        halving_range(n, partner, j + 1, partner_lo, partner_hi);
+        if (partner_hi > partner_lo) {
+            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
+                list,
+                byte_at(plan.out_ptrs[r], partner_lo),
+                halving_stage(r, payload_bytes, region, plan.buffer),
+                (partner_hi - partner_lo) * elem,
+                nullptr,
+                0, nullptr));
+        }
+        // The next step sends the range this copy has just completed.
+        order(list);
     }
 
     order(list);
@@ -1196,10 +1238,7 @@ void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
             // partners of a pair pushing across the same link at once: free at
             // decode sizes, where the two saved round trips dominate, and a
             // clear loss at prompt sizes. Latency- versus bandwidth-bound.
-            const bool power_of_two = (m_world_size & (m_world_size - 1)) == 0;
-            const std::size_t payload = plan.n * plan.dtype.size();
-            if (m_config.get_enable_halving() && power_of_two &&
-                payload <= m_config.get_halving_max_bytes()) {
+            if (uses_halving(plan.n * plan.dtype.size())) {
                 chosen = &m_skew.n_halving[rank];
                 record_halving_rank(plan, rank);
             } else {
@@ -1985,7 +2024,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         }
 
         const auto payload_bytes = collective_payload_bytes(n, dtype);
-        const bool scratch_grew = ensure_scratch_capacity(payload_bytes);
+        const bool scratch_grew = ensure_scratch_capacity(staging_bytes(payload_bytes));
         const bool signature_matches = slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set],
                                                      rdz.in_ids[rdz_set], rdz.out_ids[rdz_set],
                                                      n, dtype);
@@ -2094,7 +2133,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,
                         [generation](uint64_t g) { return g == generation; }) &&
             slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set],
                           rdz.in_ids[rdz_set], rdz.out_ids[rdz_set], n, dtype) &&
-            !scratch_needs_growth(collective_payload_bytes(n, dtype));
+            !scratch_needs_growth(staging_bytes(collective_payload_bytes(n, dtype)));
         if (measure_host) {
             (nothing_to_settle ? m_skew.gate_fast[rank] : m_skew.gate_slow[rank]).bump();
         }

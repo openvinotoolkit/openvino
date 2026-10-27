@@ -295,7 +295,15 @@ The arena is doubled by `plan_buffers()` for the same reason the plans are.
 
 - TP=2: one payload-sized region per rank per buffer.
 - Ring / halving (N>2): `N` chunk slots per rank per buffer, so concurrent
-  steps never share a slot. `chunk_capacity_bytes` is the stride.
+  steps never share a slot. `chunk_capacity_bytes` is the stride. Halving lays
+  one region per scatter step and one per gather step over the same space,
+  sized from the collective's own payload; `staging_bytes()` asks for that much.
+
+No schedule writes into a peer's model buffers: peers write staging only, and
+each rank delivers into its own output. Remote writes into a buffer the
+receiving rank's own kernels had just written were measured to lose against
+them now and then (the halving gather used to do this: about one decode run in
+twelve on four ranks produced a different token).
 
 `payload_capacity_bytes` and `generation` are atomic: ranks read them outside
 the scratch lock to decide for themselves whether the arena is about to move.

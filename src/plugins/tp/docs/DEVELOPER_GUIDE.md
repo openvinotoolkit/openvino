@@ -353,6 +353,11 @@ In order of frequency:
    width; an offset that is not corrupts a handful of elements at the head of
    a chunk. `ring_chunk` and `halving_mid` snap to `kRingAlignElems` for this
    reason, and the tail past the last whole vector is handled by a scalar loop.
+5. **A peer copy into another rank's model buffer.** Results differ between
+   identical runs, rarely (a token flips near an argmax tie). Peers may write
+   staging only; the owning rank copies into its output. Check with 10+
+   processes x 5 iterations on four ranks and compare output hashes; a
+   difference that disappears with `TP_FORCE_SYNC_COLLECTIVE` points here.
 
 ### "The collective costs more than it should"
 
