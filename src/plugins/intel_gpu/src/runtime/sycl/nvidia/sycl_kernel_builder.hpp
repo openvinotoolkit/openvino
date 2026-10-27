@@ -15,7 +15,7 @@
 #include <vector>
 
 namespace cldnn {
-namespace ocl { class ocl_kernel_builder; struct ocl_device; }
+namespace ocl { class ocl_kernel_builder; }
 namespace sycl {
 namespace nvidia {
 
@@ -36,9 +36,8 @@ private:
 
     const sycl_device& _device;
 
-    // The OpenCL builder is initialized lazily on first use.
+    // The OpenCL builder is initialized lazily on first use, on the OpenCL device the SYCL device shares.
     mutable std::shared_ptr<::cldnn::ocl::ocl_kernel_builder> _ocl_builder;
-    mutable std::shared_ptr<::cldnn::ocl::ocl_device> _ocl_device;
     mutable std::mutex _mutex;
 };
 
