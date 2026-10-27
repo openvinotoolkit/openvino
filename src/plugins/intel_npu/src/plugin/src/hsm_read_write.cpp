@@ -55,9 +55,11 @@ RuntimeRequirements parse_and_evaluate_runtime_requirements(
     OPENVINO_ASSERT(runtime_requirements_section);
 
     RuntimeRequirements runtime_requirements = runtime_requirements_section->get_runtime_requirements();
-    OPENVINO_ASSERT(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators),
-                    "The imported model is not compatible");
-    logger.debug("Runtime requirements evaluation passed");
+    const ov::CompatibilityCheck evaluation_result =
+        runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators);
+    OPENVINO_ASSERT(evaluation_result != ov::CompatibilityCheck::UNSUPPORTED, "The imported model is not compatible");
+    logger.debug("Runtime requirements evaluation result: %s",
+                 evaluation_result == ov::CompatibilityCheck::SUPPORTED ? "SUPPORTED" : "NOT_APPLICABLE");
     return runtime_requirements;
 }
 

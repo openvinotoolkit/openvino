@@ -11,10 +11,16 @@
 #include "openvino/runtime/hsm_reader.hpp"
 #include "utils.hpp"
 
-namespace {}
-
 using namespace intel_npu;
 using testing::_;
+
+namespace {
+
+const auto MOCK_INSTANCE_EVALUATOR = std::make_shared<MockInstanceEvaluator>();
+const auto MOCK_TYPE_EVALUATOR_TRUE = std::make_shared<MockTypeEvaluator>(true);
+const auto MOCK_TYPE_EVALUATOR_FALSE = std::make_shared<MockTypeEvaluator>(false);
+
+}  // namespace
 
 using RuntimeRequirementsTest = testing::Test;
 
@@ -38,10 +44,65 @@ TEST_F(RuntimeRequirementsTest, CtorAndBasicGetters) {
 TEST_F(RuntimeRequirementsTest, UnknownTypeInEvaluators) {
     RuntimeRequirements runtime_requirements({}, CRE(), {});
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators{
-        {SectionType(SectionTypeCode::UNKNOWN), std::make_shared<MockTypeEvaluator>(false)}};
+        {SectionType(SectionTypeCode::UNKNOWN), MOCK_TYPE_EVALUATOR_FALSE}};
     OV_EXPECT_THROW(runtime_requirements.get_compatibility_check_result(type_evaluators, {}), ov::Exception, _);
 
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators{
-        {SectionType(SectionTypeCode::UNKNOWN), std::make_shared<MockInstanceEvaluator>()}};
+        {SectionType(SectionTypeCode::UNKNOWN), MOCK_INSTANCE_EVALUATOR}};
     OV_EXPECT_THROW(runtime_requirements.get_compatibility_check_result({}, instance_evaluators), ov::Exception, _);
+}
+
+TEST_F(RuntimeRequirementsTest, MissingSectionID) {
+    RuntimeRequirements runtime_requirements({{SectionID(0), "reqs"}},
+                                             CRE(),
+                                             {{SectionID(1), SectionType(SectionTypeCode::BATCH_SIZE)}});
+    OV_EXPECT_THROW(runtime_requirements.get_compatibility_check_result({}, {}), ov::Exception, _);
+}
+
+TEST_F(RuntimeRequirementsTest, TypeEvaluationResult) {
+    RuntimeRequirements runtime_requirements({}, CRE(), {});
+    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE), std::nullopt);
+    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
+
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{
+        {SectionID(0), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE)}};
+    const CRE cre({std::make_shared<SectionType>(SectionTypeCode::ELF_MAIN_SCHEDULE), std::make_shared<SectionID>(0)});
+    runtime_requirements =
+        RuntimeRequirements({{SectionID(0), STRING_THAT_EVALUATES_TO_SUPPORTED.data()}}, cre, section_id_to_type);
+    // The evaluation was not run yet
+    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE), std::nullopt);
+    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
+
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators{
+        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_TYPE_EVALUATOR_FALSE}};
+    const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators{
+        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_INSTANCE_EVALUATOR}};
+    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators),
+              ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
+              std::make_optional(false));
+    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
+
+    type_evaluators[SectionTypeCode::ELF_MAIN_SCHEDULE] = MOCK_TYPE_EVALUATOR_TRUE;
+    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators),
+              ov::CompatibilityCheck::SUPPORTED);
+    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
+              std::make_optional(true));
+    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::make_optional(true));
+
+    runtime_requirements =
+        RuntimeRequirements({{SectionID(0), STRING_THAT_EVALUATES_TO_UNSUPPORTED.data()}}, cre, section_id_to_type);
+    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators),
+              ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
+              std::make_optional(true));
+    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::make_optional(false));
+
+    runtime_requirements =
+        RuntimeRequirements({{SectionID(0), STRING_THAT_EVALUATES_TO_UNKNOWN.data()}}, cre, section_id_to_type);
+    ASSERT_EQ(runtime_requirements.get_compatibility_check_result(type_evaluators, instance_evaluators),
+              ov::CompatibilityCheck::NOT_APPLICABLE);
+    ASSERT_EQ(runtime_requirements.get_type_evaluation_result(SectionTypeCode::ELF_MAIN_SCHEDULE),
+              std::make_optional(true));
+    ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(0), std::nullopt);
 }

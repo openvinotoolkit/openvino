@@ -89,6 +89,7 @@ RuntimeRequirements::build_single_section_instance_evaluators(
     return single_instance_evaluators;
 }
 
+// TODO rename since there's no more caching
 ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
@@ -96,9 +97,6 @@ ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(
     // "Unknown" should implicitly evaluate to unsupported. Therefore, no evalutors need to be registered for this type.
     OPENVINO_ASSERT(!type_evaluators.count(SectionTypeCode::UNKNOWN) &&
                     !instance_evaluators.count(SectionTypeCode::UNKNOWN));
-
-    // TODO maybe log message if caching used, and the new evaluators are ignored
-    OPENVINO_ASSERT(m_instance_evaluators.empty(), "Invalid state");
 
     m_type_evaluators = type_evaluators;
     m_instance_evaluators = build_single_section_instance_evaluators(instance_evaluators);
