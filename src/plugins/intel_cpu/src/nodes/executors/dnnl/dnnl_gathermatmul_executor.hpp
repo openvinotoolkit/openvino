@@ -55,7 +55,6 @@ private:
 
     // Selects the row threshold below which an expert runs per-row GEMV instead of a GEMM.
     bool m_bf16AmxMode = false;
-    size_t m_l2CacheSize = 0;
     impl_desc_type m_implType = impl_desc_type::unknown;
 };
 

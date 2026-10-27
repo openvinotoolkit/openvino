@@ -37,7 +37,6 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -281,8 +280,7 @@ bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfi
 GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const GatherMatmulAttrs& attrs,
                                                    const MemoryArgs& memory,
                                                    const ExecutorContext::CPtr& context)
-    : m_context(context),
-      m_l2CacheSize(dnnl::utils::get_cache_size(2, true)) {
+    : m_context(context) {
     const auto& weightsMemory = memory.at(ARG_WEI);
     const auto& srcMemory = memory.at(ARG_SRC);
 
@@ -548,7 +546,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
                 gemmImpl = createGemm(gemm_rows);
             }
 
-            auto gather_row = [&](size_t m) {
+            cpu_parallel->parallel_for(gemm_rows, [&](size_t m) {
                 auto* dst_row = tmp_input_offset(m);
                 if (m < num_valid_rows) {
                     const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
@@ -558,15 +556,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
                 } else {
                     std::memset(dst_row, 0, K_size * element_size);
                 }
-            };
-            // Copies that fit in L2 are faster on one thread than split across the pool.
-            if (gemm_rows * K_size * element_size < m_l2CacheSize) {
-                for (size_t m = 0; m < gemm_rows; ++m) {
-                    gather_row(m);
-                }
-            } else {
-                cpu_parallel->parallel_for(gemm_rows, gather_row);
-            }
+            });
 
             auto* src = tmp_input_offset.get_base();
             auto* dst = tmp_dst_offset.get_base();
@@ -576,20 +566,13 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             auto* zp = zp_offset(gather_axis_index);
             gemmImpl->exec(src, dst, wei, bias, scale, zp);
 
-            auto scatter_row = [&](size_t m) {
+            cpu_parallel->parallel_for(num_valid_rows, [&](size_t m) {
                 const auto* src_row = tmp_dst_offset(m);
                 const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
                 const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
                 auto* dst_row = dst_offset(batch_index, row_id);
                 std::memcpy(dst_row, src_row, N_size * element_size);
-            };
-            if (num_valid_rows * N_size * element_size < m_l2CacheSize) {
-                for (size_t m = 0; m < num_valid_rows; ++m) {
-                    scatter_row(m);
-                }
-            } else {
-                cpu_parallel->parallel_for(num_valid_rows, scatter_row);
-            }
+            });
         }
     } else {
         OPENVINO_ASSERT(m_gemvImpl, "GEMV implementation is not created");
