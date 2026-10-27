@@ -191,6 +191,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/section_type.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/section_id.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/cre_special_token.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/runtime_requirements.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/sections_string_conversions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/isection_type_evaluator.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/supported_section_type_evaluator.cpp

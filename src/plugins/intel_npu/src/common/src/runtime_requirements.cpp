@@ -75,16 +75,15 @@ RuntimeRequirements::build_single_section_instance_evaluators(
                         "Found a section that has at least two entries within the runtime requirements");
         OPENVINO_ASSERT(m_section_id_to_type.count(section_id));
         const SectionType section_type = m_section_id_to_type.at(section_id);
-        OPENVINO_ASSERT(instance_evaluators.count(section_type),
-                        "Missing instance evaluator for section type ",
-                        section_type.to_string());
 
-        m_logger.trace("Building an instance evaluator for section %s",
-                       section_type_and_id_to_string(section_type, section_id).data());
+        if (instance_evaluators.count(section_type)) {
+            m_logger.trace("Building an instance evaluator for section %s",
+                           section_type_and_id_to_string(section_type, section_id).data());
 
-        single_instance_evaluators.emplace(
-            section_id,
-            SingleSectionInstanceEvaluator(instance_evaluators.at(section_type), section_runtime_requirements));
+            single_instance_evaluators.emplace(
+                section_id,
+                SingleSectionInstanceEvaluator(instance_evaluators.at(section_type), section_runtime_requirements));
+        }
     }
 
     return single_instance_evaluators;
@@ -93,25 +92,17 @@ RuntimeRequirements::build_single_section_instance_evaluators(
 ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
+    m_logger.debug("Evaluating the runtime requirements");
     // "Unknown" should implicitly evaluate to unsupported. Therefore, no evalutors need to be registered for this type.
     OPENVINO_ASSERT(!type_evaluators.count(SectionTypeCode::UNKNOWN) &&
                     !instance_evaluators.count(SectionTypeCode::UNKNOWN));
 
-    if (!m_compatibility_check_result.has_value()) {
-        m_logger.debug("Evaluating the runtime requirements");
+    // TODO maybe log message if caching used, and the new evaluators are ignored
+    OPENVINO_ASSERT(m_instance_evaluators.empty(), "Invalid state");
 
-        // TODO maybe log message if caching used, and the new evaluators are ignored
-        OPENVINO_ASSERT(m_instance_evaluators.empty(), "Invalid state");
-
-        m_type_evaluators = type_evaluators;
-        m_instance_evaluators = build_single_section_instance_evaluators(instance_evaluators);
-        m_compatibility_check_result = m_cre.check_compatibility(type_evaluators, m_instance_evaluators);
-    }
-    return m_compatibility_check_result.value();
-}
-
-bool RuntimeRequirements::evaluated() const {
-    return m_compatibility_check_result.has_value();
+    m_type_evaluators = type_evaluators;
+    m_instance_evaluators = build_single_section_instance_evaluators(instance_evaluators);
+    return m_cre.check_compatibility(type_evaluators, m_instance_evaluators);
 }
 
 std::optional<bool> RuntimeRequirements::get_type_evaluation_result(const SectionType type) const {

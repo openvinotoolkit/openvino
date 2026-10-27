@@ -13,8 +13,7 @@
 namespace intel_npu {
 
 /**
- * @brief Class that contains and evaluates the runtime requirements of a compiled model. The evaluation result is also
- * cached.
+ * @brief Class that contains and evaluates the runtime requirements of a compiled model
  */
 class RuntimeRequirements {
 public:
@@ -35,8 +34,7 @@ public:
     std::unordered_map<SectionID, SectionType> get_section_id_to_type_mapping() const;
 
     /**
-     * @brief Returns the result of evaluating the runtime requirements.
-     * @note The result will be cached for future retrieval.
+     * @brief Leverage the section type and instance evaluators to evaluate the runtime requirements.
      *
      * @param type_evaluators Instruct the CRE how to evaluate section types. Missing section types will be treated as
      * "unsupported".
@@ -47,8 +45,6 @@ public:
     ov::CompatibilityCheck get_compatibility_check_result(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators);
-
-    bool evaluated() const;
 
     /**
      * @brief Retrieves the result of a section type evaluation.
@@ -94,11 +90,6 @@ private:
      * treated as "supported".
      */
     std::unordered_map<SectionID, SingleSectionInstanceEvaluator> m_instance_evaluators;
-
-    /**
-     * @brief Cache for the evaluation result
-     */
-    std::optional<ov::CompatibilityCheck> m_compatibility_check_result;
 
     Logger m_logger;
 };
