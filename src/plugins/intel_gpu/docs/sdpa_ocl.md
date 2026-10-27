@@ -1207,6 +1207,37 @@ subgroup reductions instead of an SLM tile plus an alpha rescale. Almost nothing
   `SG_PER_WG` therefore changes M too; read both back from the dispatch (`LWS` dim 1 is `SG_PER_WG`,
   `GWS` dim 1 is `SG_PER_WG` x head groups) before attributing a timing to either. `SDPA_OCL_DECODE_M`
   bypasses the cap but not the local-memory clamp (half the arena), which guards the build.
+- When that cap holds M below the (rounded-up) kv group, the host switches to a low-register layout and
+  keeps the whole group. With M below the group, every K/V page is read and dequantized group / M times per
+  kv head, and decode is bandwidth bound, so the cost of the cap grew with the context: gemma-4-26b's
+  head-512 layers ran M = 1 at kv group 8, and its 2nd-token latency fell behind `pa_gqa_single_token`
+  (`HEADS_PER_WI` 4) from 4K on, by 8% at 32K and 12% at 128K. The layout only moves data, so the output is
+  bit-identical to the plain one at any M (each head is its own DPAS row):
+  - `Q_IN_SLM`: the scaled query sits in local memory, one `Q_PER_WG`-wide vector per (tile, lane), and
+    each A operand is read back where it is used; `q_reg[M][K_TILES]` alone was the whole 128-GRF file at
+    head 512 and M = 8.
+  - `K_COMP_PER_READ` (BY_CHANNEL): the scale/zp pairs of one K read's tiles are loaded with that read,
+    and `k_corr` accumulates inside the KQ loop in the same tile order as the up-front pass.
+  - `V_COMP_IN_SLM` (compressed): the subgroup that scored a page loads that page's V scale/zp once,
+    folds the scale into the probabilities it writes to `slm_p` (the same f16 multiply) and stages the zp
+    there. Before, every S*V subgroup loaded every page's pair inside the loop and waited for it (the V
+    prefetch covers only the data rows).
+  - `V_TWIN_PAIR` (u4, V block reads, both twins in one subgroup): tiles `cd` and `cd + V_READS` share
+    one V read; one nibble each.
+
+  `low_reg_grf_estimate()` has no `K_TILES` term left, and its budget (160) brackets the measured
+  boundary: 148 (u4 head 128, 8 subgroups, M = 8) and 138 (head 512, 16, M = 8, twins) spill nothing,
+  184 (4 subgroups) spills 896 bytes. It is not used at head 64 once the plain M is 4: there a page is
+  read at most twice, and halving the cheap workgroups' count lost up to 2K keys (i8 gpt-oss and
+  minicpm4-0.5b, 1.06-1.15x). Kernel time against the plain layout (B70 at 1800 MHz, standalone probe
+  with the L2 flushed, 300 to 33K keys): gemma-4 head 512 0.23-0.85x (M 1 -> 8), gemma-4-e2b SWA head 256
+  0.92x (2 -> 8), minicpm4-8b 0.63-0.97x (4 -> 8), qwen3.5-9b 0.60-0.82x (2 -> 4), qwen3.6-35b-a3b
+  0.46-0.91x and qwen3.8-27b 0.55-0.90x (2 -> 8), and with an i8 cache 0.58-0.94x. On gemma-4-26b at
+  32K the head-512 call went from 712.8 to 161.5 us (`pa_gqa_single_token`: 441.9 us) and the decode
+  device time per token from 13.02 to 10.20 ms (master: 11.81 ms; cliloader); its 2nd-token latency against
+  master went from 0.99-1.13x, rising with the prompt from 278 to 133K tokens, to 0.84-0.99x (llm_bench with
+  the daily prompts, 1800 MHz). Shapes the plain layout already holds at the full group (llama, qwen3-8b,
+  phi, mistral, gpt-oss with u4, gemma-2/3, the gemma-4-26b SWA layers) compile to the identical ISA.
 - `SG_PER_WG` is 16 when there are at least 16 V head-dim tiles, and for a u4 cache at head 64 or 128
   when 16 subgroups still get M >= 4; 8 otherwise. One subgroup is one thread, and at 8 the kernel had a
   quarter of `pa_sdpa_opt`'s threads per Xe core: on gemma-4 at M = 1, 16 was 2.07x faster at head 512
@@ -1300,6 +1331,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_MICRO_MATH` | `0` / `1` forces `sdpa_micro` rounding off / on for PA prefill (default on except the `d_max` 512 tile) |
 | `SDPA_OCL_BIDIR`, `SDPA_OCL_BIDIR_GATE` | Negative controls for the image-group mask and its empty-buffer gate |
 | `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths |
+| `SDPA_OCL_DECODE_LOW_REG` | Decode low-register layout: `0`/`1` forces it off/on (bit-identical either way) |
 | `OV_GPU_PA_K_TOKEN_MAJOR`, `OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR` | K cache layout staging switches |
 | `OV_GPU_PA_K_TM_BREAK=<consumer>` | Forces one consumer back to the d-major read, to test whether a suite observes it |
 
@@ -1383,9 +1415,10 @@ Measured on an Arc Pro B70 (Xe2), identical before and after the refactor:
 
 No test reaches paged-attention bf16, qq_bias with an f16, u4 or
 BY_TOKEN cache, a compressed cache with token_type_ids, or the u4 scalar page arms (head 48, 96,
-112). `sdpa_ocl_decode` reaches `Q_PER_WG = 8` only under `SDPA_OCL_DECODE_M=8` (the GRF cap limits
-the test shapes to M <= 4), and even then no GENERATE test uses u4, so the u4 M = 8 kernel is only
-compiled. Lower-right causal masking is checked only by `sdpa_gpu_causal_mask` (cosine >= 0.99),
+112). `sdpa_ocl_decode`'s low-register layout at `Q_PER_WG = 8` is reached by
+`smoke_paged_attention` basic/186-189 (u4, kv group 8, heads 512 with `V_TWIN_PAIR` and 256), but only
+the `sharp_softmax` rows (187, 189) fail when the twin store or the zp-correction bias is broken; the
+plain rows pass either way. Lower-right causal masking is checked only by `sdpa_gpu_causal_mask` (cosine >= 0.99),
 and several suites check only finiteness, cache contents or cosine >= 0.95.
 
 The paged-attention harness data (`generate_realistic_data`, N(0, 0.1)) makes a GENERATE output
