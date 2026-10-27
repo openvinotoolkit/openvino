@@ -14,6 +14,10 @@
 #include "sycl_device.hpp"
 #include "sycl_common.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#ifdef OV_GPU_VENDOR_NVIDIA
+#include "ocl/ocl_device.hpp"
+#include "ocl/ocl_device_detector.hpp"
+#endif
 
 #include <map>
 #include <string>
@@ -331,6 +335,25 @@ memory_capabilities init_memory_caps(const ::sycl::device& device, const device_
     return memory_capabilities(memory_caps);
 }
 
+#ifdef OV_GPU_VENDOR_NVIDIA
+// Finds the OpenCL device that is the same GPU as the SYCL device described by info, matching them by UUID.
+// Returns nullptr when there is none, e.g. when no OpenCL runtime is installed: that must not keep the SYCL device
+// from being created, and the kernel builder reports it once an OpenCL kernel is actually built.
+std::shared_ptr<ocl::ocl_device> find_matching_ocl_device(const device_info& info) {
+    try {
+        ocl::ocl_device_detector detector;
+        for (const auto& [key, dev] : detector.get_available_devices(nullptr, nullptr)) {
+            auto ocl_dev = std::dynamic_pointer_cast<ocl::ocl_device>(dev);
+            if (ocl_dev && ocl_dev->get_info().uuid.uuid == info.uuid.uuid)
+                return ocl_dev;
+        }
+    } catch (const std::exception& e) {
+        GPU_DEBUG_LOG << "[GPU][NVIDIA] OpenCL device lookup failed: " << e.what() << std::endl;
+    }
+    return nullptr;
+}
+#endif
+
 }  // namespace
 
 
@@ -341,6 +364,25 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
 , _info(init_device_info(dev, ctx))
 , _mem_caps(init_memory_caps(dev, _info))
 , _is_initialized(true){
+#ifdef OV_GPU_VENDOR_NVIDIA
+    if (_info.vendor_id == NVIDIA_VENDOR_ID) {
+        _ocl_device = find_matching_ocl_device(_info);
+        if (!_ocl_device) {
+            GPU_DEBUG_LOG << "[GPU][NVIDIA] No OpenCL device matches the SYCL device " << _info.dev_name
+                          << ", so OpenCL kernels cannot be built for it" << std::endl;
+        }
+    }
+#endif
+}
+
+std::shared_ptr<ocl::ocl_device> sycl_device::get_ocl_device() const {
+    if (_ocl_device) {
+        std::call_once(_ocl_device_init, [this]() {
+            if (!_ocl_device->is_initialized())
+                _ocl_device->initialize();
+        });
+    }
+    return _ocl_device;
 }
 
 bool sycl_device::is_same(const device::ptr other) {

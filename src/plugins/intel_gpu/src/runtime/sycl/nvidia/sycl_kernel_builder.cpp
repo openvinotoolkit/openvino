@@ -6,8 +6,8 @@
 
 #include "sycl_kernel_builder.hpp"
 #include "sycl_ptx_kernel.hpp"
+#include "ocl/ocl_device.hpp"
 #include "ocl/ocl_kernel_builder.hpp"
-#include "ocl/ocl_device_detector.hpp"
 #include "openvino/core/except.hpp"
 
 #include <regex>
@@ -114,24 +114,11 @@ sycl_kernel_builder::sycl_kernel_builder(const sycl_device& device)
 // OCL builder lazy initialisation
 // ---------------------------------------------------------------------------
 void sycl_kernel_builder::init_ocl_builder() const {
-    using namespace ::cldnn::ocl;
-    ocl_device_detector ocl_detector;
-    auto devices = ocl_detector.get_available_devices(nullptr, nullptr);
-    const auto& dev_info = _device.get_info();
-    _ocl_device = nullptr;
-    for (const auto& [key, dev] : devices) {
-        auto ocl_dev = std::dynamic_pointer_cast<ocl_device>(dev);
-        OPENVINO_ASSERT(ocl_dev != nullptr, "[GPU][NVIDIA] Unexpected null OCL device");
-        if (ocl_dev->get_info().uuid.uuid == dev_info.uuid.uuid) {
-            _ocl_device = ocl_dev;
-            break;
-        }
-    }
-    OPENVINO_ASSERT(_ocl_device != nullptr,
+    // The matching OpenCL device is looked up once per SYCL device (see sycl_device::get_ocl_device()).
+    auto ocl_dev = _device.get_ocl_device();
+    OPENVINO_ASSERT(ocl_dev != nullptr,
         "[GPU][NVIDIA] Could not find a matching OCL device for the NVIDIA SYCL device");
-    if (!_ocl_device->is_initialized())
-        _ocl_device->initialize();
-    _ocl_builder = std::make_shared<ocl_kernel_builder>(*_ocl_device);
+    _ocl_builder = std::make_shared<::cldnn::ocl::ocl_kernel_builder>(*ocl_dev);
 }
 
 // ---------------------------------------------------------------------------
