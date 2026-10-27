@@ -19,6 +19,10 @@ public:
 
     void evict_one();
 
+    // True when the expert holds a filled slot. Unlike get_lru_item() it does not
+    // change the recency order.
+    bool contains(size_t expert) const;
+
     size_t size() const {
         std::lock_guard<std::mutex> lock(m_mutex);
         return m_total_experts;
