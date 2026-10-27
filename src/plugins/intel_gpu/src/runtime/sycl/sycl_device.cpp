@@ -367,7 +367,15 @@ sycl_device::sycl_device(const ::sycl::device dev, const ::sycl::context& ctx, c
 #ifdef OV_GPU_VENDOR_NVIDIA
     if (_info.vendor_id == NVIDIA_VENDOR_ID) {
         _ocl_device = find_matching_ocl_device(_info);
-        if (!_ocl_device) {
+        if (_ocl_device) {
+            // Report the local memory the OpenCL kernels can use, as the NVIDIA OpenCL runtime that builds them
+            // does (48 KB). SYCL reports CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK_OPTIN instead (163 KB on
+            // A100), which only dynamic shared memory reaches, once a kernel raises its limit with
+            // CU_FUNC_ATTRIBUTE_MAX_DYNAMIC_SHARED_SIZE_BYTES as SYCL does for local accessors. The kernels here size
+            // static __local arrays from this value, and CUDA caps static shared memory at 48 KB: ptxas rejects
+            // anything larger when clBuildProgram builds the kernel.
+            _info.max_local_mem_size = _ocl_device->get_info().max_local_mem_size;
+        } else {
             GPU_DEBUG_LOG << "[GPU][NVIDIA] No OpenCL device matches the SYCL device " << _info.dev_name
                           << ", so OpenCL kernels cannot be built for it" << std::endl;
         }
