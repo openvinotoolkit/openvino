@@ -2,19 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock-matchers.h>
 #include "behavior/compiled_model/import_export.hpp"
 
-#include "common_test_utils/ov_test_utils.hpp"
+#include <gmock/gmock-matchers.h>
+
+#include <cstring>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "common_test_utils/subgraph_builders/multiple_input_outpput_double_concat.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
+namespace hsm = ov::runtime::hsm;
 
 std::string OVCompiledGraphImportExportTest::getTestCaseName(testing::TestParamInfo<OVCompiledGraphImportExportTestParams> obj) {
     const auto& [elementType, _targetDevice, configuration] = obj.param;
@@ -662,7 +670,6 @@ const char expected_serialized_model_cpu[] = R"V0G0N(
 </net>
 )V0G0N";
 
-
 std::string OVExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::ostringstream result;
     std::string target_device = obj.param;
@@ -786,7 +793,207 @@ TEST_P(OVExecGraphSerializationTest, ExecutionGraph) {
     ASSERT_TRUE(status) << message;
 }
 
+std::string hsm_repack(const std::string& blob, const std::function<void(std::vector<HsmEntry>&)>& modify) {
+    const auto data = reinterpret_cast<const std::byte*>(blob.data());
+    const auto reader = hsm::Reader::open(data, blob.size());
+    OPENVINO_ASSERT(reader, "Not an HSM blob");
+
+    std::vector<HsmEntry> entries;
+    for (const auto& entry : reader->entries()) {
+        // Built directly from the entry, so duplicated (device, tag) pairs are kept too.
+        const auto section = entry.tag.is_inline()
+                                 ? hsm::Section{entry}
+                                 : hsm::Section{entry, {data + entry.offset, static_cast<size_t>(entry.size)}};
+        entries.push_back({entry.device, {entry.tag, entry.tag_reserved}, section.to_bytes().value()});
+    }
+    modify(entries);
+
+    std::stringstream out;
+    auto writer = hsm::DeferredWriter::open(out);
+    OPENVINO_ASSERT(writer, "Cannot open HSM writer");
+    for (const auto& entry : entries) {
+        OPENVINO_ASSERT(
+            writer->add_section(entry.device, entry.tag, {entry.payload.data(), entry.payload.size()}, {4096}),
+            "Cannot add HSM section");
+    }
+    OPENVINO_ASSERT(!writer->finalize(), "HSM repack failed");
+    return out.str();
+}
+
+std::string hsm_with_minor_version(std::string blob, uint8_t minor) {
+    OPENVINO_ASSERT(blob.size() >= sizeof(hsm::Header), "Blob too small for an HSM header");
+    blob[offsetof(hsm::Header, version_minor)] = static_cast<char>(minor);
+    return blob;
+}
+
+bool is_hsm(const std::string& blob) {
+    return blob.size() >= sizeof(hsm::Header) && hsm::Header::view(blob.data()).magic == hsm::BlobMagic::single;
+}
+
+namespace {
+ov::Tensor hsm_infer(ov::CompiledModel& compiled, const ov::Tensor& input) {
+    auto request = compiled.create_infer_request();
+    request.set_input_tensor(input);
+    request.infer();
+    const auto output = request.get_output_tensor();
+    ov::Tensor result(output.get_element_type(), output.get_shape());
+    output.copy_to(result);
+    return result;
+}
+
+void add_unknown_sections(std::vector<HsmEntry>& entries) {
+    const auto bytes = [](std::string_view text, size_t size) {
+        std::vector<std::byte> payload(size);
+        std::memcpy(payload.data(), text.data(), std::min(size, text.size()));
+        return payload;
+    };
+    // A Core tag id not assigned yet, another device's pointer section and another device's inline section.
+    entries.push_back({hsm::any_device_id,
+                       hsm::SectionTag::make(hsm::core_tag_id_range_end - 1, false),
+                       bytes("future core section", 19)});
+    entries.push_back({250, hsm::SectionTag::make_device_tag(0x123, false), bytes("other device", 12)});
+    entries.push_back({251, hsm::SectionTag::make_device_tag(0, true), bytes("inline", 24)});
+}
+}  // namespace
+
+std::string OVCompiledModelHsmBlobTest::getTestCaseName(const testing::TestParamInfo<HsmBlobTestParams>& obj) {
+    auto [device, configuration] = obj.param;
+    std::replace(device.begin(), device.end(), ':', '.');
+    std::ostringstream result;
+    result << "targetDevice=" << device;
+    for (const auto& [key, value] : configuration) {
+        result << "_" << key << "=" << value.as<std::string>();
+    }
+    return result.str();
+}
+
+void OVCompiledModelHsmBlobTest::SetUp() {
+    std::tie(target_device, configuration) = GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    APIBaseTest::SetUp();
+
+    core = ov::test::utils::create_core();
+    // Plugin-level too: Core picks the cache blob format from the plugin, not from the compile config.
+    core.set_property(target_device, configuration);
+    ASSERT_TRUE(core.get_property(target_device, ov::internal::emit_hsm_format));
+
+    model = ov::test::utils::make_conv_pool_relu({1, 3, 16, 16}, ov::element::f32);
+    cache_path = "hsm_blob_cache_" + ov::test::utils::generateTestFilePrefix();
+    input = ov::test::utils::create_and_fill_tensor(ov::element::f32, model->input().get_shape());
+    auto compiled = compile(false);
+    reference = hsm_infer(compiled, input);
+}
+
+void OVCompiledModelHsmBlobTest::TearDown() {
+    if (!cache_path.empty()) {
+        ov::test::utils::removeFilesWithExt(ov::util::path_to_string(cache_path), "blob");
+        ov::test::utils::removeDir(ov::util::path_to_string(cache_path));
+    }
+    APIBaseTest::TearDown();
+}
+
+ov::CompiledModel OVCompiledModelHsmBlobTest::compile(bool with_cache) {
+    auto config = configuration;
+    if (with_cache) {
+        config.emplace(ov::cache_path(cache_path));
+    }
+    return core.compile_model(model, target_device, config);
+}
+
+std::string OVCompiledModelHsmBlobTest::export_blob(ov::CompiledModel compiled) const {
+    std::stringstream stream;
+    compiled.export_model(stream);
+    return stream.str();
+}
+
+std::string OVCompiledModelHsmBlobTest::read_cache_blob() const {
+    const auto blobs = ov::test::utils::listFilesWithExt(ov::util::path_to_string(cache_path), "blob");
+    OPENVINO_ASSERT(blobs.size() == 1, "Expected exactly one cache blob, got ", blobs.size());
+    std::ifstream file(blobs.front(), std::ios::binary);
+    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+}
+
+void OVCompiledModelHsmBlobTest::write_cache_blob(const std::string& blob) const {
+    const auto blobs = ov::test::utils::listFilesWithExt(ov::util::path_to_string(cache_path), "blob");
+    ASSERT_EQ(blobs.size(), 1u) << "Expected exactly one cache blob";
+    // Cache files may be created read-only, so replace the file instead of overwriting it.
+    std::filesystem::remove(blobs.front());
+    std::ofstream file(blobs.front(), std::ios::binary);
+    file.write(blob.data(), blob.size());
+    ASSERT_TRUE(file.good()) << "Cannot write cache blob " << blobs.front();
+}
+
+void OVCompiledModelHsmBlobTest::expect_same_inference(ov::CompiledModel& actual) {
+    ov::test::utils::compare(reference, hsm_infer(actual, input));
+}
+
+TEST_P(OVCompiledModelHsmBlobTest, cache_blob_is_identical_to_exported_blob) {
+    auto compiled = compile(true);
+    const auto exported = export_blob(compiled);
+
+    EXPECT_TRUE(is_hsm(exported));
+    EXPECT_EQ(read_cache_blob(), exported);
+}
+
+TEST_P(OVCompiledModelHsmBlobTest, cache_blob_is_imported_via_import_model) {
+    compile(true);
+    const auto blob = read_cache_blob();
+
+    std::stringstream stream(blob);
+    auto from_stream = core.import_model(stream, target_device, configuration);
+    expect_same_inference(from_stream);
+
+    ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()});
+    std::memcpy(tensor.data(), blob.data(), blob.size());
+    auto from_tensor = core.import_model(tensor, target_device, configuration);
+    expect_same_inference(from_tensor);
+}
+
+TEST_P(OVCompiledModelHsmBlobTest, exported_blob_is_loaded_from_cache) {
+    // The extra section makes the exported blob distinguishable from what the cache itself would write.
+    const auto exported = hsm_repack(export_blob(compile(false)), add_unknown_sections);
+    compile(true);
+    write_cache_blob(exported);
+
+    auto cached = compile(true);
+
+    EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+    EXPECT_EQ(read_cache_blob(), exported);
+    expect_same_inference(cached);
+}
+
+TEST_P(OVCompiledModelHsmBlobTest, unknown_sections_are_skipped_on_import) {
+    std::stringstream stream(hsm_repack(export_blob(compile(false)), add_unknown_sections));
+
+    auto imported = core.import_model(stream, target_device, configuration);
+
+    expect_same_inference(imported);
+}
+
+TEST_P(OVCompiledModelHsmBlobTest, newer_minor_version_is_imported) {
+    const auto newer = hsm_with_minor_version(hsm_repack(export_blob(compile(false)), add_unknown_sections),
+                                              hsm::FormatVersion::minor + 1);
+    std::stringstream stream(newer);
+
+    auto imported = core.import_model(stream, target_device, configuration);
+
+    expect_same_inference(imported);
+}
+
+TEST_P(OVCompiledModelHsmBlobTest, exported_blob_is_a_valid_container_of_the_current_version) {
+    const auto exported = export_blob(compile(false));
+    const auto data = reinterpret_cast<const std::byte*>(exported.data());
+
+    EXPECT_TRUE(hsm::ContainerView(data, exported.size()).validate());
+    EXPECT_TRUE(hsm::Reader::open(data, exported.size()));
+    const auto& header = hsm::Header::view(exported.data());
+    EXPECT_EQ(header.version_major, hsm::FormatVersion::major);
+    EXPECT_EQ(header.version_minor, hsm::FormatVersion::minor);
+    EXPECT_EQ(header.container_size, exported.size());
+}
+
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVClassCompiledModelImportExportTestP);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelHsmBlobTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVCompiledModelGraphUniqueNodeNamesTest);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(OVExecGraphSerializationTest);
 

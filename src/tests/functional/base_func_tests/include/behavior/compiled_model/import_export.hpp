@@ -1,16 +1,18 @@
 // Copyright (C) 2018-2026 Intel Corporation
-// SPDX-License-Identifcorer: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0
 //
 
+#include <filesystem>
 #include <fstream>
-
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "openvino/runtime/exec_model_info.hpp"
-#include "pugixml.hpp"
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include <functional>
 
 #include "openvino/op/concat.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/hsm_format.hpp"
+#include "pugixml.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -89,6 +91,49 @@ protected:
                                               const pugi::xml_document &doc2);
 
     std::string m_out_xml_path, m_out_bin_path;
+};
+
+struct HsmEntry {
+    ov::runtime::hsm::DeviceId device;
+    ov::runtime::hsm::SectionTagReserved tag;
+    std::vector<std::byte> payload;
+};
+
+/// Rebuilds an HSM blob from its sections after @p modify edited them; throws if @p blob is not HSM.
+std::string hsm_repack(const std::string& blob, const std::function<void(std::vector<HsmEntry>&)>& modify);
+
+/// Returns a copy of @p blob with its header's format minor version set to @p minor.
+std::string hsm_with_minor_version(std::string blob, uint8_t minor);
+
+bool is_hsm(const std::string& blob);
+
+using HsmBlobTestParams = std::tuple<std::string,  // device name
+                                     ov::AnyMap    // device configuration
+                                     >;
+
+/// Same checks as OVCompiledGraphImportExportTest, for plugins whose export_model() emits HSM instead of the
+/// legacy blob format (skipped otherwise) - kept alongside it since one is meant to eventually replace the other.
+class OVCompiledModelHsmBlobTest : public testing::WithParamInterface<HsmBlobTestParams>,
+                                   public OVCompiledNetworkTestBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<HsmBlobTestParams>& obj);
+
+    void SetUp() override;
+    void TearDown() override;
+
+protected:
+    ov::CompiledModel compile(bool with_cache);
+    std::string export_blob(ov::CompiledModel compiled) const;
+    std::string read_cache_blob() const;
+    void write_cache_blob(const std::string& blob) const;
+    void expect_same_inference(ov::CompiledModel& actual);
+
+    ov::Core core;
+    ov::AnyMap configuration;
+    std::shared_ptr<ov::Model> model;
+    std::filesystem::path cache_path;
+    ov::Tensor input;
+    ov::Tensor reference;
 };
 
 }  // namespace behavior
