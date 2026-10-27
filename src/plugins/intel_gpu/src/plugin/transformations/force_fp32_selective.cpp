@@ -4,6 +4,8 @@
 
 #include "force_fp32_selective.hpp"
 
+#ifdef GPU_DEBUG_CONFIG
+
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -11,8 +13,6 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#ifdef GPU_DEBUG_CONFIG
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
@@ -354,4 +354,4 @@ bool ForceFP32Selective::run_on_model(const std::shared_ptr<ov::Model>& model) {
 }  // namespace intel_gpu
 }  // namespace ov
 
-#endif // GPU_DEBUG_CONFIG
+#endif  // GPU_DEBUG_CONFIG

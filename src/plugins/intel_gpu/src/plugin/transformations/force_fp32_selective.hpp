@@ -9,16 +9,16 @@
 #include <vector>
 
 #include "openvino/pass/pass.hpp"
-#ifdef GPU_DEBUG_CONFIG
 
 namespace ov {
 namespace intel_gpu {
 
+#ifdef GPU_DEBUG_CONFIG
 
 /**
  * @brief Promote selected FP16 graph inputs and outputs to FP32 for accuracy debugging.
  *
- * Requires ENABLE_DEBUG_CAPS. Runs after GPU precision conversion and fusion;
+ * Requires ENABLE_GPU_DEBUG_CAPS. Runs after GPU precision conversion and fusion;
  * filters use the current operation type and friendly name at this stage.
  *
  * Environment examples (leave the other filter unset for single-filter use):
@@ -61,8 +61,7 @@ private:
     std::vector<std::string> m_forced_names;
 };
 
+#endif  // GPU_DEBUG_CONFIG
 
 }  // namespace intel_gpu
 }  // namespace ov
-
-#endif // GPU_DEBUG_CONFIG

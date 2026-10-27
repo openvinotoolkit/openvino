@@ -98,7 +98,7 @@ Non default env value for VERBOSE = 1
 
 ## Selective FP32 precision
 
-Use `ForceFP32Selective` to investigate FP16 accuracy issues by promoting selected operations' FP16 inputs and outputs to FP32. This feature requires a GPU plugin build with `ENABLE_DEBUG_CAPS=ON`.
+Use `ForceFP32Selective` to investigate FP16 accuracy issues by promoting selected operations' FP16 inputs and outputs to FP32. This feature requires `ENABLE_DEBUG_CAPS=ON` and `ENABLE_GPU_DEBUG_CAPS=ON`. Sources remain in the build lists, following the GPU debug helper pattern. When GPU debug caps are disabled, `GPU_DEBUG_CONFIG` guards exclude the pass declaration, implementation, registration, and unit tests during preprocessing. Configuration options use the standard `OV_CONFIG_DEBUG_OPTION` mechanism, controlled by `ENABLE_DEBUG_CAPS`.
 
 The pass runs at the end of the GPU model transformation pipeline, after precision conversion and fusion. Filters use the operation's current type (`get_type_name()`) and friendly name at this stage. For example, an original `MatMul` may already be `FullyConnected`, and an RMS pattern may be fused into the internal `RMS` operation. Use types and names from the transformed model; names from the original model may have changed.
 
