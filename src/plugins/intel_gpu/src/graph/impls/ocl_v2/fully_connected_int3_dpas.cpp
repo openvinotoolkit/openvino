@@ -482,8 +482,8 @@ JitConstants make_v2_elt_tile_jit_constants(const RuntimeParams& params) {
             const auto in_idx = ext_inputs[0];
             decls += "ushort " + arr + "[V2_NB][TILE_M];";
             reads += "read(" + gen.get_input_ptr_name(in_idx).str() + ", " + arr + ")";
-            fused_ops += concat(gen.get_input_tensor_name(in_idx), "_TYPE").str() + " " + gen.get_input_var_name(in_idx).str() + " = as_half(" + arr +
-                         "[j][t]);";
+            fused_ops +=
+                concat(gen.get_input_tensor_name(in_idx), "_TYPE").str() + " " + gen.get_input_var_name(in_idx).str() + " = as_half(" + arr + "[j][t]);";
         } else {
             fused_ops += "FUSED_OP" + op + "_LOAD";
         }
@@ -804,10 +804,9 @@ public:
         }
         const size_t rows = get_rows(impl_params.get_input_layout(0));
         // The single-row GEMV is compiled for exactly one row, so an empty input takes a shape-agnostic variant.
-        const auto variant = rows == 1 ? GemmVariant::scalar
-                                       : get_gemm_variant(get_int3_fc_info(impl_params, m_rt_params.get()),
-                                                          impl_params.get_device_info(),
-                                                          std::max(rows, dpas_min_rows));
+        const auto variant =
+            rows == 1 ? GemmVariant::scalar
+                      : get_gemm_variant(get_int3_fc_info(impl_params, m_rt_params.get()), impl_params.get_device_info(), std::max(rows, dpas_min_rows));
         const size_t gemm_idx = get_stage_idx(gemms[static_cast<size_t>(variant)]);
         OPENVINO_ASSERT(is_activated(gemm_idx), "[GPU] ", kernel_name, ": GEMM variant ", static_cast<size_t>(variant), " is not compiled");
         return {quantize_idx, gemm_idx};

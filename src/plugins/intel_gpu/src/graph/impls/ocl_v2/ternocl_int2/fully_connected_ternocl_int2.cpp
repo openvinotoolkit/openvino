@@ -603,12 +603,18 @@ public:
     }
 };
 
-// A forced impl type (unit tests) skips validate() and takes the first OCL manager,
-// so FCs this impl rejects are handed to the next OCL FC manager.
-static const ImplementationManager& stock_ocl_manager(const ImplementationManager& self, shape_types shape_type) {
+// A forced impl type (unit tests) skips validate() and takes the first OCL manager, so FCs this impl rejects are
+// handed to the next OCL FC manager. Managers that opt into validate_when_forced, such as the int3 FC, only cover
+// some weight types and must not become that fallback for a node they reject.
+static const ImplementationManager& stock_ocl_manager(const ImplementationManager& self, shape_types shape_type, const program_node* node = nullptr) {
     for (const auto& m : ov::intel_gpu::Registry<fully_connected>::get_implementations()) {
-        if (m->get_impl_type() == impl_types::ocl && m->get_type_info() != self.get_type_info() && (m->get_shape_type() & shape_type) == shape_type)
-            return *m;
+        if (m->get_impl_type() != impl_types::ocl || m->get_type_info() == self.get_type_info())
+            continue;
+        if ((m->get_shape_type() & shape_type) != shape_type)
+            continue;
+        if (m->validate_when_forced() && !(node && m->validate(*node)))
+            continue;
+        return *m;
     }
     OPENVINO_THROW("[GPU] ternocl int2: no OCL FullyConnected implementation to fall back to");
 }
@@ -616,7 +622,7 @@ static const ImplementationManager& stock_ocl_manager(const ImplementationManage
 std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<fully_connected>());
     if (!validate_impl(node))
-        return stock_ocl_manager(*this, get_shape_type(node)).create_impl(node, params);
+        return stock_ocl_manager(*this, get_shape_type(node), &node).create_impl(node, params);
     return fully_connected_ternocl_int2::create(static_cast<const fully_connected_node&>(node), params);
 }
 
@@ -628,7 +634,7 @@ std::unique_ptr<primitive_impl> TernoclInt2FCImplementationManager::create_impl(
 
 in_out_fmts_t TernoclInt2FCImplementationManager::query_formats(const program_node& node) const {
     if (!validate_impl(node))
-        return stock_ocl_manager(*this, get_shape_type(node)).query_formats(node);
+        return stock_ocl_manager(*this, get_shape_type(node), &node).query_formats(node);
     return ImplementationManager::query_formats(node);
 }
 
