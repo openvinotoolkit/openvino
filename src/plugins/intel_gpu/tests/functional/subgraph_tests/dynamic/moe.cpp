@@ -612,6 +612,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
                                             ::testing::Values(true)),        // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
+// Gelu gate on the u3 kernels: the activation is applied by the int8 quantizer of the down input (prefill)
+// and by the batched GEMV (decode).
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed_u3,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke_u3),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::Values(MoERoutingType::SOFTMAX),
+                                            ::testing::Values(ov::element::u3),   // weights_precision
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::scalar),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::GELU, MoEActivationType::GELU_ERF),
+                                            ::testing::Values(false),  // use_per_expert_scale
+                                            ::testing::Values(false),  // use_layernorm_multiply
+                                            ::testing::Values(true)),  // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
+
 // Uncompressed (FP16) experts: dense Tile/MatMul ops run natively
 // (would otherwise fail with "MOE ... is not supported").
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmUncompressed,

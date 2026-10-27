@@ -17,6 +17,7 @@
 
 #include "../../common/random_generator.hpp"
 #include "../test_utils/test_utils.h"
+#include "moe_3gemm_fused_inst.h"
 #include "moe_3gemm_test_data.h"
 
 using namespace cldnn;
@@ -1620,3 +1621,210 @@ TEST(moe_3gemm_expert_mask, shape_predictor_overflow_regression) {
         total += static_cast<int>(result.batch[e].size());
     ASSERT_EQ(total, actual_tokens * top_k);
 }
+
+// u3 experts on the moe_3gemm_int3 kernels: the batched GEMV for decode, and the int8 row / tiled GEMMs for prefill
+struct Moe3GemmU3TestParams {
+    size_t seq_len;
+    size_t hidden_size;
+    size_t inter_size;
+    size_t num_experts;
+    size_t top_k;
+    size_t group_size;
+    size_t batched_gemv_threshold = 32;
+    // Dynamic quantization opt-out, after which the int8 GEMMs must not run and prefill falls back to OneDNN
+    enum class DynQuan { allowed, group_size_0, group_size_max_below } dyn_quan = DynQuan::allowed;
+    bool is_caching_test = false;
+};
+using U3DynQuan = Moe3GemmU3TestParams::DynQuan;
+
+class moe_3gemm_compressed_gpu_u3 : public ::testing::TestWithParam<Moe3GemmU3TestParams> {};
+
+// LSB-first bit stream: value i occupies bits [3i, 3i + 3)
+static std::vector<uint8_t> pack_u3(const std::vector<uint8_t>& values) {
+    std::vector<uint8_t> packed((values.size() * 3 + 7) / 8, 0);
+    for (size_t i = 0; i < values.size(); ++i) {
+        const size_t bit = 3 * i;
+        const uint32_t v = static_cast<uint32_t>(values[i] & 7u) << (bit % 8);
+        packed[bit / 8] |= static_cast<uint8_t>(v);
+        if (v > 0xFF) {
+            packed[bit / 8 + 1] |= static_cast<uint8_t>(v >> 8);
+        }
+    }
+    return packed;
+}
+
+TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
+    const auto& param = GetParam();
+    auto& engine = get_test_engine();
+    if (engine.get_device_info().arch < gpu_arch::xe2) {
+        GTEST_SKIP() << "The u3 MoE kernels need Xe2 or newer";
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    Moe3GemmConfig config;
+    config.batch_size = 1;
+    config.seq_len = param.seq_len;
+    config.hidden_size = param.hidden_size;
+    config.inter_size = param.inter_size;
+    config.num_experts = param.num_experts;
+    config.top_k = param.top_k;
+    config.group_size = param.group_size;
+    config.is_u4 = true;  // quantizes to [0, 7], the u3 range
+    Moe3GemmReference ref(config, rg);
+
+    auto hidden_states = rg.generate_random_1d<ov::float16>(config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000);
+    auto routing_weights = rg.generate_random_1d<ov::float16>(config.seq_len * config.num_experts, 0.0f, 1.0f, 1000);
+    const size_t weights_count = config.num_experts * config.hidden_size * config.inter_size;
+    auto w0_data = rg.generate_random_1d<float>(weights_count, -1.0f, 1.0f, 1000);
+    auto w1_data = rg.generate_random_1d<float>(weights_count, -1.0f, 1.0f, 1000);
+    auto w2_data = rg.generate_random_1d<float>(weights_count, -1.0f, 1.0f, 1000);
+    for (size_t i = 0; i < weights_count; ++i) {
+        w0_data[i] /= 7.0f;
+        w1_data[i] /= 11.0f;
+        w2_data[i] /= 7.0f;
+    }
+    auto [w0_q, w0_scale, w0_zp] = ref.quantize(w0_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto [w1_q, w1_scale, w1_zp] = ref.quantize(w1_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto [w2_q, w2_scale, w2_zp] = ref.quantize(w2_data, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
+    auto w0_qdq = ref.dequantize(w0_q, w0_scale, w0_zp, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto w1_qdq = ref.dequantize(w1_q, w1_scale, w1_zp, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto w2_qdq = ref.dequantize(w2_q, w2_scale, w2_zp, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
+
+    const auto E = static_cast<int64_t>(config.num_experts);
+    const auto G = static_cast<int64_t>(config.hidden_size / config.group_size);
+    const auto G2 = static_cast<int64_t>(config.inter_size / config.group_size);
+    const auto gs = static_cast<int64_t>(config.group_size);
+    // Weights [E, N, K] as a u3 stream; scales and zero points logically [E, N, G], physically [E, G, N]
+    auto make_weight = [&](const std::vector<uint8_t>& values, int64_t n, int64_t groups) {
+        auto mem = engine.allocate_memory({data_types::u3, format::bfyx, {E, n, gs, groups}});
+        set_values(mem, pack_u3(values));
+        return mem;
+    };
+    auto make_scale = [&](const std::vector<ov::float16>& v, int64_t n, int64_t groups) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{E, n, groups, 1}, data_types::f16, format::byfx});
+        set_values(mem, v);
+        return mem;
+    };
+    auto make_zp = [&](const std::vector<uint8_t>& v, int64_t n, int64_t groups) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{E, n, groups, 1}, data_types::u8, format::byfx});
+        set_values(mem, v);
+        return mem;
+    };
+    auto hidden_states_mem = engine.allocate_memory(
+        layout{ov::PartialShape{1, static_cast<int64_t>(config.seq_len), static_cast<int64_t>(config.hidden_size)}, data_types::f16, format::bfyx});
+    set_values(hidden_states_mem, hidden_states);
+    auto routing_weights_mem = engine.allocate_memory(layout{ov::PartialShape{1, static_cast<int64_t>(config.seq_len), E}, data_types::f16, format::bfyx});
+    set_values(routing_weights_mem, routing_weights);
+    get_test_stream().finish();
+
+    const auto inter = static_cast<int64_t>(config.inter_size);
+    const auto hidden = static_cast<int64_t>(config.hidden_size);
+    topology topology;
+    topology.add(input_layout("hidden_states", hidden_states_mem->get_layout()));
+    topology.add(input_layout("routing_weights", routing_weights_mem->get_layout()));
+    topology.add(data("w0_weight", make_weight(w0_q, inter, G)));
+    topology.add(data("w0_scale", make_scale(w0_scale, inter, G)));
+    topology.add(data("w0_zp", make_zp(w0_zp, inter, G)));
+    topology.add(data("w1_weight", make_weight(w1_q, inter, G)));
+    topology.add(data("w1_scale", make_scale(w1_scale, inter, G)));
+    topology.add(data("w1_zp", make_zp(w1_zp, inter, G)));
+    topology.add(data("w2_weight", make_weight(w2_q, hidden, G2)));
+    topology.add(data("w2_scale", make_scale(w2_scale, hidden, G2)));
+    topology.add(data("w2_zp", make_zp(w2_zp, hidden, G2)));
+
+    MoERouterFused::Config router_config;
+    router_config.num_expert = config.num_experts;
+    router_config.top_k = config.top_k;
+    topology.add(moe_router_fused("router", {input_info("routing_weights")}, router_config));
+
+    cldnn::MOECompressed::Config moe_config;
+    moe_config.hidden_size = config.hidden_size;
+    moe_config.inter_size = config.inter_size;
+    moe_config.num_expert = config.num_experts;
+    moe_config.top_k = config.top_k;
+    moe_config.group_size = config.group_size;
+    moe_config.out_type = data_types::f16;
+    moe_config.has_zp = true;
+    topology.add(moe_3gemm_fused_compressed("moe",
+                                            {input_info("hidden_states"),
+                                             input_info("router", 0),
+                                             input_info("router", 1),
+                                             input_info("w0_weight"),
+                                             input_info("w0_scale"),
+                                             input_info("w0_zp"),
+                                             input_info("w1_weight"),
+                                             input_info("w1_scale"),
+                                             input_info("w1_zp"),
+                                             input_info("w2_weight"),
+                                             input_info("w2_scale"),
+                                             input_info("w2_zp")},
+                                            moe_config));
+
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    net_config.set_property(ov::intel_gpu::moe_batched_gemv_threshold(param.batched_gemv_threshold));
+    if (param.dyn_quan == U3DynQuan::group_size_0) {
+        net_config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+    } else if (param.dyn_quan == U3DynQuan::group_size_max_below) {
+        net_config.set_user_property(ov::hint::dynamic_quantization_group_size(128));
+        net_config.set_user_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max(64));
+    }
+    auto network = get_network(engine, topology, net_config, get_test_stream_ptr(), param.is_caching_test);
+    network->set_input_data("hidden_states", hidden_states_mem);
+    network->set_input_data("routing_weights", routing_weights_mem);
+    auto outputs = network->execute();
+    auto output_mem = outputs.at("moe").get_memory();
+
+    // The batched GEMV reads f16 activations and runs whether or not dynamic quantization is allowed; the int8
+    // GEMMs only run where it is.
+    std::vector<std::string> int3_kernels;
+    for (const auto& kernel : network->get_primitive("moe")->get_impl()->get_kernels()) {
+        if (kernel->get_id().find("moe_3gemm_int3") != std::string::npos) {
+            int3_kernels.push_back(kernel->get_id());
+        }
+    }
+    const auto has_kernel = [&](const std::string& stage) {
+        return std::any_of(int3_kernels.begin(), int3_kernels.end(), [&](const std::string& id) {
+            return id.find("moe_3gemm_int3_" + stage) != std::string::npos;
+        });
+    };
+    ASSERT_TRUE(has_kernel("gemv_gate_up") && has_kernel("gemv_down"));
+    ASSERT_EQ(has_kernel("quantize") || has_kernel("gate_up_tiled") || has_kernel("down_row"), param.dyn_quan == U3DynQuan::allowed);
+
+    auto ref_output = ref.run_reference_softmax(hidden_states, routing_weights, w0_qdq, w1_qdq, w2_qdq);
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), ref_output.size());
+    // The int8 activations of the prefill GEMMs add an error of up to ~1.5% of the output range; the batched GEMV
+    // and OneDNN compute on f16 activations and stay within ~0.2%.
+    float ref_max = 0.0f;
+    for (const auto& v : ref_output) {
+        ref_max = std::max(ref_max, std::abs(static_cast<float>(v)));
+    }
+    const bool int8_gemm = param.seq_len > param.batched_gemv_threshold && param.dyn_quan == U3DynQuan::allowed;
+    const float tolerance = (int8_gemm ? 0.03f : 0.005f) * ref_max + 0.01f;
+    for (size_t i = 0; i < ref_output.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance) << "i = " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_3gemm_compressed_gpu_u3,
+                         ::testing::Values(
+                             // decode: batched GEMV, one and several tokens
+                             Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128},
+                             Moe3GemmU3TestParams{8, 512, 512, 8, 2, 128},
+                             // prefill with at most 4 rows per expert: per-row GEMM
+                             Moe3GemmU3TestParams{4, 512, 512, 8, 2, 128, 1},
+                             // prefill: tiled GEMM with one partial tile per expert, and with several tiles
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128},
+                             Moe3GemmU3TestParams{200, 512, 1024, 4, 2, 128},
+                             // 64-value weight and activation groups
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 64},
+                             Moe3GemmU3TestParams{1, 512, 512, 8, 2, 64},
+                             // dynamic quantization disabled: prefill on OneDNN, decode still on the batched GEMV
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, U3DynQuan::group_size_0},
+                             Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128, 32, U3DynQuan::group_size_0},
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, U3DynQuan::group_size_max_below},
+                             // model cache
+                             Moe3GemmU3TestParams{1, 512, 512, 8, 2, 128, 32, U3DynQuan::allowed, true},
+                             Moe3GemmU3TestParams{40, 512, 512, 4, 2, 128, 32, U3DynQuan::allowed, true}));

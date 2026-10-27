@@ -613,11 +613,27 @@ struct Int3ProjectionShape {
     size_t n;
     size_t weight_groups;  // weight quantization groups per output channel
     size_t weight_group_size;
-    size_t group_size;  // activation quantization group, divides weight_group_size
+    size_t group_size;  // activation quantization group, divides weight_group_size; 0 if the int8 GEMMs can't run
 };
 
 static size_t int3_weight_groups(const cldnn::layout& scale, size_t num_experts, size_t n) {
     return scale.count() / (num_experts * n);
+}
+
+// The int8 GEMMs quantize the activations themselves, so they only run where dynamic quantization is allowed
+// (as for the u3 FC), with an activation group no larger than the configured one. The tiled GEMM consumes a group
+// as pairs of 32-value chunks, so the group is 64 or 128 values long.
+static size_t int3_activation_group_size(const ExecutionConfig& config, size_t weight_group_size) {
+    const uint64_t dyn_quan_group_size = config.get_dynamic_quantization_group_size();
+    if (dyn_quan_group_size == 0 || config.get_dynamic_quantization_group_size_max() < dyn_quan_group_size) {
+        return 0;
+    }
+    for (size_t candidate : {size_t{128}, size_t{64}}) {
+        if (candidate <= dyn_quan_group_size && weight_group_size % candidate == 0) {
+            return candidate;
+        }
+    }
+    return 0;
 }
 
 static Int3ProjectionShape get_int3_projection_shape(const RuntimeParams& params, Int3Projection proj) {
@@ -627,11 +643,8 @@ static Int3ProjectionShape get_int3_projection_shape(const RuntimeParams& params
     const size_t n = down ? config.hidden_size : config.inter_size;
     const auto scale_idx = static_cast<size_t>(down ? MOE3GemmInputIndex::SCALE_2 : MOE3GemmInputIndex::SCALE_0);
     const size_t weight_groups = int3_weight_groups(params.get_input_layout(scale_idx), config.num_expert, n);
-    const size_t weight_group_size = k / weight_groups;
-    size_t group_size = 128;
-    while (weight_group_size % group_size != 0) {
-        group_size /= 2;
-    }
+    const size_t weight_group_size = weight_groups > 0 && k % weight_groups == 0 ? k / weight_groups : 0;
+    const size_t group_size = weight_group_size > 0 ? int3_activation_group_size(params.get_program().get_config(), weight_group_size) : 0;
     return {k, n, weight_groups, weight_group_size, group_size};
 }
 
@@ -659,6 +672,11 @@ static size_t int3_tile_sg_m(const Int3ProjectionShape& shape) {
 
 static size_t int3_tile_m(const Int3ProjectionShape& shape) {
     return INT3_TILE_ROWS / int3_tile_sg_m(shape);
+}
+
+// Work-group size of the int8 token gather: one work-item per 16 bytes of a row and per quantization variable
+static size_t int3_gather_items(const Int3ProjectionShape& gate_up) {
+    return round_up_to(std::max(gate_up.k / 16, gate_up.k / gate_up.group_size * 2), size_t{16});
 }
 
 // Upper bound of the prefill tile count: every expert with rows has at most one partial tile
@@ -791,7 +809,38 @@ static size_t int3_gemv_nb(const RuntimeParams& params, Int3Projection proj) {
 
 static bool int3_gemv_supported(const RuntimeParams& params, Int3Projection proj) {
     const auto shape = get_int3_projection_shape(params, proj);
-    return shape.k % (INT3_GEMV_SIMD * 32) == 0 && shape.weight_group_size % 32 == 0 && shape.n % (INT3_GEMV_SGN * int3_gemv_nb(params, proj)) == 0;
+    return shape.k % (INT3_GEMV_SIMD * 32) == 0 && shape.weight_group_size > 0 && shape.weight_group_size % 32 == 0 &&
+           shape.n % (INT3_GEMV_SGN * int3_gemv_nb(params, proj)) == 0;
+}
+
+// Requirements shared by all moe_3gemm_int3 kernels. They need SIMD16 DPAS and the SIMD16 subgroup builtins of Xe2+
+// (on Xe-HPG the DPAS builtins compile without dpas instructions), read f16 activations and f16 scales, and take
+// the zero point as u8/i8. The activations are quantized to int8, which is accurate enough for zero-centered weights
+// only, so the weights need a zero point. Each projection's weight groups are a multiple of 64 values long and
+// its N is a multiple of 16.
+static bool int3_kernels_supported(const RuntimeParams& params) {
+    const auto& moe_config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
+    if (params.get_device_info().arch < gpu_arch::xe2 || !moe_config.has_zp ||
+        params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)).data_type != ov::element::f16) {
+        return false;
+    }
+    for (auto idx : {MOE3GemmInputIndex::SCALE_0, MOE3GemmInputIndex::SCALE_1, MOE3GemmInputIndex::SCALE_2}) {
+        if (params.get_input_layout(static_cast<size_t>(idx)).data_type != ov::element::f16) {
+            return false;
+        }
+    }
+    for (auto idx : {MOE3GemmInputIndex::ZP_0, MOE3GemmInputIndex::ZP_1, MOE3GemmInputIndex::ZP_2}) {
+        if (!one_of(params.get_input_layout(static_cast<size_t>(idx)).data_type, {ov::element::u8, ov::element::i8})) {
+            return false;
+        }
+    }
+    for (auto proj : {Int3Projection::GATE_UP, Int3Projection::DOWN}) {
+        const auto shape = get_int3_projection_shape(params, proj);
+        if (shape.weight_group_size == 0 || shape.weight_group_size % 64 != 0 || shape.n % 16 != 0) {
+            return false;
+        }
+    }
+    return true;
 }
 
 class MoE3GemmInt3Gemv : public KernelGenerator {
@@ -1311,8 +1360,20 @@ public:
     bool needs_gather_scratch(size_t token_num) const {
         return token_num > 1 || decode_impl == MoeGemmImpl::grouped_gemm;
     }
-    // u3 experts of the grouped GEMM path run on the moe_3gemm_int3 kernels instead of OneDNN
+    // u3 experts of the grouped GEMM path run on the int8 moe_3gemm_int3 GEMMs instead of OneDNN
     bool use_int3_gemm = false;
+    // u3 decode runs on the moe_3gemm_int3 batched GEMV
+    bool use_int3_gemv = false;
+    // Constant per impl, computed once instead of on every execution
+    std::array<Int3ProjectionShape, 2> int3_shapes{};
+    std::array<size_t, 2> int3_gemv_nbs{};
+
+    const Int3ProjectionShape& int3_shape(Int3Projection proj) const {
+        return int3_shapes[static_cast<size_t>(proj)];
+    }
+    size_t int3_gemv_columns(Int3Projection proj) const {
+        return int3_gemv_nbs[static_cast<size_t>(proj)];
+    }
 
     static bool is_batched_gemv_supported(data_types weight_dt) {
         return one_of(weight_dt, {data_types::u4, data_types::i4, data_types::u8, data_types::i8, data_types::f16});
@@ -1351,27 +1412,30 @@ public:
         decode_impl = select_decode_impl(weight_dt);
         prefill_impl = select_prefill_impl(config, weight_dt, params.prog->get_engine().get_device_info().arch);
 
-        if (weight_dt == data_types::u3) {
+        if (weight_dt == data_types::u3 && int3_kernels_supported(params)) {
             const auto& moe_config = node.as<moe_3gemm_fused_compressed>().get_primitive()->_config;
-            const auto weight_groups = [&](MOE3GemmInputIndex scale_idx, size_t n) {
-                return int3_weight_groups(params.get_input_layout(static_cast<size_t>(scale_idx)), moe_config.num_expert, n);
-            };
-            use_int3_gemm = params.prog->get_engine().get_device_info().supports_immad &&
-                            cldnn::moe_3gemm_use_int3_gemm(moe_config.has_zp,
-                                                           moe_config.hidden_size,
-                                                           moe_config.inter_size,
-                                                           weight_groups(MOE3GemmInputIndex::SCALE_0, moe_config.inter_size),
-                                                           weight_groups(MOE3GemmInputIndex::SCALE_2, moe_config.hidden_size));
-            // Few tokens decode through the u3 batched GEMV instead of the grouped GEMM path. The shared expert is
-            // only fused into the batched GEMV kernels of the other weight types.
-            if (use_int3_gemm && moe_config.num_shared_expert == 0 && params.get_input_layout(0).data_type == ov::element::f16 &&
-                int3_gemv_supported(params, Int3Projection::GATE_UP) && int3_gemv_supported(params, Int3Projection::DOWN)) {
+            for (auto proj : {Int3Projection::GATE_UP, Int3Projection::DOWN}) {
+                int3_shapes[static_cast<size_t>(proj)] = get_int3_projection_shape(params, proj);
+            }
+            const auto& gate_up = int3_shape(Int3Projection::GATE_UP);
+            use_int3_gemm = gate_up.group_size > 0 && int3_shape(Int3Projection::DOWN).group_size > 0 && gate_up.k % 16 == 0 &&
+                            int3_gather_items(gate_up) <= params.get_device_info().max_work_group_size;
+            // Few tokens decode through the u3 batched GEMV instead of the grouped GEMM path. It reads f16 activations,
+            // so it doesn't depend on dynamic quantization. The shared expert is only fused into the batched GEMV
+            // kernels of the other weight types.
+            if (moe_config.num_shared_expert == 0 && int3_gemv_supported(params, Int3Projection::GATE_UP) &&
+                int3_gemv_supported(params, Int3Projection::DOWN)) {
+                use_int3_gemv = true;
                 decode_impl = MoeGemmImpl::batched_gemv;
+                for (auto proj : {Int3Projection::GATE_UP, Int3Projection::DOWN}) {
+                    int3_gemv_nbs[static_cast<size_t>(proj)] = int3_gemv_nb(params, proj);
+                }
             }
         }
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): prefill_impl=" << static_cast<int>(prefill_impl)
-                               << ", decode_impl=" << static_cast<int>(decode_impl) << ", use_int3_gemm=" << use_int3_gemm << std::endl;
+                               << ", decode_impl=" << static_cast<int>(decode_impl) << ", use_int3_gemm=" << use_int3_gemm
+                               << ", use_int3_gemv=" << use_int3_gemv << std::endl;
 
         batched_gemv_threshold = config.get_moe_batched_gemv_threshold();
         if (batched_gemv_threshold == 0) {
@@ -1395,7 +1459,7 @@ public:
         add_stage(scatter, params);
         // The batched GEMV kernels have no code path for this weight type, so they are not built
         if (decode_impl == MoeGemmImpl::batched_gemv) {
-            if (use_int3_gemm) {
+            if (use_int3_gemv) {
                 add_stage(int3_gemv_gate_up, params);
                 add_stage(int3_gemv_down, params);
             } else {
@@ -1675,6 +1739,13 @@ public:
         ob << make_data(&prefill_impl, sizeof(prefill_impl));
         ob << make_data(&decode_impl, sizeof(decode_impl));
         ob << use_int3_gemm;
+        ob << use_int3_gemv;
+        for (const auto& shape : int3_shapes) {
+            ob << shape.k << shape.n << shape.weight_groups << shape.weight_group_size << shape.group_size;
+        }
+        for (size_t nb : int3_gemv_nbs) {
+            ob << nb;
+        }
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -1685,6 +1756,13 @@ public:
         ib >> make_data(&prefill_impl, sizeof(prefill_impl));
         ib >> make_data(&decode_impl, sizeof(decode_impl));
         ib >> use_int3_gemm;
+        ib >> use_int3_gemv;
+        for (auto& shape : int3_shapes) {
+            ib >> shape.k >> shape.n >> shape.weight_groups >> shape.weight_group_size >> shape.group_size;
+        }
+        for (size_t& nb : int3_gemv_nbs) {
+            ib >> nb;
+        }
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto cur_moe = impl_params->typed_desc<moe_3gemm_fused_compressed>();
         init(cur_moe);
@@ -1710,6 +1788,9 @@ public:
         cur_moe->prefill_impl = prefill_impl;
         cur_moe->decode_impl = decode_impl;
         cur_moe->use_int3_gemm = use_int3_gemm;
+        cur_moe->use_int3_gemv = use_int3_gemv;
+        cur_moe->int3_shapes = int3_shapes;
+        cur_moe->int3_gemv_nbs = int3_gemv_nbs;
         cur_moe->batched_gemv_threshold = batched_gemv_threshold;
         cur_moe->_activation_type = _activation_type;
         return cur_moe;
@@ -1781,8 +1862,8 @@ public:
             internal_buffers.emplace_back(layout_token_idx, false);        // 13: row_lut
             if (use_int3_gemm) {
                 // Shared by the gate/up input and the down input, which is quantized after gate and up are done
-                const auto gate_up = get_int3_projection_shape(params, Int3Projection::GATE_UP);
-                const auto down = get_int3_projection_shape(params, Int3Projection::DOWN);
+                const auto& gate_up = int3_shape(Int3Projection::GATE_UP);
+                const auto& down = int3_shape(Int3Projection::DOWN);
                 const size_t row_size = std::max(gate_up.k, down.k);
                 const size_t row_groups = std::max(gate_up.k / gate_up.group_size, down.k / down.group_size);
                 internal_buffers.emplace_back(layout(ov::Shape{max_batch, row_size}, ov::element::i8, cldnn::format::bfyx), false);         // 14
@@ -2042,16 +2123,14 @@ public:
         }
 
         GPU_DEBUG_TRACE_DETAIL << "\nexec_batched_gemv(): token_num=" << token_num << ", max_topk=" << max_topk << ", has_shared=" << _has_shared_expert
-                               << ", use_int3_gemm=" << use_int3_gemm << std::endl;
+                               << ", use_int3_gemv=" << use_int3_gemv << std::endl;
 
-        if (use_int3_gemm) {
-            const auto& params = *instance.get_impl_params();
+        if (use_int3_gemv) {
             const bool has_zp = cur_moe->_config.has_zp;
             const auto& wei = scratch.moe_fusion_wei_addr;
             const size_t pairs = token_num * compute_experts;
             const auto gemv = [&](Stage& stage, Int3Projection proj, std::vector<memory::ptr> inputs, memory::ptr output, const std::vector<event::ptr>& deps) {
-                const auto shape = get_int3_projection_shape(params, proj);
-                const size_t blocks = shape.n / (INT3_GEMV_SGN * int3_gemv_nb(params, proj));
+                const size_t blocks = int3_shape(proj).n / (INT3_GEMV_SGN * int3_gemv_columns(proj));
                 return execute_stage(deps,
                                      instance,
                                      stage,
@@ -3051,12 +3130,12 @@ public:
         constexpr size_t simd = 16;
 
         const auto quantize = [&](Stage& stage, std::vector<memory::ptr> inputs, std::vector<memory::ptr> outputs, size_t rows, Int3Projection proj) {
-            const auto shape = get_int3_projection_shape(params, proj);
+            const auto& shape = int3_shape(proj);
             const size_t groups = rows * shape.k / shape.group_size;
             ret_event = execute_stage({ret_event}, instance, stage, std::move(inputs), std::move(outputs), {groups * simd, 1, 1}, {simd, 1, 1});
         };
         const auto gemm = [&](Int3Projection proj, int w, memory::ptr output) {
-            const auto shape = get_int3_projection_shape(params, proj);
+            const auto& shape = int3_shape(proj);
             std::vector<memory::ptr> inputs{quantized, quantization_vars, wei.weight[w], wei.scale[w]};
             if (has_zp) {
                 inputs.push_back(wei.zp[w]);
@@ -3099,12 +3178,7 @@ public:
                      {quantized_tokens, token_vars},
                      token_num,
                      Int3Projection::GATE_UP);
-            const auto shape = get_int3_projection_shape(params, Int3Projection::GATE_UP);
-            const size_t items = round_up_to(std::max(shape.k / 16, shape.k / shape.group_size * 2), simd);
-            OPENVINO_ASSERT(shape.k % 16 == 0 && items <= params.get_device_info().max_work_group_size,
-                            "moe_3gemm_swiglu_opt: unsupported hidden size ",
-                            shape.k,
-                            " for the int8 token gather");
+            const size_t items = int3_gather_items(int3_shape(Int3Projection::GATE_UP));
             ret_event = execute_stage({ret_event},
                                       instance,
                                       *int3_gather_quantized,
