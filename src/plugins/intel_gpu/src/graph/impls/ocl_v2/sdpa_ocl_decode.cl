@@ -175,6 +175,37 @@
 #define _QV_8(vec, idx) vec[idx]
 #define QV(vec, idx) CAT(_QV_, Q_PER_WG)(vec, idx)
 
+// Register diet for a large M at a large head size (gemma-4's head 512, kv group 8), where
+// q_reg[Q_PER_WG][K_TILES] alone is the whole 128-GRF file at M = 8. Both are pure data movement --
+// every product, fma and reduce stays in the same order, so the output is bit-identical with or
+// without them:
+//   Q_IN_SLM         the scaled query lives in local memory, one Q_PER_WG-wide vector per (tile,
+//                    lane), and each A operand is read back where the DPAS needs it.
+//   K_COMP_PER_READ  BY_CHANNEL only: the scale/zp pairs of one K read's tiles are loaded with that
+//                    read, and the zp correction accumulates inside the KQ loop (same t order as the
+//                    up-front pass it replaces), instead of holding [KEY_GROUPS][K_TILES] pairs.
+#ifndef Q_IN_SLM
+#    define Q_IN_SLM 0
+#endif
+#ifndef K_COMP_PER_READ
+#    define K_COMP_PER_READ 0
+#endif
+// V_TWIN_PAIR (u4 V, block reads): a u4 V byte column holds head dims cd*16 + c (low nibble) and
+// (cd + V_READS)*16 + c (high nibble), so tiles cd and cd + V_READS are "twins" that the plain loop reads,
+// scales and broadcasts twice. Paired, one V read, one comp load and one probability scale feed both
+// tiles' DPAS chains. Each tile still accumulates the same values in the same chunk order.
+#ifndef V_TWIN_PAIR
+#    define V_TWIN_PAIR 0
+#endif
+// V_COMP_IN_SLM (compressed V): every S*V subgroup walks every chunk, so the plain loop loads each page's
+// V scale/zp once per (subgroup, tile) and waits for it there -- a prefetch covers only the data rows.
+// Instead the subgroup that scored a page loads that page's pair once, during KQ, folds the scale into
+// the probabilities it writes to slm_p (the same f16 multiply S*V would do) and stages the zp next to
+// them, so S*V reads both from local memory.
+#ifndef V_COMP_IN_SLM
+#    define V_COMP_IN_SLM 0
+#endif
+
 // 2D block prefetch of V, PREFETCH_DIST chunks ahead: memory-level parallelism that occupancy
 // cannot buy, since a block read needs a destination register and a prefetch does not. V only --
 // the S*V loop walks one page per chunk on one accumulator chain, so its loads are the exposed
@@ -286,6 +317,25 @@
 // The cross-subgroup combine reduces one value per subgroup across the lanes of one subgroup.
 #    error "sdpa_ocl_decode.cl: SG_PER_WG must not exceed SUBGROUP_SIZE"
 #endif
+#if K_COMP_PER_READ && !IS_KEY_BY_CHANNEL
+#    error "sdpa_ocl_decode.cl: K_COMP_PER_READ streams the BY_CHANNEL comp region only"
+#endif
+#if V_TWIN_PAIR && defined(SV_NEEDS_OUTPUT_REDUCTION)
+#    error "sdpa_ocl_decode.cl: V_TWIN_PAIR implies one key slot per tile"
+#endif
+#if V_TWIN_PAIR && !(IS_KV_U4 && USE_2D_BLOCK_IO_V && V_TILES == 2 * V_READS && (V_READS % SV_DIM_SGS) == 0)
+// Every tile needs its twin (no padding tile without one), and both must belong to the same subgroup --
+// which also means V_TILES >= 2 * SG_PER_WG, so no subgroup splits keys and nothing is reduced.
+#    error "sdpa_ocl_decode.cl: V_TWIN_PAIR needs u4 V block reads, V_TILES == 2 * V_READS and SV_DIM_SGS dividing V_READS"
+#endif
+#if V_COMP_IN_SLM && !IS_KV_COMPRESSED
+#    error "sdpa_ocl_decode.cl: V_COMP_IN_SLM needs a compressed V cache"
+#endif
+#if Q_IN_SLM && IS_KEY_BY_CHANNEL && !K_COMP_PER_READ
+// The up-front BY_CHANNEL correction pass reads Q per head; with Q in local memory it is folded into
+// the KQ loop instead.
+#    error "sdpa_ocl_decode.cl: Q_IN_SLM with a BY_CHANNEL K needs K_COMP_PER_READ"
+#endif
 
 // Stores one normalised output element (head, value) of this partition: into tmp_out for the
 // finalization when the sequence's window spans several partitions, straight into output otherwise.
@@ -388,7 +438,13 @@ KERNEL(sdpa_ocl_decode)(
     // ---- Q: Q_PER_WG heads x K_HEAD_SIZE values in registers, lane == head dim (pa_sdpa_opt
     // stages it in SLM whenever HEADS_PER_WI > 1). The scale is folded in here, as pa_sdpa_opt
     // does: better accuracy than scaling the scores, and free since Q is read once.
+#if Q_IN_SLM
+    // Q_IN_SLM: the same values, one Q_PER_WG-wide vector per (tile, lane) -- the A operand's own
+    // layout, so a read-back is one message. The subgroups share the fill tile by tile.
+    __local H_VEC_TYPE slm_q[K_TILES * SUBGROUP_SIZE];
+#else
     INPUT0_TYPE q_reg[Q_PER_WG][K_TILES];
+#endif
     {
         const uint q_row = INPUT0_OFFSET +
                            seq_idx * (K_HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM);
@@ -397,20 +453,38 @@ KERNEL(sdpa_ocl_decode)(
 #else
         const INPUT0_TYPE scale_val = TO_INPUT0_TYPE(*scale);
 #endif
+#if Q_IN_SLM
+        for (uint t = sgid; t < K_TILES; t += SG_PER_WG) {
+            H_VEC_TYPE qv;
+            unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
+#    ifdef HAS_HEAD_LEFTOVERS
+                const uint head = head_base + (m < heads_this_wg ? m : 0);
+#    else
+                const uint head = head_base + m;
+#    endif
+                QV(qv, m) = BLOCK_READN(INPUT0_TYPE, 1, query, q_row + head * K_HEAD_SIZE + t * SUBGROUP_SIZE) * scale_val;
+            }
+            slm_q[t * SUBGROUP_SIZE + lane] = qv;
+        }
+#else
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
-#ifdef HAS_HEAD_LEFTOVERS
+#    ifdef HAS_HEAD_LEFTOVERS
             // A leftover slot would read the next kv group's query, or past the tensor at the last
             // kv head. Re-read head_base instead -- always valid, and its result is never stored.
             const uint head = head_base + (m < heads_this_wg ? m : 0);
-#else
+#    else
             const uint head = head_base + m;
-#endif
+#    endif
             const uint q_base = q_row + head * K_HEAD_SIZE;
             unroll_for(uint t = 0; t < K_TILES; ++t) {
                 q_reg[m][t] = BLOCK_READN(INPUT0_TYPE, 1, query, q_base + t * SUBGROUP_SIZE) * scale_val;
             }
         }
+#endif
     }
+#if Q_IN_SLM
+    barrier(CLK_LOCAL_MEM_FENCE);
+#endif
 
 #if IS_KV_COMPRESSED && !IS_KEY_BY_CHANNEL
     // sum_d Q[d], all the BY_TOKEN K zero point needs: its whole contribution to a score is zp[key]
@@ -418,6 +492,20 @@ KERNEL(sdpa_ocl_decode)(
     // subtraction. In float, since it multiplies an f32 accumulator. BY_CHANNEL's correction
     // (k_corr below) subsumes it.
     SOFTMAX_ACCUMULATOR_TYPE q_sum[Q_PER_WG];
+#    if Q_IN_SLM
+    {
+        S_VEC_TYPE acc = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
+        unroll_for(uint t = 0; t < K_TILES; ++t) {
+            const H_VEC_TYPE qv = slm_q[t * SUBGROUP_SIZE + lane];
+            unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
+                QV(acc, m) += TO_SOFTMAX_ACCUMULATOR_TYPE(QV(qv, m));
+            }
+        }
+        unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
+            q_sum[m] = sub_group_reduce_add(QV(acc, m));
+        }
+    }
+#    else
     unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
         SOFTMAX_ACCUMULATOR_TYPE acc = SOFTMAX_ACCUMULATOR_VAL_ZERO;
         unroll_for(uint t = 0; t < K_TILES; ++t) {
@@ -425,6 +513,7 @@ KERNEL(sdpa_ocl_decode)(
         }
         q_sum[m] = sub_group_reduce_add(acc);
     }
+#    endif
 #endif
 
     // ---- This subgroup's slice of the partition: KEY_GROUPS whole cache pages. Absolute token
@@ -453,6 +542,22 @@ KERNEL(sdpa_ocl_decode)(
             (page * KV_HEADS_NUM + kv_head_idx) * ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
     }
 
+#if V_COMP_IN_SLM
+    // V scale and zp of this subgroup's own pages, lane == token, with the plain S*V loop's validity
+    // guard (a key at/past seq_len reads 0 for both; see there). Loaded here so the latency hides behind
+    // the KQ loop; consumed when slm_p is written.
+    INPUT0_TYPE v_sc_g[KEY_GROUPS];
+    INPUT0_TYPE v_zp_g[KEY_GROUPS];
+    unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
+        const size_t page = (size_t)sub_group_broadcast(my_page, sgid * KEY_GROUPS + g);
+        const __global INPUT0_TYPE* v_comp = (const __global INPUT0_TYPE*)(value_cache +
+            (page * KV_HEADS_NUM + kv_head_idx) * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + V_COMP_OFF);
+        const bool v_valid = sg_key0 + g * SUBGROUP_SIZE + lane < seq_len;
+        v_sc_g[g] = v_valid ? v_comp[lane] : (INPUT0_TYPE)0;
+        v_zp_g[g] = v_valid ? v_comp[PAGED_ATTENTION_BLOCK_SIZE + lane] : (INPUT0_TYPE)0;
+    }
+#endif
+
 #if IS_KV_COMPRESSED
     // No validity guard on either variant, unlike the V side below: a token at/past seq_len was never
     // written by kv_cache_update, so its comp bytes can decode to NaN, but the mask further down
@@ -460,7 +565,14 @@ KERNEL(sdpa_ocl_decode)(
     // !group_in_range[g]), which no NaN survives. V needs the guard because there the masking is
     // "the probability is 0", i.e. a multiply, and 0 * NaN is NaN.
     // The writer stores 1/scale, so what comes back is already the multiplier.
-#    if IS_KEY_BY_CHANNEL
+#    if IS_KEY_BY_CHANNEL && K_COMP_PER_READ
+    // Per-CHANNEL scale and zero point, loaded per K read inside the KQ loop (see there); only the
+    // zero-point correction's accumulators live across it.
+    S_VEC_TYPE k_corr_acc[KEY_GROUPS];
+    unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
+        k_corr_acc[g] = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
+    }
+#    elif IS_KEY_BY_CHANNEL
     // Per-CHANNEL scale and zero point. The pair for a channel is interleaved, hence exactly one
     // DWORD, so a uint block read hands lane L the pair for channel (t * SUBGROUP_SIZE + L) -- the
     // same lane == head dim layout q_reg already has, which is what lets both fold into the A operand
@@ -530,10 +642,14 @@ KERNEL(sdpa_ocl_decode)(
         // Nothing in it depends on the page, so it is built outside the g loop and the Q gather is not
         // repeated per key group. (BY_CHANNEL cannot do this -- see the rebuild inside the loop.)
         unroll_for(uint u = 0; u < K_TILES_PER_READ; ++u) {
+#    if Q_IN_SLM
+            const H_VEC_TYPE qv = slm_q[(r * K_TILES_PER_READ + u) * SUBGROUP_SIZE + lane];
+#    else
             H_VEC_TYPE qv;
             unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
                 QV(qv, m) = q_reg[m][r * K_TILES_PER_READ + u];
             }
+#    endif
             a[u] = AS_A(qv);
         }
 #endif
@@ -587,12 +703,48 @@ KERNEL(sdpa_ocl_decode)(
             // the K load so the load's latency is spent on the multiply. Q_PER_WG half multiplies per
             // (tile, page) -- still far cheaper than dequantizing the B operand, which would cost a
             // subtract and a multiply on all DPAS_K elements per lane and would break the dword widen.
+#    if K_COMP_PER_READ
+            // This read's K_TILES_PER_READ (scale, zp) pairs in one message: element u of a block read
+            // is lane L's dword at u * SUBGROUP_SIZE + L, i.e. channel t * SUBGROUP_SIZE + L -- the
+            // same pair the up-front path reads per tile. The zero-point correction accumulates here
+            // over t in the same ascending order as that path (r outer, u inner), from the same
+            // f16-rounded product the A operand gets, so k_corr comes out bit-identical.
+            uint kc[K_TILES_PER_READ];
+            {
+                const __global uint* comp = (const __global uint*)(key_cache + k_page_off[g] + K_COMP_OFF);
+#        if K_TILES_PER_READ == 1
+                kc[0] = BLOCK_READN(uint, 1, comp, r * SUBGROUP_SIZE);
+#        else
+                const MAKE_VECTOR_TYPE(uint, K_TILES_PER_READ) kcv =
+                    BLOCK_READN(uint, K_TILES_PER_READ, comp, r * K_TILES_PER_READ * SUBGROUP_SIZE);
+                unroll_for(uint u = 0; u < K_TILES_PER_READ; ++u) {
+                    kc[u] = kcv[u];
+                }
+#        endif
+            }
+#    endif
             unroll_for(uint u = 0; u < K_TILES_PER_READ; ++u) {
                 const uint t = r * K_TILES_PER_READ + u;
+#    if K_COMP_PER_READ
+                const half2 pair = as_half2(kc[u]);
+                const INPUT0_TYPE sc_t = pair.s0;
+                const SOFTMAX_ACCUMULATOR_TYPE zp_t = TO_SOFTMAX_ACCUMULATOR_TYPE(pair.s1) + K_WIDEN_BIAS;
+#    else
+                const INPUT0_TYPE sc_t = k_sc[g][t];
+#    endif
+#    if Q_IN_SLM
+                const H_VEC_TYPE qv = slm_q[t * SUBGROUP_SIZE + lane] * sc_t;
+#    else
                 H_VEC_TYPE qv;
                 unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
-                    QV(qv, m) = q_reg[m][t] * k_sc[g][t];
+                    QV(qv, m) = q_reg[m][t] * sc_t;
                 }
+#    endif
+#    if K_COMP_PER_READ
+                unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
+                    QV(k_corr_acc[g], m) = fma(TO_SOFTMAX_ACCUMULATOR_TYPE(QV(qv, m)), zp_t, QV(k_corr_acc[g], m));
+                }
+#    endif
                 a[u] = AS_A(qv);
             }
 #endif
@@ -607,7 +759,11 @@ KERNEL(sdpa_ocl_decode)(
     // bias folded into it): key-independent within a page, hence one subtract per (page, head).
     unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
+#    if K_COMP_PER_READ
+            QV(s[g], m) -= sub_group_reduce_add(QV(k_corr_acc[g], m));
+#    else
             QV(s[g], m) -= k_corr[g][m];
+#    endif
         }
     }
 #elif IS_KV_COMPRESSED
@@ -665,6 +821,9 @@ KERNEL(sdpa_ocl_decode)(
     __local SOFTMAX_ACCUMULATOR_TYPE slm_max[SG_PER_WG * Q_PER_WG];
     __local SOFTMAX_ACCUMULATOR_TYPE slm_sum[SG_PER_WG * Q_PER_WG];
     __local H_VEC_TYPE slm_p[SEQ_LEN_PARTITION_SIZE];
+#if V_COMP_IN_SLM
+    __local INPUT0_TYPE slm_vzp[SEQ_LEN_PARTITION_SIZE];
+#endif
 
     // Exchange the max FIRST, so every subgroup can normalise against the same one. The alternative
     // -- normalise locally and rescale each chunk in S*V -- would need a per-chunk multiply on the
@@ -708,6 +867,12 @@ KERNEL(sdpa_ocl_decode)(
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
             QV(pv, m) = TO_INPUT0_TYPE(QV(e, m));
         }
+#if V_COMP_IN_SLM
+        unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
+            QV(pv, m) *= v_sc_g[g];
+        }
+        slm_vzp[sgid * KEYS_PER_SG + g * SUBGROUP_SIZE + lane] = v_zp_g[g];
+#endif
         slm_p[sgid * KEYS_PER_SG + g * SUBGROUP_SIZE + lane] = pv;
     }
     unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
@@ -766,6 +931,72 @@ KERNEL(sdpa_ocl_decode)(
     __local SOFTMAX_ACCUMULATOR_TYPE slm_out[SV_KEY_SGS * Q_PER_WG * V_HEAD_SIZE];
 #endif
 
+#if V_TWIN_PAIR
+    // The same loop as below for the u4 + block-read case, walking the low tiles only and carrying each
+    // one's twin (cd + V_READS) along on a second accumulator.
+    for (uint cd = dim_slot; cd < V_READS; cd += SV_DIM_SGS) {
+        S_VEC_TYPE acc_lo = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
+        S_VEC_TYPE acc_hi = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
+
+        unroll_for(uint i = 0; i < CHUNKS_PER_KEY_SG; ++i) {
+            const uint chunk = key_slot * CHUNKS_PER_KEY_SG + i;
+#    if USE_PREFETCH_V
+            if (i + PREFETCH_DIST < CHUNKS_PER_KEY_SG) {
+                const size_t pf_page = (size_t)sub_group_broadcast(my_page, chunk + PREFETCH_DIST);
+                PREFETCH_V_TILE((pf_page * KV_HEADS_NUM + kv_head_idx) * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE, cd);
+            }
+#    endif
+            const size_t page = (size_t)sub_group_broadcast(my_page, chunk);
+            const size_t v_page_off = (page * KV_HEADS_NUM + kv_head_idx) * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+            H_VEC_TYPE pv = slm_p[chunk * SUBGROUP_SIZE + lane];
+#    if V_COMP_IN_SLM
+            const MAKE_VECTOR_TYPE(INPUT0_TYPE, DPAS_K) vzp = vload16(0, slm_vzp + chunk * SUBGROUP_SIZE);
+#    else
+            // Scale folded into the probabilities and the zp broadcast, with the same validity guard as
+            // the plain loop (see there).
+            const uint v_key = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + chunk * SUBGROUP_SIZE + lane;
+            const __global INPUT0_TYPE* v_comp = (const __global INPUT0_TYPE*)(value_cache + v_page_off + V_COMP_OFF);
+            const bool v_valid = v_key < seq_len;
+            const INPUT0_TYPE v_sc = v_valid ? v_comp[lane] : (INPUT0_TYPE)0;
+            const INPUT0_TYPE v_zp = v_valid ? v_comp[PAGED_ATTENTION_BLOCK_SIZE + lane] : (INPUT0_TYPE)0;
+            unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
+                QV(pv, m) *= v_sc;
+            }
+            MAKE_VECTOR_TYPE(INPUT0_TYPE, DPAS_K) vzp;
+            unroll_for(uint kk = 0; kk < DPAS_K; ++kk) {
+                vzp[kk] = sub_group_broadcast(v_zp, kk);
+            }
+#    endif
+            uint8 vt;
+            intel_sub_group_2d_block_read_transform_8b_32r16x1c((__global void*)(value_cache + v_page_off),
+                                                               V_ROW_BYTES,
+                                                               PAGED_ATTENTION_BLOCK_SIZE,
+                                                               V_ROW_BYTES,
+                                                               (int2)(V_TILE_COL(cd), 0),
+                                                               (private uint*)&vt);
+            const uchar16 vpk = as_uchar16(vt.lo);
+            const int8 vb_lo = as_int8(convert_half16(vpk & (uchar16)0x0F) - vzp);
+            const int8 vb_hi = as_int8(convert_half16(vpk >> (uchar16)4) - vzp);
+            acc_lo = intel_sub_group_f16_f16_matrix_mad_k16(AS_A(pv), vb_lo, acc_lo);
+            acc_hi = intel_sub_group_f16_f16_matrix_mad_k16(AS_A(pv), vb_hi, acc_hi);
+        }
+
+        unroll_for(uint twin = 0; twin < 2; ++twin) {
+            const S_VEC_TYPE acc = twin ? acc_hi : acc_lo;
+            const uint value = (cd + twin * V_READS) * SUBGROUP_SIZE + lane;
+            unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
+#    ifdef HAS_HEAD_LEFTOVERS
+                if (m >= heads_this_wg) {
+                    continue;
+                }
+#    endif
+                const uint head = head_base + m;
+                const SOFTMAX_ACCUMULATOR_TYPE o = QV(acc, m) * QV(inv_l, m);
+                FUNC_CALL(store_out)(output, tmp_out, effective_seq_len, total_partitions_num, seq_idx, head, partition_idx, value, o);
+            }
+        }
+    }
+#else
     for (uint cd = dim_slot; cd < V_TILES; cd += SV_DIM_SGS) {
         S_VEC_TYPE acc = (S_VEC_TYPE)(SOFTMAX_ACCUMULATOR_VAL_ZERO);
         const uint value = cd * SUBGROUP_SIZE + lane;
@@ -786,7 +1017,10 @@ KERNEL(sdpa_ocl_decode)(
 
             // A operand: lane == key within the chunk, which is how slm_p was written.
             H_VEC_TYPE pv = slm_p[chunk * SUBGROUP_SIZE + lane];
-#if IS_KV_COMPRESSED
+#if V_COMP_IN_SLM
+            // Already scaled when slm_p was written; the zp comes from the same staging.
+            const MAKE_VECTOR_TYPE(INPUT0_TYPE, DPAS_K) vzp = vload16(0, slm_vzp + chunk * SUBGROUP_SIZE);
+#elif IS_KV_COMPRESSED
             // Per-key scale and zp of this chunk's page; lane == the key's token, so one coalesced
             // f16 load each. The scale is folded into the PROBABILITIES rather than into V: pv is
             // already lane == key, so that is a per-lane multiply with no broadcast, whereas scaling
@@ -899,6 +1133,7 @@ KERNEL(sdpa_ocl_decode)(
         }
 #endif
     }
+#endif  // V_TWIN_PAIR
 
 #ifdef SV_NEEDS_OUTPUT_REDUCTION
     // Only reached when there were fewer head-dim tiles than subgroups, so SV_KEY_SGS subgroups
