@@ -161,6 +161,7 @@ std::shared_ptr<ov::Model> build_model_mha_packed_ref(size_t batch,
     const ov::Shape rope_shape{batch, num_heads, seq_len, head_size};
     auto q = build_ROPE(q_proj, rope_shape);
     auto k = build_ROPE(k_proj, rope_shape);
+
     auto attn_out = build_sdpa(q, k, v_proj, sdpa_bias_shape);
 
     const ov::Shape weights_shape{1, num_heads, head_size, head_size};
