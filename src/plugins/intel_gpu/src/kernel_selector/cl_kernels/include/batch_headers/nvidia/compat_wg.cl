@@ -7,10 +7,10 @@
 // work_group_scan_inclusive_add and work_group_broadcast for float, and half overloads of the six collectives the
 // kernels call (work_group_scan_exclusive_add included, whose float version comes from the runtime).
 //
-// kernels_cache.cpp appends this file to the NVIDIA prelude only for kernels whose source names one of the
-// collectives, so that the others do not carry the 128 bytes of static shared memory declared below (one float per
-// warp of a 1024-wide work-group). A collective added to this file therefore has to be added to wg_collective_names
-// in kernels_cache.cpp as well; otherwise a kernel that calls only that collective is built without this file.
+// kernels_cache.cpp adds this file to the NVIDIA prelude of every batch. The 128 bytes of static shared memory
+// declared below (one float per warp of a 1024-wide work-group) live at PTX module scope, but ptxas allocates a
+// module-scope .shared variable only to the kernels that reference it, directly or through the functions they call,
+// so kernels that call none of the collectives carry none of it.
 //
 // The runtime declares the float collectives itself, without static, so the definitions here are plain inline:
 // static inline would clash with those declarations, and the inline definitions are the ones the kernels end up

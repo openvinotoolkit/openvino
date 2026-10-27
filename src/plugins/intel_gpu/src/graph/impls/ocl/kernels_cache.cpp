@@ -361,14 +361,15 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
                 process_batch_includes(b);
 
             // For the NVIDIA SYCL backend, add the compatibility headers (fp16 support, math overloads,
-            // sub-group built-ins, etc.) that the native NVIDIA OpenCL runtime lacks. They go into b.source like any
-            // other header, so the hash below covers them and the dumped program shows them. The program is laid out as
+            // sub-group built-ins, work-group collectives, etc.) that the native NVIDIA OpenCL runtime lacks. They go
+            // into b.source like any other header, so the hash below covers them and the dumped program shows them.
+            // The program is laid out as
             //     prelude | batch headers | sub-group overrides | kernels
             // The overrides must sit between the headers and the kernels: they shadow names that sub_group_block_read.cl
             // and friends declare as functions, so emitting them any earlier would macro-expand those names inside their
             // own declarations. See nvidia/compat_sg_overrides.cl.
             if (_use_nvidia_compat) {
-                const auto compat = get_nvidia_compat_headers(b.source);
+                const auto compat = get_nvidia_compat_headers();
                 const size_t header_count = std::min(b.header_count, b.source.size());
                 b.source.insert(b.source.begin() + static_cast<std::ptrdiff_t>(header_count), compat.sg_overrides);
                 b.source.insert(b.source.begin(), compat.prelude);
@@ -422,7 +423,7 @@ kernels_cache::kernels_cache(engine& engine,
     _use_nvidia_compat = engine.runtime_type() == runtime_types::sycl && _device->get_info().vendor_id == NVIDIA_VENDOR_ID;
 }
 
-kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers(const source_code& sources) const {
+kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers() const {
     nvidia_compat_headers result;
 
     // A kernels_cache built without batch headers (e.g. for a standalone probe kernel) compiles its kernels
@@ -433,7 +434,7 @@ kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers(co
         return result;
     }
 
-    // All five are added or left out together, so each one is required here even if this batch does not use it.
+    // Every batch gets all five, so each one is required here.
     auto get_header = [this](const char* name) -> const std::string& {
         auto it = batch_headers.find(name);
         OPENVINO_ASSERT(it != batch_headers.end(), "[GPU] NVIDIA compatibility header '", name,
@@ -444,36 +445,16 @@ kernels_cache::nvidia_compat_headers kernels_cache::get_nvidia_compat_headers(co
 
     // The NVIDIA compatibility prelude, split by feature. Emitted in this order: each header relies only
     // on the ones listed before it (see the "Depends on" notes at the top of each file).
+    // compat_wg is added to every batch, not only to those calling a work-group collective: ptxas allocates the
+    // shared buffer it declares only to the kernels that reference it, so the other kernels carry none of it.
     static const char* const nvidia_prelude_names[] = {
         "nvidia/compat_common",  // extension pragmas, feature macros, linear ids
         "nvidia/compat_half",    // half limits, math, conversions, reinterprets, relational
         "nvidia/compat_sg",      // sub-group emulation
+        "nvidia/compat_wg",      // work-group collectives
     };
     for (const char* name : nvidia_prelude_names) {
         result.prelude += get_header(name);
-    }
-
-    // Add work-group collective functions only for kernels that use them. scan_exclusive_add is in the
-    // list even though the header does not reimplement it: the runtime's own declarations stop at double,
-    // so a half argument is ambiguous without the overload the header adds on top.
-    static const char* const wg_collective_names[] = {
-        "work_group_reduce_add",
-        "work_group_reduce_max",
-        "work_group_reduce_min",
-        "work_group_scan_inclusive_add",
-        "work_group_scan_exclusive_add",
-        "work_group_broadcast",
-    };
-    const std::string& wg_header = get_header("nvidia/compat_wg");
-    const bool uses_wg_collectives =
-        std::any_of(sources.begin(), sources.end(), [](const std::string& src) {
-            return std::any_of(std::begin(wg_collective_names), std::end(wg_collective_names),
-                               [&src](const char* name) {
-                                   return src.find(name) != std::string::npos;
-                               });
-        });
-    if (uses_wg_collectives) {
-        result.prelude += wg_header;
     }
 
     result.sg_overrides = get_header("nvidia/compat_sg_overrides");
