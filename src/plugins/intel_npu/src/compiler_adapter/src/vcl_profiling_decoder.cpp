@@ -75,6 +75,12 @@ std::vector<ov::ProfilingInfo> VCLProfilingDecoder::decode(const std::vector<uin
 
     std::vector<ze_profiling_layer_info> layerInfo(profOutput.size / sizeof(ze_profiling_layer_info));
     if (profOutput.size > 0) {
+        OPENVINO_ASSERT(profOutput.size % sizeof(ze_profiling_layer_info) == 0,
+                        "Unexpected VCL profiling buffer size: ",
+                        profOutput.size,
+                        " bytes is not a multiple of sizeof(ze_profiling_layer_info) (",
+                        sizeof(ze_profiling_layer_info),
+                        ")");
         _logger.debug("VCL profiling output size: %d", profOutput.size);
         std::memcpy(layerInfo.data(), profOutput.data, profOutput.size);
     }

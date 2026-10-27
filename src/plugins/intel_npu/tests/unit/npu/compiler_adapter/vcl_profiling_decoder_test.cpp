@@ -147,6 +147,16 @@ TEST_F(VCLProfilingDecoderTest, DecodeCleansUpTheHandleWhenGetDecodedProfilingBu
     EXPECT_EQ(fake.profilingDestroyCount, 1);
 }
 
+TEST_F(VCLProfilingDecoderTest, DecodeThrowsOnMisalignedBufferSize) {
+    // One byte short of a whole ze_profiling_layer_info: integer division would otherwise silently
+    // truncate the vector while memcpy still copied the full, larger byte count into it.
+    fake.profilingPayload.assign(sizeof(ze_profiling_layer_info) - 1, 0);
+    auto decoder = makeDecoder();
+
+    EXPECT_THROW(decoder->decode({1}, makeNetworkTensor()), ov::Exception);
+    EXPECT_EQ(fake.profilingDestroyCount, 1);
+}
+
 TEST_F(VCLProfilingDecoderTest, DecodeThrowsWhenCreateFails) {
     // A decodable payload, so the scripted vclProfilingCreate() failure is the only reason to throw.
     fake.profilingPayload.assign(sizeof(ze_profiling_layer_info), 0);
