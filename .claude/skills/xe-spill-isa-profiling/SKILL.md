@@ -83,7 +83,7 @@ In an additional A770/DG2 case, the original OCL had XVE active/stalled 15.6/81.
 - Branch intent in the source != IGC codegen (the causal block skip was flattened, +16 instr).
 
 ## 7. Removal levers summary (only ones with evidence)
-select chain (removes TPM) / replace gathers with block reads (head-72 9.28x, spill 2688 -> 0, B70) / scale-zp hoist / shrink M or the tile (`live_grf_estimate`, budget 112, gemma-4 head-512 M=8 SPILL=34432, 3.14x slower) / 256GRF+tile pair / shrinking the tile (config A) vs shrinking threads (config C, 372,628 ns). **No evidence**: limiting with `#pragma unroll N`, reducing spill by splitting the kernel.
+select chain (removes TPM) / replace gathers with block reads (head-72 9.28x, spill 2688 -> 0, B70) / scale-zp hoist / **move loop-invariant arrays to SLM and stream per-read data** (decode `Q_IN_SLM` + `K_COMP_PER_READ`: M = 8 at head 512 spill 17,408 B -> 0 at 128 GRF, bit-identical, 630 -> 191 us; prefer this when the thing you would shrink is an amortization factor, 01 §8.4) / shrink M or the tile (`live_grf_estimate`, budget 112, gemma-4 head-512 M=8 SPILL=34432, 3.14x slower) / 256GRF+tile pair / shrinking the tile (config A) vs shrinking threads (config C, 372,628 ns). **No evidence**: limiting with `#pragma unroll N`, reducing spill by splitting the kernel.
 
 ## 8. Verdict procedure
 1. Prove "no unintended change" (identical instCount + opcode histogram) with an L2 ISA A/B (`isa_ab_*.sh`, `sdpa_ocl_ab.py l2`). If grade C, diff `beforeUnification -> afterUnification -> optimized -> ISA` with `compile_one(..., keep_dir=)` to find the first stage where they diverge.
