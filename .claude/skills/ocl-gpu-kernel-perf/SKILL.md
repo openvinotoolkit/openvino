@@ -16,7 +16,11 @@ Full guide: `src/plugins/intel_gpu/docs/ocl_perf_guide/README.md`
 | softmax/mask/sink, int8·u4 dequant (`0x6480`), scale/zp, accuracy regressions | `ocl-quant-softmax-numerics` | 03 |
 | Large performance gap vs a reference, unexplained stall/low utilization, checking the comparison target/measurement validity | `ocl-kernel-performance-investigation` | 06, then 04/05 if needed |
 | Ratio vs a reference drifting with prompt length/size, suspected clock throttling, prefetch that costs more than it saves | `ocl-kernel-performance-investigation`, `xe-profiling-tools-cookbook`, `xe-block-io-prefetch-barrier` | 06 §6.7, 07 §7.8, 02 §7.6 |
+| Fewer/larger reads (`WIDE_READS`), choosing a per-tiling default, a gain that flips sign on another model or variant | `xe-block-io-prefetch-barrier`, `ocl-kernel-ab-methodology` | 02 §5.4, 05 5.2.6, 09 §9.3 #14 |
+| A layout a block read cannot take (sub-64 B rows, d-major page), permuting the contraction axis, exact dequant with a non-integer zp | `xe-block-io-prefetch-barrier`, `xe-dpas-kernel-design`, `ocl-quant-softmax-numerics` | 02 §4.5, 01, 03 §4.8 |
+| Same utilisation as the reference but slower (redundant work), skips that win short and lose long | `ocl-kernel-performance-investigation`, `ocl-kernel-dev-lessons` | 06 §6.8, 09 §9.3 #16-19 |
 | spill/TPM, 256GRF, ISA dump, VTune source-analysis/GTPin, ocloc splice | `xe-spill-isa-profiling` | 04 |
+| A kernel slower after a driver/IGC upgrade, `TPM=` on every shape, the KV-cache writer (`pa_kv_cache_update_ref`) | `xe-spill-isa-profiling`, `ocl-kernel-ab-methodology` | 02 §10.3, 04 §4.9-A, 05 H, 06 §6.9 |
 | A/B, attribution, speedup claims, verification harness | `ocl-kernel-ab-methodology` | 05 |
 | DG2/ARL-H/SG8 porting | `xe-hpg-porting` | 05 |
 | cliloader/VTune/GTPin/ocloc commands·collection·interpretation, standalone harness, microbenchmarks | `xe-profiling-tools-cookbook` | 07 |
@@ -38,5 +42,6 @@ Full guide: `src/plugins/intel_gpu/docs/ocl_perf_guide/README.md`
 - Which hardware family is it (Xe2 SG16 / xe_hpg SG8)? If it differs, start with `xe-hpg-porting`.
 - Confirm which kernel/device actually ran and that the inputs are in device memory. Also confirm the final native binary of the comparison arm.
 - For long or heavy runs, confirm the clock actually reached (`act_freq`, `throttle/reasons`): a pin is a request, PL2 overrides it.
+- Which driver? (`dpkg -l | grep -E 'intel-igc|intel-opencl-icd'`.) Numbers from before an IGC upgrade are stale; re-measure the baseline and read `SPILL=`/`TPM=` on the kernel lines first (IGC 2.41, 2026-10-26).
 - Large performance gap with no known reason: investigate in the order runtime → profiler → ISA → matched A/B from `ocl-kernel-performance-investigation`. If a spill candidate shows up, apply `xe-spill-isa-profiling`.
 - Wrong output: suspect in the order layout/gate (02), tiling invariant (01), mask type/OOB (02·03), and before blaming the consumer kernel, check the producer (e.g. dynamic_quantize) and a `TEST_USE_SDPA_OCL=0` control.

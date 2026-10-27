@@ -24,7 +24,7 @@ Repository rules (AGENTS.md): builds/GPU tests/benchmarks are **run by the user*
   Benefit: softmax max/sum is an in-lane component reduce (no shuffle). Cost: S is transposed through SLM, alpha is redistributed per component with `sub_group_broadcast`.
 - micro uses A=Q/B=K in KQ (transposed), A=V/B=S in VS. Same result (verify_micro_kq_dpas maxerr=0). micro's in-place VNNI stride dequant cannot be imitated in OpenCL (IGC floor).
 - decode (q=1): A=Q (M=Q_PER_WG ∈ {1,2,4,8} = GQA heads), B=K (lane=key). M is the DPAS repeat count, so only 1/2/4/8.
-- Applying the same permutation to A and B on the contraction axis (depth) leaves the result unchanged → a layout mismatch (u4 adjacent nibbles) is solved with one permutation in Q staging.
+- Applying the same permutation to A and B on the contraction axis (depth) leaves the result unchanged → a layout mismatch (u4 adjacent nibbles; the f16 d-major K page read by a 32b transpose, chapter 02 §4.5) is solved with one permutation in Q staging (`PA_K_PERMUTED`, `q_chunk_u4`). It reorders the f32 sum (order-changing, not bitwise).
 
 ## 2. Understanding the tiling structure
 - KQ: subgroup tile `kq_sg_tile_keys(16|32) × kq_sg_tile_queries`, WG array `pwk × pwq`. wgTK = tile_keys*pwk, wgTQ = tile_queries*pwq, `sg_per_wg = pwk*pwq`. S*V re-partitions the same subgroups as `(sv_sg_per_wg_scores × sv_sg_per_wg_values)`.

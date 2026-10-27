@@ -37,13 +37,14 @@ In an additional A770/DG2 case, the original OCL had XVE active/stalled 15.6/81.
 | Observation | Meaning | First response |
 |---|---|---|
 | `TPM>0`, spill 0, scratch store/load inside the hot loop | **private array with a runtime index** | Make the index an unroll constant, or use a select chain + `sub_group_broadcast` (alpha[] case 0.8%) |
+| the same `TPM=N` at every head size, new after a driver upgrade | IGC 2.41 no longer promotes a **uniform** runtime index (kvup writer `TPM=576` = `[2][9]` halves x 16 lanes, two helpers' arrays merged into one `alloca`) | List the `alloca`s left in `*_optimized.ll`; full-range `unroll_for` + uniform `if`, select over all slots (PREFILL 322 -> 172 us). 256 GRF / IGC knobs do not help; a `half16` + runtime subscript avoids scratch but was slower (ch4 §4.9-A) |
 | `SPILL>0` | register pressure (N independent gathers live at once, etc.) | Improve the load geometry first, then the tile/GRF |
 | `grep spill` matches in `.asm` | **meaningless**: `-abortOnSpill` in `//.full_options` | Read `//.spill size`, `//.private memory size`, `.zeinfo` |
 
 ## 3. Getting the ISA (without a rebuild)
 1. Runtime dump: `OV_GPU_DUMP_SOURCES_PATH=./ OV_GPU_MAX_KERNELS_PER_BATCH=1` (jit prelude + standalone .cl) and `IGC_ShaderDumpEnable=1 IGC_DumpToCustomDir=<dir>` (.asm/.ll/.zeinfo). With `MAX_KERNELS_PER_BATCH=1`, 1 entry per dump. File names are hashes, so identify them with `grep -l 'kernel sdpa_ocl__prefill'`. Scripts: `test/dump_isa*.sh` (`dump_isa.sh` has an old hard-coded ROOT).
 2. ocloc: `ocloc compile -file X.cl -device bmg -options '-cl-mad-enable -cl-std=CL3.0 -D...x4' -internal_options '...'` (`-device bmg`; `xe2` is interpreted as the iGPU. `-cl-mad-enable` goes inside `-options`). The original options are in the dump's `*_options.txt`/`*_internal_options.txt`.
-3. splice A/B: dump prelude + `#include` of the working-tree `.cl`. Remove the `#define`s to sweep from the prelude with `sed`, then supply them again. Examples: `test/splice_head72.sh`, `isa_ab_mixed.sh`, `kvup_splice.sh`, `isa_ab_kvup.sh`, `sdpa_ocl_ab.py` (L0/L1/L1'/L2/pset/built/hpg).
+3. splice A/B: dump prelude + `#include` of the working-tree `.cl`. Remove the `#define`s to sweep from the prelude with `sed`, then supply them again. Examples: `test/splice_head72.sh`, `isa_ab_mixed.sh`, `sdpa_ocl_ab.py` (L0/L1/L1'/L2/pset/built/hpg). kvup: `test/kvB/{splice.sh,isa.sh,modes_ab.sh,heads.sh}` (`kvup_splice.sh` / `isa_ab_kvup.sh` lost their dumps). An IGC ShaderDump `.cl` can hold several kernels of one batch (`//====` separators, e.g. kvup with the `paged_attention_opt` kernels): splice only the target's jit section.
 4. **Prove reproduction first**: does a splice of the HEAD source match the runtime values (instCount/spill/dpas/hash) (`kvup_splice.sh check`, head-72 spill 2688 matched)? Compare absolute instCount/spill only between rows of the same table.
 5. Disassembly: for a zebin, find the `.text.<kernel>` offset with `readelf -S -W` -> `dd` -> `iga64 -p=xe2 -d`. `/usr/bin/iga64` is available. micro's GEMM does not show up in the IGC dump (dummy `dpas.8x1 null`, `0xFADECAFE`), and compiling it with ocloc gives a fake ~709 instr -> never quote micro numbers from that.
 6. After a build: confirm with `python3 test/sdpa_ocl_ab.py built --base <rev>` that the intended source is in the .inc (chunks joined)/.so/`ov_gpu_unit_tests` (the unit tests are statically linked and can be stale).
@@ -56,7 +57,10 @@ In an additional A770/DG2 case, the original OCL had XVE active/stalled 15.6/81.
 | `load_block2d.ugm.*` | 2D block read (the target form; rules in chapter 02) |
 | `dpas.8x8` count | steady-state count. IGC peels the first iteration (x2). 0 means DPAS was dropped (DG2 SG16 short8) |
 | `dpas.8x1 null` + `0xFADECAFE` | micro blob dummy. Ignore |
-| many strided `mov` (`<2>`, `<4;1,0>`) | int8 -> f16 widen/VNNI repack. IGC floor. Do dequant arithmetic in **float**, with `(half)` 1 time at the end |
+| many strided `mov` (`<2>`, `<4;1,0>`) | int8 -> f16 widen/VNNI repack. The VNNI repack is IGC's floor; the byte convert chain is not (next row) |
+| per element `mov :b <4;1,0>`, `mov <2>:w <- :b`, `mov <2>:hf <- :w`, `mov :uw <- <2;1,0>:uw` | `(half)(char)byte` / `(half)nibble` convert: 4-5 movs before `(q-zp)*sc`. Replace by the exact 16-bit-word widen `I8_TO_HALF`/`U4_TO_HALF` (`bfn`/`shr`/`xor` + `add`): i8 MIXED mov 5,147 -> 2,003 (ch03 §4.8) |
+| 16 `mov` of a DPAS operand right after a branch merge | phi copies of a conditionally modified operand: write each row once on every path (AND with a broadcast mask instead of an `if`) |
+| `load.slm.d64x64t` + 8 `mov (16) r<1>:d r<2;1,0>:d` | `block_read_ul4` reinterpreted as `int8`: the per-read deinterleave of ulong4 -> int8 DPAS operand (WIDE_READS Q_slm, +256 movs per key tile at d128). Wins only when memory-bound (ch02 §5.4) |
 | `r[a0]` surge | lane-varying loop variable/runtime-indexed array (2 -> 274, 1.8x slower) |
 | backward branch (target label on an earlier line) | a real rolled loop. A forward goto is a predicated skip |
 | `goto/join` drop sharply, `d32x8t` decreases | the unroll was lost (guard-shape problem) |
@@ -75,6 +79,7 @@ In an additional A770/DG2 case, the original OCL had XVE active/stalled 15.6/81.
 - Helpers use **only `SDPA_OCL_INLINE` = `__attribute__((always_inline)) inline`**. Plain `inline`, even when inlined, changes the *whole module's* pipeline and moves the ISA of unrelated configs too (121 of 122 graded C).
 - Even with always_inline, the ISA moves on: widening parameter casts (split `size_t lane` + `int lane_i`), branching on a parameter that becomes a constant, merged coordinate arguments, **arrays inside the helper** (declare in the caller + `__private` pointer), loop-carried outputs (out-params).
 - unroll: the trip count is a macro, the guard is at the **call site** (an `if(skip) return;` at the top of the helper loses the unroll, 2.3x slower; at the call site it stays 5.6 us). No lane-varying loop variables. Ablate by setting the loop bound to 0 (no `if(0)`).
+- Private arrays: compile-time indices only. Under IGC 2.41 even a subgroup-uniform runtime index or loop bound over the array leaves it in scratch (`for (it < npo) a[it]`, `a[npo] = v`): loop over the full range with a uniform `if`, write `if (s == slot) a[s] = v` for every slot, read through a select chain.
 - Branch intent in the source != IGC codegen (the causal block skip was flattened, +16 instr).
 
 ## 7. Removal levers summary (only ones with evidence)

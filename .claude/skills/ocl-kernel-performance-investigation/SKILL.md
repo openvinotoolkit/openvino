@@ -49,6 +49,17 @@ For VTune, record version, driver, Metrics Discovery version, device BDF, result
 4. Falsify with value-preserving changes, so a bit-identical output check covers correctness: a workgroup reorder (no effect -> not reuse), an existing prefetch (knee gone -> miss latency), then the prefetch's cost model (stride 64/128/256 B -> cost = line requests).
 5. Adopt the narrow form and measure where it does not apply (here: 1-5% slower at head <= 256, kept off).
 
+## When utilisation matches but time does not (chapter 06 §6.8)
+
+- Compare per-type instruction totals with the reference (VTune overview csv: `XVE Instructions:XMX instructions`, ALU0/ALU1). Short-prompt PA PREFILL: XVE active 63% / 64%, XMX busy 58% / 59%, but XMX instructions 2.49 G vs 1.85 G = redundant work (the masked causal triangle), fixed by a per-subgroup skip (qwen3-8b 1K 253 -> 216 us, micro 214).
+- Bound a candidate with the ideal variant first (token-major page for the f16 d-major read), then remove confounds shared by both arms before attributing the rest (the Kc branch moved both arms ~10%).
+
+## When a compiler upgrade made a kernel slower (chapter 06 §6.9)
+
+- Re-measure the baseline under the installed driver, then read `SPILL=`/`TPM=` per kernel. The same `TPM=` on every shape with no `//.spill size` is a private array: name it from the `alloca`s left in `*_optimized.ll` (the KV-cache writer: two helpers' `[2][9]` arrays in one slot, uniform runtime indices no longer promoted by IGC 2.41).
+- Calibrate a standalone probe against cliloader at the real dispatch size before trusting it (512-block PREFILL matched; small GENERATE ratios did not).
+- After the fix, sweep every shape again: removing the scratch exposed a store-order contention at head 256 (+7%) that the reloads had hidden.
+
 ## Turn evidence into a testable cause
 
 - Inspect the executed native instructions before labeling a path. In the DG2 SDPA case, an initial “K and V are both gathers” hypothesis was wrong: K already used a 32 B dword block read while V performed lane gathers and packing.

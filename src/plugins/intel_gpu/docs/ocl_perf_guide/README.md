@@ -36,9 +36,13 @@ Entry skill: [`ocl-gpu-kernel-perf`](../../../../../.claude/skills/ocl-gpu-kerne
 | ratio drifting with problem size: clock throttling (PL2) vs a cache-size knee, fixed-clock length sweep, time / keys^2 | 05 (E20, §5.5.1), 06 (§6.7), 07 (§7.8) |
 | VTune on B70 / xe driver (permissions, quoted arguments, bytes-per-call cross-check) | 07 (§7.3) |
 | K d-major scalar gather → token-major relayout | 02 |
+| block-reading a sub-64 B-row (d-major f16) page: wider-pitch surface + 32b transpose (`32r8x1c` layout probed), permuted contraction axis | 02 (§4.5) |
+| exact widen with a non-integer zp (`U4_TO_HALF` / `I8_TO_HALF` on 16-bit words) | 03 (§4.8) |
+| equal utilisation, more instructions: redundant work (causal triangle skip per subgroup) | 06 (§6.8), 09 (§9.3 #18-19) |
 | softmax (exp2, alpha rescale, -inf/NaN guards), causal key-loop upper bound | 03 |
 | int8↔f16 `0x6480 ^ byte` trick, u4 nibble, scale/zp separation | 03 |
 | register spill, TPM, ISA analysis, ocloc splice | 04 |
+| `TPM=` after a compiler upgrade (uniformly indexed private array in scratch, IGC 2.41), KV-cache writer store order across threads, cache-byte oracle | 02 (§10.3), 04 (§4.9-A), 05 (H), 06 (§6.9) |
 | A/B proof levels, negative controls, layer-0 oracle | 05 |
 | unexplained performance gap, cross-analysis of the real native kernel with VTune/GTPin/ISA, checking comparison arms for errors | 06 |
 | step-by-step gap-closing ladder (24x → within 3% of micro), remaining defects at short lengths/small shapes/head-count | 06 |

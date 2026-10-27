@@ -302,6 +302,7 @@ IGC compiles this to exactly 2 ops, `xor(:w, 0x6480)` + `add(:hf, 0xE480 = -1152
 - **Exact only for an integer zp.** `zp + 1152` has f16 ulp = 1, so a non-integer zp is rounded to an integer (`np.float16(7.3+1152)-1152 == 7.0`).
   plain SDPA i8 is safe because KV compression stores zp as **i8** (on XMX, `kv_cache_compression.cpp:244`). **Do not use it for int4 (zp = query type) or the PA cache (the writer's non-integer zp).**
   → The PA path spells out `(q - zp) * scale` in half (`PA_DEQ`, `sdpa_ocl_config.cl:256`), and decode removes the bias **separately, in float** (§5).
+  The MIXED page reads still use the XOR widen, but with the `- 1152` (u4: `- 1024`) kept as its own exact step (§4.8).
 - bf16 has no such trick (§8). u4 uses a 1024 base (§4.6).
 - If the pairing of `K_WIDEN_BIAS` and `zp` breaks, the result is silently wrong: at a level the unit-test threshold (6e-3) does not catch (§5.3).
 - The note's wording "denormal reinterpret" is inaccurate: the result is an ordinary normal number (E=25).
@@ -324,6 +325,24 @@ IGC compiles this to exactly 2 ops, `xor(:w, 0x6480)` + `add(:hf, 0xE480 = -1152
   `DKS_ACTIVE` is grouped in pairs, so on u4 it is always rounded up to even. Verification: `test/check_u4_offsets.py` (symbolically executes the .cl dword expressions to check that Q staging puts at element i the same channel as K lane i, 9 heads × 3 kv-heads, **all 5 negative controls detected**).
 - u4 nibble selection is **lane-uniform** (tile parity), so it folds into the shift amount (`U4_NIBBLE_SEL`, `qk_load:400-407`). The writer clamps to `[0,15]`, so there is no sign/CHAR_MIN.
 
+### 4.8 Exact widen with a non-integer zp (PA MIXED `U4_TO_HALF` / `I8_TO_HALF`, 2026-10-26/27, B70)
+
+The PA cache zp is not an integer, so the bias cannot be folded into it, but the widen alone can still skip the convert:
+
+```c
+#define U4_TO_HALF(w16, sh) (as_half((ushort)((((w16) >> (sh)) & 0xF) | 0x6400)) - (half)1024.0h)   // == (half)n
+#define I8_TO_HALF(w16, sh) (as_half((ushort)((((w16) >> (sh)) & 0xFF) ^ 0x6480)) - (half)1152.0h)  // == (half)(char)b
+deq = ((q_half) - zp) * sc;                                                     // PA_DEQ, unchanged
+```
+
+`1024 + n` / `1152 + s` are exact halves and so is the subtraction, so `q_half` equals the old convert **bit for bit** (and is
++0 for 0): every output is bit-identical, which makes a bitwise dump comparison a complete check (180 `basic` PA rows; an
+unsigned widen put in on purpose changed exactly the 18 i8 MIXED rows). The point is the **operand form**: the ops run on a
+16-bit word of the transform read (`w2.s0` / `w2.s1`, region `<2;1,0>:uw`), so IGC emits `bfn` / `shr` + `xor` + `add` on packed
+words, while `(half)(char)((w >> 8b) & 0xFF)` became a byte deinterleave `mov`, `:b -> :w`, `:w -> <2>:hf` (strided) and a
+repack `mov` per element. qwen3.5-9b i8 MIXED loop 7,690 -> 5,842 instructions (`mov` 5,147 -> 2,003), 894 -> 799 us per call.
+The extra `- 1152` costs one `add` per element and cannot be folded: `h - (1152 + zp)` rounds zp to the 1.0 ulp at 1152.
+
 ### 4.7 What u4 "exact MIXED" means precisely
 
 "exact" does **not** mean that the dequant arithmetic is exact. Meaning: in MIXED (chunked prefill / prefix caching) the cache `[0, past_len)` is read with u4 dequant,
@@ -331,6 +350,8 @@ while **the new rows of the current chunk `[past_len, k)` are read from the unqu
 Implementation: `PA_CUR_KV_F16`; when a k0 tile crosses `past_len`, **the tile is cut** at `k_chunk = past_len - k0` so that one iteration reads only one source (`sdpa_ocl.cl:473-476`),
 keeping the fixed DPAS tile shape but masking the rows after `k_chunk` (`k_mask`: `key < k0 + k_chunk`, `:642-646`), then `k0 += k_chunk`.
 - The old `GRAN=0` (split at 16-key page granularity) gave **wrong answers** on regression `/0`,`/1`. Now only the exact split exists.
+- An **f16** cache round-trips the new rows bit for bit, so since 2026-10-27 it reads them from the page (`PA_CUR_KV_F16` only for
+  compressed caches): the Kc branch inside the key loop cost 5-14% per call (`docs/sdpa_ocl.md` "Paged-attention MIXED: i8 and f16 caches").
 - An odd Kc offset cannot use a dword block read → if `kc_dword_ok` is false, raw Kc scalar fallback. Falling back to the cache here gives wrong answers.
 - Performance (**MEASURED**, cliloader average kernel time during a llama-3.2-1b run, measured by the user): OCL 145,603 ns vs micro 147,825 ns (−1.50%). Sub-experiments — SV_TRIM adopted (151,677 vs 158,422), V_PREFETCH adopted (145,603 vs 151,866, −4.12%),
   paired Kc DWORD storage 177,716 (about 12% worse, removed), KQ_FAST 172,310 (worse, removed), KQ_TRIM 157,932 (worse, removed). (Some knobs were later removed in a refactor)
@@ -476,8 +497,8 @@ the correct and the buggy configurations reach the same plateau → no informati
 
 | Class | Example | Meaning of "no change" |
 |---|---|---|
-| bit-preserving | `SDPA_OCL_KV_2D=0`, `_Q_2D=0`, `_A_2D=0`, `_BLOCK_SKIP=0`, `_DKS_ACTIVE=0`, `_256GRF=1` (the extra depth tiles of DKS are exactly +0.0 in f32) | the null result a correct kernel predicts. **Not evidence** |
-| order-changing | `SDPA_OCL_KQ_TILE_KEYS/QUERIES`, `_PER_WG_KEYS/QUERIES` (k0 split → accumulation order) | even if it moves the metric on a sensitive model, it is just **a re-roll of the dice** |
+| bit-preserving | `SDPA_OCL_KV_2D=0`, `_Q_2D=0`, `_A_2D=0`, `_BLOCK_SKIP=0`, `_DKS_ACTIVE=0`, `_256GRF=1` (the extra depth tiles of DKS are exactly +0.0 in f32), `_CAUSAL_SKIP` (skips work that adds exactly 0), `_MIXED_PREFETCH_V/_K` | the null result a correct kernel predicts. **Not evidence** |
+| order-changing | `SDPA_OCL_KQ_TILE_KEYS/QUERIES`, `_PER_WG_KEYS/QUERIES` (k0 split → accumulation order), the permuted depth of the f16 d-major page read (`SDPA_OCL_K_PA_DT`), `SDPA_OCL_PA_CUR_F16` (k_chunk split) | even if it moves the metric on a sensitive model, it is just **a re-roll of the dice** |
 
 "Only the tiling knobs move the score" is not the signature of a defect but the signature of a correct kernel (7 runs wasted). Classify a toggle first, before believing it. (Some knobs were later removed in a refactor.)
 

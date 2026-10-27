@@ -11,7 +11,7 @@ Repository rules (AGENTS.md): numerical correctness > performance, no performanc
 
 ## 1. Classification before starting work (answer first)
 
-1. Is this change **bit-preserving** or **order-changing** (changes accumulation/tile order)? For the latter, moving an end-to-end metric (WWB) is not evidence of a bug.
+1. Is this change **bit-preserving** or **order-changing** (changes accumulation/tile order)? For the latter, moving an end-to-end metric (WWB) is not evidence of a bug. Skipping work that adds exactly 0 (`CAUSAL_TILE_SKIP`, prefetches, exact widens) is bit-preserving -> prove it bitwise; a permuted contraction axis (u4, f16 d-major read) or a moved tile split (`PA_CUR_KV_F16`) is order-changing.
 2. In which operand is the head dim the lane (prefill KQ: A=K,B=Q / decode KQ: A=Q,B=K)? **Re-derive** the dequant identities **from your own mapping** (do not copy from another kernel).
 3. Data path: which of plain SDPA (integer zp i8) / PA cache (non-integer zp, the writer stores 1/scale) / u4 / bf16 is it?
 
@@ -47,6 +47,7 @@ E.g.: s=−3 → 0xFD ^ 0x6480 = 0x647D → mantissa 125 → 1149 = 1152−3. s=
 - [ ] Extract bytes with shift+mask (`as_char4` produces a `:b` deinterleave). 4 bytes → 2 VNNI dwords with dword arithmetic (`... ^ 0x64806480u`).
 - [ ] **Fold the bias into zp**: `(wide - (zp+1152)) * scale` (a separate bias subtraction blows up the adds).
 - [ ] **Exact only for integer zp** (f16 ulp@1152 = 1.0). Forbidden for non-integer zp in PA cache/u4/int4 → explicit half `(q - zp)*scale`, or, as in decode, remove the bias in the **float score correction**.
+- [ ] With a non-integer zp the **widen alone** can still skip the convert: `I8_TO_HALF(w16,sh) = as_half(((w16>>sh)&0xFF) ^ 0x6480) - 1152` / `U4_TO_HALF` on a 16-bit word of the read, `- 1152` kept as its own (exact) op, then `(q - zp)*sc`. Bit-identical to `(half)(char)b`; the convert chain (byte deinterleave + strided convert + repack, 4-5 movs/elem) disappears (i8 MIXED loop 7,690 -> 5,842 inst, -11%; chapter 03 §4.8).
 - [ ] Compute the term that undoes the bias (`k_corr`) with the **f16-rounded** `Q*sc` that DPAS saw (doing it in float gives 2.3x the error, which the 6e-3 threshold test does not catch).
 - [ ] bf16: no trick (the ulp=1 range is only [128,256)). float dequant → bf16 encode. Use `as_char((uchar)b)` (`(char)(uchar)b` saturates to 127). Keep scale/zp tensors as f16. Read the runtime scale dtype from the layout, `SCALE_TO_FLOAT` (bf16 = `as_float((uint)x << 16)`).
 - [ ] u4: K adjacent packing (forced by the writer WG split), V split packing (keeps lane==dim). For K in sdpa_ocl MIXED, the depth-axis permute `win+2L+par` is paid only once, in Q staging. Nibble selection is lane-uniform, so it folds into the shift amount.
@@ -66,6 +67,7 @@ Hoist per-key scale/zp out of the depth/key loops (inside the loop it is 128~256
 ## 6. "exact" MIXED (compressed cache + current chunk)
 
 Cache `[0,past_len)` = quantized dequant, current `[past_len,k)` = raw f16 Kc/Vc. When a k0 tile crosses `past_len`, cut the tile with `k_chunk` so one iteration reads only one source; rows after `k_chunk` are masked, `k0 += k_chunk`. Splitting at page granularity (GRAN=0) gives wrong results.
+An **f16** cache holds the new rows bit for bit, so it reads them from the page (`PA_CUR_KV_F16` only for compressed caches since 2026-10-27): the Kc branch cost 5-14% per call.
 
 ## 7. Verification playbook (the user runs things — provide command blocks, `--device_suffix=1` mandatory)
 
