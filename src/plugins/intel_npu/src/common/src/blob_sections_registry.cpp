@@ -5,7 +5,6 @@
 #include "intel_npu/common/blob_sections_registry.hpp"
 
 #include "intel_npu/common/itt.hpp"
-#include "intel_npu/common/major_minor_version.hpp"
 
 namespace {
 

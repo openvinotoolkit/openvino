@@ -78,25 +78,35 @@ std::istream& operator>>(std::istream& in, MajorMinorVersion& version) {
 
 std::vector<uint16_t> parse_dotted_version(std::string_view version_string, const size_t number_of_parts) {
     std::vector<uint16_t> parts;
-    std::string_view remaining = version_string;
 
-    while (true) {
-        const size_t dot_location = remaining.find('.');
-        const std::string_view part = remaining.substr(0, dot_location);
-        OPENVINO_ASSERT(utils::has_only_digits(part),
-                        "Failure while parsing the version \"",
-                        version_string,
-                        "\": the part \"",
-                        part,
-                        "\" is not made exclusively out of digits");
+    if (!version_string.empty()) {
+        std::string_view remaining = version_string;
 
-        parts.push_back(static_cast<uint16_t>(std::stoul(std::string(part))));
-        if (dot_location == std::string_view::npos) {
-            break;
+        while (true) {
+            const size_t dot_location = remaining.find('.');
+            const std::string_view part = remaining.substr(0, dot_location);
+            OPENVINO_ASSERT(utils::has_only_digits(part),
+                            "Failure while parsing the version \"",
+                            version_string,
+                            "\": the part \"",
+                            part,
+                            "\" is not made exclusively out of digits");
+
+            const unsigned long parsed_value = std::stoul(std::string(part));
+            OPENVINO_ASSERT(parsed_value <= std::numeric_limits<uint16_t>::max(),
+                            "One of the parsed version numbers exceeds the maximum limit");
+            parts.push_back(static_cast<uint16_t>(parsed_value));
+            if (dot_location == std::string_view::npos) {
+                break;
+            }
+            remaining = remaining.substr(dot_location + 1);
+            OPENVINO_ASSERT(!remaining.empty(),
+                            "Trailing dot found while parsing the version \"",
+                            version_string,
+                            "\"");
         }
-        remaining = remaining.substr(dot_location + 1);
-        OPENVINO_ASSERT(!remaining.empty(), "Trailing dot found while parsing the version \"", version_string, "\"");
     }
+
     OPENVINO_ASSERT(parts.size() == number_of_parts,
                     "Expected ",
                     number_of_parts,
