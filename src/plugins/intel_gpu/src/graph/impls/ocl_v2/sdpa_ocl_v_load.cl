@@ -5,12 +5,23 @@
 // V tile loaders for sdpa_ocl.cl. Included once, by sdpa_ocl.cl only.
 
 #if IS_PA_MIXED
-// Element offset of the V cache page holding `key`. The comp arrays follow the data rows, so the page
-// stride is PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE while the data row pitch stays
-// PA_V_ROW_ELEMS. A key at/past k reads page 0, which is always allocated.
-SDPA_OCL_INLINE size_t FUNC(pa_v_page_base)(const __global INPUT3_TYPE *block_indices, const uint base_block_index,
-                                            const int key, const int k, const size_t b0_kv) {
-    return PA_V_PAGE_OFF((key < k) ? block_indices[base_block_index + key / PAGED_ATTENTION_BLOCK_SIZE] : 0u, b0_kv);
+// block_indices[] entry of every cp page of the k0 tile, for PA_V_PAGE_OFF(). The comp arrays follow the data rows,
+// so the page stride is PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE while the data row pitch stays
+// PA_V_ROW_ELEMS. A page whose first key is at/past k takes page 0, which is always allocated. Lane c loads page c
+// of each group of SUBGROUP_SIZE pages, so the S*V loop starts no dependent index load per cp block; a lane past the
+// tile reads an entry that exists (key < k) or none.
+SDPA_OCL_INLINE void FUNC(pa_v_pages)(__private uint *v_blk, const __global INPUT3_TYPE *block_indices,
+                                      const uint base_block_index, const int k0, const int k, const int lane_i) {
+    #pragma unroll
+    for (int g = 0; g < (sv_key_blocks + SUBGROUP_SIZE - 1) / SUBGROUP_SIZE; ++g) {
+        const int key = k0 + (g * SUBGROUP_SIZE + lane_i) * DPAS_K;
+        const uint blk = (key < k) ? block_indices[base_block_index + key / PAGED_ATTENTION_BLOCK_SIZE] : 0u;
+        #pragma unroll
+        for (int c = 0; c < SUBGROUP_SIZE; ++c) {
+            if (g * SUBGROUP_SIZE + c < sv_key_blocks)
+                v_blk[g * SUBGROUP_SIZE + c] = sub_group_broadcast(blk, c);
+        }
+    }
 }
 #endif
 
@@ -207,19 +218,19 @@ SDPA_OCL_INLINE void FUNC(v_i8_dequant)(__private int8 *vb, __private half4 *zpb
 // (PA_V_COMP_OFF: [token], [block_size + token]); a cp block is one page, so lane == token. The scale
 // folds into pA as in the plain-SDPA path (f16 only: every PA compressed path assumes f16) and the
 // zp is returned for the dequant. Keys at/past k get scale and zp 0.
-SDPA_OCL_INLINE half FUNC(pa_v_comp_fold)(__private short8 *pA, const __global VAL_DATA_T *V,
-                                          const __global INPUT3_TYPE *block_indices, const uint base_block_index,
+SDPA_OCL_INLINE half FUNC(pa_v_comp_fold)(__private short8 *pA, const __global VAL_DATA_T *V, const uint v_blk,
                                           const int k0, const int cp, const int k, const size_t b0_kv,
                                           const size_t lane) {
     const int vs_key_pa = k0 + cp * DPAS_K + lane;
-    const size_t vs_page_pa =
-        FUNC_CALL(pa_v_page_base)(block_indices, base_block_index, vs_key_pa, k, b0_kv);
+    // v_blk is the page of the block's first key (pa_v_pages()); a lane at/past k reads that page or page 0 and
+    // has its values replaced, so the loads need no per-lane branch.
     const global half *v_comp_pa =
-        (const global half *)(V + vs_page_pa + PA_V_COMP_OFF);
+        (const global half *)(V + PA_V_PAGE_OFF(v_blk, b0_kv) + PA_V_COMP_OFF);
     const int vs_tok_pa = vs_key_pa % PAGED_ATTENTION_BLOCK_SIZE;
-    const half vs_c_pa = (vs_key_pa < k) ? v_comp_pa[vs_tok_pa] : (half)0.0f;
-    const half v_zp_c = (vs_key_pa < k) ? v_comp_pa[PAGED_ATTENTION_BLOCK_SIZE + vs_tok_pa]
-                                        : (half)0.0f;
+    const half vs_c_raw = v_comp_pa[vs_tok_pa];
+    const half v_zp_raw = v_comp_pa[PAGED_ATTENTION_BLOCK_SIZE + vs_tok_pa];
+    const half vs_c_pa = (vs_key_pa < k) ? vs_c_raw : (half)0.0f;
+    const half v_zp_c = (vs_key_pa < k) ? v_zp_raw : (half)0.0f;
 
     #pragma unroll
     for (int r = 0; r < sv_score_blocks; ++r)
@@ -278,10 +289,11 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_q_b2d)(__private int8 *vb, __private uint *v
             // Each uint packs 4 consecutive tokens as signed bytes, token u*4+b in byte b -- the same
             // packing the plain-SDPA i8 V path decodes.
             #if IS_PA_K_U4
-            const half4 q4 = (half4)((half)((w >> (v_hi ?  4 :  0)) & 0x0Fu),
-                                     (half)((w >> (v_hi ? 12 :  8)) & 0x0Fu),
-                                     (half)((w >> (v_hi ? 20 : 16)) & 0x0Fu),
-                                     (half)((w >> (v_hi ? 28 : 24)) & 0x0Fu));
+            // Token b is byte b of w, i.e. the low or high byte of word b / 2.
+            const ushort2 w2 = as_ushort2(w);
+            const ushort nsh = (ushort)(v_hi ? 4 : 0);
+            const half4 q4 = (half4)(U4_TO_HALF(w2.s0, nsh), U4_TO_HALF(w2.s0, (ushort)(8 + nsh)),
+                                     U4_TO_HALF(w2.s1, nsh), U4_TO_HALF(w2.s1, (ushort)(8 + nsh)));
             #else
             const half4 q4 = (half4)((half)(char)((w >>  0) & 0xFFu),
                                      (half)(char)((w >>  8) & 0xFFu),
@@ -293,6 +305,33 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_q_b2d)(__private int8 *vb, __private uint *v
             // keys u*4..u*4+3 in order, so .lo/.hi are exactly key_pairs (u*2, u*2+1).
             vb[cd][u * 2 + 0] = as_int(deq4.lo);
             vb[cd][u * 2 + 1] = as_int(deq4.hi);
+        }
+    }
+}
+#endif
+
+#if PA_MIXED_PREFETCH_V
+// This key tile's V cache rows, the block columns pa_v_tile_q_b2d() reads for this subgroup, prefetched when the
+// iteration starts so that they arrive during the KQ loop; the S*V loop issued each read only right before its dequant.
+// Same surfaces and coordinates as the read.
+SDPA_OCL_INLINE void FUNC(pa_v_tile_prefetch)(const __global VAL_DATA_T *V, const __private uint *v_blk, const int k0,
+                                              const int k, const int dv, const size_t sg_j0_sv, const size_t b0_kv) {
+    #if IS_PA_K_U4
+    const int VP_w = PA_V_ROW_ELEMS;
+    const int VP_p = PA_V_ROW_ELEMS;
+    #else
+    const int VP_w = dv;
+    const int VP_p = V_HEAD_SIZE;
+    #endif
+    #pragma unroll
+    for (int cp = 0; cp < sv_key_blocks; ++cp) {
+        const int vp_rows = PA_PAGE_ROWS(k, k0 + cp * DPAS_K);
+        if (vp_rows > 0) {
+            #pragma unroll
+            for (int cd = 0; cd < sv_value_blocks; ++cd)
+                intel_sub_group_2d_block_prefetch_8b_32r16x1c(
+                    (global void *)(V + PA_V_PAGE_OFF(v_blk[cp], b0_kv)), VP_w, vp_rows, VP_p,
+                    (int2)(PA_V_U4_COL(sg_j0_sv + cd * SUBGROUP_SIZE), 0));
         }
     }
 }
