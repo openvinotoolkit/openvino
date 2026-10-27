@@ -18,6 +18,7 @@ Details and evidence: `src/plugins/intel_gpu/docs/ocl_perf_guide/09-general-less
    If the gap **grows** with length, first check whether the per-call kernel ratio is constant and only the kernel's share grows (attention is quadratic): qwen3-8b 1.4x at every length became +2%..+24% e2e (`docs/ocl_perf_guide/01` §6.6).
    If the per-call **ratio** drifts with size, check the clock actually reached (PL2 overrides the B70 pin in long runs) and re-sweep at a fixed clock below the power limit; a remaining knee = a working set crossing a cache size (chapter 06 §6.7).
 8. If IGC sinks loads and latency is exposed, go native (vISA) — `xe-visa-inline-asm`.
+9. Utilisation equal to the reference but slower: compare **per-type instruction totals** (VTune overview: XMX/ALU) — +35% XMX instructions at equal activity was redundant work (the causal triangle of the diagonal tile), not scheduling (chapter 06 §6.8).
 
 ## Design principles
 - Make the producer/consumer tile bound one value (`min(WGK, causal_k-k0)`); test tail/partial separately.
@@ -30,9 +31,15 @@ Details and evidence: `src/plugins/intel_gpu/docs/ocl_perf_guide/09-general-less
 - Measure HW facts first (DPAS 1 in-flight, L1 prefetch hurts, SLM 47.7 KB → occupancy halved, B70 L3 line 256 B).
 - Count a prefetch in cache-line requests: one request per line, into the level that misses, only where the working set exceeds the cache (64 B stride +17%, 256 B -0.5% at 8K / -11% at 32K; chapter 02 §7.6).
 - A faster kernel exposes more latency: after overtaking the reference, re-check the large-size end.
+- Layout does not fit the read? Permute the **contraction axis** instead of the data: a 32 B-row d-major page block-read through a wider-pitch surface + 32b transpose reached token-major speed without changing the cache contract (chapter 09 §9.3 #15). Probe the builtin's lane layout first.
+- Write each DPAS operand row once on every path (a post-read `if` fix-up = phi copies); keep code the configuration never needs out of the hot loop (the f16 Kc branch: 5-14%); a skip is a branch every iteration pays (the causal skip won at d128+ and lost 6.8% at d64 4K / 4.7% in MIXED) — measure per tiling and stage (chapter 09 §9.3 #16-18).
+- "Fewer messages, more ALU" is regime-dependent (512 B Q_slm read: 8 movs per read; won when Send/memory-bound, lost in cache-resident short prompts and small windows), bits do not add up, and a sign can flip with the kernel variant (sink). A per-tiling default reaches every variant: measure each, gate on compile-time features (`desc->sliding_window`) when the mechanism supports it (chapter 09 §9.3 #14).
+
+- Private arrays take compile-time indices only: IGC 2.41 left a uniformly indexed one in scratch (KV-cache writer `TPM=576`, PREFILL 1.4x master -> 0.77x after the fix). After any driver upgrade, re-read `SPILL=`/`TPM=` of every kernel and re-measure the baseline.
+- Threads writing the same cache lines should not write them in the same order: 16 partitions storing into the same 128 B rows queued (5.75 us); a per-partition start row fixed it (5.03) where co-location in one workgroup had not. Removing one cost (scratch reloads) can expose this kind of second one: sweep every shape after a fix.
 
 ## Accuracy
-Accuracy before timing. NaN poison + CPU double on **all rows** (sampled rows are not exhaustive), fixed tolerance. Math-invariant changes must be bit-identical to the previous variant. Sharp inputs (smooth N(0,0.1) hides Q/K·softmax errors). Check for LCG power-of-two degenerate data. Boundary scan (1,16,31–33,63–65,127–129,255–257,511–513,1025,1033,2048,4096,8192; odd depth; padding NaN). **Never revive a candidate on a single-length PASS** (seq256 PASS/257 NaN case).
+Accuracy before timing. NaN poison + CPU double on **all rows** (sampled rows are not exhaustive), fixed tolerance. Math-invariant changes must be bit-identical to the previous variant. Sharp inputs (smooth N(0,0.1) hides Q/K·softmax errors). Check for LCG power-of-two degenerate data. Boundary scan (1,16,31–33,63–65,127–129,255–257,511–513,1025,1033,2048,4096,8192; odd depth; padding NaN). **Never revive a candidate on a single-length PASS** (seq256 PASS/257 NaN case). Check the producer's bytes, not only the consumer's output: two broken KV-cache writers passed every paged-attention gtest row; a per-row cache dump compared byte for byte caught both.
 
 ## Experiment management
 1. **Freeze** the fixed policy and source SHA256 **before measuring**, stop at the first FAIL — no cherry-picking.
