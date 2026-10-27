@@ -54,7 +54,15 @@ std::optional<ov::runtime::hsm::Reader> open_hsm_reader(BlobSource& blob_source)
 
     std::visit(
         ov::util::VariantVisitor{[&](std::reference_wrapper<std::istream> stream) {
+                                     const auto position_before_read = stream.get().tellg();
+
                                      reader = ov::runtime::hsm::Reader::open(stream);
+                                     if (!reader.has_value()) {
+                                         // The attempt of reading the HSM format may have put the stream in a bad
+                                         // status
+                                         stream.get().clear();
+                                         stream.get().seekg(position_before_read);
+                                     }
                                  },
                                  [&](std::pair<std::reference_wrapper<const ov::Tensor>, size_t> tensor_and_cursor) {
                                      reader = ov::runtime::hsm::Reader::open(
@@ -729,6 +737,7 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const std::string_view
     const std::optional<std::vector<ov::Tensor>> init_schedules = extract_init_schedules();
     m_batch_size = extract_batch_size();
 
+    OPENVINO_ASSERT(m_backend);
     update_compiler_type_if_perf_count(m_config, m_backend, device_name);
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "get_parser");
