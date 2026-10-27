@@ -70,21 +70,6 @@ and focused on merge-blocking or materially risky behavior:
 - Check that generated code, bindings, documentation, and registrations remain
   consistent when an API or user-visible behavior changes.
 
-### Graph rewrite provenance and support-query behavior
-
-For graph transformations that clone, replace, fuse, or remove nodes:
-
-- Track friendly names, output tensor names, runtime information, and
-  `ov::FusedNames` from every corresponding source node.
-- Check whether removed nodes can affect `query_model`,
-  `ov::get_supported_nodes()`, constant caching, debugging, profiling, or model
-  serialization.
-- Inspect the relevant provenance initialization and consumer paths, including
-  `InitNodeInfo`, `FusedNames`, `get_supported_nodes()`, and plugin support-query
-  callbacks when applicable.
-- Require a regression that runs the transformation and verifies that removed
-  unsupported nodes remain unsupported through the public support-query path.
-
 ### Safety
 
 - Treat model metadata, file contents, and user-provided values as untrusted.
@@ -99,20 +84,6 @@ For graph transformations that clone, replace, fuse, or remove nodes:
   repeated invariant work, synchronization changes, and altered memory reuse.
 - Require evidence before claiming a measurable performance regression.
 
-### Transformation implementation structure
-
-For operation-equivalence or attribute-matching code:
-
-- Look for duplicated comparisons of common operation attributes.
-- Prefer shared base-class helpers for common fields and constrained template
-  helpers for version-specific extensions.
-- Prefer a small type-dispatch helper over repeated casts and null checks when
-  the caller has already established matching operation types.
-- Preserve version-specific attributes explicitly; do not hide semantic
-  differences behind an overly generic comparison.
-- Treat these findings as maintainability suggestions unless duplication causes
-  correctness, performance, or compatibility risk.
-
 ### Tests and validation
 
 - Expect regression coverage for bug fixes and behavioral changes when an
@@ -122,11 +93,6 @@ For operation-equivalence or attribute-matching code:
   changed behavior depends on them.
 - Consider required CI and build metadata only when the diff changes those
   surfaces.
-- For node replacement or fusion passes, check both numerical/structural graph
-  behavior and metadata/provenance behavior through public consumers such as
-  `ov::get_supported_nodes()` or plugin `query_model()`.
-- When operation matching supports multiple opset versions, verify shared
-  attributes and version-specific attributes independently.
 
 ## Component guidance
 
