@@ -54,7 +54,9 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
         const uint i = offset % OUTPUT_IFM_NUM;
         const uint o = offset / OUTPUT_IFM_NUM;
         const uint input_offset = GET_FILTER_INDEX(INPUT0, 0, o, i, 0, 0);
-        out |= ((input[input_offset / 4] >> ((input_offset % 4) * 2)) & 0x3) << (j * 2);
+        const uint in_shift = (input_offset % 4) * 2;
+        const uint val = (input[input_offset / 4] >> in_shift) & 0x3;
+        out |= val << (j * 2);
     }
     output[out_byte_offset] = out;
 #else
