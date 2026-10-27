@@ -31,9 +31,7 @@ The operation is performed in the following steps:
    * Elements with ``x < lo``, ``x > hi`` are ignored.
    * Any other element goes to the bin with the index ``idx = floor((x - lo) * bins / (hi - lo))``, where the result of the division is truncated toward zero. Bins are half-open ``[lo + i * w, lo + (i + 1) * w)``, where ``w = (hi - lo) / bins``, except for the last bin, which is closed and includes ``hi``. This is enforced by ``idx = bins - 1`` whenever ``x == hi``.
 
-   * The bin index is computed in type *T*, so elements lying very close to a bin boundary may be assigned to a neighboring bin due to rounding. This matches the behavior of PyTorch, which does not guarantee consistency with exact bin boundaries.
-
-The output element ``output[i]`` is the number of elements assigned to the bin ``i``, represented in type *T*. For floating-point types of low precision (for example ``f16`` or ``bf16``) counts that cannot be represented exactly in *T* are rounded.
+The output element ``output[i]`` is the number of elements assigned to the bin ``i``, represented in type *T*.
 
 **Attributes**
 
@@ -67,7 +65,7 @@ The output element ``output[i]`` is the number of elements assigned to the bin `
 
 **Outputs**
 
-* **1**: A 1D tensor of type *T* and shape ``[bins]``, containing the number of input elements in each bin. If the input tensor is empty, all elements of the output are ``0``.
+* **1**: A 1D tensor of type *T* and shape ``[bins]``, containing the number of input elements in each bin.
 
 **Types**
 
