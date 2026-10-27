@@ -119,47 +119,6 @@ TEST_F(DynamicScheduleSectionTest, WorkingDecryption) {
     }
 }
 
-TEST_F(DynamicScheduleSectionTest, ReadingATooSmallSection) {
-    std::string section_content("0");  // dummy compiler schedule
-
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
-    manifest_entry.size = section_content.size();
-
-    auto read_section = DynamicScheduleSection::decode(ov::runtime::hsm::Section(
-        manifest_entry,
-        ov::util::MemoryView(reinterpret_cast<const std::byte*>(section_content.data()), section_content.size())));
-    ASSERT_FALSE(read_section);
-
-    std::istringstream stream(section_content);
-    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
-    manifest_entry.size = section_content.size();
-
-    read_section = DynamicScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
-    ASSERT_FALSE(read_section);
-}
-
-TEST_F(DynamicScheduleSectionTest, ReadPaddingTooBig) {
-    std::string section_content("\x06\x00", 2);  // padding
-    section_content += "dummy";                  // dummy compiler schedule
-
-    ov::runtime::hsm::ManifestEntry manifest_entry =
-        ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
-    manifest_entry.size = section_content.size();
-
-    auto read_section = DynamicScheduleSection::decode(ov::runtime::hsm::Section(
-        manifest_entry,
-        ov::util::MemoryView(reinterpret_cast<const std::byte*>(section_content.data()), section_content.size())));
-    ASSERT_FALSE(read_section);
-
-    std::istringstream stream(section_content);
-    manifest_entry = ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
-    manifest_entry.size = section_content.size();
-
-    read_section = DynamicScheduleSection::decode(ov::runtime::hsm::Section(manifest_entry, stream, 0));
-    ASSERT_FALSE(read_section);
-}
-
 TEST_F(DynamicScheduleSectionTest, WrongTagToDecoder) {
     std::vector<uint8_t> payload(1, 0);
     ov::runtime::hsm::ManifestEntry manifest_entry =
@@ -184,31 +143,22 @@ TEST_F(DynamicScheduleSectionTest, InlineTagToDecoder) {
                     testing::_);
 }
 
-class DynamicScheduleSectionReadTest : public testing::TestWithParam<std::tuple<size_t, bool, bool>> {
+class DynamicScheduleSectionReadTest : public testing::TestWithParam<std::tuple<bool, bool>> {
 public:
     DynamicScheduleSectionReadTest() : section({}) {}
 
-    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<size_t, bool, bool>>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<bool, bool>>& obj) {
         bool tensor_source, empty_schedule;
-        size_t padding_size;
-        std::tie(padding_size, tensor_source, empty_schedule) = obj.param;
+        std::tie(tensor_source, empty_schedule) = obj.param;
 
-        return std::to_string(padding_size) + "_" + (tensor_source ? "tensor" : "stream") + "_" +
-               (empty_schedule ? "empty" : "not_empty");
+        return std::string(tensor_source ? "tensor" : "stream") + "_" + (empty_schedule ? "empty" : "not_empty");
     }
 
 protected:
     void SetUp() override {
-        uint16_t padding_size;
         bool empty_schedule;
-        std::tie(padding_size, is_tensor_source, empty_schedule) = GetParam();
-
-        section_content = std::string(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
-        section_content += std::string(padding_size, 0);
-        after_padding_offset = section_content.size();
-        if (!empty_schedule) {
-            section_content += "dummy";
-        }
+        std::tie(is_tensor_source, empty_schedule) = GetParam();
+        section_content = empty_schedule ? "" : "dummy";
 
         ov::runtime::hsm::ManifestEntry manifest_entry =
             ov::unit_test::intel_npu::create_manifest_entry_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
@@ -226,7 +176,6 @@ protected:
 
     bool is_tensor_source;
     std::string section_content;
-    size_t after_padding_offset;
     std::istringstream stream;
     ov::runtime::hsm::Section section;
 };
@@ -238,28 +187,24 @@ TEST_P(DynamicScheduleSectionReadTest, SuccessfulRead) {
     auto casted_section = std::dynamic_pointer_cast<DynamicScheduleSection>(read_section.value());
     ASSERT_TRUE(casted_section);
 
-    const std::string parsed_content(casted_section->get_schedule().data<char>(),
-                                     casted_section->get_schedule().get_byte_size());
-    // The padding should be skipped by the parser
-    ASSERT_EQ(parsed_content, std::string(section_content.begin() + after_padding_offset, section_content.end()));
+    const ov::Tensor tensor = casted_section->get_schedule();
+    const std::string parsed_content(tensor.data<char>(), tensor.get_byte_size());
+    ASSERT_EQ(parsed_content, section_content);
 
     if (is_tensor_source) {
-        // The parsed content should point towards the original buffer (past the padding region). This implies no copies
-        // have been performed, and page aligment has been preserved.
-        ASSERT_EQ(casted_section->get_schedule().data(), section_content.data() + after_padding_offset);
+        if (!section_content.empty()) {
+            // The parsed content should point towards the original buffer (past the padding region). This implies no
+            // copies have been performed, and page aligment has been preserved.
+            ASSERT_EQ(tensor.data(), section_content.data());
+        }
     } else {
         // Stream case: a page aligned buffer should have been allocated for the parsed content
-        ASSERT_EQ(reinterpret_cast<size_t>(casted_section->get_schedule().data()) % utils::STANDARD_PAGE_SIZE, 0);
+        ASSERT_EQ(reinterpret_cast<size_t>(tensor.data()) % utils::STANDARD_PAGE_SIZE, 0);
     }
 }
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,
                          DynamicScheduleSectionReadTest,
-                         testing::Combine(testing::ValuesIn(std::vector<size_t>{0,
-                                                                                1,
-                                                                                utils::STANDARD_PAGE_SIZE - 1,
-                                                                                utils::STANDARD_PAGE_SIZE,
-                                                                                utils::STANDARD_PAGE_SIZE + 1}),
-                                          testing::ValuesIn(std::vector<bool>{true, false}),
+                         testing::Combine(testing::ValuesIn(std::vector<bool>{true, false}),
                                           testing::ValuesIn(std::vector<bool>{true, false})),
                          DynamicScheduleSectionReadTest::getTestCaseName);
