@@ -546,15 +546,50 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
         !is_throughput && has_alternative_device && has_resource_aware_property;
     if (auto_s_context->m_dynamic_device_selection) {
         LOG_INFO_TAG("[dynamic] per inference device selection enabled by the resource aware selection properties");
-        // load_config treats every property as user set by now, so the explicit setting is read from the original inputs
-        const bool is_startup_fallback_set_by_user =
-            m_plugin_config.is_set_by_user(ov::intel_auto::enable_startup_fallback) ||
-            properties.count(ov::intel_auto::enable_startup_fallback.name());
-        OPENVINO_ASSERT(!(is_startup_fallback_set_by_user &&
-                          load_config.get_property(ov::intel_auto::enable_startup_fallback)),
+        // load_config treats every property as user set by now, so read the explicit ones from the inputs
+        const auto is_enabled_by_user = [&](const auto& property) {
+            const auto iter = properties.find(property.name());
+            if (iter != properties.end()) {
+                return iter->second.template as<bool>();
+            }
+            return m_plugin_config.is_set_by_user(property) && m_plugin_config.get_property(property);
+        };
+        OPENVINO_ASSERT(!is_enabled_by_user(ov::intel_auto::enable_startup_fallback),
                         "ENABLE_STARTUP_FALLBACK is not supported together with the resource aware device selection");
-        // the CPU accelerator assumes a fixed target device for the whole model lifetime
+        OPENVINO_ASSERT(!is_enabled_by_user(ov::intel_auto::enable_runtime_fallback),
+                        "ENABLE_RUNTIME_FALLBACK is not supported together with the resource aware device selection");
+        OPENVINO_ASSERT(!properties.count(ov::hint::model_priority.name()) &&
+                            !m_plugin_config.is_set_by_user(ov::hint::model_priority),
+                        "MODEL_PRIORITY is not supported together with the resource aware device selection");
+        const auto has_multiple_streams = [](const ov::AnyMap& config) {
+            const auto iter = config.find(ov::num_streams.name());
+            return iter != config.end() && iter->second.as<ov::streams::Num>().num > 1;
+        };
+        bool multiple_streams = has_multiple_streams(properties);
+        for (const auto& device : support_devices) {
+            multiple_streams = multiple_streams || has_multiple_streams(device.config);
+        }
+        multiple_streams =
+            multiple_streams || (low_power_info.has_value() && has_multiple_streams(low_power_info->config));
+        OPENVINO_ASSERT(!multiple_streams,
+                        "More than one NUM_STREAMS is not supported together with the resource aware device selection");
+        // the inference is serialized, so unless the user chose a stream count one stream is enough
+        const auto set_single_stream = [&](DeviceInformation& device) {
+            if (properties.count(ov::num_streams.name()) || device.config.count(ov::num_streams.name())) {
+                return;
+            }
+            const auto supported = get_core()->get_supported_property(device.device_name, {ov::num_streams(1)});
+            device.config.insert(supported.begin(), supported.end());
+        };
+        for (auto& device : support_devices) {
+            set_single_stream(device);
+        }
+        if (auto_s_context->m_low_power_device) {
+            set_single_stream(*auto_s_context->m_low_power_device);
+        }
+        // disable startup fallback and runtime fallback
         auto_s_context->m_startup_fallback = false;
+        auto_s_context->m_runtime_fallback = false;
     } else if (has_resource_aware_property) {
         if (is_stateful_model) {
             LOG_WARNING_TAG("resource aware device selection properties are ignored for stateful models");

@@ -5,6 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <condition_variable>
 #include <deque>
 
 #include "schedule.hpp"
@@ -41,7 +42,13 @@ private:
      * @return true if the request was handed over for dispatching, false if it was queued.
      */
     bool schedule_dynamic_task(ov::threading::Task pipeline_task, const DeviceName& preferred_device);
-    void dispatch_dynamic_task(ov::threading::Task pipeline_task, const DeviceName& preferred_device);
+    void dispatch_dynamic_task(ov::threading::Task& pipeline_task, const DeviceName& preferred_device);
+    // runs dispatch_dynamic_task() on the executor;
+    // the caller must have incremented m_active_dispatch under m_gate_mutex
+    void submit_dynamic_dispatch(const std::shared_ptr<ov::threading::IStreamsExecutor>& executor,
+                                 ov::threading::Task pipeline_task,
+                                 const DeviceName& preferred_device);
+    void end_dynamic_dispatch();
     DeviceInformation select_dynamic_device();
     /**
      * @brief Compile the model on the given device unless it is already cached, and create its workers.
@@ -49,9 +56,8 @@ private:
      */
     bool ensure_device_ready(DeviceInformation& device);
     // disables the configured low_power_device override if it matches the failed device
-    void check_and_disable_if_low_power_device_failed(const std::string& failed_device_name);
-    // moves the persistent MODEL_PRIORITY registration of this model to the device that is about to run it
-    void transfer_priority_registration(const std::string& unique_name);
+    // @return true only for the call that disabled it, i.e. the first failure of that device
+    bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name);
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;
@@ -66,9 +72,10 @@ private:
     // guarded by m_gate_mutex; set once in ~AutoSchedule() so in-flight dynamic tasks stop touching
     // m_dynamic_executor once teardown has started
     bool                                                                 m_dynamic_shutdown = false;
+    // guarded by m_gate_mutex; dispatch tasks on m_dynamic_executor still running and holding a raw this
+    size_t                                                               m_active_dispatch = 0;
+    std::condition_variable                                              m_dispatch_done;
     DeviceName                                                           m_gate_current_device;
-    // guarded by m_gate_mutex; unique name of the device holding this model's MODEL_PRIORITY registration
-    std::string                                                          m_registered_unique_name;
     std::deque<std::pair<ov::threading::Task, DeviceName>>               m_gate_pending_tasks;
     DeviceMap<SoCompiledModel>                                           m_dynamic_compiled_models;
     std::atomic<size_t>                                                  m_dynamic_infer_count = {0};
