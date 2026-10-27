@@ -142,8 +142,9 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)"),
             // Use weight from model not from path hint
             std::regex(R"(.*compile_from_weightless_blob.*)"),
-            // u3 Transpose reference implementation is not upstreamed yet (non-transposed u3 weights fold a Transpose)
-            std::regex(R"(.*MatMulCompressedWeights.*weights_precision=u3_.*transpose_weights=0_.*)"),
+            // Non-transposed u3 weights fold a Transpose, and core Transpose does not evaluate u3. With dynamic
+            // quantization off the weights are decompressed to f16 first, so dyn_quan_group_size=0 still runs.
+            std::regex(R"(.*MatMulCompressedWeights.*weights_precision=u3_.*transpose_weights=0_(?!.*dyn_quan_group_size=0_).*)"),
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value

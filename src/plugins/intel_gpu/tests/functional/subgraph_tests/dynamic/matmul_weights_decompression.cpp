@@ -276,16 +276,19 @@ protected:
         MatmulWeightsDecompression::SetUp();
         this->configuration.insert({"GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX", uint64_t{64}});
     }
+
+    void validate() override {
+        MatmulWeightsDecompression::validate();
+        for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
+            for (const auto& output : n->outputs()) {
+                ASSERT_NE(output.get_element_type(), ov::element::u3) << n->get_friendly_name();
+            }
+        }
+    }
 };
 
 TEST_P(MatmulWeightsDecompressionU3DynQuanOptOut, Inference) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
-    for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
-        for (const auto& output : n->outputs()) {
-            ASSERT_NE(output.get_element_type(), ov::element::u3) << n->get_friendly_name();
-        }
-    }
 }
 
 const std::vector<ov::element::Type> activations_precisions = {ov::element::f32, ov::element::f16};

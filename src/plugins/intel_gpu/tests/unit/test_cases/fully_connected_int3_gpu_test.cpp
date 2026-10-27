@@ -237,10 +237,6 @@ public:
     static bool is_xe3() {
         return get_test_engine().get_device_info().arch >= gpu_arch::xe3;
     }
-
-    static bool is_igpu() {
-        return get_test_engine().get_device_info().dev_type == device_type::integrated_gpu;
-    }
 };
 
 const Int3FcParams base{0, 0, 1024, 1024, 128, ZpKind::Scalar, false, false};
