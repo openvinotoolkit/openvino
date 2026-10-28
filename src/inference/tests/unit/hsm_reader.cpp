@@ -20,7 +20,7 @@ namespace {
 
 enum class FakePluginTag : uint32_t { shard = 0 };
 
-constexpr hsm::DeviceId fake_device_id = 7;
+constexpr hsm::DeviceId fake_device_id = hsm::private_device_id_range_start + 7;
 
 struct EntrySpec {
     hsm::ManifestEntry entry;
@@ -106,13 +106,18 @@ class RecordingHandler : public hsm::ISectionReaderHandler {
 public:
     RecordingHandler(hsm::DeviceId device, uint32_t tag_id) : m_device(device), m_tag_id(tag_id) {}
 
-    bool handle_section(const hsm::ManifestEntry& entry, ov::util::MemoryView section) override {
+    bool handle_section(const hsm::ManifestEntry& entry, const hsm::Section& section) override {
         if (entry.device != m_device || entry.tag.id() != m_tag_id) {
             return false;
         }
-        last_payload = {reinterpret_cast<const char*>(section.data()), section.size()};
-        ++handled_count;
-        return true;
+
+        if (const auto bytes = section.to_bytes()) {
+            last_payload = to_string(*bytes);
+            ++handled_count;
+            return true;
+        } else {
+            return false;  // matches the previous read-failure-skips-the-entry behavior
+        }
     }
 
     std::string last_payload;
@@ -192,8 +197,8 @@ TEST(HsmSectionTest, pointer_mode_reads_from_an_explicitly_supplied_buffer) {
     const hsm::Section section(entry, view);
 
     const auto direct = section.view();
-    ASSERT_TRUE(direct.has_value());
-    EXPECT_EQ(to_string(std::vector<std::byte>(direct->begin(), direct->end())), payload);
+    ASSERT_FALSE(direct.empty());
+    EXPECT_EQ(to_string(std::vector<std::byte>(direct.begin(), direct.end())), payload);
 }
 
 TEST(HsmSectionTest, read_rejects_a_null_destination) {
@@ -210,7 +215,7 @@ TEST(HsmSectionTest, pointer_mode_entry_built_with_the_inline_only_constructor_h
     entry.size = 4;
     const hsm::Section section(entry);
 
-    EXPECT_FALSE(section.view().has_value());
+    EXPECT_TRUE(section.view().empty());
     std::vector<std::byte> destination(4);
     EXPECT_FALSE(section.read(destination.data()));
     EXPECT_FALSE(section.to_bytes().has_value());
@@ -222,10 +227,12 @@ TEST(ISectionReaderHandlerTest, recognizes_own_device_and_tag) {
     hsm::ManifestEntry entry{};
     entry.device = fake_device_id;
     entry.tag = hsm::SectionTag::make(/*id=*/42, /*is_inline=*/false);
+    entry.size = 4;
 
     const std::byte payload[4] = {};
+    const hsm::Section section(entry, ov::util::MemoryView{payload, 4});
     RecordingHandler handler(fake_device_id, /*tag_id=*/42);
-    EXPECT_TRUE(handler.handle_section(entry, ov::util::MemoryView{payload, 4}));
+    EXPECT_TRUE(handler.handle_section(entry, section));
     EXPECT_EQ(handler.last_payload.size(), 4u);
     EXPECT_EQ(handler.handled_count, 1u);
 }
@@ -235,8 +242,9 @@ TEST(ISectionReaderHandlerTest, skips_entry_it_does_not_own) {
     entry.device = fake_device_id + 1;  // different device
     entry.tag = hsm::SectionTag::make(/*id=*/42, /*is_inline=*/false);
 
+    const hsm::Section section(entry, ov::util::MemoryView{});
     RecordingHandler handler(fake_device_id, /*tag_id=*/42);
-    EXPECT_FALSE(handler.handle_section(entry, ov::util::MemoryView{}));
+    EXPECT_FALSE(handler.handle_section(entry, section));
     EXPECT_EQ(handler.handled_count, 0u);  // never called
 }
 
@@ -280,8 +288,8 @@ TEST(HsmReaderTest, model_id_section_reads_inline_payload) {
     ASSERT_TRUE(section.has_value());
     ASSERT_EQ(section->size(), 24u);  // full inline capacity - see ManifestEntry::inline_bytes
     const auto view = section->view();
-    ASSERT_TRUE(view.has_value());  // inline is always viewable, regardless of source
-    EXPECT_EQ(static_cast<uint8_t>(view->data()[0]), 0xAA);
+    ASSERT_FALSE(view.empty());  // inline is always viewable, regardless of source
+    EXPECT_EQ(static_cast<uint8_t>(view.data()[0]), 0xAA);
 }
 
 TEST(HsmReaderTest, model_section_reads_pointer_payload) {
@@ -327,8 +335,8 @@ TEST(HsmReaderTest, move_constructed_reader_still_reads_sections) {
     const auto section = moved.section(hsm::model);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
-    ASSERT_TRUE(view.has_value());
-    EXPECT_EQ(std::string(reinterpret_cast<const char*>(view->data()), view->size()), "compiled-model-bytes");
+    ASSERT_FALSE(view.empty());
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(view.data()), view.size()), "compiled-model-bytes");
 }
 
 TEST(HsmReaderTest, move_assignment_replaces_existing_reader) {
@@ -347,8 +355,8 @@ TEST(HsmReaderTest, move_assignment_replaces_existing_reader) {
     const auto section = reader_a->section(hsm::model_id);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
-    ASSERT_TRUE(view.has_value());
-    EXPECT_EQ(static_cast<uint8_t>(view->data()[0]), 0xBB);
+    ASSERT_FALSE(view.empty());
+    EXPECT_EQ(static_cast<uint8_t>(view.data()[0]), 0xBB);
 }
 
 TEST(HsmReaderTest, section_returns_nullopt_for_unknown_device_or_tag) {
@@ -379,6 +387,35 @@ TEST(HsmReaderTest, section_accepts_any_enum_typed_tag_with_or_without_a_device)
     const auto shard = reader->section(fake_device_id, FakePluginTag::shard);
     ASSERT_TRUE(shard.has_value());
     EXPECT_EQ(to_string(*shard), "plugin-shard");
+}
+
+TEST(HsmReaderTest, device_overrides_core_tag_by_reusing_it_under_its_own_device_id) {
+    // The device-id override convention - see the note on hsm::DeviceId: a device needing content different
+    // from a Core tag's shared meaning reuses that tag id under its own id instead of inventing a new tag.
+    constexpr hsm::DeviceId other_device_id = fake_device_id + 1;
+
+    const auto blob = make_container({
+        {make_pointer_entry(hsm::any_device_id, hsm::compiled_options_tag), "shared-options"},
+        {make_pointer_entry(fake_device_id, hsm::compiled_options_tag), "device-options"},
+    });
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    // One tag id, two entries - they stay distinct because lookup is always by (device, tag), never tag alone.
+    const auto shared = reader->section(hsm::Tags::compiled_options);
+    ASSERT_TRUE(shared.has_value());
+    EXPECT_EQ(to_string(*shared), "shared-options");
+
+    const auto overridden = reader->section(fake_device_id, hsm::Tags::compiled_options);
+    ASSERT_TRUE(overridden.has_value());
+    EXPECT_EQ(to_string(*overridden), "device-options");
+
+    EXPECT_EQ(reader->count(hsm::Tags::compiled_options), 1U);
+    EXPECT_EQ(reader->count(fake_device_id, hsm::Tags::compiled_options), 1U);
+
+    // A device that published no override of its own finds nothing under its id because section(device, tag)
+    // performs an exact (device, tag) lookup; callers that want shared content must explicitly query any_device_id.
+    EXPECT_FALSE(reader->section(other_device_id, hsm::Tags::compiled_options).has_value());
 }
 
 TEST(HsmReaderTest, section_returns_only_the_first_of_several_matching_entries) {
@@ -514,13 +551,13 @@ TEST(HsmReaderTest, section_view_points_into_the_original_buffer) {
     const auto section = reader->section(hsm::model);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
-    ASSERT_TRUE(view.has_value());
-    EXPECT_EQ(std::string(reinterpret_cast<const char*>(view->data()), view->size()), "compiled-model-bytes");
+    ASSERT_FALSE(view.empty());
+    EXPECT_EQ(std::string(reinterpret_cast<const char*>(view.data()), view.size()), "compiled-model-bytes");
 
     const auto* blob_begin = reinterpret_cast<const std::byte*>(blob.data());
     const auto* blob_end = blob_begin + blob.size();
-    EXPECT_GE(view->data(), blob_begin);
-    EXPECT_LE(view->data() + view->size(), blob_end);
+    EXPECT_GE(view.data(), blob_begin);
+    EXPECT_LE(view.data() + view.size(), blob_end);
 }
 
 TEST(HsmReaderTest, section_view_available_even_for_inline_entries) {
@@ -531,9 +568,9 @@ TEST(HsmReaderTest, section_view_available_even_for_inline_entries) {
     const auto section = reader->section(hsm::model_id);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
-    ASSERT_TRUE(view.has_value());
-    ASSERT_EQ(view->size(), 24u);
-    EXPECT_EQ(static_cast<uint8_t>(view->data()[0]), 0xAA);
+    ASSERT_FALSE(view.empty());
+    ASSERT_EQ(view.size(), 24u);
+    EXPECT_EQ(static_cast<uint8_t>(view.data()[0]), 0xAA);
 }
 
 // --- Section::read(): section()/view() are whole-section only; this is for reading arbitrary ranges one
@@ -654,8 +691,8 @@ TEST(HsmReaderTest, decode_with_an_explicit_device_finds_a_device_owned_section)
 
     const hsm::SectionDecoder<std::string> decode_bytes = [](const hsm::Section& section) {
         const auto view = section.view();
-        return view ? std::make_optional(std::string(reinterpret_cast<const char*>(view->data()), view->size()))
-                    : std::nullopt;
+        return view.empty() ? std::nullopt
+                            : std::make_optional(std::string(reinterpret_cast<const char*>(view.data()), view.size()));
     };
 
     const auto decoded = reader->decode(fake_device_id,
@@ -676,8 +713,8 @@ TEST(HsmReaderTest, decode_all_returns_every_matching_entry_decoded_in_order) {
 
     const hsm::SectionDecoder<std::string> decode_shard = [](const hsm::Section& section) {
         const auto view = section.view();
-        return view ? std::make_optional(std::string(reinterpret_cast<const char*>(view->data()), view->size()))
-                    : std::nullopt;
+        return view.empty() ? std::nullopt
+                            : std::make_optional(std::string(reinterpret_cast<const char*>(view.data()), view.size()));
     };
 
     const auto shards = reader->decode_all(fake_device_id, shard_tag.id(), decode_shard);
@@ -705,8 +742,8 @@ TEST(HsmReaderTest, decode_all_any_device_id_overload_matches_the_explicit_any_d
 
     const hsm::SectionDecoder<std::string> decode_bytes = [](const hsm::Section& section) {
         const auto view = section.view();
-        return view ? std::make_optional(std::string(reinterpret_cast<const char*>(view->data()), view->size()))
-                    : std::nullopt;
+        return view.empty() ? std::nullopt
+                            : std::make_optional(std::string(reinterpret_cast<const char*>(view.data()), view.size()));
     };
 
     const auto decoded = reader->decode_all(hsm::model, decode_bytes);
@@ -832,8 +869,8 @@ TEST(HsmReaderStreamTest, model_id_and_model_sections_read_correctly) {
     ASSERT_TRUE(model_id.has_value());
     ASSERT_EQ(model_id->size(), 24u);
     const auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
-    ASSERT_TRUE(model_id_view.has_value());
-    EXPECT_EQ(static_cast<uint8_t>(model_id_view->data()[0]), 0xAA);
+    ASSERT_FALSE(model_id_view.empty());
+    EXPECT_EQ(static_cast<uint8_t>(model_id_view.data()[0]), 0xAA);
 
     const auto model = reader->section(hsm::model);
     ASSERT_TRUE(model.has_value());
@@ -851,7 +888,7 @@ TEST(HsmReaderStreamTest, section_read_reads_only_the_requested_slice_without_a_
     // a section without also reading (or allocating for) the rest.
     const auto section = reader->section(hsm::model);
     ASSERT_TRUE(section.has_value());
-    EXPECT_FALSE(section->view().has_value());
+    EXPECT_TRUE(section->view().empty());
 
     std::vector<std::byte> destination(5);
     ASSERT_TRUE(section->read(9, 5, destination.data()));
@@ -948,8 +985,8 @@ TEST(HsmReaderStreamTest, move_assignment_replaces_existing_reader) {
     const auto section = reader_a->section(hsm::model_id);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
-    ASSERT_TRUE(view.has_value());
-    EXPECT_EQ(static_cast<uint8_t>(view->data()[0]), 0xBB);
+    ASSERT_FALSE(view.empty());
+    EXPECT_EQ(static_cast<uint8_t>(view.data()[0]), 0xBB);
 }
 
 TEST(HsmReaderStreamTest, view_siblings_work_for_inline_but_not_pointer_mode_entries) {
@@ -961,13 +998,13 @@ TEST(HsmReaderStreamTest, view_siblings_work_for_inline_but_not_pointer_mode_ent
     const auto model_id = reader->section(hsm::model_id);
     ASSERT_TRUE(model_id.has_value());
     const auto model_id_view = model_id->view();
-    ASSERT_TRUE(model_id_view.has_value());
-    ASSERT_EQ(model_id_view->size(), 24u);
-    EXPECT_EQ(static_cast<uint8_t>(model_id_view->data()[0]), 0xAA);
+    ASSERT_FALSE(model_id_view.empty());
+    ASSERT_EQ(model_id_view.size(), 24u);
+    EXPECT_EQ(static_cast<uint8_t>(model_id_view.data()[0]), 0xAA);
 
     const auto model = reader->section(hsm::model);
     ASSERT_TRUE(model.has_value());
-    EXPECT_FALSE(model->view().has_value());
+    EXPECT_TRUE(model->view().empty());
 }
 
 TEST(HsmReaderStreamTest, common_sections_absent_when_manifest_is_empty) {

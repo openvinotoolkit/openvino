@@ -250,6 +250,14 @@ void AutoSchedule::init() {
         auto recycleTask = [this]() mutable {
             bool helper_released = false;
             wait_actual_compiled_model_ready();
+            if (!m_exitflag && !m_compile_context[ACTUALDEVICE].m_is_already && m_cache_warmup) {
+                // The actual device failed and the CPU helper stays as the final device, so it is never released.
+                m_compile_context[CPU].m_future.wait();
+                if (m_compile_context[CPU].m_is_already) {
+                    m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                                          m_compile_context[ACTUALDEVICE].m_meta_devices);
+                }
+            }
             while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
                 // handle the case of ACTUAL faster than CPU
                 m_compile_context[CPU].m_future.wait();
@@ -355,11 +363,11 @@ void AutoSchedule::init() {
     {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
         // The recycle task may have released CPU_HELP already; never pin its compiled model.
-        if (!m_compile_context[CPU].m_compiled_model._ptr &&
+        if (!m_compile_context[CPU].m_is_already &&
             first_compiled_model._ptr != m_compile_context[ACTUALDEVICE].m_compiled_model._ptr) {
             first_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
         }
-        m_context->m_hw_compiled_model = first_compiled_model;
+        m_context->m_hw_compiled_model = std::move(first_compiled_model);
     }
     if (m_cache_warmup && !m_compile_context[CPU].m_is_enabled && m_compile_context[ACTUALDEVICE].m_is_already) {
         // Failed startup devices were already removed from the actual context's candidates.

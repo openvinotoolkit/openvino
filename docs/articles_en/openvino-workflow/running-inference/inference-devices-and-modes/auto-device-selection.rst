@@ -168,6 +168,7 @@ the following setup options:
 |                                              |                                                                    |
 |                                              | Enables/disables CPU as acceleration (or the helper device) in the |
 |                                              | beginning. The default value is ``true``, indicating that CPU is   |
+|                                              | used as acceleration by default.                                   |
 |                                              |                                                                    |
 |                                              | As a trade-off, two model instances will be kept, resulting in     |
 |                                              | additional memory usage of approximately one model’s size.         |
@@ -206,11 +207,16 @@ the following setup options:
 |                                              | released, to populate cache blobs for faster device switching      |
 |                                              | later. Devices whose cache blob already exists are skipped.        |
 |                                              |                                                                    |
-|                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``; otherwise        |
-|                                              | compiling the model throws an exception.                           |
+|                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``. Without them,    |
+|                                              | compiling the model throws if at least two non-CPU candidate       |
+|                                              | devices exist; otherwise the property is ignored.                  |
 |                                              |                                                                    |
-|                                              | At most two compiled models are held at the same time, so the peak |
-|                                              | memory usage does not exceed twice the compiled model size.        |
+|                                              | Also ignored in cumulative throughput mode, when there is no       |
+|                                              | other candidate device to compile, and when ``ov::cache_blob_id``  |
+|                                              | is set for AUTO or for any candidate device.                       |
+|                                              |                                                                    |
+|                                              | At most two compiled models are alive at the same time. The memory |
+|                                              | needed by the background compilation itself is not included.       |
 |                                              |                                                                    |
 |                                              | The default value is ``false``.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+

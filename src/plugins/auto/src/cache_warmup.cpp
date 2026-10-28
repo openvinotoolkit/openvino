@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <optional>
 
 #include "openvino/runtime/compilation_context.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -200,22 +201,23 @@ std::filesystem::path CacheWarmupManager::get_cache_location(const ov::ICore& co
     if (const auto it = config.find(ov::cache_path.name()); it != config.end()) {
         return it->second.as<std::filesystem::path>();
     }
-    const auto query = [&core](const std::string& scope) -> std::filesystem::path {
+
+    const auto query = [&core](const std::string& scope) -> std::optional<std::filesystem::path> {
         try {
             if (const auto cache_dir = core.get_property(scope, ov::cache_dir); !cache_dir.empty()) {
                 return ov::util::make_path(cache_dir);
             }
-            return core.get_property(scope, ov::cache_path);
+            return std::filesystem::path(core.get_property(scope, ov::cache_path));
         } catch (const std::exception&) {
-            return {};
+            return std::nullopt;
         }
     };
     if (!device_name.empty()) {
-        if (auto location = query(device_name); !location.empty()) {
-            return location;
+        if (auto location = query(device_name)) {
+            return *location;
         }
     }
-    return query("");
+    return query("").value_or(std::filesystem::path{});
 }
 
 bool CacheWarmupManager::is_blob_cached(const ov::ICore& core,
@@ -231,8 +233,19 @@ bool CacheWarmupManager::is_blob_cached(const ov::ICore& core,
     const auto base_name = ov::DeviceIDParser(device_name).get_device_name();
     const auto compile_config =
         core.create_compile_config(base_name, core.get_supported_property(base_name, config));
-    const auto blob_id = model ? ov::ModelCache::compute_hash(model, compile_config)
-                               : ov::ModelCache::compute_hash(model_path, compile_config);
+    // Same precedence as Core: a user blob ID wins, then the hash (which covers ov::cache_model_path for a model).
+    const auto blob_id = [&]() -> std::string {
+        if (const auto it = config.find(ov::cache_blob_id.name()); it != config.end()) {
+            return it->second.as<std::string>();
+        }
+        if (model) {
+            const auto it = config.find(ov::cache_model_path.name());
+            const auto cache_model_path =
+                it == config.end() ? std::filesystem::path{} : it->second.as<std::filesystem::path>();
+            return ov::ModelCache::compute_hash(model, cache_model_path, compile_config);
+        }
+        return ov::ModelCache::compute_hash(model_path, compile_config);
+    }();
     return ov::util::file_exists(cache_location / (blob_id + ".blob"));
 }
 
