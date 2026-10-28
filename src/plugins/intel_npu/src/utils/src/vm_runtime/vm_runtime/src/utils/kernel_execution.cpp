@@ -658,7 +658,7 @@ bool ExecutionContext::destroySyncObjects() {
         success = false;
     }
 
-    if (_internalHostSyncObjectType == HostSyncOjbectType::FENCE && _hostSyncFence != nullptr) {
+    if (_levelZeroDdiTable != nullptr && _internalHostSyncObjectType == HostSyncOjbectType::FENCE && _hostSyncFence != nullptr) {
         auto pfnFenceDestroy = _levelZeroDdiTable->zeFenceDestroy;
         auto result = pfnFenceDestroy(_hostSyncFence);
         if (result != ZE_RESULT_SUCCESS) {
@@ -673,13 +673,6 @@ bool ExecutionContext::destroySyncObjects() {
 }
 
 ExecutionContext::ExecutionContext() {
-    auto ddiTable = ov::ZeroApi::get_instance();
-    if (ddiTable == nullptr) {
-        NPU_VM_LOG_ERROR("Failed to get Level Zero DDI table");
-        throw std::runtime_error("Failed to get Level Zero DDI table");
-    }
-
-    _levelZeroDdiTable = ddiTable.get();
 }
 
 ExecutionContext::~ExecutionContext() {
@@ -687,7 +680,7 @@ ExecutionContext::~ExecutionContext() {
     if (!_cmdListPool.destroy()) {
         NPU_VM_LOG_ERROR("Failed to destroy command list pool during execution context destruction");
     }
-    if (_immediateCmdList != nullptr) {
+    if (_levelZeroDdiTable != nullptr && _immediateCmdList != nullptr) {
         _levelZeroDdiTable->zeCommandListDestroy(_immediateCmdList);
         _immediateCmdList = nullptr;
     }
@@ -722,6 +715,15 @@ result_t ExecutionContext::initializeExecutionObjects(ze_context_handle_t contex
                                                       ze_graph_dditable_ext_t* graphDdiTable,
                                                       ze_command_queue_npu_dditable_ext_t* cmdQueueDdiTable,
                                                       bool useInternalCmdQueue) {
+    if (_levelZeroDdiTable == nullptr) {
+        auto ddiTable = ov::ZeroApi::get_instance();
+        if (ddiTable == nullptr) {
+            NPU_VM_LOG_ERROR("Failed to get Level Zero DDI table");
+            throw std::runtime_error("Failed to get Level Zero DDI table");
+        }
+        _levelZeroDdiTable = ddiTable.get();
+    }
+
     if (graphDdiTable == nullptr) {
         return failure(ZE_RESULT_ERROR_INVALID_NULL_POINTER, "Invalid null pointer for ddi table");
     }
