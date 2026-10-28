@@ -11,7 +11,6 @@
 #include <iterator>
 #include <map>
 #include <queue>
-#include <ranges>
 #include <set>
 #include <stack>
 #include <tuple>
@@ -187,9 +186,9 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         std::map<Reg, Reg> register_map;
         std::stack<Reg> bank;
         // regs are stored in ascending order in reg_pool, so walk in reverse to assign them the same way
-        for (auto rit : std::ranges::reverse_view(reg_pool)) {
-            bank.push(rit);
-        }
+        std::for_each(reg_pool.crbegin(), reg_pool.crend(), [&bank](const Reg& reg) {
+            bank.push(reg);
+        });
 
         for (const auto& interval_reg : live_intervals) {
             auto [interval, unique_reg] = interval_reg;

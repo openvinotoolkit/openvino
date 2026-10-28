@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <iterator>
 #include <memory>
-#include <ranges>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -138,10 +137,10 @@ bool SplitLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, 
         }
         // Split should be performed from inner to outer loops, to keep the blocking loop order
         // (the new blocking loop must be outermost, as was outermost loop before the split)
-        for (auto& it : std::ranges::reverse_view(loops_to_split)) {
+        std::for_each(loops_to_split.crbegin(), loops_to_split.crend(), [&](const auto& it) {
             split(linear_ir, it.first, it.second);
             loop_was_split = true;
-        }
+        });
     }
     // Ticket: 113666
     // FuseLoops pass is explicitly run here in order to avoid unnecessary computations
