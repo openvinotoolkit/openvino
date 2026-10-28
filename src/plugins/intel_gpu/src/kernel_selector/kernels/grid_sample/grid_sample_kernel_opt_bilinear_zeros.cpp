@@ -46,7 +46,8 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    if (kernel_params.padding_mode != grid_sample_params::PaddingMode::ZEROS) {
+    if (kernel_params.padding_mode != grid_sample_params::PaddingMode::ZEROS &&
+        kernel_params.padding_mode != grid_sample_params::PaddingMode::BORDER) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
