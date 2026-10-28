@@ -91,11 +91,6 @@ struct TPConfig : public ov::PluginConfig {
         return mode == ProfilingMode::HOST || mode == ProfilingMode::ALL;
     }
 
-    bool profiling_device() const {
-        const auto mode = profiling_mode();
-        return mode == ProfilingMode::DEVICE || mode == ProfilingMode::ALL;
-    }
-
     std::size_t dump_period() const {
         if (profiling_mode() == ProfilingMode::NONE) {
             return 0;
@@ -110,24 +105,6 @@ struct TPConfig : public ov::PluginConfig {
 
     bool shard_only() const {
         return TP_DEBUG_OPT(*this, shard_only, false);
-    }
-
-    /// The diagnostics the collectives share with this plugin, as the GPU_TP_*
-    /// options of a rank context. Only what differs from the default, so a build
-    /// whose GPU plugin lacks the options is only refused when one is used.
-    ov::AnyMap collective_diagnostics() const {
-        ov::AnyMap options;
-        if (verbosity() != ov::log::Level::NO) {
-            options.emplace("GPU_TP_VERBOSE", verbosity());
-        }
-        if (profiling_mode() != ProfilingMode::NONE) {
-            options.emplace("GPU_TP_PROFILING", ov::Any(profiling_mode()).as<std::string>());
-        }
-        const auto period = TP_DEBUG_OPT(*this, dump_period, uint64_t{0});
-        if (period != 0) {
-            options.emplace("GPU_TP_DUMP_PERIOD", period);
-        }
-        return options;
     }
 
 private:

@@ -12,15 +12,17 @@ make -j$(nproc) openvino_tp_plugin
 ```
 
 `GPU_RT_TYPE` defaults to `OCL`, so leaving it out fails configuration outright.
-`L0` is an alias for `ZE`; both work and are normalized to `ZE`.
+`L0` is an alias for `ZE`; both work and are normalized to `ZE`. `COMBINED`
+works too: the TP code is built into its Level Zero twin only, and the OpenCL
+twin refuses a TP context.
 The collectives run on Level Zero inside intel_gpu, which an OpenCL-backed
 intel_gpu cannot do.
 
 `ENABLE_INTEL_GPU` must be on as well. It is on by default where the GPU plugin
 is supported at all. With `ENABLE_TP` intel_gpu compiles its TP code: the
 collective primitives and the communicator under `src/runtime/ze/tp/`
-(`ENABLE_TP` is defined for the whole intel_gpu directory). Without it none of
-that code is built.
+(`ENABLE_TP` is defined for every target of the Level Zero stack, in
+`ov_gpu_set_runtime_interface_for`). Without it none of that code is built.
 
 Produces `bin/intel64/Release/libopenvino_tp_plugin.so` and
 registers `TP` in `plugins.xml`.
@@ -77,11 +79,9 @@ Everything below is reachable through the environment or a config file only.
 
 The collectives are tuned in intel_gpu, which runs them: the `GPU_TP_*`
 options, environment `OV_GPU_TP_*`. They are read when a rank context is
-created. `TP_VERBOSE`, `TP_PROFILING` and `TP_DUMP_PERIOD` act on both
-plugins: when set, the TP plugin passes them to the rank contexts as
-`GPU_TP_VERBOSE`, `GPU_TP_PROFILING` and `GPU_TP_DUMP_PERIOD`. A GPU plugin
-built without its debug caps has no such options and refuses the rank
-context, rather than silently running without the diagnostics.
+created. Each plugin reads only its own options: the TP plugin does not know
+which device plugin runs its ranks, so it passes none of them down. To see the
+whole picture, set both sides, e.g. `OV_TP_PROFILING=HOST OV_GPU_TP_PROFILING=HOST`.
 
 ### Behaviour switches
 
@@ -96,20 +96,24 @@ taken with one of them set does not describe a stock run.
 
 ### Diagnostics
 
-The debug tier needs `-DENABLE_TP_DEBUG_CAPS=ON` (implied by
-`-DENABLE_DEBUG_CAPS=ON`). Without it those options have no getters at all,
+The TP plugin's debug tier needs `-DENABLE_TP_DEBUG_CAPS=ON` (implied by
+`-DENABLE_DEBUG_CAPS=ON`), the collectives' (`OV_GPU_TP_*`) the GPU plugin's
+`ENABLE_GPU_DEBUG_CAPS`. Without them those options have no getters at all,
 so the guarded code folds away instead of costing a branch.
 
-| Environment variable      | Effect                                                                                                                                                      | When to enable                                       |
-|---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
-| `OV_TP_VERBOSE=LOG_INFO`  | One-line summaries per compile: sharding plan, rank contexts, per-rank op counts, which queue the collective rides.                                         | First thing to reach for when something looks wrong. |
-| `OV_TP_VERBOSE=LOG_TRACE` | Per-call `[TP][L0]` step-by-step tracing.                                                                                                                   | Only when chasing a hang or a correctness crash.     |
-| `OV_TP_PROFILING=HOST`    | Host-side measurement: rendezvous phases, per-phase splits per rank, record breakdown, scratch arena, run-ahead depth. Leaves the execution schedule alone. | The default choice when measuring.                   |
-| `OV_TP_PROFILING=DEVICE`  | Device-side numbers: how long the collective owns the model queue, bytes moved, effective bandwidth, and what share of device time the collectives take.    | Only when the device-side numbers are the question.  |
-|                           | Adds a kernel-timestamp query per collective, so host figures from such a run are not comparable with a HOST run -- which is why it does not print them.    |                                                      |
-| `OV_TP_PROFILING=ALL`     | Both of the above.                                                                                                                                          |                                                      |
-| `OV_TP_DUMP_PERIOD=N`     | Calls between two dumps. The counter is rank-0 collectives for the coordinator's report and inference calls for the dispatch block.                         | Almost always worth setting to some small number:    |
-|                           | Unset means every call, which for the coordinator is one report per collective.                                                                             | by default, the output is overloaded with info       |
+| Environment variable          | Effect                                                                                                                                                      | When to enable                                       |
+|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
+| `OV_TP_VERBOSE=LOG_INFO`      | One-line summaries per compile: sharding plan, rank contexts, per-rank op counts.                                                                           | First thing to reach for when something looks wrong. |
+| `OV_GPU_TP_VERBOSE=LOG_INFO`  | The collectives: group set-up, scratch growth, which queue the collective rides.                                                                            | Together with the above.                             |
+| `OV_GPU_TP_VERBOSE=LOG_TRACE` | Per-call `[TP][L0]` step-by-step tracing.                                                                                                                   | Only when chasing a hang or a correctness crash.     |
+| `OV_TP_PROFILING=HOST`        | The plugin's dispatch: per-stage infer breakdown, per-rank dispatch time.                                                                                   | The default choice when measuring.                   |
+| `OV_GPU_TP_PROFILING=HOST`    | Host-side measurement of the collectives: rendezvous phases, per-phase splits per rank, record breakdown, scratch arena, run-ahead depth.                    | The default choice when measuring.                   |
+|                               | Leaves the execution schedule alone.                                                                                                                        |                                                      |
+| `OV_GPU_TP_PROFILING=DEVICE`  | Device-side numbers: how long the collective owns the model queue, bytes moved, effective bandwidth, and what share of device time the collectives take.    | Only when the device-side numbers are the question.  |
+|                               | Adds a kernel-timestamp query per collective, so host figures from such a run are not comparable with a HOST run -- which is why it does not print them.    |                                                      |
+| `OV_GPU_TP_PROFILING=ALL`     | Both of the above.                                                                                                                                          |                                                      |
+| `OV_TP_DUMP_PERIOD=N`         | Inference calls between two dumps of the plugin's dispatch block.                                                                                           | Almost always worth setting to some small number:    |
+| `OV_GPU_TP_DUMP_PERIOD=N`     | Rank-0 collectives between two reports of the collectives. Unset means one report per collective.                                                           | by default, the output is overloaded with info       |
 
 Verbosity and profiling are deliberately separate: raising the verbosity to see
 what a run is doing should not start timing it, and asking for timings should

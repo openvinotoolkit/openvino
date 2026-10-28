@@ -73,9 +73,8 @@ static constexpr Property<uint64_t> input_stage_max_bytes{"TP_INPUT_STAGE_MAX_BY
 // without it the getters do not exist, the options are not registered at all,
 // passing one throws, and the environment variable is ignored.
 //
-// TP_VERBOSE, TP_PROFILING and TP_DUMP_PERIOD also reach the collectives: when
-// set, the plugin passes them to the rank contexts as GPU_TP_VERBOSE,
-// GPU_TP_PROFILING and GPU_TP_DUMP_PERIOD.
+// They cover this plugin only. The device plugin that runs the collectives has
+// options of its own, e.g. GPU_TP_VERBOSE / OV_GPU_TP_VERBOSE.
 // -----------------------------------------------------------------------------
 
 /// Verbosity of the plugin's diagnostics.

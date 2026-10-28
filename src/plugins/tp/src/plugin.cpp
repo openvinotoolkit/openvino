@@ -231,7 +231,7 @@ std::vector<ov::SoPtr<ov::IRemoteContext>> Plugin::create_rank_contexts(const st
 
     std::vector<ov::SoPtr<ov::IRemoteContext>> contexts(device_names.size());
     for (int rank = 0; rank < rank_count; ++rank) {
-        ov::AnyMap params = config.collective_diagnostics();
+        ov::AnyMap params;
         params[ov::tp::internal::device_group.name()] = device_names;
         params[ov::tp::internal::groups.name()] =
             std::map<int, CollectiveGroup>{{0, CollectiveGroup{endpoints[static_cast<size_t>(rank)], auto_backend}}};
@@ -270,8 +270,7 @@ void Plugin::build_call_config(const ov::AnyMap& properties, TPConfig& config, o
 
 std::vector<std::string> Plugin::resolve_rank_devices(const TPConfig& config) const {
     auto names = config.resolve_device_names();
-    // The plugin still drives Level Zero itself, which only the GPU plugin can
-    // serve. Device-agnostic selection comes with the L3 collective contract.
+    // Transitional: replaced by asking the device plugin (ov::tp::internal::collective_support).
     const auto type = TPConfig::device_type(names);
     OPENVINO_ASSERT(type == "GPU",
                     get_device_name(),

@@ -147,8 +147,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_names, std::vector<std::s
 #ifdef ENABLE_TP
 // ---- Tensor parallel ----
 // Collectives of the ranks of a TP compiled model. Read when a TP context is created: from the device's
-// configuration, the context parameters (the TP plugin forwards TP_VERBOSE, TP_PROFILING and TP_DUMP_PERIOD
-// here) and the environment, e.g. OV_GPU_TP_ENABLE_HALVING.
+// configuration, the context parameters and the environment, e.g. OV_GPU_TP_ENABLE_HALVING.
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, tp_enable_halving, true, "Use recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, tp_halving_max_bytes, uint64_t{256 * 1024}, "Payload ceiling in bytes above which halving falls back to the ring")
 

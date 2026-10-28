@@ -74,9 +74,9 @@ if (ENABLE_INTEL_GPU)
             message(FATAL_ERROR "GPU_VENDOR=NVIDIA does not support static builds (BUILD_SHARED_LIBS=OFF) yet")
         endif()
     endif()
-    if(ENABLE_TP AND NOT GPU_RT_TYPE STREQUAL "ZE")
-        message(FATAL_ERROR "ENABLE_TP requires GPU_RT_TYPE=ZE (aka L0); got '${GPU_RT_TYPE}'. "
-                            "Rerun cmake with -DGPU_RT_TYPE=ZE (or -DGPU_RT_TYPE=L0), or disable TP via -DENABLE_TP=OFF.")
+    if(ENABLE_TP AND NOT (GPU_RT_TYPE STREQUAL "ZE" OR GPU_RT_TYPE STREQUAL "COMBINED"))
+        message(FATAL_ERROR "ENABLE_TP requires GPU_RT_TYPE=ZE (aka L0) or COMBINED; got '${GPU_RT_TYPE}'. "
+                            "Rerun cmake with -DGPU_RT_TYPE=ZE (or L0, or COMBINED), or disable TP via -DENABLE_TP=OFF.")
     endif()
 endif()
 
@@ -272,7 +272,7 @@ else()
 endif()
 
 # COMBINED includes a ZE build, so it needs the Level Zero loader too.
-if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND (GPU_RT_TYPE STREQUAL "ZE" OR GPU_RT_TYPE STREQUAL "COMBINED")) OR ENABLE_TP)
+if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND (GPU_RT_TYPE STREQUAL "ZE" OR GPU_RT_TYPE STREQUAL "COMBINED")))
     set(ENABLE_OV_ZERO_LOADER ON)
 else()
     set(ENABLE_OV_ZERO_LOADER OFF)

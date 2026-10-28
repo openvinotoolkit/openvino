@@ -188,8 +188,7 @@ private:
 #endif
 
 /// Whether the requested verbosity is in effect. Reads the process-global
-/// option, so it works from code that has no config object at hand -- which is
-/// the case for the collectives living inside the intel_gpu plugin.
+/// option, so it works from code that has no config object at hand.
 #define TP_VERBOSE_AT_LEAST(level) (ov::tp::TPConfig::verbosity() >= (level))
 
 /// Errors that must never be silent, down to per-call tracing. `TP_LOG_ERR`

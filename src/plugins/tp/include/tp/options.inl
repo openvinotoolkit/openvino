@@ -23,9 +23,9 @@ OV_CONFIG_RELEASE_OPTION(ov::tp::internal, communication_timeout_ms, 5000, "Mill
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp, input_stage_max_bytes, uint64_t{4096}, "Size ceiling in bytes for staging a user input through plugin-owned host memory. 0 always stages on the device")
 
-OV_CONFIG_TP_DEBUG_GLOBAL_OPTION(ov::tp, verbose, ov::log::Level::NO, "Verbosity of the plugin's diagnostics, also passed to the collectives as GPU_TP_VERBOSE. Values: LOG_NONE, LOG_ERROR, LOG_WARNING, LOG_INFO, LOG_DEBUG, LOG_TRACE")
+OV_CONFIG_TP_DEBUG_GLOBAL_OPTION(ov::tp, verbose, ov::log::Level::NO, "Verbosity of the plugin's diagnostics. Values: LOG_NONE, LOG_ERROR, LOG_WARNING, LOG_INFO, LOG_DEBUG, LOG_TRACE")
 
-OV_CONFIG_TP_DEBUG_OPTION(ov::tp, profiling, ov::tp::ProfilingMode::NONE, "Configurable performance profiling, also passed to the collectives as GPU_TP_PROFILING. Profiling modes: NONE, HOST, DEVICE, ALL.")
-OV_CONFIG_TP_DEBUG_OPTION(ov::tp, dump_period, uint64_t{0}, "Calls between two measurement dumps, also passed to the collectives as GPU_TP_DUMP_PERIOD. 0 means report every one")
+OV_CONFIG_TP_DEBUG_OPTION(ov::tp, profiling, ov::tp::ProfilingMode::NONE, "Configurable performance profiling of the plugin. Profiling modes: NONE, HOST, DEVICE, ALL.")
+OV_CONFIG_TP_DEBUG_OPTION(ov::tp, dump_period, uint64_t{0}, "Inference calls between two measurement dumps. 0 means report every one")
 OV_CONFIG_TP_DEBUG_OPTION(ov::tp, disable_lm_head_sharding, false, "Leave the vocabulary projection unsharded. Changes the collective count baked into an exported blob")
 OV_CONFIG_TP_DEBUG_OPTION(ov::tp, shard_only, false, "DANGEROUS: compile one rank's shard with every collective stripped. Output is wrong by construction")

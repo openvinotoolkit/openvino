@@ -16,6 +16,10 @@ function(ov_gpu_set_runtime_interface_for TARGET_NAME)
 
     if(runtime STREQUAL "ZE")
         target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1)
+        # Tensor-parallel collectives run on Level Zero only; in a COMBINED build the OCL twin has none.
+        if(ENABLE_TP)
+            target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_TP)
+        endif()
         target_link_libraries(${TARGET_NAME} PRIVATE openvino::zero_loader OpenCL::OpenCL)
     elseif(runtime STREQUAL "OCL")
         target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OCL_RT=1)

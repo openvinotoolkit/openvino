@@ -248,7 +248,7 @@ static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> 
 // ---- Tensor parallel: collectives of the ranks of a TP compiled model ----
 //
 // Read when a TP context is created (create_context with ov::tp::internal parameters), from the device's
-// configuration, the context parameters and the environment, so the TP plugin can pass its own settings down.
+// configuration, the context parameters and the environment.
 
 /// What the collectives measure and report.
 enum class TPProfilingMode : uint8_t {

@@ -33,10 +33,10 @@ Level Zero context — no host round-trip and no copy through CPU memory.
 
 **Build**
 
-- OpenVINO configured with `-DENABLE_TP=ON -DGPU_RT_TYPE=L0`. The plugin is
-  **off** by default, and the intel_gpu plugin has to be on the Level Zero
-  runtime rather than the default OpenCL one -- the TP plugin takes its driver
-  and device handles from intel_gpu's remote context. CMake enforces this and
+- OpenVINO configured with `-DENABLE_TP=ON -DGPU_RT_TYPE=L0` (or `COMBINED`).
+  The plugin is **off** by default, and the intel_gpu plugin has to include
+  the Level Zero runtime rather than only the default OpenCL one -- the
+  collectives run on Level Zero inside intel_gpu. CMake enforces this and
   fails configuration if the two disagree.
 - An OpenCL ICD available at runtime, used once per rank to compile the
   reduce kernel.
@@ -189,7 +189,7 @@ Things to know:
 
 The plugin failed to load, or was never built. Check:
 
-- OpenVINO was configured with `-DENABLE_TP=ON -DGPU_RT_TYPE=L0`.
+- OpenVINO was configured with `-DENABLE_TP=ON -DGPU_RT_TYPE=L0` (or `COMBINED`).
   The plugin is off by default, so a stock build has no TP at all.
 - The shared object exists at `bin/intel64/Release/libopenvino_tp_plugin.so`.
 - It is registered in `plugins.xml` (the build wires this up

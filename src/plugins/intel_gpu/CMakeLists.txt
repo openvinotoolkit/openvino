@@ -118,13 +118,6 @@ if(ENABLE_GPU_DEBUG_CAPS)
     add_definitions(-DENABLE_DEBUG_CAPS=1)
 endif()
 
-# Tensor-parallel collectives (src/runtime/ze/tp, the tp_* primitives). Defined for the whole
-# directory, like the debug caps above, so the headers that depend on it have one layout in
-# every GPU target, tests included.
-if(ENABLE_TP)
-    add_definitions(-DENABLE_TP)
-endif()
-
 if(APPLE)
     set(INTEL_GPU_TARGET_OCL_VERSION_DEFAULT "120")
 else()
