@@ -49,21 +49,22 @@ std::string attention(GraphEmitter& e,
     const bool is_swa_layer = cfg.layer_is_swa(il);
     const int head_size_l = cfg.layer_head_size(il);
     const int n_head_kv_l = cfg.layer_n_head_kv(il);
+    const int n_head_l = cfg.layer_n_head(il);
     const float kq_scale = cfg.layer_kq_scale(il);
     const RopeConfig rope_config_l = cfg.layer_rope_config(il);
     // Widen before multiplying the reshape dimensions.
-    const int64_t q_width = static_cast<int64_t>(head_size_l) * cfg.n_head;
+    const int64_t q_width = static_cast<int64_t>(head_size_l) * n_head_l;
     // Gemma4 shared-KV layers have no K/V of their own; newer GGUF files omit those weights.
     const bool has_own_kv = (cfg.shared_kv_layers == 0) || (il < kv.n_own_kv);
 
     // Q/K/V projections: MUL_MAT(w, attn_norm), then conceptual reshape to heads.
     // Fused-QKV archs (phi-3, minicpm) carry a single attn_qkv weight; split it into
     // separate q/k/v weights so the rest of the layer is architecture-agnostic.
-    if (cfg.is_qwen35) {
-        register_qwen35_q_gate(e, cfg, il);
+    if (cfg.interleaved_q_gate) {
+        register_interleaved_q_gate(e, cfg, il);
         e.add_weight(p + "attn_k.weight");
         e.add_weight(p + "attn_v.weight");
-    } else if (e.has_weight(p + "attn_qkv.weight")) {
+    } else if (cfg.fused_qkv_override.value_or(e.has_weight(p + "attn_qkv.weight"))) {
         register_fused_qkv(e, cfg, il);
     } else if (!has_own_kv) {
         e.add_weight(p + "attn_q.weight");
@@ -91,7 +92,7 @@ std::string attention(GraphEmitter& e,
     // fused-QKV archs: attn_qkv.bias, already split into attn_{q,k,v}.bias by
     // register_fused_qkv above).
     // Qwen35 repacks a joint Q/gate projection; retain its separate bias policy.
-    if (cfg.is_qwen35 ? cfg.has_qkv_bias : e.has_weight(p + "attn_q.bias")) {
+    if (cfg.qkv_bias_override.value_or(cfg.interleaved_q_gate ? cfg.has_qkv_bias : e.has_weight(p + "attn_q.bias"))) {
         q = add_bias(e, q, p + "attn_q.bias", p + "Qcur_b");
         if (has_own_kv) {
             k = add_bias(e, k, p + "attn_k.bias", p + "Kcur_b");
@@ -111,7 +112,7 @@ std::string attention(GraphEmitter& e,
                  p + "Qcur_r",
                  {q},
                  6,
-                 {{"reshape_target", std::vector<int64_t>{0, -1, cfg.n_head, head_size_l}}, {"special_zero", true}});
+                 {{"reshape_target", std::vector<int64_t>{0, -1, n_head_l, head_size_l}}, {"special_zero", true}});
     if (has_own_kv) {
         k = e.add_op(
             "GGML_OP_RESHAPE",
@@ -288,7 +289,8 @@ std::string attention(GraphEmitter& e,
     // output projection (+ optional bias)
     e.add_weight(p + "attn_output.weight");
     auto attn_out = e.add_op("GGML_OP_MUL_MAT", p + "attn_out", {p + "attn_output.weight", attn_2d});
-    if (cfg.is_qwen35 ? cfg.has_attn_out_bias : e.has_weight(p + "attn_output.bias")) {
+    if (cfg.output_bias_override.value_or(cfg.interleaved_q_gate ? cfg.has_attn_out_bias
+                                                                 : e.has_weight(p + "attn_output.bias"))) {
         attn_out = add_bias(e, attn_out, p + "attn_output.bias", p + "attn_out_b");
     }
     return attn_out;

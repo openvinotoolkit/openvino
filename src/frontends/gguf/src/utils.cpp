@@ -144,6 +144,29 @@ std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::
     return nullptr;
 }
 
+int64_t mmproj_int_metadata(const std::shared_ptr<ov::Model>& model, const std::string& key, int64_t minimum) {
+    OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", key}), "[GGUF] missing mmproj metadata ", key);
+    const auto& attribute = model->get_rt_info<ov::Any>({"gguf_mmproj", key});
+    OPENVINO_ASSERT(attribute.is<std::string>(), "[GGUF] mmproj metadata must be a string: ", key);
+    const auto& text = attribute.as<std::string>();
+    int64_t value;
+    size_t end;
+    try {
+        value = std::stoll(text, &end);
+    } catch (const std::invalid_argument&) {
+        OPENVINO_THROW("[GGUF] invalid integer mmproj metadata ", key, ": '", text, "'");
+    } catch (const std::out_of_range&) {
+        OPENVINO_THROW("[GGUF] out-of-range integer mmproj metadata ", key, ": '", text, "'");
+    }
+    OPENVINO_ASSERT(end == text.size() && value >= minimum,
+                    "[GGUF] invalid integer mmproj metadata ",
+                    key,
+                    ": '",
+                    text,
+                    "'");
+    return value;
+}
+
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
     const auto dim = static_cast<int>(nb.size() - 1);
     size_t bytes = nb[dim];
