@@ -1090,6 +1090,11 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("KV_COMPRESSED", 1);
     jit.make("KEY_ATTR_SCALES_DATA_T", to_ocl_type(key_cache_comp_scale.data_type));
     jit.make("VAL_ATTR_SCALES_DATA_T", to_ocl_type(value_cache_comp_scale.data_type));
+    // A bf16 scale (a bf16 query's) is ushort, its bits; the kernel must widen it, not convert the integer.
+    if (key_cache_comp_scale.data_type == ov::element::bf16)
+        jit.make("KEY_SCALES_IS_BF16", 1);
+    if (value_cache_comp_scale.data_type == ov::element::bf16)
+        jit.make("VAL_SCALES_IS_BF16", 1);
     jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(n)));
     jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(n + 1)));
 

@@ -64,6 +64,21 @@
 #  define SINK_TO_FLOAT(x) convert_float(x)
 #endif
 
+// Plain-SDPA KV-compression scales: *_ATTR_SCALES_DATA_T is their storage type, ushort for bf16 (kv_cache_compression.cpp
+// types them as the query). The f16 bodies are the conversions the read sites had before bf16 was widened here.
+#if KEY_SCALES_IS_BF16
+#  define K_COMP_SCALE_TO_HALF(x) convert_half(as_float(((uint)(x)) << 16))
+#else
+#  define K_COMP_SCALE_TO_HALF(x) convert_half(x)
+#endif
+#if VAL_SCALES_IS_BF16
+#  define V_COMP_SCALE_TO_HALF(x)  convert_half(as_float(((uint)(x)) << 16))
+#  define V_COMP_SCALE_TO_FLOAT(x) as_float(((uint)(x)) << 16)
+#else
+#  define V_COMP_SCALE_TO_HALF(x)  x
+#  define V_COMP_SCALE_TO_FLOAT(x) convert_float(x)
+#endif
+
 #define kq_wg_tile_keys      (kq_sg_tile_keys * kq_sg_per_wg_keys)
 #define kq_wg_tile_queries   (kq_sg_tile_queries * kq_sg_per_wg_queries)
 #define kq_key_blocks        (kq_sg_tile_keys / DPAS_ROWS)
