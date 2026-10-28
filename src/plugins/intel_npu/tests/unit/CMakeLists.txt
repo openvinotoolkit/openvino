@@ -17,9 +17,6 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::npu_ops"
         "openvino_npu_vm_utils"
         "openvino_npu_compiler_adapter"
-        "openvino::intel_npu_bytecode_utils"
-        "openvino::intel_npu_vm_runtime"
-
 )
 
 ov_add_test_target(
@@ -243,5 +240,4 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_infer_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/make_tensor_slice_bounds_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_topology_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/vm/buffer.cpp
 )
