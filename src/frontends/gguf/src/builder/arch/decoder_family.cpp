@@ -124,6 +124,8 @@ DecoderParameters resolve_decoder_parameters(const GgufMetadata& metadata,
     if (options.norm_epsilon)
         defaults.normalization.epsilon = *options.norm_epsilon;
     auto p = read_decoder_parameters(metadata, defaults);
+    // llama.cpp always renormalizes top-K weights for these built-in families.
+    p.experts.normalize_weights = defaults.experts.normalize_weights || p.experts.normalize_weights;
     if (p.architecture.rfind("minicpm", 0) == 0 && p.scales.logits != 0.0f)
         p.scales.logits = 1.0f / p.scales.logits;
     if (p.architecture == "lfm2moe")

@@ -957,6 +957,43 @@ TEST(GGUFBuilderAPI, MiniCpmLogitScaleUsesDivisorWithAndWithoutMetadata) {
     EXPECT_FLOAT_EQ(env.parameters(RopeMode::Normal, options).scales.logits, 0.75f);
 }
 
+TEST(GGUFBuilderAPI, ExpertNormalizationMetadataOverridesBuilderDefaults) {
+    for (const bool normalize_by_default : {false, true}) {
+        SCOPED_TRACE(normalize_by_default);
+        Environment env;
+        env.decoder();
+        DecoderParameters defaults;
+        defaults.experts.normalize_weights = normalize_by_default;
+        EXPECT_EQ(read_decoder_parameters(env.context.metadata, defaults).experts.normalize_weights,
+                  normalize_by_default);
+        for (const bool normalize : {false, true}) {
+            SCOPED_TRACE(normalize);
+            ov::Tensor normalization(ov::element::boolean, {});
+            *normalization.data<char>() = normalize;
+            env.metadata["test.expert_weights_norm"] = normalization;
+            EXPECT_EQ(read_decoder_parameters(env.context.metadata, defaults).experts.normalize_weights, normalize);
+        }
+    }
+}
+
+TEST(GGUFBuilderAPI, BuiltinExpertNormalizationPreservesLlamaPolicyAndOptions) {
+    for (const auto* architecture :
+         {"hunyuan-moe", "minimax-m2", "qwen3moe", "qwen35moe", "ernie4_5-moe", "mellum", "gemma4"}) {
+        SCOPED_TRACE(architecture);
+        Environment env;
+        env.decoder();
+        env.architecture(architecture);
+        EXPECT_TRUE(env.parameters().experts.normalize_weights);
+        ov::Tensor normalization(ov::element::boolean, {});
+        *normalization.data<char>() = false;
+        env.metadata[std::string(architecture) + ".expert_weights_norm"] = normalization;
+        EXPECT_TRUE(env.parameters().experts.normalize_weights);
+        DecoderOptions options;
+        options.normalize_expert_weights = false;
+        EXPECT_FALSE(env.parameters(RopeMode::Normal, options).experts.normalize_weights);
+    }
+}
+
 TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogether) {
     Environment env;
     env.decoder();

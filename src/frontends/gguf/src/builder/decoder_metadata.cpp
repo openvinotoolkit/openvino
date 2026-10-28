@@ -191,7 +191,7 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     if (const int gating = integer(m, key("expert_gating_func"), 0))
         e.routing = static_cast<ExpertRouting>(gating);
     e.weights_scale = real(m, key("expert_weights_scale"), e.weights_scale);
-    e.normalize_weights = flag(m, key("expert_weights_norm"), false) || e.normalize_weights;
+    e.normalize_weights = flag(m, key("expert_weights_norm"), e.normalize_weights);
     auto& scales = p.scales;
     scales.embedding = real(m, key("embedding_scale"), scales.embedding);
     scales.residual = real(m, key("residual_scale"), scales.residual);
