@@ -186,56 +186,63 @@ def _define_loader():
                         yield weight_name, torch.zeros(kv_shape, dtype=out_dtype)
 
         @staticmethod
-        def _shards(model_dir):
-            """`(keys, get_tensor)` per checkpoint file: safetensors, else pt2."""
+        @contextlib.contextmanager
+        def _checkpoint(model_dir):
+            """`(keys, get_tensor)` over every checkpoint file: safetensors, else pt2.
+
+            Checkpoint-wide, not per file: a sharded `save_pretrained()` keeps
+            NNCF's hook storage in its own module, so a weight and its scale or
+            zero point can land in different shards.
+            """
             paths = sorted(glob.glob(os.path.join(model_dir, "*.safetensors")))
             if paths:
-                for path in paths:
-                    with safe_open(path, framework="pt") as f:
-                        yield set(f.keys()), f.get_tensor
+                with contextlib.ExitStack() as stack:
+                    owner = {}
+                    for path in paths:
+                        f = stack.enter_context(safe_open(path, framework="pt"))
+                        owner.update(dict.fromkeys(f.keys(), f))
+                    yield set(owner), lambda key: owner[key].get_tensor(key)
                 return
+            state = {}
             for path in sorted(glob.glob(os.path.join(model_dir, "*.pt2"))):
-                state = _pt2_state_dict(path)
-                yield set(state), state.__getitem__
+                state.update(_pt2_state_dict(path))
+            yield set(state), state.__getitem__
 
         def _weights(self, model, model_config):
             params = dict(model.named_parameters())
             out_dtype = model_config.dtype
-            seen = set()
-            with contextlib.closing(self._shards(model_config.model)) as shards:
-                for keys, get_tensor in shards:
-                    seen.update(keys)
-                    for name in sorted(keys):
-                        if name.startswith("__nncf_hooks."):
-                            # Consumed alongside the weight it belongs to.
-                            continue
-                        scale_key = _hook_key(name, "_scale")
-                        if scale_key not in keys:
-                            # Norms and anything else NNCF left alone.
-                            yield name, get_tensor(name)
-                            continue
+            with self._checkpoint(model_config.model) as (keys, get_tensor):
+                for name in sorted(keys):
+                    if name.startswith("__nncf_hooks."):
+                        # Consumed alongside the weight it belongs to.
+                        continue
+                    scale_key = _hook_key(name, "_scale")
+                    if scale_key not in keys:
+                        # Norms and anything else NNCF left alone.
+                        yield name, get_tensor(name)
+                        continue
 
-                        stored = get_tensor(name)
-                        scale = get_tensor(scale_key)
-                        zp_key = _hook_key(name, "_zero_point")
-                        zp = get_tensor(zp_key) if zp_key in keys else None
-                        module = name.removesuffix(".weight")
+                    stored = get_tensor(name)
+                    scale = get_tensor(scale_key)
+                    zp_key = _hook_key(name, "_zero_point")
+                    zp = get_tensor(zp_key) if zp_key in keys else None
+                    module = name.removesuffix(".weight")
 
-                        if scale.dim() == 3 and self._target_is_quantized(
-                                model, params, module):
-                            # The packed buffer is already row-major over
-                            # (out, in/2), so the reshapes are free.
-                            out_features, groups = scale.shape[:2]
-                            yield f"{module}.qweight", stored.reshape(out_features, -1)
-                            yield f"{module}.scale", scale.reshape(out_features, groups)
-                            if zp is not None:
-                                # quantization.py stores the zero point
-                                # unpacked so it concatenates like `scale`.
-                                yield (f"{module}.zero_point",
-                                       _unpack_uint4(zp).reshape(out_features, groups))
-                        else:
-                            yield name, _dequantize(stored, scale, zp, out_dtype)
-            yield from self._kv_shared_zeros(model, params, seen, out_dtype)
+                    if scale.dim() == 3 and self._target_is_quantized(
+                            model, params, module):
+                        # The packed buffer is already row-major over
+                        # (out, in/2), so the reshapes are free.
+                        out_features, groups = scale.shape[:2]
+                        yield f"{module}.qweight", stored.reshape(out_features, -1)
+                        yield f"{module}.scale", scale.reshape(out_features, groups)
+                        if zp is not None:
+                            # quantization.py stores the zero point
+                            # unpacked so it concatenates like `scale`.
+                            yield (f"{module}.zero_point",
+                                   _unpack_uint4(zp).reshape(out_features, groups))
+                    else:
+                        yield name, _dequantize(stored, scale, zp, out_dtype)
+                yield from self._kv_shared_zeros(model, params, keys, out_dtype)
 
         def load_weights(self, model, model_config):
             loaded = model.load_weights(self._weights(model, model_config))
