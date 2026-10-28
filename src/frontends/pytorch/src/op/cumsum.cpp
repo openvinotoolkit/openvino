@@ -14,7 +14,17 @@ using namespace ov::op;
 
 namespace {
 Output<Node> promote_integral_to_i64(const NodeContext& context, const Output<Node>& x) {
-    if (x.get_element_type().is_integral()) {
+    auto dtype = x.get_element_type();
+    if (dtype.is_dynamic()) {
+        dtype = context.get_input_from_visible_context(0).get_element_type();
+    }
+    if (dtype.is_dynamic()) {
+        const auto input_type = simplified_type_interpret(context.get_input_type(0));
+        if (input_type.is<element::Type>()) {
+            dtype = input_type.as<element::Type>();
+        }
+    }
+    if (dtype.is_static() && dtype.is_integral()) {
         return context.mark_node(std::make_shared<v0::Convert>(x, element::i64));
     }
     return x;

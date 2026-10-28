@@ -137,3 +137,72 @@ def test_torch_diff_complex():
     compiled = ov.Core().compile_model(ov.convert_model(torch.export.export(Model(), (x,))), "CPU",
                                       {"INFERENCE_PRECISION_HINT": "f32"})
     np.testing.assert_array_equal(compiled(x.numpy())[0], Model()(x).numpy())
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
+@pytest.mark.parametrize("capture", ["export", "script"])
+@pytest.mark.parametrize("order,axis", [(1, -1), (2, 0)])
+def test_torch_diff_polar(capture, order, axis):
+    class Model(torch.nn.Module):
+        __constants__ = ["order", "axis"]
+
+        def __init__(self):
+            super().__init__()
+            self.order = order
+            self.axis = axis
+
+        def forward(self, magnitude, angle):
+            value = torch.polar(magnitude, angle)
+            boundary = torch.polar(magnitude.narrow(self.axis, 0, 1), angle.narrow(self.axis, 0, 1))
+            return torch.view_as_real(torch.diff(value, n=self.order, dim=self.axis,
+                                                 prepend=boundary))
+
+    inputs = (torch.arange(1, 9, dtype=torch.float32).reshape(2, 4),
+              torch.arange(-4, 4, dtype=torch.float32).reshape(2, 4) / 3)
+    model = Model()
+    program = torch.export.export(model, inputs) if capture == "export" else torch.jit.script(model)
+    converted = ov.convert_model(program, example_input=inputs if capture == "script" else None)
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    np.testing.assert_allclose(compiled([x.numpy() for x in inputs])[0], model(*inputs).numpy(),
+                               rtol=1e-5, atol=1e-5)
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
+@pytest.mark.parametrize("prepend", [True, False])
+@pytest.mark.parametrize("input_dtype,boundary_dtype", [
+    (torch.bool, torch.bool),
+    (torch.bool, torch.int32),
+    (torch.bool, torch.uint8),
+    (torch.uint8, torch.uint8),
+    (torch.uint8, torch.int32),
+    (torch.uint8, torch.bool),
+])
+def test_torch_diff_script_branch_promotion(prepend, input_dtype, boundary_dtype):
+    class Model(torch.nn.Module):
+        __constants__ = ["prepend"]
+
+        def __init__(self):
+            super().__init__()
+            self.prepend = prepend
+
+        def forward(self, x, boundary, take_branch):
+            if take_branch:
+                return torch.diff(x, n=2, prepend=boundary if self.prepend else None,
+                                  append=boundary if not self.prepend else None)
+            return torch.diff(x, prepend=boundary if self.prepend else None,
+                              append=boundary if not self.prepend else None)
+
+    x = torch.tensor([255, 0, 128, 1], dtype=torch.uint8).to(input_dtype)
+    boundary = torch.tensor([3, 250], dtype=torch.uint8).to(boundary_dtype)
+    model = Model()
+    inputs = (x, boundary, torch.tensor(True))
+    converted = ov.convert_model(torch.jit.script(model), example_input=inputs)
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    for take_branch in [True, False]:
+        inputs = (x, boundary, torch.tensor(take_branch))
+        actual = compiled([value.numpy() for value in inputs])[0]
+        expected = model(*inputs).numpy()
+        assert actual.dtype == expected.dtype
+        np.testing.assert_array_equal(actual, expected)

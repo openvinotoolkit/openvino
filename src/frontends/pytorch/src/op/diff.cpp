@@ -3,7 +3,6 @@
 //
 
 #include <limits>
-#include <tuple>
 
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
@@ -36,23 +35,41 @@ OutputVector translate_diff(const NodeContext& context) {
     if (order == 0) {
         return finish(value);
     }
+    const auto get_value = [&](size_t index) -> Output<Node> {
+        auto input = context.get_input(index);
+        if (input.get_element_type().is_static() || ov::is_type<ComplexTypeMark>(input.get_node())) {
+            return input;
+        }
+        auto dtype = context.get_input_from_visible_context(index).get_element_type();
+        if (dtype.is_dynamic()) {
+            const auto decoded_dtype = simplified_type_interpret(context.get_input_type(index));
+            if (decoded_dtype.is<element::Type>()) {
+                dtype = decoded_dtype.as<element::Type>();
+            }
+        }
+        if (dtype.is_static()) {
+            input = context.mark_node(std::make_shared<v0::Convert>(input, dtype));
+        }
+        return input;
+    };
+    value = get_value(0);
     auto axis = context.input_is_none(2) ? -1 : context.const_input<int64_t>(2);
     OutputVector values;
     if (!context.input_is_none(3)) {
-        values.push_back(context.get_input(3));
+        values.push_back(get_value(3));
     }
     values.push_back(value);
     if (!context.input_is_none(4)) {
-        values.push_back(context.get_input(4));
+        values.push_back(get_value(4));
     }
     const auto complex = std::any_of(values.begin(), values.end(), [](const auto& input) {
         return ov::is_type<ComplexTypeMark>(input.get_node());
     });
     if (complex) {
         for (auto& input : values) {
-            std::shared_ptr<ComplexTypeMark> marker;
-            std::tie(input, marker) = unwrap_complex(input);
+            const auto marker = ov::as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
             PYTORCH_OP_CONVERSION_CHECK(marker, "diff does not support mixing complex and real inputs.");
+            input = marker->get_data();
         }
         if (axis < 0) {
             --axis;

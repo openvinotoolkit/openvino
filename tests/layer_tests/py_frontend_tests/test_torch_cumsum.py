@@ -52,3 +52,22 @@ def test_cumsum_out_dtype(dtype):
     compiled = ov.Core().compile_model(converted, "CPU")
     inputs = {port: tensor.numpy() for port, tensor in zip(compiled.inputs, (x, out))}
     np.testing.assert_array_equal(compiled(inputs)[0], model(x, out).numpy())
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.int32, torch.bool])
+def test_cumsum_scripted_branch_dtype(dtype):
+    class Model(torch.nn.Module):
+        def forward(self, x, condition):
+            if condition:
+                return torch.cumsum(x, -1)
+            return torch.cumsum(x, 0)
+
+    x = torch.tensor([[0.25, 0.5, 0.75], [1.25, 1.5, 1.75]], dtype=dtype)
+    model = Model()
+    converted = ov.convert_model(torch.jit.script(model), example_input=(x, torch.tensor(True)))
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    for condition in (False, True):
+        expected = model(x, torch.tensor(condition)).numpy()
+        actual = compiled([x.numpy(), np.array(condition)])[0]
+        assert actual.dtype == expected.dtype
+        np.testing.assert_array_equal(actual, expected)

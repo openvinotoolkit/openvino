@@ -76,6 +76,7 @@ so later in-place operations on them update the operands. This does not require
 The FX decoder replaces each exported `torch.vmap` region with its vectorized ATen
 operations, traced from the tensor and symbolic metadata of the region operands.
 Operations inside the region, including `flat_apply` calls, are traced as well.
+This region trace runs after export for both models and supplied exported graphs.
 The original graph stays unchanged, no OpenVINO loops are introduced, and the
 trace must not introduce new shape guards.
 

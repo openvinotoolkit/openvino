@@ -90,8 +90,9 @@ def test_export_vmap_nested_mask(mod_index):
 
 @pytest.mark.parametrize("nested", [False, True])
 @pytest.mark.parametrize("dynamic", [False, True])
-def test_model_vmap_single_trace(nested, dynamic):
+def test_model_vmap_preserves_export_capture(nested, dynamic):
     import torch.export._trace as export_trace
+    import torch.fx.experimental.proxy_tensor as proxy_tensor
 
     class Model(torch.nn.Module):
         @torch.no_grad()
@@ -105,12 +106,14 @@ def test_model_vmap_single_trace(nested, dynamic):
     model = Model()
     inputs = (torch.randn(2, 4, 3),)
     shapes = ({1: torch.export.Dim("batch", min=2, max=16)},) if dynamic else None
-    with patch.object(export_trace, "make_fx", wraps=export_trace.make_fx) as tracer, \
+    with patch.object(export_trace, "make_fx", wraps=export_trace.make_fx) as export_tracer, \
+            patch.object(proxy_tensor, "make_fx", wraps=proxy_tensor.make_fx) as region_tracer, \
             patch.object(torch.export.ExportedProgram, "run_decompositions",
                          side_effect=AssertionError("Conversion must not run decompositions")):
         decoder = TorchFXPythonDecoder.from_model(model, inputs, dynamic_shapes=shapes)
         converted = convert_model(decoder)
-    assert tracer.call_count == 1
+    assert export_tracer.call_count == 1
+    assert region_tracer.call_count > 0
     targets = [str(node.target) for module in decoder.pt_module.modules()
                if isinstance(module, torch.fx.GraphModule) for node in module.graph.nodes]
     assert any("aten.diff" in target for target in targets)
