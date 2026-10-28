@@ -8,23 +8,52 @@
 
 namespace ov::npuw {
 
-// Rewrites the LM-head dequantize chain emitted by the WebNN / ORT export into the layout
-// the NPUW tail-vocab matchers (PreserveConstDictMatMulAsymm) understand, i.e. the one
-// optimum-intel produces.
-//
-// Before:
-//   Const(W:u8 [OC,1,IC]) -> Convert ------------------------------+
-//   Const(Z:u8 [OC])      -> [Reshape ->] Convert -> [Reshape ->]  -+-> Subtract
-//   Const(S:f16 [OC])     -> [Reshape ->] ---------------------------> Multiply
-//     -> Reshape [OC,IC] -> Transpose [IC,OC] -> MatMul(transpose_b=false)
-//
-// After:
-//   Const(W:u8 [OC,IC]) -> Convert ------------+
-//   Const(Z:u8 [OC,1])  -> Convert -------------> Subtract -> Multiply(Const(S:f16 [OC,1]))
-//     -> MatMul(transpose_b=true)
-//
-// All Reshapes are applied to the (still compressed) Constants, so the weight stays u8 and
-// no data is copied. The pass is a no-op for any graph that doesn't match this chain exactly.
+/**
+ * @brief Brings the LM-head dequantize chain emitted by the WebNN / ORT export to the
+ *        layout produced by optimum-intel.
+ *
+ * The exported chain wraps the u8 per-channel weight, zero point and scale in extra
+ * Reshape / Transpose ops, which the tail-vocab matchers (e.g. PreserveConstDictMatMulAsymm)
+ * don't recognize: the weight is then lifted to a weights-bank Parameter and the NPU compiler
+ * falls back to a runtime dequantize.
+ *
+ * Before (OC - vocab size, IC - hidden size):
+ *
+ *   W:u8 [OC,1,IC]    Z:u8 [OC]                   S:f16 [OC]
+ *        │               │                            │
+ *     Convert    Reshape [OC,1,1] / Convert ...   Reshape [OC,1,1]
+ *        │               │                            │
+ *        └───Subtract────┘                            │
+ *                │                                    │
+ *                └────────────Multiply────────────────┘
+ *                                │
+ *                          Reshape [OC,IC]
+ *                                │
+ *                         Transpose {1,0}    Act
+ *                                │            │
+ *                                └───MatMul───┘
+ *                                (transpose_b = false)
+ *
+ * After:
+ *
+ *   W:u8 [OC,IC]      Z:u8 [OC,1]
+ *        │               │
+ *     Convert         Convert
+ *        │               │
+ *        └───Subtract────┘     S:f16 [OC,1]
+ *                │                  │
+ *                └─────Multiply─────┘
+ *                        │          Act
+ *                        └──MatMul───┘
+ *                      (transpose_b = true)
+ *
+ * The Reshapes are applied to the (still compressed) Constants, so the weight stays u8 and its
+ * data buffer is shared, not copied. The Reshape on the zero point may be placed either before
+ * or after its Convert.
+ *
+ * Applied only when the weight, zero point and scale are per-channel along the first (OC)
+ * dimension and the chain has exactly the shape above; any other graph is left untouched.
+ */
 class CanonicalizeLMHeadDQLayout : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CanonicalizeLMHeadDQLayout");

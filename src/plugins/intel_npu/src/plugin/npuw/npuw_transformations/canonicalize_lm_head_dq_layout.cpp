@@ -14,126 +14,77 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/util/op_types.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-namespace opp = ov::pass::pattern;
-
-namespace {
-
-using ConstPtr = std::shared_ptr<ov::op::v0::Constant>;
-
-ConstPtr get_const(const ov::Output<ov::Node>& output) {
-    return ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
-}
-
-// Const or Reshape(Const) -> the underlying Constant
-ConstPtr const_through_reshape(const ov::Output<ov::Node>& output) {
-    if (auto cnst = get_const(output)) {
-        return cnst;
-    }
-    if (auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(output.get_node_shared_ptr())) {
-        return get_const(reshape->input_value(0));
-    }
-    return nullptr;
-}
-
-// Reshape(x) -> x, otherwise x itself
-ov::Output<ov::Node> skip_reshape(const ov::Output<ov::Node>& output) {
-    if (auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(output.get_node_shared_ptr())) {
-        return reshape->input_value(0);
-    }
-    return output;
-}
-
-// Constant re-viewed with a new shape; shares the data buffer (no copy of the vocab weight).
-ConstPtr reshaped(const ConstPtr& cnst, const ov::Shape& shape) {
-    return std::make_shared<ov::op::v0::Constant>(*cnst, shape);
-}
-
-}  // namespace
 
 namespace ov::npuw {
 
 CanonicalizeLMHeadDQLayout::CanonicalizeLMHeadDQLayout() {
-    auto act = opp::any_input();
-    auto weight = opp::wrap_type<ov::op::v1::Transpose>();
-    auto matmul = opp::wrap_type<ov::op::v0::MatMul>({act, weight});
+    using namespace ov::pass::pattern;
+    using ov::pass::operator|;
+    namespace v0 = ov::op::v0;
+    namespace v1 = ov::op::v1;
 
-    auto callback = [=](opp::Matcher& m) {
-        auto& pvm = m.get_pattern_value_map();
-        auto mm = ov::as_type_ptr<ov::op::v0::MatMul>(pvm.at(matmul).get_node_shared_ptr());
-        if (!mm || mm->get_transpose_a() || mm->get_transpose_b()) {
-            return false;
-        }
+    // The symbols OC / IC are shared by all the predicates below, so the pattern also enforces
+    // that weight, zero point and scale are per-channel along the same OC dimension.
+    auto weight_m = wrap_type<v0::Constant>(type_matches(element::u8) && shape_matches("OC, 1, IC"));
+    auto cvt_w_m = wrap_type<v0::Convert>({weight_m});
 
-        // Transpose [OC,IC] -> [IC,OC]
-        auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(mm->input_value(1).get_node_shared_ptr());
-        auto perm = transpose ? get_const(transpose->input_value(1)) : nullptr;
-        if (!perm || perm->cast_vector<int64_t>() != std::vector<int64_t>{1, 0}) {
-            return false;
-        }
+    // The zero point is reshaped to [OC,1,1] either before or after the Convert.
+    auto zerop_m = wrap_type<v0::Constant>(type_matches(element::u8) && shape_matches("OC"));
+    auto zerop_rs_pre_m = wrap_type<v1::Reshape>({zerop_m, wrap_const()}, shape_matches("OC, 1, 1"));
+    auto cvt_z_pre_m = wrap_type<v0::Convert>({zerop_rs_pre_m});
+    auto cvt_z_post_m = wrap_type<v0::Convert>({zerop_m});
+    auto zerop_rs_post_m = wrap_type<v1::Reshape>({cvt_z_post_m, wrap_const()}, shape_matches("OC, 1, 1"));
+    auto sub_m = wrap_type<v1::Subtract>({cvt_w_m, cvt_z_pre_m | zerop_rs_post_m});
 
-        // Reshape [OC,1,IC] -> [OC,IC] (or no Reshape if the Multiply is already 2D)
-        auto mul_out = skip_reshape(transpose->input_value(0));
-        auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(mul_out.get_node_shared_ptr());
-        if (!mul || !mul->get_output_partial_shape(0).is_static()) {
-            return false;
-        }
-        const auto mm_w_shape = transpose->get_input_shape(0);  // [OC,IC]
-        if (mm_w_shape.size() != 2) {
-            return false;
-        }
-        const size_t OC = mm_w_shape[0];
-        const size_t IC = mm_w_shape[1];
+    auto scale_m = wrap_type<v0::Constant>(type_matches_any({element::f16, element::f32}) && shape_matches("OC"));
+    auto scale_rs_m = wrap_type<v1::Reshape>({scale_m, wrap_const()}, shape_matches("OC, 1, 1"));
+    auto mul_m = wrap_type<v1::Multiply>({sub_m, scale_rs_m});
 
-        auto sub = ov::as_type_ptr<ov::op::v1::Subtract>(mul->input_value(0).get_node_shared_ptr());
-        if (!sub) {
-            return false;
-        }
+    auto weight_rs_m = wrap_type<v1::Reshape>({mul_m, wrap_const()}, shape_matches("OC, IC"));
+    auto transpose_m = wrap_type<v1::Transpose>({weight_rs_m, wrap_type<v0::Constant>(value_matches("1, 0"))});
+    auto matmul_m =
+        wrap_type<v0::MatMul>({any_input(), transpose_m}, {{"transpose_a", false}, {"transpose_b", false}});
 
-        // Weight: Convert(Const u8 [OC,1,IC] | [OC,IC])
-        auto cvt_w = ov::as_type_ptr<ov::op::v0::Convert>(sub->input_value(0).get_node_shared_ptr());
-        auto qweight = cvt_w ? get_const(cvt_w->input_value(0)) : nullptr;
-        if (!qweight || qweight->get_element_type() != ov::element::u8 ||
-            ov::shape_size(qweight->get_shape()) != OC * IC) {
-            return false;
-        }
+    auto callback = [=](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        const auto matmul = pattern_map.at(matmul_m).get_node_shared_ptr();
+        const auto sub = pattern_map.at(sub_m).get_node_shared_ptr();
+        const auto mul = pattern_map.at(mul_m).get_node_shared_ptr();
+        const auto qweight = ov::as_type_ptr<v0::Constant>(pattern_map.at(weight_m).get_node_shared_ptr());
+        const auto qzerop = ov::as_type_ptr<v0::Constant>(pattern_map.at(zerop_m).get_node_shared_ptr());
+        const auto qscale = ov::as_type_ptr<v0::Constant>(pattern_map.at(scale_m).get_node_shared_ptr());
 
-        // Zero point: [Reshape ->] Convert(Const|Reshape(Const) u8, OC elements)
-        auto cvt_z = ov::as_type_ptr<ov::op::v0::Convert>(skip_reshape(sub->input_value(1)).get_node_shared_ptr());
-        auto qzerop = cvt_z ? const_through_reshape(cvt_z->input_value(0)) : nullptr;
-        if (!qzerop || qzerop->get_element_type() != ov::element::u8 || ov::shape_size(qzerop->get_shape()) != OC) {
-            return false;
-        }
-
-        // Scale: Const|Reshape(Const) float, OC elements
-        auto qscale = const_through_reshape(mul->input_value(1));
-        if (!qscale || !qscale->get_element_type().is_real() || ov::shape_size(qscale->get_shape()) != OC) {
-            return false;
-        }
-
-        LOG_DEBUG("CanonicalizeLMHeadDQLayout: rewriting " << mm->get_friendly_name() << " [OC=" << OC
+        const size_t OC = qweight->get_shape()[0];
+        const size_t IC = qweight->get_shape()[2];
+        LOG_DEBUG("CanonicalizeLMHeadDQLayout: rewriting " << matmul->get_friendly_name() << " [OC=" << OC
                                                            << ", IC=" << IC << "]");
 
-        auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(reshaped(qweight, {OC, IC}),
-                                                                cvt_w->get_destination_type());
-        auto new_cvt_z =
-            std::make_shared<ov::op::v0::Convert>(reshaped(qzerop, {OC, 1}), cvt_z->get_destination_type());
-        auto new_sub = std::make_shared<ov::op::v1::Subtract>(new_cvt_w, new_cvt_z);
-        auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_sub, reshaped(qscale, {OC, 1}));
-        auto new_mm = std::make_shared<ov::op::v0::MatMul>(mm->input_value(0), new_mul, false, true);
+        // Re-view the compressed Constants with the new shape: shares the data buffer, which
+        // matters for the vocab-sized weight.
+        const auto reshaped = [](const std::shared_ptr<v0::Constant>& cnst, const ov::Shape& shape) {
+            return std::make_shared<v0::Constant>(*cnst, shape);
+        };
 
-        new_mm->set_friendly_name(mm->get_friendly_name());
-        new_mm->output(0).set_names(mm->output(0).get_names());
-        ov::copy_runtime_info(mm, new_mm);
-        ov::copy_runtime_info(ov::NodeVector{sub, mul},
-                              ov::NodeVector{new_cvt_w, new_cvt_z, new_sub, new_mul});
-        ov::replace_node(mm, new_mm);
+        // Subtract requires equal types of its inputs, so both Converts target the Subtract's type.
+        const auto dq_type = sub->get_output_element_type(0);
+        auto new_cvt_w = std::make_shared<v0::Convert>(reshaped(qweight, {OC, IC}), dq_type);
+        auto new_cvt_z = std::make_shared<v0::Convert>(reshaped(qzerop, {OC, 1}), dq_type);
+        auto new_sub = std::make_shared<v1::Subtract>(new_cvt_w, new_cvt_z);
+        auto new_mul = std::make_shared<v1::Multiply>(new_sub, reshaped(qscale, {OC, 1}));
+        auto new_matmul = std::make_shared<v0::MatMul>(matmul->input_value(0), new_mul, false, true);
+
+        new_matmul->set_friendly_name(matmul->get_friendly_name());
+        new_matmul->output(0).set_names(matmul->output(0).get_names());
+        ov::copy_runtime_info(matmul, new_matmul);
+        ov::copy_runtime_info(ov::NodeVector{sub, mul}, ov::NodeVector{new_cvt_w, new_cvt_z, new_sub, new_mul});
+        ov::replace_node(matmul, new_matmul);
         return true;
     };
 
-    register_matcher(std::make_shared<opp::Matcher>(matmul, "CanonicalizeLMHeadDQLayout"), std::move(callback));
+    register_matcher(std::make_shared<Matcher>(matmul_m, "CanonicalizeLMHeadDQLayout"), std::move(callback));
 }
 
 }  // namespace ov::npuw
