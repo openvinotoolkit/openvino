@@ -25,11 +25,13 @@ converters; builders and validation differ. Registration or conversion alone nev
 | Add or port an architecture | [architectures.md](../../../src/frontends/gguf/docs/architectures.md) and the [family contract](references/validation.md#family-contract); [extensions.md](../../../src/frontends/gguf/docs/extensions.md) when shipping it as a plugin |
 | Add or replace an mmproj branch | [extensions.md](../../../src/frontends/gguf/docs/extensions.md#extend-mmproj-with-a-projector-component), then the graph contracts in [mmproj.md](../../../src/frontends/gguf/docs/mmproj.md) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Missing ggml operation or `op_case` | [how_to_add_op.md](../../../src/frontends/gguf/docs/how_to_add_op.md) |
+| Validate generated-text or quantized-model quality | [WWB validation](references/wwb.md); compare both backends against the same saved reference while preserving numerical and integration gates |
 | Wrong numbers | [debugging_accuracy.md](../../../src/frontends/gguf/docs/debugging_accuracy.md) |
 | GenAI/mmproj token, media or PA mismatch | [multimodal integration bisection](../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection) and [multimodal contracts](references/validation.md#multimodal-contracts) |
 | Unsupported weight type | [quantization.md](../../../src/frontends/gguf/docs/quantization.md); the fix belongs in `src/quant/`, not a builder |
 | Build, run tests, regenerate fixtures | [testing.md](../../../src/frontends/gguf/docs/testing.md) |
 | Run or resume GGUF validation across OpenVINO, GenAI and llama.cpp | [validation.md](references/validation.md); use existing GHA workflows and focused local tests, preserving revisions, coverage and failures |
+| Preflight test selection, fixtures or an overlay link | [executable checks](references/preflight.md); verify required cases and link inputs before a broad batch |
 
 ## Architecture ownership
 
@@ -57,7 +59,9 @@ converters; builders and validation differ. Registration or conversion alone nev
   `GGUFArchConversion` skips without generated headers unless `OV_GGUF_REQUIRE_ARCH_FIXTURES=1`
   requires them; generate them with [gen_arch_fixtures.py](../../../src/frontends/gguf/tests/gen_arch_fixtures.py) `--fetch`.
   Check actual selected counts and skips; registration, conversion, decoder numerics and
-  GenAI media/API integration establish different levels of support.
+  GenAI media/API integration establish different levels of support. Use the
+  [coverage helper](references/preflight.md#test-selection-and-required-fixtures) for repeated batches;
+  zero selected tests or suppressed required cases are missing coverage.
 - **References.** Layout-sensitive expectations come from real ggml CPU via a committed oracle under
   `tests/`, with several heads/tokens and unequal Q/KV dimensions; NumPy or single-head tests can
   share the bug. Do not tighten `expect_near` tolerances from an x86-only run.
@@ -73,8 +77,8 @@ converters; builders and validation differ. Registration or conversion alone nev
   original parity gate. Shared exported-model layout does not imply identical media geometry.
 - **Shared changes.** Translator, VIEW/`op_case` or shared block changes rerun
   `GGUFArchitectureAccuracy`, `GGUFArchConversion` and the mmproj suites, not just the target model.
-- **Long runs.** Redirect output to a file, keep the launched PID and stop only that process. Large Q2
-  MoE checkpoints expand at CPU compilation; check memory before starting one.
+- **Long runs.** Redirect output to a file, keep the launched PID and stop only that process. Large quantized
+  MoE checkpoints can expand at CPU compilation; check memory before starting one.
 - **Ineffective rebuilds.** Verify graph attributes, plugin/executor parameters and the linked,
   loaded CPU variants before repeating a sweep. Use [build and runtime identity](references/build-runtime.md)
   for overlays or multiple worktrees; version strings and `ldd` alone do not prove execution identity.
