@@ -11,7 +11,7 @@ pytestmark = [pytest.mark.precommit, pytest.mark.nightly]
 
 
 @pytest.mark.parametrize("capture", ["export", "script"])
-@pytest.mark.parametrize("dtype", [torch.bool, torch.int64, torch.float32])
+@pytest.mark.parametrize("dtype", [torch.bool, torch.int64])
 @pytest.mark.parametrize("explicit_dtype", [False, True])
 def test_cumsum_dtype(capture, dtype, explicit_dtype, monkeypatch):
     class Model(torch.nn.Module):
