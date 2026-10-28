@@ -152,6 +152,43 @@ def test_model_vmap_module_extension():
     np.testing.assert_allclose(compiled(data.numpy())[0], data.sin().sin().numpy(), atol=1e-6, rtol=1e-5)
 
 
+@pytest.mark.parametrize("view_inside", [False, True])
+def test_export_vmap_output_alias_mutation(view_inside):
+    class Model(torch.nn.Module):
+        def forward(self, data):
+            if view_inside:
+                def mapped(row):
+                    value = row.sin()
+                    return value.view(2, 4), value.view(-1)
+
+                value, view = torch.vmap(mapped)(data)
+            else:
+                value = torch.vmap(torch.sin)(data)
+                view = value.view(-1)
+            view.add_(1)
+            return value, view
+
+    model = Model()
+    data = torch.randn(3, 2, 4)
+    batch = torch.export.Dim("batch", min=2, max=8)
+    compiled = _convert_export(model, (data,), ({0: batch},))
+    for size in (3, 5):
+        _compare(compiled, model, (torch.randn(size, 2, 4),))
+
+
+def test_export_vmap_cond_unmapped_predicate():
+    class Model(torch.nn.Module):
+        def forward(self, data, predicate):
+            return torch.vmap(lambda row: torch.ops.higher_order.cond(
+                predicate, lambda x: (x.sin(),), lambda x: (x.cos(),), (row,)))(data)[0]
+
+    model = Model()
+    data = torch.randn(3, 4)
+    compiled = _convert_export(model, (data, torch.tensor(True)))
+    for predicate in (True, False):
+        _compare(compiled, model, (data, torch.tensor(predicate)))
+
+
 @pytest.mark.parametrize("case", ["same", "different", "mutation", "captured_mutation", "wrapped_mutation"])
 def test_export_vmap_rejects(case):
     @torch.no_grad()

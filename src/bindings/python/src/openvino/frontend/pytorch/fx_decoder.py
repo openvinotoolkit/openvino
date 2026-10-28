@@ -535,8 +535,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if arg.op != "get_attr":
             return False, None
 
-        # Get the attribute from the root graph module
-        subgraph = getattr(self.fx_gm, arg.target, None)
+        subgraph = fetch_attr(self.fx_gm, arg.target)
         if subgraph is not None and isinstance(subgraph, torch.fx.GraphModule):
             return True, subgraph
         # Also handle callables with graph attribute (lambda-wrapped GraphModules)

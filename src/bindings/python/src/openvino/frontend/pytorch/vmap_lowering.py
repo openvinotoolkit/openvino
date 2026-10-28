@@ -65,6 +65,29 @@ def _trace(body, examples):
         return make_fx(run, tracing_mode="fake", _allow_non_fake_inputs=True)(*examples)
 
 
+def _preserve_output_aliases(lowered, outputs):
+    from torch.utils._pytree import tree_map
+
+    traced_outputs = next(node for node in lowered.graph.nodes if node.op == "output").args[0]
+    aliases = [(traced.meta.get("val"), original.meta.get("val"))
+               for traced, original in zip(traced_outputs, outputs)]
+    aliases = [(traced, original) for traced, original in aliases
+               if isinstance(traced, torch.Tensor) and isinstance(original, torch.Tensor)]
+
+    def reconcile(value):
+        if isinstance(value, torch.Tensor):
+            for traced, original in aliases:
+                if torch._C._is_alias_of(value, traced):
+                    # Keep exported storage identity for views crossing the region boundary.
+                    offset = value.storage_offset() - traced.storage_offset() + original.storage_offset()
+                    return original.as_strided(value.shape, value.stride(), offset)
+        return value
+
+    for node in lowered.graph.nodes:
+        if "val" in node.meta:
+            node.meta["val"] = tree_map(reconcile, node.meta["val"])
+
+
 def lower_vmap_regions(module):
     """Return a copy of module with each torch.vmap region replaced by its vectorized trace.
 
@@ -99,6 +122,7 @@ def lower_vmap_regions(module):
             values[node] = body_graph.node_copy(node, values.__getitem__)
         body_graph.output(tuple(values[node] for node in outputs))
         lowered = _trace(torch.fx.GraphModule(result, body_graph), [operand.meta["val"] for operand in operands])
+        _preserve_output_aliases(lowered, outputs)
 
         prefix = f"_ov_vmap_{ordinal}"
         ordinal += 1
