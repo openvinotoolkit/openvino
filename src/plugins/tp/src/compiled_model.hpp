@@ -12,6 +12,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "cache_controller.hpp"
 #include "rank_workers.hpp"
+#include "tp/tp_config.hpp"
 #include "tp/tp_device_coordinator.hpp"
 #include "tp_l0_shared_context.hpp"
 

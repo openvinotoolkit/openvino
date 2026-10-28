@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "openvino/runtime/plugin_config.hpp"
+#include "tp/collective_options.hpp"
 #include "tp/internal_properties.hpp"
 #include "tp/tp_debug.hpp"
 
@@ -118,6 +119,20 @@ struct TPConfig : public ov::PluginConfig {
 
     bool skip_collective() const {
         return TP_DEBUG_OPT(*this, skip_collective, false);
+    }
+
+    /// The options the collectives run with, resolved from this config.
+    CollectiveOptions collective_options() const {
+        CollectiveOptions options;
+        options.enable_halving = get_enable_halving();
+        options.halving_max_bytes = get_halving_max_bytes();
+        options.force_sync_collective = force_sync_collective();
+        options.skip_collective = skip_collective();
+        options.profiling_host = profiling_host();
+        options.profiling_device = profiling_device();
+        options.dump_period = dump_period();
+        options.verbosity = verbosity();
+        return options;
     }
 
 private:

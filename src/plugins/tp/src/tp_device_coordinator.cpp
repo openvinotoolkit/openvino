@@ -25,6 +25,10 @@
 #include "tp_l0_shared_context.hpp"
 #include "tp_ze_throw.hpp"
 
+// Verbosity travels with the options, so the collectives log the same way whichever plugin hosts them.
+#define TP_COORD_LOG(level) \
+    if (m_options.verbosity >= (level)) ov::tp::log_stream()
+
 namespace ov {
 namespace tp {
 
@@ -211,13 +215,13 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
                                          int world_size,
                                          int num_collectives,
                                          std::chrono::milliseconds collective_timeout,
-                                         const TPConfig& config)
+                                         const CollectiveOptions& options)
     : m_shared(std::move(shared)),
       m_world_size(world_size),
       m_num_collectives(num_collectives),
       m_collective_timeout(collective_timeout),
-      m_config(config),
-      m_dump_period(m_config.dump_period()) {
+      m_options(options),
+      m_dump_period(m_options.dump_period) {
     OPENVINO_ASSERT(m_shared && m_shared->context && static_cast<int>(m_shared->devices.size()) == world_size,
                     "[TP][L0] coordinator requires a valid shared L0 context with ", world_size, " devices");
     OPENVINO_ASSERT(world_size >= 2, "[TP][L0] coordinator requires at least 2 ranks");
@@ -310,7 +314,7 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     }
 
     m_ready = true;
-    TP_LOG_INFO << "[TP][L0] coordinator ready: " << world_size << " ranks, "
+    TP_COORD_LOG(ov::log::Level::INFO) << "[TP][L0] coordinator ready: " << world_size << " ranks, "
                 << num_collectives << " collective slots" << std::endl;
 }
 
@@ -469,7 +473,7 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
     if (payload_bytes <= m_scratch.payload_capacity_bytes.load(std::memory_order_relaxed)) {
         return false;
     }
-    ScopedTime stall(m_config.profiling_host(), m_scratch_stall_ns);
+    ScopedTime stall(m_options.profiling_host, m_scratch_stall_ns);
 
     std::vector<void*> new_allocations(static_cast<std::size_t>(m_world_size), nullptr);
     std::vector<std::size_t> new_bytes_per_rank(static_cast<std::size_t>(m_world_size), 0);
@@ -564,7 +568,7 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
     m_scratch.payload_capacity_bytes.store(payload_bytes, std::memory_order_release);
     const uint64_t generation = m_scratch.generation.fetch_add(1, std::memory_order_release) + 1;
 
-    if (TP_VERBOSE_AT_LEAST(ov::log::Level::INFO)) {
+    if (m_options.verbosity >= ov::log::Level::INFO) {
         ov::tp::log_stream() << "[TP][MEM] scratch grow generation=" << generation
                                  << " payload_capacity=" << payload_bytes
                                  << " total=" << m_scratch.total_allocated_bytes;
@@ -713,8 +717,8 @@ void* TPDeviceCoordinator::halving_stage(int rank, std::size_t payload_bytes, in
 
 bool TPDeviceCoordinator::uses_halving(std::size_t payload_bytes) const {
     const bool power_of_two = (m_world_size & (m_world_size - 1)) == 0;
-    return m_use_ring && power_of_two && m_config.get_enable_halving() &&
-           payload_bytes <= m_config.get_halving_max_bytes();
+    return m_use_ring && power_of_two && m_options.enable_halving &&
+           payload_bytes <= m_options.halving_max_bytes;
 }
 
 std::size_t TPDeviceCoordinator::staging_bytes(std::size_t payload_bytes) const {
@@ -750,7 +754,7 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
         // record a start and an end on every signal, so it is only asked for
         // when someone is going to read them.
         epd.flags = ZE_EVENT_POOL_FLAG_HOST_VISIBLE;
-        if (m_config.profiling_device()) {
+        if (m_options.profiling_device) {
             epd.flags |= ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP;
         }
         epd.count = static_cast<uint32_t>(N);
@@ -795,7 +799,7 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
         // The actual P-6 win comes from skipping ev_ts_kernel events.
         epd.flags = ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP;
         // ev_recv[2] always; ev_ts_kernel[2] only when profiling is enabled.
-        const bool prof_on = m_config.profiling_device();
+        const bool prof_on = m_options.profiling_device;
         epd.count = prof_on ? 4u : 2u;
         std::vector<ze_device_handle_t> devs_nc(m_shared->devices.begin(), m_shared->devices.end());
         ZE_THROW(ov::zeEventPoolCreate(ctx, &epd,
@@ -831,7 +835,7 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
         // The pair exchange above is the only other schedule there is.
         const int steps = 2 * (N - 1);
         ze_event_pool_desc_t epd{ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr};
-        epd.flags = m_config.profiling_device() ? ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP : 0;
+        epd.flags = m_options.profiling_device ? ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP : 0;
         // One event per (step, rank), plus one "reduce-scatter finished" per
         // rank in a trailing row.
         epd.count = static_cast<uint32_t>((steps + 1) * N);
@@ -1178,7 +1182,7 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
 }
 
 void TPDeviceCoordinator::close_list(ze_command_list_handle_t list, Counter& into) {
-    ScopedTime timer(m_config.profiling_host(), into);
+    ScopedTime timer(m_options.profiling_host, into);
     ZE_THROW(ze_api()->zeCommandListClose(list));
 }
 
@@ -1210,7 +1214,7 @@ void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
     // Recording is a fraction of a percent of collective calls but all of its
     // misses land in time to first token, so the stages are timed separately:
     // the drain, the reset, and the appends that follow.
-    const bool measure = m_config.profiling_host();
+    const bool measure = m_options.profiling_host;
     auto& rs = m_ranks[rank];
     {
         ScopedTime drain(measure, m_rec_drain_ns);
@@ -1663,8 +1667,8 @@ void TPDeviceCoordinator::gather_to_root(int collective_id,
                     "[TP][L0] gather of an empty slice (rows=", rows, ", slice=", slice_elems, ")");
     throw_if_aborted();
 
-    const bool g_host = m_config.profiling_host();
-    const bool g_dev = m_config.profiling_device();
+    const bool g_host = m_options.profiling_host;
+    const bool g_dev = m_options.profiling_device;
     const Stopwatch since_entry(g_host);
 
     auto& rdz = *m_rendezvous[collective_id];
@@ -1877,23 +1881,22 @@ void TPDeviceCoordinator::allreduce(int collective_id,
     // sync and transfer -- which is otherwise impossible to separate from the
     // per-rank execution time. Output buffers are left untouched, so results
     // are meaningless and only timings may be read from such a run.
-    if (m_config.skip_collective()) {
+    if (m_options.skip_collective) {
         static std::once_flag warned;
         std::call_once(warned, [] {
-            TP_WARN_ALWAYS << "[TP] " << ov::tp::skip_collective.name()
-                           << " is set: AllReduce is a no-op, outputs are invalid. Timing-only mode.";
+            TP_WARN_ALWAYS << "[TP] skip_collective is set: AllReduce is a no-op, outputs are invalid. Timing-only mode.";
         });
         return;
     }
 
-    auto trace = [rank](const char* msg) {
-        TP_LOG_TRACE << "[TP][L0] r" << rank << " " << msg << std::endl;
+    auto trace = [this, rank](const char* msg) {
+        TP_COORD_LOG(ov::log::Level::TRACE) << "[TP][L0] r" << rank << " " << msg << std::endl;
     };
 
     using clk = std::chrono::steady_clock;
 
-    const bool measure_host = m_config.profiling_host();
-    const bool measure_dev = m_config.profiling_device();
+    const bool measure_host = m_options.profiling_host;
+    const bool measure_dev = m_options.profiling_device;
 
     auto stamp = [measure_host]() -> clk::time_point {
         return measure_host ? clk::now() : clk::time_point{};
@@ -2049,7 +2052,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,
 
         const auto previous_max_payload = slot->max_payload_bytes;
         if (payload_bytes > previous_max_payload) {
-            TP_LOG_INFO << "[TP][MEM] collective cid=" << collective_id
+            TP_COORD_LOG(ov::log::Level::INFO) << "[TP][MEM] collective cid=" << collective_id
                         << " n=" << n
                         << " dtype=" << dtype
                         << " payload=" << payload_bytes
@@ -2346,8 +2349,8 @@ void TPDeviceCoordinator::allreduce(int collective_id,
 }
 
 void TPDeviceCoordinator::note_collective_done(int rank) {
-    const bool measure_host = m_config.profiling_host();
-    const bool measure_dev = m_config.profiling_device();
+    const bool measure_host = m_options.profiling_host;
+    const bool measure_dev = m_options.profiling_device;
     if (!(measure_host || measure_dev) || rank != 0) {
         return;
     }
@@ -2360,11 +2363,11 @@ void TPDeviceCoordinator::note_collective_done(int rank) {
 
 void TPDeviceCoordinator::emit_report() {
     const uint64_t calls = m_dump_period.calls();
-    if (m_config.profiling_host()) {
+    if (m_options.profiling_host) {
         report_host_ranks(calls);
         report_host_totals(calls);
     }
-    if (m_config.profiling_device()) {
+    if (m_options.profiling_device) {
         report_device(calls);
     }
 }

@@ -160,7 +160,8 @@ TPDeviceCoordinatorPtr make_coordinator(const TPL0SharedContextPtr& shared,
     if (num_collectives <= 0) {
         return nullptr;
     }
-    return std::make_shared<TPDeviceCoordinator>(shared, static_cast<int>(world_size), num_collectives, timeout, config);
+    return std::make_shared<TPDeviceCoordinator>(shared, static_cast<int>(world_size), num_collectives, timeout,
+                                                 config.collective_options());
 }
 
 void log_sharding_plan(const ShardingPlan& plan, int num_collectives) {

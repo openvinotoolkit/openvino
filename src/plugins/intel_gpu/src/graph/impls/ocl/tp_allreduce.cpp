@@ -85,10 +85,10 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         const auto& coordinator = coordinator_of(instance);
         const bool async = coordinator->run_spliced();
 
-        if (TP_VERBOSE_AT_LEAST(ov::log::Level::INFO)) {
+        if (coordinator->options().verbosity >= ov::log::Level::INFO) {
             static std::once_flag reported;
             std::call_once(reported, [&] {
-                TP_LOG_INFO << "[TP] collective rides "
+                ov::tp::log_stream() << "[TP] collective rides "
                             << (async ? "in the model queue" : "on its own queue (synchronous)")
                             << ", in-order=" << (stream.get_queue_type() == QueueTypes::in_order)
                             << std::endl;

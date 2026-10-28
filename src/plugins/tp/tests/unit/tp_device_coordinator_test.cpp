@@ -32,7 +32,6 @@
 #define ZERO_API_KEEP_SYMBOLS_LIST_MACRO
 #include "openvino/zero_api.hpp"
 
-#include "tp/tp_config.hpp"
 #include "tp/tp_device_coordinator.hpp"
 #include "tp_l0_shared_context.hpp"
 
@@ -941,7 +940,8 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceHandlesPayloadsThatDoNotDivide) {
             SCOPED_TRACE(halving ? "halving allowed" : "ring only");
             for (size_t n : {size_t{1021}, size_t{4099}}) {
                 SCOPED_TRACE("n=" + std::to_string(n));
-                ov::tp::TPConfig config({{ov::tp::enable_halving.name(), halving}});
+                ov::tp::CollectiveOptions config;
+                config.enable_halving = halving;
                 auto coord = std::make_shared<TPDeviceCoordinator>(shared,
                                                                    ranks,
                                                                    1,
@@ -973,7 +973,8 @@ TEST_F(TPDeviceCoordinatorTest, RingAndHalvingAgree) {
 
     for (bool halving : {true, false}) {
         SCOPED_TRACE(halving ? "halving" : "ring");
-        ov::tp::TPConfig config({{ov::tp::enable_halving.name(), halving}});
+        ov::tp::CollectiveOptions config;
+        config.enable_halving = halving;
         auto coord = std::make_shared<TPDeviceCoordinator>(shared,
                                                            4,
                                                            1,
@@ -995,8 +996,8 @@ TEST_F(TPDeviceCoordinatorTest, ScheduleFlipsAtTheHalvingCeiling) {
 
     auto shared = make_shared_ctx(4);
     constexpr size_t ceiling_elems = 2048;  // f32 -> 8 KB
-    ov::tp::TPConfig config(
-        {{ov::tp::halving_max_bytes.name(), uint64_t{ceiling_elems * sizeof(float)}}});
+    ov::tp::CollectiveOptions config;
+    config.halving_max_bytes = ceiling_elems * sizeof(float);
     auto coord =
         std::make_shared<TPDeviceCoordinator>(shared, 4, 1, std::chrono::milliseconds{5000}, config);
 
@@ -1284,7 +1285,8 @@ TEST_F(TPDeviceCoordinatorTest, ForcingTheSyncPathKeepsTheSameResult) {
     const int ranks = std::min(available_gpus, 4);
     auto shared = make_shared_ctx(ranks);
 
-    ov::tp::TPConfig config({{ov::tp::force_sync_collective.name(), true}});
+    ov::tp::CollectiveOptions config;
+    config.force_sync_collective = true;
     auto coord =
         std::make_shared<TPDeviceCoordinator>(shared, ranks, 1, std::chrono::milliseconds{5000}, config);
     EXPECT_FALSE(coord->run_spliced()) << "the option must win over the driver's capability";

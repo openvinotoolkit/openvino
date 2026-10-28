@@ -16,7 +16,6 @@
 
 #include "ov_ops/tp_collective.hpp"
 #include "tp/tp_debug.hpp"
-#include "tp/tp_device_coordinator.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"

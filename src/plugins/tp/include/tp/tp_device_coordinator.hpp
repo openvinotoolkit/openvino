@@ -18,7 +18,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/zero_api.hpp"
-#include "tp/tp_config.hpp"
+#include "tp/collective_options.hpp"
 #include "tp/tp_debug.hpp"
 
 namespace ov {
@@ -52,7 +52,7 @@ public:
                         int world_size,
                         int num_collectives,
                         std::chrono::milliseconds collective_timeout = std::chrono::milliseconds{5000},
-                        const TPConfig& config = TPConfig{});
+                        const CollectiveOptions& options = CollectiveOptions{});
 
     TPDeviceCoordinator(const TPDeviceCoordinator&) = delete;
     TPDeviceCoordinator& operator=(const TPDeviceCoordinator&) = delete;
@@ -100,8 +100,10 @@ public:
     /// False either because the driver has no splice extension or because a
     /// debug option asked for the synchronous path.
     bool run_spliced() const {
-        return async_supported() && !m_config.force_sync_collective();
+        return async_supported() && !m_options.force_sync_collective;
     }
+
+    const CollectiveOptions& options() const { return m_options; }
 
     /// Marks the group as failed, wakes every waiting rank and makes all
     /// subsequent calls throw. Safe to call from any rank; the first reason
@@ -814,8 +816,8 @@ private:
     std::condition_variable         m_watchdog_cv;
     bool                            m_watchdog_stop{false};
 
-    // Resolved from the plugin configuration at construction time.
-    TPConfig                        m_config;
+    // Resolved by the owner of the configuration at construction time.
+    CollectiveOptions               m_options;
 
     // Ring reduce-scatter + all-gather for N>2; two ranks exchange directly,
     // which is what the ring degenerates to minus a round of latency.
