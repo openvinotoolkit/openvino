@@ -23,11 +23,11 @@ public:
 
     bool handle_section(const runtime::hsm::ManifestEntry& entry, const runtime::hsm::Section& section) override;
 
-    /// Throws if the manifest lists a section this handler decodes more than once. Call before read_sections().
+    /// Validates the manifest of @p reader. Throws if it is not acceptable. Call before read_sections().
     static void check_manifest(const runtime::hsm::Reader& reader);
 
-    /// Throws if the blob lacks a mandatory section.
-    void check_mandatory_sections() const;
+    /// Decodes the sections of @p reader into the members below.
+    void read_sections(const runtime::hsm::Reader& reader);
 
     std::optional<std::string> runtime_requirements;
     std::optional<uint64_t> model_id;                 //!< See hsm::model_id;

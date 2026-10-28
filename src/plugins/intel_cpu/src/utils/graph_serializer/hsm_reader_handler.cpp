@@ -62,19 +62,19 @@ std::string read_compatible_requirements(const runtime::hsm::Section& section) {
     return requirements;
 }
 
+constexpr uint32_t requirements_key = hsm::section_key(hsm::runtime_requirements);
+constexpr uint32_t model_struct_key = hsm::section_key(hsm::model_struct);
+
 }  // namespace
 
 const std::map<uint32_t, HsmReaderHandler::Decoder> HsmReaderHandler::s_decoders = {
-    {hsm::section_key(hsm::runtime_requirements),
-     [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-         handler.runtime_requirements = read_compatible_requirements(section);
-     }},
     {hsm::section_key(hsm::model_id),
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
          handler.model_id = runtime::hsm::decode_model_id(section);
      }},
-    {hsm::section_key(hsm::model_struct),
+    {model_struct_key,
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
+         OPENVINO_ASSERT(section.size() > 0, "[CPU] Cannot import compiled blob: empty model section.");
          handler.model_struct = read_buffer(handler.m_source_blob, section);
      }},
     {hsm::section_key(hsm::weights),
@@ -96,22 +96,26 @@ bool HsmReaderHandler::handle_section(const runtime::hsm::ManifestEntry& entry, 
     return false;
 }
 
+void HsmReaderHandler::read_sections(const runtime::hsm::Reader& reader) {
+    // Not left to the manifest order: an incompatible blob is rejected before any payload is read.
+    const auto requirements = reader.section(hsm::runtime_requirements.device, hsm::runtime_requirements.tag.id());
+    OPENVINO_ASSERT(requirements, "[CPU] Cannot import compiled blob: missing runtime requirements section.");
+    runtime_requirements = read_compatible_requirements(*requirements);
+    reader.read_sections({this});
+}
+
 void HsmReaderHandler::check_manifest(const runtime::hsm::Reader& reader) {
     std::unordered_set<uint32_t> seen;
     for (const auto& entry : reader.entries()) {
         const auto key = hsm::section_key(entry.device, entry.tag);
-        // Sections this plugin does not decode are ignored and may repeat.
-        if (const auto found = s_decoders.find(key); found != s_decoders.end()) {
-            OPENVINO_ASSERT(seen.insert(found->first).second,
-                            "[CPU] Cannot import compiled blob: duplicated section ",
-                            key);
+        // Sections this plugin does not use are ignored and may repeat.
+        if (key == requirements_key || s_decoders.count(key) != 0) {
+            OPENVINO_ASSERT(seen.insert(key).second, "[CPU] Cannot import compiled blob: duplicated section ", key);
         }
     }
-}
-
-void HsmReaderHandler::check_mandatory_sections() const {
-    OPENVINO_ASSERT(runtime_requirements, "[CPU] Cannot import compiled blob: missing runtime requirements section.");
-    OPENVINO_ASSERT(model_struct, "[CPU] Cannot import compiled blob: missing model section.");
+    OPENVINO_ASSERT(seen.count(requirements_key) != 0,
+                    "[CPU] Cannot import compiled blob: missing runtime requirements section.");
+    OPENVINO_ASSERT(seen.count(model_struct_key) != 0, "[CPU] Cannot import compiled blob: missing model section.");
 }
 
 }  // namespace ov::intel_cpu

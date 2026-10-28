@@ -850,8 +850,8 @@ static void read_header(std::istream& model_stream) {
 static HsmModelDeserializer::Sections read_hsm_sections(const ov::runtime::hsm::Reader& reader,
                                                         std::shared_ptr<ov::AlignedBuffer> source_blob) {
     HsmReaderHandler handler{std::move(source_blob)};
-    reader.read_sections({&handler});
-    handler.check_mandatory_sections();
+    HsmReaderHandler::check_manifest(reader);
+    handler.read_sections(reader);
     return {std::move(handler.model_struct), std::move(handler.weights)};
 }
 
