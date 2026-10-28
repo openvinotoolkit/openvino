@@ -71,7 +71,8 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                                one_of(in0_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::i8, data_types::u8}) &&
                                one_of(wei_dt, {data_types::u8, data_types::i8, data_types::u4, data_types::i4, data_types::u2}) &&
                                one_of(out_dt, {data_types::f16, data_types::bf16, data_types::f32, data_types::u8, data_types::i8}) &&
-                               (wei_dt != data_types::u2 || in0_dt == data_types::f16);  // u2 oneDNN kernel requires f16 activations
+                               (wei_dt != data_types::u2 || in0_dt == data_types::f16 ||  // u2 needs f16 activations, except on Xe3:
+                                (in0_dt == data_types::i8 && info.arch == gpu_arch::xe3));  // oneDNN has u2 x s8 kernels there
         const bool fp_compressed_case = fc_prim->compressed_weights && one_of(in0_dt, {data_types::f8e4m3, data_types::f4e2m1, data_types::f8e5m2}) &&
                                         one_of(wei_dt, {data_types::f8e4m3, data_types::f4e2m1, data_types::f8e5m2}) && one_of(out_dt, {data_types::f16, data_types::f32});
         if (!f16f16_case && !bf16bf16_case && !f32f32_case && !u8s8_case && !compressed_case && !fp_compressed_case) {
