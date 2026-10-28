@@ -69,73 +69,6 @@ ov::Output<ov::Node> ref_2dx3d_decomposition(const ov::Output<ov::Node>& mat_a,
 
 }  // namespace
 
-// 3Dx3D: A:[G,M,K] B:[G,N,K] -> MatMul(A, B, transpose_b=true)
-TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_3Dx3D) {
-    constexpr size_t G = 2, M = 4, K = 8, N = 16;
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-
-    {
-        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{G, M, K});
-        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{G, N, K});
-        auto gmm = std::make_shared<v17::GroupedMatMul>(mat_a, mat_b);
-        model = std::make_shared<ov::Model>(ov::OutputVector{gmm}, ov::ParameterVector{mat_a, mat_b});
-
-        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
-    }
-    {
-        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{G, M, K});
-        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{G, N, K});
-        auto mm = std::make_shared<v0::MatMul>(mat_a, mat_b, /*transpose_a=*/false, /*transpose_b=*/true);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{mm}, ov::ParameterVector{mat_a, mat_b});
-    }
-}
-
-// 2Dx3D with i32 offsets
-TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_i32Offsets) {
-    constexpr size_t T = 6, K = 8, G = 2, N = 16;
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-
-    {
-        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
-        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{G, N, K});
-        auto offsets = v0::Constant::create(i32, ov::Shape{G}, {3, 6});
-        auto gmm = std::make_shared<v17::GroupedMatMul>(mat_a, mat_b, offsets);
-        model = std::make_shared<ov::Model>(ov::OutputVector{gmm}, ov::ParameterVector{mat_a, mat_b});
-
-        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
-    }
-    {
-        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
-        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{G, N, K});
-        auto offsets = v0::Constant::create(i32, ov::Shape{G}, {3, 6});
-        auto out = ref_2dx3d_decomposition(mat_a, mat_b, offsets, G);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{mat_a, mat_b});
-    }
-}
-
-// 2Dx3D with i64 offsets: kept as i64, no index-type Convert is inserted
-TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_i64Offsets) {
-    constexpr size_t T = 6, K = 8, G = 2, N = 16;
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-
-    {
-        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
-        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{G, N, K});
-        auto offsets = v0::Constant::create(i64, ov::Shape{G}, {3, 6});
-        auto gmm = std::make_shared<v17::GroupedMatMul>(mat_a, mat_b, offsets);
-        model = std::make_shared<ov::Model>(ov::OutputVector{gmm}, ov::ParameterVector{mat_a, mat_b});
-
-        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
-    }
-    {
-        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
-        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{G, N, K});
-        auto offsets = v0::Constant::create(i64, ov::Shape{G}, {3, 6});
-        auto out = ref_2dx3d_decomposition(mat_a, mat_b, offsets, G);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{mat_a, mat_b});
-    }
-}
-
 // 2Dx3D with dynamic group dimension: cannot decompose into a fixed number of MatMuls
 TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_DynamicGroupsNoChange) {
     using ov::Dimension;
@@ -185,20 +118,23 @@ INSTANTIATE_TEST_SUITE_P(Shapes3Dx3D,
                                          TestParams3Dx3D{3, 7, 16, 8}));
 
 // {T, K, N, cumulative offsets}
-using TestParams2Dx3D = std::tuple<size_t, size_t, size_t, std::vector<int32_t>>;
+using Shapes2Dx3D = std::tuple<size_t, size_t, size_t, std::vector<int32_t>>;
+// shapes + offsets element type
+using TestParams2Dx3D = std::tuple<Shapes2Dx3D, ov::element::Type>;
 
 class ConvertGroupedMatMulToMatMul2Dx3DAccuracy : public TransformationTestsF,
                                                   public testing::WithParamInterface<TestParams2Dx3D> {};
 
 TEST_P(ConvertGroupedMatMulToMatMul2Dx3DAccuracy, MatchesReference) {
-    const auto [T, K, N, offsets_vec] = GetParam();
+    const auto& [shapes, offsets_et] = GetParam();
+    const auto& [T, K, N, offsets_vec] = shapes;
     const auto G = static_cast<int64_t>(offsets_vec.size());
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 
     {
         auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
         auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{offsets_vec.size(), N, K});
-        auto offsets = v0::Constant::create(i32, ov::Shape{offsets_vec.size()}, offsets_vec);
+        auto offsets = v0::Constant::create(offsets_et, ov::Shape{offsets_vec.size()}, offsets_vec);
         auto gmm = std::make_shared<v17::GroupedMatMul>(mat_a, mat_b, offsets);
         model = std::make_shared<ov::Model>(ov::OutputVector{gmm}, ov::ParameterVector{mat_a, mat_b});
 
@@ -207,7 +143,7 @@ TEST_P(ConvertGroupedMatMulToMatMul2Dx3DAccuracy, MatchesReference) {
     {
         auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
         auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{offsets_vec.size(), N, K});
-        auto offsets = v0::Constant::create(i32, ov::Shape{offsets_vec.size()}, offsets_vec);
+        auto offsets = v0::Constant::create(offsets_et, ov::Shape{offsets_vec.size()}, offsets_vec);
         auto out = ref_2dx3d_decomposition(mat_a, mat_b, offsets, G);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{mat_a, mat_b});
     }
@@ -215,6 +151,9 @@ TEST_P(ConvertGroupedMatMulToMatMul2Dx3DAccuracy, MatchesReference) {
 
 INSTANTIATE_TEST_SUITE_P(Shapes2Dx3D,
                          ConvertGroupedMatMulToMatMul2Dx3DAccuracy,
-                         testing::Values(TestParams2Dx3D{8, 8, 16, {8}},
-                                         TestParams2Dx3D{16, 16, 8, {8, 16}},
-                                         TestParams2Dx3D{24, 8, 8, {8, 16, 24}}));
+                         testing::Combine(testing::Values(Shapes2Dx3D{8, 8, 16, {8}},
+                                                          Shapes2Dx3D{16, 16, 8, {8, 16}},
+                                                          Shapes2Dx3D{24, 8, 8, {8, 16, 24}},
+                                                          // experts without tokens -> zero-length groups
+                                                          Shapes2Dx3D{16, 8, 8, {0, 8, 8, 16}}),
+                                          testing::Values(i32, i64)));
