@@ -238,7 +238,10 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         // Hybrid stack: 3 of every 4 layers replace attention with a Gated DeltaNet block.
         // It produces the same thing the attention path does -- the sublayer output before
         // the residual -- so the shared FFN tail below is reused verbatim.
-        const std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm);
+        std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm);
+        if (m_cfg.residual_scale != 1.0f) {
+            gdn_out = blocks::scale(m_emit, gdn_out, m_cfg.residual_scale, p + "attn_out_scaled");
+        }
         std::string sa = inpSA;
         std::string ao = gdn_out;
         if (selects_output_rows(il)) {
@@ -255,6 +258,9 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         auto down_r = is_moe_layer_r   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r)
                       : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm_r)
                                        : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm_r);
+        if (m_cfg.residual_scale != 1.0f) {
+            down_r = blocks::scale(m_emit, down_r, m_cfg.residual_scale, p + "ffn_out_scaled");
+        }
         return m_emit.add_op("GGML_OP_ADD", p + "l_out", {down_r, ffn_inp_r});
     }
 

@@ -120,8 +120,10 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     adapted->validate_nodes_and_infer_types();
     ov::frontend::FrontEnd::add_model_shared_objects(*model, *adapted, libraries);
     for (auto& [name, encoder] : vision_models) {
-        if (encoder != adapted)
-            encoder = ov::frontend::FrontEnd::copy_model_with_shared_objects(*encoder, libraries);
+        if (encoder != adapted) {
+            encoder = ov::frontend::FrontEnd::copy_model_with_shared_objects(*encoder, {});
+            ov::frontend::FrontEnd::add_model_shared_objects(*encoder, *model, {});
+        }
     }
     remove_model_adapters(adapted);
     for (const auto& [name, encoder] : vision_models)

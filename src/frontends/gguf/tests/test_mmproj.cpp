@@ -311,7 +311,7 @@ TEST_F(GGUFMMProj, ProjectorCallbackCanReplaceThePrimaryGraph) {
         },
         {},
         {},
-        [&replacement_owner](const std::shared_ptr<ov::Model>&) {
+        [&replacement_owner](const std::shared_ptr<ov::Model>& source) {
             auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 3});
             input->set_friendly_name("callback_values");
             input->output(0).set_names({"callback_values"});
@@ -323,7 +323,9 @@ TEST_F(GGUFMMProj, ProjectorCallbackCanReplaceThePrimaryGraph) {
             auto library = std::make_shared<int>(1);
             replacement_owner = library;
             ov::frontend::FrontEnd::add_model_shared_objects(*replacement, {library});
-            return ModelAdapterResult{replacement, {{"custom_replacement", replacement}}};
+            auto auxiliary = std::make_shared<ov::Model>(source->get_results(), source->get_parameters());
+            return ModelAdapterResult{replacement,
+                                      {{"custom_replacement", replacement}, {"custom_auxiliary", auxiliary}}};
         }};
     FrontEnd frontend;
     auto extension = std::make_shared<ProjectorExtension>(definition);
@@ -348,10 +350,14 @@ TEST_F(GGUFMMProj, ProjectorCallbackCanReplaceThePrimaryGraph) {
     request.infer();
     for (size_t i = 0; i < 6; ++i)
         EXPECT_FLOAT_EQ(request.get_output_tensor().data<float>()[i], 11.f);
-    auto clone = model->clone();
+    auto auxiliary = adapter.get_vision_models().at("custom_auxiliary");
     request = ov::InferRequest{};
     model.reset();
     adapter = Adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    EXPECT_FALSE(replacement_owner.expired());
+    EXPECT_FALSE(source_owner.expired());
+    auto clone = auxiliary->clone();
+    auxiliary.reset();
     EXPECT_FALSE(replacement_owner.expired());
     EXPECT_FALSE(source_owner.expired());
     clone.reset();
