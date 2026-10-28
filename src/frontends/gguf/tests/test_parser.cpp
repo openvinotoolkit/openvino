@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -11,17 +12,56 @@
 #include <utility>
 
 #include "builder/graph_emitter.hpp"
+#include "builder/gguf_builder_decoder.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 #include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
 
 namespace {
+
+#ifdef GGUF_GPU_NATIVE_TESTS
+class GgufScopedEnvironment {
+public:
+    GgufScopedEnvironment(const char* name, const char* value) : name(name) {
+        if (const char* previous = std::getenv(name)) {
+            had_previous = true;
+            previous_value = previous;
+        }
+        set(value);
+    }
+
+    ~GgufScopedEnvironment() {
+        set(had_previous ? previous_value.c_str() : nullptr);
+    }
+
+    GgufScopedEnvironment(const GgufScopedEnvironment&) = delete;
+    GgufScopedEnvironment& operator=(const GgufScopedEnvironment&) = delete;
+
+private:
+    void set(const char* value) {
+#ifdef _WIN32
+        _putenv_s(name, value ? value : "");
+#else
+        if (value)
+            ::setenv(name, value, 1);
+        else
+            ::unsetenv(name);
+#endif
+    }
+
+    const char* name;
+    std::string previous_value;
+    bool had_previous = false;
+};
+#endif
 
 class GGUFParser : public ::testing::Test {
 protected:
@@ -361,6 +401,101 @@ TEST_F(GGUFParser, Q4KRawIsOptInAndRejectsLegacyWeightGraph) {
     OV_EXPECT_THROW(make_weight_node({raw, {}, {}}, GGUF_TYPE_Q4_K, "blk.0.attn_q"),
                     ov::Exception,
                     testing::HasSubstr("raw GGUF weights require a supported graph boundary"));
+}
+
+TEST_F(GGUFParser, Q4KRawFileToGpuPreservesOwnerAndDynamicResults) {
+#ifndef GGUF_GPU_NATIVE_TESTS
+    GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
+#else
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::none_of(devices.begin(), devices.end(), [](const std::string& device) {
+            return device == "GPU" || device.rfind("GPU.", 0) == 0;
+        })) {
+        GTEST_SKIP() << "GPU device unavailable";
+    }
+    const auto qbytes = load_npy<uint8_t>("q4_k_qbytes");
+    const auto decoded = load_npy<float>("q4_k_deq");
+    ASSERT_EQ(qbytes.size(), 4 * 144);
+    ASSERT_EQ(decoded.size(), 4 * 256);
+    constexpr size_t channels = 32;
+    constexpr size_t columns = 512;
+    std::vector<uint8_t> payload(channels * 2 * 144);
+    for (size_t channel = 0; channel < channels; ++channel) {
+        for (size_t block = 0; block < 2; ++block) {
+            std::memcpy(payload.data() + (channel * 2 + block) * 144,
+                        qbytes.data() + (channel % 4) * 144,
+                        144);
+        }
+    }
+    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", GGUF_TYPE_Q4_K, columns, channels, payload));
+    std::shared_ptr<ov::Model> model;
+    std::weak_ptr<ov::MappedMemory> owner;
+    {
+        auto loaded = get_gguf_data(m_path, GGUFLoadOptions{true});
+        auto& weights = std::get<1>(loaded);
+        const auto& raw = weights.at("projection.weight");
+        ASSERT_EQ(raw.get_element_type(), ov::element::gguf_q4_k);
+        ASSERT_EQ(raw.get_shape(), (ov::Shape{channels, columns}));
+        ASSERT_EQ(raw.get_byte_size(), payload.size());
+        ASSERT_EQ(std::memcmp(raw.data(), payload.data(), payload.size()), 0);
+        owner = std::get<3>(loaded).at(0);
+        GraphEmitter emitter(weights, std::get<2>(loaded), "test");
+        emitter.add_input("activation", ov::element::f32, {-1, columns});
+        emitter.add_weight("projection.weight");
+        emitter.add_op("GGML_OP_MUL_MAT", "output", {"projection.weight", "activation"});
+        emitter.graph()->model_output_names = {"output"};
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+        FrontEnd frontend;
+        model = frontend.convert(frontend.load(decoder));
+        const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+            model->get_results().at(0)->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(fc);
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+        ASSERT_TRUE(constant);
+        EXPECT_EQ(constant->get_data_ptr(), raw.data());
+        EXPECT_EQ(std::memcmp(constant->get_data_ptr(), payload.data(), payload.size()), 0);
+    }
+    EXPECT_FALSE(owner.expired());
+    const auto run = [&](const char* threshold_value) {
+        SCOPED_TRACE(threshold_value ? "native" : "default_f16_transcode");
+        GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", threshold_value);
+        GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        const std::array<size_t, 7> row_counts{1, 2, 33, 1, 1, 33, 2};
+        for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
+            const auto rows = row_counts[iteration];
+            ov::Tensor input(ov::element::f32, ov::Shape{rows, columns});
+            for (size_t row = 0; row < rows; ++row) {
+                const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
+                for (size_t column = 0; column < columns; ++column) {
+                    input.data<float>()[row * columns + column] = factor * static_cast<float>(column / 256 + 1) *
+                        static_cast<float>(static_cast<int>(((column % 256) * 13) % 31) - 15);
+                }
+            }
+            request.set_input_tensor(input);
+            request.infer();
+            const auto output = request.get_output_tensor();
+            ASSERT_EQ(output.get_shape(), (ov::Shape{rows, channels}));
+            for (size_t row = 0; row < rows; ++row) {
+                for (size_t channel = 0; channel < channels; ++channel) {
+                    float expected = 0.f;
+                    for (size_t column = 0; column < columns; ++column) {
+                        const float weight = decoded[(channel % 4) * 256 + column % 256];
+                        const float reference = !threshold_value && rows > 32
+                                                    ? static_cast<float>(ov::float16(weight)) : weight;
+                        expected += reference * input.data<const float>()[row * columns + column];
+                    }
+                    EXPECT_NEAR(output.data<const float>()[row * channels + channel], expected, 0.1f)
+                        << "iteration=" << iteration << " row=" << row << " channel=" << channel;
+                }
+            }
+        }
+    };
+    run("64");
+    run(nullptr);
+#endif
 }
 
 TEST_F(GGUFParser, Q4KRawRejectsInvalidRowsAndTruncatedPayload) {

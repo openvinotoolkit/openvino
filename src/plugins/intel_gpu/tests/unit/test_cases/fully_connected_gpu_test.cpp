@@ -79,6 +79,8 @@ struct gguf_fc_mode {
     bool shuffle;
     const char* threshold;
     bool rank3 = false;
+    size_t channels = 32;
+    size_t columns = 256;
 };
 
 class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
@@ -96,18 +98,34 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
         3469.5f, 41631.f, -34432.f, 39985.5f, -18508.5f, 49953.f, -14508.f, 23126.5f,
         -3821.f, 11636.5f, -10495.5f, 2470.f, 39943.f, -22691.5f, 23110.5f, -11534.f,
         40024.f, -12852.5f, 18133.5f, 6516.5f, 8414.5f, -5952.f, -10262.f, 43670.5f};
-    std::vector<uint8_t> payload(32 * 144);
-    for (size_t index = 0; index < payload.size(); ++index) {
-        payload[index] = static_cast<uint8_t>((index * 37 + index / 97 + 19) % 256);
+    const auto channels = GetParam().channels;
+    const auto columns = GetParam().columns;
+    ASSERT_EQ(columns % 256, 0);
+    const auto blocks = columns / 256;
+    float block_factor = 0.f;
+    for (size_t block = 0; block < blocks; ++block) {
+        block_factor += std::ldexp(static_cast<float>(block + 1), -static_cast<int>(block % 4));
     }
-    for (size_t row = 0; row < 32; ++row) {
-        payload[row * 144] = 0;
-        payload[row * 144 + 1] = 0x3c;
-        payload[row * 144 + 2] = 0;
-        payload[row * 144 + 3] = 0x38;
+    std::vector<uint8_t> payload(channels * blocks * 144);
+    for (size_t channel = 0; channel < channels; ++channel) {
+        for (size_t block = 0; block < blocks; ++block) {
+            const auto offset = (channel * blocks + block) * 144;
+            for (size_t byte = 0; byte < 144; ++byte) {
+                const auto index = (channel % reference.size()) * 144 + byte;
+                payload[offset + byte] = static_cast<uint8_t>((index * 37 + index / 97 + 19) % 256);
+            }
+            payload[offset] = 0;
+            payload[offset + 1] = static_cast<uint8_t>(0x3c - (block % 4) * 4);
+            payload[offset + 2] = 0;
+            payload[offset + 3] = static_cast<uint8_t>(0x38 - (block % 4) * 4);
+        }
     }
-    auto raw = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, ov::Shape{32, 256}, payload.data());
-    const auto input_shape = GetParam().rank3 ? ov::PartialShape{1, -1, 256} : ov::PartialShape{-1, 256};
+    const ov::Shape weight_shape{channels, columns};
+    auto raw = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, weight_shape, payload.data());
+    auto input_shape = ov::PartialShape::dynamic(GetParam().rank3 ? 3 : 2);
+    input_shape[input_shape.size() - 1] = columns;
+    if (GetParam().rank3)
+        input_shape[0] = 1;
     auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
     auto scale_node = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
@@ -118,8 +136,9 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
     manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
     manager.run_passes(graph);
     auto packed = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
-    ASSERT_EQ(packed == raw, !GetParam().shuffle);
-    auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32}, {0.f});
+    const bool shuffled = GetParam().shuffle && channels % 16 == 0;
+    ASSERT_EQ(packed == raw, !shuffled);
+    auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{channels}, {0.f});
     auto public_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(parameter, raw, bias,
                                                                                 scale_node, ov::element::f32);
     auto public_graph = std::make_shared<ov::Model>(ov::OutputVector{public_fc}, ov::ParameterVector{parameter});
@@ -127,7 +146,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
     auto compiled = core.compile_model(public_graph, "GPU", ov::hint::inference_precision(ov::element::f32));
     auto request = compiled.create_infer_request();
     auto& engine = get_test_engine();
-    auto weights = engine.allocate_memory({ov::PartialShape{32, 256}, data_types::gguf_q4_k, format::bfyx});
+    auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), data_types::gguf_q4_k, format::bfyx});
     {
         mem_lock<uint8_t, mem_lock_type::write> bytes(weights, get_test_stream());
         std::memcpy(bytes.data(), packed->get_data_ptr(), packed->get_byte_size());
@@ -143,14 +162,15 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
     const std::array<size_t, 7> row_counts = {1, 2, 33, 1, 1, 33, 2};
     for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
         const auto rows = row_counts[iteration];
-        const auto concrete_input = GetParam().rank3 ? ov::Shape{1, rows, 256} : ov::Shape{rows, 256};
-        const auto expected_output = GetParam().rank3 ? ov::Shape{1, rows, 32} : ov::Shape{rows, 32};
+        const auto concrete_input = GetParam().rank3 ? ov::Shape{1, rows, columns} : ov::Shape{rows, columns};
+        const auto expected_output = GetParam().rank3 ? ov::Shape{1, rows, channels} : ov::Shape{rows, channels};
         auto input = engine.allocate_memory({ov::PartialShape(concrete_input), data_types::f32, format::bfyx});
-        std::vector<float> values(rows * 256);
+        std::vector<float> values(rows * columns);
         for (size_t row = 0; row < rows; ++row) {
             const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
-            for (size_t column = 0; column < 256; ++column) {
-                values[row * 256 + column] = factor * static_cast<float>(static_cast<int>((column * 13) % 31) - 15);
+            for (size_t column = 0; column < columns; ++column) {
+                values[row * columns + column] = factor * static_cast<float>(column / 256 + 1) *
+                    static_cast<float>(static_cast<int>(((column % 256) * 13) % 31) - 15);
             }
         }
         set_values(input, values);
@@ -172,16 +192,17 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
         RecordProperty("stage_iteration_" + std::to_string(iteration), entries);
         const bool prefill = !GetParam().threshold && rows > 32;
         const std::string expected_stage = prefill ? "fc_gguf_transcode"
-                               : GetParam().shuffle ? "fc_gguf_q4k_sg" : "fc_gguf_opt";
+                                                  : shuffled ? "fc_gguf_q4k_sg" : "fc_gguf_opt";
         EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
         EXPECT_EQ(entries.find("fc_gguf_act_dq"), std::string::npos) << entries;
         mem_lock<float, mem_lock_type::read> actual(output, get_test_stream());
         for (size_t row = 0; row < rows; ++row) {
             const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
-            for (size_t channel = 0; channel < 32; ++channel) {
-                EXPECT_NEAR(actual[row * 32 + channel], reference[channel] * factor, 0.1f)
+            for (size_t channel = 0; channel < channels; ++channel) {
+                const float expected = reference[channel % reference.size()] * factor * block_factor;
+                EXPECT_NEAR(actual[row * channels + channel], expected, 0.1f)
                     << "iteration=" << iteration << " row=" << row << " channel=" << channel;
-                EXPECT_NEAR(public_output.data<const float>()[row * 32 + channel], reference[channel] * factor, 0.1f)
+                EXPECT_NEAR(public_output.data<const float>()[row * channels + channel], expected, 0.1f)
                     << "public pipeline iteration=" << iteration << " row=" << row << " channel=" << channel;
             }
         }
@@ -198,7 +219,16 @@ INSTANTIATE_TEST_SUITE_P(gguf,
                                           gguf_fc_mode{"sg_native_rank3", true, "64", true},
                                           gguf_fc_mode{"raw_native_rank3", false, "64", true},
                                           gguf_fc_mode{"sg_default_prefill_rank3", true, nullptr, true},
-                                          gguf_fc_mode{"raw_default_prefill_rank3", false, nullptr, true}),
+                                          gguf_fc_mode{"raw_default_prefill_rank3", false, nullptr, true},
+                                          gguf_fc_mode{"sg_native_n16_k512", true, "64", false, 16, 512},
+                                          gguf_fc_mode{"sg_prefill_n16_k512", true, nullptr, true, 16, 512},
+                                          gguf_fc_mode{"raw_native_n17_k512", false, "64", true, 17, 512},
+                                          gguf_fc_mode{"shuffle_fallback_n17_k512", true, "64", false, 17, 512},
+                                          gguf_fc_mode{"prefill_fallback_n17_k512", true, nullptr, true, 17, 512},
+                                          gguf_fc_mode{"sg_native_n48_k1024", true, "64", true, 48, 1024},
+                                          gguf_fc_mode{"raw_native_n48_k1024", false, "64", false, 48, 1024},
+                                          gguf_fc_mode{"sg_prefill_n48_k1024", true, nullptr, false, 48, 1024},
+                                          gguf_fc_mode{"raw_prefill_n48_k1024", false, nullptr, true, 48, 1024}),
                         [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
 
 TEST(fully_connected_gpu, dynamic_byxf) {

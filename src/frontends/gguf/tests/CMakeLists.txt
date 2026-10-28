@@ -144,6 +144,11 @@ ov_add_test_target(
         OV UNIT GGUF_FE
 )
 
+if(ENABLE_INTEL_GPU AND ENABLE_ONEDNN_FOR_GPU AND GPU_RT_TYPE STREQUAL "OCL")
+    target_compile_definitions(${TARGET_NAME} PRIVATE GGUF_GPU_NATIVE_TESTS=1)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin)
+endif()
+
 # Install the reference data next to the test binary (found via getExecutableDirectory()):
 # *.npy op/dequant references, plus the per-architecture fixture manifest.
 #
