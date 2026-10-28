@@ -385,6 +385,8 @@ with a review checklist, labels, and requested reviewers. Concurrent proposals a
 append to the end of the file, so after one is merged the others need a trivial rebase. Skipped proposals are reported in the job summary and do not fail the run. All writes (branch,
 commit, PR, labels, reviewers) use the `RERUNNER_DB_UPDATE` secret, so the PR triggers CI normally; the
 job's own `GITHUB_TOKEN` is limited to `contents: read`.
+If an open proposal's error database cannot be read or parsed, the job fails instead of opening a new
+PR with an incomplete overlap check.
 
 ### Shared prompt fragments
 

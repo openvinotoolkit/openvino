@@ -155,11 +155,7 @@ def load_open_proposals(repo: Any, base: str, path: str, base_texts: set[str]) -
     for pull in repo.get_pulls(state="open", base=base):
         if not pull.head.ref.startswith(BRANCH_PREFIX):
             continue
-        try:
-            entries, _, _ = read_errors_file(repo, path, pull.head.sha)
-        except Exception as error:
-            print(f"Could not read {path} from open PR #{pull.number}: {error}")
-            continue
+        entries, _, _ = read_errors_file(repo, path, pull.head.sha)
         added = [entry for entry in entries if entry.get("error_text") not in base_texts]
         known.extend(as_known(added, f"open PR #{pull.number}"))
     return known

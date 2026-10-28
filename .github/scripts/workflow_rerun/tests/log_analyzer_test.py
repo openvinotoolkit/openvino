@@ -6,6 +6,7 @@ LogAnalyzer tests
 """
 
 import unittest
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -113,6 +114,7 @@ class LogAnalyzerTest(unittest.TestCase):
         with TemporaryDirectory() as logs_dir:
             Path(logs_dir, 'pytest.txt').write_text(
                 'test_keras_lstm_flags_float32 PASSED\n'
+                'TestMatrixBandPart::test_matrix_band_part_basic[param] PASSED\n'
                 'test_unrelated FAILED\n',
                 encoding='utf-8',
             )
@@ -122,3 +124,23 @@ class LogAnalyzerTest(unittest.TestCase):
             )
             analyzer.analyze()
             self.assertFalse(analyzer.found_matching_error)
+
+    def test_generic_accuracy_failure_does_not_trigger_rerun(self) -> None:
+        with TemporaryDirectory() as logs_dir:
+            Path(logs_dir, 'accuracy.txt').write_text(
+                'AssertionError: Comparing with Framework failed: ie_res=[1.0]; framework_res=[2.0].\n'
+                '[ COMPARATION ] COMPARATION FAILED! abs_threshold: 0.0001 rel_threshold: 0.0001\n',
+                encoding='utf-8',
+            )
+            analyzer = LogAnalyzer(
+                path_to_logs=Path(logs_dir),
+                path_to_errors_file=self.errors_to_look_for_file,
+            )
+            analyzer.analyze()
+            self.assertFalse(analyzer.found_matching_error)
+
+    def test_unmatchable_placeholder_patterns_are_not_in_database(self) -> None:
+        entries = json.loads(self.errors_to_look_for_file.read_text(encoding='utf-8'))
+        error_texts = {entry['error_text'] for entry in entries}
+        self.assertNotIn('AssertionError: Comparing with Framework failed ie_res framework_res', error_texts)
+        self.assertNotIn('Failed: Timeout (>Xs) from pytest-timeout', error_texts)

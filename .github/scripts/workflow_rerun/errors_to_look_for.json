@@ -250,11 +250,6 @@
         "category": "Infrastructure"
     },
     {
-        "error_text": "AssertionError: Comparing with Framework failed ie_res framework_res",
-        "ticket": 9999999,
-        "category": "Flaky Test"
-    },
-    {
         "error_text": "CachingTest LoadMulti_race Expected import_model call count mismatch",
         "ticket": 9999999,
         "category": "Flaky Test"
@@ -278,11 +273,6 @@
         "error_text": "Failed to resolve action download info",
         "ticket": 9999999,
         "category": "Infrastructure"
-    },
-    {
-        "error_text": "COMPARATION FAILED abs_threshold",
-        "ticket": 9999999,
-        "category": "Flaky Test"
     },
     {
         "error_text": "failed to fetch oauth token docker registry connection refused",
@@ -415,11 +405,6 @@
         "category": "External Service"
     },
     {
-        "error_text": "Failed: Timeout (>Xs) from pytest-timeout",
-        "ticket": 9999999,
-        "category": "Flaky Test"
-    },
-    {
         "error_text": "Unable to connect to azure.archive.ubuntu.com",
         "ticket": 9999999,
         "category": "Network"
@@ -468,11 +453,6 @@
         "error_text": "npm: command not found",
         "ticket": 9999999,
         "category": "Infrastructure"
-    },
-    {
-        "error_text": "TestMatrixBandPart test matrix band part basic",
-        "ticket": 9999999,
-        "category": "Flaky Test"
     },
     {
         "error_text": "Can't get PERFORMANCE_HINT property as no supported devices found or an error happened during devices query",
