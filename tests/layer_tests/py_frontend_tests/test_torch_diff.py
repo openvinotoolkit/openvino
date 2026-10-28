@@ -55,7 +55,9 @@ def test_torch_diff(capture, dtype, order, axis, prepend, append, monkeypatch):
     compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
     runtime = {port: inputs[i].numpy() for i, port in enumerate(compiled.inputs)}
     actual = compiled(runtime)[0]
-    np.testing.assert_array_equal(actual, model(*inputs).numpy())
+    expected = model(*inputs).numpy()
+    assert actual.dtype == expected.dtype
+    np.testing.assert_array_equal(actual, expected)
 
 
 @pytest.mark.precommit

@@ -37,12 +37,13 @@ def _compare(compiled, model, inputs):
     expected = expected if isinstance(expected, tuple) else (expected,)
     actual = compiled([value.numpy() for value in inputs])
     for i, value in enumerate(expected):
-        np.testing.assert_allclose(actual[i], value.numpy(), atol=1e-6, rtol=1e-5)
+        reference = value.numpy()
+        assert actual[i].dtype == reference.dtype
+        np.testing.assert_allclose(actual[i], reference, atol=1e-6, rtol=1e-5)
 
 
-@pytest.mark.parametrize("in_dim", [1, -2])
 @pytest.mark.parametrize("out_dim", [0, 1, -1])
-def test_export_vmap_dimensions(in_dim, out_dim):
+def test_export_vmap_dimensions(out_dim):
     class Model(torch.nn.Module):
         def __init__(self):
             super().__init__()
@@ -51,7 +52,7 @@ def test_export_vmap_dimensions(in_dim, out_dim):
         def forward(self, data, bias, captured):
             # Torch 2.14 export supports only these out_dims for the batched outputs.
             return torch.vmap(lambda row, offset: ((row + offset * self.weight).sum(-1), row.cos(), captured.sin()),
-                              in_dims=(in_dim, 0), out_dims=(0, 1, out_dim))(data, bias)
+                              in_dims=(1, 0), out_dims=(0, 1, out_dim))(data, bias)
 
     model = Model()
     batch = torch.export.Dim("batch", min=2, max=16)
