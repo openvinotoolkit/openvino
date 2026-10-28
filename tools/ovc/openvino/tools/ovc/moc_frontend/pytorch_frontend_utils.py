@@ -343,6 +343,17 @@ def flatten_inputs(inputs, names=None):
     return flattened
 
 
+def _torchscript_input_aliases(model):
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+    if not isinstance(model, TorchScriptPythonDecoder):
+        return {}
+    schema = getattr(getattr(model.pt_module, "forward", model.pt_module), "schema", None)
+    if schema is None or len(schema.arguments) != len(model.raw_inputs):
+        return {}
+    # TorchScript schema names and graph debug names identify the same inputs.
+    return {model.get_input_debug_name(i): argument.name for i, argument in enumerate(schema.arguments)}
+
+
 def extract_input_info_from_example(args, inputs):
     try:
         from openvino.frontend.pytorch.utils import pt_to_ov_type_map  # pylint: disable=no-name-in-module,import-error
@@ -381,11 +392,18 @@ def extract_input_info_from_example(args, inputs):
             input_arg.append(single_input_to_input_cut_info((shape, dtype)))
     if inputs is not None and len(inputs) != 0:
         if len(inputs) == len(input_arg):
-            # Pass 1: exact name matches. Pass 2: unmatched descriptors take leftover
-            # examples in order; a named descriptor may only take an unnamed example.
+            # Pass 1: exact name matches, then TorchScript alias matches for examples
+            # not taken yet. Pass 2: unmatched descriptors take leftover examples in
+            # order; a named descriptor may only take an unnamed example.
             by_name = {ex.name: ex for ex in input_arg if ex.name is not None}
             matched = [by_name.get(desc.name) for desc in args.input]
             used = {id(ex) for ex in matched if ex is not None}
+            aliases = _torchscript_input_aliases(args.input_model)
+            for i, desc in enumerate(args.input):
+                ex = by_name.get(aliases.get(desc.name))
+                if matched[i] is None and ex is not None and id(ex) not in used:
+                    matched[i] = ex
+                    used.add(id(ex))
             leftover = [ex for ex in input_arg if id(ex) not in used]
             new_input = []
             for desc, ex in zip(args.input, matched):
