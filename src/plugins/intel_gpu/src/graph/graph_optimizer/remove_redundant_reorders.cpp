@@ -161,7 +161,7 @@ void remove_redundant_reorders::run(program& p) {
                         usr_prim->output_format = output_layout.format;
                 }
             }
-            
+
             p.extract_and_remove(node);
 
             for (auto* rl : recalc_list) {
