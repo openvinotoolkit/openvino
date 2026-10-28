@@ -4,6 +4,7 @@
 
 #include "histc.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
