@@ -2,6 +2,7 @@
   "component": "core",
   "files": [
     "runtime/lib/intel64/libopenvino.so.2026.5.0",
-    "runtime/lib/intel64/libopenvino.so.2650"
+    "runtime/lib/intel64/libopenvino.so.2650",
+    "test/failure/non/exist/libopenvino.so"
   ]
 }

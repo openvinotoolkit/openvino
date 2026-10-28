@@ -1,0 +1,6 @@
+{
+  "component": "core_c",
+  "files": [
+    "runtime/bin/intel64/Release/openvino_c.dll"
+  ]
+}

@@ -94,6 +94,46 @@ and open the HTML report in a browser to see every check, its status, and the
 full list of added and removed paths. Missing GOLD configurations are failures,
 not skipped checks, in both reports and make the job fail.
 
+File-list differences identify the component and the direction relative to GOLD,
+for example:
+
+```text
+Component 'cpu' differs from its GOLD BOM:
+  deleted runtime/lib/old-library.so on the PR branch
+  added runtime/lib/new-library.so on the PR branch
+```
+
+These details appear in the job log, annotations, JUnit XML, and HTML report.
+A rename is reported as a deleted path and an added path: path-only BOMs cannot
+reliably distinguish a rename from two independent changes.
+
+### Build Artifacts and Reruns
+
+The Build job uploads `openvino_package` and `bom_<configuration>` before the
+separate BOM test job starts. A failed BOM comparison does not remove or
+overwrite these artifacts. Reports use a separate `test-results-bom_<configuration>`
+artifact.
+
+After **Re-run failed jobs**, GitHub's Summary may display artifacts only from
+the selected attempt. If Build was not rerun, select the original build attempt
+to download its package and generated BOM. No duplicate package upload or custom
+platform Summary is needed.
+
+### Pull Request Notifications
+
+When a platform detects changed components or file paths,
+[`bom_pr_comment.yml`](../../../../.github/workflows/bom_pr_comment.yml) posts
+a comment for that platform with a link to the BOM job and this documentation.
+Reruns update the same comment rather than adding duplicates. A subsequent
+successful BOM check updates it to show that the differences have been resolved.
+Setup failures and missing GOLD configurations remain job errors, but are not
+reported as detected file-layout changes.
+
+This notifier runs on `workflow_run` using trusted default-branch code and
+GitHub API metadata, without executing PR code or downloading PR artifacts.
+It supports fork PRs and becomes active after the notifier workflow is merged
+into the default branch.
+
 Coverage and Linux Level Zero builds are excluded from BOM tests because they
 are special-purpose, non-product builds whose packages are not distributed
 externally. BOM tests protect the layout of publicly distributed product
