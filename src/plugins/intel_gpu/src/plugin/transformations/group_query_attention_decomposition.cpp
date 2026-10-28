@@ -215,6 +215,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
 
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     if (sliding_window) {
+        OPENVINO_ASSERT(!need_qk_output, "[GPU] SWA does not support qk output");
         // Must match StatelessKV's sdpa_front = max(0, P - window + 1).
         const auto zero_scalar = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
         const auto window_minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {window_size - 1}));

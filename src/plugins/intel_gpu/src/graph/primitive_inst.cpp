@@ -915,8 +915,15 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
                             << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
                             << ") opt:" << result.can_be_optimized() << std::endl;
+    
+    _outputs[0] = kv_present;
 
-    const auto reuse_present_buffer = mid_layout.get_padded_dims() == target_layout.get_padded_dims();
+    const auto& state = downcast<stateless_kv_inst>(*this).get_runtime_state();
+    OPENVINO_ASSERT(state.has_value(), "[GPU] stateless_kv runtime state wasn't initialized before output allocation");
+    const auto is_rolling = state->is_rolling();
+    GPU_DEBUG_TRACE_DETAIL << id() << ": runtime state" << (is_rolling ? "(rolling)" : "") << ": past=" << state->past_seq_len
+                           << " present=" << state->present_seq_len << " new=" << state->new_token_len << ", front_idx: past=" << state->past_front_idx
+                           << " present=" << state->present_front_idx << " sdpa=" << state->sdpa_front_idx << std::endl;
     auto& memory_pool = get_network().get_memory_pool();
 
     if (_mem_allocated) {
@@ -924,14 +931,16 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
         const auto concat_axis = ov::util::normalize(get_typed_desc<stateless_kv>()->concat_axis, target_layout.get_rank());
         const auto current_len = target_layout.get_partial_shape()[concat_axis].get_length();
         const auto last_len = _outputs[1]->get_layout().get_partial_shape()[concat_axis].get_length();
-        const auto can_reuse = !reuse_present_buffer && current_len == last_len;
-        GPU_DEBUG_TRACE_DETAIL << id() << ": reuse_present_buffer=" << reuse_present_buffer << " current_len=" << current_len << " last_len=" << last_len
-                               << (can_reuse ? " reuse" : " release") << std::endl;
-        if (can_reuse) {
+        const auto layout_match = target_layout == _outputs[1]->get_layout();
+        const auto can_reuse = is_rolling && layout_match;
+        GPU_DEBUG_TRACE_DETAIL << id() << ": current_len=" << current_len << " last_len=" << last_len << ", layout " << (layout_match ? "match" : "changed")
+                               << ", sdpa buffer:" << (can_reuse ? " reuse" : " release") << std::endl;
+        if (current_len == last_len) {
             OPENVINO_ASSERT(_outputs[1]->get_layout().get_partial_shape() == target_layout.get_partial_shape(),
                             "[GPU] Unexpected SDPA output shape change for stateless_kv node ",
                             id());
-        } else {
+        }
+        if (!can_reuse){
             memory_pool.release_memory(_outputs[1].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
             _outputs[1] = nullptr;
             _max_output_layout_count[1] = 0;
@@ -939,8 +948,7 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
         }
     }
 
-    _outputs[0] = kv_present;
-    if (reuse_present_buffer) {
+    if (!is_rolling) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse present output as SDPA output for non-rolling update" << std::endl;
         _outputs[1] = engine.reinterpret_buffer(*kv_present, target_layout);
         _max_output_layout_count[1] = target_layout.get_linear_size();

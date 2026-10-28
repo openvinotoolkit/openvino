@@ -330,6 +330,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                          stateless_kv_swa_runtime_params{1, 16, false},   // no previous overflow, token 0 rolls
                                          stateless_kv_swa_runtime_params{3, 16, false},   // no previous overflow, token 0 rolls
                                          stateless_kv_swa_runtime_params{3, 15, false},   // no previous overflow, token 1 rolls
+                                         stateless_kv_swa_runtime_params{13, 15, false},  // rolling with sdpa being same length with capacity
                                          stateless_kv_swa_runtime_params{1, 17, true},    // previous overflow, no rolling
                                          stateless_kv_swa_runtime_params{1, 29, false},   // previous overflow, token 0 rolls
                                          stateless_kv_swa_runtime_params{3, 29, false},   // previous overflow, token 0 rolls
