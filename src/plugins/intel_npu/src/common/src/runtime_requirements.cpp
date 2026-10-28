@@ -240,12 +240,25 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
 };
 
 bool is_runtime_requirements_format_v2(std::string_view runtime_requirements) {
+    std::string serialized_version;
     try {
         compat::Parser parser(runtime_requirements, std::vector<std::string>());
-        return parser.getAttributes().count(VERSION_KEY.data());
+        if (!parser.getAttributes().count(VERSION_KEY.data())) {
+            return false;
+        }
+        serialized_version = parser.getAttribute(VERSION_KEY.data());
     } catch (const std::exception& ex) {
         OPENVINO_THROW("The content of the runtime requirements section is malformed: ", ex.what());
     }
+
+    try {
+        MajorMinorVersion::from_string(serialized_version);
+    } catch (const std::exception& ex) {
+        // The serialized version doesn't follow the known dotted format
+        return false;
+    }
+
+    return true;
 }
 
 }  // namespace intel_npu
