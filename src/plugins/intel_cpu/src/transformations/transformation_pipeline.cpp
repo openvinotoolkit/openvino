@@ -1140,40 +1140,28 @@ void Transformations::PostLpt() {
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionCohere);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
-    const bool activations_scaling =
-        config.inferencePrecision == ov::element::f16 && config.activationsScaleFactor > 0.F;
-#if defined(OPENVINO_ARCH_X86_64)
-    const bool fuse_rms = true;
-#else
-    // the RMSNorm node needs avx2+, so elsewhere RMS is fused only for ActivationsScaling and decomposed back below
-    const bool fuse_rms = activations_scaling;
-#endif
-    if (fuse_rms) {
-        // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
-        // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
-        const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
-        CPU_REGISTER_PASS_COMMON(postLPTPassManager,
-                                 ov::pass::RMSFusion,
-                                 false /* force_tail_convert */,
-                                 enable_without_gamma);
-    }
+    // gamma-less fusion keeps the variance in f32 for bf16, which has no ConvertPrecision markup; under
+    // f16 the decomposed norm is already kept precise by ConvertPrecision, so fusing it there regresses it.
+    const bool enable_without_gamma = config.inferencePrecision != ov::element::f16;
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager,
+                             ov::pass::RMSFusion,
+                             false /* force_tail_convert */,
+                             enable_without_gamma);
     // before DecomposeRMSNorm: scale_up multiplies are dropped only in front of fused RMS
-    if (activations_scaling) {
+    if (config.inferencePrecision == ov::element::f16 && config.activationsScaleFactor > 0.F) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager,
                                  ov::pass::ActivationsScaling,
                                  config.activationsScaleFactor,
                                  config.inferencePrecision);
     }
-    if (fuse_rms) {
-        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
-        CPU_SET_CALLBACK_COMMON(
-            postLPTPassManager,
-            [](const std::shared_ptr<const ov::Node>& node) -> bool {
-                std::string errorMsg;
-                return node::RMSNorm::isSupportedOperation(node, errorMsg);
-            },
-            ov::intel_cpu::DecomposeRMSNorm);
-    }
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
+    CPU_SET_CALLBACK_COMMON(
+        postLPTPassManager,
+        [](const std::shared_ptr<const ov::Node>& node) -> bool {
+            std::string errorMsg;
+            return node::RMSNorm::isSupportedOperation(node, errorMsg);
+        },
+        ov::intel_cpu::DecomposeRMSNorm);
 
 #if defined(OPENVINO_ARCH_X86_64)
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
