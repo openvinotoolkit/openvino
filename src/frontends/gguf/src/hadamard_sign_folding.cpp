@@ -297,7 +297,9 @@ bool fold_up_projection(const std::shared_ptr<Multiply>& rotation) {
     if (output_convert)
         replacement = clone_branch_node(output_convert, {replacement});
     replacement = clone_branch_node(up, {up->input_value(0), replacement});
-    std::vector<std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>> shape_replacements{{up, replacement}};
+    std::vector<std::pair<std::shared_ptr<ov::Node>, std::shared_ptr<ov::Node>>> shape_replacements;
+    shape_replacements.reserve(views.size() + 2);
+    shape_replacements.emplace_back(up, replacement);
     inputs = swiglu->input_values();
     inputs[up_port] = replacement;
     replacement = clone_branch_node(swiglu, inputs);

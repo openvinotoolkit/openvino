@@ -455,10 +455,10 @@ TEST(GGUFHadamardTypes, MatrixCacheIsScopedToConversionAndPrecision) {
     EXPECT_EQ(f32->get_shape(), (ov::Shape{1024, 1024}));
     EXPECT_EQ(f16->get_element_type(), ov::element::f16);
     EXPECT_EQ(f32->cast_vector<float>(), f16->cast_vector<float>());
-    const auto small = first.get_hadamard_matrix(ov::element::f32, 512);
-    EXPECT_NE(f32, small);
-    EXPECT_EQ(small, second.get_hadamard_matrix(ov::element::f32, 512));
-    EXPECT_EQ(small->get_shape(), (ov::Shape{512, 512}));
+    const auto smaller_matrix = first.get_hadamard_matrix(ov::element::f32, 512);
+    EXPECT_NE(f32, smaller_matrix);
+    EXPECT_EQ(smaller_matrix, second.get_hadamard_matrix(ov::element::f32, 512));
+    EXPECT_EQ(smaller_matrix->get_shape(), (ov::Shape{512, 512}));
     for (const auto type : {ov::element::f32, ov::element::f16}) {
         const auto x = std::make_shared<ov::op::v0::Parameter>(type, shape);
         const auto y = apply_hadamard(first, x);
