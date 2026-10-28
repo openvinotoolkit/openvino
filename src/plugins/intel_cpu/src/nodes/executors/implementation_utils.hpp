@@ -191,7 +191,7 @@ std::optional<executor::Config<Attrs>> createOptimalConfigCommon(const executor:
         return std::all_of(currentDescriptors.begin(), currentDescriptors.end(), [&](const auto& entry) {
             const auto& [argId, desc] = entry;
 
-            if (!notation.contains(argId)) {
+            if (!notation.count(argId)) {
                 return true;
             }
 
@@ -226,7 +226,7 @@ std::optional<executor::Config<Attrs>> createOptimalConfigCommon(const executor:
                 continue;  // skip empty descriptors
             }
 
-            if (!notation.contains(argId)) {
+            if (!notation.count(argId)) {
                 continue;  // skip if argId is not in notation
             }
 
@@ -305,7 +305,7 @@ inline bool MatchesMemoryFormatFilter(const MemoryDescArgs& descs,
         const auto dnnlDesc =
             DnnlBlockedMemoryDesc(desc->getShape(), dnnl::memory::data_type::f32, filter.input[filterId]);
 
-        if (!notation.contains(argId)) {
+        if (!notation.count(argId)) {
             continue;  // skip if argId is not in notation
         }
 

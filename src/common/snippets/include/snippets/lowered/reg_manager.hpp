@@ -64,7 +64,7 @@ public:
         res.erase(std::remove_if(res.begin(),
                                  res.end(),
                                  [&kernel_call](const Reg& r) {
-                                     return kernel_call.contains(r);
+                                     return kernel_call.count(r) != 0;
                                  }),
                   res.end());
         return res;

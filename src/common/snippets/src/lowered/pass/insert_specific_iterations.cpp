@@ -36,7 +36,7 @@ std::vector<LoopPort> clone_ports(const ExpressionMap& expression_map, const std
     for (size_t i = 0; i < cur_ports.size(); ++i) {
         const auto& port = cur_ports[i];
         const auto& original_expr = port.get_expr_port()->get_expr().get();
-        OPENVINO_ASSERT(expression_map.contains(original_expr), "Cannot find cloned expression for: ", original_expr);
+        OPENVINO_ASSERT(expression_map.count(original_expr), "Cannot find cloned expression for: ", original_expr);
         new_ports[i] = *port.clone_with_new_expr(expression_map.at(original_expr));
     }
     return new_ports;

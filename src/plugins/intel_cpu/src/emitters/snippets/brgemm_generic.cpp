@@ -152,7 +152,7 @@ bool BrgemmKernelExecutorHelper::is_out_buffer_inside_n_loop(const std::vector<L
         const auto& loops_map = loop_manager->get_map();
         const auto unified_loop_info = cur_inner_loop_info->get_unified_loop_info();
 
-        while (loops_map.contains(next_loop_id)) {
+        while (loops_map.count(next_loop_id)) {
             auto next_info = loop_manager->get_loop_info<ExpandedLoopInfo>(next_loop_id);
             if (next_info->get_unified_loop_info() != unified_loop_info) {
                 return last_iter_info;

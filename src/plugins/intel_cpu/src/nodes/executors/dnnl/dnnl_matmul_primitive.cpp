@@ -225,7 +225,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
                                 outputDataType,
                                 attrs.dqScales);
 
-    if (memory.contains(ARG_WEI | ARG_ATTR_SCALES)) {
+    if (memory.count(ARG_WEI | ARG_ATTR_SCALES) != 0U) {
         const auto maxRank =
             std::max({srcDesc->getShape().getRank(), weiDesc->getShape().getRank(), dstDesc->getShape().getRank()});
         const auto normWeiDims = normalizeToRank(weiDesc->getShape().getStaticDims(), maxRank);

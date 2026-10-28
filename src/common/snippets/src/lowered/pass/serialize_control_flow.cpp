@@ -47,12 +47,12 @@ bool SerializeControlFlow::run(const LinearIR& original_linear_ir) {
     for (const auto& expr : linear_ir) {
         const auto node = expr->get_node();
         if (auto loop_end = ov::as_type_ptr<snippets::op::LoopEnd>(node)) {
-            OPENVINO_ASSERT(loops_map.contains(loop_end->get_loop_begin()),
+            OPENVINO_ASSERT(loops_map.count(loop_end->get_loop_begin()),
                             "Serialization can't find LoopBegin that corresponds to LoopEnd with friendly name ",
                             loop_end->get_friendly_name());
             auto loop_begin_serialization_node = loops_map.at(loop_end->get_loop_begin());
             if (m_update_dynamic_ops) {
-                OPENVINO_ASSERT(loop_info_map.contains(loop_end->get_id()), "Failed to find loop id in loop info map");
+                OPENVINO_ASSERT(loop_info_map.count(loop_end->get_id()), "Failed to find loop id in loop info map");
                 const auto& loop_info = loop_info_map.at(loop_end->get_id());
                 loop_end->set_work_amount(loop_info->get_work_amount());
                 loop_end->set_increment(loop_info->get_increment());

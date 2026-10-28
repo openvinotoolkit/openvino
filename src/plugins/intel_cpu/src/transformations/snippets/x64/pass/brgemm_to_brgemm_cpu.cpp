@@ -84,7 +84,7 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
             const auto param_idx = static_cast<size_t>(model->get_parameter_index(param));
             OPENVINO_ASSERT(param_idx < model->get_parameters().size(),
                             "Parameter index is invalid in BrgemmToBrgemmCPU transformation");
-            are_wei_constant = m_constant_inputs_idxs.contains(param_idx);
+            are_wei_constant = m_constant_inputs_idxs.count(param_idx) > 0;
         }
 
         const auto brgemm_config = brgemm_utils::BrgemmConfig(etype_a,

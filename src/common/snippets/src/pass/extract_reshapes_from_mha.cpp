@@ -180,7 +180,7 @@ ov::snippets::pass::RankUpgradeToRankReduction::RankUpgradeToRankReduction() {
         ov::copy_runtime_info(reshape_1, reshaped_input2);
 
         auto first_input = pattern_map.at(matmul_m);
-        if (pattern_map.contains(eltwise_1_m)) {
+        if (pattern_map.count(eltwise_1_m)) {
             first_input = pattern_map.at(eltwise_1_m);
         }
 

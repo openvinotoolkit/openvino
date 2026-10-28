@@ -67,11 +67,11 @@ bool is_valid_transpose(const std::shared_ptr<ov::opset1::Transpose>& node,
             return false;
         }
         const auto existing_order = transpose_pattern->cast_vector<int32_t>();
-        return existing_order == expected_order && supported_ranks.contains(existing_order.size());
+        return existing_order == expected_order && supported_ranks.count(existing_order.size()) != 0;
     };
     auto is_supported_transpose_tensor = [](const ov::descriptor::Tensor& t) {
         return is_supported_tensor(t) &&
-               ov::snippets::pass::TokenizeSnippets::get_supported_element_types().contains(t.get_element_type());
+               ov::snippets::pass::TokenizeSnippets::get_supported_element_types().count(t.get_element_type()) != 0;
     };
 
     return node && node->get_output_target_inputs(0).size() == 1 &&
