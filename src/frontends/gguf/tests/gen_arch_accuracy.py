@@ -28,6 +28,7 @@ CASES = {
     "lfm2moe": {"moe": True, "lead": 1},
     "lfm2moe-all-experts": {"architecture": "lfm2moe", "moe": True, "sigmoid": True, "expert_scale": 2.5},
     "qwen35": {}, "qwen35moe": {},
+    "qwen35-zero-scales": {"architecture": "qwen35", "zero_scales": True},
     "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
     # Real checkpoints quantize attn_gate apart from ssm_beta/ssm_alpha: F16 here selects the
     # frontend's beta+alpha-only merge, and an F16 beta in layer 2 selects separate projections.
@@ -48,6 +49,7 @@ CASES = {
     "minimax-m2": {"moe": True, "full_qk": True, "selection_bias": True, "rope_dims": 4, "sigmoid": True},
     "plamo3": {"qk": True, "fused": True, "fused_ffn": True, "post": True, "bare_post": True, "swa": True}, "qwen2": {"bias": True}, "qwen3": {"qk": True},
     "phi3": {"fused": True, "fused_ffn": True}, "minicpm": {},
+    "minicpm-default": {"architecture": "minicpm", "default_logit_scale": True},
     "olmoe": {"moe": True, "full_qk": True},
     "hunyuan-dense": {"qk": True}, "hunyuan-moe": {"qk": True, "moe": True, "shared": True},
     "qwen3moe": {"qk": True, "moe": True},
@@ -140,7 +142,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     finish(w)
 
 
-def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False):
+def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, zero_scales=False):
     w = gguf.GGUFWriter(path, arch)
     d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
     state, groups, vheads, kernel = 8, 2, 4, 4
@@ -163,6 +165,9 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False):
                        "state_size": state, "conv_kernel": kernel}.items():
         w.add_uint32(arch + ".ssm." + key, value)
     w.add_uint32(arch + ".full_attention_interval", 4)
+    if zero_scales:
+        w.add_embedding_scale(0.0)
+        w.add_residual_scale(0.0)
     if hadamard:
         names = ["output.weight"]
         for layer in range(4):
@@ -367,7 +372,7 @@ def write_model(path, arch, opts):
     if arch == "gemma4":
         return write_gemma4_model(path, opts)
     if arch in ("qwen35", "qwen35moe"):
-        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False))
+        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False), opts.get("zero_scales", False))
     if arch in ("mamba2", "nemotron_h"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
@@ -417,7 +422,7 @@ def write_model(path, arch, opts):
         w.add_final_logit_softcapping(3.0)
     if arch == "muse-glimmer":
         w.add_logit_scale(1.0)
-    if arch == "minicpm":
+    if arch == "minicpm" and not opts.get("default_logit_scale"):
         w.add_logit_scale(d / 256.0)
     if opts.get("moe"):
         w.add_expert_count(4)

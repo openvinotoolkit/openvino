@@ -75,6 +75,8 @@ void name_output(const ov::Output<ov::Node>& out, const std::string& name);
 // then return the same vector without an extra copy.
 OutputVector rename_outputs_with_suffix(OutputVector outputs, const std::string& suffix);
 
+bool has_nonnegative_indices(const ov::Output<ov::Node>& output);
+
 // GGML TOP_K and ARGSORT return I32 indices, which are OpenVINO TopK's second output.
 ov::Output<ov::Node> make_topk_indices(const ov::Output<ov::Node>& input,
                                        const ov::Output<ov::Node>& k,

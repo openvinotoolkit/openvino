@@ -19,11 +19,17 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/eye.hpp"
+#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
@@ -1029,6 +1035,98 @@ TEST(GGUFOps, AddId) {
     // token0 += expert2 (70,80,90); token1 += expert0 (10,20,30)
     std::vector<float> expected{1 + 70, 2 + 80, 3 + 90, 4 + 10, 5 + 20, 6 + 30};
     expect_near(out, expected);
+}
+
+TEST(GGUFOps, ExpertIdsFromTopKOnlyMaskAfterArithmetic) {
+    for (bool add_bias : {false, true}) {
+        for (bool skipped : {false, true}) {
+            SCOPED_TRACE(add_bias);
+            SCOPED_TRACE(skipped);
+            auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2, 3});
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 1, 2});
+            auto k = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
+            auto topk = std::make_shared<ov::op::v11::TopK>(scores,
+                                                            k,
+                                                            -1,
+                                                            ov::op::v11::TopK::Mode::MAX,
+                                                            ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                            ov::element::i32);
+            ov::Output<ov::Node> ids = topk->output(1);
+            if (skipped) {
+                auto offset = ov::op::v0::Constant::create(ov::element::i32, {}, {3});
+                ids = std::make_shared<ov::op::v1::Subtract>(ids, offset);
+            }
+            const ov::Shape weight_shape = add_bias ? ov::Shape{1, 1, 3, 2} : ov::Shape{1, 3, 2, 2};
+            auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, weight_shape);
+            auto decoder = SingleOpBuilder()
+                               .op(add_bias ? "GGML_OP_ADD_ID" : "GGML_OP_MUL_MAT_ID")
+                               .input(add_bias ? "x" : "weights",
+                                      ov::element::f32,
+                                      add_bias ? input->get_partial_shape() : weights->get_partial_shape())
+                               .input(add_bias ? "weights" : "x",
+                                      ov::element::f32,
+                                      add_bias ? weights->get_partial_shape() : input->get_partial_shape())
+                               .input("ids", ov::element::i32, {1, 1, 2, 1})
+                               .output("out", ov::element::f32, {1, 2, 1, 2})
+                               .decoder();
+            auto tensors = std::make_shared<ov::frontend::gguf::TensorMap>();
+            (*tensors)["x"] = input;
+            (*tensors)["weights"] = weights;
+            (*tensors)["ids"] = ids;
+            ov::frontend::gguf::NodeContext context(decoder, tensors);
+            auto outputs = add_bias ? ov::frontend::gguf::op::translate_add_id(context)
+                                    : ov::frontend::gguf::op::translate_mul_mat_id(context);
+            auto result = std::make_shared<ov::op::v0::Result>(outputs.front());
+            auto model =
+                std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{scores, input, weights});
+            size_t masks = 0;
+            for (const auto& node : model->get_ordered_ops())
+                masks += ov::is_type<ov::op::v1::GreaterEqual>(node);
+            EXPECT_EQ(masks, skipped ? 1u : 0u);
+            scores->output(0).set_names({"scores"});
+            input->output(0).set_names({"x"});
+            weights->output(0).set_names({"weights"});
+            const std::vector<float> weight_values = add_bias ? std::vector<float>{10, 20, 30, 40, 50, 60}
+                                                              : std::vector<float>{1, 0, 0, 1, 2, 0, 0, 2, 3, 0, 0, 3};
+            auto output = run_on_cpu(model,
+                                     {{"scores", make_f32_tensor({1, 1, 2, 3}, {1, 2, 3, 3, 2, 1})},
+                                      {"x", make_f32_tensor({1, 2, 1, 2}, {1, 2, 3, 4})},
+                                      {"weights", make_f32_tensor(weight_shape, weight_values)}});
+            const std::vector<float> expected =
+                skipped ? (add_bias ? std::vector<float>{1, 2, 3, 4} : std::vector<float>{0, 0, 0, 0})
+                        : (add_bias ? std::vector<float>{51, 62, 13, 24} : std::vector<float>{3, 6, 3, 4});
+            expect_near(output, expected);
+        }
+    }
+}
+
+TEST(GGUFOps, NonnegativeIndicesPreserveSafeWrappers) {
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+    auto k = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
+    auto topk = std::make_shared<ov::op::v11::TopK>(scores,
+                                                    k,
+                                                    -1,
+                                                    ov::op::v11::TopK::Mode::MAX,
+                                                    ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                    ov::element::i32);
+    EXPECT_FALSE(ov::frontend::gguf::has_nonnegative_indices(topk->output(0)));
+    auto order = ov::op::v0::Constant::create(ov::element::i64, {2}, {1, 0});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(topk->output(1), order);
+    auto shape = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, shape, false);
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(reshape, axis);
+    auto squeeze = std::make_shared<ov::op::v0::Squeeze>(unsqueeze, axis);
+    auto start = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+    auto stop = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+    auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+    auto slice = std::make_shared<ov::op::v8::Slice>(squeeze, start, stop, step, axis);
+    auto widen = std::make_shared<ov::op::v0::Convert>(slice, ov::element::i64);
+    EXPECT_TRUE(ov::frontend::gguf::has_nonnegative_indices(widen));
+    auto narrow = std::make_shared<ov::op::v0::Convert>(widen, ov::element::i32);
+    EXPECT_FALSE(ov::frontend::gguf::has_nonnegative_indices(narrow));
+    auto real = std::make_shared<ov::op::v0::Convert>(slice, ov::element::f32);
+    EXPECT_FALSE(ov::frontend::gguf::has_nonnegative_indices(real));
 }
 
 TEST(GGUFOps, AddIdSkippedExperts) {

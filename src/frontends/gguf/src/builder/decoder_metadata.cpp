@@ -195,6 +195,11 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     auto& scales = p.scales;
     scales.embedding = real(m, key("embedding_scale"), scales.embedding);
     scales.residual = real(m, key("residual_scale"), scales.residual);
+    // llama.cpp treats zero metadata scales as unspecified, with no multiplication.
+    if (scales.embedding == 0.0f && m.has(key("embedding_scale")))
+        scales.embedding = 1.0f;
+    if (scales.residual == 0.0f && m.has(key("residual_scale")))
+        scales.residual = 1.0f;
     scales.logits = real(m, key("logit_scale"), scales.logits);
     scales.attention = real(m, key("attention.scale"), scales.attention);
     scales.attention_temperature = real(m, key("attention.temperature_scale"), scales.attention_temperature);

@@ -34,9 +34,31 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/topk_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 
 namespace ov::frontend::gguf {
+
+bool has_nonnegative_indices(const ov::Output<ov::Node>& output) {
+    auto current = output;
+    while (true) {
+        const auto node = current.get_node_shared_ptr();
+        if (ov::is_type<ov::op::util::TopKBase>(node))
+            return current.get_index() == 1;
+        if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+            const auto source_type = convert->get_input_element_type(0);
+            const auto target_type = convert->get_output_element_type(0);
+            if (source_type != target_type && !(source_type == ov::element::i32 && target_type == ov::element::i64))
+                return false;
+        } else if (!ov::is_type<ov::op::v1::Reshape>(node) && !ov::is_type<ov::op::v1::Transpose>(node) &&
+                   !ov::is_type<ov::op::v0::Squeeze>(node) && !ov::is_type<ov::op::v0::Unsqueeze>(node) &&
+                   !ov::is_type<ov::op::v8::Slice>(node)) {
+            return false;
+        }
+        current = node->input_value(0);
+    }
+}
 
 ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input) {
     const auto block = context.get_attribute<int64_t>("hadamard_block", 0);

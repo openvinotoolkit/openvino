@@ -119,6 +119,13 @@ helpers remain internal migration adapters under builder. The topology never rer
 | Sliding-window attention | `attention.sliding_window(_pattern)`, or sinks |
 | Per-layer KV heads | `attention.head_count_kv` as an array |
 
+MiniCPM's `logit_scale` is a divisor. When the key is absent, the builder uses
+`embedding_length / 256`, giving the model's `256 / embedding_length` output multiplier.
+This deliberately corrects the inverted fallback in unpatched llama.cpp, which defaults the
+divisor to `256 / embedding_length`. The llama.cpp branch used by frontend validation carries
+the same correction; `minicpm-default.npz` captures its CPU logits without the metadata key.
+Files with an explicit `logit_scale` retain its value.
+
 Per-layer variation goes through `DecoderConfig` accessors, not inline ternaries in `build_layer()`:
 `layer_is_swa`, `layer_is_moe`, `layer_head_size`, `layer_n_head_kv`, `layer_kq_scale`,
 `layer_rope_config` and `is_recurrent_layer`. Extend them for a new per-layer dimension.

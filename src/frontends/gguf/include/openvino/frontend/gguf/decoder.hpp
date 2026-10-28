@@ -131,19 +131,6 @@ public:
     // graph, and a caller that wants an OpenVINO KV cache registers
     // ov::frontend::gguf::pass::GGUFMakeStateful as a DecoderTransformationExtension.
 
-    virtual ModelContract get_model_contract() const {
-        return {};
-    }
-
-    virtual std::string get_architecture() const {
-        return {};
-    }
-
-    virtual const ModelAdapters& get_model_adapters() const {
-        static const ModelAdapters empty;
-        return empty;
-    }
-
     // Auxiliary model-scope inputs (position IDs, KV-cache lengths, attention masks). A decoder
     // that folds these into get_model_inputs() leaves this empty. beam_idx is not among them: it
     // is a beam-search index into an OpenVINO state with no ggml counterpart, so GGUFMakeStateful
@@ -178,6 +165,22 @@ public:
     // that knows which Result feeds which Parameter back.
     virtual const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const {
         static const std::vector<std::pair<std::string, std::string>> empty;
+        return empty;
+    }
+
+    /// \brief Resolved model semantics for shared conversion and runtime adaptation.
+    virtual ModelContract get_model_contract() const {
+        return {};
+    }
+
+    /// \brief Architecture identifier for diagnostics and converted-model metadata.
+    virtual std::string get_architecture() const {
+        return {};
+    }
+
+    /// \brief Builder-provided graph adapters applied during model conversion.
+    virtual const ModelAdapters& get_model_adapters() const {
+        static const ModelAdapters empty;
         return empty;
     }
 

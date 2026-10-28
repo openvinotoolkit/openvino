@@ -994,6 +994,29 @@ TEST(GGUFBuilderAPI, BuiltinExpertNormalizationPreservesLlamaPolicyAndOptions) {
     }
 }
 
+TEST(GGUFBuilderAPI, ZeroMetadataScalesDisableMultiplication) {
+    Environment env;
+    env.decoder();
+    DecoderParameters defaults;
+    defaults.scales.embedding = 12.0f;
+    defaults.scales.residual = 1.4f;
+    auto parameters = read_decoder_parameters(env.context.metadata, defaults);
+    EXPECT_FLOAT_EQ(parameters.scales.embedding, 12.0f);
+    EXPECT_FLOAT_EQ(parameters.scales.residual, 1.4f);
+    defaults.scales.embedding = 0.0f;
+    defaults.scales.residual = 0.0f;
+    parameters = read_decoder_parameters(env.context.metadata, defaults);
+    EXPECT_FLOAT_EQ(parameters.scales.embedding, 0.0f);
+    EXPECT_FLOAT_EQ(parameters.scales.residual, 0.0f);
+    for (float scale : {0.0f, 0.5f, 2.0f}) {
+        env.real("test.embedding_scale", scale);
+        env.real("test.residual_scale", scale);
+        parameters = read_decoder_parameters(env.context.metadata, defaults);
+        EXPECT_FLOAT_EQ(parameters.scales.embedding, scale == 0.0f ? 1.0f : scale);
+        EXPECT_FLOAT_EQ(parameters.scales.residual, scale == 0.0f ? 1.0f : scale);
+    }
+}
+
 TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogether) {
     Environment env;
     env.decoder();

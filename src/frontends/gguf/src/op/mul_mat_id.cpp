@@ -345,9 +345,13 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
     if (ids.get_element_type() != ov::element::i32 && ids.get_element_type() != ov::element::i64) {
         ids = std::make_shared<ov::op::v0::Convert>(ids, ov::element::i32);
     }
-    auto zero_id = ov::op::v0::Constant::create(ids.get_element_type(), ov::Shape{}, {0});
-    auto valid_ids = std::make_shared<ov::op::v1::GreaterEqual>(ids, zero_id);
-    auto safe_ids = std::make_shared<ov::op::v1::Select>(valid_ids, ids, zero_id);
+    ov::Output<ov::Node> safe_ids = ids;
+    std::shared_ptr<ov::op::v1::GreaterEqual> valid_ids;
+    if (!has_nonnegative_indices(ids)) {
+        auto zero_id = ov::op::v0::Constant::create(ids.get_element_type(), ov::Shape{}, {0});
+        valid_ids = std::make_shared<ov::op::v1::GreaterEqual>(ids, zero_id);
+        safe_ids = std::make_shared<ov::op::v1::Select>(valid_ids, ids, zero_id);
+    }
 
     ov::Output<ov::Node> result;
     if (expert_weights.get_element_type() == ov::element::u8 && expert_weights.get_partial_shape().rank().is_static() &&
@@ -358,13 +362,16 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
     } else {
         result = translate_mul_mat_id_generic(expert_weights, activations, safe_ids);
     }
-    auto result_shape = std::make_shared<ov::op::v3::ShapeOf>(result, ov::element::i64);
-    auto row_dimensions = gather_dims(result_shape, {0, 1, 2});
-    auto embedding_dimension = const_i64({1});
-    auto mask_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{row_dimensions, embedding_dimension}, 0);
-    auto valid_rows = std::make_shared<ov::op::v1::Reshape>(valid_ids, mask_shape, false);
-    auto zero_result = ov::op::v0::Constant::create(result.get_element_type(), ov::Shape{}, {0});
-    result = std::make_shared<ov::op::v1::Select>(valid_rows, result, zero_result);
+    if (valid_ids) {
+        auto result_shape = std::make_shared<ov::op::v3::ShapeOf>(result, ov::element::i64);
+        auto row_dimensions = gather_dims(result_shape, {0, 1, 2});
+        auto embedding_dimension = const_i64({1});
+        auto mask_shape =
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{row_dimensions, embedding_dimension}, 0);
+        auto valid_rows = std::make_shared<ov::op::v1::Reshape>(valid_ids, mask_shape, false);
+        auto zero_result = ov::op::v0::Constant::create(result.get_element_type(), ov::Shape{}, {0});
+        result = std::make_shared<ov::op::v1::Select>(valid_rows, result, zero_result);
+    }
     return rename_outputs_with_suffix({std::move(result)}, context.get_name());
 }
 

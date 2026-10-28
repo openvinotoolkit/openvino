@@ -60,13 +60,15 @@ OutputVector translate_add_id(const NodeContext& context) {
         ids = std::make_shared<ov::op::v0::Convert>(ids, ov::element::i32);
     }
 
-    auto zero_id = ov::op::v0::Constant::create(ids.get_element_type(), ov::Shape{}, {0});
-    auto valid_ids = std::make_shared<ov::op::v1::GreaterEqual>(ids, zero_id);
-    auto safe_ids = std::make_shared<ov::op::v1::Select>(valid_ids, ids, zero_id);
+    ov::Output<ov::Node> safe_ids = ids;
+    std::shared_ptr<ov::op::v1::GreaterEqual> valid_ids;
+    if (!has_nonnegative_indices(ids)) {
+        auto zero_id = ov::op::v0::Constant::create(ids.get_element_type(), ov::Shape{}, {0});
+        valid_ids = std::make_shared<ov::op::v1::GreaterEqual>(ids, zero_id);
+        safe_ids = std::make_shared<ov::op::v1::Select>(valid_ids, ids, zero_id);
+    }
     auto gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     auto gathered_bias = std::make_shared<ov::op::v8::Gather>(bias, safe_ids, gather_axis);
-    auto embedding_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
-    auto valid_rows = std::make_shared<ov::op::v0::Unsqueeze>(valid_ids, embedding_axis);
     auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
     ov::Output<ov::Node> selected_bias = std::make_shared<ov::op::v1::Reshape>(gathered_bias, input_shape, false);
 
@@ -75,7 +77,12 @@ OutputVector translate_add_id(const NodeContext& context) {
     }
 
     auto added = std::make_shared<ov::op::v1::Add>(input, selected_bias);
-    auto res = std::make_shared<ov::op::v1::Select>(valid_rows, added, input);
+    ov::Output<ov::Node> res = added;
+    if (valid_ids) {
+        auto embedding_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+        auto valid_rows = std::make_shared<ov::op::v0::Unsqueeze>(valid_ids, embedding_axis);
+        res = std::make_shared<ov::op::v1::Select>(valid_rows, added, input);
+    }
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
