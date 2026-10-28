@@ -20,6 +20,7 @@
 
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "fully_connected_inst.h"
+#include "impls/ocl_v2/primitive_ocl_base.hpp"
 
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
@@ -72,14 +73,24 @@ private:
     std::string previous_value;
     bool had_previous = false;
 };
+
+struct gguf_fc_mode {
+    const char* name;
+    bool shuffle;
+    const char* threshold;
+    bool rank3 = false;
+};
+
+class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
 }
 
-TEST(fully_connected_gpu, gguf_q4_k_sg_dynamic_reference) {
+TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
 #if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
-    GTEST_SKIP() << "GGUF SG implementation requires OCL and oneDNN build support";
+    GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
 #else
-    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", "1");
-    gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "64");
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", GetParam().shuffle ? "1" : "0");
+    gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", GetParam().threshold);
+    gguf_scoped_env_var prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
     const std::array<float, 32> reference = {
         47592.5f, -49073.5f, 51735.f, -21023.f, 21752.5f, -15406.f, 11638.f, -308.5f,
         3469.5f, 41631.f, -34432.f, 39985.5f, -18508.5f, 49953.f, -14508.f, 23126.5f,
@@ -96,7 +107,8 @@ TEST(fully_connected_gpu, gguf_q4_k_sg_dynamic_reference) {
         payload[row * 144 + 3] = 0x38;
     }
     auto raw = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, ov::Shape{32, 256}, payload.data());
-    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+    const auto input_shape = GetParam().rank3 ? ov::PartialShape{1, -1, 256} : ov::PartialShape{-1, 256};
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
     auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
     auto scale_node = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
     auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(parameter, raw, absent,
@@ -106,7 +118,7 @@ TEST(fully_connected_gpu, gguf_q4_k_sg_dynamic_reference) {
     manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
     manager.run_passes(graph);
     auto packed = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
-    ASSERT_NE(packed, raw);
+    ASSERT_EQ(packed == raw, !GetParam().shuffle);
     auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32}, {0.f});
     auto public_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(parameter, raw, bias,
                                                                                 scale_node, ov::element::f32);
@@ -122,7 +134,7 @@ TEST(fully_connected_gpu, gguf_q4_k_sg_dynamic_reference) {
     }
     auto scale = engine.allocate_memory({ov::PartialShape{1}, data_types::f32, format::bfyx});
     set_values(scale, {1.f});
-    topology topology(input_layout("input", {ov::PartialShape{-1, 256}, data_types::f32, format::bfyx}),
+    topology topology(input_layout("input", {input_shape, data_types::f32, format::bfyx}),
                       data("weights", weights), data("scale", scale),
                       fully_connected("fc", input_info("input"), "weights", "", "scale", "", data_types::f32));
     auto config = get_test_default_config(engine);
@@ -131,7 +143,9 @@ TEST(fully_connected_gpu, gguf_q4_k_sg_dynamic_reference) {
     const std::array<size_t, 7> row_counts = {1, 2, 33, 1, 1, 33, 2};
     for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
         const auto rows = row_counts[iteration];
-        auto input = engine.allocate_memory({ov::PartialShape{rows, 256}, data_types::f32, format::bfyx});
+        const auto concrete_input = GetParam().rank3 ? ov::Shape{1, rows, 256} : ov::Shape{rows, 256};
+        const auto expected_output = GetParam().rank3 ? ov::Shape{1, rows, 32} : ov::Shape{rows, 32};
+        auto input = engine.allocate_memory({ov::PartialShape(concrete_input), data_types::f32, format::bfyx});
         std::vector<float> values(rows * 256);
         for (size_t row = 0; row < rows; ++row) {
             const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
@@ -140,17 +154,27 @@ TEST(fully_connected_gpu, gguf_q4_k_sg_dynamic_reference) {
             }
         }
         set_values(input, values);
-        ov::Tensor public_input(ov::element::f32, ov::Shape{rows, 256});
+        ov::Tensor public_input(ov::element::f32, concrete_input);
         std::memcpy(public_input.data<float>(), values.data(), values.size() * sizeof(float));
         request.set_input_tensor(public_input);
         request.infer();
         auto public_output = request.get_output_tensor();
-        ASSERT_EQ(public_output.get_shape(), (ov::Shape{rows, 32}));
+        ASSERT_EQ(public_output.get_shape(), expected_output);
         network.set_input_data("input", input);
         auto outputs = network.execute();
-        ASSERT_EQ(outputs.at("fc").get_layout().get_shape(), (ov::Shape{rows, 32}));
+        ASSERT_EQ(outputs.at("fc").get_layout().get_shape(), expected_output);
         auto output = outputs.at("fc").get_memory();
         EXPECT_NE(network.get_primitive("fc")->get_impl()->get_kernel_name().find("gguf"), std::string::npos);
+        auto* implementation = dynamic_cast<ov::intel_gpu::ocl::PrimitiveImplOCL*>(network.get_primitive("fc")->get_impl());
+        ASSERT_NE(implementation, nullptr);
+        const auto entries = implementation->kernel_dump_info.get_entries();
+        implementation->kernel_dump_info.clear_entries();
+        RecordProperty("stage_iteration_" + std::to_string(iteration), entries);
+        const bool prefill = !GetParam().threshold && rows > 32;
+        const std::string expected_stage = prefill ? "fc_gguf_transcode"
+                               : GetParam().shuffle ? "fc_gguf_q4k_sg" : "fc_gguf_opt";
+        EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
+        EXPECT_EQ(entries.find("fc_gguf_act_dq"), std::string::npos) << entries;
         mem_lock<float, mem_lock_type::read> actual(output, get_test_stream());
         for (size_t row = 0; row < rows; ++row) {
             const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
@@ -164,6 +188,18 @@ TEST(fully_connected_gpu, gguf_q4_k_sg_dynamic_reference) {
     }
 #endif
 }
+
+INSTANTIATE_TEST_SUITE_P(gguf,
+                        gguf_fc_dynamic_reference,
+                        ::testing::Values(gguf_fc_mode{"sg_native", true, "64"},
+                                          gguf_fc_mode{"raw_native", false, "64"},
+                                          gguf_fc_mode{"sg_default_prefill", true, nullptr},
+                                          gguf_fc_mode{"raw_default_prefill", false, nullptr},
+                                          gguf_fc_mode{"sg_native_rank3", true, "64", true},
+                                          gguf_fc_mode{"raw_native_rank3", false, "64", true},
+                                          gguf_fc_mode{"sg_default_prefill_rank3", true, nullptr, true},
+                                          gguf_fc_mode{"raw_default_prefill_rank3", false, nullptr, true}),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
 
 TEST(fully_connected_gpu, dynamic_byxf) {
     auto& engine = get_test_engine();

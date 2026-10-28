@@ -487,6 +487,8 @@ protected:
         jit.add({
             make_jit_constant("K_SIZE", static_cast<int>(K)),
             make_jit_constant("N_SIZE", static_cast<int>(N)),
+            make_jit_constant("FC_INPUT_RANK", in0.get_partial_shape().size()),
+            make_jit_constant("FC_OUTPUT_RANK", params.output_layouts[0].get_partial_shape().size()),
             make_jit_constant("GGUF_BLOCK_ELEM", static_cast<int>(wt.block_elem_count())),
             make_jit_constant("GGUF_BLOCK_BYTES", static_cast<int>(wt.block_byte_size())),
             make_jit_constant("SG_SIZE", GGUF_GEMV_SG_SIZE),

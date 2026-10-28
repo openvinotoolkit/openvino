@@ -39,15 +39,23 @@ inline half FUNC(gguf_load_f16)(const __global uchar* p) {
 inline float FUNC(gguf_load_activation)(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* A,
                                         const uint bm,
                                         const uint k) {
+#if FC_INPUT_RANK == 2
+    return (float)A[INPUT0_GET_INDEX(bm, k, 0, 0)];
+#else
     const uint b = bm / INPUT0_FEATURE_NUM;
     const uint f = bm - b * INPUT0_FEATURE_NUM;
     return (float)A[INPUT0_GET_INDEX(b, f, k, 0)];
+#endif
 }
 
 inline uint FUNC(gguf_output_index)(OPTIONAL_SHAPE_INFO_ARG const uint bm, const uint n) {
+#if FC_OUTPUT_RANK == 2
+    return OUTPUT_GET_INDEX(bm, n, 0, 0);
+#else
     const uint b = bm / OUTPUT_FEATURE_NUM;
     const uint f = bm - b * OUTPUT_FEATURE_NUM;
     return OUTPUT_GET_INDEX(b, f, n, 0);
+#endif
 }
 
 // ============================================================================
