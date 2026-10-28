@@ -94,11 +94,6 @@ public:
         }
         return false;
     }
-
-    std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>&,
-                                                            const std::vector<uint8_t>&) const override {
-        return {};
-    }
 };
 
 }  // namespace fake_vcl
