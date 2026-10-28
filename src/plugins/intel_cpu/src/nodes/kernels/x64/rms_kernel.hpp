@@ -84,6 +84,10 @@ private:
     static constexpr std::size_t number_of_f32_in_zmm_ = 16;
 
     const Vmm vmm_src = Vmm(0);
+    const Vmm vmm_src0 = Vmm(0);
+    const Vmm vmm_src1 = Vmm(4);
+    const Vmm vmm_src2 = Vmm(5);
+    const Vmm vmm_src3 = Vmm(6);
     const Vmm vmm_sum0 = Vmm(2);
     const Vmm vmm_rsqrt = Vmm(2);
     const Xmm xmm_rsqrt = Xmm(2);

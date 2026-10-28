@@ -28,6 +28,15 @@ const std::vector<std::vector<InputShape>> shapes{
             {ov::Shape{1024 + 16 + 1}, ov::Shape{1024 + 16 + 1}}}
         },
     },
+    // LLM shape (unrolled path)
+    {
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 2048},
+            {ov::Shape{1, 4, 2048}}}
+        },
+        {ov::test::InputShape{ov::PartialShape{2048},
+            {ov::Shape{2048}}}
+        },
+    },
     // small data size
     {
         // data shape

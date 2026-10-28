@@ -192,30 +192,61 @@ void jit_rms_kernel<isa>::generate() {
         vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
     }
     vbroadcastss(vmm_rsqrt, xmm_rsqrt);
-    mov(reg_size, m_jcp.data_size / vec_size);
     mov(reg_src, reg_src_org);
-    if (m_jcp.data_size >= vec_size) {
-        // Tiny rows rely on the tail path below; emitting a zero-trip vector loop would underflow reg_size.
+    // 4 vmm unrolled loop
+    if ((m_jcp.data_size / (vec_size * 4)) != 0) {
+        mov(reg_size, m_jcp.data_size / (vec_size * 4));
         align(16);
-        Xbyak::Label loop_mul;
-        L(loop_mul);
+        Xbyak::Label loop_4reg_mul;
+        L(loop_4reg_mul);
         {
-            load(vmm_src, reg_src, m_jcp.src_prc, vec_size, false);
-            vmulps(vmm_src, vmm_src, vmm_rsqrt);
-            if (m_jcp.scale_size != 1) {
-                load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false);
-                vmulps(vmm_src, vmm_src, vmm_tmp);
-            }
-            store(reg_dst, vmm_src, m_jcp.dst_prc, vec_size);
+            load(vmm_src0, reg_src, m_jcp.src_prc, vec_size, false, vec_size * m_jcp.src_prc.size() * 0);
+            load(vmm_src1, reg_src, m_jcp.src_prc, vec_size, false, vec_size * m_jcp.src_prc.size() * 1);
+            load(vmm_src2, reg_src, m_jcp.src_prc, vec_size, false, vec_size * m_jcp.src_prc.size() * 2);
+            load(vmm_src3, reg_src, m_jcp.src_prc, vec_size, false, vec_size * m_jcp.src_prc.size() * 3);
 
-            add(reg_src, vec_size * m_jcp.src_prc.size());
+            vmulps(vmm_src0, vmm_src0, vmm_rsqrt);
+            vmulps(vmm_src1, vmm_src1, vmm_rsqrt);
+            vmulps(vmm_src2, vmm_src2, vmm_rsqrt);
+            vmulps(vmm_src3, vmm_src3, vmm_rsqrt);
+
             if (m_jcp.scale_size != 1) {
-                add(reg_scale, vec_size * sizeof(float));
+                load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false, vec_size * sizeof(float) * 0);
+                vmulps(vmm_src0, vmm_src0, vmm_tmp);
+                load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false, vec_size * sizeof(float) * 1);
+                vmulps(vmm_src1, vmm_src1, vmm_tmp);
+                load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false, vec_size * sizeof(float) * 2);
+                vmulps(vmm_src2, vmm_src2, vmm_tmp);
+                load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false, vec_size * sizeof(float) * 3);
+                vmulps(vmm_src3, vmm_src3, vmm_tmp);
+
+                add(reg_scale, vec_size * sizeof(float) * 4);
             }
-            add(reg_dst, vec_size * m_jcp.dst_prc.size());
+
+            store(reg_dst, vmm_src0, m_jcp.dst_prc, vec_size, vec_size * m_jcp.dst_prc.size() * 0);
+            store(reg_dst, vmm_src1, m_jcp.dst_prc, vec_size, vec_size * m_jcp.dst_prc.size() * 1);
+            store(reg_dst, vmm_src2, m_jcp.dst_prc, vec_size, vec_size * m_jcp.dst_prc.size() * 2);
+            store(reg_dst, vmm_src3, m_jcp.dst_prc, vec_size, vec_size * m_jcp.dst_prc.size() * 3);
+
+            add(reg_src, vec_size * m_jcp.src_prc.size() * 4);
+            add(reg_dst, vec_size * m_jcp.dst_prc.size() * 4);
             dec(reg_size);
-            jnz(loop_mul);
+            jnz(loop_4reg_mul);
         }
+    }
+
+    // 1 ~ 3 vmm
+    for (size_t i = m_jcp.data_size / (vec_size * 4) * 4; i < m_jcp.data_size / vec_size; i++) {
+        load(vmm_src, reg_src, m_jcp.src_prc, vec_size, false);
+        vmulps(vmm_src, vmm_src, vmm_rsqrt);
+        if (m_jcp.scale_size != 1) {
+            load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false);
+            vmulps(vmm_src, vmm_src, vmm_tmp);
+            add(reg_scale, vec_size * sizeof(float));
+        }
+        store(reg_dst, vmm_src, m_jcp.dst_prc, vec_size);
+        add(reg_src, vec_size * m_jcp.src_prc.size());
+        add(reg_dst, vec_size * m_jcp.dst_prc.size());
     }
     // tail
     if (m_jcp.data_size % vec_size) {
