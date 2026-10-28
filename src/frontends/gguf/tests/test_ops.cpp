@@ -799,6 +799,25 @@ TEST(GGUFOps, ViewQuantizedBlockOffsetWithSingletonStrides) {
     }
 }
 
+TEST(GGUFOps, ViewQuantizedBlockOffsetWithStridedRows) {
+    const auto values = load_npy<float>("view_q8_input");
+    for (const int64_t offset : {34, 102}) {
+        SCOPED_TRACE(offset);
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_VIEW")
+                         .input("x", ov::element::f32, {1, 1, 4, 64})
+                         .output("out", ov::element::f32, {1, 1, 2, 32})
+                         .attr<std::vector<int64_t>>("view_input_strides", {34, 68, 272, 272})
+                         .attr<std::vector<int64_t>>("view_output_strides", {34, 136, 272, 272})
+                         .attr<int64_t>("view_offset_bytes", offset)
+                         .attr<int64_t>("view_block_size", 32)
+                         .build();
+        const auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 4, 64}, values)}});
+        EXPECT_EQ(out.get_shape(), (ov::Shape{1, 1, 2, 32}));
+        expect_near(out, load_npy<float>("view_q8_" + std::to_string(offset)), 0.0f);
+    }
+}
+
 TEST(GGUFOps, ViewContiguousBatchWindowMergesHeads) {
     const ov::Shape input_shape{2, 7, 4, 128};
     const ov::Shape output_shape{1, 1, 7, 512};

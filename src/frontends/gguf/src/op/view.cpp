@@ -453,7 +453,7 @@ OutputVector translate_view(const NodeContext& context) {
         }
 
         if (src_shape.size() == dst_shape.size() && src_shape.size() == src_strides.size() &&
-            src_strides.size() == dst_strides.size() && byte_offset >= 0) {
+            src_strides.size() == dst_strides.size() && byte_offset >= 0 && block_size > 0) {
             std::vector<int64_t> starts(src_shape.size(), 0);
             std::vector<int64_t> steps(src_shape.size(), 1);
             std::vector<size_t> dims(src_shape.size());
@@ -472,6 +472,13 @@ OutputVector translate_view(const NodeContext& context) {
                 steps[d] = dst_strides[d] / src_strides[d];
                 starts[d] = remaining / src_strides[d];
                 remaining %= src_strides[d];
+                if (d == 0) {
+                    if (starts[d] > std::numeric_limits<int64_t>::max() / block_size) {
+                        valid = false;
+                        break;
+                    }
+                    starts[d] *= block_size;
+                }
                 const size_t ov_axis = src_shape.size() - 1 - d;
                 const int64_t last = starts[d] + steps[d] * (static_cast<int64_t>(dst_shape[ov_axis]) - 1);
                 if (starts[d] < 0 || last >= static_cast<int64_t>(src_shape[ov_axis])) {
@@ -492,12 +499,15 @@ OutputVector translate_view(const NodeContext& context) {
                     end[ov_axis] = begin[ov_axis] + step[ov_axis] * (static_cast<int64_t>(dst_shape[ov_axis]) - 1) + 1;
                     axes[ov_axis] = static_cast<int64_t>(ov_axis);
                 }
-                auto result = std::make_shared<ov::op::v8::Slice>(
-                    context.get_input(0),
-                    ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin),
-                    ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end),
-                    ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step),
-                    ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes));
+                auto begin_node = ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin);
+                auto end_node = ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end);
+                auto step_node = ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step);
+                auto axes_node = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
+                auto result = std::make_shared<ov::op::v8::Slice>(context.get_input(0),
+                                                                  begin_node,
+                                                                  end_node,
+                                                                  step_node,
+                                                                  axes_node);
                 return rename_outputs_with_suffix({std::move(result)}, context.get_name());
             }
         }

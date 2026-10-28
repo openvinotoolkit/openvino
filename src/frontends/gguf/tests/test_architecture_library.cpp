@@ -73,6 +73,7 @@ TEST(GGUFArchitectureLibrary, ProjectorAdapterRetainsItsLibraryUntilExecutionCom
     writer.kv_str("clip.vision.projector_type", "example-adapter");
     writer.tensor("projection.weight", {2, 3}, {1, 2, 3, 4, 5, 6});
     ASSERT_TRUE(writer.write(path.string()));
+    std::shared_ptr<ov::frontend::gguf::ModelAdapter> holder;
     std::shared_ptr<ov::Model> model;
     {
         ov::frontend::gguf::FrontEnd frontend;
@@ -80,7 +81,7 @@ TEST(GGUFArchitectureLibrary, ProjectorAdapterRetainsItsLibraryUntilExecutionCom
         static_cast<ov::frontend::FrontEnd&>(frontend).add_extension(library.string());
         model = frontend.convert(frontend.load(path.string()));
     }
-    auto holder = ov::frontend::gguf::get_model_adapter(model->get_results().front());
+    holder = ov::frontend::gguf::get_model_adapter(model->get_results().front());
     ASSERT_NE(holder, nullptr);
     ASSERT_FALSE(holder->lifetime.empty());
     std::weak_ptr<ov::Extension> owner = holder->lifetime.front();
@@ -90,8 +91,6 @@ TEST(GGUFArchitectureLibrary, ProjectorAdapterRetainsItsLibraryUntilExecutionCom
     ASSERT_TRUE(adapter.run_on_model(model));
     EXPECT_EQ(adapter.get_vision_models().at("custom_vision"), model);
     EXPECT_EQ(ov::frontend::gguf::get_model_adapter(model->get_results().front()), nullptr);
-    holder.reset();
-    EXPECT_TRUE(owner.expired());
     for (const size_t tokens : {1u, 3u, 7u}) {
         ov::Tensor input(ov::element::f32, {1, 1, tokens, 2});
         std::iota(input.data<float>(), input.data<float>() + input.get_size(), 1.f);
@@ -102,4 +101,8 @@ TEST(GGUFArchitectureLibrary, ProjectorAdapterRetainsItsLibraryUntilExecutionCom
                 EXPECT_FLOAT_EQ(outputs[0].data<float>()[t * 3 + c],
                                 float((2 * t + 1) * (2 * c + 1) + (2 * t + 2) * (2 * c + 2) + 7));
     }
+    adapter = Adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    model.reset();
+    holder.reset();
+    EXPECT_TRUE(owner.expired());
 }
