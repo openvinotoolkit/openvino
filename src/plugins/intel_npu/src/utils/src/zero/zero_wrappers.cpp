@@ -328,33 +328,25 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
         }
     }
 
-    ze_command_queue_qos_ext_desc_t qos_desc = {};
-    if (_desc.qos().has_value()) {
-        if (!_init_structs->isCommandQueueQosSupported()) {
-            OPENVINO_THROW("The QoS property is not supported by the current Driver Version!");
-        }
-        qos_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_QOS_EXT_DESC;
-        qos_desc.pNext = ze_queue_desc.pNext;
-        qos_desc.qos = _desc.qos().value();
-        ze_queue_desc.pNext = &qos_desc;
-    }
-
     THROW_ON_FAIL_FOR_LEVELZERO(
         "zeCommandQueueCreate",
         zeCommandQueueCreate(_init_structs->getContext(), _init_structs->getDevice(), &ze_queue_desc, &_handle));
 
-    if (_desc.workload().has_value()) {
-        try {
+    try {
+        if (_desc.workload().has_value()) {
             setWorkloadType(_desc.workload().value());
-        } catch (...) {
-            auto result = zeCommandQueueDestroy(_handle);
-            _handle = nullptr;
-            if (ZE_RESULT_SUCCESS != result) {
-                _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
-            }
-
-            throw;
         }
+        if (_desc.qos().has_value()) {
+            setQos(_desc.qos().value());
+        }
+    } catch (...) {
+        auto result = zeCommandQueueDestroy(_handle);
+        _handle = nullptr;
+        if (ZE_RESULT_SUCCESS != result) {
+            _log.error("zeCommandQueueDestroy failed %#X", uint64_t(result));
+        }
+
+        throw;
     }
 }
 void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
