@@ -12,24 +12,27 @@
 namespace ov {
 namespace reference {
 
+// The axis must be normalized: in [0, rank), or 0 for a scalar input.
 template <typename T, typename P>
 void cumsum(const T* arg, const P axis, T* out, const Shape& tensor_shape, const bool exclusive, const bool reverse) {
     const auto rank = static_cast<int64_t>(tensor_shape.size());
-    if (!ov::util::is_axis_valid(axis, rank)) {
-        return;
-    }
-    const auto normalized_axis = ov::util::normalize_axis(axis, rank);
+    const auto normalized_axis = static_cast<int64_t>(axis);
+    OPENVINO_ASSERT(normalized_axis >= 0 && ov::util::is_axis_valid(normalized_axis, rank),
+                    "CumSum axis ",
+                    axis,
+                    " is out of range for a tensor of rank ",
+                    rank);
     if (rank == 0) {
         out[0] = exclusive ? T{0} : arg[0];
+        return;
+    }
+    if (shape_size(tensor_shape) == 0) {
         return;
     }
     const auto axis_dim = tensor_shape[normalized_axis];
 
     const auto size_before_axis = shape_size(tensor_shape.begin(), tensor_shape.begin() + normalized_axis);
     const auto size_after_axis = shape_size(tensor_shape.begin() + (normalized_axis + 1), tensor_shape.end());
-    if (axis_dim == 0 || size_before_axis == 0 || size_after_axis == 0) {
-        return;
-    }
 
     const auto reverse_shift = reverse ? -1 : 1;
     const auto element_shift = exclusive ? size_after_axis * reverse_shift : 0;

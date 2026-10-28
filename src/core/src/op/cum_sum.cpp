@@ -31,17 +31,15 @@ struct Evaluate : ov::element::NoAction<bool> {
 };
 
 namespace {
-bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool exclusive, const bool reverse) {
-    outputs[0].set_shape(inputs[0].get_shape());
-    const auto axis = ov::get_tensor_data_as<int64_t>(inputs[1]).front();
-
-    const auto rank = static_cast<int64_t>(inputs[0].get_shape().size());
-    OPENVINO_ASSERT(ov::util::is_axis_valid(axis, rank),
-                    "CumSum axis ",
-                    axis,
-                    " is out of range for a tensor of rank ",
-                    rank);
-    const auto normalized_axis = ov::util::normalize_axis(axis, rank);
+bool evaluate(const Node& node,
+              TensorVector& outputs,
+              const TensorVector& inputs,
+              const bool exclusive,
+              const bool reverse) {
+    const auto& data_shape = inputs[0].get_shape();
+    outputs[0].set_shape(data_shape);
+    const auto axes = ov::util::try_get_normalized_axis_vector(inputs[1], Rank(data_shape.size()), node);
+    OPENVINO_ASSERT(!axes.empty(), "CumSum axis input must not be empty");
 
     using namespace ov::element;
     return IF_TYPE_OF(CumSum_evaluate,
@@ -50,7 +48,7 @@ bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool excl
                       inputs[0].get_element_type(),
                       inputs[0],
                       outputs[0],
-                      normalized_axis,
+                      static_cast<int64_t>(axes.front()),
                       exclusive,
                       reverse);
 }
@@ -108,7 +106,7 @@ bool CumSum::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2);
 
-    return cumsum::evaluate(outputs, inputs, is_exclusive(), is_reverse());
+    return cumsum::evaluate(*this, outputs, inputs, is_exclusive(), is_reverse());
 }
 
 bool CumSum::has_evaluate() const {
