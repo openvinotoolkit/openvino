@@ -60,6 +60,10 @@ F8_DTYPE_MAP = {
 
 
 def torch_tensor_to_ov_const(torch_t: torch.Tensor, shared_memory=True):
+    # Memory-free tracing placeholder: emit the original tensor and convert it to FP32 in the graph.
+    original = getattr(torch_t, "_openvino_orig_tensor", None)
+    if original is not None:
+        return ops.convert(torch_tensor_to_ov_const(original, shared_memory=shared_memory), OVType.f32)
     try:
         from torch._prims import FakeTensor
         if isinstance(torch_t, FakeTensor):
