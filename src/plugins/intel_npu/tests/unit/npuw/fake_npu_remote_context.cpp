@@ -62,7 +62,6 @@ const ov::AnyMap& FakeRemoteContext::get_property() const {
     return m_properties;
 }
 
-
 std::shared_ptr<FakeRemoteTensor> FakeRemoteContext::wrap_host_tensor(std::shared_ptr<ov::ITensor> host) const {
     return std::make_shared<FakeRemoteTensor>(std::move(host), m_device_name);
 }
@@ -74,8 +73,8 @@ std::shared_ptr<FakeRemoteTensor> FakeNpuRemoteContext::wrap_host_tensor(std::sh
 }
 
 ov::SoPtr<ov::IRemoteTensor> FakeNpuRemoteContext::create_tensor(const ov::element::Type& type,
-                                                              const ov::Shape& shape,
-                                                              const ov::AnyMap& params) {
+                                                                 const ov::Shape& shape,
+                                                                 const ov::AnyMap& params) {
     auto it = params.find(ov::intel_npu::mem_handle.name());
     std::shared_ptr<ov::ITensor> host;
     if (it != params.end()) {

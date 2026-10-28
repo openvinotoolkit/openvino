@@ -38,7 +38,6 @@ private:
     std::string m_device_name;
 };
 
-
 class FakeNpuRemoteTensor : public FakeRemoteTensor {
 public:
     explicit FakeNpuRemoteTensor(std::shared_ptr<ov::ITensor> host);
@@ -50,9 +49,9 @@ struct Statistics {
 };
 
 struct StatisticsSnapshot {
-    StatisticsSnapshot(const Statistics& stats) :
-            allocated_remote_tensors(stats.allocated_remote_tensors.load()),
-            imported_remote_tensors(stats.imported_remote_tensors.load()) {}
+    StatisticsSnapshot(const Statistics& stats)
+        : allocated_remote_tensors(stats.allocated_remote_tensors.load()),
+          imported_remote_tensors(stats.imported_remote_tensors.load()) {}
     size_t allocated_remote_tensors{0};
     size_t imported_remote_tensors{0};
 };
@@ -65,11 +64,19 @@ public:
     const std::string& get_device_name() const override;
     const ov::AnyMap& get_property() const override;
 
-    StatisticsSnapshot get_statistics_snapshot() const { return m_statistics; }
+    StatisticsSnapshot get_statistics_snapshot() const {
+        return m_statistics;
+    }
+
 protected:
     virtual std::shared_ptr<FakeRemoteTensor> wrap_host_tensor(std::shared_ptr<ov::ITensor> host) const;
-    void increment_allocated_remote_tensors() { m_statistics.allocated_remote_tensors++; }
-    void increment_imported_remote_tensors() { m_statistics.imported_remote_tensors++; }
+    void increment_allocated_remote_tensors() {
+        m_statistics.allocated_remote_tensors++;
+    }
+    void increment_imported_remote_tensors() {
+        m_statistics.imported_remote_tensors++;
+    }
+
 private:
     std::string m_device_name;
     ov::AnyMap m_properties;
