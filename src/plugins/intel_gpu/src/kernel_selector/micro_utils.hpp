@@ -27,6 +27,7 @@ namespace micro {
 
 using Package = gemmstone::microkernel::Package;
 using HWInformation = gemmstone::microkernel::HWInformation;
+using HostPayload = gemmstone::microkernel::HostPayload;
 using GEMMProblem = gemmstone::GEMMProblem;
 using ABOffset = gemmstone::ABOffset;
 using GEMMStrategy = gemmstone::GEMMStrategy;
@@ -73,14 +74,25 @@ struct MicroKernelPackage {
     }
 };
 
-inline Package select_gemm_microkernel(GEMMOptions &options, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
-                                        const std::vector<StrategyRequirement> &reqs = std::vector<StrategyRequirement>(),
-                                        void (*strategyAdjuster)(GEMMStrategy &strategy) = nullptr, gemmstone::SelectionObserver *observer = nullptr) {
-    return gemmstone::microkernel::selectGEMM(options, hw_info, sizes, problem, reqs, strategyAdjuster);
+// `host` describes the host OpenCL kernel (SIMD width and cross-thread argument payload bytes). The microkernel
+// registers are placed above that payload, and fuse() validates them against the actual thread payload.
+inline Package select_gemm_microkernel(GEMMOptions& options,
+                                       HostPayload host,
+                                       HWInformation hw_info,
+                                       SizeParams sizes,
+                                       const GEMMProblem& problem,
+                                       const std::vector<StrategyRequirement>& reqs = std::vector<StrategyRequirement>(),
+                                       void (*strategyAdjuster)(GEMMStrategy& strategy) = nullptr,
+                                       gemmstone::SelectionObserver* observer = nullptr) {
+    return gemmstone::microkernel::selectGEMM(options, host, hw_info, sizes, problem, reqs, strategyAdjuster, observer);
 }
-inline Package select_gemm_microkernel(GEMMOptions &options, HWInformation hw_info, SizeParams sizes, const GEMMProblem &problem,
-        gemmstone::SelectionObserver *observer) {
-    return gemmstone::microkernel::selectGEMM(options, hw_info, sizes, problem, {}, nullptr);
+inline Package select_gemm_microkernel(GEMMOptions& options,
+                                       HostPayload host,
+                                       HWInformation hw_info,
+                                       SizeParams sizes,
+                                       const GEMMProblem& problem,
+                                       gemmstone::SelectionObserver* observer) {
+    return gemmstone::microkernel::selectGEMM(options, host, hw_info, sizes, problem, {}, nullptr, observer);
 }
 
 static inline int alignment_for_ld(int ld) {
