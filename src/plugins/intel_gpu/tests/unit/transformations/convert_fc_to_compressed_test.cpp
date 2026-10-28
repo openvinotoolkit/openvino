@@ -985,7 +985,9 @@ protected:
 
     static std::shared_ptr<ov::op::v0::Parameter> makeInput(const TransposeBeforeReshapeParams& params) {
         return std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                       ov::PartialShape{-1, 2 * params.group_size});
+                                                       ov::PartialShape{-1,
+                                                                        2 * static_cast<ov::Dimension::value_type>(
+                                                                                params.group_size)});
     }
 
     static std::shared_ptr<ov::Node> makeWeights(const TransposeBeforeReshapeParams& params,
