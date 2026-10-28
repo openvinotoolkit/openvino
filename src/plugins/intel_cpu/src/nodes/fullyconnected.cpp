@@ -51,6 +51,10 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/rt_info/disable_precision_conversion.hpp"
+#    include "utils/precision_support.h"
+#endif
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "openvino/core/shape.hpp"
 #    include "utils/arm_isa_support.h"
@@ -61,7 +65,7 @@ using namespace ov::element;
 
 namespace ov::intel_cpu::node {
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -71,12 +75,15 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
         return {Type_t::u8, Type_t::i8};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    ov::element::TypeVector supportedDataTypes =
-        {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::nf4, Type_t::f4e2m1, Type_t::u2};
-    if (apply_fp8) {
-        supportedDataTypes.insert(supportedDataTypes.end(), {Type_t::f8e4m3, Type_t::f8e5m2});
-    }
-    return supportedDataTypes;
+    return {Type_t::u8,
+            Type_t::i8,
+            Type_t::u4,
+            Type_t::i4,
+            Type_t::nf4,
+            Type_t::f4e2m1,
+            Type_t::u2,
+            Type_t::f8e4m3,
+            Type_t::f8e5m2};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
     // Symmetric weight-only compression uses i4. Asymmetric groupwise
     // compression exported by Optimum uses u4 weights plus u4 zero-points.
@@ -96,14 +103,8 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
         return {Type_t::f32, Type_t::f16};
     }
 #if defined(OPENVINO_ARCH_X86_64)
-    // BF16 compressed-activations path is intended for SIMD (avx512_vnni)
-    // dynamic-quant kernels. On AMX-capable HW, AMX BF16 TMUL outperforms
-    // VNNI int8 on prefill, so keep f32 here and let the existing AMX BF16
-    // path handle bf16 inference precision.
-    if (ov::with_cpu_x86_avx512_core_amx()) {
-        return {Type_t::f32};
-    }
-    return {Type_t::f32, Type_t::bf16};
+    // f16 is accepted only for fp8 weights, see isSupportedCompressedOperation()
+    return {Type_t::f32, Type_t::bf16, Type_t::f16};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
     return {Type_t::f32};
 #else
@@ -155,6 +156,46 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         }
 
         if (!ov::with_cpu_x86_avx2()) {
+            return false;
+        }
+
+        const auto weightsPrecision = op->get_input_element_type(WEIGHTS);
+        if (any_of(weightsPrecision, ov::element::f8e4m3, ov::element::f8e5m2)) {
+            // No f32 x fp8 kernel, so the constant is folded unless the activations end up bf16/f16.
+            // f32 counts as bf16 under the bf16 hint (enforced later) unless the node is excluded from it.
+            auto activationPrecision = op->get_input_element_type(DATA);
+            if (activationPrecision == ov::element::f32 && config.inferencePrecision == ov::element::bf16 &&
+                !ov::is_conversion_disabled(op, ov::element::f16) &&
+                !ov::is_conversion_disabled(op, ov::element::f32, ov::element::bf16)) {
+                activationPrecision = ov::element::bf16;
+            }
+            if (!hasFp8WeightsDecompressionSupport(activationPrecision)) {
+                return false;
+            }
+            // Grouped scales over IC are rejected by oneDNN for fp8 weights
+            // (brgemm_matmul_utils.cpp, per-K weight scales check).
+            if (G != 1) {
+                return false;
+            }
+            // The fp8 dequantization scheme is scale-only.
+            if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+                op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic) {
+                return false;
+            }
+            // Weights must be a real 2D [OC, IC] constant, not broadcast by the scale multiply.
+            const auto& weightsShape = op->get_input_shape(WEIGHTS);
+            if (weightsShape.size() != 2 || weightsShape[0] != OC || weightsShape[1] != IC) {
+                return false;
+            }
+            // Same shape limits as the other weights decompression paths.
+            return IC >= 4 && OC != 1;
+        }
+
+        bool useMatmulPrim = false;
+        CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
+        // At the moment there is no implementation supporting integer weights decompression with f16 input
+        // (subject to change once we completely switch to dnnl::matmul).
+        if (!useMatmulPrim && op->get_input_element_type(DATA) == ov::element::f16) {
             return false;
         }
 
