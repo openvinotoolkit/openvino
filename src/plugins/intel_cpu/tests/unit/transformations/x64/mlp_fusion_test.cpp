@@ -172,7 +172,6 @@ protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
         comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-        disable_rt_info_check();
     }
 };
 

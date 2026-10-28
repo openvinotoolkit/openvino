@@ -102,7 +102,6 @@ std::shared_ptr<v0::Constant> make_proj_weights(size_t rows, float value) {
 // the Q/K/V MatMuls must still share one input after ActivationsScaling
 TEST_F(TransformationTestsF, QKVProjFusionAfterActivationsScaling) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    disable_rt_info_check();
     {
         auto input = std::make_shared<v0::Parameter>(element::f16, PartialShape{-1, -1, kHidden});
         OutputVector outputs;
