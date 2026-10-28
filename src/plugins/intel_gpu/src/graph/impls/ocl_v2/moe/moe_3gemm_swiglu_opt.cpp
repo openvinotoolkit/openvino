@@ -2092,13 +2092,16 @@ public:
         dnnl::memory::desc up_zp_md;
         dnnl::memory::desc down_zp_md;
         bool has_zp = false;
+        // Post-ops fused into gate GEMM: eltwise(swish) + binary_mul(up_output)
+        bool gate_has_post_ops = false;
+        int gate_bin_po_idx = -1;  // index of binary post-op in gate's post_ops chain
         // DNNL_ARG_HINT_MAX_GROUP_SIZE host scalar, its value is updated in place before each execute
         dnnl::memory hint_mem;
         // Execute args of one GEMM. Building them costs several dnnl::memory objects (each one queries the USM
         // pointer type) per execute, so they are reused while all the buffer addresses they wrap stay the same:
-        // src, dst, grouped offsets, weights, scales, zero points.
+        // src, dst, grouped offsets, weights, scales, zero points, binary post-op src.
         struct exec_args {
-            std::array<const void*, 6> key{};
+            std::array<const void*, 7> key{};
             std::unordered_map<int, dnnl::memory> args;
         };
         std::array<exec_args, 3> args;  // gate, up, down
@@ -2248,9 +2251,10 @@ public:
 
         // Helper: create one grouped matmul prim-desc [total_tokens, K]*W[E,K,N]->[total_tokens,N]
         // Weights layout in memory is [E, N, K] (stored transposed), expressed as acb over dims {E,K,N}.
-        auto make_pd = [&](int K, int N, int group_size, dnnl::memory::data_type w_dt, size_t gemm_idx) {
+        auto make_pd = [&](int K, int N, int group_size, dnnl::memory::data_type w_dt, size_t gemm_idx, const dnnl::post_ops& post_ops) {
             dnnl::primitive_attr attr;
             attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+            attr.set_post_ops(post_ops);
 
             bool has_k_groups = (group_size < K);
             const bool zp_host_scalar = static_cast<bool>(_grouped_zp_host_scalars[gemm_idx]);
@@ -2292,21 +2296,36 @@ public:
         auto gk = std::make_shared<grouped_onednn_kernel>();
         gk->has_zp = has_zp;
 
-        gk->gate_pd = make_pd(K_gu, N_gu, _gate_up_group_size, gw_dt, 0);
-        gk->gate_prim = dnnl::matmul(gk->gate_pd);
+        // Gate GEMM with fused eltwise(swish/gelu) + binary_mul(up_output) post-ops.
+        // This eliminates the separate grouped_gemm_prefill_swiglu OCL kernel.
+        // Execution order: up GEMM first, then gate GEMM with post-ops consuming up output.
+        {
+            // Post-ops: eltwise(activation) + binary_mul(up_output as grouped tensor)
+            dnnl::post_ops gate_po;
+            auto activation_algo = moe_activation_to_dnnl_algo(_activation_type);
+            gate_po.append_eltwise(activation_algo, 1.0f, 0.0f);
+            // binary_mul with grouped descriptor matching dst layout
+            auto bin_md = dnnl::memory::desc::grouped(dnnl::memory::dims{total_tokens, N_gu}, a_dt, 0, num_experts, dnnl::memory::data_type::s32);
+            gate_po.append_binary(dnnl::algorithm::binary_mul, bin_md);
+
+            gk->gate_pd = make_pd(K_gu, N_gu, _gate_up_group_size, gw_dt, 0, gate_po);
+            gk->gate_prim = dnnl::matmul(gk->gate_pd);
+            gk->gate_has_post_ops = true;
+            gk->gate_bin_po_idx = 1;  // eltwise is index 0, binary is index 1
+        }
         gk->gate_scale_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, dnnl::memory::data_type::f16);
         if (has_zp) {
             gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, zp_dt);
         }
 
-        gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt, 1);
+        gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt, 1, dnnl::post_ops());
         gk->up_prim = dnnl::matmul(gk->up_pd);
         gk->up_scale_md = gk->gate_scale_md;
         if (has_zp) {
             gk->up_zp_md = gk->gate_zp_md;
         }
 
-        gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt, 2);
+        gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt, 2, dnnl::post_ops());
         gk->down_prim = dnnl::matmul(gk->down_pd);
         gk->down_scale_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dnnl::memory::data_type::f16);
         if (has_zp) {
@@ -2617,16 +2636,18 @@ public:
                              const memory::ptr& src,
                              const memory::ptr& dst,
                              const dnnl::memory::desc& scale_md,
-                             const dnnl::memory::desc& zp_md) {
+                             const dnnl::memory::desc& zp_md,
+                             const memory::ptr& bin_src) {
             const auto& host_zp = _grouped_zp_host_scalars[gemm_idx];
             const bool device_zp = gk.has_zp && !host_zp;
             auto& cache = gk.args[gemm_idx];
-            const std::array<const void*, 6> key{src->buffer_ptr(),
+            const std::array<const void*, 7> key{src->buffer_ptr(),
                                                  dst->buffer_ptr(),
                                                  row_offsets->buffer_ptr(),
                                                  wei.weight[gemm_idx]->buffer_ptr(),
                                                  wei.scale[gemm_idx]->buffer_ptr(),
-                                                 device_zp ? wei.zp[gemm_idx]->buffer_ptr() : nullptr};
+                                                 device_zp ? wei.zp[gemm_idx]->buffer_ptr() : nullptr,
+                                                 bin_src ? bin_src->buffer_ptr() : nullptr};
             if (cache.args.empty() || cache.key != key) {
                 cache.args = {{DNNL_ARG_SRC, src->get_onednn_grouped_memory(pd.src_desc(), *row_offsets)},
                               {DNNL_ARG_WEIGHTS, wei.weight[gemm_idx]->get_onednn_memory(pd.weights_desc())},
@@ -2636,33 +2657,29 @@ public:
                 if (gk.has_zp) {
                     cache.args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, device_zp ? wei.zp[gemm_idx]->get_onednn_memory(zp_md) : host_zp});
                 }
+                if (bin_src) {
+                    // binary post-op input: grouped memory with the same layout as dst
+                    cache.args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(gk.gate_bin_po_idx) | DNNL_ARG_SRC_1,
+                                       bin_src->get_onednn_grouped_memory(pd.dst_desc(), *row_offsets)});
+                }
                 cache.key = key;
             }
             prim.execute(dnn_stream, cache.args);
         };
 
-        // gate GEMM: [total, hidden] * W_gate[E,hidden,inter] -> [total, inter]
-        exec_gemm(0, gk.gate_prim, gk.gate_pd, scratch.x, scratch.gate, gk.gate_scale_md, gk.gate_zp_md);
+        // With post-ops fused: eltwise(swish/gelu) + binary_mul(up_output)
+        // Execution order: up first (to produce binary input), then gate with fused activation+multiply.
+        // This eliminates the separate grouped_gemm_prefill_swiglu OCL kernel launch.
+
         // up GEMM: [total, hidden] * W_up[E,hidden,inter] -> [total, inter]
-        exec_gemm(1, gk.up_prim, gk.up_pd, scratch.x, scratch.up, gk.up_scale_md, gk.up_zp_md);
+        exec_gemm(1, gk.up_prim, gk.up_pd, scratch.x, scratch.up, gk.up_scale_md, gk.up_zp_md, nullptr);
 
-        // Step 4: SiLU(gate) * up -> scratch.gate  (OCL prefill_swiglu kernel, compiled with ONEDNN_GROUPED_GEMM_USED)
-        // gate and up GEMMs are submitted to the same OCL queue as the OCL kernels;
-        // passing ret_event (from gather) as dependency ensures ordering within the queue.
-        {
-            const size_t subgroup_size = instance.get_impl_params()->get_device_info().arch >= gpu_arch::xe2 ? 32 : 16;
-
-            ret_event = execute_stage({ret_event},
-                                      instance,
-                                      *grouped_gemm_prefill_swiglu,
-                                      {intermediates_memories[MOE_INTERNAL_BUFFER_UP_OUTPUT], intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
-                                      {intermediates_memories[MOE_INTERNAL_BUFFER_GATE_OUTPUT]},
-                                      {static_cast<size_t>(_intermediate_size), static_cast<size_t>(total_gathered_tokens), 1},
-                                      {subgroup_size, 1, 1});
-        }
+        // gate GEMM with fused post-ops: gate_output = activation(X * W_gate) * up_output
+        // Result written to scratch.gate, ready for down GEMM.
+        exec_gemm(0, gk.gate_prim, gk.gate_pd, scratch.x, scratch.gate, gk.gate_scale_md, gk.gate_zp_md, scratch.up);
 
         // down GEMM: [total, inter] * W_down[E,inter,hidden] -> [total, hidden]
-        exec_gemm(2, gk.down_prim, gk.down_pd, scratch.gate, scratch.y, gk.down_scale_md, gk.down_zp_md);
+        exec_gemm(2, gk.down_prim, gk.down_pd, scratch.gate, scratch.y, gk.down_scale_md, gk.down_zp_md, nullptr);
 
         // Ensure all grouped GEMMs complete before scatter_reduce (OTD sync)
         on_after_grouped_gemm(stream);
