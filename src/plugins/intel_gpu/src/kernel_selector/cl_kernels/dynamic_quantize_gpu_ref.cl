@@ -19,7 +19,11 @@
 
 #if IS_F8_F4
     #define SCALE_TYPE float
-    #define TO_SCALE_TYPE(x) _convert_float(x)
+    #if (F4E2M1_OUTPUT)
+        #define TO_SCALE_TYPE(x) _convert_float(x)
+    #else
+        #define TO_SCALE_TYPE(x) convert_float(x)
+    #endif
     #define TO_SCALE_TYPE_8(x) convert_float8(x)
     #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
 #else
@@ -159,9 +163,13 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_COMPUTE_TYPE zp = TO_OUTPUT1_COMPUTE_TYPE(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
 #if IS_MXFP
-    SCALE_TYPE scale = DQ_COMPUTE_MXFP_SCALE(max_val);
+    #if F4E2M1_OUTPUT // TODO: remove once fp4 rework is done
+        SCALE_TYPE scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / max_val))));
+    #else
+        SCALE_TYPE scale = DQ_COMPUTE_MXFP_SCALE(max_val);
+    #endif
 #else
-    SCALE_TYPE scale = OUTPUT_VAL_MAX / max_val;
+    SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_val;
 #endif // IS_FP8
 #endif // ASYMMETRIC_QUANTIZATION
 

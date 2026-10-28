@@ -25,7 +25,11 @@
 
 #if IS_F8_F4
     #define SCALE_TYPE float
-    #define TO_SCALE_TYPE(x) _convert_float(x)
+    #if (F4E2M1_OUTPUT)
+        #define TO_SCALE_TYPE(x) _convert_float(x)
+    #else
+        #define TO_SCALE_TYPE(x) convert_float(x)
+    #endif
     #define ACT_MIN_VAL 0.000000059604645h // min half dtype val
     #define TO_TYPE_N_(type, n, x) convert_##type##n(x)
     #define TO_TYPE_N_SAT_(type, n, x) _convert_##type##n##_sat(x)
@@ -119,15 +123,19 @@ KERNEL(dynamic_quantize_gpu_opt)(
     }
 
 #if IS_MXFP
-    SCALE_TYPE quan_scale = DQ_COMPUTE_MXFP_SCALE(max_value);
+    #if F4E2M1_OUTPUT // TODO: remove once fp4 rework is done
+        SCALE_TYPE quan_scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / max_value))));
+    #else
+        SCALE_TYPE quan_scale = DQ_COMPUTE_MXFP_SCALE(max_value);
+    #endif
 #else
-    SCALE_TYPE quan_scale = OUTPUT_VAL_MAX / max_value;
+    SCALE_TYPE quan_scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
     FOR_PRECOMPUTED_REDUCTION(int precomputed_reduction = 0);
 #endif // MXFP
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
 #if F4E2M1_OUTPUT
-        quantized_value[i] = DQ_COMPUTE_OUTPUT_VALUE_N(4, input_0[i], quan_scale);
+        quantized_value[i] = TO_TYPE_N_SAT(OUTPUT_TYPE, 4, TO_TYPE_N(float, 4, input_0[i]) * (MAKE_VECTOR_TYPE(float, 4))quan_scale);
         vstore2(quantized_value[i].data, 0, (uchar*)(&output[output_offset + i * 2]));
 #elif IS_F8
         quantized_value[i] = DQ_COMPUTE_OUTPUT_VALUE_N(4, input_0[i], quan_scale);
@@ -278,7 +286,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    SCALE_TYPE scale = OUTPUT_VAL_MAX / max_value;
+    SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
 #endif
 
     if (is_valid_block) {
@@ -437,7 +445,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     OUTPUT1_TYPE scale = (OUTPUT1_TYPE)((CHAR_MAX - CHAR_MIN) / (max_value - min_value));
     OUTPUT2_TYPE zp = (OUTPUT2_TYPE)(-min_value * scale);
 #else
-    SCALE_TYPE scale = OUTPUT_VAL_MAX / max_value;
+    SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_value;
 #endif
 
 

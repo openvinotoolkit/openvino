@@ -163,9 +163,6 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #if HAS_FUSED_OPS
         FUSED_OPS_FIRST_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_FIRST_KERNEL);
-    #elif INPUT0_IS_F8E4M3
-        // fp8 is a 1-byte struct; ScatterUpdate just moves data, so copy the byte (ACTIVATION won't compile on it).
-        output[output_idx] = val;
     #else
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
@@ -271,9 +268,6 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
-    #elif INPUT2_IS_F8E4M3
-        // fp8 is a 1-byte struct; ScatterUpdate just moves data, so copy the byte (ACTIVATION won't compile on it).
-        output[output_idx] = val;
     #else
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
