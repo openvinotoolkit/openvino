@@ -4,6 +4,7 @@
 
 #include "moe_transformation.hpp"
 
+#include <algorithm>
 #include <functional>
 
 #include "moe_unroll_patterns.hpp"
@@ -212,8 +213,13 @@ static bool find_tile_and_extract_config(const std::shared_ptr<ov::Model>& model
 
         auto repeats_data = repeats_const->cast_vector<int64_t>();
         const auto input_shape = tile->input_value(0).get_partial_shape();
-        if (repeats_data.size() != 2 || repeats_data[0] <= 1 || repeats_data[1] != 1 || !input_shape.is_static() ||
-            input_shape.rank() != ov::Rank(2))
+        // Tile may prepend extra singleton dims to broadcast the expert axis (e.g.
+        // repeats=[E,1,1] over a rank-2 [tokens,hidden] input).
+        const bool repeats_valid = repeats_data.size() >= 2 && repeats_data[0] > 1 &&
+                                   std::all_of(repeats_data.begin() + 1, repeats_data.end(), [](int64_t r) {
+                                       return r == 1;
+                                   });
+        if (!repeats_valid || !input_shape.is_static() || input_shape.rank() != ov::Rank(2))
             continue;
 
         // Found valid Tile node

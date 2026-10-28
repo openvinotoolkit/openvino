@@ -93,6 +93,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/moe_transpose_weights_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/move_eltwise_up_data_movement_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mul_fake_quantize_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mvn_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nearest_neighbor_upsampling_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/ngraph_fq_transpose_test.cpp
