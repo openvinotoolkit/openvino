@@ -2134,7 +2134,7 @@ void Graph::EnforceInferencePrecision() const {
     }
 
     for (const auto& node : graphNodes) {
-        if (nodesToSkip.contains(node) && !node->enforceBF16evenForGraphTail) {
+        if (nodesToSkip.count(node) && !node->enforceBF16evenForGraphTail) {
             continue;
         }
 

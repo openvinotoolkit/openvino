@@ -64,7 +64,7 @@ bool pass::EliminateCopyB::run_on_model(const std::shared_ptr<ov::Model>& model)
         param->set_element_type(copy_b_node->get_output_element_type(0));
         // Note: validation is called manually since set_element_type doesn't update output element type.
         param->validate_and_infer_types();
-        if (pattern_map.contains(m_rank_norm)) {
+        if (pattern_map.count(m_rank_norm)) {
             pattern_map.at(m_rank_norm).get_node_shared_ptr()->validate_and_infer_types();
         }
 

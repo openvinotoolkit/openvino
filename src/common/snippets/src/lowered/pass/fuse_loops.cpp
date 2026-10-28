@@ -241,7 +241,7 @@ bool FuseLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
             const auto current_loop_id = current_expr_loops[i];
             // If the current Loop ID is in prev fused Loops, it means that on previous step all possible fusions are
             // completed
-            if (prev_fused_loops.contains(current_loop_id)) {
+            if (prev_fused_loops.count(current_loop_id) != 0) {
                 continue;
             }
 

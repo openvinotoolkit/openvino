@@ -20,11 +20,11 @@ void PassConfig::enable(const DiscreteTypeInfo& type_info) {
 }
 
 bool PassConfig::is_disabled(const DiscreteTypeInfo& type_info) const {
-    return m_disabled.contains(type_info);
+    return m_disabled.count(type_info) != 0U;
 }
 
 bool PassConfig::is_enabled(const DiscreteTypeInfo& type_info) const {
-    return m_enabled.contains(type_info);
+    return m_enabled.count(type_info) != 0U;
 }
 
 PassConfig PassConfig::merge_configs(const PassConfig& lhs, const PassConfig& rhs) {

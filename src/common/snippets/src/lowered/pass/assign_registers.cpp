@@ -157,16 +157,16 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         const auto& reg = regint.first;
         const auto& interval = regint.second;
         // If a register is assigned manually, we should ignore it during automatic assignment
-        if (assigned_reg_map.contains(reg)) {
+        if (assigned_reg_map.count(reg)) {
             continue;
         }
         switch (reg.type) {
         case (RegType::gpr):
-            OPENVINO_ASSERT(!live_intervals_gpr.contains(interval), "GPR live interval is already in the map");
+            OPENVINO_ASSERT(!live_intervals_gpr.count(interval), "GPR live interval is already in the map");
             live_intervals_gpr[interval] = reg;
             break;
         case (RegType::vec):
-            OPENVINO_ASSERT(!live_intervals_vec.contains(interval), "VEC live interval is already in the map");
+            OPENVINO_ASSERT(!live_intervals_vec.count(interval), "VEC live interval is already in the map");
             live_intervals_vec[interval] = reg;
             break;
         case (RegType::undefined):
@@ -186,9 +186,9 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         std::map<Reg, Reg> register_map;
         std::stack<Reg> bank;
         // regs are stored in ascending order in reg_pool, so walk in reverse to assign them the same way
-        std::for_each(reg_pool.crbegin(), reg_pool.crend(), [&bank](const Reg& reg) {
-            bank.push(reg);
-        });
+        for (auto rit = reg_pool.crbegin(); rit != reg_pool.crend(); rit++) {
+            bank.push(*rit);
+        }
 
         for (const auto& interval_reg : live_intervals) {
             auto [interval, unique_reg] = interval_reg;

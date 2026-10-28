@@ -458,7 +458,7 @@ void visit_path(const lowered::ExpressionPtr& expr,
     std::deque<lowered::ExpressionPtr> exprs{expr};
 
     auto continue_traversal = [&](const lowered::ExpressionPtr& expr) {
-        if (!visited.contains(expr)) {
+        if (visited.count(expr) == 0) {
             exprs.push_front(expr);
             visited.insert(lowered::ExpressionPtr(expr));
         }

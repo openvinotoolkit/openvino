@@ -79,7 +79,7 @@ bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin,
         const auto loop_depth = expr_loops.size();
         for (size_t i = 0; i < loop_depth; ++i) {
             const auto loop_id = expr_loops[i];
-            if (!inserted_loops.contains(loop_id)) {
+            if (inserted_loops.count(loop_id) == 0) {
                 insertion(linear_ir, loop_manager, loop_id);
                 inserted_loops.insert(loop_id);  // save Loop ID
             }

@@ -47,7 +47,7 @@ uint32_t get_initial_value(const ov::DiscreteTypeInfo& type_info) {
         {op::ReduceMax::get_type_info_static(), static_cast<uint32_t>(0xff7fffff)},
         {op::ReduceSum::get_type_info_static(), static_cast<uint32_t>(0x00000000)},
     };
-    OPENVINO_ASSERT(reduce_initial_values.contains(type_info), "Unexpected ReduceType");
+    OPENVINO_ASSERT(reduce_initial_values.count(type_info), "Unexpected ReduceType");
     return reduce_initial_values.at(type_info);
 }
 

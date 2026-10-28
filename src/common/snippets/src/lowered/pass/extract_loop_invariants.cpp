@@ -175,7 +175,7 @@ std::vector<ExpressionPtr> get_loop_input_exprs(const std::vector<LoopPort>& loo
     std::unordered_set<ExpressionPtr> seen_exprs;
     for (const auto& loop_in_port : loop_in_ports) {
         const auto& expr = loop_in_port.get_expr_port()->get_expr();
-        if (!seen_exprs.contains(expr)) {
+        if (seen_exprs.count(expr) == 0) {
             input_exprs.push_back(expr);
             seen_exprs.insert(expr);
         }

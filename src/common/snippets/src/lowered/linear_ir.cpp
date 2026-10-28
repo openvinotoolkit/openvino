@@ -198,14 +198,14 @@ void LinearIR::debug_print(bool tds_as_pointers) const {
         std::cerr << counter++ << " : " << node->get_friendly_name() << " :  ";
         if (tds_as_pointers) {
             for (const auto& in : expr->m_input_port_connectors) {
-                if (!td2int.contains(in)) {
+                if (td2int.count(in) == 0) {
                     OPENVINO_THROW("Undefined input descriptor for op");
                 }
                 std::cerr << td2int.at(in) << ", ";
             }
             std::cerr << "\b\b => ";
             for (const auto& out : expr->m_output_port_connectors) {
-                if (!td2int.contains(out)) {
+                if (td2int.count(out) == 0) {
                     td2int.insert({out, td_counter++});
                 }
                 std::cerr << td2int.at(out) << ", ";
