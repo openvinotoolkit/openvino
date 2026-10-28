@@ -118,7 +118,7 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
     OPENVINO_ASSERT(primary, "[GGUF] projector adapter omitted its primary model");
     adapted->validate_nodes_and_infer_types();
-    ov::frontend::FrontEnd::add_model_shared_objects(*model, libraries);
+    ov::frontend::FrontEnd::add_model_shared_objects(*model, *adapted, libraries);
     for (auto& [name, encoder] : vision_models) {
         if (encoder != adapted)
             encoder = ov::frontend::FrontEnd::copy_model_with_shared_objects(*encoder, libraries);

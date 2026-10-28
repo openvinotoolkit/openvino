@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "builder/legacy_model_contract.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
@@ -32,7 +33,10 @@ inline void write_model_contract(const std::shared_ptr<ov::Model>& model, const 
         ov::AnyMap{{"batchable_recurrent", recurrent}, {"image_attention", image_attention}};
 }
 
-inline ModelContract read_model_contract(const std::shared_ptr<ov::Model>& model) {
+inline ModelContract read_model_contract(const std::shared_ptr<ov::Model>& model,
+                                         std::optional<int64_t> embedding_width = std::nullopt) {
+    if (!model->has_rt_info({"gguf_model_contract"}))
+        return resolve_legacy_model_contract(model, embedding_width);
     ModelContract contract;
     if (model->has_rt_info({"gguf_model_contract", "batchable_recurrent"})) {
         const auto value = model->get_rt_info<std::string>({"gguf_model_contract", "batchable_recurrent"});

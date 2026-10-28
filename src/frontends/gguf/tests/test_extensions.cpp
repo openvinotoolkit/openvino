@@ -31,6 +31,7 @@
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/gguf/set_rows_op.hpp"
+#include "openvino/frontend/manager.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
@@ -48,6 +49,26 @@ using namespace ov_gguf_test;
 
 namespace {
 
+class RetainedOwnershipFrontend : public ov::frontend::FrontEnd {
+public:
+    explicit RetainedOwnershipFrontend(std::shared_ptr<void> library) : m_library(std::move(library)) {}
+
+    std::shared_ptr<ov::Model> convert(const ov::frontend::InputModel::Ptr&) const override {
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{parameter}, ov::ParameterVector{parameter});
+        ov::frontend::FrontEnd::add_model_shared_objects(*model, {m_library});
+        return model;
+    }
+
+protected:
+    ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>&) const override {
+        return std::make_shared<ov::frontend::InputModel>();
+    }
+
+private:
+    std::shared_ptr<void> m_library;
+};
+
 // A ConversionExtension whose converter emits Negative(in0) for whatever op it is
 // registered against.
 std::shared_ptr<ov::frontend::ConversionExtension> make_negate_ext(const std::string& op_type) {
@@ -59,6 +80,28 @@ std::shared_ptr<ov::frontend::ConversionExtension> make_negate_ext(const std::st
 }
 
 }  // namespace
+
+TEST(GGUFExtensions, FrontendManagerConversionRetainsSourceModelOwnership) {
+    std::shared_ptr<ov::Model> model;
+    std::weak_ptr<void> owner;
+    {
+        auto library = std::make_shared<int>(1);
+        owner = library;
+        ov::frontend::FrontEndManager manager;
+        manager.register_front_end("retained-ownership", [owner] {
+            return std::make_shared<RetainedOwnershipFrontend>(owner.lock());
+        });
+        auto frontend = manager.load_by_framework("retained-ownership");
+        auto input = frontend->load(std::string{});
+        model = frontend->convert(input);
+    }
+    EXPECT_FALSE(owner.expired());
+    auto clone = model->clone();
+    model.reset();
+    EXPECT_FALSE(owner.expired());
+    clone.reset();
+    EXPECT_TRUE(owner.expired());
+}
 
 TEST(GGUFExtensions, RetainedModelLibrariesPreservePreviousOwnershipAndClones) {
     auto first = std::make_shared<int>(1);

@@ -89,28 +89,7 @@ public:
         ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
             auto unsqueeze = m.get_match_root();
 
-            // translate_get_rows optionally inserts a Convert between the Gather and the
-            // Unsqueeze (output dtype mismatch); look through it structurally instead of
-            // relying on naming.
-            auto node = unsqueeze->input_value(0).get_node_shared_ptr();
-            if (auto convert = ov::as_type_ptr<v0::Convert>(node)) {
-                node = convert->input_value(0).get_node_shared_ptr();
-            }
-            auto gather = ov::as_type_ptr<v8::Gather>(node);
-            if (!gather) {
-                return false;
-            }
-
-            // The indices feeding the Gather are Squeeze(inp_tokens, [0,1]) (see
-            // translate_get_rows); trace back through that Squeeze to confirm this call site is
-            // actually rooted at the "inp_tokens" parameter, not some unrelated Gather/Unsqueeze
-            // pair elsewhere in the graph (e.g. FixInpOutIdsRowSelect's call sites).
-            auto indices_node = gather->input_value(1).get_node_shared_ptr();
-            if (auto squeeze = ov::as_type_ptr<v0::Squeeze>(indices_node)) {
-                indices_node = squeeze->input_value(0).get_node_shared_ptr();
-            }
-            auto param = ov::as_type_ptr<v0::Parameter>(indices_node);
-            if (!param || param->output(0).get_names().count("inp_tokens") == 0) {
+            if (!token_embedding_lookup(unsqueeze)) {
                 return false;
             }
 
@@ -249,7 +228,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto token_len_per_seq = find_parameter(model, "token_len_per_seq");
     const bool has_recurrent_states = model->get_rt_info().count(gguf_recurrent_states_key()) != 0;
     const auto operations = model->get_ops();
-    const auto contract = read_model_contract(model);
+    auto contract = read_model_contract(model);
     const auto has_gated_delta_net = [&] {
         return std::any_of(operations.begin(), operations.end(), [](const auto& node) {
             return ov::is_type<internal::GatedDeltaNet>(node);
@@ -276,6 +255,16 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 OPENVINO_ASSERT(per_layer_name.empty(), "[GGUF] ambiguous per-layer token embedding boundary");
                 per_layer_name = node->get_friendly_name();
                 per_layer_count = it->second.as<int64_t>();
+            }
+        }
+        if (embedding_name.empty() || per_layer_name.empty()) {
+            const auto legacy =
+                resolve_legacy_embedding_boundaries(model, embedding_name.empty(), per_layer_name.empty());
+            if (legacy.token)
+                embedding_name = legacy.token->get_friendly_name();
+            if (legacy.per_layer) {
+                per_layer_name = legacy.per_layer->get_friendly_name();
+                per_layer_count = legacy.per_layer_count;
             }
         }
         OPENVINO_ASSERT(!embedding_name.empty(), "[GGUF] missing native token embedding boundary");
@@ -357,6 +346,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             per_layer->output(0).replace(make_shared<v0::Unsqueeze>(flat, axis_1)->output(0));
         }
     }
+
+    if (inputs_embeds)
+        contract = read_model_contract(model, inputs_embeds->get_partial_shape()[2].get_length());
 
     // ---- new genai inputs: input_ids / attention_mask / position_ids [b, seq] i64 ----
     // Recurrent state buffers currently hold one sequence. Keep that constraint explicit.
