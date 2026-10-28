@@ -503,11 +503,14 @@ OutputVector translate_view(const NodeContext& context) {
                 auto end_node = ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end);
                 auto step_node = ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step);
                 auto axes_node = ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes);
-                auto result = std::make_shared<ov::op::v8::Slice>(context.get_input(0),
-                                                                  begin_node,
-                                                                  end_node,
-                                                                  step_node,
-                                                                  axes_node);
+                auto data = context.get_input(0);
+                if (data.get_partial_shape().rank().is_static() &&
+                    data.get_partial_shape().rank().get_length() != static_cast<int64_t>(src_shape.size())) {
+                    auto source_shape = ov::op::v0::Constant::create(ov::element::i64, {src_shape.size()}, src_shape);
+                    auto restored = std::make_shared<ov::op::v1::Reshape>(data, source_shape, false);
+                    data = restored;
+                }
+                auto result = std::make_shared<ov::op::v8::Slice>(data, begin_node, end_node, step_node, axes_node);
                 return rename_outputs_with_suffix({std::move(result)}, context.get_name());
             }
         }

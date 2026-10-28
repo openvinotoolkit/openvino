@@ -807,20 +807,31 @@ TEST(GGUFOps, ViewQuantizedBlockOffsetWithSingletonStrides) {
 
 TEST(GGUFOps, ViewQuantizedBlockOffsetWithStridedRows) {
     const auto values = load_npy<float>("view_q8_input");
-    for (const int64_t offset : {34, 102}) {
-        SCOPED_TRACE(offset);
-        auto model = SingleOpBuilder()
-                         .op("GGML_OP_VIEW")
-                         .input("x", ov::element::f32, {1, 1, 4, 64})
-                         .output("out", ov::element::f32, {1, 1, 2, 32})
-                         .attr<std::vector<int64_t>>("view_input_strides", {34, 68, 272, 272})
-                         .attr<std::vector<int64_t>>("view_output_strides", {34, 136, 272, 272})
-                         .attr<int64_t>("view_offset_bytes", offset)
-                         .attr<int64_t>("view_block_size", 32)
-                         .build();
-        const auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 4, 64}, values)}});
-        EXPECT_EQ(out.get_shape(), (ov::Shape{1, 1, 2, 32}));
-        expect_near(out, load_npy<float>("view_q8_" + std::to_string(offset)), 0.0f);
+    for (const auto& input_shape : {ov::Shape{1, 1, 4, 64}, ov::Shape{4, 64}}) {
+        SCOPED_TRACE(input_shape.size());
+        for (const int64_t offset : {34, 102}) {
+            SCOPED_TRACE(offset);
+            auto decoder = SingleOpBuilder()
+                               .op("GGML_OP_VIEW")
+                               .input("x", ov::element::f32, {1, 1, 4, 64})
+                               .output("out", ov::element::f32, {1, 1, 2, 32})
+                               .attr<std::vector<int64_t>>("view_input_strides", {34, 68, 272, 272})
+                               .attr<std::vector<int64_t>>("view_output_strides", {34, 136, 272, 272})
+                               .attr<int64_t>("view_offset_bytes", offset)
+                               .attr<int64_t>("view_block_size", 32)
+                               .decoder();
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+            input->output(0).set_names({"x"});
+            auto tensors = std::make_shared<ov::frontend::gguf::TensorMap>();
+            (*tensors)["x"] = input;
+            ov::frontend::gguf::NodeContext context(decoder, tensors);
+            auto outputs = ov::frontend::gguf::op::translate_view(context);
+            auto result = std::make_shared<ov::op::v0::Result>(outputs.front());
+            auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+            const auto out = run_on_cpu(model, {{"x", make_f32_tensor(input_shape, values)}});
+            EXPECT_EQ(out.get_shape(), (ov::Shape{1, 1, 2, 32}));
+            expect_near(out, load_npy<float>("view_q8_" + std::to_string(offset)), 0.0f);
+        }
     }
 }
 

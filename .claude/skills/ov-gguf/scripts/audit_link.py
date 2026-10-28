@@ -258,11 +258,12 @@ def audit(command_file, contract_file, directory, output_file):
         report["counts"]["expanded_tokens"] = len(expanded)
         report["counts"]["response_files"] = len(responses)
         report["response_files"] = sorted(str(path) for path in responses)
-        contract = load_contract(contract_file, directory)
         counts = object_occurrences(expanded, directory)
+        inputs.update(Path(path) for path in counts)
         report["counts"]["object_occurrences"] = sum(counts.values())
         report["counts"]["unique_objects"] = len(counts)
         report["objects"] = [{"path": path, "count": count} for path, count in sorted(counts.items())]
+        contract = load_contract(contract_file, directory)
 
         for path, count in sorted(counts.items()):
             if count > 1:

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -249,6 +250,31 @@ class AuditLinkTest(unittest.TestCase):
         self.assertIsNone(summary["details"])
         self.assertTrue(any("aliases" in issue["message"] for issue in summary["first_violations"]))
         self.assertEqual(report["parse_errors"], 1)
+
+    def test_output_collision_preserves_objects_even_with_invalid_contract(self):
+        object_file = self.cwd / "lib/replacement.o"
+        object_file.parent.mkdir()
+        original = b"\x7fELF\x00object contents"
+        object_file.write_bytes(original)
+        symlink = self.root / "symlink.json"
+        symlink.symlink_to(object_file)
+        hardlink = self.root / "hardlink.json"
+        os.link(object_file, hardlink)
+        response = self.cwd / "args.rsp"
+        response.write_text("lib/replacement.o", encoding="utf-8")
+        for malformed in (False, True):
+            self.write_contract(required=["lib/replacement.o"])
+            if malformed:
+                self.contract.write_text("{invalid json", encoding="utf-8")
+            for command in ("c++ lib/replacement.o", "c++ @args.rsp"):
+                for output in (object_file, symlink, hardlink):
+                    with self.subTest(malformed=malformed, command=command, output=output):
+                        result, summary, _ = self.run_audit(command, output=output)
+                        self.assertEqual(result.returncode, 2)
+                        self.assertEqual(object_file.read_bytes(), original)
+                        self.assertIsNone(summary["details"])
+                        self.assertTrue(any("aliases" in issue["message"]
+                                            for issue in summary["first_violations"]))
 
     def test_malformed_required_list_is_parse_error(self):
         self.write_contract(required=[])
