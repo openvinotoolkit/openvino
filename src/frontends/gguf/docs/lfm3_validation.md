@@ -18,6 +18,10 @@ existing acceptance gate; they are not promoted to passes by diagnostics.
 | Check | Result |
 |---|---|
 | Focused decoder, media, speech and combined Omni tests | 15/15 pass, no skips |
+| Required unfiltered frontend unit binary, architecture fixtures enforced | 706 pass, 1 optional real-embedding checkpoint skip, 0 failures; operation-coverage gate passes |
+| Independent extension-library tests | 2/2 pass |
+| Affected GenAI regressions, including LFM2/Gemma audio, media ordering and SDPA | 104/104 pass, no skips |
+| Final GenAI real-checkpoint public APIs and saved IR | 7/7 and 3/3 pass, no skips |
 | Four Q4_0 decoders, prefill plus 12 reference-token steps each | 52/52 greedy choices match |
 | Quantized decoder full-logit NMSE | `5.1e-5..3.175e-3`; the greedy-choice gate passes, strict full-logit parity is not established |
 | Q8_0 vision/audio, 12 embedding cases and associated states | 156/180 metrics fail NMSE `<1e-5`; all 12 embedding cases fail |
@@ -53,7 +57,16 @@ unit binary with `OV_GGUF_REQUIRE_ARCH_FIXTURES=1` and
 `OV_GGUF_Q4_K_ZP_F16` unset. Quantized checkpoint runs set the latter variable
 before process startup and retain the original numerical gates.
 
+The [machine-readable validation summary](lfm3_validation.json) records final
+counts, tested source snapshots and loaded library hashes.
+
 Full local logs, XML, checkpoint inventories, model/library hashes and diagnostic
 reports are retained outside the repositories in
 `/home/vmaxim/.cache/ov-validation/lfm3-20261028/manifest.json` and its artifact directory.
+Independent correctness review found one malformed RGB input boundary defect; it
+was fixed with rejection checks before preprocessing and inference. Final shared
+regressions also cover Qwen3.5 generated full-width gates and Gemma audio injection.
+
 These local results do not establish GitHub Actions packaging or GPU accuracy.
+Independent comparison of a complete sampled text/codebook/feedback/waveform
+trajectory remains unestablished; the native generation references are text-only.

@@ -1,0 +1,103 @@
+{
+  "reference_revision": "604cc430239c76ff636c443e3400bf552b750421",
+  "device": "CPU",
+  "tested_base_revisions": {
+    "openvino": "359477b034db53e705810ca33985d4cb7c61524a",
+    "genai": "ea4f08535a8c9e9cc8f5b5217c825b5b0bad84ab"
+  },
+  "tested_source_patch_sha256": {
+    "openvino": "3ebe3bcd622f97cd57f0c73ccd05acd817f08028e0834fc4f38067db97a250c1",
+    "genai": "1709fea3a0bd0b01a3e13504e5f4bcd1172c05ff9a6bdef961d0a6ca17cf296f"
+  },
+  "counts": {
+    "frontend-unfiltered": {
+      "tests": 707,
+      "failures": 0,
+      "disabled": 0,
+      "errors": 0,
+      "skipped": 1,
+      "passed": 706
+    },
+    "extension-library": {
+      "tests": 2,
+      "failures": 0,
+      "disabled": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 2
+    },
+    "genai-affected": {
+      "tests": 104,
+      "failures": 0,
+      "disabled": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 104
+    }
+  },
+  "real_Q4_0_decoders": {
+    "selected": 4,
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "top1_matches": 52,
+    "top1_steps": 52
+  },
+  "public_API": {
+    "attempt5": {
+      "selected": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "deselected": 4
+    },
+    "saved_ir_2": {
+      "selected": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "deselected": 8
+    }
+  },
+  "loaded_API_libraries_sha256": {
+    "libopenvino_gguf_frontend.so.2026.5.0": "d629fb2d6bb952c386956a294e493f50f144f45fe9fc2d5bf65ffe84fa6dbe45",
+    "libopenvino_genai.so.2026.5.0.0": "8110b5f802ab144c35afd2b3a16a112c9af7ea7b3bb19d7a913311717fec628d",
+    "py_openvino_genai.cpython-310-x86_64-linux-gnu.so": "357e592cac1b3a2715bbada5545cf21fb553fc10dcb483ed666579dfffc2653b",
+    "libopenvino_tokenizers.so": "40652963057426a7b6e206cd786b3ae2f8a47189a351c8a3356c4e00c47e5724",
+    "libopenvino_auto_batch_plugin.so": "c3548d4f5273714b3401006261df668eafe5809fa31939027cc494d17733d3d0",
+    "libopenvino_intel_cpu_plugin.so": "6974cd400865b7814c5c770ef6094b36d1d1c9c164a86a54375a90703288113d",
+    "py_tensorflow_frontend.cpython-310-x86_64-linux-gnu.so": "e50d53e2a12fffba7abf95b217f339d790abfd1bc7493233492adf06718aadea",
+    "libtbb.so.12.13": "25984f1c1ac802e2cea39e6dfa91920046c276cf9116f8bf6af87e620cd85522",
+    "libtbbmalloc.so.2.13": "4001aca1a3ae769a5b38e043cc807a2853d377df559b0d7f5e4f95ee7917cb8e",
+    "libopenvino.so.2026.5.0": "daef3523e01c9c46164a63065f33e34005a9e18165d24951398f5d3e494642c4",
+    "_pyopenvino.cpython-310-x86_64-linux-gnu.so": "8f5755fa391b7f9ef4226a8229642dd7cef3bdd3ec9b67e66f0f23deddfd079f"
+  },
+  "architecture_fixtures_required": true,
+  "operation_coverage_gate": "pass",
+  "input_audit": "unchanged",
+  "independent_review": "completed; RGB boundary, Qwen35 gates and Gemma audio fixes verified",
+  "retained_numerical_limits": {
+    "Q8_0_media_failed_metrics": 156,
+    "Q8_0_media_total_metrics": 180,
+    "represented_F32_media_passed_metrics": 180,
+    "Q8_0_depthformer_failed_metrics": 4,
+    "Q8_0_feedback_codec_passed_metrics": 132,
+    "represented_F32_Audio_speech_passed_metrics": 68,
+    "NMSE_gate": 1e-05,
+    "Q4_0_full_logit_NMSE_range": [
+      5.1e-05,
+      0.003175
+    ],
+    "full_sampled_speech_trajectory_parity": "unestablished"
+  },
+  "full_artifacts": "/home/vmaxim/.cache/ov-validation/lfm3-20261028/",
+  "post_validation_formatting": {
+    "change": "whitespace only; non-whitespace source content identical",
+    "incremental_build": "pass",
+    "LFM3_tests": {
+      "selected": 11,
+      "failed": 0
+    },
+    "library_sha256": "8110b5f802ab144c35afd2b3a16a112c9af7ea7b3bb19d7a913311717fec628d"
+  }
+}
