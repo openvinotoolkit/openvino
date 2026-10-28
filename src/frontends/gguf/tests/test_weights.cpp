@@ -517,6 +517,87 @@ TEST(GGUFWeight, HadamardProjectionGroupsPreserveDistinctActivations) {
     }
 }
 
+TEST(GGUFWeight, HadamardCodeThreeFallbackPreservesGroupedProjections) {
+    using namespace ov::frontend::gguf;
+    for (const auto type : {ov::element::f32, ov::element::f16}) {
+        SCOPED_TRACE(type);
+        for (const int64_t block : {256, 1024}) {
+            for (const int code3_branch : {-1, 0, 1, 2}) {
+                SCOPED_TRACE(::testing::Message() << block << ":" << code3_branch);
+                const ov::PartialShape shape{2, 1, -1, block};
+                const auto x = std::make_shared<ov::op::v0::Parameter>(type, shape);
+                x->set_friendly_name("x");
+                const auto cache = std::make_shared<ConstantCache>();
+                ov::OutputVector outputs;
+                std::vector<std::shared_ptr<ov::op::v1::Subtract>> subtracts;
+                for (int branch = 0; branch < (code3_branch == 2 ? 1 : 2); ++branch) {
+                    WeightTensors tensors{ov::Tensor(ov::element::u2, {16, static_cast<size_t>(block)}),
+                                          ov::Tensor(ov::element::f16, {16, static_cast<size_t>(block / 128)}),
+                                          ov::Tensor(ov::element::f16, {16, static_cast<size_t>(block / 128)})};
+                    std::memset(tensors.weight.data(), 0x99, tensors.weight.get_byte_size());
+                    if (code3_branch == branch || code3_branch == 2)
+                        static_cast<uint8_t*>(tensors.weight.data())[0] = 0x9b;
+                    std::fill_n(tensors.scales.data<ov::float16>(), tensors.scales.get_size(), ov::float16(0.125f));
+                    std::fill_n(tensors.zero_point.data<ov::float16>(),
+                                tensors.zero_point.get_size(),
+                                ov::float16(1.f));
+                    const auto weight = make_weight_node(tensors, GGUF_TYPE_PQ2_0);
+                    const auto weight_model =
+                        std::make_shared<ov::Model>(ov::OutputVector{weight}, ov::ParameterVector{});
+                    for (const auto& node : weight_model->get_ops()) {
+                        if (const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(node))
+                            subtracts.push_back(subtract);
+                    }
+                    const auto decoder = std::make_shared<SingleOpDecoder>(
+                        "GGML_OP_MUL_MAT",
+                        std::vector<TensorDesc>{{"w", ov::element::f32, {1, 1, 16, block}}, {"x", type, shape}},
+                        std::vector<TensorDesc>{},
+                        TensorDesc{"y", ov::element::f32, ov::PartialShape::dynamic()},
+                        std::map<std::string, ov::Any>{{"hadamard_block", block}, {"activation_rank", 3}});
+                    auto tensors_map = std::make_shared<TensorMap>(TensorMap{{"x", x}, {"w", weight}});
+                    outputs.push_back(op::translate_mulmat(NodeContext(decoder, tensors_map, cache))[0]);
+                }
+                const auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{x});
+                const auto reference = model->clone();
+                normalize_u2_zero_points(model);
+                const auto nodes = model->get_ops();
+                EXPECT_EQ(std::count_if(nodes.begin(),
+                                        nodes.end(),
+                                        [](const auto& node) {
+                                            return node->get_rt_info().count("gguf_hadamard_block") != 0;
+                                        }),
+                          code3_branch == -1 ? 1 : 0);
+                for (const auto& subtract : subtracts)
+                    EXPECT_EQ(subtract->get_input_shape(1).empty(), code3_branch == -1);
+                const auto normalized = model->get_ops().size();
+                normalize_u2_zero_points(model);
+                EXPECT_EQ(model->get_ops().size(), normalized);
+                for (const size_t tokens : {1, 3}) {
+                    ov::Tensor data(type, {2, 1, tokens, static_cast<size_t>(block)});
+                    for (size_t i = 0; i < data.get_size(); ++i) {
+                        if (type == ov::element::f16)
+                            data.data<ov::float16>()[i] = ov::float16(100.f);
+                        else
+                            data.data<float>()[i] = std::sin(static_cast<float>(i) * 0.1f);
+                    }
+                    ov::TensorVector expected, actual;
+                    for (size_t i = 0; i < outputs.size(); ++i) {
+                        expected.emplace_back(ov::element::f32, ov::Shape{2, tokens, 16});
+                        actual.emplace_back(ov::element::f32, ov::Shape{2, tokens, 16});
+                    }
+                    ASSERT_TRUE(reference->evaluate(expected, {data}));
+                    ASSERT_TRUE(model->evaluate(actual, {data}));
+                    for (size_t i = 0; i < outputs.size(); ++i) {
+                        ASSERT_EQ(actual[i].get_shape(), expected[i].get_shape());
+                        for (size_t j = 0; j < actual[i].get_size(); ++j)
+                            EXPECT_NEAR(actual[i].data<float>()[j], expected[i].data<float>()[j], 1e-5f);
+                    }
+                }
+            }
+        }
+    }
+}
+
 TEST(GGUFWeight, MixedU2ProjectionsKeepFloatingZeroPointType) {
     using namespace ov::frontend::gguf;
     const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 128});

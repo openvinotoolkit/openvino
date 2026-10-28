@@ -11,7 +11,9 @@
 #include <numeric>
 #include <string>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
@@ -35,9 +37,56 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::frontend::gguf {
+
+namespace {
+constexpr char hadamard_marker[] = "gguf_hadamard_block";
+
+Output<Node> hadamard_butterfly(Output<Node> input,
+                                int64_t block,
+                                const NodeContext* context = nullptr,
+                                bool keep_fp32 = false) {
+    using namespace ov::op;
+    const auto original_type = input.get_element_type();
+    if (keep_fp32 && original_type != ov::element::f32)
+        input = std::make_shared<v0::Convert>(input, ov::element::f32);
+    const auto constant = [&](ov::element::Type type, const ov::Shape& shape, const std::vector<int64_t>& values) {
+        return context ? context->get_constant(type, shape, values) : v0::Constant::create(type, shape, values);
+    };
+    const auto axis = constant(ov::element::i64, {}, {1});
+    for (int64_t stride = 1; stride < block; stride *= 2) {
+        std::vector<int64_t> indices(block), stage_signs(block);
+        for (int64_t i = 0; i < block; ++i) {
+            indices[i] = i ^ stride;
+            stage_signs[i] = (i & stride) == 0 ? 1 : -1;
+        }
+        const auto permuted =
+            std::make_shared<v8::Gather>(input,
+                                         constant(ov::element::i64, {static_cast<size_t>(block)}, indices),
+                                         axis);
+        const auto signed_input = std::make_shared<v1::Multiply>(
+            input,
+            constant(input.get_element_type(), {static_cast<size_t>(block)}, stage_signs));
+        input = std::make_shared<v1::Add>(signed_input, permuted);
+        if (keep_fp32) {
+            for (const auto& node : ov::NodeVector{permuted, signed_input, input.get_node_shared_ptr()})
+                ov::disable_conversion(node, ov::element::f16);
+        }
+    }
+    const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
+    input = std::make_shared<v1::Multiply>(input, scale);
+    if (keep_fp32) {
+        ov::disable_conversion(input.get_node_shared_ptr(), ov::element::f16);
+        if (original_type != ov::element::f32)
+            input = std::make_shared<v0::Convert>(input, original_type);
+    }
+    return input;
+}
+}  // namespace
 
 Output<Node>* NodeContext::get_hadamard_cache_entry(const Output<Node>& input,
                                                     int64_t block,
@@ -122,23 +171,9 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
                                              context.get_hadamard_matrix(input.get_element_type(), block),
                                              false,
                                              false);
+        input.get_node_shared_ptr()->get_rt_info()[hadamard_marker] = block;
     } else {
-        const auto axis = context.get_constant(ov::element::i64, {}, {1});
-        for (int64_t stride = 1; stride < block; stride *= 2) {
-            std::vector<int64_t> indices(block), stage_signs(block);
-            for (int64_t i = 0; i < block; ++i) {
-                indices[i] = i ^ stride;
-                stage_signs[i] = (i & stride) == 0 ? 1 : -1;
-            }
-            const auto permuted = std::make_shared<v8::Gather>(input, pattern(indices), axis);
-            const auto signed_input = std::make_shared<v1::Multiply>(
-                input,
-                context.get_constant(input.get_element_type(), {static_cast<size_t>(block)}, stage_signs));
-            input = std::make_shared<v1::Add>(signed_input, permuted);
-        }
-        const auto scale =
-            v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
-        input = std::make_shared<v1::Multiply>(input, scale);
+        input = hadamard_butterfly(input, block, &context);
     }
     input = std::make_shared<v1::Reshape>(input, original, false);
     if (signs && inverse)
@@ -146,6 +181,27 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     if (cached)
         *cached = input;
     return input;
+}
+
+void decompose_hadamard(Output<Node> input) {
+    while (ov::is_type<ov::op::v0::Convert>(input.get_node_shared_ptr()) ||
+           ov::is_type<ov::op::v1::Reshape>(input.get_node_shared_ptr()) ||
+           ov::is_type<ov::op::v0::Squeeze>(input.get_node_shared_ptr()) ||
+           ov::is_type<ov::op::v0::Unsqueeze>(input.get_node_shared_ptr())) {
+        input = input.get_node()->input_value(0);
+    }
+    const auto rotation = ov::as_type_ptr<ov::op::v0::MatMul>(input.get_node_shared_ptr());
+    if (!rotation)
+        return;
+    const auto marker = rotation->get_rt_info().find(hadamard_marker);
+    if (marker == rotation->get_rt_info().end() || rotation->output(0).get_target_inputs().empty())
+        return;
+    const auto replacement = hadamard_butterfly(rotation->input_value(0), marker->second.as<int64_t>(), nullptr, true);
+    rotation->get_rt_info().erase(marker);
+    ov::copy_runtime_info(rotation, replacement.get_node_shared_ptr());
+    ov::copy_output_runtime_info({rotation->output(0)}, {replacement});
+    replacement.get_node_shared_ptr()->set_friendly_name(rotation->get_friendly_name());
+    ov::replace_node(rotation, replacement.get_node_shared_ptr());
 }
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {

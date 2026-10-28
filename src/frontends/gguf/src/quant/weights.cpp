@@ -43,6 +43,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/common_util.hpp"
+#include "utils.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -582,7 +583,8 @@ ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const 
 void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
     const auto nodes = model->get_ordered_ops();
     if (std::none_of(nodes.begin(), nodes.end(), [](const std::shared_ptr<ov::Node>& node) {
-            return node->get_rt_info().count("gguf_u2_zero_point_shape") != 0;
+            return node->get_rt_info().count("gguf_u2_zero_point_shape") != 0 ||
+                   node->get_rt_info().count("gguf_hadamard_block") != 0;
         })) {
         return;
     }
@@ -591,6 +593,7 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
         std::shared_ptr<ov::op::v1::Subtract> subtract;
         ov::Shape shape;
         ov::element::Type zp_type;
+        ov::Output<ov::Node> input;
     };
     std::map<size_t, std::vector<Projection>> projections;
     for (const auto& node : nodes) {
@@ -619,7 +622,7 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
         const auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
         const auto zp_type = zp_convert ? zp_convert->get_input_element_type(0) : subtract->get_input_element_type(1);
         projections[activations.get(input)].push_back(
-            {subtract, shape == rt_info.end() ? ov::Shape{} : shape->second.as<ov::Shape>(), zp_type});
+            {subtract, shape == rt_info.end() ? ov::Shape{} : shape->second.as<ov::Shape>(), zp_type, input});
     }
     std::set<ov::Node*> grouped;
     for (const auto& [input, group] : projections) {
@@ -644,12 +647,15 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
     // Keep shared-input projections uniformly grouped when one needs the code-3 fallback.
     for (const auto& [input, group] : projections) {
         for (const auto& projection : group) {
-            if (projection.shape.empty() || !grouped.count(projection.subtract.get()))
+            if (!grouped.count(projection.subtract.get()))
                 continue;
-            auto zp = ov::op::v0::Constant::create(projection.zp_type, projection.shape, {1});
-            projection.subtract->input(1).replace_source_output(
-                std::make_shared<ov::op::v0::Convert>(zp, projection.subtract->get_element_type()));
-            projection.subtract->get_rt_info().erase("gguf_u2_zero_point_shape");
+            if (!projection.shape.empty()) {
+                auto zp = ov::op::v0::Constant::create(projection.zp_type, projection.shape, {1});
+                projection.subtract->input(1).replace_source_output(
+                    std::make_shared<ov::op::v0::Convert>(zp, projection.subtract->get_element_type()));
+                projection.subtract->get_rt_info().erase("gguf_u2_zero_point_shape");
+            }
+            decompose_hadamard(projection.input);
         }
     }
 }
