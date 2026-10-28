@@ -624,9 +624,10 @@ protected:
         auto options = KernelGenerator::get_build_options(params);
         if (m_cfg.v2 && !is_small_grf_v2(m_cfg)) {
             options += " -cl-intel-256-GRF-per-thread";
-        } else if (m_cfg.v2 && params.get_device_info().arch >= gpu_arch::xe3) {
+        } else if (m_cfg.v2 && cldnn::query_register_file_size_option_supported(params.get_program().get_engine(), params.get_program().get_config())) {
             // Without it IGC picks 160 GRFs on Xe3, which runs 6 threads per EU instead of 8 and is up to 14% slower.
-            options += " -cl-intel-128-GRF-per-thread";
+            // -cl-intel-128-GRF-per-thread does the same but is rejected by older drivers (e.g. 26.18).
+            options += " -ze-exp-register-file-size 128";
         }
         return options;
     }
