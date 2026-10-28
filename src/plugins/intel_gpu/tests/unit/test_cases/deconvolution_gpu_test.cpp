@@ -3256,8 +3256,8 @@ TEST(deconvolution_gpu_onednn, spatial_1d_static_not_reference_impl) {
     network network_test(engine, topology_test, config_test);
     network network_ref(engine, topology_ref, config_ref);
 
-    // The output format is left to the oneDNN format query. A static 1D deconvolution must not be pinned to plain 3D
-    // layouts, which only oneDNN's reference implementation accepts.
+    // A static 1D deconvolution keeps plain 3D activations, while its weights layout is left to oneDNN. Pinning the weights
+    // to a plain layout leaves only oneDNN's reference implementation.
     auto deconv_impl = network_test.get_primitive("deconv")->get_impl();
     ASSERT_NE(deconv_impl, nullptr);
     ASSERT_TRUE(deconv_impl->is_onednn());

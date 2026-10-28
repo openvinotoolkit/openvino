@@ -493,30 +493,28 @@ TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_query_formats) {
     EXPECT_EQ(get_format_tag_from_desc(output_desc), dnnl::memory::format_tag::undef);
 }
 
-TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_query_formats_3d_keep_rank) {
+TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_3d_weights_any) {
     layout input_layout = layout{ov::PartialShape{1, 32, 20}, data_types::f16, format::bfyx};
     layout weights_layout = layout{ov::PartialShape{16, 32, 4}, data_types::f16, format::oiyx};
     layout output_layout = layout{ov::PartialShape{1, 16, 42}, data_types::f16, format::bfyx};
 
-    // Without keep_rank, a 3D query is pinned to the plain tag of the current format.
-    auto [input_desc_3d, weights_desc_3d, output_desc_3d] = get_conv_memory_descs(
-        input_layout, weights_layout, output_layout, dnnl::memory::format_tag::any);
-    EXPECT_EQ(input_desc_3d.get_ndims(), 3);
-    EXPECT_EQ(output_desc_3d.get_ndims(), 3);
-    EXPECT_EQ(get_format_tag_from_desc(input_desc_3d), dnnl::memory::format_tag::abc);
-    EXPECT_EQ(get_format_tag_from_desc(output_desc_3d), dnnl::memory::format_tag::abc);
+    // format_tag::any is used by query_formats() and format_tag::undef by create() and load().
+    for (auto target_fmt : {dnnl::memory::format_tag::any, dnnl::memory::format_tag::undef}) {
+        auto [input_desc, weights_desc, output_desc] = get_conv_memory_descs(input_layout, weights_layout, output_layout, target_fmt);
 
-    // With keep_rank, descriptors stay 4D and format_tag::any is preserved for the query.
-    auto [input_desc, weights_desc, output_desc] = get_conv_memory_descs(
-        input_layout, weights_layout, output_layout, dnnl::memory::format_tag::any, true);
-    EXPECT_EQ(input_desc.get_ndims(), 4);
-    EXPECT_EQ(weights_desc.get_ndims(), 4);
-    EXPECT_EQ(output_desc.get_ndims(), 4);
-    EXPECT_EQ(input_desc.get_dims()[2], 20);
-    EXPECT_EQ(output_desc.get_dims()[2], 42);
-    EXPECT_EQ(get_format_tag_from_desc(input_desc), dnnl::memory::format_tag::undef);
-    EXPECT_EQ(get_format_tag_from_desc(weights_desc), dnnl::memory::format_tag::undef);
-    EXPECT_EQ(get_format_tag_from_desc(output_desc), dnnl::memory::format_tag::undef);
+        // 1D activations stay in the plain 3D layout.
+        EXPECT_EQ(input_desc.get_ndims(), 3);
+        EXPECT_EQ(output_desc.get_ndims(), 3);
+        EXPECT_EQ(get_format_tag_from_desc(input_desc), dnnl::memory::format_tag::abc);
+        EXPECT_EQ(get_format_tag_from_desc(output_desc), dnnl::memory::format_tag::abc);
+
+        // The weights layout is left to oneDNN.
+        EXPECT_EQ(weights_desc.get_ndims(), 3);
+        EXPECT_EQ(weights_desc.get_dims()[0], 16);
+        EXPECT_EQ(weights_desc.get_dims()[1], 32);
+        EXPECT_EQ(weights_desc.get_dims()[2], 4);
+        EXPECT_EQ(weights_desc.get_format_kind(), dnnl::memory::format_kind::any);
+    }
 }
 
 TEST_F(test_layout_to_memory_desc, get_conv_memory_descs_blocked_format) {

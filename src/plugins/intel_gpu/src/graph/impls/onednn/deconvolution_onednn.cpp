@@ -32,11 +32,7 @@ static std::shared_ptr<dnnl::deconvolution_forward::primitive_desc> get_deconvol
     dnnl::memory::dims pad_l(prim->pad.begin(), prim->pad.end());
     dnnl::memory::dims pad_r(prim->pad.begin(), prim->pad.end());
 
-    // oneDNN implements deconvolution via convolution backward-data, whose optimized implementations reject plain 3D (ncw)
-    // layouts. When querying preferred formats, keep 4D descriptors for 1D deconvolution so that format_tag::any is honored
-    // and a blocked layout representable in cldnn can be selected instead of falling back to the reference implementation.
-    const bool keep_rank = tag_in_out == dnnl::memory::format_tag::any;
-    auto [input_md, weights_md, output_md] = onednn::get_conv_memory_descs(input_layout, weights_layout, output_layout, tag_in_out, keep_rank);
+    auto [input_md, weights_md, output_md] = onednn::get_conv_memory_descs(input_layout, weights_layout, output_layout, tag_in_out);
     auto grouped_weights = format::is_grouped(weights_layout.format) || prim->grouped_weights_shape;
 
     for (size_t i = 0; i < dilation.size(); i++) {

@@ -573,8 +573,7 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_forma
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_memory_descs(cldnn::layout input_layout,
                                                                                              cldnn::layout weights_layout,
                                                                                              cldnn::layout output_layout,
-                                                                                             dnnl::memory::format_tag target_fmt,
-                                                                                             bool keep_rank) {
+                                                                                             dnnl::memory::format_tag target_fmt) {
     bool need_blocked = input_layout.format.is_blocked() || output_layout.format.is_blocked();
     bool is_grouped = format::is_grouped(weights_layout.format);
 
@@ -582,7 +581,7 @@ std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_
     auto weights_mdb = MemoryDescriptorBuilder(weights_layout, dnnl::memory::format_tag::any);
     auto output_mdb = MemoryDescriptorBuilder(output_layout, target_fmt);
 
-    if (need_blocked || is_grouped || keep_rank) {
+    if (need_blocked || is_grouped) {
         input_mdb.keep_rank();
         weights_mdb.keep_rank();
         output_mdb.keep_rank();
@@ -591,6 +590,12 @@ std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_
     auto input_desc = input_mdb.build();
     auto weights_desc = weights_mdb.build();
     auto output_desc = output_mdb.build();
+
+    // The rank-3 path pins a plain format_tag so that 1D activations stay representable in cldnn. Weights are converted
+    // by the oneDNN weights reorder, so keep format_tag::any and let oneDNN choose their layout as in the 4D/5D paths.
+    if (weights_desc.get_ndims() == 3) {
+        weights_desc = dnnl::memory::desc(weights_desc.get_dims(), weights_desc.get_data_type(), dnnl::memory::format_tag::any);
+    }
 
     GPU_DEBUG_TRACE_DETAIL << "input: " << input_layout.to_short_string() << " -> " << memory_desc_to_string(input_desc) << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "weights: " << weights_layout.to_short_string() << " -> " << memory_desc_to_string(weights_desc) << std::endl;
