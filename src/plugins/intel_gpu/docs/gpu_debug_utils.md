@@ -77,6 +77,7 @@ These options enable inspection of intermediate tensor data and are primarily us
 | Env variable name | When/how to use |
 |---|---|
 | `OV_GPU_DUMP_TENSORS_PATH` | Saves intermediate input/output tensors for each primitive to the specified directory. This is the main switch for tensor dump mode. See the tensor dump section below for details. |
+| `OV_GPU_DUMP_SINCOS_PATH` | Saves raw binary input/output of every Sin/Cos activation to the specified directory (must end with `/`). Files are named `SINCOS__<seq>__p<program>_n<network>_i<iteration>__<sin\|cos>__<src0\|dst0>__<dtype>__<AxBxC>__<layer>.bin`. Synchronizes the stream on every Sin/Cos node. Useful for troubleshooting position-embedding accuracy. |
 | `OV_GPU_DUMP_TENSORS` | Tensor types to dump. Supported values: `all`, `in`, `out`. |
 | `OV_GPU_DUMP_ITERATIONS` | Space-separated list of iterations when the other dump options should be enabled. |
 | `OV_GPU_DUMP_LAYER_NAMES` | Enables dumping only for the specified layer names. |

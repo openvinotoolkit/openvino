@@ -147,7 +147,9 @@ if: ${{ contains(fromJSON('["akashchi","mryzhov","akladiev","ababushk","dorloff"
 4. **Root-cause investigation** — classify the failure into one of seven categories and localise it,
    within the source-inspection safeguards.
 5. **Reporting** — post one consolidated comment (via the `add_comment` safe output) with an overview
-   table and a per-pipeline section; otherwise `noop`/`missing_data`.
+   table visible and a separate, collapsed-by-default `<details>` section for each pipeline's
+   diagnosis, remedy, and log evidence; otherwise `noop`/`missing_data`. Readers can expand only the
+   pipelines they need without scrolling through every log excerpt.
 
 ## CI Doctor — Merge Queue (automatic)
 

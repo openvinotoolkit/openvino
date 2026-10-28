@@ -599,14 +599,12 @@ void PluginPropertyManager::registerProperties() {
     register_property(ov::intel_npu::max_tiles.name(), true, ov::PropertyMutability::RO, 
         hasBackendAndValidDevice,
         [this](const ov::AnyMap& arguments) {
-            if (!_config.has<MAX_TILES>()) {
-                try {
-                    return static_cast<int64_t>(utils::getMaxTiles(_backend, getDeviceIdOrDefault(arguments)));
-                } catch (...) {
-                    _logger.warning("GetMaxTiles failed to get value from device.");
-                }
+            try {
+                return static_cast<int64_t>(utils::getMaxTiles(_backend, getDeviceIdOrDefault(arguments)));
+            } catch (...) {
+                _logger.warning("GetMaxTiles failed to get value from device.");
             }
-            return _config.get<MAX_TILES>();
+            return static_cast<int64_t>(-1);
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key: ", ov::intel_npu::max_tiles.name());
