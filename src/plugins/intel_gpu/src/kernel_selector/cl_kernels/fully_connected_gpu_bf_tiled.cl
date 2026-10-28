@@ -7,6 +7,9 @@
 #include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/sub_group_shuffle.cl"
 
+// os_is_yx_osv64_isv2 u2: one k-pair line is 64 OFM x 2 K x 2 bit.
+#define U2_OSV64_ISV2_LINE_SIZE_BYTES 32
+
 // JIT Parameters:
 // SIMD         - sub-group size/simd width, one of {8, 16};
 // TILE_B       - number of batches processed by each work-item;
@@ -421,7 +424,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
                 #elif FILTER_LAYOUT_OS_IS_YX_OSV64_ISV2
                 SLM_FILTER_PACKED_VEC wei_packed0 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, weights_idx);
                 #if COMPRESSED_WEIGHTS_UINT2
-                SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + (FILTER_LOAD_BLOCK_SIZE * SIMD / 2)));
+                SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + U2_OSV64_ISV2_LINE_SIZE_BYTES));
                 #else
                 SLM_FILTER_PACKED_VEC wei_packed1 = BLOCK_READN(FILTER_TYPE, FILTER_ACTUAL_LOAD_BLOCK_SIZE, weights, (weights_idx + (FILTER_LOAD_BLOCK_SIZE * SIMD)));
                 #endif

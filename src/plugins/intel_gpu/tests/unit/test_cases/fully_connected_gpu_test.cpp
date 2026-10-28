@@ -6726,7 +6726,8 @@ static void run_fc_u2_bf_tiled(int batch_num,
                                int ofm_num,
                                int scales_group_size,
                                bool use_zp,
-                               format::type expected_weights_format) {
+                               format::type expected_weights_format,
+                               std::optional<bool> expect_slm = std::nullopt) {
     auto& engine = get_test_engine();
 
     ASSERT_EQ(ifm_num % 4, 0) << "ifm_num must be multiple of 4 for U2";
@@ -6811,6 +6812,18 @@ static void run_fc_u2_bf_tiled(int batch_num,
     ASSERT_NE(weights_reorder, nullptr) << "u2 weights are always repacked by reorder_weights_int4";
     ASSERT_EQ(weights_reorder->get_output_layout().format, expected_weights_format);
 
+    if (expect_slm.has_value()) {
+        // The SLM and default variants share one kernel name; only the JIT differs.
+        const auto& node = inst->get_node();
+        auto selected_impl = node.type()->create_impl(node);
+        bool has_slm = false;
+        for (auto& s : selected_impl->get_kernels_source()) {
+            if (s != nullptr && s->get_str().find("#define USE_SLM 1") != std::string::npos)
+                has_slm = true;
+        }
+        ASSERT_EQ(has_slm, *expect_slm) << "unexpected SLM kernel selection";
+    }
+
     auto output_mem = outputs.begin()->second.get_memory();
     cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
 
@@ -6836,6 +6849,16 @@ static void run_fc_u2_bf_tiled(int batch_num,
     }
 }
 
+// The u2 SLM kernel is static-shape, integrated-GPU only and needs batch >= 256 with batch % 64 == 0.
+static bool u2_slm_expected() {
+    return get_test_engine().get_device_info().dev_type == cldnn::device_type::integrated_gpu;
+}
+
+TEST(fully_connected_gpu_u2_bf_tiled_slm, osv16) {
+    run_fc_u2_bf_tiled(256, 512, 256, 128, false, format::os_iyx_osv16, u2_slm_expected());
+    run_fc_u2_bf_tiled(512, 512, 256, 128, true, format::os_iyx_osv16, u2_slm_expected());
+}
+
 TEST_P(fully_connected_gpu_u2_bf_tiled, various_sizes) {
     // Every shape below has OFM far under IFM * 3, so is_weight_horizontal() is false on any device
     // and os_iyx_osv16 is the packing under test.
@@ -6859,18 +6882,26 @@ INSTANTIATE_TEST_SUITE_P(smoke,
 
 // is_weight_horizontal() depends on the EU count, so the shape is derived from the device; a fixed
 // OFM would fall back to os_iyx_osv16 on a bigger GPU.
-TEST(fully_connected_gpu_u2_bf_tiled_osv64, horizontal_weights) {
+static int u2_osv64_horizontal_ofm(int ifm_num) {
     constexpr size_t simd = 16;
     const size_t min_num_threads = get_test_engine().get_device_info().execution_units_count * simd;
 
-    const int ifm_num = 128;
     int ofm_num = static_cast<int>(min_num_threads * 6 + 64);  // OFM / 4 > min_num_threads * 1.5
     if (ofm_num < ifm_num * 3 + 64) {
         ofm_num = ifm_num * 3 + 64;
     }
-    ofm_num = (ofm_num + 63) / 64 * 64;  // whole osv64 blocks
+    return (ofm_num + 63) / 64 * 64;  // whole osv64 blocks
+}
 
-    run_fc_u2_bf_tiled(1, ifm_num, ofm_num, 32, false, format::os_is_yx_osv64_isv2);
+TEST(fully_connected_gpu_u2_bf_tiled_osv64, horizontal_weights) {
+    const int ifm_num = 128;
+    run_fc_u2_bf_tiled(1, ifm_num, u2_osv64_horizontal_ofm(ifm_num), 32, false, format::os_is_yx_osv64_isv2);
+}
+
+TEST(fully_connected_gpu_u2_bf_tiled_osv64, horizontal_weights_slm) {
+    const int ifm_num = 128;
+    run_fc_u2_bf_tiled(256, ifm_num, u2_osv64_horizontal_ofm(ifm_num), 32, false, format::os_is_yx_osv64_isv2,
+                       u2_slm_expected());
 }
 
 // TernOCL ternary FullyConnected (fully_connected_ternocl_int2): u2 codes {0, 1, 2} with the scalar
