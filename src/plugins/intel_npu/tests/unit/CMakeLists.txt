@@ -17,6 +17,9 @@ set(MANDATORY_UNIT_TESTS_LIBS
         "openvino::npu_ops"
         "openvino_npu_vm_utils"
         "openvino_npu_compiler_adapter"
+        "openvino::intel_npu_bytecode_utils"
+        "openvino::intel_npu_vm_runtime"
+
 )
 
 ov_add_test_target(
