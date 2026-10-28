@@ -104,7 +104,6 @@
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
 #include "plugin/transformations/fuse_avg_down.hpp"
-#include "plugin/transformations/fuse_gated_mlp.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_grouped_depth_to_space.hpp"
 #include "plugin/transformations/fuse_hadamard_fc.hpp"
@@ -603,7 +602,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u2};
     bool enableInt8;
     bool unroll_loop = config.get_enable_loop_unrolling();
-    const bool disable_gated_mlp_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_gated_mlp_fusion(), true);
     auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
 
     // call conversion of float types with keep_precision_sensitive_in_fp32 = true
@@ -1656,9 +1654,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
-        if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
-            manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
-        }
         manager.register_pass<ov::intel_gpu::SwooshFusion>();
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
