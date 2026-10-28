@@ -199,8 +199,8 @@ def _define_loader():
                 with contextlib.ExitStack() as stack:
                     owner = {}
                     for path in paths:
-                        f = stack.enter_context(safe_open(path, framework="pt"))
-                        owner.update(dict.fromkeys(f.keys(), f))
+                        shard = stack.enter_context(safe_open(path, framework="pt"))
+                        owner.update(dict.fromkeys(shard.keys(), shard))
                     yield set(owner), lambda key: owner[key].get_tensor(key)
                 return
             state = {}
