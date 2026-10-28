@@ -1648,16 +1648,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
-        if (config.get_enable_rms_rope_fusion()) {
-            manager.register_pass<ov::intel_gpu::FuseRMSRoPE>();
-        }
-
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
         manager.register_pass<ov::intel_gpu::SwooshFusion>();
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
+
+        // After IncreasePositionIdsPrecision: its patterns match only the 3-input RoPE.
+        if (config.get_enable_rms_rope_fusion()) {
+            manager.register_pass<ov::intel_gpu::FuseRMSRoPE>();
+        }
 
         float activations_scale_factor = config.get_activations_scale_factor();
 
