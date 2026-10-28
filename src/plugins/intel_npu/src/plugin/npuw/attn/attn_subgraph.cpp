@@ -776,8 +776,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                 case BehaviorKind::Dynamic:
                     if (const auto* dynamic = ov::npuw::attn::get_compiled_dynamic(pipeline.context)) {
                         NPUW_ASSERT(dynamic->mask_idx < io.inputs.size() &&
-                                    "Deserialized attention mask_idx is out of range for the routed function "
-                                    "parameters");
+                                    "Attention mask_idx is out of range for the routed function parameters");
                         auto mask_iport = compiled_model->inputs().at(dynamic->mask_idx);
                         const auto& graph_mask = io.inputs.at(dynamic->mask_idx);
                         const auto this_case = state.attention_selector->this_case();
