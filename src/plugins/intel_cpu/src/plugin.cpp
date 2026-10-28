@@ -870,17 +870,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
                                           decrypt_from_string,
                                           origin_weights_path);
         return deserialize_model(deserializer, config);
-    } else {
-        // Not an HSM container: rewind and read the legacy layout.
-        model_stream.clear();
-        model_stream.seekg(blob_start);
-
-        read_header(model_stream);
-
-        ModelDeserializer deserializer(model_stream, get_core(), decrypt, decrypt_from_string, origin_weights_path);
-
-        return deserialize_model(deserializer, config);
     }
+
+    // Not an HSM container: rewind and read the legacy layout.
+    model_stream.clear();
+    model_stream.seekg(blob_start);
+
+    read_header(model_stream);
+
+    ModelDeserializer deserializer(model_stream, get_core(), decrypt, decrypt_from_string, origin_weights_path);
+
+    return deserialize_model(deserializer, config);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model_tensor,
@@ -905,16 +905,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
                                           decrypt_from_string,
                                           origin_weights_path);
         return deserialize_model(deserializer, config);
-    } else {
-        size_t offset = 0;
-        validate_runtime_requirements(base_ptr, total_bytes, offset);
-        std::shared_ptr<ov::AlignedBuffer> model_buffer =
-            std::make_shared<ov::SharedBuffer<ov::Tensor>>(base_ptr + offset, total_bytes - offset, model_tensor);
-
-        ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
-
-        return deserialize_model(deserializer, config);
     }
+
+    size_t offset = 0;
+    validate_runtime_requirements(base_ptr, total_bytes, offset);
+    std::shared_ptr<ov::AlignedBuffer> model_buffer =
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(base_ptr + offset, total_bytes - offset, model_tensor);
+
+    ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
+
+    return deserialize_model(deserializer, config);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializerBase& deserializer,

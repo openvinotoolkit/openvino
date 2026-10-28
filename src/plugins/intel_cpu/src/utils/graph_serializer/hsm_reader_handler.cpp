@@ -74,7 +74,6 @@ const std::map<uint32_t, HsmReaderHandler::Decoder> HsmReaderHandler::s_decoders
      }},
     {model_struct_key,
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-         OPENVINO_ASSERT(section.size() > 0, "[CPU] Cannot import compiled blob: empty model section.");
          handler.model_struct = read_buffer(handler.m_source_blob, section);
      }},
     {hsm::section_key(hsm::weights),
@@ -102,6 +101,7 @@ void HsmReaderHandler::read_sections(const runtime::hsm::Reader& reader) {
     OPENVINO_ASSERT(requirements, "[CPU] Cannot import compiled blob: missing runtime requirements section.");
     runtime_requirements = read_compatible_requirements(*requirements);
     reader.read_sections({this});
+    OPENVINO_ASSERT(model_struct, "[CPU] Cannot import compiled blob: empty model section.");
 }
 
 void HsmReaderHandler::check_manifest(const runtime::hsm::Reader& reader) {
