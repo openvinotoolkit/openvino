@@ -1312,7 +1312,7 @@ TEST_P(GGUFAdaptToGenAILegacyImageContract, ReloadsOldSchemaAndKeepsGlobalAndSli
     for (size_t layer = 0; layer < 2; ++layer) {
         const auto mask = request.get_output_tensor(layer);
         ASSERT_EQ(mask.get_shape(), (ov::Shape{1, 1, 3, 3}));
-        expect_mask(mask.data<const float>(), 3, 3, [&](size_t q, size_t k) {
+        expect_mask(mask.data<const float>(), 3, 3, [&, mode = mode](size_t q, size_t k) {
             const bool image_attention = mode == ImageAttentionMode::GLOBAL_AND_SLIDING ||
                                          (layer == 1 && mode == ImageAttentionMode::SLIDING_ONLY);
             return (k <= q && (layer == 0 || k + 1 > q)) || (image_attention && q < 2 && k < 2);
