@@ -220,14 +220,19 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     };
 
     // V0/V1 are pre-assembled GQA graphs that online partitioning would only get in the way
-    // of. V2 (2-bit group-quantized weights) still benefits from online partitioning, so it
-    // keeps the default pipeline (REG) instead of being forced to NONE.
+    // of. V2 (2-bit group-quantized weights) still benefits from online partitioning: its
+    // prefill stage switches to the REP (repeated-block) pipeline below, and both stages
+    // compile their partitioned blocks in parallel via NPUW_PARALLEL_COMPILE; V0/V1 don't
+    // use online partitioning at all, so that option would have no effect for them.
+    const bool is_v2 = gqa_case == ov::npuw::GQACompiledModel::Case::V2;
     ov::AnyMap config = {{"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
                          {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
                          {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
                          {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"}};
-    if (gqa_case != ov::npuw::GQACompiledModel::Case::V2) {
+    if (!is_v2) {
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
+    } else {
+        config.emplace(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key()), "YES");
     }
 
     const auto stage = detect_gqa_model_stage();
@@ -238,6 +243,9 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
                            {"NPUW_ONLINE_ISOLATE", "ATTN"},
                            {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn"},
                            {"NPUW_ATTN", "STATIC"}});
+        if (is_v2) {
+            merge_config_with(config, {{"NPUW_ONLINE_PIPELINE", "REP"}});
+        }
         LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
     } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
