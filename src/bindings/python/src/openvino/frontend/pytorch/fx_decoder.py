@@ -338,9 +338,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             to the ``target_op`` that the C++ frontend expects for
             ``ConversionExtension`` lookup.
         """
-        if cls._has_training_ir_only_ops(exported_program):
-            # Lowering to the inference IR traces through vmap and flat_apply, which have no converters.
-            exported_program = exported_program.run_decompositions({})
+        if cls._has_unconvertible_ops(exported_program):
+            # Lowering to the inference IR traces through vmap and flat_apply, and decomposes aten.diff.
+            diff = torch.ops.aten.diff.default
+            exported_program = exported_program.run_decompositions({diff: torch.export.default_decompositions()[diff]})
         gm = exported_program.module()
         logger.debug(gm.code)
         return cls(gm, dynamic_shapes=dynamic_shapes,
@@ -348,18 +349,16 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                    output_names=cls._output_names_from_spec(exported_program.call_spec.out_spec))
 
     @staticmethod
-    def _has_training_ir_only_ops(exported_program):
-        """Detect torch.vmap (functorch predispatch ops) and the flat_apply higher-order op."""
+    def _has_unconvertible_ops(exported_program):
+        """Detect torch.vmap (functorch predispatch ops), the flat_apply higher-order op and aten.diff."""
+        targets = {getattr(torch.ops.higher_order, "flat_apply", None), torch.ops.aten.diff.default}
         for gm in exported_program.graph_module.modules():
             if not isinstance(gm, torch.fx.GraphModule):
                 continue
             for node in gm.graph.nodes:
-                if node.op != "call_function":
-                    continue
-                if getattr(node.target, "__module__", None) == "torch._functorch.predispatch":
-                    return True
-                if _HAS_HIGHER_ORDER_OPERATOR and isinstance(node.target, HigherOrderOperator) \
-                        and node.target.name() == "flat_apply":
+                if node.op == "call_function" and (
+                        node.target in targets
+                        or getattr(node.target, "__module__", None) == "torch._functorch.predispatch"):
                     return True
         return False
 

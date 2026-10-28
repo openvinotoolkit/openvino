@@ -25,3 +25,21 @@ class TestVmap(PytorchLayerTest):
         if not self.use_torch_export():
             pytest.skip("torch.jit.trace cannot trace tensor indexing inside vmap")
         self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestDiffExport(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(3, 5).astype("float32"),)
+
+    def create_model(self):
+        class aten_diff(torch.nn.Module):
+            def forward(self, x):
+                return torch.diff(x, prepend=x[:, :1])
+
+        return aten_diff(), "aten::diff"
+
+    @pytest.mark.precommit_torch_export
+    def test_diff(self, ie_device, precision, ir_version):
+        if not self.use_torch_export():
+            pytest.skip("aten::diff has no TorchScript converter")
+        self._test(*self.create_model(), ie_device, precision, ir_version)
