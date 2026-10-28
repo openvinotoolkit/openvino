@@ -84,7 +84,7 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
         // Grouped scales must also land on a whole number of 64-value windows; the
-        // channel-wise case takes the SINGLE_GROUP_NUM path and re-splits K by 128.
+        // channel-wise case takes the SINGLE_GROUP_NUM path, which splits K by 128 (by 64 when K % 128 != 0).
         const size_t sgs_u2 = weights.IFM().v / fc_params.decompression_scale.Feature().v;
         if (sgs_u2 != weights.IFM().v && sgs_u2 % 64 != 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
@@ -191,13 +191,9 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
 
     if (params.weights.GetDType() == WeightsType::UINT4) {
         jit.AddConstant(MakeJitConstant("WEI_UINT4", 1));
-        jit.AddConstant(MakeJitConstant("WEI_U2", 0));
     } else if (params.weights.GetDType() == WeightsType::INT4) {
-        jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
-        jit.AddConstant(MakeJitConstant("WEI_U2", 0));
+        jit.AddConstant(MakeJitConstant("WEI_INT4", 1));
     } else if (params.weights.GetDType() == WeightsType::UINT2) {
-        // WEI_UINT4 stays 0, which also keeps u2 off the signed-int4 sign-extension branch.
-        jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
         jit.AddConstant(MakeJitConstant("WEI_U2", 1));
     } else {
         OPENVINO_THROW("GEMV only supports INT4, UINT4 and UINT2, doesn't support ",

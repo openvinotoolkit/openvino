@@ -7412,6 +7412,8 @@ INSTANTIATE_TEST_SUITE_P(
         fc_gemv_case{data_types::u2, 2048, 512, 128, fc_gemv_zp::scalar, 1.5f, false, false, true},
         // Channel-wise scale: the SINGLE_GROUP_NUM path, which re-splits K by 128.
         fc_gemv_case{data_types::u2, 1024, 256, 1024, fc_gemv_zp::scalar, 1.5f, false, false, true},
+        // K % 128 == 64: the SINGLE_GROUP_NUM split falls back to 64.
+        fc_gemv_case{data_types::u2, 576, 256, 576, fc_gemv_zp::scalar, 1.5f, false, false, true},
         // Dynamic batch, as in LLM decode: the shape-agnostic kernel first, then the switch to GEMV.
         fc_gemv_case{data_types::u2, 2048, 512, 128, fc_gemv_zp::scalar, 1.5f, true, false, true},
         // Shapes the u2 unpack cannot decode must leave GEMV: K not a multiple of 64, and a scale
