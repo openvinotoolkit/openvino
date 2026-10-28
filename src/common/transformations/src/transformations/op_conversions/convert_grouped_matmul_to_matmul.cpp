@@ -77,7 +77,7 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
     // A fixed MatMul per group is emitted, so the group count G (B.shape[0]) must be static.
     auto matrix_a_2d = any_input(rank_equals(2));
     auto matrix_b_3d = any_input(rank_equals(3) && has_static_dim(0));
-    auto offsets = any_input(rank_equals(1));
+    auto offsets = any_input(rank_equals(1) && type_matches_any({ov::element::i32, ov::element::i64}));
     auto gmm_2d_3d = wrap_type<v17::GroupedMatMul>({matrix_a_2d, matrix_b_3d, offsets});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -96,9 +96,6 @@ ConvertGroupedMatMul2Dx3DToMatMul::ConvertGroupedMatMul2Dx3DToMatMul() {
 
         const auto offsets = gmm->input_value(2);
         const auto offsets_et = offsets.get_element_type();
-        if (!offsets_et.is_integral_number()) {
-            return false;
-        }
 
         auto axis_scalar = rg.make<v0::Constant>(i32, ov::Shape{}, 0);
         auto axis_1d = rg.make<v0::Constant>(i32, ov::Shape{1}, 0);
