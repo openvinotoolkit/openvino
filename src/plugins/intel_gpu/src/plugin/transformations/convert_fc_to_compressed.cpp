@@ -122,30 +122,25 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             return result;
         };
 
-        // Native GNK u2 weights for the CM kernel: [G, N, gs] as is, scale / zp [G, N]. is_decompression_multiply kept
-        // this chain unfolded only for constant weights the same check accepted.
+        // Native GNK u2 weights for the CM kernel: [G, N, gs] as is, scale / zp [G, N]. The weights may be a constant
+        // or a Parameter; either is passed through untouched.
         if (pattern_map.count(gnk_transpose_reshape_m)) {
-            if (!weights_are_constant || pattern_map.count(weights_reshape_m)) {
-                return false;
-            }
             const bool has_zp = pattern_map.count(subtract_m) > 0;
             const auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
             const auto zp_const = has_zp ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sub_const_m).get_node_shared_ptr()) : nullptr;
-            OPENVINO_ASSERT(scale_const && (!has_zp || zp_const));
-            const bool accepted = cm::woq_u2_accepts_gnk(m_device_info,
+            const bool accepted = fc->get_transpose_b() && !pattern_map.count(weights_reshape_m) && scale_const && zp_const &&
+                                  cm::woq_u2_accepts_gnk(m_device_info,
                                                          m_cm_jit_supported,
                                                          weight_ptr->get_element_type(),
                                                          weight_ptr->get_output_partial_shape(0),
                                                          scale_const->get_element_type(),
                                                          scale_const->get_output_partial_shape(0),
                                                          has_zp,
-                                                         has_zp ? zp_const->get_element_type() : ov::element::dynamic,
-                                                         has_zp ? zp_const->get_output_partial_shape(0) : ov::PartialShape{});
-            OPENVINO_ASSERT(accepted,
-                            "[GPU] ",
-                            fc->get_friendly_name(),
-                            ": GNK u2 weights were kept unfolded for the CM kernel, but woq_u2_accepts_gnk rejects them here");
-            OPENVINO_ASSERT(fc->get_transpose_b(), "[GPU] ", fc->get_friendly_name(), ": GNK u2 weights expect transpose_b = true");
+                                                         zp_const->get_element_type(),
+                                                         zp_const->get_output_partial_shape(0));
+            if (!accepted) {
+                return false;
+            }
 
             const auto& w_shape = weight_ptr->get_output_shape(0);
             auto to_gn = [&](const std::shared_ptr<ov::op::v0::Constant>& constant) {

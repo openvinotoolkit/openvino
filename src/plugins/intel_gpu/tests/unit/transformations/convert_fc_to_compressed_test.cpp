@@ -892,6 +892,90 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed24_mxfp4e2m1) {
     }
 }
 
+namespace {
+cldnn::device_info cm_u2_capable_device() {
+    cldnn::device_info info{};
+    info.arch = cldnn::gpu_arch::xe2;
+    info.max_local_mem_size = 128 * 1024;
+    return info;
+}
+
+// u2 [G, N, 64] -> Convert -> Subtract(zp) -> Multiply(scale) -> Transpose{1, 0, 2} -> Reshape [N, G * 64] -> FC
+std::shared_ptr<ov::Node> make_gnk_u2_chain(const ov::Output<ov::Node>& weights) {
+    auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+    auto zero_point = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{2, 32, 1}, {1});
+    auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f16);
+    auto subtract = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_convert);
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{2, 32, 1}, {1});
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
+    auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {1, 0, 2});
+    auto transpose = std::make_shared<ov::op::v1::Transpose>(multiply, transpose_order);
+    auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {32, 128});
+    return std::make_shared<ov::op::v1::Reshape>(transpose, reshape_shape, false);
+}
+
+std::shared_ptr<ov::Model> make_gnk_u2_model(const std::shared_ptr<ov::op::v0::Parameter>& input,
+                                             const std::shared_ptr<ov::Node>& weights,
+                                             const ov::ParameterVector& parameters) {
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, make_gnk_u2_chain(weights), no_bias);
+    return std::make_shared<ov::Model>(ov::OutputVector{fc}, parameters);
+}
+
+std::shared_ptr<ov::Node> make_gnk_u2_fc_ref(const ov::Output<ov::Node>& input, const ov::Output<ov::Node>& weights) {
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{2, 32}, {1});
+    auto zero_point = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{2, 32}, {1});
+    auto zero_point_u8 = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::u8);
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    return std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                         weights,
+                                                                         no_bias,
+                                                                         scale,
+                                                                         zero_point_u8,
+                                                                         ov::element::dynamic,
+                                                                         true,
+                                                                         false,
+                                                                         false,
+                                                                         ov::intel_gpu::op::FcWeightsLayout::GNK);
+}
+}  // namespace
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed25_GnkU2ConstantWeightsOnCmDevice) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 128});
+        auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{2, 32, 64}, {1});
+        model = make_gnk_u2_model(input, weights, ov::ParameterVector{input});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(cm_u2_capable_device(), true);
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 128});
+        auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{2, 32, 64}, {1});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{make_gnk_u2_fc_ref(input, weights)}, ov::ParameterVector{input});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed26_GnkU2ParameterWeightsOnCmDevice) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 128});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u2, ov::Shape{2, 32, 64});
+        model = make_gnk_u2_model(input, weights, ov::ParameterVector{input, weights});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(cm_u2_capable_device(), true);
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 128});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u2, ov::Shape{2, 32, 64});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{make_gnk_u2_fc_ref(input, weights)}, ov::ParameterVector{input, weights});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertFCToCompressed27_GnkU2ParameterWeightsStayUnconvertedWithoutCm) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 128});
+    auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u2, ov::Shape{2, 32, 64});
+    model = make_gnk_u2_model(input, weights, ov::ParameterVector{input, weights});
+    manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    model_ref = model->clone();
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov
