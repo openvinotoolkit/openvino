@@ -35,26 +35,14 @@ class TRANSFORMATIONS_API MoveDownScalarMul;
 /**
  * @ingroup ov_transformation_common_api
  * @brief Keeps activations of a reduced-precision model in range by scaling them down around
- * Convolution/MatMul layers and removing the compensating scale-up at normalization layers.
+ * Convolution/MatMul layers.
  *
  * Linear layers can produce activations beyond the range of the scaled precision (e.g. above 65504
  * for f16), which turns into inf and then NaN at the following normalization. Since
  * Conv(x / s) = Conv(x) / s, the pass divides the input of every Conv/MatMul whose input already has
- * the scaled precision by the scale factor, multiplies the output back, and moves that scale-up
- * Multiply down the graph (through Add, residual connections and data movement ops) with LPT. A
- * normalization is invariant to the input scale, Norm(s * x) = Norm(x) with epsilon / s^2, so the
- * scale-up is dropped there and the subgraph between two normalizations runs scaled.
- *
- * Before:                              After:
- *
- *   residual    x                        residual          x
- *      │        │                           │              │
- *      │     MatMul                    Multiply(1/s)  Multiply(1/s)
- *      │        │                           │              │
- *      └──Add───┘                           │           MatMul
- *          │                                └─────Add──────┘
- *        Norm(eps)                                 │
- *                                            Norm(eps / s^2)
+ * the scaled precision by the scale factor and multiplies the output back. The scale-up Multiplies
+ * are then moved down the graph and eliminated where possible: against the scale-down of the next
+ * Conv/MatMul, or at a normalization (see EliminateScalarMul).
  *
  * The pass runs its own pipeline on a copy of the caller's PassConfig: the caller's callbacks apply to
  * the inner passes, while the LPT transformations disabled here stay disabled only inside the pass.
@@ -81,15 +69,15 @@ public:
     ScaleDownSingleLayer(float scale_factor, ov::element::Type scaled_prec);
 };
 
-// Normalization and ShapeOf have the following property.
+// Normalization and ShapeOf are invariant to a scalar scale of the input:
 //
-// Norm(input * const_a) = Norm(input)
+// Norm(input * s) = Norm(input) with epsilon / s^2 (epsilon / s for MVN with epsilon outside the sqrt)
 //
-// So, we can skip Multiply that is connected to Normalization and ShapeOf.
+// So the Multiply in front of them is dropped, also when a Convert follows it (normalizations kept in f32).
 //
-// input --> Multiply --> Normalization/ShapeOf
+// input --> Multiply --> [Convert] --> Normalization/ShapeOf
 //   ==>
-// input --> Normalization/ShapeOf
+// input --> [Convert] --> Normalization/ShapeOf (epsilon adjusted)
 class ov::pass::activations_scaling::EliminateScalarMul : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EliminateScalarMul", "0");
