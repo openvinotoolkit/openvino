@@ -2,33 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/paged_qsa_indexer.hpp"
+#include "intel_gpu/op/paged_qsa_indexer.hpp"
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/paged_qsa_indexer.hpp"
 
-// NOTE: PagedQSAIndexer is lowered from the base
-// ov::op::internal::PagedQSAIndexer type; ov::intel_gpu::op::PagedQSAIndexer
-// ("gpu_opset") publicly inherits from it and adds no new fields, so
-// ProgramBuilder::CreateSingleLayerPrimitive's type_info->parent walk already dispatches
-// gpu_opset nodes to a factory registered for the base type.
+namespace ov::op::internal {
+// The core ov::op::internal::PagedQSAIndexer already owns the plain name; like MLIR/MLIROp, the alias differs.
+using PagedQSAIndexerGPU = ov::intel_gpu::op::PagedQSAIndexer;
+}  // namespace ov::op::internal
 
 namespace ov::intel_gpu {
 
-static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedQSAIndexer>& op) {
-    validate_inputs_count(op, {ov::op::internal::PagedQSAIndexer::InputIdx::COUNT});
+static void CreatePagedQSAIndexerGPUOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::PagedQSAIndexerGPU>& op) {
+    using In = ov::intel_gpu::op::PagedQSAIndexer::InputIdx;
+    validate_inputs_count(op, {In::COUNT});
     const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
 
     std::string reason;
-    OPENVINO_ASSERT(ov::op::internal::PagedQSAIndexer::validate_config(op->get_config(), reason),
+    OPENVINO_ASSERT(ov::intel_gpu::op::PagedQSAIndexer::validate_config(op->get_config(), reason),
                     "[GPU] Cannot lower PagedQSAIndexer op '",
                     layer_name,
                     "': ",
                     reason);
 
-    using In = ov::op::internal::PagedQSAIndexer::InputIdx;
     OPENVINO_ASSERT(op->get_config().num_selection_heads == 1,
                     "[GPU] PagedQSAIndexer '",
                     layer_name,
@@ -57,6 +56,6 @@ static void CreatePagedQSAIndexerOp(ProgramBuilder& p, const std::shared_ptr<ov:
     p.add_primitive(*op, prim);
 }
 
-REGISTER_FACTORY_IMPL(internal, PagedQSAIndexer);
+REGISTER_FACTORY_IMPL(internal, PagedQSAIndexerGPU);
 
 }  // namespace ov::intel_gpu

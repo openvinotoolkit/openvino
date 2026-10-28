@@ -1643,17 +1643,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
-        // The fused QSA ops only have CM implementations: without them a fused node has no
-        // impl and compile_model fails, so keep the generic graph on devices/builds lacking CM.
-        const bool fused_cm_ops_available = device_info.supports_immad && config.get_use_cm() && cldnn::check_cm_jit_support(m_context->get_engine(), config);
-
-        // Runs before RoPEFusion, which would otherwise absorb the indexer's RoPE table
-        // gather that SparseAttentionFusion proves position_ids from.
-        if (fused_cm_ops_available) {
-            manager.register_pass<ov::intel_gpu::SparseAttentionFusion>();
-        }
         manager.register_pass<ov::pass::RoPEFusion>(true);
         manager.register_pass<ov::intel_gpu::FuseRoPEInputDeinterleave>();
+        // The index query's RMSNorm and RoPE are fused into QSAIndexer, so this runs once RoPEFusion
+        // has turned the rotation into a RoPE op.
+        // Public QSAPrepare/SparseAttentionIndexer/SparseAttention/PagedQSAIndexer/PagedSparseAttention
+        // -> QSAIndexer/SparseSDPA/PagedQSAIndexer/SparsePA (CM-only primitives).
+        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();

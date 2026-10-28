@@ -8,13 +8,14 @@
 #include <string>
 #include <vector>
 
+#include "intel_gpu/op/sparse_pa.hpp"
 #include "primitive.hpp"
 
 namespace cldnn {
 
 /// @brief Paged-cache sparse attention consumer primitive: Q0 (K/V cache write) + Q3
 /// (selected-block attention with automatically-derived causal tail). Lowered from
-/// ov::op::internal::PagedSparseAttention.
+/// ov::intel_gpu::op::SparsePA.
 struct sparse_pa : public primitive_base<sparse_pa> {
     CLDNN_DECLARE_PRIMITIVE(sparse_pa)
 
@@ -34,39 +35,10 @@ struct sparse_pa : public primitive_base<sparse_pa> {
         static constexpr size_t COUNT = 11;
     };
 
-    struct Config {
-        size_t num_heads = 0;
-        size_t num_kv_heads = 0;
-        size_t num_selection_heads = 1;  ///< 1, num_kv_heads, or num_heads
-        size_t k_head_size = 0;
-        size_t v_head_size = 0;
-        size_t key_block_size = 0;    ///< must divide the page size
-        size_t query_block_size = 1;  ///< only 1 is implemented
-        bool causal = true;
-    };
+    using Config = ov::intel_gpu::op::SparsePA::Config;
 
     static bool validate_config(const Config& c, std::string& reason) {
-        if (c.num_heads == 0 || c.num_kv_heads == 0 || c.num_heads % c.num_kv_heads != 0) {
-            reason = "num_heads must be a positive multiple of num_kv_heads";
-            return false;
-        }
-        if (c.num_selection_heads != 1 && c.num_selection_heads != c.num_kv_heads && c.num_selection_heads != c.num_heads) {
-            reason = "num_selection_heads must be 1, num_kv_heads, or num_heads";
-            return false;
-        }
-        if (c.k_head_size == 0 || c.k_head_size % 16 != 0 || c.v_head_size == 0 || c.v_head_size % 16 != 0) {
-            reason = "k_head_size / v_head_size must be positive multiples of 16";
-            return false;
-        }
-        if (c.key_block_size == 0) {
-            reason = "key_block_size must be positive";
-            return false;
-        }
-        if (c.query_block_size != 1) {
-            reason = "query_block_size != 1 is not implemented in this pass";
-            return false;
-        }
-        return true;
+        return ov::intel_gpu::op::SparsePA::validate_config(c, reason);
     }
 
     sparse_pa() : primitive_base("", {}) {}

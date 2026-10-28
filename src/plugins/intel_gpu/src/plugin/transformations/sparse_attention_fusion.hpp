@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::intel_gpu {
 
@@ -13,72 +13,50 @@ namespace ov::intel_gpu {
 /// element type; a host copy would silently drop the update.
 inline constexpr const char* in_place_cache_rt_key = "GPU_IN_PLACE_CACHE";
 
-/// @brief Recognizes a decomposed, non-paged (dense) Qwen Sparse Attention (QSA) layer
-/// and replaces its indexer + attention sub-graph with
-/// `ov::intel_gpu::op::QSAIndexer` + `ov::intel_gpu::op::SparseSDPA`.
+/// @brief Fuses the public opset17 `QSAPrepare` + `SparseAttentionIndexer` pair into
+/// `ov::intel_gpu::op::QSAIndexer`.
 ///
-/// The signature that identifies a QSA indexer is the same block score used by the
-/// legacy fused-op detector: `scores = ReduceSum(ReLU(MatMul(index_query, k_block,
-/// transpose_b)), axis=head) * 1/sqrt(Di)` followed by `TopK(scores, block_topk)`.
-///
-/// The indexer state (`block_index_keys_cache`, `past_incomplete_raw_k`, `past_incomplete_rope`)
-/// follows QSAIndexer's functional state interface: the pass creates one f16 `Variable`
-/// per state tensor, reads it with a zero-initialized `ReadValue`, grows `block_index_keys_cache`
-/// on its sequence axis to `floor(key_length / r)` entries, and feeds the updated state
-/// outputs back with `Assign`. The decomposed source pattern must already keep the
-/// indexer's raw-key history in a `ReadValue`-backed `Variable` (what distinguishes a real
-/// incremental graph from a one-shot reference computation); that history and the mean-pool
-/// recomputation it feeds are retired. `key_length` is the main K length after the call
-/// (shared by QSAIndexer and SparseSDPA) and `rope_cos`/`rope_sin` are the full-width rows
-/// the source graph gathers from its RoPE table for each token. Only causal,
-/// default-scale attention (or a mask derived from the indexer's own TopK) is replaced.
-/// The pass bails out -- leaving the original generic graph untouched -- whenever any
-/// required fact cannot be proven.
-class DenseSparseAttentionFusion : public ov::pass::ModelPass {
+/// The three states of `QSAPrepare` (block index keys, raw keys and RoPE row of the incomplete
+/// block) keep flowing through the model's own ReadValue/Assign pairs; the fused op returns their
+/// new values. The block-key state is padded with zero rows up to the number of complete blocks
+/// of the longest sequence, which the kernels fill in. The pass leaves the ops untouched whenever
+/// the GPU kernels cannot run them (`index_weights`, several selection heads, missing RoPE or
+/// norm weight, non-f16 data).
+class QSAIndexerFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("DenseSparseAttentionFusion");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    OPENVINO_MATCHER_PASS_RTTI("QSAIndexerFusion");
+    QSAIndexerFusion();
 };
 
-/// @brief Recognizes a decomposed, paged (continuous-batching) QSA layer and replaces
-/// its indexer + attention sub-graph with `ov::op::internal::PagedQSAIndexer` +
-/// `ov::op::internal::PagedSparseAttention`.
-///
-/// Reuses `DenseSparseAttentionFusion`'s indexer-score signature detection, but requires
-/// a reachable `ov::op::PagedAttentionExtension` downstream of the indexer's TopK output
-/// instead of a dense `ScaledDotProductAttention`. `PagedAttentionExtension` already
-/// carries the page table (`block_indices`/`block_indices_begins`/`subsequence_begins`/
-/// `past_lens`) as plain inputs -- continuous-batching graphs never use `ReadValue` for
-/// this -- so those four tensors are reused verbatim for `PagedQSAIndexer`/`SparsePA`
-/// without being recreated. The indexer's own `block_index_keys_cache`/`index_key_cache`/
-/// `index_block_rope_cache` are, like the dense case, modeled as brand-new tagged
-/// `Parameter`s appended to the model (page geometry from `key_cache`), and
-/// `rope_cos`/`rope_sin` are the RoPE rows the source graph gathers for each token.
-/// Optional `PagedAttentionExtension` features (sliding window, alibi, sinks, xattention,
-/// cache rotation, adaptive RKV, qq_bias, score/diversity outputs) and integer KV caches
-/// must be provably disabled, otherwise the pass bails out.
-///
-/// Unlike `DenseSparseAttentionFusion`, this path has no validated worked reference in
-/// this codebase (the legacy `QSAFusion` it supersedes never actually replaced a paged
-/// graph, only tagged `rt_info`) -- it is written to the same conservative,
-/// prove-or-bail-out discipline, but should be treated as a lower-confidence, untested
-/// structural design until checked against a real paged QSA export.
-class PagedSparseAttentionFusion : public ov::pass::ModelPass {
+/// @brief Maps the public opset17 `SparseAttention` to `ov::intel_gpu::op::SparseSDPA`.
+/// Attention sinks, non-causal attention and query blocks are not supported by the kernels.
+class SparseSDPAFusion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("PagedSparseAttentionFusion");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    OPENVINO_MATCHER_PASS_RTTI("SparseSDPAFusion");
+    SparseSDPAFusion();
 };
 
-/// @brief Convenience container running both sparse-attention pattern rewrites.
-class SparseAttentionFusion : public ov::pass::ModelPass {
+/// @brief Maps `ov::op::internal::PagedQSAIndexer` to `ov::intel_gpu::op::PagedQSAIndexer` and
+/// marks its three caches, which the device updates in place.
+class PagedQSAIndexerConversion : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("SparseAttentionFusion");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        bool changed = false;
-        changed |= DenseSparseAttentionFusion().run_on_model(model);
-        changed |= PagedSparseAttentionFusion().run_on_model(model);
-        return changed;
-    }
+    OPENVINO_MATCHER_PASS_RTTI("PagedQSAIndexerConversion");
+    PagedQSAIndexerConversion();
+};
+
+/// @brief Maps `ov::op::internal::PagedSparseAttention` to `ov::intel_gpu::op::SparsePA`, which
+/// carries the head geometry the kernels are specialized for.
+class PagedSparseAttentionConversion : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PagedSparseAttentionConversion");
+    PagedSparseAttentionConversion();
+};
+
+/// @brief All Qwen Sparse Attention conversions of the public ops to GPU plugin ops.
+class SparseAttentionFusion : public ov::pass::GraphRewrite {
+public:
+    OPENVINO_GRAPH_REWRITE_RTTI("SparseAttentionFusion");
+    SparseAttentionFusion();
 };
 
 }  // namespace ov::intel_gpu
