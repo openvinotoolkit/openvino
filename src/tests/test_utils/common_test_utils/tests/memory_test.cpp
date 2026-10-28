@@ -2,20 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
-#include <cstdint>
-#include <filesystem>
-#include <limits>
-#include <system_error>
-#include <vector>
-
-#include "common_test_utils/common_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
-#include "openvino/util/file_util.hpp"
 #include "openvino/util/memory.hpp"
-#include "openvino/util/mmap_object.hpp"
+
+#include <gmock/gmock.h>
+
+#include <array>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <type_traits>
+#include <utility>
 
 namespace ov::test {
 
@@ -53,6 +49,16 @@ static_assert(ov::util::align_region(64, 32, 64).m_gap == 0);
 static_assert(ov::util::align_region(65, 32, 64).m_address == 64);
 static_assert(ov::util::align_region(65, 32, 64).m_length == 33);
 static_assert(ov::util::align_region(65, 32, 64).m_gap == 1);
+
+static_assert(ov::util::MemoryView{}.empty());
+static_assert(ov::util::MemoryView{}.data() == nullptr);
+static_assert(ov::util::MemoryView{}.size() == 0);
+
+constexpr std::byte memory_view_bytes[4]{};
+static_assert(ov::util::MemoryView{nullptr, 0}.empty());
+static_assert(ov::util::MemoryView{nullptr, sizeof(memory_view_bytes)}.empty());
+static_assert(ov::util::MemoryView{memory_view_bytes, 0}.empty());
+static_assert(!ov::util::MemoryView{memory_view_bytes, sizeof(memory_view_bytes)}.empty());
 
 using AlignSizeUpTest = testing::Test;
 
@@ -179,6 +185,86 @@ TEST_F(AlignedAllocTest, size_too_big_for_alignment_returns_null) {
 
 TEST_F(AlignedAllocTest, free_nullptr_is_noop) {
     EXPECT_NO_FATAL_FAILURE(util::aligned_free(nullptr));
+}
+
+using MemoryViewTest = testing::Test;
+
+TEST_F(MemoryViewTest, default_constructed_view_is_empty) {
+    const util::MemoryView view;
+    EXPECT_TRUE(view.empty());
+    EXPECT_EQ(nullptr, view.data());
+    EXPECT_EQ(0u, view.size());
+}
+
+TEST_F(MemoryViewTest, zero_size_with_valid_pointer_is_empty) {
+    const std::byte b{};
+    const util::MemoryView view{&b, 0};
+    EXPECT_TRUE(view.empty());
+}
+
+TEST_F(MemoryViewTest, non_zero_size_with_nullptr_is_empty) {
+    const util::MemoryView view{nullptr, 4};
+    EXPECT_TRUE(view.empty());
+}
+
+TEST_F(MemoryViewTest, non_zero_size_with_valid_pointer_is_not_empty) {
+    const std::array<std::byte, 4> bytes{};
+    const util::MemoryView view{bytes.data(), 4};
+    EXPECT_FALSE(view.empty());
+    EXPECT_EQ(bytes.data(), view.data());
+    EXPECT_EQ(4u, view.size());
+    EXPECT_EQ(view.data(), view.begin());
+    EXPECT_EQ(view.data() + view.size(), view.end());
+}
+
+TEST_F(MemoryViewTest, as_memory_view_spans_object) {
+    const int32_t value = 42;
+    const auto view = util::as_memory_view(value);
+    EXPECT_EQ(reinterpret_cast<const std::byte*>(&value), view.data());
+    EXPECT_EQ(sizeof(value), view.size());
+    EXPECT_FALSE(view.empty());
+}
+
+TEST_F(MemoryViewTest, as_memory_view_exposes_object_representation) {
+    const uint32_t value = 0x01020304;
+    const auto view = util::as_memory_view(value);
+    EXPECT_EQ(0, std::memcmp(view.data(), &value, sizeof(value)));
+}
+
+TEST_F(MemoryViewTest, as_memory_view_is_non_owning) {
+    uint32_t value = 1;
+    const auto view = util::as_memory_view(value);
+    value = 0xAABBCCDD;
+    EXPECT_EQ(0, std::memcmp(view.data(), &value, sizeof(value)));
+}
+
+TEST_F(MemoryViewTest, as_memory_view_of_struct_covers_padding) {
+    struct Padded {
+        char c;
+        int64_t i;
+    };
+    const Padded value{};
+    EXPECT_EQ(sizeof(Padded), util::as_memory_view(value).size());
+}
+
+TEST_F(MemoryViewTest, as_memory_view_of_array_covers_all_elements) {
+    const std::array<uint16_t, 4> arr{1, 2, 3, 4};
+    const auto view = util::as_memory_view(arr);
+    EXPECT_EQ(sizeof(arr), view.size());
+    EXPECT_EQ(reinterpret_cast<const std::byte*>(arr.data()), view.data());
+}
+
+template <typename T, typename = void>
+struct CanMakeMemoryView : std::false_type {};
+
+template <typename T>
+struct CanMakeMemoryView<T, std::void_t<decltype(util::as_memory_view(std::declval<T>()))>> : std::true_type {};
+
+TEST_F(MemoryViewTest, as_memory_view_rejects_rvalues) {
+    static_assert(CanMakeMemoryView<int&>::value);
+    static_assert(CanMakeMemoryView<const int&>::value);
+    static_assert(!CanMakeMemoryView<int>::value);
+    static_assert(!CanMakeMemoryView<const int>::value);
 }
 
 }  // namespace ov::test
