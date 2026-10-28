@@ -228,7 +228,8 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     ov::AnyMap config = {{"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
                          {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
                          {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
-                         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"}};
+                         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
+                         {"NPU_COMPILATION_MODE_PARAMS", "optimization-level=3"}};
     if (!is_v2) {
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     } else {
