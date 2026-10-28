@@ -24,9 +24,14 @@ public:
 protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
+    void init_data_pointers(const std::vector<Xbyak_riscv::Reg>& arg_regs,
+                            const std::vector<Xbyak_riscv::Reg>& data_ptr_regs) const {
+        init_data_pointers(arg_regs, data_ptr_regs, {});
+    }
+
     virtual void init_data_pointers(const std::vector<Xbyak_riscv::Reg>& arg_regs,
                                     const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
-                                    const std::vector<Xbyak_riscv::Reg>& aux_gprs = {}) const = 0;
+                                    const std::vector<Xbyak_riscv::Reg>& aux_gprs) const = 0;
 
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 

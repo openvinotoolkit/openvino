@@ -15,7 +15,6 @@
 #include "jit_snippets_emitters.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/expression.hpp"
