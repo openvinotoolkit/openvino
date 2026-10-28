@@ -90,6 +90,7 @@ inline uint8_t GetActivationAdditionalParamsNumber(ActivationFunction func) {
     case ActivationFunction::CLAMP:
     case ActivationFunction::HARD_SIGMOID:
     case ActivationFunction::SELU:
+    case ActivationFunction::SWOOSH:
         paramsNum = 2;
         break;
     case ActivationFunction::RELU_NEGATIVE_SLOPE:

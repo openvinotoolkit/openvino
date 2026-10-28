@@ -18,6 +18,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "npuw/compiled_model.hpp"
+#include "npuw/gqa_compiled_model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -137,7 +138,6 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(ENABLE_STRIDES_FOR);
     REGISTER_OPTION(SHARED_COMMON_QUEUE);
     REGISTER_OPTION(CACHE_ENCRYPTION_CALLBACKS);
-    REGISTER_OPTION(MAX_TILES);
     REGISTER_OPTION(MODEL_PTR);
     REGISTER_OPTION(DISABLE_IDLE_MEMORY_PRUNING);
 
@@ -256,6 +256,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);
         }
+    } else if (ov::npuw::GQACompiledModel::supports(model)) {
+        // Zero-config path: detect if the model suits the NPUW_GQA path
+        _logger.info("Auto-detected NPUW_GQA path with no NPU_USE_NPUW set; routing through NPUW "
+                     "automatically.");
+        auto npuwProperties = localProperties;
+        npuwProperties[useNpuwKey] = true;
+        return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), npuwProperties);
     }
 
     // DEVICE_ID can be passed both as an index and as a platform name.
@@ -305,7 +312,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // HostCompile dynamic models retain their dynamic dimensions for the VM runtime instead of plugin debatching.
     const bool useDynamicGraphForDynamicModel = model->is_dynamic() &&
                                                 compilerType == ov::intel_npu::CompilerType::PLUGIN &&
-                                                localConfig.get<COMPILATION_MODE>().find("HostCompile") == 0;
+                                                localConfig.get<COMPILATION_MODE>().find("HostCompile_Interpreter") == 0;
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
@@ -375,30 +382,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             OPENVINO_ASSERT(useDynamicGraphForDynamicModel || successfullyDebatched || !batchIsAvailable ||
                                 localConfig.get<BATCH_MODE>() != ov::intel_npu::BatchMode::COMPILER,
                             "Dynamic batching is not supported with the dynamic strides feature (ENABLE_STRIDES_FOR).");
-        }
-    }
-
-    // Update stepping w/ information from driver, unless provided by user or we are off-device
-    // Ignore if compilation was requested for a platform that is different from the current one
-    if (!localConfig.has<STEPPING>() &&
-        _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::stepping.name()) &&
-        device != nullptr && device->getName() == compilationPlatform) {
-        try {
-            localConfig.update(ov::intel_npu::stepping.name(), std::to_string(device->getSubDevId()));
-        } catch (...) {
-            _logger.warning("Stepping information not implemented by selected backend. Skipping. Please provide "
-                            "NPU_STEPPING if required.");
-        }
-    }
-    // Update max_tiles w/ information from driver, unless provided by user or we are off-device
-    // Ignore if compilation was requested for a platform that is different from the current one
-    if (!localConfig.has<MAX_TILES>() &&
-        _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::intel_npu::max_tiles.name()) &&
-        device != nullptr && device->getName() == compilationPlatform) {
-        try {
-            localConfig.update(ov::intel_npu::max_tiles.name(), std::to_string(device->getMaxNumSlices()));
-        } catch (...) {
-            _logger.warning("Max tiles information not implemented by selected backend. Default value will be used.");
         }
     }
 

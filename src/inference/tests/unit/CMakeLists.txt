@@ -28,6 +28,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/executor_manager_tests.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_deferred_writer.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_format.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/hsm_model_id_codec.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_reader.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_writer.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/infer_request_test.cpp
@@ -40,6 +41,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/property_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/query_model_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/single_file_storage.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/thread_affinity_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/tlv_format.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/variable_state_test.cpp
         DEPENDENCIES

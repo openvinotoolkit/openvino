@@ -22,6 +22,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/tensor_conversion.hpp"
 
 
 #include "allocation_order.hpp"
@@ -802,8 +803,7 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 }
 
 void program::prepare_memory_dependencies() {
-    if (!_config.get_enable_memory_pool())
-        return;
+    // Computed even without the memory pool: network::may_alias() relies on these restrictions.
     for (const auto& node : get_processing_order()) {
         node->add_memory_dependency(*node);
     }
@@ -1510,23 +1510,45 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     size_t dynamic_batch_onednn_conv_count = 0;
     bool has_sdpa = false;
     size_t total_non_byxf_onednn_conv_whitelist_layers = 0;
+    // Dynamic reorder and JIT pitch handling for this optimization support rank <= 4 only.
+    bool has_rank_gt4_data_flow = false;
 
     // OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
     // For dynamic batches, this approach is inefficient.
     // We plan to switch to byxf for better flexibility across varying batch sizes.
     // The whitelist below defines the initial target scope (CVS-176149).
-    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::input_layout::type_id(),
-                                                                              cldnn::permute::type_id(),
+    const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::activation::type_id(),
+                                                                              cldnn::arg_max_min::type_id(),
+                                                                              cldnn::broadcast::type_id(),
+                                                                              cldnn::concatenation::type_id(),
                                                                               cldnn::convolution::type_id(),
+                                                                              cldnn::crop::type_id(),
+                                                                              cldnn::deconvolution::type_id(),
+                                                                              cldnn::eltwise::type_id(),
                                                                               cldnn::fully_connected::type_id(),
-                                                                              cldnn::activation::type_id(),
-                                                                              cldnn::softmax::type_id(),
+                                                                              cldnn::gather::type_id(),
+                                                                              cldnn::input_layout::type_id(),
+                                                                              cldnn::non_max_suppression::type_id(),
+                                                                              cldnn::non_max_suppression_gather::type_id(),
+                                                                              cldnn::permute::type_id(),
+                                                                              cldnn::pooling::type_id(),
+                                                                              cldnn::range::type_id(),
                                                                               cldnn::reduce::type_id(),
                                                                               cldnn::reorder::type_id(),
-                                                                              cldnn::eltwise::type_id()};
+                                                                              cldnn::reshape::type_id(),
+                                                                              cldnn::select::type_id(),
+                                                                              cldnn::shape_of::type_id(),
+                                                                              cldnn::softmax::type_id(),
+                                                                              cldnn::strided_slice::type_id(),
+                                                                              cldnn::tile::type_id()};
 #endif
     for (const auto& node : get_processing_order()) {
         auto &prim = *node;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (prim.is_in_data_flow() && prim.get_output_layout().get_partial_shape().size() > 4) {
+            has_rank_gt4_data_flow = true;
+        }
+#endif
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
@@ -1776,6 +1798,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     // WA: Limit byxf layout to models with few convolutions to avoid excessive reorders (CVS-185041)
     constexpr size_t max_byxf_onednn_conv_count = 5;
     bool should_use_byxf_onednn_conv = is_dynamic_batch_onednn_conv
+        && !has_rank_gt4_data_flow
         && (total_non_byxf_onednn_conv_whitelist_layers == 0 ||
             (has_sdpa && dynamic_batch_onednn_conv_count <= max_byxf_onednn_conv_count));
     if (should_use_byxf_onednn_conv)
@@ -1936,6 +1959,9 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
             }
         }
+        const auto conversion_executor = get_tensor_conversion(false);
+        if (conversion_executor)
+            kernels_cache.add_to_cached_kernels(conversion_executor->get_kernels());
         ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
@@ -1946,6 +1972,15 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             ob << get_node_ptr(impl_id)->selected_impl;
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
+
+        auto keys = conversion_executor ? conversion_executor->get_keys() : std::vector<tensor_conversion_key>{};
+        ob << keys.size();
+        for (const auto& key : keys) {
+            ob << static_cast<int32_t>(key.first);
+            ob << static_cast<int32_t>(key.second);
+        }
+        ob << (conversion_executor ? kernels_cache.get_cached_kernel_ids(conversion_executor->get_kernels())
+                                   : std::vector<std::string>{});
     }
 
     ob << optimized_out.size();
@@ -2143,6 +2178,30 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             ib >> cached_kernel_ids;
             p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
         }
+
+        size_t conversion_count;
+        ib >> conversion_count;
+        std::vector<tensor_conversion_key> conversion_keys;
+        conversion_keys.reserve(conversion_count);
+        for (size_t i = 0; i < conversion_count; ++i) {
+            int32_t src_type, dst_type;
+            ib >> src_type;
+            ib >> dst_type;
+            conversion_keys.emplace_back(static_cast<data_types>(src_type), static_cast<data_types>(dst_type));
+        }
+        std::vector<std::string> conversion_ids;
+        ib >> conversion_ids;
+        OPENVINO_ASSERT(conversion_ids.size() == conversion_keys.size(), "[GPU] State conversion cache is incomplete");
+        std::vector<kernel::ptr> conversion_kernels;
+        conversion_kernels.reserve(conversion_ids.size());
+        for (const auto& id : conversion_ids)
+            conversion_kernels.push_back(kernels_cache.get_kernel_from_cached_kernels(id));
+        if (!conversion_keys.empty()) {
+            get_tensor_conversion()->restore(_engine, conversion_keys, conversion_kernels);
+        } else {
+            std::lock_guard<std::mutex> lock(_tensor_conversion_mutex);
+            _tensor_conversion.reset();
+        }
     }
 
     size_t optimized_out_size;
@@ -2198,6 +2257,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     size_t state_initializers_size;
     ib >> state_initializers_size;
     state_initializers.clear();
+
     for (size_t i = 0; i < state_initializers_size; i++) {
         std::string variable_id;
         std::vector<primitive_id> initializers;

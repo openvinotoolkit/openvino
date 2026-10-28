@@ -42,11 +42,18 @@ inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& pa
         return false;
     }
 
-    const auto& attn_mask_pshape =
-        params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK).get_partial_shape();
+    const auto& attn_mask_layout = params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK);
+    const auto& attn_mask_pshape = attn_mask_layout.get_partial_shape();
 
-    // Keep scalar and 1D placeholders out of the real attention-mask path.
-    return !attn_mask_pshape.rank().is_static() || attn_mask_pshape.rank().get_length() > 1;
+    if (!attn_mask_pshape.rank().is_static()) {
+        return true;
+    }
+
+    // Per SDPA specification, the attention mask is either empty (a placeholder, e.g. when only a scalar
+    // attn_mask_val is provided or no mask is used at all) or has rank 2 or more. Shape canonicalization
+    // (SDPABase::static_canonicalize_shapes) keeps such a placeholder's shape at rank 0 instead of padding
+    // it up to rank 4, so a plain rank check is sufficient here.
+    return attn_mask_pshape.rank().get_length() > 1;
 }
 
 inline size_t ensure_positive_dim(int64_t value,
