@@ -118,9 +118,9 @@ INSTANTIATE_TEST_SUITE_P(Shapes3Dx3D,
                                          TestParams3Dx3D{3, 7, 16, 8}));
 
 // {T, K, N, cumulative offsets}
-using Shapes2Dx3D = std::tuple<size_t, size_t, size_t, std::vector<int32_t>>;
+using ShapeParams2Dx3D = std::tuple<size_t, size_t, size_t, std::vector<int32_t>>;
 // shapes + offsets element type
-using TestParams2Dx3D = std::tuple<Shapes2Dx3D, ov::element::Type>;
+using TestParams2Dx3D = std::tuple<ShapeParams2Dx3D, ov::element::Type>;
 
 class ConvertGroupedMatMulToMatMul2Dx3DAccuracy : public TransformationTestsF,
                                                   public testing::WithParamInterface<TestParams2Dx3D> {};
@@ -151,9 +151,9 @@ TEST_P(ConvertGroupedMatMulToMatMul2Dx3DAccuracy, MatchesReference) {
 
 INSTANTIATE_TEST_SUITE_P(Shapes2Dx3D,
                          ConvertGroupedMatMulToMatMul2Dx3DAccuracy,
-                         testing::Combine(testing::Values(Shapes2Dx3D{8, 8, 16, {8}},
-                                                          Shapes2Dx3D{16, 16, 8, {8, 16}},
-                                                          Shapes2Dx3D{24, 8, 8, {8, 16, 24}},
+                         testing::Combine(testing::Values(ShapeParams2Dx3D{8, 8, 16, {8}},
+                                                          ShapeParams2Dx3D{16, 16, 8, {8, 16}},
+                                                          ShapeParams2Dx3D{24, 8, 8, {8, 16, 24}},
                                                           // experts without tokens -> zero-length groups
-                                                          Shapes2Dx3D{16, 8, 8, {0, 8, 8, 16}}),
+                                                          ShapeParams2Dx3D{16, 8, 8, {0, 8, 8, 16}}),
                                           testing::Values(i32, i64)));
