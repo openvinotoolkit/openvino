@@ -81,7 +81,7 @@ bool run_pass(const std::shared_ptr<ov::Model>& model) {
 
 std::vector<ConstPtr> run_preserve_matcher(const std::shared_ptr<ov::Model>& model) {
     std::vector<ConstPtr> to_keep;
-    ov::npuw::patterns::opt::Context ctx;
+    ov::npuw::patterns::opt::Context ctx(model, model->get_parameters().size());
     ctx.mm_gate = false;
     ov::pass::Manager manager;
     manager.register_pass<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(ctx), std::ref(to_keep));
