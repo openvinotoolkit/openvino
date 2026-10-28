@@ -3820,6 +3820,87 @@ def test_canonicalize_float_precision_keeps_rounding_before_integer_cast(module_
     assert narrow == [], f"ops left in bf16 besides the rounding cast: {narrow}"
 
 
+class _IntRoundThenInt(torch.nn.Module):
+    """An integer source rounds too: i32 257 -> bf16 256."""
+
+    def forward(self, x):
+        return x.to(torch.bfloat16).to(torch.int32)
+
+
+class _F16RoundThenInt(torch.nn.Module):
+    """f16 -> bf16 rounds: 1.9990234375 -> 2."""
+
+    def forward(self, x):
+        return x.to(torch.bfloat16).to(torch.int32)
+
+
+class _Bf16RoundThenFloor(torch.nn.Module):
+    def forward(self, x):
+        return x.to(torch.bfloat16).floor().to(torch.int32)
+
+
+class _Bf16RoundThenCompare(torch.nn.Module):
+    """The rounding cast also feeds float math, which is retyped to f32 and reads the unrounded value as before."""
+
+    def forward(self, x):
+        y = x.to(torch.bfloat16)
+        return y >= 2.0, (y * 2).to(torch.float32)
+
+
+class _Bf16RoundThenArgmax(torch.nn.Module):
+    """1.999 and 2.0 tie in bf16, so the first one wins."""
+
+    def forward(self, x):
+        return x.to(torch.bfloat16).argmax(-1)
+
+
+class _Bf16ArangeThenInt(torch.nn.Module):
+    """A bf16 Range rounds like a cast: 257 -> 256."""
+
+    def forward(self, x):
+        return torch.arange(256, 266, dtype=torch.bfloat16).to(torch.int64) + x
+
+
+_ROUNDING_CASES = {
+    "int_source": (_IntRoundThenInt, torch.tensor([[257, 513, 1025, 7, -257, 2049, 255, 0]], dtype=torch.int32)),
+    "f16_source": (_F16RoundThenInt,
+                   torch.tensor([[1.9990234375, 3.998046875, 1.5, -1.9990234375]], dtype=torch.float16)),
+    "floor": (_Bf16RoundThenFloor, torch.tensor([[1.999, 2.996, -0.001, 255.5]])),
+    "compare": (_Bf16RoundThenCompare, torch.tensor([[1.999, 2.0, 1.9, 2.004]])),
+    "argmax": (_Bf16RoundThenArgmax, torch.tensor([[1.999, 2.0, 0.5], [0.1, 0.2, 0.3]])),
+    "arange": (_Bf16ArangeThenInt, torch.zeros(10, dtype=torch.int64)),
+}
+
+
+@pytest.mark.parametrize("case", list(_ROUNDING_CASES))
+def test_canonicalize_float_precision_keeps_rounding_before_sensitive_consumer(case):
+    """A bf16 rounding point (any non-bf16 source, or a bf16 Range) keeps its rounding when it feeds an integer,
+    boolean or step result; the float math stays in f32."""
+    from openvino import Core
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    module_cls, x = _ROUNDING_CASES[case]
+    module = module_cls().eval()
+    with torch.no_grad():
+        ep = torch.export.export(module, (x,))
+    decoder = TorchFXPythonDecoder(ep.module(), default_float_type=torch.bfloat16)
+    fe = FrontEndManager().load_by_framework("pytorch")
+    ov_model = fe.convert(fe.load(decoder))
+
+    got = Core().compile_model(ov_model, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})(x.numpy())
+    expected = module(x)
+    expected = expected if isinstance(expected, tuple) else (expected,)
+    for i, exp in enumerate(expected):
+        if exp.is_floating_point():
+            assert np.allclose(got[i], exp.numpy(), rtol=1e-2), f"output {i}: {got[i]} vs {exp.numpy()}"
+        else:
+            assert np.array_equal(got[i], exp.numpy()), f"output {i}: {got[i]} vs {exp.numpy()}"
+    narrow = [op.get_type_name() for op in ov_model.get_ordered_ops()
+              if op.get_type_name() not in ("Parameter", "Convert")
+              and op.get_output_element_type(0) in (Type.bf16, Type.f16)]
+    assert narrow == [], f"ops left in bf16 besides Converts: {narrow}"
+
+
 class _SharedBf16Outputs(torch.nn.Module):
     """Several outputs read the same bf16 tensor, next to one that doesn't."""
 

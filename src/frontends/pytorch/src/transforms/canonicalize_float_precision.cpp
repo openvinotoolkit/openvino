@@ -4,15 +4,24 @@
 
 #include "canonicalize_float_precision.hpp"
 
+#include <algorithm>
 #include <map>
 #include <unordered_set>
 #include <utility>
 
 #include "openvino/core/model.hpp"
+#include "openvino/op/ceiling.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/mod.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/sign.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/util/log.hpp"
 #include "transformations/convert_precision.hpp"
@@ -23,6 +32,10 @@ namespace ov::frontend::pytorch::pass {
 
 namespace {
 namespace v0 = ov::op::v0;
+namespace v1 = ov::op::v1;
+namespace v3 = ov::op::v3;
+namespace v4 = ov::op::v4;
+namespace v5 = ov::op::v5;
 
 // Narrow Constants up to this many elements (scalars, eps, rotary tables) are folded to f32 instead of
 // kept behind a decompression Convert. A size heuristic, not part of the decompression form itself:
@@ -37,42 +50,88 @@ bool is_side_channel(const std::shared_ptr<v0::Parameter>& param) {
     return param->get_friendly_name().rfind("__pa__", 0) == 0;
 }
 
-// An explicit cast from a wider float to bf16/f16 that feeds an integer or boolean Convert rounds before that
-// cast: 1.999 -> bf16 2.0 -> i32 2. Retargeting it to f32 like the other narrow Converts would give 1, and the
-// output types restored at the end can't repair an integer result. Gives those consumers a narrowing Convert of
-// their own (shared with float consumers it would be retyped) and returns them for ConvertPrecision to skip.
+// A consumer whose result jumps on a one-ulp difference of its input: integer and boolean results (Convert,
+// comparisons, TopK indices, ...) and the rounding ops. ShapeOf reads only the shape.
+bool is_rounding_sensitive(const Node* node) {
+    if (ov::is_type_any_of<v0::ShapeOf, v3::ShapeOf>(node)) {
+        return false;
+    }
+    if (ov::is_type_any_of<v0::Floor, v0::Ceiling, v5::Round, v0::Sign, v1::FloorMod, v1::Mod>(node)) {
+        return true;
+    }
+    const auto outputs = node->outputs();
+    return std::any_of(outputs.begin(), outputs.end(), [](const Output<const Node>& output) {
+        return !output.get_element_type().is_real();
+    });
+}
+
+// An explicit cast to bf16/f16 rounds: 1.999 -> bf16 2.0, i32 257 -> bf16 256. Retargeting it to f32 like the other
+// narrow Converts drops that rounding; float math downstream is meant to run in f32 anyway, but a rounding-sensitive
+// consumer (see above) can turn the difference into a different integer, boolean or step, which the output types
+// restored at the end can't repair. A Range with a narrow output type rounds the same way: it becomes an f32 Range,
+// and its sensitive consumers read it through such a cast. Gives the sensitive consumers a narrowing Convert of
+// their own (shared with other consumers it would be retyped) and returns those Converts for ConvertPrecision to
+// skip. A consumer other than a Convert reads it through a same-type Convert, which ConvertPrecision then widens to
+// f32 like any read-through.
 std::unordered_set<const Node*> isolate_rounding_casts(const std::shared_ptr<ov::Model>& model) {
     std::unordered_set<const Node*> rounding_casts;
     for (const auto& node : model->get_ordered_ops()) {
-        const auto convert = ov::as_type_ptr<v0::Convert>(node);
-        if (!convert || !is_narrow(convert->get_destination_type())) {
-            continue;
-        }
-        // Only real narrowing: a same-type Convert is a read-through bridge, an integer source has no rounding.
-        const auto& source_type = convert->get_input_element_type(0);
-        if (!source_type.is_real() || is_narrow(source_type)) {
-            continue;
-        }
-        std::vector<Input<Node>> non_float_consumers;
-        const auto targets = convert->output(0).get_target_inputs();
-        for (const auto& target : targets) {
-            const auto consumer = ov::as_type<v0::Convert>(target.get_node());
-            if (consumer && !consumer->get_destination_type().is_real()) {
-                non_float_consumers.push_back(target);
+        std::shared_ptr<v0::Convert> convert;
+        if (const auto range = ov::as_type_ptr<v4::Range>(node)) {
+            const auto type = range->get_output_type();
+            const auto targets = range->output(0).get_target_inputs();
+            if (!is_narrow(type) || std::none_of(targets.begin(), targets.end(), [](const Input<Node>& target) {
+                    return is_rounding_sensitive(target.get_node());
+                })) {
+                continue;
+            }
+            range->set_output_type(element::f32);
+            range->validate_and_infer_types();
+            convert = std::make_shared<v0::Convert>(range, type);
+            convert->set_friendly_name(range->get_friendly_name() + "/rounding");
+            for (auto target : targets) {
+                if (is_rounding_sensitive(target.get_node())) {
+                    target.replace_source_output(convert);
+                }
+            }
+        } else {
+            convert = ov::as_type_ptr<v0::Convert>(node);
+            // A same-type Convert is a read-through bridge; anything else (wider float, integer, the other narrow
+            // type) rounds.
+            if (!convert || !is_narrow(convert->get_destination_type()) ||
+                convert->get_input_element_type(0) == convert->get_destination_type()) {
+                continue;
             }
         }
-        if (non_float_consumers.empty()) {
+        std::vector<Input<Node>> sensitive;
+        const auto targets = convert->output(0).get_target_inputs();
+        for (const auto& target : targets) {
+            if (is_rounding_sensitive(target.get_node())) {
+                sensitive.push_back(target);
+            }
+        }
+        if (sensitive.empty()) {
             continue;
         }
         auto rounding = convert;
-        if (non_float_consumers.size() != targets.size()) {
+        if (sensitive.size() != targets.size()) {
             rounding = std::make_shared<v0::Convert>(convert->input_value(0), convert->get_destination_type());
             rounding->set_friendly_name(convert->get_friendly_name() + "/rounding");
-            for (auto& consumer : non_float_consumers) {
+            for (auto& consumer : sensitive) {
                 consumer.replace_source_output(rounding);
             }
         }
         rounding_casts.insert(rounding.get());
+        std::shared_ptr<v0::Convert> read_through;
+        for (auto& consumer : sensitive) {
+            if (ov::is_type<v0::Convert>(consumer.get_node())) {
+                continue;
+            }
+            if (!read_through) {
+                read_through = std::make_shared<v0::Convert>(rounding, rounding->get_destination_type());
+            }
+            consumer.replace_source_output(read_through);
+        }
     }
     return rounding_casts;
 }
