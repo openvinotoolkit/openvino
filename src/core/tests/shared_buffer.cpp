@@ -705,4 +705,22 @@ TEST_F(SharedBufferTest, prefetch_scheduler_extends_lookahead_below_min_bytes) {
         scheduler.release(*op);
     }
 }
+
+TEST_F(SharedBufferTest, prefetch_scheduler_ignores_non_file_backed_constants_in_window) {
+    constexpr size_t count = 2;
+    constexpr size_t size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(count * size);
+    const auto mapped_ops = make_mapped_constants(mock, count, size);
+    std::vector<std::shared_ptr<ov::Node>> ops{
+        std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{size}, std::vector<uint8_t>(size)),
+        std::make_shared<ov::op::v0::Constant>(ov::element::u8, ov::Shape{size}, std::vector<uint8_t>(size))};
+    ops.insert(ops.end(), mapped_ops.begin(), mapped_ops.end());
+
+    EXPECT_CALL(*mock, hint_prefetch_async(0 * size, size)).Times(1);
+    EXPECT_CALL(*mock, hint_prefetch_async(1 * size, size)).Times(1);
+
+    ov::util::OrderedPrefetchScheduler scheduler(ops, 2, 0);
+    ::testing::Mock::VerifyAndClearExpectations(mock.get());
+}
 }  // namespace ov::test

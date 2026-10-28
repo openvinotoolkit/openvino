@@ -164,7 +164,13 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
         const std::vector<std::shared_ptr<ov::Node>> no_ops;
-        ov::util::OrderedPrefetchScheduler weights_prefetch(m_config.get_offload_ratio() == 0 ? ops : no_ops);
+#ifdef _WIN32
+        // TODO: CVS-198510 enable on Windows once prefetch shows a compile-time gain there.
+        const bool use_prefetch = false;
+#else
+        const bool use_prefetch = m_config.get_offload_ratio() == 0;
+#endif
+        ov::util::OrderedPrefetchScheduler weights_prefetch(use_prefetch ? ops : no_ops);
         for (const auto& op : ops) {
             weights_prefetch.acquire(*op);
             CreateSingleLayerPrimitive(op);

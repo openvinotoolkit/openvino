@@ -119,7 +119,7 @@ private:
 // worker on a join.
 class CompletionLatch {
 public:
-    explicit CompletionLatch(size_t chunk_count) noexcept : m_remaining(chunk_count) {}
+    explicit CompletionLatch(size_t chunk_count) : m_remaining(chunk_count) {}
 
     void count_down() noexcept {
         if (m_remaining.fetch_sub(1, std::memory_order_acq_rel) == 1) {
@@ -161,8 +161,7 @@ std::shared_future<void> submit_page_toucher_tasks(void* ptr, size_t size, size_
         auto future = latch->get_future();
         ThreadPool::instance().submit(std::move(jobs));
         return future;
-    } catch (const std::bad_alloc&) {
-        // Job/latch allocation failed under memory pressure.
+    } catch (...) {
         return {};
     }
 }

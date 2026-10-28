@@ -78,9 +78,11 @@ void OrderedPrefetchScheduler::prefetch_ahead() noexcept {
         if (m_states[m_next] == State::pending) {
             if (const auto constant = m_constants[m_next].lock()) {
                 m_futures[m_next] = ov::weight_sharing::Extension::hint_prefetch(*constant);
-                m_states[m_next] = State::prefetch_requested;
-                ++m_in_flight;
-                m_in_flight_bytes += m_sizes[m_next];
+                if (m_futures[m_next].valid()) {
+                    m_states[m_next] = State::prefetch_requested;
+                    ++m_in_flight;
+                    m_in_flight_bytes += m_sizes[m_next];
+                }
             } else {
                 m_states[m_next] = State::released;
             }

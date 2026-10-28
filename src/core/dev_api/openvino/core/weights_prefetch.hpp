@@ -44,10 +44,12 @@ public:
      *            duplicates are ignored.
      * @param lookahead Minimum number of constants prefetched and not released yet.
      * @param min_bytes More constants are prefetched while fewer bytes than this are prefetched and not released yet.
+     *
+     * Default lookahead and min_bytes showed the best compile time in manual testing.
      */
     explicit OrderedPrefetchScheduler(const std::vector<std::shared_ptr<ov::Node>>& ops,
                                       size_t lookahead = 2,
-                                      size_t min_bytes = 100 * one_mib);
+                                      size_t min_bytes = 32 * one_mib);
 
     void acquire(const ov::Node& node) noexcept override;
     void release(const ov::Node& node) noexcept override;
