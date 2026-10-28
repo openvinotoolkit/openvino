@@ -1524,7 +1524,7 @@ void Transformations::MainSnippets() {
                 }
             }
 
-            return supported_element_types.contains(t.get_element_type()) ||
+            return supported_element_types.count(t.get_element_type()) != 0 ||
                    (is_input && t.get_element_type() == ov::element::i32 &&
                     (ov::is_type_any_of<const op::v1::Transpose,
                                         const op::v1::Broadcast,

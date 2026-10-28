@@ -218,7 +218,7 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
                                                     LoopInfoRuntimeParamsMap& initialized_info) {
     const auto& current_unified_loop_info = expanded_loop_info->get_unified_loop_info();
 
-    OPENVINO_ASSERT(initialized_info.contains(current_unified_loop_info),
+    OPENVINO_ASSERT(initialized_info.count(current_unified_loop_info) > 0,
                     "UnifiedLoopInfo must be updated before ExpandedLoopInfo");
     auto& cur_initialized_info = initialized_info.at(current_unified_loop_info);
     auto& current_work_amount = cur_initialized_info.work_amount;
@@ -266,7 +266,7 @@ void RuntimeConfigurator::update_loop_info(const lowered::LinearIRCPtr& linear_i
     const auto& loop_manager = linear_ir->get_loop_manager();
     auto updater = [&](const lowered::LoopInfoPtr& loop_info) {
         if (const auto unified_loop_info = ov::as_type_ptr<lowered::UnifiedLoopInfo>(loop_info)) {
-            if (!initialized_info.contains(unified_loop_info)) {
+            if (initialized_info.count(unified_loop_info) == 0) {
                 utils::update_runtime_parameters(loop_manager, unified_loop_info);
                 initialized_info[unified_loop_info] = get_loop_runtime_params(unified_loop_info);
             }

@@ -31,7 +31,7 @@ std::map<double, int> create_execution_number_mapping(const LinearIR& linear_ir)
     int int_number = 0;
     for (const auto& expr : linear_ir) {
         const auto& double_execution_number = expr->get_exec_num();
-        OPENVINO_ASSERT(!mapping.contains(double_execution_number), "Incorrect Expression execution numbers!");
+        OPENVINO_ASSERT(mapping.count(double_execution_number) == 0, "Incorrect Expression execution numbers!");
         mapping[double_execution_number] = int_number++;
     }
     return mapping;
@@ -67,7 +67,7 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const Buffers& 
     const auto int_execution_numbers = create_execution_number_mapping(linear_ir);
     auto casted_execution_number = [&](const ExpressionPtr& expr) {
         const auto double_execution_number = expr->get_exec_num();
-        OPENVINO_ASSERT(int_execution_numbers.contains(double_execution_number),
+        OPENVINO_ASSERT(int_execution_numbers.count(double_execution_number) != 0,
                         "Expression execution number has not been found!");
         return int_execution_numbers.at(double_execution_number);
     };
@@ -76,7 +76,7 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const Buffers& 
     for (const auto& buffer_expr : buffer_expressions) {
         auto cluster_id = static_cast<int>(buffer_expr->get_cluster_id());
 
-        if (!map_boxes.contains(cluster_id)) {
+        if (map_boxes.count(cluster_id) == 0) {
             map_boxes[cluster_id] = {std::numeric_limits<int>::max(), 0, 0, cluster_id};
         }
         auto& box = map_boxes.at(cluster_id);

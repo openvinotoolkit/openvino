@@ -121,7 +121,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
 
         // Determine gate_up_type based on pattern matching
         LLMMLPNode::GATE_UP_TYPE gate_up_type = LLMMLPNode::GATE_UP_TYPE::SEPARATE;
-        if (pattern_map.contains(gate_up_proj_split)) {
+        if (pattern_map.count(gate_up_proj_split)) {
             // The gate half feeds the activation: gate at split output(0) is the normal layout, otherwise swapped.
             auto gate_src = pattern_map.at(mlp_gate_act).get_node_shared_ptr()->input_value(0);
             gate_up_type = (gate_src.get_index() == 0) ? LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP
@@ -140,7 +140,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
         // down projection is harder to quantize w/o causing accuracy problem, so it may be un-quantized instead
         bool is_gate_up_quantized_int8 = false;
         bool is_down_proj_int8 = false;
-        if (pattern_map.contains(gate_up_proj_weight_const_i8) && pattern_map.contains(down_proj_weight_compressed)) {
+        if (pattern_map.count(gate_up_proj_weight_const_i8) > 0 && pattern_map.count(down_proj_weight_compressed) > 0) {
             // gate-up combined & quantized
             is_gate_up_quantized_int8 = true;
             gate_up_type = (gate_up_type == LLMMLPNode::GATE_UP_TYPE::SEPARATE)
@@ -149,7 +149,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             gate_proj_w = pattern_map.at(gate_up_proj_weight_const_i8);
             up_proj_w = pattern_map.at(gate_up_proj_weight_const_i8);
             down_proj_w = pattern_map.at(down_proj_weight_compressed);
-        } else if (pattern_map.contains(gate_up_proj_weight) && pattern_map.contains(down_proj_weight_compressed)) {
+        } else if (pattern_map.count(gate_up_proj_weight) > 0 && pattern_map.count(down_proj_weight_compressed) > 0) {
             // gate-up combined
             gate_up_type = (gate_up_type == LLMMLPNode::GATE_UP_TYPE::SEPARATE)
                                ? LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP
@@ -157,23 +157,23 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             gate_proj_w = pattern_map.at(gate_up_proj_weight);
             up_proj_w = pattern_map.at(gate_up_proj_weight);
             down_proj_w = pattern_map.at(down_proj_weight_compressed);
-        } else if (pattern_map.contains(gate_proj_weight_compressed) &&
-                   pattern_map.contains(up_proj_weight_compressed) &&
-                   pattern_map.contains(down_proj_weight_compressed)) {
+        } else if (pattern_map.count(gate_proj_weight_compressed) > 0 &&
+                   pattern_map.count(up_proj_weight_compressed) > 0 &&
+                   pattern_map.count(down_proj_weight_compressed) > 0) {
             is_gate_up_quantized_int8 = false;
             is_down_proj_int8 = false;
             gate_proj_w = pattern_map.at(gate_proj_weight_compressed);
             up_proj_w = pattern_map.at(up_proj_weight_compressed);
             down_proj_w = pattern_map.at(down_proj_weight_compressed);
-        } else if (pattern_map.contains(gate_proj_weight_i8) && pattern_map.contains(up_proj_weight_i8) &&
-                   pattern_map.contains(gate_proj_weight_scales_per_OC) &&
-                   pattern_map.contains(up_proj_weight_scales_per_OC)) {
+        } else if (pattern_map.count(gate_proj_weight_i8) > 0 && pattern_map.count(up_proj_weight_i8) > 0 &&
+                   pattern_map.count(gate_proj_weight_scales_per_OC) > 0 &&
+                   pattern_map.count(up_proj_weight_scales_per_OC) > 0) {
             is_gate_up_quantized_int8 = true;
             gate_proj_w = pattern_map.at(gate_proj_weight_i8);
             up_proj_w = pattern_map.at(up_proj_weight_i8);
 
-            if (pattern_map.contains(down_proj_weight_i8)) {
-                if (!pattern_map.contains(down_proj_weight_scales_per_OC)) {
+            if (pattern_map.count(down_proj_weight_i8) > 0) {
+                if (pattern_map.count(down_proj_weight_scales_per_OC) == 0) {
                     return false;
                 }
                 is_down_proj_int8 = true;

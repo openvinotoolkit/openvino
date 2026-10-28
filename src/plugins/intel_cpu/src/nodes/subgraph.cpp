@@ -358,7 +358,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         config.inConfs.resize(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); i++) {
             const auto precision = getOriginalInputPrecisionAtPort(i);
-            CPU_NODE_ASSERT(supportedPrecisions.contains(precision),
+            CPU_NODE_ASSERT(supportedPrecisions.count(precision) != 0,
                             "Subgraph doesn't support ",
                             precision,
                             " precision at input port ",
@@ -381,7 +381,7 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
         config.outConfs.resize(outputShapes.size());
         for (size_t i = 0; i < outputShapes.size(); i++) {
             const auto precision = getOriginalOutputPrecisionAtPort(i);
-            CPU_NODE_ASSERT(supportedPrecisions.contains(precision),
+            CPU_NODE_ASSERT(supportedPrecisions.count(precision) != 0,
                             "Subgraph doesn't support ",
                             precision,
                             " precision at input port ",

@@ -159,7 +159,7 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
             const auto in_port = expr->get_input_port(i);
             const auto parent_expr = in_port.get_connected_ports().begin()->get_expr();
             if (!ov::is_type<ov::op::v0::Constant>(parent_expr->get_node()) &&
-                !loop_exprs.contains(parent_expr.get())) {
+                loop_exprs.count(parent_expr.get()) == 0) {
                 entries.push_back(in_port);
             }
         }
@@ -168,7 +168,7 @@ void LoopManager::get_io_loop_ports(LinearIR::constExprIt loop_begin_pos,
             const auto consumer_ports = out_port.get_connected_ports();
             for (const auto& consumer : consumer_ports) {
                 const auto& consumer_expr = consumer.get_expr();
-                if (!loop_exprs.contains(consumer_expr.get())) {
+                if (loop_exprs.count(consumer_expr.get()) == 0) {
                     exits.push_back(out_port);
                     break;
                 }
@@ -502,7 +502,7 @@ bool LoopManager::reorder_identifiers(const std::map<size_t, size_t>& loop_id_ma
                     "existing loops");
     // If all new IDs are the same as original and they're in the `m_map` - nothing to update
     if (std::all_of(loop_id_map.cbegin(), loop_id_map.cend(), [this](const std::pair<size_t, size_t>& p) {
-            return p.first == p.second && m_map.contains(p.first);
+            return p.first == p.second && m_map.count(p.first) > 0;
         })) {
         return false;
     }
@@ -511,11 +511,11 @@ bool LoopManager::reorder_identifiers(const std::map<size_t, size_t>& loop_id_ma
     for (const auto& p : loop_id_map) {
         const auto& current_id = p.first;
         const auto& target_id = p.second;
-        OPENVINO_ASSERT(m_map.contains(current_id),
+        OPENVINO_ASSERT(m_map.count(current_id) > 0,
                         "Failed to reorder loop IDs: the Loop with ID ",
                         current_id,
                         " doesn't exist in the map");
-        OPENVINO_ASSERT(!ordered_map.contains(target_id),
+        OPENVINO_ASSERT(ordered_map.count(target_id) == 0,
                         "Failed to reorder loop IDs: there are several Loops with the target ID ",
                         target_id);
         ordered_map[target_id] = get_loop_info(current_id);
@@ -549,7 +549,7 @@ void LoopManager::insert_loop_ids(const ExpressionPtr& expr,
 }
 
 void LoopManager::replace_loop_id(const ExpressionPtr& expr, size_t prev_id, size_t new_id) {
-    OPENVINO_ASSERT(m_map.contains(new_id),
+    OPENVINO_ASSERT(m_map.count(new_id),
                     "Failed marking expression by Loop ID: the Loop with this ID hasn't registered");
     OPENVINO_ASSERT(!is_loop_id_found(expr, new_id), "Expression cannot have several the same Loop IDs");
     auto loop_ids = expr->get_loop_ids();

@@ -114,7 +114,7 @@ bool MarkInvariantShapePath::run(lowered::LinearIR& /*linear_ir*/,
         for (size_t out_idx = 0; out_idx < expr->get_output_count(); ++out_idx) {
             const auto& out_shape = expr->get_output_port_descriptor(out_idx)->get_shape();
             size_t current_color_path = 0;
-            if (colored_shapes.contains(out_shape)) {
+            if (colored_shapes.count(out_shape)) {
                 current_color_path = colored_shapes.at(out_shape);
             } else if (!utils::is_dynamic_vdims(out_shape) && ov::shape_size(out_shape) == 1) {
                 current_color_path = NOT_AFFECTING_PATH;

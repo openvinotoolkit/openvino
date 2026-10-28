@@ -88,7 +88,7 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
                         order.size() - 1 - ov::snippets::utils::get_input_dim_idx(order, processing_dim_idx);
                 }
                 const auto param_idx = body->get_parameter_index(param);
-                if (!m_broadcastable_inputs.contains(param_idx)) {
+                if (m_broadcastable_inputs.count(param_idx) == 0) {
                     m_broadcastable_inputs[param_idx] = processing_dim_idx;
                 } else {
                     OPENVINO_ASSERT(m_broadcastable_inputs.at(param_idx) == processing_dim_idx,
@@ -111,7 +111,7 @@ bool pass::AnalyzeBroadcastableInputs::run_on_model(const std::shared_ptr<ov::Mo
             // not a leaf - continue to search
             for (const auto& input_value : inputs) {
                 const auto& input_node = input_value.get_node()->shared_from_this();
-                if (!visited_ops.contains(input_node)) {
+                if (visited_ops.count(input_node) == 0) {
                     nodes_to_calculate.push(input_node);
                 }
             }
