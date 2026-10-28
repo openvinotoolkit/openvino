@@ -225,13 +225,13 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     // compile their partitioned blocks in parallel via NPUW_PARALLEL_COMPILE; V0/V1 don't
     // use online partitioning at all, so that option would have no effect for them.
     const bool is_v2 = gqa_case == ov::npuw::GQACompiledModel::Case::V2;
-    ov::AnyMap config = {{"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
+    ov::AnyMap config = {{std::string(::intel_npu::COMPILER_DYNAMIC_QUANTIZATION::key()), "YES"},
                          {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
                          {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
                          {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
-                         {"NPU_COMPILATION_MODE_PARAMS", "optimization-level=3"}};
+                         {std::string(::intel_npu::COMPILATION_MODE_PARAMS::key()), "optimization-level=3"}};
     if (!is_v2) {
-        config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
+        config.emplace(std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key()), "NONE");
     } else {
         config.emplace(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key()), "YES");
     }
@@ -240,18 +240,18 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     if (stage == GQAModelStage::PREFILL) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
-                           {"NPUW_FOLD_ONLY", "attn"},
-                           {"NPUW_ONLINE_ISOLATE", "ATTN"},
-                           {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn"},
-                           {"NPUW_ATTN", "STATIC"}});
+                           {std::string(::intel_npu::NPUW_FOLD_ONLY::key()), "attn"},
+                           {std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key()), "ATTN"},
+                           {std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key()), "attn"},
+                           {std::string(::intel_npu::NPUW_ATTN::key()), "STATIC"}});
         if (is_v2) {
-            merge_config_with(config, {{"NPUW_ONLINE_PIPELINE", "REP"}});
+            merge_config_with(config, {{std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key()), "REP"}});
         }
         LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
     } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
-                           {"NPUW_FOLD_ONLY", "attn"},
+                           {std::string(::intel_npu::NPUW_FOLD_ONLY::key()), "attn"},
                            {std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
                            {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "YES"}});
 
