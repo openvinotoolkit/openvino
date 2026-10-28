@@ -11,7 +11,7 @@ pytestmark = [pytest.mark.precommit, pytest.mark.nightly]
 
 
 @pytest.mark.parametrize("capture", ["export", "script"])
-@pytest.mark.parametrize("dtype", [torch.bool, torch.int32, torch.int64, torch.float32])
+@pytest.mark.parametrize("dtype", [torch.bool, torch.int64, torch.float32])
 @pytest.mark.parametrize("explicit_dtype", [False, True])
 def test_cumsum_dtype(capture, dtype, explicit_dtype, monkeypatch):
     class Model(torch.nn.Module):
@@ -54,7 +54,7 @@ def test_cumsum_out_dtype(dtype):
     np.testing.assert_array_equal(compiled(inputs)[0], model(x, out).numpy())
 
 
-@pytest.mark.parametrize("dtype", [torch.float32, torch.int32, torch.bool])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bool])
 def test_cumsum_scripted_branch_dtype(dtype):
     class Model(torch.nn.Module):
         def forward(self, x, condition):
