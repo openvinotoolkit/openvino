@@ -21,10 +21,149 @@
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "fully_connected_inst.h"
 
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/openvino.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
+#include "plugin/transformations/repack_gguf_weights.hpp"
+#include <array>
+#include <cstdlib>
+#include <cstring>
 #include <cmath>
 
 using namespace cldnn;
 using namespace ::tests;
+
+namespace {
+class gguf_scoped_env_var {
+public:
+    gguf_scoped_env_var(const char* name, const char* value) : name(name) {
+        if (const char* previous = std::getenv(name)) {
+            had_previous = true;
+            previous_value = previous;
+        }
+        set(value);
+    }
+
+    ~gguf_scoped_env_var() {
+        set(had_previous ? previous_value.c_str() : nullptr);
+    }
+
+    gguf_scoped_env_var(const gguf_scoped_env_var&) = delete;
+    gguf_scoped_env_var& operator=(const gguf_scoped_env_var&) = delete;
+
+private:
+    void set(const char* value) {
+#ifdef _WIN32
+        _putenv_s(name, value ? value : "");
+#else
+        if (value)
+            ::setenv(name, value, 1);
+        else
+            ::unsetenv(name);
+#endif
+    }
+
+    const char* name;
+    std::string previous_value;
+    bool had_previous = false;
+};
+}
+
+TEST(fully_connected_gpu, gguf_q4_k_sg_dynamic_reference) {
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    GTEST_SKIP() << "GGUF SG implementation requires OCL and oneDNN build support";
+#else
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", "1");
+    gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "64");
+    const std::array<float, 32> reference = {
+        47592.5f, -49073.5f, 51735.f, -21023.f, 21752.5f, -15406.f, 11638.f, -308.5f,
+        3469.5f, 41631.f, -34432.f, 39985.5f, -18508.5f, 49953.f, -14508.f, 23126.5f,
+        -3821.f, 11636.5f, -10495.5f, 2470.f, 39943.f, -22691.5f, 23110.5f, -11534.f,
+        40024.f, -12852.5f, 18133.5f, 6516.5f, 8414.5f, -5952.f, -10262.f, 43670.5f};
+    std::vector<uint8_t> payload(32 * 144);
+    for (size_t index = 0; index < payload.size(); ++index) {
+        payload[index] = static_cast<uint8_t>((index * 37 + index / 97 + 19) % 256);
+    }
+    for (size_t row = 0; row < 32; ++row) {
+        payload[row * 144] = 0;
+        payload[row * 144 + 1] = 0x3c;
+        payload[row * 144 + 2] = 0;
+        payload[row * 144 + 3] = 0x38;
+    }
+    auto raw = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, ov::Shape{32, 256}, payload.data());
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+    auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto scale_node = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+    auto fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(parameter, raw, absent,
+                                                                          scale_node, absent, ov::element::f32);
+    auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{parameter});
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
+    manager.run_passes(graph);
+    auto packed = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+    ASSERT_NE(packed, raw);
+    auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32}, {0.f});
+    auto public_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(parameter, raw, bias,
+                                                                                scale_node, ov::element::f32);
+    auto public_graph = std::make_shared<ov::Model>(ov::OutputVector{public_fc}, ov::ParameterVector{parameter});
+    ov::Core core;
+    auto compiled = core.compile_model(public_graph, "GPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({ov::PartialShape{32, 256}, data_types::gguf_q4_k, format::bfyx});
+    {
+        mem_lock<uint8_t, mem_lock_type::write> bytes(weights, get_test_stream());
+        std::memcpy(bytes.data(), packed->get_data_ptr(), packed->get_byte_size());
+    }
+    auto scale = engine.allocate_memory({ov::PartialShape{1}, data_types::f32, format::bfyx});
+    set_values(scale, {1.f});
+    topology topology(input_layout("input", {ov::PartialShape{-1, 256}, data_types::f32, format::bfyx}),
+                      data("weights", weights), data("scale", scale),
+                      fully_connected("fc", input_info("input"), "weights", "", "scale", "", data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    const std::array<size_t, 7> row_counts = {1, 2, 33, 1, 1, 33, 2};
+    for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
+        const auto rows = row_counts[iteration];
+        auto input = engine.allocate_memory({ov::PartialShape{rows, 256}, data_types::f32, format::bfyx});
+        std::vector<float> values(rows * 256);
+        for (size_t row = 0; row < rows; ++row) {
+            const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
+            for (size_t column = 0; column < 256; ++column) {
+                values[row * 256 + column] = factor * static_cast<float>(static_cast<int>((column * 13) % 31) - 15);
+            }
+        }
+        set_values(input, values);
+        ov::Tensor public_input(ov::element::f32, ov::Shape{rows, 256});
+        std::memcpy(public_input.data<float>(), values.data(), values.size() * sizeof(float));
+        request.set_input_tensor(public_input);
+        request.infer();
+        auto public_output = request.get_output_tensor();
+        ASSERT_EQ(public_output.get_shape(), (ov::Shape{rows, 32}));
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.at("fc").get_layout().get_shape(), (ov::Shape{rows, 32}));
+        auto output = outputs.at("fc").get_memory();
+        EXPECT_NE(network.get_primitive("fc")->get_impl()->get_kernel_name().find("gguf"), std::string::npos);
+        mem_lock<float, mem_lock_type::read> actual(output, get_test_stream());
+        for (size_t row = 0; row < rows; ++row) {
+            const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
+            for (size_t channel = 0; channel < 32; ++channel) {
+                EXPECT_NEAR(actual[row * 32 + channel], reference[channel] * factor, 0.1f)
+                    << "iteration=" << iteration << " row=" << row << " channel=" << channel;
+                EXPECT_NEAR(public_output.data<const float>()[row * 32 + channel], reference[channel] * factor, 0.1f)
+                    << "public pipeline iteration=" << iteration << " row=" << row << " channel=" << channel;
+            }
+        }
+    }
+#endif
+}
 
 TEST(fully_connected_gpu, dynamic_byxf) {
     auto& engine = get_test_engine();

@@ -21,7 +21,7 @@ constexpr size_t idx(Type_t e) noexcept {
 }
 
 // Update it when new type is added
-constexpr size_t enum_types_size = idx(gguf_q4_k) + 1;
+constexpr size_t enum_types_size = idx(gguf_iq3_s) + 1;
 
 template <class Array>
 constexpr TypeInfo type_info(size_t bitwidth,
@@ -61,6 +61,16 @@ constexpr auto string_aliases = util::make_array("STRING");
 constexpr auto f4e2m1_aliases = util::make_array("F4E2M1");
 constexpr auto f8e8m0_aliases = util::make_array("F8E8M0");
 constexpr auto gguf_q4_k_aliases = util::make_array("GGUF_Q4_K");
+constexpr auto gguf_q4_0_aliases = util::make_array("GGUF_Q4_0");
+constexpr auto gguf_q4_1_aliases = util::make_array("GGUF_Q4_1");
+constexpr auto gguf_q5_k_aliases = util::make_array("GGUF_Q5_K");
+constexpr auto gguf_q6_k_aliases = util::make_array("GGUF_Q6_K");
+constexpr auto gguf_q8_0_aliases = util::make_array("GGUF_Q8_0");
+constexpr auto gguf_q3_k_aliases = util::make_array("GGUF_Q3_K");
+constexpr auto gguf_iq2_xs_aliases = util::make_array("GGUF_IQ2_XS");
+constexpr auto gguf_iq2_s_aliases = util::make_array("GGUF_IQ2_S");
+constexpr auto gguf_iq3_xxs_aliases = util::make_array("GGUF_IQ3_XXS");
+constexpr auto gguf_iq3_s_aliases = util::make_array("GGUF_IQ3_S");
 
 static constexpr std::array<TypeInfo, enum_types_size> types_info = {
     type_info(0, false, false, false, "dynamic", "dynamic", dynamic_aliases),                     // dynamic
@@ -89,7 +99,17 @@ static constexpr std::array<TypeInfo, enum_types_size> types_info = {
     type_info(8 * sizeof(std::string), false, false, false, "string", "string", string_aliases),  // string
     type_info(4, true, true, true, "f4e2m1", "f4e2m1", f4e2m1_aliases),                           // f4e2m1
     type_info(8, true, true, true, "f8e8m0", "f8e8m0", f8e8m0_aliases),                           // f8e8m0
-    type_info(5, false, false, true, "gguf_q4_k", "gguf_q4_k", gguf_q4_k_aliases)
+    type_info(5, false, false, true, "gguf_q4_k", "gguf_q4_k", gguf_q4_k_aliases),
+    type_info(5, false, true, true, "gguf_q4_0", "gguf_q4_0", gguf_q4_0_aliases),
+    type_info(5, false, false, true, "gguf_q4_1", "gguf_q4_1", gguf_q4_1_aliases),
+    type_info(6, false, false, true, "gguf_q5_k", "gguf_q5_k", gguf_q5_k_aliases),
+    type_info(7, false, true, true, "gguf_q6_k", "gguf_q6_k", gguf_q6_k_aliases),
+    type_info(9, false, true, true, "gguf_q8_0", "gguf_q8_0", gguf_q8_0_aliases),
+    type_info(4, false, true, true, "gguf_q3_k", "gguf_q3_k", gguf_q3_k_aliases),
+    type_info(3, false, true, true, "gguf_iq2_xs", "gguf_iq2_xs", gguf_iq2_xs_aliases),
+    type_info(3, false, true, true, "gguf_iq2_s", "gguf_iq2_s", gguf_iq2_s_aliases),
+    type_info(4, false, true, true, "gguf_iq3_xxs", "gguf_iq3_xxs", gguf_iq3_xxs_aliases),
+    type_info(4, false, true, true, "gguf_iq3_s", "gguf_iq3_s", gguf_iq3_s_aliases)
 };
 
 constexpr bool validate_types_info(decltype(types_info)& info, size_t i = 0) {
@@ -149,7 +169,7 @@ std::string Type::c_type_string() const {
 }
 
 size_t Type::size() const {
-    return (bitwidth() + 7) >> 3;
+    return is_gguf_block() ? 1 : (bitwidth() + 7) >> 3;
 }
 
 size_t Type::hash() const {
@@ -250,7 +270,17 @@ OPENVINO_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
                                     {"f8e4m3", element::Type_t::f8e4m3},   {"f8e5m2", element::Type_t::f8e5m2},
                                     {"string", element::Type_t::string},   {"f4e2m1", element::Type_t::f4e2m1},
                                     {"f8e8m0", element::Type_t::f8e8m0},
-                                    {"gguf_q4_k", element::Type_t::gguf_q4_k}});
+                                    {"gguf_q4_k", element::Type_t::gguf_q4_k},
+                                    {"gguf_q4_0", element::Type_t::gguf_q4_0},
+                                    {"gguf_q4_1", element::Type_t::gguf_q4_1},
+                                    {"gguf_q5_k", element::Type_t::gguf_q5_k},
+                                    {"gguf_q6_k", element::Type_t::gguf_q6_k},
+                                    {"gguf_q8_0", element::Type_t::gguf_q8_0},
+                                    {"gguf_q3_k", element::Type_t::gguf_q3_k},
+                                    {"gguf_iq2_xs", element::Type_t::gguf_iq2_xs},
+                                    {"gguf_iq2_s", element::Type_t::gguf_iq2_s},
+                                    {"gguf_iq3_xxs", element::Type_t::gguf_iq3_xxs},
+                                    {"gguf_iq3_s", element::Type_t::gguf_iq3_s}});
     return enum_names;
 }
 

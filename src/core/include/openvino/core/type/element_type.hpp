@@ -64,6 +64,16 @@ enum class Type_t {
     f4e2m1,   //!< f4e2m1 element type
     f8e8m0,   //!< f8e8m0 element type
     gguf_q4_k,
+    gguf_q4_0,
+    gguf_q4_1,
+    gguf_q5_k,
+    gguf_q6_k,
+    gguf_q8_0,
+    gguf_q3_k,
+    gguf_iq2_xs,
+    gguf_iq2_s,
+    gguf_iq3_xxs,
+    gguf_iq3_s,
 };
 
 /// \brief Base class to define element type
@@ -219,13 +229,52 @@ inline constexpr Type f4e2m1(Type_t::f4e2m1);
 inline constexpr Type f8e8m0(Type_t::f8e8m0);
 
 inline constexpr Type gguf_q4_k(Type_t::gguf_q4_k);
+inline constexpr Type gguf_q4_0(Type_t::gguf_q4_0);
+inline constexpr Type gguf_q4_1(Type_t::gguf_q4_1);
+inline constexpr Type gguf_q5_k(Type_t::gguf_q5_k);
+inline constexpr Type gguf_q6_k(Type_t::gguf_q6_k);
+inline constexpr Type gguf_q8_0(Type_t::gguf_q8_0);
+inline constexpr Type gguf_q3_k(Type_t::gguf_q3_k);
+inline constexpr Type gguf_iq2_xs(Type_t::gguf_iq2_xs);
+inline constexpr Type gguf_iq2_s(Type_t::gguf_iq2_s);
+inline constexpr Type gguf_iq3_xxs(Type_t::gguf_iq3_xxs);
+inline constexpr Type gguf_iq3_s(Type_t::gguf_iq3_s);
 
 constexpr size_t gguf_block_elem_count(Type_t type) noexcept {
-    return type == Type_t::gguf_q4_k ? 256 : 0;
+    switch (type) {
+    case Type_t::gguf_q4_0:
+    case Type_t::gguf_q4_1:
+    case Type_t::gguf_q8_0:
+        return 32;
+    case Type_t::gguf_q4_k:
+    case Type_t::gguf_q5_k:
+    case Type_t::gguf_q6_k:
+    case Type_t::gguf_q3_k:
+    case Type_t::gguf_iq2_xs:
+    case Type_t::gguf_iq2_s:
+    case Type_t::gguf_iq3_xxs:
+    case Type_t::gguf_iq3_s:
+        return 256;
+    default:
+        return 0;
+    }
 }
 
 constexpr size_t gguf_block_byte_size(Type_t type) noexcept {
-    return type == Type_t::gguf_q4_k ? 144 : 0;
+    switch (type) {
+    case Type_t::gguf_q4_0: return 18;
+    case Type_t::gguf_q4_1: return 20;
+    case Type_t::gguf_q8_0: return 34;
+    case Type_t::gguf_q3_k: return 110;
+    case Type_t::gguf_q4_k: return 144;
+    case Type_t::gguf_q5_k: return 176;
+    case Type_t::gguf_q6_k: return 210;
+    case Type_t::gguf_iq2_xs: return 74;
+    case Type_t::gguf_iq2_s: return 82;
+    case Type_t::gguf_iq3_xxs: return 98;
+    case Type_t::gguf_iq3_s: return 110;
+    default: return 0;
+    }
 }
 
 constexpr bool is_gguf_block(Type_t type) noexcept {

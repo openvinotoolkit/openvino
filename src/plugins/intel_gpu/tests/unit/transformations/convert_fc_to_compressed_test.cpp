@@ -20,9 +20,13 @@
 #include "intel_gpu/op/placeholder.hpp"
 
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/repack_gguf_weights.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 
+#include <array>
+#include <cstring>
 #include <memory>
+#include <vector>
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -30,6 +34,96 @@ using namespace ov::intel_gpu;
 namespace ov {
 namespace test {
 namespace intel_gpu {
+
+namespace {
+std::shared_ptr<ov::intel_gpu::op::FullyConnectedCompressed> make_gguf_repack_fc(
+    const std::shared_ptr<ov::op::v0::Constant>& weight) {
+    auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                            ov::PartialShape{-1, weight->get_shape()[1]});
+    auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f});
+    return std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(activation,
+                                                                       weight,
+                                                                       absent,
+                                                                       scale,
+                                                                       absent,
+                                                                       ov::element::f32);
+}
+}
+
+TEST(GGUFRepack, PreservesSharedRawAndIsIdempotent) {
+    const std::array<ov::element::Type, 6> formats = {ov::element::gguf_q4_k,
+                                                   ov::element::gguf_q5_k,
+                                                   ov::element::gguf_q6_k,
+                                                   ov::element::gguf_q4_0,
+                                                   ov::element::gguf_q4_1,
+                                                   ov::element::gguf_q8_0};
+    for (const auto& type : formats) {
+        SCOPED_TRACE(type.get_type_name());
+        const ov::Shape shape{32, 512};
+        std::vector<uint8_t> payload(32 * (512 / type.block_elem_count()) * type.block_byte_size());
+        for (size_t index = 0; index < payload.size(); ++index) {
+            payload[index] = static_cast<uint8_t>((index * 37 + index / 97 + 19) % 256);
+        }
+        auto raw = std::make_shared<ov::op::v0::Constant>(type, shape, payload.data());
+        auto fc = make_gguf_repack_fc(raw);
+        auto second_fc = make_gguf_repack_fc(raw);
+        auto activation = ov::as_type_ptr<ov::op::v0::Parameter>(fc->get_input_node_shared_ptr(0));
+        auto second_activation = ov::as_type_ptr<ov::op::v0::Parameter>(second_fc->get_input_node_shared_ptr(0));
+        auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc, raw, second_fc},
+                            ov::ParameterVector{activation, second_activation});
+        ov::pass::Manager repack;
+        repack.register_pass<RepackGGUFWeightsShuffle>();
+        repack.run_passes(graph);
+        auto packed = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+        ASSERT_NE(packed, nullptr);
+        EXPECT_NE(packed, raw);
+        EXPECT_EQ(packed->get_element_type(), type);
+        EXPECT_EQ(packed->get_shape(), shape);
+        EXPECT_EQ(packed->get_byte_size(), payload.size());
+        EXPECT_EQ(std::memcmp(raw->get_data_ptr(), payload.data(), payload.size()), 0);
+        EXPECT_EQ(graph->get_results()[1]->get_input_node_shared_ptr(0), raw);
+        auto second_packed = ov::as_type_ptr<ov::op::v0::Constant>(second_fc->get_input_node_shared_ptr(1));
+        ASSERT_NE(second_packed, nullptr);
+        EXPECT_NE(second_packed, raw);
+        EXPECT_EQ(std::memcmp(packed->get_data_ptr(), second_packed->get_data_ptr(), payload.size()), 0);
+        std::vector<uint8_t> once(payload.size());
+        std::memcpy(once.data(), packed->get_data_ptr(), once.size());
+        repack.run_passes(graph);
+        auto twice = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+        ASSERT_NE(twice, nullptr);
+        EXPECT_EQ(twice, packed);
+        EXPECT_EQ(std::memcmp(twice->get_data_ptr(), once.data(), once.size()), 0);
+        EXPECT_EQ(second_fc->get_input_node_shared_ptr(1), second_packed);
+        auto cloned_graph = graph->clone();
+        auto cloned_fc = cloned_graph->get_results()[0]->get_input_node_shared_ptr(0);
+        auto cloned_weight = cloned_fc->get_input_node_shared_ptr(1);
+        repack.run_passes(cloned_graph);
+        EXPECT_EQ(cloned_fc->get_input_node_shared_ptr(1), cloned_weight);
+        auto cloned_packed = ov::as_type_ptr<ov::op::v0::Constant>(cloned_weight);
+        ASSERT_NE(cloned_packed, nullptr);
+        EXPECT_EQ(std::memcmp(cloned_packed->get_data_ptr(), once.data(), once.size()), 0);
+    }
+}
+
+TEST(GGUFRepack, LeavesIneligibleWeightsUnchanged) {
+    const std::vector<std::pair<ov::element::Type, ov::Shape>> cases = {
+        {ov::element::gguf_q4_k, {17, 256}},
+        {ov::element::gguf_q4_0, {16, 32}},
+        {ov::element::gguf_q3_k, {16, 256}},
+        {ov::element::f32, {16, 256}},
+    };
+    for (const auto& test_case : cases) {
+        auto raw = std::make_shared<ov::op::v0::Constant>(test_case.first, test_case.second);
+        auto fc = make_gguf_repack_fc(raw);
+        auto activation = ov::as_type_ptr<ov::op::v0::Parameter>(fc->get_input_node_shared_ptr(0));
+        auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+        ov::pass::Manager repack;
+        repack.register_pass<RepackGGUFWeightsShuffle>();
+        repack.run_passes(graph);
+        EXPECT_EQ(fc->get_input_node_shared_ptr(1), raw);
+    }
+}
 
 TEST_F(TransformationTestsF, ConvertGGUFFCToCompressed) {
     auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});

@@ -6,6 +6,9 @@
 #include "registry.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 
+#if OV_GPU_WITH_OCL && defined(ENABLE_ONEDNN_FOR_GPU)
+#    include "impls/ocl_v2/gguf/fc_gguf_opt.hpp"
+#endif
 
 #if OV_GPU_WITH_ONEDNN
     #include "impls/onednn/fully_connected_onednn.hpp"
@@ -30,18 +33,33 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
     static const auto no_hadamard_input = [](const program_node& node) {
         return node.as<fully_connected>().get_primitive()->hadamard_block == 0;
     };
+    static const auto gguf_supports_weights = [](const program_node& node) {
+        const auto& weights = node.get_input_layout(1);
+        if (!ocl_supports_weights_layout(node) || !no_hadamard_input(node) ||
+            !node.get_dependency(1).is_constant() || weights.is_dynamic())
+            return false;
+        const auto shape = weights.get_shape();
+        return shape.size() == 2 && shape[0] != 0 && shape[1] != 0;
+    };
 
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+#if OV_GPU_WITH_OCL && defined(ENABLE_ONEDNN_FOR_GPU)
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::FCGGUFOpt, shape_types::static_shape, gguf_supports_weights)
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::FCGGUFOpt, shape_types::dynamic_shape, gguf_supports_weights)
+#endif
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::dynamic_shape)
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::static_shape)
         OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::static_shape,
             [](const program_node& node) {
-                return ocl_supports_weights_layout(node) && no_hadamard_input(node);
+                return !element::is_gguf_block(node.get_input_layout(1).data_type) &&
+                       ocl_supports_weights_layout(node) && no_hadamard_input(node);
         })
         OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::dynamic_shape,
             [](const program_node& node) {
                 if (node.can_use(impl_types::onednn))
+                    return false;
+                if (element::is_gguf_block(node.get_input_layout(1).data_type))
                     return false;
                 if (!ocl_supports_weights_layout(node) || !no_hadamard_input(node))
                     return false;

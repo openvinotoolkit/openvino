@@ -4,15 +4,55 @@
 
 #include "openvino/core/type/element_type.hpp"
 
+#include <array>
 #include <map>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/enum_names.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/util/container_util.hpp"
 
 using namespace ov;
+
+TEST(element_type, gguf_fc_block_geometry) {
+    struct BlockCase {
+        element::Type type;
+        const char* name;
+        size_t elements;
+        size_t bytes;
+    };
+    const std::array<BlockCase, 11> cases{{
+        {element::gguf_q4_k, "gguf_q4_k", 256, 144},
+        {element::gguf_q4_0, "gguf_q4_0", 32, 18},
+        {element::gguf_q4_1, "gguf_q4_1", 32, 20},
+        {element::gguf_q5_k, "gguf_q5_k", 256, 176},
+        {element::gguf_q6_k, "gguf_q6_k", 256, 210},
+        {element::gguf_q8_0, "gguf_q8_0", 32, 34},
+        {element::gguf_q3_k, "gguf_q3_k", 256, 110},
+        {element::gguf_iq2_xs, "gguf_iq2_xs", 256, 74},
+        {element::gguf_iq2_s, "gguf_iq2_s", 256, 82},
+        {element::gguf_iq3_xxs, "gguf_iq3_xxs", 256, 98},
+        {element::gguf_iq3_s, "gguf_iq3_s", 256, 110},
+    }};
+    for (const auto& test_case : cases) {
+        SCOPED_TRACE(test_case.name);
+        EXPECT_EQ(element::Type(test_case.name), test_case.type);
+        EXPECT_EQ(test_case.type.get_type_name(), test_case.name);
+        EXPECT_EQ(as_string(static_cast<element::Type_t>(test_case.type)), test_case.name);
+        EXPECT_EQ(test_case.type.block_elem_count(), test_case.elements);
+        EXPECT_EQ(test_case.type.block_byte_size(), test_case.bytes);
+        EXPECT_TRUE(test_case.type.is_gguf_block());
+        EXPECT_TRUE(test_case.type.is_quantized());
+        EXPECT_FALSE(test_case.type.is_integral());
+        EXPECT_EQ(test_case.type.size(), 1);
+        EXPECT_EQ(util::get_memory_size(test_case.type, 0), 0);
+        EXPECT_EQ(util::get_memory_size(test_case.type, test_case.elements), test_case.bytes);
+        EXPECT_EQ(util::get_memory_size(test_case.type, test_case.elements + 1), 2 * test_case.bytes);
+    }
+    EXPECT_EQ(element::Type("GGUF_Q8_0"), element::gguf_q8_0);
+}
 
 TEST(element_type, from) {
     EXPECT_EQ(element::from<char>(), element::boolean);
