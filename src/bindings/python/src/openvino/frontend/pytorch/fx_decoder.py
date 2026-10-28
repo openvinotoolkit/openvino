@@ -339,8 +339,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             ``ConversionExtension`` lookup.
         """
         if cls._has_unconvertible_ops(exported_program):
-            diff = torch.ops.aten.diff.default
-            exported_program = exported_program.run_decompositions({diff: torch.export.default_decompositions()[diff]})
+            exported_program = exported_program.run_decompositions({})
         gm = exported_program.module()
         logger.debug(gm.code)
         return cls(gm, dynamic_shapes=dynamic_shapes,
@@ -349,14 +348,14 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
     @staticmethod
     def _has_unconvertible_ops(exported_program):
-        """Detect torch.vmap (functorch predispatch ops), the flat_apply higher-order op and aten.diff."""
-        targets = {getattr(torch.ops.higher_order, "flat_apply", None), torch.ops.aten.diff.default}
+        """Detect torch.vmap (functorch predispatch ops) and the flat_apply higher-order op."""
+        flat_apply = getattr(torch.ops.higher_order, "flat_apply", None)
         for gm in exported_program.graph_module.modules():
             if not isinstance(gm, torch.fx.GraphModule):
                 continue
             for node in gm.graph.nodes:
                 if node.op == "call_function" and (
-                        node.target in targets
+                        node.target is flat_apply
                         or getattr(node.target, "__module__", None) == "torch._functorch.predispatch"):
                     return True
         return False
