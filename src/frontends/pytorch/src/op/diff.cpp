@@ -37,17 +37,9 @@ OutputVector translate_diff(const NodeContext& context) {
     }
     const auto get_value = [&](int index) -> Output<Node> {
         auto input = context.get_input(index);
-        if (input.get_element_type().is_static() || ov::is_type<ComplexTypeMark>(input.get_node())) {
-            return input;
-        }
-        auto dtype = context.get_input_from_visible_context(index).get_element_type();
-        if (dtype.is_dynamic()) {
-            const auto decoded_dtype = simplified_type_interpret(context.get_input_type(index));
-            if (decoded_dtype.is<element::Type>()) {
-                dtype = decoded_dtype.as<element::Type>();
-            }
-        }
-        if (dtype.is_static()) {
+        const auto dtype = get_input_element_type(context, index);
+        if (input.get_element_type().is_dynamic() && dtype.is_static() &&
+            !ov::is_type<ComplexTypeMark>(input.get_node())) {
             input = context.mark_node(std::make_shared<v0::Convert>(input, dtype));
         }
         return input;
@@ -75,21 +67,15 @@ OutputVector translate_diff(const NodeContext& context) {
             --axis;
         }
     }
-    const auto original_values = values;
     value = values.front();
     for (size_t i = 1; i < values.size(); ++i) {
-        auto promoted = context.mark_node(std::make_shared<v14::ConvertPromoteTypes>(value, values[i], true));
-        value = promoted->output(0);
-        values[i] = promoted->output(1);
-    }
-    values[0] = value;
-    if (values.size() > 2) {
-        // Convert originals directly to the final type to avoid intermediate rounding.
-        for (size_t i = 0; i + 1 < values.size(); ++i) {
-            values[i] = context.mark_node(std::make_shared<v1::ConvertLike>(original_values[i], value));
-        }
+        value = context.mark_node(std::make_shared<v14::ConvertPromoteTypes>(value, values[i], true))->output(0);
     }
     if (values.size() > 1) {
+        // Convert each value directly to the promoted type to avoid intermediate rounding.
+        for (auto& input : values) {
+            input = context.mark_node(std::make_shared<v1::ConvertLike>(input, value));
+        }
         value = context.mark_node(std::make_shared<v0::Concat>(values, axis));
     }
     const auto unsigned_byte = value.get_element_type() == element::u8;

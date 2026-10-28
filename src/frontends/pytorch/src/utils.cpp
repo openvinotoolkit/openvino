@@ -684,6 +684,20 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
     return x;
 }
 
+element::Type get_input_element_type(const NodeContext& context, size_t idx) {
+    auto type = context.get_input(static_cast<int>(idx)).get_element_type();
+    if (type.is_dynamic()) {
+        type = context.get_input_from_visible_context(idx).get_element_type();
+    }
+    if (type.is_dynamic()) {
+        const auto decoded = simplified_type_interpret(context.get_input_type(idx));
+        if (decoded.is<element::Type>()) {
+            type = decoded.as<element::Type>();
+        }
+    }
+    return type;
+}
+
 Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x) {
     if (x.get_element_type().is_static() && x.get_element_type().is_integral_number()) {
         return x;

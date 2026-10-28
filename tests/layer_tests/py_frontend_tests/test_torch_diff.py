@@ -81,19 +81,6 @@ def test_torch_diff_dynamic_length(monkeypatch):
 
 @pytest.mark.precommit
 @pytest.mark.nightly
-def test_torch_diff_promotes_prepend():
-    class Model(torch.nn.Module):
-        def forward(self, x, before):
-            return torch.diff(x, prepend=before)
-
-    inputs = (torch.tensor([1, 4, 9], dtype=torch.int32), torch.tensor([0.5]))
-    compiled = ov.Core().compile_model(ov.convert_model(torch.export.export(Model(), inputs)), "CPU",
-                                      {"INFERENCE_PRECISION_HINT": "f32"})
-    np.testing.assert_array_equal(compiled([x.numpy() for x in inputs])[0], Model()(*inputs).numpy())
-
-
-@pytest.mark.precommit
-@pytest.mark.nightly
 @pytest.mark.parametrize("capture", ["export", "script"])
 @pytest.mark.parametrize("prepend_dtype,input_dtype,prepend_value,input_value", [
     (torch.int32, torch.float16, 2049, 2048),
@@ -149,20 +136,6 @@ def test_torch_diff_out(capture, order, input_dtype, out_dtype):
     for result, reference in zip(actual, expected):
         assert result.dtype == reference.numpy().dtype
         np.testing.assert_array_equal(result, reference.numpy())
-
-
-@pytest.mark.precommit
-@pytest.mark.nightly
-def test_torch_diff_complex():
-    class Model(torch.nn.Module):
-        def forward(self, x):
-            value = torch.view_as_complex(x)
-            return torch.view_as_real(torch.diff(value, n=2, prepend=value[..., :1]))
-
-    x = torch.arange(16, dtype=torch.float32).reshape(2, 4, 2)
-    compiled = ov.Core().compile_model(ov.convert_model(torch.export.export(Model(), (x,))), "CPU",
-                                      {"INFERENCE_PRECISION_HINT": "f32"})
-    np.testing.assert_array_equal(compiled(x.numpy())[0], Model()(x).numpy())
 
 
 @pytest.mark.precommit

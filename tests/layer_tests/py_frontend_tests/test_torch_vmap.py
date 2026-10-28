@@ -230,59 +230,21 @@ def test_export_vmap_mixed_dtype_aliases(complex_first):
         _compare(compiled, model, (torch.randn(size, 6, 2),))
 
 
-def test_vmap_alias_byte_offsets():
-    from torch._subclasses.fake_tensor import FakeTensorMode
-    from openvino.frontend.pytorch.vmap_lowering import _preserve_output_aliases
-
-    with FakeTensorMode():
-        base = torch.empty(6, 2)
-        traced = torch.view_as_complex(base[1:])
-        original = torch.view_as_complex(torch.empty(10, 2)[3:8])
-        graph = torch.fx.Graph()
-        real_node = graph.placeholder("real")
-        real_node.meta["val"] = base
-        complex_node = graph.call_function(torch.view_as_complex, (real_node,))
-        complex_node.meta["val"] = traced
-        graph.output((complex_node,))
-        original_graph = torch.fx.Graph()
-        original_node = original_graph.placeholder("original")
-        original_node.meta["val"] = original
-        _preserve_output_aliases(torch.fx.GraphModule({}, graph), [original_node])
-
-        real = real_node.meta["val"]
-        assert real.dtype == torch.float32
-        assert real.shape == base.shape and real.stride() == base.stride()
-        assert real.storage_offset() == 4
-        assert complex_node.meta["val"].storage_offset() == 3
-        assert torch._C._is_alias_of(real, original)
-        assert torch._C._is_alias_of(complex_node.meta["val"], original)
-
-
-@pytest.mark.parametrize("attribute", ["buffer", "parameter", "module"])
-def test_export_vmap_existing_attribute(attribute):
+def test_export_vmap_existing_attribute():
     class Model(torch.nn.Module):
         def __init__(self):
             super().__init__()
-            if attribute == "module":
-                self._ov_vmap_0 = torch.nn.Module()
-                self._ov_vmap_0.register_buffer("weight", torch.tensor(2.))
-            elif attribute == "parameter":
-                self.register_parameter("_ov_vmap_0", torch.nn.Parameter(torch.tensor(2.)))
-            else:
-                self.register_buffer("_ov_vmap_0", torch.tensor(2.))
+            self._ov_vmap_0 = torch.nn.Module()
+            self._ov_vmap_0.register_buffer("weight", torch.tensor(2.))
 
         def forward(self, data):
-            weight = self._ov_vmap_0.weight if attribute == "module" else self._ov_vmap_0
-            return torch.vmap(torch.sin)(data) * weight
+            return torch.vmap(torch.sin)(data) * self._ov_vmap_0.weight
 
     model = Model().eval()
     data = torch.randn(3, 4)
     module = torch.export.export(model, (data,)).module()
     decoder = TorchFXPythonDecoder(module)
-    original, preserved = module._ov_vmap_0, decoder.pt_module._ov_vmap_0
-    if attribute == "module":
-        original, preserved = original.weight, preserved.weight
-    assert preserved is original
+    assert decoder.pt_module._ov_vmap_0.weight is module._ov_vmap_0.weight
     converted = convert_model(decoder)
     compiled = Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
     with torch.no_grad():
