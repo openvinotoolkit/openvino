@@ -154,11 +154,17 @@ them — see below):
   `propose_rerun_pattern` (`propose-rerun-pattern.md`), which opens a review PR against `master` appending
   it with ticket `9999999`. The job authenticates with the `RERUNNER_DB_UPDATE` secret (not
   `GITHUB_TOKEN`, whose PRs would not trigger CI).
-- **Compiler version drift** — compile with the `compiler_version` recorded in the existing lock files'
-  `gh-aw-metadata` header (install with `gh extension install github/gh-aw --pin <version>`); a different
-  version rewrites every lock file. Dependabot bumps action pins directly in `.lock.yml` files, so a
-  recompile reverts them — restore the pinned `uses:` lines and leave untouched workflows' lock files out
-  of the change.
+- **Compiler version drift** — before compiling, compare `gh aw version` with the setup-cli `version`
+  in [agentic_workflows_check.yml](../../../.github/workflows/agentic_workflows_check.yml).
+  If they differ, resolve the latest stable release with
+  `gh release view --repo github/gh-aw --json tagName --jq .tagName`, update the workflow's version,
+  and install that same release locally (`gh extension upgrade gh-aw --force --pin <version>`, or
+  `gh extension install github/gh-aw --pin <version>` if not installed). Verify both versions match
+  before running `gh aw compile`. A compiler upgrade can regenerate every lock file; include all
+  affected generated files, since the CI check recompiles every workflow and rejects any diff.
+  Do not keep an older compiler just to match existing lock-file metadata. Review action-pin changes:
+  recompilation may revert Dependabot updates, and any pin correction must also be reproducible by
+  the CI compilation check.
 - **`workflow_run` branch scope** (`CTR-021`, gh-aw ≥ v0.93) — `on.workflow_run.branches` must be a
   non-empty positive list. For merge-queue triggers use `gh-readonly-queue/**`: merge-queue runs always
   execute on those base-repo branches, even for PRs from forks.
