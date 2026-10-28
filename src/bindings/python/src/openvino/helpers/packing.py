@@ -25,7 +25,11 @@ def pack_data(array: np.ndarray, type: Type) -> np.ndarray:
     :type array: numpy array
     :param type: Type to interpret the array values. Type must be u1, u2, u3, u4, u6, i4, nf4 or f4e2m1.
     :type type: openvino.Type
+    :raises RuntimeError: if a value doesn't fit the type: [0, 2^bitwidth - 1] for unsigned types,
+                          [-8, 7] for i4, 4-bit codes [0, 15] for nf4 and f4e2m1. u1 is not checked.
     """
+    _check_range(array, type)
+
     # Handle u3 and u6 with linear LSB-first bit-stream packing
     if type == Type.u3:
         return _pack_linear(array, 3)
@@ -103,6 +107,27 @@ def unpack_data(array: np.ndarray, type: Type, shape: Union[list, Shape]) -> np.
             return np.resize(packed, shape).astype(dtype=np.int8)
         else:
             return np.resize(packed, shape)
+
+
+def _check_range(array: np.ndarray, type: Type) -> None:
+    """Raise if a value doesn't fit the target type, as ops.constant does for the integer types and nf4.
+
+    nf4 and f4e2m1 values are 4-bit codes. u1 is left out: the core stores any non-zero value as 1.
+    """
+    if type not in [Type.u2, Type.u3, Type.u4, Type.u6, Type.i4, Type.nf4, Type.f4e2m1]:
+        return
+    if type == Type.i4:
+        low, high = -8, 7
+    else:
+        low, high = 0, (1 << type.bitwidth) - 1
+    # Compare elementwise: np.min/np.max return NaN when any value is NaN, which would hide out-of-range values.
+    # NaN itself is left to the existing checks, as before.
+    if np.any((array < low) | (array > high)):
+        min_value, max_value = np.nanmin(array), np.nanmax(array)
+        raise RuntimeError(
+            f"The values of the {array.dtype} array with shape {array.shape} (min {min_value}, max {max_value}) "
+            f"are out of the {type.get_type_name()} range [{low}, {high}]"
+        )
 
 
 def _pack_linear(array: np.ndarray, bits: int) -> np.ndarray:

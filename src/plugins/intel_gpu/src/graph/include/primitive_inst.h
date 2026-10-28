@@ -630,6 +630,9 @@ public:
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
         return std::move(orig_impl_param);
     }
+    // Must return true in every type that overrides get_fake_aligned_params(), otherwise realloc_outputs() allocates
+    // its outputs without the fake alignment
+    static bool has_fake_alignment() { return false; }
 
     typed_primitive_inst_base(network& network, typed_node const& node)
         : typed_primitive_inst_base(network, node, do_allocate_memory(node)) {}
