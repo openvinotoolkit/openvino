@@ -52,9 +52,6 @@
 #include "space_to_depth_inst.h"
 #include "strided_slice_inst.h"
 #include "swiglu_inst.h"
-#ifdef OV_GPU_WITH_OCL_RT
-#    include "impls/ocl_v2/ternocl_int2/fully_connected_ternocl_int2.hpp"
-#endif
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
 #endif
@@ -100,18 +97,6 @@ static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node
     }
 
     return std::nullopt;
-}
-
-static bool is_ternocl_fc(const program_node& node) {
-    if (!node.is_type<fully_connected>())
-        return false;
-    if (node.as<fully_connected>().get_primitive()->hadamard_block != 0)
-        return true;
-#ifdef OV_GPU_WITH_OCL_RT
-    return ocl::TernoclInt2FCImplementationManager(shape_types::any).validate_impl(node);
-#else
-    return false;
-#endif
 }
 
 void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
@@ -240,7 +225,7 @@ void prepare_primitive_fusing::fuse_swiglu(program &p) {
         auto& dep_node = node->get_dependency(0);
 
         // FC + SwiGLU fusion (non-systolic platforms only)
-        if (!supports_immad && dep_node.is_type<fully_connected>() && !is_ternocl_fc(dep_node)) {
+        if (!supports_immad && dep_node.is_type<fully_connected>()) {
             if (!dep_node.get_fused_primitives().empty())
                 continue;
             auto in_dt = dep_node.get_input_layout(0).data_type;
@@ -513,8 +498,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<fully_connected>()) {
             auto& fc = replace_candidate.as<fully_connected>();
             auto desc = fc.get_primitive();
-            if (desc->hadamard_block != 0 && fc.has_fused_primitives())
-                continue;
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (fc.bias_term()) {
@@ -620,48 +603,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return data_type_traits::is_i8_u8(in_dt);
         };
 
-        auto fc_supports_fusings = [&](fully_connected_node& node, program_node& candidate, program_node* swish = nullptr) -> bool {
+        auto fc_supports_fusings = [&](fully_connected_node& node) -> bool {
             auto& fused_prims = node.get_fused_primitives();
-            if (is_ternocl_fc(node)) {
-#ifdef OV_GPU_WITH_OCL_RT
-                const auto& out_shape = node.get_output_layout().get_partial_shape();
-                auto is_plain_like_fc = [&](const layout& l) {
-                    return !l.data_padding && l.format == format::bfyx && l.get_partial_shape() == out_shape;
-                };
-                const auto& candidate_dt = candidate.get_output_layout().data_type;
-                if (candidate.has_fused_primitives() || !is_plain_like_fc(candidate.get_output_layout()) ||
-                    (candidate_dt != data_types::f16 && candidate_dt != data_types::f32))
-                    return false;
-                if (candidate.is_type<eltwise>()) {
-                    const auto& eltwise = candidate.as<cldnn::eltwise>().get_primitive();
-                    if (eltwise->mode == eltwise_mode::sum && std::any_of(eltwise->coefficients.begin(), eltwise->coefficients.end(), [](float value) {
-                            return value != 1.0f;
-                        }))
-                        return false;
-                }
-                if (swish != nullptr && (swish->get_dependencies().size() != 1 || swish->as<activation>().get_primitive()->additional_params.a != 1.0f ||
-                                         !is_plain_like_fc(swish->get_output_layout())))
-                    return false;
-                auto chain = fused_prims;
-                if (swish != nullptr)
-                    chain.emplace_back(swish->get_primitive());
-                chain.emplace_back(candidate.get_primitive());
-                const auto postop = ocl::ternocl_int2_postop(chain, node.get_primitive()->bias.is_valid());
-                if (!postop)
-                    return false;
-                if (ocl::ternocl_postop_reads_other(*postop)) {
-                    auto* input = swish != nullptr ? swish : &node;
-                    if (candidate.get_dependencies().size() != 2)
-                        return false;
-                    const auto& peer = candidate.get_dependency(&candidate.get_dependency(0) == input ? 1 : 0);
-                    if (peer.get_output_layout().data_type != data_types::f16 || !is_plain_like_fc(peer.get_output_layout()))
-                        return false;
-                }
-                return true;
-#else
-                return false;
-#endif
-            }
             if (std::any_of(fused_prims.begin(), fused_prims.end(), [](const fused_primitive_desc& f_desc) {
                     return f_desc.is_type<swiglu>();
                 })) {
@@ -674,6 +617,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
             auto in_dt = node.get_input_layout(0).data_type;
             return node.is_dynamic() || data_type_traits::is_i8_u8(in_dt);
+
         };
 
         auto gemm_supports_fusings = [](gemm_node& node) -> bool {
@@ -928,12 +872,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             bool should_fuse = input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
 
-            if (input.is_type<fully_connected>()) {
-                const bool supports_fusion = fc_supports_fusings(input.as<fully_connected>(), activation_node);
-                if (is_ternocl_fc(input) && !supports_fusion)
-                    return;
-                should_fuse |= supports_fusion;
-            }
+            should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
 
             should_fuse |= input.is_type<gemm>() && gemm_supports_fusings(input.as<gemm>());
 
@@ -1080,7 +1019,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
-            should_fuse |= input_data.is_type<fully_connected>() && !is_ternocl_fc(input_data) && quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<fully_connected>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
@@ -1170,22 +1109,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             std::vector<std::pair<program_node*, int32_t>> parents = node.get_dependencies();
-            std::vector<program_node*> swish_parents(2, nullptr);
-            for (size_t i = 0; i < parents.size(); ++i) {
-                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
-                    continue;
-                }
-                auto* parent = parents[i].first;
-                if (!parent->is_type<activation>() || parent->as<activation>().get_primitive()->activation_function != activation_func::swish ||
-                    parent->as<activation>().get_primitive()->additional_params.a != 1.0f || parent->get_dependencies().size() != 1 ||
-                    parent->has_fused_primitives() || parent->is_output() || parent->in_shape_of_subgraph || parent->get_users().size() != 1)
-                    continue;
-                auto& fc = parent->get_dependency(0);
-                if (!is_ternocl_fc(fc) || fc.is_output() || fc.in_shape_of_subgraph || fc.get_users().size() != 1)
-                    continue;
-                swish_parents[i] = parent;
-                parents[i].first = &fc;
-            }
 
             std::vector<bool> can_fuse_parents = { false, false };
 
@@ -1202,7 +1125,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<resample>()) ||
                                       (parents[i].first->is_type<space_to_depth>()) ||
                                       (parents[i].first->is_type<fully_connected>() &&
-                                       fc_supports_fusings(parents[i].first->as<fully_connected>(), node, swish_parents[i])) ||
+                                       fc_supports_fusings(parents[i].first->as<fully_connected>())) ||
                                       (parents[i].first->is_type<gemm>() &&
                                        gemm_supports_fusings(parents[i].first->as<gemm>())) ||
                                       (parents[i].first->is_type<batch_to_space>()) ||
@@ -1474,16 +1397,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (!merge_allowed)
                 return;
 
-            program_node* deferred_swish = nullptr;
-            for (size_t i = 0; i < parents.size(); ++i) {
-                if (parents[i].first == fused_node)
-                    deferred_swish = swish_parents[i];
-            }
-            if (is_ternocl_fc(*fused_node) && !fc_supports_fusings(fused_node->as<fully_connected>(), node, deferred_swish))
-                return;
-
-            if (swish_parents[0] != nullptr || swish_parents[1] != nullptr ||
-                p.get_processing_order().get_processing_number(fused_node) < p.get_processing_order().get_processing_number(peer_node))
+            if (p.get_processing_order().get_processing_number(fused_node) <
+                p.get_processing_order().get_processing_number(peer_node))
                 recalc_processing_order = true;
 
             // [WA]: Resample + Eltwise fusing causes accuracy issues without processing order update.
@@ -1492,10 +1407,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 recalc_processing_order = true;
             }
 
-            if (deferred_swish) {
-                // Fuse the complete epilogue only after the product has passed every fusion check.
-                p.fuse_nodes(*fused_node, *deferred_swish, &fusing_history);
-            }
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 

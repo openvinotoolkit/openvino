@@ -9,7 +9,6 @@
 
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
-#include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -55,39 +54,18 @@ bool is_hadamard_1024(const std::shared_ptr<ov::op::v0::Constant>& c) {
     return true;
 }
 
-bool supports_hadamard_fc(const std::shared_ptr<op::FullyConnectedCompressed>& fc) {
-    if (fc->get_input_size() != 5 || fc->get_input_element_type(0) != ov::element::f16 || fc->get_input_element_type(1) != ov::element::u2 ||
-        fc->get_input_element_type(3) != ov::element::f16 || !fc->get_transpose_b() || !ov::is_type<op::Placeholder>(fc->get_input_node_shared_ptr(2)) ||
-        (fc->get_output_element_type(0) != ov::element::f16 && fc->get_output_element_type(0) != ov::element::f32)) {
-        return false;
-    }
-    const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
-    const auto zp = constant_behind(fc->input_value(4));
-    if (!weights || !zp || ov::shape_size(zp->get_shape()) != 1 || zp->cast_vector<float>(1)[0] != 1.f) {
-        return false;
-    }
-    const auto& shape = weights->get_shape();
-    const auto& scales = fc->get_input_partial_shape(3);
-    if (shape.size() != 2 || shape[0] == 0 || shape[1] == 0 || shape[0] % 16 != 0 || shape[1] % 128 != 0 || !scales.is_static() || scales.size() < 2) {
-        return false;
-    }
-    for (size_t i = 2; i < scales.size(); ++i) {
-        if (scales[i] != 1) {
-            return false;
-        }
-    }
-    return fc->get_transpose_b_scale() ? scales[0] == shape[0] && scales[1] == shape[1] / 128 : scales[0] == shape[1] / 128 && scales[1] == shape[0];
-}
-
 }  // namespace
 
 bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
     size_t fused = 0;
     for (const auto& node : model->get_ordered_ops()) {
         auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(node);
-        if (!fc || !supports_hadamard_fc(fc))
+        if (!fc)
             continue;
-        const size_t K = fc->get_input_shape(1)[1];
+        const auto& wshape = fc->get_input_partial_shape(1);
+        if (wshape.rank().is_dynamic() || wshape.rank().get_length() < 2 || !wshape[1].is_static())
+            continue;
+        const size_t K = static_cast<size_t>(wshape[1].get_length());
         if (K % kBlock != 0)
             continue;
 
