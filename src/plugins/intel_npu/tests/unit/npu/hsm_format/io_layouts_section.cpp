@@ -79,6 +79,18 @@ TEST_F(IOLayoutsSectionRead, NullIndividualReqs) {
     ASSERT_FALSE(section.get_individual_compatibility_requirements().has_value());
 }
 
+TEST_F(IOLayoutsSectionRead, Alignment) {
+    IOLayoutsSection section({}, {});
+    const ov::runtime::hsm::SectionAlignment reference({});
+    ASSERT_EQ(section.get_alignment().offset_align, reference.offset_align);
+    ASSERT_EQ(section.get_alignment().size_align, reference.size_align);
+}
+
+TEST_F(IOLayoutsSectionRead, IsInline) {
+    IOLayoutsSection section({}, {});
+    ASSERT_FALSE(section.is_inline());
+}
+
 TEST_F(IOLayoutsSectionRead, TooSmallSectionLength) {
     std::vector<uint8_t> payload(7, 0);
     ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::IO_LAYOUTS);

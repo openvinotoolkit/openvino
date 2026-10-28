@@ -41,6 +41,16 @@ TEST_F(BatchSizeSectionTest, CompatibilityReqsSubexpression) {
               SectionType(SectionTypeCode::BATCH_SIZE));
 }
 
+TEST_F(BatchSizeSectionTest, Alignment) {
+    const ov::runtime::hsm::SectionAlignment reference({});
+    ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
+    ASSERT_EQ(section->get_alignment().size_align, reference.size_align);
+}
+
+TEST_F(BatchSizeSectionTest, IsInline) {
+    ASSERT_TRUE(section->is_inline());
+}
+
 TEST_F(BatchSizeSectionTest, NullIndividualReqs) {
     ASSERT_FALSE(section->get_individual_compatibility_requirements().has_value());
 }

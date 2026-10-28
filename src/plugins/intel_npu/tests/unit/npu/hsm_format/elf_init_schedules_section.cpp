@@ -49,6 +49,18 @@ TEST_F(ELFInitSchedulesSectionTest, NullSetGraph) {
     OV_EXPECT_THROW(section->set_graph(nullptr), ov::Exception, _);
 }
 
+TEST_F(ELFInitSchedulesSectionTest, Alignment) {
+    std::shared_ptr<ELFInitSchedulesSection> section = create_section_using_dummy_content();
+    const ov::runtime::hsm::SectionAlignment reference({utils::STANDARD_PAGE_SIZE, 1});
+    ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
+    ASSERT_EQ(section->get_alignment().size_align, reference.size_align);
+}
+
+TEST_F(ELFInitSchedulesSectionTest, IsInline) {
+    std::shared_ptr<ELFInitSchedulesSection> section = create_section_using_dummy_content();
+    ASSERT_FALSE(section->is_inline());
+}
+
 TEST_F(ELFInitSchedulesSectionTest, CtorSetsTheRightValue) {
     std::shared_ptr<ELFInitSchedulesSection> section = create_section_using_dummy_content();
     ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::ELF_INIT_SCHEDULES));

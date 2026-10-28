@@ -42,6 +42,16 @@ TEST_F(CompilerVersionSectionTest, NullIndividualReqs) {
     ASSERT_FALSE(section->get_individual_compatibility_requirements().has_value());
 }
 
+TEST_F(CompilerVersionSectionTest, Alignment) {
+    const ov::runtime::hsm::SectionAlignment reference({});
+    ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
+    ASSERT_EQ(section->get_alignment().size_align, reference.size_align);
+}
+
+TEST_F(CompilerVersionSectionTest, IsInline) {
+    ASSERT_TRUE(section->is_inline());
+}
+
 TEST_F(CompilerVersionSectionTest, Write) {
     section->encode(create_generic_section_sink(stream));
 

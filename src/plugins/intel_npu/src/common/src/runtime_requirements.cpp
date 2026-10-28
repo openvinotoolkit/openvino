@@ -141,7 +141,10 @@ void RuntimeRequirementsSection::encode(const ov::runtime::hsm::SectionSink& sin
     write_requirements_entry(sink, VERSION_KEY, CURRENT_RUNTIME_REQUIREMENTS_VERSION.to_string(), true);
 
     // CRE
-    write_requirements_entry(sink, CRE_KEY, m_runtime_requirements.get_cre().to_string());
+    const CRE cre = m_runtime_requirements.get_cre();
+    if (!cre.empty()) {
+        write_requirements_entry(sink, CRE_KEY, cre.to_string());
+    }
 
     // All section requirements, following the format "<section type name>_<id>=<value>"
     const std::map<SectionID, std::string> sections_requirements = m_runtime_requirements.get_sections_requirements();

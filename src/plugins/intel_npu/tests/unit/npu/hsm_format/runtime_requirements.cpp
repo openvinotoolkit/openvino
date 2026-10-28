@@ -227,3 +227,92 @@ TEST_F(RuntimeRequirementsSectionTest, IsFormatV2InvalidStrings) {
     OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.-1"), ov::Exception, _);
     OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.o"), ov::Exception, _);
 }
+
+TEST_F(RuntimeRequirementsSectionTest, CtorSetsTheRightValues) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{{SectionID(0), SectionTypeCode::BATCH_SIZE}};
+    const CRE cre({BATCH_SIZE_PTR});
+
+    RuntimeRequirementsSection section(RuntimeRequirements(sections_requirements, cre, section_id_to_type));
+    ASSERT_EQ(section.get_type(), SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS));
+
+    const RuntimeRequirements extracted_requirements = section.get_runtime_requirements();
+    ASSERT_EQ(extracted_requirements.get_sections_requirements(), sections_requirements);
+    ASSERT_EQ(extracted_requirements.get_cre(), cre);
+    ASSERT_EQ(extracted_requirements.get_section_id_to_type_mapping(), section_id_to_type);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, Alignment) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    const ov::runtime::hsm::SectionAlignment reference({});
+    ASSERT_EQ(section.get_alignment().offset_align, reference.offset_align);
+    ASSERT_EQ(section.get_alignment().size_align, reference.size_align);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, IsInline) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    ASSERT_FALSE(section.is_inline());
+}
+
+TEST_F(RuntimeRequirementsSectionTest, EmptyCompatibilityReqsSubexpression) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    ASSERT_TRUE(section.get_compatibility_requirements_subexpression({}).empty());
+}
+
+TEST_F(RuntimeRequirementsSectionTest, NullIndividualReqs) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    ASSERT_FALSE(section.get_individual_compatibility_requirements().has_value());
+}
+
+TEST_F(RuntimeRequirementsSectionTest, WriteEmpty) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE(), {}));
+    std::ostringstream stream;
+
+    OV_ASSERT_NO_THROW(section.encode(create_generic_section_sink(stream)));
+    ASSERT_EQ(stream.str(), "version=3.0");
+}
+
+TEST_F(RuntimeRequirementsSectionTest, WriteNonEmptyCRE) {
+    RuntimeRequirementsSection section(RuntimeRequirements({}, CRE({BATCH_SIZE_PTR, ID_0_PTR}), {}));
+    std::ostringstream stream;
+
+    OV_ASSERT_NO_THROW(section.encode(create_generic_section_sink(stream)));
+    ASSERT_EQ(stream.str(), "version=3.0;cre=BATCH_SIZE_0");
+}
+
+TEST_F(RuntimeRequirementsSectionTest, WriteNonEmptySectionsRequirements) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{{SectionID(0), SectionTypeCode::BATCH_SIZE}};
+    RuntimeRequirementsSection section(RuntimeRequirements(sections_requirements, CRE(), section_id_to_type));
+    std::ostringstream stream;
+
+    OV_ASSERT_NO_THROW(section.encode(create_generic_section_sink(stream)));
+    ASSERT_EQ(stream.str(), "version=3.0;batch_size_0=CONTENT");
+}
+
+TEST_F(RuntimeRequirementsSectionTest, NormalWrite) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{{SectionID(0), SectionTypeCode::BATCH_SIZE}};
+    RuntimeRequirementsSection section(
+        RuntimeRequirements(sections_requirements, CRE({BATCH_SIZE_PTR, ID_0_PTR}), section_id_to_type));
+    std::ostringstream stream;
+
+    OV_ASSERT_NO_THROW(section.encode(create_generic_section_sink(stream)));
+    ASSERT_EQ(stream.str(), "version=3.0;cre=BATCH_SIZE_0;batch_size_0=CONTENT");
+}
+
+TEST_F(RuntimeRequirementsSectionTest, MissingSectionIdMappingWhileWriting) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    RuntimeRequirementsSection section(RuntimeRequirements(sections_requirements, CRE({BATCH_SIZE_PTR, ID_0_PTR}), {}));
+    std::ostringstream stream;
+
+    OV_EXPECT_THROW(section.encode(create_generic_section_sink(stream)), ov::Exception, _);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, WriteUnknownSectionType) {
+    RuntimeRequirementsSection section(
+        RuntimeRequirements({}, CRE({std::make_shared<SectionType>(SectionTypeCode::UNKNOWN)}), {}));
+    std::ostringstream stream;
+
+    OV_EXPECT_THROW(section.encode(create_generic_section_sink(stream)), ov::Exception, _);
+}
