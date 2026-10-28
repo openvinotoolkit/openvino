@@ -27,6 +27,7 @@
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
+#include "low_precision/fake_quantize_decomposition.hpp"
 #include "low_precision/fold_convert.hpp"
 #include "low_precision/fuse_convert.hpp"
 #include "low_precision/group_convolution.hpp"
@@ -103,7 +104,6 @@
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "plugin/transformations/fold_activation_transpose.hpp"
 #include "plugin/transformations/fuse_avg_down.hpp"
-#include "plugin/transformations/fuse_gated_mlp.hpp"
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_grouped_depth_to_space.hpp"
 #include "plugin/transformations/fuse_hadamard_fc.hpp"
@@ -602,7 +602,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u2};
     bool enableInt8;
     bool unroll_loop = config.get_enable_loop_unrolling();
-    const bool disable_gated_mlp_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_gated_mlp_fusion(), true);
     auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
 
     // call conversion of float types with keep_precision_sensitive_in_fp32 = true
@@ -1649,19 +1648,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
-        if (config.get_enable_rms_rope_fusion()) {
-            manager.register_pass<ov::intel_gpu::FuseRMSRoPE>();
-        }
-
         manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
         manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
-        if (device_info.supports_immad && config.get_use_onednn() && !disable_gated_mlp_fusion) {
-            manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
-        }
         manager.register_pass<ov::intel_gpu::SwooshFusion>();
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
+
+        // After IncreasePositionIdsPrecision: its patterns match only the 3-input RoPE.
+        if (config.get_enable_rms_rope_fusion()) {
+            manager.register_pass<ov::intel_gpu::FuseRMSRoPE>();
+        }
 
         float activations_scale_factor = config.get_activations_scale_factor();
 
@@ -1679,6 +1676,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<GroupConvolutionTransformation>();
             pass_config->disable<MatMulTransformation>();
             pass_config->disable<MVNTransformation>();
+            // This LPT run only moves scalar Multiply layers. FakeQuantize layers left by the INT8 LPT run (e.g. Q/K
+            // quantization before SDPA) must not be decomposed again: the f16 DataPrecision interval (+/-1e15)
+            // overflows f16 and turns the quantized activations into inf/NaN.
+            pass_config->disable<FakeQuantizeDecompositionTransformation>();
 
             pass_config->set_callback<FoldConvertTransformation>(
                 [](const std::shared_ptr<const ov::Node> &node) -> bool {

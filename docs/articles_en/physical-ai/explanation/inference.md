@@ -43,14 +43,15 @@ The cursor is a convenience inside the model layer. It is not the runtime action
 
 Use `select_action()` for scripts, tests, demos, and evaluation loops.
 
-Use `predict_action_chunk()` through `PolicyRuntime` when the policy is driving a robot.
+Use `predict_action_chunk()` through `PolicySource` (the `RobotRuntime` action source for trained policies) when the policy is driving a robot.
 
 ```text
-PolicyRuntime
-  -> Execution.maybe_request(obs)
-  -> InferenceModel.predict_action_chunk(obs)
-  -> ActionQueue.push_chunk(chunk)
-  -> ActionQueue.pop_or_none()
+RobotRuntime
+  -> PolicySource.update(robot_state, camera_frames, step)
+       -> Execution.maybe_request(obs)
+            -> InferenceModel.predict_action_chunk(obs)
+            -> ActionQueue.push_chunk(chunk)
+       -> ActionQueue.pop()
   -> robot.send_action(action)
 ```
 
