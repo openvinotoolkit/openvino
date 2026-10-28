@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
+#include "openvino/core/enum_names.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/util/container_util.hpp"
 
@@ -75,6 +76,8 @@ constexpr auto element_type_cases = util::make_array(std::pair{"boolean", elemen
                                                      std::pair{"F4E2M1", element::f4e2m1},
                                                      std::pair{"f8e8m0", element::f8e8m0},
                                                      std::pair{"F8E8M0", element::f8e8m0},
+                                                     std::pair{"gguf_q4_k", element::gguf_q4_k},
+                                                     std::pair{"GGUF_Q4_K", element::gguf_q4_k},
                                                      std::pair{"dynamic", element::dynamic});
 
 constexpr auto element_type_cases_invalid =
@@ -90,6 +93,17 @@ TEST(element_type, from_string_invalid) {
     for (const auto& str : element_type_cases_invalid) {
         OV_EXPECT_THROW(std::ignore = element::Type(str), ov::Exception, testing::_);
     }
+}
+
+TEST(element_type, gguf_block_contract) {
+    EXPECT_EQ(as_enum<element::Type_t>("gguf_q4_k"), element::Type_t::gguf_q4_k);
+    EXPECT_EQ(as_string(element::Type_t::gguf_q4_k), "gguf_q4_k");
+    EXPECT_TRUE(element::gguf_q4_k.is_static());
+    EXPECT_TRUE(element::gguf_q4_k.is_quantized());
+    EXPECT_FALSE(element::gguf_q4_k.is_real());
+    EXPECT_FALSE(element::gguf_q4_k.is_integral());
+    EXPECT_FALSE(element::gguf_q4_k.is_integral_number());
+    EXPECT_EQ(static_cast<int>(element::Type_t::gguf_q4_k), static_cast<int>(element::Type_t::f8e8m0) + 1);
 }
 
 TEST(element_type, from_istringstream) {

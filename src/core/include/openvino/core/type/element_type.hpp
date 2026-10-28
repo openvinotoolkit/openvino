@@ -63,6 +63,7 @@ enum class Type_t {
     string,   //!< string element type
     f4e2m1,   //!< f4e2m1 element type
     f8e8m0,   //!< f8e8m0 element type
+    gguf_q4_k,
 };
 
 /// \brief Base class to define element type
@@ -85,12 +86,15 @@ public:
     // TODO: We may want to revisit this definition when we do a more general cleanup of
     // element types:
     bool is_integral() const {
-        return !is_real();
+        return !is_real() && !is_gguf_block();
     }
     bool is_integral_number() const;
     bool is_signed() const;
     bool is_quantized() const;
     size_t bitwidth() const;
+    size_t block_byte_size() const noexcept;
+    size_t block_elem_count() const noexcept;
+    bool is_gguf_block() const noexcept;
     // The name of this type, the enum name of this type
     std::string get_type_name() const;
     friend OPENVINO_API std::ostream& operator<<(std::ostream&, const Type&);
@@ -213,6 +217,24 @@ inline constexpr Type f4e2m1(Type_t::f4e2m1);
 /// \brief f8e8m0 element type
 /// \ingroup ov_element_cpp_api
 inline constexpr Type f8e8m0(Type_t::f8e8m0);
+
+inline constexpr Type gguf_q4_k(Type_t::gguf_q4_k);
+
+constexpr size_t gguf_block_elem_count(Type_t type) noexcept {
+    return type == Type_t::gguf_q4_k ? 256 : 0;
+}
+
+constexpr size_t gguf_block_byte_size(Type_t type) noexcept {
+    return type == Type_t::gguf_q4_k ? 144 : 0;
+}
+
+constexpr bool is_gguf_block(Type_t type) noexcept {
+    return gguf_block_elem_count(type) != 0;
+}
+
+inline bool is_gguf_block(const Type& type) noexcept {
+    return is_gguf_block(static_cast<Type_t>(type));
+}
 
 template <class T>
 constexpr Type from() {

@@ -32,6 +32,12 @@ size_t get_bit_elements_count(const element::Type& type, const size_t memory_siz
 size_t get_memory_size(const element::Type& type, const size_t n) {
     if (n == 0) {
         return n;
+    } else if (type.is_gguf_block()) {
+        const auto block_elements = type.block_elem_count();
+        const auto blocks = n / block_elements + static_cast<size_t>(n % block_elements != 0);
+        size_t bytes;
+        OPENVINO_ASSERT(!mul_overflow(blocks, type.block_byte_size(), bytes), "GGUF memory size overflows size_t");
+        return bytes;
     } else if (element::is_bit_type(type) || element::is_nibble_type(type)) {
         return get_bit_memory_size(type, n);
     } else {
@@ -40,7 +46,12 @@ size_t get_memory_size(const element::Type& type, const size_t n) {
 }
 
 std::optional<size_t> get_memory_size_safe(const element::Type& type, const size_t n) {
-    if (auto s = type.bitwidth(); s >= 8) {
+    if (type.is_gguf_block()) {
+        const auto block_elements = type.block_elem_count();
+        const auto blocks = n / block_elements + static_cast<size_t>(n % block_elements != 0);
+        size_t bytes;
+        return mul_overflow(blocks, type.block_byte_size(), bytes) ? std::nullopt : std::make_optional(bytes);
+    } else if (auto s = type.bitwidth(); s >= 8) {
         return mul_overflow<size_t>(s / 8, n, s) ? std::nullopt : std::make_optional(s);
     } else {
         return std::make_optional(ov::util::get_memory_size(type, n));
@@ -53,7 +64,12 @@ std::optional<size_t> get_memory_size_safe(const element::Type& type, const ov::
 }
 
 size_t get_elements_capacity(const element::Type& type, const size_t memory_size) {
-    if (type.bitwidth() == 0) {
+    if (type.is_gguf_block()) {
+        size_t elements;
+        OPENVINO_ASSERT(!mul_overflow(memory_size / type.block_byte_size(), type.block_elem_count(), elements),
+                        "GGUF element capacity overflows size_t");
+        return elements;
+    } else if (type.bitwidth() == 0) {
         return 0;
     } else if (element::is_bit_type(type) || element::is_nibble_type(type)) {
         return get_bit_elements_count(type, memory_size);

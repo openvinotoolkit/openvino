@@ -6,7 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <memory>
+#include <numeric>
 #include <optional>
 #include <string_view>
 #include <variant>
@@ -45,6 +47,42 @@ using std::vector;
 using testing::Each;
 using testing::ElementsAre;
 using testing::HasSubstr;
+
+TEST(constant, gguf_q4_k_raw_storage) {
+    const Shape shape{2, 256};
+    vector<uint8_t> bytes(288);
+    std::iota(bytes.begin(), bytes.end(), uint8_t{0});
+    auto constant = std::make_shared<ov::op::v0::Constant>(element::gguf_q4_k, shape, bytes.data());
+    ASSERT_EQ(constant->get_byte_size(), bytes.size());
+    EXPECT_EQ(constant->get_element_type(), element::gguf_q4_k);
+    EXPECT_EQ(constant->get_shape(), shape);
+    EXPECT_EQ(std::memcmp(constant->get_data_ptr(), bytes.data(), bytes.size()), 0);
+
+    auto clone = ov::as_type_ptr<ov::op::v0::Constant>(constant->clone_with_new_inputs({}));
+    ASSERT_NE(clone, nullptr);
+    ASSERT_EQ(clone->get_byte_size(), bytes.size());
+    EXPECT_EQ(std::memcmp(clone->get_data_ptr(), bytes.data(), bytes.size()), 0);
+
+    ov::op::v0::Constant zero(element::gguf_q4_k, shape);
+    ASSERT_EQ(zero.get_byte_size(), bytes.size());
+    EXPECT_THAT(vector<uint8_t>(static_cast<const uint8_t*>(zero.get_data_ptr()),
+                               static_cast<const uint8_t*>(zero.get_data_ptr()) + zero.get_byte_size()),
+                Each(0));
+}
+
+TEST(constant, gguf_q4_k_tensor_lifetime) {
+    std::shared_ptr<ov::op::v0::Constant> constant;
+    vector<uint8_t> bytes(144, 0xA5);
+    {
+        ov::Tensor tensor(element::gguf_q4_k, Shape{1, 256});
+        ASSERT_EQ(tensor.get_byte_size(), bytes.size());
+        std::memcpy(tensor.data(), bytes.data(), bytes.size());
+        constant = std::make_shared<ov::op::v0::Constant>(tensor);
+        EXPECT_EQ(constant->get_data_ptr(), tensor.data());
+    }
+    ASSERT_EQ(constant->get_byte_size(), bytes.size());
+    EXPECT_EQ(std::memcmp(constant->get_data_ptr(), bytes.data(), bytes.size()), 0);
+}
 
 //
 // boolean

@@ -28,6 +28,34 @@ public:
 
 constexpr auto max_dim = std::numeric_limits<size_t>::max();
 
+TEST(GGUFBlockMemory, q4_k_geometry_and_sizes) {
+    const element::Type type("gguf_q4_k");
+    EXPECT_EQ(type, element::gguf_q4_k);
+    EXPECT_TRUE(type.is_gguf_block());
+    EXPECT_FALSE(type.is_integral_number());
+    EXPECT_EQ(type.block_elem_count(), 256);
+    EXPECT_EQ(type.block_byte_size(), 144);
+    EXPECT_EQ(ov::util::get_memory_size(type, 0), 0);
+    EXPECT_EQ(ov::util::get_memory_size(type, 256), 144);
+    EXPECT_EQ(ov::util::get_memory_size(type, 257), 288);
+    EXPECT_EQ(ov::util::get_memory_size_safe(type, Shape{2, 256}), std::optional<size_t>(288));
+    EXPECT_EQ(ov::util::get_elements_capacity(type, 143), 0);
+    EXPECT_EQ(ov::util::get_elements_capacity(type, 144), 256);
+    EXPECT_EQ(ov::util::get_elements_capacity(type, 287), 256);
+}
+
+TEST(GGUFBlockMemory, q4_k_overflow_boundaries) {
+    const auto type = element::gguf_q4_k;
+    const auto expected_bytes = (max_dim / 256 + 1) * 144;
+    EXPECT_EQ(ov::util::get_memory_size_safe(type, max_dim), std::optional<size_t>(expected_bytes));
+    EXPECT_EQ(ov::util::get_memory_size(type, max_dim), expected_bytes);
+    EXPECT_EQ(ov::util::get_memory_size_safe(type, Shape{2, max_dim}), std::nullopt);
+    EXPECT_ANY_THROW(ov::util::get_elements_capacity(type, max_dim));
+    EXPECT_FALSE(element::f32.is_gguf_block());
+    EXPECT_EQ(element::f32.block_elem_count(), 0);
+    EXPECT_EQ(element::f32.block_byte_size(), 0);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     bit_type_precision,
     GetMemorySizeOverflowTest,
