@@ -106,7 +106,7 @@ SDPA_OCL_INLINE void FUNC(k_comp_per_key)(OPTIONAL_SHAPE_INFO_ARG __private half
     for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
         const int sc_key = key_base + ii * SUBGROUP_SIZE + lane;
         const uint sc_off = k_comp_base + KEY_COMP_OFF(0, 0, sc_key, 0);
-        k_scale_lane[ii] = (sc_key < k) ? convert_half(K_scales[sc_off]) : (half)0.0f;
+        k_scale_lane[ii] = (sc_key < k) ? K_COMP_SCALE_TO_HALF(K_scales[sc_off]) : (half)0.0f;
         #if INPUT0_IS_BF16
         k_zpb_lane[ii] = (sc_key < k) ? convert_half(K_zp[sc_off]) : (half)0.0f;
         #else
