@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <memory>
 #include <vector>
 
 #include "node_context.hpp"
@@ -42,12 +43,12 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     auto c_new_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{d_inner, 1, 1, d_conv});
     auto c_reshaped = std::make_shared<ov::op::v1::Reshape>(c, c_new_shape, false);
 
-    ov::Output<Node> conv = std::make_shared<ov::op::v1::GroupConvolution>(sx_reshaped,
-                                                                           c_reshaped,
-                                                                           ov::Strides{1},
-                                                                           ov::CoordinateDiff{0},
-                                                                           ov::CoordinateDiff{0},
-                                                                           ov::Strides{1});
+    std::shared_ptr<Node> conv = std::make_shared<ov::op::v1::GroupConvolution>(sx_reshaped,
+                                                                                c_reshaped,
+                                                                                ov::Strides{1},
+                                                                                ov::CoordinateDiff{0},
+                                                                                ov::CoordinateDiff{0},
+                                                                                ov::Strides{1});
 
     if (context.get_attribute<bool>("fuse_silu", false))
         conv = std::make_shared<ov::op::v4::Swish>(conv);
