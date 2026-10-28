@@ -166,6 +166,8 @@ void PagedQSAIndexer::validate_and_infer_types() {
                           validate_config(m_config, reason),
                           "PagedQSAIndexer configuration is invalid: ",
                           reason);
+    // Resolve the 0 sentinel so serialized IR always carries the actual multiplier.
+    m_config.scale = effective_scale(m_config);
 
     const auto& index_query_ps = get_input_partial_shape(InputIdx::INDEX_QUERY);
     const auto& raw_index_keys_ps = get_input_partial_shape(InputIdx::RAW_INDEX_KEYS);
