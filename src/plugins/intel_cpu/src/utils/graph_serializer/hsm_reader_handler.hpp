@@ -23,6 +23,9 @@ public:
 
     bool handle_section(const runtime::hsm::ManifestEntry& entry, const runtime::hsm::Section& section) override;
 
+    /// Throws if the manifest lists a section this handler decodes more than once. Call before read_sections().
+    static void check_manifest(const runtime::hsm::Reader& reader);
+
     /// Throws if the blob lacks a mandatory section.
     void check_mandatory_sections() const;
 

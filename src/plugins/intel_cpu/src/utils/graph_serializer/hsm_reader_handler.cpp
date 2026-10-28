@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #include "openvino/core/except.hpp"
@@ -47,16 +48,11 @@ std::shared_ptr<ov::AlignedBuffer> read_buffer(const std::shared_ptr<ov::Aligned
     return buffer;
 }
 
-// Stores a decoded section; a second section of the same kind makes the blob invalid.
-template <class Slot, class T>
-void store_unique_section(Slot& slot, T value, const char* section_name) {
-    OPENVINO_ASSERT(!slot, "[CPU] Cannot import compiled blob: duplicated ", section_name, " section.");
-    slot = std::move(value);
-}
-
 // Rejected before the payload sections that follow are read.
 std::string read_compatible_requirements(const runtime::hsm::Section& section) {
     // CVS-196454: decode with the common Runtime Requirements codec.
+    OPENVINO_ASSERT(section.size() <= runtime_requirements_max_size,
+                    "[CPU] Cannot import compiled blob: runtime requirements block is too large.");
     auto requirements = read_string(section);
     OPENVINO_ASSERT(is_runtime_requirements_compatible(requirements),
                     "[CPU] Cannot import compiled blob: incompatible runtime requirements, blob: ",
@@ -71,25 +67,21 @@ std::string read_compatible_requirements(const runtime::hsm::Section& section) {
 const std::map<uint32_t, HsmReaderHandler::Decoder> HsmReaderHandler::s_decoders = {
     {hsm::section_key(hsm::runtime_requirements),
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-         store_unique_section(handler.runtime_requirements,
-                              read_compatible_requirements(section),
-                              "runtime requirements");
+         handler.runtime_requirements = read_compatible_requirements(section);
      }},
     {hsm::section_key(hsm::model_id),
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-         if (const auto id = runtime::hsm::decode_model_id(section)) {
-             store_unique_section(handler.model_id, *id, "model id");
-         }
+         handler.model_id = runtime::hsm::decode_model_id(section);
      }},
     {hsm::section_key(hsm::model_struct),
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-         store_unique_section(handler.model_struct, read_buffer(handler.m_source_blob, section), "model");
+         handler.model_struct = read_buffer(handler.m_source_blob, section);
      }},
     {hsm::section_key(hsm::weights),
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-         // TODO: a mapped blob can prefetch these pages here (ov::MappedMemory::hint_prefetch_async, or the constants
-         // prefetch scheduler of PR #38993) so that reading a cold file overlaps the rest of the import.
-         store_unique_section(handler.weights, read_buffer(handler.m_source_blob, section), "weights");
+         // TODO: a mapped blob can prefetch these pages here so that reading a cold file overlaps the rest of the
+         // import.
+         handler.weights = read_buffer(handler.m_source_blob, section);
      }},
 };
 
@@ -102,6 +94,19 @@ bool HsmReaderHandler::handle_section(const runtime::hsm::ManifestEntry& entry, 
         return true;
     }
     return false;
+}
+
+void HsmReaderHandler::check_manifest(const runtime::hsm::Reader& reader) {
+    std::unordered_set<uint32_t> seen;
+    for (const auto& entry : reader.entries()) {
+        const auto key = hsm::section_key(entry.device, entry.tag);
+        // Sections this plugin does not decode are ignored and may repeat.
+        if (const auto found = s_decoders.find(key); found != s_decoders.end()) {
+            OPENVINO_ASSERT(seen.insert(found->first).second,
+                            "[CPU] Cannot import compiled blob: duplicated section ",
+                            key);
+        }
+    }
 }
 
 void HsmReaderHandler::check_mandatory_sections() const {
