@@ -30,13 +30,11 @@
 namespace ov::test {
 
 namespace hsm = intel_cpu::hsm;
-using behavior::HsmEntry;
 using behavior::hsm_repack;
+using behavior::HsmEntry;
 using behavior::is_hsm;
 
-static bool has_section_id(runtime::hsm::DeviceId device,
-                           runtime::hsm::SectionTag tag,
-                           const hsm::SectionId& id) {
+static bool has_section_id(runtime::hsm::DeviceId device, runtime::hsm::SectionTag tag, const hsm::SectionId& id) {
     return hsm::section_key(device, tag) == hsm::section_key(id);
 }
 
@@ -74,8 +72,7 @@ protected:
     }
 
     static size_t weights_section_size(const std::string& blob) {
-        const auto reader =
-            runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(blob.data()), blob.size());
+        const auto reader = runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(blob.data()), blob.size());
         OPENVINO_ASSERT(reader.has_value(), "Not an HSM blob");
         const auto section = reader->section(hsm::weights.device, hsm::weights.tag.id());
         return section ? section->size() : 0;
@@ -172,9 +169,8 @@ TEST_F(CpuHsmBlobTest, weights_and_model_are_separate_page_aligned_sections) {
 TEST_F(CpuHsmBlobTest, model_without_constants_has_an_empty_weights_section_and_round_trips) {
     auto parameter = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 8});
     auto relu = std::make_shared<op::v0::Relu>(parameter);
-    auto no_constants = std::make_shared<Model>(std::make_shared<op::v0::Result>(relu),
-                                                    ParameterVector{parameter},
-                                                    "no_constants");
+    auto no_constants =
+        std::make_shared<Model>(std::make_shared<op::v0::Result>(relu), ParameterVector{parameter}, "no_constants");
     const auto blob = export_blob(no_constants);
     EXPECT_EQ(weights_section_size(blob), 0u);
 
@@ -196,9 +192,8 @@ TEST_F(CpuHsmBlobTest, weightless_constants_are_not_stored_in_the_weights_sectio
     auto parameter = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, 256});
     auto first = std::make_shared<op::v0::MatMul>(parameter, weightless_constant);
     auto second = std::make_shared<op::v0::MatMul>(first, std::make_shared<op::v0::Constant>(plain_data));
-    auto weightless_model = std::make_shared<Model>(std::make_shared<op::v0::Result>(second),
-                                                        ParameterVector{parameter},
-                                                        "weightless");
+    auto weightless_model =
+        std::make_shared<Model>(std::make_shared<op::v0::Result>(second), ParameterVector{parameter}, "weightless");
     const auto in = utils::create_and_fill_tensor(element::f32, Shape{1, 256});
     const auto expected = infer(compile(weightless_model), in);
 
@@ -245,6 +240,16 @@ TEST_F(CpuHsmBlobTest, import_ignores_sections_with_unexpected_inline_flag) {
     const auto pointer_mode_id = runtime::hsm::SectionTag::make(hsm::model_id.tag.id(), /*is_inline=*/false);
     std::stringstream stream(export_blob_with_model_ids(2, pointer_mode_id));
     EXPECT_NO_THROW(std::ignore = core.import_model(stream, utils::DEVICE_CPU));
+}
+
+TEST_F(CpuHsmBlobTest, import_rejects_requirements_repeated_with_unexpected_inline_flag) {
+    const auto inline_tag = runtime::hsm::SectionTag::make(hsm::runtime_requirements.tag.id(), /*is_inline=*/true);
+    const auto blob = hsm_repack(export_blob(model), [&](std::vector<HsmEntry>& entries) {
+        entries.insert(entries.begin(),
+                       {hsm::runtime_requirements.device, {inline_tag, {}}, std::vector<std::byte>(8, std::byte{0})});
+    });
+
+    expect_import_rejected(blob);
 }
 
 TEST_F(CpuHsmBlobTest, import_rejects_blob_with_model_struct_of_unexpected_inline_flag) {

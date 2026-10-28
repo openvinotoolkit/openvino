@@ -108,7 +108,10 @@ void HsmReaderHandler::check_manifest(const runtime::hsm::Reader& reader) {
     std::unordered_set<uint32_t> seen;
     for (const auto& entry : reader.entries()) {
         const auto key = hsm::section_key(entry.device, entry.tag);
-        // Sections this plugin does not use are ignored and may repeat.
+        if (entry.device == hsm::runtime_requirements.device && entry.tag.id() == hsm::runtime_requirements.tag.id()) {
+            OPENVINO_ASSERT(key == requirements_key,
+                            "[CPU] Cannot import compiled blob: unexpected runtime requirements section tag.");
+        }
         if (key == requirements_key || s_decoders.count(key) != 0) {
             OPENVINO_ASSERT(seen.insert(key).second, "[CPU] Cannot import compiled blob: duplicated section ", key);
         }
