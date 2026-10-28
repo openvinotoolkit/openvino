@@ -150,25 +150,29 @@ void SparseSDPA::createPrimitive() {
     const auto Dh = static_cast<size_t>(getInputShapeAtPort(InputIdx::QUERY).getDims()[3]);
 #ifdef OPENVINO_ARCH_X86_64
     const auto Bk = m_key_block_size;
-    // JIT kernel limits: head_size must be a whole number of 32-wide bf16/f16 B-tiles, up to kMaxHeadSize (sizes
-    // above 192 take the kernel's K-chunk loop). The JIT kernel's own block_size (rows per AMX call) must be a multiple
-    // of 16, but Bk itself need not be -- see m_amx_unit_blocks below, which merges adjacent selected blocks up to a
-    // valid 16-row-multiple chunk.
-    if (Dh % 32 == 0 && Dh <= ov::Extensions::Cpu::JitMatMulVecAMX::kMaxHeadSize && Bk > 0) {
+    // The matrix type of the AMX paths: bf16 / f16 when QUERY, KEY and VALUE are natively that type end to end (the
+    // cache of the stateful form is always kept in the query's precision) and the CPU has the matching AMX. Both AMX
+    // paths read KEY / VALUE zero-copy at this precision, rather than through the precision-agnostic load_row_f32() of
+    // the scalar fallback.
+    ov::element::Type amx_type = ov::element::dynamic;
+    {
         const auto qprec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
-        // the cache of the stateful form is always kept in the query's precision
         const auto kprec = m_fuse_concat ? m_cache_prec : getOriginalInputPrecisionAtPort(InputIdx::KEY);
-        // VALUE must match too: the AMX chunk path's P@V step reads VALUE directly at this
-        // precision via attn_acc_value_block() (zero-copy, same as the QK^T read of KEY) rather
-        // than through the precision-agnostic load_row_f32() the scalar fallback uses.
         const auto vprec = m_fuse_concat ? m_cache_prec : getOriginalInputPrecisionAtPort(InputIdx::VALUE);
         if (qprec == kprec && qprec == vprec && qprec == ov::element::bf16 &&
             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_bf16)) {
-            m_amx_prec = ov::element::bf16;
+            amx_type = ov::element::bf16;
         } else if (qprec == kprec && qprec == vprec && qprec == ov::element::f16 &&
                    dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::amx_fp16)) {
-            m_amx_prec = ov::element::f16;
+            amx_type = ov::element::f16;
         }
+    }
+    // Legacy matrix-vector AMX path (QK^T of one head): the JIT kernel limits are that head_size must be a whole number
+    // of 32-wide bf16/f16 B-tiles, up to kMaxHeadSize (sizes above 192 take the kernel's K-chunk loop). Its own
+    // block_size (rows per AMX call) must be a multiple of 16, but Bk itself need not be -- see m_amx_unit_blocks
+    // below, which merges adjacent selected blocks up to a valid 16-row-multiple chunk.
+    if (Dh % 32 == 0 && Dh <= ov::Extensions::Cpu::JitMatMulVecAMX::kMaxHeadSize && Bk > 0) {
+        m_amx_prec = amx_type;
     }
     if (m_amx_prec != ov::element::dynamic) {
         // Smallest number of adjacent Bk-sized blocks whose combined row count is a multiple of 16
@@ -181,21 +185,19 @@ void SparseSDPA::createPrimitive() {
         m_gemv_qk4 = std::make_shared<ov::Extensions::Cpu::JitMatMulVecAMX>(static_cast<int>(Dh),
                                                                              static_cast<int>(4 * unit_rows),
                                                                              m_amx_prec);
-        // Prefill over packs of query heads: the pack is the M of the brgemm products, so the head counts must be
-        // static.
-        const auto q_heads = getInputShapeAtPort(InputIdx::QUERY).getDims()[1];
-        const auto k_heads = getInputShapeAtPort(InputIdx::KEY).getDims()[1];
-        const auto sel_heads = getInputShapeAtPort(InputIdx::SEL_INDICES).getDims()[1];
-        const auto Dv = getInputShapeAtPort(InputIdx::VALUE).getDims()[3];
-        if (m_causal && none_of(Shape::UNDEFINED_DIM, q_heads, k_heads, sel_heads, Dv)) {
-            const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(q_heads, k_heads, sel_heads);
-            if (ov::Extensions::Cpu::SparseBrgemmKernels::supports_pack(pack)) {
-                m_brgemm = ov::Extensions::Cpu::SparseBrgemmKernels(pack,
-                                                                    Dh,
-                                                                    Dv,
-                                                                    ov::Extensions::Cpu::kBrgemmTileRows,
-                                                                    m_amx_prec);
-            }
+    }
+    // Prefill over packs of query heads (brgemm products, whose M is the pack): independent of the limits of the JIT
+    // kernel above, it needs the AMX type, a causal op and static head counts.
+    const auto q_heads = getInputShapeAtPort(InputIdx::QUERY).getDims()[1];
+    const auto k_heads = getInputShapeAtPort(InputIdx::KEY).getDims()[1];
+    const auto sel_heads = getInputShapeAtPort(InputIdx::SEL_INDICES).getDims()[1];
+    const auto Dv = getInputShapeAtPort(InputIdx::VALUE).getDims()[3];
+    if (amx_type != ov::element::dynamic && m_causal &&
+        none_of(Shape::UNDEFINED_DIM, q_heads, k_heads, sel_heads, Dv)) {
+        const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(q_heads, k_heads, sel_heads);
+        if (ov::Extensions::Cpu::SparseBrgemmKernels::supports_pack(pack)) {
+            m_brgemm =
+                ov::Extensions::Cpu::SparseBrgemmKernels(pack, Dh, Dv, ov::Extensions::Cpu::kGatherTileRows, amx_type);
         }
     }
 #endif
@@ -328,19 +330,23 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t float_bytes = num_threads * per_thread_floats * sizeof(float);
     const size_t float_bytes_aligned = (float_bytes + 7U) & ~size_t{7U};
     const size_t runs_bytes = num_threads * runs_per_thread * sizeof(int64_t);
-    // Third region: the per-thread buffers of the brgemm prefill (64-byte aligned parts, see SparseBrgemmLayout).
+    // Third region: the per-thread buffers of the brgemm prefill (64-byte aligned parts): the state of the head pack,
+    // then the gather tile and the brgemm scratch (see PackStateLayout, SparseBrgemmLayout).
+    ov::Extensions::Cpu::PackStateLayout pack_layout;
     ov::Extensions::Cpu::SparseBrgemmLayout brgemm_layout;
     size_t brgemm_bytes_per_thread = 0;
 #ifdef OPENVINO_ARCH_X86_64
     if (m_brgemm.handle.enabled()) {
+        const size_t max_pack = ov::Extensions::Cpu::max_q_head_pack_size(Hq, Hkv, H_sel);
+        const size_t data_size = query.get_precision().size();
+        pack_layout = ov::Extensions::Cpu::PackStateLayout(0, Dh, Dv, max_pack, data_size, true);
         brgemm_layout =
-            ov::Extensions::Cpu::SparseBrgemmLayout(0,
+            ov::Extensions::Cpu::SparseBrgemmLayout(pack_layout.total,
                                                     Dh,
                                                     Dv,
-                                                    ov::Extensions::Cpu::max_q_head_pack_size(Hq, Hkv, H_sel),
-                                                    query.get_precision().size(),
-                                                    ov::Extensions::Cpu::sparse_brgemm_sizes(m_brgemm.handle),
-                                                    true);
+                                                    max_pack,
+                                                    data_size,
+                                                    ov::Extensions::Cpu::sparse_brgemm_sizes(m_brgemm.handle));
         brgemm_bytes_per_thread = brgemm_layout.total;
     }
 #endif
@@ -388,6 +394,7 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                     0,
                                                     ov::Extensions::Cpu::SparseBrgemm{},
 #endif
+                                                    pack_layout,
                                                     brgemm_layout,
                                                     brgemm_base,
                                                     brgemm_bytes_per_thread,

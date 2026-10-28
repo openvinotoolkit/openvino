@@ -32,8 +32,10 @@ namespace ov::intel_cpu::node {
 /// projection weights, no output gate, and no in-place KV write. Each query position `l` maps to
 /// the bottom-right-aligned logical position `q_abs = S - L + l` for the causal (token-level fine
 /// filter) comparison; the producer already applied the block-level coarse filter. QUERY / KEY /
-/// VALUE may be negotiated as f32, f16, or bf16 independently; compute is always performed in
-/// fp32. block_indices / block_count / key_length are always negotiated as i32. v1 scope: the
+/// VALUE may be negotiated as f32, f16, or bf16 independently. The scalar and legacy AMX-GEMV paths compute in fp32;
+/// the brgemm prefill (bf16 / f16 with AMX, causal, more than one query) multiplies bf16 / f16 matrices: the scores and
+/// the accumulators are fp32 and the softmax weights are converted to the matrix type before P.V. block_indices /
+/// block_count / key_length are always negotiated as i32. v1 scope: the
 /// 5-input form (no padding) and the 6-input form (with key_length, honoring per-batch
 /// left-padding) are both accepted, with query_block_size == 1; the optional scale and sinks inputs
 /// are not supported -- the scale always defaults to `1 / sqrt(k_head_size)`.

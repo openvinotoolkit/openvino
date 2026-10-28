@@ -45,8 +45,9 @@ namespace ov::Extensions::Cpu::XARCH {
 // PlainTensors, resolve its own GraphContext-owned DnnlScratchPad allocation (scratch sizing/
 // allocation needs GraphContext, which kernels/ must never depend on), and call this once --
 // mirroring nodes/paged_gated_delta_net.cpp's recurrent_linear_attn_paged() entry point. Every
-// other compute step (scalar online-softmax reference path, AMX-accelerated QK^T + vectorized P@V
-// fast path, row precision conversion) lives entirely inside sparse_sdpa_kernel.cpp, so it is
+// other compute step (the scalar online-softmax reference path, the legacy AMX matrix-vector QK^T
+// with vectorized P@V, the brgemm prefill over head packs of sparse_brgemm_kernel.hpp, row
+// precision conversion) lives entirely inside sparse_sdpa_kernel.cpp, so it is
 // genuinely vectorized by cross_compiled_file()'s per-ISA clones instead of silently falling back
 // to scalar code the way calling header-only HAVE_AVX512F/HAVE_AVX2-guarded templates directly
 // from a plain translation unit would.
@@ -73,6 +74,7 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          int64_t* scratch_runs,
                          size_t runs_per_thread,
                          const SparseBrgemm& brgemm,
+                         const PackStateLayout& pack_layout,
                          const SparseBrgemmLayout& brgemm_layout,
                          uint8_t* brgemm_scratch,
                          size_t brgemm_bytes_per_thread,

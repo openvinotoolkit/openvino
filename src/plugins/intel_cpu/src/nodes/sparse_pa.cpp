@@ -278,7 +278,7 @@ void SparsePA::createPrimitive() {
         m_brgemm = ov::Extensions::Cpu::SparseBrgemmKernels(pack,
                                                             Dh,
                                                             m_config.v_head_size,
-                                                            ov::Extensions::Cpu::kBrgemmTileRows,
+                                                            ov::Extensions::Cpu::kGatherTileRows,
                                                             query_prec);
     }
 #endif

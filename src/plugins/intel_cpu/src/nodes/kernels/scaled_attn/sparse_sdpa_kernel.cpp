@@ -169,6 +169,8 @@ void decompose_runs(const int32_t* sel_ids, size_t nblocks, size_t Bk, size_t un
     }
 }
 
+// Legacy path (one query head per item: the decode, and the prefill when the node has no brgemm kernels). A "chunk"
+// here is a group of 1 or 4 GEMV row units, not a brgemm row block.
 // Runs all AMX-eligible selected-block chunks for one (b, h, l) query row through the flash-
 // attention block-wise online-softmax recurrence (mathematically equivalent to the per-token
 // recurrence in consume() below, just merged once per chunk instead of once per token), updating
@@ -178,10 +180,10 @@ void decompose_runs(const int32_t* sel_ids, size_t nblocks, size_t Bk, size_t un
 // precision). QK^T uses the AMX tile-multiply kernels; P@V instead uses attn_acc_value_block()'s
 // vectorized batched FMA (paged_attn_kernel.hpp, genuinely vectorized here since this whole file is
 // cross-compiled) -- an AMX tile multiply for P@V would need V VNNI-repacked, disproportionate
-// machinery for chunks this small. `acc` (Dv elements) and `raw_buf` (>= 4 * unit_rows elements,
-// reused in place as the chunk's post-softmax weights) are caller-owned scratch rows out of the
-// per-thread scratchpad -- see sparse_sdpa_compute() -- reused across (b, h, l) iterations instead
-// of allocated per call.
+// for a single head (the brgemm prefill below repacks V once for a whole head pack instead). `acc` (Dv elements) and
+// `raw_buf` (>= 4 * unit_rows elements, reused in place as the chunk's post-softmax weights) are caller-owned scratch
+// rows out of the per-thread scratchpad -- see sparse_sdpa_compute() -- reused across (b, h, l) iterations instead of
+// allocated per call.
 template <typename AmxT>
 void run_amx_qk_chunks(const PlainTensor& query,
                        const PlainTensor& key,
@@ -333,6 +335,7 @@ struct SdpaBrgemmArgs {
     const SparseKVQuant& key_quant;
     const SparseKVQuant& value_quant;
     const SparseBrgemm& brgemm;
+    const PackStateLayout& pack_layout;
     const SparseBrgemmLayout& layout;
     uint8_t* scratch;
     size_t bytes_per_thread;
@@ -353,27 +356,27 @@ void attention_item_brgemm(const SdpaBrgemmArgs& a, size_t b, size_t l, size_t p
 
     uint8_t* ws = a.scratch + static_cast<size_t>(parallel_get_thread_num()) * a.bytes_per_thread;
     const auto& lay = a.layout;
-    auto* q_rows = reinterpret_cast<T*>(ws + lay.q_rows);
+    const auto& pack_lay = a.pack_layout;
+    auto* q_rows = reinterpret_cast<T*>(ws + pack_lay.q_rows);
     for (size_t head = 0; head < a.pack_size; head++) {
         std::memcpy(q_rows + head * a.Dh, a.query.ptr<T>(b, first_head + head, l), a.Dh * sizeof(T));
     }
-    auto* acc = reinterpret_cast<float*>(ws + lay.acc);
-    auto* running_max = reinterpret_cast<float*>(ws + lay.running_max);
-    auto* running_sum = reinterpret_cast<float*>(ws + lay.running_sum);
+    auto* acc = reinterpret_cast<float*>(ws + pack_lay.acc);
+    auto* running_max = reinterpret_cast<float*>(ws + pack_lay.running_max);
+    auto* running_sum = reinterpret_cast<float*>(ws + pack_lay.running_sum);
     std::fill_n(acc, a.pack_size * a.Dv, 0.0F);
     std::fill_n(running_max, a.pack_size, -std::numeric_limits<float>::infinity());
     std::fill_n(running_sum, a.pack_size, 0.0F);
 
     const BrgemmBuffers<T> buffers{static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.qk),
-                                   static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.pv),
-                                   static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.pv_acc),
+                                   static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.pv_overwrite),
+                                   static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.pv_accumulate),
                                    reinterpret_cast<T*>(ws + lay.k_rows),
                                    reinterpret_cast<T*>(ws + lay.v_rows),
-                                   reinterpret_cast<float*>(ws + lay.weights),
+                                   {reinterpret_cast<float*>(ws + lay.weights), a.brgemm.tile_rows},
                                    ws + lay.brg_wsp,
                                    ws + lay.brg_a,
-                                   ws + lay.brg_b,
-                                   a.brgemm.tile_rows};
+                                   ws + lay.brg_b};
     const BrgemmPack pack{q_rows, a.pack_size, a.Dh, a.Dv, a.scale, acc, running_max, running_sum};
 
     // sel_indices / sel_count carry complete selected blocks only; the incomplete trailing block of the query is
@@ -443,6 +446,7 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          int64_t* scratch_runs,
                          size_t runs_per_thread,
                          const SparseBrgemm& brgemm,
+                         const PackStateLayout& pack_layout,
                          const SparseBrgemmLayout& brgemm_layout,
                          uint8_t* brgemm_scratch,
                          size_t brgemm_bytes_per_thread,
@@ -482,11 +486,12 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                                   key_quant,
                                   value_quant,
                                   brgemm,
+                                  pack_layout,
                                   brgemm_layout,
                                   brgemm_scratch,
                                   brgemm_bytes_per_thread,
                                   max_q_head_pack_size(Hq, Hkv, H_sel)};
-        if (amx_prec == ov::element::bf16) {
+        if (brgemm.prec == ov::element::bf16) {
             sparse_sdpa_brgemm<ov::bfloat16>(args, cpu_parallel);
         } else {
             sparse_sdpa_brgemm<ov::float16>(args, cpu_parallel);

@@ -110,8 +110,8 @@ SparseSDPALayerTestParams packed_case(size_t h_sel,
 }
 
 // AMX prefill over packs of query heads: bf16, sel_block_size 4, causal. The shapes are {seq_len, max_blocks,
-// block_step}. The suites above already run the prefill over the 2 query heads of a K head as brgemm products (the test
-// derives the worker threads from the shape, see SetUp); these add
+// block_step}. The suites above already run the prefill over the 2 query heads of a K head as brgemm products (a
+// prefill takes that path whatever the thread count); these add
 //  - a selection of every second block (no adjacent runs) and a selection head per query head (no pack: the per-head
 //  AMX
 //    path);
@@ -119,12 +119,36 @@ SparseSDPALayerTestParams packed_case(size_t h_sel,
 //    adjacent blocks the selection of the token at position p has p + 1 rows, so every row count up to the length
 //    occurs, the tails of every length, a tile that is exactly full and a partial last tile).
 std::vector<SparseSDPALayerTestParams> packed_cases() {
-    return {packed_case(1, 1, 256, {}, {40, 10, 2}),
-            packed_case(4, 1, 32, {}, {40, 10, 1}),
-            packed_case(1, 1, 32, {}, {31, 128, 1}),
-            packed_case(1, 1, 32, {}, {32, 128, 1}),
-            packed_case(1, 1, 32, {}, {254, 128, 1}),
-            packed_case(1, 1, 256, {}, {256, 128, 1})};
+    return {packed_case(/*h_sel=*/1,
+                        /*batch=*/1,
+                        /*head_size=*/256,
+                        /*key_length=*/{},
+                        {/*seq_len=*/40, /*max_blocks=*/10, /*block_step=*/2}),
+            packed_case(/*h_sel=*/4,
+                        /*batch=*/1,
+                        /*head_size=*/32,
+                        /*key_length=*/{},
+                        {/*seq_len=*/40, /*max_blocks=*/10, /*block_step=*/1}),
+            packed_case(/*h_sel=*/1,
+                        /*batch=*/1,
+                        /*head_size=*/32,
+                        /*key_length=*/{},
+                        {/*seq_len=*/31, /*max_blocks=*/128, /*block_step=*/1}),
+            packed_case(/*h_sel=*/1,
+                        /*batch=*/1,
+                        /*head_size=*/32,
+                        /*key_length=*/{},
+                        {/*seq_len=*/32, /*max_blocks=*/128, /*block_step=*/1}),
+            packed_case(/*h_sel=*/1,
+                        /*batch=*/1,
+                        /*head_size=*/32,
+                        /*key_length=*/{},
+                        {/*seq_len=*/254, /*max_blocks=*/128, /*block_step=*/1}),
+            packed_case(/*h_sel=*/1,
+                        /*batch=*/1,
+                        /*head_size=*/256,
+                        /*key_length=*/{},
+                        {/*seq_len=*/256, /*max_blocks=*/128, /*block_step=*/1})};
 }
 
 }  // namespace
