@@ -20,9 +20,7 @@ void tensor_iterator(uint64_t num_iterations,
                      ov::TensorVector& out,
                      const ov::TensorVector& args,
                      const custom_evaluate_function& evaluate) {
-    ov::TensorVector inputs_to_body;
-    for (size_t i = 0; i < input_descs.size(); ++i)
-        inputs_to_body.push_back(ov::Tensor());
+    ov::TensorVector inputs_to_body(func->get_parameters().size());
 
     // Port map processing: inputs and back edges
     struct BackEdge {
@@ -31,6 +29,9 @@ void tensor_iterator(uint64_t num_iterations,
     };
     std::vector<BackEdge> back_edges;
     for (const auto& desc : input_descs) {
+        OPENVINO_ASSERT(inputs_to_body.size() > desc->m_body_parameter_index,
+                        "Incorrect associating! TensorIterator/Loop body has not parameter with id ",
+                        desc->m_body_parameter_index);
         inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
         if (const auto& merged_desc = ov::as_type_ptr<ov::op::v5::Loop::MergedInputDescription>(desc)) {
             back_edges.push_back({merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
@@ -106,6 +107,9 @@ void tensor_iterator(uint64_t num_iterations,
 
     for (const auto& desc : out_descs) {
         if (const auto& body_desc = ov::as_type_ptr<op::v0::TensorIterator::BodyOutputDescription>(desc)) {
+            OPENVINO_ASSERT(body_desc->m_body_value_index < body_outputs.size(),
+                            "Incorrect associating! TensorIterator/Loop body produced no output for value id ",
+                            body_desc->m_body_value_index);
             // Copy output values from the last iteration
             const auto& res = body_outputs[body_desc->m_body_value_index];
             res.copy_to(out[body_desc->m_output_index]);
