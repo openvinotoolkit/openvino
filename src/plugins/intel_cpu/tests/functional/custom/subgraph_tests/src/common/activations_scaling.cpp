@@ -4,6 +4,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -64,7 +65,10 @@ protected:
 
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
         auto norm0 = make_rms_norm(input);
-        auto weights0 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{hidden_size, inter_size}, {1.f});
+        // positive weights in [0.5, 1.5] and [4, 12]: each matmul1 output is ~1e5, above the f16 range
+        auto weights0 = ov::test::utils::make_constant(ov::element::f32,
+                                                       ov::Shape{hidden_size, inter_size},
+                                                       ov::test::utils::InputGenerateData(0.5, 1, 1000, 1));
         auto matmul0 = std::make_shared<ov::op::v0::MatMul>(norm0, weights0);
         auto gelu = std::make_shared<ov::op::v7::Gelu>(matmul0);
         // second output, like T5's extended attention mask: expand(batch, 1, seq, seq) with batch and seq
@@ -85,7 +89,9 @@ protected:
         auto mask = std::make_shared<ov::op::v3::Broadcast>(ov::op::v0::Constant::create(ov::element::f32, {1}, {1.f}),
                                                             mask_shape,
                                                             ov::op::BroadcastType::BIDIRECTIONAL);
-        auto weights1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{inter_size, hidden_size}, {8.f});
+        auto weights1 = ov::test::utils::make_constant(ov::element::f32,
+                                                       ov::Shape{inter_size, hidden_size},
+                                                       ov::test::utils::InputGenerateData(4, 8, 1000, 2));
         auto matmul1 = std::make_shared<ov::op::v0::MatMul>(gelu, weights1);
         auto residual = std::make_shared<ov::op::v1::Add>(input, matmul1);
         auto norm1 = make_rms_norm(residual);
