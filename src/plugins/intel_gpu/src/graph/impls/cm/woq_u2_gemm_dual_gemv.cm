@@ -1,0 +1,312 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+// GEMV / small-M companion of woq_u2_gemm_dual.cm (u2 weight-only-quantized GEMM on XMX/DPAS, group
+// size 64): same ABI, same arithmetic, bit-exact with it; use it for M <= 8 (decode). OpenVINO
+// conventions as in woq_u2_gemm_dual.cm: the entry name is KERNEL_NAME (default woq_matmul), OUT_F16
+// stores C as half (the f32 result rounded to nearest even), EPI_F16 reads epi as half and widens to
+// float right after the load, file-scope types are defined once (*_ONCE guards) and the macros are
+// #undef'd at the end. No SLM, no barriers.
+//
+// v2 (decode tuning, cold-L2 measured -- every launch after a 64 MiB L2 flush, as in a real decode
+// step): (a) each thread takes 2 adjacent 16-column blocks when one block per thread would exceed
+// GEMV_MAXT = 960 threads (the dispatch grid follows the same rule): 1x5120x17920 0.44 -> 0.36 ms;
+// (b) with few threads (N/16 <= GEMV_DEEPT = 400) the weight prefetch goes PFG_DEEP = 8 groups ahead
+// with L1PL_DEEP = 2 lines per column (WLAYOUT 1): 1x17920x5120 0.32 -> 0.30 ms; otherwise PFG = 4,
+// L1PL = 1 as in v1. Launch: global = (ceil(ceil(N/16) / cseq / LS) * LS, ceil(M/8)), local = (LS, 1),
+// cseq = 2 if N/16 > GEMV_MAXT else 1.
+#ifndef KERNEL_NAME
+#define KERNEL_NAME woq_matmul
+#endif
+#ifndef OUT_F16
+#define OUT_F16 0       // 1 = C is half [M, N] (the f32 result rounded to nearest even)
+#endif
+#ifndef EPI_F16
+#define EPI_F16 0       // 1 = epi is half [M, N] instead of float [M, N]
+#endif
+#include <cm/cm.h>
+
+// kernel-gen-build-options: -Qxcm_register_file_size=128 -DNCB=1 -DRBG=1 -DLS=16 -DPFG=4
+// kernel-gen-dispatch-global: (N // (16 * NCB) + LS - 1) // LS * LS, (M + 8 * RBG - 1) // (8 * RBG)
+// kernel-gen-dispatch-local: LS, 1
+
+// PTL dual v7 -- adds WLAYOUT 1 (N-major [N, K/4], scales / zps [N, KG]) to the GEMV path: per
+// group a 16-lane N4 gather of my 16 columns' 16 bytes (register order [dword][column], so k-step s
+// is the contiguous run 16s..16s+15), 16-lane U16 / U8 scale and zero-point gathers, and a one-line
+// per column prefetch every 4 groups (a 64 B line holds 4 groups of one column). WLAYOUT 0 = v6.
+//
+// PTL dual v6 -- bottleneck: v5 spends ~1.1 us per group per thread (4 DPAS + ~150 ALU) -- the A
+// rows were loaded in the iteration that consumes them, exposing their latency every group. Lever:
+// the A rows join the weight double buffer (loaded one group ahead).
+//
+// PTL dual v5 -- GEMV / small-M path (decode, M = 1). Bottleneck of every tiled trial at M = 1: the
+// 256-row tile -- the original runs 1x5120x7680 in 1.158 ms against a 0.115 ms weight-streaming
+// floor (10x), because each work-group still issues the DPAS / SLM work of 256 rows and there are
+// only N/256 work-groups to stream the weights. This path has no SLM and no barriers: each thread
+// owns 16*NCB output columns of RBG 8-row blocks and walks ALL of K in order (so the DPAS
+// accumulation chain is the original's: k-step by k-step from 0, bit-exact), streaming its columns'
+// weights with the next group's loads in flight (double buffer) and a prefetch PFG groups ahead,
+// and dequantizing straight into the VNNI Src1 operand in registers with the original's
+// half(q | 0x6400) - half(zp | 0x6400), times scale.
+//
+// Correct for any M (rows >= M are never loaded or stored); intended for M <= 8 * RBG. Same ABI and
+// group size as the original (GS = 64).
+
+#ifndef NCB
+#define NCB 1           // 16-column blocks per thread
+#endif
+#ifndef RBG
+#define RBG 1           // 8-row blocks per thread
+#endif
+#ifndef LS
+#define LS 16           // threads per work-group
+#endif
+#ifndef PFG
+#define PFG 4           // weight prefetch distance, groups (PFG_DEEP when N/16 <= GEMV_DEEPT)
+#endif
+#ifndef WLAYOUT
+#define WLAYOUT 0       // 0: group-major [KG, N, GS/4] (ABI), 1: N-major [N, K/4]
+#endif
+#ifndef L1PL
+#define L1PL 1          // WLAYOUT 1: weight lines per column per prefetch (L1PL_DEEP when deep)
+#endif
+#ifndef PFG_DEEP
+#define PFG_DEEP 8      // deep prefetch for few threads (N/16 <= GEMV_DEEPT)
+#endif
+#ifndef L1PL_DEEP
+#define L1PL_DEEP 2
+#endif
+#ifndef GEMV_DEEPT
+#define GEMV_DEEPT 400  // at most this many column blocks (threads): prefetch PFG_DEEP / L1PL_DEEP
+#endif
+#ifndef GEMV_MAXT
+#define GEMV_MAXT 960   // above this many 16*NCB-column blocks, each thread takes 2 (see the entry)
+#endif
+#define GS 64
+#define GB (GS / 4)     // packed bytes per (group, column)
+#define NACC (RBG * NCB)
+
+#if WLAYOUT == 1 && NCB != 1
+#error "WLAYOUT 1 GEMV path is written for NCB == 1"
+#endif
+#ifndef WOQ_U2_GEMV_WGROUP_ONCE
+#define WOQ_U2_GEMV_WGROUP_ONCE
+struct wgroup {                         // one group of my NCB column blocks
+  vector<uint, 64 * NCB> w;             // WLAYOUT 0: [cb][column n][4 dwords]; 1: [dword][column n]
+  vector<uint, 8 * NCB> sc;             // [cb][16 halves]
+  vector<uint, 4 * NCB> zp;             // [cb][16 uchars]
+  matrix<uint, 8 * RBG, 32> a;          // the group's 64 k of my rows (rows >= M stay 0)
+};
+#endif
+
+// The body is instance-specific (it uses this instance's WLAYOUT / OUT_F16 / EPI_F16 / ... macros), and
+// OpenVINO batch-compiles several instances into one program: name it after the entry (KERNEL_NAME).
+#define WOQ_U2_GEMV_CAT2(a, b) a##b
+#define WOQ_U2_GEMV_CAT(a, b) WOQ_U2_GEMV_CAT2(a, b)
+#define GEMV_BODY WOQ_U2_GEMV_CAT(KERNEL_NAME, _gemv_body)
+template <int PF, int LP>
+inline void GEMV_BODY(SurfaceIndex A, SurfaceIndex Wq, SurfaceIndex scales, SurfaceIndex zps,
+                      SurfaceIndex epi, SurfaceIndex C, int M, int K, int N, int epi_mode) {
+  const int t = cm_group_id(0) * LS + cm_local_id(0);
+  // Column blocks per thread: 2 once one block per thread would exceed GEMV_MAXT threads (more than
+  // fit resident; measured cold-L2 at 1x5120x17920: 0.444 -> 0.358 ms), else 1 (fewer threads lose
+  // memory parallelism: 2 blocks at N = 5120 is 1.4x slower). Must match the dispatch grid.
+  const int cseq = (N / (16 * NCB) > GEMV_MAXT) ? 2 : 1;
+  int n0 = t * (16 * NCB) * cseq;                                  // my first column block
+  if (n0 >= N) return;                                             // surplus thread
+  const int m0 = cm_group_id(1) * (8 * RBG);
+  const int KG = K / GS;
+  const unsigned K2 = (unsigned)(K * 2);
+
+  vector<uint, 128> sh;                                            // [k pair j][n] -> 4j
+  #pragma unroll
+  for (int i = 0; i < 128; i++) sh(i) = 4 * (i / 16);
+
+  // cseq adjacent column blocks, one after another (each walks all of K, as before).
+  for (int cs = 0; cs < cseq; cs++, n0 += 16 * NCB) {
+  if (n0 >= N) break;
+  matrix<float, NACC, 128> acc = 0.0f;
+  wgroup cur, nxt;
+  cur.a = 0;
+  nxt.a = 0;
+
+#if WLAYOUT == 1
+  vector<uint, 16> lane;
+  #pragma unroll
+  for (int i = 0; i < 16; i++) lane(i) = i;
+  const vector<uint, 16> col = lane + (unsigned)n0;
+  const vector<uint, 16> w_off = col * (unsigned)(K / 4);          // Wq [N, K/4]
+  const vector<uint, 16> sc_off = col * (unsigned)(KG * 2);        // scales [N, KG] half
+  const vector<uint, 16> zp_off = col * (unsigned)KG;              // zps [N, KG] uchar
+#endif
+  auto load = [&](wgroup &d, int g) {
+#if WLAYOUT == 0
+    const unsigned gn = (unsigned)g * (unsigned)N + (unsigned)n0;
+    #pragma unroll
+    for (int cb = 0; cb < NCB; cb++) {
+      d.w.select<64, 1>(cb * 64) = cm_load<uint, 64>(Wq, (gn + cb * 16) * (unsigned)GB);
+      d.sc.select<8, 1>(cb * 8) = cm_load<uint, 8>(scales, (gn + cb * 16) * 2u);
+      d.zp.select<4, 1>(cb * 4) = cm_load<uint, 4>(zps, gn + cb * 16);
+    }
+#else
+    d.w = cm_load<uint, VectorSize::N4, DataSize::U32>(Wq, w_off + (unsigned)g * (unsigned)GB);
+    d.sc.format<ushort>() = cm_load<ushort, VectorSize::N1, DataSize::U16>(scales, sc_off + (unsigned)g * 2u);
+    d.zp.format<uchar>() = cm_load<uchar, VectorSize::N1, DataSize::U8>(zps, zp_off + (unsigned)g);
+#endif
+    #pragma unroll
+    for (int r = 0; r < 8 * RBG; r++)
+      if (m0 + r < M)
+        d.a.row(r) = cm_load<uint, 32>(A, (unsigned)(m0 + r) * K2 + (unsigned)g * (GS * 2));
+  };
+  auto prefetch = [&](int g) {
+#if WLAYOUT == 0
+    const unsigned gn = (unsigned)g * (unsigned)N + (unsigned)n0;
+    cm_prefetch<16 * NCB * GB / 4, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(Wq, gn * (unsigned)GB);
+    cm_prefetch<8 * NCB, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(scales, gn * 2u);
+    cm_prefetch<4 * NCB, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(zps, gn);
+#else
+    if (g % (4 * LP) == 0) {                                       // LP lines (4 groups each) per column
+      #pragma unroll
+      for (int l = 0; l < LP; l++)
+        cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+            Wq, w_off + ((unsigned)g * (unsigned)GB + (unsigned)(l * 64)));
+    }
+    if (g % 32 == 0)                                               // one scale line = 32 groups
+      cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+          scales, (sc_off + (unsigned)g * 2u) & ~3u);
+    if (g % 64 == 0)
+      cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(
+          zps, (zp_off + (unsigned)g) & ~3u);
+#endif
+  };
+
+  load(cur, 0);
+  #pragma unroll
+  for (int p = 1; p < PF; p++)
+    if (p < KG) prefetch(p);
+#if WLAYOUT == 1
+  // Lines covering groups 1 .. PF-1 that the in-loop prefetch (multiples of 4*LP / 32 / 64) skips.
+  #pragma unroll
+  for (int l = 0; l < (PF + 3) / 4; l++)
+    cm_prefetch<VectorSize::N1, DataSize::U32, CacheHint::Cached, CacheHint::Cached>(Wq, w_off + (unsigned)(l * 64));
+#endif
+
+  for (int g = 0; g < KG; g++) {
+    if (g + PF < KG) prefetch(g + PF);
+    if (g + 1 < KG) load(nxt, g + 1);
+
+
+    #pragma unroll
+    for (int cb = 0; cb < NCB; cb++) {
+      vector<half, 16> scv = cur.sc.select<8, 1>(cb * 8).format<half>();
+      vector<ushort, 16> zb = vector<ushort, 16>(cur.zp.select<4, 1>(cb * 4).format<uchar>()) | (ushort)0x6400;
+      vector<half, 128> zr = zb.format<half>().replicate<8>();     // [j][n]
+      vector<half, 128> sr = scv.replicate<8>();
+      #pragma unroll
+      for (int s = 0; s < GS / 16; s++) {                          // DPAS k-steps of the group
+        // Column n's dword s holds k = 16s .. 16s+15; VNNI dword (j, n) = k pair 16s + 2j, +1, read
+        // from bits 4j (low half) and 4j + 2 (high half).
+#if WLAYOUT == 0
+        vector<uint, 16> d = cur.w.select<16, 4>(cb * 64 + s);
+#else
+        vector<uint, 16> d = cur.w.select<16, 1>(s * 16);
+#endif
+        vector<uint, 128> dr = d.replicate<8>();
+        vector<ushort, 128> q0 = vector<ushort, 128>((dr >> sh) & 3u) | (ushort)0x6400;
+        vector<ushort, 128> q1 = vector<ushort, 128>((dr >> (sh + 2u)) & 3u) | (ushort)0x6400;
+        vector<half, 256> wv;
+        wv.select<128, 2>(0) = (q0.format<half>() - zr) * sr;
+        wv.select<128, 2>(1) = (q1.format<half>() - zr) * sr;
+        vector<uint, 128> b1 = wv.format<uint>();
+        #pragma unroll
+        for (int rb = 0; rb < RBG; rb++) {
+          matrix<uint, 8, 8> a2 = cur.a.select<8, 1, 8, 1>(rb * 8, s * 8);   // 8 rows x 16 halves
+          acc.row(rb * NCB + cb) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, 8, 8>(
+              acc.row(rb * NCB + cb), b1, a2.format<uint>());
+        }
+      }
+    }
+    cur = nxt;
+  }
+
+  // Epilogue: acc row (rb, cb) element (i*16 + n) = C[m0 + rb*8 + i][n0 + cb*16 + n].
+  #pragma unroll
+  for (int rb = 0; rb < RBG; rb++) {
+    #pragma unroll
+    for (int i = 0; i < 8; i++) {
+      const int m = m0 + rb * 8 + i;
+      if (m < M) {
+        #pragma unroll
+        for (int cb = 0; cb < NCB; cb++) {
+          const unsigned off = ((unsigned)m * N + (unsigned)(n0 + cb * 16)) * 4u;
+          vector<float, 16> v = acc.row(rb * NCB + cb).select<16, 1>(i * 16);
+          // Same operations, in the same order, as woq_u2_gemm_dual.cm's row-by-row (M tail) path.
+#if EPI_F16
+          // Transposed load only supports U32/U64 granularity: load as uint, reinterpret as half.
+          vector<half, 16> eh;
+          if (epi_mode != 0)
+            eh.format<uint>() = cm_load<uint, 8>(epi, off / 2u);
+          vector<float, 16> ef = eh;                                  // widen half -> float
+#endif
+          if (epi_mode == 1) {
+#if EPI_F16
+            v += ef;
+#else
+            v += cm_load<float, 16>(epi, off);
+#endif
+          } else if (epi_mode == 2) {
+            vector<float, 16> e = cm_exp(v * -1.4426950408889634f);
+            v = v / (1.0f + e);
+#if EPI_F16
+            v *= ef;
+#else
+            v *= cm_load<float, 16>(epi, off);
+#endif
+          }
+#if OUT_F16
+          vector<half, 16> h = v;                                      // round to nearest even
+          cm_store<uint, 8>(C, off / 2u, h.format<uint>());
+#else
+          cm_store<float, 16>(C, off, v);
+#endif
+        }
+      }
+    }
+  }
+  }  // column blocks
+}
+
+
+extern "C" _GENX_MAIN_ void
+KERNEL_NAME(SurfaceIndex A [[type("buffer_t")]],      // half  [M, K]
+           SurfaceIndex Wq [[type("buffer_t")]],      // uchar [KG, N, GS/4]  (WLAYOUT 1: [N, K/4])
+           SurfaceIndex scales [[type("buffer_t")]],  // half  [KG, N]        (WLAYOUT 1: [N, KG])
+           SurfaceIndex zps [[type("buffer_t")]],     // uchar [KG, N]        (WLAYOUT 1: [N, KG])
+           SurfaceIndex epi [[type("buffer_t")]],     // float [M, N] (EPI_F16: half [M, N])
+           SurfaceIndex C [[type("buffer_t")]],       // float [M, N] (OUT_F16: half [M, N])
+           int M, int K, int N, int epi_mode) {
+  // Few threads (N/16 <= GEMV_DEEPT): prefetch deeper, PFG_DEEP groups / L1PL_DEEP lines (cold-L2
+  // 1x17920x5120 0.32 -> 0.30 ms); otherwise PFG / L1PL (deep costs 3% at N = 7680 and 2% at 17920).
+  // Two compile-time instances, so the prefetch cadence and prologue stay unrolled.
+  if (N / (16 * NCB) <= GEMV_DEEPT)
+    GEMV_BODY<PFG_DEEP, L1PL_DEEP>(A, Wq, scales, zps, epi, C, M, K, N, epi_mode);
+  else
+    GEMV_BODY<PFG, L1PL>(A, Wq, scales, zps, epi, C, M, K, N, epi_mode);
+}
+
+// OpenVINO: keep this instance's macros out of the other kernels batched into the same program.
+#undef OUT_F16
+#undef EPI_F16
+#undef NCB
+#undef GEMV_MAXT
+#undef GEMV_BODY
+#undef GEMV_DEEPT
+#undef PFG_DEEP
+#undef L1PL_DEEP
+#undef RBG
+#undef LS
+#undef PFG
+#undef L1PL
+#undef GS
+#undef GB
+#undef NACC
