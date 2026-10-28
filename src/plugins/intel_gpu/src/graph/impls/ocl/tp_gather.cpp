@@ -20,7 +20,7 @@ namespace ocl {
 namespace {
 
 // The immediate command list intel_gpu runs the model on. Kept local rather
-// than shared with ocl_v2/tp_allreduce.cpp: the include order above is what makes the
+// than shared with ocl_v2/tp/tp_allreduce.cpp: the include order above is what makes the
 // Level Zero headers usable here, and a shared header would have to be pulled
 // in ahead of everything to preserve it.
 ze_command_list_handle_t model_queue_of(stream& s) {

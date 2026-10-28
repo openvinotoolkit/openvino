@@ -15,7 +15,6 @@
 #include <thread>
 
 #include "openvino/core/except.hpp"
-#include "reduce_kernel_abi.hpp"
 #include "tp_debug.hpp"
 #include "tp_l0_shared_context.hpp"
 
@@ -40,6 +39,12 @@ std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what)
 
 std::size_t align_up(std::size_t value, std::size_t alignment) {
     return (value + alignment - 1) / alignment * alignment;
+}
+
+// Distance between the two pair staging sets: the reduce kernel's vector loads
+// need every set to start aligned, whatever the payload size.
+std::size_t pair_stride(std::size_t payload_bytes) {
+    return align_up(payload_bytes, 256);
 }
 
 // The ov::ze* wrappers call ZeroApi::get_instance() on every single call, and
@@ -80,13 +85,8 @@ uint64_t alloc_id_of(ze_context_handle_t context, void* ptr) {
 // only sometimes, because it is a race between two devices.
 constexpr std::size_t kHalvingSlackBytes = kRingAlignElems * 4;  // f32 is the widest element
 
-// Work groups needed to fold `n` elements.
-uint32_t launch_groups(std::size_t n, uint32_t group_size) {
-    const std::size_t items = (n + reduce_kernel::elems_per_item - 1) / reduce_kernel::elems_per_item;
-    return static_cast<uint32_t>((items + group_size - 1) / group_size);
-}
-
-// Launches the model's reduction kernel: dst = src0 + src1 over `count` elements.
+// Launches the model's reduction kernel (impls/ocl_v2/tp_allreduce.cl):
+// dst = src0 + src1 over `count` elements, 8 elements per work item.
 void append_reduce(ze_command_list_handle_t list,
                    ze_kernel_handle_t kernel,
                    void* dst,
@@ -94,14 +94,16 @@ void append_reduce(ze_command_list_handle_t list,
                    void* src1,
                    std::size_t count,
                    ze_event_handle_t signal) {
-    using namespace reduce_kernel;
-    const count_t n = count;
-    const ze_group_count_t groups{launch_groups(count, group_size), 1, 1};
+    constexpr std::size_t elems_per_item = 8;
+    constexpr uint32_t group_size = 256;
+    const uint64_t n = count;
+    const std::size_t items = (count + elems_per_item - 1) / elems_per_item;
+    const ze_group_count_t groups{static_cast<uint32_t>((items + group_size - 1) / group_size), 1, 1};
     ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, group_size, 1, 1));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, Arg::dst, sizeof(dst), &dst));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, Arg::src0, sizeof(src0), &src0));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, Arg::src1, sizeof(src1), &src1));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, Arg::count, sizeof(n), &n));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(dst), &dst));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(src0), &src0));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(src1), &src1));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(n), &n));
     ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(list, kernel, &groups, signal, 0, nullptr));
 }
 
@@ -381,7 +383,7 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
                 new_bytes_per_rank[rank] = ring_bytes;
             }
         } else {
-            const auto pair_bytes = checked_multiply(payload_bytes,
+            const auto pair_bytes = checked_multiply(pair_stride(payload_bytes),
                                                      static_cast<std::size_t>(plan_buffers()),
                                                      "pair scratch");
             for (int rank = 0; rank < m_world_size; ++rank) {
@@ -477,7 +479,7 @@ void* TPDeviceCoordinator::pair_stage(int rank, int buffer) const {
                     "[TP][L0] pair staging rank out of range: ", rank);
     auto* base = static_cast<uint8_t*>(m_scratch.allocations[static_cast<std::size_t>(rank)]);
     return base + static_cast<std::size_t>(buffer) *
-                  m_scratch.payload_capacity_bytes.load(std::memory_order_relaxed);
+                  pair_stride(m_scratch.payload_capacity_bytes.load(std::memory_order_relaxed));
 }
 
 void TPDeviceCoordinator::ring_chunk(std::size_t n,

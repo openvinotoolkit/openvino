@@ -153,7 +153,7 @@ public:
     /// `dtype` must be f16, bf16 or f32.
     ///
     /// `reduce_kernel` is the rank's reduction kernel for `dtype`, created in
-    /// the shared context on the rank's device; see reduce_kernel_abi.hpp for
+    /// the shared context on the rank's device; see append_reduce() for
     /// what it computes. It is baked into the recording and must stay alive
     /// while a recording that uses it may still run.
     ///

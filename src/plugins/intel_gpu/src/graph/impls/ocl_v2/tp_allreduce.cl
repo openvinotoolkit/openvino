@@ -7,7 +7,7 @@
 // One reduction step of an AllReduce SUM: dst = src0 + src1. The operands are
 // widened to f32, added, and rounded once into the element type, so f16 and
 // bf16 results are what an f32 accumulator would give. Argument order and the
-// 8 elements per work item are fixed by runtime/ze/tp/reduce_kernel_abi.hpp.
+// 8 elements per work item are what the coordinator's append_reduce() launches.
 // dst may alias src0 (in-place collective); src1 is the coordinator's staging.
 
 #if defined(TP_BF16)

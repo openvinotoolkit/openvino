@@ -9,7 +9,7 @@
 #ifdef ENABLE_TP
 
 #if OV_GPU_WITH_OCL
-    #include "impls/ocl_v2/tp_allreduce.hpp"
+    #include "impls/ocl_v2/tp/tp_allreduce.hpp"
 #endif
 
 namespace ov::intel_gpu {

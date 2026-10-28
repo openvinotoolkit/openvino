@@ -64,7 +64,7 @@ for the current file layout. Key entry points:
 | `include/tp/options.inl`    | The option table: defaults, validators, tiers.                                                                                                                                   |
 | intel_gpu `src/plugin/plugin.cpp` | `Plugin::create_tp_context` — the TP context from the `ov::tp::internal` parameters; `Graph::bind_collectives` in `graph.cpp` binds a model to it.                            |
 | intel_gpu `src/runtime/ze/tp/`  | `rank_communicator.cpp` (publish, connect, bind, group registry), `tp_device_coordinator.cpp` (all L0 work: per-rank queues/cmdlists, plan caching, the three schedules, splicing and the watchdog), `tp_l0_shared_context.cpp`. |
-| intel_gpu `impls/ocl_v2/tp_allreduce.*` | The AllReduce impl: builds the reduction kernel (`tp_allreduce.cl`) with the model and hands it to the network's TP channel. Registered from `graph/registry/tp_allreduce_impls.cpp`. |
+| intel_gpu `impls/ocl_v2/tp/tp_allreduce.*`, `impls/ocl_v2/tp_allreduce.cl` | The AllReduce impl: builds the reduction kernel (`tp_allreduce.cl`) with the model and hands it to the network's TP channel. Registered from `graph/registry/tp_allreduce_impls.cpp`. |
 | intel_gpu `impls/ocl/tp_gather.cpp`  | The gather impl, copies only. Registered from `graph/registry/tp_gather_impls.cpp`. |
 
 ## Tunables
@@ -372,7 +372,8 @@ In order of frequency:
    `vload8` / `vstore8`, which need the base pointer aligned to the vector
    width; an offset that is not corrupts a handful of elements at the head of
    a chunk. `ring_chunk` and `halving_mid` snap to `kRingAlignElems` for this
-   reason, and the tail past the last whole vector is handled by a scalar loop.
+   reason, `pair_stride` aligns the second pair staging set, and the tail past
+   the last whole vector is handled by a scalar loop.
 5. **A peer copy into another rank's model buffer.** Results differ between
    identical runs, rarely (a token flips near an argmax tie). Peers may write
    staging only; the owning rank copies into its output. Check with 10+

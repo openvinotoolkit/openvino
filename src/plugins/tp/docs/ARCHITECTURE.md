@@ -247,12 +247,11 @@ src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 │   │                                         process registry of groups
 │   ├── tp_l0_shared_context.{hpp,cpp}      ← shared ze_context + its cache
 │   ├── tp_device_coordinator.{hpp,cpp}     ← L0 plans, cmdlists, exec
-│   ├── reduce_kernel_abi.hpp               ← what the coordinator expects of
-│   │                                         the model's reduction kernel
 │   ├── collective_options.hpp              ← CollectiveOptions (GPU_TP_*)
 │   └── tp_debug.hpp                        ← timers and report helpers
-├── src/graph/impls/ocl_v2/tp_allreduce.{hpp,cpp,cl} ← AllReduce impl and its
-│                                                     reduction kernel
+├── src/graph/impls/ocl_v2/tp/tp_allreduce.{hpp,cpp} ← AllReduce impl
+├── src/graph/impls/ocl_v2/tp_allreduce.cl  ← its reduction kernel (codegen
+│                                          reads .cl from the ocl_v2 root only)
 ├── src/graph/impls/ocl/tp_gather.cpp       ← Gather impl (copies only)
 ├── src/plugin/ops/tp_{allreduce,gather}.cpp       ← op → primitive
 └── tests/unit/module_tests/ze/tp_device_coordinator_test.cpp
@@ -283,8 +282,8 @@ builds it through the GPU kernel pipeline with the rest of the model, so it is
 stored in the cache blob and `import_model()` does not rebuild it. The impl
 passes its Level Zero kernel handle with every `allreduce()` call. The kernel
 widens both operands to f32, adds them and rounds once to the element type, so
-every reduction step is one f32 addition; its argument order and work-item
-width are fixed by `reduce_kernel_abi.hpp`.
+every reduction step is one f32 addition; the coordinator launches it in
+`append_reduce()` (argument order and 8 elements per work item).
 
 ### Plan caching
 

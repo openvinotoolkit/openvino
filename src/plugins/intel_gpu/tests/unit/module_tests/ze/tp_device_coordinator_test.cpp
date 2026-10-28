@@ -228,8 +228,10 @@ public:
         std::lock_guard<std::mutex> lock(mutex());
         for (auto& [ctx, built] : registry()) {
             for (auto& [key, entry] : built.kernels) {
-                ov::zeKernelDestroy(entry.kernel);
-                ov::zeModuleDestroy(entry.module);
+                if (entry.kernel)
+                    ov::zeKernelDestroy(entry.kernel);
+                if (entry.module)
+                    ov::zeModuleDestroy(entry.module);
             }
         }
         registry().clear();
@@ -1229,7 +1231,7 @@ std::vector<T> random_operands(size_t n, uint32_t seed) {
 /// of the operands rounded once to nearest even.
 template <typename T>
 void expect_single_rounding(TPDeviceCoordinator& coord, CollectiveBuffers& buffers, ov::element::Type dtype) {
-    constexpr size_t n = 4099;  // a tail the vector path does not cover
+    constexpr size_t n = 4099;  // a scalar tail, and an odd byte offset for the second staging set
     const size_t bytes = n * sizeof(T);
     const auto a = random_operands<T>(n, 1);
     const auto b = random_operands<T>(n, 2);

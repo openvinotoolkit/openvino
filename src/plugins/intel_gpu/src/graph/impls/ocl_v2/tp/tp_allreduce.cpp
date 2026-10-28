@@ -9,21 +9,18 @@
 #include "ze/ze_kernel.hpp"
 #include "ze/ze_stream.hpp"
 #include "ze/tp/rank_communicator.hpp"
-#include "ze/tp/reduce_kernel_abi.hpp"
 
 #include "tp_allreduce.hpp"
 
 #include <mutex>
 
+#include "../primitive_ocl_base.hpp"
+#include "../utils/kernel_generator.hpp"
 #include "impls/cpu/cpu_impl_helpers.hpp"
-#include "primitive_ocl_base.hpp"
 #include "tp_allreduce_inst.h"
-#include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
-
-static_assert(cldnn::ze::tp::reduce_kernel::elems_per_item == 8, "tp_allreduce.cl folds 8 elements per work item");
 
 // The reduction step the TP channel launches between its copies. Only the
 // element type specializes it: buffers, count and launch size are set by the
