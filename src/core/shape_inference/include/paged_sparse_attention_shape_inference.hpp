@@ -31,11 +31,21 @@ std::vector<TRShape> shape_infer(const PagedSparseAttention* op, const std::vect
     const auto& scale = input_shapes[11];
     const auto& sinks = input_shapes[12];
 
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, query.rank().compatible(2));                 // `[T, H*S]`
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, key.rank().compatible(2));                   // `[T, Hkv*S]`
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, value.rank().compatible(2));                 // `[T, Hkv*Sv]`
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, key_cache.rank().compatible(4));             // `[B, Hkv, Bs, S]`
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, value_cache.rank().compatible(4));           // `[B, Hkv, Bs, Sv]`
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, query.rank().compatible(2));  // `[T, H*S]`
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, key.rank().compatible(2));    // `[T, Hkv*S]`
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, value.rank().compatible(2));  // `[T, Hkv*Sv]`
+    NODE_SHAPE_INFER_CHECK(
+        op,
+        input_shapes,
+        key_cache.rank().is_dynamic() ||
+            (key_cache.rank().get_length() >= 2 &&
+             key_cache.rank().get_length() <= 5));  // `[B, Hkv, Bs, S]`; relaxed for backend-owned storage.
+    NODE_SHAPE_INFER_CHECK(
+        op,
+        input_shapes,
+        value_cache.rank().is_dynamic() ||
+            (value_cache.rank().get_length() >= 2 &&
+             value_cache.rank().get_length() <= 5));  // `[B, Hkv, Bs, Sv]`; relaxed for backend-owned storage.
     NODE_SHAPE_INFER_CHECK(op, input_shapes, past_lens.rank().compatible(1));             // `[B_seq]`
     NODE_SHAPE_INFER_CHECK(op, input_shapes, subsequence_begins.rank().compatible(1));    // `[B_seq+1]`
     NODE_SHAPE_INFER_CHECK(op, input_shapes, block_indices.rank().compatible(1));         // `[Nb]`
@@ -48,8 +58,6 @@ std::vector<TRShape> shape_infer(const PagedSparseAttention* op, const std::vect
     const bool query_rank_static = query.rank().is_static();
     const bool key_rank_static = key.rank().is_static();
     const bool value_rank_static = value.rank().is_static();
-    const bool key_cache_rank_static = key_cache.rank().is_static();
-    const bool value_cache_rank_static = value_cache.rank().is_static();
     const bool selected_indices_rank_static = selected_indices.rank().is_static();
     const bool selected_count_rank_static = selected_count.rank().is_static();
 
@@ -75,21 +83,6 @@ std::vector<TRShape> shape_infer(const PagedSparseAttention* op, const std::vect
     }
     NODE_SHAPE_INFER_CHECK(op, input_shapes, !selection_heads.is_static() || selection_heads.get_length() > 0);
 
-    // Key/value caches share `B`, `Hkv` and `Bs`; their trailing `S` and `Sv` may differ.
-    auto cache_blocks = key_cache_rank_static ? key_cache[0] : TDim{};
-    auto kv_heads = key_cache_rank_static ? key_cache[1] : TDim{};
-    auto page_size = key_cache_rank_static ? key_cache[2] : TDim{};
-    if (value_cache_rank_static) {
-        NODE_SHAPE_INFER_CHECK(op, input_shapes, TDim::merge(cache_blocks, cache_blocks, value_cache[0]));
-        NODE_SHAPE_INFER_CHECK(op, input_shapes, TDim::merge(kv_heads, kv_heads, value_cache[1]));
-        NODE_SHAPE_INFER_CHECK(op, input_shapes, TDim::merge(page_size, page_size, value_cache[2]));
-    }
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, !kv_heads.is_static() || kv_heads.get_length() > 0);
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, !page_size.is_static() || page_size.get_length() > 0);
-    // `Bs / key_block_size` must be integral.
-    const auto slots = page_size / op->get_key_block_size();
-    check_divided_result(op, slots, page_size, op->get_key_block_size());
-
     // Both offset arrays have `B_seq+1` entries, with `B_seq` taken from past_lens.
     auto offsets = subsequence_begins.rank().is_static() ? subsequence_begins[0] : TDim{};
     if (block_indices_begins.rank().is_static()) {
@@ -99,75 +92,29 @@ std::vector<TRShape> shape_infer(const PagedSparseAttention* op, const std::vect
         NODE_SHAPE_INFER_CHECK(op, input_shapes, TDim::merge(offsets, offsets, past_lens[0] + 1));
     }
 
-    // Read positive `S` and `Sv` from the key and value caches, respectively.
-    auto key_head_size = key_cache_rank_static ? key_cache[3] : TDim{};
-    auto value_head_size = value_cache_rank_static ? value_cache[3] : TDim{};
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, !key_head_size.is_static() || key_head_size.get_length() > 0);
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, !value_head_size.is_static() || value_head_size.get_length() > 0);
-    if (key_rank_static && key_head_size.is_static()) {
-        // `Hkv = key width / S` must be integral and agree with cache `Hkv`.
-        const auto projected_kv_heads = key[1] / key_head_size.get_length();
-        check_divided_result(op, projected_kv_heads, key[1], key_head_size.get_length());
-        NODE_SHAPE_INFER_CHECK(op, input_shapes, TDim::merge(kv_heads, kv_heads, projected_kv_heads));
-    }
-    if (value_rank_static && value_head_size.is_static()) {
-        // `Hkv = value width / Sv` must also agree with the key-derived and cache `Hkv`.
-        const auto projected_kv_heads = value[1] / value_head_size.get_length();
-        check_divided_result(op, projected_kv_heads, value[1], value_head_size.get_length());
-        NODE_SHAPE_INFER_CHECK(op, input_shapes, TDim::merge(kv_heads, kv_heads, projected_kv_heads));
-    }
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, !kv_heads.is_static() || kv_heads.get_length() > 0);
-    if (kv_heads.is_static()) {
-        const auto heads = kv_heads.get_length();
-        if (key_rank_static) {
-            // `S = key width / Hkv` must be integral and agree with `key_cache[..., S]`.
-            const auto projected_key_head_size = key[1] / heads;
-            check_divided_result(op, projected_key_head_size, key[1], heads);
-            NODE_SHAPE_INFER_CHECK(op,
-                                   input_shapes,
-                                   TDim::merge(key_head_size, key_head_size, projected_key_head_size));
-        }
-        if (value_rank_static) {
-            // `Sv = value width / Hkv` must be integral and agree with `value_cache[..., Sv]`.
-            const auto projected_value_head_size = value[1] / heads;
-            check_divided_result(op, projected_value_head_size, value[1], heads);
-            NODE_SHAPE_INFER_CHECK(op,
-                                   input_shapes,
-                                   TDim::merge(value_head_size, value_head_size, projected_value_head_size));
-        }
-    }
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, !key_head_size.is_static() || key_head_size.get_length() > 0);
-    NODE_SHAPE_INFER_CHECK(op, input_shapes, !value_head_size.is_static() || value_head_size.get_length() > 0);
+    // Logical projection widths `H*S`, `Hkv*S` and `Hkv*Sv` must be positive.
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, !query_rank_static || !query[1].is_static() || query[1].get_length() > 0);
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, !key_rank_static || !key[1].is_static() || key[1].get_length() > 0);
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, !value_rank_static || !value[1].is_static() || value[1].get_length() > 0);
 
-    // `H = query width / S` must be integral and positive.
-    TDim query_heads{};
-    if (query_rank_static && key_head_size.is_static()) {
-        const auto head_size = key_head_size.get_length();
-        query_heads = query[1] / head_size;
-        check_divided_result(op, query_heads, query[1], head_size);
-        NODE_SHAPE_INFER_CHECK(op, input_shapes, !query_heads.is_static() || query_heads.get_length() > 0);
+    TDim groups{};
+    if (query_rank_static && key_rank_static && key[1].is_static()) {
+        // `H/Hkv = query width / key width` must be integral for grouped-query attention.
+        groups = query[1] / key[1].get_length();
+        check_divided_result(op, groups, query[1], key[1].get_length());
     }
-    if (query_heads.is_static()) {
-        const auto heads = query_heads.get_length();
-        // `H` must be divisible by `Hkv` for grouped-query attention and by `Hs` for shared selections.
-        NODE_SHAPE_INFER_CHECK(op, input_shapes, !kv_heads.is_static() || heads % kv_heads.get_length() == 0);
-        NODE_SHAPE_INFER_CHECK(op,
-                               input_shapes,
-                               !selection_heads.is_static() || heads % selection_heads.get_length() == 0);
-        if (sinks.rank().is_static()) {
-            // Sinks are absent (`[0]`) or provide exactly one logit per query head (`[H]`).
-            NODE_SHAPE_INFER_CHECK(op, input_shapes, sinks[0].compatible(0) || sinks[0].compatible(query_heads));
-        }
+    TDim output_width{};
+    if (value_rank_static) {
+        // Divide before multiplying: `(H/Hkv) * (Hkv*Sv) = H*Sv`, without an overflowing `Q*V`.
+        NODE_SHAPE_INFER_CHECK(
+            op,
+            input_shapes,
+            !groups.is_static() || !value[1].is_static() ||
+                (groups.get_length() <= ((std::numeric_limits<int64_t>::max() - 1) / value[1].get_length())));
+        output_width = groups * value[1];
     }
-
-    // Bound `H*Sv` before multiplying, since static-shape adapters do not saturate on overflow.
-    NODE_SHAPE_INFER_CHECK(
-        op,
-        input_shapes,
-        !query_heads.is_static() || !value_head_size.is_static() ||
-            (query_heads.get_length() <= (std::numeric_limits<int64_t>::max() / value_head_size.get_length())));
-    // Output is `[T, H*Sv]`, preserving tokens and concatenating the `H` value-head results.
-    return {TRShape{tokens, query_heads * value_head_size}};
+    // Output is `[T, H*Sv]`; cache layout and logical head counts are validated by the backend.
+    return {TRShape{tokens, output_width}};
 }
 
 }  // namespace ov::op::internal
