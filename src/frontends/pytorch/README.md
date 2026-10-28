@@ -71,6 +71,21 @@ Outputs of such a region that are its operands or their views keep the alias rel
 so later in-place operations on them update the operands. This does not require
 `ExportedProgram.run_decompositions()` or an additional trace.
 
+### Exported batching and wrapped callables
+
+Exported `torch.vmap` regions convert to OpenVINO loops over logical tensor
+slices. Nested maps, invariant operands, dynamic batch sizes and output-axis
+placement are supported for tensors with known rank. Mutation and random
+operations inside these regions are rejected.
+
+`flat_apply` callables are traced independently with their runtime tensor and
+symbolic operands. Callable and pytree metadata remain conversion metadata;
+they are not converted to tensor constants. The trace must not specialize
+runtime values or introduce new shape guards. Tensor outputs and nested
+list/tuple outputs are preserved; aliased operands in nested output containers
+are rejected. These conversions do not call `run_decompositions()` or retrace
+the entire exported program.
+
 ## How to Implement Support for a New PyTorch Operation
 
 PyTorch conversion into the OpenVINO opset operations consists of two stages:

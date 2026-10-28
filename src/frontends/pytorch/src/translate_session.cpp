@@ -4,6 +4,7 @@
 
 #include "translate_session.hpp"
 
+#include "batched_tensor.hpp"
 #include "helper_ops/gather_assign.hpp"
 #include "helper_ops/slice_assign.hpp"
 #include "input_model.hpp"
@@ -36,15 +37,21 @@ public:
     explicit AliasScope(TranslateSession& session) : m_session(session) {
         m_aliases.swap(m_session.m_may_be_alias);
         m_tuple_element_aliases.swap(m_session.m_tuple_element_aliases);
+        m_vmap_depth = m_session.m_vmap_depth;
+        m_vmap_error = m_session.m_vmap_error;
     }
 
     ~AliasScope() {
+        m_session.m_vmap_depth = m_vmap_depth;
+        m_session.m_vmap_error = m_vmap_error;
         m_aliases.swap(m_session.m_may_be_alias);
         m_tuple_element_aliases.swap(m_session.m_tuple_element_aliases);
     }
 
 private:
     TranslateSession& m_session;
+    size_t m_vmap_depth;
+    std::string m_vmap_error;
     decltype(TranslateSession::m_may_be_alias) m_aliases;
     // Tensor ids are local to a graph, so tuple element aliases are scoped like other aliases.
     decltype(TranslateSession::m_tuple_element_aliases) m_tuple_element_aliases;
@@ -148,11 +155,12 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
     return model;
 }
 
-std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
-    std::shared_ptr<TorchDecoder> pytorch_model,
-    const TensorMap& external_tensor_map,
-    const std::shared_ptr<pytorch::InputModel>& input_model) {
+std::shared_ptr<Model> TranslateSession::convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
+                                                               const TensorMap& external_tensor_map,
+                                                               const std::shared_ptr<pytorch::InputModel>& input_model,
+                                                               bool is_subgraph) {
     AliasScope alias_scope(*this);
+    is_subgraph = is_subgraph || !external_tensor_map.empty();
     // The decoder type is a property of the decoder class, so read it once per graph rather
     // than per node; every access crosses into Python.
     m_is_fx = pytorch_model->decoder_type_name() == "fx";
@@ -348,8 +356,14 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 size_t fw_tensor_id = fw_outputs.at(i);
                 const auto extracted = sequence_aliases.find(i);
                 const bool sequence_element = extracted != sequence_aliases.end();
+                const auto registered_alias = m_may_be_alias.find(fw_tensor_id);
+                const bool same_tensor_alias =
+                    registered_alias != m_may_be_alias.end() && registered_alias->second.same_tensor;
                 const auto in_tensor_id =
-                    sequence_element ? extracted->second : (unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i));
+                    same_tensor_alias
+                        ? registered_alias->second.base_id
+                        : (sequence_element ? extracted->second
+                                            : (unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i)));
                 if (has_out || sequence_element ||
                     (has_inputs && (constructs_sequence || node->may_produce_alias(0, i)))) {
                     auto alias_iter = m_may_be_alias.find(fw_tensor_id);
@@ -372,7 +386,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                         converted_outputs[i],
                         tensor_map->at(in_tensor_id),
                         constructs_sequence ? raw_inputs : std::vector<size_t>{},
-                        !unpacked_ids.empty() ||
+                        same_tensor_alias || !unpacked_ids.empty() ||
                             (sequence_element && !ov::is_type<SequenceMark>(tensor_map->at(in_tensor_id).get_node()))};
                     OPENVINO_DEBUG("Registered alias: ",
                                    fw_tensor_id,
@@ -469,9 +483,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                         tensor_id,
                                         " doesn't exist in tensor map.");
                 // model input was mutated we need to make a result for it
-                // empty external_tensor_map means this is main body of the model and we don't want to create
-                // additional outputs in that case.
-                if (!external_tensor_map.empty()) {
+                if (is_subgraph) {
                     OPENVINO_DEBUG("Creating Result for mutated tensor  ", tensor_id);
                     results.push_back(std::make_shared<v0::Result>(tensor_map->at(tensor_id)));
                 }
@@ -479,7 +491,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 OPENVINO_DEBUG("Mutated tensor with id ", tensor_id, " doesn't exist in inputs, skipping.");
             }
         }
-        if (!external_tensor_map.empty() && !input_model) {
+        if (is_subgraph && !input_model) {
             // Record declared outputs which are body inputs or their views, so a parent inlining the body keeps the
             // alias.
             m_body_output_aliases.clear();
@@ -496,7 +508,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 }
             }
         }
-        if (!external_tensor_map.empty()) {
+        if (is_subgraph) {
             // for internal bodies we want to remove all extra inputs that were created, but not used
             parameters->erase(std::remove_if(parameters->begin(),
                                              parameters->end(),
@@ -519,6 +531,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 OutputVector TranslateSession::convert_node(const NodeContext& context) {
     std::string exception;
     try {
+        check_vmap_node(context);
         const auto& raw_op_type = context.get_op_type();
         auto it = m_translator_map.find(raw_op_type);
         // FX names carry an overload suffix; fall back to the shared TorchScript translator for the same operator.
