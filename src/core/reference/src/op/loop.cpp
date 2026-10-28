@@ -31,13 +31,7 @@ void loop(const std::shared_ptr<Model>& func,
     bool cur_iter_initial_value_exist = val != input_descs.end();
     bool cur_iter_back_edge_exist = false;
 
-    // If current_iteration_input is exist and initial value is not provided, we
-    // should allocate input_descs.size() + 1 inputs and set default value (0) for
-    // current_iteration input.
-    int64_t inputs_count = input_descs.size() + (cur_iter_idx >= 0 ? !cur_iter_initial_value_exist : 0);
-    ov::TensorVector inputs_to_body;
-    for (int64_t i = 0; i < inputs_count; ++i)
-        inputs_to_body.push_back(ov::Tensor());
+    ov::TensorVector inputs_to_body(func->get_parameters().size());
     if (cur_iter_idx >= 0 && !cur_iter_initial_value_exist) {
         const auto& cur_iter = func->get_parameters().at(cur_iter_idx);
         if (cur_iter->get_partial_shape().is_dynamic()) {
@@ -61,6 +55,9 @@ void loop(const std::shared_ptr<Model>& func,
     };
     std::vector<BackEdge> back_edges;
     for (const auto& desc : input_descs) {
+        OPENVINO_ASSERT(inputs_to_body.size() > desc->m_body_parameter_index,
+                        "Incorrect associating! TensorIterator/Loop body has not parameter with id ",
+                        desc->m_body_parameter_index);
         inputs_to_body[desc->m_body_parameter_index] = args[desc->m_input_index];
         if (const auto& merged_desc = ov::as_type_ptr<op::v5::Loop::MergedInputDescription>(desc)) {
             back_edges.push_back({merged_desc->m_body_parameter_index, merged_desc->m_body_value_index});
