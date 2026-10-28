@@ -61,26 +61,25 @@ public:
 
     ov::weight_sharing::WeightBuffer request_shared_weight_source_buffer(size_t source_id, const element::Type& type, const ov::Shape& shape, const std::string &device, Handle &handle);
     void register_shared_weight_source_for_weight(ov::weight_sharing::WeightBuffer source_buffer,
-                                                  size_t source_id,
                                                   const std::string& device,
                                                   Handle& handle);
 
     static ov::weight_sharing::WeightBuffer create_shared_buffer(int64_t source_id, std::size_t size);
 
     bool serialize_native_format(ov::npuw::orc::Stream& stream);
-    bool serialize_native_format(ov::npuw::orc::Stream& stream, Handle& handle);
     bool deserialize_native_format(ov::npuw::orc::Stream& stream, const ov::ICore &core);
-    bool deserialize_native_format(ov::npuw::orc::Stream& stream, const ov::ICore &core, Handle& handle);
 protected:
     /* CVS-198039 WeightMetaData has no m_shape */
-    const ov::op::v0::Constant& get_transformed_constant(size_t source_id, Handle& handle) const;
-
+    const ov::op::v0::Constant& get_transformed_constant(const std::string& device, size_t source_id, Handle& handle) const;
+    bool deserialize_native_format_impl(ov::npuw::orc::Stream& stream, const ov::ICore &core, Handle& handle);
 private:
+    bool serialize_native_format_impl(ov::npuw::orc::Stream& stream, Handle& handle) const;
     std::mutex m_mutex;
     std::shared_ptr<ov::weight_sharing::Context> m_context = nullptr;
     std::unordered_map<size_t, ov::weight_sharing::WeightBuffer> m_shared_sources;
 
-    std::unordered_map<size_t, ov::op::v0::Constant> m_transformed_weights;
+    using TransformedWeightsMap = std::unordered_map<size_t, ov::op::v0::Constant>;
+    std::unordered_map<std::string/* device */, TransformedWeightsMap> m_transformed_weights_per_device;
 };
 
 

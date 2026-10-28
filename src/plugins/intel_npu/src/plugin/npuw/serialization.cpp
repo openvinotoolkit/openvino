@@ -16,6 +16,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "pyramid_attention.hpp"
@@ -245,7 +246,15 @@ void ov::npuw::orc::transfer_tensor(Stream& stream, ov::Tensor& var, const s11n:
                 "Tensor allocator returned tensor with unexpected type or shape");
     NPUW_ASSERT(var.get_byte_size() == byte_size && "Tensor allocator returned tensor with unexpected byte size");
 
-    stream.bytes(var.data(), byte_size);
+    if (var.is<ov::RemoteTensor>()) {
+        // Remote tensors do not support the data() method.
+        // But we can still write its data using a temporary tensor and the copy_to() method.
+        auto tmp_var = ov::Tensor(type, shape);
+        stream.bytes(tmp_var.data(), byte_size);
+        tmp_var.copy_to(var);
+    } else {
+        stream.bytes(var.data(), byte_size);
+    }
 }
 
 void ov::npuw::orc::serialize(Stream& stream, std::shared_ptr<ov::op::v0::Parameter>& var) {
