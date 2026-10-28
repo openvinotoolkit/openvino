@@ -435,9 +435,6 @@ ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMo
     const auto fusable_op = std::make_shared<ov::pass::pattern::op::WrapType>(fusable_producer_types);
     const auto fusable_producer = ov::pass::pattern::optional<v1::Add>({fusable_op, ov::pass::pattern::any_input()});
 
-    // Data movement op inserting a single unit dimension. Reshape may also keep or reduce the rank, so
-    // the rank increase is required explicitly. A single consumer keeps the producer single user, which
-    // is what the post-op fusion requires.
     const auto rank_increase_by_one = [](const ov::Output<ov::Node>& output) {
         const auto& in_rank = output.get_node()->get_input_partial_shape(0).rank();
         const auto& out_rank = output.get_partial_shape().rank();
@@ -447,13 +444,9 @@ ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMo
         wrap_type<v1::Reshape, v0::Unsqueeze>({fusable_producer, ov::pass::pattern::any_input()},
                                               rank_increase_by_one && ov::pass::pattern::consumers_count(1));
 
-    // The eltwise is fused into the producer as a `producer <op> peer` post-op, so the data movement op
-    // has to stay on the first eltwise input. Reversed order is matched for commutative ops only,
-    // because the matcher permutes pattern inputs for them. The eltwise itself is not limited to a
-    // single consumer: a residual add usually feeds two ops of the next block and is still worth fusing.
+    const auto other_input = ov::pass::pattern::any_input();
     const auto eltwise_pattern =
-        wrap_type<op_util::BinaryElementwiseArithmetic>({data_mov, ov::pass::pattern::any_input()},
-                                                        ov::pass::pattern::has_static_rank());
+        wrap_type<op_util::BinaryElementwiseArithmetic>({data_mov, other_input}, ov::pass::pattern::has_static_rank());
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -463,10 +456,7 @@ ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMo
             return false;
 
         const auto rn = pattern_map.at(data_mov).get_node_shared_ptr();
-        // The matcher permutes pattern inputs for commutative ops, so the data movement op can feed
-        // either of the eltwise inputs
-        const size_t data_mov_idx = eltwise->get_input_node_shared_ptr(0) == rn ? 0 : 1;
-        const size_t other_idx = 1 - data_mov_idx;
+        const auto other = pattern_map.at(other_input);
 
         const auto& in_ps = rn->get_input_partial_shape(0);
         const auto& out_ps = rn->get_output_partial_shape(0);
@@ -479,24 +469,16 @@ ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMo
         expected.insert(expected.begin() + axis, ov::Dimension(1));
         if (!expected.same_scheme(out_ps))
             return false;
-        // Dynamic dimensions are equal to each other by scheme only and a Reshape may reinterpret them,
-        // so allow at most one of them and no zero dimension, which would void the element count
-        // argument. Unsqueeze only inserts dimensions, so it is not restricted.
+        // Reshape keeps the element count, so it can't reinterpret a single dynamic dimension, but may reorder several
         if (ov::is_type<v1::Reshape>(rn)) {
-            const auto is_ambiguous = [](const ov::Dimension& dim) {
-                return dim.is_dynamic() || dim.get_length() == 0;
-            };
-            const auto is_zero = [](const ov::Dimension& dim) {
-                return dim.is_static() && dim.get_length() == 0;
-            };
-            if (std::count_if(in_ps.begin(), in_ps.end(), is_ambiguous) > 1 ||
-                std::any_of(in_ps.begin(), in_ps.end(), is_zero)) {
+            const auto dynamic_dims = std::count_if(in_ps.begin(), in_ps.end(), [](const ov::Dimension& dim) {
+                return dim.is_dynamic();
+            });
+            if (dynamic_dims > 1)
                 return false;
-            }
         }
 
         // The other input has to have the same rank and a unit dimension at `axis` to be squeezed
-        const auto other = eltwise->get_input_source_output(other_idx);
         const auto& other_ps = other.get_partial_shape();
         if (other_ps.rank() != out_ps.rank() || other_ps[axis] != 1)
             return false;
@@ -504,24 +486,10 @@ ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMo
         // Eltwise(Reshape(P, axis), other) => Unsqueeze(Eltwise(P, Squeeze(other, axis)), axis)
         const auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
         const auto squeezed = std::make_shared<v0::Squeeze>(other, axis_const);
-        ov::OutputVector eltwise_inputs(2);
-        eltwise_inputs[data_mov_idx] = rn->input_value(0);
-        eltwise_inputs[other_idx] = squeezed;
-        const auto eltwise_low = eltwise->clone_with_new_inputs(eltwise_inputs);
+        const auto eltwise_low = eltwise->clone_with_new_inputs({rn->input_value(0), squeezed});
         const auto unsqueezed =
             std::make_shared<v0::Unsqueeze>(eltwise_low, v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis}));
 
-        // Keep the eltwise name on the new eltwise. If the eltwise feeds a model output, the name has to
-        // stay on the terminal Unsqueeze instead, which replace_output_update_name takes care of, and it
-        // also has to be dropped from the eltwise because TypeRelaxed clones copy the name.
-        const auto& consumers = eltwise->output(0).get_target_inputs();
-        const bool feeds_result = std::any_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& in) {
-            return ov::is_type<v0::Result>(in.get_node());
-        });
-        if (feeds_result)
-            eltwise_low->set_friendly_name("");
-        else
-            eltwise_low->set_friendly_name(eltwise->get_friendly_name());
         ov::copy_runtime_info({eltwise, rn}, {squeezed, eltwise_low, unsqueezed});
         return ov::replace_output_update_name(eltwise->output(0), unsqueezed->output(0));
     };

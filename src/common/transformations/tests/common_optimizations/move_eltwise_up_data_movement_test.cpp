@@ -1007,7 +1007,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, FusableReverseInputOrder) {
         auto other = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 4, 16});
         auto sq_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
         auto squeezed = std::make_shared<v0::Squeeze>(other, sq_axis);
-        auto add = std::make_shared<v1::Add>(squeezed, matmul);
+        auto add = std::make_shared<v1::Add>(matmul, squeezed);
         auto un_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
         auto unsqueezed = std::make_shared<v0::Unsqueeze>(add, un_axis);
 
@@ -1073,7 +1073,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, FusableMaximumDataMovOnInput1) {
         auto other = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 4, 16});
         auto sq_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
         auto squeezed = std::make_shared<v0::Squeeze>(other, sq_axis);
-        auto maximum = std::make_shared<v1::Maximum>(squeezed, matmul);
+        auto maximum = std::make_shared<v1::Maximum>(matmul, squeezed);
         auto un_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
         auto unsqueezed = std::make_shared<v0::Unsqueeze>(maximum, un_axis);
 
@@ -1214,37 +1214,6 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, FusableReshapeReorderedDynamicDimsNoOp) 
 
     model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input, other});
     register_fusable_pass(*this);
-}
-
-// The eltwise is consumed by another op instead of a model output. Covers the branch that keeps the
-// eltwise name on the eltwise; the comparator doesn't compare the names of intermediate nodes
-TEST_F(MoveEltwiseUpThroughDataMovTest, FusableEltwiseWithNonResultConsumer) {
-    {
-        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
-        auto weights = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f});
-        auto matmul = std::make_shared<v0::MatMul>(input, weights);
-        auto reshape = make_resh(matmul, {2, 1, 4, 16});
-        auto other = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 4, 16});
-        auto add = std::make_shared<v1::Add>(reshape, other);
-        auto relu = std::make_shared<v0::Relu>(add);
-
-        model = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{input, other});
-        register_fusable_pass(*this);
-    }
-    {
-        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 4, 8});
-        auto weights = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f});
-        auto matmul = std::make_shared<v0::MatMul>(input, weights);
-        auto other = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{2, 1, 4, 16});
-        auto sq_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-        auto squeezed = std::make_shared<v0::Squeeze>(other, sq_axis);
-        auto add = std::make_shared<v1::Add>(matmul, squeezed);
-        auto un_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-        auto unsqueezed = std::make_shared<v0::Unsqueeze>(add, un_axis);
-        auto relu = std::make_shared<v0::Relu>(unsqueezed);
-
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{input, other});
-    }
 }
 
 // Unsqueeze only inserts dimensions, so the pass applies even with several dynamic dimensions
