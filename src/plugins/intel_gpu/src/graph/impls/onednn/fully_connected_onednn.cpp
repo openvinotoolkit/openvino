@@ -23,20 +23,22 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     static constexpr int COMMON = 0;
     static constexpr int PER_OC = 2;
 
-    // Group (IFM) axis is last for [N, groups] (transpose_b) and second-to-last for [groups, N].
-    static int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size_t weights_rank) {
-        const auto& pshape = param_layout.get_partial_shape();
-        const auto rank = static_cast<int64_t>(pshape.size());
-        // 1D [N] holds only OC; point past it so get_dim() hits the padded 1 (one IFM group).
-        if (rank <= 1)
-            return rank;
-        const auto logical_rank = std::min<int64_t>(rank, std::max<int64_t>(2, static_cast<int64_t>(weights_rank)));
-        // Extra dims are either legacy trailing padding (all 1) or leading broadcast dims.
-        const bool trailing_padded = std::all_of(pshape.begin() + logical_rank, pshape.end(), [](const ov::Dimension& d) {
-            return d.is_static() && d.get_length() == 1;
-        });
-        const int64_t base = trailing_padded ? 0 : rank - logical_rank;
-        return std::max<int64_t>(0, base + (transpose_b_param ? logical_rank - 1 : logical_rank - 2));
+    // Computes the number of decompression groups (scale/zero-point entries per output channel)
+    // directly from element counts, instead of guessing an axis index in the scale/zp shape.
+    // The scale/zero-point tensor may carry an extra "group size" axis of length 1 that is not
+    // present in the (already merged back) weights tensor, so locating the group-count axis by
+    // position alone is unreliable. Dividing total element counts by OC (and batch, if any) is
+    // robust regardless of how that extra axis is positioned.
+    static int64_t get_ngroups(const layout& weights_layout, const layout& compressed_layout, bool weights_transposed, int64_t weight_rank) {
+        const auto ifm_dim_idx = std::max<int64_t>(0, weights_transposed ? (weight_rank - 1) : (weight_rank - 2));
+        const auto oc_dim_idx = std::max<int64_t>(0, weights_transposed ? (weight_rank - 2) : (weight_rank - 1));
+        const auto ifm = std::max<int64_t>(1, weights_layout.get_dim(ifm_dim_idx));
+        const auto oc = std::max<int64_t>(1, weights_layout.get_dim(oc_dim_idx));
+        const auto weight_total = std::max<int64_t>(1, weights_layout.count());
+        const auto batch = std::max<int64_t>(1, weight_total / (ifm * oc));
+        const auto denom = std::max<int64_t>(1, oc * batch);
+        const auto total = compressed_layout.count();
+        return std::max<int64_t>(1, total / denom);
     }
 
     DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::onednn::fully_connected_onednn)
@@ -303,7 +305,8 @@ public:
 
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
-            const auto ngroups = scale_layout.get_dim(get_ifm_dim_idx(scale_layout, transpose_b_scale, weight_rank));
+            const auto weights_layout_for_scale = arg.get_dependency(1).get_output_layout();
+            const auto ngroups = get_ngroups(weights_layout_for_scale, scale_layout, prim->weights_transposed, weight_rank);
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
             } else if (ngroups == 1) {
@@ -323,7 +326,8 @@ public:
                 if (dzp_layout.count() == 1) {
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    auto ngroups = dzp_layout.get_dim(get_ifm_dim_idx(dzp_layout, transpose_b_zp, weight_rank));
+                    const auto weights_layout_for_zp = arg.get_dependency(1).get_output_layout();
+                    auto ngroups = get_ngroups(weights_layout_for_zp, dzp_layout, prim->weights_transposed, weight_rank);
                     if (ngroups == 1) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
@@ -406,9 +410,9 @@ public:
                 ds_data_type = convert_data_type(scale_layout.data_type);
                 // IFM (K) dimension position depends on weight layout orientation.
                 const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
-                const auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
-                const auto scale_ifm_dim_idx = get_ifm_dim_idx(scale_layout, prim->transpose_b_scale, weight_rank);
-                const auto ngroups = scale_layout.get_dim(scale_ifm_dim_idx);
+                const auto weights_layout = arg.get_dependency(1).get_output_layout();
+                const auto ifm = weights_layout.get_dim(ifm_dim_idx);
+                const auto ngroups = get_ngroups(weights_layout, scale_layout, prim->weights_transposed, weight_rank);
                 group_size = static_cast<int>(ifm / ngroups);
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
@@ -437,7 +441,8 @@ public:
                     auto dzp_rank = std::count_if(dzp_shape.begin(), dzp_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
-                    auto ngroups = dzp_layout.get_dim(get_ifm_dim_idx(dzp_layout, prim->transpose_b_zp, weight_rank));
+                    const auto weights_layout_for_zp = arg.get_dependency(1).get_output_layout();
+                    auto ngroups = get_ngroups(weights_layout_for_zp, dzp_layout, prim->weights_transposed, weight_rank);
                     if (ngroups == 1 && dzp_rank <= 2) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
