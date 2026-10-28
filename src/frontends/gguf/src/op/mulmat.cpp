@@ -37,7 +37,10 @@ OutputVector translate_mulmat(const NodeContext& context) {
     A = apply_hadamard(context, A);
 
     if (B.get_element_type().is_gguf_block()) {
-        FRONT_END_OP_CONVERSION_CHECK(op_case == 0 && B.get_element_type() == ov::element::gguf_q4_k &&
+        const auto weight_type = B.get_element_type();
+        const bool supported = weight_type == ov::element::gguf_q4_k || weight_type == ov::element::gguf_q5_k ||
+                               weight_type == ov::element::gguf_q6_k || weight_type == ov::element::gguf_q8_0;
+        FRONT_END_OP_CONVERSION_CHECK(op_case == 0 && supported &&
                                           ov::is_type<ov::op::v0::Constant>(B.get_node_shared_ptr()) &&
                                           B.get_partial_shape().is_static() && B.get_shape().size() == 2 &&
                                           B.get_shape()[0] > 0 && B.get_shape()[1] > 0 &&

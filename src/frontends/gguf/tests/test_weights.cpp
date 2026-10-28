@@ -153,25 +153,40 @@ TEST(GGUFRawCompressedFC, SharedEmitterPreservesRawWeightThroughConversion) {
 }
 
 TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
-    std::unordered_map<std::string, ov::Tensor> weights;
-    weights.emplace("projection.weight", ov::Tensor(ov::element::gguf_q4_k, {kRows, kCols}));
-    std::unordered_map<std::string, GgufTensorType> qtypes{{"projection.qtype", GGUF_TYPE_Q4_K}};
-    GraphEmitter emitter(weights, qtypes, "test");
-    emitter.add_input("activation", ov::element::f32, {1, 1, 2, kCols});
-    emitter.add_weight("projection.weight");
-    for (const auto op_case : {1, 2, 3}) {
-        EXPECT_ANY_THROW(emitter.add_op("GGML_OP_MUL_MAT",
-                                       "unsupported_case",
-                                       {"projection.weight", "activation"},
-                                       op_case));
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0}) {
+        SCOPED_TRACE(qtype);
+        std::unordered_map<std::string, ov::Tensor> weights;
+        weights.emplace("projection.weight", ov::Tensor(gguf_raw_element_type(qtype), {kRows, kCols}));
+        std::unordered_map<std::string, GgufTensorType> qtypes{{"projection.qtype", qtype}};
+        GraphEmitter emitter(weights, qtypes, "test");
+        emitter.add_input("activation", ov::element::f32, {1, 1, 2, kCols});
+        emitter.add_weight("projection.weight");
+        for (const auto op_case : {1, 2, 3}) {
+            EXPECT_ANY_THROW(emitter.add_op("GGML_OP_MUL_MAT",
+                                           "unsupported_case",
+                                           {"projection.weight", "activation"},
+                                           op_case));
+        }
+        emitter.add_input("indices", ov::element::i32, {2});
+        EXPECT_THROW(emitter.add_op("GGML_OP_GET_ROWS", "embedding", {"projection.weight", "indices"}),
+                     ov::frontend::OpConversionFailure);
+        EXPECT_THROW(emitter.add_op("GGML_OP_ADD", "add", {"projection.weight", "activation"}),
+                     ov::frontend::OpConversionFailure);
+        EXPECT_THROW(emitter.add_op("GGML_OP_MUL_MAT", "raw_activation", {"activation", "projection.weight"}),
+                     ov::frontend::OpConversionFailure);
     }
-    emitter.add_input("indices", ov::element::i32, {2});
-    EXPECT_THROW(emitter.add_op("GGML_OP_GET_ROWS", "embedding", {"projection.weight", "indices"}),
-                 ov::frontend::OpConversionFailure);
-    EXPECT_THROW(emitter.add_op("GGML_OP_ADD", "add", {"projection.weight", "activation"}),
-                 ov::frontend::OpConversionFailure);
-    EXPECT_THROW(emitter.add_op("GGML_OP_MUL_MAT", "raw_activation", {"activation", "projection.weight"}),
-                 ov::frontend::OpConversionFailure);
+}
+
+TEST(GGUFRawCompressedFC, RejectsMismatchedRawQuantType) {
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0}) {
+        SCOPED_TRACE(qtype);
+        std::unordered_map<std::string, ov::Tensor> weights;
+        weights.emplace("projection.weight", ov::Tensor(gguf_raw_element_type(qtype), {kRows, kCols}));
+        const auto incorrect = qtype == GGUF_TYPE_Q4_K ? GGUF_TYPE_Q5_K : GGUF_TYPE_Q4_K;
+        std::unordered_map<std::string, GgufTensorType> qtypes{{"projection.qtype", incorrect}};
+        GraphEmitter emitter(weights, qtypes, "test");
+        EXPECT_THROW(emitter.add_weight("projection.weight"), ov::frontend::OpConversionFailure);
+    }
 }
 
 // Convert a GGML_OP_NONE weight node and check the produced (constant-foldable) dequant against

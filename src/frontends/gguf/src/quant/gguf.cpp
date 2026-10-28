@@ -38,6 +38,21 @@
 
 namespace ov::frontend::gguf {
 
+ov::element::Type gguf_raw_element_type(GgufTensorType type) {
+    switch (type) {
+    case GGUF_TYPE_Q4_K:
+        return ov::element::gguf_q4_k;
+    case GGUF_TYPE_Q5_K:
+        return ov::element::gguf_q5_k;
+    case GGUF_TYPE_Q6_K:
+        return ov::element::gguf_q6_k;
+    case GGUF_TYPE_Q8_0:
+        return ov::element::gguf_q8_0;
+    default:
+        return ov::element::dynamic;
+    }
+}
+
 namespace {
 
 constexpr uint32_t GGUF_MAGIC = 0x46554747;  // "GGUF" little-endian
@@ -621,8 +636,14 @@ void load_gguf_tensors(GgufFile& file,
         return {bytes(ql.weight_type, weight_shape), bytes(ql.scale_type, scale_shape), z_bytes};
     };
 
+    const auto preserve_raw = [&options](uint32_t type) {
+        return (options.preserve_q4_k && type == GGUF_TYPE_Q4_K) ||
+               (options.preserve_q5_k && type == GGUF_TYPE_Q5_K) ||
+               (options.preserve_q6_k && type == GGUF_TYPE_Q6_K) ||
+               (options.preserve_q8_0 && type == GGUF_TYPE_Q8_0);
+    };
     for (const auto& info : infos) {
-        if (options.preserve_q4_k && info.type == GGUF_TYPE_Q4_K) {
+        if (preserve_raw(info.type)) {
             OPENVINO_ASSERT(info.ndim != 0, "[load_gguf] tensor '", info.name, "' is quantized but has rank 0");
             continue;
         }
@@ -690,17 +711,18 @@ void load_gguf_tensors(GgufFile& file,
         const std::string name_prefix =
             ov::util::ends_with(name, WEIGHT_SUFFIX) ? name.substr(0, name.length() - WEIGHT_SUFFIX.length()) : name;
 
-        if (options.preserve_q4_k && ti.type == GGUF_TYPE_Q4_K) {
+        if (preserve_raw(ti.type)) {
             const auto shape = get_shape(tensor);
-            const auto bytes = ov::util::get_memory_size_safe(ov::element::gguf_q4_k, shape);
+            const auto raw_type = gguf_raw_element_type(static_cast<GgufTensorType>(ti.type));
+            const auto bytes = ov::util::get_memory_size_safe(raw_type, shape);
             OPENVINO_ASSERT(bytes && *bytes == tensor.bsize,
                             "[load_gguf] tensor '",
                             name,
-                            "' raw Q4_K byte count does not match its shape");
-            ov::Tensor view(ov::element::gguf_q4_k, shape, const_cast<uint8_t*>(tensor.weights_data));
+                            "' raw GGUF byte count does not match its shape");
+            ov::Tensor view(raw_type, shape, const_cast<uint8_t*>(tensor.weights_data));
             const bool inserted = arrays.emplace(name, ov::Tensor(view, mapped)).second;
             OPENVINO_ASSERT(inserted, "[load_gguf] duplicate tensor name '", name, "'");
-            qtype.emplace(name_prefix + ".qtype", GGUF_TYPE_Q4_K);
+            qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
             continue;
         }
 

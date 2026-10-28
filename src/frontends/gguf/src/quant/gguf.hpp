@@ -137,7 +137,12 @@ void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 // Parse GGUF metadata and tensors. Default loading owns repacked quantized buffers.
 struct GGUFLoadOptions {
     bool preserve_q4_k = false;
+    bool preserve_q5_k = false;
+    bool preserve_q6_k = false;
+    bool preserve_q8_0 = false;
 };
+
+ov::element::Type gguf_raw_element_type(GgufTensorType type);
 
 GGUFLoad get_gguf_data(const std::filesystem::path& file);
 GGUFLoad get_gguf_data(const std::filesystem::path& file, const GGUFLoadOptions& options);

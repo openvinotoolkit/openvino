@@ -63,6 +63,15 @@ private:
 };
 #endif
 
+struct GgufRawFormat {
+    const char* name;
+    GgufTensorType type;
+};
+
+const std::array<GgufRawFormat, 4> kRawFormats{{
+    {"q4_k", GGUF_TYPE_Q4_K}, {"q5_k", GGUF_TYPE_Q5_K},
+    {"q6_k", GGUF_TYPE_Q6_K}, {"q8_0", GGUF_TYPE_Q8_0}}};
+
 class GGUFParser : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -361,32 +370,40 @@ TEST_F(GGUFParser, Q4KZeroPointModeAppliesToLanguageAndProjectorModels) {
     }
 }
 
-TEST_F(GGUFParser, Q4KRawPayloadAndOwnerOutliveParserResult) {
-    const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
-    ASSERT_EQ(bytes.size(), 4 * 144);
-    ASSERT_NO_FATAL_FAILURE(write_tensor("blk.0.attn_q.weight", GGUF_TYPE_Q4_K, 256, 4, bytes));
-    const GGUFLoadOptions options{true};
-    std::shared_ptr<ov::op::v0::Constant> constant;
-    std::weak_ptr<ov::MappedMemory> owner;
-    {
-        const auto loaded = get_gguf_data(m_path, options);
-        const auto& arrays = std::get<1>(loaded);
-        ASSERT_EQ(arrays.size(), 1);
-        const auto& raw = arrays.at("blk.0.attn_q.weight");
-        ASSERT_EQ(raw.get_element_type(), ov::element::gguf_q4_k);
-        EXPECT_EQ(raw.get_shape(), (ov::Shape{4, 256}));
-        ASSERT_EQ(raw.get_byte_size(), bytes.size());
-        EXPECT_EQ(std::memcmp(raw.data(), bytes.data(), bytes.size()), 0);
-        EXPECT_EQ(std::get<2>(loaded).at("blk.0.attn_q.qtype"), GGUF_TYPE_Q4_K);
-        owner = std::get<3>(loaded).at(0);
-        constant = std::make_shared<ov::op::v0::Constant>(raw);
-        EXPECT_EQ(constant->get_data_ptr(), raw.data());
+TEST_F(GGUFParser, RawFormatsPayloadAndOwnerOutliveParserResult) {
+    for (const auto& format : kRawFormats) {
+        SCOPED_TRACE(format.name);
+        const auto bytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
+        ASSERT_NO_FATAL_FAILURE(write_tensor("blk.0.attn_q.weight", format.type, 256, 4, bytes));
+        const auto legacy = get_gguf_data(m_path);
+        EXPECT_FALSE(std::get<1>(legacy).at("blk.0.attn_q.weight").get_element_type().is_gguf_block());
+        const GGUFLoadOptions unselected{format.type != GGUF_TYPE_Q4_K, format.type != GGUF_TYPE_Q5_K,
+                                         format.type != GGUF_TYPE_Q6_K, format.type != GGUF_TYPE_Q8_0};
+        const auto decomposed = get_gguf_data(m_path, unselected);
+        EXPECT_FALSE(std::get<1>(decomposed).at("blk.0.attn_q.weight").get_element_type().is_gguf_block());
+        const GGUFLoadOptions options{true, true, true, true};
+        std::shared_ptr<ov::op::v0::Constant> constant;
+        std::weak_ptr<ov::MappedMemory> owner;
+        {
+            const auto loaded = get_gguf_data(m_path, options);
+            const auto& arrays = std::get<1>(loaded);
+            ASSERT_EQ(arrays.size(), 1);
+            const auto& raw = arrays.at("blk.0.attn_q.weight");
+            ASSERT_EQ(raw.get_element_type(), gguf_raw_element_type(format.type));
+            EXPECT_EQ(raw.get_shape(), (ov::Shape{4, 256}));
+            ASSERT_EQ(raw.get_byte_size(), bytes.size());
+            EXPECT_EQ(std::memcmp(raw.data(), bytes.data(), bytes.size()), 0);
+            EXPECT_EQ(std::get<2>(loaded).at("blk.0.attn_q.qtype"), format.type);
+            owner = std::get<3>(loaded).at(0);
+            constant = std::make_shared<ov::op::v0::Constant>(raw);
+            EXPECT_EQ(constant->get_data_ptr(), raw.data());
+        }
+        EXPECT_FALSE(owner.expired());
+        ASSERT_EQ(constant->get_byte_size(), bytes.size());
+        EXPECT_EQ(std::memcmp(constant->get_data_ptr(), bytes.data(), bytes.size()), 0);
+        constant.reset();
+        EXPECT_TRUE(owner.expired());
     }
-    EXPECT_FALSE(owner.expired());
-    ASSERT_EQ(constant->get_byte_size(), bytes.size());
-    EXPECT_EQ(std::memcmp(constant->get_data_ptr(), bytes.data(), bytes.size()), 0);
-    constant.reset();
-    EXPECT_TRUE(owner.expired());
 }
 
 TEST_F(GGUFParser, Q4KRawIsOptInAndRejectsLegacyWeightGraph) {
@@ -403,7 +420,9 @@ TEST_F(GGUFParser, Q4KRawIsOptInAndRejectsLegacyWeightGraph) {
                     testing::HasSubstr("raw GGUF weights require a supported graph boundary"));
 }
 
-TEST_F(GGUFParser, Q4KRawFileToGpuPreservesOwnerAndDynamicResults) {
+class GGUFParserGpu : public GGUFParser, public ::testing::WithParamInterface<GgufRawFormat> {};
+
+TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
 #ifndef GGUF_GPU_NATIVE_TESTS
     GTEST_SKIP() << "Requires the OCL GPU plugin with oneDNN support";
 #else
@@ -414,28 +433,31 @@ TEST_F(GGUFParser, Q4KRawFileToGpuPreservesOwnerAndDynamicResults) {
         })) {
         GTEST_SKIP() << "GPU device unavailable";
     }
-    const auto qbytes = load_npy<uint8_t>("q4_k_qbytes");
-    const auto decoded = load_npy<float>("q4_k_deq");
-    ASSERT_EQ(qbytes.size(), 4 * 144);
+    const auto format = GetParam();
+    const auto qbytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
+    const auto decoded = load_npy<float>(std::string(format.name) + "_deq");
     ASSERT_EQ(decoded.size(), 4 * 256);
     constexpr size_t channels = 32;
     constexpr size_t columns = 512;
-    std::vector<uint8_t> payload(channels * 2 * 144);
+    const auto row_bytes = qbytes.size() / 4;
+    std::vector<uint8_t> payload(channels * 2 * row_bytes);
     for (size_t channel = 0; channel < channels; ++channel) {
         for (size_t block = 0; block < 2; ++block) {
-            std::memcpy(payload.data() + (channel * 2 + block) * 144,
-                        qbytes.data() + (channel % 4) * 144,
-                        144);
+            std::memcpy(payload.data() + (channel * 2 + block) * row_bytes,
+                        qbytes.data() + (channel % 4) * row_bytes,
+                        row_bytes);
         }
     }
-    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", GGUF_TYPE_Q4_K, columns, channels, payload));
+    ASSERT_NO_FATAL_FAILURE(write_tensor("projection.weight", format.type, columns, channels, payload));
     std::shared_ptr<ov::Model> model;
     std::weak_ptr<ov::MappedMemory> owner;
     {
-        auto loaded = get_gguf_data(m_path, GGUFLoadOptions{true});
+        const GGUFLoadOptions options{format.type == GGUF_TYPE_Q4_K, format.type == GGUF_TYPE_Q5_K,
+                          format.type == GGUF_TYPE_Q6_K, format.type == GGUF_TYPE_Q8_0};
+        auto loaded = get_gguf_data(m_path, options);
         auto& weights = std::get<1>(loaded);
         const auto& raw = weights.at("projection.weight");
-        ASSERT_EQ(raw.get_element_type(), ov::element::gguf_q4_k);
+        ASSERT_EQ(raw.get_element_type(), gguf_raw_element_type(format.type));
         ASSERT_EQ(raw.get_shape(), (ov::Shape{channels, columns}));
         ASSERT_EQ(raw.get_byte_size(), payload.size());
         ASSERT_EQ(std::memcmp(raw.data(), payload.data(), payload.size()), 0);
@@ -457,10 +479,12 @@ TEST_F(GGUFParser, Q4KRawFileToGpuPreservesOwnerAndDynamicResults) {
         EXPECT_EQ(std::memcmp(constant->get_data_ptr(), payload.data(), payload.size()), 0);
     }
     EXPECT_FALSE(owner.expired());
-    const auto run = [&](const char* threshold_value) {
+    const auto run = [&](const char* threshold_value, const char* shuffle_value) {
         SCOPED_TRACE(threshold_value ? "native" : "default_f16_transcode");
+        SCOPED_TRACE(shuffle_value);
         GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", threshold_value);
         GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
+        GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", shuffle_value);
         auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f32));
         auto request = compiled.create_infer_request();
         const std::array<size_t, 7> row_counts{1, 2, 33, 1, 1, 33, 2};
@@ -493,10 +517,17 @@ TEST_F(GGUFParser, Q4KRawFileToGpuPreservesOwnerAndDynamicResults) {
             }
         }
     };
-    run("64");
-    run(nullptr);
+    run("64", "1");
+    run("64", "0");
+    run(nullptr, "1");
+    run(nullptr, "0");
 #endif
 }
+
+INSTANTIATE_TEST_SUITE_P(RawFormats,
+                        GGUFParserGpu,
+                        ::testing::ValuesIn(kRawFormats),
+                        [](const ::testing::TestParamInfo<GgufRawFormat>& info) { return info.param.name; });
 
 TEST_F(GGUFParser, Q4KRawRejectsInvalidRowsAndTruncatedPayload) {
     const GGUFLoadOptions options{true};
@@ -509,6 +540,22 @@ TEST_F(GGUFParser, Q4KRawRejectsInvalidRowsAndTruncatedPayload) {
         SCOPED_TRACE(rows);
         ASSERT_NO_FATAL_FAILURE(
             write_tensor("truncated.weight", GGUF_TYPE_Q4_K, 256, rows, std::vector<uint8_t>(rows * 144 - 1)));
+        OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("past EOF"));
+    }
+}
+
+TEST_F(GGUFParser, RawFormatsRejectInvalidRowsAndTruncatedPayload) {
+    const GGUFLoadOptions options{true, true, true, true};
+    for (const auto& format : kRawFormats) {
+        SCOPED_TRACE(format.name);
+        const auto block = gguf_raw_element_type(format.type).block_elem_count();
+        for (const auto columns : {block - 1, block + 1}) {
+            ASSERT_NO_FATAL_FAILURE(write_tensor("invalid.weight", format.type, columns, 2));
+            OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("block size"));
+        }
+        const auto bytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
+        ASSERT_NO_FATAL_FAILURE(write_tensor("truncated.weight", format.type, 256, 4,
+                                             std::vector<uint8_t>(bytes.size() - 1)));
         OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("past EOF"));
     }
 }
