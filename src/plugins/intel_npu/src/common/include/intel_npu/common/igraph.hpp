@@ -44,7 +44,7 @@ struct CommandQueueParams {
     std::optional<ov::QoS> qos = std::nullopt;
     bool turbo = false;
     bool runInferencesSequentially = false;
-    bool sharedCommonQueue = true;
+    bool sharedCommonQueue = false;
 
     static CommandQueueParams from_config(const Config& config);
 };
