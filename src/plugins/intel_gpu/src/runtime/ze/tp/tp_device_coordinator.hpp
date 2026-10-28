@@ -35,16 +35,18 @@ using TPL0SharedContextPtr = std::shared_ptr<TPL0SharedContext>;
 /// shares (see RankCommunicator).
 ///
 /// Lifetime: holds the `TPL0SharedContext` it was created on, so the context
-/// outlives it. All per-rank queues, command lists, modules and kernels are
-/// scoped to the shared context.
+/// outlives it. All per-rank queues and command lists are scoped to the
+/// shared context. It builds no kernels: the reduction kernel belongs to the
+/// compiled model and comes with every allreduce() call.
 ///
 /// Three schedules, chosen per recording: two ranks exchange directly, larger
 /// worlds use a ring, and a power-of-two world carrying a small payload uses
 /// recursive halving. Every rank records and submits its own commands -- no
 /// rank drives the others.
 ///
-/// A recording is kept until the buffers, the element count or the dtype it
-/// was built from change, or until the staging arena moves.
+/// A recording is kept until the buffers, the reduction kernels, the element
+/// count or the dtype it was built from change, or until the staging arena
+/// moves.
 class TPDeviceCoordinator {
 public:
     /// \param shared       Shared L0 context (driver + N devices + ze_context).
@@ -78,7 +80,7 @@ public:
     /// identically sized coordinator without re-analyzing the graph.
     int num_collectives() const { return m_num_collectives; }
 
-    /// Returns true when initialization built kernels successfully on all ranks.
+    /// Returns true once the per-rank queues and plans exist.
     bool is_ready() const { return m_ready; }
 
     /// True once a collective has failed. The coordinator is single-use after
@@ -148,7 +150,12 @@ public:
     /// `in_dev` and `out_dev` may alias. Both must be device USM allocated
     /// in the shared L0 context on the rank's device.
     ///
-    /// `dtype` must be f16 or f32.
+    /// `dtype` must be f16, bf16 or f32.
+    ///
+    /// `reduce_kernel` is the rank's reduction kernel for `dtype`, created in
+    /// the shared context on the rank's device; see reduce_kernel_abi.hpp for
+    /// what it computes. It is baked into the recording and must stay alive
+    /// while a recording that uses it may still run.
     ///
     /// With `model_queue` -- the immediate command list intel_gpu already
     /// runs the model on -- the recording is spliced there and the call
@@ -168,6 +175,7 @@ public:
                    void* out_dev,
                    std::size_t n,
                    ov::element::Type dtype,
+                   ze_kernel_handle_t reduce_kernel,
                    ze_command_list_handle_t model_queue = nullptr);
 
     /// Collects each rank's slice of a row-major matrix into rank 0's buffer.
@@ -214,10 +222,6 @@ private:
         uint32_t                    compute_ordinal{0};
         ze_command_queue_handle_t   compute_queue{nullptr};
 
-        ze_module_handle_t          module{nullptr};
-        ze_kernel_handle_t          kernel_f16{nullptr};
-        ze_kernel_handle_t          kernel_f32{nullptr};
-
         // Filled at init: GPU timer period (ns/tick) and the mask used to
         // wrap raw kernel-timestamp counter values.
         uint64_t                    timer_ns_per_tick{0};
@@ -249,6 +253,7 @@ private:
         std::vector<void*>          out_ptrs;       // [N]
         std::vector<uint64_t>       in_ids;         // [N]
         std::vector<uint64_t>       out_ids;        // [N]
+        std::vector<ze_kernel_handle_t> kernels;    // [N], allreduce only
         std::size_t                 n{0};
         ov::element::Type           dtype{ov::element::dynamic};
         std::size_t                 max_payload_bytes{0};
@@ -322,10 +327,11 @@ private:
                      const std::vector<void*>& outs,
                      const std::vector<uint64_t>& in_alloc_ids,
                      const std::vector<uint64_t>& out_alloc_ids,
+                     const std::vector<ze_kernel_handle_t>& reduce_kernels,
                      std::size_t want_n,
                      ov::element::Type want_dtype) const {
             return n == want_n && dtype == want_dtype && in_ptrs == ins && out_ptrs == outs &&
-                   in_ids == in_alloc_ids && out_ids == out_alloc_ids;
+                   in_ids == in_alloc_ids && out_ids == out_alloc_ids && kernels == reduce_kernels;
         }
 
         bool matches_gather(const std::vector<void*>& ins,
@@ -400,6 +406,7 @@ private:
         std::vector<void*>          out_ptrs[2];    // [2][N], filled by ranks
         std::vector<uint64_t>       in_ids[2];      // [2][N], filled by ranks
         std::vector<uint64_t>       out_ids[2];     // [2][N], filled by ranks
+        std::vector<ze_kernel_handle_t> kernels[2]; // [2][N], filled by ranks
         int                         arrived{0};
         int                         departed{0};
         bool                        done{false};

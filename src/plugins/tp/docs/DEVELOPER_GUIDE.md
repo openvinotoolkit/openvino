@@ -63,8 +63,9 @@ for the current file layout. Key entry points:
 | `src/tp_config.cpp`             | Device-name resolution and validation.                                                                                                                                           |
 | `include/tp/options.inl`    | The option table: defaults, validators, tiers.                                                                                                                                   |
 | intel_gpu `src/plugin/plugin.cpp` | `Plugin::create_tp_context` — the TP context from the `ov::tp::internal` parameters; `Graph::bind_collectives` in `graph.cpp` binds a model to it.                            |
-| intel_gpu `src/runtime/ze/tp/`  | `rank_communicator.cpp` (publish, connect, bind, group registry), `tp_device_coordinator.cpp` (all L0 work: per-rank queues/cmdlists, kernel build via OpenCL→native-binary, plan caching, the three schedules, splicing and the watchdog), `tp_l0_shared_context.cpp`. |
-| intel_gpu `impls/ocl/tp_*.cpp`  | `tp_allreduce.cpp` and `tp_gather.cpp` — the OCL primitives that call the network's TP channel. Registered from `graph/registry/tp_*_impls.cpp`.                               |
+| intel_gpu `src/runtime/ze/tp/`  | `rank_communicator.cpp` (publish, connect, bind, group registry), `tp_device_coordinator.cpp` (all L0 work: per-rank queues/cmdlists, plan caching, the three schedules, splicing and the watchdog), `tp_l0_shared_context.cpp`. |
+| intel_gpu `impls/ocl_v2/tp_allreduce.*` | The AllReduce impl: builds the reduction kernel (`tp_allreduce.cl`) with the model and hands it to the network's TP channel. Registered from `graph/registry/tp_allreduce_impls.cpp`. |
+| intel_gpu `impls/ocl/tp_gather.cpp`  | The gather impl, copies only. Registered from `graph/registry/tp_gather_impls.cpp`. |
 
 ## Tunables
 
@@ -222,7 +223,7 @@ Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 
 | Suite                                     | What it covers                                                                                                                          | Needs GPUs |
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `TPDeviceCoordinatorTest`                 | AllReduce and gather correctness on f16/f32; plan reuse across shifting pointers, sizes and dtypes; scratch growth; in-place operation; | yes, >=2   |
+| `TPDeviceCoordinatorTest`                 | AllReduce and gather correctness on f16/bf16/f32 with the model's `tp_allreduce.cl`; one f32 rounding per step; all ranks bitwise equal; plan reuse across shifting pointers, sizes and dtypes; scratch growth; in-place operation; | yes, >=2   |
 |                                           | allocation churn; wider worlds; ring and halving agreeing on the same payload and the ceiling where one flips to the other;             |            |
 |                                           | the spliced path matching the blocking one; timeout, abort and watchdog behaviour                                                       |            |
 

@@ -14,16 +14,8 @@
 #include <string>
 #include <thread>
 
-#ifndef CL_TARGET_OPENCL_VERSION
-#    define CL_TARGET_OPENCL_VERSION 220
-#endif
-#ifndef CL_USE_DEPRECATED_OPENCL_1_2_APIS
-#    define CL_USE_DEPRECATED_OPENCL_1_2_APIS
-#endif
-#include <CL/cl.h>
-
 #include "openvino/core/except.hpp"
-#include "allreduce_sum_cl.hpp"
+#include "reduce_kernel_abi.hpp"
 #include "tp_debug.hpp"
 #include "tp_l0_shared_context.hpp"
 
@@ -88,19 +80,34 @@ uint64_t alloc_id_of(ze_context_handle_t context, void* ptr) {
 // only sometimes, because it is a race between two devices.
 constexpr std::size_t kHalvingSlackBytes = kRingAlignElems * 4;  // f32 is the widest element
 
-// Elements folded by one work item of the reduce kernel; must match TP_VEC in
-// kernels/allreduce_sum.cl.
-constexpr std::size_t kElemsPerItem = 8;
-
 // Work groups needed to fold `n` elements.
 uint32_t launch_groups(std::size_t n, uint32_t group_size) {
-    const std::size_t items = (n + kElemsPerItem - 1) / kElemsPerItem;
+    const std::size_t items = (n + reduce_kernel::elems_per_item - 1) / reduce_kernel::elems_per_item;
     return static_cast<uint32_t>((items + group_size - 1) / group_size);
 }
 
+// Launches the model's reduction kernel: dst = src0 + src1 over `count` elements.
+void append_reduce(ze_command_list_handle_t list,
+                   ze_kernel_handle_t kernel,
+                   void* dst,
+                   void* src0,
+                   void* src1,
+                   std::size_t count,
+                   ze_event_handle_t signal) {
+    using namespace reduce_kernel;
+    const count_t n = count;
+    const ze_group_count_t groups{launch_groups(count, group_size), 1, 1};
+    ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, group_size, 1, 1));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, Arg::dst, sizeof(dst), &dst));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, Arg::src0, sizeof(src0), &src0));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, Arg::src1, sizeof(src1), &src1));
+    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, Arg::count, sizeof(n), &n));
+    ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(list, kernel, &groups, signal, 0, nullptr));
+}
+
 std::size_t collective_payload_bytes(std::size_t n, ov::element::Type dtype) {
-    OPENVINO_ASSERT(dtype == ov::element::f16 || dtype == ov::element::f32,
-                    "[TP][L0] AllReduce supports f16/f32 only, got ", dtype);
+    OPENVINO_ASSERT(dtype == ov::element::f16 || dtype == ov::element::bf16 || dtype == ov::element::f32,
+                    "[TP][L0] AllReduce supports f16/bf16/f32 only, got ", dtype);
     OPENVINO_ASSERT(n > 0, "[TP][L0] zero-sized AllReduce is not supported");
     OPENVINO_ASSERT(n <= std::numeric_limits<uint32_t>::max(),
                     "[TP][L0] AllReduce element count exceeds Level Zero launch range: ", n);
@@ -121,98 +128,6 @@ void select_compute_ordinal(ze_device_handle_t dev, uint32_t& ordinal) {
         }
     }
     OPENVINO_THROW("[TP][L0] no compute-capable queue group found");
-}
-
-// cl_khr_device_uuid: clGetDeviceInfo with this name returns 16 bytes.
-#ifndef CL_DEVICE_UUID_KHR
-#  define CL_DEVICE_UUID_KHR 0x106A
-#endif
-
-// Build the kernel module via OpenCL on the device whose UUID matches the
-// supplied L0 device, then return the native binary.
-std::vector<uint8_t> compile_via_ocl(ze_device_handle_t ze_dev, const char* src) {
-    ze_device_properties_t zp{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES, nullptr};
-    ZE_THROW(ov::zeDeviceGetProperties(ze_dev, &zp));
-    // ze_device_uuid_t is 16 raw bytes (matches cl_khr_device_uuid layout).
-
-    cl_uint num_platforms = 0;
-    cl_int err = clGetPlatformIDs(0, nullptr, &num_platforms);
-    OPENVINO_ASSERT(err == CL_SUCCESS && num_platforms > 0,
-                    "[TP][OCL] clGetPlatformIDs failed: ", err);
-    std::vector<cl_platform_id> platforms(num_platforms);
-    err = clGetPlatformIDs(num_platforms, platforms.data(), nullptr);
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[TP][OCL] clGetPlatformIDs: ", err);
-
-    cl_device_id matched = nullptr;
-    for (auto p : platforms) {
-        cl_uint nd = 0;
-        if (clGetDeviceIDs(p, CL_DEVICE_TYPE_GPU, 0, nullptr, &nd) != CL_SUCCESS || nd == 0) {
-            continue;
-        }
-        std::vector<cl_device_id> devs(nd);
-        if (clGetDeviceIDs(p, CL_DEVICE_TYPE_GPU, nd, devs.data(), nullptr) != CL_SUCCESS) {
-            continue;
-        }
-        for (auto d : devs) {
-            uint8_t uuid[16] = {0};
-            size_t got = 0;
-            if (clGetDeviceInfo(d, CL_DEVICE_UUID_KHR, sizeof(uuid), uuid, &got) != CL_SUCCESS ||
-                got != sizeof(uuid)) {
-                continue;
-            }
-            if (std::memcmp(uuid, &zp.uuid, 16) == 0) {
-                matched = d;
-                break;
-            }
-        }
-        if (matched) break;
-    }
-    OPENVINO_ASSERT(matched,
-                    "[TP][OCL] no OpenCL device matches the L0 device UUID");
-
-    cl_context_properties cprops[] = {0};
-    cl_context cctx = clCreateContext(cprops, 1, &matched, nullptr, nullptr, &err);
-    OPENVINO_ASSERT(err == CL_SUCCESS && cctx,
-                    "[TP][OCL] clCreateContext failed: ", err);
-
-    const char* sources[] = {src};
-    cl_program prog = clCreateProgramWithSource(cctx, 1, sources, nullptr, &err);
-    if (err != CL_SUCCESS || !prog) {
-        clReleaseContext(cctx);
-        OPENVINO_THROW("[TP][OCL] clCreateProgramWithSource failed: ", err);
-    }
-
-    err = clBuildProgram(prog, 1, &matched, "", nullptr, nullptr);
-    if (err != CL_SUCCESS) {
-        size_t lsz = 0;
-        clGetProgramBuildInfo(prog, matched, CL_PROGRAM_BUILD_LOG, 0, nullptr, &lsz);
-        std::string log(lsz, ' ');
-        if (lsz) {
-            clGetProgramBuildInfo(prog, matched, CL_PROGRAM_BUILD_LOG, lsz, log.data(), nullptr);
-        }
-        clReleaseProgram(prog);
-        clReleaseContext(cctx);
-        OPENVINO_THROW("[TP][OCL] clBuildProgram failed: ", err, " log: ", log);
-    }
-
-    cl_uint nbins = 0;
-    clGetProgramInfo(prog, CL_PROGRAM_NUM_DEVICES, sizeof(nbins), &nbins, nullptr);
-    OPENVINO_ASSERT(nbins == 1, "[TP][OCL] expected 1 program binary, got ", nbins);
-
-    size_t bin_size = 0;
-    err = clGetProgramInfo(prog, CL_PROGRAM_BINARY_SIZES, sizeof(bin_size), &bin_size, nullptr);
-    OPENVINO_ASSERT(err == CL_SUCCESS && bin_size > 0,
-                    "[TP][OCL] CL_PROGRAM_BINARY_SIZES failed: ", err);
-
-    std::vector<uint8_t> bin(bin_size);
-    uint8_t* bins[1] = {bin.data()};
-    err = clGetProgramInfo(prog, CL_PROGRAM_BINARIES, sizeof(bins), bins, nullptr);
-
-    clReleaseProgram(prog);
-    clReleaseContext(cctx);
-
-    OPENVINO_ASSERT(err == CL_SUCCESS, "[TP][OCL] CL_PROGRAM_BINARIES failed: ", err);
-    return bin;
 }
 
 }  // namespace
@@ -296,6 +211,8 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
             rdz->in_ids[1].assign(world_size, 0);
             rdz->out_ids[0].assign(world_size, 0);
             rdz->out_ids[1].assign(world_size, 0);
+            rdz->kernels[0].assign(world_size, nullptr);
+            rdz->kernels[1].assign(world_size, nullptr);
             m_rendezvous[i] = std::move(rdz);
 
             // Command lists are cheap to keep but not to create: making them
@@ -374,58 +291,9 @@ void TPDeviceCoordinator::init_rank(RankState& rs) {
     qd.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
 
     ZE_THROW(ov::zeCommandQueueCreate(ctx, dev, &qd, &rs.compute_queue));
-
-    // Build kernel module:
-    //   1. Match the L0 device to its OpenCL counterpart by UUID.
-    //   2. Build from CL source via clBuildProgram.
-    //   3. Pull the native binary via CL_PROGRAM_BINARIES.
-    //   4. Load the native binary into the shared multi-device L0 context as
-    //      ZE_MODULE_FORMAT_NATIVE.
-    // Native binaries are bound to (driver, device); reloading into a
-    // different L0 context on the same device is valid.
-    const char* src = kernels::allreduce_sum_cl;
-    std::vector<uint8_t> native_bin = compile_via_ocl(dev, src);
-
-    // Reload into shared context as native binary.
-    {
-        ze_module_desc_t md{ZE_STRUCTURE_TYPE_MODULE_DESC, nullptr};
-        md.format        = ZE_MODULE_FORMAT_NATIVE;
-        md.inputSize     = native_bin.size();
-        md.pInputModule  = native_bin.data();
-        md.pBuildFlags   = "";
-        md.pConstants    = nullptr;
-
-        ze_module_build_log_handle_t blog = nullptr;
-        ze_result_t br = ov::zeModuleCreate(ctx, dev, &md, &rs.module, &blog);
-        if (br != ZE_RESULT_SUCCESS) {
-            std::string log;
-            if (blog) {
-                size_t lsz = 0;
-                ov::zeModuleBuildLogGetString(blog, &lsz, nullptr);
-                if (lsz) {
-                    log.resize(lsz, ' ');
-                    ov::zeModuleBuildLogGetString(blog, &lsz, log.data());
-                }
-                ov::zeModuleBuildLogDestroy(blog);
-            }
-            OPENVINO_THROW("[TP][L0] zeModuleCreate(NATIVE, shared-ctx) failed: 0x",
-                           std::hex, br, " log: ", log);
-        }
-        if (blog) ov::zeModuleBuildLogDestroy(blog);
-    }
-
-    ze_kernel_desc_t kd{ZE_STRUCTURE_TYPE_KERNEL_DESC, nullptr};
-    kd.pKernelName = "allreduce_sum_f16";
-    ZE_THROW(ov::zeKernelCreate(rs.module, &kd, &rs.kernel_f16));
-
-    kd.pKernelName = "allreduce_sum_f32";
-    ZE_THROW(ov::zeKernelCreate(rs.module, &kd, &rs.kernel_f32));
 }
 
 void TPDeviceCoordinator::destroy_rank(RankState& rs) {
-    if (rs.kernel_f16)    { ov::zeKernelDestroy(rs.kernel_f16);          rs.kernel_f16 = nullptr; }
-    if (rs.kernel_f32)    { ov::zeKernelDestroy(rs.kernel_f32);          rs.kernel_f32 = nullptr; }
-    if (rs.module)        { ov::zeModuleDestroy(rs.module);              rs.module = nullptr; }
     if (rs.compute_queue) { ov::zeCommandQueueDestroy(rs.compute_queue); rs.compute_queue = nullptr; }
 }
 
@@ -883,7 +751,6 @@ void TPDeviceCoordinator::ensure_plan_lists(Plan& plan) {
 }
 
 void TPDeviceCoordinator::record_ring_rank(Plan& plan, int r) {
-    constexpr uint32_t kGroupSize = 256;
     const int N = m_world_size;
     const int steps = N - 1;
     const std::size_t n = plan.n;
@@ -904,13 +771,10 @@ void TPDeviceCoordinator::record_ring_rank(Plan& plan, int r) {
         ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
     };
 
-    auto& self = m_ranks[r];
     const int next = (r + 1) % N;
     const int prev = (r + N - 1) % N;
     ze_command_list_handle_t list = plan.compute_lists[r];
-    ze_kernel_handle_t kernel =
-        (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
-    ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
+    ze_kernel_handle_t kernel = plan.kernels[r];
 
     // ---- Reduce-scatter: N-1 steps ----
     // At step s rank r forwards chunk (r-s) and folds the incoming chunk
@@ -954,13 +818,7 @@ void TPDeviceCoordinator::record_ring_rank(Plan& plan, int r) {
         void* dst  = byte_at(plan.out_ptrs[r], recv_off);
         void* src0 = byte_at(plan.in_ptrs[r], recv_off);
         void* src1 = ring_slot(r, recv_chunk, plan.buffer);
-        uint64_t cnt = recv_cnt;
-        ze_group_count_t gc{launch_groups(recv_cnt, kGroupSize), 1, 1};
-        ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
-        ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
-        ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
-        ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(cnt), &cnt));
-        ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(list, kernel, &gc, nullptr, 0, nullptr));
+        append_reduce(list, kernel, dst, src0, src1, recv_cnt, nullptr);
         order(list);
     }
 
@@ -1048,7 +906,6 @@ void TPDeviceCoordinator::record_ring_rank(Plan& plan, int r) {
 }
 
 void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
-    constexpr uint32_t kGroupSize = 256;
     const int N = m_world_size;
     const std::size_t n = plan.n;
     const std::size_t elem = plan.dtype.size();
@@ -1072,11 +929,8 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
         ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
     };
 
-    auto& self = m_ranks[r];
     ze_command_list_handle_t list = plan.compute_lists[r];
-    ze_kernel_handle_t kernel =
-        (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
-    ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
+    ze_kernel_handle_t kernel = plan.kernels[r];
 
     // ---- Scatter: levels steps, each moving half of what is left ----
     for (int j = 0; j < levels; ++j) {
@@ -1121,13 +975,7 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
             void* dst  = byte_at(plan.out_ptrs[r], keep_lo);
             void* src0 = byte_at(mine, keep_lo);
             void* src1 = halving_stage(r, payload_bytes, j, plan.buffer);
-            uint64_t cnt = keep_hi - keep_lo;
-            ze_group_count_t gc{launch_groups(keep_hi - keep_lo, kGroupSize), 1, 1};
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(cnt), &cnt));
-            ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(list, kernel, &gc, nullptr, 0, nullptr));
+            append_reduce(list, kernel, dst, src0, src1, keep_hi - keep_lo, nullptr);
         }
         // Nothing but a barrier orders a kernel before the copy that reads
         // what it wrote; the waits order everything else.
@@ -1264,19 +1112,11 @@ void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
 }
 
 void TPDeviceCoordinator::record_pair_rank(Plan& plan, int r) {
-    constexpr uint32_t kGroupSize = 256;
     const std::size_t n = plan.n;
     const std::size_t bytes = collective_payload_bytes(n, plan.dtype);
-    ze_group_count_t gc{launch_groups(n, kGroupSize), 1, 1};
-    uint64_t cn64 = n;
 
-    auto& self = m_ranks[r];
     const int peer = 1 - r;
     ze_command_list_handle_t self_compute = plan.compute_lists[r];
-
-    ze_kernel_handle_t kernel =
-        (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
-    ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
 
     // 1. Push our `in` to peer's local staging (source-side memcpy).
     //    ev_recv[r] tells the peer the bytes have landed. The destination is
@@ -1302,16 +1142,8 @@ void TPDeviceCoordinator::record_pair_rank(Plan& plan, int r) {
     ZE_THROW(ze_api()->zeCommandListAppendEventReset(self_compute, plan.ev_recv[peer]));
 
     // 3. Reduce: out_self = in_self + staging_self.
-    void* dst   = plan.out_ptrs[r];
-    void* src0  = plan.in_ptrs[r];
-    void* src1  = pair_stage(r, plan.buffer);
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
-    ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(cn64), &cn64));
-    ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(self_compute,
-                                                      kernel, &gc,
-                                                      plan.ev_ts_kernel[r], 0, nullptr));
+    append_reduce(self_compute, plan.kernels[r], plan.out_ptrs[r], plan.in_ptrs[r], pair_stage(r, plan.buffer), n,
+                  plan.ev_ts_kernel[r]);
 
     close_list(self_compute, m_rec_close_ns);
 }
@@ -1867,6 +1699,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,
                                     void* out_dev,
                                     std::size_t n,
                                     ov::element::Type dtype,
+                                    ze_kernel_handle_t reduce_kernel,
                                     ze_command_list_handle_t model_queue) {
     OPENVINO_ASSERT(m_ready, "[TP][L0] coordinator not initialized");
     OPENVINO_ASSERT(collective_id >= 0 && collective_id < m_num_collectives,
@@ -1879,6 +1712,9 @@ void TPDeviceCoordinator::allreduce(int collective_id,
     OPENVINO_ASSERT(in_dev != nullptr && out_dev != nullptr,
                     "[TP][L0] null device buffer passed to allreduce (collective ", collective_id,
                     ", rank ", rank, ", in=", in_dev, ", out=", out_dev, ")");
+    OPENVINO_ASSERT(reduce_kernel != nullptr,
+                    "[TP][L0] allreduce called without a reduction kernel (collective ", collective_id,
+                    ", rank ", rank, ")");
     throw_if_aborted();
 
     // Diagnostic escape hatch: skip the collective entirely so a run measures
@@ -1938,6 +1774,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         rdz.out_ptrs[rdz_set][rank] = out_dev;
         rdz.in_ids[rdz_set][rank]   = my_in_id;
         rdz.out_ids[rdz_set][rank]  = my_out_id;
+        rdz.kernels[rdz_set][rank]  = reduce_kernel;
         if (rank == 0) {
             rdz.n     = n;
             rdz.dtype = dtype;
@@ -2036,7 +1873,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         const bool scratch_grew = ensure_scratch_capacity(staging_bytes(payload_bytes));
         const bool signature_matches = slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set],
                                                      rdz.in_ids[rdz_set], rdz.out_ids[rdz_set],
-                                                     n, dtype);
+                                                     rdz.kernels[rdz_set], n, dtype);
         // Every rank has to be recorded against the current signature and the
         // current staging arena. They move together today, but they are kept
         // per rank because that is what lets a rank re-record on its own.
@@ -2096,6 +1933,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,
             slot->out_ptrs = rdz.out_ptrs[rdz_set];
             slot->in_ids = rdz.in_ids[rdz_set];
             slot->out_ids = rdz.out_ids[rdz_set];
+            slot->kernels = rdz.kernels[rdz_set];
             slot->n = n;
             slot->dtype = dtype;
         }
@@ -2141,7 +1979,7 @@ void TPDeviceCoordinator::allreduce(int collective_id,
                         slot->recorded_scratch_generation.end(),
                         [generation](uint64_t g) { return g == generation; }) &&
             slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set],
-                          rdz.in_ids[rdz_set], rdz.out_ids[rdz_set], n, dtype) &&
+                          rdz.in_ids[rdz_set], rdz.out_ids[rdz_set], rdz.kernels[rdz_set], n, dtype) &&
             !scratch_needs_growth(staging_bytes(collective_payload_bytes(n, dtype)));
         if (measure_host) {
             (nothing_to_settle ? m_skew.gate_fast[rank] : m_skew.gate_slow[rank]).bump();

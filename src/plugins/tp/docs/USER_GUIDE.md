@@ -38,8 +38,6 @@ Level Zero context — no host round-trip and no copy through CPU memory.
   the Level Zero runtime rather than only the default OpenCL one -- the
   collectives run on Level Zero inside intel_gpu. CMake enforces this and
   fails configuration if the two disagree.
-- An OpenCL ICD available at runtime, used once per rank to compile the
-  reduce kernel.
 
 **Model**
 

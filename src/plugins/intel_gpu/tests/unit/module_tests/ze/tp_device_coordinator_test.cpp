@@ -30,10 +30,20 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <map>
 #include <memory>
+#include <mutex>
+#include <random>
+#include <regex>
+#include <set>
 #include <thread>
+#include <tuple>
+#include <type_traits>
 #include <vector>
 
+#include "impls/ocl_v2/utils/kernels_db.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 
@@ -195,6 +205,116 @@ struct RankScratch {
     ze_command_list_handle_t immediate{nullptr};
 };
 
+/// The model's reduction kernel (ocl_v2/tp_allreduce.cl), specialized the way
+/// the GPU plugin specializes it and built in the shared context for each rank.
+///
+/// A context's kernels live until release_all(), which also keeps the context
+/// itself alive until then: recordings name the kernels, so they have to
+/// outlive every coordinator of the test.
+class ReduceKernels {
+public:
+    static ze_kernel_handle_t get(const TPL0SharedContextPtr& shared, int rank, ov::element::Type dtype) {
+        std::lock_guard<std::mutex> lock(mutex());
+        auto& built = registry()[shared.get()];
+        built.shared = shared;
+        auto& entry = built.kernels[{rank, dtype}];
+        if (entry.kernel == nullptr) {
+            entry = build(shared->context, shared->devices[static_cast<size_t>(rank)], dtype);
+        }
+        return entry.kernel;
+    }
+
+    static void release_all() {
+        std::lock_guard<std::mutex> lock(mutex());
+        for (auto& [ctx, built] : registry()) {
+            for (auto& [key, entry] : built.kernels) {
+                ov::zeKernelDestroy(entry.kernel);
+                ov::zeModuleDestroy(entry.module);
+            }
+        }
+        registry().clear();
+    }
+
+private:
+    struct Entry {
+        ze_module_handle_t module{nullptr};
+        ze_kernel_handle_t kernel{nullptr};
+    };
+    struct Built {
+        TPL0SharedContextPtr shared;
+        std::map<std::pair<int, ov::element::Type_t>, Entry> kernels;
+    };
+
+    static std::mutex& mutex() {
+        static std::mutex m;
+        return m;
+    }
+    static std::map<const TPL0SharedContext*, Built>& registry() {
+        static std::map<const TPL0SharedContext*, Built> r;
+        return r;
+    }
+
+    /// Inlines the batch headers the template includes, as the kernels cache does.
+    static std::string inline_headers(const std::string& code, std::set<std::string>& seen) {
+        static const std::regex include(R"(#include\s+\"([^\"]+)\")");
+        std::string out;
+        auto begin = code.cbegin();
+        std::smatch m;
+        while (std::regex_search(begin, code.cend(), m, include)) {
+            out.append(begin, m[0].first);
+            std::string name = m[1].str();
+            name = name.substr(name.find_last_of('/') + 1);
+            name = name.substr(0, name.find_last_of('.'));
+            if (seen.insert(name).second) {
+                out += inline_headers(std::string(ov::intel_gpu::ocl::SourcesDB::get_kernel_header(name)), seen) + "\n";
+            }
+            begin = m[0].second;
+        }
+        out.append(begin, code.cend());
+        return out;
+    }
+
+    static Entry build(ze_context_handle_t ctx, ze_device_handle_t dev, ov::element::Type dtype) {
+        std::string source = "#define KERNEL(name) __kernel void name\n";
+        if (dtype == ov::element::bf16) {
+            source += "#define TP_BF16 1\n";
+        } else if (dtype == ov::element::f16) {
+            source += "#define TP_F16 1\n";
+        }
+        std::set<std::string> seen;
+        source += inline_headers(std::string(ov::intel_gpu::ocl::SourcesDB::get_kernel_template("tp_allreduce")), seen);
+
+        ze_module_desc_t md{ZE_STRUCTURE_TYPE_MODULE_DESC, nullptr};
+        md.format = cldnn::ze::ze_module_format_oclc;
+        md.inputSize = source.size() + 1;
+        md.pInputModule = reinterpret_cast<const uint8_t*>(source.c_str());
+        md.pBuildFlags = "-cl-mad-enable -cl-std=CL2.0";
+
+        Entry entry;
+        ze_module_build_log_handle_t log = nullptr;
+        const ze_result_t built = ov::zeModuleCreate(ctx, dev, &md, &entry.module, &log);
+        if (built != ZE_RESULT_SUCCESS) {
+            size_t size = 0;
+            ov::zeModuleBuildLogGetString(log, &size, nullptr);
+            std::string text(size, ' ');
+            ov::zeModuleBuildLogGetString(log, &size, text.data());
+            ov::zeModuleBuildLogDestroy(log);
+            ADD_FAILURE() << "building tp_allreduce.cl for " << dtype << " failed: " << text;
+            return {};
+        }
+        ov::zeModuleBuildLogDestroy(log);
+
+        ze_kernel_desc_t kd{ZE_STRUCTURE_TYPE_KERNEL_DESC, nullptr};
+        kd.pKernelName = "tp_allreduce";
+        EXPECT_ZE(ov::zeKernelCreate(entry.module, &kd, &entry.kernel));
+        return entry;
+    }
+};
+
+ze_kernel_handle_t reduce_kernel(const TPDeviceCoordinator& coord, int rank, ov::element::Type dtype) {
+    return ReduceKernels::get(coord.shared_context(), rank, dtype);
+}
+
 /// A stalled rendezvous would hang the runner forever, so give every test a
 /// deadline.  gtest has already printed the test name by the time this fires.
 struct Watchdog {
@@ -236,7 +356,8 @@ void run_collective(TPDeviceCoordinator& coord,
     for (int r = 0; r < ranks; ++r) {
         threads.emplace_back([&, r] {
             auto* queue = queues.empty() ? nullptr : queues[r];
-            EXPECT_NO_THROW(coord.allreduce(collective_id, r, ins[r], outs[r], n, dtype, queue))
+            EXPECT_NO_THROW(coord.allreduce(collective_id, r, ins[r], outs[r], n, dtype,
+                                            reduce_kernel(coord, r, dtype), queue))
                 << "rank " << r;
         });
     }
@@ -307,6 +428,10 @@ protected:
     void SetUp() override {
         if (available_gpus < 2)
             GTEST_SKIP() << "need >= 2 discrete Intel GPUs under one L0 driver";
+    }
+
+    void TearDown() override {
+        ReduceKernels::release_all();
     }
 
     static std::shared_ptr<ov::ZeroApi> zero_api;
@@ -748,14 +873,15 @@ TEST_F(TPDeviceCoordinatorTest, MissingRankTimesOut) {
     const size_t bytes = elements * sizeof(float);
     void* in = rank0.alloc(bytes);
     void* out = rank0.alloc(bytes);
+    auto kernel = reduce_kernel(*coord, 0, ov::element::f32);
 
-    EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32), ov::Exception);
+    EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32, kernel), ov::Exception);
     EXPECT_TRUE(coord->is_aborted());
 
     // The device queues are left in an unknown state, so the coordinator stays
     // failed and rejects further work immediately rather than after a timeout.
     const auto before = std::chrono::steady_clock::now();
-    EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32), ov::Exception);
+    EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32, kernel), ov::Exception);
     EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::milliseconds{300});
 
     ov::zeMemFree(shared->context, in);
@@ -770,7 +896,7 @@ TEST_F(TPDeviceCoordinatorTest, AbortReleasesWaitingRank) {
     auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{0});
 
     std::thread waiter([&] {
-        EXPECT_THROW(coord->allreduce(0, 1, nullptr, nullptr, elements, ov::element::f32), ov::Exception);
+        EXPECT_THROW(coord->allreduce(0, 1, nullptr, nullptr, elements, ov::element::f32, nullptr), ov::Exception);
     });
 
     // Give the waiter time to park on the enter barrier before aborting.
@@ -1058,8 +1184,135 @@ TEST_F(TPDeviceCoordinatorTest, SwitchesDtypeInOneSlot) {
     CollectiveBuffers buffers(shared, ranks, n * sizeof(float));
     expect_allreduce_sum<ov::float16>(*coord, buffers, 0, n, ov::element::f16, f16_tolerance);
     expect_allreduce_sum<float>(*coord, buffers, 0, n, ov::element::f32, f32_tolerance);
+    expect_allreduce_sum<ov::bfloat16>(*coord, buffers, 0, n, ov::element::bf16, f16_tolerance);
     expect_allreduce_sum<ov::float16>(*coord, buffers, 0, n, ov::element::f16, f16_tolerance);
     EXPECT_FALSE(coord->is_aborted());
+}
+
+// ---------------------------------------------------------------------------
+// Op contract: the sum is accumulated in f32 and rounded once per reduction
+// step, and every rank ends up with the same bits.
+// ---------------------------------------------------------------------------
+
+/// f32 -> bf16 bits, round to nearest even; the inputs here are finite.
+uint16_t bf16_bits_rte(float value) {
+    uint32_t u = 0;
+    std::memcpy(&u, &value, sizeof(u));
+    return static_cast<uint16_t>((u + 0x7FFFu + ((u >> 16) & 1u)) >> 16);
+}
+
+uint16_t bits_of(ov::float16 v) {
+    return v.to_bits();
+}
+uint16_t bits_of(ov::bfloat16 v) {
+    return v.to_bits();
+}
+uint32_t bits_of(float v) {
+    uint32_t u = 0;
+    std::memcpy(&u, &v, sizeof(u));
+    return u;
+}
+
+/// Random operands in [0.5, 4): normal in every type, and their sums too, so
+/// each step is one ordinary rounding.
+template <typename T>
+std::vector<T> random_operands(size_t n, uint32_t seed) {
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<float> dist(0.5f, 4.0f);
+    std::vector<T> v(n);
+    for (auto& x : v)
+        x = static_cast<T>(dist(gen));
+    return v;
+}
+
+/// Two ranks reduce in one step, so the result has to be exactly the f32 sum
+/// of the operands rounded once to nearest even.
+template <typename T>
+void expect_single_rounding(TPDeviceCoordinator& coord, CollectiveBuffers& buffers, ov::element::Type dtype) {
+    constexpr size_t n = 4099;  // a tail the vector path does not cover
+    const size_t bytes = n * sizeof(T);
+    const auto a = random_operands<T>(n, 1);
+    const auto b = random_operands<T>(n, 2);
+    buffers.rs[0].copy_from_host(buffers.ins[0], a.data(), bytes);
+    buffers.rs[1].copy_from_host(buffers.ins[1], b.data(), bytes);
+
+    run_collective(coord, 0, buffers.ins, buffers.outs, n, dtype);
+
+    for (int r = 0; r < 2; ++r) {
+        std::vector<T> got(n);
+        buffers.rs[r].copy_to_host(got.data(), buffers.outs[r], bytes);
+        size_t wrong = 0;
+        for (size_t i = 0; i < n; ++i) {
+            const float sum = static_cast<float>(a[i]) + static_cast<float>(b[i]);
+            T want;
+            if constexpr (std::is_same_v<T, ov::bfloat16>) {
+                want = ov::bfloat16::from_bits(bf16_bits_rte(sum));
+            } else {
+                want = static_cast<T>(sum);
+            }
+            wrong += bits_of(got[i]) != bits_of(want);
+        }
+        EXPECT_EQ(wrong, 0u) << dtype << " rank " << r;
+    }
+}
+
+TEST_F(TPDeviceCoordinatorTest, ReductionRoundsOnceToNearestEven) {
+    Watchdog watchdog(60);
+    auto shared = make_shared_ctx(2);
+    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1);
+    CollectiveBuffers buffers(shared, 2, 4099 * sizeof(float));
+
+    expect_single_rounding<ov::float16>(*coord, buffers, ov::element::f16);
+    expect_single_rounding<ov::bfloat16>(*coord, buffers, ov::element::bf16);
+    expect_single_rounding<float>(*coord, buffers, ov::element::f32);
+    EXPECT_FALSE(coord->is_aborted());
+}
+
+/// Every rank's output carries exactly the same bits, whatever the schedule.
+template <typename T>
+void expect_ranks_agree(TPDeviceCoordinator& coord, CollectiveBuffers& buffers, size_t n, ov::element::Type dtype) {
+    const int ranks = static_cast<int>(buffers.rs.size());
+    const size_t bytes = n * sizeof(T);
+    for (int r = 0; r < ranks; ++r) {
+        const auto host = random_operands<T>(n, static_cast<uint32_t>(10 + r));
+        buffers.rs[r].copy_from_host(buffers.ins[r], host.data(), bytes);
+    }
+
+    run_collective(coord, 0, buffers.ins, buffers.outs, n, dtype);
+
+    std::vector<T> reference(n);
+    buffers.rs[0].copy_to_host(reference.data(), buffers.outs[0], bytes);
+    for (int r = 1; r < ranks; ++r) {
+        std::vector<T> got(n);
+        buffers.rs[r].copy_to_host(got.data(), buffers.outs[r], bytes);
+        EXPECT_EQ(std::memcmp(got.data(), reference.data(), bytes), 0)
+            << dtype << " n=" << n << " rank " << r << " differs from rank 0";
+    }
+}
+
+TEST_F(TPDeviceCoordinatorTest, RanksAgreeBitwise) {
+    Watchdog watchdog(180);
+
+    for (int ranks : {2, 3, 4}) {
+        if (available_gpus < ranks)
+            continue;
+        SCOPED_TRACE("ranks " + std::to_string(ranks));
+        auto shared = make_shared_ctx(ranks);
+
+        for (bool halving : {true, false}) {
+            SCOPED_TRACE(halving ? "halving allowed" : "ring only");
+            CollectiveOptions config;
+            config.enable_halving = halving;
+            auto coord =
+                std::make_shared<TPDeviceCoordinator>(shared, ranks, 1, std::chrono::milliseconds{5000}, config);
+            constexpr size_t n = 8 * 1024 + 5;
+            CollectiveBuffers buffers(shared, ranks, n * sizeof(float));
+            expect_ranks_agree<ov::float16>(*coord, buffers, n, ov::element::f16);
+            expect_ranks_agree<ov::bfloat16>(*coord, buffers, n, ov::element::bf16);
+            expect_ranks_agree<float>(*coord, buffers, n, ov::element::f32);
+            EXPECT_FALSE(coord->is_aborted());
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1344,7 +1597,8 @@ TEST_F(TPDeviceCoordinatorTest, AbortAfterSplicingFailsSubsequentCalls) {
     // Immediately, not after the timeout: the coordinator is single-use once
     // it has failed.
     const auto before = std::chrono::steady_clock::now();
-    EXPECT_THROW(coord->allreduce(0, 0, buffers.ins[0], buffers.outs[0], n, ov::element::f16),
+    EXPECT_THROW(coord->allreduce(0, 0, buffers.ins[0], buffers.outs[0], n, ov::element::f16,
+                                  reduce_kernel(*coord, 0, ov::element::f16)),
                  ov::Exception);
     EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::seconds{1});
 }

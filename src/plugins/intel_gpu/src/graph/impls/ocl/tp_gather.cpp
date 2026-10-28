@@ -20,7 +20,7 @@ namespace ocl {
 namespace {
 
 // The immediate command list intel_gpu runs the model on. Kept local rather
-// than shared with tp_allreduce.cpp: the include order above is what makes the
+// than shared with ocl_v2/tp_allreduce.cpp: the include order above is what makes the
 // Level Zero headers usable here, and a shared header would have to be pulled
 // in ahead of everything to preserve it.
 ze_command_list_handle_t model_queue_of(stream& s) {
@@ -31,7 +31,7 @@ ze_command_list_handle_t model_queue_of(stream& s) {
 
 }  // namespace
 
-// Like tp_allreduce, an "OCL" impl that compiles no OpenCL kernel: the work is
+// An "OCL" impl that compiles no OpenCL kernel: the work is
 // a strided cross-device copy issued through Level Zero by the TP channel.
 // Registering as impl_types::ocl with is_cpu()=false is what makes intel_gpu
 // place this primitive's buffers in usm_device.
@@ -148,6 +148,7 @@ attach_tp_gather_impl::attach_tp_gather_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
     };
 
     implementation_map<tp_gather>::add(impl_types::ocl,

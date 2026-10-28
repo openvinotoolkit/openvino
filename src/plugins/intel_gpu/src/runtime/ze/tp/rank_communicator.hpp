@@ -50,8 +50,9 @@ public:
                    void* out_dev,
                    std::size_t n,
                    ov::element::Type dtype,
+                   ze_kernel_handle_t reduce_kernel,
                    ze_command_list_handle_t model_queue) {
-        m_group->allreduce(collective_id, m_rank, in_dev, out_dev, n, dtype, model_queue);
+        m_group->allreduce(collective_id, m_rank, in_dev, out_dev, n, dtype, reduce_kernel, model_queue);
     }
 
     /// See TPDeviceCoordinator::gather_to_root().

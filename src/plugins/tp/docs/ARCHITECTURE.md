@@ -246,11 +246,14 @@ src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 │   ├── rank_communicator.{hpp,cpp}         ← RankCommunicator, Channel, the
 │   │                                         process registry of groups
 │   ├── tp_l0_shared_context.{hpp,cpp}      ← shared ze_context + its cache
-│   ├── tp_device_coordinator.{hpp,cpp}     ← L0 plans, cmdlists, kernels, exec
-│   ├── allreduce_sum_cl.hpp                ← reduce kernel source
+│   ├── tp_device_coordinator.{hpp,cpp}     ← L0 plans, cmdlists, exec
+│   ├── reduce_kernel_abi.hpp               ← what the coordinator expects of
+│   │                                         the model's reduction kernel
 │   ├── collective_options.hpp              ← CollectiveOptions (GPU_TP_*)
 │   └── tp_debug.hpp                        ← timers and report helpers
-├── src/graph/impls/ocl/tp_{allreduce,gather}.cpp  ← the primitives' impls
+├── src/graph/impls/ocl_v2/tp_allreduce.{hpp,cpp,cl} ← AllReduce impl and its
+│                                                     reduction kernel
+├── src/graph/impls/ocl/tp_gather.cpp       ← Gather impl (copies only)
 ├── src/plugin/ops/tp_{allreduce,gather}.cpp       ← op → primitive
 └── tests/unit/module_tests/ze/tp_device_coordinator_test.cpp
 ```
@@ -271,12 +274,17 @@ the other ranks find it through the process registry.
 For every rank, the coordinator creates:
 - A compute queue on the compute ordinal. There is no separate copy queue:
   the copies and the reduce kernel share one command list per collective.
-- An `allreduce_sum_f16` and `allreduce_sum_f32` kernel compiled from
-  `allreduce_sum_cl.hpp`. The kernel module is built via OpenCL
-  (`clBuildProgram`) on the device matched by UUID, then re-loaded into
-  the shared L0 context as `ZE_MODULE_FORMAT_NATIVE`.
 - The GPU timer period and timestamp mask, read once, used to turn kernel
   timestamps into nanoseconds.
+
+The coordinator builds no kernels. The reduction kernel (`tp_allreduce.cl`,
+f16/bf16/f32) belongs to the compiled model: the `ocl::tp_allreduce` impl
+builds it through the GPU kernel pipeline with the rest of the model, so it is
+stored in the cache blob and `import_model()` does not rebuild it. The impl
+passes its Level Zero kernel handle with every `allreduce()` call. The kernel
+widens both operands to f32, adds them and rounds once to the element type, so
+every reduction step is one f32 addition; its argument order and work-item
+width are fixed by `reduce_kernel_abi.hpp`.
 
 ### Plan caching
 
@@ -294,6 +302,7 @@ recording was built from:
 |----------------------------------|-------------------------------------------------|
 | `in_ptrs[N]`, `out_ptrs[N]`      | the addresses baked into the recording          |
 | `in_ids[N]`, `out_ids[N]`        | the driver's allocation ids for those addresses |
+| `kernels[N]`                     | each rank's reduction kernel, launched by the recording |
 | `n`, `dtype`                     | payload shape                                   |
 | `recorded_scratch_generation[N]` | which staging arena the recording used          |
 
