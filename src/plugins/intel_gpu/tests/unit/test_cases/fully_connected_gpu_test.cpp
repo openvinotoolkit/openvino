@@ -31,6 +31,7 @@
 #include "openvino/openvino.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "plugin/transformations/repack_gguf_weights.hpp"
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 #include <cstring>
@@ -81,35 +82,72 @@ struct gguf_fc_mode {
     bool rank3 = false;
     size_t channels = 32;
     size_t columns = 256;
+    ov::element::Type weight_type = ov::element::gguf_q4_k;
 };
 
 class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
 }
 
-TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
+TEST_P(gguf_fc_dynamic_reference, matches_reference) {
 #if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
     GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
 #else
     gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", GetParam().shuffle ? "1" : "0");
     gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", GetParam().threshold);
     gguf_scoped_env_var prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
-    const std::array<float, 32> reference = {
+    std::array<float, 32> reference = {
         47592.5f, -49073.5f, 51735.f, -21023.f, 21752.5f, -15406.f, 11638.f, -308.5f,
         3469.5f, 41631.f, -34432.f, 39985.5f, -18508.5f, 49953.f, -14508.f, 23126.5f,
         -3821.f, 11636.5f, -10495.5f, 2470.f, 39943.f, -22691.5f, 23110.5f, -11534.f,
         40024.f, -12852.5f, 18133.5f, 6516.5f, 8414.5f, -5952.f, -10262.f, 43670.5f};
     const auto channels = GetParam().channels;
     const auto columns = GetParam().columns;
-    ASSERT_EQ(columns % 256, 0);
-    const auto blocks = columns / 256;
+    const auto weight_type = GetParam().weight_type;
+    const auto block_columns = std::min(columns, size_t{256});
+    ASSERT_EQ(columns % block_columns, 0);
+    ASSERT_EQ(block_columns % weight_type.block_elem_count(), 0);
+    const auto blocks = columns / block_columns;
+    const auto native_blocks = block_columns / weight_type.block_elem_count();
+    const auto block_bytes = native_blocks * weight_type.block_byte_size();
+    if (weight_type != ov::element::gguf_q4_k) {
+        float activation_sum = 0.f;
+        for (size_t column = 0; column < block_columns; ++column) {
+            activation_sum += static_cast<float>(static_cast<int>((column * 13) % 31) - 15);
+        }
+        for (size_t channel = 0; channel < reference.size(); ++channel) {
+            reference[channel] = static_cast<float>(channel + 1) * activation_sum;
+        }
+    }
     float block_factor = 0.f;
     for (size_t block = 0; block < blocks; ++block) {
         block_factor += std::ldexp(static_cast<float>(block + 1), -static_cast<int>(block % 4));
     }
-    std::vector<uint8_t> payload(channels * blocks * 144);
+    std::vector<uint8_t> payload(channels * blocks * block_bytes);
     for (size_t channel = 0; channel < channels; ++channel) {
         for (size_t block = 0; block < blocks; ++block) {
-            const auto offset = (channel * blocks + block) * 144;
+            const auto offset = (channel * blocks + block) * block_bytes;
+            if (weight_type != ov::element::gguf_q4_k) {
+                const ov::float16 scale(std::ldexp(static_cast<float>(channel % reference.size() + 1),
+                                                  -static_cast<int>(block % 4)));
+                for (size_t native_block = 0; native_block < native_blocks; ++native_block) {
+                    auto* bytes = payload.data() + offset + native_block * weight_type.block_byte_size();
+                    if (weight_type == ov::element::gguf_q5_k) {
+                        std::memcpy(bytes, &scale, sizeof(scale));
+                        std::fill_n(bytes + 4, 12, uint8_t{1});
+                        std::fill_n(bytes + 48, 128, uint8_t{0x11});
+                    } else if (weight_type == ov::element::gguf_q6_k) {
+                        std::fill_n(bytes, 128, uint8_t{0x11});
+                        std::fill_n(bytes + 128, 64, uint8_t{0xaa});
+                        std::fill_n(bytes + 192, 16, uint8_t{1});
+                        std::memcpy(bytes + 208, &scale, sizeof(scale));
+                    } else {
+                        ASSERT_EQ(weight_type, ov::element::gguf_q8_0);
+                        std::memcpy(bytes, &scale, sizeof(scale));
+                        std::fill_n(bytes + 2, 32, uint8_t{1});
+                    }
+                }
+                continue;
+            }
             for (size_t byte = 0; byte < 144; ++byte) {
                 const auto index = (channel % reference.size()) * 144 + byte;
                 payload[offset + byte] = static_cast<uint8_t>((index * 37 + index / 97 + 19) % 256);
@@ -121,7 +159,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
         }
     }
     const ov::Shape weight_shape{channels, columns};
-    auto raw = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, weight_shape, payload.data());
+    auto raw = std::make_shared<ov::op::v0::Constant>(weight_type, weight_shape, payload.data());
     auto input_shape = ov::PartialShape::dynamic(GetParam().rank3 ? 3 : 2);
     input_shape[input_shape.size() - 1] = columns;
     if (GetParam().rank3)
@@ -136,7 +174,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
     manager.register_pass<ov::intel_gpu::RepackGGUFWeightsShuffle>();
     manager.run_passes(graph);
     auto packed = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
-    const bool shuffled = GetParam().shuffle && channels % 16 == 0;
+    const bool shuffled = GetParam().shuffle && channels % 16 == 0 && columns % 256 == 0;
     ASSERT_EQ(packed == raw, !shuffled);
     auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{channels}, {0.f});
     auto public_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(parameter, raw, bias,
@@ -146,7 +184,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
     auto compiled = core.compile_model(public_graph, "GPU", ov::hint::inference_precision(ov::element::f32));
     auto request = compiled.create_infer_request();
     auto& engine = get_test_engine();
-    auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), data_types::gguf_q4_k, format::bfyx});
+    auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), weight_type, format::bfyx});
     {
         mem_lock<uint8_t, mem_lock_type::write> bytes(weights, get_test_stream());
         std::memcpy(bytes.data(), packed->get_data_ptr(), packed->get_byte_size());
@@ -159,7 +197,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
-    const std::array<size_t, 7> row_counts = {1, 2, 33, 1, 1, 33, 2};
+    const std::array<size_t, 9> row_counts = {1, 2, 31, 32, 33, 1, 1, 33, 2};
     for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
         const auto rows = row_counts[iteration];
         const auto concrete_input = GetParam().rank3 ? ov::Shape{1, rows, columns} : ov::Shape{rows, columns};
@@ -169,8 +207,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
         for (size_t row = 0; row < rows; ++row) {
             const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
             for (size_t column = 0; column < columns; ++column) {
-                values[row * columns + column] = factor * static_cast<float>(column / 256 + 1) *
-                    static_cast<float>(static_cast<int>(((column % 256) * 13) % 31) - 15);
+                values[row * columns + column] = factor * static_cast<float>(column / block_columns + 1) *
+                    static_cast<float>(static_cast<int>(((column % block_columns) * 13) % 31) - 15);
             }
         }
         set_values(input, values);
@@ -191,8 +229,12 @@ TEST_P(gguf_fc_dynamic_reference, matches_ggml) {
         implementation->kernel_dump_info.clear_entries();
         RecordProperty("stage_iteration_" + std::to_string(iteration), entries);
         const bool prefill = !GetParam().threshold && rows > 32;
-        const std::string expected_stage = prefill ? "fc_gguf_transcode"
-                                                  : shuffled ? "fc_gguf_q4k_sg" : "fc_gguf_opt";
+        const std::string sg_stage = weight_type == ov::element::gguf_q4_k ? "fc_gguf_q4k_sg"
+                         : weight_type == ov::element::gguf_q5_k ? "fc_gguf_q5k_sg"
+                         : weight_type == ov::element::gguf_q6_k ? "fc_gguf_q6k_sg"
+                                           : "fc_gguf_q8_0_sg";
+        const std::string expected_stage = prefill ? "fc_gguf_transcode_" + weight_type.to_string()
+                          : shuffled ? sg_stage : "fc_gguf_opt_" + weight_type.to_string();
         EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
         EXPECT_EQ(entries.find("fc_gguf_act_dq"), std::string::npos) << entries;
         mem_lock<float, mem_lock_type::read> actual(output, get_test_stream());
@@ -228,7 +270,22 @@ INSTANTIATE_TEST_SUITE_P(gguf,
                                           gguf_fc_mode{"sg_native_n48_k1024", true, "64", true, 48, 1024},
                                           gguf_fc_mode{"raw_native_n48_k1024", false, "64", false, 48, 1024},
                                           gguf_fc_mode{"sg_prefill_n48_k1024", true, nullptr, false, 48, 1024},
-                                          gguf_fc_mode{"raw_prefill_n48_k1024", false, nullptr, true, 48, 1024}),
+                                          gguf_fc_mode{"raw_prefill_n48_k1024", false, nullptr, true, 48, 1024},
+                                          gguf_fc_mode{"q5k_sg_native", true, "64", false, 32, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q5k_raw_native", false, "64", true, 32, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q5k_sg_prefill", true, nullptr, true, 32, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q5k_raw_prefill", false, nullptr, false, 32, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q6k_sg_native", true, "64", true, 16, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q6k_raw_native", false, "64", false, 16, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q6k_sg_prefill", true, nullptr, false, 16, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q6k_raw_prefill", false, nullptr, true, 16, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q8_sg_native_k4096", true, "64", false, 32, 4096, ov::element::gguf_q8_0},
+                                          gguf_fc_mode{"q8_raw_native_k4096", false, "64", true, 32, 4096, ov::element::gguf_q8_0},
+                                          gguf_fc_mode{"q8_sg_prefill_k4096", true, nullptr, true, 32, 4096, ov::element::gguf_q8_0},
+                                          gguf_fc_mode{"q8_raw_prefill_k4096", false, nullptr, false, 32, 4096, ov::element::gguf_q8_0},
+                                          gguf_fc_mode{"q5k_shuffle_fallback_n17", true, "64", false, 17, 512, ov::element::gguf_q5_k},
+                                          gguf_fc_mode{"q6k_prefill_fallback_n17", true, nullptr, true, 17, 1024, ov::element::gguf_q6_k},
+                                          gguf_fc_mode{"q8_prefill_fallback_k64", true, nullptr, false, 32, 64, ov::element::gguf_q8_0}),
                         [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
 
 TEST(fully_connected_gpu, dynamic_byxf) {
