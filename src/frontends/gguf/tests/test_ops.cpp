@@ -310,7 +310,7 @@ TEST(GGUFOps, ScaleBf16ComputesInF32) {
     for (size_t i = 0; i < values.size(); ++i) {
         x.data<ov::bfloat16>()[i] = ov::bfloat16(values[i]);
     }
-    for (const auto& scale_bias : {std::pair<float, float>{2, 1}, {0.5f, 0}, {1.003f, 0.001f}}) {
+    for (const auto& scale_bias : {std::pair<float, float>{2.0f, 1.0f}, {0.5f, 0.0f}, {1.003f, 0.001f}}) {
         SCOPED_TRACE(::testing::Message() << scale_bias.first << ", " << scale_bias.second);
         auto model = SingleOpBuilder()
                          .op("GGML_OP_SCALE")
@@ -1313,7 +1313,9 @@ TEST_P(GGUFMulMatIdSkippedIds, MatchesReference) {
         if (c.ids_type == ov::element::i64) {
             std::copy(selected_ids.begin(), selected_ids.end(), ids_tensor.data<int64_t>());
         } else {
-            std::copy(selected_ids.begin(), selected_ids.end(), ids_tensor.data<int32_t>());
+            for (size_t i = 0; i < selected_ids.size(); ++i) {
+                ids_tensor.data<int32_t>()[i] = static_cast<int32_t>(selected_ids[i]);
+            }
         }
         request.set_tensor("a", make_f32_tensor({1, tokens, activation_slots, 2}, data));
         request.set_tensor("ids", ids_tensor);
