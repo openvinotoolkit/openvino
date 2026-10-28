@@ -11,12 +11,12 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
@@ -318,9 +318,24 @@ static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_patte
     }
 }
 
-// A where-style mask means "mask out" when its fill value is at most f16's lowest, i.e. the dtype minimum
-// of any supported score type, or a true -inf. NaN is rejected. The value itself is not reused.
-constexpr float kMaskSentinelThreshold = -65504.0f;
+// The Select replaces a masked-out score s with fill; the fused SDPA computes s + fill. They agree when fill
+// absorbs s. Accepted fills:
+//  - -inf, lowest f32/bf16: absorb |s| < ~1e31, so the result is exact, fully masked rows included.
+//  - lowest f16 (-65504): absorbs only |s| < 16. Rows with a kept entry still match; a fully masked row
+//    gives Softmax(scores) @ V instead of mean(V), or NaN if the mask is added in f16. Accepted because an
+//    f32 -FLT_MAX fill becomes -65504 when a plugin converts to f16 first (e.g. GPU default precision).
+// A masked-out score that is +inf/NaN is not handled for any fill; the pass cannot check runtime values.
+static bool is_mask_fill(const ov::element::Type& type, float fill) {
+    if (fill == -std::numeric_limits<float>::infinity())
+        return true;
+    if (type == ov::element::f32)
+        return fill == std::numeric_limits<float>::lowest();
+    if (type == ov::element::bf16)
+        return fill == static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+    if (type == ov::element::f16)
+        return fill == static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+    return false;
+}
 
 static std::shared_ptr<ov::Node> get_additive_mask(const std::shared_ptr<v1::Select>& select, Matcher& matcher) {
     const auto score_type = select->get_input_element_type(1);
@@ -334,16 +349,14 @@ static std::shared_ptr<ov::Node> get_additive_mask(const std::shared_ptr<v1::Sel
     const auto sentinel = ov::as_type_ptr<v0::Constant>(select->input_value(2).get_node_shared_ptr());
     if (!sentinel || ov::shape_size(sentinel->get_shape()) != 1)
         return nullptr;
-    // A true -inf passes this comparison as well; NaN does not, so it is rejected.
-    if (!(sentinel->cast_vector<float>()[0] <= kMaskSentinelThreshold))
+    if (sentinel->get_element_type() != score_type || !is_mask_fill(score_type, sentinel->cast_vector<float>()[0]))
         return nullptr;
 
+    // The mask reuses the matched fill value bit for bit, as a scalar of the score type.
     auto zero = v0::Constant::create(score_type, ov::Shape{}, {0.0});
-    auto minus_inf = v0::Constant::create(ov::element::f32, ov::Shape{}, {-std::numeric_limits<float>::infinity()});
-    auto mask_value = op_util::make_try_fold<v1::ConvertLike>(minus_inf, zero);
-    auto mask =
-        std::make_shared<v1::Select>(select->input_value(0), zero, mask_value, ov::op::AutoBroadcastType::NUMPY);
-    ov::copy_runtime_info(matcher.get_matched_nodes(), {zero, minus_inf, mask_value, mask});
+    auto fill = std::make_shared<v0::Constant>(score_type, ov::Shape{}, sentinel->get_data_ptr());
+    auto mask = std::make_shared<v1::Select>(select->input_value(0), zero, fill, ov::op::AutoBroadcastType::NUMPY);
+    ov::copy_runtime_info(matcher.get_matched_nodes(), {zero, fill, mask});
     return mask;
 }
 
