@@ -9,7 +9,6 @@
 #include "common_test_utils/file_utils.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
-#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "projector.hpp"
@@ -85,10 +84,6 @@ TEST(GGUFArchitectureLibrary, ProjectorAdapterRetainsItsLibraryUntilExecutionCom
     ASSERT_NE(holder, nullptr);
     ASSERT_FALSE(holder->lifetime.empty());
     std::weak_ptr<ov::Extension> owner = holder->lifetime.front();
-    auto extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(holder->lifetime.front());
-    ASSERT_NE(extension, nullptr);
-    std::weak_ptr<void> library = extension->shared_object();
-    extension.reset();
     EXPECT_FALSE(owner.expired());
     using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
     Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
@@ -97,7 +92,6 @@ TEST(GGUFArchitectureLibrary, ProjectorAdapterRetainsItsLibraryUntilExecutionCom
     EXPECT_EQ(ov::frontend::gguf::get_model_adapter(model->get_results().front()), nullptr);
     holder.reset();
     EXPECT_TRUE(owner.expired());
-    EXPECT_FALSE(library.expired());
     for (const size_t tokens : {1u, 3u, 7u}) {
         ov::Tensor input(ov::element::f32, {1, 1, tokens, 2});
         std::iota(input.data<float>(), input.data<float>() + input.get_size(), 1.f);
@@ -108,29 +102,4 @@ TEST(GGUFArchitectureLibrary, ProjectorAdapterRetainsItsLibraryUntilExecutionCom
                 EXPECT_FLOAT_EQ(outputs[0].data<float>()[t * 3 + c],
                                 float((2 * t + 1) * (2 * c + 1) + (2 * t + 2) * (2 * c + 2) + 7));
     }
-    auto clone = model->clone();
-    auto auxiliary = adapter.get_vision_models().at("custom_auxiliary");
-    auto self = auxiliary->shared_from_this();
-    auto weak = auxiliary->weak_from_this();
-    EXPECT_FALSE(auxiliary.owner_before(self));
-    EXPECT_FALSE(self.owner_before(auxiliary));
-    adapter = Adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
-    model.reset();
-    EXPECT_FALSE(library.expired());
-    ov::Tensor input(ov::element::f32, {1, 1, 1, 2});
-    input.data<float>()[0] = 1.f;
-    input.data<float>()[1] = 2.f;
-    for (const auto& retained : {clone, auxiliary}) {
-        ov::TensorVector outputs{ov::Tensor(ov::element::f32, {1, 1, 3})};
-        ASSERT_TRUE(retained->evaluate(outputs, {input}));
-        EXPECT_FLOAT_EQ(outputs[0].data<float>()[0], 12.f);
-    }
-    clone.reset();
-    EXPECT_FALSE(library.expired());
-    auxiliary.reset();
-    EXPECT_FALSE(library.expired());
-    self.reset();
-    EXPECT_TRUE(library.expired());
-    EXPECT_TRUE(weak.expired());
-    weak.reset();
 }

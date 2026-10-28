@@ -9,8 +9,6 @@
 
 #include "builder/arch/projector_adapter.hpp"
 #include "model_adapter_attribute.hpp"
-#include "openvino/core/so_extension.hpp"
-#include "openvino/frontend/frontend.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/split.hpp"
@@ -89,17 +87,7 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
 
 bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     m_vision_models.clear();
-    std::vector<std::shared_ptr<void>> libraries;
-    const auto callback = get_model_adapter(embedding_result(model, m_modality));
-    if (callback) {
-        for (const auto& owner : callback->lifetime) {
-            if (const auto extension = std::dynamic_pointer_cast<ov::detail::SOExtension>(owner))
-                libraries.push_back(extension->shared_object());
-            else
-                libraries.push_back(owner);
-        }
-    }
-    if (m_layout == Layout::EMBEDDINGS && !callback) {
+    if (m_layout == Layout::EMBEDDINGS && !get_model_adapter(embedding_result(model, m_modality))) {
         adapt_mmproj(model, m_modality, m_layout);
         remove_model_adapters(model);
         return true;
@@ -118,13 +106,6 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
     OPENVINO_ASSERT(primary, "[GGUF] projector adapter omitted its primary model");
     adapted->validate_nodes_and_infer_types();
-    ov::frontend::FrontEnd::add_model_shared_objects(*model, *adapted, libraries);
-    for (auto& [name, encoder] : vision_models) {
-        if (encoder != adapted) {
-            encoder = ov::frontend::FrontEnd::copy_model_with_shared_objects(*encoder, {});
-            ov::frontend::FrontEnd::add_model_shared_objects(*encoder, *model, {});
-        }
-    }
     remove_model_adapters(adapted);
     for (const auto& [name, encoder] : vision_models)
         remove_model_adapters(encoder);

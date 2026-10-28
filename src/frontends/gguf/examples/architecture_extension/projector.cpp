@@ -59,9 +59,7 @@ ov::frontend::gguf::ProjectorDefinition vision_projector_component() {
                                                             ov::op::v0::Constant::create(ov::element::f32, {}, {7.f}));
             output->output(0).set_names({"last_hidden_state"});
             result->input(0).replace_source_output(output);
-            auto auxiliary_result = std::make_shared<ov::op::v0::Result>(output);
-            auto auxiliary = std::make_shared<ov::Model>(ov::ResultVector{auxiliary_result}, model->get_parameters());
-            return ModelAdapterResult{model, {{"custom_vision", model}, {"custom_auxiliary", auxiliary}}};
+            return ModelAdapterResult{model, {{"custom_vision", model}}};
         }};
 }
 }  // namespace example
