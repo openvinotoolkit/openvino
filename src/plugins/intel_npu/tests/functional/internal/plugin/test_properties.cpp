@@ -21,6 +21,7 @@
 #include "compiler_option_support_helper.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
@@ -140,6 +141,10 @@ public:
 
             if (backend->isCommandQueueExtSupported()) {
                 REGISTER_OPTION(WORKLOAD_TYPE);
+            }
+
+            if (backend->isCommandQueueQosExtSupported()) {
+                REGISTER_OPTION(QOS);
             }
         }
 
@@ -995,6 +1000,103 @@ TEST_P(DisableIdleMemoryPruningPropertyTests, MergedConfigurationDoesNotChangeTh
     ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>());
 }
 
+// QOS is registered only when the driver exposes the command queue QoS extension. It is a write-only runtime option.
+class QosPropertyTests : public PropertiesManagerTests {
+protected:
+    bool isSupportedByDriver() const {
+        return backend && backend->isCommandQueueQosExtSupported();
+    }
+};
+
+TEST_P(QosPropertyTests, SupportMatchesQosExtensionAvailability) {
+    ASSERT_EQ(propertiesManager->isPropertySupported(ov::qos.name()), isSupportedByDriver());
+}
+
+TEST_P(QosPropertyTests, IsWriteOnly) {
+    if (!isSupportedByDriver()) {
+        OV_EXPECT_THROW(propertiesManager->getProperty(ov::qos.name()),
+                        ov::Exception,
+                        HasSubstr("Unsupported configuration key"));
+        return;
+    }
+
+    OV_EXPECT_THROW(propertiesManager->getProperty(ov::qos.name()), ov::Exception, HasSubstr("WRITE-ONLY"));
+}
+
+TEST_P(QosPropertyTests, AcceptsEveryLevel) {
+    if (!isSupportedByDriver()) {
+        OV_EXPECT_THROW(propertiesManager->setProperty({{ov::qos(ov::QoS::LOW)}}),
+                        ov::Exception,
+                        HasSubstr("Unsupported configuration key"));
+        return;
+    }
+
+    for (const auto level :
+         {ov::QoS::DEFAULT, ov::QoS::HIGH, ov::QoS::MEDIUM, ov::QoS::LOW, ov::QoS::UTILITY, ov::QoS::ECO}) {
+        OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::qos(level)}}));
+    }
+}
+
+TEST_P(QosPropertyTests, AcceptsStringValuesAndRejectsUnknownOnes) {
+    if (!isSupportedByDriver()) {
+        GTEST_SKIP() << "The driver does not expose the command queue QoS extension.";
+    }
+
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::qos.name(), "ECO"}}));
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::qos.name(), "high"}}));
+    OV_EXPECT_THROW(propertiesManager->setProperty({{ov::qos.name(), "NOT_A_QOS_LEVEL"}}), ov::Exception, testing::_);
+}
+
+TEST_P(QosPropertyTests, IsARunTimeOption) {
+    if (!isSupportedByDriver()) {
+        GTEST_SKIP() << "The driver does not expose the command queue QoS extension.";
+    }
+
+    auto [config, unknownProperties] =
+        propertiesManager->getMergedConfigAndUnknownProperties({}, ::intel_npu::ConfigMergeMode::Compile);
+
+    ASSERT_TRUE(config.hasOpt(ov::qos.name()));
+    ASSERT_EQ(config.getOpt(ov::qos.name()).mode(), ::intel_npu::OptionMode::RunTime);
+    ASSERT_TRUE(unknownProperties.empty());
+}
+
+// The requested level must reach the configuration used to create the command queue on every path.
+TEST_P(QosPropertyTests, IsKeptByTheMergedConfigurationOnEveryPath) {
+    for (const auto mergeMode : {::intel_npu::ConfigMergeMode::Compile,
+                                 ::intel_npu::ConfigMergeMode::Import,
+                                 ::intel_npu::ConfigMergeMode::Query}) {
+        if (!isSupportedByDriver()) {
+            OV_EXPECT_THROW(
+                propertiesManager->getMergedConfigAndUnknownProperties({{ov::qos(ov::QoS::LOW)}}, mergeMode),
+                ov::Exception,
+                HasSubstr("is not supported for current configuration"));
+            continue;
+        }
+
+        for (const auto level : {ov::QoS::DEFAULT, ov::QoS::HIGH, ov::QoS::ECO}) {
+            auto [config, unknownProperties] =
+                propertiesManager->getMergedConfigAndUnknownProperties({{ov::qos(level)}}, mergeMode);
+
+            ASSERT_TRUE(config.has<::intel_npu::QOS>());
+            ASSERT_EQ(config.get<::intel_npu::QOS>(), level);
+            ASSERT_TRUE(unknownProperties.empty());
+
+            const auto commandQueueParams = ::intel_npu::CommandQueueParams::from_config(config);
+            ASSERT_TRUE(commandQueueParams.qos.has_value());
+            ASSERT_EQ(commandQueueParams.qos.value(), level);
+        }
+    }
+}
+
+// Without an explicit request the command queue must be created without any QoS descriptor.
+TEST_P(QosPropertyTests, IsNotForwardedToTheCommandQueueWhenNotRequested) {
+    auto [config, unknownProperties] =
+        propertiesManager->getMergedConfigAndUnknownProperties({}, ::intel_npu::ConfigMergeMode::Compile);
+
+    ASSERT_FALSE(config.has<::intel_npu::QOS>());
+    ASSERT_FALSE(::intel_npu::CommandQueueParams::from_config(config).qos.has_value());
+}
+
 // DEVICE_ARCHITECTURE must always report the name of the resolved device, no matter how DEVICE_ID identifies it.
 class DeviceArchitecturePropertyTests : public PropertiesManagerTests {
 protected:
@@ -1103,6 +1205,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          DisableIdleMemoryPruningPropertyTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         QosPropertyTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);
