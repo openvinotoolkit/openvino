@@ -50,6 +50,10 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/api/tensor_table.cpp"
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/lfm2_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/lfm3_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/lfm3_mmproj_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/lfm3_projector_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/lfm3_audio_generator.cpp"
     "${FE_SRC_DIR}/builder/arch/dspark_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/mamba_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/mmproj_builder.cpp"
@@ -108,6 +112,8 @@ set(FRONTEND_SRCS
 )
 
 set(TEST_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_lfm3_media.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_lfm3_speech.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_mmproj.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_adapt_to_genai.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_conversion.cpp"

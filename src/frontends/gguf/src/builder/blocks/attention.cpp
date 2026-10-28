@@ -312,21 +312,45 @@ std::string attention(GraphEmitter& e,
                             {{"activation_rank", rank3_gate ? 3 : 4}});
         }
         gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate});
-        const auto gate_attention =
-            rank3_gate ? e.add_op("GGML_OP_RESHAPE",
-                                  p + "kqv_gate_input",
-                                  {attn_2d},
-                                  6,
-                                  {{"reshape_target", std::vector<int64_t>{0, -1, q_width}}, {"special_zero", true}})
-                       : attn_2d;
-        const auto gated = e.add_op("GGML_OP_MUL", p + "kqv_gated", {gate_attention, gate});
-        attn_2d = rank3_gate
-                      ? e.add_op("GGML_OP_RESHAPE",
-                                 p + "kqv_gated_4d",
-                                 {gated},
-                                 6,
-                                 {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}})
-                      : gated;
+        const auto& gate_shape = e.weight_tensor(p + "attn_gate.weight").get_shape();
+        OPENVINO_ASSERT(gate_shape.size() == 2 && (gate_shape[0] == static_cast<size_t>(n_head_l) ||
+                                                   gate_shape[0] == static_cast<size_t>(q_width)),
+                        "[GGUF] attention gate must have one value per head or per channel");
+        if (gate_shape[0] == static_cast<size_t>(n_head_l) && head_size_l > 1) {
+            auto heads = e.add_op(
+                "GGML_OP_RESHAPE",
+                p + "kqv_heads",
+                {attn_2d},
+                6,
+                {{"reshape_target", std::vector<int64_t>{0, -1, n_head_l, head_size_l}}, {"special_zero", true}});
+            gate = e.add_op("GGML_OP_RESHAPE",
+                            p + "attn_gate_heads",
+                            {gate},
+                            6,
+                            {{"reshape_target", std::vector<int64_t>{0, -1, n_head_l, 1}}, {"special_zero", true}});
+            heads = e.add_op("GGML_OP_MUL", p + "kqv_gated_heads", {heads, gate});
+            attn_2d = e.add_op("GGML_OP_RESHAPE",
+                               p + "kqv_gated",
+                               {heads},
+                               6,
+                               {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
+        } else {
+            const auto gate_attention =
+                rank3_gate ? e.add_op("GGML_OP_RESHAPE",
+                                      p + "kqv_gate_input",
+                                      {attn_2d},
+                                      6,
+                                      {{"reshape_target", std::vector<int64_t>{0, -1, q_width}}, {"special_zero", true}})
+                           : attn_2d;
+            const auto gated = e.add_op("GGML_OP_MUL", p + "kqv_gated", {gate_attention, gate});
+            attn_2d = rank3_gate
+                          ? e.add_op("GGML_OP_RESHAPE",
+                                     p + "kqv_gated_4d",
+                                     {gated},
+                                     6,
+                                     {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}})
+                          : gated;
+        }
     }
 
     // output projection (+ optional bias)

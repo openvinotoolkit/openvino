@@ -40,6 +40,7 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `jais2` | Biased LayerNorm, ungated ReLU² FFN | Jais-2-8B-Chat Q4_K_M | 13/13 ² |
 | `lfm2` | LFM2 / LFM2.5 dense hybrid short convolution and GQA, QK-norm, tied head | LFM2-350M / LFM2.5-1.2B-Instruct Q4_0 | 13/13 each |
 | `lfm2.audio_vocoder` | Standalone speech component; accepts the existing publisher architecture string | LFM2.5-Audio-1.5B Q4_0 | [Component parity](mmproj.md#lfm2-audio-components) |
+| `lfm3` | LFM3 dense hybrid convolution/GQA, per-head gates, sandwich norms, mixed full/sliding RoPE | LFM3-1.7B / VL-2B / Audio-2B / Omni-2B Q4_0 | 13/13 each |
 | `lfm2moe` | LFM2 / LFM2.5 MoE hybrid, dense lead, biased normalized expert routing | LFM2.5-8B-A1B Q4_0 | 12/13 |
 | `llama` | llama-2 / llama-3, YaRN | Devstral Small 2507 24B Q4_K_M | 13/13 |
 | `llama-embed` | Per-token embeddings; mean/first/last pooling; causal or bidirectional | Llama-Nemotron-Embed-1B-v2 Q4_K_M | NMSE 3e-6 ² |
@@ -159,6 +160,38 @@ require the `gguf-frontend-mmproj` integration. Older Mimi-based LFM2 speech out
 requires a separate codec. Other sizes, quantizations, long contexts,
 and downstream fine-tunes require their own checkpoint validation.
 
+## LFM3
+
+The dedicated `lfm3` builder supports LFM3-1.7B and the language backbones of
+LFM3-VL-2B, LFM3-Audio-2B and LFM3-Omni-2B. Per-layer KV-head metadata selects
+short convolution or attention. The builder requires paired post-attention/post-FFN
+norms when present, dense SwiGLU and `output_norm.weight`; the output projection
+falls back to tied token embeddings. Sigmoid gates broadcast one value per head.
+Sliding layers rotate the full head; full-attention layers retain the partial
+rotation encoded by `rope_freqs.weight`. KV and convolution states use the shared
+state contracts. `logits` remains the primary output; `audio_hidden_states` exposes
+normalized hidden states for speech generation.
+
+Four nonzero F32 reference fixtures cover alternate hybrid order, optional norms,
+unequal query/KV heads, tied output, window crossing, multi-token decode and reset.
+Batching and beam reordering, missing tensors/metadata, and structural conversion
+are checked separately. The independent CPU reference is llama.cpp
+`604cc430239c76ff636c443e3400bf552b750421`.
+
+All four real decoders match 13/13 greedy choices for the prompt and reference-token
+history described above. Full-logit quantized-CPU NMSE is approximately
+`5e-5..3.175e-3`; this passes the existing greedy-choice gate and does not establish
+strict full-logit parity. Q4_0-labelled files also contain F32 and Q6_K tensors.
+Publisher snapshots, in family order, are
+`4b423c332fd97961416f2e8b69467758fd27370d`,
+`017b19da2dcffadb41d67745941f3d785f0d162f`,
+`642697a5597a675cb819ed236ac415c1e60a4f6f`, and
+`5e850dad8e109c728e99d24660fed65bb3c2c362` in LiquidAI's corresponding GGUF repositories.
+
+Multimodal and speech contracts are described in [LFM3 components](mmproj.md#lfm3-components).
+Decision/D1 variants are rejected. GPU accuracy, other quantizations, longer
+contexts and downstream fine-tunes require separate validation.
+
 ## Block drafters
 
 | Architecture | Features |
@@ -178,3 +211,6 @@ endpoints to 1000 and 0, independent of the bounds. Both bounds must still be pr
 finite and strictly ordered, as required by the model's conditioning metadata.
 Hidden-correction checkpoints and generic GenAI decoder adaptation are not supported.
 Draft blocks up to 4096 tokens are supported.
+
+The measured LFM3 CPU results and failed parity gates are collected in
+[LFM3 validation](lfm3_validation.md).

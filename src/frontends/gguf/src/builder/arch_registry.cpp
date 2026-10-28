@@ -9,6 +9,8 @@
 
 #include "builder/arch/dspark_builder.hpp"
 #include "builder/arch/lfm2_builder.hpp"
+#include "builder/arch/lfm3_builder.hpp"
+#include "builder/arch/lfm3_mmproj_builder.hpp"
 #include "builder/arch/mamba_builder.hpp"
 #include "builder/arch/mmproj_builder.hpp"
 #include "openvino/core/except.hpp"
@@ -40,10 +42,11 @@ const ArchitectureEntry architectures[] = {
     {"clip",
      make_mmproj_builder,
      [](const GgufMetadata& meta) {
-         return meta.has("clip.projector_type") || meta.has("clip.vision.projector_type") ||
-                meta.has("clip.audio.projector_type");
+         return !is_lfm3_mmproj(meta) && (meta.has("clip.projector_type") || meta.has("clip.vision.projector_type") ||
+                                          meta.has("clip.audio.projector_type"));
      },
      "clip.mmproj"},
+    {"clip", make_lfm3_mmproj_builder, is_lfm3_mmproj, "clip.lfm3"},
     {"deepseek2-ocr", RopeMode::Neox},
     {"dspark", make_dspark_builder},
     {"ernie4_5-moe", RopeMode::Normal},
@@ -65,6 +68,7 @@ const ArchitectureEntry architectures[] = {
          return meta.has("depthformer_n_layer") && meta.has("depthformer_n_embd");
      }},
     {"lfm2moe", make_lfm2_builder},
+    {"lfm3", make_lfm3_builder},
     {"llama", RopeMode::Normal},
     {"llama-embed", RopeMode::Normal},
     {"maincoder", RopeMode::Normal},

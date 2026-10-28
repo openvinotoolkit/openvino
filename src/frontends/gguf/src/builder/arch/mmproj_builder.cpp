@@ -15,6 +15,7 @@
 #include "builder/gguf_graph.hpp"
 #include "builder/metadata_checks.hpp"
 #include "builder/projector_registry.hpp"
+#include "lfm3_projector_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "projector_adapter.hpp"
 
@@ -1296,7 +1297,7 @@ ProjectorResult build_builtin_projector(GgufGraphContext& graph,
 }
 
 std::vector<ProjectorDefinition> builtin_projectors() {
-    std::vector<ProjectorDefinition> definitions;
+    auto definitions = lfm3_projector_definitions();
     for (const auto& entry : projector_catalog) {
         const std::string modality = entry.modality;
         const std::string type = entry.name;

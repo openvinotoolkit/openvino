@@ -741,6 +741,24 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     model->add_results({new_result});
     model->remove_result(old_result);
 
+    const auto architecture = model->get_rt_info().find("gguf_architecture");
+    if (architecture != model->get_rt_info().end() && architecture->second.as<std::string>() == "lfm3") {
+        for (const auto& result : model->get_results()) {
+            if (!result->input_value(0).get_names().count("audio_hidden_states"))
+                continue;
+            const auto hidden = result->input_value(0);
+            const auto width = hidden.get_partial_shape()[3].get_length();
+            auto reshaped = make_shared<v1::Reshape>(
+                hidden,
+                make_shared<v0::Concat>(
+                    ov::OutputVector{batch_len, v0::Constant::create(ov::element::i64, {2}, {int64_t{-1}, width})},
+                    0),
+                false);
+            name_output(reshaped, "audio_hidden_states");
+            result->input(0).replace_source_output(reshaped);
+        }
+    }
+
     // Swap the input list to the genai contract. beam_idx is kept as-is; every other old
     // gguf Parameter has had its output rewired (consumers now read the derived subgraph),
     // so removing it is safe.
