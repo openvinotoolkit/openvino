@@ -15,6 +15,8 @@ namespace ov::intel_gpu {
 static void CreateTPGatherOp(ProgramBuilder& p,
                              const std::shared_ptr<ov::op::internal::TPGather>& op) {
     validate_inputs_count(op, {1});
+    OPENVINO_ASSERT(op->get_group_id() == 0,
+                    "TPGather ", op->get_friendly_name(), ": only collective group 0 is supported, got ", op->get_group_id());
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 

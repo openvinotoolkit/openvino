@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "openvino/runtime/plugin_config.hpp"
-#include "tp/collective_options.hpp"
 #include "tp/internal_properties.hpp"
 #include "tp/tp_debug.hpp"
 
@@ -105,10 +104,6 @@ struct TPConfig : public ov::PluginConfig {
         return configured != 0 ? configured : 1;
     }
 
-    bool force_sync_collective() const {
-        return TP_DEBUG_OPT(*this, force_sync_collective, false);
-    }
-
     bool disable_lm_head_sharding() const {
         return TP_DEBUG_OPT(*this, disable_lm_head_sharding, false);
     }
@@ -117,21 +112,21 @@ struct TPConfig : public ov::PluginConfig {
         return TP_DEBUG_OPT(*this, shard_only, false);
     }
 
-    bool skip_collective() const {
-        return TP_DEBUG_OPT(*this, skip_collective, false);
-    }
-
-    /// The options the collectives run with, resolved from this config.
-    CollectiveOptions collective_options() const {
-        CollectiveOptions options;
-        options.enable_halving = get_enable_halving();
-        options.halving_max_bytes = get_halving_max_bytes();
-        options.force_sync_collective = force_sync_collective();
-        options.skip_collective = skip_collective();
-        options.profiling_host = profiling_host();
-        options.profiling_device = profiling_device();
-        options.dump_period = dump_period();
-        options.verbosity = verbosity();
+    /// The diagnostics the collectives share with this plugin, as the GPU_TP_*
+    /// options of a rank context. Only what differs from the default, so a build
+    /// whose GPU plugin lacks the options is only refused when one is used.
+    ov::AnyMap collective_diagnostics() const {
+        ov::AnyMap options;
+        if (verbosity() != ov::log::Level::NO) {
+            options.emplace("GPU_TP_VERBOSE", verbosity());
+        }
+        if (profiling_mode() != ProfilingMode::NONE) {
+            options.emplace("GPU_TP_PROFILING", ov::Any(profiling_mode()).as<std::string>());
+        }
+        const auto period = TP_DEBUG_OPT(*this, dump_period, uint64_t{0});
+        if (period != 0) {
+            options.emplace("GPU_TP_DUMP_PERIOD", period);
+        }
         return options;
     }
 

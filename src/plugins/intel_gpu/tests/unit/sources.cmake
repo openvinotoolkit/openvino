@@ -578,6 +578,14 @@ if(OV_GPU_TESTS_RT STREQUAL "ZE")
     list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_ZE_RT_SRCS})
 endif()
 
+# Tensor-parallel collectives: Level Zero runtime, builds with the TP plugin only.
+set(GPU_UNIT_TESTS_TP_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/tp_device_coordinator_test.cpp
+)
+if(ENABLE_TP AND OV_GPU_TESTS_RT STREQUAL "ZE")
+    list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_TP_SRCS})
+endif()
+
 # Tests with a dependency on the SYCL runtime.
 set(GPU_UNIT_TESTS_SYCL_RT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sycl/sycl_device_test.cpp

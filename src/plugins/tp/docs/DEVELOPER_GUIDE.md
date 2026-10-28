@@ -13,38 +13,36 @@ make -j$(nproc) openvino_tp_plugin
 
 `GPU_RT_TYPE` defaults to `OCL`, so leaving it out fails configuration outright.
 `L0` is an alias for `ZE`; both work and are normalized to `ZE`.
-Plugin takes the Level Zero driver and device handles from intel_gpu's remote context,
-and an OpenCL-backed intel_gpu has none to give.
+The collectives run on Level Zero inside intel_gpu, which an OpenCL-backed
+intel_gpu cannot do.
 
 `ENABLE_INTEL_GPU` must be on as well. It is on by default where the GPU plugin
-is supported at all, and the collective primitives are compiled into intel_gpu
-itself, which links the TP ops library.
+is supported at all. With `ENABLE_TP` intel_gpu compiles its TP code: the
+collective primitives and the communicator under `src/runtime/ze/tp/`
+(`ENABLE_TP` is defined for the whole intel_gpu directory). Without it none of
+that code is built.
 
 Produces `bin/intel64/Release/libopenvino_tp_plugin.so` and
 registers `TP` in `plugins.xml`.
 
-The debug option tier needs `-DENABLE_TP_DEBUG_CAPS=ON` (implied by
+The TP plugin's debug option tier needs `-DENABLE_TP_DEBUG_CAPS=ON` (implied by
 `-DENABLE_DEBUG_CAPS=ON`). Without it the verbosity and profiling options do
-not exist at all, and the code they guard folds away.
+not exist at all, and the code they guard folds away. The collectives' debug
+options (`GPU_TP_*`) follow the GPU plugin's own switch,
+`ENABLE_GPU_DEBUG_CAPS`.
 
-The collective primitives live in the intel_gpu plugin and include the
-coordinator's header, so **rebuild both together** whenever
-`tp_device_coordinator.hpp` changes:
+The two plugins share no code and no headers: the TP plugin reaches the
+collectives only through the private collective contract
+(`src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp`), so each
+can be rebuilt on its own. After a change to the contract, rebuild both:
 
 ```bash
 cmake --build . --target openvino_tp_plugin openvino_intel_gpu_plugin -j$(nproc)
 ```
 
-A stale intel_gpu built against a different layout of the coordinator produces
-silent garbage rather than a link error.
-
-The plugin links against `openvino::runtime::dev`, `openvino::zero_loader`,
-an OpenCL ICD (used to compile the embedded kernel into a native binary at
-runtime), and `openvino_tp_coordinator_api` -- an interface target with the
-coordinator headers, which intel_gpu uses too until the communicator moves
-there. The collective ops (`ov::op::internal::TPAllReduce`, `TPGather`) live
-in `src/common/transformations/include/ov_ops/tp_collective.hpp`. The plugin also reads intel_gpu's public headers, to inject the
-collective registry into each rank's compiled model.
+The plugin links against `openvino::runtime::dev` only. The collective ops
+(`ov::op::internal::TPAllReduce`, `TPGather`) live in
+`src/common/transformations/include/ov_ops/tp_collective.hpp`.
 
 ## Source Layout
 
@@ -53,9 +51,8 @@ for the current file layout. Key entry points:
 
 | File                            | Role                                                                                                                                                                             |
 |---------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `src/plugin.cpp`                | `Plugin::compile_model` — config parse, shared L0 context creation, per-rank `GraphRewriter::rewrite` and per-rank intel_gpu compilation; `import_blob` for the cached path.     |
+| `src/plugin.cpp`                | `Plugin::compile_model` — config parse, rank context creation, per-rank `GraphRewriter::rewrite` and per-rank intel_gpu compilation; `import_blob` for the cached path.         |
 | `src/graph_rewriter.cpp`        | `analyze` (finds shardable MatMuls structurally and reads the model dimensions off them) and `rewrite` (per-rank weight slicing, KV-cache shape patching, collective insertion). |
-| `src/tp_device_coordinator.cpp` | All L0 work: per-rank queues/cmdlists, kernel build via OpenCL→native-binary, plan caching, the three schedules, splicing and the watchdog.                                      |
 | `src/infer_request.cpp`         | Rank fan-out, input replication, output collection from rank 0.                                                                                                                  |
 | `src/rank_workers.hpp`          | The persistent worker thread per non-zero rank.                                                                                                                                  |
 | `src/cache_controller.cpp`      | Per-rank KV-cache control inputs.                                                                                                                                                |
@@ -63,7 +60,9 @@ for the current file layout. Key entry points:
 | `src/tp_blob.hpp`               | The container format shared by export and import.                                                                                                                                |
 | `src/tp_config.cpp`             | Device-name resolution and validation.                                                                                                                                           |
 | `include/tp/options.inl`    | The option table: defaults, validators, tiers.                                                                                                                                   |
-| intel_gpu `impls/ocl/tp_*.cpp`  | `tp_allreduce.cpp` and `tp_gather.cpp` — the OCL primitives that call into the coordinator. Registered from `graph/registry/tp_*_impls.cpp`.                                     |
+| intel_gpu `src/plugin/plugin.cpp` | `Plugin::create_tp_context` — the TP context from the `ov::tp::internal` parameters; `Graph::bind_collectives` in `graph.cpp` binds a model to it.                            |
+| intel_gpu `src/runtime/ze/tp/`  | `rank_communicator.cpp` (publish, connect, bind, group registry), `tp_device_coordinator.cpp` (all L0 work: per-rank queues/cmdlists, kernel build via OpenCL→native-binary, plan caching, the three schedules, splicing and the watchdog), `tp_l0_shared_context.cpp`. |
+| intel_gpu `impls/ocl/tp_*.cpp`  | `tp_allreduce.cpp` and `tp_gather.cpp` — the OCL primitives that call the network's TP channel. Registered from `graph/registry/tp_*_impls.cpp`.                               |
 
 ## Tunables
 
@@ -76,6 +75,14 @@ The device list (`"TP:GPU.0,GPU.1"`) and `COMMUNICATION_TIMEOUT_MS` are
 documented in [USER_GUIDE.md § Configuration Properties](USER_GUIDE.md#configuration-properties).
 Everything below is reachable through the environment or a config file only.
 
+The collectives are tuned in intel_gpu, which runs them: the `GPU_TP_*`
+options, environment `OV_GPU_TP_*`. They are read when a rank context is
+created. `TP_VERBOSE`, `TP_PROFILING` and `TP_DUMP_PERIOD` act on both
+plugins: when set, the TP plugin passes them to the rank contexts as
+`GPU_TP_VERBOSE`, `GPU_TP_PROFILING` and `GPU_TP_DUMP_PERIOD`. A GPU plugin
+built without its debug caps has no such options and refuses the rank
+context, rather than silently running without the diagnostics.
+
 ### Behaviour switches
 
 Present in every build. They change what the plugin does, so a measurement
@@ -83,8 +90,8 @@ taken with one of them set does not describe a stock run.
 
 | Environment variable           | Default  | Effect                                                                                                                                                                 |
 |--------------------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `OV_TP_ENABLE_HALVING`         | `true`   | Recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes. Turn off to compare the two schedules on the same payload.              |
-| `OV_TP_HALVING_MAX_BYTES`      | `262144` | Payload ceiling above which halving falls back to the ring. The `schedule of N recordings` line in the report says whether the current ceiling is anywhere near right. |
+| `OV_GPU_TP_ENABLE_HALVING`     | `true`   | Recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes. Turn off to compare the two schedules on the same payload.              |
+| `OV_GPU_TP_HALVING_MAX_BYTES`  | `262144` | Payload ceiling above which halving falls back to the ring. The `schedule of N recordings` line in the report says whether the current ceiling is anywhere near right. |
 | `OV_TP_INPUT_STAGE_MAX_BYTES`  | `4096`   | Size ceiling for staging a user input through plugin-owned host memory. `0` always stages on the device.                                                               |
 
 ### Diagnostics
@@ -95,7 +102,7 @@ so the guarded code folds away instead of costing a branch.
 
 | Environment variable      | Effect                                                                                                                                                      | When to enable                                       |
 |---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
-| `OV_TP_VERBOSE=LOG_INFO`  | One-line summaries per compile: sharding plan, shared context, per-rank op counts, which queue the collective rides.                                        | First thing to reach for when something looks wrong. |
+| `OV_TP_VERBOSE=LOG_INFO`  | One-line summaries per compile: sharding plan, rank contexts, per-rank op counts, which queue the collective rides.                                         | First thing to reach for when something looks wrong. |
 | `OV_TP_VERBOSE=LOG_TRACE` | Per-call `[TP][L0]` step-by-step tracing.                                                                                                                   | Only when chasing a hang or a correctness crash.     |
 | `OV_TP_PROFILING=HOST`    | Host-side measurement: rendezvous phases, per-phase splits per rank, record breakdown, scratch arena, run-ahead depth. Leaves the execution schedule alone. | The default choice when measuring.                   |
 | `OV_TP_PROFILING=DEVICE`  | Device-side numbers: how long the collective owns the model queue, bytes moved, effective bandwidth, and what share of device time the collectives take.    | Only when the device-side numbers are the question.  |
@@ -115,12 +122,12 @@ should; they exist to price a part of the pipeline by removing it.
 
 | Environment variable                 | Effect                                                                                                                                                        |
 |--------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `OV_TP_FORCE_SYNC_COLLECTIVE=1`      | Take collectives off the spliced model queue onto their own queue with a full drain.                                                                          |
+| `OV_GPU_TP_FORCE_SYNC_COLLECTIVE=1`  | Take collectives off the spliced model queue onto their own queue with a full drain.                                                                          |
 |                                      | Results stay correct; this is the one switch here that does not break them. Use it to measure what splicing buys.                                             |
 | `OV_TP_DISABLE_LM_HEAD_SHARDING=1`   | Leave the vocabulary projection unsharded, dropping the gather.                                                                                               |
 |                                      | Results stay correct, but the collective count baked into an exported blob changes, so blobs are not interchangeable across this setting.                     |
 | `OV_TP_SHARD_ONLY=1`                 | **Wrong by construction.** Compile one rank's shard with every collective stripped, to measure the upper bound a rank could reach if communication were free. |
-| `OV_TP_SKIP_COLLECTIVE=1`            | **Wrong by construction.** Return from every AllReduce without doing anything. The difference against a normal run is the whole cost of the collective.       |
+| `OV_GPU_TP_SKIP_COLLECTIVE=1`        | **Wrong by construction.** Return from every AllReduce without doing anything. The difference against a normal run is the whole cost of the collective.       |
 
 Profile output anatomy (one block per dump period; unset means every call, so
 the coordinator's block below appears once per collective):
@@ -196,7 +203,7 @@ Field semantics:
 
 ## Tests
 
-Two binaries, both under `tests/`.
+Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 
 ### `ov_tp_unit_tests`
 
@@ -206,6 +213,11 @@ Two binaries, both under `tests/`.
 | `TPGraphRewriter/TPGraphRewriterSharding` | Per-rank sharding for world sizes 2/3/4, collective insertion, bias, KV-cache localization                                              | no         |
 | `TPGraphRewriterLMHead`                   | Vocabulary projection split and the gather that collects it                                                                             | no         |
 | `TPGraphRewriterPagedAttention`           | PagedAttention anchor and its rt_info                                                                                                   | no         |
+
+### `ov_gpu_unit_tests` (intel_gpu, built with `ENABLE_TP`)
+
+| Suite                                     | What it covers                                                                                                                          | Needs GPUs |
+|-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|------------|
 | `TPDeviceCoordinatorTest`                 | AllReduce and gather correctness on f16/f32; plan reuse across shifting pointers, sizes and dtypes; scratch growth; in-place operation; | yes, >=2   |
 |                                           | allocation churn; wider worlds; ring and halving agreeing on the same payload and the ceiling where one flips to the other;             |            |
 |                                           | the spliced path matching the blocking one; timeout, abort and watchdog behaviour                                                       |            |
@@ -220,17 +232,20 @@ Two binaries, both under `tests/`.
 | `TPPagedAttentionTest` | PagedAttention path at world size 2: when a cache controller is offered at all, the geometry it reports, allocate/grow/clear,            |
 |                           | block copies on every rank, refusing to infer without a cache, and prefill and two-step accuracy against a single GPU                    |
 | `TPSerializationTest`  | export/import round-trip, cache entries per topology                                                                                     |
+| `TPContextTest`        | The rank contexts through the collective contract, without the TP plugin: two ranks reducing through their contexts, and the refusals -- |
+|                           | a collective without a TP context, a collective of another rank, a second model on the channel, a context on the wrong device,           |
+|                           | unsupported parameters                                                                                                                   |
 
 The graph-rewriter suites need no GPU at all; `TPDeviceCoordinatorTest` and
 every functional suite skip when the machine has fewer GPUs than the world size they ask for.
 
 ### Running them
 
-Both binaries are built into `bin/intel64/<CONFIG>` and register with CTest
-under the `TP` label:
+The binaries are built into `bin/intel64/<CONFIG>`; the TP ones register with
+CTest under the `TP` label:
 
 ```bash
-cmake --build . --target ov_tp_unit_tests ov_tp_func_tests -j$(nproc)
+cmake --build . --target ov_tp_unit_tests ov_tp_func_tests ov_gpu_unit_tests -j$(nproc)
 ctest -L TP
 ```
 
@@ -242,9 +257,9 @@ narrow with the usual gtest flags:
 cd bin/intel64/Release
 
 ./ov_tp_unit_tests --gtest_list_tests
-./ov_tp_unit_tests --gtest_filter='TPDeviceCoordinatorTest.*'
-./ov_tp_unit_tests --gtest_filter='TPDeviceCoordinatorTest.RingAndHalvingAgree'
 ./ov_tp_unit_tests --gtest_filter='TPGraphRewriter*:-*PagedAttention*'
+./ov_gpu_unit_tests --gtest_filter='TPDeviceCoordinatorTest.*'
+./ov_gpu_unit_tests --gtest_filter='TPDeviceCoordinatorTest.RingAndHalvingAgree'
 
 # Parametrized suites carry the parameter in the name: world2/3/4, f16/f32.
 ./ov_tp_func_tests --gtest_filter='*world4*'
@@ -254,16 +269,15 @@ cd bin/intel64/Release
 ./ov_tp_func_tests --gtest_filter='*world4*' --gtest_repeat=20 --gtest_break_on_failure
 ```
 
-The two binaries are set up differently, which matters when a run fails to
+The binaries are set up differently, which matters when a run fails to
 start at all:
 
-- `ov_tp_unit_tests` compiles `graph_rewriter.cpp` and
-  `tp_device_coordinator.cpp` **into itself** -- the plugin is a MODULE and
-  exports nothing -- so it never loads `libopenvino_tp_plugin.so` and does
-  not care about `plugins.xml`. It talks to Level Zero and OpenCL directly.
-  Where neither is found at configure time the coordinator suite is dropped
-  from the binary rather than skipped at run time, so a missing suite here is
-  a build-configuration symptom, not a machine one.
+- `ov_tp_unit_tests` compiles `graph_rewriter.cpp` **into itself** -- the
+  plugin is a MODULE and exports nothing -- so it never loads
+  `libopenvino_tp_plugin.so` and does not care about `plugins.xml`.
+- `ov_gpu_unit_tests` links the intel_gpu runtime statically and talks to
+  Level Zero and OpenCL directly; `TPDeviceCoordinatorTest` is in it only in a
+  build with `ENABLE_TP` on the Level Zero runtime.
 - `ov_tp_func_tests` goes through `ov::Core` and needs both
   `openvino_tp_plugin` and `openvino_intel_gpu_plugin` present and
   registered.
@@ -284,8 +298,9 @@ error anywhere is almost always this rule being violated.
 
 Cross-device copies and events only work when the USM allocations and
 the event pool come from a single `ze_context` created over all
-participating devices (`zeContextCreateEx`). The plugin builds it once
-in `plugin.cpp` and hands it to every rank.
+participating devices (`zeContextCreateEx`). intel_gpu creates it once per
+device list (`acquire_shared_context` in `tp_l0_shared_context.cpp`) and
+every rank context of the group sits on it.
 
 ### Topology cost
 
@@ -368,14 +383,14 @@ Read the report before changing anything:
   model work between collectives -- rather than at the collective itself.
 - **`run-ahead` mean near 1.** The host is not running ahead, so splicing is
   buying nothing and every collective is paying its full latency. Check whether
-  `TP_FORCE_SYNC_COLLECTIVE` is set or the splice extension is missing.
+  `GPU_TP_FORCE_SYNC_COLLECTIVE` is set or the splice extension is missing.
 - **`blocked` non-zero in `evt_wait`.** The host has caught up with the devices;
   the collective is genuinely the bottleneck rather than the dispatch.
 - **`queue busy` high with low `effective GB/s`.** The window includes the
   reduce kernel and the waits on peers, so a low figure usually means waiting,
   not slow links. Compare `between collectives` to see the duty cycle.
 - **`schedule` shows ring where halving was expected.** Either the world size
-  is not a power of two, or the payload is over `TP_HALVING_MAX_BYTES`.
+  is not a power of two, or the payload is over `GPU_TP_HALVING_MAX_BYTES`.
 
 ## Adding a New Sharding Pattern
 
@@ -418,9 +433,11 @@ both are emitted by the rewriter. To add a third:
    are good templates.
 4. Add an OCL primitive in
    `src/plugins/intel_gpu/src/graph/impls/ocl/`. Keep the primitive POD:
-   carry `collective_id` (from `ProgramBuilder::next_tp_collective_ordinal()`) / `rank` as attributes and resolve
-   the coordinator at execution time via
-   `instance.get_network().get_collective_comm_registry()->coordinator()`.
+   carry `collective_id` (from `ProgramBuilder::next_tp_collective_ordinal()`),
+   `rank` and `world_size` as attributes and call the collective through
+   `instance.get_network().get_tp_channel()`. Teach `Graph::bind_collectives`
+   (intel_gpu `graph.cpp`) about the new primitive, so its rank is checked
+   and it is counted when the model is bound.
 5. Register it from `src/plugins/intel_gpu/src/graph/registry/tp_*_impls.cpp`,
    alongside the two existing ones. There is no CPU fallback to register:
    without a shared L0 context the collective cannot run at all.
@@ -429,14 +446,15 @@ both are emitted by the rewriter. To add a third:
 
 ## Layout Conventions
 
-- All public headers live under `include/tp/` and are
-  consumed by both the plugin and the intel_gpu impls.
+- Headers under `include/tp/` belong to this plugin alone; nothing in
+  intel_gpu includes them, and this plugin includes nothing of intel_gpu.
 - Internal headers (e.g. `compiled_model.hpp`, `plugin.hpp`,
   `graph_rewriter.hpp`) stay in `src/`.
-- The shared L0 context type is internal — do not promote it to a
-  public header. The intel_gpu impl reaches the `TPDeviceCoordinator`
-  through the network's `CollectiveCommRegistry`, never the L0 context
-  directly.
+- What the two plugins share is the private collective contract in
+  `src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp` and the
+  ops in `ov_ops/tp_collective.hpp`. The communicator, the shared L0 context
+  and the coordinator are internal to intel_gpu; its impls reach the
+  coordinator through the network's `Channel`, never the L0 context directly.
 
 ## Where Performance Lives
 

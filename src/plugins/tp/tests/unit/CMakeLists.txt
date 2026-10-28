@@ -7,48 +7,25 @@ set(TARGET_NAME ov_tp_unit_tests)
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 # The plugin is built as a MODULE and exports no symbols, so the sources under
-# test are compiled into the test binary. The collective ops already live in a
-# static library, which is linked instead.
+# test are compiled into the test binary. The collectives are tested with the
+# GPU plugin that runs them (ov_gpu_unit_tests, TPDeviceCoordinatorTest).
 list(APPEND SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../src/graph_rewriter.cpp)
-
-# The coordinator tests talk to Level Zero and OpenCL directly; without them
-# they cannot be built, and the rest of the suite still can. OpenCL_FOUND and
-# Threads come from the plugin's own find_package, which runs before this
-# directory is added.
-set(ENABLE_COORDINATOR_TESTS OFF)
-if(OpenCL_FOUND AND TARGET LevelZero::LevelZero)
-    set(ENABLE_COORDINATOR_TESTS ON)
-    list(APPEND SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../src/tp_device_coordinator.cpp)
-else()
-    message(STATUS "${TARGET_NAME}: Level Zero or OpenCL not available; coordinator tests disabled")
-    list(REMOVE_ITEM SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/tp_device_coordinator_test.cpp)
-endif()
 
 add_executable(${TARGET_NAME} ${SOURCES})
 
 target_include_directories(${TARGET_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src)
 
+if(ENABLE_TP_DEBUG_CAPS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE TP_DEBUG_CONFIG=1)
+endif()
+
 target_link_libraries(${TARGET_NAME} PRIVATE
-    openvino_tp_coordinator_api
     openvino::runtime::dev
     common_test_utils
     gtest_main)
-
-if(ENABLE_COORDINATOR_TESTS)
-    target_include_directories(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR}/../../generated)
-
-    # Link the L0 loader directly (as DT_NEEDED) so it is loaded globally at
-    # process startup. Without this, openvino::zero_loader's dlopen uses
-    # RTLD_LOCAL and the L0 GPU driver fails to resolve its loader callbacks.
-    target_link_libraries(${TARGET_NAME} PRIVATE
-        openvino::zero_loader
-        LevelZero::LevelZero
-        OpenCL::OpenCL
-        Threads::Threads)
-endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${OpenVINO_SOURCE_DIR}/bin/intel64/$<CONFIG>")

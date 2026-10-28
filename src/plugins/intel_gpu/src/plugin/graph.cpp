@@ -31,6 +31,12 @@
 #include "grouped_matmul_inst.h"
 #include "fully_connected_inst.h"
 
+#ifdef ENABLE_TP
+#include "intel_gpu/primitives/tp_allreduce.hpp"
+#include "intel_gpu/primitives/tp_gather.hpp"
+#include "ze/tp/rank_communicator.hpp"
+#endif
+
 #include <list>
 #include <set>
 #include <unordered_set>
@@ -227,6 +233,9 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
     } else {
         m_network = std::make_shared<cldnn::network>(program, m_stream_id);
     }
+#ifdef ENABLE_TP
+    bind_collectives();
+#endif
 
     std::vector<cldnn::tensor_conversion_key> conversion_keys;
     for (const auto& variable : m_network->get_variables_info()) {
@@ -270,6 +279,29 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
 bool Graph::use_external_queue() const {
     return m_context->get_external_queue() != nullptr;
 }
+
+#ifdef ENABLE_TP
+void Graph::bind_collectives() {
+    std::vector<cldnn::ze::tp::CollectiveUse> collectives;
+    for (const auto& id : m_network->get_executed_primitive_ids()) {
+        const auto inst = m_network->get_primitive(id);
+        if (const auto prim = std::dynamic_pointer_cast<const cldnn::tp_allreduce>(inst->desc())) {
+            collectives.push_back({id, prim->collective_id, prim->rank, prim->world_size});
+        } else if (const auto prim = std::dynamic_pointer_cast<const cldnn::tp_gather>(inst->desc())) {
+            collectives.push_back({id, prim->collective_id, prim->rank, prim->world_size});
+        }
+    }
+    if (collectives.empty()) {
+        return;
+    }
+
+    const auto& communicator = m_context->get_tp_communicator();
+    OPENVINO_ASSERT(communicator != nullptr,
+                    "[GPU] the model contains tensor-parallel collectives (", collectives.front().name,
+                    ", ...) and needs a TP context, but was compiled for an ordinary context");
+    m_network->set_tp_channel(communicator->bind(collectives, m_stream_id));
+}
+#endif
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::get_runtime_model");

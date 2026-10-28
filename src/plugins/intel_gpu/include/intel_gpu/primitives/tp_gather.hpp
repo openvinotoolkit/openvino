@@ -13,9 +13,9 @@ namespace cldnn {
 /// @brief Tensor-parallel Gather: collects every rank's slice of a tensor into
 /// rank 0's buffer.
 ///
-/// This carries only the metadata identifying the collective.
-/// Coordinator that runs it is resolved at execution time
-/// through the network's registry, which keeps the primitive serializable.
+/// This carries only the metadata identifying the collective; the channel that
+/// runs it is attached to the network when the model is bound to a TP context,
+/// which keeps the primitive serializable.
 struct tp_gather : public primitive_base<tp_gather> {
     CLDNN_DECLARE_PRIMITIVE(tp_gather)
 

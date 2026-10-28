@@ -1,10 +1,10 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Tests for ov::tp::TPDeviceCoordinator.
+// Tests for cldnn::ze::tp::TPDeviceCoordinator.
 //
-// Goal: validate the L0 device-side AllReduce in isolation — without the
-// graph rewriter, intel_gpu plugin, or the TP plugin's
+// Goal: validate the L0 device-side AllReduce in isolation -- without the
+// graph rewriter, the GPU graph, or the TP plugin's
 // rendezvous of compile_model().  Catches problems with:
 //   * cross-device USM visibility in a shared multi-device L0 context
 //   * native-binary load into a different L0 context on the same device
@@ -15,6 +15,13 @@
 //
 // These need two discrete Intel GPUs under one L0 driver; without them the
 // whole suite skips.
+
+#ifdef ENABLE_TP
+
+// First: ze_common.hpp keeps the Level Zero symbol list it needs, which a
+// plain include of openvino/zero_api.hpp before it would drop.
+#include "ze/tp/tp_device_coordinator.hpp"
+#include "ze/tp/tp_l0_shared_context.hpp"
 
 #include <gtest/gtest.h>
 
@@ -29,15 +36,11 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
-#define ZERO_API_KEEP_SYMBOLS_LIST_MACRO
-#include "openvino/zero_api.hpp"
 
-#include "tp/tp_device_coordinator.hpp"
-#include "tp_l0_shared_context.hpp"
-
-using ov::tp::TPDeviceCoordinator;
-using ov::tp::TPL0SharedContext;
-using ov::tp::TPL0SharedContextPtr;
+using cldnn::ze::tp::CollectiveOptions;
+using cldnn::ze::tp::TPDeviceCoordinator;
+using cldnn::ze::tp::TPL0SharedContext;
+using cldnn::ze::tp::TPL0SharedContextPtr;
 
 namespace {
 
@@ -940,7 +943,7 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceHandlesPayloadsThatDoNotDivide) {
             SCOPED_TRACE(halving ? "halving allowed" : "ring only");
             for (size_t n : {size_t{1021}, size_t{4099}}) {
                 SCOPED_TRACE("n=" + std::to_string(n));
-                ov::tp::CollectiveOptions config;
+                CollectiveOptions config;
                 config.enable_halving = halving;
                 auto coord = std::make_shared<TPDeviceCoordinator>(shared,
                                                                    ranks,
@@ -973,7 +976,7 @@ TEST_F(TPDeviceCoordinatorTest, RingAndHalvingAgree) {
 
     for (bool halving : {true, false}) {
         SCOPED_TRACE(halving ? "halving" : "ring");
-        ov::tp::CollectiveOptions config;
+        CollectiveOptions config;
         config.enable_halving = halving;
         auto coord = std::make_shared<TPDeviceCoordinator>(shared,
                                                            4,
@@ -996,7 +999,7 @@ TEST_F(TPDeviceCoordinatorTest, ScheduleFlipsAtTheHalvingCeiling) {
 
     auto shared = make_shared_ctx(4);
     constexpr size_t ceiling_elems = 2048;  // f32 -> 8 KB
-    ov::tp::CollectiveOptions config;
+    CollectiveOptions config;
     config.halving_max_bytes = ceiling_elems * sizeof(float);
     auto coord =
         std::make_shared<TPDeviceCoordinator>(shared, 4, 1, std::chrono::milliseconds{5000}, config);
@@ -1285,7 +1288,7 @@ TEST_F(TPDeviceCoordinatorTest, ForcingTheSyncPathKeepsTheSameResult) {
     const int ranks = std::min(available_gpus, 4);
     auto shared = make_shared_ctx(ranks);
 
-    ov::tp::CollectiveOptions config;
+    CollectiveOptions config;
     config.force_sync_collective = true;
     auto coord =
         std::make_shared<TPDeviceCoordinator>(shared, ranks, 1, std::chrono::milliseconds{5000}, config);
@@ -1347,3 +1350,5 @@ TEST_F(TPDeviceCoordinatorTest, AbortAfterSplicingFailsSubsequentCalls) {
 }
 
 }  // namespace
+
+#endif  // ENABLE_TP

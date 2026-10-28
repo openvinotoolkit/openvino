@@ -8,20 +8,6 @@ endif()
 
 set(TARGET_NAME openvino_tp_plugin)
 
-# Generate embedded OpenCL kernels header at configure time.
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_kernels.cmake)
-
-# Transitional, until the communicator moves into the GPU plugin: the GPU
-# collective implementations call the coordinator declared in include/tp.
-add_library(openvino_tp_coordinator_api INTERFACE)
-target_include_directories(openvino_tp_coordinator_api
-    INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_compile_definitions(openvino_tp_coordinator_api INTERFACE ENABLE_TP)
-if(ENABLE_TP_DEBUG_CAPS)
-    target_compile_definitions(openvino_tp_coordinator_api INTERFACE TP_DEBUG_CONFIG=1)
-endif()
-target_link_libraries(openvino_tp_coordinator_api INTERFACE openvino::zero_loader)
-
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
                           ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
@@ -35,24 +21,20 @@ ov_add_plugin(NAME ${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME}
     PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-            ${CMAKE_CURRENT_BINARY_DIR}/generated
-            # Internal GPU properties: the collective registry set is injected
-            # into the compiled rank models through ov::ICompiledModel::set_property.
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_gpu/include)
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+if(ENABLE_TP_DEBUG_CAPS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE TP_DEBUG_CONFIG=1)
+endif()
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
 )
 
 find_package(Threads REQUIRED)
-find_package(OpenCL REQUIRED)
 target_link_libraries(${TARGET_NAME} PRIVATE
     Threads::Threads
-    openvino::runtime::dev   # transformations/utils/utils.hpp
-    openvino_tp_coordinator_api
-    openvino::zero_loader
-    OpenCL::OpenCL)
+    openvino::runtime::dev)  # transformations/utils/utils.hpp, the collective contract
 
 ov_set_threading_interface_for(${TARGET_NAME})
 

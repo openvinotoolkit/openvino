@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "tp/tp_device_coordinator.hpp"
+#include "tp_device_coordinator.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -14,22 +14,28 @@
 #include <string>
 #include <thread>
 
-#define CL_TARGET_OPENCL_VERSION 220
-#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#ifndef CL_TARGET_OPENCL_VERSION
+#    define CL_TARGET_OPENCL_VERSION 220
+#endif
+#ifndef CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#    define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#endif
 #include <CL/cl.h>
 
 #include "openvino/core/except.hpp"
-#include "openvino/zero_api.hpp"
-#include "tp_embedded_kernels.h"
-#include "tp/tp_debug.hpp"
+#include "allreduce_sum_cl.hpp"
+#include "tp_debug.hpp"
 #include "tp_l0_shared_context.hpp"
-#include "tp_ze_throw.hpp"
 
-// Verbosity travels with the options, so the collectives log the same way whichever plugin hosts them.
+// Turns a failed Level Zero call into an exception naming the call.
+#define ZE_THROW(expr) OV_ZE_EXPECT(expr)
+
+// Verbosity travels with the options, so the collectives log the same way whoever created the context.
 #define TP_COORD_LOG(level) \
-    if (m_options.verbosity >= (level)) ov::tp::log_stream()
+    if (m_options.verbosity >= (level)) ::cldnn::ze::tp::log_stream()
 
-namespace ov {
+namespace cldnn {
+namespace ze {
 namespace tp {
 
 namespace {
@@ -377,7 +383,7 @@ void TPDeviceCoordinator::init_rank(RankState& rs) {
     //      ZE_MODULE_FORMAT_NATIVE.
     // Native binaries are bound to (driver, device); reloading into a
     // different L0 context on the same device is valid.
-    const char* src = ov::tp::kernels::allreduce_sum_cl;
+    const char* src = kernels::allreduce_sum_cl;
     std::vector<uint8_t> native_bin = compile_via_ocl(dev, src);
 
     // Reload into shared context as native binary.
@@ -569,13 +575,13 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
     const uint64_t generation = m_scratch.generation.fetch_add(1, std::memory_order_release) + 1;
 
     if (m_options.verbosity >= ov::log::Level::INFO) {
-        ov::tp::log_stream() << "[TP][MEM] scratch grow generation=" << generation
-                                 << " payload_capacity=" << payload_bytes
-                                 << " total=" << m_scratch.total_allocated_bytes;
+        log_stream() << "[TP][MEM] scratch grow generation=" << generation
+                     << " payload_capacity=" << payload_bytes
+                     << " total=" << m_scratch.total_allocated_bytes;
         for (int rank = 0; rank < m_world_size; ++rank) {
-            ov::tp::log_stream() << " r" << rank << "=" << m_scratch.bytes_per_rank[rank];
+            log_stream() << " r" << rank << "=" << m_scratch.bytes_per_rank[rank];
         }
-        ov::tp::log_stream() << std::endl;
+        log_stream() << std::endl;
     }
     return true;
 }
@@ -2616,4 +2622,5 @@ void TPDeviceCoordinator::report_device(uint64_t calls) {
 }
 
 }  // namespace tp
-}  // namespace ov
+}  // namespace ze
+}  // namespace cldnn

@@ -17,11 +17,12 @@
 #include <vector>
 
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/zero_api.hpp"
-#include "tp/collective_options.hpp"
-#include "tp/tp_debug.hpp"
+#include "ze/ze_common.hpp"
+#include "collective_options.hpp"
+#include "tp_debug.hpp"
 
-namespace ov {
+namespace cldnn {
+namespace ze {
 namespace tp {
 
 struct TPL0SharedContext;
@@ -30,9 +31,12 @@ using TPL0SharedContextPtr = std::shared_ptr<TPL0SharedContext>;
 /// \brief Owns per-rank Level Zero resources and runs cross-GPU collectives
 /// directly on device memory through a shared L0 context.
 ///
-/// Lifetime: the coordinator must be created AFTER `TPL0SharedContext` and
-/// destroyed BEFORE it. All per-rank queues, command lists, modules and
-/// kernels are scoped to the shared context.
+/// One per TP group in a process: the group state every rank's communicator
+/// shares (see RankCommunicator).
+///
+/// Lifetime: holds the `TPL0SharedContext` it was created on, so the context
+/// outlives it. All per-rank queues, command lists, modules and kernels are
+/// scoped to the shared context.
 ///
 /// Three schedules, chosen per recording: two ranks exchange directly, larger
 /// worlds use a ring, and a power-of-two world carrying a small payload uses
@@ -57,7 +61,7 @@ public:
     TPDeviceCoordinator(const TPDeviceCoordinator&) = delete;
     TPDeviceCoordinator& operator=(const TPDeviceCoordinator&) = delete;
 
-    virtual ~TPDeviceCoordinator();
+    ~TPDeviceCoordinator();
 
     // ---------------------------------------------------------------
     // Topology and state
@@ -65,6 +69,9 @@ public:
 
     /// Returns world size (number of ranks).
     int world_size() const { return m_world_size; }
+
+    /// The device-group context the coordinator runs on.
+    const TPL0SharedContextPtr& shared_context() const { return m_shared; }
 
     /// Number of distinct collective points the coordinator was sized for.
     /// Recorded in the compiled blob so an imported model can rebuild an
@@ -94,7 +101,7 @@ public:
     void note_collective_started(int rank);
 
     /// Whether the driver has the splice extension at all.
-    virtual bool async_supported() const;
+    bool async_supported() const;
 
     /// Whether the collectives should run spliced into the model's queue.
     /// False either because the driver has no splice extension or because a
@@ -155,16 +162,13 @@ public:
     /// A queue is honoured only when run_spliced() agrees, so a driver
     /// without the extension and force_sync_collective both land on the
     /// blocking path no matter what the caller passed.
-    ///
-    /// Virtual because the GPU plugin calls the coordinator through this
-    /// vtable without linking against the plugin that defines it.
-    virtual void allreduce(int collective_id,
-                           int rank,
-                           void* in_dev,
-                           void* out_dev,
-                           std::size_t n,
-                           ov::element::Type dtype,
-                           ze_command_list_handle_t model_queue = nullptr);
+    void allreduce(int collective_id,
+                   int rank,
+                   void* in_dev,
+                   void* out_dev,
+                   std::size_t n,
+                   ov::element::Type dtype,
+                   ze_command_list_handle_t model_queue = nullptr);
 
     /// Collects each rank's slice of a row-major matrix into rank 0's buffer.
     ///
@@ -190,14 +194,14 @@ public:
     /// its slice is down and the root's recording waits on all of them, so the
     /// model queue of the rank that reads the gathered buffer is held until it
     /// is whole.
-    virtual void gather_to_root(int collective_id,
-                                int rank,
-                                void* in_dev,
-                                void* out_dev,
-                                std::size_t rows,
-                                std::size_t slice_elems,
-                                ov::element::Type dtype,
-                                ze_command_list_handle_t model_queue = nullptr);
+    void gather_to_root(int collective_id,
+                        int rank,
+                        void* in_dev,
+                        void* out_dev,
+                        std::size_t rows,
+                        std::size_t slice_elems,
+                        ov::element::Type dtype,
+                        ze_command_list_handle_t model_queue = nullptr);
 
 private:
     // ---------------------------------------------------------------
@@ -635,9 +639,9 @@ private:
     // ---------------------------------------------------------------
     // Profiling
     //
-    // Measurement only. With TP_PROFILING unset nothing below is written,
-    // and with ENABLE_TP_DEBUG_CAPS off the option chain folds to a
-    // literal and the compiler drops the reads, the counters and the reports.
+    // Measurement only. With GPU_TP_PROFILING unset nothing below is written,
+    // and in a build without GPU debug caps the option does not exist and
+    // profiling stays off.
     // ---------------------------------------------------------------
 
     /// Buckets of the device-occupancy histogram. Bucket b covers
@@ -816,7 +820,7 @@ private:
     std::condition_variable         m_watchdog_cv;
     bool                            m_watchdog_stop{false};
 
-    // Resolved by the owner of the configuration at construction time.
+    // Resolved from the GPU_TP_* options when the TP context was created.
     CollectiveOptions               m_options;
 
     // Ring reduce-scatter + all-gather for N>2; two ranks exchange directly,
@@ -885,4 +889,5 @@ private:
 using TPDeviceCoordinatorPtr = std::shared_ptr<TPDeviceCoordinator>;
 
 }  // namespace tp
-}  // namespace ov
+}  // namespace ze
+}  // namespace cldnn

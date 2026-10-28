@@ -56,6 +56,14 @@
 #    include "transformations/mlir/interface/gpu_runtime.hpp"
 #endif
 
+#ifdef ENABLE_TP
+#    include <optional>
+
+#    include "openvino/runtime/tp/collective_contract.hpp"
+#    include "ze/tp/rank_communicator.hpp"
+#    include "ze/ze_engine.hpp"
+#endif
+
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
 #undef DEVICE_TYPE
@@ -352,8 +360,132 @@ ov::SoPtr<ov::IRemoteContext> Plugin::create_context(const ov::AnyMap& remote_pr
     if (remote_properties.empty()) {
         return get_default_context(m_default_device_id);
     }
+#ifdef ENABLE_TP
+    if (remote_properties.count(ov::tp::internal::device_group.name()) != 0) {
+        return create_tp_context(remote_properties);
+    }
+#endif
     return std::make_shared<RemoteContextImpl>(get_default_contexts(), remote_properties);
 }
+
+#ifdef ENABLE_TP
+namespace {
+
+/// Removes `property` from `params` and returns its value, if it was there.
+template <typename T, ov::PropertyMutability M>
+std::optional<T> take(ov::AnyMap& params, const ov::Property<T, M>& property) {
+    auto it = params.find(property.name());
+    if (it == params.end()) {
+        return std::nullopt;
+    }
+    auto value = it->second.template as<T>();
+    params.erase(it);
+    return value;
+}
+
+cldnn::ze::tp::CollectiveOptions collective_options(const ExecutionConfig& config) {
+    cldnn::ze::tp::CollectiveOptions options;
+    options.enable_halving = config.get_tp_enable_halving();
+    options.halving_max_bytes = config.get_tp_halving_max_bytes();
+    options.force_sync_collective = GPU_DEBUG_VALUE_OR(config.get_tp_force_sync_collective(), false);
+    options.skip_collective = GPU_DEBUG_VALUE_OR(config.get_tp_skip_collective(), false);
+    options.verbosity = GPU_DEBUG_VALUE_OR(config.get_tp_verbose(), ov::log::Level::NO);
+
+    const auto profiling = GPU_DEBUG_VALUE_OR(config.get_tp_profiling(), TPProfilingMode::NONE);
+    options.profiling_host = profiling == TPProfilingMode::HOST || profiling == TPProfilingMode::ALL;
+    options.profiling_device = profiling == TPProfilingMode::DEVICE || profiling == TPProfilingMode::ALL;
+    if (profiling != TPProfilingMode::NONE) {
+        const auto period = static_cast<std::size_t>(GPU_DEBUG_VALUE_OR(config.get_tp_dump_period(), uint64_t{0}));
+        options.dump_period = period != 0 ? period : 1;
+    }
+    return options;
+}
+
+}  // namespace
+
+std::shared_ptr<RemoteContextImpl> Plugin::create_tp_context(const ov::AnyMap& params) const {
+    ov::AnyMap rest = params;
+    const auto group_names = take(rest, ov::tp::internal::device_group).value();
+    const auto groups = take(rest, ov::tp::internal::groups);
+    OPENVINO_ASSERT(groups.has_value(), "[GPU][TP] ", ov::tp::internal::groups.name(), " is required with ",
+                    ov::tp::internal::device_group.name());
+    OPENVINO_ASSERT(groups->size() == 1 && groups->count(0) == 1,
+                    "[GPU][TP] only collective group 0 is supported, got ", groups->size(), " group(s)");
+    const auto& group = groups->at(0);
+    OPENVINO_ASSERT(group.exchange != nullptr, "[GPU][TP] collective group 0 has no exchange endpoint");
+
+    const auto channels = take(rest, ov::tp::internal::channels);
+    OPENVINO_ASSERT(!channels.has_value() || *channels == 1,
+                    "[GPU][TP] only one channel per TP context is supported, got ", channels.value_or(0));
+    OPENVINO_ASSERT(!take(rest, ov::tp::internal::comm_buffer_size).has_value(),
+                    "[GPU][TP] ", ov::tp::internal::comm_buffer_size.name(), " is not supported yet");
+    const auto timeout_ms = take(rest, ov::tp::internal::communication_timeout_ms).value_or(5000);
+    OPENVINO_ASSERT(timeout_ms >= 0, "[GPU][TP] ", ov::tp::internal::communication_timeout_ms.name(),
+                    " must not be negative, got ", timeout_ms);
+    const auto own_id = take(rest, ov::device::id).value_or(m_default_device_id);
+    OPENVINO_ASSERT(m_configs_map.count(own_id) != 0, "[GPU][TP] unknown device id ", own_id);
+
+    // What remains tunes the collectives; anything else is a mistake.
+    for (const auto& entry : rest) {
+        OPENVINO_ASSERT(entry.first.rfind("GPU_TP_", 0) == 0,
+                        "[GPU][TP] unsupported parameter of a TP context: ", entry.first);
+    }
+    ExecutionConfig config = m_configs_map.at(own_id);
+    try {
+        config.set_user_property(rest, OptionVisibility::ANY);
+    } catch (const ov::Exception& e) {
+        OPENVINO_THROW("[GPU][TP] the options of the TP context cannot be applied; the GPU_TP_* debug options exist "
+                       "only in builds with ENABLE_GPU_DEBUG_CAPS: ", e.what());
+    }
+
+    const auto world_size = group.exchange->world_size();
+    const auto rank = group.exchange->rank();
+    OPENVINO_ASSERT(group_names.size() == static_cast<size_t>(world_size),
+                    "[GPU][TP] the device group lists ", group_names.size(), " devices for ", world_size, " ranks");
+    OPENVINO_ASSERT(rank >= 0 && rank < world_size, "[GPU][TP] invalid rank ", rank, " of ", world_size);
+
+    std::vector<std::string> ids;
+    for (const auto& name : group_names) {
+        ov::DeviceIDParser parser(name);
+        OPENVINO_ASSERT(parser.get_device_name() == get_device_name(),
+                        "[GPU][TP] device ", name, " of the group is not a ", get_device_name(), " device");
+        auto id = parser.get_device_id().empty() ? m_default_device_id : parser.get_device_id();
+        OPENVINO_ASSERT(m_device_map.count(id) != 0, "[GPU][TP] device ", name, " of the group does not exist");
+        OPENVINO_ASSERT(std::find(ids.begin(), ids.end(), id) == ids.end(),
+                        "[GPU][TP] device ", name, " appears in the group more than once");
+        ids.push_back(std::move(id));
+    }
+    OPENVINO_ASSERT(ids[static_cast<size_t>(rank)] == own_id,
+                    "[GPU][TP] rank ", rank, " runs on ", group_names[static_cast<size_t>(rank)],
+                    " by the group, but its context is created on ", get_device_name(), ".", own_id);
+
+    // The handles of every device of the group, from their default contexts.
+    ze_driver_handle_t driver = nullptr;
+    std::vector<ze_device_handle_t> devices;
+    for (size_t r = 0; r < ids.size(); ++r) {
+        const auto& engine = get_default_context(ids[r])->get_engine();
+        OPENVINO_ASSERT(engine.runtime_type() == cldnn::runtime_types::ze,
+                        "[GPU][TP] device ", group_names[r], " does not run on Level Zero");
+        const auto& ze_engine = cldnn::downcast<const cldnn::ze::ze_engine>(engine);
+        const auto device_driver = ze_engine.get_driver().handle();
+        OPENVINO_ASSERT(r == 0 || device_driver == driver,
+                        "[GPU][TP] all devices of a group must share a Level Zero driver, ", group_names[r],
+                        " belongs to a different one than ", group_names[0]);
+        driver = device_driver;
+        devices.push_back(ze_engine.get_device().handle());
+    }
+    auto shared = cldnn::ze::tp::acquire_shared_context(driver, devices);
+
+    // Applies the environment (OV_GPU_TP_*) on top of what was set.
+    config.finalize(get_default_context(own_id).get(), nullptr);
+    auto communicator = std::make_shared<cldnn::ze::tp::RankCommunicator>(group.exchange,
+                                                                           group.backend,
+                                                                           std::move(shared),
+                                                                           std::chrono::milliseconds{timeout_ms},
+                                                                           collective_options(config));
+    return std::make_shared<RemoteContextImpl>(get_default_contexts(), std::move(communicator));
+}
+#endif  // ENABLE_TP
 
 std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string& device_id, bool initialize) const {
     auto contexts = get_default_contexts();

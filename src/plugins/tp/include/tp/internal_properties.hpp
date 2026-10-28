@@ -59,16 +59,10 @@ inline std::istream& operator>>(std::istream& is, ProfilingMode& mode) {
 // Tuning knobs. Available in every build type but not settable through the
 // public API: they trade one performance profile for another. Reachable through
 // the environment (OV_ + the key below) and through the plugin config file.
+//
+// The collectives are tuned in the GPU plugin, which runs them: GPU_TP_* options,
+// e.g. OV_GPU_TP_ENABLE_HALVING.
 // -----------------------------------------------------------------------------
-
-/// Recursive halving/doubling instead of the ring for small payloads on
-/// power-of-two world sizes. Halving takes 2*log2(N) dependency rounds
-/// against the ring's 2*(N-1), which is what decode-sized payloads care
-/// about; above `halving_max_bytes` the trade flips back to the ring.
-static constexpr Property<bool> enable_halving{"TP_ENABLE_HALVING"};
-
-/// Payload ceiling in bytes above which halving falls back to the ring.
-static constexpr Property<uint64_t> halving_max_bytes{"TP_HALVING_MAX_BYTES"};
 
 /// Size ceiling in bytes for routing a user input through plugin-owned host
 /// memory instead of a device staging copy. 0 always stages on the device.
@@ -78,6 +72,10 @@ static constexpr Property<uint64_t> input_stage_max_bytes{"TP_INPUT_STAGE_MAX_BY
 // Debug options. Compiled out entirely unless ENABLE_TP_DEBUG_CAPS is on:
 // without it the getters do not exist, the options are not registered at all,
 // passing one throws, and the environment variable is ignored.
+//
+// TP_VERBOSE, TP_PROFILING and TP_DUMP_PERIOD also reach the collectives: when
+// set, the plugin passes them to the rank contexts as GPU_TP_VERBOSE,
+// GPU_TP_PROFILING and GPU_TP_DUMP_PERIOD.
 // -----------------------------------------------------------------------------
 
 /// Verbosity of the plugin's diagnostics.
@@ -88,11 +86,6 @@ static constexpr Property<ProfilingMode> profiling{"TP_PROFILING"};
 
 /// Rank-0 collectives between two measurement dumps.
 static constexpr Property<uint64_t> dump_period{"TP_DUMP_PERIOD"};
-
-/// Force collectives off the spliced model queue onto their own queue with a
-/// full drain. Much slower, the same code path is taken automatically when
-/// the driver lacks the command-list splice extension.
-static constexpr Property<bool> force_sync_collective{"TP_FORCE_SYNC_COLLECTIVE"};
 
 /// Leave the vocabulary projection unsharded, so every rank computes the full
 /// lm_head and no gather is inserted. Numerically correct either way; it
@@ -110,10 +103,6 @@ static constexpr Property<bool> disable_lm_head_sharding{"TP_DISABLE_LM_HEAD_SHA
 /// construction. Also changes the rank count and collective count recorded in
 /// an exported blob.
 static constexpr Property<bool> shard_only{"TP_SHARD_ONLY"};
-
-/// Return from every AllReduce without doing anything. Output buffers keep
-/// whatever they held.
-static constexpr Property<bool> skip_collective{"TP_SKIP_COLLECTIVE"};
 
 }  // namespace tp
 }  // namespace ov

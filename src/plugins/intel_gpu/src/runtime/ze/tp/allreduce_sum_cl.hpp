@@ -2,6 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
+namespace cldnn {
+namespace ze {
+namespace tp {
+namespace kernels {
+
+/// OpenCL source of the reduction kernels the coordinator builds for every rank.
+/// Transitional: the kernel moves into the ocl_v2 pipeline in a later step.
+inline constexpr const char allreduce_sum_cl[] = R"OVTPCL(
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 
 #define TP_VEC 8
@@ -35,3 +45,9 @@ __kernel void allreduce_sum_f32(__global float* restrict dst,
         }
     }
 }
+)OVTPCL";
+
+}  // namespace kernels
+}  // namespace tp
+}  // namespace ze
+}  // namespace cldnn

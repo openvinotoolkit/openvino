@@ -5,13 +5,12 @@
 #ifdef ENABLE_TP
 
 #include "ze/ze_stream.hpp"
+#include "ze/tp/rank_communicator.hpp"
 
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "tp_gather_inst.h"
 #include "registry/implementation_map.hpp"
-
-#include "tp/tp_device_coordinator.hpp"
 
 #include <cstdlib>
 
@@ -33,7 +32,7 @@ ze_command_list_handle_t model_queue_of(stream& s) {
 }  // namespace
 
 // Like tp_allreduce, an "OCL" impl that compiles no OpenCL kernel: the work is
-// a strided cross-device copy issued through Level Zero by the coordinator.
+// a strided cross-device copy issued through Level Zero by the TP channel.
 // Registering as impl_types::ocl with is_cpu()=false is what makes intel_gpu
 // place this primitive's buffers in usm_device.
 struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
@@ -100,20 +99,16 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
 
         const ov::element::Type ov_dtype{input_layout.data_type};
 
-        const auto& registry = instance.get_network().get_collective_comm_registry();
-        OPENVINO_ASSERT(registry != nullptr,
-            "[GPU] tp_gather requires a collective registry; the tensor-parallel plugin must inject "
-            "one into the compiled model before inference");
-        const auto& coordinator = registry->coordinator();
-        OPENVINO_ASSERT(coordinator != nullptr,
-            "[GPU] tp_gather ocl impl requires TPDeviceCoordinator (shared L0 context)");
+        const auto& channel = instance.get_network().get_tp_channel();
+        OPENVINO_ASSERT(channel != nullptr,
+            "[GPU] tp_gather has no TP channel; the model must be compiled or imported with a TP context");
 
         // Spliced, the recording lands in the model's in-order queue after the
         // projection that produced our slice, so nothing has to be waited for
         // here. Draining is only the fallback: on its own queue the copy has
         // no ordering against the model at all, and the drain is what supplies
         // it.
-        const bool async = coordinator->run_spliced();
+        const bool async = channel->run_spliced();
         if (!async) {
             if (!events.empty()) {
                 stream.wait_for_events(events);
@@ -121,14 +116,13 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
             stream.finish();
         }
 
-        coordinator->gather_to_root(static_cast<int>(collective_id),
-                                    static_cast<int>(rank),
-                                    input_mem_ptr->buffer_ptr(),
-                                    output_mem_ptr->buffer_ptr(),
-                                    rows,
-                                    slice_elems,
-                                    ov_dtype,
-                                    async ? model_queue_of(stream) : nullptr);
+        channel->gather_to_root(static_cast<int>(collective_id),
+                                input_mem_ptr->buffer_ptr(),
+                                output_mem_ptr->buffer_ptr(),
+                                rows,
+                                slice_elems,
+                                ov_dtype,
+                                async ? model_queue_of(stream) : nullptr);
         return cpu::make_output_event(stream, instance.is_output());
     }
 

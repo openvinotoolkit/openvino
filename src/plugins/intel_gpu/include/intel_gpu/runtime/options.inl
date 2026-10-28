@@ -143,3 +143,18 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_disable_prefetch, 0, "Disable S
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, record_replay_dynamic, false, "Enable level-zero command list through record and replay for all (static and dynamic) models. Feature is work in progress and may produce incorrect results.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_types, std::vector<std::string>{}, "Space separated list of layer types to force FP32 precision; PASSTHROUGH_OPS selects data movement types (no automatic propagation)")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_names, std::vector<std::string>{}, "Space separated list of layer name substrings to force FP32 precision (AND with layer_types if both set)")
+
+#ifdef ENABLE_TP
+// ---- Tensor parallel ----
+// Collectives of the ranks of a TP compiled model. Read when a TP context is created: from the device's
+// configuration, the context parameters (the TP plugin forwards TP_VERBOSE, TP_PROFILING and TP_DUMP_PERIOD
+// here) and the environment, e.g. OV_GPU_TP_ENABLE_HALVING.
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, tp_enable_halving, true, "Use recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, tp_halving_max_bytes, uint64_t{256 * 1024}, "Payload ceiling in bytes above which halving falls back to the ring")
+
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_verbose, ov::log::Level::NO, "Verbosity of the collectives' diagnostics. Values: LOG_NONE, LOG_ERROR, LOG_WARNING, LOG_INFO, LOG_DEBUG, LOG_TRACE")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_profiling, ov::intel_gpu::TPProfilingMode::NONE, "Measurement of the collectives. Values: NONE, HOST, DEVICE, ALL")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_dump_period, uint64_t{0}, "Rank-0 collectives between two measurement reports. 0 means report every one")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_force_sync_collective, false, "Force collectives off the spliced model queue onto their own queue with a full drain")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_skip_collective, false, "DANGEROUS: return from every AllReduce without doing anything. Output buffers keep whatever they held")
+#endif  // ENABLE_TP

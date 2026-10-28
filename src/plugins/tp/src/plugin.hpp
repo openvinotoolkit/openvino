@@ -10,7 +10,6 @@
 
 #include "openvino/runtime/iplugin.hpp"
 #include "tp/tp_config.hpp"
-#include "tp_l0_shared_context.hpp"
 
 namespace ov {
 namespace tp {
@@ -53,16 +52,13 @@ public:
                                                      const ov::AnyMap& properties) const override;
 
 private:
-    /// One Level Zero context spanning every rank device, plus the per-rank
-    /// intel_gpu remote contexts that adopt it.
-    struct SharedL0Setup {
-        TPL0SharedContextPtr shared;
-        std::vector<ov::SoPtr<ov::IRemoteContext>> rank_ctx;
-    };
-
-    /// Builds the shared context. Used by both compile and import:
-    /// an imported model needs the same cross-device context to run collectives on.
-    SharedL0Setup create_shared_l0(const std::vector<std::string>& device_names) const;
+    /// One remote context per rank, created by the device plugin with the TP
+    /// parameters of the collective contract: the device group and this rank's
+    /// endpoint of an in-process exchange. The device plugin builds the
+    /// communicator; every rank model compiled or imported with its context is
+    /// bound to it. Used by both compile and import.
+    std::vector<ov::SoPtr<ov::IRemoteContext>> create_rank_contexts(const std::vector<std::string>& device_names,
+                                                                    const TPConfig& config) const;
 
     /// Restores a compiled model from a TP blob, shared by all four
     /// `import_model` overloads.

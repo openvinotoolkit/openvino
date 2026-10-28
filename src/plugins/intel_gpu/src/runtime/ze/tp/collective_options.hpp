@@ -9,10 +9,11 @@
 
 #include "openvino/runtime/properties.hpp"
 
-namespace ov {
+namespace cldnn {
+namespace ze {
 namespace tp {
 
-/// Tuning and diagnostics of the collectives, resolved by whoever owns the configuration.
+/// Tuning and diagnostics of the collectives, resolved from the GPU_TP_* options when a TP context is created.
 struct CollectiveOptions {
     bool enable_halving = true;
     uint64_t halving_max_bytes = 256 * 1024;
@@ -25,4 +26,5 @@ struct CollectiveOptions {
 };
 
 }  // namespace tp
-}  // namespace ov
+}  // namespace ze
+}  // namespace cldnn

@@ -15,20 +15,14 @@
 #include "compiled_model.hpp"
 #include "graph_rewriter.hpp"
 #include "tp_blob.hpp"
-#include "tp_l0_shared_context.hpp"
-#include "tp_ze_throw.hpp"
 #include "ov_ops/tp_collective.hpp"
 #include "tp/tp_config.hpp"
 #include "tp/tp_debug.hpp"
-#include "tp/tp_device_coordinator.hpp"
-#include "intel_gpu/runtime/collective_comm_registry.hpp"
-#include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "openvino/runtime/tp/collective_contract.hpp"
 #include "openvino/util/container_util.hpp"
-#include "openvino/zero_api.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/concat.hpp"
 
@@ -134,36 +128,6 @@ protected:
     }
 };
 
-/// Hands the collective state to the rank networks.
-///
-/// State of a compiled model, not a compilation parameter -- hence through the
-/// compiled model, which also covers the imported one.
-///
-/// One registry per stream worker, shared by every rank of that worker. Only a
-/// single worker exists until ov::num_streams is supported.
-void attach_collective_registry(const std::vector<ov::SoPtr<ov::ICompiledModel>>& rank_compiled,
-                                const TPDeviceCoordinatorPtr& coordinator) {
-    auto registry = std::make_shared<ov::intel_gpu::CollectiveCommRegistry>();
-    registry->set_coordinator(coordinator);
-    std::vector<ov::intel_gpu::CollectiveCommRegistryPtr> registry_set{registry};
-
-    for (const auto& compiled : rank_compiled) {
-        compiled->set_property({{ov::intel_gpu::collective_comm_registry_set.name(), registry_set}});
-    }
-}
-
-TPDeviceCoordinatorPtr make_coordinator(const TPL0SharedContextPtr& shared,
-                                        uint32_t world_size,
-                                        int num_collectives,
-                                        std::chrono::milliseconds timeout,
-                                        const TPConfig& config) {
-    if (num_collectives <= 0) {
-        return nullptr;
-    }
-    return std::make_shared<TPDeviceCoordinator>(shared, static_cast<int>(world_size), num_collectives, timeout,
-                                                 config.collective_options());
-}
-
 void log_sharding_plan(const ShardingPlan& plan, int num_collectives) {
     const auto biased = std::count_if(plan.linears.begin(), plan.linears.end(), [](const auto& l) {
         return l.has_bias;
@@ -200,7 +164,7 @@ void warn_on_kv_imbalance(const ShardingPlan& plan, uint32_t shard_degree) {
 
 constexpr const char* kNoRemoteContextImport =
     "[TP] importing into a caller-provided remote context is not supported: the plugin "
-    "creates its own Level-Zero context spanning every rank device";
+    "creates the rank contexts of its device group itself";
 
 /// Everything a TP blob declares before the first rank payload.
 struct BlobHeader {
@@ -256,69 +220,27 @@ Plugin::Plugin() {
     set_device_name("TP");
 }
 
-Plugin::SharedL0Setup Plugin::create_shared_l0(const std::vector<std::string>& device_names) const {
-    // Cross-device L0 USM copies require every participating device to belong
-    // to one ze_context_handle_t. Each rank's (driver, device) handles come
-    // from the intel_gpu plugin's default RemoteContext; the context built over
-    // them is handed back to each rank as a non-owning ContextType::ZE one.
-    const auto rank_count = static_cast<uint32_t>(device_names.size());
-    ZE_THROW(ov::zeInit(0));
+std::vector<ov::SoPtr<ov::IRemoteContext>> Plugin::create_rank_contexts(const std::vector<std::string>& device_names,
+                                                                        const TPConfig& config) const {
+    // The contexts are created one after another: creating one only publishes
+    // the rank's setup payload, and the device plugin collects them all when
+    // the first rank model is bound, by which time every rank has published.
+    const auto rank_count = static_cast<int>(device_names.size());
+    const auto timeout_ms = config.get_communication_timeout_ms();
+    auto endpoints = InProcessExchange::create_group(rank_count, std::chrono::milliseconds{timeout_ms});
 
-    std::vector<ze_driver_handle_t> drivers(rank_count);
-    std::vector<ze_device_handle_t> rank_devs(rank_count);
-
-    for (uint32_t rank = 0; rank < rank_count; ++rank) {
-        auto def_ctx = get_core()->get_default_context(device_names[rank]);
-        const auto& props = def_ctx->get_property();
-
-        auto it_drv = props.find(ov::intel_gpu::ze_driver_handle.name());
-        auto it_dev = props.find(ov::intel_gpu::ze_device_handle.name());
-        OPENVINO_ASSERT(it_drv != props.end() && it_dev != props.end(),
-                        "[TP] device ", device_names[rank],
-                        " did not expose Level-Zero (driver, device) handles. "
-                        "intel_gpu plugin must be built with GPU_RT_TYPE=L0.");
-
-        drivers[rank] = reinterpret_cast<ze_driver_handle_t>(it_drv->second.as<ov::intel_gpu::gpu_handle_param>());
-        rank_devs[rank] = reinterpret_cast<ze_device_handle_t>(it_dev->second.as<ov::intel_gpu::gpu_handle_param>());
+    std::vector<ov::SoPtr<ov::IRemoteContext>> contexts(device_names.size());
+    for (int rank = 0; rank < rank_count; ++rank) {
+        ov::AnyMap params = config.collective_diagnostics();
+        params[ov::tp::internal::device_group.name()] = device_names;
+        params[ov::tp::internal::groups.name()] =
+            std::map<int, CollectiveGroup>{{0, CollectiveGroup{endpoints[static_cast<size_t>(rank)], auto_backend}}};
+        params[ov::tp::internal::communication_timeout_ms.name()] = timeout_ms;
+        contexts[static_cast<size_t>(rank)] = get_core()->create_context(device_names[static_cast<size_t>(rank)], params);
     }
 
-    for (uint32_t rank = 1; rank < rank_count; ++rank) {
-        OPENVINO_ASSERT(drivers[rank] == drivers[0],
-                        "[TP] all ranks must share a single L0 driver, but ", device_names[rank],
-                        " belongs to a different one than ", device_names[0]);
-    }
-
-    OPENVINO_ASSERT(ov::zeContextCreateEx != nullptr,
-                    "[TP] L0 loader does not export zeContextCreateEx, which is required to "
-                    "share one context across devices. Update the Level-Zero loader.");
-
-    ze_context_desc_t ctx_desc{ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
-    ze_context_handle_t shared_ctx_h = nullptr;
-    ZE_THROW(ov::zeContextCreateEx(drivers[0], &ctx_desc,
-                                   static_cast<uint32_t>(rank_devs.size()),
-                                   rank_devs.data(), &shared_ctx_h));
-
-    SharedL0Setup setup;
-    setup.shared = std::make_shared<TPL0SharedContext>();
-    setup.shared->driver = drivers[0];
-    setup.shared->devices = rank_devs;
-    setup.shared->context = shared_ctx_h;
-
-    setup.rank_ctx.resize(rank_count);
-    for (uint32_t rank = 0; rank < rank_count; ++rank) {
-        ov::AnyMap rank_params{
-            {ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::ZE},
-            {ov::intel_gpu::ocl_context.name(), static_cast<ov::intel_gpu::gpu_handle_param>(shared_ctx_h)},
-            {ov::intel_gpu::ze_device_handle.name(), static_cast<ov::intel_gpu::gpu_handle_param>(rank_devs[rank])},
-            {ov::intel_gpu::ze_driver_handle.name(), static_cast<ov::intel_gpu::gpu_handle_param>(drivers[0])},
-        };
-        setup.rank_ctx[rank] = get_core()->create_context(device_names[rank], rank_params);
-    }
-
-    TP_LOG_INFO << "[TP] Created shared L0 context across " << rank_count << " devices (ctx="
-                << shared_ctx_h << ")" << std::endl;
-
-    return setup;
+    TP_LOG_INFO << "[TP] Created " << rank_count << " rank contexts" << std::endl;
+    return contexts;
 }
 
 void Plugin::build_call_config(const ov::AnyMap& properties, TPConfig& config, ov::AnyMap& forwarded) const {
@@ -384,9 +306,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     log_sharding_plan(sharding_plan, num_collectives);
     warn_on_kv_imbalance(sharding_plan, shard_degree);
 
-    auto setup = create_shared_l0(device_names);
-    auto coordinator = make_coordinator(setup.shared, rank_count, num_collectives,
-                                        std::chrono::milliseconds{cfg.get_communication_timeout_ms()}, cfg);
+    // A shard stripped of its collectives runs alone, on an ordinary context.
+    const auto rank_contexts =
+        shard_only ? std::vector<ov::SoPtr<ov::IRemoteContext>>{} : create_rank_contexts(device_names, cfg);
 
     std::vector<ov::SoPtr<ov::ICompiledModel>> rank_compiled(rank_count);
     for (uint32_t rank = 0; rank < rank_count; ++rank) {
@@ -397,20 +319,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
         if (shard_only) {
             strip_collectives(rank_model);
+            rank_compiled[rank] = get_core()->compile_model(rank_model, device_names[rank], config);
+        } else {
+            rank_compiled[rank] = get_core()->compile_model(rank_model, rank_contexts[rank], config);
         }
-
-        rank_compiled[rank] = get_core()->compile_model(rank_model, setup.rank_ctx[rank], config);
-    }
-
-    if (coordinator) {
-        attach_collective_registry(rank_compiled, coordinator);
     }
 
     return std::make_shared<CompiledModel>(model, shared_from_this(),
                                            std::move(rank_compiled),
                                            std::move(device_names),
-                                           std::move(setup.shared),
-                                           std::move(coordinator),
+                                           static_cast<uint32_t>(num_collectives),
                                            GraphRewriter::sharded_state_ids(model, sharding_plan),
                                            /*loaded_from_cache=*/false,
                                            cfg);
@@ -557,10 +475,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
                     ov::Any(header.device_names).as<std::string>(), " but ",
                     ov::Any(requested_devices).as<std::string>(), " was requested");
 
-    auto setup = create_shared_l0(header.device_names);
-    auto coordinator = make_coordinator(setup.shared, header.world_size,
-                                        static_cast<int>(header.num_collectives),
-                                        std::chrono::milliseconds{cfg.get_communication_timeout_ms()}, cfg);
+    const auto rank_contexts = create_rank_contexts(header.device_names, cfg);
 
     std::vector<ov::SoPtr<ov::ICompiledModel>> rank_compiled(header.world_size);
     for (uint32_t rank = 0; rank < header.world_size; ++rank) {
@@ -571,7 +486,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
         OPENVINO_ASSERT(rank_blob_start != std::istream::pos_type(-1),
                         "[TP] import_model needs a seekable stream to walk per-rank blobs");
 
-        rank_compiled[rank] = get_core()->import_model(blob, setup.rank_ctx[rank], config);
+        rank_compiled[rank] = get_core()->import_model(blob, rank_contexts[rank], config);
         OPENVINO_ASSERT(rank_compiled[rank],
                         "[TP] the GPU plugin refused the cached blob of rank ", rank,
                         " on ", header.device_names[rank], "; it was compiled with a different cache mode");
@@ -584,17 +499,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
         OPENVINO_ASSERT(blob.good(), "[TP] truncated compiled blob: rank ", rank, " payload is incomplete");
     }
 
-    if (coordinator) {
-        attach_collective_registry(rank_compiled, coordinator);
-    }
-
     // No IR here: the user model was consumed at compile time and is not part
     // of the blob. CompiledModel derives its ports from rank 0 instead.
     return std::make_shared<CompiledModel>(nullptr, shared_from_this(),
                                            std::move(rank_compiled),
                                            std::move(header.device_names),
-                                           std::move(setup.shared),
-                                           std::move(coordinator),
+                                           header.num_collectives,
                                            std::move(header.sharded_state_ids),
                                            /*loaded_from_cache=*/true,
                                            cfg);

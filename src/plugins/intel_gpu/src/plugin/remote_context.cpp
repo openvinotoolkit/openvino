@@ -17,6 +17,9 @@
 #    include "ze/ze_device.hpp"
 #    include "ze/ze_engine.hpp"
 #endif
+#ifdef ENABLE_TP
+#    include "ze/tp/rank_communicator.hpp"
+#endif
 #include <memory>
 
 namespace ov::intel_gpu {
@@ -147,6 +150,29 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
 
     initialize();
 }
+
+#ifdef ENABLE_TP
+RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts,
+                                     std::shared_ptr<cldnn::ze::tp::RankCommunicator> communicator)
+    : m_tp_communicator(std::move(communicator)) {
+    OPENVINO_ASSERT(m_tp_communicator != nullptr, "[GPU][TP] a TP context needs a communicator");
+    const auto& shared = m_tp_communicator->shared_context();
+    const auto rank = static_cast<size_t>(m_tp_communicator->rank());
+
+    // Every rank of the group sits on one Level Zero context, which is what
+    // lets a rank copy into a peer's memory. The context is borrowed: the
+    // communicator owns it and outlives the device and the engine built on it.
+    m_device = std::make_shared<cldnn::ze::ze_device>(
+        cldnn::ze::ze_driver_resource(shared->driver, /*is_borrowed=*/true),
+        cldnn::ze::ze_device_resource(shared->devices[rank], /*is_borrowed=*/true),
+        cldnn::ze::ze_context_resource(shared->context, /*is_borrowed=*/true),
+        /*initialize_device=*/false);
+    m_type = ContextType::ZE;
+    m_device_name = get_device_name(known_contexts, m_device);
+
+    initialize();
+}
+#endif
 
 cldnn::engine& RemoteContextImpl::get_engine() {
     OPENVINO_ASSERT(m_is_initialized, "[GPU] Can't obtain engine from uninitialized RemoteContext. Please initialize the context first");

@@ -16,16 +16,14 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              std::vector<ov::SoPtr<ov::ICompiledModel>>&& rank_compiled,
                              std::vector<std::string>&& device_names,
-                             TPL0SharedContextPtr shared_l0_ctx,
-                             TPDeviceCoordinatorPtr device_coordinator,
+                             uint32_t num_collectives,
                              std::vector<std::string>&& sharded_state_ids,
                              bool loaded_from_cache,
                              const TPConfig& config)
     : ov::ICompiledModel(model, plugin),
-      m_shared_l0_ctx(std::move(shared_l0_ctx)),
-      m_device_coordinator(std::move(device_coordinator)),
       m_rank_compiled(std::move(rank_compiled)),
       m_device_names(std::move(device_names)),
+      m_num_collectives(num_collectives),
       m_sharded_state_ids(std::move(sharded_state_ids)),
       m_loaded_from_cache(loaded_from_cache),
       m_config(config) {
@@ -56,9 +54,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     stream.write(tp_blob::magic, sizeof(tp_blob::magic));
     tp_blob::write_trivial<uint32_t>(stream, tp_blob::version);
     tp_blob::write_trivial<uint32_t>(stream, static_cast<uint32_t>(m_rank_compiled.size()));
-    tp_blob::write_trivial<uint32_t>(
-        stream,
-        static_cast<uint32_t>(m_device_coordinator ? m_device_coordinator->num_collectives() : 0));
+    tp_blob::write_trivial<uint32_t>(stream, m_num_collectives);
     tp_blob::write_trivial<uint32_t>(stream, static_cast<uint32_t>(m_sharded_state_ids.size()));
 
     for (const auto& name : m_device_names) {

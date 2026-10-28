@@ -175,8 +175,8 @@ Things to know:
   split is rejected rather than silently mis-sliced.
 - **Single-process.** All ranks execute in the same process on plugin-owned
   threads. Multi-process / multi-host configurations are out of scope.
-- **No user-supplied remote context.** The plugin always builds its own
-  shared L0 context covering all ranks, so importing into a caller-provided
+- **No user-supplied remote context.** The plugin always creates the rank
+  contexts of its device group itself, so importing into a caller-provided
   context is rejected.
 - **A failed collective is terminal.** After a timeout or an abort the
   compiled model refuses every later inference; it has to be rebuilt.

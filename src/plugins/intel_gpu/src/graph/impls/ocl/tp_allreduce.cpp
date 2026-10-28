@@ -5,13 +5,12 @@
 #ifdef ENABLE_TP
 
 #include "ze/ze_stream.hpp"
+#include "ze/tp/rank_communicator.hpp"
 
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "tp_allreduce_inst.h"
 #include "registry/implementation_map.hpp"
-
-#include "tp/tp_device_coordinator.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -34,7 +33,7 @@ ze_command_list_handle_t model_queue_of(stream& s) {
 }  // namespace
 
 // "OCL" impl that does not actually compile an OpenCL kernel. All work is
-// dispatched via Level Zero by TPDeviceCoordinator. Registering as
+// dispatched via Level Zero by the TP channel of the network. Registering as
 // impl_types::ocl with is_cpu()=false makes intel_gpu allocate IO buffers
 // in usm_device, which is the only way to get device-local bandwidth on
 // the all-reduce hot path.
@@ -82,13 +81,13 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
                             tp_allreduce_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        const auto& coordinator = coordinator_of(instance);
-        const bool async = coordinator->run_spliced();
+        auto& channel = channel_of(instance);
+        const bool async = channel.run_spliced();
 
-        if (coordinator->options().verbosity >= ov::log::Level::INFO) {
+        if (channel.options().verbosity >= ov::log::Level::INFO) {
             static std::once_flag reported;
             std::call_once(reported, [&] {
-                ov::tp::log_stream() << "[TP] collective rides "
+                cldnn::ze::tp::log_stream() << "[TP] collective rides "
                             << (async ? "in the model queue" : "on its own queue (synchronous)")
                             << ", in-order=" << (stream.get_queue_type() == QueueTypes::in_order)
                             << std::endl;
@@ -109,25 +108,18 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         }
 
         auto [in_dev, out_dev, num_elements, ov_dtype] = collective_operands(instance);
-        coordinator->allreduce(static_cast<int>(collective_id),
-                               static_cast<int>(rank),
-                               in_dev, out_dev, num_elements, ov_dtype,
-                               async ? model_queue_of(stream) : nullptr);
+        channel.allreduce(static_cast<int>(collective_id),
+                          in_dev, out_dev, num_elements, ov_dtype,
+                          async ? model_queue_of(stream) : nullptr);
         return cpu::make_output_event(stream, instance.is_output());
     }
 
-    /// The coordinator is runtime state of the network, injected by the
-    /// TP plugin after this model was compiled or imported.
-    const ov::tp::TPDeviceCoordinatorPtr& coordinator_of(tp_allreduce_inst& instance) const {
-        const auto& registry = instance.get_network().get_collective_comm_registry();
-        OPENVINO_ASSERT(registry != nullptr,
-            "[GPU] tp_allreduce requires a collective registry; the TP plugin must inject "
-            "one into the compiled model before inference");
-
-        const auto& coordinator = registry->coordinator();
-        OPENVINO_ASSERT(coordinator != nullptr,
-            "[GPU] tp_allreduce ocl impl requires TPDeviceCoordinator (shared L0 context)");
-        return coordinator;
+    /// Attached to the network when the model was bound to its TP context.
+    static cldnn::ze::tp::Channel& channel_of(tp_allreduce_inst& instance) {
+        const auto& channel = instance.get_network().get_tp_channel();
+        OPENVINO_ASSERT(channel != nullptr,
+            "[GPU] tp_allreduce has no TP channel; the model must be compiled or imported with a TP context");
+        return *channel;
     }
 
     struct Operands {

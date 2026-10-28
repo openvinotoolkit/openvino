@@ -389,6 +389,16 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_enable_profiling = true;
     }
 #endif
+#ifdef ENABLE_TP
+    // A collective is spliced into the model's queue and relies on it running
+    // in submission order, which only an in-order queue guarantees.
+    if (dynamic_cast<const RemoteContextImpl*>(context)->get_tp_communicator()) {
+        OPENVINO_ASSERT(!is_set_by_user(ov::intel_gpu::queue_type) || get_queue_type() == QueueTypes::in_order,
+                        "[GPU][TP] a model compiled for a TP context needs an in-order queue, ",
+                        ov::intel_gpu::queue_type.name(), "=", get_queue_type(), " was requested");
+        m_queue_type = QueueTypes::in_order;
+    }
+#endif
 
     // Enable dynamic quantization by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0) {

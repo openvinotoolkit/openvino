@@ -22,6 +22,12 @@
 #include <map>
 #include <memory>
 
+#ifdef ENABLE_TP
+namespace cldnn::ze::tp {
+class RankCommunicator;
+}  // namespace cldnn::ze::tp
+#endif
+
 namespace ov::intel_gpu {
 
 class RemoteContextImpl : public ov::IRemoteContext {
@@ -52,6 +58,21 @@ public:
      * Always creates an initialized context.
      */
     RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts, const ov::AnyMap& params);
+
+#ifdef ENABLE_TP
+    /**
+     * @brief Constructs the context of one rank of a tensor-parallel group.
+     *
+     * @param known_contexts Map of existing in Plugin contexts.
+     * @param communicator This rank's TP communicator; the context sits on its device-group Level Zero context
+     *                     and owns it, so every model compiled or imported with the context binds to it.
+     */
+    RemoteContextImpl(const std::map<std::string, RemoteContextImpl::Ptr>& known_contexts,
+                      std::shared_ptr<cldnn::ze::tp::RankCommunicator> communicator);
+
+    /// The TP communicator of this context; null for a context created without TP parameters.
+    const std::shared_ptr<cldnn::ze::tp::RankCommunicator>& get_tp_communicator() const { return m_tp_communicator; }
+#endif
 
     const std::string& get_device_name() const override;
 
@@ -103,6 +124,11 @@ private:
 
     void init_properties();
 
+#ifdef ENABLE_TP
+    // Declared first so it is destroyed last: the device and the engine below sit on the
+    // device-group context the communicator keeps alive.
+    std::shared_ptr<cldnn::ze::tp::RankCommunicator> m_tp_communicator;
+#endif
     std::shared_ptr<cldnn::device> m_device;
     std::shared_ptr<cldnn::engine> m_engine;
     ov::intel_gpu::gpu_handle_param m_va_display = nullptr;

@@ -14,6 +14,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     openvino::runtime
+    openvino::runtime::dev  # the collective contract and the collective ops, for tp_context_test.cpp
     common_test_utils
     gtest
     gtest_main)

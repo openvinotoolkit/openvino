@@ -7,7 +7,9 @@ runs a single transformer model across multiple Intel discrete GPUs using
 **Megatron-style tensor parallelism**: weights of large MatMuls are sharded
 across ranks, partial sums are summed back via in-graph AllReduce
 collectives, and the cross-device synchronization is implemented directly on
-device memory through a shared Level Zero context.
+device memory through a shared Level Zero context. The collectives run in
+the intel_gpu plugin; this plugin talks to them only through the private
+collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -22,8 +24,11 @@ device memory through a shared Level Zero context.
 │                         TP Plugin                            │
 │                                                              │
 │  compile_model():                                            │
-│    1. Parse config (TP degree, device list).                 │
-│    2. Build a single L0 context spanning all rank GPUs.      │
+│    1. Parse config (device list from "TP:<devices>").        │
+│    2. Create one GPU remote context per rank with the TP     │
+│       parameters of the collective contract: device group +  │
+│       the rank's endpoint of an InProcessExchange. Each      │
+│       context publishes its setup payload and returns.       │
 │    3. Analyze the model: walk back from every attention op   │
 │       to find the Q/K/V/O projections and the MLP            │
 │       gate/up/down — produces a ShardingPlan.                │
@@ -32,11 +37,10 @@ device memory through a shared Level Zero context.
 │       and reshape shapes, insert TPAllReduce after each      │
 │       row-parallel MatMul and a TPGather after the sharded   │
 │       vocabulary projection, validate the cloned graph.      │
-│    5. Compile each per-rank model on its GPU through the     │
-│       intel_gpu plugin under the shared L0 context.          │
-│    6. Construct the TPDeviceCoordinator, publish it in a     │
-│       CollectiveCommRegistry and inject that registry into   │
-│       every rank compiled model via set_property().          │
+│    5. Compile each per-rank model with its rank context. The │
+│       GPU plugin binds the model to the context's            │
+│       communicator; the first binding collects the payloads  │
+│       and connects the group.                                │
 └─────────────────────────────┬────────────────────────────────┘
                               │
                               ▼
@@ -44,9 +48,9 @@ device memory through a shared Level Zero context.
 │              CompiledModel (ICompiledModel)                  │
 │                                                              │
 │  Owns everything the ranks share:                            │
-│    - rank_compiled[N]     per-rank intel_gpu model           │
-│    - TPL0SharedContext    ze_context over all devices        │
-│    - TPDeviceCoordinator  queues, recordings, staging        │
+│    - rank_compiled[N]     per-rank intel_gpu model; each     │
+│                           holds its rank context, which owns │
+│                           the rank's communicator            │
 │    - RankWorkers          a thread per non-zero rank         │
 │    - CacheController      paged-attention cache              │
 │    - inference mutex      one outer inference at a time      │
@@ -68,9 +72,9 @@ device memory through a shared Level Zero context.
 │       runs on the calling thread.                            │
 │    3. Each rank's graph executes locally; whenever it hits a │
 │       TPAllReduce or TPGather node, the OCL impl in          │
-│       intel_gpu resolves the coordinator from the network's  │
-│       registry and hands the recorded collective to the      │
-│       model's own command queue.                             │
+│       intel_gpu calls the network's TP channel, which hands  │
+│       the recorded collective to the model's own command     │
+│       queue.                                                 │
 │    4. All ranks return; rank 0's outputs are exposed to the  │
 │       user.                                                  │
 └──────────────────────────────────────────────────────────────┘
@@ -106,8 +110,9 @@ request reads. `TP_DISABLE_LM_HEAD_SHARDING` turns this off.
 
 **Collectives per inference**: `2 × num_layers` AllReduce calls — one after
 attention `o_proj`, one after MLP `down_proj` — plus one Gather for the
-vocabulary projection when it is sharded. The exact count comes from `GraphRewriter::count_collectives`.
-It is baked into the compiled blob so an imported model can size its coordinator without re-analyzing the graph.
+vocabulary projection when it is sharded. The exact count comes from `GraphRewriter::count_collectives`
+and is recorded in the compiled blob; the GPU plugin counts the collectives of each rank model itself when it
+binds the model.
 The AllReduce count is the lower bound for Megatron-style TP and cannot be reduced without changing the parallelism scheme.
 
 ## Data Flow Inside a Decoder Layer
@@ -127,7 +132,7 @@ The AllReduce count is the lower bound for Megatron-style TP and cannot be reduc
    │  partial sum (rank 0)        │  partial sum (rank 1)
    ▼                              ▼
    └──────  TPAllReduce (sum) on device USM ──────┐
-            via TPDeviceCoordinator               │
+            via the GPU TP communicator           │
    ┌──────────────────────────────┬───────────────┘
    ▼                              ▼
  + residual                     + residual
@@ -149,26 +154,18 @@ The AllReduce count is the lower bound for Megatron-style TP and cannot be reduc
 
 The plugin builds the pieces but keeps none of them: everything is moved into
 the `CompiledModel`, which is what owns the topology for as long as the model
-is alive.
+is alive. The collective state lives in the GPU plugin, reached through the
+rank contexts.
 
 ```
 Plugin (IPlugin)                       stateless apart from its own config
-  │   creates the shared L0 context, the coordinator and the per-rank
-  │   intel_gpu models, then moves all of them into:
+  │   creates the rank contexts (create_context with ov::tp::internal
+  │   parameters) and the per-rank intel_gpu models, then moves the
+  │   models into:
   ▼
 CompiledModel (ICompiledModel)
-  ├── TPL0SharedContext                one ze_context over all N devices.
-  │                                    Declared first, destroyed last: every
-  │                                    USM allocation and every rank network
-  │                                    lives inside it.
-  ├── TPDeviceCoordinator              per-rank L0 queues, modules, kernels
-  │     ├── Plan[2 per collective]     recordings, event pools, command lists
-  │     ├── Rendezvous[per collective] enter barrier + record gate
-  │     ├── ScratchArena               one device-USM staging block per rank
-  │     └── watchdog thread            started on the first spliced collective
   ├── rank_compiled[N]                 intel_gpu ICompiledModel per rank; each
-  │                                    holds a CollectiveCommRegistry injected
-  │                                    through set_property()
+  │                                    holds its rank context
   ├── CacheController                  paged-attention cache, one per model,
   │                                    shared by every infer request
   ├── sharded_state_ids[]              which variables hold a KV-cache slice
@@ -187,6 +184,21 @@ InferRequest (ISyncInferRequest)       one per create_infer_request()
   │                                    state over N per-rank states, gathering
   │                                    and scattering the sharded ones
   └── m_input_stage[][]                host staging for small user inputs
+
+intel_gpu, per rank (src/plugins/intel_gpu/src/runtime/ze/tp/)
+RemoteContextImpl (TP context)
+  ├── RankCommunicator                 this rank's end; publishes its payload at
+  │     │                              creation, connects at the first bind
+  │     ├── TPL0SharedContext          one ze_context over all N devices, cached
+  │     │                              per device list; the rank's device and
+  │     │                              engine sit on it
+  │     └── TPDeviceCoordinator        the group state, one per group in the
+  │           │                        process, shared by every rank
+  │           ├── Plan[2 per collective]     recordings, event pools, lists
+  │           ├── Rendezvous[per collective] enter barrier + record gate
+  │           ├── ScratchArena               device-USM staging per rank
+  │           └── watchdog thread            started on the first splice
+  └── network (per compiled model)     holds a Channel: group state + rank
 ```
 
 During `infer()`:
@@ -194,7 +206,7 @@ During `infer()`:
 ```
 rank 0 runs on the calling thread, ranks 1..N-1 on RankWorkers
     ↓ a rank's graph reaches a TPAllReduce or TPGather node
-intel_gpu OCL impl → that network's CollectiveCommRegistry → coordinator()
+intel_gpu OCL impl → that network's TP Channel
     ↓ the model's own command list is passed along
 TPDeviceCoordinator::allreduce / gather_to_root(..., model_queue)
 ```
@@ -209,15 +221,11 @@ src/plugins/tp/
 │   ├── options.inl                         ← the option table (X-macro)
 │   ├── internal_properties.hpp             ← property keys for those options
 │   ├── tp_config.hpp                       ← TPConfig: typed getters, validation
-│   ├── tp_debug.hpp                        ← logging macros, NS/Stopwatch/
-│   │                                         ScopedTime/DumpPeriod
-│   └── tp_device_coordinator.hpp           ← TPDeviceCoordinator public API
-├── cmake/embed_kernels.cmake               ← bakes the .cl into the plugin
+│   └── tp_debug.hpp                        ← logging macros, NS/Stopwatch/
+│                                             ScopedTime/DumpPeriod
 ├── src/
-│   ├── op/                                 ← TPAllReduce, TPGather op classes
-│   ├── kernels/allreduce_sum.cl            ← reduce kernel source
-│   ├── plugin.{hpp,cpp}                    ← IPlugin entry point; builds
-│   │                                         shared L0 context + coordinator
+│   ├── plugin.{hpp,cpp}                    ← IPlugin entry point; creates the
+│   │                                         rank contexts
 │   ├── compiled_model.{hpp,cpp}            ← ICompiledModel, export/import
 │   ├── infer_request.{hpp,cpp}             ← ISyncInferRequest, rank fan-out
 │   ├── rank_workers.hpp                    ← persistent worker thread per rank
@@ -225,25 +233,38 @@ src/plugins/tp/
 │   ├── graph_rewriter.{hpp,cpp}            ← analyze + per-rank rewrite
 │   ├── tp_blob.hpp                         ← blob container format helpers
 │   ├── tp_config.cpp                       ← device-name resolution
-│   ├── tp_l0_shared_context.hpp            ← RAII for the shared ze_context
-│   ├── tp_ze_throw.hpp                     ← ZE_THROW helper
-│   ├── tp_device_coordinator.cpp           ← L0 plans, cmdlists, kernels, exec
 │   └── version.cpp                         ← plugin version
 └── tests/
     ├── common/tp_test_models.hpp           ← synthetic blocks, shared by suites
-    ├── unit/                               ← ov_tp_unit_tests: rewriter,
-    │                                         TPDeviceCoordinator
+    ├── unit/                               ← ov_tp_unit_tests: rewriter
     └── functional/                         ← ov_tp_func_tests: accuracy,
-                                             paged attention, serialization
+                                              paged attention, serialization,
+                                              TP contexts
+
+src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
+├── src/runtime/ze/tp/
+│   ├── rank_communicator.{hpp,cpp}         ← RankCommunicator, Channel, the
+│   │                                         process registry of groups
+│   ├── tp_l0_shared_context.{hpp,cpp}      ← shared ze_context + its cache
+│   ├── tp_device_coordinator.{hpp,cpp}     ← L0 plans, cmdlists, kernels, exec
+│   ├── allreduce_sum_cl.hpp                ← reduce kernel source
+│   ├── collective_options.hpp              ← CollectiveOptions (GPU_TP_*)
+│   └── tp_debug.hpp                        ← timers and report helpers
+├── src/graph/impls/ocl/tp_{allreduce,gather}.cpp  ← the primitives' impls
+├── src/plugin/ops/tp_{allreduce,gather}.cpp       ← op → primitive
+└── tests/unit/module_tests/ze/tp_device_coordinator_test.cpp
 ```
 
-`tp_embedded_kernels.h` is generated into the build tree from `src/kernels/allreduce_sum.cl`.
+The collective ops themselves (`TPAllReduce`, `TPGather`) live in
+`src/common/transformations/include/ov_ops/tp_collective.hpp`.
 
 ## TPDeviceCoordinator (Device-side Collectives)
 
 The coordinator owns per-rank L0 resources and executes the cross-device
 sum on USM-device memory. Every rank records and submits its own commands;
-no rank drives the others.
+no rank drives the others. It lives in the GPU plugin and is the shared
+state of a group: the first rank model bound to a TP context creates it,
+the other ranks find it through the process registry.
 
 ### Per-rank state
 
@@ -251,7 +272,7 @@ For every rank, the coordinator creates:
 - A compute queue on the compute ordinal. There is no separate copy queue:
   the copies and the reduce kernel share one command list per collective.
 - An `allreduce_sum_f16` and `allreduce_sum_f32` kernel compiled from
-  `src/kernels/allreduce_sum.cl`. The kernel module is built via OpenCL
+  `allreduce_sum_cl.hpp`. The kernel module is built via OpenCL
   (`clBuildProgram`) on the device matched by UUID, then re-loaded into
   the shared L0 context as `ZE_MODULE_FORMAT_NATIVE`.
 - The GPU timer period and timestamp mask, read once, used to turn kernel
@@ -336,7 +357,7 @@ the devices work through it. The only host wait is for the *previous* splice of
 the same command list, which the extension forbids re-appending while in
 flight; with two buffers alternating, that has normally long finished.
 
-Without the splice extension, or under `TP_FORCE_SYNC_COLLECTIVE`, the
+Without the splice extension, or under `GPU_TP_FORCE_SYNC_COLLECTIVE`, the
 collective runs on the coordinator's own queues and the call blocks until the
 queue drains.
 
@@ -352,7 +373,7 @@ The schedule is chosen per recording from the world size and the payload:
 | Schedule          | When                                                    | Steps       | Per-rank traffic |
 |-------------------|---------------------------------------------------------|-------------|------------------|
 | pair              | `N == 2`                                                | 1 exchange  | one payload      |
-| recursive halving | `N` a power of two and payload ≤ `TP_HALVING_MAX_BYTES` | `2·log2(N)` | `1.5·S`          |
+| recursive halving | `N` a power of two and payload ≤ `GPU_TP_HALVING_MAX_BYTES` | `2·log2(N)` | `1.5·S`     |
 | ring              | otherwise                                               | `2·(N-1)`   | `1.5·S`          |
 
 Halving and the ring move the same bytes; what halving buys is fewer steps and
@@ -375,22 +396,63 @@ waits on all of them. Unlike allreduce, gather keeps an exit barrier.
 
 ## intel_gpu Integration
 
-The TP plugin contributes two OCL primitives to intel_gpu,
-`tp_allreduce` and `tp_gather`, implementing the in-graph `TPAllReduce` and `TPGather` ops.
-Both:
+The collectives live in intel_gpu, compiled only with `ENABLE_TP`: two OCL
+primitives, `tp_allreduce` and `tp_gather`, implementing the in-graph
+`TPAllReduce` and `TPGather` ops, and the communicator under
+`src/runtime/ze/tp/`. The TP plugin reaches them through the private
+collective contract only.
+
+### TP context
+
+`create_context()` with `ov::tp::internal::device_group` and
+`ov::tp::internal::groups` (group 0, this rank's `IExchange` endpoint) builds
+the context of one rank:
+- the device-group L0 context over every device of the group, created once
+  per device list and shared by every rank's context in the process;
+- a remote context whose device and engine sit on that shared context;
+- this rank's `RankCommunicator`, which publishes its setup payload
+  (header, process id, a process-unique communicator id) and returns without
+  waiting.
+
+Other accepted parameters: `COMMUNICATION_TIMEOUT_MS`, `DEVICE_ID` and the
+`GPU_TP_*` options. `ov_internal_tp_channels` other than 1 and
+`ov_internal_tp_comm_buffer_size` are refused until they are implemented;
+any other parameter is an error.
+
+### Binding
+
+`compile_model()` and `import_model()` with a TP context bind every stream
+graph of the model to the context's communicator (`Graph::build`):
+- every collective's rank and world size must match the context, and the ids
+  must number the model's collectives once each;
+- the first binding collects the payloads, checks them, and finds or creates
+  the group state (the coordinator) in a process registry keyed by the rank-0
+  communicator id; every rank model must have the same number of collectives;
+- one model per channel at a time, and one channel per context, so a second
+  stream fails the compilation;
+- a model with collectives compiled for an ordinary context fails the
+  compilation;
+- a TP context forces the in-order queue; an explicit out-of-order request
+  fails.
+
+The network then holds a `Channel` (group state + rank).
+
+### Primitives
+
+Both primitives:
 - Have `is_cpu() == false`, which forces intel_gpu to allocate inputs and
   outputs in `usm_device`. This is required for cross-PCIe peer copies.
-- During `execute()`, read the `collective_id` / `rank` carried by the
-  primitive (`collective_id` is the op's position among the TP collectives of
-  the program, assigned by the GPU `ProgramBuilder`; transitional until calls
-  carry a sequence number), resolve the coordinator from the owning network's
-  `CollectiveCommRegistry`, and hand it the model's own command list so the
-  recording is spliced there. Because the primitive stores only PODs, it
-  serializes cleanly and the registry can be re-injected after `import_model`.
+- During `execute()`, read the `collective_id` carried by the primitive
+  (`collective_id` is the op's position among the TP collectives of the
+  program, assigned by the GPU `ProgramBuilder`; transitional until calls
+  carry a sequence number) and call the network's `Channel` with the model's
+  own command list, so the recording is spliced there. Because the primitive
+  stores only PODs, it serializes cleanly, and an imported model is bound the
+  same way as a compiled one.
 
 There is no CPU fallback: the collective needs a shared L0 context spanning
-every rank's device, and without one the plugin fails at `compile_model`
-rather than silently degrading.
+every rank's device, and without one the compilation fails rather than
+silently degrading.
 
 ## Compiled Blob
 
@@ -409,17 +471,15 @@ uint32               num_sharded_states
 ```
 
 The weight shards are already baked into each rank's blob, so no shard
-metadata is stored. `num_collectives` is, because at import time there is
-no graph left to analyze and the coordinator has to be sized anyway.
-The sharded state ids are there for the same reason: the infer request has to know
+metadata is stored. `num_collectives` is informational: the GPU plugin counts
+the collectives of each imported rank model when it binds it.
+The sharded state ids are there because the infer request has to know
 which states are per-rank slices rather than replicas.
 
-`Plugin::import_model` validates the header, builds its own shared L0
-context over the recorded devices, hands each rank blob to intel_gpu
-through that rank's remote context, and re-injects a fresh
-`CollectiveCommRegistry` with `set_property` — the same mechanism used
-after `compile_model`. The resulting `CompiledModel` has no `ov::Model`
-and derives its ports from rank 0.
+`Plugin::import_model` validates the header, creates the rank contexts over
+the recorded devices and hands each rank blob to intel_gpu with that rank's
+context, which binds it exactly as after `compile_model`. The resulting
+`CompiledModel` has no `ov::Model` and derives its ports from rank 0.
 
 Everything read back is untrusted input (a stale, truncated or corrupt
 cache entry), so each length is bounds-checked before it is used to size
@@ -434,13 +494,12 @@ caching properties are aggregated across the rank devices and joined with `;`.
 
 ## Lifetime and Threading
 
-- `TPL0SharedContext` and `TPDeviceCoordinator` are owned by the
-  `CompiledModel`: the plugin builds them and moves them
-  in. The shared context is declared first so it is destroyed last, after the
-  coordinator and after every rank network that allocated inside it.
-- `TPDeviceCoordinator` is shared via `std::shared_ptr` between the
-  `CompiledModel` and the `CollectiveCommRegistry` held by each per-rank
-  intel_gpu network, so it outlives any single inference.
+- Each rank's intel_gpu compiled model holds its TP context, the context owns
+  the rank's `RankCommunicator`, and the communicators share the group's
+  `TPDeviceCoordinator` and the `TPL0SharedContext` through `std::shared_ptr`.
+  The shared context outlives the coordinator, and every rank's device and
+  engine, because each of them holds it. The TP `CompiledModel` holds no Level
+  Zero state of its own.
 - `RankWorkers` belongs to the `CompiledModel`, not to a request: one thread
   per non-zero rank, created on first use and reused by every infer request of
   that model. Starting them per inference costs tens of microseconds of
@@ -476,8 +535,18 @@ options have no getters, so the code they guard folds away instead of costing a
 branch on the per-collective path.
 
 The options that change the architecture described above are named where they
-apply — `TP_DISABLE_LM_HEAD_SHARDING` under sharding, `TP_HALVING_MAX_BYTES`
-and `TP_ENABLE_HALVING` under schedules, `TP_FORCE_SYNC_COLLECTIVE` under execution.
+apply — `TP_DISABLE_LM_HEAD_SHARDING` under sharding.
+
+The collectives are tuned in the GPU plugin, which runs them: `GPU_TP_*`
+options in a separate block of intel_gpu's `options.inl`, compiled only with
+`ENABLE_TP` (debug ones also need the GPU debug caps). They are read when a TP
+context is created, from the device configuration, the context parameters and
+the environment (`OV_GPU_TP_*`). `GPU_TP_HALVING_MAX_BYTES` and
+`GPU_TP_ENABLE_HALVING` are named under schedules, `GPU_TP_FORCE_SYNC_COLLECTIVE`
+under execution. `TP_VERBOSE`, `TP_PROFILING` and `TP_DUMP_PERIOD` serve both
+sides: when set, the TP plugin passes them to the rank contexts as
+`GPU_TP_VERBOSE`, `GPU_TP_PROFILING` and `GPU_TP_DUMP_PERIOD`.
+
 For the full list see:
 Public properties: [USER_GUIDE.md § Configuration Properties](USER_GUIDE.md#configuration-properties)
 Dev properties: [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables)
@@ -489,9 +558,11 @@ Dev properties: [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables)
   over constant-derived weights. Architectures that fuse QKV differently,
   or feed a weight from a live parameter, are not recognized.
 - Remote contexts supplied by the user are not supported: the plugin
-  always creates its own shared L0 context.
+  always creates the rank contexts itself.
 - Weightless caching is not wired up, so a cache entry carries the full weights.
-- `ov::num_streams` is not honoured: one stream worker per compiled model.
+- `ov::num_streams` is not honoured: a TP context has one channel, so a rank
+  model with more than one stream fails to compile.
+- All ranks of a group run in one process.
 - A failed collective is terminal. The device queues may still hold
   unfinished work, so the coordinator refuses every later call rather than
   running on top of unknown state; the compiled model has to be rebuilt.

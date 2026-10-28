@@ -40,6 +40,11 @@ private:
     std::string get_device_id(const ov::AnyMap& config) const;
     std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id, bool initialize = true) const;
 
+#ifdef ENABLE_TP
+    /// create_context() with ov::tp::internal parameters: the context of one rank of a tensor-parallel group.
+    std::shared_ptr<RemoteContextImpl> create_tp_context(const ov::AnyMap& params) const;
+#endif
+
     static std::vector<ov::PropertyName> get_caching_properties();
     static std::vector<ov::PropertyName> get_supported_properties();
     static std::vector<ov::PropertyName> get_supported_internal_properties();

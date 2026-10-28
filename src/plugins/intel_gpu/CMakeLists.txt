@@ -118,6 +118,13 @@ if(ENABLE_GPU_DEBUG_CAPS)
     add_definitions(-DENABLE_DEBUG_CAPS=1)
 endif()
 
+# Tensor-parallel collectives (src/runtime/ze/tp, the tp_* primitives). Defined for the whole
+# directory, like the debug caps above, so the headers that depend on it have one layout in
+# every GPU target, tests included.
+if(ENABLE_TP)
+    add_definitions(-DENABLE_TP)
+endif()
+
 if(APPLE)
     set(INTEL_GPU_TARGET_OCL_VERSION_DEFAULT "120")
 else()
@@ -237,10 +244,6 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
 
     target_include_directories(${MODULE_NAME} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/include/)
-
-    if(ENABLE_TP)
-        target_link_libraries(${MODULE_NAME} PRIVATE openvino_tp_coordinator_api)
-    endif()
 
     ov_set_threading_interface_for(${MODULE_NAME})
     ov_gpu_set_runtime_interface_for(${MODULE_NAME} RUNTIME ${RT_TYPE})
