@@ -332,7 +332,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload,
                                             ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty)),
                          MoECompressedOffloadTest::getTestCaseName);
 
-TEST(MoEOffloadSerializationTest, export_import_preserves_router_scale) {
+TEST(MoEOffloadSerializationTest, weightless_export_import_preserves_per_expert_router_scale) {
     auto core = ov::test::utils::PluginCache::get().core();
     const auto capabilities = core->get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
     if (std::find(capabilities.begin(), capabilities.end(), ov::intel_gpu::capability::HW_MATMUL) == capabilities.end()) {
@@ -352,13 +352,14 @@ TEST(MoEOffloadSerializationTest, export_import_preserves_router_scale) {
                                                  128,
                                                  MoERoutingType::SOFTMAX,
                                                  MoEActivationType::GELU,
-                                                 true);
+                                                 true);  // use_per_expert_scale
     const auto file_prefix = ov::test::utils::generateTestFilePrefix();
     const auto xml_path = file_prefix + ".xml";
     const auto bin_path = file_prefix + ".bin";
     ov::pass::Serialize(xml_path, bin_path).run_on_model(model);
 
     const ov::AnyMap config = {ov::weights_path(bin_path),
+                                ov::enable_weightless(true),
                                 ov::intel_gpu::offload_ratio(50),
                                 ov::hint::inference_precision(ov::element::f16)};
     const ov::AnyMap reference_config = {ov::hint::inference_precision(ov::element::f16)};
