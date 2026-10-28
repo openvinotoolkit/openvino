@@ -41,59 +41,6 @@ def fetch_attr(self_module, target: str):
     return attr_itr
 
 
-FX_RUNTIME_TYPES = (torch.Tensor, torch.SymInt, torch.SymFloat, torch.SymBool)
-
-
-def no_new_guards(shape_env):
-    native_context = getattr(shape_env, "error_on_new_guards", None)
-    if native_context is not None:
-        return native_context()
-
-    @contextmanager
-    def legacy_context():
-        previous_frozen = shape_env.frozen
-        previous_check = shape_env.__dict__.get("_check_frozen")
-
-        def reject_guard(expr, concrete_val):
-            raise RuntimeError(f"Traced callable requires a new runtime shape guard: {expr} == {concrete_val}")
-
-        shape_env.frozen = True
-        shape_env._check_frozen = reject_guard
-        try:
-            yield
-        finally:
-            shape_env.frozen = previous_frozen
-            if previous_check is None:
-                del shape_env._check_frozen
-            else:
-                shape_env._check_frozen = previous_check
-
-    return legacy_context()
-
-
-def trace_without_new_guards(function, examples):
-    """Trace function on fake examples without adding shape guards to their environments.
-
-    Node metadata is propagated from the examples themselves, so traced views alias them as at runtime.
-    """
-    from contextlib import ExitStack
-    from torch._guards import detect_fake_mode
-    from torch.fx.experimental.proxy_tensor import make_fx
-    from torch.fx.passes.fake_tensor_prop import FakeTensorProp
-
-    with ExitStack() as stack:
-        shape_envs = set()
-        for example in examples:
-            owner = getattr(example, "fake_mode", None) if isinstance(example, torch.Tensor) else example.node
-            shape_env = getattr(owner, "shape_env", None)
-            if shape_env is not None and shape_env not in shape_envs:
-                shape_envs.add(shape_env)
-                stack.enter_context(no_new_guards(shape_env))
-        traced = make_fx(function, tracing_mode="fake", _allow_non_fake_inputs=True)(*examples)
-        FakeTensorProp(traced, detect_fake_mode(examples)).propagate(*examples)
-    return traced
-
-
 def get_type_from_py_type(value):
     if isinstance(value, float):
         return OVType.f32

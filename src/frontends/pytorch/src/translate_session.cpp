@@ -348,19 +348,14 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 size_t fw_tensor_id = fw_outputs.at(i);
                 const auto extracted = sequence_aliases.find(i);
                 const bool sequence_element = extracted != sequence_aliases.end();
-                const auto registered_alias = m_may_be_alias.find(fw_tensor_id);
-                const bool same_tensor_alias =
-                    registered_alias != m_may_be_alias.end() && registered_alias->second.same_tensor;
                 const auto in_tensor_id =
-                    same_tensor_alias
-                        ? registered_alias->second.base_id
-                        : (sequence_element ? extracted->second
-                                            : (unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i)));
+                    sequence_element ? extracted->second : (unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i));
                 if (has_out || sequence_element ||
                     (has_inputs && (constructs_sequence || node->may_produce_alias(0, i)))) {
+                    auto alias_iter = m_may_be_alias.find(fw_tensor_id);
                     // TODO: do we need to check other inputs, not only 0?
-                    if (registered_alias != m_may_be_alias.end()) {
-                        const auto& recorded = registered_alias->second;
+                    if (alias_iter != m_may_be_alias.end()) {
+                        const auto& recorded = alias_iter->second;
                         FRONT_END_GENERAL_CHECK(recorded.base_id == in_tensor_id,
                                                 "Operation ",
                                                 context.get_op_type(),
@@ -377,7 +372,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                         converted_outputs[i],
                         tensor_map->at(in_tensor_id),
                         constructs_sequence ? raw_inputs : std::vector<size_t>{},
-                        same_tensor_alias || !unpacked_ids.empty() ||
+                        !unpacked_ids.empty() ||
                             (sequence_element && !ov::is_type<SequenceMark>(tensor_map->at(in_tensor_id).get_node()))};
                     OPENVINO_DEBUG("Registered alias: ",
                                    fw_tensor_id,

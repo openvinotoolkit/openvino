@@ -25,7 +25,7 @@ from openvino import PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
     torch_tensor_to_ov_const)
-from openvino.frontend.pytorch.fx_normalization import normalize_graph_module
+from openvino.frontend.pytorch.vmap_lowering import lower_vmap_regions
 
 logger = logging.getLogger(__name__)
 
@@ -222,12 +222,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=None,
                  input_types=None, dynamic_shapes=False,
-                 op_type_mapping=None, output_names=None, normalize=True):
+                 op_type_mapping=None, output_names=None):
         super().__init__(mark_node_callback)
-        if normalize and isinstance(pt_module, torch.fx.GraphModule):
-            normalized = normalize_graph_module(pt_module)
-            fx_gm = normalized if fx_gm is pt_module else fx_gm
-            pt_module = normalized
+        if isinstance(pt_module, torch.fx.GraphModule):
+            lowered = lower_vmap_regions(pt_module)
+            fx_gm = lowered if fx_gm is pt_module else fx_gm
+            pt_module = lowered
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
@@ -673,8 +673,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             subgraph,
             subgraph,  # Use subgraph as fx_gm for proper constant resolution
             mark_node_callback=self.mark_node_callback,
-            op_type_mapping=self._module_extension_target_ops,
-            normalize=False
+            op_type_mapping=self._module_extension_target_ops
         )
         self.m_decoders.append(decoder)
         return decoder

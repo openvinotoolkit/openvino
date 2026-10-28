@@ -16,7 +16,6 @@
 #include "openvino/op/logical_xor.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
-#include "translate_session.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
@@ -31,9 +30,6 @@ OutputVector translate_diff(const NodeContext& context) {
         if (!context.input_is_none(5)) {
             result = ComplexTypeMark::convert_like(context, result, context.get_input(5));
             context.mutate_input(5, result);
-            const auto decoder = context.get_decoder();
-            context.get_session()
-                ->m_may_be_alias[decoder->output(0)] = {decoder->inputs().at(5), decoder, result, result, {}, true};
         }
         return {result};
     };

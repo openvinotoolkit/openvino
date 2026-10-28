@@ -71,17 +71,13 @@ Outputs of such a region that are its operands or their views keep the alias rel
 so later in-place operations on them update the operands. This does not require
 `ExportedProgram.run_decompositions()` or an additional trace.
 
-### Exported batching and wrapped callables
+### Exported `torch.vmap` regions
 
-Before conversion, the FX decoder normalizes the graph and its nested bodies once,
-leaving the original graph unchanged. Each `flat_apply` callable is traced with
-the tensor and symbolic metadata of its runtime operands and inlined in place of
-the call, so its outputs, nested containers and aliases are converted like any
-other FX nodes. Each `torch.vmap` region is traced into vectorized ATen operations
-and inlined the same way. Neither step introduces OpenVINO loops, calls
-`run_decompositions()` or retraces the entire program. A trace must not specialize
-runtime values or introduce new shape guards. Mutation and randomness inside
-`torch.vmap` are rejected.
+The FX decoder replaces each exported `torch.vmap` region with its vectorized ATen
+operations, traced from the tensor and symbolic metadata of the region operands.
+Operations inside the region, including `flat_apply` calls, are traced as well.
+The original graph stays unchanged, no OpenVINO loops are introduced, and the
+trace must not introduce new shape guards.
 
 ## How to Implement Support for a New PyTorch Operation
 

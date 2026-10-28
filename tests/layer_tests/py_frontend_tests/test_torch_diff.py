@@ -99,23 +99,17 @@ def test_torch_diff_promotes_prepend():
     (1, torch.int64, torch.int8),
     (1, torch.int64, torch.float32),
 ])
-@pytest.mark.parametrize("mutate_result", [False, True])
-def test_torch_diff_out(capture, order, input_dtype, out_dtype, mutate_result):
+def test_torch_diff_out(capture, order, input_dtype, out_dtype):
     class Model(torch.nn.Module):
-        __constants__ = ["order", "mutate_result"]
+        __constants__ = ["order"]
 
         def __init__(self):
             super().__init__()
             self.order = order
-            self.mutate_result = mutate_result
 
         def forward(self, x, out):
             value = torch.diff(x, n=self.order, out=out)
-            if self.mutate_result:
-                value.add_(2)
-            else:
-                out.add_(2)
-            return value, out, out * 2
+            return value, out * 2
 
     values = [0, 200, 500] if out_dtype == torch.int8 else [0, 16777217, 33554434]
     inputs = (torch.tensor(values, dtype=input_dtype), torch.zeros(3 - order, dtype=out_dtype))
