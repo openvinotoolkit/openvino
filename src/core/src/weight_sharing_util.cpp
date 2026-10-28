@@ -14,7 +14,9 @@
 
 namespace {
 
-bool set_source_buffer(ov::wsh::WeightSourceRegistry& sources, const ov::wsh::WeightBuffer& buffer, const std::string& device = {}) {
+bool set_source_buffer(ov::wsh::WeightSourceRegistry& sources,
+                       const ov::wsh::WeightBuffer& buffer,
+                       const std::string& device = {}) {
     const auto& desc = buffer ? buffer->get_descriptor() : nullptr;
     const auto source_id = desc ? desc->get_id() : ov::wsh::invalid_source_id;
     if (source_id != ov::wsh::invalid_source_id) {

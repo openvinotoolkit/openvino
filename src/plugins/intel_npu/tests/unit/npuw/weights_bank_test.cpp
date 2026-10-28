@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "weights_bank.hpp"
+
 #include <gtest/gtest.h>
 
 #include <cstring>
@@ -12,12 +14,11 @@
 
 #include "fake_npu_remote_context.hpp"
 #include "lazy_tensor.hpp"
-#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
-#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "serialization.hpp"
-#include "weights_bank.hpp"
+#include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
 
@@ -31,7 +32,7 @@ std::vector<float> read_f32(const ov::Tensor& tensor) {
 }
 
 void expect_weight_sources_equal(const ov::weight_sharing::WeightSourceRegistry& expected,
-                                const ov::weight_sharing::WeightSourceRegistry& actual) {
+                                 const ov::weight_sharing::WeightSourceRegistry& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     for (const auto& [source_id, expected_source] : expected) {
         const auto actual_source_it = actual.find(source_id);
@@ -96,12 +97,10 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
     Bank bank_instance(m_core, device, "first-bank", shared_context);
 
     std::vector<std::shared_ptr<ov::op::v0::Constant>> constants;
-    constants.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                               ov::Shape{2},
-                                                               std::vector<float>{1.0f, 2.0f}));
-    constants.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                         ov::Shape{2},
-                                                         std::vector<float>{3.0f, 4.0f}));
+    constants.push_back(
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{1.0f, 2.0f}));
+    constants.push_back(
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{3.0f, 4.0f}));
     // Collect LazyTensor UIDs:
     // either a shared "constant" or a shared "transformation" of such constants.
     // At this point, NPUW doesn't discern shared "constant" and shared "transformation" of constants.
@@ -112,7 +111,7 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
     }
 
     // Evaluate and allocate memory for the "shared transformation" and register it in ov::weight_sharing::Context.
-    // The memory for the "shared transformation" is allocated and registered in the shared context 
+    // The memory for the "shared transformation" is allocated and registered in the shared context
     // as "source_id" that equals to the UID of the "shared transformation",
     // "constant_id" is 0.
     auto statBeforeEvaluate = this->m_remote_context->get_statistics_snapshot();
@@ -126,7 +125,6 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
         ASSERT_NE(uids.find(source_id), uids.end());
         EXPECT_EQ(source.m_device, device);
         EXPECT_FALSE(source.m_weights.expired());
-
     }
     {
         auto handle = bank_instance.get_handle();
@@ -135,15 +133,16 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
         ASSERT_EQ(handle.context.get(), shared_context.get());
     }
     auto statAfterFirstEvaluate = this->m_remote_context->get_statistics_snapshot();
-     if (device != "CPU") {
-        // The number of imported remote tensors must increase by the number of registered UIDs after the first evaluation.
-        ASSERT_EQ(statAfterFirstEvaluate.imported_remote_tensors - statBeforeEvaluate.imported_remote_tensors, uids.size());
+    if (device != "CPU") {
+        // The number of imported remote tensors must increase by the number of registered UIDs after the first
+        // evaluation.
+        ASSERT_EQ(statAfterFirstEvaluate.imported_remote_tensors - statBeforeEvaluate.imported_remote_tensors,
+                  uids.size());
     }
 
     // Add one more "shared transformation" (aka constant) to the bank
-    constants.push_back(std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                         ov::Shape{2},
-                                                         std::vector<float>{5.0f, 6.0f}));
+    constants.push_back(
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{5.0f, 6.0f}));
     for (const auto& constant : constants) {
         uids.insert(bank_instance.registerLT(LazyTensor(constant), device));
     }
@@ -154,7 +153,8 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
     ASSERT_EQ(shared_context->m_runtime_sources.size(), uids.size());
     const auto sources_after_second_evaluate = shared_context->m_runtime_sources;
     for (const auto& [source_id, source] : sources_after_second_evaluate) {
-        // REQUIREMENT reinforcement: "source_id" from ov::weight_sharing::Context must match UID of "shared transformation"
+        // REQUIREMENT reinforcement: "source_id" from ov::weight_sharing::Context must match UID of "shared
+        // transformation"
         ASSERT_NE(uids.find(source_id), uids.end());
         EXPECT_EQ(source.m_device, device);
         EXPECT_FALSE(source.m_weights.expired());
@@ -167,8 +167,10 @@ TEST_P(WeightsBankTest, EvaluationUpdatesRuntimeWeightSources) {
     }
     auto statAfterSecondEvaluate = this->m_remote_context->get_statistics_snapshot();
     if (device != "CPU") {
-        // The number of imported remote tensors must increase by the number of registered UIDs after the second evaluation.
-        ASSERT_EQ(statAfterSecondEvaluate.imported_remote_tensors - statBeforeEvaluate.imported_remote_tensors, uids.size());
+        // The number of imported remote tensors must increase by the number of registered UIDs after the second
+        // evaluation.
+        ASSERT_EQ(statAfterSecondEvaluate.imported_remote_tensors - statBeforeEvaluate.imported_remote_tensors,
+                  uids.size());
     }
 }
 
@@ -177,9 +179,8 @@ TEST_P(WeightsBankTest, EvaluationFallsBackWithoutWeightSharingContext) {
     using ov::npuw::weights::LazyTensor;
 
     const auto& device = GetParam();
-    auto constant = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                           ov::Shape{2},
-                                                           std::vector<float>{5.0f, 6.0f});
+    auto constant =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{5.0f, 6.0f});
     Bank bank(m_core, device, "bank-without-context");
     const auto uid = bank.registerLT(LazyTensor(constant), device);
 
@@ -196,12 +197,9 @@ TEST_P(WeightsBankTest, WeightSharingAndLegacyFormatsMatchAndRoundtrip) {
     using ov::npuw::weights::LazyTensor;
 
     const auto& device = GetParam();
-    auto first = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                        ov::Shape{2},
-                                                        std::vector<float>{1.0f, 2.0f});
-    auto second = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                         ov::Shape{2},
-                                                         std::vector<float>{3.0f, 4.0f});
+    auto first = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{1.0f, 2.0f});
+    auto second =
+        std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{2}, std::vector<float>{3.0f, 4.0f});
 
     Bank original(m_core, device, "original-bank");
     auto orig_weight_sharing_context = std::make_shared<ov::weight_sharing::Context>();
