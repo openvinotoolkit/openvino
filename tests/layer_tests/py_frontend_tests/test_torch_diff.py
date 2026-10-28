@@ -95,6 +95,30 @@ def test_torch_diff_promotes_prepend():
 @pytest.mark.precommit
 @pytest.mark.nightly
 @pytest.mark.parametrize("capture", ["export", "script"])
+@pytest.mark.parametrize("prepend_dtype,input_dtype,prepend_value,input_value", [
+    (torch.int32, torch.float16, 2049, 2048),
+    (torch.float16, torch.int32, 2048, 2049),
+])
+def test_torch_diff_promotes_all_boundaries(capture, prepend_dtype, input_dtype, prepend_value, input_value):
+    model = Diff(1, -1, True, True).eval()
+    inputs = (torch.tensor([input_value], dtype=input_dtype),
+              torch.tensor([prepend_value], dtype=prepend_dtype),
+              torch.tensor([2048], dtype=torch.float32))
+    program = torch.export.export(model, inputs) if capture == "export" else torch.jit.script(model)
+    converted = ov.convert_model(program, example_input=inputs if capture == "script" else None)
+    expected = model(*inputs).numpy()
+    reference = ov.Tensor(np.empty_like(expected))
+    assert converted.evaluate([reference], [ov.Tensor(value.numpy()) for value in inputs])
+    np.testing.assert_array_equal(reference.data, expected)
+    compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    actual = compiled([x.numpy() for x in inputs])[0]
+    assert actual.dtype == expected.dtype
+    np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.precommit
+@pytest.mark.nightly
+@pytest.mark.parametrize("capture", ["export", "script"])
 @pytest.mark.parametrize("order,input_dtype,out_dtype", [
     (0, torch.float32, torch.float32),
     (1, torch.float32, torch.float32),

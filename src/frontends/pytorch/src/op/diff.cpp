@@ -75,6 +75,7 @@ OutputVector translate_diff(const NodeContext& context) {
             --axis;
         }
     }
+    const auto original_values = values;
     value = values.front();
     for (size_t i = 1; i < values.size(); ++i) {
         auto promoted = context.mark_node(std::make_shared<v14::ConvertPromoteTypes>(value, values[i], true));
@@ -82,9 +83,11 @@ OutputVector translate_diff(const NodeContext& context) {
         values[i] = promoted->output(1);
     }
     values[0] = value;
-    // The last value already has the final promoted type.
-    for (size_t i = 1; i + 1 < values.size(); ++i) {
-        values[i] = context.mark_node(std::make_shared<v1::ConvertLike>(values[i], value));
+    if (values.size() > 2) {
+        // Convert originals directly to the final type to avoid intermediate rounding.
+        for (size_t i = 0; i + 1 < values.size(); ++i) {
+            values[i] = context.mark_node(std::make_shared<v1::ConvertLike>(original_values[i], value));
+        }
     }
     if (values.size() > 1) {
         value = context.mark_node(std::make_shared<v0::Concat>(values, axis));
