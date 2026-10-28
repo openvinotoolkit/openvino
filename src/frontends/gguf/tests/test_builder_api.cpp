@@ -286,7 +286,9 @@ TEST(GGUFBuilderAPI, RopeScalingDefaultsAndPositiveFactors) {
     Environment env;
     env.decoder();
     EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")), 1.0f);
-    for (const float factor : {0.0f, 1.0f, 4.0f}) {
+    for (const float factor :
+         {0.0f, -0.0f, 1.0f, 4.0f, std::numeric_limits<float>::min(), std::numeric_limits<float>::max()}) {
+        SCOPED_TRACE(factor);
         env.real("test.rope.scaling.factor", factor);
         EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")),
                         factor == 0.0f ? 1.0f : 1.0f / factor);
