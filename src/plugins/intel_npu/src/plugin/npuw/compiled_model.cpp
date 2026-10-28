@@ -1495,6 +1495,7 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
     const auto& bf16_cache = bf16_consts != nullptr ? *bf16_consts : m_bf16_consts;
 
     serializable_props.erase(ov::cache_encryption_callbacks.name());
+    serializable_props.erase(ov::internal::model_sharing_context.name());
     s11n::WeightsContext weights_ctx(is_weightless, m_const_to_offset);
 
     auto write_children = [&](std::ostream& body_stream) {
