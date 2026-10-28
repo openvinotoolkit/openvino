@@ -99,6 +99,35 @@ TEST_F(TypePropQSAPrepareTest, dynamic_key_length_keeps_block_count_dynamic) {
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{2, 128}));
 }
 
+TEST_F(TypePropQSAPrepareTest, dynamic_key_length_is_bounded_by_the_cached_blocks) {
+    const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                            param(element::f32, PartialShape{1, 10, 128}),
+                            param(element::i32, PartialShape{1}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{128}),
+                            param(element::f32, PartialShape{1, 3, 128}),
+                            param(element::f32, PartialShape{1, 128}),
+                            4);
+
+    // At most the 10 cached blocks plus ceil(8 / 4) completed by the new tokens.
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, Dimension(0, 12), 128}));
+}
+
+TEST_F(TypePropQSAPrepareTest, negative_key_length_value) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 8, 128}),
+                                          Constant::create(element::i32, Shape{1}, {-5}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{1, 128}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The key_length values must be non-negative."));
+}
+
 TEST_F(TypePropQSAPrepareTest, rotation_disabled_by_empty_rope) {
     const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
                             param(element::f32, PartialShape{1, 0, 128}),

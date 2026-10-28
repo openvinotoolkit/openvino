@@ -212,6 +212,19 @@ TEST_F(TypePropSparseAttentionIndexerTest, dynamic_rank_index_query_with_index_w
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{2, 1, 7}));
 }
 
+TEST_F(TypePropSparseAttentionIndexerTest, index_heads_taken_from_index_weights) {
+    // index_weights is the only source of the index head count once index_query has a dynamic rank.
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape::dynamic()),
+                                          param(element::f32, PartialShape{2, 2500, 128}),
+                                          param(element::i32, PartialShape{2}),
+                                          param(element::f32, PartialShape{2, 7, 5}),
+                                          4,
+                                          2048,
+                                          2),
+                    NodeValidationFailure,
+                    HasSubstr("The number of index query heads must be divisible by num_selection_heads."));
+}
+
 TEST_F(TypePropSparseAttentionIndexerTest, symbols_propagation) {
     auto index_query_shape = PartialShape{-1, 4, -1, 128};
     auto index_query_symbols = set_shape_symbols(index_query_shape);
