@@ -27,9 +27,25 @@
 namespace ov {
 namespace test {
 
-// T5-like block: RMSNorm -> MatMul -> Gelu -> MatMul -> Add(residual) -> RMSNorm,
-// the second MatMul output exceeds the f16 range. Like T5's attention mask, a Broadcast takes its target
-// shape from ShapeOf(RMSNorm), so ActivationsScaling also processes the i32 shape subgraph.
+// T5-like block, the second MatMul output exceeds the f16 range. Like T5's attention mask, a Broadcast
+// takes its target shape from ShapeOf(RMSNorm), so ActivationsScaling also processes the i32 shape subgraph.
+//
+//       input
+//         │
+//   ┌─────┴─────┐
+//   │        RMSNorm ──────► ShapeOf
+//   │           │               │
+//   │        MatMul      Gather(batch, seq)
+//   │           │               │
+//   │         Gelu           Concat
+//   │           │               │
+//   │        MatMul        Broadcast(mask)
+//   │           │               │
+//   └────Add────┘            Result
+//         │
+//      RMSNorm
+//         │
+//       Result
 class ActivationsScalingCPUTest : public testing::WithParamInterface<float>, virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<float>& obj) {

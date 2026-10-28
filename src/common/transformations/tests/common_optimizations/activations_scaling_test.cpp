@@ -352,8 +352,10 @@ std::ostream& operator<<(std::ostream& os, NormType type) {
         return os << "RMSWithoutGamma";
     case NormType::MVN:
         return os << "MVN";
-    default:
+    case NormType::GroupNorm:
         return os << "GroupNorm";
+    default:
+        OPENVINO_THROW("Unknown NormType");
     }
 }
 

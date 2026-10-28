@@ -268,6 +268,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             const auto rows = gate_w.get_shape()[0];
             std::vector<float> row_scales(rows, scale_const->cast_vector<float>()[0]);
             if (gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
+                // combined weights hold the gate and up rows in two halves; only the gate half is scaled
                 const size_t up_begin = (gate_up_type == LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP) ? rows / 2 : 0;
                 std::fill_n(row_scales.begin() + static_cast<std::ptrdiff_t>(up_begin), rows / 2, 1.0F);
             }
@@ -279,6 +280,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             }
             new_args[gate_idx] = folded;
             if (gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
+                // the combined tensor is passed as both the gate and the up input
                 new_args[gate_idx + 1] = folded;
             }
         }
