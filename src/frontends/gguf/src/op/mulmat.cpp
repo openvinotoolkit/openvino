@@ -21,6 +21,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -34,6 +35,32 @@ OutputVector translate_mulmat(const NodeContext& context) {
     ov::Output<ov::Node> B = context.get_input(0);
     ov::Output<ov::Node> A = context.get_input(1);
     A = apply_hadamard(context, A);
+
+    if (B.get_element_type().is_gguf_block()) {
+        FRONT_END_OP_CONVERSION_CHECK(op_case == 0 && B.get_element_type() == ov::element::gguf_q4_k &&
+                                          ov::is_type<ov::op::v0::Constant>(B.get_node_shared_ptr()) &&
+                                          B.get_partial_shape().is_static() && B.get_shape().size() == 2 &&
+                                          B.get_shape()[0] > 0 && B.get_shape()[1] > 0 &&
+                                          B.get_shape()[1] % B.get_element_type().block_elem_count() == 0,
+                                      "Unsupported raw GGUF MatMul weight or op_case: ",
+                                      context.get_name());
+        FRONT_END_OP_CONVERSION_CHECK(A.get_element_type() == ov::element::f32 ||
+                                          A.get_element_type() == ov::element::f16,
+                                      "Raw GGUF MatMul requires F16/F32 activation: ",
+                                      context.get_name());
+        if (A.get_element_type() != ov::element::f32) {
+            A = std::make_shared<ov::op::v0::Convert>(A, ov::element::f32);
+        }
+        const auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::internal::FullyConnectedCompressed>(A,
+                                                                         B,
+                                                                         absent,
+                                                                         absent,
+                                                                         absent,
+                                                                         ov::element::f32)},
+            context.get_name());
+    }
 
     bool transpose_b = true;
     if (op_case == 2) {

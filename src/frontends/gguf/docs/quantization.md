@@ -108,8 +108,17 @@ the default representation. Every row must contain whole blocks; normal file bou
 and checked element/byte counts apply before creating a view.
 
 The existing `make_weight_node(WeightTensors, ...)` rejects raw block tensors explicitly.
-A legal floating-point graph boundary and GPU lowering are not implemented yet. Raw
-loading alone does not establish native GPU execution or model accuracy.
+The shared native weight translator can instead expose a validated, nonempty 2D raw
+Q4_K Constant. The default `GGML_OP_MUL_MAT` case consumes it through the existing
+internal `FullyConnectedCompressed` operation with F32 output, without converting the
+weight to a scalar type. F16 activations are converted to F32, matching the existing
+translator semantics. Empty F32 Constants represent absent bias, scale and zero point;
+the actual quantization parameters remain inside the raw blocks.
+
+Other raw consumers, including Gather and special MatMul view/transpose cases, are
+explicitly rejected. This boundary is internal-only: the normal FrontEnd/GenAI loader
+still does not select raw loading. GPU lowering and native kernel execution are not
+implemented yet, and graph conversion alone does not establish model accuracy.
 
 ## Floating-point formats
 

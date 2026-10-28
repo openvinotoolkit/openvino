@@ -43,6 +43,17 @@ OutputVector translate_weight(const NodeContext& context) {
         };
         FRONT_END_OP_CONVERSION_CHECK(tensors.weight, "GGML_OP_NONE weight leaf has no 'gguf.blob.weight' attribute");
         auto qtype = static_cast<GgufTensorType>(context.get_attribute<int>("gguf_qtype"));
+        if (tensors.weight.get_element_type().is_gguf_block()) {
+            const auto& shape = tensors.weight.get_shape();
+            FRONT_END_OP_CONVERSION_CHECK(tensors.weight.get_element_type() == ov::element::gguf_q4_k &&
+                                              qtype == GGUF_TYPE_Q4_K && !tensors.scales && !tensors.zero_point &&
+                                              shape.size() == 2 && shape[0] > 0 && shape[1] > 0 &&
+                                              shape[1] % tensors.weight.get_element_type().block_elem_count() == 0,
+                                          "Unsupported raw GGUF weight contract: ",
+                                          context.get_name());
+            return rename_outputs_with_suffix({std::make_shared<ov::op::v0::Constant>(tensors.weight)},
+                                              context.get_name());
+        }
         auto node = make_weight_node(tensors, qtype, context.get_name());
         return rename_outputs_with_suffix({std::move(node)}, context.get_name());
     }

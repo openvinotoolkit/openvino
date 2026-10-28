@@ -16,11 +16,15 @@
 #include <fstream>
 #include <vector>
 
+#include "builder/gguf_builder_decoder.hpp"
+#include "builder/graph_emitter.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/pass/constant_folding.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 #include "quant/gguf.hpp"
 #include "quant/weights.hpp"
 
@@ -54,6 +58,121 @@ ov::Tensor bytes_to_u8_tensor(const std::vector<uint8_t>& bytes) {
 }  // namespace
 
 class GGUFWeight : public ::testing::TestWithParam<WeightCase> {};
+
+TEST(GGUFRawCompressedFC, PreservesPayloadAndInfersFloatingOutputs) {
+    const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
+    ov::Tensor storage(ov::element::gguf_q4_k, {kRows, kCols});
+    ASSERT_EQ(storage.get_byte_size(), bytes.size());
+    std::memcpy(storage.data(), bytes.data(), bytes.size());
+    const auto weight = std::make_shared<ov::op::v0::Constant>(storage);
+    const auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+    const std::vector<ov::PartialShape> inputs{{kCols}, {-1, kCols}, {2, -1, kCols}};
+    const std::vector<ov::PartialShape> outputs{{kRows}, {-1, kRows}, {2, -1, kRows}};
+    for (const auto output_type : {ov::element::f32, ov::element::f16}) {
+        for (size_t index = 0; index < inputs.size(); ++index) {
+            const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputs[index]);
+            const auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(activation,
+                                                                                        weight,
+                                                                                        absent,
+                                                                                        absent,
+                                                                                        absent,
+                                                                                        output_type);
+            EXPECT_EQ(fc->get_output_partial_shape(0), outputs[index]);
+            EXPECT_EQ(fc->get_output_element_type(0), output_type);
+            const auto clone = fc->clone_with_new_inputs({activation, weight, absent, absent, absent});
+            EXPECT_EQ(clone->get_output_partial_shape(0), outputs[index]);
+            EXPECT_EQ(clone->get_output_element_type(0), output_type);
+            EXPECT_EQ(clone->get_input_node_shared_ptr(1), weight);
+        }
+    }
+    const auto activation = ov::op::v0::Constant::create(ov::element::f32, {2, kCols}, {0.f});
+    const auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(activation,
+                                                                                weight,
+                                                                                absent,
+                                                                                absent,
+                                                                                absent,
+                                                                                ov::element::f32);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{});
+    ov::pass::ConstantFolding().run_on_model(model);
+    EXPECT_EQ(model->get_results().at(0)->get_input_node_shared_ptr(0), fc);
+    EXPECT_EQ(fc->get_input_node_shared_ptr(1), weight);
+    EXPECT_EQ(weight->get_data_ptr(), storage.data());
+    EXPECT_EQ(std::memcmp(weight->get_data_ptr(), bytes.data(), bytes.size()), 0);
+}
+
+TEST(GGUFRawCompressedFC, RejectsIncompatibleReductionDimension) {
+    const auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, kCols / 2});
+    const auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, ov::Shape{kRows, kCols});
+    const auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+    EXPECT_ANY_THROW(std::make_shared<ov::op::internal::FullyConnectedCompressed>(activation,
+                                                                               weight,
+                                                                               absent,
+                                                                               absent,
+                                                                               absent,
+                                                                               ov::element::f32));
+}
+
+TEST(GGUFRawCompressedFC, SharedEmitterPreservesRawWeightThroughConversion) {
+    const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
+    for (const auto activation_type : {ov::element::f32, ov::element::f16}) {
+        std::unordered_map<std::string, ov::Tensor> weights;
+        weights.emplace("projection.weight", ov::Tensor(ov::element::gguf_q4_k, {kRows, kCols}));
+        std::memcpy(weights.at("projection.weight").data(), bytes.data(), bytes.size());
+        std::unordered_map<std::string, GgufTensorType> qtypes{{"projection.qtype", GGUF_TYPE_Q4_K}};
+        GraphEmitter emitter(weights, qtypes, "test");
+        emitter.add_input("activation", activation_type, {1, 1, -1, kCols});
+        emitter.add_weight("projection.weight");
+        emitter.add_op("GGML_OP_MUL_MAT", "first", {"projection.weight", "activation"});
+        emitter.add_op("GGML_OP_MUL_MAT", "second", {"projection.weight", "activation"});
+        emitter.graph()->model_output_names = {"first", "second"};
+        std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+        FrontEnd frontend;
+        const auto model = frontend.convert(frontend.load(decoder));
+        std::shared_ptr<ov::Node> shared_weight;
+        for (const auto& result : model->get_results()) {
+            const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+                result->get_input_node_shared_ptr(0));
+            ASSERT_TRUE(fc);
+            EXPECT_EQ(fc->get_output_partial_shape(0), (ov::PartialShape{1, 1, -1, kRows}));
+            EXPECT_EQ(fc->get_output_element_type(0), ov::element::f32);
+            const auto raw = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+            ASSERT_TRUE(raw);
+            EXPECT_EQ(raw->get_element_type(), ov::element::gguf_q4_k);
+            EXPECT_EQ(raw->get_data_ptr(), weights.at("projection.weight").data());
+            EXPECT_EQ(raw->get_byte_size(), bytes.size());
+            EXPECT_EQ(std::memcmp(raw->get_data_ptr(), bytes.data(), bytes.size()), 0);
+            if (shared_weight) {
+                EXPECT_EQ(raw, shared_weight);
+            }
+            shared_weight = raw;
+            for (size_t input = 2; input < 5; ++input) {
+                EXPECT_EQ(fc->get_input_shape(input), (ov::Shape{0}));
+            }
+        }
+    }
+}
+
+TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
+    std::unordered_map<std::string, ov::Tensor> weights;
+    weights.emplace("projection.weight", ov::Tensor(ov::element::gguf_q4_k, {kRows, kCols}));
+    std::unordered_map<std::string, GgufTensorType> qtypes{{"projection.qtype", GGUF_TYPE_Q4_K}};
+    GraphEmitter emitter(weights, qtypes, "test");
+    emitter.add_input("activation", ov::element::f32, {1, 1, 2, kCols});
+    emitter.add_weight("projection.weight");
+    for (const auto op_case : {1, 2, 3}) {
+        EXPECT_ANY_THROW(emitter.add_op("GGML_OP_MUL_MAT",
+                                       "unsupported_case",
+                                       {"projection.weight", "activation"},
+                                       op_case));
+    }
+    emitter.add_input("indices", ov::element::i32, {2});
+    EXPECT_THROW(emitter.add_op("GGML_OP_GET_ROWS", "embedding", {"projection.weight", "indices"}),
+                 ov::frontend::OpConversionFailure);
+    EXPECT_THROW(emitter.add_op("GGML_OP_ADD", "add", {"projection.weight", "activation"}),
+                 ov::frontend::OpConversionFailure);
+    EXPECT_THROW(emitter.add_op("GGML_OP_MUL_MAT", "raw_activation", {"activation", "projection.weight"}),
+                 ov::frontend::OpConversionFailure);
+}
 
 // Convert a GGML_OP_NONE weight node and check the produced (constant-foldable) dequant against
 // ggml's to_float reference.

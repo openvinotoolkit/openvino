@@ -136,6 +136,16 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   operation_type,
                                   " is not implemented.");
     NodeContext node_context(decoder, tensor_map);
+    for (size_t index = 0; index < node_context.get_input_size(); ++index) {
+        if (node_context.get_input(static_cast<int>(index)).get_element_type().is_gguf_block()) {
+            FRONT_END_OP_CONVERSION_CHECK(operation_type == "GGML_OP_MUL_MAT" && index == 0,
+                                          "Unsupported raw GGUF consumer ",
+                                          operation_type,
+                                          " at ",
+                                          decoder->get_op_name(),
+                                          "; only the MatMul weight input is supported");
+        }
+    }
     converted_outputs = it->second(node_context);
 
     const auto& node_output_names = decoder->get_output_names();
