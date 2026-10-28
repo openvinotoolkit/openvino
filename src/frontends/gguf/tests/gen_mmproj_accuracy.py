@@ -278,6 +278,7 @@ def single_grid_width(projector):
 VARIANTS = ("_4x", "_resize", "_overview", "_one_sided", "_low_contrast")
 # mmproj_ops_oracle output file -> test_data .npy name.
 OPS_EXPECTATIONS = {
+    "view_q8_input": "view_q8_input", "view_q8_34": "view_q8_34", "view_q8_102": "view_q8_102",
     "window_input": "mmproj_window_input", "windows": "mmproj_windows", "restored": "mmproj_restored",
     "relative_table": "mmproj_relative_table", "relative": "mmproj_relative",
     "vision": "vision_rope_expected", "imrope": "multimodal_imrope_expected",
