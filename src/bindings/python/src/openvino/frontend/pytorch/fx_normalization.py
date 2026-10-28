@@ -105,9 +105,9 @@ def _inline_flat_apply(graph, owner, node, prefix):
     if not all(isinstance(leaf, torch.fx.Node) for leaf in leaves):
         raise RuntimeError("flat_apply supports tensor or symbolic outputs and nested lists/tuples of them")
     _replace_with_structure(node, result)
-    metadata = [arg for arg in node.args[:2] if isinstance(arg, torch.fx.Node)]
+    attributes = [arg for arg in node.args if isinstance(arg, torch.fx.Node) and arg.op == "get_attr"]
     graph.erase_node(node)
-    for arg in metadata:
+    for arg in attributes:
         if not arg.users:
             graph.erase_node(arg)
 
@@ -227,6 +227,7 @@ def normalize_graph_module(module):
         return module
 
     graph = torch.fx.Graph()
+    graph.set_codegen(module.graph._codegen)
     graph.output(graph.graph_copy(module.graph, {}))
     result = torch.fx.GraphModule(module, graph)
     for name, child in children.items():
