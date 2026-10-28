@@ -9,6 +9,7 @@
 #include <ze_graph_ext.h>
 
 #include <mutex>
+#include <variant>
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -28,7 +29,14 @@ public:
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false);
 
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    /**
+     * @brief Writes the compiler main schedule to the provided stream, along with some padding for page alignment. The
+     * format is "raw": no additional metadata are written.
+     *
+     * @param stream Where the content is placed
+     * @return The total size written into the stream
+     */
+    uint64_t export_main_blob(const ov::runtime::hsm::SectionSink& sink) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
 
@@ -70,6 +78,21 @@ protected:
 
     bool release_blob(const Config& config);
     std::optional<size_t> determine_batch_size();
+
+    /**
+     * @brief Writes a blob into a stream, where the "blob" contains only a single compiler schedule.
+     *
+     * @param graphDescriptorOrTensor Where the blob will be taken from
+     * @param stream Where the blob will be written
+     * @param computeHash The has will be computed and returned if set to `true`
+     * @return The size of the written blob without padding, the size with padding and the hash of the blob if
+     * requested.
+     */
+    std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> write_blob(
+        const std::variant<std::reference_wrapper<const GraphDescriptor>, std::reference_wrapper<const ov::Tensor>>&
+            graphDescriptorOrTensor,
+        const ov::runtime::hsm::SectionSink& sink,
+        const bool computeHash) const;
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 

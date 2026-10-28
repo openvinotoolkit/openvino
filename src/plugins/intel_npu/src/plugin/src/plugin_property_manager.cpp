@@ -15,9 +15,11 @@
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
-#include "metadata.hpp"
+#include "runtime_requirements_validation.hpp"
 
 namespace {
+
+using namespace intel_npu;
 
 void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -44,56 +46,6 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
                                                      ov::compatibility_check.name());
     } catch (...) {
         return false;
-    }
-}
-
-ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
-                                                       const ov::AnyMap& arguments,
-                                                       intel_npu::CompilerOptionSupportHelper& optionSupportHelper) {
-    using namespace intel_npu;
-
-    if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
-
-    const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
-
-    if (runtimeRequirements.empty()) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
-
-    std::unique_ptr<MetadataBase> metadata = nullptr;
-    try {
-        metadata = read_as_text(runtimeRequirements);
-    } catch (...) {
-        return ov::CompatibilityCheck::UNSUPPORTED;
-    }
-
-    const auto descriptorView = metadata->get_compatibility_descriptor();
-    std::string compatibilityDescriptor = descriptorView.has_value() ? std::string(descriptorView.value()) : "";
-
-    if (compatibilityDescriptor.empty()) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
-
-    OPENVINO_ASSERT(backend && backend->getDevice(), "Device is not available for compatibility descriptor validation");
-
-    const auto device = backend->getDevice();
-    const auto initStructs = backend->getInitStructs();
-
-    if (device != nullptr && initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
-        auto result = device->validateCompatibilityDescriptor(compatibilityDescriptor);
-        return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
-    }
-
-    // Fallback routed through the option support helper.
-    try {
-        const bool supported = optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
-                                                                     ov::compatibility_check.name(),
-                                                                     std::make_optional(compatibilityDescriptor));
-        return supported ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
-    } catch (...) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 }
 
@@ -915,7 +867,7 @@ void PluginPropertyManager::registerProperties() {
             return compatibilityCheckSupportCache->value();
         },
         [this](const ov::AnyMap& arguments) { 
-            return validateCompatibilityDescriptor(_backend, arguments, *_compilerOptionSupportHelper);
+            return validateCompatibilityDescriptor(arguments, _backend, _compilerOptionSupportHelper);
         },
         readOnlySetter
     );

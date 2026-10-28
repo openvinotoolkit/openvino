@@ -1,0 +1,27 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include "intel_npu/common/isection.hpp"
+
+namespace intel_npu {
+
+class CompilerVersionSection final : public ISection {
+public:
+    CompilerVersionSection(const int32_t version);
+
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
+
+    int32_t get_compiler_version() const;
+
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
+
+private:
+    int32_t m_compiler_version;
+
+    Logger m_logger;
+};
+
+}  // namespace intel_npu

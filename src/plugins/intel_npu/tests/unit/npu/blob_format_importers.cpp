@@ -15,6 +15,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
 
 using namespace intel_npu;
 
@@ -59,6 +60,7 @@ struct BlobFormatImportersTest : public ::testing::Test {
     Config config;
 };
 
+// TODO can probably move the backend ptr out of the ctor after adapting the OV format
 /**
  * @brief Empty blobs should not be accepted by the importer factory
  */
@@ -66,11 +68,15 @@ TEST_F(BlobFormatImportersTest, FactoryEmptyInputFails) {
     const std::string empty_buffer("");
     std::istringstream input_stream(empty_buffer);
     BlobSource source(input_stream);
-    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, {nullptr}, nullptr, config),
+                    ov::Exception,
+                    _);
 
     const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({0}), empty_buffer.data());
     source = BlobSource(input_tensor);
-    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, {nullptr}, nullptr, config),
+                    ov::Exception,
+                    _);
 }
 
 /**
@@ -85,42 +91,49 @@ TEST_F(BlobFormatImportersTest, FactoryTensorSmallerThanMagicFails) {
                                       ov::Shape({blob.size()}),
                                       const_cast<char*>(blob.data()));
         BlobSource source(input_tensor);
-        OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
+        OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, {nullptr}, nullptr, config),
+                        ov::Exception,
+                        _);
     }
 }
 
 /**
- * @brief Non-raw blobs must contain the magic bytes
+ * @brief Format v1 blobs ("metadata format") must contain the magic bytes
  */
 TEST_F(BlobFormatImportersTest, FactoryNoMagicNoRawFails) {
     const std::string blob = build_blob_format_v1_without_magic();
 
     std::istringstream input_stream(blob);
     BlobSource source(input_stream);
-    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, {nullptr}, nullptr, config),
+                    ov::Exception,
+                    _);
 
     const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
     source = BlobSource(input_tensor);
-    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, {nullptr}, nullptr, config),
+                    ov::Exception,
+                    _);
 }
 
 /**
- * @brief Only raw blobs can be created when the magic bytes are missing
+ * @brief Raw blobs do not require any magic bytes
  */
 TEST_F(BlobFormatImportersTest, FactoryNoMagicRawPasses) {
     const std::string blob(RAW_BLOB);
 
     std::istringstream input_stream(blob);
     BlobSource source(input_stream);
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, true, nullptr, config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, true, nullptr, {nullptr}, nullptr, config));
 
     const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
     source = BlobSource(input_tensor);
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, true, nullptr, config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, true, nullptr, {nullptr}, nullptr, config));
 }
 
 /**
- * @brief If the magic bytes are present at the end of the input, then the factory can create "blob format v1" importers
+ * @brief If the magic bytes are present at the end of the input, then the factory can create "blob format v1"
+ importers
  */
 TEST_F(BlobFormatImportersTest, FactoryCanCreateImporterForBlobFormatV1) {
     const std::string blob = build_blob_format_v1_with_magic();
@@ -129,18 +142,40 @@ TEST_F(BlobFormatImportersTest, FactoryCanCreateImporterForBlobFormatV1) {
     BlobSource stream_source(input_stream);
     BlobSource tensor_source(input_tensor);
 
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, true, nullptr, config));
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, true, nullptr, config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, true, nullptr, {nullptr}, nullptr, config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, true, nullptr, {nullptr}, nullptr, config));
 
     stream_source.seekg(0, std::ios::beg);
     tensor_source.seekg(0, std::ios::beg);
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, false, nullptr, config));
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, nullptr, config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, false, nullptr, {nullptr}, nullptr, config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, nullptr, {nullptr}, nullptr, config));
 
     stream_source.seekg(0, std::ios::beg);
     tensor_source.seekg(0, std::ios::beg);
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, false, create_simple_model(), config));
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, create_simple_model(), config));
+    OV_ASSERT_NO_THROW(
+        blob_format_importer_factory::create(stream_source, false, create_simple_model(), {nullptr}, nullptr, config));
+    OV_ASSERT_NO_THROW(
+        blob_format_importer_factory::create(tensor_source, false, create_simple_model(), {nullptr}, nullptr, config));
+}
+
+TEST_F(BlobFormatImportersTest, BlobFormatV2MissingBackendAndOptionHelper) {
+    std::stringstream input_stream;
+    auto writer = ov::runtime::hsm::DeferredWriter::open(input_stream);
+    ASSERT_TRUE(writer);
+    writer->finalize();
+
+    input_stream.seekg(0);
+    const std::string blob = input_stream.str();
+    const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
+    BlobSource stream_source(input_stream);
+    BlobSource tensor_source(input_tensor);
+
+    OV_EXPECT_THROW(blob_format_importer_factory::create(stream_source, false, nullptr, {nullptr}, nullptr, config),
+                    ov::Exception,
+                    _);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(tensor_source, false, nullptr, {nullptr}, nullptr, config),
+                    ov::Exception,
+                    _);
 }
 
 /**
@@ -151,6 +186,7 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
     const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
     BlobSource source(input_tensor);
 
-    OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(source, true, nullptr, config));
+    OV_ASSERT_NO_THROW(importer =
+                           blob_format_importer_factory::create(source, true, nullptr, {nullptr}, nullptr, config));
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
 }

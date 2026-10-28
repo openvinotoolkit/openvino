@@ -140,7 +140,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     _logger.info("Create DynamicGraph");
 }
 
-std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(std::ostream& stream) const {
+uint64_t DynamicGraph::export_main_blob(const ov::runtime::hsm::SectionSink& sink) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize = 0;
 
@@ -162,12 +162,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
         OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
     }
-    stream.write(reinterpret_cast<const char*>(blobPtr), static_cast<std::streamsize>(blobSize));
-
-    if (!stream) {
-        _logger.error("Write blob to stream failed. Blob is broken!");
-        return std::make_pair(0, std::nullopt);
-    }
+    sink(ov::util::MemoryView(reinterpret_cast<const std::byte*>(blobPtr), blobSize));
 
     if (_logger.level() >= ov::log::Level::INFO) {
         std::uint32_t result = 1171117u;
@@ -181,15 +176,13 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_b
     size_t size = utils::align_size_to_standard_page_size(blobSize);
     size_t paddingSize = size - blobSize;
     if (paddingSize > 0) {
-        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
-        if (!stream) {
-            _logger.error("Write padding to stream failed. Blob is broken!");
-            return std::make_pair(0, std::nullopt);
-        }
+        const std::vector<uint8_t> padding(paddingSize, 0);
+        sink(ov::util::MemoryView(reinterpret_cast<const std::byte*>(padding.data()), padding.size()));
+        // TODO why this log here but not in graph?
         _logger.info("Blob size with padding: %zu", size);
     }
     _logger.info("Write blob to stream successfully.");
-    return std::make_pair(size, std::nullopt);
+    return size;
 }
 
 const NetworkMetadata& DynamicGraph::get_metadata() const {

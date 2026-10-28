@@ -10,15 +10,60 @@
 
 #include "async_infer_request.hpp"
 #include "compiled_model_property_manager.hpp"
+#include "compiler_schedules_sections.hpp"
 #include "executor.hpp"
+#include "hsm_read_write.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "io_layouts_section.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
+
+namespace {
+
+using namespace intel_npu;
+
+bool blob_contains_only_main_schedule(const BlobSectionsRegistry& blobSectionsRegistry) {
+    return (blobSectionsRegistry.count_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
+           !blobSectionsRegistry.count_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
+           !blobSectionsRegistry.count_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
+}
+
+/**
+ * @brief TODO
+ *
+ * @param blobSectionsRegistry
+ * @param config
+ */
+void sync_encryption_callbacks(const BlobSectionsRegistry& blobSectionsRegistry, const Config& config) {
+    std::function<std::string(const std::string&)> encryptionCallback = nullptr;
+    if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data())) {
+        encryptionCallback = config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
+    }
+
+    auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
+        blobSectionsRegistry.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+
+    if (elfMainScheduleSection) {
+        auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
+            blobSectionsRegistry.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+
+        elfMainScheduleSection->set_encryption_callback(encryptionCallback);
+        if (initSchedulesSection) {
+            initSchedulesSection->set_encryption_callback(encryptionCallback);
+        }
+    } else {
+        auto dynamicScheduleSection = std::dynamic_pointer_cast<DynamicScheduleSection>(
+            blobSectionsRegistry.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+        dynamicScheduleSection->set_encryption_callback(encryptionCallback);
+    }
+}
+
+}  // namespace
 
 namespace intel_npu {
 
@@ -26,20 +71,40 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
+                             BlobSectionsRegistry&& blobSectionsRegistry,
                              const Config& config,
-                             const ov::AnyMap& properties,
-                             const std::optional<int64_t>& batchSize)
+                             const ov::AnyMap& properties)
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
-      _batchSize(batchSize),
-      _propertiesManager(
-          std::make_unique<CompiledModelPropertyManager>(config, properties, _device, _graph, _batchSize, _logger)) {
+      _blobSectionsRegistry(std::move(blobSectionsRegistry)),
+      _propertiesManager(std::make_unique<CompiledModelPropertyManager>(config,
+                                                                        properties,
+                                                                        _device,
+                                                                        _graph,
+                                                                        _blobSectionsRegistry,
+                                                                        _logger)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
+
+    // Registed the IO layouts section
+    std::vector<ov::Layout> inputLayouts;
+    std::vector<ov::Layout> outputLayouts;
+
+    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
+        inputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
+        outputLayouts.push_back(
+            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    }
+
+    _blobSectionsRegistry.register_section(
+        std::make_shared<IOLayoutsSection>(std::move(inputLayouts), std::move(outputLayouts)));
 
     // Immediate-init path: when weights load is not deferred, initialize the graph now.
     // The deferred path (CREATE_EXECUTOR off or DEFER_WEIGHTS_LOAD on) is handled in create_infer_request().
@@ -91,71 +156,44 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
-    const auto localConfig = _propertiesManager->getConfig();
-
-    const bool rawBlobExportRequested = localConfig.get<EXPORT_RAW_BLOB>();
-    if (rawBlobExportRequested) {
-        OPENVINO_ASSERT(_graph->get_blob_type() == BlobType::ELF && _graph->get_kind() == GraphKind::Weightful,
-                        "Requested raw blob export, but the graph is not a weightful ELF one.");
-    }
-
-    uint64_t blobSizesBeforeVersioning;
-    std::optional<uint64_t> blobSizeAfterEncryption = std::nullopt;
-    std::optional<std::vector<uint64_t>> initBlobSizes;
-
-    if (localConfig.has<CACHE_ENCRYPTION_CALLBACKS>() &&
-        localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        std::string encryptedBlobStr;
-        {
-            std::string tmpBlobStr;
-            {
-                std::stringstream tmpStringStream;
-                std::tie(blobSizesBeforeVersioning, initBlobSizes) =
-                    _graph->export_blob(tmpStringStream);  // +1x blob size
-                tmpBlobStr = tmpStringStream.str();        // +2x blob size
-            }  // -1x blob size when deallocating temporary stringstream
-            encryptedBlobStr = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
-            blobSizeAfterEncryption = encryptedBlobStr.size();
-        }  // -1x blob size when deallocating temporary blob string
-        stream.write(encryptedBlobStr.c_str(), encryptedBlobStr.size());
-    }  // -1x blob size when deallocating encrypted blob string
-    else {
-        //  Write blob directly to user's output stream
-        std::tie(blobSizesBeforeVersioning, initBlobSizes) = _graph->export_blob(stream);
-    }
-
-    if (rawBlobExportRequested) {
+    const Config config = _propertiesManager->getConfig();
+    if (!config.get<EXPORT_RAW_BLOB>()) {
+        sync_encryption_callbacks(_blobSectionsRegistry, config);
+        hsm::write_to(stream, _blobSectionsRegistry);
         return;
     }
 
-    std::optional<std::vector<ov::Layout>> inputLayouts = std::vector<ov::Layout>();
-    std::optional<std::vector<ov::Layout>> outputLayouts = std::vector<ov::Layout>();
-
-    for (const ov::Output<const ov::Node>& nodeOutput : inputs()) {
-        inputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Parameter>(nodeOutput.get_node_shared_ptr())->get_layout());
-    }
-    for (const ov::Output<const ov::Node>& nodeOutput : outputs()) {
-        outputLayouts->push_back(
-            std::dynamic_pointer_cast<const ov::op::v0::Result>(nodeOutput.get_node_shared_ptr())->get_layout());
+    if (!blob_contains_only_main_schedule(_blobSectionsRegistry)) {
+        OPENVINO_THROW("Received a request to export the compiled model using the raw format, but multiple compiler "
+                       "schedules have been found. The raw format supports only a single compiler schedule.");
     }
 
-    std::optional<uint32_t> compilerVersion = std::nullopt;
-    if (localConfig.has(ov::intel_npu::compiler_version.name())) {
-        compilerVersion = localConfig.get<COMPILER_VERSION>();
+    if (!(config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+          config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr)) {
+        // Plain raw blob
+        _graph->export_main_blob([&stream](ov::util::MemoryView data) {
+            stream.write(reinterpret_cast<const char*>(data.data()), data.size());
+            OPENVINO_ASSERT(stream, "Stream invalidated during blob writing");
+        });
+        return;
     }
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
-                                       CURRENT_OPENVINO_VERSION,
-                                       initBlobSizes,
-                                       _batchSize,
-                                       inputLayouts,
-                                       outputLayouts,
-                                       compilerVersion,
-                                       blobSizeAfterEncryption,
-                                       _graph->get_compatibility_descriptor(),
-                                       _graph->get_blob_type())
-        .write(stream);
+    // Encrypted raw blob
+    std::string encryptedPayload;
+    {
+        std::string tmpPlainPayload;
+        {
+            std::stringstream tmpStream;
+            _graph->export_main_blob([&tmpStream](ov::util::MemoryView data) {
+                tmpStream.write(reinterpret_cast<const char*>(data.data()), data.size());
+                OPENVINO_ASSERT(tmpStream, "Stream invalidated during blob writing");
+            });                                 // +1x blob size
+            tmpPlainPayload = tmpStream.str();  // +2x blob size
+        }  // -1x blob size when deallocating temporary stringstream
+        encryptedPayload = config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpPlainPayload);  // +2x blob size
+    }  // -1x blob size when deallocating temporary blob string
+
+    stream.write(encryptedPayload.c_str(), encryptedPayload.size());
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {

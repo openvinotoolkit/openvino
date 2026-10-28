@@ -7,9 +7,11 @@
 #include <memory>
 #include <string>
 
+#include "compiler_schedules_sections.hpp"
 #include "dynamic_graph.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/encrypted_schedules_flag_section.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
@@ -51,8 +53,16 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
                                                        const Config& config,
-                                                       const AdapterDescriptor&) const {
+                                                       const AdapterDescriptor&,
+                                                       BlobSectionsRegistry& blobSectionsRegistry) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
+
+    std::function<std::string(const std::string&)> encryptionCallback = nullptr;
+    if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+        encryptionCallback = config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
+        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+    }
 
     _logger.debug("compile start");
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
@@ -68,7 +78,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), blobType);
+
+        const auto graph = std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), blobType);
+
+        // Tell the blob writer to store the dynamic schedule in the blob at export time
+        blobSectionsRegistry.register_section(std::make_shared<DynamicScheduleSection>(graph, encryptionCallback));
+        return graph;
     }
 
     GraphDescriptor graphDesc;
@@ -90,7 +105,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
     }
 
-    return std::make_shared<Graph>(
+    auto graph = std::make_shared<Graph>(
         _zeGraphExt,
         _zeroInitStruct,
         graphDesc,
@@ -98,11 +113,17 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         std::move(tensor),
         compatibilityDescriptor,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
+
+    // Tell the blob writer to store the main schedule in the blob at export time
+    blobSectionsRegistry.register_section(std::make_shared<ELFMainScheduleSection>(graph, encryptionCallback));
+
+    return graph;
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
                                                          const Config& config,
-                                                         const AdapterDescriptor&) const {
+                                                         const AdapterDescriptor&,
+                                                         BlobSectionsRegistry& blobSectionsRegistry) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
 
@@ -243,7 +264,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     _logger.debug("compile end");
 
-    return std::make_shared<WeightlessGraph>(
+    auto weightlessGraph = std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
         mainGraphDesc,
@@ -255,6 +276,21 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::move(model),
         /* persistentBlob = */ true,
         compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
+
+    std::function<std::string(const std::string&)> encryptionCallback = nullptr;
+    if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+        encryptionCallback = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
+        blobSectionsRegistry.register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+    }
+
+    // At export time, all schedules (main + inits) shall be stored in the blob
+    blobSectionsRegistry.register_section(
+        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallback));
+    blobSectionsRegistry.register_section(
+        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallback));
+
+    return weightlessGraph;
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
