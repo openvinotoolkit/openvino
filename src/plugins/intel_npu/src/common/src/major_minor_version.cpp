@@ -1,0 +1,110 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "intel_npu/common/major_minor_version.hpp"
+
+#include <algorithm>
+
+#include "intel_npu/utils/utils.hpp"
+#include "openvino/core/except.hpp"
+
+namespace {
+
+constexpr char VERSION_SEPARATOR = '.';
+constexpr size_t NUMBER_OF_VERSION_NUMBERS = 2;
+constexpr size_t MAJOR_VERSION_INDEX = 0;
+constexpr size_t MINOR_VERSION_INDEX = 1;
+
+}  // namespace
+
+namespace intel_npu {
+
+MajorMinorVersion::MajorMinorVersion(const uint16_t major, const uint16_t minor) : m_major(major), m_minor(minor) {}
+
+uint16_t MajorMinorVersion::get_major() const {
+    return m_major;
+}
+
+uint16_t MajorMinorVersion::get_minor() const {
+    return m_minor;
+}
+
+bool MajorMinorVersion::operator==(const MajorMinorVersion& other) const {
+    return m_major == other.get_major() && m_minor == other.get_minor();
+}
+
+bool MajorMinorVersion::operator!=(const MajorMinorVersion& other) const {
+    return !(*this == other);
+}
+
+bool MajorMinorVersion::operator>(const MajorMinorVersion& other) const {
+    return m_major > other.get_major() || (m_major == other.get_major() && m_minor > other.get_minor());
+}
+
+bool MajorMinorVersion::operator>=(const MajorMinorVersion& other) const {
+    return m_major > other.get_major() || (m_major == other.get_major() && m_minor >= other.get_minor());
+}
+
+bool MajorMinorVersion::operator<(const MajorMinorVersion& other) const {
+    return !(*this >= other);
+}
+
+bool MajorMinorVersion::operator<=(const MajorMinorVersion& other) const {
+    return !(*this > other);
+}
+
+std::string MajorMinorVersion::to_string() const {
+    return std::to_string(m_major) + VERSION_SEPARATOR + std::to_string(m_minor);
+}
+
+MajorMinorVersion MajorMinorVersion::from_string(const std::string_view version) {
+    const std::vector<uint16_t> parsed_version_numbers = parse_dotted_version(version, NUMBER_OF_VERSION_NUMBERS);
+    return MajorMinorVersion(parsed_version_numbers.at(MAJOR_VERSION_INDEX),
+                             parsed_version_numbers.at(MINOR_VERSION_INDEX));
+}
+
+std::ostream& operator<<(std::ostream& out, const MajorMinorVersion& version) {
+    out << version.to_string();
+    return out;
+}
+
+std::istream& operator>>(std::istream& in, MajorMinorVersion& version) {
+    std::string str;
+    in >> str;
+    version = MajorMinorVersion::from_string(str);
+    return in;
+}
+
+std::vector<uint16_t> parse_dotted_version(std::string_view version_string, const size_t number_of_parts) {
+    std::vector<uint16_t> parts;
+    std::string_view remaining = version_string;
+
+    while (true) {
+        const size_t dot_location = remaining.find('.');
+        const std::string_view part = remaining.substr(0, dot_location);
+        OPENVINO_ASSERT(utils::has_only_digits(part),
+                        "Failure while parsing the version \"",
+                        version_string,
+                        "\": the part \"",
+                        part,
+                        "\" is not made exclusively out of digits");
+
+        parts.push_back(static_cast<uint16_t>(std::stoul(std::string(part))));
+        if (dot_location == std::string_view::npos) {
+            break;
+        }
+        remaining = remaining.substr(dot_location + 1);
+        OPENVINO_ASSERT(!remaining.empty(), "Trailing dot found while parsing the version \"", version_string, "\"");
+    }
+    OPENVINO_ASSERT(parts.size() == number_of_parts,
+                    "Expected ",
+                    number_of_parts,
+                    " values while parsing the ",
+                    version_string,
+                    " string, but the algorithm parsed ",
+                    parts.size());
+    return parts;
+}
+
+}  // namespace intel_npu

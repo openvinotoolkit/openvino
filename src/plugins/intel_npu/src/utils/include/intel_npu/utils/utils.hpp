@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "openvino/runtime/allocator.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
 
@@ -47,6 +48,21 @@ static inline bool memory_and_size_aligned_to_standard_page_size(const void* add
 static inline size_t align_size_to_standard_page_size(size_t size) {
     return (size + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
 }
+
+static inline ov::Tensor allocate_aligned_tensor(size_t blobSize) {
+    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
+    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
+        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
+    }
+
+    return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
+}
+
+static inline bool has_only_digits(const std::string_view sv) {
+    return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
+        return std::isdigit(c);
+    });
+};
 
 }  // namespace utils
 

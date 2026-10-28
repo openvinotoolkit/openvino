@@ -241,7 +241,8 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         copy_model = batchedModel;
     }
 
-    auto graph = compiler->compile(copy_model, *npu_config, ::intel_npu::AdapterDescriptor{});
+    const auto blob_writer = std::make_shared<::intel_npu::BlobWriter>(npu_config->get<::intel_npu::LOG_LEVEL>());
+    auto graph = compiler->compile(copy_model, *npu_config, ::intel_npu::AdapterDescriptor{}, blob_writer);
     if (batch) {
         graph->set_batch_size(batch.value());
     }
@@ -252,9 +253,9 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         std::make_shared<ov::test::utils::MockPlugin>(),  // MockPlugin needed only to avoid throw for nullptr
         device,
         graph,
+        blob_writer,
         *npu_config,
-        unknownProperties,
-        batch);
+        unknownProperties);
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);
     OPENVINO_ASSERT(compiledModel->inputs()[1].get_element_type() == element_type);
 

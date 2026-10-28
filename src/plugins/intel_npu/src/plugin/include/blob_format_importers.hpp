@@ -7,7 +7,9 @@
 #include <map>
 #include <string>
 
-#include "blob_source.hpp"
+#include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/blob_source.hpp"
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
@@ -35,6 +37,7 @@ public:
      * @param logger A logger that should already use the name of the subclass.
      */
     IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
+                        const ov::SoPtr<IEngineBackend>& backend,
                         const Config& config,
                         const Logger& logger);
 
@@ -52,8 +55,7 @@ public:
      * @return A graph object. The type of graph depends on the content of the blob. E.g. a "weightless" graph will be
      * returned if the weights separation feature was detected.
      */
-    std::shared_ptr<IGraph> create_graph(const ov::SoPtr<IEngineBackend>& backend,
-                                         const std::string_view network_name,
+    std::shared_ptr<IGraph> create_graph(const std::string_view network_name,
                                          const std::string_view device_name,
                                          const std::shared_ptr<ov::ICore>& core);
 
@@ -67,11 +69,23 @@ public:
      */
     std::shared_ptr<ov::Model> create_dummy_model() const;
 
+    /**
+     * @brief Creates a new BlobWriter using the data parsed from the blob. The BlobWriter can later be used to
+     * re-export the blob.
+     *
+     * @return The BlobWriter if the imported compiled model is not a "raw blob". "nullptr" otherwise.
+     */
+    virtual std::shared_ptr<BlobWriter> create_blob_writer() = 0;
+
     Config get_config() const;
 
     virtual ~IBlobFormatImporter() = default;
 
 protected:
+    std::shared_ptr<IGraph> m_graph;
+    std::optional<int> m_batch_size;
+    ov::SoPtr<IEngineBackend> m_backend;
+
     Config m_config;
     Logger m_logger;
 
@@ -93,7 +107,7 @@ private:
     virtual std::optional<std::vector<ov::Tensor>> extract_init_schedules() const = 0;
 
     /**
-     * @brief If a batch size a stored, this method will be used to extract it.
+     * @brief If a batch size was stored, this method will be used to extract it.
      */
     virtual std::optional<int> extract_batch_size() const = 0;
 
@@ -104,6 +118,11 @@ private:
     virtual std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const = 0;
 
     /**
+     * @brief If a compiler version was stored, this method will be used to extract it.
+     */
+    virtual std::optional<uint32_t> extract_compiler_version() const = 0;
+
+    /**
      * @brief If a compiler compatibility string was stored, this method will be used to extract it.
      */
     virtual std::optional<std::string> extract_compiler_compatibility_descriptor() const = 0;
@@ -111,11 +130,15 @@ private:
     virtual std::optional<BlobType> extract_blob_type() const = 0;
 
     /**
+     * @brief Registers the compiler version inside the configuration attribute if a version is found within the
+     * blob.
+     */
+    void register_compiler_version();
+
+    /**
      * @brief A potential source of weights for weights separation. Can be `nullptr`.
      */
     std::shared_ptr<const ov::Model> m_original_model;
-    std::optional<int> m_batch_size;
-    std::shared_ptr<IGraph> m_graph;
 };
 
 namespace blob_format_importer_factory {
@@ -127,6 +150,8 @@ namespace blob_format_importer_factory {
  * @param is_raw_blob Flag indicating whether or not the whole blob is just a compiler main schedule.
  * @param original_model A potential source of weights for the weights separation feature if necessary. Can be
  * `nullptr`.
+ * @param backend Required for various reasons
+ * @param option_helper Required for validating the compiler runtime requirements.
  * @param config Will be held by the newly created importer and used for multiple purposes, such as: extracting the log
  * level, weights path, decryption callbacks.
  * @return An importer object of the type that corresponds to the format of the blob.
@@ -134,6 +159,8 @@ namespace blob_format_importer_factory {
 std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
+                                            const ov::SoPtr<IEngineBackend>& backend,
+                                            const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
                                             const Config& config);
 
 }  // namespace blob_format_importer_factory
