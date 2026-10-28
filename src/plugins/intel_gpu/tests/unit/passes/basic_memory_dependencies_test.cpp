@@ -2,21 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
+#include <cmath>
+#include <memory>
 
-#include "intel_gpu/runtime/engine.hpp"
-
-#include "intel_gpu/graph/network.hpp"
+#include "convolution_inst.h"
 #include "data_inst.h"
 #include "eltwise_inst.h"
-#include "convolution_inst.h"
-#include "reshape_inst.h"
+#include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/reduce.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "openvino/core/symbol.hpp"
+#include "program_helpers.h"
+#include "random_generator.hpp"
 #include "reorder_inst.h"
 #include "resample_inst.h"
-#include "program_helpers.h"
-
-#include <memory>
+#include "reshape_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -94,6 +97,85 @@ TEST(basic_memory_dependencies, inplace_chain_eltwise_sum_correctness) {
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(basic_memory_dependencies, skipped_quantize_preserves_inplace_fc_input) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    constexpr int64_t features = 128;
+    constexpr int64_t out_features = features / 2;
+    auto weights = engine.allocate_memory(layout{ov::PartialShape{features, features}, data_types::f16, format::oiyx});
+    std::vector<ov::float16> weight_values(features * features, ov::float16(0.f));
+    for (int64_t i = 0; i < features; ++i)
+        weight_values[i * features + i] = ov::float16(1.f);
+    set_values(weights, weight_values);
+
+    auto down_weights = engine.allocate_memory(layout{ov::PartialShape{out_features, features}, data_types::i8, format::oiyx});
+    std::vector<int8_t> down_values(out_features * features, 0);
+    for (int64_t i = 0; i < out_features; ++i)
+        down_values[i * features + i] = 1;
+    set_values(down_weights, down_values);
+    auto scale = engine.allocate_memory(layout{ov::PartialShape{out_features, 1}, data_types::f16, format::bfyx});
+    set_values(scale, std::vector<ov::float16>(out_features, ov::float16(1.f)));
+
+    dynamic_quantize::Attributes attrs;
+    attrs.quantization_dt = data_types::i8;
+    attrs.scale_dt = data_types::f16;
+    attrs.group_sizes = {1, 1, features};
+    auto tokens_dim = ov::Dimension::dynamic();
+    tokens_dim.set_symbol(std::make_shared<ov::Symbol>());
+    topology topology(input_layout("input", layout{ov::PartialShape{1, tokens_dim, features}, data_types::f16, format::bfyx}),
+                      data("weights", weights),
+                      data("down_weights", down_weights),
+                      data("scale", scale),
+                      fully_connected("up", input_info("input"), "weights", "", 3),
+                      fully_connected("gate", input_info("input"), "weights", "", 3),
+                      activation("sigmoid", input_info("gate"), activation_func::logistic),
+                      eltwise("mul", {input_info("sigmoid"), input_info("up")}, eltwise_mode::prod),
+                      dynamic_quantize("quantize", input_info("mul"), attrs, 3, features),
+                      fully_connected("down",
+                                      input_info("quantize", 0),
+                                      "down_weights",
+                                      "",
+                                      "scale",
+                                      "",
+                                      input_info("quantize", 1),
+                                      input_info(""),
+                                      input_info(""),
+                                      data_types::f32,
+                                      3),
+                      reduce("output", input_info("down"), reduce_mode::sum, {2}, true));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::enable_memory_pool(true));
+    config.set_property(ov::intel_gpu::output_reclaim_min_size(4 * 1024 * 1024));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"up", {format::bfyx, "", impl_types::onednn}},
+                                                                                           {"gate", {format::bfyx, "", impl_types::onednn}},
+                                                                                           {"down", {format::bfyx, "", impl_types::onednn}}}));
+    network net(engine, topology, config);
+    auto gate = net.get_primitive("gate");
+    ASSERT_GE(onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(gate->get_node()), 0);
+
+    for (int64_t tokens : {66, 1, 128, 1}) {
+        SCOPED_TRACE(tokens);
+        auto input = engine.allocate_memory(layout{ov::PartialShape{1, tokens, features}, data_types::f16, format::bfyx});
+        set_values(input, std::vector<ov::float16>(tokens * features, ov::float16(0.5f)));
+        net.set_input_data("input", input);
+        auto outputs = net.execute();
+        auto down = net.get_primitive("down");
+        auto quantize = net.get_primitive("quantize");
+        ASSERT_EQ(quantize->can_be_optimized(), tokens == 1);
+        ASSERT_TRUE(engine.is_the_same_buffer(gate->output_memory(), net.get_primitive("up")->output_memory()));
+        ASSERT_FALSE(engine.is_the_same_buffer(down->input_memory(), down->output_memory()));
+        auto output = outputs.at("output").get_memory();
+        mem_lock<float> result(output, net.get_stream());
+        for (int64_t i = 0; i < tokens; ++i)
+            EXPECT_NEAR(result[i], out_features * 0.5f / (1.f + std::exp(-0.5f)), 0.05f);
+    }
+}
+
 // regression coverage: optimized-out resample feeds oneDNN conv with fused sum.
 TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctness) {
     auto& engine = get_test_engine();

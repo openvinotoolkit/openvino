@@ -18,6 +18,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
 #include "lora_inst.h"
+#include "program_helpers.h"
 #include "quantize_inst.h"
 #include "read_value_inst.h"
 
@@ -370,6 +371,13 @@ public:
                 add_memory_dependency(node, subdep.first);
                 add_memory_dependency(subdep.first, node);
             }
+        }
+
+        // An executing oneDNN node may alias another owner behind runtime-skippable nodes.
+        if (auto alias_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*dep); alias_idx != -1) {
+            auto& alias = dep->get_dependency(alias_idx);
+            add_memory_dependency(node, &alias);
+            add_memory_dependency(&alias, node);
         }
     }
 };

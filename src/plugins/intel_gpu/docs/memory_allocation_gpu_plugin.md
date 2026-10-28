@@ -47,6 +47,11 @@ In GPU plugin, multiple memory objects can be allocated at the same address, whe
     * `oooq_memory_dependencies` : Assuming an out-of-order-queue execution, this pass adds dependencies to all pairs of `program_nodes` that can potentially be executed at the same time.
 2. `Memory pool` : The GPU plugin has a [memory pool](https://github.com/openvinotoolkit/openvino/blob/de47a3b4a4ba1f8464b85a665c4d58403e0d16b8/src/plugins/intel_gpu/include/intel_gpu/runtime/memory_pool.hpp), which is responsible for the decision of allocation or reuse for an allocation request. This `memory_pool` utilizes the memory dependencies set by the above two passes in the decision of reuse of not. Note that each `cldnn::network` has its own `memory_pool`.
 
+Memory dependencies must also follow oneDNN in-place post-op aliases through runtime-skippable nodes.
+For example, an FC with a fused in-place Multiply writes into its external operand's buffer.
+If a following dynamic quantization is skipped during decode, the next FC reads that same buffer and must not allocate its output there.
+Output-buffer retention can expose a missing restriction by preserving a prefill allocation into decode; changing the reclaim threshold must not affect numerical correctness.
+
 ## See also
 
  * [OpenVINO™ README](../../../../README.md)
