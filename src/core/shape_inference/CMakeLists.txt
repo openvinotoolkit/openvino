@@ -102,6 +102,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/paged_causal_conv1d_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_gated_delta_net_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_selective_ssm_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/paged_sparse_attention_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/pooling_shape_inference_util.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_clustered_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_shape_inference.hpp

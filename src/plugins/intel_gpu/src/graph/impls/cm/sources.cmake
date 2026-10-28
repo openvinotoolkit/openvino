@@ -10,6 +10,10 @@ set(GPU_CM_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_sdpa_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/estimate.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/find_block.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_dpas_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_gr_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_ops_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/sort.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/xattn_subseq_meta.hpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.cpp
@@ -19,6 +23,14 @@ set(GPU_CM_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/paged_attention_gen.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_attention_gen.hpp
     ${CMAKE_CURRENT_LIST_DIR}/primitive_cm_base.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/paged_qsa_indexer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/paged_qsa_indexer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_pa.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_sdpa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_sdpa.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/kernel_generator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/kernel_generator.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/kernels_db.cpp
@@ -40,6 +52,23 @@ set(GPU_CM_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/pa_single_token_finalization.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_small_q.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_small_q_finalization.cm
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer_prepare_dense.cm
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer_prepare_paged.cm
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer_score_dpas.cm
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer_score_partition.cm
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer_score_topk_fused.cm
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer/qsa_indexer_topk.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_dense.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_dense_dpas.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_dense_gqa_dpas.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_dense_split.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_dense_split_reduce.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_kv_write.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_paged.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_paged_dpas.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_paged_gqa_dpas.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_paged_split.cm
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention/sparse_attention_paged_split_reduce.cm
     ${CMAKE_CURRENT_LIST_DIR}/xattn_find_block.cm
     ${CMAKE_CURRENT_LIST_DIR}/xattn_gemm_qk.cm
     ${CMAKE_CURRENT_LIST_DIR}/xattn_post_proc.cm

@@ -121,6 +121,7 @@
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
 #include "plugin/transformations/lora_subgraph_horizontal_fusion.hpp"
+#include "plugin/transformations/sparse_attention_fusion.hpp"
 #include "plugin/transformations/stateless_kv_fusion.hpp"
 #include "plugin/transformations/swoosh_fusion.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
@@ -1644,6 +1645,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::RoPEFusion>(true);
         manager.register_pass<ov::intel_gpu::FuseRoPEInputDeinterleave>();
+        // The index query's RMSNorm and RoPE are fused into QSAIndexer, so this runs once RoPEFusion
+        // has turned the rotation into a RoPE op.
+        // Public QSAPrepare/SparseAttentionIndexer/SparseAttention/PagedQSAIndexer/PagedSparseAttention
+        // -> QSAIndexer/SparseSDPA/PagedQSAIndexer/SparsePA (CM-only primitives).
+        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
