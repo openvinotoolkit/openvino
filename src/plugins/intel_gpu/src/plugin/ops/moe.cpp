@@ -71,9 +71,11 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
             return attr_it->second.as<ov::WeightlessCacheAttribute>().bin_offset;
         }
 
-        // 2. Buffer descriptor offset (mmap path)
+        // 2. Buffer descriptor offset (mmap path). The descriptor offset is relative to the constant's source buffer,
+        // so it is an offset into the weights file only when that buffer is the whole file. With ENABLE_MMAP=false the
+        // IR frontend gives each constant its own buffer and the offset is 0: fall through to the stamp in 3.
         auto source_buf = ov::weight_sharing::Extension::get_constant_source_buffer(*const_op);
-        if (source_buf) {
+        if (source_buf && source_buf->size() == std::filesystem::file_size(weights_path)) {
             return ov::weight_sharing::Extension::get_constant_id(*const_op);
         }
 
