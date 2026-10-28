@@ -43,19 +43,18 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     auto c_new_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{d_inner, 1, 1, d_conv});
     auto c_reshaped = std::make_shared<ov::op::v1::Reshape>(c, c_new_shape, false);
 
-    std::shared_ptr<Node> conv = std::make_shared<ov::op::v1::GroupConvolution>(sx_reshaped,
-                                                                                c_reshaped,
-                                                                                ov::Strides{1},
-                                                                                ov::CoordinateDiff{0},
-                                                                                ov::CoordinateDiff{0},
-                                                                                ov::Strides{1});
-
-    if (context.get_attribute<bool>("fuse_silu", false))
-        conv = std::make_shared<ov::op::v4::Swish>(conv);
+    auto conv = std::make_shared<ov::op::v1::GroupConvolution>(sx_reshaped,
+                                                               c_reshaped,
+                                                               ov::Strides{1},
+                                                               ov::CoordinateDiff{0},
+                                                               ov::CoordinateDiff{0},
+                                                               ov::Strides{1});
 
     // [n_s, d_inner, n_t] -> [n_s, n_t, d_inner]
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, 2, 1});
     auto transposed = std::make_shared<ov::op::v1::Transpose>(conv, perm);
+    if (context.get_attribute<bool>("fuse_silu", false))
+        transposed->set_argument(0, std::make_shared<ov::op::v4::Swish>(conv));
 
     if (context.get_attribute<bool>("batch_major", false)) {
         return rename_outputs_with_suffix(
