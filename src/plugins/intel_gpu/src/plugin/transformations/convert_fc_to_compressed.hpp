@@ -14,4 +14,10 @@ public:
     ConvertFullyConnectedToFullyConnectedCompressed();
 };
 
+class ConvertGGUFFullyConnectedCompressed : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ConvertGGUFFullyConnectedCompressed");
+    ConvertGGUFFullyConnectedCompressed();
+};
+
 }   // namespace ov::intel_gpu

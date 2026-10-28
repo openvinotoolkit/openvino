@@ -9,6 +9,7 @@
 #include "compressed_weights_pattern.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/op/placeholder.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
@@ -220,6 +222,44 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(fully_connected_m, "ConvertFullyConnectedToFullyConnectedCompressed");
     this->register_matcher(m, callback);
+}
+
+ConvertGGUFFullyConnectedCompressed::ConvertGGUFFullyConnectedCompressed() {
+    auto fc_m = wrap_type<ov::op::internal::FullyConnectedCompressed>();
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& matcher) {
+        auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(matcher.get_match_root());
+        if (!fc || transformation_callback(fc) || !fc->get_input_element_type(1).is_gguf_block()) {
+            return false;
+        }
+
+        auto is_empty_optional = [](const ov::Output<ov::Node>& value) {
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr());
+            return constant && (value.get_element_type() == ov::element::dynamic ||
+                                (value.get_partial_shape().is_static() && ov::shape_size(value.get_shape()) == 0));
+        };
+
+        const auto& activation = fc->input_value(0);
+        const auto& weight = fc->input_value(1);
+        ov::Output<ov::Node> bias = fc->input_value(2);
+        if (is_empty_optional(bias)) {
+            bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        }
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f});
+        auto zero_point = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto gpu_fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(activation,
+                                                                                 weight,
+                                                                                 bias,
+                                                                                 scale,
+                                                                                 zero_point,
+                                                                                 fc->get_output_element_type(0));
+        gpu_fc->set_friendly_name(fc->get_friendly_name());
+        ov::copy_runtime_info(fc, gpu_fc);
+        ov::replace_node(fc, gpu_fc);
+        return true;
+    };
+
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(fc_m, "ConvertGGUFFullyConnectedCompressed");
+    register_matcher(matcher, callback);
 }
 
 }  // namespace ov::intel_gpu

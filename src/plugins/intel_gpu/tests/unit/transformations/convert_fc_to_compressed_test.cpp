@@ -20,6 +20,7 @@
 #include "intel_gpu/op/placeholder.hpp"
 
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
 
 #include <memory>
 
@@ -29,6 +30,72 @@ using namespace ov::intel_gpu;
 namespace ov {
 namespace test {
 namespace intel_gpu {
+
+TEST_F(TransformationTestsF, ConvertGGUFFCToCompressed) {
+    auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+    auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, ov::Shape{32, 256});
+    auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+    auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(activation,
+                                                                        weight,
+                                                                        absent,
+                                                                        absent,
+                                                                        absent,
+                                                                        ov::element::f32);
+    model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+    manager.register_pass<ConvertGGUFFullyConnectedCompressed>();
+
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f});
+    auto no_zero_point = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto gpu_fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(activation,
+                                                                             weight,
+                                                                             no_bias,
+                                                                             scale,
+                                                                             no_zero_point,
+                                                                             ov::element::f32);
+    model_ref = std::make_shared<ov::Model>(ov::OutputVector{gpu_fc}, ov::ParameterVector{activation});
+}
+
+TEST_F(TransformationTestsF, ConvertGGUFFCToCompressedPreservesBiasAndPrecision) {
+    auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, -1, 256});
+    auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, ov::Shape{32, 256});
+    auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{32}, {0.5f});
+    auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+    auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(activation,
+                                                                        weight,
+                                                                        bias,
+                                                                        absent,
+                                                                        absent,
+                                                                        ov::element::f16);
+    model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+    manager.register_pass<ConvertGGUFFullyConnectedCompressed>();
+
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f});
+    auto no_zero_point = std::make_shared<ov::intel_gpu::op::Placeholder>();
+    auto gpu_fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(activation,
+                                                                             weight,
+                                                                             bias,
+                                                                             scale,
+                                                                             no_zero_point,
+                                                                             ov::element::f16);
+    model_ref = std::make_shared<ov::Model>(ov::OutputVector{gpu_fc}, ov::ParameterVector{activation});
+}
+
+TEST_F(TransformationTestsF, ConvertGGUFFCLeavesOtherCompressedWeightsUnchanged) {
+    auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+    auto weight = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{32, 256}, {1});
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32, 1}, {1.0f});
+    auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+    auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(activation,
+                                                                        weight,
+                                                                        absent,
+                                                                        scale,
+                                                                        absent,
+                                                                        ov::element::f32);
+    model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{activation});
+    model_ref = model->clone();
+    manager.register_pass<ConvertGGUFFullyConnectedCompressed>();
+}
 
 TEST_F(TransformationTestsF, ConvertFCToCompressed1) {
     {
