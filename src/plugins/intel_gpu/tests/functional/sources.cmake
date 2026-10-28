@@ -245,6 +245,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/matmul_conversion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/matmul_squeeze_add.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/matmul_transpose_to_reshape.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/msda_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/multiply_add.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/perm_conv_perm_concat.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/subgraph_tests/preprocess.cpp
@@ -311,6 +312,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/dynamic/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/dynamic/top_k.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/dynamic/unique.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/divide.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/fake_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/gather_elements_padding_input.cpp
@@ -321,6 +323,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/tensor_iterator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/condition.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/convolution_sum_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/broadcast_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/concat_in_place_dynamic_batch.cpp
