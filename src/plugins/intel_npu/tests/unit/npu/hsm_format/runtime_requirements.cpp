@@ -184,3 +184,35 @@ TEST_F(RuntimeRequirementsTest, MoreComplexEvaluation) {
     ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(1), std::nullopt);
     ASSERT_EQ(runtime_requirements.get_instance_evaluation_result(2), std::make_optional(true));
 }
+
+using RuntimeRequirementsSectionTest = testing::Test;
+
+TEST_F(RuntimeRequirementsSectionTest, IsFormatV2ValidStrings) {
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=2.0"));
+    ASSERT_TRUE(is_runtime_requirements_format_v2("version=2.0;custom_content=PAYLOAD"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=1.0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=3.0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=1.0;custom_content=PAYLOAD"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2.0.0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2..0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2."));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=0.2"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("versio=2.0"));
+    ASSERT_FALSE(is_runtime_requirements_format_v2("version=2.O"));
+}
+
+TEST_F(RuntimeRequirementsSectionTest, IsFormatV2InvalidStrings) {
+    // We do not need to enumerate all invalid cases. These generic errors should be caught by parser's unit tests
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("VERSION=2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("vErsion=2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.0;"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.0;custom_content"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version2.0"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=.2"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.-1"), ov::Exception, _);
+    OV_EXPECT_THROW(is_runtime_requirements_format_v2("version=2.o"), ov::Exception, _);
+}
