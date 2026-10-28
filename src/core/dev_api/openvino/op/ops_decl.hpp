@@ -294,4 +294,5 @@ class SparseFillEmptyRows;
 namespace ov::op::v17 {
 class ErfInv;
 class GroupedMatMul;
+class Histc;
 }  // namespace ov::op::v17

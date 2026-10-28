@@ -96,6 +96,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_sequence.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hard_sigmoid.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hsigmoid.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hswish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/identity.cpp

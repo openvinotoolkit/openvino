@@ -79,6 +79,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/grouped_matmul_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gru_cell_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/gru_sequence_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/histc_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/i420_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/identity_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/interpolate_shape_inference.hpp
