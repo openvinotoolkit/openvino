@@ -1297,6 +1297,38 @@ TEST(GGUFOps, SsmConvRealDims) {
     expect_near(out, expected, 1e-4f);
 }
 
+TEST(GGUFOps, SsmConvSiluPreservesBatchesAndLayouts) {
+    const std::vector<float> oracle{1.625f, 11, 24, 2.5625f, 12, 25, 3.5f, 13, 26, 4.4375f, 14, 27, 5.375f, 15, 28};
+    const std::vector<float> filters{0.5f, 0.25f, 0.125f, 0.0625f, 1, 0, 0, 0, 0, 0, 0, 1};
+    std::vector<float> sx(2 * 3 * 8), expected;
+    for (size_t batch = 0; batch < 2; ++batch) {
+        const float scale = batch ? 0.25f : -1.f;
+        for (size_t channel = 0; channel < 3; ++channel)
+            for (size_t t = 0; t < 8; ++t)
+                sx[(batch * 3 + channel) * 8 + t] = scale * (channel * 10 + t + 1);
+        for (const auto value : oracle) {
+            const auto scaled = value * scale;
+            expected.push_back(scaled / (1.f + std::exp(-scaled)));
+        }
+    }
+    for (const bool batch_major : {false, true}) {
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_SSM_CONV")
+                         .input("sx", ov::element::f32, {1, 2, 3, 8})
+                         .input("c", ov::element::f32, {1, 1, 3, 4})
+                         .output("out",
+                                 ov::element::f32,
+                                 batch_major ? ov::PartialShape{2, 1, 5, 3} : ov::PartialShape{1, 2, 5, 3})
+                         .attr<bool>("batch_major", batch_major)
+                         .attr<bool>("fuse_silu", true)
+                         .build();
+        const auto output =
+            run_on_cpu(model,
+                       {{"sx", make_f32_tensor({1, 2, 3, 8}, sx)}, {"c", make_f32_tensor({1, 1, 3, 4}, filters)}});
+        expect_near(output, expected, 1e-4f);
+    }
+}
+
 // Softmax with attention sinks (gpt-oss): a 2nd input shaped [1,1,1,n_head] is a per-head sink,
 // NOT a mask. It is appended as one hidden logit column, softmax runs over the widened last axis,
 // and the sink column is dropped -- so each row sums to (1 - sink_weight) instead of 1.

@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
+
+#include "builder/blocks/common.hpp"
+#include "builder/blocks/ffn.hpp"
 #include "gtest/gtest.h"
 #include "node_context.hpp"
 #include "op_table.hpp"
@@ -241,4 +245,92 @@ TEST(GGUFHadamardSharing, DistinguishesSignsDirectionLayoutAndConversionScope) {
     EXPECT_NE(first, rotate(signs, true, {}, cache));
     EXPECT_NE(first, rotate(signs, false, {2, 2, 2}, cache));
     EXPECT_NE(first, rotate(signs, false, {}, std::make_shared<ConstantCache>()));
+}
+
+TEST(GGUFSharedLinearInputs, JointInterleavedProjectionPreservesHeadsBatchesAndTokens) {
+    using namespace ov::frontend::gguf;
+    for (const auto& shape : {ov::PartialShape{2, -1, 8}, ov::PartialShape{2, 1, -1, 8}}) {
+        std::unordered_map<std::string, ov::Tensor> weights;
+        std::unordered_map<std::string, GgufTensorType> qtypes;
+        GraphEmitter emitter(weights, qtypes, "test");
+        const auto x = emitter.add_input("x", ov::element::f32, shape);
+        weights["joint.weight"] = ov::Tensor(ov::element::f32, {12, 8});
+        for (size_t i = 0; i < 96; ++i)
+            weights["joint.weight"].data<float>()[i] = (static_cast<int>(i % 13) - 6) / 8.f;
+        emitter.add_weight("joint.weight");
+        const auto joint = emitter.add_op("GGML_OP_MUL_MAT", "joint", {"joint.weight", "x"});
+        const auto parts = blocks::split_interleaved_projection(emitter, joint, {"q", "gate"}, 3, 2);
+        const auto model =
+            std::make_shared<ov::Model>(ov::OutputVector{emitter.value(parts[0]), emitter.value(parts[1])},
+                                        ov::ParameterVector{x});
+        for (const size_t tokens : {1, 3}) {
+            auto input_shape = shape.get_max_shape();
+            input_shape[input_shape.size() - 2] = tokens;
+            ov::Tensor input(ov::element::f32, input_shape);
+            for (size_t i = 0; i < input.get_size(); ++i)
+                input.data<float>()[i] = (static_cast<int>(i % 11) - 5) / 4.f;
+            auto output_shape = input_shape;
+            output_shape.back() = 6;
+            ov::TensorVector outputs{ov::Tensor(ov::element::f32, output_shape),
+                                     ov::Tensor(ov::element::f32, output_shape)};
+            ASSERT_TRUE(model->evaluate(outputs, {input}));
+            for (size_t part = 0; part < 2; ++part) {
+                ASSERT_EQ(outputs[part].get_shape(), output_shape);
+                for (size_t row = 0; row < 2 * tokens; ++row) {
+                    for (size_t n = 0; n < 6; ++n) {
+                        const size_t weight_row = (n / 2) * 4 + part * 2 + n % 2;
+                        float expected = 0;
+                        for (size_t k = 0; k < 8; ++k)
+                            expected += input.data<float>()[row * 8 + k] *
+                                        weights["joint.weight"].data<float>()[weight_row * 8 + k];
+                        EXPECT_FLOAT_EQ(outputs[part].data<float>()[row * 6 + n], expected);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(GGUFSharedLinearInputs, GateUpProjectionKeepsGLUBranchesRank3) {
+    using namespace ov::frontend::gguf;
+    std::unordered_map<std::string, ov::Tensor> weights;
+    std::unordered_map<std::string, GgufTensorType> qtypes;
+    GraphEmitter emitter(weights, qtypes, "test");
+    const auto x = emitter.add_input("x", ov::element::f32, {2, 1, -1, 8});
+    for (const auto* name : {"ffn_gate.weight", "ffn_up.weight"}) {
+        weights[name] = ov::Tensor(ov::element::f32, {3, 8});
+        for (size_t i = 0; i < 24; ++i)
+            weights[name].data<float>()[i] = (static_cast<int>(i % 7) - 3) / 8.f;
+    }
+    const auto output = blocks::swiglu_gate_up(emitter,
+                                               "ffn_gate.weight",
+                                               "ffn_up.weight",
+                                               "x",
+                                               "ffn_gate",
+                                               "ffn_up",
+                                               "ffn_swiglu",
+                                               false);
+    EXPECT_EQ(emitter.value("ffn_gate").get_partial_shape(), (ov::PartialShape{2, -1, 3}));
+    EXPECT_EQ(emitter.value("ffn_up").get_partial_shape(), (ov::PartialShape{2, -1, 3}));
+    EXPECT_EQ(emitter.value("ffn_swiglu").get_partial_shape(), (ov::PartialShape{2, -1, 3}));
+    EXPECT_EQ(emitter.value(output).get_partial_shape(), (ov::PartialShape{2, 1, -1, 3}));
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{emitter.value(output)}, ov::ParameterVector{x});
+    for (const size_t tokens : {1, 3}) {
+        ov::Tensor input(ov::element::f32, {2, 1, tokens, 8});
+        for (size_t i = 0; i < input.get_size(); ++i)
+            input.data<float>()[i] = (static_cast<int>(i % 11) - 5) / 4.f;
+        ov::TensorVector outputs{ov::Tensor(ov::element::f32, {2, 1, tokens, 3})};
+        ASSERT_TRUE(model->evaluate(outputs, {input}));
+        for (size_t row = 0; row < 2 * tokens; ++row) {
+            for (size_t n = 0; n < 3; ++n) {
+                float projection = 0;
+                for (size_t k = 0; k < 8; ++k)
+                    projection +=
+                        input.data<float>()[row * 8 + k] * weights["ffn_gate.weight"].data<float>()[n * 8 + k];
+                EXPECT_NEAR(outputs[0].data<float>()[row * 3 + n],
+                            projection * projection / (1 + std::exp(-projection)),
+                            1e-6f);
+            }
+        }
+    }
 }

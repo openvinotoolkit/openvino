@@ -81,7 +81,16 @@ std::string attention(GraphEmitter& e,
             e.add_weight_from(p + "attn_v.weight", p + "attn_k");
         }
     }
-    auto q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm});
+    std::string q, gate;
+    if (e.weight_emitted(p + "attn_q_gate.weight")) {
+        const auto joint = e.add_op("GGML_OP_MUL_MAT", p + "q_gate", {p + "attn_q_gate.weight", attn_norm});
+        const auto projections =
+            split_interleaved_projection(e, joint, {p + "Qcur", p + "attn_gate_joint"}, cfg.n_head, head_size_l);
+        q = projections[0];
+        gate = projections[1];
+    } else {
+        q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm});
+    }
     std::string k, v;
     if (has_own_kv) {
         k = e.add_op("GGML_OP_MUL_MAT", p + "Kcur", {p + "attn_k.weight", attn_norm});
@@ -277,18 +286,30 @@ std::string attention(GraphEmitter& e,
                             {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
 
     if (cfg.has_attn_gate) {
-        e.add_weight(p + "attn_gate.weight");
-        const auto gate_weight = std::find_if(graph.nodes.begin(), graph.nodes.end(), [&](const auto& node) {
-            return node.name == p + "attn_gate.weight";
-        });
-        const bool rank3_gate =
-            gate_weight->attributes.at("gguf.blob.weight").template as<ov::Tensor>().get_element_type() !=
-            ov::element::u2;
-        auto gate = e.add_op("GGML_OP_MUL_MAT",
-                             p + "attn_gate",
-                             {p + "attn_gate.weight", attn_norm},
-                             0,
-                             {{"activation_rank", rank3_gate ? 3 : 4}});
+        bool rank3_gate;
+        if (!gate.empty()) {
+            rank3_gate = e.weight_tensor(p + "attn_q.weight").get_element_type() != ov::element::u2;
+            gate =
+                e.add_op("GGML_OP_RESHAPE",
+                         p + "attn_gate",
+                         {gate},
+                         6,
+                         {{"reshape_target",
+                           rank3_gate ? std::vector<int64_t>{0, -1, q_width} : std::vector<int64_t>{0, 1, -1, q_width}},
+                          {"special_zero", true}});
+        } else {
+            e.add_weight(p + "attn_gate.weight");
+            const auto gate_weight = std::find_if(graph.nodes.begin(), graph.nodes.end(), [&](const auto& node) {
+                return node.name == p + "attn_gate.weight";
+            });
+            rank3_gate = gate_weight->attributes.at("gguf.blob.weight").template as<ov::Tensor>().get_element_type() !=
+                         ov::element::u2;
+            gate = e.add_op("GGML_OP_MUL_MAT",
+                            p + "attn_gate",
+                            {p + "attn_gate.weight", attn_norm},
+                            0,
+                            {{"activation_rank", rank3_gate ? 3 : 4}});
+        }
         gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate});
         const auto gate_attention =
             rank3_gate ? e.add_op("GGML_OP_RESHAPE",
