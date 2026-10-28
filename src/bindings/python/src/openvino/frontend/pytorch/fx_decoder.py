@@ -339,7 +339,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             ``ConversionExtension`` lookup.
         """
         if cls._has_unconvertible_ops(exported_program):
-            # Lowering to the inference IR traces through vmap and flat_apply, and decomposes aten.diff.
             diff = torch.ops.aten.diff.default
             exported_program = exported_program.run_decompositions({diff: torch.export.default_decompositions()[diff]})
         gm = exported_program.module()
