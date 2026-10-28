@@ -285,6 +285,46 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu_bf_axis, reduce_eltwise_activation_quantize
     reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::log_sum, { 1, 0 }, true, "reduce_gpu_b_fs_yx_fsv16" }
 }));
 
+// reduce_gpu_b_fs_yx_fsv16 reads x in blocks of 16 / 8 / 4 positions for 1 / 2 / 4-byte inputs when x is not reduced.
+// Here each row ends in a partial block, which must not be read as a full block from the input or a fused input.
+class reduce_fsv16_partial_x_block : public ReduceFusingTest {};
+TEST_P(reduce_fsv16_partial_x_block, eltwise_activation_quantize) {
+    auto p = GetParam();
+    update_out_shape(p);
+    create_topologies(
+        input_layout("input", get_input_layout(p, true)),
+        reorder("input_reorder", input_info("input"), p.input_format, p.data_type),
+        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -128)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        reduce("reduce", input_info("input_reorder"), p.reduce_mode, p.reduce_axes, p.keep_dims),
+        eltwise("eltwise", { input_info("reduce"), input_info("eltwise_data") }, eltwise_mode::sum, p.default_type),
+        activation("activation", input_info("eltwise"), activation_func::relu),
+        quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::i8),
+        reorder("output_reorder", input_info("quantize"), p.default_format, data_types::f32)
+    );
+
+    // Force the OCL kernel, so that it runs the fused ops instead of oneDNN.
+    ov::intel_gpu::ImplementationDesc reduce_impl = { p.input_format, p.kernel_name, impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "reduce", reduce_impl } }));
+
+    tolerance = 1.f;
+    execute(p, false, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_fsv16_partial_x_block, ::testing::ValuesIn(std::vector<reduce_test_params>{
+    reduce_test_params{ CASE_REDUCE_I8_4, 2, 5, reduce_mode::sum, { 2 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_I8_0, 2, 5, reduce_mode::max, { 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_0, 2, 5, reduce_mode::max, { 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_U8_4, 2, 5, reduce_mode::sum, { 0 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_4, 2, 5, reduce_mode::mean, { 2 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F16_0, 2, 5, reduce_mode::min, { 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    reduce_test_params{ CASE_REDUCE_F32_0, 2, 5, reduce_mode::sum, { 2 }, true, "reduce_gpu_b_fs_yx_fsv16" }
+}));
+
 class reduce_scale_activation : public ReduceFusingTest {};
 TEST_P(reduce_scale_activation, basic) {
     auto p = GetParam();
