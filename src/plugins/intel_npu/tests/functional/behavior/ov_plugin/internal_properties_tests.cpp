@@ -33,6 +33,8 @@ using OVPropertiesIncorrectTestsNPU = OVPropertiesTestsNPU;
 
 using OVPropertiesEnvVarTestsNPU = OVPropertiesTestsNPU;
 
+using OVUnknownCompilerPropertiesTestsNPU = OVPropertiesTestsNPU;
+
 using CompileModelPropertiesParamsNPU = std::tuple<std::string, AnyMap>;
 
 class OVPropertiesTestsWithCompileModelPropsNPU : public testing::WithParamInterface<PropertiesParamsNPU>,
@@ -162,6 +164,15 @@ TEST_P(OVPropertiesTestsNPU, canSetPropertyAndCheckGetProperty) {
     }
 }
 
+TEST_P(OVUnknownCompilerPropertiesTestsNPU, CanSetPropertyAndCompileModel) {
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+    OV_ASSERT_NO_THROW(core->compile_model(model, target_device));
+}
+
+TEST_P(OVUnknownCompilerPropertiesTestsNPU, CanCompileModelWithProperty) {
+    OV_ASSERT_NO_THROW(core->compile_model(model, target_device, properties));
+}
+
 TEST_P(OVPropertiesIncorrectTestsNPU, SetPropertiesWithIncorrectKey) {
     core->get_versions(target_device);
     std::vector<ov::PropertyName> supported_properties;
@@ -243,6 +254,14 @@ const std::vector<ov::AnyMap> IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::intel_npu::stepping.name(), "V1"}},
 };
 
+// Options the plugin does not register but the compiler supports. The plugin forwards them to the compiler as they
+// are, so they must be accepted by set_property and compile_model and be readable back through get_property.
+// Not part of the compatibility suites: the plugin can only check them against drivers that support the compiler
+// option query.
+const std::vector<ov::AnyMap> UnknownCompilerProperties = {
+    {{"NPU_DMA_ENGINES", 1}},
+};
+
 const std::vector<AnyMap> PropsWithEnvVars{
     {{ov::log::level.name(), ::intel_npu::LOG_LEVEL::envVar()}},
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
@@ -263,6 +282,18 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(compat_CorrectPluginMutableProperties)),
                          (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsNPU>));
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests_UnknownCompilerProperties,
+                         OVPropertiesTestsNPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(UnknownCompilerProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVPropertiesTestsNPU>));
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
+                         OVUnknownCompilerPropertiesTestsNPU,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(UnknownCompilerProperties)),
+                         (ov::test::utils::appendPlatformTypeTestName<OVUnknownCompilerPropertiesTestsNPU>));
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVPropertiesIncorrectTestsNPU,
