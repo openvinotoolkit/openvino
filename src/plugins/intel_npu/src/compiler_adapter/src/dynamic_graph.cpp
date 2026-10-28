@@ -322,16 +322,16 @@ CommandQueueDesc DynamicGraph::create_command_queue_desc(const CommandQueueParam
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
-    return CommandQueueDesc{
-        zeroUtils::toZeQueuePriority(commandQueueParams.modelPriority),
-        commandQueueParams.workloadType.has_value()
-            ? zeroUtils::toZeQueueWorkloadType(commandQueueParams.workloadType.value())
-            : std::nullopt,
-        commandQueueParams.qos.has_value() ? std::optional(zeroUtils::toZeQueueQos(commandQueueParams.qos.value()))
-                                           : std::nullopt,
-        commandQueueOptions,
-        this,
-        commandQueueParams.sharedCommonQueue};
+    return CommandQueueDesc{zeroUtils::toZeQueuePriority(commandQueueParams.modelPriority),
+                            commandQueueParams.workloadType.has_value()
+                                ? zeroUtils::toZeQueueWorkloadType(commandQueueParams.workloadType.value())
+                                : std::nullopt,
+                            commandQueueParams.qos.has_value()
+                                ? std::optional(zeroUtils::toZeQueueQos(commandQueueParams.qos.value()))
+                                : std::nullopt,
+                            commandQueueOptions,
+                            this,
+                            commandQueueParams.sharedCommonQueue};
 }
 
 void DynamicGraph::initialize_impl(const Config& runtimeConfig) {
