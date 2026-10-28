@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -21,7 +22,7 @@ typedef std::map<std::string, Output<Node>> TensorMap;
 struct ConstantCache {
     std::map<std::tuple<ov::element::Type_t, ov::Shape, std::vector<int64_t>>, std::shared_ptr<ov::op::v0::Constant>>
         constants;
-    std::map<ov::element::Type_t, std::shared_ptr<ov::op::v0::Constant>> hadamard_matrices;
+    std::map<std::pair<ov::element::Type_t, size_t>, std::shared_ptr<ov::op::v0::Constant>> hadamard_matrices;
     std::map<std::tuple<Output<Node>,
                         int64_t,
                         bool,
@@ -32,6 +33,7 @@ struct ConstantCache {
              Output<Node>>
         hadamard_outputs;
     std::map<Output<Node>, Output<Node>> f32_activations;
+    std::map<Output<Node>, Output<Node>> rank3_activations;
 };
 
 class NodeContext : public frontend::NodeContext {
@@ -115,21 +117,22 @@ public:
         return constant;
     }
 
-    std::shared_ptr<ov::op::v0::Constant> get_hadamard_matrix(const ov::element::Type& type) const {
+    std::shared_ptr<ov::op::v0::Constant> get_hadamard_matrix(const ov::element::Type& type,
+                                                              size_t block = 1024) const {
         const auto make_matrix = [&] {
-            constexpr size_t block = 1024;
+            const float scale = 1.f / std::sqrt(static_cast<float>(block));
             std::vector<float> values(block * block);
             for (size_t row = 0; row < block; ++row) {
                 for (size_t column = 0; column < block; ++column) {
                     bool negative = false;
                     for (auto bits = row & column; bits; bits &= bits - 1)
                         negative = !negative;
-                    values[row * block + column] = negative ? -1.f / 32.f : 1.f / 32.f;
+                    values[row * block + column] = negative ? -scale : scale;
                 }
             }
             return ov::op::v0::Constant::create(type, {block, block}, values);
         };
-        auto& matrix = m_constant_cache->hadamard_matrices[static_cast<ov::element::Type_t>(type)];
+        auto& matrix = m_constant_cache->hadamard_matrices[{static_cast<ov::element::Type_t>(type), block}];
         if (!matrix)
             matrix = make_matrix();
         return matrix;
@@ -142,6 +145,7 @@ public:
                                            const ov::Tensor& signs) const;
 
     Output<Node> get_f32_activation(const Output<Node>& input) const;
+    Output<Node> get_rank3_activation(const Output<Node>& input) const;
 
 private:
     std::shared_ptr<GgufDecoder> m_decoder;

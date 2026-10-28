@@ -23,6 +23,8 @@
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/topk.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
@@ -3660,6 +3662,21 @@ TEST(GGUFOps, MultimodalRopeMatchesIndependentSections) {
         std::copy(values.begin(), values.end(), positions.data<int32_t>());
         auto actual = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 3, 64}, data)}, {"pos", positions}});
         expect_near(actual, load_npy<float>(vision ? "vision_rope_expected" : "multimodal_imrope_expected"));
+        if (!vision) {
+            const auto converted_ops = model->get_ops();
+            EXPECT_TRUE(std::none_of(converted_ops.begin(), converted_ops.end(), [](const auto& node) {
+                return std::string(node->get_type_name()) == "RoPE";
+            }));
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::RoPEFusion>();
+            manager.run_passes(model);
+            const auto ops = model->get_ops();
+            EXPECT_TRUE(std::any_of(ops.begin(), ops.end(), [](const auto& node) {
+                return std::string(node->get_type_name()) == "RoPE";
+            }));
+            actual = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 3, 64}, data)}, {"pos", positions}});
+            expect_near(actual, load_npy<float>("multimodal_imrope_expected"));
+        }
     }
 }
 

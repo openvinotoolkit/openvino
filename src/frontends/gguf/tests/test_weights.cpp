@@ -236,12 +236,13 @@ TEST(GGUFWeight, TernaryWeightsUseScalarZeroPoint) {
                 continue;
             ++subtracts;
             const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
-            ASSERT_TRUE(convert);
-            const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
+            const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(convert ? convert->get_input_node_shared_ptr(0)
+                                                                          : subtract->get_input_node_shared_ptr(1));
             ASSERT_TRUE(zp);
-            EXPECT_EQ(zp->get_element_type(), ov::element::u8);
+            EXPECT_EQ(zp->get_element_type(),
+                      std::string(format.second) == "Q2_0" ? ov::element::u8 : ov::element::f16);
             EXPECT_EQ(zp->get_shape(), ov::Shape{});
-            EXPECT_EQ(zp->cast_vector<uint8_t>(), std::vector<uint8_t>{1});
+            EXPECT_EQ(zp->cast_vector<float>(), std::vector<float>{1.f});
         }
         EXPECT_EQ(subtracts, 1);
     }
@@ -525,6 +526,33 @@ TEST(GGUFWeight, HadamardProjectionGroupsPreserveDistinctActivations) {
             }
         }
     }
+}
+
+TEST(GGUFWeight, MixedU2ProjectionsKeepFloatingZeroPointType) {
+    using namespace ov::frontend::gguf;
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 128});
+    ov::OutputVector outputs;
+    for (const bool fallback : {false, true}) {
+        WeightTensors tensors{ov::Tensor(ov::element::u2, {16, 128}),
+                              ov::Tensor(ov::element::f16, {16, 1}),
+                              ov::Tensor(ov::element::f16, {16, 1})};
+        std::memset(tensors.weight.data(), fallback ? 0xff : 0x55, tensors.weight.get_byte_size());
+        std::fill_n(tensors.scales.data<ov::float16>(), tensors.scales.get_size(), ov::float16(0.125f));
+        std::fill_n(tensors.zero_point.data<ov::float16>(), tensors.zero_point.get_size(), ov::float16(1.f));
+        outputs.push_back(
+            std::make_shared<ov::op::v0::MatMul>(input, make_weight_node(tensors, GGUF_TYPE_PTQ1_0), false, true));
+    }
+    const auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input});
+    normalize_u2_zero_points(model);
+    size_t subtracts = 0;
+    for (const auto& node : model->get_ops()) {
+        if (const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(node)) {
+            ++subtracts;
+            EXPECT_EQ(subtract->get_input_shape(1), (ov::Shape{16, 1, 1}));
+            EXPECT_EQ(subtract->get_input_element_type(1), ov::element::f16);
+        }
+    }
+    EXPECT_EQ(subtracts, 2);
 }
 
 TEST(GGUFWeight, TernaryProjectionsKeepScalarZeroPoints) {
@@ -812,6 +840,8 @@ TEST(GGUFWeight, UsesIntegerZeroPointForRequantizedMatmulWeights) {
     EXPECT_EQ(gguf_zero_point_type("token_embd.weight", GGUF_TYPE_Q4_K), ov::element::f16);
     EXPECT_EQ(gguf_zero_point_type("output.weight", GGUF_TYPE_Q5_K), ov::element::f16);
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q2_0), ov::element::u8);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_PQ2_0), ov::element::f16);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_PTQ1_0), ov::element::f16);
 }
 
 class GGUFQ5KNative : public ::testing::Test {

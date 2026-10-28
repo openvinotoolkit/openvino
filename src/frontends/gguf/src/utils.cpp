@@ -67,7 +67,17 @@ Output<Node> NodeContext::get_f32_activation(const Output<Node>& input) const {
     return output;
 }
 
-ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input) {
+Output<Node> NodeContext::get_rank3_activation(const Output<Node>& input) const {
+    auto& output = m_constant_cache->rank3_activations[input];
+    if (!output.get_node()) {
+        const auto width = input.get_partial_shape()[3].get_length();
+        output =
+            std::make_shared<ov::op::v1::Reshape>(input, get_constant(ov::element::i64, {3}, {0, -1, width}), true);
+    }
+    return output;
+}
+
+ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input, bool matrix_form) {
     const auto block = context.get_attribute<int64_t>("hadamard_block", 0);
     if (block == 0)
         return input;
@@ -106,10 +116,12 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
         input.get_node_shared_ptr()->get_rt_info()["gguf_hadamard_input_sign"] = true;
     }
     input = std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
-    if (block == 1024 &&
+    if ((block == 1024 || ((matrix_form || inverse) && block >= 256)) &&
         (input.get_element_type() == ov::element::f32 || input.get_element_type() == ov::element::f16)) {
-        input =
-            std::make_shared<v0::MatMul>(input, context.get_hadamard_matrix(input.get_element_type()), false, false);
+        input = std::make_shared<v0::MatMul>(input,
+                                             context.get_hadamard_matrix(input.get_element_type(), block),
+                                             false,
+                                             false);
     } else {
         const auto axis = context.get_constant(ov::element::i64, {}, {1});
         for (int64_t stride = 1; stride < block; stride *= 2) {

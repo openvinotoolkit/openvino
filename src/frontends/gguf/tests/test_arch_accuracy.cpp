@@ -13,6 +13,7 @@
 #include <tuple>
 
 #include "builder/api/metadata_store.hpp"
+#include "builder/arch/decoder_builder.hpp"
 #include "builder/arch/dspark_builder.hpp"
 #include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
@@ -31,11 +32,13 @@
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
@@ -365,8 +368,9 @@ TEST_P(GGUFHadamardAccuracy, PreservesSylvesterOrderSignsAndDynamicShapes) {
         if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op))
             constant_bytes += constant->get_byte_size();
     }
-    EXPECT_EQ(matrices, block == 1024 ? 1 : 0);
-    EXPECT_EQ(stages, block == 1024 ? 0 : static_cast<size_t>(std::log2(block)));
+    const bool matrix_form = block == 1024 || (inverse && block >= 256);
+    EXPECT_EQ(matrices, matrix_form ? 1 : 0);
+    EXPECT_EQ(stages, matrix_form ? 0 : static_cast<size_t>(std::log2(block)));
     EXPECT_LE(constant_bytes, signs.get_byte_size() + stages * block * 12 + matrices * block * block * 4 + 128);
     ov::Core core;
     auto compiled =
@@ -451,6 +455,10 @@ TEST(GGUFHadamardTypes, MatrixCacheIsScopedToConversionAndPrecision) {
     EXPECT_EQ(f32->get_shape(), (ov::Shape{1024, 1024}));
     EXPECT_EQ(f16->get_element_type(), ov::element::f16);
     EXPECT_EQ(f32->cast_vector<float>(), f16->cast_vector<float>());
+    const auto small = first.get_hadamard_matrix(ov::element::f32, 512);
+    EXPECT_NE(f32, small);
+    EXPECT_EQ(small, second.get_hadamard_matrix(ov::element::f32, 512));
+    EXPECT_EQ(small->get_shape(), (ov::Shape{512, 512}));
     for (const auto type : {ov::element::f32, ov::element::f16}) {
         const auto x = std::make_shared<ov::op::v0::Parameter>(type, shape);
         const auto y = apply_hadamard(first, x);
@@ -652,6 +660,33 @@ static size_t count_rank3_gates(const std::shared_ptr<ov::Model>& model, const s
     return gates;
 }
 
+TEST(GGUFMultimodalBackboneAdaptation, TernaryAttentionGatesRestoreRankBeforeSigmoid) {
+    using namespace ov::frontend::gguf;
+    for (const auto type : {ov::element::f32, ov::element::u2}) {
+        const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/muse-glimmer.npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        auto loaded = get_gguf_data(temporary.path);
+        auto& weights = std::get<1>(loaded);
+        auto& gate = weights.at("blk.0.attn_gate.weight");
+        gate = ov::Tensor(type, gate.get_shape());
+        const auto& metadata = std::get<0>(loaded);
+        const auto config = decoder_config_from_meta(metadata);
+        DecoderBuilder builder(config, weights, std::get<2>(loaded));
+        const auto graph = builder.build();
+        const auto node = std::find_if(graph->nodes.begin(), graph->nodes.end(), [](const auto& op) {
+            return op.name == "blk.0.attn_gate";
+        });
+        ASSERT_NE(node, graph->nodes.end());
+        EXPECT_EQ(node->attributes.at("activation_rank").as<int>(), type == ov::element::u2 ? 4 : 3);
+        for (const auto* name : {"blk.0.kqv_gate_input", "blk.0.kqv_gated_4d"}) {
+            const auto reshapes = std::count_if(graph->nodes.begin(), graph->nodes.end(), [&](const auto& op) {
+                return op.name == name;
+            });
+            EXPECT_EQ(reshapes, type == ov::element::u2 ? 0 : 1);
+        }
+    }
+}
+
 TEST(GGUFMultimodalBackboneAdaptation, AttentionGatesPreserveBatchAndBeamShapes) {
     for (const auto* family : {"muse-glimmer", "qwen35", "bonsai2-hadamard"}) {
         SCOPED_TRACE(family);
@@ -662,6 +697,49 @@ TEST(GGUFMultimodalBackboneAdaptation, AttentionGatesPreserveBatchAndBeamShapes)
         const auto model = frontend.convert(frontend.load(temporary.path));
         EXPECT_GT(count_rank3_gates(model, "."), 0);
         check_batched_decode(model);
+    }
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Rank3HeadRemainsVisibleToGenAI) {
+    using namespace ov::frontend::gguf;
+    for (const auto* family : {"llama", "bonsai2-hadamard", "gemma4-mqa"}) {
+        SCOPED_TRACE(family);
+        const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        FrontEnd frontend;
+        frontend.add_extension(
+            std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
+        const auto model = frontend.convert(frontend.load(temporary.path));
+        std::shared_ptr<ov::op::v0::MatMul> head;
+        for (const auto& node : model->get_ops()) {
+            if (ov::util::ends_with(node->get_friendly_name(), "result_output"))
+                head = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+        }
+        ASSERT_NE(head, nullptr);
+        const auto targets = head->output(0).get_target_inputs();
+        const auto width = head->get_input_partial_shape(0)[3].get_length();
+        head->input(0).replace_source_output(std::make_shared<ov::op::v1::Reshape>(
+            head->input_value(0),
+            ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, -1, width}),
+            true));
+        head->revalidate_and_infer_types();
+        const auto restored =
+            std::make_shared<ov::op::v0::Unsqueeze>(head, ov::op::v0::Constant::create(ov::element::i64, {1}, {1}));
+        for (auto target : targets)
+            target.replace_source_output(restored);
+        model->validate_nodes_and_infer_types();
+        ASSERT_TRUE(pass::AdaptToGenAI().run_on_model(model));
+        auto output = model->get_results()[0]->input_value(0);
+        for (size_t depth = 0; output.get_node_shared_ptr() != head && depth < 4; ++depth) {
+            const auto type = std::string(output.get_node()->get_type_name());
+            ASSERT_TRUE(type == "Multiply" || type == "Divide" || type == "Tanh") << type;
+            output = output.get_node()->input_value(0);
+        }
+        EXPECT_EQ(output.get_node_shared_ptr(), head);
+        EXPECT_EQ(head->get_input_partial_shape(0).rank(), 3);
+        ASSERT_NO_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model));
+        ASSERT_NO_THROW(model->reshape({{"input_ids", {5}}, {"position_ids", {5}}}));
+        EXPECT_EQ(model->output().get_partial_shape()[0], 5);
     }
 }
 

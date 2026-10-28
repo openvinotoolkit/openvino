@@ -4,6 +4,7 @@
 
 #include "builder/blocks/attention.hpp"
 
+#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -277,24 +278,33 @@ std::string attention(GraphEmitter& e,
 
     if (cfg.has_attn_gate) {
         e.add_weight(p + "attn_gate.weight");
+        const auto gate_weight = std::find_if(graph.nodes.begin(), graph.nodes.end(), [&](const auto& node) {
+            return node.name == p + "attn_gate.weight";
+        });
+        const bool rank3_gate =
+            gate_weight->attributes.at("gguf.blob.weight").template as<ov::Tensor>().get_element_type() !=
+            ov::element::u2;
         auto gate = e.add_op("GGML_OP_MUL_MAT",
                              p + "attn_gate",
                              {p + "attn_gate.weight", attn_norm},
                              0,
-                             {{"activation_rank", 3}});
+                             {{"activation_rank", rank3_gate ? 3 : 4}});
         gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate});
         const auto gate_attention =
-            e.add_op("GGML_OP_RESHAPE",
-                     p + "kqv_gate_input",
-                     {attn_2d},
-                     6,
-                     {{"reshape_target", std::vector<int64_t>{0, -1, q_width}}, {"special_zero", true}});
+            rank3_gate ? e.add_op("GGML_OP_RESHAPE",
+                                  p + "kqv_gate_input",
+                                  {attn_2d},
+                                  6,
+                                  {{"reshape_target", std::vector<int64_t>{0, -1, q_width}}, {"special_zero", true}})
+                       : attn_2d;
         const auto gated = e.add_op("GGML_OP_MUL", p + "kqv_gated", {gate_attention, gate});
-        attn_2d = e.add_op("GGML_OP_RESHAPE",
-                           p + "kqv_gated_4d",
-                           {gated},
-                           6,
-                           {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
+        attn_2d = rank3_gate
+                      ? e.add_op("GGML_OP_RESHAPE",
+                                 p + "kqv_gated_4d",
+                                 {gated},
+                                 6,
+                                 {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}})
+                      : gated;
     }
 
     // output projection (+ optional bias)

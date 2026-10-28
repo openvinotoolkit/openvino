@@ -222,18 +222,21 @@ std::shared_ptr<ov::Node> make_compressed(const WeightTensors& tensors, ov::elem
     auto zp_node = tensors.zero_point
                        ? make_shared_constant(tensors.zero_point.get_element_type(), scale_shape, tensors.zero_point)
                        : nullptr;
-    if (et == ov::element::u2 && tensors.zero_point && tensors.zero_point.get_element_type() == ov::element::u8) {
-        const auto* zp = tensors.zero_point.data<const uint8_t>();
+    if (et == ov::element::u2 && tensors.zero_point) {
+        const auto all_one = [&](const auto* values) {
+            return std::all_of(values, values + tensors.zero_point.get_size(), [](auto value) {
+                return static_cast<float>(value) == 1.f;
+            });
+        };
+        const auto type = tensors.zero_point.get_element_type();
+        const bool uniform = type == ov::element::u8    ? all_one(tensors.zero_point.data<const uint8_t>())
+                             : type == ov::element::f16 ? all_one(tensors.zero_point.data<const ov::float16>())
+                                                        : false;
         const auto* codes = static_cast<const uint8_t*>(tensors.weight.data());
-        if (std::all_of(zp,
-                        zp + tensors.zero_point.get_size(),
-                        [](uint8_t value) {
-                            return value == 1;
-                        }) &&
-            std::none_of(codes, codes + tensors.weight.get_byte_size(), [](uint8_t value) {
+        if (uniform && std::none_of(codes, codes + tensors.weight.get_byte_size(), [](uint8_t value) {
                 return (value & (value >> 1) & 0x55) != 0;
             })) {
-            zp_node = ov::op::v0::Constant::create(ov::element::u8, {}, {1});
+            zp_node = ov::op::v0::Constant::create(type, {}, {1});
         }
     }
     auto final_shape_node =
@@ -514,13 +517,15 @@ ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const 
         return gather();
     const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(0));
     const auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
-    if (!convert || !zp_convert || convert->get_element_type() != ov::element::f16)
+    if (!convert || convert->get_element_type() != ov::element::f16)
         return gather();
     const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
-    const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(zp_convert->get_input_node_shared_ptr(0));
+    const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(zp_convert ? zp_convert->get_input_node_shared_ptr(0)
+                                                                     : subtract->get_input_node_shared_ptr(1));
     if (!weights || weights->get_element_type() != ov::element::u2 || weights->get_shape().size() != 3 ||
-        weights->get_shape().back() % 4 != 0 || !zp || zp->get_element_type() != ov::element::u8 ||
-        !zp->get_shape().empty() || zp->cast_vector<uint8_t>()[0] != 1)
+        weights->get_shape().back() % 4 != 0 || !zp ||
+        (zp->get_element_type() != ov::element::u8 && zp->get_element_type() != ov::element::f16) ||
+        !zp->get_shape().empty() || zp->cast_vector<float>()[0] != 1.f)
         return gather();
 
     const auto shape = data.get_shape();
@@ -564,7 +569,7 @@ ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const 
                                                           static_cast<int64_t>(weights->get_shape()[2])}),
         true);
     auto values = std::make_shared<ov::op::v0::Convert>(grouped, ov::element::f16);
-    auto signs = std::make_shared<ov::op::v1::Subtract>(values, zp_convert);
+    auto signs = std::make_shared<ov::op::v1::Subtract>(values, subtract->input_value(1));
     auto selected_scales = std::make_shared<ov::op::v8::Gather>(scales, indices, axis);
     auto dequantized = std::make_shared<ov::op::v1::Multiply>(signs, selected_scales);
     auto restored = std::make_shared<ov::op::v1::Reshape>(
@@ -585,6 +590,7 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
     struct Projection {
         std::shared_ptr<ov::op::v1::Subtract> subtract;
         ov::Shape shape;
+        ov::element::Type zp_type;
     };
     std::map<size_t, std::vector<Projection>> projections;
     for (const auto& node : nodes) {
@@ -610,8 +616,10 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
         auto input = matmul->input_value(0);
         while (ov::is_type<ov::op::v0::Convert>(input.get_node_shared_ptr()))
             input = input.get_node_shared_ptr()->input_value(0);
+        const auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
+        const auto zp_type = zp_convert ? zp_convert->get_input_element_type(0) : subtract->get_input_element_type(1);
         projections[activations.get(input)].push_back(
-            {subtract, shape == rt_info.end() ? ov::Shape{} : shape->second.as<ov::Shape>()});
+            {subtract, shape == rt_info.end() ? ov::Shape{} : shape->second.as<ov::Shape>(), zp_type});
     }
     std::set<ov::Node*> grouped;
     for (const auto& [input, group] : projections) {
@@ -638,7 +646,7 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
         for (const auto& projection : group) {
             if (projection.shape.empty() || !grouped.count(projection.subtract.get()))
                 continue;
-            auto zp = ov::op::v0::Constant::create(ov::element::u8, projection.shape, {1});
+            auto zp = ov::op::v0::Constant::create(projection.zp_type, projection.shape, {1});
             projection.subtract->input(1).replace_source_output(
                 std::make_shared<ov::op::v0::Convert>(zp, projection.subtract->get_element_type()));
             projection.subtract->get_rt_info().erase("gguf_u2_zero_point_shape");
@@ -711,7 +719,7 @@ ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType q
     // request the faithful f16 zero-point of both u4 formats via OV_GGUF_Q4_K_ZP_F16. Q2_0's zero-point is exactly
     // 1, so u8 is faithful there. Other asymmetric formats keep f16 because their zero-point can
     // exceed u8 range. token_embd/output keep a faithful f16 zero-point.
-    if (qtype == GGUF_TYPE_Q2_0 || qtype == GGUF_TYPE_PQ2_0 || qtype == GGUF_TYPE_PTQ1_0) {
+    if (qtype == GGUF_TYPE_Q2_0) {
         return ov::element::u8;
     }
     const bool requantized = qtype == GGUF_TYPE_Q5_K ||
