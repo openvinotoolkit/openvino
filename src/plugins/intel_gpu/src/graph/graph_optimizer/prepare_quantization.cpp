@@ -598,15 +598,20 @@ std::vector<program_node*> cldnn::reorder_fc_decompression_params_if_needed(full
     if (weight_rank == 3)
       format = format::byfx;
 
+    // Already in the target layout (e.g. reordered earlier): a second reorder would be a no-op.
+    auto reorder_needed = [&](size_t dep_id, bool transpose_b_param) {
+        return need_reorder(dep_id, weight_rank, transpose_b_param) && fc_node.get_input_layout(dep_id).format != format;
+    };
+
     auto decompression_scale_idx = !fc_node.bias_term() ? 2 : 3;
     // OCL/oneDNN kernel requires decompression scale/zp in layout where scale_ofm dimension is innermost
-    if (need_reorder(decompression_scale_idx, weight_rank, fc_prim->transpose_b_scale)) {
+    if (reorder_needed(decompression_scale_idx, fc_prim->transpose_b_scale)) {
         reorder_bfyx(decompression_scale_idx, format);
     }
 
     if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
-        if (need_reorder(decompression_zp_idx, weight_rank, fc_prim->transpose_b_zp)) {
+        if (reorder_needed(decompression_zp_idx, fc_prim->transpose_b_zp)) {
             reorder_bfyx(decompression_zp_idx, format);
         }
     }
