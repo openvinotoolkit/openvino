@@ -8,8 +8,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <numeric>
+#include <unordered_map>
 #include <vector>
 
 #include "config.h"
@@ -35,6 +37,7 @@
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 #include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
@@ -78,10 +81,59 @@ std::shared_ptr<CpuBlockedMemoryDesc> make_bhls_cache_desc(ov::element::Type pre
                                                   VectorDims{H * cap_L * S, cap_L * S, S, 1});
 }
 
+// The outputs depend on the input shapes only. Unlike the fallback shape inference, which reads the data of all the
+// inputs, it does not touch the state inputs: they are memory stubs when the states have no initial value.
+class SparseSDPAShapeInfer : public ShapeInferEmptyPads {
+public:
+    explicit SparseSDPAShapeInfer(bool fuse_concat) : m_fuse_concat(fuse_concat) {}
+
+    IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                              [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const auto inputs_size = input_shapes.size();
+        // [N, H, L, E] -> [N, H, L, Ev]
+        VectorDims output_dims = input_shapes[InputIdx::QUERY].get();
+        output_dims[3] = input_shapes[InputIdx::VALUE].get()[3];
+        if (!m_fuse_concat) {
+            return {{output_dims}, ShapeInferStatus::success};
+        }
+        // present = concat(gather(past, beam_idx, axis 0), current, axis 2)
+        const auto& beam_idx_dims = input_shapes[inputs_size - 3].get();
+        auto present = [&](VectorDims past_dims, const VectorDims& cur_dims) {
+            past_dims[0] = beam_idx_dims[0];
+            past_dims[2] += cur_dims[2];
+            return past_dims;
+        };
+        return {{output_dims,
+                 present(input_shapes[inputs_size - 2].get(), input_shapes[InputIdx::KEY].get()),
+                 present(input_shapes[inputs_size - 1].get(), input_shapes[InputIdx::VALUE].get())},
+                ShapeInferStatus::success};
+    }
+
+    [[nodiscard]] port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+
+private:
+    bool m_fuse_concat;
+};
+
+class SparseSDPAShapeInferFactory : public ShapeInferFactory {
+public:
+    explicit SparseSDPAShapeInferFactory(const std::shared_ptr<ov::Node>& op)
+        : m_fuse_concat(ov::is_type<SparseAttentionKVOp>(op)) {}
+
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<SparseSDPAShapeInfer>(m_fuse_concat);
+    }
+
+private:
+    bool m_fuse_concat;
+};
+
 }  // namespace
 
 SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op)) {
+    : Node(op, context, SparseSDPAShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);

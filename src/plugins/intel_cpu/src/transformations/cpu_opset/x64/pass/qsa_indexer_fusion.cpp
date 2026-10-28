@@ -38,6 +38,7 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
@@ -174,8 +175,12 @@ ov::Output<ov::Node> make_key_length(const ov::Output<ov::Node>& key_length,
 ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
     MATCHER_SCOPE(QSAIndexerFusion);
 
-    auto rms =
+    // The RMS has a gamma input, or none when the gamma is all ones (e.g. a zero `w` of a `1 + w` norm, whose unit
+    // Multiply is folded away before RMSFusion).
+    auto rms_with_gamma =
         pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input(pattern::rank_equals(4)), pattern::any_input()});
+    auto rms_without_gamma = pattern::wrap_type<ov::op::internal::RMS>({pattern::any_input(pattern::rank_equals(4))});
+    auto rms = std::make_shared<pattern::op::Or>(ov::OutputVector{rms_with_gamma, rms_without_gamma});
     // Under f16 inference the RMS keeps its f32 variance and may be followed by a conversion to the RoPE precision ...
     auto rms_out = pattern::optional<v0::Convert>({rms});
     auto rope = pattern::wrap_type<ov::op::internal::RoPE>({rms_out, pattern::any_input(), pattern::any_input()});
@@ -187,7 +192,9 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto sai_node = ov::as_type_ptr<v17::SparseAttentionIndexer>(m.get_match_root());
         const auto rope_node = ov::as_type_ptr<ov::op::internal::RoPE>(pattern_map.at(rope).get_node_shared_ptr());
-        const auto rms_node = ov::as_type_ptr<ov::op::internal::RMS>(pattern_map.at(rms).get_node_shared_ptr());
+        const auto& rms_value =
+            pattern_map.count(rms_with_gamma) ? pattern_map.at(rms_with_gamma) : pattern_map.at(rms_without_gamma);
+        const auto rms_node = ov::as_type_ptr<ov::op::internal::RMS>(rms_value.get_node_shared_ptr());
         if (!sai_node || !rope_node || !rms_node) {
             return false;
         }
@@ -216,7 +223,9 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
         }
 
         // ---- query RMSNorm + RoPE ----
-        if (!rms_node->get_elementwise_affine() || (rms_node->get_axis() != -1 && rms_node->get_axis() != 3)) {
+        const bool rms_has_gamma = rms_node->get_input_size() == 2;
+        if (rms_has_gamma != rms_node->get_elementwise_affine() ||
+            (rms_node->get_axis() != -1 && rms_node->get_axis() != 3)) {
             return false;
         }
         const auto rope_cfg = rope_node->get_config();
@@ -272,8 +281,11 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
             return false;
         }
 
-        // q_norm_weight: [D], possibly with unit leading dimensions.
-        ov::Output<ov::Node> q_norm_weight = rms_node->input_value(1);
+        // q_norm_weight: [D], possibly with unit leading dimensions; ones for an RMS without gamma.
+        ov::Output<ov::Node> q_norm_weight =
+            rms_has_gamma ? rms_node->input_value(1)
+                          : v0::Constant::create(rms_node->get_output_element_type(0), ov::Shape{head_dim}, {1.0F})
+                                ->output(0);
         const auto& gamma_ps = q_norm_weight.get_partial_shape();
         if (gamma_ps.rank().is_dynamic() || gamma_ps.size() < 1 || gamma_ps[gamma_ps.size() - 1] != head_dim) {
             return false;

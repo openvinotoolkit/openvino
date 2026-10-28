@@ -1159,7 +1159,7 @@ void MemoryInputSDPA::runDynamic([[maybe_unused]] dnnl::stream strm) {
 }
 
 void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
-    if (getParentEdgeAt(0)) {
+    if (!getParentEdges().empty()) {
         ov::intel_cpu::node::Input::resolveInPlaceEdges(look);
     } else {
         auto memDesc = getBaseMemDescAtOutputPort(0);
