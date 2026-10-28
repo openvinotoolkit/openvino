@@ -654,6 +654,130 @@ std::vector<grid_sample_test_inputs<TD, TG>> getParamsToCheckLogic() {
     return all;
 }
 
+template <class TD, class TG>
+std::vector<grid_sample_test_inputs<TD, TG>> getBorderComparisonParams() {
+    auto params = getBilinearParamsOddDimensionsInnerGrids<TD, TG>();
+    auto outer_params = getBilinearParamsOddDimensionsOuterGrids<TD, TG>();
+    auto even_params = getBilinearParamsEvenDimensionsInnerGrids<TD, TG>();
+    std::move(outer_params.begin(), outer_params.end(), std::back_inserter(params));
+    std::move(even_params.begin(), even_params.end(), std::back_inserter(params));
+
+    std::vector<grid_sample_test_inputs<TD, TG>> border_params;
+    for (auto& param : params) {
+        if (param.attributes.padding_mode == GridSampleOp::PaddingMode::BORDER) {
+            border_params.push_back(std::move(param));
+        }
+    }
+
+    for (const bool align_corners : {false, true}) {
+        for (const auto& spatial_shape : std::vector<std::vector<tensor::value_type>>{{1, 1}, {1, 5}, {5, 1}, {3, 5}}) {
+            const auto height = spatial_shape[0];
+            const auto width = spatial_shape[1];
+            grid_sample_test_inputs<TD, TG> param;
+            param.data_shape = {2, 17, height, width};
+            param.grid_shape = {2, 1, 257, 2};
+            param.attributes = {align_corners, GridSampleOp::InterpolationMode::BILINEAR, GridSampleOp::PaddingMode::BORDER};
+            param.test_name = "border_tail_" + std::to_string(height) + "x" + std::to_string(width) +
+                              (align_corners ? "_align" : "_noalign");
+            for (size_t index = 0; index < static_cast<size_t>(2 * 17 * height * width); ++index) {
+                param.data.push_back(TD((static_cast<float>(index % 97) - 48.f) / 16.f));
+            }
+            const std::vector<float> coordinates = {-77.f, -2.f, -1.001f, -1.f, -0.75f, -0.5f, -0.1f,
+                                                     0.f, 0.1f, 0.5f, 0.75f, 1.f, 1.001f, 2.f, 11.5f};
+            for (size_t batch = 0; batch < 2; ++batch) {
+                for (size_t point = 0; point < 257; ++point) {
+                    param.grid.push_back(TG(coordinates[(point + batch) % coordinates.size()]));
+                    param.grid.push_back(TG(coordinates[(point / coordinates.size() + batch) % coordinates.size()]));
+                }
+            }
+            border_params.push_back(std::move(param));
+        }
+    }
+    return border_params;
+}
+
+template <class TD, class TG>
+struct grid_sample_border_compare : public grid_sample_gpu_test<TD, TG> {
+    void compare() {
+        const auto& [params, fmt, is_caching_test] = this->GetParam();
+        ASSERT_EQ(params.attributes.mode, GridSampleOp::InterpolationMode::BILINEAR);
+        ASSERT_EQ(params.attributes.padding_mode, GridSampleOp::PaddingMode::BORDER);
+        auto& engine = get_test_engine();
+        const auto data_type = ov::element::from<TD>();
+        const auto grid_type = ov::element::from<TG>();
+        auto data = engine.allocate_memory(layout(data_type, format::bfyx, tensor(format::bfyx, params.data_shape)));
+        auto grid = engine.allocate_memory(layout(grid_type, format::bfyx, tensor(format::bfyx, params.grid_shape)));
+        set_values(data, params.data);
+        set_values(grid, params.grid);
+
+        topology topology;
+        topology.add(input_layout("data", data->get_layout()));
+        topology.add(input_layout("grid", grid->get_layout()));
+        topology.add(reorder("reordered_data", input_info("data"), fmt, data_type));
+        topology.add(reorder("reordered_grid", input_info("grid"), fmt, grid_type));
+        topology.add(grid_sample("grid_sample", {input_info("reordered_data"), input_info("reordered_grid")}, params.attributes));
+        topology.add(reorder("output", input_info("grid_sample"), format::bfyx, data_type));
+
+        auto execute = [&](const std::string& kernel_name) {
+            auto config = get_test_default_config(engine);
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"grid_sample", {fmt, kernel_name, impl_types::ocl}}}));
+            auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+            const auto implementation = network->get_primitive("grid_sample")->get_impl();
+            EXPECT_NE(implementation, nullptr);
+            if (implementation != nullptr) {
+                EXPECT_EQ(implementation->get_kernel_name(), kernel_name);
+            }
+            network->set_input_data("data", data);
+            network->set_input_data("grid", grid);
+            const auto outputs = network->execute();
+            auto output = outputs.at("output").get_memory();
+            cldnn::mem_lock<TD, mem_lock_type::read> output_ptr(output, get_test_stream());
+            std::vector<float> values(output_ptr.size());
+            for (size_t index = 0; index < values.size(); ++index) {
+                values[index] = static_cast<float>(output_ptr[index]);
+            }
+            return values;
+        };
+
+        const auto optimized = execute("grid_sample_opt_bilinear_zeros");
+        const auto reference = execute("grid_sample_ref");
+        const size_t expected_size = static_cast<size_t>(params.data_shape[0]) * params.data_shape[1] *
+                                     params.grid_shape[1] * params.grid_shape[2];
+        ASSERT_EQ(optimized.size(), expected_size);
+        ASSERT_EQ(reference.size(), expected_size);
+        const float tolerance = data_type == ov::element::f16 ? 0.01f : 0.001f;
+        for (size_t index = 0; index < expected_size; ++index) {
+            ASSERT_NEAR(optimized[index], reference[index], tolerance)
+                << "Output index: " << index << ", optimized: " << optimized[index] << ", reference: " << reference[index];
+        }
+    }
+};
+
+using grid_sample_border_compare_float = grid_sample_border_compare<float, float>;
+TEST_P(grid_sample_border_compare_float, opt_matches_ref) {
+    ASSERT_NO_FATAL_FAILURE(compare());
+}
+
+using grid_sample_border_compare_half = grid_sample_border_compare<ov::float16, ov::float16>;
+TEST_P(grid_sample_border_compare_half, opt_matches_ref) {
+    ASSERT_NO_FATAL_FAILURE(compare());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_border_compare,
+                         grid_sample_border_compare_float,
+                         testing::Combine(testing::ValuesIn(getBorderComparisonParams<float, float>()),
+                                          testing::Values(format::bfyx, format::b_fs_yx_fsv16),
+                                          testing::Values(RUN_CACHING_TEST)),
+                         grid_sample_border_compare_float::PrintToStringParamName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_grid_sample_border_compare,
+                         grid_sample_border_compare_half,
+                         testing::Combine(testing::ValuesIn(getBorderComparisonParams<ov::float16, ov::float16>()),
+                                          testing::Values(format::bfyx, format::b_fs_yx_fsv16),
+                                          testing::Values(RUN_CACHING_TEST)),
+                         grid_sample_border_compare_half::PrintToStringParamName);
+
 const std::vector<format::type> layout_formats = {
     format::bfyx,
     format::b_fs_yx_fsv16,
