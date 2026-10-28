@@ -133,12 +133,15 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
+    if (t.get_size() == 0) {
+        return py::array(py::dtype("S1"), t.get_shape());
+    }
     auto data = t.data<std::string>();
 
-    auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
-        return x.length() < y.length();
-    });
-    auto max_stride = max_element->length();
+    size_t max_stride = 1;
+    for (size_t i = 0; i < t.get_size(); ++i) {
+        max_stride = std::max(max_stride, data[i].length());
+    }
     auto dtype = py::dtype("|S" + std::to_string(max_stride));
 
     // Adjusting strides to follow the numpy convention:
@@ -155,7 +158,7 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
 
     // Create an empty array and populate it with utf-8 encoded strings:
     auto array = py::array(dtype, t.get_shape(), py_array_strides());
-    auto ptr = reinterpret_cast<char*>(array.mutable_data());
+    auto ptr = static_cast<char*>(array.mutable_data());
     for (size_t i = 0; i < t.get_size(); ++i) {
         const auto length = data[i].length();
         ptr = std::copy_n(data[i].begin(), length, ptr);
@@ -167,6 +170,9 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
 py::array string_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
+    }
+    if (t.get_size() == 0) {
+        return py::array(py::dtype("U1"), t.get_shape());
     }
     // Approach that is compact and faster than np.char.decode(tensor.data):
     auto data = t.data<std::string>();
@@ -443,18 +449,20 @@ std::shared_ptr<ov::SharedBuffer<py::array>> get_shared_memory(py::array& array)
 
 template <>
 ov::op::v0::Constant create_copied(py::array& array) {
+    // Take the type before conversion, as_contiguous may return a view with a different dtype (e.g. f16 as int16).
+    const auto type = type_helpers::get_ov_type(array);
     // Do not copy data from the array, only return empty tensor based on type.
     if (array.size() == 0) {
-        return ov::op::v0::Constant(type_helpers::get_ov_type(array), array_helpers::get_shape(array));
+        return ov::op::v0::Constant(type, array_helpers::get_shape(array));
     }
     // Convert to contiguous array if not already in C-style.
     if (!array_helpers::is_contiguous(array)) {
-        array = array_helpers::as_contiguous(array, type_helpers::get_ov_type(array));
+        array = array_helpers::as_contiguous(array, type);
     }
     // Create actual Constant and a constructor is copying data.
     // If ndim is equal to 0, creates scalar Constant.
     // If size is equal to 0, creates empty Constant.
-    return ov::op::v0::Constant(type_helpers::get_ov_type(array),
+    return ov::op::v0::Constant(type,
                                 array_helpers::get_shape(array),
                                 array.ndim() == 0 ? array.data() : array.data(0));
 }

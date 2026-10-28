@@ -798,6 +798,8 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/executors/x64/jit_transpose.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/matmul_small.cpp
     ${CPU_SRC_DIR}/nodes/executors/x64/matmul_small.hpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/selective_ssm_jit_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/selective_ssm_jit_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.cpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/brgemm_kernel.cpp
@@ -833,6 +835,10 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/x64/selective_ssm_jit_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/x64/selective_ssm_jit_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/x64/selective_ssm_jit_runtime.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/x64/selective_ssm_jit_runtime.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/interaction.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/interaction.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/llm_mlp.cpp
