@@ -133,7 +133,8 @@ bool has_2bit_group_quantized_weights(const std::shared_ptr<const ov::Model>& mo
 }
 
 std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov::Model>& model,
-                                                       const ov::AnyMap& properties) {
+                                                       const ov::AnyMap& properties,
+                                                       ov::npuw::GQACompiledModel::Case gqa_case) {
     const auto detect_gqa_model_stage = [&]() {
         // The activation tensor ("input_hidden_states") is what the embedding
         // model stage feeds into the transformer.  For the generate (iter) model
@@ -225,7 +226,7 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
                          {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
                          {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
                          {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"}};
-    if (!has_2bit_group_quantized_weights(model)) {
+    if (gqa_case != ov::npuw::GQACompiledModel::Case::V2) {
         config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
     }
 
@@ -282,7 +283,7 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
-    auto [prepared_properties, stage] = with_gqa_defaults(model, properties);
+    auto [prepared_properties, stage] = with_gqa_defaults(model, properties, identify_case(model));
 
     static std::atomic<std::size_t> mcount{0u};
 
