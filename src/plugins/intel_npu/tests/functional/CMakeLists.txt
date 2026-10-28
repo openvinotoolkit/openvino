@@ -20,7 +20,8 @@ set(SKIP_CONFIG_PATH ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/${SKIP_C
 list(APPEND OPTIONAL_FUNC_TESTS_INCLUDES
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/include"
       "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/include"
-      "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/vm_runtime/vm_runtime/src/utils"
+      "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/src/vm_runtime/vm_runtime/src/utils"
+      "${CMAKE_CURRENT_SOURCE_DIR}/internal/vm"
 )
 
 list(APPEND OPTIONAL_FUNC_TESTS_LIBS openvino_npu_common openvino_npu_compiler_adapter
@@ -58,6 +59,7 @@ ov_add_test_target(
   openvino::reference
   openvino::runtime
   openvino::npu_al
+  openvino::intel_npu_bytecode_utils
   openvino::intel_npu_vm_runtime)
 
 if(ENABLE_INTEL_CPU)
