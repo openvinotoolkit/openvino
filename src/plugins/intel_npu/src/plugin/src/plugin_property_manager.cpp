@@ -531,7 +531,6 @@ void PluginPropertyManager::registerProperties() {
 
     registerCompilerProperty(BATCH_MODE{}, false);
     registerCompilerProperty(COMPILATION_MODE{}, false);
-    registerCompilerProperty(DYNAMIC_SHAPE_TO_STATIC{}, false);
     registerCompilerProperty(ENABLE_WEIGHTLESS{}, false);
     registerCompilerProperty(MODEL_SERIALIZER_VERSION{}, false);
     registerCompilerProperty(SEPARATE_WEIGHTS_VERSION{}, false);

@@ -251,7 +251,6 @@ const std::vector<AnyMap> PropsWithEnvVars{
     {{ov::intel_npu::defer_weights_load.name(), ::intel_npu::DEFER_WEIGHTS_LOAD::envVar()}},
     {{ov::intel_npu::compiler_type.name(), ::intel_npu::COMPILER_TYPE::envVar()}},
     {{ov::intel_npu::compilation_mode.name(), ::intel_npu::COMPILATION_MODE::envVar()}},
-    {{ov::intel_npu::dynamic_shape_to_static.name(), ::intel_npu::DYNAMIC_SHAPE_TO_STATIC::envVar()}},
     {{ov::intel_npu::tiles.name(), ::intel_npu::TILES::envVar()}},
     {{ov::intel_npu::disable_version_check.name(), ::intel_npu::DISABLE_VERSION_CHECK::envVar()}},
     {{ov::intel_npu::export_raw_blob.name(), ::intel_npu::EXPORT_RAW_BLOB::envVar()}},

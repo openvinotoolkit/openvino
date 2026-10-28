@@ -177,7 +177,6 @@ void CompiledModelPropertyManager::registerProperties() {
     registerConfigProperty(COMPILER_VERSION{}, true, true);
     registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true, true);
     registerConfigProperty(DISABLE_VERSION_CHECK{}, true, true);
-    registerConfigProperty(DYNAMIC_SHAPE_TO_STATIC{}, false, true);
     registerConfigProperty(ENABLE_STRIDES_FOR{}, true, true);
     registerConfigProperty(ENABLE_WEIGHTLESS{}, true, true);
     registerConfigProperty(EXPORT_RAW_BLOB{}, true, true);

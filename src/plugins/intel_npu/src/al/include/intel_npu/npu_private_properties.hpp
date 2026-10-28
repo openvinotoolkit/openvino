@@ -330,17 +330,6 @@ static constexpr ov::Property<std::string> compilation_mode{"NPU_COMPILATION_MOD
 static constexpr ov::Property<ov::log::Level> compile_log_level{"NPU_COMPILE_LOG_LEVEL"};
 
 /**
- * @brief
- * Type: Boolean. Default is "NO".
- * Determines which branch we use for dynamic shapes.
- * If set to 'YES', we immediately apply the bounds so that we have a static shape for further work.
- * If not, we store the related information in TensorAttr and the IE representation looks
- * like this: tensor<1x?x3xf32, {bounds = [1, 18, 3], ..}>.
- * Possible values: "YES", "NO".
- */
-static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_SHAPE_TO_STATIC"};
-
-/**
  * @brief [Only for NPU Plugin]
  * Type: string, default is empty.
  * MODEL - model layer profiling is done
