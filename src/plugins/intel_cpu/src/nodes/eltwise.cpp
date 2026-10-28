@@ -152,6 +152,7 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v1::Divide::get_type_info_static(),
          [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseDivide;
+             node.m_attrs.data.pythondiv = ov::as_type_ptr<ov::op::v1::Divide>(op)->is_pythondiv();
              node.m_attrs.broadcastingPolicy = determineBroadcastingPolicy(op);
          }},
         {ov::op::v0::SquaredDifference::get_type_info_static(),
@@ -765,6 +766,15 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     }
 
     bool isIntegerNode = isIntegerComputeSupported(this);
+    if (isIntegerNode && getAlgorithm() == Algorithm::EltwiseDivide &&
+        !EltwiseJitExecutor::supports(m_attrs,
+                                      inputShapes.front().getRank(),
+                                      getOriginalInputPrecisions(),
+                                      {getOriginalOutputPrecisionAtPort(0)})) {
+        // The integer reference executor handles Divide only and cannot apply fused eltwise post-operations.
+        return false;
+    }
+
     if (isIntegerNode && node->getType() != Type::Eltwise) {
         return false;
     }
