@@ -72,6 +72,49 @@ def test_empty_string_tensor(init_type):
     assert tensor.element_type == ov.Type.string
 
 
+@pytest.mark.parametrize("shape", [(0,), (2, 0)])
+def test_zero_sized_string_tensor_data(shape):
+    tensor = ov.Tensor(type=ov.Type.string, shape=shape)
+
+    bytes_data = tensor.bytes_data
+    assert bytes_data.shape == shape
+    assert bytes_data.dtype.kind == "S"
+
+    string_data = tensor.str_data
+    assert string_data.shape == shape
+    assert string_data.dtype.kind == "U"
+
+    with pytest.warns(RuntimeWarning, match="Data of string type will be copied"):
+        data = tensor.data
+    assert data.shape == shape
+    assert data.dtype.kind == "S"
+
+    round_trip = ov.Tensor(bytes_data, shared_memory=False)
+    assert round_trip.shape == shape
+    assert round_trip.bytes_data.shape == shape
+    assert round_trip.bytes_data.size == 0
+
+
+def test_bytes_data_with_empty_strings():
+    tensor = ov.Tensor(type=ov.Type.string, shape=[2])
+
+    bytes_data = tensor.bytes_data
+    assert bytes_data.tolist() == [b"", b""]
+    bytes_data[0] = b"x"
+    assert bytes_data[1] == b""
+    assert bytes_data.tolist() == [b"x", b""]
+
+    copy = ov.Tensor(tensor.bytes_data, shared_memory=False)
+    assert copy.bytes_data.tolist() == [b"", b""]
+    assert tensor.str_data.tolist() == ["", ""]
+
+    bytes_data[1] = b"y"
+    assert bytes_data.tolist() == [b"x", b"y"]
+
+    round_trip = ov.Tensor(bytes_data, shared_memory=False)
+    assert round_trip.bytes_data.tolist() == [b"x", b"y"]
+
+
 @pytest.mark.parametrize(
     ("string_data"),
     [

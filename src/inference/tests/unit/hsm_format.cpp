@@ -6,7 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <string>
@@ -113,6 +116,34 @@ public:
     size_t last_section_size = 0;
 };
 
+template <typename T, size_t N>
+bool all_unique(std::array<T, N> values) {
+    std::sort(values.begin(), values.end());
+    return std::adjacent_find(values.begin(), values.end()) == values.end();
+}
+
+template <typename T, size_t N>
+bool all_in_range(const std::array<T, N>& values, T low, T high) {
+    return std::all_of(values.begin(), values.end(), [low, high](const T& value) {
+        return low <= value && value < high;
+    });
+}
+
+// Every Core tag id. Listing them here is what makes the uniqueness and count guards below meaningful:
+// adding a tag to Tags without adding it here fails the build.
+constexpr std::array<uint32_t, 5> k_core_tag_ids{hsm::model_id,
+                                                 hsm::model,
+                                                 hsm::runtime_requirements,
+                                                 hsm::weights,
+                                                 hsm::compiled_options};
+
+// Every assigned device id, pinned the same way as k_core_tag_ids.
+constexpr std::array<hsm::DeviceId, 5> k_device_ids{hsm::any_device_id,
+                                                    hsm::cpu_device_id,
+                                                    hsm::gpu_device_id,
+                                                    hsm::npu_device_id,
+                                                    hsm::hetero_device_id};
+
 }  // namespace
 
 // --- HSM wire-format layout/version compatibility --------------------------------------------------------
@@ -184,6 +215,12 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tags_have_fixed_mode) {
     static_assert(hsm::runtime_requirements_tag.id() == hsm::runtime_requirements, "runtime_requirements_tag id");
     static_assert(hsm::runtime_requirements_tag.is_pointer(), "runtime_requirements_tag must always be pointer-mode");
 
+    static_assert(hsm::weights_tag.id() == hsm::weights, "weights_tag id");
+    static_assert(hsm::weights_tag.is_pointer(), "weights_tag must always be pointer-mode");
+
+    static_assert(hsm::compiled_options_tag.id() == hsm::compiled_options, "compiled_options_tag id");
+    static_assert(hsm::compiled_options_tag.is_pointer(), "compiled_options_tag must always be pointer-mode");
+
     SUCCEED();
 }
 
@@ -208,8 +245,35 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_values_are_pinned) {
     static_assert(static_cast<uint32_t>(hsm::Tags::model) == 2, "Tags::model value changed");
     static_assert(static_cast<uint32_t>(hsm::Tags::runtime_requirements) == 3,
                   "Tags::runtime_requirements value changed");
+    static_assert(static_cast<uint32_t>(hsm::Tags::weights) == 4, "Tags::weights value changed");
+    static_assert(static_cast<uint32_t>(hsm::Tags::compiled_options) == 5, "Tags::compiled_options value changed");
 
     SUCCEED();
+}
+
+TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_ids_cannot_be_shared) {
+    // +1 for Tags::invalid, which is not a real tag and so is absent from k_core_tag_ids.
+    static_assert(k_core_tag_ids.size() + 1 == static_cast<size_t>(hsm::Tags::sentinel_count),
+                  "a Core tag was added to Tags but not listed in k_core_tag_ids");
+
+    EXPECT_TRUE(all_unique(k_core_tag_ids)) << "two Core tags resolve to the same wire id";
+    EXPECT_TRUE(all_in_range(k_core_tag_ids, 1U, hsm::core_tag_id_range_end))
+        << "a Core tag id reuses Tags::invalid or escapes the Core-owned range";
+}
+
+TEST_F(HsmFormatLayoutCompatibilityTest, device_values_are_pinned_and_cannot_be_shared) {
+    static_assert(static_cast<hsm::DeviceId>(hsm::Devices::any) == 0, "Devices::any value changed");
+    static_assert(static_cast<hsm::DeviceId>(hsm::Devices::cpu) == 1, "Devices::cpu value changed");
+    static_assert(static_cast<hsm::DeviceId>(hsm::Devices::gpu) == 2, "Devices::gpu value changed");
+    static_assert(static_cast<hsm::DeviceId>(hsm::Devices::npu) == 3, "Devices::npu value changed");
+    static_assert(static_cast<hsm::DeviceId>(hsm::Devices::hetero) == 4, "Devices::hetero value changed");
+    static_assert(k_device_ids.size() == static_cast<size_t>(hsm::Devices::sentinel_count),
+                  "a device was added to Devices but not listed in k_device_ids");
+
+    EXPECT_TRUE(all_unique(k_device_ids)) << "two devices resolve to the same wire id";
+    EXPECT_TRUE(
+        all_in_range(k_device_ids, hsm::any_device_id, static_cast<hsm::DeviceId>(hsm::Devices::sentinel_count)))
+        << "a device id falls outside the Devices catalog";
 }
 // --- HSM wire-format layout/version compatibility end ----------------------------------------------------
 
@@ -290,6 +354,7 @@ TEST(HsmContainerViewTest, reads_pointer_section) {
     const hsm::ContainerView view(blob.data(), blob.size());
     const auto& model_entry = (&view.manifest())[1];
     const auto section = view.section(model_entry);
+    ASSERT_FALSE(section.empty());
     ASSERT_EQ(section.size(), 2u);
     EXPECT_EQ(std::string(reinterpret_cast<const char*>(section.data()), section.size()), "OV");
 }
@@ -303,7 +368,7 @@ TEST(HsmContainerViewTest, section_rejects_inline_mode_entry) {
     entry.offset = sizeof(hsm::Header);
     entry.size = 2;
 
-    EXPECT_EQ(view.section(entry).size(), 0u);
+    EXPECT_TRUE(view.section(entry).empty());
 }
 
 TEST(HsmContainerViewTest, section_rejects_out_of_bounds_offset) {
@@ -315,7 +380,7 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_offset) {
     entry.offset = view.size() + 1;
     entry.size = 1;
 
-    EXPECT_EQ(view.section(entry).size(), 0u);
+    EXPECT_TRUE(view.section(entry).empty());
 }
 
 TEST(HsmContainerViewTest, section_rejects_out_of_bounds_size) {
@@ -327,7 +392,7 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_size) {
     entry.offset = 0;
     entry.size = view.size() + 1;  // fits at offset 0 alone, but overruns the buffer
 
-    EXPECT_EQ(view.section(entry).size(), 0u);
+    EXPECT_TRUE(view.section(entry).empty());
 }
 
 TEST(HsmContainerViewValidateTest, accepts_well_formed_container) {
@@ -437,6 +502,7 @@ TEST(HsmContainerViewValidateTest, rejects_section_overlapping_header) {
 TEST(HsmMultiBlobViewTest, empty_buffer_has_no_blobs) {
     const hsm::MultiBlobView view(static_cast<const uint8_t*>(nullptr), 0);
     EXPECT_EQ(view.blob_count(), 0u);
+    EXPECT_FALSE(view.blob_at(0).validate());
 }
 
 TEST(HsmMultiBlobViewTest, reads_single_blob) {

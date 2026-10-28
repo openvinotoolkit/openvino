@@ -7,6 +7,8 @@
 #include <optional>
 #include <utility>
 
+#include "builder/arch/dspark_builder.hpp"
+#include "builder/arch/lfm2_builder.hpp"
 #include "builder/arch/mamba_builder.hpp"
 #include "builder/arch/mmproj_builder.hpp"
 #include "openvino/core/except.hpp"
@@ -42,6 +44,7 @@ const ArchitectureEntry architectures[] = {
      },
      "clip.mmproj"},
     {"deepseek2-ocr", RopeMode::Neox},
+    {"dspark", make_dspark_builder},
     {"ernie4_5-moe", RopeMode::Normal},
     {"exaone-moe", RopeMode::Neox},
     {"exaone4", RopeMode::Neox},
@@ -54,6 +57,13 @@ const ArchitectureEntry architectures[] = {
     {"hunyuan-dense", RopeMode::Neox},
     {"hunyuan-moe", RopeMode::Neox},
     {"jais2", RopeMode::Neox},
+    {"lfm2", make_lfm2_builder},
+    {"lfm2.audio_vocoder",
+     make_lfm2_vocoder_builder,
+     [](const GgufMetadata& meta) {
+         return meta.has("depthformer_n_layer") && meta.has("depthformer_n_embd");
+     }},
+    {"lfm2moe", make_lfm2_builder},
     {"llama", RopeMode::Normal},
     {"llama-embed", RopeMode::Normal},
     {"maincoder", RopeMode::Normal},
