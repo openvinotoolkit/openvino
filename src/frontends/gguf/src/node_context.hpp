@@ -26,6 +26,7 @@ struct ConstantCache {
     std::map<std::tuple<Output<Node>,
                         int64_t,
                         bool,
+                        bool,
                         std::vector<int64_t>,
                         ov::element::Type_t,
                         ov::Shape,
@@ -141,6 +142,7 @@ public:
     Output<Node>* get_hadamard_cache_entry(const Output<Node>& input,
                                            int64_t block,
                                            bool inverse,
+                                           bool matrix_form,
                                            const std::vector<int64_t>& heads,
                                            const ov::Tensor& signs) const;
 

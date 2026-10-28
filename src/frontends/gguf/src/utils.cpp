@@ -91,6 +91,7 @@ Output<Node> hadamard_butterfly(Output<Node> input,
 Output<Node>* NodeContext::get_hadamard_cache_entry(const Output<Node>& input,
                                                     int64_t block,
                                                     bool inverse,
+                                                    bool matrix_form,
                                                     const std::vector<int64_t>& heads,
                                                     const ov::Tensor& signs) const {
     if (signs && !signs.is_continuous())
@@ -104,7 +105,7 @@ Output<Node>* NodeContext::get_hadamard_cache_entry(const Output<Node>& input,
         const auto* bytes = static_cast<const uint8_t*>(signs.data());
         values.assign(bytes, bytes + signs.get_byte_size());
     }
-    return &m_constant_cache->hadamard_outputs[{input, block, inverse, heads, type, shape, values}];
+    return &m_constant_cache->hadamard_outputs[{input, block, inverse, matrix_form, heads, type, shape, values}];
 }
 
 Output<Node> NodeContext::get_f32_activation(const Output<Node>& input) const {
@@ -143,7 +144,10 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     const auto heads = context.get_attribute<std::vector<int64_t>>("hadamard_gdn_heads", {});
     const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
     const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
-    auto* cached = context.get_hadamard_cache_entry(input, block, inverse, heads, signs);
+    const bool use_matrix =
+        (matrix_form || inverse) && block >= 256 &&
+        (input.get_element_type() == ov::element::f32 || input.get_element_type() == ov::element::f16);
+    auto* cached = context.get_hadamard_cache_entry(input, block, inverse, use_matrix, heads, signs);
     if (cached && cached->get_node())
         return *cached;
     const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
@@ -165,15 +169,14 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
         input.get_node_shared_ptr()->get_rt_info()["gguf_hadamard_input_sign"] = true;
     }
     input = std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
-    if ((block == 1024 || ((matrix_form || inverse) && block >= 256)) &&
-        (input.get_element_type() == ov::element::f32 || input.get_element_type() == ov::element::f16)) {
+    if (use_matrix) {
         input = std::make_shared<v0::MatMul>(input,
                                              context.get_hadamard_matrix(input.get_element_type(), block),
                                              false,
                                              false);
         input.get_node_shared_ptr()->get_rt_info()[hadamard_marker] = block;
     } else {
-        input = hadamard_butterfly(input, block, &context);
+        input = hadamard_butterfly(input, block, &context, block == 1024);
     }
     input = std::make_shared<v1::Reshape>(input, original, false);
     if (signs && inverse)

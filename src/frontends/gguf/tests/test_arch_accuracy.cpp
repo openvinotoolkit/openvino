@@ -368,7 +368,7 @@ TEST_P(GGUFHadamardAccuracy, PreservesSylvesterOrderSignsAndDynamicShapes) {
         if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op))
             constant_bytes += constant->get_byte_size();
     }
-    const bool matrix_form = block == 1024 || (inverse && block >= 256);
+    const bool matrix_form = inverse && block >= 256;
     EXPECT_EQ(matrices, matrix_form ? 1 : 0);
     EXPECT_EQ(stages, matrix_form ? 0 : static_cast<size_t>(std::log2(block)));
     EXPECT_LE(constant_bytes, signs.get_byte_size() + stages * block * 12 + matrices * block * block * 4 + 128);
@@ -461,7 +461,7 @@ TEST(GGUFHadamardTypes, MatrixCacheIsScopedToConversionAndPrecision) {
     EXPECT_EQ(smaller_matrix->get_shape(), (ov::Shape{512, 512}));
     for (const auto type : {ov::element::f32, ov::element::f16}) {
         const auto x = std::make_shared<ov::op::v0::Parameter>(type, shape);
-        const auto y = apply_hadamard(first, x);
+        const auto y = apply_hadamard(first, x, true);
         const auto matmul = y.get_node_shared_ptr()->get_input_node_shared_ptr(0);
         ASSERT_EQ(matmul->get_type_name(), std::string("MatMul"));
         EXPECT_EQ(matmul->get_input_node_shared_ptr(1), first.get_hadamard_matrix(type));
