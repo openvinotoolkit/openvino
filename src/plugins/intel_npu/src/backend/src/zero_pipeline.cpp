@@ -140,18 +140,11 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
         _logger.debug("get_profiling_info - completed with _npu_profiling->getNpuInferStatistics()");
         return _npu_profiling->getNpuInferStatistics();
     }
+
     /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
-        _logger.debug("get_profiling_info - completed with _profiling_query->getLayerStatistics()");
-        return _profiling_query->getLayerStatistics();
-    } else if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
-        // For plugin compiler retrieve raw profiling data from backend and delegate
-        // processing to the compiler
-        _logger.debug("get_profiling_info - completed with _graph->process_profiling_output()");
-        return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
-    } else {
-        OPENVINO_THROW("Cannot get profiling info, unknown compiler type");
-    }
+    OPENVINO_ASSERT(_profiling_query != nullptr, "Profiling query is unavailable for model-level profiling");
+
+    return zeroProfiling::getModelLayerStatistics(*_graph, *_profiling_query);
 }
 
 Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
