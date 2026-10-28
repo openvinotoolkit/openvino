@@ -321,11 +321,6 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
 void primitive_inst::update_shape() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("update_shape: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::shape_inference);
-    if (_update_shape_done_by_other) {
-        _update_shape_done_by_other = false;  // reset
-        GPU_DEBUG_TRACE_DETAIL << id() << ": update shape is done by other: " << _impl_params->output_layouts[0].to_short_string() << std::endl;
-        return;
-    }
     bool input_shape_changed = false;
     for (size_t i = 0; i < _deps.size(); i++) {
         auto idx = _deps[i].second;
@@ -335,6 +330,13 @@ void primitive_inst::update_shape() {
                                    << " was: " << _impl_params->get_input_layout(i).to_short_string() << " now: " << new_shape.to_short_string() << std::endl;
             _impl_params->input_layouts[i] = new_shape;
             input_shape_changed = true;
+        }
+    }
+    if (_update_shape_done_by_other) {
+        _update_shape_done_by_other = false;  // reset
+        if (!input_shape_changed) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape is done by other: " << _impl_params->output_layouts[0].to_short_string() << std::endl;
+            return;
         }
     }
     if (get_node().is_type<read_value>()) {
