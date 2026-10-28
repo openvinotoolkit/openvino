@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional>
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
@@ -15,8 +13,7 @@ namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
-namespace {
-OutputVector inline_fx_body(const NodeContext& context, bool flat_apply) {
+OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
     // wrap_with_set_grad_enabled(enabled, body, *operands) and
     // wrap_with_autocast(device_type, dtype, enabled, cache_enabled, body, *operands) run the body under a
     // context manager. Gradient mode does not change inference semantics, so the body is inlined. Autocast changes
@@ -37,9 +34,8 @@ OutputVector inline_fx_body(const NodeContext& context, bool flat_apply) {
                                 context.get_input_size());
     const auto first_operand = context.get_input_size() - body_inputs.size();
 
+    const auto body = context.convert_subgraph(0);
     const auto session = context.get_session();
-    const auto body =
-        flat_apply ? session->convert_pytorch_model(body_decoder, {}, nullptr, true) : context.convert_subgraph(0);
     const auto aliases = session->m_body_output_aliases;
     const auto get_operand = [&](size_t body_tensor) {
         const auto operand = std::find(body_inputs.begin(), body_inputs.end(), body_tensor);
@@ -93,61 +89,17 @@ OutputVector inline_fx_body(const NodeContext& context, bool flat_apply) {
     // the operand, so in-place updates are propagated like for any other view. The current operand value already
     // includes mutations made by the body.
     const auto& operand_ids = decoder->inputs();
-    const auto structure = flat_apply ? context.get_attribute<std::vector<int64_t>>("flat_apply_output_structure")
-                                      : std::vector<int64_t>{};
-    PYTORCH_OP_CONVERSION_CHECK(!flat_apply || !structure.empty(), "flat_apply output structure is empty.");
-    const bool tensor_output = flat_apply && structure.front() == -1;
-    if (flat_apply && !aliases.empty() && !tensor_output) {
-        PYTORCH_OP_CONVERSION_CHECK(
-            structure.size() == outputs.size() + 1 && structure.front() == static_cast<int64_t>(outputs.size()),
-            "flat_apply does not support aliased operands in nested output containers.");
-    }
     for (const auto& [output_index, root_id] : aliases) {
         const auto operand = get_operand(root_id);
         const auto& output = outputs.at(output_index);
-        TranslateSession::AliasInfo alias{operand_ids.at(operand),
-                                          decoder,
-                                          output,
-                                          context.get_input(static_cast<int>(operand))};
-        if (tensor_output) {
-            PYTORCH_OP_CONVERSION_CHECK(output_index == 0, "flat_apply tensor output has unexpected aliases.");
-            session->m_may_be_alias[decoder->output(0)] = std::move(alias);
-        } else {
-            session->m_tuple_element_aliases[{decoder->output(0), static_cast<int64_t>(output_index)}] =
-                std::move(alias);
-        }
+        session->m_tuple_element_aliases[{decoder->output(0), static_cast<int64_t>(output_index)}] = {
+            operand_ids.at(operand),
+            decoder,
+            output,
+            context.get_input(static_cast<int>(operand))};
     }
-    return outputs;
-}
-}  // namespace
-
-OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
-    return {context.mark_node(make_list_construct(inline_fx_body(context, false)))};
-}
-
-OutputVector translate_flat_apply_fx(const NodeContext& context) {
-    const auto outputs = inline_fx_body(context, true);
-    const auto structure = context.get_attribute<std::vector<int64_t>>("flat_apply_output_structure");
-    size_t position = 0;
-    size_t leaf = 0;
-    std::function<Output<Node>()> restore = [&]() -> Output<Node> {
-        PYTORCH_OP_CONVERSION_CHECK(position < structure.size(), "flat_apply output structure is incomplete.");
-        const auto arity = structure[position++];
-        if (arity == -1) {
-            PYTORCH_OP_CONVERSION_CHECK(leaf < outputs.size(), "flat_apply has too few tensor outputs.");
-            return outputs[leaf++];
-        }
-        PYTORCH_OP_CONVERSION_CHECK(arity >= 0, "flat_apply output structure has an invalid arity.");
-        OutputVector elements;
-        for (int64_t i = 0; i < arity; ++i) {
-            elements.push_back(restore());
-        }
-        return context.mark_node(make_list_construct(elements));
-    };
-    const auto result = restore();
-    PYTORCH_OP_CONVERSION_CHECK(position == structure.size() && leaf == outputs.size(),
-                                "flat_apply output structure does not match its tensor outputs.");
-    return {result};
+    // The wrapper returns a tuple even for a single value; parent getitem nodes select its elements.
+    return {context.mark_node(make_list_construct(outputs))};
 }
 
 }  // namespace ov::frontend::pytorch::op

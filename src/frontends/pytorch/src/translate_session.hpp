@@ -25,13 +25,12 @@ public:
     /// \brief Completely convert pytorch_model, creates PtFrameworkNode if not possible to convert node
     /// \param pytorch_model Input model
     /// \param external_tensor_map Is used for recursive calls of convert_pytorch_model and represent the external
-    /// context which is visible from nested model.
-    /// \param is_subgraph Marks independently traced bodies which have no external tensor context.
+    /// context which is visible from nested model. Empty external_tensor_map is used as an indication that this is a
+    /// main body conversion.
     /// \return fully converted OV Model
     std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
                                                  const TensorMap& external_tensor_map = {},
-                                                 const std::shared_ptr<pytorch::InputModel>& input_model = nullptr,
-                                                 bool is_subgraph = false);
+                                                 const std::shared_ptr<pytorch::InputModel>& input_model = nullptr);
 
     /// \brief Returns reverseprop operations for direct operation
     Output<Node> get_reverseprop_op(const std::shared_ptr<TorchDecoder>& node,

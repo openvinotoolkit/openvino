@@ -73,21 +73,15 @@ so later in-place operations on them update the operands. This does not require
 
 ### Exported batching and wrapped callables
 
-When exporting a model, the decoder captures `torch.vmap` as vectorized ATen
-operations using the existing export tracer. Other operations retain their
-predispatch representation. Already exported graphs are normalized by tracing
-only their mapped regions with tensor and symbolic FX metadata, leaving the
-original graph unchanged. Neither path introduces OpenVINO loops or runs
-whole-program decompositions. Mutation and randomness inside mapped regions
-are rejected; region normalization must not introduce new shape guards.
-
-`flat_apply` callables are traced independently with their runtime tensor and
-symbolic operands. Callable and pytree metadata remain conversion metadata;
-they are not converted to tensor constants. The trace must not specialize
-runtime values or introduce new shape guards. Tensor outputs and nested
-list/tuple outputs are preserved; aliased operands in nested output containers
-are rejected. These conversions do not call `run_decompositions()` or retrace
-the entire exported program.
+Before conversion, the FX decoder normalizes the graph and its nested bodies once,
+leaving the original graph unchanged. Each `flat_apply` callable is traced with
+the tensor and symbolic metadata of its runtime operands and inlined in place of
+the call, so its outputs, nested containers and aliases are converted like any
+other FX nodes. Each `torch.vmap` region is traced into vectorized ATen operations
+and inlined the same way. Neither step introduces OpenVINO loops, calls
+`run_decompositions()` or retraces the entire program. A trace must not specialize
+runtime values or introduce new shape guards. Mutation and randomness inside
+`torch.vmap` are rejected.
 
 ## How to Implement Support for a New PyTorch Operation
 

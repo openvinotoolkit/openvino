@@ -10,14 +10,15 @@ import torch
 from packaging import version
 
 from openvino import Core, convert_model
-from openvino.frontend import OpConversionFailure
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+from openvino.frontend.pytorch.fx_normalization import flat_apply_example
+from openvino.frontend.pytorch.utils import no_new_guards
 
 
 pytestmark = [
     pytest.mark.precommit,
-    pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.11"),
-                       reason="Requires flat_apply in torch.export"),
+    pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.14"),
+                       reason="Requires torch 2.14 or newer"),
 ]
 
 
@@ -166,7 +167,7 @@ def test_flat_apply_logical_batched_tensor_metadata():
         batched = functorch._add_batch_dim(physical, 0, level)
     finally:
         functorch._vmap_decrement_nesting()
-    example = TorchFXPythonDecoder._flat_apply_example(batched)
+    example = flat_apply_example(batched)
     assert not functorch.is_batchedtensor(example)
     assert example.shape == (3, 4)
     assert example.dtype == physical.dtype
@@ -209,13 +210,7 @@ def test_flat_apply_output_alias_mutation(output_kind):
     graph.call_function(torch.ops.aten.add_.Tensor, (view, 2))
     graph.output((value, view))
     model = torch.fx.GraphModule({"function_spec": function_spec, "input_spec": input_spec}, graph)
-    decoder = TorchFXPythonDecoder(model)
-    if output_kind == "nested":
-        with pytest.raises(OpConversionFailure,
-                           match="flat_apply does not support aliased operands in nested output containers"):
-            convert_model(decoder)
-        return
-    compiled = Core().compile_model(convert_model(decoder), "CPU")
+    compiled = Core().compile_model(convert_model(TorchFXPythonDecoder(model)), "CPU")
     actual = compiled([data.numpy()])
     expected = model(data)
     for index, value in enumerate(expected):
@@ -234,9 +229,8 @@ def test_flat_apply_rejects_runtime_specialization(specialization):
         return x if condition else y
 
     _, model.function_spec = func_to_graphable(data_dependent)
-    decoder = TorchFXPythonDecoder(model)
     with pytest.raises(RuntimeError, match="Cannot trace flat_apply callable without specializing runtime data"):
-        decoder.visit_subgraph(lambda node: None)
+        TorchFXPythonDecoder(model)
 
 
 def test_flat_apply_legacy_guard_context(monkeypatch):
@@ -249,7 +243,7 @@ def test_flat_apply_legacy_guard_context(monkeypatch):
     original_asserts = shape_env.num_deferred_runtime_asserts
     original_guards = len(shape_env.guards)
     with pytest.raises(RuntimeError, match="new runtime shape guard"):
-        with TorchFXPythonDecoder._flat_apply_no_new_guards(shape_env):
+        with no_new_guards(shape_env):
             shape_env.guard_or_defer_runtime_assert(size.node.expr > 0, "size must be positive")
     assert shape_env.frozen == original_frozen
     assert "_check_frozen" not in shape_env.__dict__

@@ -12,6 +12,15 @@ namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
+namespace {
+Output<Node> promote_integral_to_i64(const NodeContext& context, const Output<Node>& x) {
+    if (x.get_element_type().is_integral()) {
+        return context.mark_node(std::make_shared<v0::Convert>(x, element::i64));
+    }
+    return x;
+}
+}  // namespace
+
 OutputVector translate_cumsum(const NodeContext& context) {
     // aten::cumsum(Tensor self, int dim, *, ScalarType? dtype=None, Tensor out=None)
     num_inputs_check(context, 2, 4);
@@ -21,8 +30,8 @@ OutputVector translate_cumsum(const NodeContext& context) {
         x = apply_dtype(context, 2, x);
     } else if (!context.input_is_none(3)) {
         x = context.mark_node(std::make_shared<v1::ConvertLike>(x, context.get_input(3)));
-    } else if (x.get_element_type().is_integral() || x.get_element_type() == element::boolean) {
-        x = context.mark_node(std::make_shared<v0::Convert>(x, element::i64));
+    } else {
+        x = promote_integral_to_i64(context, x);
     }
     auto result = context.mark_node(std::make_shared<v0::CumSum>(x, dim));
     if (!context.input_is_none(3)) {
@@ -39,8 +48,8 @@ OutputVector translate_cumsum_fx(const NodeContext& context) {
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");
         x = context.mark_node(std::make_shared<v0::Convert>(x, dtype));
-    } else if (x.get_element_type().is_integral() || x.get_element_type() == element::boolean) {
-        x = context.mark_node(std::make_shared<v0::Convert>(x, element::i64));
+    } else {
+        x = promote_integral_to_i64(context, x);
     }
     auto result = context.mark_node(std::make_shared<v0::CumSum>(x, dim));
     return {result};

@@ -25,6 +25,7 @@ from openvino import PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
     torch_tensor_to_ov_const)
+from openvino.frontend.pytorch.fx_normalization import normalize_graph_module
 
 logger = logging.getLogger(__name__)
 
@@ -221,14 +222,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=None,
                  input_types=None, dynamic_shapes=False,
-                 op_type_mapping=None, output_names=None):
+                 op_type_mapping=None, output_names=None, normalize=True):
         super().__init__(mark_node_callback)
-        if isinstance(pt_module, torch.fx.GraphModule):
-            from .vmap_lowering import lower_vmap_regions
-            lowered = lower_vmap_regions(pt_module, self._flat_apply_no_new_guards)
-            if fx_gm is pt_module:
-                fx_gm = lowered
-            pt_module = lowered
+        if normalize and isinstance(pt_module, torch.fx.GraphModule):
+            normalized = normalize_graph_module(pt_module)
+            fx_gm = normalized if fx_gm is pt_module else fx_gm
+            pt_module = normalized
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
@@ -286,10 +285,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
             self.input_types = []
             self._subgraph_inputs = []  # Separate storage for subgraph arguments
-
-            if self._is_flat_apply(pt_module):
-                self._decode_flat_apply(pt_module)
-                return
 
             # Check if this is a higher-order operation that needs special tuple handling
             is_higher_order_op = self._is_higher_order_op(pt_module)
@@ -484,9 +479,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if dynamic_shapes is not None:
             export_args_dict["dynamic_shapes"] = dynamic_shapes
 
-        from .vmap_capture import capture_vmap
-        with capture_vmap():
-            return torch.export.export(model, **export_args_dict)
+        return torch.export.export(model, **export_args_dict)
 
     @staticmethod
     def get_found_shape(value) -> str:
@@ -507,122 +500,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 if hasattr(metadata, "dtype"):
                     return OVAny(pt_to_ov_type_map[str(metadata.dtype)])
         return None
-
-    @staticmethod
-    def _is_flat_apply(node):
-        return node.op == "call_function" and str(node.target) == "flat_apply"
-
-    def _flat_apply_metadata_attr(self, node):
-        if node.op != "get_attr" or not node.users:
-            return False
-        for user in node.users:
-            if not self._is_flat_apply(user):
-                return False
-            if node not in user.args[:2] and isinstance(
-                    fetch_attr(self.fx_gm, node.target), (torch.Tensor, torch.SymInt, torch.SymFloat, torch.SymBool)):
-                return False
-        return True
-
-    @staticmethod
-    def _flat_apply_example(value):
-        if not isinstance(value, (torch.Tensor, torch.SymInt, torch.SymFloat, torch.SymBool)):
-            raise RuntimeError("flat_apply runtime operands require tensor or symbolic FX metadata")
-        if isinstance(value, torch.Tensor) and torch._C._functorch.is_batchedtensor(value):
-            from torch._subclasses.fake_tensor import FakeTensor
-            physical = value
-            while torch._C._functorch.is_batchedtensor(physical):
-                physical = torch._C._functorch.get_unwrapped(physical)
-            if not isinstance(physical, FakeTensor):
-                raise RuntimeError("flat_apply batched operands require FakeTensor metadata")
-            with physical.fake_mode:
-                value = torch.empty_strided(value.shape, value.stride(), dtype=value.dtype, device=value.device)
-        return value
-
-    @staticmethod
-    def _flat_apply_no_new_guards(shape_env):
-        native_context = getattr(shape_env, "error_on_new_guards", None)
-        if native_context is not None:
-            return native_context()
-
-        from contextlib import contextmanager
-
-        @contextmanager
-        def legacy_context():
-            previous_frozen = shape_env.frozen
-            previous_check = shape_env.__dict__.get("_check_frozen")
-
-            def reject_guard(expr, concrete_val):
-                raise RuntimeError(f"flat_apply callable requires a new runtime shape guard: {expr} == {concrete_val}")
-
-            shape_env.frozen = True
-            shape_env._check_frozen = reject_guard
-            try:
-                yield
-            finally:
-                shape_env.frozen = previous_frozen
-                if previous_check is None:
-                    del shape_env._check_frozen
-                else:
-                    shape_env._check_frozen = previous_check
-
-        return legacy_context()
-
-    def _decode_flat_apply(self, node):
-        from contextlib import ExitStack
-        from torch._higher_order_ops.flat_apply import impl
-        from torch.fx.experimental.proxy_tensor import make_fx
-
-        if len(node.args) < 2 or set(node.kwargs) - {"checked_output"}:
-            raise RuntimeError("flat_apply requires callable and input specifications")
-
-        def resolve(arg):
-            if isinstance(arg, torch.fx.Node) and arg.op == "get_attr":
-                return fetch_attr(self.fx_gm, arg.target)
-            return arg
-
-        function, input_spec = (resolve(arg) for arg in node.args[:2])
-        flat_args = list(node.args[2:])
-        positions, examples = [], []
-        for index, arg in enumerate(flat_args):
-            value = resolve(arg)
-            if isinstance(arg, torch.fx.Node) and (arg.op != "get_attr" or isinstance(
-                    value, (torch.Tensor, torch.SymInt, torch.SymFloat, torch.SymBool))):
-                positions.append(index)
-                examples.append(self._flat_apply_example(arg.meta.get("val", value)))
-                self._inputs.append(self._nodes.index(arg))
-                self.input_types.append(BaseFXDecoder.get_type_for_value(arg))
-            else:
-                flat_args[index] = value
-
-        def body(*operands):
-            args = flat_args.copy()
-            for index, operand in zip(positions, operands):
-                args[index] = operand
-            return impl(function, input_spec, tuple(args), node.kwargs.get("checked_output", True))
-
-        try:
-            with ExitStack() as stack:
-                shape_envs = set()
-                for example in examples:
-                    owner = getattr(example, "fake_mode", None) if isinstance(example, torch.Tensor) else example.node
-                    shape_env = getattr(owner, "shape_env", None)
-                    if shape_env is not None and shape_env not in shape_envs:
-                        shape_envs.add(shape_env)
-                        stack.enter_context(self._flat_apply_no_new_guards(shape_env))
-                graph_module = make_fx(body, tracing_mode="fake", _allow_non_fake_inputs=True)(*examples)
-        except Exception as error:
-            raise RuntimeError(f"Cannot trace flat_apply callable without specializing runtime data: {error}") from error
-
-        def output_structure(value):
-            if isinstance(value, (tuple, list)):
-                return [len(value)] + [token for item in value for token in output_structure(item)]
-            if not isinstance(value, torch.fx.Node):
-                raise RuntimeError("flat_apply supports tensor or symbolic outputs and nested lists/tuples of them")
-            return [-1]
-
-        output = next(item for item in graph_module.graph.nodes if item.op == "output")
-        self._flat_apply_output_structure = output_structure(output.args[0])
-        self._subgraph_inputs.append(SubgraphInput(None, graph_module, 0))
 
     def _is_higher_order_op(self, node):
         """Check if the node is a higher-order operation.
@@ -720,8 +597,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return PartialShape.dynamic()
 
     def get_attribute(self, name):
-        if name == "flat_apply_output_structure" and hasattr(self, "_flat_apply_output_structure"):
-            return OVAny(self._flat_apply_output_structure)
         if name in self.pt_module.kwargs:
             attr = self.pt_module.kwargs[name]
             if isinstance(attr, torch.dtype):
@@ -763,7 +638,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             # These are handled by higher-order op translators (while_loop, cond, etc.)
             if node.op == "get_attr":
                 is_subgraph, _ = self._is_subgraph_arg(node)
-                if is_subgraph or self._flat_apply_metadata_attr(node):
+                if is_subgraph:
                     continue
             decoder = TorchFXPythonDecoder(
                 node, self.fx_gm, self._nodes,
@@ -798,7 +673,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             subgraph,
             subgraph,  # Use subgraph as fx_gm for proper constant resolution
             mark_node_callback=self.mark_node_callback,
-            op_type_mapping=self._module_extension_target_ops
+            op_type_mapping=self._module_extension_target_ops,
+            normalize=False
         )
         self.m_decoders.append(decoder)
         return decoder
@@ -807,12 +683,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if isinstance(self.pt_module, torch.fx.GraphModule):
             return "GraphModule"
         if self.pt_module.op == "call_function":
-            if (getattr(self.pt_module.target, "__module__", None) == "torch._functorch.predispatch"
-                    and getattr(self.pt_module.target, "__name__", None) in {
-                        "_add_batch_dim", "_remove_batch_dim", "_vmap_increment_nesting",
-                        "_vmap_decrement_nesting", "lazy_load_decompositions"}):
-                name = "torch._functorch.predispatch::" + self.pt_module.target.__name__
-            elif type(self.pt_module.target).__name__ == "EdgeOpOverload":
+            if type(self.pt_module.target).__name__ == "EdgeOpOverload":
                 name = self.pt_module.target.__name__
             else:
                 name = str(self._functional_out_target(self.pt_module.target))

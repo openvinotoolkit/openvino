@@ -3,6 +3,7 @@
 //
 
 #include <limits>
+#include <tuple>
 
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
@@ -53,9 +54,9 @@ OutputVector translate_diff(const NodeContext& context) {
     });
     if (complex) {
         for (auto& input : values) {
-            auto marker = ov::as_type_ptr<ComplexTypeMark>(input.get_node_shared_ptr());
+            std::shared_ptr<ComplexTypeMark> marker;
+            std::tie(input, marker) = unwrap_complex(input);
             PYTORCH_OP_CONVERSION_CHECK(marker, "diff does not support mixing complex and real inputs.");
-            input = marker->get_data();
         }
         if (axis < 0) {
             --axis;
@@ -68,7 +69,8 @@ OutputVector translate_diff(const NodeContext& context) {
         values[i] = promoted->output(1);
     }
     values[0] = value;
-    for (size_t i = 1; i < values.size(); ++i) {
+    // The last value already has the final promoted type.
+    for (size_t i = 1; i + 1 < values.size(); ++i) {
         values[i] = context.mark_node(std::make_shared<v1::ConvertLike>(values[i], value));
     }
     if (values.size() > 1) {

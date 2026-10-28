@@ -60,8 +60,7 @@ def test_torch_diff(capture, dtype, order, axis, prepend, append, monkeypatch):
 
 @pytest.mark.precommit
 @pytest.mark.nightly
-@pytest.mark.parametrize("length", [0, 1, 2, 3, 7])
-def test_torch_diff_dynamic_length(length, monkeypatch):
+def test_torch_diff_dynamic_length(monkeypatch):
     class Model(torch.nn.Module):
         def forward(self, x):
             return torch.diff(x, n=2, dim=-1)
@@ -73,8 +72,9 @@ def test_torch_diff_dynamic_length(length, monkeypatch):
     converted = ov.convert_model(program)
     converted.reshape([2, -1])
     compiled = ov.Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
-    x = torch.arange(2 * length, dtype=torch.float32).reshape(2, length)
-    np.testing.assert_array_equal(compiled(x.numpy())[0], Model()(x).numpy())
+    for length in [0, 1, 2, 3, 7]:
+        x = torch.arange(2 * length, dtype=torch.float32).reshape(2, length)
+        np.testing.assert_array_equal(compiled(x.numpy())[0], Model()(x).numpy())
 
 
 @pytest.mark.precommit

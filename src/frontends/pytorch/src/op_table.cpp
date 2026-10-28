@@ -76,7 +76,6 @@ OP_CONVERTER(translate_copy_);
 OP_CONVERTER(translate_cross);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_diff);
-OP_CONVERTER(translate_flat_apply_fx);
 OP_CONVERTER(translate_deform_conv);
 OP_CONVERTER(translate_derive_index);
 OP_CONVERTER(translate_dim);
@@ -998,7 +997,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},
-        {"flat_apply", op::translate_flat_apply_fx},
         {"wrap_with_autocast", op::translate_wrap_with_context_fx},
         {"wrap_with_set_grad_enabled", op::translate_wrap_with_context_fx},
     };

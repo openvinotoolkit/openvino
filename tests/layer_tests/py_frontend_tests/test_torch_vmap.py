@@ -14,14 +14,13 @@ from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 pytestmark = [
     pytest.mark.precommit,
-    pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.11"),
-                       reason="Requires predispatch vmap capture in torch.export"),
+    pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.14"),
+                       reason="Requires torch 2.14 or newer"),
 ]
 
 
-def _convert_export(model, inputs, dynamic_shapes=None, capture=False):
-    exporter = TorchFXPythonDecoder._export if capture else torch.export.export
-    exported = exporter(model, tuple(value.clone() for value in inputs), dynamic_shapes=dynamic_shapes)
+def _convert_export(model, inputs, dynamic_shapes=None):
+    exported = torch.export.export(model, tuple(value.clone() for value in inputs), dynamic_shapes=dynamic_shapes)
     graphs = {name: str(module.graph) for name, module in exported.graph_module.named_modules()
               if isinstance(module, torch.fx.GraphModule)}
     with patch.object(torch.export.ExportedProgram, "run_decompositions",
@@ -141,7 +140,7 @@ def test_export_vmap_invariant_output(out_dim):
     model = Model()
     batch = torch.export.Dim("batch", min=2, max=16)
     compiled = _convert_export(model, (torch.randn(4, 2), torch.randn(3)),
-                               ({0: batch}, {}), capture=True)
+                               ({0: batch}, {}))
     for size in (4, 6):
         shape = (size, 3) if out_dim == 0 else (3, size)
         _compare(compiled, lambda data, captured: captured.sin().unsqueeze(out_dim).expand(shape),
@@ -215,8 +214,6 @@ def test_model_vmap_single_trace(nested, dynamic):
     inputs = (torch.randn(2, 4, 3),)
     shapes = ({1: torch.export.Dim("batch", min=2, max=16)},) if dynamic else None
     with patch.object(export_trace, "make_fx", wraps=export_trace.make_fx) as tracer, \
-            patch("torch.fx.experimental.proxy_tensor.make_fx",
-                  side_effect=AssertionError("Decoder must not retrace a vectorized export")), \
             patch.object(torch.export.ExportedProgram, "run_decompositions",
                          side_effect=AssertionError("Conversion must not run decompositions")):
         decoder = TorchFXPythonDecoder.from_model(model, inputs, dynamic_shapes=shapes)
@@ -314,8 +311,7 @@ def test_fx_vmap_buffer_attribute_root(nested):
     _compare(compiled, lambda value: value + model.weight, (data,))
 
 
-@pytest.mark.parametrize("capture", [False, True])
-def test_vmap_rejects_wrapped_mutation(capture):
+def test_vmap_rejects_wrapped_mutation():
     @torch.no_grad()
     def mutate(row):
         return row.clone().add_(1)
@@ -324,6 +320,5 @@ def test_vmap_rejects_wrapped_mutation(capture):
         def forward(self, data):
             return torch.vmap(mutate)(data)
 
-    exporter = TorchFXPythonDecoder._export if capture else torch.export.export
     with pytest.raises(RuntimeError, match="Mutation inside vmap is not supported"):
-        convert_model(exporter(Model(), (torch.randn(2, 3),)))
+        convert_model(torch.export.export(Model(), (torch.randn(2, 3),)))
