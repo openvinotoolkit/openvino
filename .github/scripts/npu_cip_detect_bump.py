@@ -85,6 +85,24 @@ def resolve_before_after() -> tuple[str, str]:
     return os.environ.get("PUSH_BEFORE_SHA", ""), os.environ.get("PUSH_AFTER_SHA", "")
 
 
+def find_bump_commit(repo: str, file_path: str, before: str, after: str) -> str:
+    """Return the newest commit in (before, after] that touched file_path, or after if none is found.
+
+    A single push (e.g. a merge queue batch) may contain several PRs; the tip commit is not
+    necessarily the one that changed the checksums.
+    """
+    history = gh_api_json(f"repos/{repo}/commits?sha={after}&path={file_path}&per_page=1")
+    if not isinstance(history, list) or not history or not isinstance(history[0], dict):
+        return after
+    candidate = history[0].get("sha") or ""
+    if not candidate:
+        return after
+    comparison = gh_api_json(f"repos/{repo}/compare/{before}...{candidate}")
+    if not isinstance(comparison, dict) or comparison.get("status") != "ahead":
+        return after
+    return candidate
+
+
 def build_mentions(logins: str) -> str:
     parts = []
     for login in logins.replace(",", " ").split():
@@ -142,11 +160,13 @@ def main() -> None:
         return
 
     now = datetime.now(tz=ZoneInfo("Europe/Warsaw")).strftime("%H:%M %d/%m/%Y %Z")
-    commit_url = f"{server_url}/{repo}/commit/{after}"
+    bump_sha = find_bump_commit(repo, file_path, before, after)
+    print(f"Attributing bump to commit {bump_sha}")
+    commit_url = f"{server_url}/{repo}/commit/{bump_sha}"
     branch = ref_name
 
     author = ""
-    commit_payload = gh_api_json(f"repos/{repo}/commits/{after}")
+    commit_payload = gh_api_json(f"repos/{repo}/commits/{bump_sha}")
     if isinstance(commit_payload, dict):
         commit = commit_payload.get("commit") or {}
         if isinstance(commit, dict):
@@ -156,7 +176,7 @@ def main() -> None:
 
     pr_info = ""
     pr_number = ""
-    pulls = gh_api_json(f"repos/{repo}/commits/{after}/pulls")
+    pulls = gh_api_json(f"repos/{repo}/commits/{bump_sha}/pulls")
     if isinstance(pulls, list) and pulls:
         first = pulls[0]
         if isinstance(first, dict) and first.get("number") is not None:
