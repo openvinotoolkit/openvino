@@ -82,9 +82,8 @@ def _preserve_output_aliases(lowered, outputs):
                     offset_bytes = (value.storage_offset() * value.element_size()
                                     - traced.storage_offset() * traced.element_size()
                                     + original.storage_offset() * original.element_size())
-                    return value.new_empty((0,)).set_(original.untyped_storage(),
-                                                     offset_bytes // value.element_size(),
-                                                     value.shape, value.stride())
+                    return value.new_empty((0,)).set_(
+                        original.untyped_storage(), offset_bytes // value.element_size(), value.shape, value.stride())
         return value
 
     for node in lowered.graph.nodes:
