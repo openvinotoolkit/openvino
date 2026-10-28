@@ -7,6 +7,7 @@
 #include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <algorithm>
 #include <sstream>
 
 #include "intel_npu/common/itt.hpp"
@@ -184,7 +185,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                    _init_structs->getGraphDdiTable().getImpl(),
                                    _init_structs->getCommandQueueDdiTable().getImpl());
         if (commandQueueDesc.sharedCommonQueue()) {
-            _vm_bound_command_queue = _command_queue;
+            _vm_referenced_command_queues.push_back(_command_queue);
         }
         _runtime_config_command_queue_desc = commandQueueDesc;
         _runtime_config_command_queue_desc_valid = true;
@@ -266,7 +267,7 @@ void DynamicPipeline::push() {
 
     if (useV2Api) {
         if (commandQueueVersionChanged && commandQueueDesc.sharedCommonQueue()) {
-            // The outgoing queue stays alive through _vm_bound_command_queue until Execute2 migrates off it.
+            // The outgoing queue stays alive in _vm_referenced_command_queues until Execute2 rebinds off it.
             _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
         }
 
@@ -460,8 +461,12 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
     _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
     const auto result = npuVMRuntimeExecute2(vmRuntime, &params);
     if (commandQueue != nullptr) {
-        // Release the previously bound queue only after the runtime has returned from migrating off it.
-        _vm_bound_command_queue = _command_queue;
+        auto& queues = _vm_referenced_command_queues;
+        if (result == NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            queues.assign(1, _command_queue);
+        } else if (std::find(queues.begin(), queues.end(), _command_queue) == queues.end()) {
+            queues.push_back(_command_queue);
+        }
     }
     OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS,
                     "Failed to execute VM runtime engine (v2), error code: ",
