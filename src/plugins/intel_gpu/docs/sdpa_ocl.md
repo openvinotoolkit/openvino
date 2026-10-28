@@ -1132,6 +1132,15 @@ MIXED kernel's load count was dominated by scale/zp: 272 `d16u32` messages again
 data loads). The page lookup (`block_indices[]`) is hoisted the same way, from
 `DKS * kq_key_blocks * DPAS_ROWS` loads (64 at head 64) to `kq_key_blocks`.
 
+The plain-SDPA scales have the query's type (`kv_cache_compression.cpp`), so a bf16 query brings bf16
+scales, jitted as `ushort` (their bits). `KEY_SCALES_IS_BF16` / `VAL_SCALES_IS_BF16` make every scale
+read widen them by a 16-bit shift (`K_COMP_SCALE_TO_HALF`, `V_COMP_SCALE_TO_HALF` / `_TO_FLOAT` in
+`sdpa_ocl_config.cl`); before that the integer was converted and every bf16 compressed output was
+garbage, on SG8 and SG16 alike (upstream #38532 made the path reachable and fixed `sdpa_opt` /
+`sdpa_ref` only). The per-key scale lanes stay half, which holds a bf16 scale exactly for
+6.1e-5 <= |scale| <= 65504; a smaller scale is rounded to a half subnormal, a larger one overflows.
+`smoke_sdpa_kv_compressed_bf16` covers it.
+
 ## Masks
 
 - `MASK_KIND` is the host's compile-time proof of the mask shape: 2 = full 2D, 1 = per key,
@@ -1407,9 +1416,10 @@ Measured on an Arc Pro B70 (Xe2), identical before and after the refactor:
   (`..._et=f16_num_iter=5_num_groups=4_..._compressed=1k_head=512v_head=512`): 4724 of 8192
   elements wrong, max difference 0.99. The kernel compiled for it is the plain i8 KV-compressed
   `sdpa_ocl` at head 512 with K/V block IO, which makes it the prime suspect. Not investigated.
-- The 14 bf16 compressed cases of the same test fail in `add_required_reorders` (no i8 layout for
-  `dynamicquantize`) before an SDPA implementation is chosen, so plain bf16 with compressed KV is
-  unreachable. `SDPAFusion.Inference/0` does not find the fused SDPA node.
+- The 14 bf16 compressed cases of the same test failed in `add_required_reorders` (no i8 layout for
+  `dynamicquantize`) before an SDPA implementation was chosen. Upstream #38532 made them reach SDPA,
+  and `sdpa_ocl` then misread their bf16 scales ("Dequantisation"; fixed). `SDPAFusion.Inference/0`
+  does not find the fused SDPA node.
 
 ### Test coverage gaps
 

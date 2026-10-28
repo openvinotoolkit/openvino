@@ -151,16 +151,17 @@ SDPA_OCL_INLINE void FUNC(v_i8_read)(__private uint *vt, const __global VAL_DATA
 // Per-token V scale and zp of this cp block. The scale depends only on the key, and pA is already
 // lane = key, so it folds into pA with a per-lane multiply instead of being broadcast across V's
 // head-dim lanes; zp is a subtraction, so it stays on the V side and is returned. Kept in half:
-// V_scales/V_zp are already half, and half arithmetic is bit-identical to the float path over the
-// int8 range (verified). The returned zp has the bias-trick widen bias folded in (zp + 1152.0h; bf16
-// keeps the raw zp); keys at/past k get scale 0 (and zp 0), which zeroes their product.
+// V_scales/V_zp are half (a bf16 scale widens to it exactly in half's normal range), and half
+// arithmetic is bit-identical to the float path over the int8 range (verified). The returned zp has
+// the bias-trick widen bias folded in (zp + 1152.0h; bf16 keeps the raw zp); keys at/past k get
+// scale 0 (and zp 0), which zeroes their product.
 SDPA_OCL_INLINE half FUNC(v_i8_comp_fold)(OPTIONAL_SHAPE_INFO_ARG __private short8 *pA,
                                           const __global VAL_ATTR_SCALES_DATA_T *V_scales,
                                           const __global VAL_ATTR_ZP_DATA_T *V_zp, const uint v_comp_base,
                                           const int k0, const int cp, const int k, const size_t lane) {
     const int vs_key = k0 + cp * DPAS_K + lane;
     const uint vs_co = v_comp_base + VAL_COMP_OFF(0, 0, vs_key, 0);
-    const half vs_c = (vs_key < k) ? V_scales[vs_co] : (half)0.0f;
+    const half vs_c = (vs_key < k) ? V_COMP_SCALE_TO_HALF(V_scales[vs_co]) : (half)0.0f;
 #if INPUT0_IS_BF16
     const half vzb_c = (vs_key < k) ? convert_half(V_zp[vs_co]) : (half)0.0f;
 #else
@@ -517,7 +518,7 @@ SDPA_OCL_INLINE void FUNC(v_tile_gather)(OPTIONAL_SHAPE_INFO_ARG __private int8 
                 if (key0 < k) {
                     #ifdef KV_COMPRESSED
                         const uint v_comp_off0 = VAL_COMP_OFF(b1, b0_kv, key0, 0);
-                        vv[0] = DT_FROM_F32((convert_float(V[(size_t)key0 * ldv + value]) - convert_float(V_zp[v_comp_off0])) * convert_float(V_scales[v_comp_off0]));
+                        vv[0] = DT_FROM_F32((convert_float(V[(size_t)key0 * ldv + value]) - convert_float(V_zp[v_comp_off0])) * V_COMP_SCALE_TO_FLOAT(V_scales[v_comp_off0]));
                     #else
                         vv[0] = DT_FROM_RAW(V[(size_t)key0 * ldv + value]);
                     #endif
@@ -525,7 +526,7 @@ SDPA_OCL_INLINE void FUNC(v_tile_gather)(OPTIONAL_SHAPE_INFO_ARG __private int8 
                 if (key1 < k) {
                     #ifdef KV_COMPRESSED
                         const uint v_comp_off1 = VAL_COMP_OFF(b1, b0_kv, key1, 0);
-                        vv[1] = DT_FROM_F32((convert_float(V[(size_t)key1 * ldv + value]) - convert_float(V_zp[v_comp_off1])) * convert_float(V_scales[v_comp_off1]));
+                        vv[1] = DT_FROM_F32((convert_float(V[(size_t)key1 * ldv + value]) - convert_float(V_zp[v_comp_off1])) * V_COMP_SCALE_TO_FLOAT(V_scales[v_comp_off1]));
                     #else
                         vv[1] = DT_FROM_RAW(V[(size_t)key1 * ldv + value]);
                     #endif

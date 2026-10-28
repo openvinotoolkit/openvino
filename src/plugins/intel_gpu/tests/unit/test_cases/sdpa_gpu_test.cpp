@@ -2719,27 +2719,32 @@ INSTANTIATE_TEST_SUITE_P(
 // kernel passes them. Here the softmax is sharp (logit sigma ~5, checked through the mean top probability) and every key has
 // its own scale and zp, so a pair of head dims in the wrong order, a scale/zp read from the wrong key or a dropped zp each move
 // the output far past the tolerance. SDPA_KVC_NEG=pair_swap|scale_alias|zp_off perturbs the REFERENCE the same way; every case
-// must then fail by >= 0.1. Not covered here: GQA (the primitive takes equal q/kv heads), a mask input.
+// must then fail by >= 0.1. dt = bf16 makes Q, the output and both scales bf16 (kv_cache_compression.cpp types the scales
+// as the query), which the kernel must widen from their ushort storage. Not covered here: GQA (the primitive takes equal
+// q/kv heads), a mask input.
 struct sdpa_kv_compressed_params {
     int head_size;
     int heads;
     int q_len;
     int kv_len;
     int batch;
+    data_types dt = data_types::f16;
 };
 
 struct sdpa_kv_compressed_test : public ::testing::TestWithParam<sdpa_kv_compressed_params> {
     static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_kv_compressed_params>& info) {
         const auto& p = info.param;
         return "head" + std::to_string(p.head_size) + "_h" + std::to_string(p.heads) + "_q" + std::to_string(p.q_len) + "_kv" + std::to_string(p.kv_len) +
-               "_b" + std::to_string(p.batch);
+               "_b" + std::to_string(p.batch) + (p.dt == data_types::bf16 ? "_bf16" : "");
     }
 };
 
 TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
     const auto p = GetParam();
     auto& engine = get_test_engine();
-    const uint32_t tiers = ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_I8 | (p.q_len <= 1 ? ov::intel_gpu::ocl::PLAIN_EXT : 0u);
+    const bool bf16 = p.dt == data_types::bf16;
+    const uint32_t tiers =
+        ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_I8 | (p.q_len <= 1 || bf16 ? ov::intel_gpu::ocl::PLAIN_EXT : 0u);
     const auto backend = tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size), tiers);
     if (backend == tests::dpas_backend::none)
         GTEST_SKIP() << "no DPAS backend on this device";
@@ -2752,6 +2757,8 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
     std::mt19937 rng(1234u + static_cast<uint32_t>(d) * 31u + static_cast<uint32_t>(nk));
     auto uni = [&](float lo, float hi) { return std::uniform_real_distribution<float>(lo, hi)(rng); };
     auto uni_int = [&](int lo, int hi) { return std::uniform_int_distribution<int>(lo, hi)(rng); };
+    // The values the device holds (f16 cases keep the exact data they had before dt existed).
+    auto round_dt = [&](float x) { return bf16 ? static_cast<float>(ov::bfloat16(x)) : static_cast<float>(ov::float16(x)); };
 
     const size_t kv_count = static_cast<size_t>(B) * H * nk * d, comp_count = static_cast<size_t>(B) * H * nk;
     std::vector<int8_t> kq(kv_count), vq(kv_count), kzp(comp_count), vzp(comp_count);
@@ -2760,10 +2767,10 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
     for (auto& x : vq) x = static_cast<int8_t>(uni_int(-127, 127));
     for (auto& x : kzp) x = static_cast<int8_t>(uni_int(-30, 30));
     for (auto& x : vzp) x = static_cast<int8_t>(uni_int(-30, 30));
-    for (auto& x : ksc) x = static_cast<float>(ov::float16(uni(0.01f, 0.04f)));
-    for (auto& x : vsc) x = static_cast<float>(ov::float16(uni(0.01f, 0.04f)));
+    for (auto& x : ksc) x = round_dt(uni(0.01f, 0.04f));
+    for (auto& x : vsc) x = round_dt(uni(0.01f, 0.04f));
     std::vector<float> q(static_cast<size_t>(B) * H * nq * d);
-    for (auto& x : q) x = static_cast<float>(ov::float16(uni(-1.0f, 1.0f)));
+    for (auto& x : q) x = round_dt(uni(-1.0f, 1.0f));
 
     // The reference's view of the cache (perturbed by the negative controls, never what the kernel reads).
     auto comp_at = [&](size_t bh, int j) { return bh * nk + static_cast<size_t>(neg == "scale_alias" ? (j & ~7) : j); };
@@ -2795,9 +2802,9 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
             }
     const float scale_val = static_cast<float>(5.0 / std::sqrt(sum2 / static_cast<double>(samples)));
 
-    const layout q_lay({B, H, nq, d}, data_types::f16, format::bfyx);
+    const layout q_lay({B, H, nq, d}, p.dt, format::bfyx);
     const layout kv_lay({B, H, nk, d}, data_types::i8, format::bfyx);
-    const layout sc_lay({B, H, nk, 1}, data_types::f16, format::bfyx);
+    const layout sc_lay({B, H, nk, 1}, p.dt, format::bfyx);
     const layout zp_lay({B, H, nk, 1}, data_types::i8, format::bfyx);
     auto q_mem = engine.allocate_memory(q_lay);
     auto k_mem = engine.allocate_memory(kv_lay);
@@ -2813,11 +2820,17 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
         for (size_t i = 0; i < host.size(); ++i)
             l[i] = conv(host[i]);
     };
-    fill(q_mem, q, [](float x) { return ov::float16(x); });
+    if (bf16) {
+        fill(q_mem, q, [](float x) { return ov::bfloat16(x); });
+        fill(ksc_mem, ksc, [](float x) { return ov::bfloat16(x); });
+        fill(vsc_mem, vsc, [](float x) { return ov::bfloat16(x); });
+    } else {
+        fill(q_mem, q, [](float x) { return ov::float16(x); });
+        fill(ksc_mem, ksc, [](float x) { return ov::float16(x); });
+        fill(vsc_mem, vsc, [](float x) { return ov::float16(x); });
+    }
     fill(k_mem, kq, [](int8_t x) { return x; });
     fill(v_mem, vq, [](int8_t x) { return x; });
-    fill(ksc_mem, ksc, [](float x) { return ov::float16(x); });
-    fill(vsc_mem, vsc, [](float x) { return ov::float16(x); });
     fill(kzp_mem, kzp, [](int8_t x) { return x; });
     fill(vzp_mem, vzp, [](int8_t x) { return x; });
 
@@ -2826,7 +2839,7 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
     qa.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
     qa.group_sizes = {1, 1, 1, UINT64_MAX};
     qa.quantization_dt = ov::element::i8;
-    qa.scale_dt = ov::element::f16;
+    qa.scale_dt = bf16 ? ov::element::bf16 : ov::element::f16;
     qa.zp_dt = ov::element::i8;
     qa.scales_zp_output_order = {0, 1, 2, 3};
 
@@ -2911,16 +2924,20 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
               << " lane=" << entries << " max_abs_err=" << max_abs_err << " mean_abs_err=" << mean_abs_err << " maxprob_mean=" << maxprob_mean
               << " neg=" << (neg.empty() ? "none" : neg) << std::endl;
     ASSERT_GE(maxprob_mean, 0.5) << "the softmax is not sharp enough for this case to see a dequant error";
+    // bf16 DPAS takes the dequantized K and V, and P, at 8 significant bits; at logit sigma ~5 the K rounding moves the
+    // softmax enough that sdpa_micro on DG2 measures max 0.106, mean 0.0074 against this reference. The weakest negative
+    // control still moves the output by > 1.
+    const double bf16_max = 0.15, bf16_mean = 0.012;
     if (neg.empty()) {
         // The sdpa_opt single-token kernel (an unaligned head on the micro lane, e.g. head 72) dequantizes less precisely than
         // sdpa_ocl / sdpa_micro (measured max 0.030, mean 0.007 on DG2), so only the ocl lane is held to the tight bound.
         const bool tight = backend == tests::dpas_backend::ocl || entries.find("sdpa_opt") == std::string::npos;
-        EXPECT_LE(max_abs_err, tight ? 0.03 : 0.06);
-        EXPECT_LE(mean_abs_err, tight ? 0.003 : 0.012);
+        EXPECT_LE(max_abs_err, bf16 ? bf16_max : (tight ? 0.03 : 0.06));
+        EXPECT_LE(mean_abs_err, bf16 ? bf16_mean : (tight ? 0.003 : 0.012));
     } else {
         // The perturbed reference must disagree with the (correct) kernel, or the test would not notice that error.
-        EXPECT_LE(max_abs_err, 0.03) << "negative control " << neg << " is observable: max_abs_err " << max_abs_err;
-        EXPECT_GE(max_abs_err, 0.1) << "negative control " << neg << " is too weak";
+        EXPECT_LE(max_abs_err, bf16 ? bf16_max : 0.03) << "negative control " << neg << " is observable: max_abs_err " << max_abs_err;
+        EXPECT_GE(max_abs_err, bf16 ? 2 * bf16_max : 0.1) << "negative control " << neg << " is too weak";
     }
 }
 
@@ -2933,6 +2950,17 @@ INSTANTIATE_TEST_SUITE_P(
                       sdpa_kv_compressed_params{32, 4, 64, 96, 1}, sdpa_kv_compressed_params{96, 4, 17, 130, 1},
                       sdpa_kv_compressed_params{64, 8, 1, 300, 2}, sdpa_kv_compressed_params{128, 4, 1, 256, 1},
                       sdpa_kv_compressed_params{72, 4, 1, 200, 1}),
+    sdpa_kv_compressed_test::PrintToStringParamName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_kv_compressed_bf16,
+    sdpa_kv_compressed_test,
+    ::testing::Values(sdpa_kv_compressed_params{64, 8, 128, 128, 2, data_types::bf16}, sdpa_kv_compressed_params{64, 8, 33, 300, 1, data_types::bf16},
+                      sdpa_kv_compressed_params{128, 4, 64, 256, 2, data_types::bf16}, sdpa_kv_compressed_params{72, 4, 40, 200, 1, data_types::bf16},
+                      sdpa_kv_compressed_params{32, 4, 64, 96, 1, data_types::bf16}, sdpa_kv_compressed_params{96, 4, 17, 130, 1, data_types::bf16},
+                      sdpa_kv_compressed_params{64, 8, 1, 300, 2, data_types::bf16}, sdpa_kv_compressed_params{128, 4, 1, 256, 1, data_types::bf16},
+                      sdpa_kv_compressed_params{72, 4, 1, 200, 1, data_types::bf16}),
     sdpa_kv_compressed_test::PrintToStringParamName
 );
 #endif
