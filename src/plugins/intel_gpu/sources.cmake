@@ -55,7 +55,6 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/fully_connected.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/fully_connected_gguf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gated_delta_net.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gated_mlp.cpp
     # NOTE: filename contains a literal space (pre-existing, not a typo introduced here)
     "${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gather tree.cpp"
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gather.cpp
@@ -135,6 +134,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/stateless_kv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/stft.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/strided_slice.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/swoosh.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/swiglu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/swiglu_with_clamp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/tile.cpp
@@ -176,7 +176,6 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fold_rms_transposes.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_atan2_decomposed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_avg_down.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_gated_mlp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_grouped_depth_to_space.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_hadamard_fc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_moe_router.cpp
@@ -204,6 +203,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sdpa_transpose_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/sink_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/stateless_kv_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/swoosh_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/swiglu_fusion_with_clamp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/transpose_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.cpp
@@ -215,7 +215,6 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/fully_connected.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/fully_connected_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/fully_connected_gguf.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/gated_mlp.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/gemm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/grouped_depth_to_space.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/grouped_space_to_depth.cpp
@@ -229,6 +228,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/stateless_kv.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/swoosh.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/swiglu_with_clamp.cpp
 )
 

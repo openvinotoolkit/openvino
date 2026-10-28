@@ -143,6 +143,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/kv_cache_compressed.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/mask_linear_attention_padding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/mask_linear_attention_padding.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_lincache_layout.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_lincache_layout.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.cpp
