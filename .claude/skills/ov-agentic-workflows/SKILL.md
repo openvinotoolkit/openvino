@@ -154,6 +154,8 @@ them — see below):
   `propose_rerun_pattern` (`propose-rerun-pattern.md`), which opens a review PR against `master` appending
   it with ticket `9999999`. The job authenticates with the `RERUNNER_DB_UPDATE` secret (not
   `GITHUB_TOKEN`, whose PRs would not trigger CI).
+  Candidate and sample evidence must be single-line: normalization otherwise joins CR/LF boundaries
+  into matches the line-by-line rerunner cannot reproduce. Bare test names also match passing logs.
 - **Compiler version drift** — before compiling, compare `gh aw version` with the setup-cli `version`
   in [agentic_workflows_check.yml](../../../.github/workflows/agentic_workflows_check.yml).
   If they differ, resolve the latest stable release with

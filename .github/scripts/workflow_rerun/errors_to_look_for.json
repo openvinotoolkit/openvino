@@ -440,11 +440,6 @@
         "category": "External Service"
     },
     {
-        "error_text": "test_keras_lstm_flags_float32",
-        "ticket": 9999999,
-        "category": "Flaky Test"
-    },
-    {
         "error_text": "failed to resolve source metadata for openvinogithubactions.azurecr.io",
         "ticket": 9999999,
         "category": "External Service"

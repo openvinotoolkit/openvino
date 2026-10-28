@@ -90,8 +90,10 @@ def validate_candidate(search_string: str, category: str, signature_hash: str, s
         problems.append(f"signature_hash must match {SIGNATURE_HASH_RE.pattern}, got '{signature_hash}'")
     if category not in TRANSIENT_CATEGORIES:
         problems.append(f"category '{category}' is not transient ({', '.join(TRANSIENT_CATEGORIES)})")
-    if "|" in search_string or "\n" in search_string:
+    if "|" in search_string or "\n" in search_string or "\r" in search_string:
         problems.append("search string must be a substring of a single log line (no '|' or newlines)")
+    if "\n" in sample_log_line or "\r" in sample_log_line:
+        problems.append("sample_log_line must be a single log line (no CR or LF)")
     if URL_RE.search(search_string):
         problems.append(
             "search string contains a URL, which pins it to one dependency/version; use the stable "

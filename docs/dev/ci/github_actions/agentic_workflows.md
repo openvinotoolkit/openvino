@@ -374,7 +374,7 @@ already carry the CI Doctor re-add marker comment). It uses the default `GITHUB_
 the only path by which a new rerun search string can reach the workflow rerunner. It re-validates the
 agent's candidate (transient category only; at least 3 words / 15 characters after normalization; not
 just generic words, step boilerplate, or a hash; no URLs, which would pin it to one dependency release;
-must occur in the supplied verbatim log line, which must
+must occur in the supplied verbatim log line, which must contain no CR/LF characters and must
 not be a step `##[group]` header) and de-duplicates it against
 [`errors_to_look_for.json`](../../../../.github/scripts/workflow_rerun/errors_to_look_for.json) on the
 default branch, entries added by other open proposal PRs, and any earlier PR for the same signature (a

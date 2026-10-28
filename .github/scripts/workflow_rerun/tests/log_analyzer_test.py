@@ -7,6 +7,7 @@ LogAnalyzer tests
 
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 
 from workflow_rerun.log_analyzer import NO_CATEGORY, LogAnalyzer
@@ -107,3 +108,17 @@ class LogAnalyzerTest(unittest.TestCase):
         )
         analyzer.analyze()
         self.assertFalse(analyzer.found_matching_error)
+
+    def test_passing_test_name_does_not_trigger_rerun(self) -> None:
+        with TemporaryDirectory() as logs_dir:
+            Path(logs_dir, 'pytest.txt').write_text(
+                'test_keras_lstm_flags_float32 PASSED\n'
+                'test_unrelated FAILED\n',
+                encoding='utf-8',
+            )
+            analyzer = LogAnalyzer(
+                path_to_logs=Path(logs_dir),
+                path_to_errors_file=self.errors_to_look_for_file,
+            )
+            analyzer.analyze()
+            self.assertFalse(analyzer.found_matching_error)
