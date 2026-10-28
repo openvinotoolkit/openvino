@@ -375,6 +375,13 @@ OP_CONVERTER(translate_linear_ext);
 OP_CONVERTER(translate_linear_gptq);
 }  // namespace op
 
+// Translators of custom operations registered by integrations (torch.compile vLLM path). They may produce
+// internal operations, so the converted model can't always be serialized.
+namespace op::ext {
+OP_CONVERTER(translate_gdn_attention);
+OP_CONVERTER(translate_paged_attention);
+}  // namespace op::ext
+
 // Supported ops for TorchScript
 const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
     return {
@@ -992,6 +999,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"ov_ext.ct_gemm.default", op::translate_linear_ct},
         {"ov_ext.ct_embedding.default", op::translate_embedding_ct},
         {"ov_ext.gptq_gemm.default", op::translate_linear_gptq},
+        {"ov_ext.gdn_attention.default", op::ext::translate_gdn_attention},
+        {"ov_ext.paged_attention.default", op::ext::translate_paged_attention},
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},
