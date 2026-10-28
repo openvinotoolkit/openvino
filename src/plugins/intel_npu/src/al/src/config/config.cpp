@@ -6,6 +6,7 @@
 
 #include <cctype>
 #include <charconv>
+#include <functional>
 #include <string_view>
 
 #include "openvino/util/common_util.hpp"
@@ -13,6 +14,25 @@
 namespace intel_npu {
 
 namespace {
+
+// Calls `callback` for every KEY="VALUE" entry of a space-separated list.
+void forEachEntry(const std::string& str, const std::function<void(const std::string&, const std::string&)>& callback) {
+    std::string remaining(str);
+
+    const auto parseToken = [&](const std::string& token) {
+        const auto posEq = token.find('=');
+        callback(token.substr(0, posEq), token.substr(posEq + 2, token.size() - posEq - 3));
+    };
+
+    size_t pos = 0;
+    while ((pos = remaining.find(' ')) != std::string::npos) {
+        parseToken(remaining.substr(0, pos));
+        remaining.erase(0, pos + 1);
+    }
+
+    // Process tail
+    parseToken(remaining);
+}
 
 // `std::from_chars` does the range checking for the exact target type on its own (unlike the `std::sto*`
 // functions, which either need a wider signed intermediate or silently wrap negative values around), but it
@@ -275,25 +295,19 @@ std::string Config::toString() const {
 }
 
 void Config::fromString(const std::string& str) {
-    std::string str_cfg(str);
-
-    auto parse_token = [&](const std::string& token) {
-        auto pos_eq = token.find('=');
-        auto key = token.substr(0, pos_eq);
-        auto value = token.substr(pos_eq + 2, token.size() - pos_eq - 3);
+    forEachEntry(str, [&](const std::string& key, const std::string& value) {
         update(key, value);
-    };
+    });
+}
 
-    size_t pos = 0;
-    std::string token, key, value;
-    while ((pos = str_cfg.find(' ')) != std::string::npos) {
-        token = str_cfg.substr(0, pos);
-        parse_token(token);
-        str_cfg.erase(0, pos + 1);
-    }
-
-    // Process tail
-    parse_token(str_cfg);
+void Config::mergeFromString(const std::string& str) {
+    forEachEntry(str, [&](const std::string& key, const std::string& value) {
+        if (_desc->has(key)) {
+            update(key, value);
+        } else {
+            _internal_compiler_configs.insert_or_assign(key, value);
+        }
+    });
 }
 
 bool Config::hasOpt(std::string_view key) const {

@@ -4,6 +4,10 @@
 
 #include "blob_format_importers.hpp"
 
+#include <algorithm>
+#include <iostream>
+#include <string>
+
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/parser_factory.hpp"
@@ -27,6 +31,106 @@ ov::Tensor allocate_aligned_tensor(size_t blobSize) {
     }
 
     return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
+}
+
+// Reads the tile count ('t=<n>') out of a compiler compatibility descriptor, 0 when absent.
+size_t get_tile_count(const std::string& descriptor) {
+    size_t pos = 0;
+    while (pos < descriptor.size()) {
+        const size_t end = std::min(descriptor.find(';', pos), descriptor.size());
+        if (descriptor.compare(pos, 2, "t=") == 0) {
+            try {
+                return std::stoul(descriptor.substr(pos + 2, end - pos - 2));
+            } catch (const std::exception&) {
+                return 0;
+            }
+        }
+        pos = end + 1;
+    }
+    return 0;
+}
+
+/**
+ * @brief Picks the container entry to import: among the entries the device accepts, the one using the most tiles.
+ * Entries without a compatibility descriptor are used only if the device accepts none of the others.
+ * @return The index of the entry. Always 0 if there is no device to check against.
+ */
+size_t select_container_entry(const std::vector<ContainerEntry>& entries,
+                              const std::shared_ptr<IDevice>& device,
+                              const Logger& logger) {
+    if (device == nullptr) {
+        return 0;
+    }
+
+    bool validation_unavailable = false;
+    std::optional<size_t> best;
+    size_t best_tiles = 0;
+    std::optional<size_t> without_descriptor;
+    for (size_t i = 0; i < entries.size(); ++i) {
+        const std::string& descriptor = entries[i].compatibilityDescriptor;
+        const std::string entry_label =
+            "[MULTI-BLOB] Entry " + std::to_string(i + 1) + "/" + std::to_string(entries.size());
+        if (descriptor.empty()) {
+            std::cout << entry_label << " has no compatibility descriptor" << std::endl;
+            if (!without_descriptor.has_value()) {
+                without_descriptor = i;
+            }
+            continue;
+        }
+
+        bool accepted = false;
+        try {
+            accepted = device->validateCompatibilityDescriptor(descriptor);
+        } catch (const std::exception& ex) {
+            validation_unavailable = true;
+            logger.warning("Could not validate the blob container entry '%s' against the device: %s",
+                           descriptor.c_str(),
+                           ex.what());
+            continue;
+        }
+        std::cout << entry_label << (accepted ? " can run on the device: '" : " cannot run on the device: '")
+                  << descriptor << "'" << std::endl;
+        if (!accepted) {
+            continue;
+        }
+
+        const size_t tiles = get_tile_count(descriptor);
+        if (!best.has_value() || tiles > best_tiles) {
+            best = i;
+            best_tiles = tiles;
+        }
+    }
+
+    if (best.has_value()) {
+        std::cout << "[MULTI-BLOB] Importing entry " << *best + 1 << "/" << entries.size()
+                  << ", the one that can run on the device and uses the most tiles: '"
+                  << entries[*best].compatibilityDescriptor << "'" << std::endl;
+        return *best;
+    }
+    if (without_descriptor.has_value()) {
+        std::cout << "[MULTI-BLOB] Importing entry " << *without_descriptor + 1 << "/" << entries.size()
+                  << ", the first one without a descriptor, used because no entry with a descriptor was accepted by "
+                     "the device"
+                  << std::endl;
+        return *without_descriptor;
+    }
+
+    if (validation_unavailable) {
+        // The driver cannot tell which entry fits, so the first one is the best remaining guess
+        logger.warning("The device could not validate any entry of the blob container, using the first one");
+        return 0;
+    }
+
+    std::string tried;
+    for (const ContainerEntry& entry : entries) {
+        tried += (tried.empty() ? "'" : ", '") + entry.compatibilityDescriptor + "'";
+    }
+    OPENVINO_THROW("None of the ",
+                   entries.size(),
+                   " entries of the blob container can run on device '",
+                   device->getName(),
+                   "'. Entries tried: ",
+                   tried);
 }
 
 constexpr std::string_view HANDLER_FACTORY_LOGGER_NAME = "blob_format_importer_factory";
@@ -420,7 +524,8 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
     decrypt_schedules();
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "extract_main_schedule");
-    const ov::Tensor main_schedule = extract_main_schedule();
+    ov::Tensor main_schedule = extract_main_schedule();
+    std::optional<std::string> compatibility_descriptor = extract_compiler_compatibility_descriptor();
 
     OV_ITT_TASK_NEXT(PARSE_AND_CREATE_GRAPH, "extract_init_schedules");
     const std::optional<std::vector<ov::Tensor>> init_schedules = extract_init_schedules();
@@ -451,7 +556,7 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
                             m_config,
                             std::move(weights_source),
                             init_schedules,
-                            extract_compiler_compatibility_descriptor(),
+                            compatibility_descriptor,
                             extract_blob_type());
 
     m_graph->update_network_name(network_name);
@@ -486,7 +591,8 @@ namespace blob_format_importer_factory {
 std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
-                                            const Config& config) {
+                                            const Config& config,
+                                            const std::shared_ptr<IDevice>& device) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create");
     const size_t input_size = npu_formatted_blob.get_remaining_size();
     OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
@@ -503,6 +609,27 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
     OPENVINO_ASSERT(input_size >= MAGIC_BYTES.size(), BLOB_SIZE_SMALLER_THAN_MAGIC);
 
     const size_t compiler_payload_beginning = npu_formatted_blob.tellg();
+
+    // A container holds several complete blobs, each one imported as if it was received on its own
+    if (const std::optional<std::vector<ContainerEntry>> entries = read_container_directory(npu_formatted_blob)) {
+        std::cout << "[MULTI-BLOB] The blob is a container of " << entries->size() << " entries" << std::endl;
+        const ContainerEntry& entry = entries->at(select_container_entry(entries.value(), device, logger));
+        logger.debug("Importing the container entry found at offset %llu", entry.offset);
+
+        npu_formatted_blob.seekg(compiler_payload_beginning + entry.offset, std::ios::beg);
+        ov::Tensor entry_blob;
+        if (npu_formatted_blob.is_contiguous()) {
+            entry_blob = npu_formatted_blob.create_roi_tensor(entry.size);
+        } else {
+            entry_blob = allocate_aligned_tensor(entry.size);
+            npu_formatted_blob.read_into_buffer(entry_blob.data(), entry.size);
+        }
+
+        // The importer only reads from this source while it is being constructed
+        BlobSource entry_source(entry_blob, config.get<LOG_LEVEL>());
+        return create(entry_source, false, original_model, config);
+    }
+
     npu_formatted_blob.seekg(-static_cast<int>(MAGIC_BYTES.size()), std::ios::end);
 
     std::string blob_magic_bytes(MAGIC_BYTES.size(), 0);

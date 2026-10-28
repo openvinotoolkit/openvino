@@ -6,6 +6,7 @@
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/config/config.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace intel_npu {
 
@@ -55,6 +56,30 @@ public:
     virtual std::vector<std::string> get_supported_options() const = 0;
     virtual bool is_option_supported(const std::string& optName,
                                      const std::optional<std::string>& optValue = std::nullopt) const = 0;
+
+    /**
+     * @brief Resolves the config bundle(s) the platform named in \p config's NPU_PLATFORM needs
+     * compiled from it - more than one when that platform ships as several SKU variants (e.g.
+     * differing tile counts).
+     * @details The default answer is an empty vector, i.e. "resolution is not available" - correct
+     * for every adapter that cannot resolve SKU variants itself; the caller then compiles \p config
+     * unchanged, as it always has. Only the adapter backed by the VCL compiler library overrides
+     * this with a real answer. Each entry is a device-specific bundle (e.g. naming NPU_MAX_TILES)
+     * the caller merges into \p config for one compilation, so several entries mean several blobs.
+     */
+    virtual std::vector<std::string> resolve_compilation_target_bundles(const Config& config) const {
+        static_cast<void>(config);
+        return {};
+    }
+
+    /**
+     * @brief Every offline compilation target the compiler supports, one per platform.
+     * @details Derived from the compiler alone - no device and no config take part. The default answer is
+     * an empty vector, i.e. "the compiler cannot enumerate targets".
+     */
+    virtual std::vector<ov::CompilationTarget> get_offline_compilation_targets() const {
+        return {};
+    }
 
     virtual ~ICompilerAdapter() = default;
 };
