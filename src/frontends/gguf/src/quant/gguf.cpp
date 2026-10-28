@@ -587,7 +587,8 @@ void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
 
 void load_gguf_tensors(GgufFile& file,
                        std::unordered_map<std::string, ov::Tensor>& arrays,
-                       std::unordered_map<std::string, GgufTensorType>& qtype) {
+                       std::unordered_map<std::string, GgufTensorType>& qtype,
+                       const GGUFLoadOptions& options) {
     auto& [metadata, infos, mapped, alignment, data_off] = file;
     const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
     const uint64_t fsize = mapped->size();
@@ -621,6 +622,10 @@ void load_gguf_tensors(GgufFile& file,
     };
 
     for (const auto& info : infos) {
+        if (options.preserve_q4_k && info.type == GGUF_TYPE_Q4_K) {
+            OPENVINO_ASSERT(info.ndim != 0, "[load_gguf] tensor '", info.name, "' is quantized but has rank 0");
+            continue;
+        }
         if (const auto layout = quant_layout(info.type, info.name)) {
             quant_sizes(info, *layout);
         }
@@ -636,7 +641,14 @@ void load_gguf_tensors(GgufFile& file,
         uint64_t nelem = 1;
         for (uint32_t d = 0; d < ti.ndim; d++) {
             tensor.dim[d] = ti.dim[d];
-            nelem *= ti.dim[d];
+            OPENVINO_ASSERT(ti.dim[d] <= std::numeric_limits<size_t>::max(),
+                            "[load_gguf] tensor '",
+                            ti.name,
+                            "' dimension exceeds size_t");
+            OPENVINO_ASSERT(!ov::util::mul_overflow(nelem, ti.dim[d], nelem),
+                            "[load_gguf] tensor '",
+                            ti.name,
+                            "' element count overflows uint64_t");
         }
         tensor.num_weights = nelem;
         tensor.offset = ti.offset;
@@ -655,7 +667,12 @@ void load_gguf_tensors(GgufFile& file,
                         ti.dim[0],
                         " is not a multiple of its block size ",
                         tr.items_per_block);
-        tensor.bsize = (nelem / tr.items_per_block) * tr.bytes_per_block;
+        OPENVINO_ASSERT(!ov::util::mul_overflow<uint64_t>(nelem / tr.items_per_block,
+                                tr.bytes_per_block,
+                                tensor.bsize),
+                "[load_gguf] tensor '",
+                ti.name,
+                "' byte count overflows uint64_t");
 
         // Subtraction-based bounds checks: ti.offset comes straight from the file, so a crafted
         // value must not be allowed to wrap either addition below back into a valid-looking range.
@@ -672,6 +689,20 @@ void load_gguf_tensors(GgufFile& file,
         // looks up scales/qtype as name + ".scales" / name + ".qtype".
         const std::string name_prefix =
             ov::util::ends_with(name, WEIGHT_SUFFIX) ? name.substr(0, name.length() - WEIGHT_SUFFIX.length()) : name;
+
+        if (options.preserve_q4_k && ti.type == GGUF_TYPE_Q4_K) {
+            const auto shape = get_shape(tensor);
+            const auto bytes = ov::util::get_memory_size_safe(ov::element::gguf_q4_k, shape);
+            OPENVINO_ASSERT(bytes && *bytes == tensor.bsize,
+                            "[load_gguf] tensor '",
+                            name,
+                            "' raw Q4_K byte count does not match its shape");
+            ov::Tensor view(ov::element::gguf_q4_k, shape, const_cast<uint8_t*>(tensor.weights_data));
+            const bool inserted = arrays.emplace(name, ov::Tensor(view, mapped)).second;
+            OPENVINO_ASSERT(inserted, "[load_gguf] duplicate tensor name '", name, "'");
+            qtype.emplace(name_prefix + ".qtype", GGUF_TYPE_Q4_K);
+            continue;
+        }
 
         const auto layout = quant_layout(ti.type, ti.name);
         if (!layout) {
@@ -756,7 +787,7 @@ std::string split_suffix(uint64_t index, uint64_t count) {
     return suffix.str();
 }
 
-GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
+GGUFLoad load_gguf_files(std::vector<GgufFile> files, const GGUFLoadOptions& options) {
     const uint64_t count = split_count(files.front());
     if (count != 0) {
         OPENVINO_ASSERT(files.size() == count, "[load_gguf] expected ", count, " GGUF shards, got ", files.size());
@@ -809,7 +840,7 @@ GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
     mappings.reserve(files.size());
     detect_legacy_q2_layout(files);
     for (auto& file : files) {
-        load_gguf_tensors(file, arrays, qtype);
+        load_gguf_tensors(file, arrays, qtype, options);
         mappings.push_back(std::move(file.mapped));
     }
     return {std::move(files.front().metadata), std::move(arrays), std::move(qtype), std::move(mappings)};
@@ -818,12 +849,16 @@ GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
 }  // namespace
 
 GGUFLoad get_gguf_data(const std::filesystem::path& file) {
+    return get_gguf_data(file, GGUFLoadOptions{});
+}
+
+GGUFLoad get_gguf_data(const std::filesystem::path& file, const GGUFLoadOptions& options) {
     auto initial = read_gguf_file(file);
     const auto count = split_count(initial);
     if (count <= 1) {
         std::vector<GgufFile> files;
         files.push_back(std::move(initial));
-        return load_gguf_files(std::move(files));
+        return load_gguf_files(std::move(files), options);
     }
     const auto index = split_value(initial, "split.no", ov::element::u16);
     OPENVINO_ASSERT(index < count, "[load_gguf] split.no is out of range: ", index);
@@ -852,17 +887,21 @@ GGUFLoad get_gguf_data(const std::filesystem::path& file) {
                         "'");
         files.push_back(std::move(next));
     }
-    return load_gguf_files(std::move(files));
+    return load_gguf_files(std::move(files), options);
 }
 
 GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& paths) {
+    return get_gguf_data(paths, GGUFLoadOptions{});
+}
+
+GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& paths, const GGUFLoadOptions& options) {
     OPENVINO_ASSERT(!paths.empty(), "[load_gguf] GGUF shard list is empty");
     std::vector<GgufFile> files;
     files.reserve(paths.size());
     for (const auto& path : paths) {
         files.push_back(read_gguf_file(path));
     }
-    return load_gguf_files(std::move(files));
+    return load_gguf_files(std::move(files), options);
 }
 
 std::map<std::string, GGUFMetaData> decoder_config_from_meta(

@@ -20,7 +20,7 @@ For a logical weight shape `[..., K]` and group size `G`, the decompression grap
 as `[..., K/G, G]` and scales/zero points as `[..., K/G, 1]`. It computes
 `weight = (code - zero_point) * scale`, or `code * scale` for symmetric formats, then reshapes
 back to `[..., K]`. Codes, scales and zero points are separate Constants. GGUF type identifiers
-select the import algorithm; they do not become new OpenVINO element types.
+select the default import algorithm; they do not become new OpenVINO element types in that path.
 
 Sub-byte Constants remain packed: `u1` holds eight binary codes per byte, with the first element
 in the most significant bit. `u2` holds four codes per byte, and `i4`/`u4` hold two per byte,
@@ -91,6 +91,25 @@ For example, PQ2_0 adds one byte per 128 weights. PTQ1_0 adds six code bytes plu
 byte per 128 weights. Their native storage is identical, at `35/128` bytes per weight
 (2.1875 bits per weight including metadata). The repeated zero point is currently allocated
 per group; the table does not assume that a later pass replaces it with a scalar.
+
+## Experimental Raw Q4_K Loading
+
+The internal `get_gguf_data` overloads accept `GGUFLoadOptions{true}` to preserve Q4_K
+blocks instead of unpacking them. The option's `preserve_q4_k` field defaults to false;
+existing overloads and the FrontEnd/GenAI conversion path retain their current behavior.
+This is not a public FrontEnd property or a GenAI configuration option.
+
+In this internal mode, a Q4_K entry in the weight array has element type `gguf_q4_k`
+and the original logical shape in OpenVINO dimension order. Each 256 logical elements
+occupies 144 bytes; scales and minima remain inside those bytes, with no separate
+scale or zero-point tensors. Each Tensor retains the file mapping, so a Constant wrapping
+it can outlive the loader result without copying the payload. Other formats still use
+the default representation. Every row must contain whole blocks; normal file bounds
+and checked element/byte counts apply before creating a view.
+
+The existing `make_weight_node(WeightTensors, ...)` rejects raw block tensors explicitly.
+A legal floating-point graph boundary and GPU lowering are not implemented yet. Raw
+loading alone does not establish native GPU execution or model accuracy.
 
 ## Floating-point formats
 

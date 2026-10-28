@@ -88,7 +88,7 @@ struct GgufTensor {
 using GGUFMetaData =
     std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>, std::vector<int32_t>>;
 
-// Parsed arrays own repacked quantized buffers and keep non-quantized mmap views alive.
+// Parsed arrays own repacked buffers or retain mmap views according to the loading options.
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::unordered_map<std::string, ov::Tensor>,
                             std::unordered_map<std::string, GgufTensorType>,
@@ -134,9 +134,15 @@ void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
-// Parse GGUF metadata and tensors. Each repacked quantized tensor owns its buffer.
+// Parse GGUF metadata and tensors. Default loading owns repacked quantized buffers.
+struct GGUFLoadOptions {
+    bool preserve_q4_k = false;
+};
+
 GGUFLoad get_gguf_data(const std::filesystem::path& file);
+GGUFLoad get_gguf_data(const std::filesystem::path& file, const GGUFLoadOptions& options);
 GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files);
+GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files, const GGUFLoadOptions& options);
 
 // Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,
 // head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base, file_type, ...)

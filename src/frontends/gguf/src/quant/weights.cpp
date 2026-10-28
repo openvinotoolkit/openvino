@@ -466,6 +466,9 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
                                            GgufTensorType qtype,
                                            const std::string& name) {
     OPENVINO_ASSERT(tensors.weight, "[GGUF] missing weight tensor: ", name);
+    OPENVINO_ASSERT(!tensors.weight.get_element_type().is_gguf_block(),
+                    "[GGUF] raw GGUF weights require a supported graph boundary: ",
+                    name);
     const auto format = get_weight_format(qtype, tensors.weight, tensors.zero_point, name);
     OPENVINO_ASSERT(!format.has_scales() || tensors.scales, "[GGUF] missing scales tensor: ", name);
     OPENVINO_ASSERT(!format.has_zero_point() || tensors.zero_point, "[GGUF] missing zero-point tensor: ", name);

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -39,7 +40,8 @@ protected:
                       uint64_t rows,
                       const std::vector<uint8_t>& data = {},
                       const std::string& architecture = {},
-                      const std::vector<uint64_t>& extra_dims = {}) {
+                      const std::vector<uint64_t>& extra_dims = {},
+                      uint64_t tensor_offset = 0) {
         std::ofstream out(m_path, std::ios::binary);
         ASSERT_TRUE(out);
         const auto put = [&out](auto value) {
@@ -65,7 +67,7 @@ protected:
         for (const auto dim : extra_dims)
             put(dim);
         put(static_cast<uint32_t>(type));
-        put(uint64_t{0});  // tensor offset
+        put(tensor_offset);
         while (static_cast<size_t>(out.tellp()) % 32 != 0) {
             out.put('\0');
         }
@@ -317,6 +319,96 @@ TEST_F(GGUFParser, Q4KZeroPointModeAppliesToLanguageAndProjectorModels) {
         for (size_t i = 0; i < reference.size(); ++i)
             EXPECT_NEAR(output.data<float>()[i], reference[i], tolerance);
     }
+}
+
+TEST_F(GGUFParser, Q4KRawPayloadAndOwnerOutliveParserResult) {
+    const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
+    ASSERT_EQ(bytes.size(), 4 * 144);
+    ASSERT_NO_FATAL_FAILURE(write_tensor("blk.0.attn_q.weight", GGUF_TYPE_Q4_K, 256, 4, bytes));
+    const GGUFLoadOptions options{true};
+    std::shared_ptr<ov::op::v0::Constant> constant;
+    std::weak_ptr<ov::MappedMemory> owner;
+    {
+        const auto loaded = get_gguf_data(m_path, options);
+        const auto& arrays = std::get<1>(loaded);
+        ASSERT_EQ(arrays.size(), 1);
+        const auto& raw = arrays.at("blk.0.attn_q.weight");
+        ASSERT_EQ(raw.get_element_type(), ov::element::gguf_q4_k);
+        EXPECT_EQ(raw.get_shape(), (ov::Shape{4, 256}));
+        ASSERT_EQ(raw.get_byte_size(), bytes.size());
+        EXPECT_EQ(std::memcmp(raw.data(), bytes.data(), bytes.size()), 0);
+        EXPECT_EQ(std::get<2>(loaded).at("blk.0.attn_q.qtype"), GGUF_TYPE_Q4_K);
+        owner = std::get<3>(loaded).at(0);
+        constant = std::make_shared<ov::op::v0::Constant>(raw);
+        EXPECT_EQ(constant->get_data_ptr(), raw.data());
+    }
+    EXPECT_FALSE(owner.expired());
+    ASSERT_EQ(constant->get_byte_size(), bytes.size());
+    EXPECT_EQ(std::memcmp(constant->get_data_ptr(), bytes.data(), bytes.size()), 0);
+    constant.reset();
+    EXPECT_TRUE(owner.expired());
+}
+
+TEST_F(GGUFParser, Q4KRawIsOptInAndRejectsLegacyWeightGraph) {
+    const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
+    ASSERT_NO_FATAL_FAILURE(write_tensor("blk.0.attn_q.weight", GGUF_TYPE_Q4_K, 256, 4, bytes));
+    const auto legacy = get_gguf_data(m_path);
+    EXPECT_EQ(std::get<1>(legacy).at("blk.0.attn_q.weight").get_element_type(), ov::element::u32);
+    EXPECT_EQ(std::get<1>(legacy).count("blk.0.attn_q.scales"), 1);
+    EXPECT_EQ(std::get<1>(legacy).count("blk.0.attn_q.zp"), 1);
+    const auto loaded = get_gguf_data(std::vector<std::filesystem::path>{m_path}, GGUFLoadOptions{true});
+    const auto& raw = std::get<1>(loaded).at("blk.0.attn_q.weight");
+    OV_EXPECT_THROW(make_weight_node({raw, {}, {}}, GGUF_TYPE_Q4_K, "blk.0.attn_q"),
+                    ov::Exception,
+                    testing::HasSubstr("raw GGUF weights require a supported graph boundary"));
+}
+
+TEST_F(GGUFParser, Q4KRawRejectsInvalidRowsAndTruncatedPayload) {
+    const GGUFLoadOptions options{true};
+    for (const uint64_t cols : {128, 255, 257}) {
+        SCOPED_TRACE(cols);
+        ASSERT_NO_FATAL_FAILURE(write_tensor("invalid.weight", GGUF_TYPE_Q4_K, cols, 2, std::vector<uint8_t>(288)));
+        OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("block size"));
+    }
+    for (const uint64_t rows : {1, 2}) {
+        SCOPED_TRACE(rows);
+        ASSERT_NO_FATAL_FAILURE(
+            write_tensor("truncated.weight", GGUF_TYPE_Q4_K, 256, rows, std::vector<uint8_t>(rows * 144 - 1)));
+        OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("past EOF"));
+    }
+}
+
+TEST_F(GGUFParser, Q4KRawRejectsOverflowAndInvalidOffsets) {
+    const GGUFLoadOptions options{true};
+    ASSERT_NO_FATAL_FAILURE(write_tensor("overflow.weight",
+                                         GGUF_TYPE_Q4_K,
+                                         256,
+                                         std::numeric_limits<uint64_t>::max() / 256 + 1));
+    OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("element count overflows"));
+    ASSERT_NO_FATAL_FAILURE(write_tensor("offset.weight",
+                                         GGUF_TYPE_Q4_K,
+                                         256,
+                                         1,
+                                         std::vector<uint8_t>(144),
+                                         {},
+                                         {},
+                                         std::numeric_limits<uint64_t>::max()));
+    OV_EXPECT_THROW(get_gguf_data(m_path, options), ov::Exception, testing::HasSubstr("offset"));
+}
+
+TEST_F(GGUFParser, Q4KRawAcceptsEmptyTensorAndKeepsOtherFormatsDecomposed) {
+    ASSERT_NO_FATAL_FAILURE(write_tensor("empty.weight", GGUF_TYPE_Q4_K, 256, 0));
+    {
+        const auto empty = get_gguf_data(m_path, GGUFLoadOptions{true});
+        const auto& raw = std::get<1>(empty).at("empty.weight");
+        EXPECT_EQ(raw.get_element_type(), ov::element::gguf_q4_k);
+        EXPECT_EQ(raw.get_shape(), (ov::Shape{0, 256}));
+        EXPECT_EQ(raw.get_byte_size(), 0);
+    }
+    ASSERT_NO_FATAL_FAILURE(write_tensor("other.weight", GGUF_TYPE_Q8_0, 32, 1, std::vector<uint8_t>(34)));
+    const auto other = get_gguf_data(m_path, GGUFLoadOptions{true});
+    EXPECT_EQ(std::get<1>(other).at("other.weight").get_element_type(), ov::element::i8);
+    EXPECT_EQ(std::get<1>(other).count("other.scales"), 1);
 }
 
 TEST_F(GGUFParser, QuantizedBuffersOutliveParserResult) {
