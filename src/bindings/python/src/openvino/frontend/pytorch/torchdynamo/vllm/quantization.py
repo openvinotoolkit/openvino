@@ -70,8 +70,8 @@ def _dequantize(qweight, scale, bits, group_size, out_dtype, zero_point=None):
     out_features = qweight.shape[0]
     if bits == 4:
         in_features = qweight.shape[1] * 2
-        weight = _unpack_int4(qweight) if zero_point is None \
-            else _unpack_uint4(qweight)
+        weight = (_unpack_int4(qweight) if zero_point is None
+                  else _unpack_uint4(qweight))
     else:
         in_features = qweight.shape[1]
         weight = qweight
@@ -101,7 +101,7 @@ def _define_classes():
     two different class objects.
     """
     import torch
-    import torch.nn.functional as F
+    from torch.nn import functional
     from vllm.model_executor.layers.linear import (
         LinearBase,
         LinearMethodBase,
@@ -194,7 +194,6 @@ def _define_classes():
             if isinstance(layer, LinearBase):
                 if self._is_quantized(prefix):
                     return NNCFLinearMethod(self)
-                from vllm.model_executor.layers.linear import UnquantizedLinearMethod
                 return UnquantizedLinearMethod()
             return None
 
@@ -212,7 +211,7 @@ def _define_classes():
             output_size_per_partition = sum(output_partition_sizes)
             packed_factor = 8 // config.bits
 
-            if input_size_per_partition % packed_factor:
+            if divmod(input_size_per_partition, packed_factor)[1]:
                 raise ValueError(
                     f"input_size_per_partition {input_size_per_partition} does "
                     f"not divide into {config.bits}-bit groups of "
@@ -237,7 +236,7 @@ def _define_classes():
             # concatenates down the same path; only the dtype differs.
             def _per_group(dtype):
                 if config.group_size > 0:
-                    if input_size_per_partition % config.group_size:
+                    if divmod(input_size_per_partition, config.group_size)[1]:
                         raise ValueError(
                             f"input_size_per_partition "
                             f"{input_size_per_partition} is not a multiple of "
@@ -266,13 +265,13 @@ def _define_classes():
             # oneDNN GEMM over `weight`, which this method never creates.
             return
 
-        def apply(self, layer, x, bias=None):
+        def apply(self, layer, inputs, bias=None):
             config = self.quant_config
             weight = _dequantize(
                 layer.qweight, layer.scale, config.bits, config.group_size,
                 layer.nncf_out_dtype,
                 zero_point=None if config.sym else layer.zero_point)
-            return F.linear(x, weight, bias)
+            return functional.linear(inputs, weight, bias)
 
     # Pickle stores a class as module + qualname, so the qualname must not read
     # `_define_classes.<locals>.…`; the module `__getattr__` resolves the rest.

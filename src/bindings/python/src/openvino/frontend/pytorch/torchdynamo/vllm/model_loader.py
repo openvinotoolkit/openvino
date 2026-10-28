@@ -50,7 +50,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 LOAD_FORMAT = "nncf_hooks"
-_HOOK = "__nncf_hooks.post_hooks.{}__0.0.{}"
+_HOOK = "__nncf_hooks.post_hooks.{0}__0.0.{1}"
 _registered = None
 
 
@@ -66,7 +66,7 @@ def _unpack_uint4(packed):
     return torch.stack((packed & 15, packed >> 4), dim=-1)
 
 
-def _dequantize(q, scale, zero_point, out_dtype):
+def _dequantize(stored, scale, zero_point, out_dtype):
     """Dense [out, in] weight from any NNCF weight mode.
 
     Arithmetic in the scale's dtype, cast after, as NNCF's decompressors do.
@@ -75,7 +75,7 @@ def _dequantize(q, scale, zero_point, out_dtype):
     out_features = scale.shape[0]
     if scale.dim() == 3:
         groups = scale.shape[1]
-        weight = _unpack_uint4(q).reshape(out_features, groups, -1)
+        weight = _unpack_uint4(stored).reshape(out_features, groups, -1)
         weight = weight.type(scale.dtype)
         if zero_point is None:
             # Symmetric nibbles carry a +8 bias to stay unsigned.
@@ -84,7 +84,7 @@ def _dequantize(q, scale, zero_point, out_dtype):
             zp = _unpack_uint4(zero_point).reshape(out_features, groups, 1)
             weight = weight - zp.type(scale.dtype)
     else:
-        weight = q.type(scale.dtype)
+        weight = stored.type(scale.dtype)
         if zero_point is not None:
             weight = weight - zero_point.type(scale.dtype)
     weight = weight * scale
@@ -179,11 +179,11 @@ def _define_loader():
                         "k_proj/v_proj from quantized_modules")
                 # Unsharded: the qkv weight_loader takes this rank's slice.
                 kv_shape = (qkv.total_num_kv_heads * qkv.head_size, qkv.input_size)
-                for w in missing:
-                    if ".k_norm." in w:
-                        yield w, torch.zeros_like(attn.k_norm.weight)
+                for weight_name in missing:
+                    if ".k_norm." in weight_name:
+                        yield weight_name, torch.zeros_like(attn.k_norm.weight)
                     else:
-                        yield w, torch.zeros(kv_shape, dtype=out_dtype)
+                        yield weight_name, torch.zeros(kv_shape, dtype=out_dtype)
 
         @staticmethod
         def _shards(model_dir):
@@ -215,7 +215,7 @@ def _define_loader():
                             yield name, get_tensor(name)
                             continue
 
-                        q = get_tensor(name)
+                        stored = get_tensor(name)
                         scale = get_tensor(scale_key)
                         zp_key = _hook_key(name, "_zero_point")
                         zp = get_tensor(zp_key) if zp_key in keys else None
@@ -226,7 +226,7 @@ def _define_loader():
                             # The packed buffer is already row-major over
                             # (out, in/2), so the reshapes are free.
                             out_features, groups = scale.shape[:2]
-                            yield f"{module}.qweight", q.reshape(out_features, -1)
+                            yield f"{module}.qweight", stored.reshape(out_features, -1)
                             yield f"{module}.scale", scale.reshape(out_features, groups)
                             if zp is not None:
                                 # quantization.py stores the zero point
@@ -234,7 +234,7 @@ def _define_loader():
                                 yield (f"{module}.zero_point",
                                        _unpack_uint4(zp).reshape(out_features, groups))
                         else:
-                            yield name, _dequantize(q, scale, zp, out_dtype)
+                            yield name, _dequantize(stored, scale, zp, out_dtype)
             yield from self._kv_shared_zeros(model, params, seen, out_dtype)
 
         def load_weights(self, model, model_config):
