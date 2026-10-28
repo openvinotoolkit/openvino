@@ -21,17 +21,17 @@ The operation is performed in the following steps:
 1. Selecting the range ``[lo, hi]``:
 
    * ``lo = min`` and ``hi = max``.
-   * If ``lo == hi`` and the input tensor is not empty, the range is taken from the data: ``lo`` is the minimum and ``hi`` is the maximum of all input elements. Since the default values of both *min* and *max* are ``0``, the range is computed from the data by default.
+   * If ``lo == hi`` and the input tensor is not empty, the range is taken from the data: ``lo`` is the minimum and ``hi`` is the maximum of all input elements. Since the default values of both *min* and *max* are ``0``, the range is computed from the data by default. If any input element is NaN, the range is NaN and the requirement in step 2 is not met.
    * If ``lo == hi`` still holds (all input elements are equal or the input tensor is empty), the range is widened: ``lo = lo - 1`` and ``hi = hi + 1``. For *T* equal to ``f32`` or ``f64`` the new bounds are ``lo = min(nextafter(lo, -inf), lo - 1)`` and ``hi = max(nextafter(hi, +inf), hi + 1)``, where ``nextafter`` is evaluated in type *T*. This is the only difference from plain ``lo - 1`` and ``hi + 1``, and it is visible only for values of large magnitude.
 
-2. The resulting range must be finite and satisfy ``lo < hi``.
+2. The resulting range must be finite and satisfy ``lo < hi``; otherwise the operation fails.
 
 3. Counting: Each input element ``x`` contributes ``1`` to exactly one bin, or is ignored:
 
-   * Elements with ``x < lo``, ``x > hi`` are ignored.
+   * Elements with ``x < lo``, ``x > hi``, and NaN elements are ignored.
    * Any other element goes to the bin with the index ``idx = floor((x - lo) * bins / (hi - lo))``, where the result of the division is truncated toward zero. Bins are half-open ``[lo + i * w, lo + (i + 1) * w)``, where ``w = (hi - lo) / bins``, except for the last bin, which is closed and includes ``hi``. This is enforced by ``idx = bins - 1`` whenever ``x == hi``.
 
-The output element ``output[i]`` is the number of elements assigned to the bin ``i``, represented in type *T*.
+The output element ``output[i]`` is the number of elements assigned to the bin ``i``, represented in type *T*. If *T* is an integer type and the count exceeds its maximum value, the output element is saturated to that maximum.
 
 **Attributes**
 
