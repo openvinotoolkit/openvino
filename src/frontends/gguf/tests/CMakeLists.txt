@@ -202,7 +202,7 @@ install(TARGETS gguf_projector_extension LIBRARY DESTINATION tests RUNTIME DESTI
 ov_add_test_target(
     NAME ov_gguf_architecture_library_tests
     SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/test_architecture_library.cpp" "${ARCH_EXAMPLE_DIR}/projector.cpp"
-    LINK_LIBRARIES gtest gtest_main common_test_utils openvino::runtime openvino::frontend::gguf
+    LINK_LIBRARIES gtest gtest_main common_test_utils openvino::runtime openvino::runtime::dev openvino::frontend::gguf
     INCLUDES "${ARCH_EXAMPLE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}"
     LABELS OV UNIT GGUF_FE)
 target_compile_definitions(ov_gguf_architecture_library_tests PRIVATE

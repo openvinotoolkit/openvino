@@ -160,6 +160,8 @@ explicitly empty result callback selects generic adaptation and, for `VISION_ENC
 
 Its implementation belongs to the owning builder or external extension. Callback lifetime is
 retained with the extension library, and callback attributes are removed from committed graphs.
+Adapted graphs and their clones retain the library until graph destruction. Auxiliary models
+are recreated in the runtime so their strong and weak self-pointers remain safe after library unload.
 Callbacks are excluded from IR serialization; use a
 serializable recipe when adaptation must work after reloading an unadapted IR.
 

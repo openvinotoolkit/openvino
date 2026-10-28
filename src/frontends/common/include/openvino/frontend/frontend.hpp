@@ -41,6 +41,19 @@ public:
 
     virtual ~FrontEnd();
 
+    /// @brief Keep library handles alive until the model and its graph are destroyed, including clones.
+    static void add_model_shared_objects(Model& model, const std::vector<std::shared_ptr<void>>& shared_objects);
+
+    /// @brief Retain another model's library handles together with additional handles.
+    static void add_model_shared_objects(Model& model,
+                                         const Model& source_model,
+                                         const std::vector<std::shared_ptr<void>>& shared_objects = {});
+
+    /// @brief Share the graph in a runtime-owned Model while retaining existing and additional library handles.
+    static std::shared_ptr<Model> copy_model_with_shared_objects(
+        const Model& model,
+        const std::vector<std::shared_ptr<void>>& shared_objects);
+
     /// \brief Validates whether the FrontEnd can recognize a model with the specified parameters.
     /// The same parameters should be used to load the model.
     /// \param vars Any number of parameters of any type. What kind of parameters

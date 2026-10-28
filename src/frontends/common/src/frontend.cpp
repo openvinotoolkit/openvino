@@ -24,8 +24,39 @@ std::shared_ptr<ov::Model> FrontEnd::create_copy(const std::shared_ptr<ov::Model
                                         ov_model->get_parameters(),
                                         ov_model->get_variables(),
                                         ov_model->get_friendly_name());
-    copy->m_shared_object = shared_object;
+    add_model_shared_objects(*copy, *ov_model, {shared_object});
     copy->get_rt_info() = ov_model->get_rt_info();
+    return copy;
+}
+
+void FrontEnd::add_model_shared_objects(Model& model, const std::vector<std::shared_ptr<void>>& shared_objects) {
+    if (shared_objects.empty())
+        return;
+    auto ownership = std::make_shared<std::vector<std::shared_ptr<void>>>(shared_objects);
+    if (model.m_shared_object)
+        ownership->push_back(model.m_shared_object);
+    model.m_shared_object = std::move(ownership);
+}
+
+void FrontEnd::add_model_shared_objects(Model& model,
+                                        const Model& source_model,
+                                        const std::vector<std::shared_ptr<void>>& shared_objects) {
+    auto ownership = shared_objects;
+    if (source_model.m_shared_object)
+        ownership.push_back(source_model.m_shared_object);
+    add_model_shared_objects(model, ownership);
+}
+
+std::shared_ptr<Model> FrontEnd::copy_model_with_shared_objects(
+    const Model& model,
+    const std::vector<std::shared_ptr<void>>& shared_objects) {
+    auto copy = std::make_shared<Model>(model.get_results(),
+                                        model.get_sinks(),
+                                        model.get_parameters(),
+                                        model.get_variables(),
+                                        model.get_friendly_name());
+    add_model_shared_objects(*copy, model, shared_objects);
+    copy->get_rt_info() = model.get_rt_info();
     return copy;
 }
 
