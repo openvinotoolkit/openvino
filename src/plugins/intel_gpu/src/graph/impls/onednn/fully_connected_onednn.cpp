@@ -284,6 +284,7 @@ public:
         auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(),
             [](ov::Dimension d) { return d.get_length() > 1; });
         weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
+        const bool has_batch_dim = weight_rank > 2;
 
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
         const auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
@@ -301,7 +302,7 @@ public:
             const auto ngroups = scale_layout.get_dim(get_ifm_dim_idx(scale_layout, transpose_b_scale, weight_rank));
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
-            } else if (ngroups == 1) {
+            } else if (ngroups == 1 && !has_batch_dim) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             } else {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
@@ -319,7 +320,7 @@ public:
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
                     auto ngroups = dzp_layout.get_dim(get_ifm_dim_idx(dzp_layout, transpose_b_zp, weight_rank));
-                    if (ngroups == 1) {
+                    if (ngroups == 1 && !has_batch_dim) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
@@ -391,6 +392,7 @@ public:
             auto weight_rank = std::count_if(weight_shape.begin(), weight_shape.end(), [](ov::Dimension d) { return d.get_length() > 1; });
             weight_rank = std::max(static_cast<int64_t>(2), weight_rank);
             OPENVINO_ASSERT(weight_rank <= 3, "Currently only weights with equal to or less than 3D is supported");
+            const bool has_batch_dim = weight_rank > 2;
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
             int grouped = (1 << prim->input_size) - 1;
@@ -409,7 +411,7 @@ public:
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
-                } else if (ngroups == 1 && weight_rank <= 2) {
+                } else if (ngroups == 1 && !has_batch_dim) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
                 } else {
                     // should use {K, 1} for the group size + per tensor mask for 3d
@@ -433,7 +435,7 @@ public:
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
                     auto ngroups = dzp_layout.get_dim(get_ifm_dim_idx(dzp_layout, prim->transpose_b_zp, weight_rank));
-                    if (ngroups == 1 && dzp_rank <= 2) {
+                    if (ngroups == 1 && !has_batch_dim) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d
