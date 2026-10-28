@@ -24,6 +24,7 @@ Output<Node> promote_integral_to_i64(const NodeContext& context, const Output<No
             dtype = input_type.as<element::Type>();
         }
     }
+    // PyTorch cumsum defaults to int64 for boolean and integer inputs.
     if (dtype.is_static() && dtype.is_integral()) {
         return context.mark_node(std::make_shared<v0::Convert>(x, element::i64));
     }
