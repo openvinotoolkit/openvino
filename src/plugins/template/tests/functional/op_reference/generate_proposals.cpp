@@ -123,10 +123,10 @@ std::vector<GPParams> generateGPFloatParams() {
     attrs.nms_eta = 1.0;
     attrs.normalized = true;
 
-    const auto refRoiY0 = IN_ET == element::Type_t::bf16 ? 60.0f
+    const auto refRoiY0 = IN_ET == element::Type_t::bf16  ? 60.0f
                           : IN_ET == element::Type_t::f16 ? 60.4375f
                                                           : 60.87443542480469f;
-    const auto refRoiY1 = IN_ET == element::Type_t::bf16 ? 60.75f
+    const auto refRoiY1 = IN_ET == element::Type_t::bf16  ? 60.75f
                           : IN_ET == element::Type_t::f16 ? 61.375f
                                                           : 61.89498901367188f;
 
@@ -216,9 +216,9 @@ std::vector<GPParams> generateGPFloatParams() {
                 0.05405676, 0.06466125, 0.36244348, 0.07942984,  0.10619422, 0.09412837, 0.9053611,  0.22870538,
                 0.9237487,  0.20986171, 0.5067282,  0.29709867,  0.53138554, 0.189101,   0.4786443,  0.88421875},
             std::vector<T>{149, 149,      149, 149, 149, 0,   149, 149, 149, refRoiY0, 149, 149,
-                           149, refRoiY1, 149, 149, 149, 149, 149, 149,      149, 149,      149, 149,
+                           149, refRoiY1, 149, 149, 149, 149, 149, 149, 149, 149,      149, 149,
                            149, 149,      149, 149, 149, 0,   149, 149, 149, refRoiY0, 149, 149,
-                           149, refRoiY1, 149, 149, 149, 149, 149, 149,      149, 149,      149, 149},
+                           149, refRoiY1, 149, 149, 149, 149, 149, 149, 149, 149,      149, 149},
             std::vector<T>{0.9894874691963196,
                            0.9429685473442078,
                            0.9402455687522888,

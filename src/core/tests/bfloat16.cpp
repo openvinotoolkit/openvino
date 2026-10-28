@@ -7,6 +7,9 @@
 #include <gtest/gtest.h>
 
 #include <climits>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <iomanip>
 #include <random>
 #include <sstream>
@@ -113,6 +116,78 @@ TEST(bfloat16, round_to_nearest_even) {
     fvalue = ov::test::utils::bits_to_float(fstring);
     bf_round = bfloat16::round_to_nearest_even(fvalue);
     EXPECT_EQ(bf_round, 0x3FFF);
+}
+
+struct BFloat16RoundingTestCase {
+    std::string name;
+    uint32_t input;
+    uint16_t expected;
+};
+
+class BFloat16RoundingTest : public ::testing::TestWithParam<BFloat16RoundingTestCase> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    BoundaryAndSpecialValues,
+    BFloat16RoundingTest,
+    ::testing::Values(BFloat16RoundingTestCase{"positive_below_even_tie", 0x3f807fffU, 0x3f80},
+                      BFloat16RoundingTestCase{"positive_even_tie", 0x3f808000U, 0x3f80},
+                      BFloat16RoundingTestCase{"positive_above_even_tie", 0x3f808001U, 0x3f81},
+                      BFloat16RoundingTestCase{"positive_odd_tie", 0x3f818000U, 0x3f82},
+                      BFloat16RoundingTestCase{"negative_below_even_tie", 0xbf807fffU, 0xbf80},
+                      BFloat16RoundingTestCase{"negative_even_tie", 0xbf808000U, 0xbf80},
+                      BFloat16RoundingTestCase{"negative_above_even_tie", 0xbf808001U, 0xbf81},
+                      BFloat16RoundingTestCase{"negative_odd_tie", 0xbf818000U, 0xbf82},
+                      BFloat16RoundingTestCase{"positive_below_overflow_tie", 0x7f7f7fffU, 0x7f7f},
+                      BFloat16RoundingTestCase{"positive_overflow_tie", 0x7f7f8000U, 0x7f80},
+                      BFloat16RoundingTestCase{"negative_below_overflow_tie", 0xff7f7fffU, 0xff7f},
+                      BFloat16RoundingTestCase{"negative_overflow_tie", 0xff7f8000U, 0xff80},
+                      BFloat16RoundingTestCase{"positive_subnormal_below_tie", 0x00007fffU, 0x0000},
+                      BFloat16RoundingTestCase{"positive_subnormal_tie", 0x00008000U, 0x0000},
+                      BFloat16RoundingTestCase{"positive_subnormal_above_tie", 0x00008001U, 0x0001},
+                      BFloat16RoundingTestCase{"negative_subnormal_below_tie", 0x80007fffU, 0x8000},
+                      BFloat16RoundingTestCase{"negative_subnormal_tie", 0x80008000U, 0x8000},
+                      BFloat16RoundingTestCase{"negative_subnormal_above_tie", 0x80008001U, 0x8001},
+                      BFloat16RoundingTestCase{"positive_infinity", 0x7f800000U, 0x7f80},
+                      BFloat16RoundingTestCase{"negative_infinity", 0xff800000U, 0xff80},
+                      BFloat16RoundingTestCase{"positive_zero", 0x00000000U, 0x0000},
+                      BFloat16RoundingTestCase{"negative_zero", 0x80000000U, 0x8000}),
+    [](const testing::TestParamInfo<BFloat16RoundingTestCase>& info) {
+        return info.param.name;
+    });
+
+TEST_P(BFloat16RoundingTest, round_to_nearest_even_matches_expected_bits) {
+    const auto& test_case = GetParam();
+    float value;
+    std::memcpy(&value, &test_case.input, sizeof(value));
+    EXPECT_EQ(bfloat16::round_to_nearest_even(value), test_case.expected);
+    EXPECT_EQ(bfloat16(value).to_bits(), test_case.expected);
+}
+
+TEST(bfloat16, random_finite_rounding_matches_nearest_neighbor_reference) {
+    std::mt19937 rng(0xB16F16);
+    std::uniform_int_distribution<uint32_t> magnitude_distribution(0, 0x7f7effffU);
+    const auto as_float = [](uint32_t bits) {
+        float value;
+        std::memcpy(&value, &bits, sizeof(value));
+        return value;
+    };
+
+    for (size_t i = 0; i < 4096; ++i) {
+        const uint32_t input_bits = magnitude_distribution(rng) | (rng() & 0x80000000U);
+        const uint32_t lower_bits = input_bits & 0xffff0000U;
+        const uint32_t upper_bits = lower_bits + 0x00010000U;
+
+        const double input = as_float(input_bits);
+        const double lower_distance = std::fabs(input - static_cast<double>(as_float(lower_bits)));
+        const double upper_distance = std::fabs(input - static_cast<double>(as_float(upper_bits)));
+
+        const bool choose_upper =
+            upper_distance < lower_distance || (upper_distance == lower_distance && ((lower_bits >> 16) & 1U));
+        const uint16_t expected_bits = static_cast<uint16_t>((choose_upper ? upper_bits : lower_bits) >> 16);
+
+        EXPECT_EQ(bfloat16::round_to_nearest_even(as_float(input_bits)), expected_bits)
+            << "input bits 0x" << std::hex << input_bits;
+    }
 }
 
 struct BFloat16NaNTestCase {

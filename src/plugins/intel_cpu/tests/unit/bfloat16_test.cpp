@@ -4,13 +4,59 @@
 
 #include "utils/bfloat16.hpp"
 
-#include <cstdint>
 #include <gtest/gtest.h>
+
+#include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "utils/cpp/bit_cast.hpp"
 
 namespace ov::intel_cpu::test {
+
+struct IntelCpuBFloat16RoundingTestCase {
+    std::string name;
+    uint32_t input;
+    uint16_t expected;
+};
+
+class IntelCpuBFloat16RoundingTest : public ::testing::TestWithParam<IntelCpuBFloat16RoundingTestCase> {};
+
+INSTANTIATE_TEST_SUITE_P(
+    BoundaryAndSpecialValues,
+    IntelCpuBFloat16RoundingTest,
+    ::testing::Values(IntelCpuBFloat16RoundingTestCase{"positive_below_even_tie", 0x3f807fffU, 0x3f80},
+                      IntelCpuBFloat16RoundingTestCase{"positive_even_tie", 0x3f808000U, 0x3f80},
+                      IntelCpuBFloat16RoundingTestCase{"positive_above_even_tie", 0x3f808001U, 0x3f81},
+                      IntelCpuBFloat16RoundingTestCase{"positive_odd_tie", 0x3f818000U, 0x3f82},
+                      IntelCpuBFloat16RoundingTestCase{"negative_below_even_tie", 0xbf807fffU, 0xbf80},
+                      IntelCpuBFloat16RoundingTestCase{"negative_even_tie", 0xbf808000U, 0xbf80},
+                      IntelCpuBFloat16RoundingTestCase{"negative_above_even_tie", 0xbf808001U, 0xbf81},
+                      IntelCpuBFloat16RoundingTestCase{"negative_odd_tie", 0xbf818000U, 0xbf82},
+                      IntelCpuBFloat16RoundingTestCase{"positive_below_overflow_tie", 0x7f7f7fffU, 0x7f7f},
+                      IntelCpuBFloat16RoundingTestCase{"positive_overflow_tie", 0x7f7f8000U, 0x7f80},
+                      IntelCpuBFloat16RoundingTestCase{"negative_below_overflow_tie", 0xff7f7fffU, 0xff7f},
+                      IntelCpuBFloat16RoundingTestCase{"negative_overflow_tie", 0xff7f8000U, 0xff80},
+                      IntelCpuBFloat16RoundingTestCase{"positive_subnormal_below_tie", 0x00007fffU, 0x0000},
+                      IntelCpuBFloat16RoundingTestCase{"positive_subnormal_tie", 0x00008000U, 0x0000},
+                      IntelCpuBFloat16RoundingTestCase{"positive_subnormal_above_tie", 0x00008001U, 0x0001},
+                      IntelCpuBFloat16RoundingTestCase{"negative_subnormal_below_tie", 0x80007fffU, 0x8000},
+                      IntelCpuBFloat16RoundingTestCase{"negative_subnormal_tie", 0x80008000U, 0x8000},
+                      IntelCpuBFloat16RoundingTestCase{"negative_subnormal_above_tie", 0x80008001U, 0x8001},
+                      IntelCpuBFloat16RoundingTestCase{"positive_infinity", 0x7f800000U, 0x7f80},
+                      IntelCpuBFloat16RoundingTestCase{"negative_infinity", 0xff800000U, 0xff80},
+                      IntelCpuBFloat16RoundingTestCase{"positive_zero", 0x00000000U, 0x0000},
+                      IntelCpuBFloat16RoundingTestCase{"negative_zero", 0x80000000U, 0x8000}),
+    [](const testing::TestParamInfo<IntelCpuBFloat16RoundingTestCase>& info) {
+        return info.param.name;
+    });
+
+TEST_P(IntelCpuBFloat16RoundingTest, rounds_boundaries_and_special_values) {
+    const auto& test_case = GetParam();
+    float input;
+    std::memcpy(&input, &test_case.input, sizeof(input));
+    EXPECT_EQ(bfloat16_t(input).to_bits(), test_case.expected);
+}
 
 struct IntelCpuBFloat16NaNTestCase {
     std::string name;
