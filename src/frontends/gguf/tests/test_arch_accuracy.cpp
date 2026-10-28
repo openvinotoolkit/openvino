@@ -688,16 +688,13 @@ TEST(GGUFMultimodalBackboneAdaptation, TernaryAttentionGatesRestoreRankBeforeSig
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, AttentionGatesPreserveBatchAndBeamShapes) {
-    for (const auto* family : {"muse-glimmer", "qwen35", "bonsai2-hadamard"}) {
-        SCOPED_TRACE(family);
-        const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
-        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
-        ov::frontend::gguf::FrontEnd frontend;
-        frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
-        const auto model = frontend.convert(frontend.load(temporary.path));
-        EXPECT_GT(count_rank3_gates(model, "."), 0);
-        check_batched_decode(model);
-    }
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/muse-glimmer.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    const auto model = frontend.convert(frontend.load(temporary.path));
+    EXPECT_GT(count_rank3_gates(model, "."), 0);
+    check_batched_decode(model);
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, Rank3HeadRemainsVisibleToGenAI) {
@@ -764,6 +761,7 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
         frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
         auto model = frontend.convert(frontend.load(temporary.path));
         if (std::string(family).find("qwen35") == 0 || std::string(family) == "bonsai2-hadamard") {
+            EXPECT_GT(count_rank3_gates(model, "."), 0);
             EXPECT_EQ(count_rank3_gates(model, "_blk.3."), 3);
         }
         check_batched_decode(model);

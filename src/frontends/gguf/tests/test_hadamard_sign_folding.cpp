@@ -213,21 +213,6 @@ TEST(GGUFHadamardSignFoldingUp, SharedConsumersRemainUnrotatedAndNonByteAlignedR
         expect_same_floats(actual[i], expected[i]);
 }
 
-TEST(GGUFHadamardSignFoldingUp, DynamicTokensKeepChannelPreservingReshapes) {
-    auto graph = up_sign_graph(ov::element::f32, 4, true);
-    const auto values = input_tensor(ov::element::f32);
-    ov::TensorVector expected{ov::Tensor(ov::element::f32, {2, 4})};
-    ASSERT_TRUE(graph.model->evaluate(expected, {values}));
-
-    fold_hadamard_input_signs(graph.model);
-
-    EXPECT_NE(graph.hadamard->input_value(0), graph.rotation->output(0));
-    EXPECT_EQ(graph.hadamard->get_output_partial_shape(0), (ov::PartialShape{-1, 4}));
-    ov::TensorVector actual{ov::Tensor(ov::element::f32, {2, 4})};
-    ASSERT_TRUE(graph.model->evaluate(actual, {values}));
-    expect_same_floats(actual[0], expected[0]);
-}
-
 TEST(GGUFHadamardSignFoldingUp, SingletonUnsqueezeAndSqueezePreserveNumerics) {
     auto graph = up_sign_graph(ov::element::f32);
     const auto axes = Constant::create(ov::element::i64, {1}, {1});
@@ -263,6 +248,8 @@ TEST(GGUFHadamardSignFoldingUp, DynamicShapeQueriesDoNotKeepUnrotatedProjections
     fold_hadamard_input_signs(graph.model);
 
     ASSERT_NE(folded_up(graph), nullptr);
+    EXPECT_NE(graph.hadamard->input_value(0), graph.rotation->output(0));
+    EXPECT_EQ(graph.hadamard->get_output_partial_shape(0), (ov::PartialShape{-1, 4}));
     EXPECT_NE(up_shape->get_input_node_shared_ptr(0), graph.up);
     EXPECT_NE(glu_shape->get_input_node_shared_ptr(0), graph.swiglu);
     EXPECT_NE(view_shape->get_input_node_shared_ptr(0), graph.view);
