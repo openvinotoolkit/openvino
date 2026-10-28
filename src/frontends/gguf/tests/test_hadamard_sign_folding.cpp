@@ -11,10 +11,16 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "transformations/rt_info/decompression.hpp"
 
 namespace {
 using Constant = ov::op::v0::Constant;
@@ -58,6 +64,283 @@ void expect_identical(const ov::TensorVector& actual, const ov::TensorVector& ex
 }
 
 class GGUFHadamardSignFolding : public ::testing::TestWithParam<ov::element::Type> {};
+
+struct UpSignGraph {
+    std::shared_ptr<ov::op::v0::Parameter> input;
+    std::shared_ptr<Constant> codes;
+    std::shared_ptr<Constant> scale;
+    std::shared_ptr<Constant> zero_point;
+    std::shared_ptr<ov::op::v0::Convert> code_convert;
+    std::shared_ptr<ov::op::v1::Subtract> subtract;
+    std::shared_ptr<Multiply> scaled;
+    std::shared_ptr<ov::op::v1::Reshape> weight_view;
+    std::shared_ptr<ov::Node> weights;
+    std::shared_ptr<ov::op::v0::MatMul> up;
+    std::shared_ptr<Multiply> swiglu;
+    std::shared_ptr<ov::op::v1::Reshape> view;
+    std::shared_ptr<Multiply> rotation;
+    std::shared_ptr<ov::op::v0::MatMul> hadamard;
+    std::shared_ptr<ov::Model> model;
+};
+
+UpSignGraph up_sign_graph(const ov::element::Type& type, size_t columns = 4, bool dynamic_tokens = false) {
+    UpSignGraph graph;
+    graph.input = std::make_shared<ov::op::v0::Parameter>(
+        type,
+        ov::PartialShape{dynamic_tokens ? ov::Dimension::dynamic() : ov::Dimension(2), ov::Dimension(columns)});
+    graph.input->output(0).set_names({"x"});
+    std::vector<uint8_t> codes(4 * columns);
+    for (size_t i = 0; i < codes.size(); ++i)
+        codes[i] = static_cast<uint8_t>((i + i / columns) % 3);
+    graph.codes = Constant::create(ov::element::u2, {4, 1, columns}, codes);
+    graph.scale = Constant::create(ov::element::f16, {4, 1, 1}, {0.25f, -0.5f, 0.75f, 1.25f});
+    graph.zero_point = Constant::create(ov::element::f16, {}, {1});
+    graph.code_convert = std::make_shared<ov::op::v0::Convert>(graph.codes, ov::element::f16);
+    ov::mark_as_decompression(graph.code_convert);
+    graph.subtract = std::make_shared<ov::op::v1::Subtract>(graph.code_convert, graph.zero_point);
+    graph.scaled = std::make_shared<Multiply>(graph.subtract, graph.scale);
+    graph.weight_view = std::make_shared<ov::op::v1::Reshape>(
+        graph.scaled,
+        Constant::create(ov::element::i64, {2}, std::vector<int64_t>{4, static_cast<int64_t>(columns)}),
+        false);
+    graph.weights = std::make_shared<ov::op::v0::Convert>(graph.weight_view, type);
+    graph.up = std::make_shared<ov::op::v0::MatMul>(graph.input, graph.weights, false, true);
+    const auto gate_weights = Constant::create(type, {4, columns}, {0.125f});
+    const auto gate = std::make_shared<ov::op::v0::MatMul>(graph.input, gate_weights, false, true);
+    const auto swish = std::make_shared<ov::op::v4::Swish>(gate);
+    graph.swiglu = std::make_shared<Multiply>(swish, graph.up);
+    const auto expanded =
+        std::make_shared<ov::op::v1::Reshape>(graph.swiglu, Constant::create(ov::element::i64, {3}, {-1, 1, 4}), false);
+    graph.view =
+        std::make_shared<ov::op::v1::Reshape>(expanded, Constant::create(ov::element::i64, {2}, {-1, 4}), false);
+    graph.rotation = marked_signs(graph.view, Constant::create(type, {1, 4}, {-1, 1, -1, 1}), true);
+    graph.hadamard = std::make_shared<ov::op::v0::MatMul>(
+        graph.rotation,
+        Constant::create(type, {4, 4}, {1, 1, 1, 1, 1, -1, 1, -1, 1, 1, -1, -1, 1, -1, -1, 1}));
+    graph.model = std::make_shared<ov::Model>(ov::OutputVector{graph.hadamard}, ov::ParameterVector{graph.input});
+    return graph;
+}
+
+std::shared_ptr<ov::op::v0::MatMul> folded_up(const UpSignGraph& graph) {
+    auto data = graph.hadamard->input_value(0);
+    while (ov::is_type<ov::op::v1::Reshape>(data.get_node()) || ov::is_type<ov::op::v0::Squeeze>(data.get_node()) ||
+           ov::is_type<ov::op::v0::Unsqueeze>(data.get_node()))
+        data = data.get_node()->input_value(0);
+    const auto swiglu = ov::as_type_ptr<Multiply>(data.get_node_shared_ptr());
+    return swiglu ? ov::as_type_ptr<ov::op::v0::MatMul>(swiglu->get_input_node_shared_ptr(1)) : nullptr;
+}
+
+void expect_same_floats(const ov::Tensor& actual, const ov::Tensor& expected, float tolerance = 0) {
+    ASSERT_EQ(actual.get_element_type(), expected.get_element_type());
+    ASSERT_EQ(actual.get_shape(), expected.get_shape());
+    const auto value = [](const ov::Tensor& tensor, size_t i) {
+        return tensor.get_element_type() == ov::element::f16 ? static_cast<float>(tensor.data<const ov::float16>()[i])
+                                                             : tensor.data<const float>()[i];
+    };
+    for (size_t i = 0; i < actual.get_size(); ++i)
+        EXPECT_NEAR(value(actual, i), value(expected, i), tolerance) << i;
+}
+
+TEST_P(GGUFHadamardSignFolding, SwiGLURowSignsPreservePackedWeightsNumericsAndMetadata) {
+    auto graph = up_sign_graph(GetParam());
+    graph.code_convert->get_rt_info()["code_metadata"] = 17;
+    graph.code_convert->output(0).get_rt_info()["code_output_metadata"] = 18;
+    graph.rotation->get_rt_info()["rotation_metadata"] = 19;
+    graph.rotation->output(0).get_rt_info()["rotation_output_metadata"] = 20;
+    graph.rotation->output(0).set_names({"rotated"});
+    const auto values = input_tensor(GetParam());
+    const auto expected = evaluate(graph.model, values);
+    const auto cpu_expected = ov_gguf_test::run_on_cpu(graph.model, {{"x", values}});
+    const auto original_codes = graph.codes->cast_vector<uint8_t>();
+
+    fold_hadamard_input_signs(graph.model);
+
+    const auto up = folded_up(graph);
+    ASSERT_NE(up, nullptr);
+    EXPECT_NE(up, graph.up);
+    const auto weight_convert = ov::as_type_ptr<ov::op::v0::Convert>(up->get_input_node_shared_ptr(1));
+    ASSERT_NE(weight_convert, nullptr);
+    const auto weight_view = ov::as_type_ptr<ov::op::v1::Reshape>(weight_convert->get_input_node_shared_ptr(0));
+    ASSERT_NE(weight_view, nullptr);
+    const auto scaled = ov::as_type_ptr<Multiply>(weight_view->get_input_node_shared_ptr(0));
+    ASSERT_NE(scaled, nullptr);
+    const auto scale = ov::as_type_ptr<Constant>(scaled->get_input_node_shared_ptr(1));
+    ASSERT_NE(scale, nullptr);
+    EXPECT_EQ(scale->get_element_type(), ov::element::f16);
+    EXPECT_EQ(scale->cast_vector<float>(), (std::vector<float>{-0.25f, -0.5f, -0.75f, 1.25f}));
+    const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(scaled->get_input_node_shared_ptr(0));
+    ASSERT_NE(subtract, nullptr);
+    EXPECT_EQ(subtract->input_value(1), graph.zero_point->output(0));
+    const auto code_convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(0));
+    ASSERT_NE(code_convert, nullptr);
+    EXPECT_TRUE(ov::is_decompression(code_convert));
+    EXPECT_EQ(code_convert->get_rt_info().at("code_metadata").as<int>(), 17);
+    EXPECT_EQ(code_convert->output(0).get_rt_info().at("code_output_metadata").as<int>(), 18);
+    const auto codes = ov::as_type_ptr<Constant>(code_convert->get_input_node_shared_ptr(0));
+    ASSERT_NE(codes, nullptr);
+    EXPECT_EQ(codes, graph.codes);
+    EXPECT_EQ(codes->get_element_type(), ov::element::u2);
+    EXPECT_EQ(codes->get_shape(), graph.codes->get_shape());
+    EXPECT_EQ(codes->cast_vector<uint8_t>(), original_codes);
+    EXPECT_EQ(graph.codes->cast_vector<uint8_t>(), original_codes);
+    const auto replacement = graph.hadamard->input_value(0);
+    EXPECT_EQ(replacement.get_node()->get_rt_info().at("rotation_metadata").as<int>(), 19);
+    EXPECT_EQ(replacement.get_rt_info().at("rotation_output_metadata").as<int>(), 20);
+    EXPECT_EQ(replacement.get_names().count("rotated"), 1u);
+    EXPECT_EQ(replacement.get_node()->get_rt_info().count("gguf_hadamard_input_sign"), 0u);
+    expect_same_floats(evaluate(graph.model, values)[0], expected[0]);
+    expect_same_floats(ov_gguf_test::run_on_cpu(graph.model, {{"x", values}}), cpu_expected, 0.002f);
+}
+
+TEST(GGUFHadamardSignFoldingUp, SharedConsumersRemainUnrotatedAndNonByteAlignedRowsFold) {
+    auto graph = up_sign_graph(ov::element::f32, 3);
+    const auto other_signs = marked_signs(graph.view, Constant::create(ov::element::f32, {4}, {1, -1, 1, -1}));
+    graph.model = std::make_shared<ov::Model>(
+        ov::OutputVector{graph.hadamard, graph.up, graph.swiglu, graph.weights, other_signs},
+        ov::ParameterVector{graph.input});
+    const auto values = ov_gguf_test::make_f32_tensor({2, 3}, {1.125f, -2.5f, 3.75f, -4.25f, -5.5f, 6.125f});
+    const auto expected = evaluate(graph.model, values);
+
+    fold_hadamard_input_signs(graph.model);
+
+    EXPECT_NE(graph.hadamard->input_value(0), graph.rotation->output(0));
+    EXPECT_EQ(graph.model->get_results()[1]->input_value(0), graph.up->output(0));
+    EXPECT_EQ(graph.model->get_results()[2]->input_value(0), graph.swiglu->output(0));
+    EXPECT_EQ(graph.model->get_results()[3]->input_value(0), graph.weights->output(0));
+    EXPECT_NE(graph.model->get_results()[4]->input_value(0), other_signs->output(0));
+    const auto actual = evaluate(graph.model, values);
+    for (size_t i = 0; i < actual.size(); ++i)
+        expect_same_floats(actual[i], expected[i]);
+}
+
+TEST(GGUFHadamardSignFoldingUp, DynamicTokensKeepChannelPreservingReshapes) {
+    auto graph = up_sign_graph(ov::element::f32, 4, true);
+    const auto values = input_tensor(ov::element::f32);
+    ov::TensorVector expected{ov::Tensor(ov::element::f32, {2, 4})};
+    ASSERT_TRUE(graph.model->evaluate(expected, {values}));
+
+    fold_hadamard_input_signs(graph.model);
+
+    EXPECT_NE(graph.hadamard->input_value(0), graph.rotation->output(0));
+    EXPECT_EQ(graph.hadamard->get_output_partial_shape(0), (ov::PartialShape{-1, 4}));
+    ov::TensorVector actual{ov::Tensor(ov::element::f32, {2, 4})};
+    ASSERT_TRUE(graph.model->evaluate(actual, {values}));
+    expect_same_floats(actual[0], expected[0]);
+}
+
+TEST(GGUFHadamardSignFoldingUp, SingletonUnsqueezeAndSqueezePreserveNumerics) {
+    auto graph = up_sign_graph(ov::element::f32);
+    const auto axes = Constant::create(ov::element::i64, {1}, {1});
+    const auto expanded = std::make_shared<ov::op::v0::Unsqueeze>(graph.swiglu, axes);
+    const auto squeezed = std::make_shared<ov::op::v0::Squeeze>(expanded, axes);
+    graph.view->set_argument(0, squeezed);
+    graph.model->validate_nodes_and_infer_types();
+    const auto values = input_tensor(ov::element::f32);
+    const auto expected = evaluate(graph.model, values);
+
+    fold_hadamard_input_signs(graph.model);
+
+    ASSERT_NE(folded_up(graph), nullptr);
+    EXPECT_NE(graph.hadamard->input_value(0), graph.rotation->output(0));
+    expect_same_floats(evaluate(graph.model, values)[0], expected[0]);
+}
+
+TEST(GGUFHadamardSignFoldingUp, DynamicShapeQueriesDoNotKeepUnrotatedProjectionsAlive) {
+    auto graph = up_sign_graph(ov::element::f32, 4, true);
+    const auto up_shape = std::make_shared<ov::op::v0::ShapeOf>(graph.up);
+    const auto glu_shape = std::make_shared<ov::op::v3::ShapeOf>(graph.swiglu, ov::element::i64);
+    const auto view_shape = std::make_shared<ov::op::v3::ShapeOf>(graph.view, ov::element::i64);
+    const auto restored = std::make_shared<ov::op::v1::Reshape>(graph.hadamard, view_shape, false);
+    graph.model = std::make_shared<ov::Model>(ov::OutputVector{restored, up_shape, glu_shape, view_shape},
+                                              ov::ParameterVector{graph.input});
+    const auto values = input_tensor(ov::element::f32);
+    ov::TensorVector expected{ov::Tensor(ov::element::f32, {2, 4}),
+                              ov::Tensor(ov::element::i64, {2}),
+                              ov::Tensor(ov::element::i64, {2}),
+                              ov::Tensor(ov::element::i64, {2})};
+    ASSERT_TRUE(graph.model->evaluate(expected, {values}));
+
+    fold_hadamard_input_signs(graph.model);
+
+    ASSERT_NE(folded_up(graph), nullptr);
+    EXPECT_NE(up_shape->get_input_node_shared_ptr(0), graph.up);
+    EXPECT_NE(glu_shape->get_input_node_shared_ptr(0), graph.swiglu);
+    EXPECT_NE(view_shape->get_input_node_shared_ptr(0), graph.view);
+    const auto operations = graph.model->get_ordered_ops();
+    EXPECT_EQ(std::count_if(operations.begin(),
+                            operations.end(),
+                            [](const std::shared_ptr<ov::Node>& node) {
+                                return ov::is_type<ov::op::v0::MatMul>(node);
+                            }),
+              3);
+    ov::TensorVector actual{ov::Tensor(ov::element::f32, {2, 4}),
+                            ov::Tensor(ov::element::i64, {2}),
+                            ov::Tensor(ov::element::i64, {2}),
+                            ov::Tensor(ov::element::i64, {2})};
+    ASSERT_TRUE(graph.model->evaluate(actual, {values}));
+    expect_same_floats(actual[0], expected[0]);
+    for (size_t i = 1; i < actual.size(); ++i)
+        expect_identical(actual[i], expected[i]);
+}
+
+TEST(GGUFHadamardSignFoldingUp, InvalidCodesZeroPointsScalesSignsViewsConversionsAndMetadataSkip) {
+    for (int invalid = 0; invalid < 12; ++invalid) {
+        SCOPED_TRACE(invalid);
+        auto graph = up_sign_graph(ov::element::f32);
+        if (invalid == 0)
+            graph.code_convert->set_argument(0, Constant::create(ov::element::u2, {4, 1, 4}, {3}));
+        if (invalid == 1)
+            graph.subtract->set_argument(1, Constant::create(ov::element::f16, {}, {0}));
+        if (invalid == 2) {
+            ov::Tensor scale(ov::element::f16, {4, 1, 1});
+            std::fill_n(scale.data<ov::float16>(),
+                        scale.get_size(),
+                        ov::float16(std::numeric_limits<float>::infinity()));
+            graph.scaled->set_argument(1, std::make_shared<Constant>(scale));
+        }
+        if (invalid == 3)
+            graph.rotation->set_argument(0, Constant::create(ov::element::f32, {1, 4}, {-1.0f, 1.0f, 0.5f, 1.0f}));
+        if (invalid == 4) {
+            const auto mixed = std::make_shared<ov::op::v1::Reshape>(graph.swiglu,
+                                                                     Constant::create(ov::element::i64, {2}, {-1, 2}),
+                                                                     false);
+            graph.view->set_argument(0, mixed);
+        }
+        if (invalid == 5)
+            graph.rotation->set_argument(0, Constant::create(ov::element::f32, {2, 4}, {-1, 1, -1, 1, 1, -1, 1, -1}));
+        if (invalid == 6) {
+            const auto narrowed = std::make_shared<ov::op::v0::Convert>(graph.weight_view, ov::element::bf16);
+            graph.up->set_argument(1, std::make_shared<ov::op::v0::Convert>(narrowed, ov::element::f32));
+        }
+        if (invalid == 7)
+            graph.rotation->get_rt_info().erase("gguf_hadamard_input_sign");
+        if (invalid == 8) {
+            graph.view->get_rt_info()["conflict"] = 1;
+            graph.rotation->get_rt_info()["conflict"] = 2;
+        }
+        if (invalid == 9) {
+            graph.zero_point = Constant::create(ov::element::u8, {}, {1});
+            graph.subtract->set_argument(1, std::make_shared<ov::op::v0::Convert>(graph.zero_point, ov::element::f16));
+            graph.code_convert->set_argument(0, Constant::create(ov::element::u4, {4, 1, 4}, {1}));
+        }
+        if (invalid == 10)
+            graph.up->set_transpose_b(false);
+        if (invalid == 11)
+            graph.swiglu->set_argument(0, graph.up);
+        graph.model->validate_nodes_and_infer_types();
+        const auto values = input_tensor(ov::element::f32);
+        ov::TensorVector expected;
+        if (invalid != 2)
+            expected = evaluate(graph.model, values);
+
+        fold_hadamard_input_signs(graph.model);
+
+        EXPECT_EQ(graph.hadamard->input_value(0), graph.rotation->output(0));
+        EXPECT_EQ(graph.up->input_value(0), graph.input->output(0));
+        if (invalid != 2)
+            expect_same_floats(evaluate(graph.model, values)[0], expected[0]);
+    }
+}
 
 TEST_P(GGUFHadamardSignFolding, PreservesNumericsSignedZeroSharedConstantsAndMetadata) {
     const auto type = GetParam();
