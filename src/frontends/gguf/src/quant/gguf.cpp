@@ -925,6 +925,7 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // Mirrors llama.cpp: hparams.rope_freq_scale_train = 1/ropescale; ext_factor = (yarn?1:0).
     {
         float ropescale = metadata_to_float_or(metadata, arch + ".rope.scaling.factor", 1.0f);
+        // Zero means no scaling; use factor 1 to preserve that behavior before taking the reciprocal.
         if (ropescale == 0.0f) {
             ropescale = 1.0f;
         }
