@@ -262,16 +262,19 @@ TEST_P(basic_memory_dependencies_mul_inplace, fc_output_is_not_reused) {
     auto weights_mem = engine.allocate_memory(weights_layout);
     set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1));
 
-    topology topology(input_layout("input", layout{ov::PartialShape{batch_dim, ifm}, data_types::f16, format::bfyx}),
-                      input_layout("mul_in", layout{ov::PartialShape{batch_dim, ofm}, data_types::f16, format::bfyx}),
-                      data("weights", weights_mem),
-                      activation("mul_data", input_info("mul_in"), activation_func::abs),
-                      fully_connected("fc", input_info("input"), "weights", "", 2),
-                      eltwise("mul", input_info("fc"), input_info("mul_data"), eltwise_mode::prod),
-                      softmax("softmax", input_info("mul"), 1),
-                      softmax("x", input_info("softmax"), 1),
-                      eltwise("sum", input_info("mul"), input_info("x"), eltwise_mode::sum),
-                      reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+    // Each network needs its own topology: on dGPU, transfer_memory_to_device() resets the mem of the "weights" data primitive.
+    auto make_topology = [&]() {
+        return topology(input_layout("input", layout{ov::PartialShape{batch_dim, ifm}, data_types::f16, format::bfyx}),
+                        input_layout("mul_in", layout{ov::PartialShape{batch_dim, ofm}, data_types::f16, format::bfyx}),
+                        data("weights", weights_mem),
+                        activation("mul_data", input_info("mul_in"), activation_func::abs),
+                        fully_connected("fc", input_info("input"), "weights", "", 2),
+                        eltwise("mul", input_info("fc"), input_info("mul_data"), eltwise_mode::prod),
+                        softmax("softmax", input_info("mul"), 1),
+                        softmax("x", input_info("softmax"), 1),
+                        eltwise("sum", input_info("mul"), input_info("x"), eltwise_mode::sum),
+                        reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+    };
 
     auto make_config = [&](bool enable_memory_pool) {
         auto config = get_test_default_config(engine);
@@ -283,8 +286,8 @@ TEST_P(basic_memory_dependencies_mul_inplace, fc_output_is_not_reused) {
         return config;
     };
 
-    network net_ref(engine, topology, make_config(false));
-    network net(program::build_program(engine, topology, make_config(true)), 0);
+    network net_ref(engine, make_topology(), make_config(false));
+    network net(program::build_program(engine, make_topology(), make_config(true)), 0);
 
     auto& fc_node = net.get_program()->get_node("fc");
     const auto reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(fc_node);
