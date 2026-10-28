@@ -874,16 +874,16 @@ public:
         auto& params = instance._weights;
         const bool has_zp = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config.has_zp;
 
-#    define CONVERT_DNNL_OTD(name, i)                                                                                                                  \
-        int64_t wei_offset##i = lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, params.name##_w->get_layout());               \
-        int64_t scale_offset##i =                                                                                                                      \
-            lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_s->get_layout());   \
-        dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i); \
-        dnnl_weights[i].scale = convert2dnnl(params.name##_s,                                                                                          \
-                                             {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                 \
-                                             dnnl::memory::format_tag::ab,                                                                             \
-                                             scale_offset##i);                                                                                         \
-        if (has_zp) {                                                                                                                                  \
+#    define CONVERT_DNNL_OTD(name, i)                                                                                                                     \
+        int64_t wei_offset##i = lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc, params.name##_w->get_layout());                  \
+        int64_t scale_offset##i =                                                                                                                         \
+            lru_expert_no * get_bytes_count(dnnl_weights[i].ic * dnnl_weights[i].oc / dnnl_weights[i].ic_group_size, params.name##_s->get_layout());      \
+        dnnl_weights[i].weight = convert2dnnl(params.name##_w, {dnnl_weights[i].ic, dnnl_weights[i].oc}, dnnl::memory::format_tag::ba, wei_offset##i);    \
+        dnnl_weights[i].scale = convert2dnnl(params.name##_s,                                                                                             \
+                                             {dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc},                                    \
+                                             dnnl::memory::format_tag::ab,                                                                                \
+                                             scale_offset##i);                                                                                            \
+        if (has_zp) {                                                                                                                                     \
             dnnl_weights[i].zp = convert_zp2dnnl(params.name##_z, dnnl_weights[i].ic / dnnl_weights[i].ic_group_size, dnnl_weights[i].oc, lru_expert_no); \
         }
         CONVERT_DNNL_OTD(gate, 0)
@@ -2659,8 +2659,8 @@ public:
                 }
                 if (bin_src) {
                     // binary post-op input: grouped memory with the same layout as dst
-                    cache.args.insert({DNNL_ARG_ATTR_MULTIPLE_POST_OP(gk.gate_bin_po_idx) | DNNL_ARG_SRC_1,
-                                       bin_src->get_onednn_grouped_memory(pd.dst_desc(), *row_offsets)});
+                    cache.args.insert(
+                        {DNNL_ARG_ATTR_MULTIPLE_POST_OP(gk.gate_bin_po_idx) | DNNL_ARG_SRC_1, bin_src->get_onednn_grouped_memory(pd.dst_desc(), *row_offsets)});
                 }
                 cache.key = key;
             }
