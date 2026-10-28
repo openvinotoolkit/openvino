@@ -26,13 +26,14 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
                                            allow_xattention: bool,
                                            allow_adaptive_rkv: bool,
                                            allow_qq_bias: bool,
+                                           is_draft_model: bool,
                                            ie_device: str):
     before_map = {}
     for op in ov_model.get_ordered_ops():
         if op.get_type_name() in nodes_to_compare:
             before_map[op.get_type_name()] = before_map.get(op.get_type_name(), 0) + 1
 
-    paged_attention_transformation(ov_model, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv, allow_qq_bias)
+    paged_attention_transformation(ov_model, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv, allow_qq_bias, is_draft_model)
     ov.Core().compile_model(ov_model, ie_device)
 
     after_map = {}
@@ -156,6 +157,7 @@ def run_pa(tmp_path,
            allow_xattention,
            allow_adaptive_rkv,
            allow_qq_bias,
+           is_draft_model,
            ie_device):
     model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
     model = cls.from_pretrained(model_cached, export=True, trust_remote_code=True)
@@ -169,7 +171,7 @@ def run_pa(tmp_path,
     else:
         raise ValueError(f"Unsupported model class: {cls}")
 
-    apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv, allow_qq_bias, ie_device)
+    apply_transformation_and_compare_diffs(ov_model, model_id, use_block_indices_inputs, use_score_outputs, allow_score_aggregation, allow_cache_rotation, allow_xattention, allow_adaptive_rkv, allow_qq_bias, is_draft_model, ie_device)
 
 PA_PRECOMMIT_TEST_CASES = [
     (OVModelForCausalLM, *model_info_tuple)
@@ -218,6 +220,7 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
                 allow_xattention=True,
                 allow_adaptive_rkv=True,
                 allow_qq_bias=True,
+                is_draft_model=False,
                 ie_device=ie_device)
     else:
         run_pa(tmp_path, model_name, model_link, model_class,
@@ -228,4 +231,5 @@ def test_pa_precommit(tmp_path, model_info_tuple, ie_device, use_optimizations):
                 allow_xattention=False,
                 allow_adaptive_rkv=False,
                 allow_qq_bias=False,
+                is_draft_model=False,
                 ie_device=ie_device)

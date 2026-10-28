@@ -190,6 +190,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> dump_profiling_data_
 static constexpr Property<std::string, ov::PropertyMutability::RW> average_counters{"GPU_AVERAGE_COUNTERS"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_sources_path{"GPU_DUMP_SOURCES_PATH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_tensors_path{"GPU_DUMP_TENSORS_PATH"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> dump_sincos_path{"GPU_DUMP_SINCOS_PATH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dry_run_path{"GPU_DRY_RUN_PATH"};
 static constexpr Property<DumpTensors, ov::PropertyMutability::RW> dump_tensors{"GPU_DUMP_TENSORS"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> dump_layer_names{"GPU_DUMP_LAYER_NAMES"};
@@ -200,13 +201,13 @@ static constexpr Property<int32_t, ov::PropertyMutability::RW> dump_batch_limit{
 static constexpr Property<std::set<int64_t>, ov::PropertyMutability::RW> dump_iterations{"GPU_DUMP_ITERATIONS"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> host_time_profiling{"GPU_HOST_TIME_PROFILING"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> impls_cache_capacity{"GPU_IMPLS_CACHE_CAPACITY"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> output_reclaim_min_size{"GPU_OUTPUT_RECLAIM_MIN_SIZE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_async_compilation{"GPU_DISABLE_ASYNC_COMPILATION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_buffer_fusing{"GPU_DISABLE_RUNTIME_BUFFER_FUSING"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_memory_reuse{"GPU_DISABLE_MEMORY_REUSE"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> disable_post_ops_fusions{"GPU_DISABLE_POST_OPS_FUSIONS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_fc_fusion{"GPU_DISABLE_HORIZONTAL_FC_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
-static constexpr Property<bool, ov::PropertyMutability::RW> disable_gated_mlp_fusion{"GPU_DISABLE_GATED_MLP_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
 static constexpr Property<bool, ov::PropertyMutability::RW> moe_disable_fusion{"GPU_MOE_DISABLE_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> enable_ternocl_int2{"GPU_ENABLE_TERNOCL_INT2"};
