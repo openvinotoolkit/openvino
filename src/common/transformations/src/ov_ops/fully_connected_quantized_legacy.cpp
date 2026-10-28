@@ -53,12 +53,7 @@ void FullyConnectedQuantizedLegacy::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, input_size == 5, "Number of inputs is incorrect. Current value is: ", input_size);
 
-    // deq_scales is a mandatory input, so it must carry a concrete floating-point element type; a
-    // dynamic type is rejected because that is how an absent optional input is encoded.
-    // Legacy dequant zero-points may be either integral offsets or a real value subtracted before
-    // scaling, so the type is only required to be numeric. String is the only concrete element type
-    // that is not numeric, and an absent zero-points input is an empty element::dynamic constant, so
-    // string is the only type rejected.
+    // Scales are mandatory and real; zero-points may be any numeric type or absent (element::dynamic).
     const auto& scales_et = get_input_element_type(3);
     NODE_VALIDATION_CHECK(this,
                           scales_et.is_real(),

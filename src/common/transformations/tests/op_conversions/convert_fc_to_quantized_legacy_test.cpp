@@ -55,9 +55,7 @@ TEST_F(TransformationTestsF, ConvertFCToFCQuantizedLegacy_RealScales) {
     }
 }
 
-// FullyConnectedQuantizedLegacy requires real-typed dequantization scales, so a Multiply by a
-// non-real constant is not a dequantization: the pass must leave it alone rather than build an op
-// that fails validation mid-transformation and aborts compilation.
+// A Multiply by a non-real constant is not a dequantization, so the pass must leave it alone.
 TEST_F(TransformationTestsF, ConvertFCToFCQuantizedLegacy_IntegralScalesNotConverted) {
     auto x = activations();
     // With no output_type override the FullyConnected emits its activation type (u8), so a plain

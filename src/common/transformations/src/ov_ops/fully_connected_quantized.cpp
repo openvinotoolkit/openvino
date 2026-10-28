@@ -50,12 +50,7 @@ void FullyConnectedQuantized::validate_and_infer_types() {
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this, input_size == 9, "Number of inputs is incorrect. Current value is: ", input_size);
 
-    // Scales are mandatory inputs, so each must carry a concrete floating-point element type; a dynamic
-    // type is rejected because that is how an absent optional input is encoded.
-    // Zero-points are usually integral quantization offsets but may also be real (subtracted before
-    // scaling), so any numeric type is accepted. String is the only concrete element type that is not
-    // numeric, and an absent zero-points input is an empty element::dynamic constant, so string is the
-    // only type rejected.
+    // Scales are mandatory and real; zero-points may be any numeric type or absent (element::dynamic).
     const auto check_scales = [this](size_t idx, const char* name) {
         const auto& et = get_input_element_type(idx);
         NODE_VALIDATION_CHECK(this,

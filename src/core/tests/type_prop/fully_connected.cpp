@@ -178,9 +178,7 @@ TEST(type_prop_fc_quantized, boolean_zero_points_accepted) {
 }
 
 TEST(type_prop_fc_quantized, each_typed_input_is_checked_at_its_own_index) {
-    // Scales reject non-real and dynamic types; zero-points reject string. Every one of the six
-    // typed inputs is exercised under its own index and name, so a mis-numbered or mis-named check
-    // cannot hide behind the inputs that happen to have a dedicated test.
+    // Each of the six typed inputs is checked under its own index and name.
     struct Case {
         size_t idx;
         const char* name;

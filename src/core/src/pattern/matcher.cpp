@@ -147,27 +147,24 @@ bool Matcher::match_permutation(const OutputVector& pattern_args, const OutputVe
     return true;
 }
 
-bool Matcher::match_permutations(OutputVector& pattern_args, const OutputVector& args) {
-    // The enumeration order of permutations is observable behavior, not an implementation detail:
-    // the matcher commits to the first permutation that matches, so when more than one permutation
-    // of a commutative pattern can match (e.g. a label competing with any_input()), the order
-    // decides which graph operand each pattern operand binds to. Order-sensitive patterns rely on
-    // the long-standing lexicographic enumeration (sort + next_permutation under Output<Node>'s
-    // operator<, i.e. node instance id then output index); replacing it with an unordered scheme such
-    // as Heap's algorithm changes those bindings.
+namespace {
+// Lexicographic order is kept on purpose: the first matching permutation decides operand bindings.
+template <class MatchOne>
+bool match_any_permutation(Matcher* matcher, OutputVector& pattern_args, MatchOne&& match_one) {
     std::sort(pattern_args.begin(), pattern_args.end());
     do {
-        OPENVINO_LOG_MATCHER6(this);
-        auto saved = start_match();
-        if (match_permutation(pattern_args, args)) {
+        OPENVINO_LOG_MATCHER6(matcher);
+        auto saved = matcher->start_match();
+        if (match_one(pattern_args)) {
             auto res = saved.finish(true);
-            OPENVINO_LOG_MATCHER7(this);
+            OPENVINO_LOG_MATCHER7(matcher);
             return res;
         }
-        OPENVINO_LOG_MATCHER8(this);
+        OPENVINO_LOG_MATCHER8(matcher);
     } while (std::next_permutation(pattern_args.begin(), pattern_args.end()));
     return false;
 }
+}  // namespace
 
 bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& graph_node) {
     auto args = graph_node->input_values();
@@ -179,7 +176,10 @@ bool Matcher::match_arguments(Node* pattern_node, const std::shared_ptr<Node>& g
     }
 
     if (ov::op::util::is_commutative(graph_node)) {
-        if (match_permutations(pattern_args, args)) {
+        const auto match_one = [&](const OutputVector& permutation) {
+            return match_permutation(permutation, args);
+        };
+        if (match_any_permutation(this, pattern_args, match_one)) {
             return true;
         }
     } else {
