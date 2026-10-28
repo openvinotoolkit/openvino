@@ -282,8 +282,7 @@ void apply_weights_bank_name(ov::AnyMap& config, const std::string& bank_name) {
     }
 }
 
-void apply_model_sharing_context(ov::AnyMap& config,
-                                 std::shared_ptr<ov::weight_sharing::Context> shared_ctx_ptr) {
+void apply_model_sharing_context(ov::AnyMap& config, std::shared_ptr<ov::weight_sharing::Context> shared_ctx_ptr) {
     if (!shared_ctx_ptr) {
         return;
     }
@@ -1267,7 +1266,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // "source_id", while the offset at which a particular LazyTensor is evaluated
     // would serve as its "constant_id".
     //
-    // What should be done with the context later, how it is supposed to be serialized/deserialized 
+    // What should be done with the context later, how it is supposed to be serialized/deserialized
     // or shared between the plugins - it is currently unclear and may require further design decisions.
     auto shared_ctx_ptr = std::make_shared<ov::weight_sharing::Context>();
     apply_model_sharing_context(prefill_config, shared_ctx_ptr);

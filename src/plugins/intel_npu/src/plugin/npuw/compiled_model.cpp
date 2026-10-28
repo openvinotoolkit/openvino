@@ -221,8 +221,6 @@ void validate_closure_metadata_sizes(std::size_t closure_size,
     NPUW_ASSERT(closure_uid_size == closure_size && "Malformed ORC blob: closure_uid size does not match closure size");
 }
 
-
-
 std::shared_ptr<ov::weight_sharing::Context> extract_model_sharing_context(ov::AnyMap& config) {
     if (auto it = config.find(ov::internal::model_sharing_context.name()); it != config.end()) {
         if (auto shared_ctx_ptr = it->second.as<ov::internal::WeightSharingCtxPtr>(); shared_ctx_ptr != nullptr) {
