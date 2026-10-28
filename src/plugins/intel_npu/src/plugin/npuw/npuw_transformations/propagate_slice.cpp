@@ -13,6 +13,7 @@
 
 #include "../logging.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -578,6 +579,7 @@ public:
                 }
 
                 auto new_sdpa = sdpa_node->clone_with_new_inputs(new_inputs);
+                ov::copy_runtime_info(sdpa_node, new_sdpa);
                 new_sdpa->set_friendly_name(sdpa_node->get_friendly_name());
                 new_sdpa->validate_and_infer_types();
 

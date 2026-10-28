@@ -44,7 +44,8 @@ struct HFARequestSet {
     enum TileIdx : std::size_t {
         REGULAR_TILE = 0,
         FINAL_TILE = 1,
-        COUNT = 2,
+        MASKED_TILE = 2,
+        COUNT = 3,
     };
 
     std::array<ov::SoPtr<ov::IAsyncInferRequest>, COUNT> infer_requests{};
@@ -189,7 +190,9 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
 
     auto& request = get_request(ctx);
     const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
-    state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
+    state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length,
+                                                                          request,
+                                                                          hfa->_host_mask ? hfa->_host_mask_window : 0);
     if (!state.hfa_selector) {
         OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
     }
@@ -343,6 +346,29 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
             hfa->_compiled_tile_model->create_infer_request();
         state.hfa_requests.pipeline_requests[HFARequestSet::FINAL_TILE] = state.base_pipeline_request;
     }
+    if (hfa->_host_mask) {
+        state.hfa_requests.infer_requests[HFARequestSet::MASKED_TILE] =
+            hfa->_compiled_masked_tile_model->create_infer_request();
+        if (is_piped) {
+            state.hfa_requests.pipeline_requests[HFARequestSet::MASKED_TILE] =
+                hfa->_compiled_masked_tile_model->create_infer_request();
+        }
+        for (size_t i = 0; i < 6; ++i) {
+            const auto& port = hfa->_compiled_masked_tile_model->inputs()[i];
+            const auto& final_port = hfa->_compiled_final_tile_model->inputs()[i];
+            if (port.get_element_type() == final_port.get_element_type() &&
+                port.get_partial_shape() == final_port.get_partial_shape()) {
+                state.hfa_requests.infer_requests[HFARequestSet::MASKED_TILE]->set_tensor(
+                    port,
+                    state.base_request->get_tensor(final_port));
+                if (is_piped) {
+                    state.hfa_requests.pipeline_requests[HFARequestSet::MASKED_TILE]->set_tensor(
+                        port,
+                        state.base_pipeline_request->get_tensor(final_port));
+                }
+            }
+        }
+    }
 
     // The regular and the final tile models share the same leading input layout by construction
     // (see build_tile_param_mapping) - the final tile model may only have extra trailing inputs.
@@ -434,6 +460,7 @@ void prepare_hfa(ov::npuw::v1::subgraphs::InferContext& ctx) {
     state.cached_attention_mask = {};
     if (state.hfa_runtime_ctx) {
         state.hfa_runtime_ctx->clear_mask_cache();
+        state.hfa_runtime_ctx->m_host_mask_map.reset();
     }
     request.set_active_subrequest(ctx.real_subgraph_idx, state.base_request);
     if (request.is_subrequest_pipelined(ctx.real_subgraph_idx)) {
@@ -1064,10 +1091,22 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                        state_sum);
                         final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0],
                                                        attention_output_tensor);
+                        if (hfa_desc->_host_mask) {
+                            auto& masked_request = state.hfa_requests.infer_requests[HFARequestSet::MASKED_TILE];
+                            const auto& model = hfa_desc->_compiled_masked_tile_model;
+                            masked_request->set_tensor(model->inputs()[tile_in.q], query_tensor);
+                            masked_request->set_tensor(model->inputs()[tile_in.acc], state_acc);
+                            masked_request->set_tensor(model->inputs()[tile_in.max], state_max);
+                            masked_request->set_tensor(model->inputs()[tile_in.d], state_sum);
+                            masked_request->set_tensor(model->outputs()[tile_out.acc], state_acc);
+                            masked_request->set_tensor(model->outputs()[tile_out.max], state_max);
+                            masked_request->set_tensor(model->outputs()[tile_out.d], state_sum);
+                        }
 
                         const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
                         constexpr uint32_t MASK_KV_SEQ_DIM = 3;
                         size_t next_available_mask_buffer_idx = 0;
+                        bool host_past_has_visible_column = false;
 
                         auto process_tile = [&](auto& request,
                                                 auto& model,
@@ -1124,7 +1163,32 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 extract_and_copy_tile(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length, "V");
                             }
 
-                            if (process_with_mask && attention_mask_tensor) {
+                            if (process_with_mask && hfa_desc->_host_mask) {
+                                OPENVINO_ASSERT(attention_mask_tensor && state.hfa_runtime_ctx,
+                                                "NPUW_ATTN_HFA_HOST_MASK: missing row or runtime context");
+                                const auto& port = model->inputs()[tile_in.mask];
+                                auto key = runtime::host_flash_attention::make_host_mask_tile_key(
+                                    *attention_mask_tensor,
+                                    static_cast<size_t>(mask_offset),
+                                    static_cast<size_t>(tile_length),
+                                    sdpa_info._query_size,
+                                    port.get_shape()[2],
+                                    is_final_tile,
+                                    port.get_element_type(),
+                                    host_past_has_visible_column);
+                                // Capture the request explicitly: MSVC does not resolve `ctx` through
+                                // a default capture in a lambda nested in a generic lambda.
+                                auto& npuw_request = get_request(ctx);
+                                auto tile = state.hfa_runtime_ctx->get_host_mask_tile(
+                                    key,
+                                    npuw_request.subgraph_device(ctx.real_subgraph_idx),
+                                    [&npuw_request](const ov::element::Type& dtype,
+                                                    const ov::Shape& shape,
+                                                    const std::string& device) {
+                                        return npuw_request.allocate_mem(dtype, shape, device);
+                                    });
+                                request->set_tensor(port, tile);
+                            } else if (process_with_mask && attention_mask_tensor) {
                                 if (can_reuse_tensor_zero_copy(attention_mask_tensor,
                                                                mask_tile_buffer,
                                                                MASK_KV_SEQ_DIM,
@@ -1189,16 +1253,33 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         // the trailing region. Validate both ranges before creating tensor views.
                         int64_t mask_total_length = 0;
                         if (attention_mask_tensor) {
-                            OPENVINO_ASSERT(MASK_KV_SEQ_DIM < attention_mask_tensor->get_shape().size(),
-                                            "HFA: mask sequence dimension is out of range");
-                            mask_total_length =
-                                static_cast<int64_t>(attention_mask_tensor->get_shape()[MASK_KV_SEQ_DIM]);
+                            OPENVINO_ASSERT(
+                                hfa_desc->_host_mask || MASK_KV_SEQ_DIM < attention_mask_tensor->get_shape().size(),
+                                "HFA: mask sequence dimension is out of range");
+                            mask_total_length = static_cast<int64_t>(
+                                hfa_desc->_host_mask ? attention_mask_tensor->get_size()
+                                                     : attention_mask_tensor->get_shape()[MASK_KV_SEQ_DIM]);
                             OPENVINO_ASSERT(mask_total_length >= total_kv_length,
                                             "HFA: attention mask is too short - it covers ",
                                             mask_total_length,
                                             " positions but ",
                                             total_kv_length,
                                             " positions are required");
+                        }
+                        if (hfa_desc->_host_mask) {
+                            OPENVINO_ASSERT(attention_mask_tensor && state.hfa_runtime_ctx,
+                                            "NPUW_ATTN_HFA_HOST_MASK: missing row or runtime context");
+                            auto& map = state.hfa_runtime_ctx->m_host_mask_map;
+                            if (!map) {
+                                map = runtime::host_flash_attention::build_host_mask_map(*attention_mask_tensor,
+                                                                                         past_total_length,
+                                                                                         past_tile_size);
+                            }
+                            OPENVINO_ASSERT(map->size() == static_cast<size_t>(past_full_tiles),
+                                            "NPUW_ATTN_HFA_HOST_MASK: inconsistent past tile map");
+                            host_past_has_visible_column = std::any_of(map->begin(), map->end(), [](auto action) {
+                                return action != runtime::host_flash_attention::HostMaskTileAction::Skip;
+                            });
                         }
 
                         // Iterate through KV blocks; each block contributes block_size/past_tile_size
@@ -1215,15 +1296,38 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             const int64_t tiles_in_block = block_len / past_tile_size;
 
                             for (int64_t t = 0; t < tiles_in_block && remaining_full_tiles > 0; ++t) {
-                                process_tile(regular_tile_request,
-                                             hfa_desc->_compiled_tile_model,
-                                             k_block,
-                                             v_block,
-                                             t * past_tile_size,
-                                             mask_tile_offset,
-                                             past_tile_size,
-                                             false,       // async
-                                             uses_mask);  // process_with_mask
+                                if (hfa_desc->_host_mask) {
+                                    const auto action = state.hfa_runtime_ctx->m_host_mask_map->at(
+                                        static_cast<size_t>(mask_tile_offset / past_tile_size));
+                                    if (action != runtime::host_flash_attention::HostMaskTileAction::Skip) {
+                                        const bool masked =
+                                            action == runtime::host_flash_attention::HostMaskTileAction::Mask;
+                                        auto& req =
+                                            state.hfa_requests.infer_requests[masked ? HFARequestSet::MASKED_TILE
+                                                                                     : HFARequestSet::REGULAR_TILE];
+                                        const auto& model = masked ? hfa_desc->_compiled_masked_tile_model
+                                                                   : hfa_desc->_compiled_tile_model;
+                                        process_tile(req,
+                                                     model,
+                                                     k_block,
+                                                     v_block,
+                                                     t * past_tile_size,
+                                                     mask_tile_offset,
+                                                     past_tile_size,
+                                                     false,
+                                                     masked);
+                                    }
+                                } else {
+                                    process_tile(regular_tile_request,
+                                                 hfa_desc->_compiled_tile_model,
+                                                 k_block,
+                                                 v_block,
+                                                 t * past_tile_size,
+                                                 mask_tile_offset,
+                                                 past_tile_size,
+                                                 false,       // async
+                                                 uses_mask);  // process_with_mask
+                                }
                                 mask_tile_offset += past_tile_size;
                                 remaining_full_tiles--;
                             }
@@ -1422,6 +1526,25 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
             mutable_hfa->_compiled_final_tile_model = submodel_ctx->compiled_model;
             LOG_DEBUG("Set compiled final tile model reference for host flash attention");
         }
+        if (mutable_hfa->_host_mask) {
+            if (stream.output()) {
+                OPENVINO_ASSERT(mutable_hfa->_compiled_masked_tile_model,
+                                "NPUW_ATTN_HFA_HOST_MASK: missing compiled masked tile model");
+                std::stringstream ss;
+                mutable_hfa->_compiled_masked_tile_model->export_model(ss);
+                std::string model_str = ss.str();
+                stream & model_str;
+            } else {
+                NPUW_ASSERT(submodel_ctx != nullptr);
+                std::string model_str;
+                stream & model_str;
+                std::stringstream ss(model_str);
+                mutable_hfa->_compiled_masked_tile_model =
+                    submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                   submodel_ctx->device,
+                                                                   submodel_ctx->import_config);
+            }
+        }
     }
 }
 
@@ -1454,6 +1577,9 @@ void attach_runtime_behavior(ov::npuw::v1::subgraphs::CompiledPipeline& compiled
             if (const auto* hfa = get_compiled_hfa(context)) {
                 visit(hfa->_compiled_tile_model);
                 visit(hfa->_compiled_final_tile_model);
+                if (hfa->_host_mask) {
+                    visit(hfa->_compiled_masked_tile_model);
+                }
             }
             break;
         case BehaviorKind::Dynamic:

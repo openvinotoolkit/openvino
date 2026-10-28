@@ -10,6 +10,7 @@
 #include "embedding/prepare_embedding_model.hpp"
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
+#include "host_flash_attention.hpp"
 #include "infer_request_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "llm_compiled_model_utils.hpp"
@@ -824,6 +825,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
+    // TEMP (measurement only): force 8K prompt, ignore the passed value.
+    LOG_INFO("TEMP: NPUW_LLM_MAX_PROMPT_LEN " << m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>() << " -> 8192");
+    m_cfg.update({{"NPUW_LLM_MAX_PROMPT_LEN", "8192"}});
+
     resolve_hfa_fused_attention(m_cfg, other_props, npudesc);
 
     m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
@@ -1153,6 +1158,30 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     const bool prefill_attn_hfa = prefill_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
     const bool generate_attn_hfa = generate_attn_hint == ::intel_npu::npuw::llm::AttentionHint::HFA;
+
+    if (prefill_attn_hfa && m_use_chunk_prefill && !m_is_embedding) {
+        bool host_mask = ::intel_npu::NPUW_ATTN_HFA_HOST_MASK::defaultValue();
+        auto read_host_mask = [&](const ov::AnyMap& config) {
+            const auto it = config.find("NPUW_ATTN_HFA_HOST_MASK");
+            if (it != config.end()) {
+                host_mask = it->second.as<bool>();
+            }
+        };
+        if (prefill_config_opt) {
+            read_host_mask(prefill_config_opt->as<ov::AnyMap>());
+        }
+        read_host_mask(other_props);
+        if (prefill_config_addition) {
+            read_host_mask(prefill_config_addition->as<ov::AnyMap>());
+        }
+        // TEMP (measurement only): env override, wins over config.
+        if (const char* env = std::getenv("NPUW_ATTN_HFA_HOST_MASK")) {
+            const std::string v(env);
+            host_mask = (v == "1" || v == "YES" || v == "yes" || v == "TRUE" || v == "true");
+            LOG_INFO("NPUW_ATTN_HFA_HOST_MASK env override: " << v << " -> " << (host_mask ? "YES" : "NO"));
+        }
+        ov::npuw::replace_hfa_host_mask(prefill_model, host_mask);
+    }
 
     const bool optimize_v_tensors = m_cfg.get<::intel_npu::NPUW_LLM_OPTIMIZE_V_TENSORS>();
     if (optimize_v_tensors) {

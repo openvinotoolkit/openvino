@@ -109,29 +109,10 @@ bool is_boolean_combine_op(const std::shared_ptr<ov::Node>& node) {
            ov::is_type<ov::op::v1::LogicalAnd>(node);
 }
 
-// True when `node` is (or transitively nests, through boolean-combine ops) a
-// sliding-window bound check (a Greater comparison). Used to tell apart a
-// boolean-combine consumer that's a genuine SWA anchor -- owned by the SWA
-// matchers below -- from one that's just ANDing/ORing the causal comparison
-// with something unrelated (a `new_ones` identity constant, the padding
-// attention_mask, ...), which is still a plain causal mask in disguise. Real
-// exports commonly wrap even a "pure causal, no window" layer's mask in such an
-// identity/padding combine (see e.g. Gemma's non-sliding layers), so this needs
-// to be decided per boolean-combine node, not per matched causal comparison.
-bool contains_window_check(const std::shared_ptr<ov::Node>& node) {
-    if (ov::is_type<ov::op::v1::Greater>(node))
-        return true;
-    if (is_boolean_combine_op(node)) {
-        return contains_window_check(node->get_input_node_shared_ptr(0)) ||
-               contains_window_check(node->get_input_node_shared_ptr(1));
-    }
-    return false;
-}
-
 // True when `node` is (or, through single-input passthrough ops like Unsqueeze/
 // Reshape/Convert/Broadcast, transitively wraps) a Gemma-4-12B-style decomposed
 // sliding-window bound check: GreaterEqual(Subtract(...), window_const). Plays
-// the same role as contains_window_check() above, but for the Select-based
+// the same role as contains_window_check(), but for the Select-based
 // mask family matched by TriuCausalMatcher/TriuSlidingMatcher below (Gemma-4-12B's
 // traced torch.triu()/masked_fill() decomposition uses GreaterEqual + Select
 // instead of LessEqual/Greater + BitwiseAnd).
@@ -209,21 +190,22 @@ void annotate_causal_mask_impl(
 // Forward-propagates a Causal annotation from a matched causal comparison's
 // output (LessEqual/Less family). A boolean-combine op (BitwiseAnd/BitwiseOr/
 // LogicalAnd) is only treated as SWA-owned when its *other* operand
-// (transitively) contains a sliding-window bound check (see contains_window_check
-// above) -- meaning this specific combine node is a genuine SWA anchor.
+// (transitively) contains a sliding-window bound check (see contains_window_check)
+// -- meaning this specific combine node is a genuine SWA anchor.
 void annotate_causal_mask(const ov::Output<ov::Node>& mask_output) {
-    annotate_causal_mask_impl(mask_output,
-                              [](const std::shared_ptr<ov::Node>& consumer, const ov::Output<ov::Node>& output) {
-                                  if (!is_boolean_combine_op(consumer))
-                                      return false;
-                                  for (size_t i = 0; i < consumer->get_input_size(); ++i) {
-                                      if (consumer->input_value(i) != output &&
-                                          contains_window_check(consumer->input_value(i).get_node_shared_ptr())) {
-                                          return true;
-                                      }
-                                  }
-                                  return false;
-                              });
+    annotate_causal_mask_impl(
+        mask_output,
+        [](const std::shared_ptr<ov::Node>& consumer, const ov::Output<ov::Node>& output) {
+            if (!is_boolean_combine_op(consumer))
+                return false;
+            for (size_t i = 0; i < consumer->get_input_size(); ++i) {
+                if (consumer->input_value(i) != output &&
+                    ov::npuw::contains_window_check(consumer->input_value(i).get_node_shared_ptr())) {
+                    return true;
+                }
+            }
+            return false;
+        });
 }
 
 // Forward-propagates a Causal annotation from a matched Gemma-4-12B-style triu
@@ -527,6 +509,25 @@ public:
 }  // namespace
 
 namespace ov::npuw {
+
+// True when `node` is (or transitively nests, through boolean-combine ops) a
+// sliding-window bound check (a Greater comparison). Used to tell apart a
+// boolean-combine consumer that's a genuine SWA anchor -- owned by the SWA
+// matchers above -- from one that's just ANDing/ORing the causal comparison
+// with something unrelated (a `new_ones` identity constant, the padding
+// attention_mask, ...), which is still a plain causal mask in disguise. Real
+// exports commonly wrap even a "pure causal, no window" layer's mask in such an
+// identity/padding combine (see e.g. Gemma's non-sliding layers), so this needs
+// to be decided per boolean-combine node, not per matched causal comparison.
+bool contains_window_check(const std::shared_ptr<ov::Node>& node) {
+    if (ov::is_type<ov::op::v1::Greater>(node))
+        return true;
+    if (is_boolean_combine_op(node)) {
+        return contains_window_check(node->get_input_node_shared_ptr(0)) ||
+               contains_window_check(node->get_input_node_shared_ptr(1));
+    }
+    return false;
+}
 
 bool DetectAttentionMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Matchers below annotate individual SDPA nodes as they recognize Causal or

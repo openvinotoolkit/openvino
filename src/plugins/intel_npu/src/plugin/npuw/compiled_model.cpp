@@ -683,6 +683,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         } else {
             LOG_BLOCK();
             auto& fcn_template = partitioning.functions.at(subgraph._funcall);
+            OPENVINO_ASSERT(!has_hfa_host_mask(fcn_template._model) || fcn_template._host_flash_attention,
+                            "NPUW_ATTN_HFA_HOST_MASK: attention function was not converted to HFA");
             auto compiled_fcn_iter = compiledFunctions.find(subgraph._funcall);
             if (compiled_fcn_iter == compiledFunctions.end()) {
                 // A function call: store the model for function call only once...
@@ -755,6 +757,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             m_compiled_submodels[id].forced_to_fcall = subgraph._forced_to_fcall;
             closure_desc.is_remote.resize(subgraph._closure.size(), false);
         }  // if(!funcall)
+
+        OPENVINO_ASSERT(!m_compiled_submodels[id].model || !has_hfa_host_mask(m_compiled_submodels[id].model) ||
+                            ov::npuw::attn::get_compiled_hfa(m_compiled_submodels[id].pipeline.context),
+                        "NPUW_ATTN_HFA_HOST_MASK: an attention subgraph was not converted to HFA");
 
         if (!m_compiled_submodels[id].model && !m_compiled_submodels[id].replaced_by) {
             OPENVINO_THROW("Fatal: submodel ", id, " is neither a model nor a function call!");
@@ -2412,6 +2418,10 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
             }
 
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
+            if (hfa->_host_mask) {
+                hfa->set_compiled_masked_tile_model(
+                    make_wrapped(hfa->_masked_tile_model_to_compile, "/hfa_masked_tile", devices));
+            }
             hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
 
@@ -3168,6 +3178,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::partitioning::attn_hfa_fused, NPUW_ATTN_HFA_FUSED),
+                          BIND(npuw::partitioning::attn_hfa_host_mask, NPUW_ATTN_HFA_HOST_MASK),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::ensure_compatibility, NPUW_ENSURE_COMPATIBILITY),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),

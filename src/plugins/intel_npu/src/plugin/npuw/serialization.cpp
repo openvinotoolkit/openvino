@@ -136,13 +136,35 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttenti
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
     auto& info = var._sdpa_attention_info;
+    // Negative tile sizes tag the host-mask extension. The OFF wire layout stays unchanged.
+    int64_t past_tile_size = var._host_mask ? -var._past_tile_size : var._past_tile_size;
     stream & info._query_size & info._context_size & info._k_seq_dim & info._v_seq_dim & info._sdpa_indices.query &
         info._sdpa_indices.past_key_blocks & info._sdpa_indices.past_value_blocks & info._sdpa_indices.present_key &
         info._sdpa_indices.present_value & info._sdpa_indices.attention_mask & info._tile_input_indices.q &
         info._tile_input_indices.k & info._tile_input_indices.v & info._tile_input_indices.mask &
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
-        info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d &
-        var._past_tile_size & var._final_tile_size & var._can_use_tensor_view;
+        info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d & past_tile_size &
+        var._final_tile_size & var._can_use_tensor_view;
+    if (stream.input()) {
+        OPENVINO_ASSERT(past_tile_size != std::numeric_limits<int64_t>::min(), "Invalid HFA tile size in blob");
+        var._host_mask = past_tile_size < 0;
+        var._past_tile_size = var._host_mask ? -past_tile_size : past_tile_size;
+    }
+    if (var._host_mask) {
+        uint8_t version = 2;
+        uint8_t kind = static_cast<uint8_t>(var._host_mask_kind);
+        stream & version & kind;
+        OPENVINO_ASSERT(version == 2 && kind == static_cast<uint8_t>(HFAHostMaskKind::Causal),
+                        "Unsupported HFA host-mask extension in blob");
+        var._host_mask_kind = static_cast<HFAHostMaskKind>(kind);
+        stream & var._host_mask_window;
+        OPENVINO_ASSERT(
+            var._host_mask_window >= 0 &&
+                (var._host_mask_window == 0 || static_cast<uint64_t>(var._host_mask_window) > info._context_size),
+            "Invalid HFA host-mask F2 window in blob");
+    } else if (stream.input()) {
+        var._host_mask_window = 0;
+    }
     if (stream.input()) {
         // Port indices are model-specific but must fit in a sane range; SIZE_MAX indicates a corrupted blob.
         constexpr std::size_t kMaxPortIndex = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());

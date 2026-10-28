@@ -9,18 +9,154 @@
 
 #include "host_flash_attention.hpp"
 
+#include "host_mask_templates.hpp"
 #include "intel_npu/ops/flash_attention_tile.hpp"
 #include "logging.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/propagate_slice.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/ops.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "util.hpp"
 
 namespace ov {
 namespace npuw {
+
+bool has_hfa_host_mask(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ops()) {
+        const auto it = node->get_rt_info().find(NPUW_HFA_HOST_MASK_RT_KEY);
+        if (it != node->get_rt_info().end() && it->second.as<bool>()) {
+            if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node)) {
+                return true;
+            }
+            // Decomposition copies rt_info to shape and scale operations too.
+            if (ov::is_type<ov::op::v1::Add>(node)) {
+                const auto rank = node->get_input_partial_shape(1).rank();
+                if (rank.is_static() && rank.get_length() >= 2 && node->get_input_element_type(1).is_real()) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool replace_hfa_host_mask(const std::shared_ptr<ov::Model>& model, bool enabled) {
+    if (!enabled) {
+        return false;
+    }
+    std::shared_ptr<ov::op::v0::Parameter> row;
+    for (const auto& param : model->get_parameters()) {
+        if (param->output(0).get_names().count("attention_mask") || param->get_friendly_name() == "attention_mask") {
+            row = param;
+            break;
+        }
+    }
+    const auto shape = row && row->get_partial_shape().is_static() ? row->get_shape() : ov::Shape{};
+    const bool valid_row = shape.size() == 2 && shape[0] == 1;
+    std::shared_ptr<ov::Node> reshaped;
+    std::map<ov::element::Type, std::shared_ptr<ov::Node>> converted;
+    std::vector<std::shared_ptr<ov::op::v13::ScaledDotProductAttention>> host_sdpas;
+    int64_t host_mask_window = 0;
+    size_t seen = 0, replaced = 0, no_annotation = 0, narrow_window = 0, extra_semantics = 0, non_float = 0,
+           invalid_row = 0, causal_attribute = 0, window_margin = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(node);
+        if (!sdpa) {
+            continue;
+        }
+        ++seen;
+        if (sdpa->get_causal()) {
+            ++causal_attribute;
+            continue;
+        }
+        if (!valid_row) {
+            ++invalid_row;
+            continue;
+        }
+        if (sdpa->get_input_size() < 4 || !sdpa->get_input_element_type(3).is_real()) {
+            ++non_float;
+            continue;
+        }
+        const auto it = sdpa->get_rt_info().find(NPUW_SDPA_MASK_RT_KEY);
+        if (it == sdpa->get_rt_info().end()) {
+            ++no_annotation;
+            continue;
+        }
+        const auto kind = it->second.as<int64_t>();
+        if (kind >= 0 && static_cast<uint64_t>(kind) < shape[1]) {
+            ++narrow_window;
+            continue;
+        }
+        if (kind >= 0 && static_cast<uint64_t>(kind) == shape[1]) {
+            ++window_margin;
+            continue;
+        }
+        int64_t f2_window = 0;
+        if (!detail::match_host_mask_template(sdpa->input_value(3),
+                                              row,
+                                              kind,
+                                              sdpa->get_input_partial_shape(0),
+                                              f2_window)) {
+            ++extra_semantics;
+            continue;
+        }
+        if (!reshaped) {
+            auto pattern = ov::op::v0::Constant::create<int64_t>(ov::element::i64,
+                                                                 ov::Shape{4},
+                                                                 {1, 1, 1, static_cast<int64_t>(shape[1])});
+            reshaped = std::make_shared<ov::op::v1::Reshape>(row, pattern, false);
+        }
+        const auto dtype = sdpa->get_input_element_type(3);
+        auto& mask = converted[dtype];
+        if (!mask) {
+            mask = std::make_shared<ov::op::v0::Convert>(reshaped, dtype);
+        }
+        sdpa->input(3).replace_source_output(mask);
+        sdpa->set_causal(false);
+        sdpa->get_rt_info()[NPUW_HFA_HOST_MASK_RT_KEY] = true;
+        host_sdpas.push_back(sdpa);
+        if (f2_window > 0) {
+            host_mask_window = host_mask_window ? std::min(host_mask_window, f2_window) : f2_window;
+        }
+        ++replaced;
+    }
+    // Repeated functions can merge global and windowed instances. Use the model's strictest F2 bound.
+    for (const auto& sdpa : host_sdpas) {
+        sdpa->get_rt_info()[NPUW_HFA_HOST_MASK_WINDOW_RT_KEY] = host_mask_window;
+    }
+    if (replaced != 0) {
+        model->validate_nodes_and_infer_types();
+    }
+    LOG_INFO("NPUW_ATTN_HFA_HOST_MASK: model="
+             << model->get_friendly_name() << ", SDPAs seen=" << seen << ", replaced=" << replaced
+             << ", skipped (no annotation=" << no_annotation << ", window < C=" << narrow_window
+             << ", extra mask semantics=" << extra_semantics << ", non-float/absent mask=" << non_float
+             << ", invalid attention_mask row=" << invalid_row << ", causal attribute=" << causal_attribute
+             << ", window margin=" << window_margin << ")");
+    return replaced != 0;
+}
+
 namespace function {
 
 namespace opp = ov::pass::pattern;
@@ -313,8 +449,11 @@ static FlashAttentionResults execute_host_flash_attention(const HFATileF32Nodes&
     // ========================================================================
 
     // qkm = qk + mask
-    auto qkm = std::make_shared<ov::op::v1::Add>(qk, f32_nodes.mask_tile_f32);
-    qkm->set_friendly_name("qkm");
+    std::shared_ptr<ov::Node> qkm = qk;
+    if (f32_nodes.mask_tile_f32) {
+        qkm = std::make_shared<ov::op::v1::Add>(qk, f32_nodes.mask_tile_f32);
+        qkm->set_friendly_name("qkm");
+    }
 
     // maxx = max(past_max, reduce_max(qkm, axis=-1, keepdims=True))
     auto axes_const = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{-1});
@@ -629,7 +768,8 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         bool fused_flash_attention = false,
                                                         bool enable_mask_skipping = false,
                                                         bool v_transposed = true,
-                                                        const ov::element::Type& output_dtype = ov::element::f16) {
+                                                        const ov::element::Type& output_dtype = ov::element::f16,
+                                                        bool host_no_mask = false) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
                               << ", kv_num_heads=" << kv_num_heads << ", state_dtype=" << state_dtype
                               << ", kv_tile_dtype=" << kv_tile_dtype << ", mask_dtype=" << mask_dtype
@@ -662,7 +802,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     // For the fused operation only the final tile uses a mask, regular tiles skip mask for performance if
     // enable_mask_skipping is true (depending on the model mask type).
     // For the non-fused operation all tiles require mask
-    const bool use_mask = is_final_tile || !fused_flash_attention || !enable_mask_skipping;
+    const bool use_mask = !host_no_mask && (is_final_tile || !fused_flash_attention || !enable_mask_skipping);
     auto f32_nodes = convert_inputs_to_f32(inputs, mask_dtype, compute_dtype, use_mask);
 
     FlashAttentionResults results;
@@ -787,6 +927,17 @@ static std::shared_ptr<ov::Node> skip_convert_nodes(const std::shared_ptr<ov::No
     return current;
 }
 
+static std::shared_ptr<ov::op::v0::Parameter> find_host_mask_parameter(const std::shared_ptr<ov::Node>& add) {
+    auto node = add->get_input_node_shared_ptr(1);
+    while (!ov::is_type<ov::op::v0::Parameter>(node)) {
+        if (!ov::is_type<ov::op::v0::Convert>(node) && !ov::is_type<ov::op::v1::Reshape>(node)) {
+            return nullptr;
+        }
+        node = node->get_input_node_shared_ptr(0);
+    }
+    return ov::as_type_ptr<ov::op::v0::Parameter>(node);
+}
+
 // ============================================================================
 // Helper function: Build SDPA parameter index mapping
 // ============================================================================
@@ -844,6 +995,11 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     // Extract mask parameter - input 1 of add_node
     if (auto add_param = extract_param(pattern_nodes.add_node->get_input_node_shared_ptr(1))) {
         hfa._attention_mask_param_idx = model->get_parameter_index(add_param);
+    }
+    if (hfa._host_mask) {
+        auto param = find_host_mask_parameter(pattern_nodes.add_node);
+        OPENVINO_ASSERT(param, "NPUW_ATTN_HFA_HOST_MASK: cannot find attention_mask parameter");
+        hfa._attention_mask_param_idx = model->get_parameter_index(param);
     }
 
     LOG_INFO("Built SDPA input mapping: query="
@@ -1021,9 +1177,9 @@ static int64_t analyze_past_tiling(const std::shared_ptr<ov::Node>& concat_node,
     return query_len;
 }
 
-std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
-                                                           bool fused_flash_attention,
-                                                           bool enable_mask_skipping) {
+static std::optional<HostFlashAttention> create_host_flash_attention(const std::shared_ptr<ov::Model>& model,
+                                                                     bool fused_flash_attention,
+                                                                     bool enable_mask_skipping) {
     LOG_INFO("Attempting to create HostFlashAttention"
              << (fused_flash_attention ? " with fused flash attention node" : ""));
     LOG_BLOCK();
@@ -1087,12 +1243,40 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     std::size_t actual_query_size = q_shape_static[2];  // Actual Q seq_len (may be sliced to 1)
     std::size_t query_size = ov::npuw::resolve_original_query_length(actual_query_size, pattern_nodes.matmul2_node);
 
-    auto mask_param = ov::npuw::util::find_mask_parameter(pattern_nodes.add_node);
+    const auto flag = pattern_nodes.add_node->get_rt_info().find(NPUW_HFA_HOST_MASK_RT_KEY);
+    const bool host_mask = flag != pattern_nodes.add_node->get_rt_info().end() && flag->second.as<bool>();
+    int64_t host_mask_window = 0;
+    if (host_mask) {
+        for (const auto& node : model->get_ops()) {
+            const auto window = node->get_rt_info().find(NPUW_HFA_HOST_MASK_WINDOW_RT_KEY);
+            if (window != node->get_rt_info().end()) {
+                const auto size = window->second.as<int64_t>();
+                OPENVINO_ASSERT(size >= 0, "NPUW_ATTN_HFA_HOST_MASK: invalid F2 window");
+                if (size > 0) {
+                    host_mask_window = host_mask_window ? std::min(host_mask_window, size) : size;
+                }
+            }
+        }
+    }
+    auto mask_param = host_mask ? find_host_mask_parameter(pattern_nodes.add_node)
+                                : ov::npuw::util::find_mask_parameter(pattern_nodes.add_node);
     if (!mask_param) {
         LOG_WARN("Could not find mask parameter in model");
         return std::nullopt;
     }
-    auto mask_dtype = mask_param->get_output_element_type(0);
+    auto mask_dtype =
+        host_mask ? pattern_nodes.add_node->get_input_element_type(1) : mask_param->get_output_element_type(0);
+    if (host_mask) {
+        const auto& rt = pattern_nodes.add_node->get_rt_info();
+        const auto kind = rt.find(NPUW_SDPA_MASK_RT_KEY);
+        OPENVINO_ASSERT(
+            kind != rt.end() && (kind->second.as<int64_t>() < 0 ||
+                                 static_cast<uint64_t>(kind->second.as<int64_t>()) >= mask_param->get_shape().back()),
+            "NPUW_ATTN_HFA_HOST_MASK supports only Causal masks");
+        OPENVINO_ASSERT(
+            host_mask_window == 0 || static_cast<uint64_t>(host_mask_window) > mask_param->get_shape().back(),
+            "NPUW_ATTN_HFA_HOST_MASK: F2 window must exceed the context");
+    }
 
     auto output_dtype = ov::element::f16;  // Default fallback
     if (model->outputs().size() > 0) {
@@ -1220,7 +1404,9 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                             false,
                                             fused_flash_attention,
                                             local_enable_mask_skipping,
-                                            v_transposed);
+                                            v_transposed,
+                                            ov::element::f16,
+                                            host_mask);
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
@@ -1248,6 +1434,21 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     HostFlashAttention hfa;
     hfa._tile_model = tile_model;
+    hfa._host_mask = host_mask;
+    hfa._host_mask_window = host_mask_window;
+    if (host_mask) {
+        hfa._masked_tile_model = create_hfa_tile_model(q_shape_static,
+                                                       block_kv_dtype,
+                                                       block_kv_dtype,
+                                                       q_dtype,
+                                                       mask_dtype,
+                                                       past_tile_size,
+                                                       kv_num_heads,
+                                                       false,
+                                                       fused_flash_attention,
+                                                       false,
+                                                       v_transposed);
+    }
     hfa._final_tile_model = final_tile_model;
     hfa._query_size = query_size;  // Query length for PREFILL/GENERATE logic and context_length
     hfa._context_size = context_size;
@@ -1273,11 +1474,32 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     build_tile_output_mapping(hfa, tile_model);
 
+    if (host_mask) {
+        LOG_INFO("NPUW_ATTN_HFA_HOST_MASK active for function " << model->get_friendly_name()
+                                                                << ": Causal host tiles, three tile models");
+    }
     LOG_INFO("Successfully created HostFlashAttention with query_size="
              << query_size << ", context_size=" << context_size << ", past_tile_size=" << past_tile_size
              << ", final_tile_size=" << final_tile_size);
 
     return hfa;
+}
+
+std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
+                                                           bool fused_flash_attention,
+                                                           bool enable_mask_skipping) {
+    const bool host_mask = has_hfa_host_mask(model);
+    try {
+        auto result = create_host_flash_attention(model, fused_flash_attention, enable_mask_skipping);
+        OPENVINO_ASSERT(!host_mask || (result && result->_host_mask),
+                        "NPUW_ATTN_HFA_HOST_MASK: HFA conversion failed; graph-mask fallback is unsafe");
+        return result;
+    } catch (const std::exception& error) {
+        if (host_mask) {
+            OPENVINO_THROW("NPUW_ATTN_HFA_HOST_MASK: HFA conversion failed: ", error.what());
+        }
+        throw;
+    }
 }
 
 }  // namespace function
@@ -1295,6 +1517,10 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
 
     // Store the tile models for later compilation
     _tile_model_to_compile = func_hfa._tile_model;
+    _masked_tile_model_to_compile = func_hfa._masked_tile_model;
+    _host_mask = func_hfa._host_mask;
+    _host_mask_kind = func_hfa._host_mask_kind;
+    _host_mask_window = func_hfa._host_mask_window;
     _final_tile_model_to_compile = func_hfa._final_tile_model;
 
     // Copy query size, context size, and K/V sequence dimensions from function HFA
@@ -1374,6 +1600,12 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
 }
 
 bool HostFlashAttention::is_valid() const {
+    if (_host_mask &&
+        (!_compiled_masked_tile_model || _host_mask_kind != HFAHostMaskKind::Causal || _host_mask_window < 0 ||
+         (_host_mask_window > 0 && static_cast<uint64_t>(_host_mask_window) <= _sdpa_attention_info._context_size) ||
+         _compiled_masked_tile_model->inputs().size() != 7 || _compiled_masked_tile_model->outputs().size() != 3)) {
+        return false;
+    }
     if (_compiled_tile_model == nullptr || _compiled_final_tile_model == nullptr || _past_tile_size <= 0 ||
         _final_tile_size <= 0 || _sdpa_attention_info._query_size == 0 ||
         static_cast<std::size_t>(_final_tile_size) != _sdpa_attention_info._query_size) {
@@ -1429,22 +1661,156 @@ bool HostFlashAttention::is_valid() const {
 namespace runtime {
 namespace host_flash_attention {
 
+namespace {
+bool host_column_visible(const ov::ITensor& row, size_t column) {
+    const auto dtype = row.get_element_type();
+    if (dtype == ov::element::i64)
+        return row.data<const int64_t>()[column] != 0;
+    if (dtype == ov::element::i32)
+        return row.data<const int32_t>()[column] != 0;
+    if (dtype == ov::element::f16)
+        return row.data<const ov::float16>()[column] != ov::float16(0);
+    if (dtype == ov::element::bf16)
+        return row.data<const ov::bfloat16>()[column] != ov::bfloat16(0);
+    if (dtype == ov::element::f32)
+        return row.data<const float>()[column] != 0;
+    if (dtype == ov::element::f64)
+        return row.data<const double>()[column] != 0;
+    OPENVINO_THROW("NPUW_ATTN_HFA_HOST_MASK: unsupported row dtype ", dtype);
+}
+
+void validate_host_row(const ov::ITensor& row) {
+    const auto& shape = row.get_shape();
+    OPENVINO_ASSERT(row.is_continuous() && (shape.size() == 2 || shape.size() == 4) && shape.back() == row.get_size(),
+                    "NPUW_ATTN_HFA_HOST_MASK requires a single contiguous attention_mask row");
+}
+
+template <typename T>
+void fill_host_mask_tile_typed(const HostMaskTileKey& key, T* data) {
+    const size_t columns = key.visibility.size();
+    const size_t first_visible = static_cast<size_t>(
+        std::distance(key.visibility.begin(), std::find(key.visibility.begin(), key.visibility.end(), uint8_t{1})));
+    for (size_t r = 0; r < key.rows; ++r) {
+        const bool unattended =
+            key.final && !key.past_has_visible_column && first_visible > key.query_size - key.rows + r;
+        for (size_t c = 0; c < columns; ++c) {
+            const bool visible =
+                unattended || (key.visibility[c] && (!key.final || c <= key.query_size - key.rows + r));
+            data[r * columns + c] = visible ? T(0) : std::numeric_limits<T>::lowest();
+        }
+    }
+}
+}  // namespace
+
+std::vector<HostMaskTileAction> build_host_mask_map(const ov::ITensor& row, size_t past_length, size_t tile_length) {
+    validate_host_row(row);
+    OPENVINO_ASSERT(tile_length > 0 && past_length <= row.get_size() && past_length % tile_length == 0,
+                    "NPUW_ATTN_HFA_HOST_MASK: invalid past tile range");
+    std::vector<HostMaskTileAction> map;
+    map.reserve(past_length / tile_length);
+    for (size_t offset = 0; offset < past_length; offset += tile_length) {
+        size_t visible = 0;
+        for (size_t c = 0; c < tile_length; ++c) {
+            visible += host_column_visible(row, offset + c);
+        }
+        map.push_back(visible == 0             ? HostMaskTileAction::Skip
+                      : visible == tile_length ? HostMaskTileAction::NoMask
+                                               : HostMaskTileAction::Mask);
+    }
+    return map;
+}
+
+bool HostMaskTileKey::operator==(const HostMaskTileKey& other) const {
+    return dtype == other.dtype && query_size == other.query_size && rows == other.rows && final == other.final &&
+           past_has_visible_column == other.past_has_visible_column && visibility == other.visibility;
+}
+
+HostMaskTileKey make_host_mask_tile_key(const ov::ITensor& row,
+                                        size_t offset,
+                                        size_t tile_length,
+                                        size_t query_size,
+                                        size_t rows,
+                                        bool final,
+                                        const ov::element::Type& dtype,
+                                        bool past_has_visible_column) {
+    validate_host_row(row);
+    OPENVINO_ASSERT(offset <= row.get_size() && tile_length <= row.get_size() - offset && rows > 0 &&
+                        rows <= query_size && (!final || tile_length == query_size),
+                    "NPUW_ATTN_HFA_HOST_MASK: invalid tile coordinates");
+    HostMaskTileKey key{{}, dtype, query_size, rows, final, !final || past_has_visible_column};
+    key.visibility.reserve(tile_length);
+    for (size_t c = 0; c < tile_length; ++c) {
+        key.visibility.push_back(host_column_visible(row, offset + c));
+    }
+    return key;
+}
+
+void fill_host_mask_tile(const HostMaskTileKey& key, const ov::SoPtr<ov::ITensor>& tile) {
+    OPENVINO_ASSERT(tile && tile->is_continuous() && tile->get_element_type() == key.dtype &&
+                        tile->get_shape() == ov::Shape({1, 1, key.rows, key.visibility.size()}),
+                    "NPUW_ATTN_HFA_HOST_MASK: invalid mask tile");
+    if (key.dtype == ov::element::f16) {
+        fill_host_mask_tile_typed(key, tile->data<ov::float16>());
+    } else if (key.dtype == ov::element::f32) {
+        fill_host_mask_tile_typed(key, tile->data<float>());
+    } else if (key.dtype == ov::element::bf16) {
+        fill_host_mask_tile_typed(key, tile->data<ov::bfloat16>());
+    } else if (key.dtype == ov::element::f64) {
+        fill_host_mask_tile_typed(key, tile->data<double>());
+    } else {
+        OPENVINO_THROW("NPUW_ATTN_HFA_HOST_MASK: unsupported tile dtype ", key.dtype);
+    }
+}
+
+ov::SoPtr<ov::ITensor> HFARuntimeContext::get_host_mask_tile(const HostMaskTileKey& key,
+                                                             const std::string& device,
+                                                             const AllocatorFn& allocator) {
+    for (auto it = m_host_mask_pool.begin(); it != m_host_mask_pool.end(); ++it) {
+        if (it->first == key) {
+            auto tile = it->second;
+            m_host_mask_pool.splice(m_host_mask_pool.end(), m_host_mask_pool, it);
+            return tile;
+        }
+    }
+    const ov::Shape shape{1, 1, key.rows, key.visibility.size()};
+    ov::SoPtr<ov::ITensor> tile;
+    if (m_host_mask_pool.size() == kHostMaskPoolCapacity) {
+        auto& oldest = m_host_mask_pool.front();
+        if (oldest.first.dtype == key.dtype && oldest.second->get_shape() == shape) {
+            tile = oldest.second;
+        }
+        m_host_mask_pool.pop_front();
+    }
+    if (!tile) {
+        tile = allocator(key.dtype, shape, device);
+    }
+    fill_host_mask_tile(key, tile);
+    m_host_mask_pool.emplace_back(key, tile);
+    return tile;
+}
+
 // PositionIDs constructor
-PositionIDs::PositionIDs(std::size_t param_idx, std::size_t original_query_length, const ov::ISyncInferRequest& rq)
+PositionIDs::PositionIDs(std::size_t param_idx,
+                         std::size_t original_query_length,
+                         const ov::ISyncInferRequest& rq,
+                         int64_t host_mask_window)
     : _position_ids_idx(param_idx),
       _original_query_length(original_query_length),
+      _host_mask_window(host_mask_window),
       _rq(rq) {
     // Use original_query_length to determine PREFILL vs GENERATE
     // (query_size may be 1 after PropagateSliceUp, but that doesn't mean it's GENERATE)
     _case = _original_query_length == 1 ? Case::GENERATE : Case::PREFILL;
 }
 
-Selector::Ptr PositionIDs::find(std::size_t original_query_length, const ov::ISyncInferRequest& rq) {
+Selector::Ptr PositionIDs::find(std::size_t original_query_length,
+                                const ov::ISyncInferRequest& rq,
+                                int64_t host_mask_window) {
     const auto& inputs = rq.get_inputs();
     auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), ov::npuw::util::is_supported_position_ids_input);
     if (pos_ids_iter != inputs.end()) {
         const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
-        return Selector::Ptr{new PositionIDs(param_idx, original_query_length, rq)};
+        return Selector::Ptr{new PositionIDs(param_idx, original_query_length, rq, host_mask_window)};
     }
     return Selector::Ptr{};
 }
@@ -1456,6 +1822,18 @@ void PositionIDs::prepare(int64_t past_len) {
 
     // Same logic as regular attention PositionIDs
     auto* pos_data_ptr = in_tensor->data<int64_t>();
+    if (_host_mask_window > 0) {
+        OPENVINO_ASSERT(in_dims.size() == 2 && in_dims[0] == 1 && in_tensor->get_size() > 0,
+                        "NPUW_ATTN_HFA_HOST_MASK requires rank-2 F2 position_ids; disable the option with "
+                        "NPUW_ATTN_HFA_HOST_MASK=NO");
+        const auto position = *std::max_element(pos_data_ptr, pos_data_ptr + in_tensor->get_size());
+        OPENVINO_ASSERT(position < _host_mask_window,
+                        "NPUW_ATTN_HFA_HOST_MASK: F2 window W=",
+                        _host_mask_window,
+                        ", position=",
+                        position,
+                        " reaches the window limit; disable the option with NPUW_ATTN_HFA_HOST_MASK=NO");
+    }
     for (int64_t idx = static_cast<int64_t>(in_dims.back()) - 1; idx >= 0; idx--) {
         if (pos_data_ptr[idx] > 0) {
             // Initialize fields
@@ -1491,6 +1869,8 @@ int64_t PositionIDs::context_length() const {
 // ============================================================================
 
 void HFARuntimeContext::reset() {
+    m_host_mask_pool.clear();
+    m_host_mask_map.reset();
     m_mask_tile_cache.clear();
     m_mask_tile_buffers.clear();
     m_final_mask_tile_buffer = {};
