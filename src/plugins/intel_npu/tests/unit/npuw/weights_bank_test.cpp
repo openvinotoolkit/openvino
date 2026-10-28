@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -11,6 +12,7 @@
 
 #include "fake_npu_remote_context.hpp"
 #include "lazy_tensor.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
@@ -26,6 +28,48 @@ std::vector<float> read_f32(const ov::Tensor& tensor) {
     ov::Tensor host(tensor.get_element_type(), tensor.get_shape());
     tensor.copy_to(host);
     return {host.data<float>(), host.data<float>() + host.get_size()};
+}
+
+void expect_weight_sources_equal(const ov::weight_sharing::WeightSourceRegistry& expected,
+                                const ov::weight_sharing::WeightSourceRegistry& actual) {
+    ASSERT_EQ(expected.size(), actual.size());
+    for (const auto& [source_id, expected_source] : expected) {
+        const auto actual_source_it = actual.find(source_id);
+        ASSERT_NE(actual_source_it, actual.end());
+        const auto& actual_source = actual_source_it->second;
+        EXPECT_EQ(expected_source.m_device, actual_source.m_device);
+
+        const auto expected_weights = expected_source.m_weights.lock();
+        const auto actual_weights = actual_source.m_weights.lock();
+        ASSERT_EQ(static_cast<bool>(expected_weights), static_cast<bool>(actual_weights));
+        if (!expected_weights) {
+            continue;
+        }
+        ASSERT_EQ(expected_weights->size(), actual_weights->size());
+        EXPECT_EQ(std::memcmp(expected_weights->get_ptr(), actual_weights->get_ptr(), expected_weights->size()), 0);
+    }
+}
+
+void expect_weight_sharing_contexts_equal(const ov::weight_sharing::Context& expected,
+                                          const ov::weight_sharing::Context& actual) {
+    ASSERT_EQ(expected.m_weight_registry.size(), actual.m_weight_registry.size());
+    for (const auto& [source_id, expected_constants] : expected.m_weight_registry) {
+        const auto actual_constants_it = actual.m_weight_registry.find(source_id);
+        ASSERT_NE(actual_constants_it, actual.m_weight_registry.end());
+        const auto& actual_constants = actual_constants_it->second;
+        ASSERT_EQ(expected_constants.size(), actual_constants.size());
+        for (const auto& [constant_id, expected_metadata] : expected_constants) {
+            const auto actual_metadata_it = actual_constants.find(constant_id);
+            ASSERT_NE(actual_metadata_it, actual_constants.end());
+            const auto& actual_metadata = actual_metadata_it->second;
+            EXPECT_EQ(expected_metadata.m_offset, actual_metadata.m_offset);
+            EXPECT_EQ(expected_metadata.m_size, actual_metadata.m_size);
+            EXPECT_EQ(expected_metadata.m_type, actual_metadata.m_type);
+        }
+    }
+
+    expect_weight_sources_equal(expected.m_cache_sources, actual.m_cache_sources);
+    expect_weight_sources_equal(expected.m_runtime_sources, actual.m_runtime_sources);
 }
 
 class WeightsBankTest : public ::testing::TestWithParam<std::string> {
@@ -145,12 +189,13 @@ TEST_P(WeightsBankTest, EvaluationFallsBackWithoutWeightSharingContext) {
     EXPECT_EQ(values[1], 6.0f);
 }
 
-TEST(WeightsBankSerializationTest, WeightSharingAndLegacyFormatsMatchAndRoundtrip) {
+TEST_P(WeightsBankTest, WeightSharingAndLegacyFormatsMatchAndRoundtrip) {
     using ov::npuw::s11n::read;
     using ov::npuw::s11n::write;
     using ov::npuw::weights::Bank;
     using ov::npuw::weights::LazyTensor;
 
+    const auto& device = GetParam();
     auto first = std::make_shared<ov::op::v0::Constant>(ov::element::f32,
                                                         ov::Shape{2},
                                                         std::vector<float>{1.0f, 2.0f});
@@ -158,15 +203,14 @@ TEST(WeightsBankSerializationTest, WeightSharingAndLegacyFormatsMatchAndRoundtri
                                                          ov::Shape{2},
                                                          std::vector<float>{3.0f, 4.0f});
 
-    auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
-    Bank original(core, "CPU", "original-bank");
-    auto weight_sharing_context = std::make_shared<ov::weight_sharing::Context>();
-    Bank weight_sharing(core, "CPU", "weight-sharing-bank", weight_sharing_context);
+    Bank original(m_core, device, "original-bank");
+    auto orig_weight_sharing_context = std::make_shared<ov::weight_sharing::Context>();
+    Bank weight_sharing(m_core, device, "weight-sharing-bank", orig_weight_sharing_context);
 
-    const auto original_uid0 = original.registerLT(LazyTensor(first), "CPU");
-    const auto original_uid1 = original.registerLT(LazyTensor(second), "CPU");
-    const auto weight_sharing_uid0 = weight_sharing.registerLT(LazyTensor(first), "CPU");
-    const auto weight_sharing_uid1 = weight_sharing.registerLT(LazyTensor(second), "CPU");
+    const auto original_uid0 = original.registerLT(LazyTensor(first), device);
+    const auto original_uid1 = original.registerLT(LazyTensor(second), device);
+    const auto weight_sharing_uid0 = weight_sharing.registerLT(LazyTensor(first), device);
+    const auto weight_sharing_uid1 = weight_sharing.registerLT(LazyTensor(second), device);
     ASSERT_EQ(original_uid0, weight_sharing_uid0);
     ASSERT_EQ(original_uid1, weight_sharing_uid1);
 
@@ -179,19 +223,21 @@ TEST(WeightsBankSerializationTest, WeightSharingAndLegacyFormatsMatchAndRoundtri
     write(stream_ov_ws, weight_sharing);
     ASSERT_EQ(stream_orig.str(), stream_ov_ws.str());
 
-    Bank restored_ov_ws(core, "CPU", "restored-ov-ws");
-    read(stream_ov_ws, restored_ov_ws);
+    Bank restored_original_from_ov_ws(m_core, device, "restored-ov-ws");
+    read(stream_ov_ws, restored_original_from_ov_ws);
 
-    Bank restored_orig(core, "CPU", "restored-orig", weight_sharing_context);
-    read(stream_orig, restored_orig);
+    auto restored_weight_sharing_context = std::make_shared<ov::weight_sharing::Context>();
+    Bank restored_weight_sharing_from_orig(m_core, device, "restored-orig", restored_weight_sharing_context);
+    read(stream_orig, restored_weight_sharing_from_orig);
+    expect_weight_sharing_contexts_equal(*orig_weight_sharing_context, *restored_weight_sharing_context);
 
     const auto expect_banks_equal = [&](Bank& expected, Bank& actual) {
-        EXPECT_EQ(read_f32(expected.get(original_uid0, "CPU")), read_f32(actual.get(original_uid0, "CPU")));
-        EXPECT_EQ(read_f32(expected.get(original_uid1, "CPU")), read_f32(actual.get(original_uid1, "CPU")));
+        EXPECT_EQ(read_f32(expected.get(original_uid0, device)), read_f32(actual.get(original_uid0, device)));
+        EXPECT_EQ(read_f32(expected.get(original_uid1, device)), read_f32(actual.get(original_uid1, device)));
     };
-    expect_banks_equal(restored_ov_ws, restored_orig);
-    expect_banks_equal(original, restored_orig);
-    expect_banks_equal(weight_sharing, restored_ov_ws);
+    expect_banks_equal(restored_original_from_ov_ws, restored_weight_sharing_from_orig);
+    expect_banks_equal(original, restored_weight_sharing_from_orig);
+    expect_banks_equal(weight_sharing, restored_original_from_ov_ws);
 }
 
 INSTANTIATE_TEST_SUITE_P(Devices,
