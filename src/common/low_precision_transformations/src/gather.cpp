@@ -38,7 +38,8 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
     const auto rank = gather->get_input_partial_shape(0).size();
     if (rank != constantShape.size()) {
         // case when constShape without batch
-        while ((constantShape.size() > 1) && (constantShape.size() < rank)) {
+        // Pad rank-1 per-channel constants too, else the normalizedAxis indexing below goes out of bounds.
+        while (constantShape.size() < rank) {
             constantShape.insert(constantShape.begin(), 1);
         }
         const auto newConstant = fold<ov::opset1::Broadcast>(
@@ -52,7 +53,7 @@ std::shared_ptr<opset1::Constant> gatherDeqConstant(
         ov::util::try_normalize_axis(axis, gather->get_input_partial_shape(0).rank(), *gather);
 
     // Dequantization channel matches with gather axis
-    if (constantShape[normalizedAxis] != 1ul) {
+    if (normalizedAxis < constantShape.size() && constantShape[normalizedAxis] != 1ul) {
         const auto gather1 = ov::as_type_ptr<ov::opset1::Gather>(gather);
         if (gather1) {
             const auto output = fold<ov::opset1::Gather>(
@@ -171,7 +172,8 @@ bool GatherTransformation::canBeTransformed(const std::shared_ptr<Node>& operati
         auto constantShape = dequantizationConstant->get_shape();
         const auto rank = operation->get_input_partial_shape(0).size();
         if (rank != constantShape.size()) {
-            while ((constantShape.size() > 1) && (constantShape.size() < rank)) {
+            // Pad rank-1 (per-channel) constants too, matching gatherDeqConstant above.
+            while (constantShape.size() < rank) {
                 constantShape.insert(constantShape.begin(), 1);
             }
         }
@@ -179,7 +181,7 @@ bool GatherTransformation::canBeTransformed(const std::shared_ptr<Node>& operati
         const size_t normalizedAxis =
             ov::util::try_normalize_axis(axis, operation->get_input_partial_shape(0).rank(), *operation);
 
-        if (constantShape[normalizedAxis] != 1ul) {
+        if (normalizedAxis < constantShape.size() && constantShape[normalizedAxis] != 1ul) {
             const auto indicesConstant = ov::as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));
             if (indicesConstant == nullptr)
                 return false;
