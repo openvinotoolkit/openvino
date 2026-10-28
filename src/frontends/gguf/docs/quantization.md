@@ -92,7 +92,7 @@ Group size remains 32 for all devices.
 Q5_1 and Q2_K also use fractional zero points. See [accuracy controls](#accuracy-controls)
 to select fractional zero points for all Q4_1/Q4_K tensors.
 Q2_0 uses a `u8` zero point of 1. PQ2_0/PTQ1_0 use F16 zero points of 1,
-matching the Bonsai GGUF-to-IR converter, including embeddings.
+including embeddings.
 The frontend prints an accuracy notice once per process for each requantization approximation.
 
 PTQ1_0 adds six code bytes per 128 weights. For PQ2_0/PTQ1_0 containing only codes
@@ -137,15 +137,12 @@ Q2_0 stores `F16 scale | 16 code bytes` for 64 weights. PQ2_0 (type 142) stores
 `F16 scale | 32 code bytes` for 128 weights. Both already pack four two-bit codes per byte in
 OpenVINO element order, so the code bytes are copied directly. The scale is separated.
 Q2_0 uses a `u8` zero point of 1 per group; PQ2_0 uses an FP16 scalar zero point of 1
-for strictly ternary tensors, matching the Bonsai GGUF-to-IR converter. Tensors containing
+for strictly ternary tensors. Tensors containing
 code 3 retain grouped FP16 zero points. Reconstruction is `(code - 1) * scale`;
 codes 0, 1 and 2 represent -1, 0 and +1. A code of 3 reconstructs +2.
 
 No code or scale requantization is introduced.
-For PQ2_0 and PTQ1_0 with strictly ternary codes, the scalar zero point allows the GPU's
-TernOCL FullyConnected implementation to match. It additionally requires an OpenCL runtime,
-Xe2 or newer, f16 activations, 128-weight scale groups and compatible matrix layouts.
-Older Bonsai files also use type 42 (`Q2_0`) for per-128 blocks. Native loading identifies
+Legacy files can also use type 42 (`Q2_0`) for per-128 blocks. Native loading identifies
 that layout using dimensions and aligned tensor spans and maps it to PQ2_0. Raw-byte callers
 must provide the actual format because they do not supply those descriptor spans.
 
@@ -153,7 +150,7 @@ must provide the actual format because they do not supply those descriptor spans
 
 PTQ1_0 (type 143) stores `26 dense-trit bytes | F16 scale` for 128 weights. The first 16 bytes
 encode five trits each, the next eight encode five each, and the last two encode four each:
-`16*5 + 8*5 + 2*4 = 128`. This is Prism's scaled-byte encoding, decoded in the following order:
+`16*5 + 8*5 + 2*4 = 128`. This scaled-byte encoding is decoded in the following order:
 
 ```text
 for (start, count, trits) in [(0, 16, 5), (16, 8, 5), (24, 2, 4)]:
@@ -172,25 +169,6 @@ Convert/Subtract/Multiply/Reshape decomposition.
 
 The conversion preserves trit values but expands their dense storage to two bits per code.
 It also requires more import work than PQ2_0's direct copy.
-
-### Bonsai-2 Hadamard transforms
-
-Bonsai-2's folded Hadamard weights require the model's `prism.hadamard.*` metadata for
-activation and inverse embedding transforms, even for F16 checkpoints. This is separate from
-unpacking. F32/F16 blocks of size 1024, and u2 projection or inverse embedding rotations
-with blocks of size 256–4096, use a normalized Walsh–Hadamard MatMul, sharing one
-rotation Constant per precision and block size within each conversion. This exposes the input-rotation pattern
-that eligible TernOCL FullyConnected implementations can execute inside their compressed kernel.
-Other block sizes and types use a rank-2 butterfly with `log2(block_size)` Gather, sign
-multiplication and addition stages, followed by normalization by `1/sqrt(block_size)`.
-Permutation, sign and reshape Constants are also shared within each conversion, without global caches.
-Rank-2 transforms avoid high-rank intermediate buffers on the GPU. See
-[Bonsai and Bonsai-2](supported_models.md#bonsai-and-bonsai-2).
-
-Attention gates use rank-3 projections and elementwise gating, restoring rank 4 before
-the attention output projection. This keeps a supported dynamic GPU FC fallback when the gate's
-fused post-ops are outside TernOCL's epilogues. The reshape follows the Hadamard transform so its
-activation work can still be shared with Q/K/V; weight codes, scales and arithmetic are unchanged.
 
 ## Integer formats
 
