@@ -992,13 +992,12 @@ TEST_P(InferWithHostCompileTests, SetProperty_ModelPriority_SingleCompiledModel)
 
 // ── V2: queue retained across a failed inference between two queue switches ───
 //
-// Regression for the lifetime hazard where a single retained slot is not enough:
+// Regression for the queue-lifetime hazard across a failed inference and repeated priority changes:
 //   1) set_property(HIGH) then an undersized user output tensor makes
-//      check_tensor_and_predicted_shapes() throw AFTER shape prediction switched the queue but BEFORE
-//      push()/Execute2 migrated the runtime's fence off the original queue.
-//   2) set_property(MEDIUM) switches the queue again before retrying.
-// The original (still fence-bound) queue must survive both switches until the retry's Execute2 migrates
-// the fence; otherwise the runtime destroys a fence on an already-freed queue (use-after-free).
+//      check_tensor_and_predicted_shapes() throw before push()/Execute2 runs.
+//   2) set_property(MEDIUM) changes the queue descriptor again before retrying.
+// The queue the runtime's fence is bound to must survive until the retry's Execute2 migrates off it;
+// otherwise the runtime destroys a fence on an already-freed queue (use-after-free).
 TEST_P(InferWithHostCompileTests, SetProperty_Priority_RetryAfterUndersizedOutput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
@@ -1033,8 +1032,7 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_RetryAfterUndersizedOutpu
         setInputInferAndCompare(model, ctx.reqDynamic, ctx.reqReference, inTensor, "RetryUndersized_low_baseline"));
 
     // First switch LOW->HIGH, then feed an undersized user output tensor (shaped for the model's small bound)
-    // together with the large input, so shape prediction switches the queue but the output size check throws
-    // before Execute2 runs.
+    // together with the large input, so the output size check after shape prediction throws before Execute2 runs.
     OV_ASSERT_NO_THROW(ctx.compiledModel.set_property({{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
     const ov::Shape smallInputShape = makeInputShape(model, 1, false);
     ov::Tensor undersizedOutput =
