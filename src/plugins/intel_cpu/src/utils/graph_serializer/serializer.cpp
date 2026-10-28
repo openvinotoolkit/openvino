@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <ios>
 #include <memory>
 #include <ostream>
 #include <sstream>
@@ -188,7 +189,7 @@ void serialize_model(std::shared_ptr<ov::Model> model,
                      const ModelSerializer::CacheEncrypt& encrypt_fn,
                      bool weightless_mode) {
     auto version = static_cast<int64_t>(ov::pass::Serialize::Version::UNSPECIFIED);
-    if (const auto& rt_info = model->get_rt_info(); rt_info.count("version")) {
+    if (const auto& rt_info = model->get_rt_info(); rt_info.count("version") != 0) {
         version = rt_info.at("version").as<int64_t>();
     }
     if (version == static_cast<int64_t>(ov::pass::Serialize::Version::UNSPECIFIED)) {

@@ -5,7 +5,6 @@
 #include "utils/graph_serializer/hsm_writer_handler.hpp"
 
 #include <cstddef>
-#include <cstdint>
 #include <functional>
 #include <ios>
 #include <memory>
@@ -49,7 +48,7 @@ protected:
     }
 
     pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode /*mode*/) override {
-        return off == 0 && dir == std::ios_base::cur ? pos_type(m_pos) : pos_type(off_type(-1));
+        return off == 0 && dir == std::ios_base::cur ? pos_type(m_pos) : pos_type(static_cast<off_type>(-1));
     }
 
 private:
@@ -131,7 +130,7 @@ void HsmWriterHandler::handle_section(runtime::hsm::IWriter& writer) const {
     };
 
     // Requirements come first so that an import can reject an incompatible blob before reading any payload.
-    // TODO CVS-196454: encode with the common Runtime Requirements codec.
+    // CVS-196454: encode with the common Runtime Requirements codec.
     add(hsm::runtime_requirements,
         ov::util::MemoryView{reinterpret_cast<const std::byte*>(m_runtime_requirements.data()),
                              m_runtime_requirements.size()});

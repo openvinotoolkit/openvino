@@ -37,7 +37,7 @@ using behavior::is_hsm;
 static bool has_section_id(runtime::hsm::DeviceId device,
                            runtime::hsm::SectionTag tag,
                            const hsm::SectionId& id) {
-    return hsm::section_key(device, tag.id()) == hsm::section_key(id);
+    return hsm::section_key(device, tag) == hsm::section_key(id);
 }
 
 static bool is_page_aligned(size_t offset) {
@@ -103,14 +103,12 @@ protected:
     }
 
     // The writer does not produce a model id yet, so tests add the section themselves.
-    std::string export_blob_with_model_ids(size_t count) {
+    std::string export_blob_with_model_ids(size_t count, runtime::hsm::SectionTag tag = hsm::model_id.tag) {
         return hsm_repack(export_blob(model), [&](std::vector<HsmEntry>& entries) {
             const uint64_t id = 0x1234567890ABCDEFull;
             const auto view = util::as_memory_view(id);
             for (size_t i = 0; i < count; ++i) {
-                entries.push_back({hsm::model_id.device,
-                                   {hsm::model_id.tag, {}},
-                                   std::vector<std::byte>(view.begin(), view.end())});
+                entries.push_back({hsm::model_id.device, {tag, {}}, std::vector<std::byte>(view.begin(), view.end())});
             }
         });
     }
@@ -240,6 +238,25 @@ TEST_F(CpuHsmBlobTest, import_accepts_blob_with_model_id) {
 
 TEST_F(CpuHsmBlobTest, import_rejects_duplicated_model_id) {
     expect_import_rejected(export_blob_with_model_ids(2));
+}
+
+TEST_F(CpuHsmBlobTest, import_ignores_sections_with_unexpected_inline_flag) {
+    // Duplicates would be rejected if they matched the model id section.
+    const auto pointer_mode_id = runtime::hsm::SectionTag::make(hsm::model_id.tag.id(), /*is_inline=*/false);
+    std::stringstream stream(export_blob_with_model_ids(2, pointer_mode_id));
+    EXPECT_NO_THROW(std::ignore = core.import_model(stream, utils::DEVICE_CPU));
+}
+
+TEST_F(CpuHsmBlobTest, import_rejects_blob_with_model_struct_of_unexpected_inline_flag) {
+    const auto blob = hsm_repack(export_blob(model), [](std::vector<HsmEntry>& entries) {
+        for (auto& entry : entries) {
+            if (has_section_id(entry.device, entry.tag.tag, hsm::model_struct)) {
+                entry.tag.tag = runtime::hsm::SectionTag::make(hsm::model_struct.tag.id(), /*is_inline=*/true);
+                entry.payload.resize(24);
+            }
+        }
+    });
+    expect_import_rejected(blob);
 }
 
 TEST_F(CpuHsmBlobTest, import_rejects_duplicated_model_struct) {

@@ -35,17 +35,16 @@ std::shared_ptr<ov::AlignedBuffer> read_buffer(const std::shared_ptr<ov::Aligned
                                                const runtime::hsm::Section& section) {
     if (section.size() == 0) {
         return nullptr;
-    } else if (const auto view = section.view(); source_blob && !view.empty()) {
+    }
+    if (const auto view = section.view(); source_blob && !view.empty()) {
         return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
             const_cast<std::byte*>(view.data()),
             view.size(),
             source_blob);
-    } else {
-        auto buffer = std::make_shared<ov::AlignedBuffer>(section.size());
-        OPENVINO_ASSERT(section.read(buffer->get_ptr()),
-                        "[CPU] Cannot import compiled blob: failed to read a section.");
-        return buffer;
     }
+    auto buffer = std::make_shared<ov::AlignedBuffer>(section.size());
+    OPENVINO_ASSERT(section.read(buffer->get_ptr()), "[CPU] Cannot import compiled blob: failed to read a section.");
+    return buffer;
 }
 
 // Stores a decoded section; a second section of the same kind makes the blob invalid.
@@ -55,20 +54,26 @@ void store_unique_section(Slot& slot, T value, const char* section_name) {
     slot = std::move(value);
 }
 
+// Rejected before the payload sections that follow are read.
+std::string read_compatible_requirements(const runtime::hsm::Section& section) {
+    // CVS-196454: decode with the common Runtime Requirements codec.
+    auto requirements = read_string(section);
+    OPENVINO_ASSERT(is_runtime_requirements_compatible(requirements),
+                    "[CPU] Cannot import compiled blob: incompatible runtime requirements, blob: ",
+                    requirements,
+                    ", current: ",
+                    build_runtime_requirements());
+    return requirements;
+}
+
 }  // namespace
 
 const std::map<uint32_t, HsmReaderHandler::Decoder> HsmReaderHandler::s_decoders = {
     {hsm::section_key(hsm::runtime_requirements),
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
-         // TODO CVS-196454: decode with the common Runtime Requirements codec.
-         auto requirements = read_string(section);
-         // Rejected here, before the payload sections that follow are read.
-         OPENVINO_ASSERT(is_runtime_requirements_compatible(requirements),
-                         "[CPU] Cannot import compiled blob: incompatible runtime requirements, blob: ",
-                         requirements,
-                         ", current: ",
-                         build_runtime_requirements());
-         store_unique_section(handler.runtime_requirements, std::move(requirements), "runtime requirements");
+         store_unique_section(handler.runtime_requirements,
+                              read_compatible_requirements(section),
+                              "runtime requirements");
      }},
     {hsm::section_key(hsm::model_id),
      [](HsmReaderHandler& handler, const runtime::hsm::Section& section) {
@@ -92,13 +97,11 @@ HsmReaderHandler::HsmReaderHandler(std::shared_ptr<ov::AlignedBuffer> source_blo
     : m_source_blob(std::move(source_blob)) {}
 
 bool HsmReaderHandler::handle_section(const runtime::hsm::ManifestEntry& entry, const runtime::hsm::Section& section) {
-    if (const auto decoder = s_decoders.find(hsm::section_key(entry.device, entry.tag.id()));
-        decoder != s_decoders.end()) {
+    if (const auto decoder = s_decoders.find(hsm::section_key(entry.device, entry.tag)); decoder != s_decoders.end()) {
         decoder->second(*this, section);
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 void HsmReaderHandler::check_mandatory_sections() const {

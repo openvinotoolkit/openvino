@@ -33,16 +33,17 @@ struct SectionId {
     runtime::hsm::SectionTag tag{};
 };
 
-constexpr uint32_t section_key(runtime::hsm::DeviceId device, uint32_t tag_id) noexcept {
-    return (static_cast<uint32_t>(device) << 24) | tag_id;
+constexpr uint32_t section_key(runtime::hsm::DeviceId device, runtime::hsm::SectionTag tag) noexcept {
+    return (static_cast<uint32_t>(device) << 24) | (static_cast<uint32_t>(tag.value[0]) << 16) |
+           (static_cast<uint32_t>(tag.value[1]) << 8) | static_cast<uint32_t>(tag.value[2]);
 }
 
 constexpr uint32_t section_key(const SectionId& id) noexcept {
-    return section_key(id.device, id.tag.id());
+    return section_key(id.device, id.tag);
 }
 
 /// Core-owned: the string checked by is_runtime_requirements_compatible() on import.
-// TODO CVS-196454: use the common Runtime Requirements codec instead of the plain string.
+// CVS-196454: use the common Runtime Requirements codec instead of the plain string.
 inline constexpr SectionId runtime_requirements{runtime::hsm::any_device_id, runtime::hsm::runtime_requirements_tag};
 /// Core-owned, inline.
 // The id algorithm is not defined yet, the writer stores a placeholder and the reader does not use it.
