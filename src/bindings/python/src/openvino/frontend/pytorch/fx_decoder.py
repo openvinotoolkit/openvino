@@ -223,6 +223,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                  input_types=None, dynamic_shapes=False,
                  op_type_mapping=None, output_names=None):
         super().__init__(mark_node_callback)
+        if isinstance(pt_module, torch.fx.GraphModule):
+            from .vmap_lowering import lower_vmap_regions
+            lowered = lower_vmap_regions(pt_module, self._flat_apply_no_new_guards)
+            if fx_gm is pt_module:
+                fx_gm = lowered
+            pt_module = lowered
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
@@ -478,7 +484,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if dynamic_shapes is not None:
             export_args_dict["dynamic_shapes"] = dynamic_shapes
 
-        return torch.export.export(model, **export_args_dict)
+        from .vmap_capture import capture_vmap
+        with capture_vmap():
+            return torch.export.export(model, **export_args_dict)
 
     @staticmethod
     def get_found_shape(value) -> str:

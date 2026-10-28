@@ -76,11 +76,6 @@ OP_CONVERTER(translate_copy_);
 OP_CONVERTER(translate_cross);
 OP_CONVERTER(translate_cumsum);
 OP_CONVERTER(translate_diff);
-OP_CONVERTER(translate_add_batch_dim);
-OP_CONVERTER(translate_remove_batch_dim);
-OP_CONVERTER(translate_vmap_increment_nesting);
-OP_CONVERTER(translate_vmap_decrement_nesting);
-OP_CONVERTER(translate_vmap_lazy_load_decompositions);
 OP_CONVERTER(translate_flat_apply_fx);
 OP_CONVERTER(translate_deform_conv);
 OP_CONVERTER(translate_derive_index);
@@ -1004,11 +999,6 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},
         {"flat_apply", op::translate_flat_apply_fx},
-        {"torch._functorch.predispatch::_add_batch_dim", op::translate_add_batch_dim},
-        {"torch._functorch.predispatch::_remove_batch_dim", op::translate_remove_batch_dim},
-        {"torch._functorch.predispatch::_vmap_increment_nesting", op::translate_vmap_increment_nesting},
-        {"torch._functorch.predispatch::_vmap_decrement_nesting", op::translate_vmap_decrement_nesting},
-        {"torch._functorch.predispatch::lazy_load_decompositions", op::translate_vmap_lazy_load_decompositions},
         {"wrap_with_autocast", op::translate_wrap_with_context_fx},
         {"wrap_with_set_grad_enabled", op::translate_wrap_with_context_fx},
     };

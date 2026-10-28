@@ -4,7 +4,6 @@
 
 #include "translate_session.hpp"
 
-#include "batched_tensor.hpp"
 #include "helper_ops/gather_assign.hpp"
 #include "helper_ops/slice_assign.hpp"
 #include "input_model.hpp"
@@ -37,21 +36,15 @@ public:
     explicit AliasScope(TranslateSession& session) : m_session(session) {
         m_aliases.swap(m_session.m_may_be_alias);
         m_tuple_element_aliases.swap(m_session.m_tuple_element_aliases);
-        m_vmap_depth = m_session.m_vmap_depth;
-        m_vmap_error = m_session.m_vmap_error;
     }
 
     ~AliasScope() {
-        m_session.m_vmap_depth = m_vmap_depth;
-        m_session.m_vmap_error = m_vmap_error;
         m_aliases.swap(m_session.m_may_be_alias);
         m_tuple_element_aliases.swap(m_session.m_tuple_element_aliases);
     }
 
 private:
     TranslateSession& m_session;
-    size_t m_vmap_depth;
-    std::string m_vmap_error;
     decltype(TranslateSession::m_may_be_alias) m_aliases;
     // Tensor ids are local to a graph, so tuple element aliases are scoped like other aliases.
     decltype(TranslateSession::m_tuple_element_aliases) m_tuple_element_aliases;
@@ -531,7 +524,6 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(std::shared_ptr<T
 OutputVector TranslateSession::convert_node(const NodeContext& context) {
     std::string exception;
     try {
-        check_vmap_node(context);
         const auto& raw_op_type = context.get_op_type();
         auto it = m_translator_map.find(raw_op_type);
         // FX names carry an overload suffix; fall back to the shared TorchScript translator for the same operator.

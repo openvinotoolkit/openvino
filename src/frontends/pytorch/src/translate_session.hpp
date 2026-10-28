@@ -64,9 +64,6 @@ public:
     // Declared outputs of the last converted internal body which are views of its inputs: output index to input id.
     std::map<size_t, size_t> m_body_output_aliases;
 
-    size_t m_vmap_depth = 0;
-    std::string m_vmap_error;
-
     OutputVector convert_node(const NodeContext& context);
 
 private:

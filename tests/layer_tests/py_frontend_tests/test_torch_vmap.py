@@ -9,25 +9,25 @@ import torch
 from packaging import version
 
 from openvino import Core, convert_model
-from openvino.frontend import OpConversionFailure
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 
 pytestmark = [
     pytest.mark.precommit,
-    pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.14"),
-                       reason="Requires predispatch vmap operators in torch.export"),
+    pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.11"),
+                       reason="Requires predispatch vmap capture in torch.export"),
 ]
 
 
-def _convert_export(model, inputs, dynamic_shapes=None):
-    exported = torch.export.export(model, tuple(value.clone() for value in inputs),
-                                   dynamic_shapes=dynamic_shapes)
+def _convert_export(model, inputs, dynamic_shapes=None, capture=False):
+    exporter = TorchFXPythonDecoder._export if capture else torch.export.export
+    exported = exporter(model, tuple(value.clone() for value in inputs), dynamic_shapes=dynamic_shapes)
     graphs = {name: str(module.graph) for name, module in exported.graph_module.named_modules()
               if isinstance(module, torch.fx.GraphModule)}
     with patch.object(torch.export.ExportedProgram, "run_decompositions",
                       side_effect=AssertionError("Conversion must not run decompositions")):
         converted = convert_model(exported)
+    assert not any(node.get_type_name() == "Loop" for node in converted.get_ordered_ops())
     for name, graph in graphs.items():
         assert str(exported.graph_module.get_submodule(name).graph) == graph
     return Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
@@ -97,6 +97,17 @@ def test_fx_vmap_nonleading_output(in_dim, out_dim):
     graph.call_function(predispatch._vmap_decrement_nesting, ())
     graph.output((first, second))
     module = torch.fx.GraphModule({}, graph)
+    class Inputs(torch.nn.Module):
+        def forward(self, data, bias):
+            return data, bias
+
+    batch = torch.export.Dim("batch", min=2, max=16)
+    metadata = torch.export.export(Inputs(), (torch.randn(2, 4, 3), torch.randn(4, 3)),
+                                   dynamic_shapes=({1: batch}, {0: batch}))
+    placeholders = [node for node in metadata.graph.nodes if node.op == "placeholder"]
+    data.meta = placeholders[0].meta.copy()
+    bias.meta = placeholders[1].meta.copy()
+    size.meta["val"] = data.meta["val"].shape[1]
     original = str(graph)
     decoder = TorchFXPythonDecoder(module, input_shapes=[[2, -1, 3], [-1, 3]],
                                    input_types=[torch.float32, torch.float32])
@@ -130,9 +141,11 @@ def test_export_vmap_invariant_output(out_dim):
     model = Model()
     batch = torch.export.Dim("batch", min=2, max=16)
     compiled = _convert_export(model, (torch.randn(4, 2), torch.randn(3)),
-                               ({0: batch}, {}))
+                               ({0: batch}, {}), capture=True)
     for size in (4, 6):
-        _compare(compiled, model, (torch.randn(size, 2), torch.randn(3)))
+        shape = (size, 3) if out_dim == 0 else (3, size)
+        _compare(compiled, lambda data, captured: captured.sin().unsqueeze(out_dim).expand(shape),
+                 (torch.randn(size, 2), torch.randn(3)))
 
 
 def test_export_vmap_nested_mask():
@@ -162,7 +175,7 @@ def test_export_vmap_rejects_randomness(randomness):
         def forward(self, data):
             return torch.vmap(lambda row: row.sin(), randomness=randomness)(data)
 
-    with pytest.raises(OpConversionFailure, match="vmap supports only randomness='error'"):
+    with pytest.raises(RuntimeError, match="vmap supports only randomness='error'"):
         _convert_export(Model(), (torch.randn(2, 4),))
 
 
@@ -180,5 +193,137 @@ def test_export_vmap_rejects_mutation(captured_mutation):
 
             return torch.vmap(mutate)(data)
 
-    with pytest.raises(OpConversionFailure, match="Mutation inside vmap is not supported"):
+    with pytest.raises(RuntimeError, match="Mutation inside vmap is not supported"):
         _convert_export(Model(), (torch.randn(2, 4),))
+
+
+@pytest.mark.parametrize("nested", [False, True])
+@pytest.mark.parametrize("dynamic", [False, True])
+def test_model_vmap_single_trace(nested, dynamic):
+    import torch.export._trace as export_trace
+
+    class Model(torch.nn.Module):
+        @torch.no_grad()
+        def forward(self, data):
+            difference = torch.diff(data, dim=-1)
+            mapped = torch.vmap(lambda row: row.sin().sum(-1))
+            if nested:
+                mapped = torch.vmap(mapped)
+            return mapped(difference), difference
+
+    model = Model()
+    inputs = (torch.randn(2, 4, 3),)
+    shapes = ({1: torch.export.Dim("batch", min=2, max=16)},) if dynamic else None
+    with patch.object(export_trace, "make_fx", wraps=export_trace.make_fx) as tracer, \
+            patch("torch.fx.experimental.proxy_tensor.make_fx",
+                  side_effect=AssertionError("Decoder must not retrace a vectorized export")), \
+            patch.object(torch.export.ExportedProgram, "run_decompositions",
+                         side_effect=AssertionError("Conversion must not run decompositions")):
+        decoder = TorchFXPythonDecoder.from_model(model, inputs, dynamic_shapes=shapes)
+        converted = convert_model(decoder)
+    assert tracer.call_count == 1
+    targets = [str(node.target) for module in decoder.pt_module.modules()
+               if isinstance(module, torch.fx.GraphModule) for node in module.graph.nodes]
+    assert any("aten.diff" in target for target in targets)
+    assert any("wrap_with_set_grad_enabled" in target for target in targets)
+    assert not any("batch_dim" in target or "vmap_increment" in target for target in targets)
+    assert not any(node.get_type_name() == "Loop" for node in converted.get_ordered_ops())
+    compiled = Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    for size in ((4, 6) if dynamic else (4,)):
+        _compare(compiled, model, (torch.randn(2, size, 3),))
+
+
+def test_model_vmap_module_extension():
+    from openvino.frontend.pytorch import ModuleExtension
+
+    class Cosine(torch.nn.Module):
+        def forward(self, data):
+            return data.cos()
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.cosine = Cosine()
+
+        def forward(self, data):
+            return torch.vmap(lambda row: row.sin())(self.cosine(data))
+
+    data = torch.randn(3, 4)
+    model = Model()
+    converted = convert_model(model, example_input=(data,), dynamo=True,
+                              extension=[ModuleExtension(Cosine, "aten.sin.default")])
+    assert not any(node.get_type_name() == "Loop" for node in converted.get_ordered_ops())
+    assert not hasattr(model.cosine, "_openvino_module_extension_patch_orig_forward")
+    compiled = Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    np.testing.assert_allclose(compiled(data.numpy())[0], data.sin().sin().numpy(), atol=1e-6, rtol=1e-5)
+
+
+def test_model_vmap_restores_capture_after_failure():
+    from torch._functorch import apis
+    from torch.fx.experimental.proxy_tensor import get_proxy_mode
+
+    class Mutating(torch.nn.Module):
+        def forward(self, data):
+            return torch.vmap(lambda row: row.add_(1))(data)
+
+    class Model(torch.nn.Module):
+        def forward(self, data):
+            return torch.vmap(lambda row: row.sin())(data)
+
+    original = apis.vmap_impl
+    proxy = get_proxy_mode()
+    with pytest.raises(RuntimeError, match="Mutation inside vmap is not supported"):
+        TorchFXPythonDecoder.from_model(Mutating(), (torch.randn(2, 3),))
+    assert apis.vmap_impl is original
+    assert get_proxy_mode() is proxy
+    decoder = TorchFXPythonDecoder.from_model(Model(), (torch.randn(2, 3),))
+    assert apis.vmap_impl is original
+    assert get_proxy_mode() is proxy
+    assert not any("batch_dim" in str(node.target) for node in decoder.pt_module.graph.nodes)
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_fx_vmap_buffer_attribute_root(nested):
+    from torch._higher_order_ops.wrap import wrap_with_set_grad_enabled
+
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.register_buffer("weight", torch.tensor([1., 2., 3.]))
+
+        def forward(self, data):
+            return torch.vmap(lambda row: row + self.weight)(data)
+
+    model = Model()
+    data = torch.randn(2, 3)
+    module = torch.export.export(model, (data,)).module()
+    original = str(module.graph)
+    if nested:
+        graph = torch.fx.Graph()
+        operand = graph.placeholder("data")
+        operand.meta = next(node for node in module.graph.nodes if node.op == "placeholder").meta.copy()
+        body = graph.get_attr("body")
+        wrapped = graph.call_function(wrap_with_set_grad_enabled, (False, body, operand))
+        graph.output(wrapped)
+        module = torch.fx.GraphModule({"body": module}, graph)
+    decoder = TorchFXPythonDecoder(module, module)
+    converted = convert_model(decoder)
+    assert not any(node.get_type_name() == "Loop" for node in converted.get_ordered_ops())
+    assert str((module.body if nested else module).graph) == original
+    compiled = Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+    _compare(compiled, lambda value: value + model.weight, (data,))
+
+
+@pytest.mark.parametrize("capture", [False, True])
+def test_vmap_rejects_wrapped_mutation(capture):
+    @torch.no_grad()
+    def mutate(row):
+        return row.clone().add_(1)
+
+    class Model(torch.nn.Module):
+        def forward(self, data):
+            return torch.vmap(mutate)(data)
+
+    exporter = TorchFXPythonDecoder._export if capture else torch.export.export
+    with pytest.raises(RuntimeError, match="Mutation inside vmap is not supported"):
+        convert_model(exporter(Model(), (torch.randn(2, 3),)))
