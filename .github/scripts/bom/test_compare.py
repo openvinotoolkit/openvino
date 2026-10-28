@@ -81,17 +81,45 @@ class BomTests(unittest.TestCase):
         self.assertEqual([item.name for item in results], ["components.new", "components.removed"])
         self.assertIn("Add", results[0].failure)
         self.assertIn("Remove", results[1].failure)
+        self.assertTrue(all(result.layout_changed for result in results))
 
     def test_reports_all_file_differences_in_all_components(self):
         for name in ("core", "samples"):
             self.manifest(self.generated, name, ["added", "same"])
             self.manifest(self.baseline, name, ["removed", "same"])
-        failures = [item.failure for item in self.compare() if item.failure]
-        self.assertEqual(len(failures), 2)
-        for message in failures:
-            self.assertIn("+ added", message)
-            self.assertIn("- removed", message)
-            self.assertIn("Update", message)
+        results = [item for item in self.compare() if item.failure]
+        self.assertEqual(len(results), 2)
+        for result in results:
+            self.assertIn(f"Component '{result.name}'", result.failure)
+            self.assertIn("added added on the PR branch", result.failure)
+            self.assertIn("deleted removed on the PR branch", result.failure)
+            self.assertIn("Renames appear as a deleted path and an added path", result.failure)
+            self.assertIn("Update", result.failure)
+            self.assertTrue(result.layout_changed)
+
+    def test_file_change_details_are_preserved_in_logs_xml_and_html(self):
+        self.manifest(self.generated, "cpu", ["runtime/new.so"])
+        self.manifest(self.baseline, "cpu", ["runtime/old.so"])
+        output = io.StringIO()
+        report = self.root / "bom.xml"
+        with redirect_stdout(output):
+            status = compare.report_results(self.compare(), self.configuration, report)
+        self.assertEqual(status, 1)
+        xml = ET.parse(report).getroot().find("testcase[@name='cpu']/failure").text
+        html = report.with_suffix(".html").read_text(encoding="utf-8")
+        for details in (output.getvalue(), xml, html):
+            self.assertIn("deleted runtime/old.so on the PR branch", details)
+            self.assertIn("added runtime/new.so on the PR branch", details)
+        self.assertIn("::error title=BOM package layout changed::", output.getvalue())
+
+    def test_single_direction_changes_do_not_claim_rename(self):
+        for actual, expected, action in ((["new"], [], "added"), ([], ["old"], "deleted")):
+            with self.subTest(action=action):
+                self.manifest(self.generated, files=actual)
+                self.manifest(self.baseline, files=expected)
+                failure = self.compare()[-1].failure
+                self.assertIn(f"  {action} ", failure)
+                self.assertNotIn("Renames", failure)
 
     def test_invalid_manifest_does_not_stop_other_component_checks(self):
         self.manifest(self.generated, "broken").write_text("{", encoding="utf-8")
@@ -152,7 +180,8 @@ class BomTests(unittest.TestCase):
                 self.compare(), self.configuration, self.root / "bom.xml",
             )
         self.assertEqual(status, 1)
-        self.assertIn("::error::", output.getvalue())
+        self.assertIn("::error title=BOM validation failed::", output.getvalue())
+        self.assertNotIn("BOM package layout changed", output.getvalue())
         suite = ET.parse(self.root / "bom.xml").getroot()
         self.assertEqual(suite.get("skipped"), "0")
         self.assertEqual(suite.get("failures"), "1")
@@ -188,7 +217,7 @@ class BomTests(unittest.TestCase):
         ]
         result = subprocess.run(command, capture_output=True, text=True)
         self.assertEqual(result.returncode, 1)
-        self.assertIn("::error::", result.stdout)
+        self.assertIn("::error title=BOM package layout changed::", result.stdout)
         self.assertEqual(golden.read_bytes(), before)
         self.manifest(self.generated, files=["old"])
         self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)

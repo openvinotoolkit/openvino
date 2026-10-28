@@ -22,6 +22,7 @@ DOCUMENTATION_URL = (
 class Result:
     name: str
     failure: str = ""
+    layout_changed: bool = False
 
 
 class ManifestError(ValueError):
@@ -103,12 +104,14 @@ def compare(artifact_dir: Path, gold_dir: Path, configuration: str) -> list[Resu
             f"components.{component}",
             failure=f"New packaged component '{component}'. Add {baseline / (component + '.json')} "
             "from the build's BOM artifact to approve this package-layout change.",
+            layout_changed=True,
         ))
     for component in sorted(expected.keys() - actual.keys()):
         results.append(Result(
             f"components.{component}",
             failure=f"Removed packaged component '{component}'. Remove {expected[component]} "
             "to approve this package-layout change, or restore the component's packaging rules.",
+            layout_changed=True,
         ))
     if results:
         return results
@@ -126,22 +129,26 @@ def compare(artifact_dir: Path, gold_dir: Path, configuration: str) -> list[Resu
         if not added and not removed:
             results.append(Result(component))
             continue
-        details = []
-        if added:
-            details.append("Added package files:\n" + "\n".join(f"  + {path}" for path in added))
-        if removed:
-            details.append("Removed package files:\n" + "\n".join(f"  - {path}" for path in removed))
+        details = [f"Component '{component}' differs from its GOLD BOM:"]
+        details.extend(f"  deleted {path} on the PR branch" for path in removed)
+        details.extend(f"  added {path} on the PR branch" for path in added)
+        if added and removed:
+            details.append(
+                "Renames appear as a deleted path and an added path; path-only BOMs cannot identify renames."
+            )
         results.append(Result(
             component,
             failure="\n".join(details)
             + f"\nUpdate {expected[component]} in your PR to explicitly approve the changed file layout.",
+            layout_changed=True,
         ))
     return results
 
 
-def annotation(level: str, message: str) -> None:
+def annotation(level: str, message: str, title: str = "") -> None:
     escaped = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-    print(f"::{level}::{escaped}")
+    properties = f" title={title}" if title else ""
+    print(f"::{level}{properties}::{escaped}")
 
 
 def report_results(results: list[Result], configuration: str, report: Path) -> int:
@@ -154,7 +161,9 @@ def report_results(results: list[Result], configuration: str, report: Path) -> i
         case = ET.SubElement(suite, "testcase", classname=f"bom.{configuration}", name=result.name)
         if result.failure:
             message = f"{configuration}/{result.name}: {result.failure}\nDocumentation: {DOCUMENTATION_URL}"
-            annotation("error", message)
+            title = "BOM package layout changed" if result.layout_changed else "BOM validation failed"
+            print(message)
+            annotation("error", message, title=title)
             ET.SubElement(case, "failure", message=f"BOM check failed: {result.name}").text = message
         else:
             print(f"PASS: {configuration}/{result.name}")
