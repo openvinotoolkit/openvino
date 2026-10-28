@@ -5994,7 +5994,9 @@ struct convolution_gpu_fs_byx_fsv32_crop : public ::testing::TestWithParam<TestP
 INSTANTIATE_TEST_SUITE_P(convolution_gpu_with_crop,
     convolution_gpu_fs_byx_fsv32_crop,
     ::testing::Values(
-        TestParamType_convolution_gpu_with_crop(1, 14, 24, 1, 0, true)
+        TestParamType_convolution_gpu_with_crop(1, 14, 24, 1, 0, true),
+        TestParamType_convolution_gpu_with_crop(1, 13, 32, 1, 0, false),
+        TestParamType_convolution_gpu_with_crop(3, 16, 40, 1, 0, true)
     ),
     convolution_gpu_fs_byx_fsv32_crop::PrintToStringParamName);
 
@@ -10403,6 +10405,58 @@ TEST(convolution_gpu_onednn, spatial_1d) {
     for (size_t i = 0; i < output_memory_ref->count(); i++) {
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test_blocked.data()[i]);
         ASSERT_EQ(output_ptr_ref.data()[i], output_ptr_test_planar.data()[i]);
+    }
+}
+
+TEST(convolution_gpu_onednn, spatial_1d_planar_export_import) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    layout in_layout{ ov::PartialShape{1, 16, 6}, data_types::f16, format::bfyx };
+    layout weights_layout{ ov::PartialShape{16, 16, 3}, data_types::f16, format::bfyx };
+    auto input_mem = engine.allocate_memory(in_layout);
+    set_values(input_mem, rg.generate_random_1d<ov::float16>(in_layout.count(), -1, 1));
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1));
+
+    topology t(input_layout("input", in_layout),
+               data("weights", weights_mem),
+               convolution("conv", input_info("input"), "weights", no_bias, 1,
+                           ov::Strides{1}, ov::Strides{1}, ov::CoordinateDiff{0}, ov::CoordinateDiff{0}, false),
+               reorder("reorder", input_info("conv"), format::bfyx, data_types::f32));
+
+    auto get_config = [&](impl_types impl_type) {
+        ExecutionConfig config = get_test_default_config(engine);
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "", impl_type };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl } }));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        return config;
+    };
+
+    // The weights reordered at build time must match the weights layout of the primitive recreated on import.
+    auto network_test = get_network(engine, t, get_config(impl_types::onednn), get_test_stream_ptr(), true);
+    network network_ref(engine, t, get_config(impl_types::ocl));
+
+    network_test->set_input_data("input", input_mem);
+    network_ref.set_input_data("input", input_mem);
+
+    auto outputs_test = network_test->execute();
+    auto outputs_ref = network_ref.execute();
+
+    auto output_memory_test = outputs_test.at("reorder").get_memory();
+    auto output_memory_ref = outputs_ref.at("reorder").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_test(output_memory_test, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr_ref(output_memory_ref, get_test_stream());
+
+    ov::PartialShape expected_shape = {1, 16, 4};
+    ASSERT_EQ(output_memory_test->get_layout().get_partial_shape(), expected_shape);
+    ASSERT_EQ(output_memory_ref->get_layout().get_partial_shape(), expected_shape);
+
+    for (size_t i = 0; i < output_memory_ref->count(); i++) {
+        ASSERT_NEAR(output_ptr_ref.data()[i], output_ptr_test.data()[i], 1e-2f) << "i = " << i;
     }
 }
 

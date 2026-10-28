@@ -5053,12 +5053,9 @@ static void run_reorder_weight_int4(const ov::Shape in_shape, const std::vector<
     layout in_layout({in_shape, data_types::i4, format::bfyx});
     auto input = engine.allocate_memory(in_layout);
 
-    std::vector<uint8_t> input_data  = {
-        0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb, 0xed,
-        0x1f, 0x25, 0x83, 0x2a, 0x7d, 0x9f, 0xe8,
-        0x21, 0x43, 0x65, 0x87, 0xa9, 0xcb, 0xed,
-        0x1f, 0x25, 0x83, 0x2a, 0x7d, 0x9f, 0xe8
-    };
+    std::vector<uint8_t> input_data(in_layout.bytes_count());
+    for (size_t i = 0; i < input_data.size(); ++i)
+        input_data[i] = static_cast<uint8_t>(i * 37 + 0x21);
 
     set_values(input, input_data);
 
@@ -5085,16 +5082,18 @@ static void run_reorder_weight_int4(const ov::Shape in_shape, const std::vector<
 
     auto output = outputs.begin()->second.get_memory();
 
-    std::vector<uint8_t> expected_data  = {
-        0x21, 0x43, 0x65, 0x07,
-        0x98, 0xba, 0xdc, 0x0e,
-        0x1f, 0x25, 0x83, 0x0a,
-        0xd2, 0xf7, 0x89, 0x0e,
-        0x21, 0x43, 0x65, 0x07,
-        0x98, 0xba, 0xdc, 0x0e,
-        0x1f, 0x25, 0x83, 0x0a,
-        0xd2, 0xf7, 0x89, 0x0e
-    };
+    const auto row_size = in_shape.back();
+    const auto padded_row_size = row_size + upper_size.back();
+    const auto rows = in_layout.count() / row_size;
+    std::vector<uint8_t> expected_data(rows * padded_row_size / 2, 0);
+    for (size_t row = 0; row < rows; ++row) {
+        for (size_t col = 0; col < row_size; ++col) {
+            const auto input_index = row * row_size + col;
+            const auto value = (input_data[input_index / 2] >> (4 * (input_index % 2))) & 0x0f;
+            const auto output_index = row * padded_row_size + col;
+            expected_data[output_index / 2] |= value << (4 * (output_index % 2));
+        }
+    }
 
     cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
 
@@ -5117,6 +5116,17 @@ TEST(reorder_weight_gpu_i4, reorder_for_padding_3d)
 TEST(reorder_weight_gpu_i4, reorder_for_padding_4d)
 {
     run_reorder_weight_int4({2, 2, 2, 7}, {0, 0, 0, 1});
+}
+
+TEST(reorder_weight_gpu_i4, reorder_for_padding_alignment_8)
+{
+    for (const size_t k : {1, 3, 5, 7, 9, 11, 13, 15}) {
+        SCOPED_TRACE(k);
+        const auto pad = static_cast<ov::Dimension::value_type>(8 - k % 8);
+        run_reorder_weight_int4({3, k}, {0, pad});
+        run_reorder_weight_int4({2, 2, k}, {0, 0, pad});
+        run_reorder_weight_int4({2, 2, 2, k}, {0, 0, 0, pad});
+    }
 }
 
 template <typename T>

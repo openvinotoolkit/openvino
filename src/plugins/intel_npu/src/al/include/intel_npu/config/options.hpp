@@ -641,24 +641,6 @@ struct STEPPING final : OptionBase<STEPPING, int64_t> {
     }
 };
 
-struct MAX_TILES final : OptionBase<MAX_TILES, int64_t> {
-    static std::string_view key() {
-        return ov::intel_npu::max_tiles.name();
-    }
-
-    static std::vector<std::string_view> deprecatedKeys() {
-        return {};
-    }
-
-    static int64_t defaultValue() {
-        return -1;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-};
-
 struct DMA_ENGINES final : OptionBase<DMA_ENGINES, int64_t> {
     static std::string_view key() {
         return ov::intel_npu::dma_engines.name();
