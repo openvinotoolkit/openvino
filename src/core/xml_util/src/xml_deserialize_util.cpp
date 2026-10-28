@@ -885,7 +885,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
 
 void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
     OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
-    std::vector<int64_t> shape;
+    ov::Shape shape;
     std::string el_type_str;
     const auto& dn = m_node.child("data");
     const auto node_type = pugixml::get_str_attr(m_node, "type");
@@ -893,7 +893,8 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
     OPENVINO_ASSERT(getStrAttribute(dn, "element_type", el_type_str),
                     "Missing attribute 'element_type' for ",
                     node_type);
-    OPENVINO_ASSERT(getParameters<int64_t>(dn, "shape", shape), "Missing attribute 'shape' for ", node_type);
+    // Read as unsigned values, so a shape with a negative dimension is rejected here.
+    OPENVINO_ASSERT(getParameters<size_t>(dn, "shape", shape), "Missing attribute 'shape' for ", node_type);
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
@@ -907,17 +908,7 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
             size);
         adapter.set(buffer);
     } else {
-        for (const auto dim : shape) {
-            OPENVINO_ASSERT(dim >= 0, "Negative dimension in Const shape for ", node_type, " op!");
-            OPENVINO_ASSERT(static_cast<uint64_t>(dim) <= std::numeric_limits<size_t>::max(),
-                            "Const shape size overflow for ",
-                            node_type,
-                            " op!");
-        }
-        const bool has_zero_dim = std::find(shape.begin(), shape.end(), 0) != shape.end();
-        const auto required_size = has_zero_dim
-                                       ? std::optional<size_t>{0}
-                                       : ov::util::get_memory_size_safe(el_type, ov::Shape(shape.begin(), shape.end()));
+        const auto required_size = ov::util::get_memory_size_safe(el_type, shape);
         OPENVINO_ASSERT(required_size, "Const shape size overflow for ", node_type, " op!");
         if (size < *required_size) {
             OPENVINO_THROW("Attribute and shape size are inconsistent for ",
