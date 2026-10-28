@@ -14,12 +14,8 @@ std::vector<layout> recurrent_cache_update_inst::calc_output_layouts(const recur
     const bool conv = d->history > 0;
     const auto& data = p.get_input_layout(conv ? 6 : 2);
     auto s = data.get_partial_shape();
-    if (conv) {
-        if (p.input_layouts.size() == 9)
-            s = {s[0], s[1], s[3], s[2]};
-        else
-            s[3] += d->history;
-    }
+    if (conv)
+        s = {s[0], s[1], s[3], s[2]};
     const auto& cache = p.get_input_layout(conv ? 0 : 3);
     return {layout(s, data.data_type, format::bfyx), layout(cache.get_partial_shape(), cache.data_type, format::bfyx)};
 }

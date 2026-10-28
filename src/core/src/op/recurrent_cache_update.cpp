@@ -47,10 +47,7 @@ RecurrentConvCacheUpdate::RecurrentConvCacheUpdate(const OutputVector& args, int
     constructor_validate_and_infer_types();
 }
 void RecurrentConvCacheUpdate::validate_and_infer_types() {
-    NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 8 || get_input_size() == 9,
-                          "Convolution cache requires 8 or 9 inputs");
-    // Input 8 optionally supplies depthwise weights to fuse the arithmetic.
+    NODE_VALIDATION_CHECK(this, get_input_size() == 9, "Convolution cache requires 9 inputs");
     std::vector<size_t> ports(get_input_size());
     std::iota(ports.begin(), ports.end(), 0);
     validate_cache(this, ports);
@@ -66,15 +63,10 @@ void RecurrentConvCacheUpdate::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this,
                           windows[0].compatible(1) && windows[1].compatible(1) && windows[3].compatible(2),
                           "Windows require [1,1,K,2]");
-    if (get_input_size() == 9) {
-        NODE_VALIDATION_CHECK(this,
-                              get_input_partial_shape(8).compatible(PartialShape{1, 1, qkv[2], m_history + 1}),
-                              "Depthwise weights require [1,1,C,history+1]");
-    }
-    set_output_type(0,
-                    get_input_element_type(6),
-                    get_input_size() == 9 ? PartialShape{1, qkv[1], qkv[3], qkv[2]}
-                                          : PartialShape{1, qkv[1], qkv[2], qkv[3] + m_history});
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(8).compatible(PartialShape{1, 1, qkv[2], m_history + 1}),
+                          "Depthwise weights require [1,1,C,history+1]");
+    set_output_type(0, get_input_element_type(6), PartialShape{1, qkv[1], qkv[3], qkv[2]});
     set_output_type(1, get_input_element_type(0), get_input_partial_shape(0));
 }
 bool RecurrentConvCacheUpdate::visit_attributes(AttributeVisitor& v) {

@@ -45,8 +45,7 @@ void run_update_case(bool conv,
                      bool unrelated_overlap = false,
                      ov::element::Type cache_type = ov::element::f32,
                      bool cache_view = false,
-                     bool host_usm = false,
-                     bool separate_conv = false) {
+                     bool host_usm = false) {
     constexpr int S = 12, H = 2, C = 7, history = 3;
     const int F = conv ? C * history : H * K * V;
     const size_t cache_port = conv ? 0 : 3;
@@ -66,8 +65,7 @@ void run_update_case(bool conv,
         add(indices, {1, 1, 1, 2});
         add(type, {1, -1, C, -1});
         add(indices, {1, 1, -1, 2});
-        if (!separate_conv)
-            add(type, {1, 1, C, history + 1});
+        add(type, {1, 1, C, history + 1});
     } else {
         add(type, {-1, -1, H, K});
         add(type, {-1, -1, H, K});
@@ -166,8 +164,7 @@ void run_update_case(bool conv,
                 // Later windows overwrite earlier windows at overlapping destinations.
                 const std::vector<int> windows = step == 7 ? std::vector<int>{} : std::vector<int>{0, 0, int(T), 4, int(T), 2};
                 ints({1, 1, windows.size() / 2, 2}, windows);
-                if (!separate_conv)
-                    data(8, {1, 1, C, history + 1});
+                data(8, {1, 1, C, history + 1});
             } else {
                 data(0, {B, T, H, size_t(K)});
                 data(1, {B, T, H, size_t(K)});
@@ -190,8 +187,7 @@ void run_update_case(bool conv,
                 return row >= rb && row < re ? 0.f : round_value(get_value(inputs[cache_port], row * F + f), type);
             };
             std::vector<ov::Tensor> expected;
-            expected.emplace_back(type, conv ? (separate_conv ? ov::Shape{1, B, C, T + history} : ov::Shape{1, B, T, C})
-                                             : ov::Shape{B, T, H, size_t(V)});
+            expected.emplace_back(type, conv ? ov::Shape{1, B, T, C} : ov::Shape{B, T, H, size_t(V)});
             expected.emplace_back(cache_type, ov::Shape{1, 1, S, size_t(F)});
             const int eb = integer(conv ? 5 : 10), es = integer(conv ? 5 : 10, 1);
             for (int row = 0; row < S; ++row) {
@@ -206,16 +202,11 @@ void run_update_case(bool conv,
                 };
                 for (size_t b = 0; b < B; ++b)
                     for (int c = 0; c < C; ++c) {
-                        if (separate_conv) {
-                            for (size_t t = 0; t < T + history; ++t)
-                                set_value(expected[0], (b * C + c) * (T + history) + t, x(b, c, t));
-                        } else {
-                            for (size_t t = 0; t < T; ++t) {
-                                float value = 0;
-                                for (int j = 0; j <= history; ++j)
-                                    value = std::fma(x(b, c, t + j), get_value(inputs[8], c * (history + 1) + j), value);
-                                set_value(expected[0], (b * T + t) * C + c, value);
-                            }
+                        for (size_t t = 0; t < T; ++t) {
+                            float value = 0;
+                            for (int j = 0; j <= history; ++j)
+                                value = std::fma(x(b, c, t + j), get_value(inputs[8], c * (history + 1) + j), value);
+                            set_value(expected[0], (b * T + t) * C + c, value);
                         }
                     }
                 for (size_t w = 0; w < inputs[7].get_size() / 2; ++w) {
@@ -378,10 +369,4 @@ TEST(RecurrentCacheUpdateNative, Fp16InferencePreservesReshapedCachePrecision) {
 TEST(RecurrentCacheUpdateNative, HostUsmExclusiveCacheAlias) {
     run_update_case(true, ov::element::f16, ov::element::i32, 0, 0, 1, false, false, ov::element::f32, true, true);
     run_update_case(false, ov::element::f16, ov::element::i32, 128, 8, 3, false, false, ov::element::f32, true, true);
-}
-
-TEST(RecurrentCacheUpdateNative, HistoryOnlyCyclesWindowsAndExport) {
-    for (auto type : {ov::element::f16, ov::element::f32})
-        for (auto indices : {ov::element::i32, ov::element::i64})
-            run_update_case(true, type, indices, 0, 0, 1, false, false, ov::element::f32, true, true, true);
 }

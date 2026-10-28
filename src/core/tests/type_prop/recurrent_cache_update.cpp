@@ -55,10 +55,6 @@ TEST(type_prop, recurrent_conv_cache_update) {
     EXPECT_EQ(clone->get_history(), 3);
     EXPECT_THROW(std::make_shared<op::internal::RecurrentConvCacheUpdate>(args, 0), NodeValidationFailure);
     args.pop_back();
-    auto history_only = std::make_shared<op::internal::RecurrentConvCacheUpdate>(args, 3);
-    EXPECT_EQ(history_only->get_output_partial_shape(0), (PartialShape{1, -1, 7, Dimension(3, -1)}));
-    EXPECT_EQ(history_only->get_output_partial_shape(1), (PartialShape{1, 1, 12, 21}));
-    args.pop_back();
     EXPECT_THROW(std::make_shared<op::internal::RecurrentConvCacheUpdate>(args, 3), NodeValidationFailure);
 }
 TEST(type_prop, recurrent_gdn_update) {

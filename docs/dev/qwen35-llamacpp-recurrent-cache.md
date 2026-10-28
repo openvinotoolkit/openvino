@@ -30,16 +30,13 @@ execute the compute stage without the gather stage. A failed aliased inference
 can partly update caller memory; clear or restore it before retrying. GPU replay
 is disabled because stage selection can change with runtime bindings.
 
-## Fused or separate convolution
+## Fused convolution
 
-`RecurrentConvCacheUpdate` takes eight required inputs and optional depthwise
-weights as input 8. With weights it produces convolution `[1,B,T,C]`; without
-weights it produces `[1,B,C,history+T]` for ordinary GroupConvolution. Both modes
-produce the same full updated cache as output 1. llama.cpp selects the separate
-mode with `GGML_OPENVINO_SEPARATE_RECURRENT_CONV=1`. The fused mode avoids an
-intermediate history/QKV tensor; the separate mode can use the ordinary GPU
-convolution implementation, at the cost of the extra tensor and layout handling.
-Neither mode changes cache reset, reorder or snapshot precedence.
+`RecurrentConvCacheUpdate` takes nine required inputs, including depthwise weights
+as input 8. It produces convolution `[1,B,T,C]` and the full updated cache as
+output 1 without an intermediate history/QKV tensor. The history-only mode used
+to compare ordinary GroupConvolution is removed. Cache reset, reorder and snapshot
+precedence are unchanged.
 
 GDN always emits attention as output 0 and the full updated state cache as output
 1. It retains the newest `min(T,snapshot_count)` states for MTP, newest first.
@@ -52,4 +49,5 @@ calculation and GDN against the ordinary GDN op with independent host cache
 mapping. They cover reset, cycles, duplicates, overlapping writes, mixed
 precision, changing shapes, aliased/distinct allocations, exclusive Reshapes,
 shared readers, unrelated overlaps, host/device USM and export/import. Core shape
-and attribute tests cover both convolution arities and GDN snapshots.
+and attribute tests cover the nine-input convolution contract, rejection of
+missing weights and GDN snapshots.

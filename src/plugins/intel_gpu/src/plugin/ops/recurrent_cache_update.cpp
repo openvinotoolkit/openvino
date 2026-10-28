@@ -7,7 +7,7 @@
 #include "intel_gpu/primitives/recurrent_cache_update.hpp"
 namespace ov::intel_gpu {
 static void CreateRecurrentConvCacheUpdateOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::RecurrentConvCacheUpdate>& op) {
-    validate_inputs_count(op, {8, 9});
+    validate_inputs_count(op, {9});
     p.add_primitive(*op, cldnn::recurrent_cache_update(layer_type_name_ID(op), p.GetInputInfo(op), op->get_history()));
 }
 static void CreateRecurrentGatedDeltaNetUpdateOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::RecurrentGatedDeltaNetUpdate>& op) {

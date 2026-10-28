@@ -5,9 +5,8 @@
 namespace ov::op::internal {
 /// Qwen3.5/Qwen3.6 llama.cpp convolution and generic cache_r maintenance.
 /// Inputs: original cache, active rows, extra rows, reset begin/length,
-/// extra offsets, QKV [1,B,C,T], windows and optional depthwise weights.
-/// With nine inputs output 0 is convolution [1,B,T,C]; with eight it is
-/// history plus QKV [1,B,C,history+T] for a separate GroupConvolution.
+/// extra offsets, QKV [1,B,C,T], windows and depthwise weights.
+/// Nine inputs; output 0 is convolution [1,B,T,C].
 /// Output 1 is the complete updated [1,1,S,C*history] cache.
 /// GPU execution may reuse a caller's identical input/output USM allocation only
 /// when it is the exclusive cache reader. Required original rows are gathered into
