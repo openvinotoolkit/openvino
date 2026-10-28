@@ -77,6 +77,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"audio", "lfm2a", EncoderTopology::LFM2_AUDIO},
     {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
     {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
+    {"vision", "minicpmv4_7", EncoderTopology::MINICPM46},
     {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
@@ -194,8 +195,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
             if (c.topology == EncoderTopology::MINICPM46) {
                 auto layers = meta.get_int_array(key + "wa_layer_indexes");
                 c.window_pattern = layers.empty() ? 0 : layers.front();
-                OPENVINO_ASSERT(c.merge == 4 && c.window_pattern >= 0 && c.window_pattern < c.layers,
-                                "[GGUF] invalid minicpmv4_6 merger configuration");
+                OPENVINO_ASSERT((c.merge == 2 || c.merge == 4) && c.window_pattern >= 0 && c.window_pattern < c.layers,
+                                "[GGUF] invalid MiniCPM-V merger configuration");
             }
             return c;
         }
@@ -247,6 +248,13 @@ public:
         c.rms = rms_encoder(c);
         clippable = c.topology == EncoderTopology::GEMMA4 || c.topology == EncoderTopology::GEMMA4_AUDIO;
         ProjectorResult result;
+        if (c.topology == EncoderTopology::MINICPM46) {
+            const auto positions = g.tensors().require("v.position_embd.weight").ne(1);
+            const auto side = int64_t(std::sqrt(double(positions)));
+            OPENVINO_ASSERT(positions > 0 && side * side == positions,
+                            "[GGUF] MiniCPM-V requires a square learned position grid");
+            result.config["vision.position_grid_size"] = std::to_string(side);
+        }
         result.output = modality == "vision" ? vision(c) : audio(c);
         result.config[modality + ".merge"] = std::to_string(c.merge);
         if (c.topology == EncoderTopology::MUSE_GLIMMER)
@@ -710,6 +718,14 @@ private:
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
         auto x = patch_embeddings(convolution(pixels, "v.patch_embd.weight", c.patch), c.width);
         auto learned = gather_rows(g.tensors().require("v.position_embd.weight"), "position_ids");
+        if (c.merge == 2) {
+            x = vit(x, c, learned);
+            std::array<GgufValue, 4> parts;
+            for (int i = 0; i < 4; ++i)
+                parts[i] = gather_rows(x, "merger.indices." + std::to_string(i));
+            auto cat = concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
+            return ffn(norm(cat, "mm.input_norm", c.eps), "mm.up", "mm.down", "GGML_UNARY_OP_GELU_ERF");
+        }
         x = vit(x, c, learned, {}, {}, {}, 0, c.window_pattern + 1, false);
         const std::string p = "v.vit_merger.";
         auto z = gather_rows(norm(x, p + "ln1", c.eps), "window_indices");

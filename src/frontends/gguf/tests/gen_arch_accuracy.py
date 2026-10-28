@@ -19,6 +19,8 @@ import numpy as np
 from mmproj_fixtures import finish, save_npz
 
 CASES = {
+    "afmoe": {"qk": True, "moe": True, "shared": True, "lead": 1, "post": True,
+              "swa": True, "gate": True, "selection_bias": True, "sigmoid": True, "layers": 4},
     "lfm2": {},
     "lfm2-tied": {"architecture": "lfm2", "tied": True},
     "lfm2-swa": {"architecture": "lfm2", "swa": True, "kernel": 4},
@@ -407,7 +409,7 @@ def write_model(path, arch, opts):
         w.add_attn_temperature_scale(opts.get("temperature", 0.0))
     if opts.get("swa"):
         w.add_sliding_window(2)
-        w.add_sliding_window_pattern(2)
+        w.add_sliding_window_pattern(4 if arch == "afmoe" else 2)
         if arch == "plamo3":
             w.add_rope_freq_base_swa(100.0)
     if opts.get("softcap"):

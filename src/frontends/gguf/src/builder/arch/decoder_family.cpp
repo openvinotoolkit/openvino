@@ -33,6 +33,8 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
         p.activation = FfnActivation::GeGlu;
         p.scales.embedding = std::sqrt(static_cast<float>(embedding));
     }
+    if (arch == "afmoe")
+        p.scales.embedding = std::sqrt(static_cast<float>(embedding));
     if (arch.rfind("minicpm", 0) == 0) {
         p.scales.embedding = 12.0f;
         p.scales.residual = 1.4f / std::sqrt(static_cast<float>(layers));
@@ -50,10 +52,10 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
     p.scales.token_embeddings_only = is_one_of(arch, {"gemma3", "gemma4"});
     p.attention.sliding_window = p.scales.token_embeddings_only;
     p.attention.window_size = (arch == "gemma2" || (arch == "exaone4" && layers == 64)) ? 4096 : 0;
-    p.attention.sliding_period = arch == "gemma3"                              ? 6
-                                 : arch == "plamo3"                            ? 8
-                                 : (arch == "exaone4" || arch == "exaone-moe") ? 4
-                                                                               : 2;
+    p.attention.sliding_period = arch == "gemma3"                                                 ? 6
+                                 : arch == "plamo3"                                               ? 8
+                                 : (arch == "afmoe" || arch == "exaone4" || arch == "exaone-moe") ? 4
+                                                                                                  : 2;
     if (is_one_of(arch, {"gemma3", "plamo3"}))
         p.attention.sliding_rope.freq_base = 10000.0f;
     // Zero inherits the global scale; local Gemma RoPE retains its training scale.
@@ -65,11 +67,11 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
     }
     p.attention.rope_on_sliding_only =
         arch == "muse-glimmer" || arch == "exaone-moe" || (arch == "exaone4" && layers == 64);
-    if (arch == "smollm3")
+    if (is_one_of(arch, {"afmoe", "smollm3"}))
         p.attention.rope_skip_period = 4;
     p.experts.normalize_weights =
         is_one_of(arch, {"hunyuan-moe", "minimax-m2", "qwen3moe", "qwen35moe", "ernie4_5-moe", "mellum", "gemma4"});
-    if (arch == "glm4moe")
+    if (is_one_of(arch, {"afmoe", "glm4moe"}))
         p.experts.routing = ExpertRouting::Sigmoid;
     if (is_one_of(arch, {"qwen35", "qwen35moe"})) {
         p.hybrid.kind = RecurrentKind::GatedDeltaNet;

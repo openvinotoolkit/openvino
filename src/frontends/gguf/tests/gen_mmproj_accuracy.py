@@ -27,7 +27,7 @@ SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro
 # Single-grid models rerun here on two grids with different token counts.
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
 TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "lfm2", "lfm2_no_norm", "lfm2a", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
-            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2",
+            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "minicpmv4_7", "minicpmv4_7_4x", "gemma4a", "deepseekocr", "deepseekocr2",
             "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", *REGRIDDED)
 
 
@@ -275,7 +275,7 @@ def single_grid_width(projector):
     return 128 if projector.startswith("resampler") else 12 if projector == "qwen3vl_merger" else 6
 
 
-VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast")
+VARIANTS = ("_4x", "_resize", "_overview", "_one_sided", "_low_contrast")
 # mmproj_ops_oracle output file -> test_data .npy name.
 OPS_EXPECTATIONS = {
     "window_input": "mmproj_window_input", "windows": "mmproj_windows", "restored": "mmproj_restored",
@@ -425,7 +425,7 @@ def write_grid_model(path, family):
     else:
         w.add_uint32(key + "image_size", 8)
         w.add_uint32(key + "patch_size", 24 if low_contrast else 2)
-        w.add_uint32(key + "projector.scale_factor", 4 if family == "minicpmv4_6" else 2)
+        w.add_uint32(key + "projector.scale_factor", 4 if family in {"minicpmv4_6", "minicpmv4_7"} and "_4x" not in variants else 2)
         w.add_uint32(key + "image_min_pixels", 16)
         w.add_uint32(key + "image_max_pixels", 4096)
         w.add_array(key + "image_mean", [.5, .5, .5])
@@ -504,16 +504,19 @@ def write_grid_model(path, family):
                 w.add_uint32(key + "spatial_merge_size", 2)
                 norm("mm.input_norm", width, False)
                 linear("mm.patch_merger", width * 4, width, False)
-        elif family == "minicpmv4_6":
+        elif family in {"minicpmv4_6", "minicpmv4_7"}:
             tensor("v.position_embd.weight", (4900, width))
             w.add_array(key + "wa_layer_indexes", [0])
             p = "v.vit_merger."
-            norm(p + "ln1", width)
-            for name in ("attn_q", "attn_k", "attn_v", "attn_out"):
-                linear(p + name, width, width)
-            norm(p + "ds_ln", width * 4)
-            linear(p + "ds_ffn_up", width * 4, hidden)
-            linear(p + "ds_ffn_down", hidden, width)
+            if "_4x" not in variants:
+                norm(p + "ln1", width)
+                for name in ("attn_q", "attn_k", "attn_v", "attn_out"):
+                    linear(p + name, width, width)
+                norm(p + "ds_ln", width * 4)
+                linear(p + "ds_ffn_up", width * 4, hidden)
+                linear(p + "ds_ffn_down", hidden, width)
+            if family == "minicpmv4_7":
+                tensor("v.tok_embd_sep", (4, output))
             norm("mm.input_norm", width * 4)
             linear("mm.up", width * 4, hidden)
             linear("mm.down", hidden, output)
@@ -600,14 +603,18 @@ def grid_inputs(family, width, height):
     if family.startswith(("pixtral", "gemma4")):
         result.update(position_x=cols.astype(np.int32).reshape(1, 1, 1, -1),
                       position_y=rows.astype(np.int32).reshape(1, 1, 1, -1))
-    if family == "minicpmv4_6":
+    if family in {"minicpmv4_6", "minicpmv4_7"}:
         result["position_ids"] = (70 * (70 * rows // h) + 70 * cols // w).astype(np.int32).reshape(1, 1, 1, -1)
         order = merge_window_order(h, w)
         result["window_indices"] = np.array(order, np.int32).reshape(1, 1, 1, -1)
         result["inverse_window_indices"] = np.argsort(order).astype(np.int32).reshape(1, 1, 1, -1)
         index = np.arange(h * w) // 4
         result["attention_mask"] = np.where(index[:, None] == index[None], 0, np.finfo(np.float32).min).astype(np.float32)[None, None]
-        for name, dh, dw in (("vit_merger", h, w), ("merger", h // 2, w // 2)):
+        mergers = (("merger", h, w),) if "_4x" in variants else (("vit_merger", h, w), ("merger", h // 2, w // 2))
+        if "_4x" in variants:
+            for key in ("window_indices", "inverse_window_indices", "attention_mask"):
+                result.pop(key)
+        for name, dh, dw in mergers:
             for i, (dy, dx) in enumerate(((0, 0), (0, 1), (1, 0), (1, 1))):
                 result[f"{name}.indices.{i}"] = np.array([(y + dy) * dw + x + dx
                     for y in range(0, dh, 2) for x in range(0, dw, 2)], np.int32).reshape(1, 1, 1, -1)

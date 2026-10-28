@@ -46,7 +46,7 @@ protected:
     void weight(const std::string& name, const std::vector<uint64_t>& dims, bool norm = false) {
         writer.filled_tensor(name, dims, norm, 0.01f);
     }
-    void encoder(const std::string& modality, const std::string& projector) {
+    void encoder(const std::string& modality, const std::string& projector, uint64_t positions = 16) {
         const auto meta = "clip." + modality + ".";
         const auto p = modality == "vision" ? std::string("v.") : std::string("a.");
         writer.kv_bool("clip.has_" + modality + "_encoder", true);
@@ -57,7 +57,7 @@ protected:
         writer.kv_u32(meta + "projection_dim", 6);
         writer.kv_u32(meta + "attention.head_count", 2);
         writer.kv_f32(meta + "attention.layer_norm_epsilon", 1e-5f);
-        weight(p + "position_embd.weight", {8, 16});
+        weight(p + "position_embd.weight", {8, positions});
         for (const auto* n : {"ln1", "ln2"}) {
             weight(p + "blk.0." + n + ".weight", {8}, true);
             weight(p + "blk.0." + n + ".bias", {8});
@@ -90,6 +90,23 @@ protected:
         return frontend.convert(frontend.load(path));
     }
 };
+
+TEST_F(GGUFMMProj, MiniCPMLearnedPositionGridIsIndependentOfResizeMetadata) {
+    encoder("vision", "minicpmv4_7", 4900);
+    weight("mm.up.weight", {32, 12});
+    weight("mm.down.weight", {12, 6});
+    auto model = convert();
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.position_grid_size"}), "70");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "clip.vision.image_size"}), "8");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    EXPECT_EQ(restored->get_rt_info<std::string>({"gguf_mmproj", "vision.position_grid_size"}), "70");
+}
+
+TEST_F(GGUFMMProj, MiniCPMRejectsNonSquareLearnedPositionGrid) {
+    encoder("vision", "minicpmv4_7", 15);
+    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("square learned position grid"));
+}
 
 TEST_F(GGUFMMProj, ExtensionAddsOneBranchAlongsideBuiltinVision) {
     using namespace ov::frontend::gguf;
@@ -1124,6 +1141,65 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
 }
 
 class GGUFMMProjDynamicAccuracy : public GGUFMMProjAccuracy {};
+class GGUFMMProjMiniCpmPackedAccuracy : public GGUFMMProjAccuracy {};
+
+TEST_P(GGUFMMProjMiniCpmPackedAccuracy, PackedGridsMatchLlamaCPU) {
+    const std::string family = GetParam();
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto adapted = model->clone();
+    Adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS).run_on_model(adapted);
+    auto request = compile(adapted);
+    const size_t patch = 2;
+    for (const auto step : {0, 1, 0}) {
+        const auto prefix = std::to_string(step) + ".";
+        const auto& source = array(prefix + "pixel_values");
+        const auto rows = source.shape[2] / patch;
+        const auto cols = source.shape[3] / patch;
+        ov::Tensor packed(ov::element::f32, {1, 3, patch, rows * cols * patch});
+        for (size_t channel = 0; channel < 3; ++channel)
+            for (size_t y = 0; y < rows; ++y)
+                for (size_t x = 0; x < cols; ++x)
+                    for (size_t dy = 0; dy < patch; ++dy)
+                        for (size_t dx = 0; dx < patch; ++dx)
+                            packed.data<float>()[(channel * patch + dy) * rows * cols * patch + (y * cols + x) * patch +
+                                                 dx] =
+                                source.data<float>()[(channel * rows * patch + y * patch + dy) * cols * patch +
+                                                     x * patch + dx];
+        request.set_tensor("pixel_values", packed);
+        ov::Tensor positions(ov::element::i64, {rows * cols});
+        const auto& position_values = array(prefix + "position_ids");
+        std::copy_n(position_values.data<int32_t>(), rows * cols, positions.data<int64_t>());
+        request.set_tensor("position_ids", positions);
+        ov::Tensor grid(ov::element::i64, {2});
+        grid.data<int64_t>()[0] = rows;
+        grid.data<int64_t>()[1] = cols;
+        request.set_tensor("patch_grid", grid);
+        const auto interleave = [&](const std::string& name) {
+            const auto count = array(prefix + name + ".indices.0").num_vals;
+            ov::Tensor indices(ov::element::i64, {count * 4});
+            for (size_t part = 0; part < 4; ++part) {
+                const auto& values = array(prefix + name + ".indices." + std::to_string(part));
+                for (size_t i = 0; i < count; ++i)
+                    indices.data<int64_t>()[i * 4 + part] = values.data<int32_t>()[i];
+            }
+            return indices;
+        };
+        request.set_tensor("merge_index", interleave("merger"));
+        const bool windowed = family == "minicpmv4_7";
+        request.set_tensor("window_index", interleave(windowed ? "vit_merger" : "merger"));
+        request.infer();
+        const auto output = request.get_output_tensor();
+        const auto& expected = array(prefix + "embeddings");
+        ASSERT_EQ(output.get_shape(), (ov::Shape{expected.shape[2], expected.shape[3]}));
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+            1e-5);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Reference,
+                         GGUFMMProjMiniCpmPackedAccuracy,
+                         ::testing::Values("minicpmv4_7", "minicpmv4_7_4x"));
 
 // The low-contrast fixture's patch projection cancels to rounding noise, which differs with the
 // platform's summation order (3e-5 on ARM64). Dropping its recentering raises the error to 1e-3.
@@ -1177,6 +1253,8 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "gemma4uv_low_contrast",
                                            "gemma4ua",
                                            "minicpmv4_6",
+                                           "minicpmv4_7",
+                                           "minicpmv4_7_4x",
                                            "gemma4a",
                                            "deepseekocr",
                                            "deepseekocr2",

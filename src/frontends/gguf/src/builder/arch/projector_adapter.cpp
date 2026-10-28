@@ -14,6 +14,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
@@ -30,7 +31,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
@@ -375,12 +378,80 @@ Models split_merger_layout(const std::shared_ptr<ov::Model>& model) {
     models["vision_embeddings_merger"] = model;
     return models;
 }
+void packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patch, int64_t merge) {
+    require_square_fits(patch, 3, "vision.patch_size");
+    OPENVINO_ASSERT(merge == 2 || merge == 4, "[GGUF] invalid packed-patch merge size");
+    auto pixels = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, patch, -1});
+    auto positions = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+    auto window_index = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+    auto merge_index = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
+    auto grid = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{2});
+    auto zero = v0::Constant::create(ov::element::i64, {}, {0});
+    auto row_index = v0::Constant::create(ov::element::i64, {1}, {0});
+    auto col_index = v0::Constant::create(ov::element::i64, {1}, {1});
+    auto rows = std::make_shared<v8::Gather>(grid, row_index, zero);
+    auto cols = std::make_shared<v8::Gather>(grid, col_index, zero);
+    auto strip_shape = v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{1, 3, patch, -1, patch});
+    auto strip = std::make_shared<v1::Reshape>(pixels, strip_shape, false);
+    auto strip_order = v0::Constant::create(ov::element::i64, {5}, {0, 3, 1, 2, 4});
+    auto reordered = std::make_shared<v1::Transpose>(strip, strip_order);
+    auto packed_shape = v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{-1, 3 * patch * patch});
+    auto packed = std::make_shared<v1::Reshape>(reordered, packed_shape, false);
+    auto image = image_from_patches(packed, rows, cols, patch, false);
+    replace_input(model, "pixel_values", image);
+    auto flat_positions = flat_index(positions);
+    replace_input(model, "position_ids", flat_positions);
+    auto merge_count = std::make_shared<v3::ShapeOf>(merge_index);
+    auto four_steps = v0::Constant::create(ov::element::i64, {1}, {4});
+    for (int64_t i = 0; i < 4; ++i) {
+        auto start = v0::Constant::create(ov::element::i64, {1}, {i});
+        auto index = std::make_shared<v8::Slice>(merge_index, start, merge_count, four_steps, row_index);
+        auto flat = flat_index(index);
+        replace_input(model, "merger.indices." + std::to_string(i), flat);
+    }
+    if (merge == 4) {
+        auto flat_window = flat_index(window_index);
+        replace_input(model, "window_indices", flat_window);
+        auto count = std::make_shared<v3::ShapeOf>(window_index);
+        auto ordered = range(count);
+        auto inverse = std::make_shared<v3::ScatterUpdate>(ordered, window_index, ordered, zero);
+        auto flat_inverse = flat_index(inverse);
+        replace_input(model, "inverse_window_indices", flat_inverse);
+        auto four = v0::Constant::create(ov::element::i64, {}, {4});
+        auto group = std::make_shared<v1::Divide>(ordered, four);
+        auto query_group = std::make_shared<v0::Unsqueeze>(group, col_index);
+        auto key_group = std::make_shared<v0::Unsqueeze>(group, row_index);
+        auto same_group = std::make_shared<v1::Equal>(query_group, key_group);
+        auto visible = v0::Constant::create(ov::element::f32, {}, {0.0f});
+        auto hidden = v0::Constant::create(ov::element::f32, {}, {-std::numeric_limits<float>::infinity()});
+        auto mask = std::make_shared<v1::Select>(same_group, visible, hidden);
+        auto batch_heads = v0::Constant::create(ov::element::i64, {2}, {1, 1});
+        auto mask_shape = std::make_shared<v0::Concat>(ov::OutputVector{batch_heads, count, count}, 0);
+        auto attention_mask = std::make_shared<v1::Reshape>(mask, mask_shape, false);
+        replace_input(model, "attention_mask", attention_mask);
+        for (int64_t i = 0; i < 4; ++i) {
+            auto start = v0::Constant::create(ov::element::i64, {1}, {i});
+            auto index = std::make_shared<v8::Slice>(window_index, start, count, four_steps, row_index);
+            auto flat = flat_index(index);
+            replace_input(model, "vit_merger.indices." + std::to_string(i), flat);
+        }
+    }
+    add_inputs(model,
+               {{"pixel_values", pixels},
+                {"position_ids", positions},
+                {"window_index", window_index},
+                {"merge_index", merge_index},
+                {"patch_grid", grid}});
+    squeeze_output(model);
+}
+
 constexpr std::pair<ProjectorLayout, const char*> layout_names[] = {
     {ProjectorLayout::Unsupported, "unsupported"},
     {ProjectorLayout::Image, "image"},
     {ProjectorLayout::PaddedPatches, "padded_patches"},
     {ProjectorLayout::WindowedPatches, "windowed_patches"},
     {ProjectorLayout::SplitMerger, "split_merger"},
+    {ProjectorLayout::PackedPatches, "packed_patches"},
 };
 
 ProjectorLayout read_projector_layout(const std::shared_ptr<ov::Model>& model) {
@@ -421,6 +492,8 @@ ProjectorLayout builtin_projector_layout(const std::string& projector_type) {
         return ProjectorLayout::WindowedPatches;
     if (projector_type == "qwen3vl_merger")
         return ProjectorLayout::SplitMerger;
+    if (projector_type == "minicpmv4_7")
+        return ProjectorLayout::PackedPatches;
     return ProjectorLayout::Unsupported;
 }
 
@@ -443,6 +516,11 @@ ProjectorModels adapt_projector_layout(const std::shared_ptr<ov::Model>& model) 
         break;
     case ProjectorLayout::SplitMerger:
         return split_merger_layout(model);
+    case ProjectorLayout::PackedPatches:
+        packed_patch_layout(model,
+                            mmproj_int_metadata(model, "vision.patch_size"),
+                            mmproj_int_metadata(model, "vision.merge"));
+        break;
     case ProjectorLayout::Unsupported:
         OPENVINO_THROW("[GGUF] no GenAI vision layout contract");
     }
