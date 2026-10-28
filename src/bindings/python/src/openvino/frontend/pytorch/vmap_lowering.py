@@ -78,9 +78,13 @@ def _preserve_output_aliases(lowered, outputs):
         if isinstance(value, torch.Tensor):
             for traced, original in aliases:
                 if torch._C._is_alias_of(value, traced):
-                    # Keep exported storage identity for views crossing the region boundary.
-                    offset = value.storage_offset() - traced.storage_offset() + original.storage_offset()
-                    return original.as_strided(value.shape, value.stride(), offset)
+                    # Aliases can have different dtypes, so align storage offsets in bytes.
+                    offset_bytes = (value.storage_offset() * value.element_size()
+                                    - traced.storage_offset() * traced.element_size()
+                                    + original.storage_offset() * original.element_size())
+                    return value.new_empty((0,)).set_(original.untyped_storage(),
+                                                     offset_bytes // value.element_size(),
+                                                     value.shape, value.stride())
         return value
 
     for node in lowered.graph.nodes:
@@ -124,6 +128,8 @@ def lower_vmap_regions(module):
         lowered = _trace(torch.fx.GraphModule(result, body_graph), [operand.meta["val"] for operand in operands])
         _preserve_output_aliases(lowered, outputs)
 
+        while hasattr(result, f"_ov_vmap_{ordinal}"):
+            ordinal += 1
         prefix = f"_ov_vmap_{ordinal}"
         ordinal += 1
         result.add_submodule(prefix, lowered)
