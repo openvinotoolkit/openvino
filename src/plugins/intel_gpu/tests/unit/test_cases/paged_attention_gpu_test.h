@@ -839,20 +839,16 @@ struct PagedAttentionManager {
                             // Token base: each token occupies adjusted_head_size bytes (inline comp)
                             const size_t token_base = block_base + static_cast<size_t>(token_idx) * static_cast<size_t>(adjusted_head_size);
 
-                            // Pack pairs of groups: group (g*2) and (g*2+1), each 16 dims wide.
-                            const int num_packed_groups = packed_head_size / 16;
-                            for (int g = 0; g < num_packed_groups; g++) {
-                                for (int lane = 0; lane < 16; lane++) {
-                                    int dim_even = (g * 2) * 16 + lane;
-                                    int dim_odd = (g * 2 + 1) * 16 + lane;
-                                    int q0 = static_cast<int>(std::nearbyint(static_cast<float>(src_ptr[dim_even]) * scale_val + zp_val));
-                                    int q1 = static_cast<int>(std::nearbyint(static_cast<float>(src_ptr[dim_odd]) * scale_val + zp_val));
-                                    q0 = std::max(0, std::min(15, q0));
-                                    q1 = std::max(0, std::min(15, q1));
-                                    uint8_t packed_byte = static_cast<uint8_t>((q0 & 0xFu) | (static_cast<uint8_t>(q1 & 0xFu) << 4));
-                                    const size_t packed_pos = g * 16 + lane;
-                                    set_values(test_stream, memory, &packed_byte, 1, token_base + packed_pos);
-                                }
+                            // Adjacent packing, as pa_kv_cache_update_ref.cl writes it and pa_opt / sdpa_micro read it: byte b
+                            // holds head dim 2b in the low nibble and 2b + 1 in the high one. (Pairing dims d and d + 16, the
+                            // writer's packing before #35231, puts the wrong value in every dim; only a sharp softmax shows it.)
+                            for (int b = 0; b < packed_head_size; b++) {
+                                int q0 = static_cast<int>(std::nearbyint(static_cast<float>(src_ptr[2 * b]) * scale_val + zp_val));
+                                int q1 = static_cast<int>(std::nearbyint(static_cast<float>(src_ptr[2 * b + 1]) * scale_val + zp_val));
+                                q0 = std::max(0, std::min(15, q0));
+                                q1 = std::max(0, std::min(15, q1));
+                                uint8_t packed_byte = static_cast<uint8_t>((q0 & 0xFu) | (static_cast<uint8_t>(q1 & 0xFu) << 4));
+                                set_values(test_stream, memory, &packed_byte, 1, token_base + static_cast<size_t>(b));
                             }
 
                             // Write inline comp: scale (fp16) and zp (fp16) right after packed data
