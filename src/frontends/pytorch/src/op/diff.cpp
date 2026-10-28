@@ -35,7 +35,7 @@ OutputVector translate_diff(const NodeContext& context) {
     if (order == 0) {
         return finish(value);
     }
-    const auto get_value = [&](size_t index) -> Output<Node> {
+    const auto get_value = [&](int index) -> Output<Node> {
         auto input = context.get_input(index);
         if (input.get_element_type().is_static() || ov::is_type<ComplexTypeMark>(input.get_node())) {
             return input;
