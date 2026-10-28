@@ -15,30 +15,6 @@
 namespace ov {
 namespace auto_plugin {
 bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
-    if (m_context->m_dynamic_device_selection) {
-        bool can_retry = false;
-        {
-            std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-            const auto iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
-                cur_dev_name, m_context->m_device_priorities, true);
-            if (iter != m_context->m_device_priorities.end()) {
-                if (m_context->m_device_priorities.size() == 1) {
-                    LOG_WARNING_TAG("[dynamic] inference failed on device:%s, no other device left to retry",
-                                    cur_dev_name.c_str());
-                    return false;
-                }
-                m_context->m_device_priorities.erase(iter);
-                LOG_WARNING_TAG("[dynamic] inference failed on device:%s, exclude it and retry on another device",
-                                cur_dev_name.c_str());
-            }
-            can_retry = !m_context->m_device_priorities.empty();
-        }
-        std::lock_guard<std::mutex> lock(m_gate_mutex);
-        if (m_gate_current_device == cur_dev_name) {
-            m_gate_current_device.clear();
-        }
-        return can_retry;
-    }
     {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         // a recursive function to select other devices
@@ -56,6 +32,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             } else {
                 real_device_name = device_name;
             }
+            const bool low_power_first_failure = check_and_disable_if_low_power_device_failed(real_device_name);
             const auto current_device_iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>
                                              (real_device_name, m_context->m_device_priorities);
             if (current_device_iter != m_context->m_device_priorities.end()) {
@@ -67,7 +44,9 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                 if (is_cpuhelp) {
                     return true;
                 }
-            } else {
+            } else if (!low_power_first_failure) {
+                // an out-of-list low power target is absent from m_device_priorities, but its first failure
+                // still needs a fallback
                 LOG_DEBUG_TAG("Already selected the fallback device");
                 return m_compile_context[FALLBACKDEVICE].m_is_reload_success ? true : false;
             }
@@ -75,12 +54,13 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             m_compile_context[FALLBACKDEVICE].m_is_load_success = false;
             m_compile_context[FALLBACKDEVICE].m_worker_name = "";
             m_compile_context[FALLBACKDEVICE].m_is_reload_success = false;
+            m_compile_context[FALLBACKDEVICE].m_priority_released = false;
             m_compile_context[FALLBACKDEVICE].m_device_info =
                 m_plugin->select_device(m_context->m_device_priorities,
                                         m_compile_context[FALLBACKDEVICE].m_model_precision,
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
-                                        m_context->m_low_power_device);
+                                        (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
             // Keep at most the actual and the fallback compiled models alive.
             if (m_cache_warmup) {
                 m_cache_warmup->stop();
@@ -109,13 +89,28 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
     }
 }
 
+bool AutoSchedule::check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) {
+    if (m_context->m_low_power_device && m_context->m_low_power_device->device_name == failed_device_name &&
+        !m_context->m_low_power_device_unavailable.exchange(true)) {
+        LOG_WARNING_TAG("low_power_device:%s failed, excluding it from future selection",
+                        failed_device_name.c_str());
+        return true;
+    }
+    return false;
+}
+
+DeviceName AutoSchedule::get_dynamic_active_device() {
+    std::lock_guard<std::mutex> lock(m_gate_mutex);
+    return m_gate_current_device;
+}
+
 void AutoSchedule::init() {
     if (m_context->m_bind_buffer) {
         LOG_INFO_TAG("bind buffer supported only under cumulative mode, ignoring");
     }
     if (m_context->m_dynamic_device_selection) {
-        // the model has to stay alive to be compiled on demand once the target device changes
-        m_dynamic_model = m_context->m_model;
+        // snapshot of the graph for on-demand compilation
+        m_dynamic_model = m_context->m_model->clone();
         m_dynamic_executor = m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(
             ov::threading::IStreamsExecutor::Config{"AutoDynamicSchedule", 1, 0});
         LOG_INFO_TAG("[dynamic] device is re-selected for every inference, inference is serialized per compiled model");
@@ -144,7 +139,13 @@ void AutoSchedule::init() {
                                 m_compile_context[ACTUALDEVICE].m_model_precision,
                                 m_context->m_model_priority,
                                 m_context->m_selection_policy,
-                                m_context->m_low_power_device);
+                                (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
+    if (m_context->m_dynamic_device_selection) {
+        // per inference selection does not take part in the model priority arbitration, keep no device reserved
+        m_plugin->unregister_priority(m_context->m_model_priority,
+                                      m_compile_context[ACTUALDEVICE].m_device_info.unique_name);
+        m_compile_context[ACTUALDEVICE].m_priority_released = true;
+    }
 
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);
@@ -431,6 +432,9 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
         context.m_is_load_success = false;
     }
+    if (!context.m_is_load_success) {
+        check_and_disable_if_low_power_device_failed(device);
+    }
     if (context.m_is_load_success || cur_dev_is_cpu) {
         return;
     }
@@ -440,7 +444,10 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     // configure 0 dGPU, 1 NPU, if dGPU compile failed,
     // the result will be not sure, maybe two models are compiled into NPU,
     // maybe 0 is compiled to NPU, 1 is compiled to iGPU
-    m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+    if (!context.m_priority_released) {
+        m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+        context.m_priority_released = true;
+    }
     // remove the current device from device_list
     auto erase_device = deviceChecker().check_and_return_if_device_in_list(device, device_list, true);
     if (erase_device != device_list.end())
@@ -455,16 +462,20 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
                                                         context.m_model_precision,
                                                         m_context->m_model_priority,
                                                         m_context->m_selection_policy,
-                                                        m_context->m_low_power_device);
+                                                        (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
     } catch (const ov::Exception&) {
         return;
     }
+    // select_device() registered the reselected device, so a failure on it has to unregister it again
+    context.m_priority_released = false;
     if (m_context->m_dynamic_device_selection) {
+        m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+        context.m_priority_released = true;
         // the fallback candidate may already be compiled and cached from a previous inference,
         // reuse it instead of paying for a redundant compile_model() call
-        const auto cached_model = m_dynamic_compiled_models.find(context.m_device_info.device_name);
-        if (cached_model != m_dynamic_compiled_models.end()) {
-            context.m_compiled_model = cached_model->second;
+        const auto cached = m_dynamic_compiled_models.find(context.m_device_info.device_name);
+        if (cached != m_dynamic_compiled_models.end()) {
+            context.m_compiled_model = cached->second;
             context.m_is_load_success = true;
             LOG_DEBUG_TAG("[dynamic] device:%s is already compiled, reuse it as fallback",
                           context.m_device_info.device_name.c_str());
@@ -611,25 +622,54 @@ bool AutoSchedule::schedule_dynamic_task(ov::threading::Task pipeline_task, cons
         }
         m_gate_busy = true;
         executor = m_dynamic_executor;
+        ++m_active_dispatch;
     }
     // dispatching is offloaded so that neither start_async() nor the completion callback of a device is blocked
     // by the device re-selection and by the compilation of the model on a newly selected device
-    executor->run([this, task = std::move(pipeline_task), preferred_device]() mutable {
-        dispatch_dynamic_task(std::move(task), preferred_device);
-    });
+    submit_dynamic_dispatch(executor, std::move(pipeline_task), preferred_device);
     return true;
 }
 
-void AutoSchedule::dispatch_dynamic_task(ov::threading::Task pipeline_task, const DeviceName& preferred_device) {
+void AutoSchedule::submit_dynamic_dispatch(const std::shared_ptr<ov::threading::IStreamsExecutor>& executor,
+                                           ov::threading::Task pipeline_task,
+                                           const DeviceName& preferred_device) {
+    executor->run([this, task = std::move(pipeline_task), preferred_device]() mutable {
+        // runs last in this body, so ~AutoSchedule() waiting on it never frees this under a live dispatch;
+        // the task stays owned by the closure so dropping its last reference cannot run ~AutoSchedule() here
+        struct DispatchDone {
+            AutoSchedule* self;
+            ~DispatchDone() {
+                self->end_dynamic_dispatch();
+            }
+        } done{this};
+        dispatch_dynamic_task(task, preferred_device);
+    });
+}
+
+void AutoSchedule::end_dynamic_dispatch() {
+    std::lock_guard<std::mutex> lock(m_gate_mutex);
+    if (--m_active_dispatch == 0) {
+        m_dispatch_done.notify_all();
+    }
+}
+
+void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, const DeviceName& preferred_device) {
     try {
         DeviceInformation device;
         if (!preferred_device.empty()) {
             std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
             const auto iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
                 preferred_device, m_context->m_device_priorities, true);
-            OPENVINO_ASSERT(iter != m_context->m_device_priorities.end(),
-                            "The preferred device should be one of the candidate devices");
-            device = *iter;
+            if (iter != m_context->m_device_priorities.end()) {
+                device = *iter;
+            } else {
+                // a remote tensor of the low power device pins it even though it is not a candidate
+                const auto& low_power = m_context->m_low_power_device;
+                OPENVINO_ASSERT(low_power && !m_context->m_low_power_device_unavailable &&
+                                    low_power->device_name == preferred_device,
+                                "The preferred device should be one of the candidate devices or the low power device");
+                device = *low_power;
+            }
             LOG_DEBUG_TAG("[dynamic] request is pinned to device:%s by a remote tensor, skip device re-selection",
                           device.device_name.c_str());
         } else {
@@ -662,17 +702,23 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task pipeline_task, cons
             }
         }
         m_dynamic_infer_count++;
-        OPENVINO_ASSERT(run_pipeline_task(pipeline_task, m_idle_worker_requests[device_name], device_name),
-                        "[",
-                        get_log_tag(),
-                        "] no idle infer request available on device ",
-                        device_name);
+        const bool dispatched = run_pipeline_task(pipeline_task, m_idle_worker_requests[device_name], device_name);
+        OPENVINO_ASSERT(dispatched, "[", get_log_tag(), "] no idle infer request available on device ", device_name);
+        // a failure to start the request is swallowed by the pipeline and no callback returns the worker, so give
+        // it back here and open the gate
+        if (m_this_worker_infer_request && m_this_worker_infer_request->m_dispatch_failed) {
+            auto* worker = m_this_worker_infer_request;
+            worker->m_dispatch_failed = false;
+            m_idle_worker_requests[device_name].try_push(std::make_pair(worker->m_index, worker));
+            release_execution_slot();
+        }
     } catch (...) {
-        // report the failure through the pipeline, otherwise the request would never complete
-        m_this_scheduling_exception = std::current_exception();
         m_this_worker_infer_request = nullptr;
         release_execution_slot();
+        // report the failure through the pipeline, otherwise the request would never complete; the task is gone
+        // once it has been dispatched, so the exception must not be left behind on this thread in that case
         if (pipeline_task) {
+            m_this_scheduling_exception = std::current_exception();
             pipeline_task();
         }
     }
@@ -689,10 +735,9 @@ DeviceInformation AutoSchedule::select_dynamic_device() {
                                         m_context->m_model_precision,
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
-                                        m_context->m_low_power_device);
+                                        (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
     }
-    // select_device registers the picked device under the model priority, only the registration done when the model
-    // was compiled must survive, so the transient one added by this per inference selection is dropped right away
+    // select_device() registers the picked device, dynamic selection keeps no reservation
     m_plugin->unregister_priority(m_context->m_model_priority, device.unique_name);
     LOG_DEBUG_TAG("[dynamic] re-selected device:%s in %lf ms",
                   device.device_name.c_str(),
@@ -713,29 +758,40 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         context.m_meta_devices = m_context->m_device_priorities;
     }
+    const auto candidate_devices = context.m_meta_devices;
     LOG_INFO_TAG("[dynamic] device:%s is used for the first time, compiling the model", device.device_name.c_str());
+    // select_dynamic_device() already dropped the registration of the requested device
+    context.m_priority_released = true;
     try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
     const bool fell_back_to_other_device = context.m_device_info.device_name != requested_device_name;
-    if (fell_back_to_other_device || !context.m_is_load_success) {
-        // the requested device failed to compile (try_to_compile_model() may have silently fallen back to
-        // another one); exclude it from the shared candidate list so future inferences stop retrying it
-        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-        const auto iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
-            requested_device_name, m_context->m_device_priorities, true);
-        if (iter != m_context->m_device_priorities.end()) {
-            m_context->m_device_priorities.erase(iter);
-            LOG_WARNING_TAG("[dynamic] device:%s failed to compile, excluding it from future selection",
-                            requested_device_name.c_str());
+    // try_to_compile_model() drops every device that failed to compile from its own candidate list
+    std::vector<std::string> failed_devices;
+    for (const auto& candidate : candidate_devices) {
+        const auto remaining = std::find_if(context.m_meta_devices.begin(),
+                                            context.m_meta_devices.end(),
+                                            [&candidate](const DeviceInformation& remaining_device) {
+                                                return remaining_device.device_name == candidate.device_name;
+                                            });
+        if (remaining == context.m_meta_devices.end()) {
+            failed_devices.push_back(candidate.device_name);
         }
     }
-    if (fell_back_to_other_device) {
-        // try_to_compile_model() internally reselected and registered a fallback device on compile
-        // failure; drop that registration right away, same as the primary per inference selection above,
-        // regardless of whether that fallback device itself ended up compiling successfully. Doing this
-        // before the early return below matters: some fallback paths (e.g. reusing an already loaded CPU
-        // context) leave m_is_load_success false without ever retrying, and skipping the cleanup would
-        // leak the registration and keep the device reserved for this schedule indefinitely.
-        m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+    if ((fell_back_to_other_device || !context.m_is_load_success) &&
+        std::find(failed_devices.begin(), failed_devices.end(), requested_device_name) == failed_devices.end()) {
+        failed_devices.push_back(requested_device_name);
+    }
+    if (!failed_devices.empty()) {
+        // exclude them from the shared candidate list so future inferences stop retrying them
+        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        for (const auto& failed_device : failed_devices) {
+            const auto iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
+                failed_device, m_context->m_device_priorities, true);
+            if (iter != m_context->m_device_priorities.end()) {
+                m_context->m_device_priorities.erase(iter);
+                LOG_WARNING_TAG("[dynamic] device:%s failed to compile, excluding it from future selection",
+                                failed_device.c_str());
+            }
+        }
     }
     if (!context.m_is_load_success) {
         LOG_WARNING_TAG("[dynamic] compiling the model on device:%s failed, %s",
@@ -792,6 +848,7 @@ void AutoSchedule::release_execution_slot() {
             m_gate_pending_tasks.pop_front();
             m_gate_busy = true;
             executor = m_dynamic_executor;
+            ++m_active_dispatch;
         }
     }
     if (!next.first) {
@@ -799,9 +856,7 @@ void AutoSchedule::release_execution_slot() {
         return;
     }
     LOG_DEBUG_TAG("[dynamic] inference finished, dispatching the next queued request");
-    executor->run([this, task = std::move(next.first), device = std::move(next.second)]() mutable {
-        dispatch_dynamic_task(std::move(task), device);
-    });
+    submit_dynamic_dispatch(executor, std::move(next.first), next.second);
 }
 
 AutoSchedule::~AutoSchedule() {
@@ -809,9 +864,13 @@ AutoSchedule::~AutoSchedule() {
     {
         // serialize with schedule_dynamic_task()/release_execution_slot(), which read/snapshot
         // m_dynamic_executor under the same lock, so none of them races with resetting it below
-        std::lock_guard<std::mutex> lock(m_gate_mutex);
+        std::unique_lock<std::mutex> lock(m_gate_mutex);
         m_dynamic_shutdown = true;
         dynamic_executor = std::move(m_dynamic_executor);
+        // in-flight dispatch tasks hold a raw this and may still finish a failed request, so drain them first
+        m_dispatch_done.wait(lock, [this] {
+            return m_active_dispatch == 0;
+        });
     }
     if (dynamic_executor) {
         LOG_INFO_TAG("[dynamic] total inference:%zu, device switch:%zu",
@@ -836,7 +895,7 @@ AutoSchedule::~AutoSchedule() {
     if (m_cache_warmup) {
         m_cache_warmup->stop();
     }
-    if (m_plugin)
+    if (m_plugin && !m_context->m_dynamic_device_selection)
         m_plugin->unregister_priority(m_context->m_model_priority,
                                       m_compile_context[ACTUALDEVICE].m_device_info.unique_name);
     if (m_context) {

@@ -5,7 +5,11 @@
 #include "include/auto_unit_test.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/threading/immediate_executor.hpp"
 
+#include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 
@@ -29,6 +33,62 @@ std::shared_ptr<ov::Model> create_stateful_model() {
     res->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
 }
+
+// Fails the first start_async() calls the way a device does when it cannot accept a request.
+class FailingStartAsyncRequest : public ov::IAsyncInferRequest {
+public:
+    FailingStartAsyncRequest(const std::shared_ptr<ov::IInferRequest>& request,
+                             const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                             const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor,
+                             const std::shared_ptr<std::atomic<int>>& failures)
+        : ov::IAsyncInferRequest(request, task_executor, callback_executor),
+          m_failures(failures) {}
+
+    void start_async() override {
+        if (m_failures->load() > 0) {
+            --(*m_failures);
+            OPENVINO_THROW("mock start_async failure");
+        }
+        ov::IAsyncInferRequest::start_async();
+    }
+
+private:
+    std::shared_ptr<std::atomic<int>> m_failures;
+};
+
+// Carries nothing but the name of the device it was created on.
+class DeviceTaggedRemoteTensor : public ov::IRemoteTensor {
+public:
+    DeviceTaggedRemoteTensor(const std::string& device_name, const ov::element::Type& type, const ov::Shape& shape)
+        : m_device_name(device_name),
+          m_element_type(type),
+          m_shape(shape) {}
+
+    const ov::AnyMap& get_properties() const override {
+        return m_properties;
+    }
+    const std::string& get_device_name() const override {
+        return m_device_name;
+    }
+    void set_shape(ov::Shape) override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+    const ov::element::Type& get_element_type() const override {
+        return m_element_type;
+    }
+    const ov::Shape& get_shape() const override {
+        return m_shape;
+    }
+    const ov::Strides& get_strides() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+private:
+    ov::AnyMap m_properties;
+    std::string m_device_name;
+    ov::element::Type m_element_type;
+    ov::Shape m_shape;
+};
 }  // namespace
 
 // Covers the per inference device selection which AUTO turns on as soon as one of the resource aware
@@ -83,7 +143,39 @@ public:
         }
     }
 
-    size_t m_select_device_count = 0;
+    // GPU.0 looks fine until the flag is raised, which forces the per inference target off it.
+    void mock_gpu0_over_threshold(const std::shared_ptr<std::atomic<bool>>& over_threshold) {
+        ON_CALL(*plugin, get_device_utilizations)
+            .WillByDefault([over_threshold](const std::list<DeviceInformation>& devices) {
+                std::unordered_map<std::string, float> result;
+                if (*over_threshold) {
+                    for (const auto& device : devices) {
+                        if (device.device_name == "GPU.0") {
+                            result[device.device_name] = 95.0f;
+                        }
+                    }
+                }
+                return result;
+            });
+    }
+
+    // The per inference selection takes no part in the model priority arbitration: no device stays reserved, so a
+    // lower priority instance can pick any of them.
+    void expect_no_device_reserved(const std::vector<std::string>& device_names) {
+        ASSERT_GT(device_names.size(), 1u);
+        ov::auto_plugin::DeviceSelectionPolicy empty_policy;
+        for (size_t i = 0; i < device_names.size(); i++) {
+            const auto& device_name = device_names[i];
+            const auto& other_name = device_names[(i + 1) % device_names.size()];
+            auto devices = plugin->Plugin::parse_meta_devices(device_name + "," + other_name, config);
+            DeviceInformation result;
+            OV_ASSERT_NO_THROW(result = plugin->Plugin::select_device(devices, "FP32", 2, empty_policy, {}));
+            EXPECT_EQ(result.device_name, device_name);
+            plugin->unregister_priority(2, result.unique_name);
+        }
+    }
+
+    std::atomic<size_t> m_select_device_count{0};
 };
 
 TEST_F(AutoDynamicDeviceSelectionTest, disabled_by_default_keeps_more_than_one_worker) {
@@ -188,6 +280,32 @@ TEST_F(AutoDynamicDeviceSelectionTest, compile_failure_falls_back_to_the_cached_
     run_inferences(compiled_model, 2);
 }
 
+TEST_F(AutoDynamicDeviceSelectionTest, fallback_onto_a_cached_device_does_not_compile_it_again) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(ov::Throw("mock compile failure"));
+    // initial device, the device picked for the first inference, then the fallback after GPU.1 fails to compile
+    expect_selected_devices({"GPU.0", "GPU.1", "GPU.0"});
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .Times(1);
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .Times(1);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 1);
+}
+
 // A single worker per device used to be forbidden because the classic schedule could stall, the execution gate
 // makes it safe again, so a long sequence of inferences must keep completing.
 TEST_F(AutoDynamicDeviceSelectionTest, repeated_inferences_with_a_single_worker_do_not_stall) {
@@ -222,6 +340,10 @@ TEST_F(AutoDynamicDeviceSelectionTest, stateful_model_with_a_single_candidate_di
     config.erase(ov::device::priorities.name());
     config.insert(ov::device::priorities("GPU.0"));
     model = create_stateful_model();
+    // the GPU mock was built around the default model; rebind its ports and sync request to the stateful one
+    ON_CALL(*mockIExeNetActual.get(), inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+    ON_CALL(*mockIExeNetActual.get(), outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+    inferReqInternalActual = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
     config.insert(ov::intel_auto::low_power_device("CPU"));
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
@@ -231,74 +353,55 @@ TEST_F(AutoDynamicDeviceSelectionTest, stateful_model_with_a_single_candidate_di
     run_inferences(compiled_model, 3);
 }
 
-// Reproduces try_to_compile_model()'s on-demand fallback: the per inference target (GPU.1)
-// fails to compile, so try_to_compile_model() internally re-selects and successfully compiles
-// CPU. Note the failing device cannot be CPU itself: try_to_compile_model() deliberately skips
-// the fallback re-selection when the device that just failed is CPU (it is already the last
-// resort). ensure_device_ready() must release CPU's process-wide priority registration once it
-// becomes the active dynamic worker, otherwise CPU stays reserved under our model's priority
-// and a lower priority AUTO instance can never select it.
-TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_after_a_successful_retry) {
+// A stateful model with a single candidate must keep startup/runtime fallback disabled, even though the
+// single candidate returns early from filter_device_by_model(). Explicitly enabled fallbacks must not survive.
+TEST_F(AutoDynamicDeviceSelectionTest, stateful_single_candidate_disables_startup_and_runtime_fallback) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0"));
+    model = create_stateful_model();
+    config.insert(ov::intel_auto::low_power_device(ov::test::utils::DEVICE_CPU));
+    config.insert(ov::intel_auto::enable_startup_fallback(true));
+    config.insert(ov::intel_auto::enable_runtime_fallback(true));
+    // the mocked GPU model is rebound to the stateful one, so the passthrough schedule can serve requests
+    ON_CALL(*mockIExeNetActual.get(), inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+    ON_CALL(*mockIExeNetActual.get(), outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+    inferReqInternalActual = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    // stateful: no per inference selection
+    EXPECT_CALL(*plugin, select_device).Times(0);
+    run_inferences(compiled_model, 3);
+}
+
+// Regression for ensure_device_ready(): the fallback device chosen while compiling on demand must not stay reserved.
+TEST_F(AutoDynamicDeviceSelectionTest, no_device_is_reserved_after_a_successful_fallback) {
     // overwrite the GPU.0,CPU priorities inserted by SetUp(): ov::AnyMap::insert() keeps the first entry
     config.erase(ov::device::priorities.name());
     config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
-    config.insert(ov::hint::model_priority(ov::hint::Priority::HIGH));
     config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
-
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
                           _))
         .WillByDefault(ov::Throw("mock compile failure"));
-
-    // GPU.0 (the initial ACTUALDEVICE) looks fine while the model is compiled; it is only
-    // pushed over its threshold once inferences start, forcing the per inference target off it.
-    std::atomic<bool> gpu0_over_threshold{false};
-    ON_CALL(*plugin, get_device_utilizations)
-        .WillByDefault([&gpu0_over_threshold](const std::list<DeviceInformation>& devices) {
-            std::unordered_map<std::string, float> result;
-            if (gpu0_over_threshold) {
-                for (const auto& device : devices) {
-                    if (device.device_name == "GPU.0") {
-                        result[device.device_name] = 95.0f;
-                    }
-                }
-            }
-            return result;
-        });
+    auto gpu0_over_threshold = std::make_shared<std::atomic<bool>>(false);
+    mock_gpu0_over_threshold(gpu0_over_threshold);
 
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
-
-    gpu0_over_threshold = true;
+    gpu0_over_threshold->store(true);
     run_inferences(compiled_model, 1);
+    expect_no_device_reserved({"GPU.0", "GPU.1", ov::test::utils::DEVICE_CPU});
 
-    // A lower priority AUTO instance querying the fallback device must still be able to select
-    // it: with the leak, CPU would still be reserved under our HIGH priority model and GPU.1
-    // would be picked instead (even though GPU.1's compile attempt actually failed).
-    auto verification_devices = plugin->Plugin::parse_meta_devices("CPU,GPU.1", config);
-    ov::auto_plugin::DeviceSelectionPolicy empty_policy;
-    DeviceInformation result;
-    OV_ASSERT_NO_THROW(
-        result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, {}));
-    EXPECT_EQ(result.device_name, ov::test::utils::DEVICE_CPU);
-    plugin->unregister_priority(2, result.unique_name);
+    compiled_model.reset();
+    expect_no_device_reserved({"GPU.0", "GPU.1", ov::test::utils::DEVICE_CPU});
 }
 
-// Regression for ensure_device_ready(): unlike the successful retry case above, the fallback
-// device's compile can itself fail. try_to_compile_model() bails out immediately without
-// unregistering once the device it just attempted is CPU (it is already the last resort, so
-// there is nothing left to cascade to), regardless of whether that attempt actually succeeded.
-// ensure_device_ready() must still release CPU's process-wide priority registration in that
-// case, otherwise CPU stays reserved under our model's priority forever even though nothing
-// ever successfully compiled or ran on it.
-TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_after_a_failed_retry) {
-    // overwrite the GPU.0,CPU priorities inserted by SetUp(): ov::AnyMap::insert() keeps the first entry
+// Regression for ensure_device_ready(): a fallback device whose compile fails too must not stay reserved either.
+TEST_F(AutoDynamicDeviceSelectionTest, no_device_is_reserved_after_a_failed_fallback) {
     config.erase(ov::device::priorities.name());
     config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
-    config.insert(ov::hint::model_priority(ov::hint::Priority::HIGH));
     config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
-
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                           ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
@@ -309,41 +412,50 @@ TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_afte
                           ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
                           _))
         .WillByDefault(ov::Throw("mock compile failure on CPU"));
-
-    // GPU.0 (the initial ACTUALDEVICE) looks fine while the model is compiled; it is only
-    // pushed over its threshold once inferences start, forcing the per inference target off it.
-    std::atomic<bool> gpu0_over_threshold{false};
-    ON_CALL(*plugin, get_device_utilizations)
-        .WillByDefault([&gpu0_over_threshold](const std::list<DeviceInformation>& devices) {
-            std::unordered_map<std::string, float> result;
-            if (gpu0_over_threshold) {
-                for (const auto& device : devices) {
-                    if (device.device_name == "GPU.0") {
-                        result[device.device_name] = 95.0f;
-                    }
-                }
-            }
-            return result;
-        });
+    auto gpu0_over_threshold = std::make_shared<std::atomic<bool>>(false);
+    mock_gpu0_over_threshold(gpu0_over_threshold);
 
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
-
-    gpu0_over_threshold = true;
+    gpu0_over_threshold->store(true);
     std::shared_ptr<ov::IAsyncInferRequest> infer_request;
     OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
     EXPECT_THROW(infer_request->infer(), ov::Exception);
+    expect_no_device_reserved({"GPU.0", "GPU.1", ov::test::utils::DEVICE_CPU});
+}
 
-    // A lower priority AUTO instance querying CPU must still be able to select it: with the
-    // leak, CPU would still be reserved under our HIGH priority model even though nothing
-    // actually compiled or is running on it.
-    auto verification_devices = plugin->Plugin::parse_meta_devices("CPU", config);
-    ov::auto_plugin::DeviceSelectionPolicy empty_policy;
-    DeviceInformation result;
-    OV_ASSERT_NO_THROW(
-        result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, {}));
-    EXPECT_EQ(result.device_name, ov::test::utils::DEVICE_CPU);
-    plugin->unregister_priority(2, result.unique_name);
+// Regression for try_to_compile_model(): the configured low_power_device is a standing override
+// that is force-selected even when it is not part of the configured device priorities (see
+// SelectDeviceWithLowPowerDevicePrecedenceTest::lowPowerDeviceSelectedEvenWhenNotInCandidateList).
+// If that forced device fails to compile, try_to_compile_model() used to reselect with the same
+// low_power_device argument, which forced the very same failing device back in and recursed on it
+// forever instead of falling back to the configured device priorities.
+TEST_F(AutoDynamicDeviceSelectionTest, low_power_device_failure_falls_back_instead_of_looping_forever) {
+    // GPU.1 is never part of the configured priorities ("GPU.0,CPU" from SetUp()), so it can only
+    // be selected through the low_power_device override.
+    config.insert(ov::intel_auto::low_power_device("GPU.1"));
+    ON_CALL(*plugin, get_low_power_mode()).WillByDefault(Return(true));
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                              _))
+        .Times(1)
+        .WillOnce(ov::Throw("mock compile failure on GPU.1"));
+    // once GPU.1 is excluded, compilation must fall back to the configured device priorities (GPU.0)
+    // instead of forcing GPU.1 again and recursing forever.
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              _))
+        .Times(1)
+        .WillOnce(Return(mockExeNetworkActual));
+    EXPECT_CALL(*mockIExeNetActual.get(), create_infer_request()).WillRepeatedly([this]() {
+        return mockIExeNetActual->ICompiledModel::create_infer_request();
+    });
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 1);
 }
 
 // Reproduces schedule_dynamic_task()'s queueing path: while one dynamic inference is still
@@ -405,7 +517,7 @@ TEST_F(AutoDynamicDeviceSelectionTest, concurrent_requests_are_queued_and_dispat
     // the execution gate is held by the still-dispatching first request, so this must be
     // queued in m_gate_pending_tasks rather than dispatched (or dropped) right away.
     OV_ASSERT_NO_THROW(second_request->start_async());
-    EXPECT_EQ(m_select_device_count, 2u);
+    EXPECT_EQ(m_select_device_count.load(), 2u);
 
     {
         std::lock_guard<std::mutex> lock(mtx);
@@ -415,5 +527,486 @@ TEST_F(AutoDynamicDeviceSelectionTest, concurrent_requests_are_queued_and_dispat
 
     OV_ASSERT_NO_THROW(first_request->wait());
     OV_ASSERT_NO_THROW(second_request->wait());
-    EXPECT_EQ(m_select_device_count, 3u);
+    EXPECT_EQ(m_select_device_count.load(), 3u);
+}
+
+// The low_power_device override must be dropped once its on-demand compilation fails, otherwise every
+// following inference keeps selecting the failed device instead of the working one.
+TEST_F(AutoDynamicDeviceSelectionTest, low_power_device_compile_failure_disables_the_override) {
+    config.insert(ov::intel_auto::low_power_device(ov::test::utils::DEVICE_CPU));
+    auto low_power_mode = std::make_shared<std::atomic<bool>>(false);
+    ON_CALL(*plugin, get_low_power_mode()).WillByDefault([low_power_mode]() {
+        return std::optional<bool>(low_power_mode->load());
+    });
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                          _))
+        .WillByDefault(ov::Throw("mock compile failure on CPU"));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    low_power_mode->store(true);
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    EXPECT_THROW(infer_request->infer(), ov::Exception);
+    OV_ASSERT_NO_THROW(infer_request->infer());
+}
+
+// The reservation another model holds on the failing device must survive the failed on-demand compile.
+TEST_F(AutoDynamicDeviceSelectionTest, failed_on_demand_compile_keeps_the_reservation_of_another_model) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(ov::Throw("mock compile failure"));
+    auto gpu0_over_threshold = std::make_shared<std::atomic<bool>>(false);
+    mock_gpu0_over_threshold(gpu0_over_threshold);
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    // another AUTO model with the default (MEDIUM) priority is running on GPU.1
+    const auto gpu1 = plugin->Plugin::parse_meta_devices("GPU.1", config).front();
+    plugin->register_priority(1, gpu1.unique_name);
+
+    gpu0_over_threshold->store(true);
+    run_inferences(compiled_model, 1);
+
+    // GPU.1 is still reserved by the other model, so a lower priority instance must not get it
+    auto verification_devices = plugin->Plugin::parse_meta_devices("GPU.1,CPU", config);
+    ov::auto_plugin::DeviceSelectionPolicy empty_policy;
+    DeviceInformation result;
+    OV_ASSERT_NO_THROW(result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, {}));
+    EXPECT_EQ(result.device_name, ov::test::utils::DEVICE_CPU);
+    plugin->unregister_priority(2, result.unique_name);
+    plugin->unregister_priority(1, gpu1.unique_name);
+}
+
+// AUTO/MULTI as low_power_device would make the plugin compile itself again and again.
+TEST_F(AutoDynamicDeviceSelectionTest, meta_device_as_low_power_device_is_rejected) {
+    ON_CALL(*plugin, is_meta_device).WillByDefault([this](const std::string& priorities) {
+        return plugin->Plugin::is_meta_device(priorities);
+    });
+    for (const auto* meta_device : {"AUTO", "MULTI:CPU"}) {
+        auto properties = config;
+        properties.insert(ov::intel_auto::low_power_device(meta_device));
+        EXPECT_THROW(plugin->compile_model(model, properties), ov::Exception) << meta_device;
+    }
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, explicit_startup_fallback_is_rejected) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    config.insert(ov::intel_auto::enable_startup_fallback(true));
+    EXPECT_THROW(plugin->compile_model(model, config), ov::Exception);
+}
+
+// With a single candidate there is nothing to switch to, so the passthrough schedule must be kept.
+TEST_F(AutoDynamicDeviceSelectionTest, single_candidate_device_disables_dynamic_selection) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    // only the selection done while compiling the model, none per inference
+    EXPECT_CALL(*plugin, select_device).Times(1);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 3);
+}
+
+// A low power device out of the candidate list is still something to switch to.
+TEST_F(AutoDynamicDeviceSelectionTest, low_power_device_out_of_a_single_candidate_enables_dynamic_selection) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0"));
+    config.insert(ov::intel_auto::low_power_device(ov::test::utils::DEVICE_CPU));
+    constexpr size_t infer_num = 3;
+    EXPECT_CALL(*plugin, select_device).Times(1 + infer_num);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, infer_num);
+}
+
+// The per inference selection serializes the inferences, so THROUGHPUT is not honored and the properties are ignored.
+TEST_F(AutoDynamicDeviceSelectionTest, throughput_hint_disables_dynamic_selection) {
+    config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
+    config.insert(ov::intel_auto::enable_startup_fallback(false));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    EXPECT_CALL(*plugin, select_device).Times(1);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 3);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, optimal_number_of_infer_requests_is_one) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
+        .WillByDefault(Return(ov::Any(4u)));
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_EQ(compiled_model->get_property(ov::optimal_number_of_infer_requests.name()).as<unsigned int>(), 1u);
+}
+
+// The only worker of a device must be given back when its request cannot be started, otherwise the execution
+// gate stays closed and every following inference is queued forever.
+TEST_F(AutoDynamicDeviceSelectionTest, failure_to_start_a_request_does_not_block_following_inferences) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    auto failures = std::make_shared<std::atomic<int>>(1);
+    ON_CALL(*mockIExeNetActual.get(), create_infer_request()).WillByDefault([this, failures]() {
+        return std::static_pointer_cast<ov::IAsyncInferRequest>(
+            std::make_shared<FailingStartAsyncRequest>(inferReqInternalActual,
+                                                       std::make_shared<ov::threading::ImmediateExecutor>(),
+                                                       nullptr,
+                                                       failures));
+    });
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    std::shared_ptr<ov::IAsyncInferRequest> failed_request;
+    OV_ASSERT_NO_THROW(failed_request = compiled_model->create_infer_request());
+    EXPECT_THROW(failed_request->infer(), ov::Exception);
+
+    std::shared_ptr<ov::IAsyncInferRequest> next_request;
+    OV_ASSERT_NO_THROW(next_request = compiled_model->create_infer_request());
+    OV_ASSERT_NO_THROW(next_request->start_async());
+    EXPECT_TRUE(next_request->wait_for(std::chrono::seconds(10)));
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, no_device_is_reserved_while_switching_devices) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(Return(mockExeNetworkActual));
+    auto gpu0_over_threshold = std::make_shared<std::atomic<bool>>(false);
+    mock_gpu0_over_threshold(gpu0_over_threshold);
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    expect_no_device_reserved({"GPU.0", "GPU.1"});
+    gpu0_over_threshold->store(true);
+    run_inferences(compiled_model, 1);
+    expect_no_device_reserved({"GPU.0", "GPU.1"});
+}
+
+
+TEST_F(AutoDynamicDeviceSelectionTest, execution_devices_follows_the_active_device) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(Return(mockExeNetworkActual));
+    auto gpu0_over_threshold = std::make_shared<std::atomic<bool>>(false);
+    mock_gpu0_over_threshold(gpu0_over_threshold);
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    const auto execution_devices = [&compiled_model] {
+        return compiled_model->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+    };
+    EXPECT_EQ(execution_devices(), std::vector<std::string>{"GPU.0"});
+
+    gpu0_over_threshold->store(true);
+    run_inferences(compiled_model, 1);
+    EXPECT_EQ(execution_devices(), std::vector<std::string>{"GPU.1"});
+}
+
+// The low power device may sit outside the candidates: a tensor created on it still has to pin the request there.
+TEST_F(AutoDynamicDeviceSelectionTest, remote_tensor_of_an_out_of_list_low_power_device_is_accepted) {
+    config.insert(ov::intel_auto::low_power_device("GPU.1"));
+    ON_CALL(*plugin, get_low_power_mode()).WillByDefault(Return(true));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(Return(mockExeNetworkActual));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    const auto input = compiled_model->inputs().at(0);
+    auto remote_tensor = std::make_shared<DeviceTaggedRemoteTensor>("GPU.1", input.get_element_type(), input.get_shape());
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    OV_ASSERT_NO_THROW(infer_request->set_tensor(input, ov::SoPtr<ov::ITensor>{remote_tensor, nullptr}));
+    OV_ASSERT_NO_THROW(infer_request->start_async());
+    OV_ASSERT_NO_THROW(infer_request->wait());
+}
+
+// A remote output tensor pins the request to its device, the same way a remote input does.
+TEST_F(AutoDynamicDeviceSelectionTest, remote_output_tensor_pins_the_request_to_its_device) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(Return(mockExeNetworkActual));
+    // only the selection done while compiling the model: a pinned request skips the per inference selection
+    EXPECT_CALL(*plugin, select_device).Times(1);
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    const auto output = compiled_model->outputs().at(0);
+    auto remote_tensor =
+        std::make_shared<DeviceTaggedRemoteTensor>("GPU.1", output.get_element_type(), output.get_shape());
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    OV_ASSERT_NO_THROW(infer_request->set_tensor(output, ov::SoPtr<ov::ITensor>{remote_tensor, nullptr}));
+    OV_ASSERT_NO_THROW(infer_request->start_async());
+    OV_ASSERT_NO_THROW(infer_request->wait());
+}
+
+// The request can only run on one device, so remote tensors from different devices cannot be mixed.
+TEST_F(AutoDynamicDeviceSelectionTest, remote_input_and_output_tensors_of_different_devices_are_rejected) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    const auto input = compiled_model->inputs().at(0);
+    const auto output = compiled_model->outputs().at(0);
+    auto remote_input =
+        std::make_shared<DeviceTaggedRemoteTensor>("GPU.0", input.get_element_type(), input.get_shape());
+    auto remote_output =
+        std::make_shared<DeviceTaggedRemoteTensor>("GPU.1", output.get_element_type(), output.get_shape());
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    OV_ASSERT_NO_THROW(infer_request->set_tensor(input, ov::SoPtr<ov::ITensor>{remote_input, nullptr}));
+    OV_ASSERT_NO_THROW(infer_request->set_tensor(output, ov::SoPtr<ov::ITensor>{remote_output, nullptr}));
+    OV_ASSERT_NO_THROW(infer_request->start_async());
+    EXPECT_THROW(infer_request->wait(), ov::Exception);
+}
+
+// Per inference selection is off here (THROUGHPUT), so the legacy runtime fallback handles the failure. The low power
+// device sits outside the candidates, so its very first failure must still fall back to the configured priorities.
+TEST_F(AutoDynamicDeviceSelectionTest, out_of_list_low_power_device_first_failure_falls_back_at_runtime) {
+    config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
+    config.insert(ov::intel_auto::enable_startup_fallback(false));
+    config.insert(ov::intel_auto::enable_runtime_fallback(true));
+    config.insert(ov::intel_auto::low_power_device("GPU.1"));
+    ON_CALL(*plugin, get_low_power_mode()).WillByDefault(Return(true));
+
+    auto mock_gpu1 = std::make_shared<NiceMock<ov::MockICompiledModel>>(model, plugin);
+    ON_CALL(*mock_gpu1, inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
+    ON_CALL(*mock_gpu1, outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
+    ON_CALL(*mock_gpu1, get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
+        .WillByDefault(Return(optimalNum));
+    auto executor = std::make_shared<ov::threading::ImmediateExecutor>();
+    // a weak reference avoids a cycle through the mock's own action, which gmock would report as a leak
+    ON_CALL(*mock_gpu1, create_infer_request()).WillByDefault([weak_gpu1 = std::weak_ptr(mock_gpu1), executor]() {
+        auto sync_request = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(weak_gpu1.lock());
+        return std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(sync_request, executor, nullptr, true);
+    });
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(Return(ov::SoPtr<ov::ICompiledModel>{mock_gpu1, {}}));
+    ON_CALL(*mockIExeNetActual.get(), create_infer_request()).WillByDefault([this]() {
+        return mockIExeNetActual->ICompiledModel::create_infer_request();
+    });
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    auto infer_request = compiled_model->create_infer_request();
+    OV_ASSERT_NO_THROW(infer_request->infer());
+
+    // the priority map is process-wide, do not leave the reservation of the fallback device to the following tests
+    infer_request.reset();
+    compiled_model.reset();
+    plugin->unregister_priority(1, plugin->Plugin::parse_meta_devices("GPU.0", config).front().unique_name);
+}
+
+// Every candidate fails to compile in turn, so the cascade runs out of devices and ends on the cached GPU.0.
+TEST_F(AutoDynamicDeviceSelectionTest, exhausted_compile_cascade_reserves_no_device) {
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1,GPU.2"));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    auto gpu0_compile_fails = std::make_shared<std::atomic<bool>>(false);
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                          _))
+        .WillByDefault([this, gpu0_compile_fails](const std::shared_ptr<const ov::Model>&,
+                                                  const std::string&,
+                                                  const ov::AnyMap&) -> ov::SoPtr<ov::ICompiledModel> {
+            if (gpu0_compile_fails->load()) {
+                OPENVINO_THROW("mock compile failure on GPU.0");
+            }
+            return mockExeNetworkActual;
+        });
+    for (const auto* device : {"GPU.1", "GPU.2"}) {
+        ON_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(device)),
+                              _))
+            .WillByDefault(ov::Throw("mock compile failure"));
+    }
+    // every device is compiled exactly once, GPU.0 when the model is loaded and the failed ones on demand
+    for (const auto* device : {"GPU.0", "GPU.1", "GPU.2"}) {
+        EXPECT_CALL(*core,
+                    compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                                  ::testing::Matcher<const std::string&>(StrEq(device)),
+                                  ::testing::Matcher<const ov::AnyMap&>(_)))
+            .Times(1);
+    }
+    auto gpu0_over_threshold = std::make_shared<std::atomic<bool>>(false);
+    mock_gpu0_over_threshold(gpu0_over_threshold);
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    gpu0_compile_fails->store(true);
+    gpu0_over_threshold->store(true);
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    // GPU.1 and GPU.2 fail to compile, the cascade ends on the cached GPU.0 which must not be compiled again
+    OV_ASSERT_NO_THROW(infer_request->infer());
+    // both failed devices are excluded, so neither of them is compiled again
+    OV_ASSERT_NO_THROW(infer_request->infer());
+    expect_no_device_reserved({"GPU.0", "GPU.1", "GPU.2"});
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, explicit_runtime_fallback_is_rejected) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    config.insert(ov::intel_auto::enable_runtime_fallback(true));
+    EXPECT_THROW(plugin->compile_model(model, config), ov::Exception);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, disabled_runtime_fallback_is_accepted) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    config.insert(ov::intel_auto::enable_runtime_fallback(false));
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 1);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, explicit_model_priority_is_rejected) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    config.insert(ov::hint::model_priority(ov::hint::Priority::HIGH));
+    EXPECT_THROW(plugin->compile_model(model, config), ov::Exception);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, more_than_one_stream_is_rejected) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    config.insert(ov::num_streams(2));
+    EXPECT_THROW(plugin->compile_model(model, config), ov::Exception);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, single_stream_is_accepted) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    config.insert(ov::num_streams(1));
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 1);
+}
+
+// Without the per inference selection these properties keep their usual meaning.
+TEST_F(AutoDynamicDeviceSelectionTest, fallback_priority_and_streams_are_accepted_without_resource_aware_properties) {
+    config.insert(ov::intel_auto::enable_runtime_fallback(true));
+    config.insert(ov::hint::model_priority(ov::hint::Priority::HIGH));
+    config.insert(ov::num_streams(2));
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+}
+
+// A failed inference is reported to the caller, it is not retried on another device and it does not block the gate.
+TEST_F(AutoDynamicDeviceSelectionTest, inference_failure_is_reported_instead_of_retried_on_another_device) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    auto executor = std::make_shared<ov::threading::ImmediateExecutor>();
+    ON_CALL(*mockIExeNetActual.get(), create_infer_request()).WillByDefault([this, executor]() {
+        auto sync_request = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
+        return std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(sync_request, executor, nullptr, true);
+    });
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              _))
+        .WillRepeatedly(Return(mockExeNetworkActual));
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _))
+        .Times(0);
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    auto infer_request = compiled_model->create_infer_request();
+    EXPECT_THROW(infer_request->infer(), ov::Exception);
+    EXPECT_THROW(infer_request->infer(), ov::Exception);
+}
+
+// Records the NUM_STREAMS every compile_model() call of the device received, -100 if it was not passed at all.
+class StreamsRecorder {
+public:
+    void attach(tests::AutoTest& test, const std::string& device, const ov::SoPtr<ov::ICompiledModel>& compiled_model) {
+        ON_CALL(*test.core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(device)),
+                              _))
+            .WillByDefault([this, device, compiled_model](const std::shared_ptr<const ov::Model>&,
+                                                          const std::string&,
+                                                          const ov::AnyMap& properties) {
+                const auto iter = properties.find(ov::num_streams.name());
+                m_streams[device] = iter == properties.end() ? -100 : iter->second.as<ov::streams::Num>().num;
+                return compiled_model;
+            });
+    }
+    int32_t streams(const std::string& device) const {
+        const auto iter = m_streams.find(device);
+        return iter == m_streams.end() ? -200 : iter->second;
+    }
+
+private:
+    std::map<std::string, int32_t> m_streams;
+};
+
+TEST_F(AutoDynamicDeviceSelectionTest, one_stream_is_used_when_the_user_did_not_choose) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    StreamsRecorder recorder;
+    recorder.attach(*this, "GPU.0", mockExeNetworkActual);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_EQ(recorder.streams("GPU.0"), 1);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, one_stream_is_used_for_the_out_of_list_low_power_device) {
+    config.insert(ov::intel_auto::low_power_device("GPU.1"));
+    ON_CALL(*plugin, get_low_power_mode()).WillByDefault(Return(true));
+    StreamsRecorder recorder;
+    recorder.attach(*this, "GPU.1", mockExeNetworkActual);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_EQ(recorder.streams("GPU.1"), 1);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, explicit_streams_setting_is_kept) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    config.insert(ov::num_streams(ov::streams::AUTO));
+    StreamsRecorder recorder;
+    recorder.attach(*this, "GPU.0", mockExeNetworkActual);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_EQ(recorder.streams("GPU.0"), ov::streams::AUTO.num);
+}
+
+TEST_F(AutoDynamicDeviceSelectionTest, streams_are_not_forced_without_the_per_inference_selection) {
+    StreamsRecorder recorder;
+    recorder.attach(*this, "GPU.0", mockExeNetworkActual);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_EQ(recorder.streams("GPU.0"), -100);
 }
