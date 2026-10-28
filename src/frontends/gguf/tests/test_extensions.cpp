@@ -28,6 +28,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/gguf/set_rows_op.hpp"
 #include "openvino/op/abs.hpp"
@@ -37,6 +38,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scatter_update.hpp"
@@ -57,6 +59,68 @@ std::shared_ptr<ov::frontend::ConversionExtension> make_negate_ext(const std::st
 }
 
 }  // namespace
+
+TEST(GGUFExtensions, RetainedModelLibrariesPreservePreviousOwnershipAndClones) {
+    auto first = std::make_shared<int>(1);
+    auto second = std::make_shared<int>(2);
+    std::weak_ptr<void> first_owner = first;
+    std::weak_ptr<void> second_owner = second;
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{parameter}, ov::ParameterVector{parameter});
+    const auto original = model.get();
+    ov::frontend::FrontEnd::add_model_shared_objects(*model, {first});
+    ov::frontend::FrontEnd::add_model_shared_objects(*model, {second});
+    EXPECT_EQ(model.get(), original);
+    auto clone = model->clone();
+    first.reset();
+    second.reset();
+    model.reset();
+    EXPECT_FALSE(first_owner.expired());
+    EXPECT_FALSE(second_owner.expired());
+    clone.reset();
+    EXPECT_TRUE(first_owner.expired());
+    EXPECT_TRUE(second_owner.expired());
+}
+
+TEST(GGUFExtensions, CopiedModelRetainsOwnershipThroughSharedFromThis) {
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    std::weak_ptr<ov::Node> node = parameter;
+    bool released = false;
+    std::shared_ptr<void> library(new int(1), [node, &released](void* value) {
+        EXPECT_TRUE(node.expired());
+        released = true;
+        delete static_cast<int*>(value);
+    });
+    std::weak_ptr<void> owner = library;
+    auto model = std::shared_ptr<ov::Model>(new ov::Model(ov::OutputVector{parameter}, ov::ParameterVector{parameter}),
+                                            [owner](ov::Model* value) {
+                                                EXPECT_FALSE(owner.expired());
+                                                delete value;
+                                                EXPECT_FALSE(owner.expired());
+                                            });
+    ov::frontend::FrontEnd::add_model_shared_objects(*model, {library});
+    model->set_friendly_name("retained");
+    model->set_rt_info(7, "custom");
+    auto copy = ov::frontend::FrontEnd::copy_model_with_shared_objects(*model, {});
+    EXPECT_EQ(copy->get_friendly_name(), "retained");
+    EXPECT_EQ(copy->get_rt_info<int>("custom"), 7);
+    EXPECT_EQ(copy->get_results(), model->get_results());
+    EXPECT_EQ(copy->get_parameters(), model->get_parameters());
+    auto self = copy->shared_from_this();
+    auto weak = copy->weak_from_this();
+    EXPECT_FALSE(copy.owner_before(self));
+    EXPECT_FALSE(self.owner_before(copy));
+    parameter.reset();
+    library.reset();
+    EXPECT_FALSE(released);
+    model.reset();
+    copy.reset();
+    EXPECT_FALSE(released);
+    self.reset();
+    EXPECT_TRUE(released);
+    EXPECT_TRUE(weak.expired());
+    weak.reset();
+}
 
 // A ConversionExtension registered for a built-in op name overrides the built-in
 // translator: GGML_OP_SCALE normally does in*scale+bias, but here it must negate.
