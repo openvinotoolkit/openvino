@@ -10,6 +10,7 @@
 
 #include "builder/arch/projector_adapter.hpp"
 #include "model_adapter_attribute.hpp"
+#include "model_contract.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
@@ -23,27 +24,35 @@ namespace ov::frontend::gguf::pass {
 namespace {
 using Models = std::map<std::string, std::shared_ptr<ov::Model>>;
 
-bool is_lfm3(const std::shared_ptr<ov::Model>& model) {
-    return model->has_rt_info({"gguf_mmproj", "lfm3"}) &&
-           model->get_rt_info<std::string>({"gguf_mmproj", "lfm3"}) == "true";
-}
+struct ComponentStateSelection {
+    ov::ResultVector results;
+    std::unordered_set<std::string> parameters;
+};
 
-ov::ResultVector retain_lfm3_states(const std::shared_ptr<ov::Model>& model, const std::string& prefix) {
-    ov::ResultVector retained;
+ComponentStateSelection retain_component_states(const std::shared_ptr<ov::Model>& model, const std::string& prefix) {
+    ComponentStateSelection retained;
     auto& info = model->get_rt_info();
     const auto key = gguf_recurrent_states_key();
     if (const auto it = info.find(key); it != info.end()) {
         const auto pairs = it->second.as<std::vector<std::string>>();
+        OPENVINO_ASSERT(pairs.size() % 2 == 0, "[GGUF] invalid component state declarations");
         std::vector<std::string> selected;
-        for (size_t i = 0; i + 1 < pairs.size(); i += 2) {
+        for (size_t i = 0; i < pairs.size(); i += 2) {
             if (prefix.empty() || pairs[i].rfind(prefix, 0) != 0)
                 continue;
             selected.insert(selected.end(), {pairs[i], pairs[i + 1]});
+            retained.parameters.insert(pairs[i]);
+            bool found = false;
             for (const auto& result : model->get_results()) {
                 if (result->get_friendly_name() == pairs[i + 1] ||
-                    result->input_value(0).get_names().count(pairs[i + 1]))
-                    retained.push_back(result);
+                    result->input_value(0).get_names().count(pairs[i + 1])) {
+                    retained.results.push_back(result);
+                    found = true;
+                }
             }
+            OPENVINO_ASSERT(found || !find_parameter(model, pairs[i]),
+                            "[GGUF] missing component state output ",
+                            pairs[i + 1]);
         }
         info[key] = std::move(selected);
     }
@@ -61,33 +70,37 @@ ov::ResultVector retain_lfm3_states(const std::shared_ptr<ov::Model>& model, con
     return retained;
 }
 
-Models split_lfm3_generation(const std::shared_ptr<ov::Model>& model) {
-    OPENVINO_ASSERT(is_lfm3(model), "[GGUF] AUDIO_GENERATION requires an LFM3 mmproj");
-    Models models;
-    for (const auto& [name, output] : std::map<std::string, std::string>{{"depthformer", "audio.depth_logits"},
-                                                                         {"feedback", "audio.feedback"},
-                                                                         {"codec", "audio.spectrogram"}}) {
-        auto branch = model->clone();
-        auto live = std::make_shared<std::unordered_set<const ov::Node*>>();
-        SnapshotLiveParameters(live).run_on_model(branch);
-        const auto retained = retain_lfm3_states(branch, name == "codec" ? "audio.codec.state." : "");
-        auto results = branch->get_results();
-        bool found = false;
-        for (const auto& result : results) {
-            const auto names = result->input_value(0).get_names();
-            if (names.count(output)) {
-                found = true;
-                continue;
+ComponentStateSelection select_component(const std::shared_ptr<ov::Model>& model,
+                                         const ModelComponentContract& contract) {
+    auto live = std::make_shared<std::unordered_set<const ov::Node*>>();
+    SnapshotLiveParameters(live).run_on_model(model);
+    auto retained = retain_component_states(model, contract.state_prefix);
+    std::unordered_set<std::string> found;
+    const auto results = model->get_results();
+    for (const auto& result : results) {
+        bool selected = false;
+        for (const auto& name : contract.outputs) {
+            if (result->input_value(0).get_names().count(name) || result->get_friendly_name() == name) {
+                selected = true;
+                found.insert(name);
             }
-            if (name == "codec" && names.count("audio.istft_window"))
-                continue;
-            if (std::find(retained.begin(), retained.end(), result) == retained.end())
-                branch->remove_result(result);
         }
-        OPENVINO_ASSERT(found, "[GGUF] mmproj has no ", output, " output");
-        PruneParametersOrphanedSince(live).run_on_model(branch);
-        branch->set_friendly_name("lfm3_" + name);
-        branch->validate_nodes_and_infer_types();
+        if (!selected && std::find(retained.results.begin(), retained.results.end(), result) == retained.results.end())
+            model->remove_result(result);
+    }
+    for (const auto& name : contract.outputs)
+        OPENVINO_ASSERT(found.count(name), "[GGUF] missing declared component output ", name);
+    PruneParametersOrphanedSince(live).run_on_model(model);
+    model->validate_nodes_and_infer_types();
+    return retained;
+}
+
+Models split_components(const std::shared_ptr<ov::Model>& model, const ModelComponentGroup& group) {
+    Models models;
+    for (const auto& [name, contract] : group.models) {
+        auto branch = model->clone();
+        select_component(branch, contract);
+        branch->set_friendly_name(name);
         remove_model_adapters(branch);
         models.emplace(name, std::move(branch));
     }
@@ -141,13 +154,17 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
         require_projector_layout(model);
     auto live_before = std::make_shared<std::unordered_set<const ov::Node*>>();
     SnapshotLiveParameters(live_before).run_on_model(model);
-    const auto retained_states = is_lfm3(model)
-                                     ? retain_lfm3_states(model, modality == Modality::AUDIO ? "audio.state." : "")
-                                     : ov::ResultVector{};
+    ComponentStateSelection states;
+    const auto contract = read_model_contract(model);
+    if (const auto group = contract.component_groups.find(modality == Modality::VISION ? "vision" : "audio");
+        group != contract.component_groups.end()) {
+        states = select_component(model, group->second.models.at(group->second.primary));
+        embedding_result(model, modality);
+    }
     const auto results = model->get_results();
     for (const auto& result : results)
         model->remove_result(result);
-    model->add_results(retained_states);
+    model->add_results(states.results);
     auto embeddings = std::make_shared<ov::op::v0::Squeeze>(selected->input_value(0),
                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
     size_t auxiliary_count = 0;
@@ -169,7 +186,7 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
     PruneParametersOrphanedSince(live_before).run_on_model(model);
     for (const auto& p : model->get_parameters()) {
         const auto& name = p->get_friendly_name();
-        if (name.rfind(prefix, 0) == 0 && !(is_lfm3(model) && name.rfind("audio.state.", 0) == 0))
+        if (name.rfind(prefix, 0) == 0 && !states.parameters.count(name))
             name_output(p, name.substr(prefix.size()));
     }
     model->validate_nodes_and_infer_types();
@@ -188,16 +205,15 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     m_audio_generation_models.clear();
     if (m_modality == Modality::AUDIO_GENERATION) {
         OPENVINO_ASSERT(m_layout == Layout::EMBEDDINGS, "[GGUF] AUDIO_GENERATION requires EMBEDDINGS layout");
-        auto models = split_lfm3_generation(model);
-        const auto primary = models.at("depthformer");
+        const auto contract = read_model_contract(model);
+        const auto group = contract.component_groups.find("audio_generation");
+        OPENVINO_ASSERT(group != contract.component_groups.end(),
+                        "[GGUF] model declares no audio-generation component group");
+        auto models = split_components(model, group->second);
+        const auto primary = models.at(group->second.primary);
         replace_model(model, primary);
-        models["depthformer"] = model;
+        models[group->second.primary] = model;
         m_audio_generation_models = std::move(models);
-        return true;
-    }
-    if (m_layout == Layout::EMBEDDINGS && !get_model_adapter(embedding_result(model, m_modality))) {
-        adapt_mmproj(model, m_modality, m_layout);
-        remove_model_adapters(model);
         return true;
     }
     // Callbacks and layout construction may fail after rewiring the independent clone.
@@ -217,23 +233,7 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     remove_model_adapters(adapted);
     for (const auto& [name, encoder] : vision_models)
         remove_model_adapters(encoder);
-    const auto results = model->get_results();
-    const auto parameters = model->get_parameters();
-    const auto sinks = model->get_sinks();
-    const auto variables = model->get_variables();
-    for (const auto& result : results)
-        model->remove_result(result);
-    for (const auto& parameter : parameters)
-        model->remove_parameter(parameter);
-    for (const auto& sink : sinks)
-        model->remove_sink(sink);
-    for (const auto& variable : variables)
-        model->remove_variable(variable);
-    model->add_parameters(adapted->get_parameters());
-    model->add_results(adapted->get_results());
-    model->add_sinks(adapted->get_sinks());
-    model->add_variables(adapted->get_variables());
-    model->get_rt_info() = adapted->get_rt_info();
+    replace_model(model, adapted);
     for (auto& [name, encoder] : vision_models) {
         if (encoder == adapted)
             encoder = model;

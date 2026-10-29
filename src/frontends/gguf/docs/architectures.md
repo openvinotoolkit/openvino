@@ -95,6 +95,12 @@ GenAI adaptation. Decoder configuration exports it automatically; other builders
 also lets the llama.cpp adapter supply resolved facts. Architecture names are diagnostic data.
 An explicit `batchable_recurrent` value overrides structural inference; leave it unset to infer
 batching from generic operation capabilities. All three states survive IR serialization.
+`sequence_outputs` names auxiliary decoder outputs that `AdaptToGenAI` reshapes to
+`[B,T,D]`. `component_groups` declares named groups of independently selectable models,
+the primary model of each group, its output names and its recurrent-state prefix.
+The contracts survive IR serialization; adaptation consumes them without family-name checks.
+`supports_genai_adaptation` lets a builder reject the standard decoder interface
+when its graph requires a different inference protocol.
 
 ### Auto-detected features
 

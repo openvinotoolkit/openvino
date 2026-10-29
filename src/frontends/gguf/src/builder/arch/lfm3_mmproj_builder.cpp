@@ -29,7 +29,6 @@ public:
         GgufGraphContext g(ctx);
         ModelContract contract;
         contract.batchable_recurrent = false;
-        g.configure_model_contract(contract);
         ProjectorRegistry defaults;
         const auto& registry = ctx.projectors ? *ctx.projectors : defaults;
         ModelAdapters adapters;
@@ -44,6 +43,10 @@ public:
             auto result = definition->build(g);
             OPENVINO_ASSERT(result.output, "[GGUF] LFM3 projector returned no output");
             g.set_output(result.output, std::string(modality) + ".embeddings");
+            contract.component_groups[modality] = {
+                "encoder",
+                {{"encoder",
+                  {{std::string(modality) + ".embeddings"}, std::string(modality) == "audio" ? "audio.state." : ""}}}};
             for (const auto& entry : result.config) {
                 OPENVINO_ASSERT(entry.first.rfind(std::string(modality) + ".", 0) == 0,
                                 "[GGUF] projector metadata must use its modality prefix");
@@ -63,10 +66,16 @@ public:
             OPENVINO_ASSERT(generation_type(ctx.metadata) == "lfm3a_gen",
                             "[GGUF] unsupported LFM3 audio generation projector");
             build_lfm3_audio_generation(g);
+            contract.component_groups["audio_generation"] = {
+                "depthformer",
+                {{"depthformer", {{"audio.depth_logits"}, ""}},
+                 {"feedback", {{"audio.feedback"}, ""}},
+                 {"codec", {{"audio.spectrogram", "audio.istft_window"}, "audio.codec.state."}}}};
             config["audio_generation.projector"] = "lfm3a_gen";
             any = true;
         }
         OPENVINO_ASSERT(any, "[GGUF] LFM3 mmproj has no encoder");
+        g.configure_model_contract(contract);
         auto graph = g.finish();
         graph->model_adapters = std::move(adapters);
         for (const auto& [key, value] : detail::MetadataAccess::get(ctx.metadata).map) {

@@ -210,9 +210,44 @@ inline LegacyEmbeddingBoundaries resolve_legacy_embedding_boundaries(const std::
     return boundaries;
 }
 
+inline void resolve_legacy_adaptation_contract(const std::shared_ptr<ov::Model>& model,
+                                               ModelContract& contract,
+                                               bool sequence_outputs,
+                                               bool component_groups) {
+    if (sequence_outputs && model->has_rt_info({"gguf_architecture"}) &&
+        model->get_rt_info<std::string>({"gguf_architecture"}) == "lfm3")
+        contract.sequence_outputs = {"audio_hidden_states"};
+    if (component_groups && model->has_rt_info({"gguf_mmproj", "lfm3"}) &&
+        model->get_rt_info<std::string>({"gguf_mmproj", "lfm3"}) == "true") {
+        contract.component_groups = {{"vision", {"encoder", {{"encoder", {{"vision.embeddings"}, ""}}}}},
+                                     {"audio", {"encoder", {{"encoder", {{"audio.embeddings"}, "audio.state."}}}}},
+                                     {"audio_generation",
+                                      {"depthformer",
+                                       {{"depthformer", {{"audio.depth_logits"}, ""}},
+                                        {"feedback", {{"audio.feedback"}, ""}},
+                                        {"codec", {{"audio.spectrogram"}, "audio.codec.state."}}}}}};
+        for (const auto& output : model->outputs()) {
+            if (output.get_names().count("audio.istft_window"))
+                contract.component_groups.at("audio_generation")
+                    .models.at("codec")
+                    .outputs.push_back("audio.istft_window");
+        }
+    }
+}
+
+inline bool resolve_legacy_genai_adaptation(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "dspark_ctx_feat")
+            return false;
+    }
+    return true;
+}
+
 inline ModelContract resolve_legacy_model_contract(const std::shared_ptr<ov::Model>& model,
                                                    std::optional<int64_t> embedding_width) {
     ModelContract contract;
+    resolve_legacy_adaptation_contract(model, contract, true, true);
+    contract.supports_genai_adaptation = resolve_legacy_genai_adaptation(model);
     if (!model->has_rt_info({"gguf_architecture"}))
         return contract;
     const auto architecture = model->get_rt_info<std::string>({"gguf_architecture"});

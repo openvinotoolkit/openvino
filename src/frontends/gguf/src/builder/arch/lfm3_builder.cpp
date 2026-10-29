@@ -31,6 +31,7 @@ public:
         defaults.normalization.qk_norm = true;
         defaults.normalization.qk_full_width = false;
         defaults.model_contract.batchable_recurrent = true;
+        defaults.model_contract.sequence_outputs = {"audio_hidden_states"};
         auto parameters = read_decoder_parameters(metadata, defaults);
         parameters.experts.enabled = false;
         const auto layers = static_cast<size_t>(parameters.dimensions.layers);

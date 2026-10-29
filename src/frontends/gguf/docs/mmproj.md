@@ -161,6 +161,13 @@ For speech generation, select `Modality::AUDIO_GENERATION` on another clone.
 `codec` models. Their named inputs, outputs, state declarations and `gguf_mmproj`
 configuration survive IR serialization.
 
+Builders declare these components in `ModelContract::component_groups["audio_generation"]`.
+The group names its primary model and each component's outputs and recurrent-state prefix.
+Vision/audio groups describe their encoder in the same way. The adapter retains only the
+selected component's state, preserves state input names and prunes other branches.
+An empty state prefix selects a stateless component. These declarations also allow
+adaptation after loading an unadapted IR.
+
 The `lfm3a_gen` depthformer uses twelve codebooks with 2017 entries (2016 FSQ codes
 and a mask token). Feedback maps sampled codes to decoder embeddings. The codec
 uses FSQ levels `[8,7,6,6]`, retains attention/convolution state and produces 1282

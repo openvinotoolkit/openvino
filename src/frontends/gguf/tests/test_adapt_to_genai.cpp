@@ -87,6 +87,22 @@ struct MinimalGgufModel {
     std::shared_ptr<ov::Node> pe_tok;
 };
 
+void add_probe_result(const std::shared_ptr<ov::Model>& model,
+                      const ov::Output<ov::Node>& value,
+                      const std::string& name) {
+    auto result = std::make_shared<v0::Result>(value);
+    result->set_friendly_name(name);
+    model->add_results({result});
+}
+
+void name_probe_outputs(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& result : model->get_results()) {
+        const auto& name = result->get_friendly_name();
+        if (name.rfind("test_probe_", 0) == 0)
+            result->input_value(0).set_names({name});
+    }
+}
+
 std::map<std::string, ov::Tensor> make_genai_inputs(size_t length, size_t past = 0) {
     ov::Tensor ids(ov::element::i64, {1, length}), mask(ov::element::i64, {1, past + length});
     ov::Tensor positions(ov::element::i64, {1, length}), beam(ov::element::i32, {1});
@@ -402,12 +418,13 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeRetainsScalingOnce) {
 TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
     auto m = build_minimal_gguf_model();
     auto mask = find_parameter(m.model, "self_kq_mask");
-    m.model->add_results({std::make_shared<v0::Result>(mask)});
+    add_probe_result(m.model, mask, "test_probe_global_mask");
     auto swa = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
     m.model->add_parameters({swa});
-    m.model->add_results({std::make_shared<v0::Result>(swa)});
+    add_probe_result(m.model, swa, "test_probe_sliding_mask");
     m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{2};
     ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    name_probe_outputs(m.model);
     ov::Core core;
     auto request = core.compile_model(m.model, "CPU").create_infer_request();
     // The second sequence has two left-padding columns and one current token.
@@ -429,7 +446,7 @@ TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
         request.set_tensor("beam_idx", beams);
         request.infer();
         for (size_t layer = 0; layer < 2; ++layer) {
-            const auto actual = request.get_output_tensor(layer);
+            const auto actual = request.get_tensor(layer == 0 ? "test_probe_global_mask" : "test_probe_sliding_mask");
             ASSERT_EQ(actual.get_shape(), (ov::Shape{2, 1, 3, past + 3}));
             for (size_t b = 0; b < 2; ++b) {
                 // Padded query rows are ignored by generation.
@@ -476,9 +493,10 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
     auto mask = find_parameter(m.model, "self_kq_mask");
     auto swa_mask = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
     m.model->add_parameters({swa_mask});
-    m.model->add_results({std::make_shared<v0::Result>(mask), std::make_shared<v0::Result>(swa_mask)});
+    add_probe_result(m.model, mask, "test_probe_global_mask");
+    add_probe_result(m.model, swa_mask, "test_probe_sliding_mask");
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(m.model);
-    // Adaptation replaces the original first result with logits; the retained mask is now first.
+    name_probe_outputs(m.model);
     ov::Core core;
     for (const auto& node : m.model->get_ops())
         node->get_rt_info().clear();
@@ -503,7 +521,7 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
                 request.set_tensor(entry.first, entry.second);
             request.infer();
             for (size_t layer = 0; layer < 2; ++layer) {
-                auto actual = request.get_output_tensor(layer);
+                auto actual = request.get_tensor(layer == 0 ? "test_probe_global_mask" : "test_probe_sliding_mask");
                 ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
                 const bool bidirectional = layer == 1 || GetParam() == ImageAttentionMode::GLOBAL_AND_SLIDING;
                 SCOPED_TRACE("layer=" + std::to_string(layer) + " past=" + std::to_string(past));
@@ -529,8 +547,9 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
     auto m = build_minimal_gguf_model();
     m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_imrope_key()] = true;
     auto positions = find_parameter(m.model, "inp_pos");
-    m.model->add_results({std::make_shared<v0::Result>(positions)});
+    add_probe_result(m.model, positions, "test_probe_rope_positions");
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(m.model);
+    name_probe_outputs(m.model);
     auto inputs = make_genai_inputs(2, 7);
     inputs.erase("input_ids");
     inputs.emplace("inputs_embeds", make_f32_tensor({1, 2, 2}, {1, 2, 3, 4}));
@@ -538,7 +557,11 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
     const std::vector<int64_t> data{3, 7, 11, 2, 5, 13, 17, 19};
     std::copy(data.begin(), data.end(), coordinates.data<int64_t>());
     inputs["position_ids"] = coordinates;
-    auto actual = run_on_cpu(m.model, inputs);
+    auto request = ov::Core{}.compile_model(m.model, "CPU").create_infer_request();
+    for (const auto& [name, tensor] : inputs)
+        request.set_tensor(name, tensor);
+    request.infer();
+    auto actual = request.get_tensor("test_probe_rope_positions");
     ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, 1, 8}));
     for (size_t i = 0; i < data.size(); ++i)
         EXPECT_EQ(actual.data<int32_t>()[i], data[(i + 2) % data.size()]);
@@ -1295,6 +1318,107 @@ INSTANTIATE_TEST_SUITE_P(EmbeddingWidth,
                                                               ImageAttentionMode::GLOBAL_AND_SLIDING,
                                                               ImageAttentionMode::SLIDING_ONLY)));
 
+TEST(GGUFAdaptToGenAI, SequenceOutputsUseDeclaredContractBeforeAndAfterReload) {
+    auto native = build_minimal_gguf_model();
+    native.embd->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)->set_friendly_name("token_embd.weight");
+    auto features = std::make_shared<v1::Multiply>(native.embd, v0::Constant::create(ov::element::f32, {}, {2.f}));
+    ov::frontend::gguf::name_output(features, "decoder_features");
+    features->output(0).set_names({"decoder_features", "features_alias", "extra_alias"});
+    auto summary = std::make_shared<v1::Multiply>(native.embd, v0::Constant::create(ov::element::f32, {}, {3.f}));
+    ov::frontend::gguf::name_output(summary, "decoder_summary");
+    native.model->add_results({std::make_shared<v0::Result>(features), std::make_shared<v0::Result>(summary)});
+    native.model->get_rt_info()["gguf_architecture"] = std::string("custom-sequence-decoder");
+    ov::frontend::gguf::ModelContract contract;
+    contract.sequence_outputs = {"decoder_features", "features_alias", "decoder_summary"};
+    ov::frontend::gguf::write_model_contract(native.model, contract);
+    for (const bool reload : {false, true}) {
+        for (const auto mode : {AdaptToGenAI::InputMode::IDS_TO_LOGITS, AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS}) {
+            auto model = reload ? reload_ir_model(native.model) : native.model->clone();
+            EXPECT_EQ(ov::frontend::gguf::read_model_contract(model).sequence_outputs, contract.sequence_outputs);
+            AdaptToGenAI adapter(mode);
+            ASSERT_TRUE(adapter.run_on_model(model));
+            EXPECT_EQ(model->output("decoder_features").get_partial_shape().rank(), 3);
+            EXPECT_EQ(model->output(0).get_any_name(), "logits");
+            EXPECT_EQ(model->output("features_alias"), model->output("decoder_features"));
+            EXPECT_EQ(model->output("extra_alias"), model->output("decoder_features"));
+            auto request = ov::Core{}.compile_model(model, "CPU").create_infer_request();
+            for (const size_t batch : {1, 2}) {
+                for (const size_t length : {3, 1}) {
+                    ov::Tensor ids(ov::element::i64, {batch, length});
+                    ov::Tensor embeddings(ov::element::f32, {batch, length, 2});
+                    ov::Tensor positions(ov::element::i64, {batch, length});
+                    ov::Tensor mask(ov::element::i64, {batch, length});
+                    ov::Tensor beams(ov::element::i32, {batch});
+                    for (size_t i = 0; i < batch * length; ++i) {
+                        ids.data<int64_t>()[i] = int64_t(i % 4);
+                        positions.data<int64_t>()[i] = int64_t(i % length);
+                        mask.data<int64_t>()[i] = 1;
+                        for (size_t d = 0; d < 2; ++d)
+                            embeddings.data<float>()[i * 2 + d] = float((i % 4) * 2 + d);
+                    }
+                    std::fill_n(beams.data<int32_t>(), batch, 0);
+                    request.set_tensor(mode == AdaptToGenAI::InputMode::IDS_TO_LOGITS ? "input_ids" : "inputs_embeds",
+                                       mode == AdaptToGenAI::InputMode::IDS_TO_LOGITS ? ids : embeddings);
+                    request.set_tensor("position_ids", positions);
+                    request.set_tensor("attention_mask", mask);
+                    request.set_tensor("beam_idx", beams);
+                    request.infer();
+                    auto output = request.get_tensor("decoder_features");
+                    ASSERT_EQ(output.get_shape(), (ov::Shape{batch, length, 2}));
+                    for (size_t i = 0; i < output.get_size(); ++i)
+                        EXPECT_EQ(output.data<float>()[i], 2.f * embeddings.data<float>()[i]);
+                    auto secondary = request.get_tensor("decoder_summary");
+                    ASSERT_EQ(secondary.get_shape(), output.get_shape());
+                    for (size_t i = 0; i < secondary.get_size(); ++i)
+                        EXPECT_EQ(secondary.data<float>()[i], 3.f * embeddings.data<float>()[i]);
+                }
+            }
+        }
+    }
+}
+
+TEST(GGUFAdaptToGenAI, InvalidSequenceContractsRejectBeforeRewiring) {
+    for (const bool missing : {false, true}) {
+        auto model = build_minimal_gguf_model().model;
+        auto features = v0::Constant::create(ov::element::f32, {2, 2}, {1.f});
+        ov::frontend::gguf::name_output(features, "decoder_features");
+        model->add_results({std::make_shared<v0::Result>(features)});
+        ov::frontend::gguf::ModelContract contract;
+        contract.sequence_outputs = {missing ? "missing_features" : "decoder_features"};
+        ov::frontend::gguf::write_model_contract(model, contract);
+        const auto parameters = model->get_parameters();
+        const auto results = model->get_results();
+        EXPECT_THROW(AdaptToGenAI().run_on_model(model), ov::Exception);
+        EXPECT_EQ(model->get_parameters(), parameters);
+        EXPECT_EQ(model->get_results(), results);
+    }
+    auto model = build_minimal_gguf_model().model;
+    model->get_rt_info()["gguf_architecture"] = std::string("lfm3");
+    ov::frontend::gguf::write_model_contract(model, {});
+    EXPECT_TRUE(ov::frontend::gguf::read_model_contract(reload_ir_model(model)).sequence_outputs.empty());
+    model->get_rt_info()["gguf_model_contract"].as<ov::AnyMap>()["sequence_outputs"] =
+        std::vector<std::string>{"duplicate", "duplicate"};
+    EXPECT_THROW(AdaptToGenAI().run_on_model(model), ov::Exception);
+}
+
+TEST(GGUFAdaptToGenAI, UnsupportedAdaptationUsesDeclaredCapabilityBeforeAndAfterReload) {
+    auto model = build_minimal_gguf_model().model;
+    ov::frontend::gguf::ModelContract contract;
+    contract.supports_genai_adaptation = false;
+    model->get_rt_info()["gguf_architecture"] = std::string("custom-unsupported-decoder");
+    ov::frontend::gguf::write_model_contract(model, contract);
+    for (const auto& source : {model, reload_ir_model(model)}) {
+        const auto parameters = source->get_parameters();
+        const auto results = source->get_results();
+        EXPECT_FALSE(AdaptToGenAI().run_on_model(source));
+        EXPECT_EQ(source->get_parameters(), parameters);
+        EXPECT_EQ(source->get_results(), results);
+    }
+    auto legacy = build_minimal_gguf_model().model;
+    legacy->add_parameters({ov::test::utils::make_param(ov::element::f32, {1}, "dspark_ctx_feat")});
+    EXPECT_FALSE(AdaptToGenAI().run_on_model(reload_ir_model(legacy)));
+}
+
 TEST(GGUFAdaptToGenAI, ModelContractSurvivesIRReloadBeforeAdaptation) {
     for (const auto batchable : std::vector<std::optional<bool>>{std::nullopt, false, true}) {
         auto model = build_attention_gguf_model(8, 4);
@@ -1351,10 +1475,9 @@ TEST_P(GGUFAdaptToGenAILegacyImageContract, ReloadsOldSchemaAndKeepsGlobalAndSli
     auto global_mask = find_parameter(m.model, "self_kq_mask");
     auto sliding_mask =
         ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
-    auto global_result = std::make_shared<v0::Result>(global_mask);
-    auto sliding_result = std::make_shared<v0::Result>(sliding_mask);
     m.model->add_parameters({sliding_mask});
-    m.model->add_results({global_result, sliding_result});
+    add_probe_result(m.model, global_mask, "test_probe_global_mask");
+    add_probe_result(m.model, sliding_mask, "test_probe_sliding_mask");
     auto restored = reload_ir_model(m.model);
     ASSERT_FALSE(restored->has_rt_info({"gguf_model_contract"}));
     ASSERT_EQ(restored->get_rt_info<std::string>({"gguf_architecture"}), architecture);
@@ -1363,6 +1486,7 @@ TEST_P(GGUFAdaptToGenAILegacyImageContract, ReloadsOldSchemaAndKeepsGlobalAndSli
     EXPECT_EQ(ov::frontend::gguf::read_model_contract(restored, hidden).image_attention, mode);
     AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
     ASSERT_TRUE(adapter.run_on_model(restored));
+    name_probe_outputs(restored);
     ASSERT_NE(adapter.get_embedding_model(), nullptr);
     ASSERT_EQ(find_parameter(restored, "input_ids"), nullptr);
     EXPECT_EQ(restored->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1, hidden}));
@@ -1384,7 +1508,7 @@ TEST_P(GGUFAdaptToGenAILegacyImageContract, ReloadsOldSchemaAndKeepsGlobalAndSli
         request.set_tensor(name, tensor);
     request.infer();
     for (size_t layer = 0; layer < 2; ++layer) {
-        const auto mask = request.get_output_tensor(layer);
+        const auto mask = request.get_tensor(layer == 0 ? "test_probe_global_mask" : "test_probe_sliding_mask");
         ASSERT_EQ(mask.get_shape(), (ov::Shape{1, 1, 3, 3}));
         expect_mask(mask.data<const float>(), 3, 3, [&, mode = mode](size_t q, size_t k) {
             const bool image_attention = mode == ImageAttentionMode::GLOBAL_AND_SLIDING ||
