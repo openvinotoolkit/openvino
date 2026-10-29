@@ -133,12 +133,15 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
     }
+    if (t.get_size() == 0) {
+        return py::array(py::dtype("S1"), t.get_shape());
+    }
     auto data = t.data<std::string>();
 
-    auto max_element = std::max_element(data, data + t.get_size(), [](const std::string& x, const std::string& y) {
-        return x.length() < y.length();
-    });
-    auto max_stride = max_element->length();
+    size_t max_stride = 1;
+    for (size_t i = 0; i < t.get_size(); ++i) {
+        max_stride = std::max(max_stride, data[i].length());
+    }
     auto dtype = py::dtype("|S" + std::to_string(max_stride));
 
     // Adjusting strides to follow the numpy convention:
@@ -155,7 +158,7 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
 
     // Create an empty array and populate it with utf-8 encoded strings:
     auto array = py::array(dtype, t.get_shape(), py_array_strides());
-    auto ptr = reinterpret_cast<char*>(array.mutable_data());
+    auto ptr = static_cast<char*>(array.mutable_data());
     for (size_t i = 0; i < t.get_size(); ++i) {
         const auto length = data[i].length();
         ptr = std::copy_n(data[i].begin(), length, ptr);
@@ -167,6 +170,9 @@ py::array bytes_array_from_tensor(ov::Tensor&& t) {
 py::array string_array_from_tensor(ov::Tensor&& t) {
     if (t.get_element_type() != ov::element::string) {
         OPENVINO_THROW("Tensor's type must be a string!");
+    }
+    if (t.get_size() == 0) {
+        return py::array(py::dtype("U1"), t.get_shape());
     }
     // Approach that is compact and faster than np.char.decode(tensor.data):
     auto data = t.data<std::string>();

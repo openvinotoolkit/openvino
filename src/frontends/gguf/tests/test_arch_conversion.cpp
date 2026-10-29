@@ -182,20 +182,20 @@ struct Fingerprint {
 const std::map<std::string, Fingerprint>& fingerprints() {
     static const std::map<std::string, Fingerprint> fp{
         {"mamba2-dense.gguf.hdr", {241, 6}},     {"nemotron_h-dense.gguf.hdr", {254, 8}},
-        {"bailingmoe2-moe.gguf.hdr", {489, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {472, 10}},
-        {"exaone4-dense.gguf.hdr", {415, 11}},   {"gemma-dense.gguf.hdr", {365, 10}},
-        {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {501, 10}},
-        {"gpt-oss-moe.gguf.hdr", {608, 11}},     {"hunyuan-dense-dense.gguf.hdr", {414, 10}},
-        {"hunyuan-moe-moe.gguf.hdr", {600, 10}}, {"llama-dense.gguf.hdr", {398, 10}},
-        {"lfm2-dense.gguf.hdr", {290, 9}},       {"lfm2moe-moe.gguf.hdr", {373, 8}},
-        {"llama-moe.gguf.hdr", {542, 10}},       {"maincoder-dense.gguf.hdr", {430, 10}},
-        {"minicpm-dense.gguf.hdr", {396, 10}},   {"minicpm-moe.gguf.hdr", {540, 10}},
-        {"minimax-m2-moe.gguf.hdr", {582, 10}},  {"mistral3-dense.gguf.hdr", {398, 10}},
+        {"bailingmoe2-moe.gguf.hdr", {506, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {481, 10}},
+        {"exaone4-dense.gguf.hdr", {432, 11}},   {"gemma-dense.gguf.hdr", {382, 10}},
+        {"gemma2-dense.gguf.hdr", {432, 11}},    {"glm4moe-moe.gguf.hdr", {518, 10}},
+        {"gpt-oss-moe.gguf.hdr", {608, 11}},     {"hunyuan-dense-dense.gguf.hdr", {431, 10}},
+        {"hunyuan-moe-moe.gguf.hdr", {617, 10}}, {"llama-dense.gguf.hdr", {415, 10}},
+        {"lfm2-dense.gguf.hdr", {307, 9}},       {"lfm2moe-moe.gguf.hdr", {382, 8}},
+        {"llama-moe.gguf.hdr", {542, 10}},       {"maincoder-dense.gguf.hdr", {447, 10}},
+        {"minicpm-dense.gguf.hdr", {413, 10}},   {"minicpm-moe.gguf.hdr", {540, 10}},
+        {"minimax-m2-moe.gguf.hdr", {582, 10}},  {"mistral3-dense.gguf.hdr", {415, 10}},
         {"mistral3-moe.gguf.hdr", {542, 10}},    {"olmoe-moe.gguf.hdr", {570, 10}},
-        {"phi3-dense.gguf.hdr", {368, 10}},      {"qwen2-dense.gguf.hdr", {366, 10}},
-        {"qwen3-dense.gguf.hdr", {414, 10}},     {"qwen3moe-moe.gguf.hdr", {582, 10}},
-        {"qwen35-dense.gguf.hdr", {360, 10}},    {"qwen35moe-moe.gguf.hdr", {532, 10}},
-        {"smollm3-dense.gguf.hdr", {382, 10}},   {"jais2-dense.gguf.hdr", {344, 10}},
+        {"phi3-dense.gguf.hdr", {368, 10}},      {"qwen2-dense.gguf.hdr", {383, 10}},
+        {"qwen3-dense.gguf.hdr", {431, 10}},     {"qwen3moe-moe.gguf.hdr", {582, 10}},
+        {"qwen35-dense.gguf.hdr", {412, 10}},    {"qwen35moe-moe.gguf.hdr", {584, 10}},
+        {"smollm3-dense.gguf.hdr", {399, 10}},   {"jais2-dense.gguf.hdr", {344, 10}},
     };
     return fp;
 }

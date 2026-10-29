@@ -172,6 +172,10 @@ Returns a current value for a specified property key:
 The function is implemented with the ``Configuration::Get`` method, which wraps an actual configuration
 key value to the ov::Any and returns it.
 
+The ``ov::internal::caching_properties`` property lists the properties that affect the compiled model,
+so a model compiled with different values of them is not the same model. The Template plugin returns the
+device architecture, the performance mode, the execution mode and the inference precision.
+
 .. note::
 
    The function must throw an exception if it receives an unsupported configuration key.
@@ -199,6 +203,25 @@ For example, the export information may include:
 .. doxygensnippet:: src/plugins/template/src/plugin.cpp
    :language: cpp
    :fragment: [plugin:import_model_with_remote]
+
+For an HSM blob, the Template plugin reads the sections with ``ov::runtime::hsm::Reader``.
+The import works in these steps:
+
+* The model structure and the blob info sections are mandatory.
+* The blob is rejected if its runtime requirements are not supported by the plugin.
+* The compiled options are restored into the plugin configuration. Properties passed to
+  ``import_model`` have a higher priority.
+* The weights are taken from the blob. If the blob has no weights section (for example, it was exported
+  with ``ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)``), they are read from ``ov::weights_path``,
+  or from the path stored in the compiled options.
+* Sections that the plugin does not know are skipped, so blobs written by a newer format minor version
+  still import.
+
+If the stream is not an HSM blob, the plugin reads it as the legacy format.
+
+.. doxygensnippet:: src/plugins/template/src/plugin.cpp
+   :language: cpp
+   :fragment: [plugin:read_hsm_blob]
 
 
 create_context()
@@ -231,4 +254,3 @@ OpenVINO plugin library must export only one function creating a plugin instance
 
 
 Next step in a plugin library implementation is the :doc:`CompiledModel <compiled-model>` class.
-

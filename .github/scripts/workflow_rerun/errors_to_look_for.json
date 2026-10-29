@@ -228,5 +228,285 @@
         "error_text": "SSL connect error",
         "ticket": 182850,
         "category": "Network"
+    },
+    {
+        "error_text": "was killed with a signal 3221225477",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called times unsatisfied and active",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "primType is unexpected",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "rm cannot remove electron dist Permission denied",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "CachingTest LoadMulti_race Expected import_model call count mismatch",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "Couldn't get TorchScript module by scripting",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "remove_all: The process cannot access the file because it is being used by another process",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "Error response from daemon: No such image",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Failed to resolve action download info",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "failed to fetch oauth token docker registry connection refused",
+        "ticket": 9999999,
+        "category": "External Service"
+    },
+    {
+        "error_text": "RPC failed; curl 56 Connection died, tried 5 times before giving up",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "Each download failed!",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "Could not resolve proxy: proxy-dmz.intel.com",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "test_benchmark_app_no_warmup_with_api_modes async-CPU-Python exit status 3221225477",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "not found in decomp table",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "429 Too Many Requests",
+        "ticket": 9999999,
+        "category": "External Service"
+    },
+    {
+        "error_text": "runner has received a shutdown signal",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "No files were found with the provided path openvino_node_npm_package.zip No artifacts will be uploaded",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Failed to resolve proxy-dmz.intel.com",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "cannot grow ilk file; error code 487",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "not a PCH file [-Werror=invalid-pch]",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Actual function call count doesnt match EXPECT_CALL import_model Expected called times Actual called twice unsatisfied and active",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "Failed to FinalizeArtifact: Received non-retryable error: Failed request: (403) Forbidden",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "worker crashed while running tests/smoke_tests/test_classification_sample_async.py",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "Inconsistency detected by ld.so",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "Could not connect to azure.archive.ubuntu.com",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "The requested URL returned error: 502",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "Windows fatal exception: access violation",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "electron.exe': Permission denied",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "artifact upload fails silently no error message before beginning blob upload after file validation",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Exception of type System OutOfMemoryException was thrown",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Unexpected HTTP response from blob storage: 403 Server failed to authenticate the request",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "docker buildx builder boot fails no such image buildkit",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "HTTP Error 500: Internal Server Error",
+        "ticket": 9999999,
+        "category": "External Service"
+    },
+    {
+        "error_text": "Unable to connect to azure.archive.ubuntu.com",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "CoreThreadingTests.ReadModel process exit code 1 Windows crash",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "Skipping page pypi simple wheel Content-Type Unknown Cannot install wheel no matching distributions available",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "HTTPError: HTTP Error 504: Gateway Time-out",
+        "ticket": 9999999,
+        "category": "External Service"
+    },
+    {
+        "error_text": "failed to resolve source metadata for openvinogithubactions.azurecr.io",
+        "ticket": 9999999,
+        "category": "External Service"
+    },
+    {
+        "error_text": "SSL certificate problem: self-signed certificate",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "rm cannot remove electron dist dll Permission denied",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "server certificate verification failed",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "Timeout reached: Blob storage chunk did not respond in 30000ms",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "npm: command not found",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Can't get PERFORMANCE_HINT property as no supported devices found or an error happened during devices query",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "ci_gha_overall_status job cancelled before runner assignment",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Not enough CPU resources",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Electron failed to install correctly",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "certificate verify failed self-signed certificate",
+        "ticket": 9999999,
+        "category": "Network"
+    },
+    {
+        "error_text": "iGPU runner did not expose GPU",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "returned non-zero exit status 3221225477",
+        "ticket": 9999999,
+        "category": "Flaky Test"
+    },
+    {
+        "error_text": "CMake configure step failed on Windows VS2022 build runner",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "debian packages artifact upload step fails sub-second Build job",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Artifact download failed after 5 retries",
+        "ticket": 9999999,
+        "category": "Infrastructure"
+    },
+    {
+        "error_text": "Server returned status code 503",
+        "ticket": 9999999,
+        "category": "External Service"
     }
 ]

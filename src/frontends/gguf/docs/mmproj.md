@@ -31,10 +31,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Audio | `gemma4ua` | raw 640-sample waveform frames |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders |
 
-Bonsai-27B, Ternary-Bonsai-27B and Ternary-Bonsai-2-27B BF16 and Q8_0 projector files are
-supported by the built-in `qwen3vl_merger` projector. They use patch size 16, spatial merge 2,
-output width 5120 and no DeepStack outputs. Load these files directly through the native GGUF
-frontend.
+The built-in `qwen3vl_merger` projector supports BF16 and Q8_0 weights.
 
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 
