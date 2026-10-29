@@ -40,11 +40,10 @@
 #ifndef KERNEL_NAME
 #define KERNEL_NAME woq_matmul
 #endif
-#ifndef WOQ_U2_GEMV_CAT_ONCE
-#define WOQ_U2_GEMV_CAT_ONCE
+// Not guarded: kernels_db_gen.py #undefs every unguarded macro at the end of the file, so a guard
+// would leave later instances in the same batched program without CAT.
 #define WOQ_U2_GEMV_CAT2(a, b) a##_##b
 #define WOQ_U2_GEMV_CAT(a, b) WOQ_U2_GEMV_CAT2(a, b)
-#endif
 // The helper is named after KERNEL_NAME so several instances can share one program.
 #define GEMV_BODY_FN WOQ_U2_GEMV_CAT(KERNEL_NAME, gemv_body)
 #ifndef OUT_F16
