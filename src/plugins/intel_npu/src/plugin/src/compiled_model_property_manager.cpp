@@ -276,8 +276,8 @@ void CompiledModelPropertyManager::registerProperties() {
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::qos.name());
         },
-        [](const ov::AnyMap&) -> ov::Any {
-            OPENVINO_THROW("WRITE-ONLY configuration key: ", ov::qos.name());
+        [](const ov::AnyMap&) {
+            return ov::Any{};
         },
         [this](const ov::Any& value) {
             _config.update(ov::qos.name(), value);

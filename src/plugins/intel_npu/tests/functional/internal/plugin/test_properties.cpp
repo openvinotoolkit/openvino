@@ -1020,7 +1020,9 @@ TEST_P(QosPropertyTests, IsWriteOnly) {
         return;
     }
 
-    OV_EXPECT_THROW(propertiesManager->getProperty(ov::qos.name()), ov::Exception, HasSubstr("WRITE-ONLY"));
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = propertiesManager->getProperty(ov::qos.name()));
+    EXPECT_TRUE(value.empty());
 }
 
 TEST_P(QosPropertyTests, AcceptsEveryLevel) {
