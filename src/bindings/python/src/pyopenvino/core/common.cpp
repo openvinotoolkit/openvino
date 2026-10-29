@@ -489,7 +489,7 @@ ov::op::v0::Constant create_copied(ov::Tensor& tensor) {
 
 template <>
 ov::op::v0::Constant create_shared(py::array& array) {
-        OPENVINO_ASSERT(type_helpers::get_ov_type(array) != ov::element::string,
+    OPENVINO_ASSERT(type_helpers::get_ov_type(array) != ov::element::string,
                     "SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! String types can be only copied.");
     return ov::op::v0::Constant(type_helpers::get_ov_type(array),
                                 array_helpers::get_shape(array),
