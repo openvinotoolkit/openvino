@@ -3,6 +3,8 @@
 #
 
 set(GPU_CM_IMPL_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/gguf/fc_gguf_cm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gguf/fc_gguf_cm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_attention_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe1.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe2.hpp
@@ -33,6 +35,13 @@ set(GPU_CM_IMPL_SOURCES
 # the codegen custom commands below (tracked via DEPENDS for incremental builds).
 set(GPU_CM_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/cm_sdpa_vlen.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gguf/convert_act_f32_to_f16.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gguf/gemm_q40_full.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gguf/gemm_q41_full.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gguf/gemm_q4k_full.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gguf/gemm_q5k_full.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gguf/gemm_q6k_full.cm
+    ${CMAKE_CURRENT_LIST_DIR}/gguf/gemm_q80_full.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_reorder_ref.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_update_ref.cm
     ${CMAKE_CURRENT_LIST_DIR}/pa_multi_token.cm

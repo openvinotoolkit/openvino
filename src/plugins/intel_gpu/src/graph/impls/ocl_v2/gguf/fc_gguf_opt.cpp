@@ -854,7 +854,23 @@ public:
             // (plain GEMV, or for shuffle-eligible formats the coalesced SG GEMV); above it,
             // the compute-bound transcode + oneDNN prefill path takes over.
             const size_t decode_cutoff = m_prefill_threshold;
-            if (M > decode_cutoff) {
+            bool binary_post_ops_match_output = true;
+            for (const auto& fused : params.fused_desc) {
+                if (fused.is_type<cldnn::eltwise>()) {
+                    if (!fused.has_outer_dep()) {
+                        binary_post_ops_match_output = false;
+                        break;
+                    }
+                    const auto& operand = params.get_input_layout(fused.outer_dep_start_idx);
+                    const auto& output = params.get_output_layout(0);
+                    if (operand.is_dynamic() || operand.get_partial_shape() != output.get_partial_shape() ||
+                        operand.format != format::bfyx || operand.data_padding) {
+                        binary_post_ops_match_output = false;
+                        break;
+                    }
+                }
+            }
+            if (M > decode_cutoff && binary_post_ops_match_output) {
                 // Prefill: Q4_K/Q6_K shuffle nodes run the shuffle-aware transcode -> f16 matmul; all
                 // other formats run the WOQ (i4/i8) transcode + oneDNN matmul.
                 return execute_transcode_plus_onednn_woq(events, instance, M);

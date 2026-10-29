@@ -6,6 +6,10 @@
 #include "registry.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 
+#if OV_GPU_WITH_CM
+#    include "impls/cm/gguf/fc_gguf_cm.hpp"
+#endif
+
 #if OV_GPU_WITH_OCL && defined(ENABLE_ONEDNN_FOR_GPU)
 #    include "impls/ocl_v2/gguf/fc_gguf_opt.hpp"
 #endif
@@ -43,6 +47,10 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
     };
 
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+#if OV_GPU_WITH_CM
+        OV_GPU_CREATE_INSTANCE_CM(cm::FCGGUFCm, shape_types::static_shape, gguf_supports_weights)
+        OV_GPU_CREATE_INSTANCE_CM(cm::FCGGUFCm, shape_types::dynamic_shape, gguf_supports_weights)
+#endif
 #if OV_GPU_WITH_OCL && defined(ENABLE_ONEDNN_FOR_GPU)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::FCGGUFOpt, shape_types::static_shape, gguf_supports_weights)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::FCGGUFOpt, shape_types::dynamic_shape, gguf_supports_weights)
