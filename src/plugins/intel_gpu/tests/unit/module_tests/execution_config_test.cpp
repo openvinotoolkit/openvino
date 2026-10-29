@@ -412,3 +412,48 @@ TEST(execution_config, moe_offload_accepts_optimize_size_cache_mode) {
 
     ASSERT_TRUE(config.get_enable_weightless());
 }
+
+TEST(execution_config, moe_offload_model_less_config_defaults_to_optimize_size) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+
+    ExecutionConfig config;
+    config.set_user_property(ov::intel_gpu::offload_ratio(20));
+    config.finalize(ctx.get(), nullptr);
+
+    EXPECT_TRUE(config.get_enable_weightless());
+    EXPECT_EQ(config.get_cache_mode(), ov::CacheMode::OPTIMIZE_SIZE);
+}
+
+TEST(execution_config, moe_offload_model_less_config_rejects_incompatible_properties) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+
+    const std::vector<ov::AnyMap> incompatible_properties = {
+        {ov::enable_weightless(false)},
+        {ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED)},
+        {ov::enable_weightless(true), ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED)},
+        {ov::enable_weightless(false), ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)},
+    };
+    for (size_t i = 0; i < incompatible_properties.size(); ++i) {
+        SCOPED_TRACE(i);
+        ExecutionConfig config;
+        config.set_user_property(ov::intel_gpu::offload_ratio(20));
+        config.set_user_property(incompatible_properties[i]);
+        EXPECT_THROW(config.finalize(ctx.get(), nullptr), ov::AssertFailure);
+    }
+}
+
+TEST(execution_config, moe_offload_zero_preserves_default_cache_options) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+
+    ExecutionConfig config;
+    config.set_user_property({ov::intel_gpu::offload_ratio(0),
+                              ov::enable_weightless(false),
+                              ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED)});
+    config.finalize(ctx.get(), nullptr);
+
+    EXPECT_FALSE(config.get_enable_weightless());
+    EXPECT_EQ(config.get_cache_mode(), ov::CacheMode::OPTIMIZE_SPEED);
+}

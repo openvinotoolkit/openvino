@@ -129,6 +129,9 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        for (const auto* name : {"INPUT0_TYPE", "OUTPUT_TYPE", "OPTIONAL_SHAPE_INFO_ARG"}) {
+            jit.remove(name);
+        }
         jit.make("INPUT0_TYPE", "int");   // topk_id
         jit.make("OUTPUT_TYPE", "int");   // tokens_per_expert
         jit.make("OUTPUT1_TYPE", "int");  // experts_info_start_idx
@@ -222,6 +225,10 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        // These stages consume scratch buffers, not the primitive's input/output tensors.
+        for (const auto* name : {"INPUT0_TYPE", "INPUT1_TYPE", "OUTPUT_TYPE", "OPTIONAL_SHAPE_INFO_ARG"}) {
+            jit.remove(name);
+        }
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         // auto& engine = params.prog->get_engine();
         // const auto& info = engine.get_device_info();
@@ -309,6 +316,11 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        for (const auto* name : {"INPUT0_TYPE", "INPUT1_TYPE", "INPUT2_TYPE", "INPUT3_TYPE",
+                                 "INPUT4_TYPE", "INPUT5_TYPE", "INPUT6_TYPE", "OUTPUT_TYPE",
+                                 "OPTIONAL_SHAPE_INFO_ARG"}) {
+            jit.remove(name);
+        }
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
         // auto& engine = params.prog->get_engine();
         // const auto& info = engine.get_device_info();
@@ -354,6 +366,9 @@ public:
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        for (const auto* name : {"INPUT0_TYPE", "INPUT1_TYPE", "INPUT2_TYPE", "OUTPUT_TYPE", "OPTIONAL_SHAPE_INFO_ARG"}) {
+            jit.remove(name);
+        }
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
 
         auto hidden_size = desc->_config.hidden_size;

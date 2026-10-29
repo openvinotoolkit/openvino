@@ -173,6 +173,19 @@ void ExecutionConfig::finalize(cldnn::engine& engine) {
     PluginConfig::finalize(ctx.get(), nullptr);
 }
 
+void ExecutionConfig::apply_weightless_options() {
+    const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties());
+    if (get_offload_ratio() > 0) {
+        OPENVINO_ASSERT(enable_weightless.value_or(true) &&
+                            (!is_set_by_user(ov::cache_mode) || get_cache_mode() != ov::CacheMode::OPTIMIZE_SPEED),
+                        "OFFLOAD_RATIO requires weightless cache. Do not set ENABLE_WEIGHTLESS=false or "
+                        "CACHE_MODE=OPTIMIZE_SPEED when using OFFLOAD_RATIO.");
+        set_property({ov::enable_weightless(true), ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)});
+    } else if (enable_weightless) {
+        set_property(ov::enable_weightless(*enable_weightless));
+    }
+}
+
 void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model, bool has_lora) {
     const auto* remote_context = dynamic_cast<const RemoteContextImpl*>(context);
     OPENVINO_ASSERT(remote_context != nullptr, "Expected GPU RemoteContextImpl in ExecutionConfig::apply_rt_info");
@@ -191,15 +204,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
     // using that mechanism. OTD (MoE offload) also requires the .bin path.
-    const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties());
-    if (get_offload_ratio() > 0) {
-        OPENVINO_ASSERT(enable_weightless.value_or(true),
-                        "OFFLOAD_RATIO requires weightless cache. Do not set ENABLE_WEIGHTLESS=false or "
-                        "CACHE_MODE=OPTIMIZE_SPEED when using OFFLOAD_RATIO.");
-        set_property(ov::enable_weightless(true));
-    } else if (enable_weightless) {
-        set_property(ov::enable_weightless(*enable_weightless));
-    }
+    apply_weightless_options();
     if (get_enable_weightless() || get_offload_ratio() > 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
@@ -348,6 +353,8 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
 }
 
 void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
+    apply_weightless_options();
+
     GPU_DEBUG_IF(get_help()) {
         print_help();
         exit(-1);
