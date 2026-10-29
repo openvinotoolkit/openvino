@@ -197,19 +197,27 @@ cl_command_queue ze_ocl_interop::create_cl_queue(ze_command_list_handle_t cmd_li
 }
 
 cl_mem ze_ocl_interop::create_cl_buffer(void* usm_ptr, const ocl_buffer_args& args) const {
+#if !defined(CL_VERSION_3_0)
+    OPENVINO_THROW("[GPU] Failed to export Level Zero memory to OpenCL. Please rebuild OpenVINO with OpenCL 3.0 or newer.");
+#else
     cl_mem_properties properties[] = {CL_L0_MEM_OBJ_HANDLE, reinterpret_cast<cl_mem_properties>(usm_ptr), 0};
     cl_int error;
     cl_mem converted_mem = clCreateBufferWithProperties(args.context, properties, args.flags, args.size, nullptr, &error);
     expect_success(error, converted_mem, "[GPU] Attempt to create CL buffer from ZE USM failed");
     return converted_mem;
+#endif
 }
 
 cl_mem ze_ocl_interop::create_cl_image(ze_image_handle_t image, const ocl_image_args &args) const {
+#if !defined(CL_VERSION_3_0)
+    OPENVINO_THROW("[GPU] Failed to export Level Zero memory to OpenCL. Please rebuild OpenVINO with OpenCL 3.0 or newer.");
+#else
     cl_mem_properties properties[] = {CL_L0_MEM_OBJ_HANDLE, reinterpret_cast<cl_mem_properties>(image), 0};
     cl_int error;
     cl_mem converted_mem = clCreateImageWithProperties(args.context, properties, args.flags, &args.format, &args.desc, nullptr, &error);
     expect_success(error, converted_mem, "[GPU] Attempt to create CL image from ZE image failed");
     return converted_mem;
+#endif
 }
 
 }  // namespace ze
