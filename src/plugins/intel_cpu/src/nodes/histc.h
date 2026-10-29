@@ -34,6 +34,9 @@ public:
     [[nodiscard]] bool isExecutable() const override {
         return true;
     }
+    [[nodiscard]] bool neverExecute() const override {
+        return false;
+    }
 
 private:
     template <class T>

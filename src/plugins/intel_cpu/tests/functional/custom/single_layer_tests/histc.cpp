@@ -89,6 +89,8 @@ const std::vector<InputShape> shapes = {
     {{}, {{2, 3, 17}}},
     // Single-bin counts above 255 (u8), 127 (i8) and 256 (bf16 integer step).
     {{}, {{50, 50}}},
+    {{}, {{0}}},
+    {{}, {{2, 0, 3}}},
     {{-1, -1}, {{4, 5}, {0, 3}, {32, 32}, {1, 1}}},
 };
 
