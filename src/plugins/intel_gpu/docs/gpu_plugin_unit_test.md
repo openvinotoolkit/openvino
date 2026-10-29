@@ -55,6 +55,20 @@ openvino/src/plugins/intel_gpu/tests	- root of Intel GPU unit test
 
 # How to run unit tests
 
+## MoE offload fallback regression
+
+`*moe_3gemm_offload_fallback*` tests real file-backed execution with four routed
+experts, top-k of two, and only one physically allocated expert slot. They cover
+one-token decode and multi-token execution with INT4/INT8 weights, with and
+without a shared expert. Repeated inferences change the selected experts and
+compare the weighted sum against a numerical reference, including the shared
+expert contribution and preservation of the routing input.
+
+The single-token batched GEMV path requires all selected experts simultaneously.
+If they do not fit, the per-expert OneDNN fallback must prepare gather/scatter
+scratch even for one token, clear the accumulated output, and complete the shared
+expert before returning. One slot is sufficient for this sequential path.
+
 ## Build unit test
 
 1. Turn on `ENABLE_TESTS` in cmake option:
