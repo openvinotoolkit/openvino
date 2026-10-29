@@ -206,13 +206,15 @@ program::program(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
                  const ExecutionConfig& config,
                  std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                 bool is_internal)
+                 bool is_internal,
+                 std::optional<std::map<primitive_type_id, bool>> onednn_impls)
     : _engine(engine_ref),
       _stream(_engine.create_stream(config)),
       _config(config),
       _task_executor(std::move(task_executor)),
       processing_order(),
-      is_internal(is_internal) {
+      is_internal(is_internal),
+      _onednn_impls(std::move(onednn_impls)) {
     _config.finalize(_engine);
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
     init_primitives();
@@ -314,8 +316,9 @@ program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
                                     const ExecutionConfig& config,
                                     std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                                    bool is_internal) {
-    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal);
+                                    bool is_internal,
+                                    std::optional<std::map<primitive_type_id, bool>> onednn_impls) {
+    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal, std::move(onednn_impls));
 }
 
 program_node& program::get_node(primitive_id const& id) {
@@ -1755,6 +1758,13 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 lo.enable_onednn_for<lstm_seq>();
                 lo.enable_onednn_for<gru_seq>();
             }
+        }
+    }
+
+    if (_onednn_impls.has_value()) {
+        lo.clear_onednn_impls_optimization_attribute();
+        for (const auto& [type_id, enabled] : *_onednn_impls) {
+            lo.set_value_onednn(type_id, enabled);
         }
     }
 

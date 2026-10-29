@@ -41,6 +41,10 @@ namespace {
 std::map<program_node*, format::type> get_preferred_formats(program& p, layout_optimizer& lo) {
     std::map<program_node*, format::type> fmt_map;
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    size_t onednn_impls_counter = 0;
+    bool should_update_fmt_map = false;
+    // Calculate onednn kernels number and all kernels number inside the network
     for (auto* n : p.get_processing_order()) {
         if (!n->is_in_data_flow())
             continue;
@@ -50,6 +54,30 @@ std::map<program_node*, format::type> get_preferred_formats(program& p, layout_o
         fmt_map[n] = ex;
 
         n->set_preferred_impl_type(impl);
+
+        if (impl == impl_types::onednn)
+            onednn_impls_counter++;
+    }
+
+    if (!lo.is_empty_onednn_impls_optimization_attribute() && onednn_impls_counter < 1) {
+        should_update_fmt_map = true;
+        lo.clear_onednn_impls_optimization_attribute();
+        GPU_DEBUG_LOG << "Disable oneDNN implementations globally" << std::endl;
+    }
+
+    if (should_update_fmt_map)
+#endif // ENABLE_ONEDNN_FOR_GPU
+    {
+        for (auto* n : p.get_processing_order()) {
+            if (!n->is_in_data_flow())
+                continue;
+
+            auto ex = lo.get_preferred_format(*n);
+            auto impl = lo.get_preferred_impl_type(*n, ex);
+            fmt_map[n] = ex;
+
+            n->set_preferred_impl_type(impl);
+        }
     }
     return fmt_map;
 }
