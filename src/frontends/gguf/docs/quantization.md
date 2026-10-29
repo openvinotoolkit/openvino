@@ -95,12 +95,12 @@ per group; the table does not assume that a later pass replaces it with a scalar
 ## Experimental Raw GPU Loading
 
 `OV_GGUF_NATIVE_WEIGHTS=1` opts the file-based FrontEnd loader into preserving Q4_K,
-Q5_K, Q6_K and Q8_0 blocks. This also applies to GenAI with `GGUF_READER="FRONTEND"`.
+Q5_K, Q6_K, Q8_0, Q4_0 and Q4_1 blocks. This also applies to GenAI with `GGUF_READER="FRONTEND"`.
 The variable is an internal experimental control, not a stable FrontEnd property or
 GenAI configuration option. Unset or `0` retains the default decomposed representation;
 other values are rejected. Use a matching runtime/frontend/GPU build, not an older install.
 
-The internal `GGUFLoadOptions` fields select the four formats independently and default
+The internal `GGUFLoadOptions` fields select the six formats independently and default
 to false; the existing `GGUFLoadOptions{true}` still selects only Q4_K. A preserved tensor
 uses the corresponding `gguf_*` element type and logical shape, with scales/minima inside
 the original bytes and no separate scale/zero-point tensors. Tensor/Constant ownership

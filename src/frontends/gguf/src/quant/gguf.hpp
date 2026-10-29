@@ -140,6 +140,8 @@ struct GGUFLoadOptions {
     bool preserve_q5_k = false;
     bool preserve_q6_k = false;
     bool preserve_q8_0 = false;
+    bool preserve_q4_0 = false;
+    bool preserve_q4_1 = false;
 };
 
 ov::element::Type gguf_raw_element_type(GgufTensorType type);

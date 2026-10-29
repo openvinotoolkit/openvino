@@ -40,6 +40,10 @@ namespace ov::frontend::gguf {
 
 ov::element::Type gguf_raw_element_type(GgufTensorType type) {
     switch (type) {
+    case GGUF_TYPE_Q4_0:
+        return ov::element::gguf_q4_0;
+    case GGUF_TYPE_Q4_1:
+        return ov::element::gguf_q4_1;
     case GGUF_TYPE_Q4_K:
         return ov::element::gguf_q4_k;
     case GGUF_TYPE_Q5_K:
@@ -640,7 +644,9 @@ void load_gguf_tensors(GgufFile& file,
         return (options.preserve_q4_k && type == GGUF_TYPE_Q4_K) ||
                (options.preserve_q5_k && type == GGUF_TYPE_Q5_K) ||
                (options.preserve_q6_k && type == GGUF_TYPE_Q6_K) ||
-               (options.preserve_q8_0 && type == GGUF_TYPE_Q8_0);
+             (options.preserve_q8_0 && type == GGUF_TYPE_Q8_0) ||
+             (options.preserve_q4_0 && type == GGUF_TYPE_Q4_0) ||
+             (options.preserve_q4_1 && type == GGUF_TYPE_Q4_1);
     };
     for (const auto& info : infos) {
         if (preserve_raw(info.type)) {

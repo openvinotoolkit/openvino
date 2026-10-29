@@ -153,7 +153,8 @@ TEST(GGUFRawCompressedFC, SharedEmitterPreservesRawWeightThroughConversion) {
 }
 
 TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
-    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0}) {
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0,
+                            GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1}) {
         SCOPED_TRACE(qtype);
         std::unordered_map<std::string, ov::Tensor> weights;
         weights.emplace("projection.weight", ov::Tensor(gguf_raw_element_type(qtype), {kRows, kCols}));
@@ -184,7 +185,8 @@ TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
 }
 
 TEST(GGUFRawCompressedFC, RawRowSplitsPreserveBlocks) {
-    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0}) {
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0,
+                            GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1}) {
         SCOPED_TRACE(qtype);
         ov::Tensor raw(gguf_raw_element_type(qtype), {8, kCols});
         auto* bytes = static_cast<uint8_t*>(raw.data());
@@ -221,7 +223,8 @@ TEST(GGUFRawCompressedFC, RawRowSplitsPreserveBlocks) {
 }
 
 TEST(GGUFRawCompressedFC, RejectsMismatchedRawQuantType) {
-    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0}) {
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0,
+                            GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1}) {
         SCOPED_TRACE(qtype);
         std::unordered_map<std::string, ov::Tensor> weights;
         weights.emplace("projection.weight", ov::Tensor(gguf_raw_element_type(qtype), {kRows, kCols}));

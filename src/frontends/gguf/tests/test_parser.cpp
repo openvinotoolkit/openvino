@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <set>
 #include <tuple>
 #include <utility>
 
@@ -20,6 +21,7 @@
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "quant/weights.hpp"
 
@@ -68,9 +70,10 @@ struct GgufRawFormat {
     GgufTensorType type;
 };
 
-const std::array<GgufRawFormat, 4> kRawFormats{{
+const std::array<GgufRawFormat, 6> kRawFormats{{
     {"q4_k", GGUF_TYPE_Q4_K}, {"q5_k", GGUF_TYPE_Q5_K},
-    {"q6_k", GGUF_TYPE_Q6_K}, {"q8_0", GGUF_TYPE_Q8_0}}};
+    {"q6_k", GGUF_TYPE_Q6_K}, {"q8_0", GGUF_TYPE_Q8_0},
+    {"q4_0", GGUF_TYPE_Q4_0}, {"q4_1", GGUF_TYPE_Q4_1}}};
 
 class GGUFParser : public ::testing::Test {
 protected:
@@ -378,10 +381,11 @@ TEST_F(GGUFParser, RawFormatsPayloadAndOwnerOutliveParserResult) {
         const auto legacy = get_gguf_data(m_path);
         EXPECT_FALSE(std::get<1>(legacy).at("blk.0.attn_q.weight").get_element_type().is_gguf_block());
         const GGUFLoadOptions unselected{format.type != GGUF_TYPE_Q4_K, format.type != GGUF_TYPE_Q5_K,
-                                         format.type != GGUF_TYPE_Q6_K, format.type != GGUF_TYPE_Q8_0};
+                                         format.type != GGUF_TYPE_Q6_K, format.type != GGUF_TYPE_Q8_0,
+                                         format.type != GGUF_TYPE_Q4_0, format.type != GGUF_TYPE_Q4_1};
         const auto decomposed = get_gguf_data(m_path, unselected);
         EXPECT_FALSE(std::get<1>(decomposed).at("blk.0.attn_q.weight").get_element_type().is_gguf_block());
-        const GGUFLoadOptions options{true, true, true, true};
+        const GGUFLoadOptions options{true, true, true, true, true, true};
         std::shared_ptr<ov::op::v0::Constant> constant;
         std::weak_ptr<ov::MappedMemory> owner;
         {
@@ -437,7 +441,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     const auto qbytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
     const auto decoded = load_npy<float>(std::string(format.name) + "_deq");
     ASSERT_EQ(decoded.size(), 4 * 256);
-    constexpr size_t channels = 32;
+    const size_t channels = format.type == GGUF_TYPE_Q4_0 || format.type == GGUF_TYPE_Q4_1 ? 64 : 32;
     constexpr size_t columns = 512;
     const auto row_bytes = qbytes.size() / 4;
     std::vector<uint8_t> payload(channels * 2 * row_bytes);
@@ -453,7 +457,8 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     std::weak_ptr<ov::MappedMemory> owner;
     {
         const GGUFLoadOptions options{format.type == GGUF_TYPE_Q4_K, format.type == GGUF_TYPE_Q5_K,
-                          format.type == GGUF_TYPE_Q6_K, format.type == GGUF_TYPE_Q8_0};
+                          format.type == GGUF_TYPE_Q6_K, format.type == GGUF_TYPE_Q8_0,
+                          format.type == GGUF_TYPE_Q4_0, format.type == GGUF_TYPE_Q4_1};
         auto loaded = get_gguf_data(m_path, options);
         auto& weights = std::get<1>(loaded);
         const auto& raw = weights.at("projection.weight");
@@ -481,6 +486,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         EXPECT_EQ(std::memcmp(constant->get_data_ptr(), payload.data(), payload.size()), 0);
     }
     EXPECT_FALSE(owner.expired());
+    std::set<std::string> executed_stages;
     const auto run = [&](const char* threshold_value, const char* shuffle_value,
                          ov::element::Type inference_type = ov::element::f32) {
         SCOPED_TRACE(threshold_value ? "native" : "default_f16_transcode");
@@ -489,7 +495,8 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
         GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", shuffle_value);
         SCOPED_TRACE(inference_type.get_type_name());
-        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(inference_type));
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(inference_type),
+                           ov::enable_profiling(true));
         auto request = compiled.create_infer_request();
         const std::array<size_t, 7> row_counts{1, 2, 33, 1, 1, 33, 2};
         for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
@@ -509,6 +516,14 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             }
             request.set_input_tensor(1, indices);
             request.infer();
+            for (const auto& operation : compiled.get_runtime_model()->get_ops()) {
+                const auto& info = operation->get_rt_info();
+                const auto stages = info.find("gguf_last_executed_kernels");
+                if (stages != info.end()) {
+                    const auto& names = stages->second.as<std::vector<std::string>>();
+                    executed_stages.insert(names.begin(), names.end());
+                }
+            }
             const auto output = request.get_output_tensor(0);
             ASSERT_EQ(output.get_shape(), (ov::Shape{1, 1, rows, channels}));
             for (size_t row = 0; row < rows; ++row) {
@@ -548,6 +563,12 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     run("64", "0", ov::element::f16);
     run(nullptr, "1", ov::element::f16);
     run(nullptr, "0", ov::element::f16);
+    EXPECT_FALSE(executed_stages.empty());
+    std::string stage_summary;
+    for (const auto& stage : executed_stages) {
+        stage_summary += stage + ";";
+    }
+    RecordProperty("gguf_executed_kernels", stage_summary);
 #endif
 }
 
@@ -572,7 +593,7 @@ TEST_F(GGUFParser, Q4KRawRejectsInvalidRowsAndTruncatedPayload) {
 }
 
 TEST_F(GGUFParser, RawFormatsRejectInvalidRowsAndTruncatedPayload) {
-    const GGUFLoadOptions options{true, true, true, true};
+    const GGUFLoadOptions options{true, true, true, true, true, true};
     for (const auto& format : kRawFormats) {
         SCOPED_TRACE(format.name);
         const auto block = gguf_raw_element_type(format.type).block_elem_count();
