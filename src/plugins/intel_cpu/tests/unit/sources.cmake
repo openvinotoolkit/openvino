@@ -32,6 +32,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/streams_info/streams_rank_table_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/streams_info/update_proc_table_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_gather_matmul_to_compressed_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_grouped_matmul_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp
@@ -259,6 +260,7 @@ if(ENABLE_UNITY_BUILD)
         ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp)
     group_source_files(unit_src_transformations
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_gather_matmul_to_compressed_test.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_grouped_matmul_to_compressed_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp

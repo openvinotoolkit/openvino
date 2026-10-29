@@ -55,6 +55,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/extremum.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grid_sample.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grid_sample.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/grouped_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/identity.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/identity.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/classes/interpolate.cpp
@@ -286,6 +287,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/grid_sample.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/grouped_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/grouped_matmul_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/interpolate.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/matmul.cpp
