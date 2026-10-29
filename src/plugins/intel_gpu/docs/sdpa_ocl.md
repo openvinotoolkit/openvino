@@ -933,9 +933,11 @@ d-major f16 page with a 32-bit transpose read ("Paged-attention MIXED: i8 and f1
 through a per-key scalar gather; token-major pages use block reads.
 `PA_K_TOKEN_STRIDE` / `PA_K_HIDDEN_STRIDE` let one gather path address both.
 
-The token-major BY_CHANNEL page has four readers: the cache writer, rotate, `sdpa_ocl` (MIXED) and
-`sdpa_ocl_decode` (GENERATE). Every other one -- `pa_single_token`, `pa_gqa_single_token`,
-`pa_multi_token`, `sdpa_micro` MIXED, `pa_kv_reorder`, adaptive R-KV -- reads it d-major. The
+The token-major BY_CHANNEL page has five readers: the cache writer, rotate, `sdpa_ocl` (MIXED),
+`pa_small_q_opt.cl` (MIXED with at most 16 new tokens per subsequence, GQA) and `sdpa_ocl_decode`
+(GENERATE). Every other one -- `pa_single_token`, `pa_gqa_single_token`, `pa_multi_token` and its GQA
+multi-token fallback, `sdpa_micro` MIXED, `pa_kv_reorder`, adaptive R-KV -- reads it d-major, so a
+small GQA MIXED step that `pa_small_q_opt.cl` refuses stays on `sdpa_ocl` there. The
 layout is decided once per model in `transformations_pipeline.cpp`, the reader per dispatch, so
 the page is only token-major where `paged_attention::by_channel_token_major_readable()` says both
 token-major readers get chosen for every paged-attention op: XMX on Xe2 or later, microkernel
@@ -1565,6 +1567,12 @@ Each needs its own measured change.
 - The u4 token-major K writer's head-256 GENERATE dispatch is still 3-4% slower than master's d-major writer
   (gemma-4-26b 9.5 against 9.2 us per call): each thread writes 8 bytes into 16 token rows, i.e. 16 different 128 B
   lines, where a d-major thread writes 2 ("The u4 token-major K writer (IGC 2.41)").
+- A small GQA MIXED step (at most 16 new tokens per subsequence) goes to `pa_small_q_opt.cl` whenever it can, as upstream
+  does against `sdpa_micro`. Against `sdpa_ocl` that wins at long context and not at short: 32/8 heads, head 128, 8K
+  context, 4 and 16 new tokens: `pa_small_q_opt.cl` took 0.27-0.44x (u4 / i8 BY_CHANNEL), 0.17-0.23x (i8 BY_TOKEN) and
+  0.52-0.74x (f16) of `sdpa_ocl`'s time per call; at 1K `sdpa_ocl` was level to ~2x faster. The 1K numbers are noisy:
+  unit-test perf rows with the inputs copied to `usm_device`, cliloader chrome kernel timeline, clock not pinned (the
+  400-2800 MHz governor lowers it between short calls). A context-length threshold needs a pinned clock to place.
 - PA PREFILL at 32 tokens is still slower than `sdpa_micro` per call after the causal tile skip: qwen3-8b 14.1 against
   12.6 us (1.12x), phi-3.5-mini 15.8 against 12.8 (1.23x), and at `d_max` 64, where the skip is off, llama-3.2-1b 13.1
   against 9.2 (1.42x) ("Paged-attention PREFILL: short prompts"). From 1K they are level or faster.
