@@ -13,6 +13,8 @@
 // IWriter-interface-level tests only - no concrete IWriter implementation (e.g. DeferredWriter) is used
 // here; a mock stands in wherever one is needed. Tests exercising a real implementation's behavior
 // belong in that implementation's own test file (e.g. hsm_deferred_writer.cpp for DeferredWriter).
+#include "openvino/runtime/hsm_weights.hpp"
+
 namespace ov::test {
 namespace hsm = ov::runtime::hsm;
 
@@ -46,6 +48,33 @@ public:
 }  // namespace
 
 // --- add_sections() - IWriter's one concrete (non-pure-virtual) member ---
+
+TEST(HsmWriterTest, encode_weights_adds_borrowed_pointer_section_with_alignment) {
+    const std::vector<std::byte> weights{
+        std::byte{0x00},
+        std::byte{0x01},
+        std::byte{0x7F},
+        std::byte{0x80},
+        std::byte{0xFE},
+        std::byte{0xFF},
+    };
+
+    MockIWriter writer;
+    EXPECT_CALL(writer, add_section(hsm::any_device_id, _, A<ov::util::MemoryView>(), _))
+        .WillOnce(
+            [&](hsm::DeviceId, hsm::SectionTagReserved tag, ov::util::MemoryView payload, hsm::SectionAlignment align) {
+                EXPECT_EQ(tag.tag.id(), hsm::weights);
+                EXPECT_TRUE(tag.is_pointer());
+                EXPECT_EQ(align.offset_align, 64u);
+                EXPECT_EQ(align.size_align, 16u);
+                EXPECT_EQ(payload.data(), weights.data());
+                EXPECT_EQ(payload.size(), weights.size());
+                return true;
+            });
+
+    ASSERT_TRUE(
+        hsm::encode_weights(writer, {weights.data(), weights.size()}, {/*offset_align=*/64, /*size_align=*/16}));
+}
 
 TEST(HsmWriterTest, add_sections_dispatches_to_each_non_null_handler_once_in_order) {
     MockIWriter writer;
