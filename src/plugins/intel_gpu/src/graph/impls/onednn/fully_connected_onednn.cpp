@@ -440,7 +440,7 @@ public:
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
                     auto ngroups = dzp_layout.get_dim(get_ifm_dim_idx(dzp_layout, prim->transpose_b_zp, weight_rank));
-                    if (ngroups == 1 && !has_batch_dim) {
+                    if (ngroups == 1 &&  dzp_rank <= 2 && !has_batch_dim) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d
