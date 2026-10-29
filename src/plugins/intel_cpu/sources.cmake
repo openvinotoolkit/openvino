@@ -99,6 +99,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/adaptive_pooling.h
     ${CPU_SRC_DIR}/nodes/batch_to_space.cpp
     ${CPU_SRC_DIR}/nodes/batch_to_space.h
+    ${CPU_SRC_DIR}/nodes/bevpool_v2.cpp
+    ${CPU_SRC_DIR}/nodes/bevpool_v2.h
     ${CPU_SRC_DIR}/nodes/bin_conv.cpp
     ${CPU_SRC_DIR}/nodes/bin_conv.h
     ${CPU_SRC_DIR}/nodes/broadcast.cpp
