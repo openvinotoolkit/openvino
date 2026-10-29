@@ -6660,29 +6660,31 @@ struct ternary_fc_params {
     ternary_epilogue epilogue;
     bool out_f32;
     bool int8_prefill;
-    bool hadamard;
+    int64_t hadamard;  // block size, 0 = none
 };
 
 std::ostream& operator<<(std::ostream& os, const ternary_fc_params& p) {
     static const char* epi[] = {"none", "bias", "sigmoid", "residual"};
-    return os << "m" << p.m << "_n" << p.n << "_k" << p.k << "_" << epi[static_cast<int>(p.epilogue)] << (p.out_f32 ? "_f32" : "")
-              << (p.int8_prefill ? "_int8" : "") << (p.hadamard ? "_had" : "");
+    os << "m" << p.m << "_n" << p.n << "_k" << p.k << "_" << epi[static_cast<int>(p.epilogue)] << (p.out_f32 ? "_f32" : "") << (p.int8_prefill ? "_int8" : "");
+    return p.hadamard ? os << "_had" << p.hadamard : os;
 }
 
 bool ternocl_int2_supported(engine& engine) {
     const auto& info = engine.get_device_info();
-    return engine.runtime_type() == runtime_types::ocl && info.arch >= gpu_arch::xe2 && info.supports_immad;
+    const auto runtime = engine.runtime_type();
+    return (runtime == runtime_types::ocl || runtime == runtime_types::ze) && info.arch >= gpu_arch::xe2 && info.supports_immad;
 }
 
-// Normalised Sylvester H_1024 applied to s * x, per 1024-wide block of every row.
-void hadamard_1024(std::vector<float>& x, int64_t m, int64_t k, const std::vector<int8_t>& signs) {
-    std::vector<float> blk(1024);
+// Normalised Sylvester H_b applied to s * x, per b-wide block of every row.
+void hadamard_ref(std::vector<float>& x, int64_t m, int64_t k, int64_t b, const std::vector<int8_t>& signs) {
+    std::vector<float> blk(b);
+    const float scale = 1.0f / std::sqrt(static_cast<float>(b));
     for (int64_t r = 0; r < m; ++r) {
-        for (int64_t b0 = 0; b0 < k; b0 += 1024) {
-            for (int64_t i = 0; i < 1024; ++i)
+        for (int64_t b0 = 0; b0 < k; b0 += b) {
+            for (int64_t i = 0; i < b; ++i)
                 blk[i] = x[r * k + b0 + i] * signs[b0 + i];
-            for (int64_t h = 1; h < 1024; h <<= 1) {
-                for (int64_t i = 0; i < 1024; i += 2 * h) {
+            for (int64_t h = 1; h < b; h <<= 1) {
+                for (int64_t i = 0; i < b; i += 2 * h) {
                     for (int64_t j = i; j < i + h; ++j) {
                         const float a = blk[j], c = blk[j + h];
                         blk[j] = a + c;
@@ -6690,8 +6692,8 @@ void hadamard_1024(std::vector<float>& x, int64_t m, int64_t k, const std::vecto
                     }
                 }
             }
-            for (int64_t i = 0; i < 1024; ++i)
-                x[r * k + b0 + i] = blk[i] / 32.0f;
+            for (int64_t i = 0; i < b; ++i)
+                x[r * k + b0 + i] = blk[i] * scale;
         }
     }
 }
@@ -6751,7 +6753,7 @@ public:
         auto fc = fully_connected("fc_prim", input_info("input"), "weights", has_bias ? "bias" : "", "scale", "", out_dt, 2, 2);
         fc.decompression_zero_point_scalar = 1;
         if (p.hadamard) {
-            fc.hadamard_block = 1024;
+            fc.hadamard_block = static_cast<size_t>(p.hadamard);
             fc.hadamard_signs = signs;
         }
         topology.add(fc);
@@ -6807,7 +6809,7 @@ public:
 
             std::vector<float> xf(x.begin(), x.end());
             if (p.hadamard)
-                hadamard_1024(xf, m, p.k, signs);
+                hadamard_ref(xf, m, p.k, p.hadamard, signs);
             std::vector<float> ref(m * p.n);
             float max_abs = 0.0f;
             for (int64_t r = 0; r < m; ++r) {
@@ -6864,66 +6866,72 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          fully_connected_gpu_ternocl_int2,
                          ::testing::Values(
                              // GEMV classes (M = 1, 2, <= 4, <= 8), then the M-tiled GEMM bands
-                             ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, false, false},
-                             ternary_fc_params{2, 512, 512, ternary_epilogue::none, false, false, false},
-                             ternary_fc_params{3, 1024, 256, ternary_epilogue::none, false, false, false},
-                             ternary_fc_params{7, 256, 2048, ternary_epilogue::none, false, false, false},
-                             ternary_fc_params{12, 256, 1024, ternary_epilogue::none, false, false, false},
-                             ternary_fc_params{33, 512, 512, ternary_epilogue::none, false, false, false},
-                             ternary_fc_params{70, 256, 1024, ternary_epilogue::none, false, false, false},
+                             ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, false, 0},
+                             ternary_fc_params{2, 512, 512, ternary_epilogue::none, false, false, 0},
+                             ternary_fc_params{3, 1024, 256, ternary_epilogue::none, false, false, 0},
+                             ternary_fc_params{7, 256, 2048, ternary_epilogue::none, false, false, 0},
+                             ternary_fc_params{12, 256, 1024, ternary_epilogue::none, false, false, 0},
+                             ternary_fc_params{33, 512, 512, ternary_epilogue::none, false, false, 0},
+                             ternary_fc_params{70, 256, 1024, ternary_epilogue::none, false, false, 0},
                              // as many groups as output columns: [N, groups] and [groups, N] scales have equal shapes
-                             ternary_fc_params{1, 16, 2048, ternary_epilogue::none, false, false, false},
+                             ternary_fc_params{1, 16, 2048, ternary_epilogue::none, false, false, 0},
                              // epilogues and output type
-                             ternary_fc_params{1, 256, 1024, ternary_epilogue::bias, false, false, false},
-                             ternary_fc_params{20, 256, 1024, ternary_epilogue::bias, false, false, false},
-                             ternary_fc_params{1, 256, 1024, ternary_epilogue::sigmoid, false, false, false},
-                             ternary_fc_params{1, 256, 1024, ternary_epilogue::residual, false, false, false},
-                             ternary_fc_params{17, 256, 1024, ternary_epilogue::residual, false, false, false},
-                             ternary_fc_params{5, 256, 1024, ternary_epilogue::none, true, false, false},
-                             ternary_fc_params{40, 256, 1024, ternary_epilogue::none, true, false, false},
+                             ternary_fc_params{1, 256, 1024, ternary_epilogue::bias, false, false, 0},
+                             ternary_fc_params{20, 256, 1024, ternary_epilogue::bias, false, false, 0},
+                             ternary_fc_params{1, 256, 1024, ternary_epilogue::sigmoid, false, false, 0},
+                             ternary_fc_params{1, 256, 1024, ternary_epilogue::residual, false, false, 0},
+                             ternary_fc_params{17, 256, 1024, ternary_epilogue::residual, false, false, 0},
+                             ternary_fc_params{5, 256, 1024, ternary_epilogue::none, true, false, 0},
+                             ternary_fc_params{40, 256, 1024, ternary_epilogue::none, true, false, 0},
                              // int2 x int8 DPAS prefill
-                             ternary_fc_params{12, 256, 1024, ternary_epilogue::none, false, true, false},
-                             ternary_fc_params{70, 512, 2048, ternary_epilogue::none, false, true, false},
+                             ternary_fc_params{12, 256, 1024, ternary_epilogue::none, false, true, 0},
+                             ternary_fc_params{70, 512, 2048, ternary_epilogue::none, false, true, 0},
                              // Hadamard input rotation (rotated-basis checkpoints)
-                             ternary_fc_params{1, 256, 2048, ternary_epilogue::none, false, false, true},
-                             ternary_fc_params{20, 256, 1024, ternary_epilogue::none, false, false, true},
-                             ternary_fc_params{20, 256, 1024, ternary_epilogue::none, false, true, true}),
+                             ternary_fc_params{1, 256, 2048, ternary_epilogue::none, false, false, 1024},
+                             ternary_fc_params{20, 256, 1024, ternary_epilogue::none, false, false, 1024},
+                             ternary_fc_params{20, 256, 1024, ternary_epilogue::none, false, true, 1024},
+                             ternary_fc_params{1, 256, 2560, ternary_epilogue::none, false, false, 512},
+                             ternary_fc_params{20, 256, 2560, ternary_epilogue::none, false, false, 512},
+                             ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, false, 256},
+                             ternary_fc_params{1, 256, 2048, ternary_epilogue::none, false, false, 2048},
+                             ternary_fc_params{1, 256, 8192, ternary_epilogue::none, false, false, 4096},
+                             ternary_fc_params{20, 256, 4096, ternary_epilogue::none, false, true, 4096}),
                          fully_connected_gpu_ternocl_int2::GetTestCaseName);
 
 TEST(fully_connected_gpu_ternocl_int2_dynamic, gemv_and_gemm_on_one_network) {
     if (!ternocl_int2_supported(get_test_engine()))
         GTEST_SKIP();
-    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, false, false}, true, {1, 33, 4, 70, 1});
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, false, 0}, true, {1, 33, 4, 70, 1});
 }
 
 TEST(fully_connected_gpu_ternocl_int2_dynamic, residual_epilogue) {
     if (!ternocl_int2_supported(get_test_engine()))
         GTEST_SKIP();
-    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::residual, false, false, false}, true, {1, 17, 2});
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::residual, false, false, 0}, true, {1, 17, 2});
 }
 
 TEST(fully_connected_gpu_ternocl_int2_cached, static_gemv) {
     if (!ternocl_int2_supported(get_test_engine()))
         GTEST_SKIP();
-    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, false, false}, false, {1}, true);
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::none, false, false, 0}, false, {1}, true);
 }
 
 TEST(fully_connected_gpu_ternocl_int2_cached, dynamic_residual) {
     if (!ternocl_int2_supported(get_test_engine()))
         GTEST_SKIP();
-    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::residual, false, false, false}, true, {1, 17}, true);
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 1024, ternary_epilogue::residual, false, false, 0}, true, {1, 17}, true);
 }
 
 TEST(fully_connected_gpu_ternocl_int2_cached, dynamic_hadamard) {
     if (!ternocl_int2_supported(get_test_engine()))
         GTEST_SKIP();
-    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 2048, ternary_epilogue::none, false, false, true}, true, {1, 20}, true);
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{1, 256, 2048, ternary_epilogue::none, false, false, 1024}, true, {1, 20}, true);
 }
 
 TEST(fully_connected_gpu_ternocl_int2_cached, static_int8_prefill_bias) {
     if (!ternocl_int2_supported(get_test_engine()))
         GTEST_SKIP();
-    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{20, 256, 1024, ternary_epilogue::bias, false, true, false}, false, {20}, true);
+    fully_connected_gpu_ternocl_int2::run(ternary_fc_params{20, 256, 1024, ternary_epilogue::bias, false, true, 0}, false, {20}, true);
 }
 
 // Two FCs on one weight constant: both run the TernOCL impl on the same packed weights.

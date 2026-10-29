@@ -98,9 +98,11 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         const auto& fc_prim = fc_node.get_primitive();
         if (!node.get_program().get_config().get_enable_ternocl_int2())
             return false;
-        // The kernels use SIMD16 DPAS and 2D block loads.
-        const auto& device_info = node.get_program().get_engine().get_device_info();
-        if (device_info.arch < gpu_arch::xe2 || !device_info.supports_immad)
+        // SIMD16 DPAS and 2D block loads, validated on the OpenCL and Level Zero runtimes.
+        const auto& engine = node.get_program().get_engine();
+        const auto& device_info = engine.get_device_info();
+        const auto runtime = engine.runtime_type();
+        if (device_info.arch < gpu_arch::xe2 || !device_info.supports_immad || (runtime != runtime_types::ocl && runtime != runtime_types::ze))
             return false;
 #define TERNOCL_REJECT(reason)                                                                               \
     do {                                                                                                     \
@@ -165,8 +167,9 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         // One lane per output column in 16-wide sub-group blocks; the tail is clipped, not padded.
         if (N % 16 != 0)
             TERNOCL_REJECT("N is not a multiple of 16");
-        if (fc_prim->hadamard_block != 0 && (fc_prim->hadamard_block != 1024 || K % 1024 != 0))
-            TERNOCL_REJECT("hadamard block must be 1024 and divide K");
+        if (fc_prim->hadamard_block != 0 &&
+            (!fully_connected::is_supported_hadamard_block(fc_prim->hadamard_block) || K % static_cast<int64_t>(fc_prim->hadamard_block) != 0))
+            TERNOCL_REJECT("unsupported hadamard block " + std::to_string(fc_prim->hadamard_block) + " for K=" + std::to_string(K));
         if (fc_prim->hadamard_block != 0 && !fc_prim->hadamard_signs.empty() && fc_prim->hadamard_signs.size() != static_cast<size_t>(K))
             TERNOCL_REJECT("hadamard signs length differs from K");
 
