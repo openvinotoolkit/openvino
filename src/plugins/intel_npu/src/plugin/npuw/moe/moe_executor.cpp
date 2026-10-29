@@ -837,6 +837,14 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
 
         const auto& unrolled_indices = mapping_it->second;
         NPUW_ASSERT(unrolled_indices.size() == K);
+        for (const auto unrolled_idx : unrolled_indices) {
+            OPENVINO_ASSERT(unrolled_idx < compiled_inputs.size(),
+                            "MoE: unrolled input index ",
+                            unrolled_idx,
+                            " is out of range (inputs: ",
+                            compiled_inputs.size(),
+                            ")");
+        }
 
         const bool needs_slicing =
             ov::npuw::moe::requires_expert_slice(batched_closure,
