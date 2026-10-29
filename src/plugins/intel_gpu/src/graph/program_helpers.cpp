@@ -219,7 +219,10 @@ bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(const program_node& p_no
         return false;
     }
 
-    return dep_node.get_users().size() == 1 && !dep_node.is_constant() && !p_node.is_output();
+    // An optimized-out dependency (in-place crop/split, reshape/squeeze, ...) does not own its buffer: it is a view
+    // into its input, possibly strided (e.g. one slice of a Split along an inner axis). Writing the FC output there
+    // would overwrite the other slices of the parent buffer.
+    return dep_node.get_users().size() == 1 && !dep_node.is_constant() && !dep_node.can_be_optimized() && !p_node.is_output();
 }
 
 int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {

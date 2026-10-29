@@ -152,6 +152,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/clamp_fp16_output.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_fc_to_compressed.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_group_deconv_1d_to_2d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_matmul_to_fc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_pooling_to_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_shapeof.cpp

@@ -22,6 +22,9 @@ namespace ov::intel_gpu {
  *                        Sin Cos                             Sin Cos
  *                     (FP16) (FP16)                       (FP32) (FP32)
  *
+ * Up to two shape-only ops (Reshape, Transpose, Squeeze, Unsqueeze) may sit between the Multiply and Sin/Cos, as in
+ * split rotary embeddings (e.g. LTX-2: Multiply -> Transpose/Reshape -> Reshape -> Sin/Cos); they are kept in FP32 too.
+ *
  * Only disable_fp16_compression rt_info is added; the graph topology is unchanged.
  */
 class DisableFP16CompForDirectMultiplySinCos : public ov::pass::MatcherPass {

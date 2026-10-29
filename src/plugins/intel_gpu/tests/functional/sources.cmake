@@ -323,6 +323,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/tensor_iterator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/condition.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/conv3d_norm_activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/activations_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/broadcast_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/concat_in_place_dynamic_batch.cpp
@@ -350,6 +351,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/split_reshape_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/swiglu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/transpose_matmul_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/fc_mul_gate_view.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/loop.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/matmul_sum_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/mvn_layernorm_byxf.cpp

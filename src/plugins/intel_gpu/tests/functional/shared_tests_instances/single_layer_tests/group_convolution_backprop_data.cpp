@@ -43,6 +43,37 @@ const std::vector<std::vector<ptrdiff_t>> emptyOutputPadding = {{}};
 const std::vector<size_t> numOutChannels = {16, 32};
 const std::vector<size_t> numGroups = {2, 8, 16};
 
+/* ============= 1D GroupConvolution ============= */
+// Grouped 1D weights [G, O, I, K] are rank 4 and were read as non-grouped oiyx (wrong results / wrong output size).
+// Covers depthwise (groups == channels) with stride 2, as in the anti-aliased upsampler of the LTX-2 vocoder.
+const std::vector<std::vector<ov::Shape>> inputShapes1D = {{{1, 16, 30}}, {{1, 32, 17}}};
+const std::vector<std::vector<size_t>> kernels1D = {{3}, {12}};
+const std::vector<std::vector<size_t>> strides1D = {{1}, {2}};
+const std::vector<std::vector<ptrdiff_t>> padBegins1D = {{0}, {1}};
+const std::vector<std::vector<ptrdiff_t>> padEnds1D = {{0}, {1}};
+const std::vector<std::vector<size_t>> dilations1D = {{1}};
+
+const auto groupConvBackpropData1DParams_ExplicitPadding = ::testing::Combine(
+        ::testing::ValuesIn(kernels1D),
+        ::testing::ValuesIn(strides1D),
+        ::testing::ValuesIn(padBegins1D),
+        ::testing::ValuesIn(padEnds1D),
+        ::testing::ValuesIn(dilations1D),
+        ::testing::ValuesIn(numOutChannels),
+        ::testing::ValuesIn(numGroups),
+        ::testing::Values(ov::op::PadType::EXPLICIT),
+        ::testing::ValuesIn(emptyOutputPadding)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupConvBackpropData1D_ExplicitPadding, GroupConvBackpropLayerTest,
+                        ::testing::Combine(
+                                groupConvBackpropData1DParams_ExplicitPadding,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inputShapes1D)),
+                                ::testing::ValuesIn(emptyOutputShape),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        GroupConvBackpropLayerTest::getTestCaseName);
+
 /* ============= 2D GroupConvolution ============= */
 const std::vector<std::vector<ov::Shape>> inputShapes2D = {
         {{1, 16, 10, 10}},

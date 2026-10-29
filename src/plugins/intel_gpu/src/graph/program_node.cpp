@@ -1816,6 +1816,14 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false, mem_desc.get_dims(), mem_desc.get_data_type());
                 } else {
+                    // oneDNN requires the binary post-op operand to have as many dimensions as dst. A broadcast operand
+                    // can have a lower rank than the output, e.g. a 4D (bfyx) operand fused into a 3D convolution
+                    // (bfzyx) - "tensors dst and bin_po src1 have inconsistent number of dimensions (5) and (4)".
+                    // Spatial dims of the missing rank are 1, so the cldnn tensor is unchanged and only the format grows.
+                    const auto out_rank = get_output_layout().get_rank();
+                    if (!in.is_dynamic() && in.get_rank() < out_rank) {
+                        in = layout(in.data_type, format::adjust_to_rank(in.format, out_rank), in.get_tensor(), in.data_padding);
+                    }
                     auto mem_desc = cldnn::format::is_blocked(get_output_layout().format)
                                         ? onednn::layout_to_memory_desc_blocked(in, dnnl::memory::format_tag::undef)
                                         : onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef);

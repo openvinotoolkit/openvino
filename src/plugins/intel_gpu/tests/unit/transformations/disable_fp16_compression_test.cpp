@@ -17,7 +17,9 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/sin.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
@@ -126,16 +128,29 @@ std::shared_ptr<ov::Model> make_mvn_model(bool with_add) {
 
 std::shared_ptr<ov::Model> make_direct_sin_cos_model(bool is_reference = false,
                                                      const ov::element::Type& type = ov::element::f32,
-                                                     size_t cos_count = 1) {
+                                                     size_t cos_count = 1,
+                                                     bool with_layout_ops = false) {
     auto lhs = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{1, 32});
     auto rhs = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{1, 32});
     auto multiply = std::make_shared<ov::op::v1::Multiply>(lhs, rhs);
-    auto sin = std::make_shared<ov::op::v0::Sin>(multiply);
+    std::shared_ptr<ov::Node> angle = multiply;
+    ov::NodeVector protected_nodes{lhs, rhs, multiply};
+    if (with_layout_ops) {
+        // LTX-2 split RoPE: Multiply -> Transpose -> Reshape(flatten) -> Sin/Cos
+        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(multiply, order);
+        auto pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 32});
+        auto flatten = std::make_shared<ov::op::v1::Reshape>(transpose, pattern, false);
+        protected_nodes.push_back(transpose);
+        protected_nodes.push_back(flatten);
+        angle = flatten;
+    }
+    auto sin = std::make_shared<ov::op::v0::Sin>(angle);
 
     ov::OutputVector outputs{sin};
-    ov::NodeVector protected_nodes{lhs, rhs, multiply, sin};
+    protected_nodes.push_back(sin);
     for (size_t i = 0; i < cos_count; ++i) {
-        auto cos = std::make_shared<ov::op::v0::Cos>(multiply);
+        auto cos = std::make_shared<ov::op::v0::Cos>(angle);
         outputs.push_back(cos);
         protected_nodes.push_back(cos);
     }
@@ -213,4 +228,13 @@ TEST_F(DisableFP16CompForDirectMultiplySinCosTest, FP16_NoOp) {
 TEST_F(DisableFP16CompForDirectMultiplySinCosTest, MultipleCos) {
     model = make_direct_sin_cos_model(false, ov::element::f32, 2);
     model_ref = make_direct_sin_cos_model(true, ov::element::f32, 2);
+}
+
+TEST_F(DisableFP16CompForDirectMultiplySinCosTest, LayoutOpsBetweenMultiplyAndSinCos) {
+    model = make_direct_sin_cos_model(false, ov::element::f32, 1, true);
+    model_ref = make_direct_sin_cos_model(true, ov::element::f32, 1, true);
+}
+
+TEST_F(DisableFP16CompForDirectMultiplySinCosTest, LayoutOpsWithoutCos_NoOp) {
+    model = make_direct_sin_cos_model(false, ov::element::f32, 0, true);
 }
