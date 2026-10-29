@@ -92,11 +92,16 @@ struct FCGGUFCm : public ImplementationManager {
         if (output_type != data_types::f16 && output_type != data_types::f32) {
             return false;
         }
-        return is_supported_format(in1.data_type) && support_shapes(*node.get_kernel_impl_params());
+        return is_supported_format(in1.data_type) && supports_params(*node.get_kernel_impl_params(), true);
     }
 
     // Accept when the weight is static with shuffle-applicable geometry.
     [[nodiscard]] bool support_shapes(const kernel_impl_params& params) const override {
+        return supports_params(params, false);
+    }
+
+private:
+    [[nodiscard]] bool supports_params(const kernel_impl_params& params, bool allow_dynamic_binary) const {
         const auto& in1 = params.get_input_layout(1);
         if (in1.is_dynamic() || !element::is_gguf_block(in1.data_type)) {
             return false;
@@ -144,7 +149,8 @@ struct FCGGUFCm : public ImplementationManager {
                         return false;
                     }
                     const auto& operand = params.get_input_layout(fd.outer_dep_start_idx);
-                    if (operand.is_dynamic() || out.is_dynamic() || operand.get_shape() != out.get_shape() ||
+                    if (((operand.is_dynamic() || out.is_dynamic()) && !allow_dynamic_binary) ||
+                        operand.get_partial_shape() != out.get_partial_shape() ||
                         operand.format != format::bfyx || out.format != format::bfyx ||
                         operand.data_padding || out.data_padding ||
                         (operand.data_type != data_types::f16 && operand.data_type != data_types::f32)) {

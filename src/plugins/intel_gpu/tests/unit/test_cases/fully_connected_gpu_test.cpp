@@ -99,6 +99,7 @@ struct gguf_fc_mode {
     activation_func post_activation = activation_func::none;
     size_t static_rows = 0;
     std::optional<eltwise_mode> post_eltwise;
+    bool broadcast_peer = false;
 };
 
 class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
@@ -141,6 +142,9 @@ void check_gguf_cm_fusion_support(const ImplementationManager& manager, const ke
     scaled_sum->coefficients = {2.f, 1.f};
     params.fused_desc = {fused_primitive_desc(scaled_sum)};
     params.fused_desc[0].outer_dep_start_idx = static_cast<int32_t>(operand_index);
+    EXPECT_FALSE(manager.support_shapes(params));
+    scaled_sum->coefficients.clear();
+    scaled_sum->stride = {tensor{1, 1, 1, 1}, tensor{1, 1, 1, 1}};
     EXPECT_FALSE(manager.support_shapes(params));
 }
 }
@@ -257,8 +261,11 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     ASSERT_EQ(packed == raw, !shuffled);
     auto bias = ov::op::v0::Constant::create(precision, ov::Shape{channels}, {0.f});
     auto public_parameter = parameter;
-    if (GetParam().static_rows)
-        public_parameter = std::make_shared<ov::op::v0::Parameter>(precision, ov::PartialShape{-1, static_cast<int64_t>(columns)});
+    if (GetParam().static_rows) {
+        auto public_shape = input_shape;
+        public_shape[public_shape.size() - 2] = ov::Dimension::dynamic();
+        public_parameter = std::make_shared<ov::op::v0::Parameter>(precision, public_shape);
+    }
     auto public_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(public_parameter, raw, bias,
                                                                                 scale_node, precision);
     ov::Output<ov::Node> public_result = public_fc;
@@ -271,6 +278,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     ov::ParameterVector public_parameters{public_parameter};
     auto peer_shape = public_parameter->get_partial_shape();
     peer_shape[peer_shape.size() - 1] = channels;
+    auto direct_peer_shape = input_shape;
+    direct_peer_shape[direct_peer_shape.size() - 1] = channels;
     if (GetParam().post_eltwise) {
         const auto peer = std::make_shared<ov::op::v0::Parameter>(precision, peer_shape);
         public_parameters.push_back(peer);
@@ -289,9 +298,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops())
         EXPECT_EQ(operation->get_rt_info().count("gguf_last_executed_kernels"), 0u);
     const size_t cm_alignment = engine.get_device_info().arch >= gpu_arch::xe3 ? 64 : 32;
-    const bool dynamic_binary = GetParam().post_eltwise && peer_shape.is_dynamic();
-    const bool cm_selected = GetParam().cm && GetParam().use_cm && shuffled && channels % cm_alignment == 0 &&
-                             !dynamic_binary;
+    const bool dynamic_binary = GetParam().post_eltwise && direct_peer_shape.is_dynamic();
+    const bool cm_selected = GetParam().cm && GetParam().use_cm && shuffled && channels % cm_alignment == 0;
     auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), weight_type, format::bfyx});
     {
         mem_lock<uint8_t, mem_lock_type::write> bytes(weights, get_test_stream());
@@ -308,7 +316,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         topology.add(activation("post", input_info("fc"), GetParam().post_activation,
                                 {GetParam().post_activation == activation_func::swish ? 1.f : 0.f, 0.f}));
     if (GetParam().post_eltwise) {
-        topology.add(input_layout("peer", {peer_shape, precision, format::bfyx}));
+        topology.add(input_layout("peer", {direct_peer_shape, precision, format::bfyx}));
         topology.add(eltwise("post", std::vector<input_info>{input_info("fc"), input_info("peer")}, *GetParam().post_eltwise));
         topology.add(activation("binary_relu", input_info("post"), activation_func::relu));
     }
@@ -327,7 +335,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         GTEST_SKIP() << "GGUF CM implementation is not built";
     if (GetParam().cm && GetParam().use_cm && shuffled && dynamic_binary) {
         ASSERT_NE(cm_manager, implementations.end());
-        EXPECT_FALSE((*cm_manager)->validate_impl(network.get_primitive("fc")->get_node()));
+        EXPECT_TRUE((*cm_manager)->validate_impl(network.get_primitive("fc")->get_node()));
     }
     std::vector<size_t> row_counts = {1, 2, 31, 32, 33, 1, 1, 33, 2};
     if (GetParam().cm) {
@@ -340,6 +348,10 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         const auto rows = row_counts[iteration];
         const auto concrete_input = GetParam().rank3 ? ov::Shape{1, rows, columns} : ov::Shape{rows, columns};
         const auto expected_output = GetParam().rank3 ? ov::Shape{1, rows, channels} : ov::Shape{rows, channels};
+        const bool broadcast_peer = GetParam().broadcast_peer && rows > 1 && iteration % 2 == 0;
+        auto peer_output = expected_output;
+        if (broadcast_peer)
+            peer_output[peer_output.size() - 2] = 1;
         auto input = engine.allocate_memory({ov::PartialShape(concrete_input), precision, format::bfyx});
         std::vector<float> values(rows * columns);
         for (size_t row = 0; row < rows; ++row) {
@@ -359,10 +371,10 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             std::memcpy(public_input.data<float>(), values.data(), values.size() * sizeof(float));
         }
         request.set_input_tensor(0, public_input);
-        std::vector<float> peer_values(rows * channels);
+        std::vector<float> peer_values((broadcast_peer ? 1 : rows) * channels);
         if (GetParam().post_eltwise) {
-            auto peer_memory = engine.allocate_memory({ov::PartialShape(expected_output), precision, format::bfyx});
-            ov::Tensor peer_tensor(precision, expected_output);
+            auto peer_memory = engine.allocate_memory({ov::PartialShape(peer_output), precision, format::bfyx});
+            ov::Tensor peer_tensor(precision, peer_output);
             for (size_t index = 0; index < peer_values.size(); ++index) {
                 peer_values[index] = static_cast<float>(static_cast<int>((index + iteration * 3) % 7) - 3) / 4.f;
                 if (half_precision)
@@ -457,7 +469,9 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                          : weight_type == ov::element::gguf_q4_0 ? "gemm_q40_full"
                          : weight_type == ov::element::gguf_q4_1 ? "gemm_q41_full"
                                            : "gemm_q80_full";
-        const std::string expected_stage = prefill && cm_selected ? cm_stage
+        const bool cm_for_iteration = cm_selected && !broadcast_peer;
+        const std::string expected_stage = broadcast_peer ? sg_stage
+                  : prefill && cm_for_iteration ? cm_stage
                           : prefill ? "fc_gguf_transcode_" + weight_type.to_string()
                           : shuffled ? sg_stage : "fc_gguf_opt_" + weight_type.to_string();
         EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
@@ -476,7 +490,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             EXPECT_EQ(public_entries.find("fc_gguf_transcode"), std::string::npos) << public_entries;
             EXPECT_EQ(public_entries.find("gemm_q"), std::string::npos) << public_entries;
         }
-        if (cm_selected) {
+        if (cm_for_iteration) {
             EXPECT_NE(implementation->get_kernel_name().find("fc_gguf_cm"), std::string::npos);
             EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos) << entries;
             EXPECT_EQ(entries.find("convert_act_f32_to_f16") != std::string::npos, prefill && !half_precision) << entries;
@@ -484,8 +498,15 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                 ASSERT_NE(cm_manager, implementations.end());
                 check_gguf_cm_fusion_support(**cm_manager, *network.get_primitive("fc")->get_impl_params());
             }
-        } else if (!GetParam().use_cm || dynamic_binary) {
+        } else if (!GetParam().use_cm || broadcast_peer) {
             EXPECT_EQ(implementation->get_kernel_name().find("fc_gguf_cm"), std::string::npos);
+            if (broadcast_peer) {
+                ASSERT_NE(cm_manager, implementations.end());
+                EXPECT_FALSE((*cm_manager)->support_shapes(*network.get_primitive("fc")->get_impl_params()));
+                EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos);
+                EXPECT_EQ(public_entries.find("gemm_q"), std::string::npos);
+                EXPECT_EQ(public_entries.find("fc_gguf_transcode"), std::string::npos);
+            }
         }
         std::vector<float> actual;
         if (half_precision) {
@@ -508,7 +529,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                 if (half_precision)
                     expected = static_cast<float>(ov::float16(expected));
                 if (GetParam().post_eltwise) {
-                    const auto peer = peer_values[row * channels + channel];
+                    const auto peer = peer_values[(broadcast_peer ? 0 : row) * channels + channel];
                     expected = *GetParam().post_eltwise == eltwise_mode::sum ? expected + peer : expected * peer;
                     if (half_precision)
                         expected = static_cast<float>(ov::float16(expected));
@@ -790,7 +811,13 @@ INSTANTIATE_TEST_SUITE_P(gguf,
                                           gguf_fc_mode{"cm_post_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
                                           gguf_fc_mode{"cm_post_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
                                           gguf_fc_mode{"raw_post_sum", false, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
-                                          gguf_fc_mode{"raw_post_prod_f16", false, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod}),
+                                          gguf_fc_mode{"raw_post_prod_f16", false, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_static_sum", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 128, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_static_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 128, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_static_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 128, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_static_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 128, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_sum_broadcast_rebind", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_prod_broadcast_rebind_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true}),
                         [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
 
 TEST(fully_connected_gpu, dynamic_byxf) {

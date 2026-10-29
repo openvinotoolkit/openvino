@@ -1125,7 +1125,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<resample>()) ||
                                       (parents[i].first->is_type<space_to_depth>()) ||
                                       (parents[i].first->is_type<fully_connected>() &&
-                                       fc_supports_fusings(parents[i].first->as<fully_connected>())) ||
+                                                    (fc_supports_fusings(parents[i].first->as<fully_connected>()) ||
+                                                     ((prim->mode == eltwise_mode::sum || prim->mode == eltwise_mode::prod) &&
+                                                      prim->coefficients.empty() &&
+                                                      ov::element::is_gguf_block(parents[i].first->get_input_layout(1).data_type) &&
+                                                      parents[i].first->can_use(impl_types::cm) &&
+                                                      parents[i].first->get_output_layout().is_static() &&
+                                                      parents[1 - i].first->get_output_layout().is_static() &&
+                                                      parents[i].first->get_output_pshape() == parents[1 - i].first->get_output_pshape()))) ||
                                       (parents[i].first->is_type<gemm>() &&
                                        gemm_supports_fusings(parents[i].first->as<gemm>())) ||
                                       (parents[i].first->is_type<batch_to_space>()) ||
