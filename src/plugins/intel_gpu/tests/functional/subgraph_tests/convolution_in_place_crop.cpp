@@ -15,28 +15,40 @@
 
 namespace {
 
-class ConvolutionInPlaceCrop : virtual public ov::test::SubgraphBaseStaticTest {
+class ConvolutionInPlaceCrop : public ov::test::SubgraphBaseStaticTest,
+                              public ::testing::WithParamInterface<std::string> {
 protected:
+    std::string expected_impl_type;
+
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32.get_type_name();
 
+        const auto& precision = GetParam();
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
                                                              ov::Shape{1, 256, 20, 20});
         auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
                                                                ov::Shape{256, 128, 1, 1});
-        auto input_f32 = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
-        auto weights_f32 = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+        std::shared_ptr<ov::Node> input_data = input;
+        std::shared_ptr<ov::Node> weights_data = weights;
+
+        if (precision == "f32") {
+            input_data = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+            weights_data = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
+            expected_impl_type = "convolution_gpu_bfyx_os_iyx_osv16__f32";
+        } else {
+            expected_impl_type = "convolution_gpu_bfyx_os_iyx_osv32";
+        }
 
         auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
         auto split_lengths = ov::op::v0::Constant::create(ov::element::i64,
                                                           ov::Shape{2},
                                                           {128, 128});
-        auto split = std::make_shared<ov::op::v1::VariadicSplit>(input_f32,
+        auto split = std::make_shared<ov::op::v1::VariadicSplit>(input_data,
                                                                  axis,
                                                                  split_lengths);
         auto convolution = std::make_shared<ov::op::v1::Convolution>(split->output(1),
-                                                                     weights_f32,
+                                                                     weights_data,
                                                                      ov::Strides{1, 1},
                                                                      ov::CoordinateDiff{0, 0},
                                                                      ov::CoordinateDiff{0, 0},
@@ -61,8 +73,7 @@ protected:
             if (layer_type != info.end() &&
                 layer_type->second.as<std::string>() == "Convolution") {
                 ASSERT_NE(impl_type, info.end());
-                EXPECT_EQ(impl_type->second.as<std::string>(),
-                          "convolution_gpu_bfyx_os_iyx_osv16__f32");
+                EXPECT_EQ(impl_type->second.as<std::string>(), expected_impl_type);
                 return;
             }
         }
@@ -70,8 +81,12 @@ protected:
     }
 };
 
-TEST_F(ConvolutionInPlaceCrop, smoke_GPU_second_half_feature_crop_no_oob) {
+TEST_P(ConvolutionInPlaceCrop, smoke_GPU_second_half_feature_crop_no_oob) {
     run();
 }
+
+INSTANTIATE_TEST_SUITE_P(ConvolutionInPlaceCropPrecision,
+                         ConvolutionInPlaceCrop,
+                         ::testing::Values("f32", "f16"));
 
 }  // namespace
