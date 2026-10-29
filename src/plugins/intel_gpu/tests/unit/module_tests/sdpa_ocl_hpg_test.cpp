@@ -181,15 +181,19 @@ TEST(SdpaOclHpg, TierMaskCover) {
     EXPECT_TRUE(hpg_tiers_cover(PLAIN_F16_STATIC | PLAIN_EXT, PLAIN_F16_STATIC | PLAIN_EXT | PA_U4));
     EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16, PA_PREFILL));
     // The step that ports a kernel family turns its bit on (and edits this line): S6a = the plain f16 static prefill,
-    // S6b = the rest of plain SDPA, S6c = plain SDPA on an i8 KV cache.
-    EXPECT_EQ(kHpgTiersReady, static_cast<uint32_t>(PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8));
+    // S6b = the rest of plain SDPA, S6c = plain SDPA on an i8 KV cache, S7b = PA PREFILL and MIXED on an f16 cache.
+    constexpr uint32_t ready = PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8 | PA_PREFILL | PA_MIXED_F16;
+    EXPECT_EQ(kHpgTiersReady, ready);
     if (std::getenv("SDPA_OCL_HPG_TIERS") == nullptr) {
-        EXPECT_EQ(hpg_tiers_ready(), static_cast<uint32_t>(PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8));
+        EXPECT_EQ(hpg_tiers_ready(), ready);
         EXPECT_TRUE(hpg_tier_ready(PLAIN_F16_STATIC));
         EXPECT_TRUE(hpg_tier_ready(PLAIN_EXT));
         EXPECT_TRUE(hpg_tier_ready(PLAIN_I8));
-        EXPECT_FALSE(hpg_tier_ready(PA_PREFILL));
-        EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16, hpg_tiers_ready()));
+        EXPECT_TRUE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16, hpg_tiers_ready()));
+        // Not yet: the PA features, the compressed caches (plan S7c, S8a-c).
+        EXPECT_FALSE(hpg_tier_ready(PA_FEATURES));
+        EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16 | PA_I8_TOKEN, hpg_tiers_ready()));
+        EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16 | PA_U4, hpg_tiers_ready()));
     }
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
