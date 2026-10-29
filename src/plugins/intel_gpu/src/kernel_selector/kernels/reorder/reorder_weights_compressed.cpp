@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reorder_weights_int4.h"
+#include "reorder_weights_compressed.h"
 #include "kernel_selector_common.h"
 #include "kernel_selector_params.h"
 #include "kernel_selector_utils.h"
@@ -10,7 +10,7 @@
 
 namespace kernel_selector {
 
-ParamsKey ReorderWeightsKernelInt4::GetSupportedKey() const {
+ParamsKey ReorderWeightsKernelCompressed::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableInputWeightsType(WeightsType::UINT4);
@@ -31,12 +31,12 @@ ParamsKey ReorderWeightsKernelInt4::GetSupportedKey() const {
     return k;
 }
 
-KernelsData ReorderWeightsKernelInt4::GetKernelsData(const Params& params) const {
+KernelsData ReorderWeightsKernelCompressed::GetKernelsData(const Params& params) const {
     const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
     return GetCommonKernelsData(orgParams);
 }
 
-ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(const reorder_weights_params& params) const {
+ReorderWeightsKernelCompressed::DispatchData ReorderWeightsKernelCompressed::SetDefault(const reorder_weights_params& params) const {
     DispatchData dispatchData;
 
     const auto& output = params.output;
@@ -75,7 +75,7 @@ ReorderWeightsKernelInt4::DispatchData ReorderWeightsKernelInt4::SetDefault(cons
     return dispatchData;
 }
 
-JitConstants ReorderWeightsKernelInt4::GetJitConstants(const reorder_weights_params& params) const {
+JitConstants ReorderWeightsKernelCompressed::GetJitConstants(const reorder_weights_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
     const auto& input = params.input;
     const auto& output = params.output;
@@ -104,7 +104,7 @@ JitConstants ReorderWeightsKernelInt4::GetJitConstants(const reorder_weights_par
     return jit;
 }
 
-bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
+bool ReorderWeightsKernelCompressed::Validate(const Params& params) const {
     const auto& p = static_cast<const reorder_weights_params&>(params);
     const auto& input = p.input;
     const auto& output = p.output;
@@ -159,7 +159,7 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
     return supported_case;
 }
 
-KernelsPriority ReorderWeightsKernelInt4::GetKernelsPriority(const Params& /*params*/) const {
+KernelsPriority ReorderWeightsKernelCompressed::GetKernelsPriority(const Params& /*params*/) const {
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 }  // namespace kernel_selector

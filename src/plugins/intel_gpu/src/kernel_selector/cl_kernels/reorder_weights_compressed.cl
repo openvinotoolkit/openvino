@@ -4,7 +4,7 @@
 
 #include "include/batch_headers/fetch_weights.cl"
 
-KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output) {
+KERNEL(reorder_weights_compressed)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output) {
 #if defined(INPUT0_LAYOUT_OIYX) && defined(OUTPUT_LAYOUT_OIYX)
 #if INT2_PACKED
     const uint out_byte_offset = get_global_id(0);
@@ -246,6 +246,6 @@ KERNEL(reorder_weights_int4)(const __global INPUT0_TYPE* input, __global OUTPUT_
     output[output_idx] = packed_out_channels;
 #endif
 #else
-#error "reorder_weights_int4: unsupported layouts combination"
+#error "reorder_weights_compressed: unsupported layouts combination"
 #endif
 }
