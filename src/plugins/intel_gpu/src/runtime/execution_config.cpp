@@ -121,7 +121,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     // because op.is_dynamic() which only checks input shapes return false.
     // So, in the case of input data, we need to check output shape.
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).is_dynamic()) {
+        if (op->get_output_partial_shape(i).is_dynamic() || ov::element::is_gguf_block(op->get_output_element_type(i))) {
             return true;
         }
     }

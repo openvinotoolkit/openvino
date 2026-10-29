@@ -264,11 +264,6 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     ASSERT_EQ(packed == raw, !shuffled);
     auto bias = ov::op::v0::Constant::create(precision, ov::Shape{channels}, {0.f});
     auto public_parameter = parameter;
-    if (GetParam().static_rows) {
-        auto public_shape = input_shape;
-        public_shape[public_shape.size() - 2] = ov::Dimension::dynamic();
-        public_parameter = std::make_shared<ov::op::v0::Parameter>(precision, public_shape);
-    }
     auto public_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(public_parameter, raw, bias,
                                                                                 scale_node, precision);
     ov::Output<ov::Node> public_result = public_fc;
@@ -819,6 +814,9 @@ INSTANTIATE_TEST_SUITE_P(gguf,
                                           gguf_fc_mode{"cm_post_negative_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::negative},
                                           gguf_fc_mode{"cm_static_prefill", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 128},
                                           gguf_fc_mode{"cm_static_decode_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 1},
+                                          gguf_fc_mode{"raw_static_decode", false, nullptr, false, 64, 512, ov::element::gguf_q4_k, false, ov::element::f32, true, activation_func::none, 1},
+                                          gguf_fc_mode{"raw_static_prefill_f16", false, nullptr, true, 64, 512, ov::element::gguf_q4_k, false, ov::element::f16, true, activation_func::none, 128},
+                                          gguf_fc_mode{"sg_static_decode_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, false, ov::element::f16, true, activation_func::none, 1},
                                           gguf_fc_mode{"cm_post_sum", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
                                           gguf_fc_mode{"cm_post_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
                                           gguf_fc_mode{"cm_post_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},

@@ -20,6 +20,22 @@ using namespace cldnn;
 using namespace ov::intel_gpu;
 using namespace ::tests;
 
+TEST(execution_config, static_gguf_weights_require_new_shape_infer) {
+    auto& engine = get_test_engine();
+    auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    for (const auto& weight_type : {ov::element::f32, ov::element::f16, ov::element::u4, ov::element::i4,
+                                   ov::element::gguf_q4_0, ov::element::gguf_q4_1, ov::element::gguf_q4_k,
+                                   ov::element::gguf_q5_k, ov::element::gguf_q6_k, ov::element::gguf_q8_0}) {
+        SCOPED_TRACE(weight_type.get_type_name());
+        auto weights = std::make_shared<ov::op::v0::Constant>(weight_type, ov::Shape{64, 512});
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{weights}, ov::ParameterVector{});
+        ASSERT_FALSE(model->is_dynamic());
+        ExecutionConfig config;
+        config.finalize(ctx.get(), model.get());
+        EXPECT_EQ(config.get_allow_new_shape_infer(), ov::element::is_gguf_block(weight_type));
+    }
+}
+
 // Build a model with MatMul (compressed weights) + PagedAttention stub.
 // PA node triggers is_paged_attention_model detection in apply_model_specific_options.
 // PagedAttentionExtension expects exactly 28 inputs (see paged_attention.cpp::validate_and_infer_types):
