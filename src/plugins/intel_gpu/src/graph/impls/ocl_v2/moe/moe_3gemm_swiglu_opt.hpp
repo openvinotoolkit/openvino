@@ -95,17 +95,6 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             }
         }
 
-        // Shared-expert GEMMs are decoded with the same GATE/UP/DOWN_WEIGHT_DT and MOE_*_DT as the routed ones.
-        if (node.get_dependencies().size() > static_cast<size_t>(Idx::SHARED_GATE_WEIGHT)) {
-            static constexpr std::array shared_weights = {Idx::SHARED_GATE_WEIGHT, Idx::SHARED_UP_WEIGHT, Idx::SHARED_DOWN_WEIGHT};
-            static constexpr std::array shared_scales = {Idx::SHARED_GATE_SCALE, Idx::SHARED_UP_SCALE, Idx::SHARED_DOWN_SCALE};
-            for (size_t i = 0; i < shared_weights.size(); ++i) {
-                if (dt_of(shared_weights[i]) != dt_of(weights[i]) || dt_of(shared_scales[i]) != dt_of(scales[i])) {
-                    return false;
-                }
-            }
-        }
-
         return true;
     }
 };
