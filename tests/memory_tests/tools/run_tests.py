@@ -285,12 +285,12 @@ class TestCase:
         ])
 
     @classmethod
-    def from_model_path(cls, model_id: str, model_path: Path, device: str):
+    def from_model_path(cls, model_id: str, model_path: Path, device: str) -> "TestCase":
         model_descr = cls._read_description(model_path) or {}
         weights_path = model_path.with_suffix(".bin")
         if not weights_path.is_file():
-            print(f"Warning: Test case {model_id} invalid: can't find weights file at {weights_path}")
-            raise Exception("TODO")
+            print(f"Warning: Test case {model_id} invalid: can't find weights file at {str(weights_path)}")
+            raise Exception(f"No weights file was found")
         weights_size = weights_path.stat().st_size
         return cls(
             model_id=model_id,
