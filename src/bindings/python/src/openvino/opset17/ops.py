@@ -63,3 +63,28 @@ def grouped_matmul(
         "GroupedMatMul",
         as_nodes(*inputs, name=name),
     )
+
+
+@nameable_op
+def histc(
+    data: NodeInput,
+    *,
+    bins: int = 100,
+    min: float = 0.0,
+    max: float = 0.0,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which computes the histogram of all input elements using equal-width bins.
+
+    :param data: The node providing input data of numeric type and arbitrary shape.
+    :param bins: Number of equal-width bins. Must be positive. Default 100.
+    :param min: Lower end of the range (inclusive). If equal to max, the range is taken from the data.
+    :param max: Upper end of the range (inclusive). If equal to min, the range is taken from the data.
+    :param name: The optional name for the created output node.
+    :return: The new node performing Histc operation.
+    """
+    return _get_node_factory_opset17().create(
+        "Histc",
+        as_nodes(data, name=name),
+        {"bins": bins, "min": min, "max": max},
+    )
