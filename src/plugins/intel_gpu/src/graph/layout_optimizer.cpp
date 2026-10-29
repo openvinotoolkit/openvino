@@ -1076,6 +1076,51 @@ bool layout_optimizer::is_byxf_onednn_conv_compatible(primitive_type_id type) {
     return byxf_onednn_conv_whitelist.count(type) > 0;
 }
 
+namespace {
+// Temporary list of convolution shapes of a dynamic-batch customer video model until the oneDNN fix (CVS-196865).
+constexpr std::array<std::array<int64_t, 15>, 10> dynamic_batch_byxf_conv_shapes = {{
+    {64, 64, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 28, 28},
+    {64, 128, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 28, 28},
+    {64, 128, 1, 1, 2, 2, 0, 0, 0, 0, 1, 1, 1, 28, 28},
+    {128, 128, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 14},
+    {128, 256, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 14, 14},
+    {128, 256, 1, 1, 2, 2, 0, 0, 0, 0, 1, 1, 1, 14, 14},
+    {256, 256, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 7},
+    {256, 512, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 7, 7},
+    {256, 512, 1, 1, 2, 2, 0, 0, 0, 0, 1, 1, 1, 7, 7},
+    {512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4},
+}};
+
+bool is_dynamic_batch_byxf_shape_whitelisted(const convolution_node& node) {
+    const auto prim = node.get_primitive();
+    const auto& in_shape = node.get_input_layout(0).get_partial_shape();
+    const auto& weights_shape = node.weights().get_output_layout().get_partial_shape();
+    const auto ic = get_convolution_channel_count(node, node.get_input_layout(0), true);
+    const auto oc = get_convolution_channel_count(node, node.get_output_layout(), false);
+    if (ic < 0 || oc < 0 || weights_shape.is_dynamic() || in_shape[2].is_dynamic() || in_shape[3].is_dynamic())
+        return false;
+
+    const auto kernel_y = weights_shape[weights_shape.size() - 2].get_length();
+    const auto kernel_x = weights_shape[weights_shape.size() - 1].get_length();
+    const std::array<int64_t, 15> key = {ic,
+                                         oc,
+                                         kernel_y,
+                                         kernel_x,
+                                         static_cast<int64_t>(prim->stride[0]),
+                                         static_cast<int64_t>(prim->stride[1]),
+                                         prim->padding_begin[0],
+                                         prim->padding_begin[1],
+                                         prim->padding_end[0],
+                                         prim->padding_end[1],
+                                         static_cast<int64_t>(prim->dilation[0]),
+                                         static_cast<int64_t>(prim->dilation[1]),
+                                         node.get_groups(),
+                                         in_shape[2].get_length(),
+                                         in_shape[3].get_length()};
+    return std::find(dynamic_batch_byxf_conv_shapes.begin(), dynamic_batch_byxf_conv_shapes.end(), key) != dynamic_batch_byxf_conv_shapes.end();
+}
+}  // namespace
+
 void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
     OPENVINO_ASSERT(node.is_dynamic());
 
@@ -1100,8 +1145,8 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         return true;
     };
     // node.is_dynamic() also holds for a static batch with dynamic height/width, whose batch does not change at runtime.
-    const bool dynamic_batch_byxf =
-        rank == 4 && input_layout.data_type == data_types::f16 && output_layout.get_partial_shape()[0].is_dynamic() && byxf_compatible_neighbors();
+    const bool dynamic_batch_byxf = rank == 4 && input_layout.data_type == data_types::f16 && output_layout.get_partial_shape()[0].is_dynamic() &&
+                                    byxf_compatible_neighbors() && is_dynamic_batch_byxf_shape_whitelisted(node);
 
     if (_optimization_attributes.byxf_onednn_convolution || dynamic_batch_byxf) {
         if (rank <= 4) {
