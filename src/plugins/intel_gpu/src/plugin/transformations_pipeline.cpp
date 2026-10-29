@@ -50,6 +50,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/grouped_matmul.hpp"
@@ -71,6 +72,7 @@
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
@@ -334,13 +336,25 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
         return true;
     };
 
+    auto has_u2_weight_input = [](const std::shared_ptr<const ov::Node>& dequantization_multiply) {
+        auto weights = dequantization_multiply->input_value(0).get_node_shared_ptr();
+        if (auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(weights)) {
+            weights = subtract->input_value(0).get_node_shared_ptr();
+        }
+        const auto weights_convert = ov::as_type_ptr<ov::op::v0::Convert>(weights);
+        return weights_convert && weights_convert->get_input_element_type(0) == ov::element::u2;
+    };
+
     if (all_has_types(consumers, {ov::opset1::Reshape::get_type_info_static()}) || all_has_types(consumers, {ov::op::v1::Transpose::get_type_info_static()})) {
         for (const auto& consumer : consumers) {
             auto get_child_consumers = [&]() {
                 auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
 
-                // Reshape + Transpose chain
-                if (all_has_types(child_consumers, { ov::op::v1::Transpose::get_type_info_static() })) {
+                // Reshape + Transpose or Transpose + Reshape chain
+                const bool is_u2_transpose_then_reshape_chain = ov::is_type<ov::op::v1::Transpose>(consumer.get_node()) && has_u2_weight_input(node) &&
+                                                                all_has_types(child_consumers, {ov::op::v1::Reshape::get_type_info_static()});
+                const bool general_reshape_transpose_chain = all_has_types(child_consumers, {ov::op::v1::Transpose::get_type_info_static()});
+                if (general_reshape_transpose_chain || is_u2_transpose_then_reshape_chain) {
                     std::set<ov::Input<ov::Node>> next_child_consumers;
                     for (const auto& child_consumer : child_consumers) {
                         const auto grand_child_consumers = child_consumer.get_node()->get_output_target_inputs(0);
