@@ -42,6 +42,8 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
+ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
+
 # Set default GPU runtime to OCL. COMBINED (build ZE and OCL plugins side by side) is
 # opt-in only; the default is never flipped.
 set(OV_GPU_DEFAULT_RT "OCL")
@@ -57,9 +59,20 @@ if (ENABLE_INTEL_GPU)
     endif()
     ov_option_enum (GPU_VENDOR "Target GPU vendor. Supported values: INTEL (default) and NVIDIA (SYCL runtime only)" INTEL
                     ALLOWED_VALUES INTEL NVIDIA)
+    # NVIDIA builds rely on the SYCL runtime and oneDNN, and do not support static builds yet.
+    if(GPU_VENDOR STREQUAL "NVIDIA")
+        if(NOT GPU_RT_TYPE STREQUAL "SYCL")
+            message(FATAL_ERROR "GPU_VENDOR=NVIDIA requires GPU_RT_TYPE=SYCL")
+        endif()
+        if(NOT ENABLE_ONEDNN_FOR_GPU)
+            message(FATAL_ERROR "GPU_VENDOR=NVIDIA requires ENABLE_ONEDNN_FOR_GPU=ON")
+        endif()
+        if(NOT BUILD_SHARED_LIBS)
+            message(FATAL_ERROR "GPU_VENDOR=NVIDIA does not support static builds (BUILD_SHARED_LIBS=OFF) yet")
+        endif()
+    endif()
 endif()
 
-ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
 if(APPLE)
     set(ENABLE_CM_FOR_GPU_DEFAULT OFF)
 else()
