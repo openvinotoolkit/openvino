@@ -48,6 +48,8 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const uint global_id = (f + linear_id_xy * (output_f_size / OFM_PER_WORK_ITEM)) * WORK_ITEMS_PER_SINGLE_BATCHES_ELEMENTS;
 
     const uint sub_group_id = get_local_id(0);
+    // Only OFM_PER_WORK_ITEM / 2 lanes' pairs are consumed by the shuffles; clamp the rest to stay inside filter/bias buffers.
+    const uint filter_lane = min(sub_group_id, (uint)(OFM_PER_WORK_ITEM / 2 - 1));
 
 #if defined(USE_BLOCK_READ_2) || defined(USE_BLOCK_READ_1)
     const uint chunk_size = sizeof(uint)/sizeof(UNIT_TYPE);
@@ -90,8 +92,8 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
                     input_idx += out_batch_id;
 
                     //sub_group_id used as offset to make each workitem load different filter, and then shuffle it
-                    // 2 * sub_group_id is used because we group 2 halfs as one uint element.
-                    uint filter_idx = ofm_offset + 2*sub_group_id + i*FILTER_Y_PITCH + j*FILTER_X_PITCH;
+                    // 2 * filter_lane is used because we group 2 halfs as one uint element.
+                    uint filter_idx = ofm_offset + 2*filter_lane + i*FILTER_Y_PITCH + j*FILTER_X_PITCH;
 
                     for (uint h = 0; h < FILTER_IFM_NUM; h++)
                     {
@@ -129,7 +131,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
     }
 
 #if BIAS_TERM
-    uint bias_val_pair = *(const __global uint*)(bias + (ofm_offset + 2 * sub_group_id));
+    uint bias_val_pair = *(const __global uint*)(bias + (ofm_offset + 2 * filter_lane));
     for(uint s = 0; s < BATCHES_PER_WORK_ITEM; s++)
     {
         ADD_BIAS_16_FP16(_data[s], bias_val_pair);
