@@ -17,9 +17,10 @@ SliceKernelRefNeededInputs SliceKernelRefNeededInputs::Create(const slice_node& 
     const auto& node_inputs = node.get_dependencies();
     const auto& slice_primitive = *node.get_primitive();
 
-    const bool axes_in_runtime = ((node_inputs.size() == InputIndices::kInputsNum) && !slice_primitive.is_axes_constant);
-    const bool start_in_runtime = !slice_primitive.is_start_constant;
-    const bool step_in_runtime = !slice_primitive.is_step_constant;
+    const bool axes_in_runtime =
+        ((node_inputs.size() == InputIndices::kInputsNum) && ((slice_primitive.non_constant_input_mask & slice::SLICE_NON_CONST_INPUT::AXES) != 0));
+    const bool start_in_runtime = (slice_primitive.non_constant_input_mask & slice::SLICE_NON_CONST_INPUT::START) != 0;
+    const bool step_in_runtime = (slice_primitive.non_constant_input_mask & slice::SLICE_NON_CONST_INPUT::STEP) != 0;
 
     inputs.neededIndexes.push_back(InputIndices::kData);
     if (start_in_runtime) {

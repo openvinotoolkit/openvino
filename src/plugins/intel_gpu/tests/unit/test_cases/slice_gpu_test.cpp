@@ -8,6 +8,7 @@
 #include <intel_gpu/primitives/data.hpp>
 
 #include "primitive_inst.h"
+#include "slice_inst.h"
 
 #include <random>
 #include <algorithm>
@@ -111,6 +112,11 @@ private:
         }
     }
 
+    static std::vector<int64_t> ReadConstant(const memory::ptr& mem) {
+        cldnn::mem_lock<int64_t, mem_lock_type::read> lock(mem, get_test_stream());
+        return std::vector<int64_t>(lock.data(), lock.data() + lock.size());
+    }
+
     // Runs single tests case for given params.
     void RunTestCase(const SliceTestParams& params) {
 
@@ -134,7 +140,29 @@ private:
         if (params.axes) {
             inputs.push_back(input_info("axes"));
         }
-        topology.add(slice("slice", inputs));
+
+        int32_t non_constant_input_mask = 0;
+        std::vector<int64_t> start_constant;
+        std::vector<int64_t> step_constant;
+        std::vector<int64_t> axes_constant;
+        if (params.is_start_dynamic) {
+            non_constant_input_mask |= slice::SLICE_NON_CONST_INPUT::START;
+        } else {
+            start_constant = ReadConstant(params.start);
+        }
+        if (params.is_step_dynamic) {
+            non_constant_input_mask |= slice::SLICE_NON_CONST_INPUT::STEP;
+        } else {
+            step_constant = ReadConstant(params.step);
+        }
+        if (params.axes) {
+            if (params.is_axes_dynamic) {
+                non_constant_input_mask |= slice::SLICE_NON_CONST_INPUT::AXES;
+            } else {
+                axes_constant = ReadConstant(params.axes);
+            }
+        }
+        topology.add(slice("slice", inputs, non_constant_input_mask, start_constant, step_constant, axes_constant));
 
         ExecutionConfig config = get_test_default_config(engine_);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -355,15 +383,16 @@ void run_slice_gpu_different_jit_kernels(bool is_caching_test) {
     topology.add(data("step", step));
     topology.add(data("axes", axes));
     topology.add(
-        slice("slice_static", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}, true, true, true));
+        slice("slice_static", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}, 0, {1, 0, 0}, {1, 1, 2}, {1, 2, 3}));
 
     topology.add(input_layout("dynamic_start", start->get_layout()));
     topology.add(input_layout("dynamic_step", step->get_layout()));
     topology.add(slice("slice_dynamic",
                        {input_info("input"), input_info("dynamic_start"), input_info("stop"), input_info("dynamic_step"), input_info("axes")},
-                       false,
-                       false,
-                       true));
+                       slice::SLICE_NON_CONST_INPUT::START | slice::SLICE_NON_CONST_INPUT::STEP,
+                       {},
+                       {},
+                       {1, 2, 3}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -398,12 +427,212 @@ void run_slice_gpu_different_jit_kernels(bool is_caching_test) {
     }
 }
 
-TEST(slice_gpu_different_jit_kernels, not_cached) {
+TEST(slice_gpu_jit_kernel, different_slices_not_cached) {
     run_slice_gpu_different_jit_kernels(false);
 }
 
-TEST(slice_gpu_different_jit_kernels, cached) {
+TEST(slice_gpu_jit_kernel, different_slices_cached) {
     run_slice_gpu_different_jit_kernels(true);
+}
+
+// constant value should be baked into hash
+void run_slice_gpu_static_slices_different_value(bool is_caching_test, int64_t start1_val, int64_t stop1_val, int64_t start2_val, int64_t stop2_val) {
+    const std::vector<int64_t> start1_vals{start1_val};
+    const std::vector<int64_t> stop1_vals{stop1_val};
+    const std::vector<int64_t> start2_vals{start2_val};
+    const std::vector<int64_t> stop2_vals{stop2_val};
+    auto& engine = get_test_engine();
+    const ov::PartialShape input_shape{1, 2, 2, 4};
+    auto input = engine.allocate_memory({input_shape, data_types::i32, format::bfyx});
+    set_values<int32_t>(input, helpers::GenInput<int32_t>(input_shape));
+
+    auto start1 = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto stop1 = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto start2 = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto stop2 = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto step = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    auto axes = engine.allocate_memory({ov::PartialShape{1}, data_types::i64, format::bfyx});
+    set_values<int64_t>(start1, start1_vals);
+    set_values<int64_t>(stop1, stop1_vals);
+    set_values<int64_t>(start2, start2_vals);
+    set_values<int64_t>(stop2, stop2_vals);
+    set_values<int64_t>(step, {1});
+    set_values<int64_t>(axes, {1});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("start1", start1));
+    topology.add(data("stop1", stop1));
+    topology.add(data("start2", start2));
+    topology.add(data("stop2", stop2));
+    topology.add(data("step", step));
+    topology.add(data("axes", axes));
+    topology.add(
+        slice("slice_1", {input_info("input"), input_info("start1"), input_info("stop1"), input_info("step"), input_info("axes")}, 0, start1_vals, {1}, {1}));
+    topology.add(
+        slice("slice_2", {input_info("input"), input_info("start2"), input_info("stop2"), input_info("step"), input_info("axes")}, 0, start2_vals, {1}, {1}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(2));
+
+    const auto slice_1 = network->get_primitive("slice_1");
+    const auto slice_2 = network->get_primitive("slice_2");
+    ASSERT_NE(slice_1, nullptr);
+    ASSERT_NE(slice_2, nullptr);
+    // stop not considered in hash, only check start.
+    if (start1_val == start2_val) {
+        EXPECT_EQ(slice_1->desc()->hash(), slice_2->desc()->hash());
+        EXPECT_EQ(*slice_1->desc(), *slice_2->desc());
+    } else {
+        EXPECT_NE(slice_1->desc()->hash(), slice_2->desc()->hash());
+        EXPECT_NE(*slice_1->desc(), *slice_2->desc());
+    }
+    EXPECT_NE(slice_1->get_impl_params()->hash(), slice_2->get_impl_params()->hash());
+    EXPECT_FALSE(*slice_1->get_impl_params() == *slice_2->get_impl_params());
+
+    // axis 2,3 of the {1, 2, 2, 4} input
+    const int32_t elems_per_index = 2 * 4;
+    std::vector<int32_t> expected1(static_cast<size_t>(elems_per_index * (stop1_val - start1_val)));
+    std::vector<int32_t> expected2(static_cast<size_t>(elems_per_index * (stop2_val - start2_val)));
+    std::iota(expected1.begin(), expected1.end(), elems_per_index * static_cast<int32_t>(start1_val));
+    std::iota(expected2.begin(), expected2.end(), elems_per_index * static_cast<int32_t>(start2_val));
+
+    {
+        auto output1 = outputs.at("slice_1").get_memory();
+        cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output1, get_test_stream());
+        for (size_t i = 0; i < expected1.size(); ++i)
+            EXPECT_EQ(expected1[i], output_ptr[i]) << "slice_1 i=" << i;
+    }
+    {
+        auto output2 = outputs.at("slice_2").get_memory();
+        cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output2, get_test_stream());
+        for (size_t i = 0; i < expected2.size(); ++i)
+            EXPECT_EQ(expected2[i], output_ptr[i]) << "slice_2 i=" << i;
+    }
+}
+
+TEST(slice_gpu_jit_kernel, static_slices_different_value_not_cached) {
+    run_slice_gpu_static_slices_different_value(false, 0, 1, 1, 2);
+}
+
+TEST(slice_gpu_jit_kernel, static_slices_different_value_cached) {
+    run_slice_gpu_static_slices_different_value(true, 0, 1, 1, 2);
+}
+
+TEST(slice_gpu_jit_kernel, static_slices_same_start_different_stop_not_cached) {
+    run_slice_gpu_static_slices_different_value(false, 0, 1, 0, 2);
+}
+
+TEST(slice_gpu_jit_kernel, static_slices_same_start_different_stop_cached) {
+    run_slice_gpu_static_slices_different_value(true, 0, 1, 0, 2);
+}
+
+// constness is decided by mask, not actual input const-ness
+void run_slice_gpu_constant_inputs_with_nonconst_mask(bool is_caching_test) {
+    auto& engine = get_test_engine();
+    const ov::PartialShape input_shape{1, 2, 2, 4};
+    auto input = engine.allocate_memory({input_shape, data_types::i32, format::bfyx});
+    set_values<int32_t>(input, helpers::GenInput<int32_t>(input_shape));
+
+    auto start = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto stop = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto step = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto axes = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    set_values<int64_t>(start, {1, 0, 0});
+    set_values<int64_t>(stop, {2, 2, 4});
+    set_values<int64_t>(step, {1, 1, 2});
+    set_values<int64_t>(axes, {1, 2, 3});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("start", start));
+    topology.add(data("stop", stop));
+    topology.add(data("step", step));
+    topology.add(data("axes", axes));
+    topology.add(slice("slice_non_const_mask",
+                       {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")},
+                       slice::SLICE_NON_CONST_INPUT::START | slice::SLICE_NON_CONST_INPUT::STEP | slice::SLICE_NON_CONST_INPUT::AXES));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+    const auto slice_inst = network->get_primitive("slice_non_const_mask");
+    ASSERT_NE(slice_inst, nullptr);
+    const auto& slice_node_ref = slice_inst->get_node().as<slice>();
+    ASSERT_TRUE(slice_node_ref.get_dependency(SliceKernelRefNeededInputs::kStart).is_constant());
+    ASSERT_TRUE(slice_node_ref.get_dependency(SliceKernelRefNeededInputs::kStep).is_constant());
+    ASSERT_TRUE(slice_node_ref.get_dependency(SliceKernelRefNeededInputs::kAxes).is_constant());
+
+    const auto needed_inputs = SliceKernelRefNeededInputs::Create(slice_node_ref);
+    EXPECT_TRUE(needed_inputs.IsInputNeededInRuntime(SliceKernelRefNeededInputs::kStart));
+    EXPECT_TRUE(needed_inputs.IsInputNeededInRuntime(SliceKernelRefNeededInputs::kStep));
+    EXPECT_TRUE(needed_inputs.IsInputNeededInRuntime(SliceKernelRefNeededInputs::kAxes));
+    EXPECT_EQ(needed_inputs.GetNeededInputIndexes(),
+              (std::vector<size_t>{SliceKernelRefNeededInputs::kData, SliceKernelRefNeededInputs::kStart,
+                                   SliceKernelRefNeededInputs::kStep, SliceKernelRefNeededInputs::kAxes}));
+}
+
+TEST(slice_gpu_jit_kernel, constant_inputs_with_nonconst_mask_not_cached) {
+    run_slice_gpu_constant_inputs_with_nonconst_mask(false);
+}
+
+TEST(slice_gpu_jit_kernel, constant_inputs_with_nonconst_mask_cached) {
+    run_slice_gpu_constant_inputs_with_nonconst_mask(true);
+}
+
+// Constant-folding does not replace user node, so slice still uses runtime input
+TEST(slice_gpu_jit_kernel, constant_folding_inputs) {
+    auto& engine = get_test_engine();
+    const ov::PartialShape input_shape{1, 2, 2, 4};
+    auto input = engine.allocate_memory({input_shape, data_types::i32, format::bfyx});
+    set_values<int32_t>(input, helpers::GenInput<int32_t>(input_shape));
+
+    auto start_base = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto start_offset = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto stop = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto step = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    auto axes = engine.allocate_memory({ov::PartialShape{3}, data_types::i64, format::bfyx});
+    set_values<int64_t>(start_base, {0, 0, 0});
+    set_values<int64_t>(start_offset, {1, 0, 0});
+    set_values<int64_t>(stop, {2, 2, 4});
+    set_values<int64_t>(step, {1, 1, 2});
+    set_values<int64_t>(axes, {1, 2, 3});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(data("start_base", start_base));
+    topology.add(data("start_offset", start_offset));
+    topology.add(eltwise("start_folded", {input_info("start_base"), input_info("start_offset")}, eltwise_mode::sum));
+    topology.add(data("stop", stop));
+    topology.add(data("step", step));
+    topology.add(data("axes", axes));
+    topology.add(slice("slice_folded",
+                       {input_info("input"), input_info("start_folded"), input_info("stop"), input_info("step"), input_info("axes")},
+                       slice::SLICE_NON_CONST_INPUT::START,
+                       {},
+                       {1, 1, 2},
+                       {1, 2, 3}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+
+    const auto slice_inst = network->get_primitive("slice_folded");
+    ASSERT_NE(slice_inst, nullptr);
+    const auto& slice_node_ref = slice_inst->get_node().as<slice>();
+    ASSERT_TRUE(slice_node_ref.get_dependency(SliceKernelRefNeededInputs::kStart).is_constant());
+    ASSERT_TRUE(slice_node_ref.get_dependency(SliceKernelRefNeededInputs::kStart).is_type<data>());
+
+    const auto needed_inputs = SliceKernelRefNeededInputs::Create(slice_node_ref);
+    EXPECT_TRUE(needed_inputs.IsInputNeededInRuntime(SliceKernelRefNeededInputs::kStart));
+    EXPECT_EQ(needed_inputs.GetNeededInputIndexes(),
+              (std::vector<size_t>{SliceKernelRefNeededInputs::kData, SliceKernelRefNeededInputs::kStart}));
 }
 
 // int8 Slice: dedicated small-value case (the shared TYPED_TEST data exceeds the i8 range). Covers the
