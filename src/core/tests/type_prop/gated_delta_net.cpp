@@ -18,8 +18,7 @@ std::shared_ptr<op::internal::GatedDeltaNet> make_gdn(const element::Type& et,
                                                       const PartialShape& v,
                                                       const PartialShape& state,
                                                       const PartialShape& gate,
-                                                      const PartialShape& beta,
-                                                      int64_t snapshot_count = 1) {
+                                                      const PartialShape& beta) {
     auto query = std::make_shared<op::v0::Parameter>(et, q);
     auto key = std::make_shared<op::v0::Parameter>(et, k);
     auto value = std::make_shared<op::v0::Parameter>(et, v);
@@ -28,11 +27,7 @@ std::shared_ptr<op::internal::GatedDeltaNet> make_gdn(const element::Type& et,
     auto beta_p = std::make_shared<op::v0::Parameter>(et, beta);
 
     return std::make_shared<op::internal::GatedDeltaNet>(
-        OutputVector{query, key, value, recurrent_state, gate_p, beta_p},
-        false,
-        1e-6f,
-        1e-6f,
-        snapshot_count);
+        OutputVector{query, key, value, recurrent_state, gate_p, beta_p});
 }
 
 }  // namespace
@@ -51,48 +46,6 @@ TEST(type_prop, gated_delta_net_static_f32) {
     EXPECT_EQ(op->get_output_element_type(1), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{2, 5, 4, 16}));
     EXPECT_EQ(op->get_output_partial_shape(1), PartialShape(Shape{2, 4, 8, 16}));
-}
-
-TEST(type_prop, gated_delta_net_snapshots) {
-    for (const int64_t count : {2, 4}) {
-        const auto op = make_gdn(element::f32,
-                                 PartialShape{{1, 4}, -1, 2, 8},
-                                 PartialShape{{1, 4}, -1, 2, 8},
-                                 PartialShape{{1, 4}, -1, 4, 16},
-                                 PartialShape{{1, 4}, 4, 8, 16},
-                                 PartialShape{{1, 4}, -1, 4},
-                                 PartialShape{{1, 4}, -1, 4},
-                                 count);
-        EXPECT_EQ(op->get_output_size(), 2);
-        EXPECT_EQ(op->get_output_element_type(1), element::f32);
-        EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{count, {1, 4}, 4, 8, 16}));
-        const auto clone = as_type_ptr<op::internal::GatedDeltaNet>(op->clone_with_new_inputs(op->input_values()));
-        ASSERT_NE(clone, nullptr);
-        EXPECT_EQ(clone->get_snapshot_count(), count);
-        EXPECT_EQ(clone->get_output_partial_shape(1), op->get_output_partial_shape(1));
-        op->set_snapshot_count(count + 1);
-        op->validate_and_infer_types();
-        EXPECT_EQ(op->get_output_partial_shape(1)[0], Dimension(count + 1));
-        op->set_snapshot_count(1);
-        op->validate_and_infer_types();
-        EXPECT_EQ(op->get_output_size(), 2);
-        EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{{1, 4}, 4, 8, 16}));
-    }
-}
-
-TEST(type_prop, gated_delta_net_invalid_snapshot_count) {
-    for (const int64_t count : {0, -1}) {
-        OV_EXPECT_THROW(std::ignore = make_gdn(element::f32,
-                                               Shape{1, 2, 2, 8},
-                                               Shape{1, 2, 2, 8},
-                                               Shape{1, 2, 4, 16},
-                                               Shape{1, 4, 8, 16},
-                                               Shape{1, 2, 4},
-                                               Shape{1, 2, 4},
-                                               count),
-                        NodeValidationFailure,
-                        testing::HasSubstr("snapshot_count must be positive"));
-    }
 }
 
 TEST(type_prop, gated_delta_net_static_f16) {

@@ -6,11 +6,15 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstring>
 #include <sstream>
 #include <vector>
 
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/scatter_update.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/gated_delta_net.hpp"
@@ -94,7 +98,7 @@ void run_update_case(bool conv,
         update = std::make_shared<ov::op::internal::RecurrentGatedDeltaNetUpdate>(args, true, 1e-6f, 1e-6f, snapshots);
         auto state = std::make_shared<ov::op::v0::Parameter>(type, ov::PartialShape{-1, H, K, V});
         auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(
-            ov::OutputVector{args[0], args[1], args[2], state, args[4], args[5]}, true, 1e-6f, 1e-6f, snapshots);
+            ov::OutputVector{args[0], args[1], args[2], state, args[4], args[5]}, true, 1e-6f, 1e-6f);
         ref = core.compile_model(std::make_shared<ov::Model>(gdn->outputs(),
             ov::ParameterVector{params[0], params[1], params[2], state, params[4], params[5]}), "GPU", hint);
     }
@@ -225,17 +229,39 @@ void run_update_case(bool conv,
                 for (size_t port = 0; port < 6; ++port)
                     expected_req.set_input_tensor(port, port == 3 ? state : inputs[port]);
                 expected_req.infer();
-                expected[0] = expected_req.get_output_tensor(0);
-                auto states = expected_req.get_output_tensor(1);
+                expected_req.get_output_tensor(0).copy_to(expected[0]);
+                // Ordinary GDN returns only the final state. Re-run each token prefix
+                // from the same initial state to reference newest-first snapshots.
+                // Copy each batch separately: shortening [B,T,...] changes its stride.
                 const int begin = integer(11), sequences = integer(11, 1), stride = integer(11, 2), source = integer(11, 3);
-                const int count = std::min<int>(T, snapshots) * B;
-                for (int r = source; r < count; ++r) {
-                    const int dst = begin + ((r - source) / sequences) * stride + (r - source) % sequences;
-                    for (int h = 0; h < H; ++h)
-                        for (int k = 0; k < K; ++k)
-                            for (int v = 0; v < V; ++v)
-                                set_value(expected[1], dst * F + (h * V + v) * K + k,
-                                          get_value(states, ((r * H + h) * K + k) * V + v));
+                for (int slot = 0; slot < std::min<int>(T, snapshots); ++slot) {
+                    if (slot > 0) {
+                        const size_t prefix = T - slot;
+                        for (size_t port : {0, 1, 2, 4, 5}) {
+                            auto shape = inputs[port].get_shape();
+                            const size_t token_bytes = inputs[port].get_byte_size() / (B * T);
+                            shape[1] = prefix;
+                            ov::Tensor sliced(type, shape);
+                            for (size_t batch = 0; batch < B; ++batch)
+                                std::memcpy(static_cast<char*>(sliced.data()) + batch * prefix * token_bytes,
+                                            static_cast<const char*>(inputs[port].data()) + batch * T * token_bytes,
+                                            prefix * token_bytes);
+                            expected_req.set_input_tensor(port, sliced);
+                        }
+                        expected_req.infer();
+                    }
+                    auto states = expected_req.get_output_tensor(1);
+                    for (size_t batch = 0; batch < B; ++batch) {
+                        const int r = slot * B + batch;
+                        if (r < source)
+                            continue;
+                        const int dst = begin + ((r - source) / sequences) * stride + (r - source) % sequences;
+                        for (int h = 0; h < H; ++h)
+                            for (int k = 0; k < K; ++k)
+                                for (int v = 0; v < V; ++v)
+                                    set_value(expected[1], dst * F + (h * V + v) * K + k,
+                                              get_value(states, ((batch * H + h) * K + k) * V + v));
+                    }
                 }
             }
             for (size_t port = 0; port < inputs.size(); ++port) {
@@ -362,6 +388,49 @@ TEST(RecurrentCacheUpdateNative, Fp16InferencePreservesReshapedCachePrecision) {
         found = true;
     }
     ASSERT_TRUE(found);
+}
+
+// Standalone snapshots use a temporary bank, then ordinary scatter writeback.
+// Its precision must follow the surrounding computation under FP16 inference.
+TEST(RecurrentCacheUpdateNative, Fp16InferenceWithTemporarySnapshotBank) {
+    using namespace ov;
+    ParameterVector params;
+    auto param = [&](PartialShape shape) {
+        auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
+        params.push_back(p);
+        return p;
+    };
+    auto q = param({1, 2, 2, 8}), k = param({1, 2, 2, 8}), v = param({1, 2, 2, 8});
+    auto cache = param({1, 1, 3, 128});
+    auto gate = param({1, 2, 2}), beta = param({1, 2, 2});
+    auto index = [](Shape shape, std::vector<int32_t> values) {
+        return op::v0::Constant::create(element::i32, shape, values);
+    };
+    auto axis = index({1}, {2}), begin = index({1}, {0}), step = index({1}, {1});
+    auto initial = std::make_shared<op::v8::Slice>(cache, begin, step, step, axis);
+    auto bank = std::make_shared<op::v0::Concat>(
+        OutputVector{initial, op::v0::Constant::create(element::f32, Shape{1, 1, 2, 128}, {0})}, 2);
+    auto zero = index({1, 1, 1, 1}, {0});
+    auto update = std::make_shared<op::internal::RecurrentGatedDeltaNetUpdate>(
+        OutputVector{q, k, v, bank, gate, beta, index({1, 1, 1, 1}, {0}), index({1, 1, 1, 0}, {}),
+                     zero, zero, index({1, 1, 1, 2}, {0, 0}), index({1, 1, 1, 4}, {0, 1, 1, 0})},
+        false, 1e-6f, 1e-6f, 3);
+    auto states = std::make_shared<op::v8::Slice>(update->output(1), begin, index({1}, {2}), step, axis);
+    auto writeback = std::make_shared<op::v3::ScatterUpdate>(cache, index({2}, {0, 1}), states, axis);
+    Core core;
+    auto model = std::make_shared<Model>(OutputVector{update->output(0), writeback}, params);
+    auto compiled = core.compile_model(model, "GPU", hint::inference_precision(element::f16));
+    bool found = false;
+    for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
+        const auto& info = node->get_rt_info();
+        auto type = info.find("layerType");
+        if (type == info.end() || type->second.as<std::string>() != "recurrent_cache_update")
+            continue;
+        ASSERT_EQ(node->get_input_element_type(3), element::f16);
+        found = true;
+    }
+    ASSERT_TRUE(found);
+    ASSERT_EQ(compiled.output(1).get_element_type(), element::f32);
 }
 
 // Integrated GPUs can expose caller cache storage as host USM. Apply the same

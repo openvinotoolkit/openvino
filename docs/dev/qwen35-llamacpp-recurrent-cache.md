@@ -41,12 +41,15 @@ precedence are unchanged.
 
 GDN always emits attention as output 0 and the full updated state cache as output
 1. It retains the newest `min(T,snapshot_count)` states for MTP, newest first.
-The ordinary GDN snapshot support remains available for unmatched graphs.
+Ordinary GDN is unchanged and returns only the final state. Unmatched and naive
+frontend graphs obtain snapshots through a temporary cache bank and the new GDN
+Update op. Snapshot/rollback execution (including speculative decoding) requires
+the patched OpenVINO runtime/GPU plugin; released packages support ordinary GDN.
 
 Specifications: `recurrent-conv-cache-update.rst` and
 `recurrent-gated-delta-net-update.rst` in the internal operation documentation.
 Native tests in `recurrent_cache_update.cpp` compare convolution against a host
-calculation and GDN against the ordinary GDN op with independent host cache
+calculation and GDN against ordinary GDN token prefixes with independent host cache
 mapping. They cover reset, cycles, duplicates, overlapping writes, mixed
 precision, changing shapes, aliased/distinct allocations, exclusive Reshapes,
 shared readers, unrelated overlaps, host/device USM and export/import. Core shape

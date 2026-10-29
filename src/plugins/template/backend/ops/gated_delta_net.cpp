@@ -14,7 +14,6 @@ bool evaluate(const std::shared_ptr<ov::op::internal::GatedDeltaNet>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    OPENVINO_ASSERT(op->get_snapshot_count() == 1, "GatedDeltaNet snapshots are not supported by TEMPLATE");
 
     const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
     const auto output_shapes = ov::op::internal::shape_infer(op.get(), input_shapes);

@@ -26,9 +26,10 @@ It supports in-place execution without changing existing GDN operation contracts
 
 **Attributes**
 
-``fuse_qk_l2norm=false``, ``q_l2_norm_eps=1e-6``, ``k_l2_norm_eps=1e-6``, and
-positive ``snapshot_count=1`` have the computation meanings of
-:doc:`gated-delta-net`. Rank and head/feature dimensions are known at GPU
+``fuse_qk_l2norm=false``, ``q_l2_norm_eps=1e-6``, and ``k_l2_norm_eps=1e-6``
+have the computation meanings of :doc:`gated-delta-net`. Positive
+``snapshot_count=1`` controls the newest-first states retained by this operation;
+it does not change the ordinary GatedDeltaNet contract. Rank and head/feature dimensions are known at GPU
 compilation; token/sequence/cache-row dimensions may change. All runtime
 maps, ranges, and destinations must be in bounds.
 

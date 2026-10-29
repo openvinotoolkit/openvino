@@ -13,7 +13,6 @@ namespace ov::op::internal {
 template <class T, class TRShape = result_shape_t<T>>
 std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& input_shapes) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 6);
-    NODE_VALIDATION_CHECK(op, op->get_snapshot_count() >= 1, "snapshot_count must be positive");
 
     // batch, seq_len, head_num, head_size
     const auto& query_ps = input_shapes[0];
@@ -95,11 +94,8 @@ std::vector<TRShape> shape_infer(const GatedDeltaNet* op, const std::vector<T>& 
         state_hidden_size_1,
         " and ",
         v_head_size);
-    // Output 0 has the same shape as input value. Output 1 normally matches recurrent_state;
-    // in snapshot mode it prepends snapshot_count to the recurrent_state shape.
-    if (op->get_snapshot_count() > 1) {
-        output_shapes[1] = TRShape{op->get_snapshot_count(), state_ps[0], state_ps[1], state_ps[2], state_ps[3]};
-    }
+    // output has the same shape and type as input value, output state has the same shape and type as input
+    // recurrent_state
     return output_shapes;
 }
 }  // namespace ov::op::internal

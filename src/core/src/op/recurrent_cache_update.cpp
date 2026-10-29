@@ -91,6 +91,7 @@ RecurrentGatedDeltaNetUpdate::RecurrentGatedDeltaNetUpdate(const OutputVector& a
 }
 void RecurrentGatedDeltaNetUpdate::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 12, "Recurrent GDN requires 12 inputs");
+    NODE_VALIDATION_CHECK(this, m_snapshot_count >= 1, "snapshot_count must be positive");
     const auto q = get_input_partial_shape(0), v = get_input_partial_shape(2);
     NODE_VALIDATION_CHECK(this, q.rank() == 4 && v.rank() == 4, "Q/V require rank 4");
     NODE_VALIDATION_CHECK(this,
@@ -105,8 +106,7 @@ void RecurrentGatedDeltaNetUpdate::validate_and_infer_types() {
         OutputVector{input_value(0), input_value(1), input_value(2), state, input_value(4), input_value(5)},
         get_fuse_qk_l2norm(),
         get_q_l2_norm_eps(),
-        get_k_l2_norm_eps(),
-        get_snapshot_count());
+        get_k_l2_norm_eps());
     validate_cache(this, {3, 6, 7, 8, 9, 10});
     NODE_VALIDATION_CHECK(this, q[0].compatible(get_input_partial_shape(6)[3]), "Active row count must match batch");
     NODE_VALIDATION_CHECK(this,

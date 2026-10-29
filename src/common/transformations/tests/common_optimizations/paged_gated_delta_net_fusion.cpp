@@ -435,22 +435,6 @@ void run_paged_gated_delta_net_fusion(const std::shared_ptr<ov::Model>& model) {
     model->validate_nodes_and_infer_types();
 }
 
-TEST(PagedGatedDeltaNetFusion, PreservesSnapshotOutput) {
-    auto model = build_fusable_model();
-    auto gdn =
-        ov::as_type_ptr<internal::GatedDeltaNet>(model->get_results().at(0)->input_value(0).get_node_shared_ptr());
-    gdn->set_snapshot_count(3);
-    model->validate_nodes_and_infer_types();
-    const auto parameters = model->get_parameters();
-
-    run_paged_gated_delta_net_fusion(model);
-
-    EXPECT_EQ(model->get_parameters(), parameters);
-    EXPECT_EQ(model->get_results().at(0)->input_value(0), gdn->output(0));
-    EXPECT_EQ(model->get_results().at(1)->input_value(0), gdn->output(1));
-    EXPECT_EQ(model->get_output_shape(1), (Shape{3, 2, 4, 8, 6}));
-}
-
 TEST_F(PagedGatedDeltaNetFusionTest, FusesWhenStateOutputIsOnlyResultConsumer) {
     model = build_fusable_model();
     model_ref = build_reference_fused_model();

@@ -24,10 +24,9 @@ std::vector<layout> gated_delta_net_inst::calc_output_layouts(const gated_delta_
     const auto& desc = impl_param.typed_desc<gated_delta_net>();
     const auto& all_inputs = node.get_input_layouts();
     const auto num_outputs = desc->output_size();
-    OPENVINO_ASSERT(all_inputs.size() == 6 || all_inputs.size() == 12, "gated_delta_net requires 6 arithmetic inputs or 12 cache-aware inputs");
+    OPENVINO_ASSERT(all_inputs.size() == 6, "gated_delta_net's must have 6 inputs");
 
     ov::op::internal::GatedDeltaNet op;
-    op.set_snapshot_count(desc->snapshot_count);
 
     std::vector<ShapeType> input_shapes = {
         impl_param.get_input_layout(0).get<ShapeType>(),
@@ -48,10 +47,8 @@ std::vector<layout> gated_delta_net_inst::calc_output_layouts(const gated_delta_
     const auto state_layout = impl_param.get_input_layout(3);
     std::vector<layout> output_layouts;
     output_layouts.emplace_back(output_shapes[0], value_layout.data_type, value_layout.format);
-    if (num_outputs >= 2) {
-        output_layouts.emplace_back(output_shapes[1],
-                                    state_layout.data_type,
-                                    desc->snapshot_count > 1 ? format(format::bfzyx) : state_layout.format);
+    if (num_outputs == 2) {
+        output_layouts.emplace_back(output_shapes[1], state_layout.data_type, state_layout.format);
     }
     return output_layouts;
 }
@@ -72,7 +69,6 @@ std::string gated_delta_net_inst::to_string(const gated_delta_net_node& node) {
     gated_delta_net_info.add("recurrent_state", node.input(3).id());
     gated_delta_net_info.add("gate", node.input(4).id());
     gated_delta_net_info.add("beta", node.input(5).id());
-    gated_delta_net_info.add("snapshot_count", desc->snapshot_count);
 
     node_info->add("gated_delta_net_info", gated_delta_net_info);
     node_info->dump(primitive_description);

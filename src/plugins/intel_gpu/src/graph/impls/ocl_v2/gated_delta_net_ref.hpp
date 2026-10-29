@@ -33,9 +33,7 @@ struct GatedDeltaNetRef : public ImplementationManager {
 
         for (size_t i = 0; i < node.get_dependencies().size(); i++) {
             const auto& in_layout = node.get_input_layout(i);
-            if (!one_of(in_layout.format, supported_fmts) ||
-                (i < 6 ? !one_of(in_layout.data_type, supported_types)
-                       : !one_of(in_layout.data_type, {ov::element::i32, ov::element::i64}))) {
+            if (!one_of(in_layout.format, supported_fmts) || !one_of(in_layout.data_type, supported_types)) {
                 return false;
             }
         }
