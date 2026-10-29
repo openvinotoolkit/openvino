@@ -255,7 +255,7 @@ std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_attention_bias(bool dyna
 // Same wiring as build_gqa_model_with_dynamic_kv_cache(), but with sliding_window_cache=
 // true -- a dynamic axis here must be pinned by ReshapeToStaticGQA to its own
 // local_window_size-derived capacity, not the model-wide max_seq_len.
-std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis) {
+std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis, int64_t local_window_size = 6) {
     auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
     input_hidden_states->set_friendly_name("input_hidden_states");
     auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
@@ -295,7 +295,7 @@ std::shared_ptr<ov::Model> build_gqa_model_with_sliding_window_cache(size_t axis
                                                                 /*kv_cache_bit_width=*/0,
                                                                 ov::op::internal::GroupQueryAttentionQuantType::NONE,
                                                                 ov::op::internal::GroupQueryAttentionQuantType::NONE,
-                                                                /*local_window_size=*/6,
+                                                                local_window_size,
                                                                 /*sliding_window_cache=*/true);
 
     auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
@@ -1390,7 +1390,7 @@ TEST_F(GQACompiledModelTest, CaseV2GenerateSlidingCapacityWithoutSwaHeadroom) {
 
     ASSERT_NO_THROW(create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}}, recorder));
 
-    // Unset option -> only the default 16-token headroom.
+    // Unset option -> default 512-token headroom: align16(4095) + 512.
     EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
 }
 
@@ -1400,7 +1400,8 @@ TEST_F(GQACompiledModelTest, CasePrefillSlidingCapacityCoversQueryLongerThanDefa
 
     ASSERT_NO_THROW(create_compiled_model(model, {{"NPUW_LLM_MAX_CONTEXT_LEN", "16384"}}, recorder));
 
-    // Default headroom (512) is smaller than the 1024-token query: align16(4095) + 1024.
+    // No configured headroom, so the static query length (1024) is used instead of the 512 default:
+    // align16(4095) + 1024.
     EXPECT_EQ(parameter_shape(recorder.only_call().model, "past_keys_30"), ov::PartialShape({1, 10, 5120, 128}));
 }
 
@@ -1897,21 +1898,15 @@ TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF
     EXPECT_EQ(read_back[0]->get_partial_shape(), shape);
 }
 
-TEST(ReshapeToStaticGQATest, PinsSlidingWindowCacheToItsOwnSmallerCapacityNotModelWideMax) {
-    // Regression test for review comment ankitm3k#4230466592 on PR
-    // openvinotoolkit/openvino#38304: sliding_window_cache=true means the KV-cache is a
-    // fixed-capacity ring buffer, so it must get its own 16-aligned+headroom capacity
-    // (6 -> 16 -> 32), independent of the much larger model-wide max_seq_len.
-    auto model = build_gqa_model_with_sliding_window_cache(/*axis=*/2);
-    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192);
-    EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+TEST(ReshapeToStaticGQATest, ConfiguredSlidingWindowSizeOverridesOpLocalWindowSize) {
+    // The op declares local_window_size=6, but the configured sliding_window_size must win.
+    auto model = build_gqa_model_with_sliding_window_cache(/*axis=*/2, /*local_window_size=*/6);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*sliding_window_size=*/64);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
-    const auto& params = model->get_parameters();
-    auto it = std::find_if(params.begin(), params.end(), [](const auto& parameter) {
-        return parameter->get_friendly_name() == "past_keys_0";
-    });
-    ASSERT_NE(it, params.end());
-    EXPECT_EQ((*it)->get_partial_shape(), ov::PartialShape({1, 2, 32, 16}));
+    // align16(64) + 512 default headroom = 576
+    EXPECT_EQ(parameter_shape(model, "past_keys_0"), ov::PartialShape({1, 2, 576, 16}));
+    EXPECT_EQ(parameter_shape(model, "past_values_0"), ov::PartialShape({1, 2, 576, 16}));
 }
 
 TEST(ReshapeToStaticGQATest, SWALayerGenerateGetsWindowPlusOneBlockForKeyAndTransposedValue) {
@@ -1940,27 +1935,48 @@ TEST(ReshapeToStaticGQATest, SWALayerPrefillHeadroomCoversWholeQueryChunk) {
 TEST(ReshapeToStaticGQATest, SWALayerGenerateHeadroomCoversConfiguredSwaHeadroom) {
     auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1);
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384,
-                                                       /*default_sliding_window_capacity=*/std::nullopt,
+                                                       /*sliding_window_size=*/std::nullopt,
                                                        /*sliding_window_headroom=*/512);
     ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
-    // Generate shares the prefill KV buffers: align16(4095) + align16(max(16, 1, 512)) = 4608.
+    // Configured headroom is used for the generate stage too: align16(4095) + align16(512) = 4608.
     EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
     EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
 }
 
-TEST(ReshapeToStaticGQATest, SWALayerHeadroomIsMaxOfConfiguredValueAndStaticQueryLength) {
-    // A configured headroom must not suppress the query-length requirement: the cache has to
-    // hold the whole window plus the query chunk written into the shared KV buffers.
+TEST(ReshapeToStaticGQATest, SWALayerConfiguredHeadroomTakesPriorityOverStaticQueryLength) {
+    // A configured headroom is user-defined and wins even when it is smaller than the query chunk.
     auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1024);
     ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384,
-                                                       /*default_sliding_window_capacity=*/std::nullopt,
+                                                       /*sliding_window_size=*/std::nullopt,
+                                                       /*sliding_window_headroom=*/512);
+    ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
+
+    // The configured 512 is used, not the 1024 query length: align16(4095) + align16(512) = 4608
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
+    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 4608}));
+}
+
+TEST(ReshapeToStaticGQATest, SWALayerDynamicQueryLengthWithoutHeadroomUsesConcreteFallback) {
+    auto model = build_real_sliding_gqa_layer_with_transposed_value(/*query_len=*/1);
+    for (const auto& name : {"query_30", "key_30", "value_30"}) {
+        auto it = std::find_if(model->get_parameters().begin(), model->get_parameters().end(), [&](const auto& p) {
+            return p->get_friendly_name() == name;
+        });
+        ASSERT_NE(it, model->get_parameters().end());
+        auto shape = (*it)->get_partial_shape();
+        shape[2] = ov::Dimension::dynamic();
+        (*it)->set_partial_shape(shape);
+    }
+    model->validate_nodes_and_infer_types();
+
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/16384,
+                                                       /*sliding_window_size=*/std::nullopt,
                                                        /*sliding_window_headroom=*/std::nullopt);
     ASSERT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
-    // align16(4095) + align16(1024)
-    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 5120, 128}));
-    EXPECT_EQ(parameter_shape(model, "past_values_30"), ov::PartialShape({1, 10, 128, 5120}));
+    // No configured headroom and no static query length: align16(4095) + 512 default.
+    EXPECT_EQ(parameter_shape(model, "past_keys_30"), ov::PartialShape({1, 10, 4608, 128}));
 }
 
 TEST(ReshapeToStaticGQATest, SWALayerUnalignedQueryChunkIsRoundedUpTo16) {
@@ -1992,8 +2008,9 @@ TEST(ReshapeToStaticGQATest, MixedGlobalAndSlidingLayersKeepDistinctCapacities) 
 
     EXPECT_EQ(shape_of("past_keys_global"), ov::PartialShape({1, 2, 8192, 16}));
     EXPECT_EQ(shape_of("past_values_global"), ov::PartialShape({1, 2, 8192, 16}));
-    EXPECT_EQ(shape_of("past_keys_sliding"), ov::PartialShape({1, 2, 32, 16}));
-    EXPECT_EQ(shape_of("past_values_sliding"), ov::PartialShape({1, 2, 32, 16}));
+    // align16(6) + 512 default headroom = 528
+    EXPECT_EQ(shape_of("past_keys_sliding"), ov::PartialShape({1, 2, 528, 16}));
+    EXPECT_EQ(shape_of("past_values_sliding"), ov::PartialShape({1, 2, 528, 16}));
 }
 
 TEST(ReshapeToStaticGQATest, UsesRtInfoSlidingWindowLayersAsExactCapacityNotMaxSeqLen) {
@@ -2040,7 +2057,7 @@ TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackAppliesConfiguredDefaultCapa
     // TOTAL_SEQUENCE_LENGTH name hinting "sliding" plus a caller-configured default.
     // The sliding layer gets the configured default; the full layer keeps max_seq_len.
     auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/true);
-    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*default_sliding_window_capacity=*/2048);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*sliding_window_size=*/2048);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
     const auto& params = model->get_parameters();
@@ -2077,7 +2094,7 @@ TEST(ReshapeToStaticGQATest, SeqlensNameHintFallbackDoesNothingWithoutNameHint) 
     // No rt_info, no op attribute, no "sliding" name hint -- no signal to act on, so a
     // configured default must not affect either layer.
     auto model = build_gqa_model_with_seqlens_name_hint(/*name_hint=*/false);
-    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*default_sliding_window_capacity=*/2048);
+    ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(/*max_seq_len=*/8192, /*sliding_window_size=*/2048);
     EXPECT_NO_THROW(reshape_to_static_gqa.run_on_model(model));
 
     const auto& params = model->get_parameters();

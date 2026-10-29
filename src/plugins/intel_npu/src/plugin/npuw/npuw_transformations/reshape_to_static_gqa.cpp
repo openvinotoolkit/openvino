@@ -12,6 +12,7 @@
 
 #include "../logging.hpp"
 #include "../util.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/transpose.hpp"
@@ -150,7 +151,7 @@ std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::Gro
     }
     // Headroom P3. Default to 512 tokens if neither a configured value nor a query length is available
     if (!headroom.has_value()) {
-        headroom = 512;
+        headroom = ::intel_npu::NPUW_LLM_SWA_HEADROOM::defaultValue();
     }
 
     auto align_size = [](int64_t size, int64_t align) {
