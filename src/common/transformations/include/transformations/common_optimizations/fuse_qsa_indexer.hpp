@@ -33,14 +33,15 @@ namespace ov::pass {
  * Multiply(Divide(x, Sqrt(Add(ReduceMean(Power(x, 2), last_axis, keep_dims), eps))), weight).
  *
  * The rewrite is applied only when:
- *  - QSAIndexer::is_supported accepts the resulting configuration and query shape (kernel limits on
- *    head count, head size, key block size, selection heads, token budget and epsilons);
  *  - query has rank 4 and raw keys have rank 3, with compatible batch and sequence;
  *  - both source ops use the same key_block_size and the same key length input;
  *  - SparseAttentionIndexer consumes QSAPrepare output 0 and has no index weights input;
  *  - both RMSNorm weights are enabled (not empty Constants);
  *  - every RMSNorm node and every QSAPrepare output has a single consumer, since all of them are
  *    replaced by QSAIndexer.
+ *
+ * Kernel limits (head count, head size, key block size, selection heads, token budget, epsilons)
+ * are not checked here; plugins verify them during compilation, e.g. via QSAIndexer::is_supported.
  */
 class TRANSFORMATIONS_API FuseQSAIndexer : public MatcherPass {
 public:

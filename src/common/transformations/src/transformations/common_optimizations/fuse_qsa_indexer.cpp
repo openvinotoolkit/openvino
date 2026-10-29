@@ -4,8 +4,6 @@
 
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 
-#include <string>
-
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -140,10 +138,6 @@ ov::pass::FuseQSAIndexer::FuseQSAIndexer() {
         config.q_epsilon = query_epsilon;
         config.k_epsilon = prepare->get_epsilon();
         config.is_causal = true;
-        std::string reason;
-        if (!ov::op::internal::QSAIndexer::is_supported(config, query_shape, reason)) {
-            return false;
-        }
 
         const auto fused =
             std::make_shared<ov::op::internal::QSAIndexer>(ov::OutputVector{query,
