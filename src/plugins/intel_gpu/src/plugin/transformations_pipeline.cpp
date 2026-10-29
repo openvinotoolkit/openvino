@@ -1836,7 +1836,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::ExpandBroadcastReshapeSDPAFusion>();
         manager.register_pass<ov::intel_gpu::StatelessKVFusion>();
-        manager.register_pass<ov::pass::FuseQSAIndexer>();
+        {
+            // GPU QSAIndexer kernels: one selection head, one RMSNorm epsilon for the query and the keys,
+            // kernels specialized for static head count / head size / rotary dimension, RoPE always applied.
+            ov::pass::FuseQSAIndexer::Config qsa_limits;
+            qsa_limits.supported_num_selection_heads = {1};
+            qsa_limits.max_epsilon_relative_difference = 1e-4f;
+            qsa_limits.require_static_head_dims = true;
+            qsa_limits.require_rope = true;
+            manager.register_pass<ov::pass::FuseQSAIndexer>(qsa_limits);
+        }
 
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();

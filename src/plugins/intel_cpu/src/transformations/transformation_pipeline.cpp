@@ -594,7 +594,15 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::FuseQSAIndexer);
+    {
+        // There is no CPU QSAIndexer kernel yet, so CPU uses the GPU QSAIndexer kernel limits.
+        ov::pass::FuseQSAIndexer::Config qsa_limits;
+        qsa_limits.supported_num_selection_heads = {1};
+        qsa_limits.max_epsilon_relative_difference = 1e-4f;
+        qsa_limits.require_static_head_dims = true;
+        qsa_limits.require_rope = true;
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::FuseQSAIndexer, qsa_limits);
+    }
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
