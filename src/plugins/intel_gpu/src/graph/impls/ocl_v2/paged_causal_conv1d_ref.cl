@@ -86,10 +86,10 @@ KERNEL(paged_causal_conv1d_ref)
     const int seq_interval = cache_interval[seq];
     const int prev_nums = (seq_interval > 0) ? (past_lens[seq] % seq_interval) : 0;
 
-    float state[KERNEL_SIZE];
+    float state[CAUSAL_WINDOW];
 
     const int read_state_base = read_physical_block * state_block_stride + h * state_hidden_stride;
-    for (int k = 0; k < KERNEL_SIZE; k++) {
+    for (int k = 0; k < CAUSAL_WINDOW; k++) {
         state[k] = convert_float(conv_state_table[read_state_base + k * state_kernel_stride]);
     }
 
@@ -101,17 +101,17 @@ KERNEL(paged_causal_conv1d_ref)
     for (int t = 0; t < seq_tokens; t++) {
         const int token_idx = token_begin + t;
 
-        for (int k = 0; k + 1 < KERNEL_SIZE; k++) {
+        for (int k = 0; k + 1 < CAUSAL_WINDOW; k++) {
             state[k] = state[k + 1];
         }
 
         const int in_off = token_idx * input_token_stride + h * input_hidden_stride;
-        state[KERNEL_SIZE - 1] = convert_float(input_embeds[in_off]);
+        state[CAUSAL_WINDOW - 1] = convert_float(input_embeds[in_off]);
 
         float sum = bias_val;
         const int w_base = h * weight_hidden_stride;
-        for (int k = 0; k < KERNEL_SIZE; k++) {
-            sum = fma(state[k], convert_float(conv_weight[w_base + k * weight_kernel_stride]), sum);
+        for (int k = 0; k < NUM_TAPS; k++) {
+            sum = fma(state[k * DILATION], convert_float(conv_weight[w_base + k * weight_kernel_stride]), sum);
         }
 
         const int out_off = token_idx * output_token_stride + h * output_hidden_stride;
@@ -126,7 +126,7 @@ KERNEL(paged_causal_conv1d_ref)
                 const int physical_block = block_indices[blk_begin + slot];
                 if (physical_block >= 0 && physical_block < num_blocks) {
                     const int state_base = physical_block * state_block_stride + h * state_hidden_stride;
-                    for (int k = 0; k < KERNEL_SIZE; k++) {
+                    for (int k = 0; k < CAUSAL_WINDOW; k++) {
                         conv_state_table[state_base + k * state_kernel_stride] = TO_INPUT1_TYPE(state[k]);
                     }
                 }

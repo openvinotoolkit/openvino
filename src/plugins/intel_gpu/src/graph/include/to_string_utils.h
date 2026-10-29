@@ -80,6 +80,7 @@ inline std::string activation_type_to_str(activation_func activation) {
     case activation_func::round_half_to_even: return "round_half_to_even";
     case activation_func::round_half_away_from_zero: return "round_half_away_from_zero";
     case activation_func::erfinv: return "erfinv";
+    case activation_func::swoosh: return "swoosh";
     default: return "unknown activation";
     }
 }
@@ -93,6 +94,7 @@ inline std::string onednn_post_op_type_to_str(onednn_post_op_type type) {
     case onednn_post_op_type::eltwise_round: return "eltwise_round";
     case onednn_post_op_type::eltwise_hardsigmoid: return "eltwise_hardsigmoid";
     case onednn_post_op_type::binary_mul: return "binary_mul";
+    case onednn_post_op_type::binary_mul_inplace: return "binary_mul_inplace";
     case onednn_post_op_type::binary_add: return "binary_add";
     case onednn_post_op_type::binary_sub: return "binary_add";
     case onednn_post_op_type::binary_max: return "binary_max";
