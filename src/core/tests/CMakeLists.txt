@@ -149,6 +149,9 @@ ov_add_test_target(
         ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp
 )
 
+set_source_files_properties(${OV_CORE_TESTS_QSA_SRCS} PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+target_sources(${TARGET_NAME} PRIVATE ${OV_CORE_TESTS_QSA_SRCS})
+
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
                                                   ${CMAKE_CURRENT_SOURCE_DIR})
 # LTO
