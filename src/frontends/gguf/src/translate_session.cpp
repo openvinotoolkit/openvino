@@ -13,6 +13,7 @@
 #include <unordered_set>
 
 #include "builder/gguf_builder_decoder.hpp"
+#include "hadamard_sign_folding.hpp"
 #include "input_model.hpp"
 #include "node_context.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -44,15 +45,15 @@
 #include "openvino/pass/manager.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
 #include "pass/prune_orphaned_parameters.hpp"
+#include "quant/weights.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/optimize_strided_slice.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 using namespace ov::op;
 
@@ -115,7 +116,8 @@ void prepare_graph_inputs(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder
 
 void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     std::shared_ptr<TensorMap>& tensor_map,
-                    const std::unordered_map<std::string, CreatorFunction>& translators) {
+                    const std::unordered_map<std::string, CreatorFunction>& translators,
+                    const std::shared_ptr<ConstantCache>& constant_cache) {
     const auto& operation_type = decoder->get_op_type();
     if (operation_type == "GGML_OP_NONE") {
         // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
@@ -136,7 +138,7 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                                   "Translation for operation type ",
                                   operation_type,
                                   " is not implemented.");
-    NodeContext node_context(decoder, tensor_map);
+    NodeContext node_context(decoder, tensor_map, constant_cache);
     converted_outputs = it->second(node_context);
 
     const auto& node_output_names = decoder->get_output_names();
@@ -218,8 +220,9 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // translate_weight turns into a compressed subgraph during the walk below, which keeps them
     // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
+    const auto constant_cache = std::make_shared<ConstantCache>();
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
-        translate_node(decoder, tensor_map, m_translator_map);
+        translate_node(decoder, tensor_map, m_translator_map, constant_cache);
     };
 
     // Build the shared LLM scaffolding (sliced attention mask + rope sin/cos table) once, so all
@@ -290,6 +293,14 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
             }
             resulting_model->get_rt_info()[pass::gguf_recurrent_states_key()] = flat;
         }
+    }
+
+    // The architecture and projector metadata select what the GenAI adapters change, including
+    // adapters registered as transformation extensions.
+    if (builder)
+        resulting_model->get_rt_info()["gguf_architecture"] = builder->get_attribute("architecture");
+    if (!gguf_model_decoder->get_mmproj_config().empty()) {
+        resulting_model->get_rt_info()["gguf_mmproj"] = gguf_model_decoder->get_mmproj_config();
     }
 
     if (builder) {
@@ -370,6 +381,9 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     // StateManagementPattern, which admits no Convert between the KV-cache Concat and SDPA, and so
     // silently disables the PagedAttention backend for every GGUF model.
     manager.register_pass<ov::pass::EliminateConvert>();
+    // ggml VIEWs of disjoint ranges of one tensor (fused q/k/v, z/beta/alpha) become Slices; as one
+    // VariadicSplit the plugins can run them in place instead of as one copy kernel each.
+    manager.register_pass<ov::pass::GroupedSliceToVSplitOptimization>();
 
     // Fuse a standalone Loop-based Gated Delta Net recurrence here (not in a plugin, which can't
     // remove a Parameter without violating its I/O port-count invariant), only for models with a
@@ -387,10 +401,10 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
         manager.register_pass<pass::PruneParametersOrphanedSince>(live_before_gdn);
     }
 
+    fold_hadamard_input_signs(model);
     manager.run_passes(model);
+    normalize_u2_zero_points(model);
     return model;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

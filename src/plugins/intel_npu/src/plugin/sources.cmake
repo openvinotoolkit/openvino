@@ -87,6 +87,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_kvcache_strategy.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_longrope_kv.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_longrope_kv.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_lora_states.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_prefix_caching.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_prefix_caching.hpp
@@ -114,6 +116,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_transformation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_transformation.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_transformation_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_topology.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_topology.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_unroll_patterns.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_unroll_patterns.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/add_position_ids_param.cpp
@@ -122,6 +126,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/collapse_unqdq.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/cut_lm_head.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/cut_lm_head.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/conv_to_matmul.cpp
@@ -137,10 +143,14 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/kv_cache_compressed.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/mask_linear_attention_padding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/mask_linear_attention_padding.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_lincache_layout.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_lincache_layout.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.hpp    
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp
@@ -151,6 +161,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_sliced_head_to_static.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static_gqa.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/reshape_to_static_gqa.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.cpp
@@ -168,6 +180,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc/schema_npuw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_dispatch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_dispatch.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/graph.cpp
@@ -229,9 +243,12 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/util_xarch.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/accuracy_checked.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/accuracy_checked.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/batched.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/batched.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/failsafe.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/failsafe.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/subgraph_pipeline.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/variable_state.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_bank.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_bank.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/prepare_whisper_model.cpp

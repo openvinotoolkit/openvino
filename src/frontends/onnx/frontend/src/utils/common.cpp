@@ -29,10 +29,7 @@ using namespace ov::op;
 using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace common {
+namespace ov::frontend::onnx::common {
 const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     switch (onnx_type) {
     case TensorProto_DataType::TensorProto_DataType_BOOL:
@@ -184,7 +181,11 @@ ov::OutputVector handle_opset6_binary_op(const ov::frontend::onnx::Node& node) {
             rhs_node = std::make_shared<v3::Broadcast>(rhs_node, std::make_shared<v0::ShapeOf>(lhs_node));
         }
     }
-    return {std::make_shared<T>(lhs_node, rhs_node)};
+    if constexpr (std::is_same_v<T, v1::Divide>) {
+        return {std::make_shared<T>(lhs_node, rhs_node, false)};
+    } else {
+        return {std::make_shared<T>(lhs_node, rhs_node)};
+    }
 }
 
 template ov::OutputVector handle_opset6_binary_op<v1::Add>(const Node& node);
@@ -239,7 +240,4 @@ int64_t normalize_axis(const std::string& description, const int64_t axis, const
     return ov::util::normalize(axis, r);
 }
 
-}  // namespace  common
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::common

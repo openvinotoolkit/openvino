@@ -3,8 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # New operations added in Opset17
+from openvino.opset17.ops import bgr_to_nv12
 from openvino.opset17.ops import erfinv
 from openvino.opset17.ops import grouped_matmul
+from openvino.opset17.ops import rgb_to_nv12
 from openvino.opset17.ops import histc
 
 # Operators from previous opsets

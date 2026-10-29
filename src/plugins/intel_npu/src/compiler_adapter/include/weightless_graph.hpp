@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "graph.hpp"
+#include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -40,9 +41,9 @@ public:
                     std::variant<std::monostate,
                                  std::shared_ptr<const ov::Model>,
                                  std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
-                    const FilteredConfig& config,
                     const bool blobIsPersistent = false,
-                    const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
+                    const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
+                    const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
@@ -58,7 +59,7 @@ public:
      * In addition to this, the init schedules are run and the result of this is set as inputs to the main
      * compiled model.
      */
-    void initialize_impl(const FilteredConfig& config) override;
+    void initialize_impl(const Config& config) override;
 
     // TODO: public for multi-threaded execution
     struct InputData {

@@ -6,7 +6,10 @@
 
 #pragma once
 
+#include <optional>
+
 #include "intel_npu/common/iparser.hpp"
+#include "intel_npu/common/iprofiling_decoder.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/core/model.hpp"
@@ -16,10 +19,11 @@ namespace intel_npu {
 
 class Parser final : public IParser {
 public:
-    Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
+    Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+           const std::shared_ptr<IProfilingDecoder>& profilingDecoder = nullptr);
 
     std::shared_ptr<IGraph> parse(const ov::Tensor& mainBlob,
-                                  const FilteredConfig& config,
+                                  const Config& config,
                                   std::variant<std::monostate,
                                                std::shared_ptr<const ov::Model>,
                                                std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
@@ -30,6 +34,7 @@ public:
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
+    std::shared_ptr<IProfilingDecoder> _profilingDecoder;
 
     Logger _logger;
 };

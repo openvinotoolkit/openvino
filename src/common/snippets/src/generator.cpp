@@ -10,12 +10,17 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/op/bitwise_not.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/is_finite.hpp"
+#include "openvino/op/is_inf.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/select.hpp"
+#include "openvino/op/util/binary_elementwise_bitwise.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/itt.hpp"
@@ -134,13 +139,18 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
                        ov::op::v1::LogicalNot,
                        ov::op::v0::PRelu,
                        ov::op::v0::Convert,
+                       ov::op::v10::IsFinite,
+                       ov::op::v10::IsInf,
+                       ov::op::v10::IsNaN,
                        ov::op::v1::Select,
                        op::VectorBuffer,
                        op::BroadcastMove,
                        op::Scalar,
                        op::HorizonMax,
                        op::HorizonSum,
-                       op::Fill>(op)) {
+                       op::Fill,
+                       ov::op::util::BinaryElementwiseBitwise,
+                       ov::op::v13::BitwiseNot>(op)) {
         return RegType::vec;
     }
     OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");

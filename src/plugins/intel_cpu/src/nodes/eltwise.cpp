@@ -152,6 +152,7 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v1::Divide::get_type_info_static(),
          [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              node.algorithm = Algorithm::EltwiseDivide;
+             node.m_attrs.data.pythondiv = ov::as_type_ptr<ov::op::v1::Divide>(op)->is_pythondiv();
              node.m_attrs.broadcastingPolicy = determineBroadcastingPolicy(op);
          }},
         {ov::op::v0::SquaredDifference::get_type_info_static(),
@@ -318,8 +319,8 @@ const std::map<const ov::DiscreteTypeInfo, Eltwise::Initializer>& Eltwise::getIn
         {ov::op::v0::Clamp::get_type_info_static(),
          [](const std::shared_ptr<ov::Node>& op, Eltwise& node) {
              auto clampOp = getNgraphOpAs<ov::op::v0::Clamp>(op);
-             auto alpha_ = static_cast<float>(clampOp->get_min());
-             auto beta_ = static_cast<float>(clampOp->get_max());
+             auto alpha_ = clampOp->get_min();
+             auto beta_ = clampOp->get_max();
              if (clampOp->get_input_element_type(0).is_integral_number()) {
                  // according to spec, when Clamp has integer element type, min and max must be converted to
                  // integer
@@ -765,6 +766,15 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     }
 
     bool isIntegerNode = isIntegerComputeSupported(this);
+    if (isIntegerNode && getAlgorithm() == Algorithm::EltwiseDivide &&
+        !EltwiseJitExecutor::supports(m_attrs,
+                                      inputShapes.front().getRank(),
+                                      getOriginalInputPrecisions(),
+                                      {getOriginalOutputPrecisionAtPort(0)})) {
+        // The integer reference executor handles Divide only and cannot apply fused eltwise post-operations.
+        return false;
+    }
+
     if (isIntegerNode && node->getType() != Type::Eltwise) {
         return false;
     }
@@ -869,6 +879,11 @@ void Eltwise::selectOptimalPrimitiveDescriptor() {
 }
 
 bool Eltwise::canBeInPlace() const {
+    // Preserve cached constant results across inference calls.
+    if (getParentEdgeAt(0)->getParent()->isConstant() && !isConstant()) {
+        return false;
+    }
+
     if (getParentEdgeAt(0)->getParent()->getType() == Type::Input) {
         return false;
     }
@@ -950,7 +965,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            ops.append_eltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
+            ops.append_eltwise(getOneDnnAlgorithm(), static_cast<float>(getAlpha()), static_cast<float>(getBeta()));
             break;
         default:
             CPU_NODE_THROW("Appending Eltwise node with name '", getName(), "' as post operation is not supported");
@@ -961,10 +976,12 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
     // per-tensor EltwisePowerStatic can be implemented with more well-supported eltwise postOps
     if (getAlgorithm() == Algorithm::EltwisePowerStatic) {
         // d = s*beta + gamma
-        ops.append_eltwise(dnnl::algorithm::eltwise_linear, getBeta(), getGamma());
+        ops.append_eltwise(dnnl::algorithm::eltwise_linear,
+                           static_cast<float>(getBeta()),
+                           static_cast<float>(getGamma()));
         if (getAlpha() != 1.0F) {
             // d = 1 * s^alpha
-            ops.append_eltwise(dnnl::algorithm::eltwise_pow, 1.0F, getAlpha());
+            ops.append_eltwise(dnnl::algorithm::eltwise_pow, 1.0F, static_cast<float>(getAlpha()));
         }
         return;
     }
@@ -1074,11 +1091,11 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
         case dnnl::algorithm::eltwise_hsigmoid:
         case dnnl::algorithm::eltwise_round_half_to_even:
         case dnnl::algorithm::eltwise_round_half_away_from_zero:
-            dnnlpoc.appendEltwise(getOneDnnAlgorithm(), getAlpha(), getBeta());
+            dnnlpoc.appendEltwise(getOneDnnAlgorithm(), static_cast<float>(getAlpha()), static_cast<float>(getBeta()));
             break;
         case dnnl::algorithm::eltwise_linear:
             // call dnnlpoc's specialized API to generate optimized postOps sequence
-            dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
+            dnnlpoc.appendLinear({static_cast<float>(getAlpha())}, {static_cast<float>(getBeta())}, isLastPostOp);
             break;
         default:
             CPU_NODE_THROW("as post operation is not supported");
