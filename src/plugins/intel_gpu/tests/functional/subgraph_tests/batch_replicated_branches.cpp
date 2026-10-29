@@ -2,83 +2,99 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
-#include <algorithm>
 #include <memory>
+#include <sstream>
 #include <string>
+#include <tuple>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
-#include "openvino/runtime/core.hpp"
-#include "openvino/runtime/tensor.hpp"
+#include "openvino/op/relu.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace {
 
-std::shared_ptr<ov::Model> make_fp16_camera_model() {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 4, 4});
-    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-    auto weights = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 1, 1}, {0.5f});
+// replica count, element type, whether the branches contain MaxPool -> Add -> Relu after Convolution
+using BatchReplicatedBranchesParams = std::tuple<size_t, ov::element::Type, bool>;
 
-    ov::OutputVector branches;
-    for (int64_t index = 0; index < 2; ++index) {
-        auto gather_index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {index});
-        auto gather = std::make_shared<ov::op::v8::Gather>(input, gather_index, axis, 0);
-        branches.push_back(
-            std::make_shared<ov::op::v1::Convolution>(gather, weights, ov::Strides{1, 1}, ov::CoordinateDiff{0, 0}, ov::CoordinateDiff{0, 0}, ov::Strides{1, 1})
-                ->output(0));
+// N branches Gather(i) -> Convolution -> [MaxPool -> Add -> Relu] concatenated along the width,
+// expected to be executed as one batched Convolution
+class BatchReplicatedBranches : public testing::WithParamInterface<BatchReplicatedBranchesParams>, virtual public ov::test::SubgraphBaseStaticTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<BatchReplicatedBranchesParams>& info) {
+        const auto& [replicas, type, post_ops] = info.param;
+        std::ostringstream result;
+        result << "replicas=" << replicas << "_type=" << type << "_post_ops=" << post_ops;
+        return result.str();
     }
 
-    auto concat = std::make_shared<ov::op::v0::Concat>(branches, 3);
-    return std::make_shared<ov::Model>(std::make_shared<ov::op::v0::Result>(concat), ov::ParameterVector{input});
+protected:
+    const ov::test::utils::InputGenerateData data_range{-1, 2, 1000, 1};
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        const auto& [replicas, type, post_ops] = GetParam();
+        inType = outType = type;
+        if (type == ov::element::f16) {
+            // Each output accumulates 3 * 3 * 3 products of values in [-1, 1] in f16
+            abs_threshold = 0.02f;
+        }
+
+        const ov::Shape input_shape{1, replicas, 3, 16, 16};
+        auto input = std::make_shared<ov::op::v0::Parameter>(type, input_shape);
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        auto weights = ov::test::utils::make_constant(type, ov::Shape{8, 3, 3, 3}, data_range);
+        auto bias = ov::test::utils::make_constant(type, ov::Shape{8, 1, 1}, data_range);
+
+        ov::OutputVector branches;
+        for (size_t i = 0; i < replicas; ++i) {
+            auto index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {i});
+            auto gather = std::make_shared<ov::op::v8::Gather>(input, index, axis);
+            ov::Output<ov::Node> branch = std::make_shared<ov::op::v1::Convolution>(gather,
+                                                                                    weights,
+                                                                                    ov::Strides{1, 1},
+                                                                                    ov::CoordinateDiff{1, 1},
+                                                                                    ov::CoordinateDiff{1, 1},
+                                                                                    ov::Strides{1, 1});
+            if (post_ops) {
+                branch = std::make_shared<ov::op::v8::MaxPool>(branch, ov::Strides{2, 2}, ov::Strides{1, 1}, ov::Shape{0, 0}, ov::Shape{0, 0}, ov::Shape{2, 2})
+                             ->output(0);
+                branch = std::make_shared<ov::op::v1::Add>(branch, bias);
+                branch = std::make_shared<ov::op::v0::Relu>(branch);
+            }
+            branches.push_back(branch);
+        }
+        auto concat = std::make_shared<ov::op::v0::Concat>(branches, 3);
+        function = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input});
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& input = function->get_parameters().front();
+        inputs.insert({input, ov::test::utils::create_and_fill_tensor(input->get_element_type(), target_input_static_shapes.front(), data_range)});
+    }
+
+    void validate() override {
+        ov::test::SubgraphBaseTest::validate();
+        ov::test::CheckNumberOfNodesWithType(compiledModel, "Convolution", 1);
+    }
+};
+
+TEST_P(BatchReplicatedBranches, Inference) {
+    run();
 }
 
-bool has_device(const std::vector<std::string>& available_devices, const std::string& device_name) {
-    return std::any_of(available_devices.begin(), available_devices.end(), [&device_name](const std::string& available_device) {
-        return available_device == device_name ||
-               (available_device.size() > device_name.size() && available_device.compare(0, device_name.size(), device_name) == 0 &&
-                available_device[device_name.size()] == '.');
-    });
-}
+INSTANTIATE_TEST_SUITE_P(smoke_BatchReplicatedBranches,
+                         BatchReplicatedBranches,
+                         ::testing::Combine(::testing::Values(2, 4), ::testing::Values(ov::element::f32, ov::element::f16), ::testing::Bool()),
+                         BatchReplicatedBranches::getTestCaseName);
 
 }  // namespace
-
-TEST(IntelGpuBatchReplicatedBranches, ValidatesFp16NumericalTolerance) {
-    auto reference_model = make_fp16_camera_model();
-
-    ov::Tensor input(ov::element::f16, ov::Shape{1, 2, 1, 4, 4});
-    auto* input_values = input.data<ov::float16>();
-    for (size_t i = 0; i < input.get_size(); ++i) {
-        input_values[i] = static_cast<float>(i + 1) * 0.125f;
-    }
-
-    ov::Core core;
-    const auto available_devices = core.get_available_devices();
-    if (!has_device(available_devices, "CPU") || !has_device(available_devices, "GPU")) {
-        GTEST_SKIP() << "Requires discoverable CPU and GPU plugins.";
-    }
-
-    auto cpu_model = core.compile_model(reference_model, "CPU");
-    auto gpu_model = core.compile_model(reference_model, "GPU");
-
-    auto cpu_request = cpu_model.create_infer_request();
-    cpu_request.set_input_tensor(input);
-    cpu_request.infer();
-    const auto cpu_output = cpu_request.get_output_tensor(0);
-
-    auto gpu_request = gpu_model.create_infer_request();
-    gpu_request.set_input_tensor(input);
-    gpu_request.infer();
-    const auto gpu_output = gpu_request.get_output_tensor(0);
-
-    ASSERT_EQ(cpu_output.get_size(), gpu_output.get_size());
-    const auto* cpu_values = cpu_output.data<ov::float16>();
-    const auto* gpu_values = gpu_output.data<ov::float16>();
-    for (size_t i = 0; i < cpu_output.get_size(); ++i) {
-        EXPECT_NEAR(static_cast<float>(cpu_values[i]), static_cast<float>(gpu_values[i]), 1e-2f) << "at output index " << i;
-    }
-}

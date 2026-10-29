@@ -10,6 +10,7 @@
 #include "openvino/op/loop.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -17,51 +18,6 @@ using namespace ov;
 namespace v0 = ov::op::v0;
 namespace op_util = ov::op::util;
 namespace {
-#define ACCESSOR(type)                                                                \
-    void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { \
-        m_attributes_map[name] = adapter.get();                                       \
-    };
-#define ACCESSOR_V(type) ACCESSOR(type) ACCESSOR(std::vector<type>)
-
-class NodeComparingVisitor : public ov::AttributeVisitor {
-public:
-    ACCESSOR(bool)
-    ACCESSOR_V(std::string)
-    ACCESSOR_V(int8_t)
-    ACCESSOR_V(int16_t)
-    ACCESSOR_V(int32_t)
-    ACCESSOR_V(int64_t)
-    ACCESSOR_V(uint8_t)
-    ACCESSOR_V(uint16_t)
-    ACCESSOR_V(uint32_t)
-    ACCESSOR_V(uint64_t)
-    ACCESSOR_V(float)
-    ACCESSOR_V(double)
-
-    void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        if (auto a = ov::as_type<ov::AttributeAdapter<std::vector<ov::element::Type>>>(&adapter)) {
-            m_attributes_map.insert({name, a->get()});
-        } else {
-            OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
-        }
-    };
-    void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
-        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void*");
-    };
-    void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
-        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
-    };
-
-    ov::AnyMap visit_attributes(const std::shared_ptr<Node>& node) {
-        m_attributes_map.clear();
-        node->visit_attributes(*this);
-        return m_attributes_map;
-    }
-
-private:
-    ov::AnyMap m_attributes_map;
-};
-
 bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs, const std::shared_ptr<Node>& rhs) {
     size_t input_size = lhs->get_input_size();
     if (input_size != rhs->get_input_size())
@@ -71,13 +27,7 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
             continue;
         auto lhs_constant = as_type<v0::Constant>(lhs->get_input_node_ptr(i));
         auto rhs_constant = as_type<v0::Constant>(rhs->get_input_node_ptr(i));
-        if (!lhs_constant || !rhs_constant)
-            return false;
-        if (lhs_constant->get_element_type() != rhs_constant->get_element_type())
-            return false;
-        if (lhs_constant->get_shape() != rhs_constant->get_shape())
-            return false;
-        if (memcmp(lhs_constant->get_data_ptr(), rhs_constant->get_data_ptr(), lhs_constant->get_byte_size()) != 0)
+        if (!lhs_constant || !rhs_constant || !op_util::constants_are_equal(*lhs_constant, *rhs_constant))
             return false;
     }
     return true;
@@ -87,8 +37,7 @@ void collect_node_attrs(const std::shared_ptr<Node>& node,
                         std::unordered_map<std::shared_ptr<ov::Node>, ov::AnyMap>& node_attributes_cache) {
     if (node_attributes_cache.count(node))
         return;
-    auto visitor = NodeComparingVisitor();
-    node_attributes_cache[node] = visitor.visit_attributes(node);
+    node_attributes_cache[node] = op_util::get_comparable_attributes(node);
 }
 
 bool nodes_are_equal(const std::shared_ptr<Node>& lhs,

@@ -4,943 +4,327 @@
 
 #include "plugin/transformations/batch_replicated_branches.hpp"
 
-#include <stdexcept>
-#include <string>
-#include <unordered_map>
-#include <utility>
-#include <vector>
-
 #include <gtest/gtest.h>
+
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/runtime/tensor.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "openvino/runtime/iplugin.hpp"
-#include "transformations/init_node_info.hpp"
-#include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/rt_info/decompression.hpp"
-#include "transformations/rt_info/fused_names_attribute.hpp"
+
+using namespace testing;
+using namespace ov;
 
 namespace {
 
-struct UnknownRuntimeInfo {
-    int value;
-    std::vector<std::string> labels;
+// Each branch maps a [1, 3, 8, 8] slice to [1, 4, 4, 4] ([1, 4, 2, 2] with MaxPool)
+struct BranchConfig {
+    size_t replicas = 4;
+    int64_t replica_axis = 1;
+    int64_t concat_axis = 3;
+    bool decompress_weights = false;
+    bool max_pool = false;
+    bool bias = false;
+    bool relu = false;
+    bool port_rt_info = false;
 };
 
-struct CameraModelOptions {
-    bool add_topology_difference = false;
-    bool dynamic_camera_height = false;
-    bool add_branch_bias = false;
-    bool nonzero_weights = false;
-    bool different_branch_runtime_info = false;
-    ov::op::AutoBroadcastSpec add_broadcast{ov::op::AutoBroadcastType::NUMPY};
-    bool add_unknown_runtime_info = false;
-    bool use_nonzero_endpoint_output = false;
-    bool add_decompression_metadata = false;
-    bool use_distinct_endpoint_names = false;
-    bool use_v14_max_pool = false;
-    bool add_external_endpoint_user = false;
-    bool add_max_pool_indices_user = false;
-    bool add_port_runtime_info = false;
-    bool add_external_data_user = false;
-    bool add_type_relaxed_branch = false;
-    bool add_type_relaxed_concat = false;
-    bool use_distinct_equal_weights = false;
-    bool use_duplicate_branch_friendly_names = false;
-    bool use_duplicate_branch_tensor_names = false;
-};
-
-std::shared_ptr<ov::Model> make_camera_model(const std::vector<int64_t>& indices,
-                                             const CameraModelOptions& options = {}) {
-    const auto input_shape = options.dynamic_camera_height
-                                 ? ov::PartialShape{1, 4, 3, ov::Dimension::dynamic(), 640}
-                                 : ov::PartialShape{1, 4, 3, 480, 640};
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
-    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {int64_t{1}});
-    const ov::Shape weights_shape{512, 3, 32, 32};
-    std::shared_ptr<ov::op::v0::Constant> weights;
-    if (options.nonzero_weights) {
-        std::vector<float> values(ov::shape_size(weights_shape), 0.0f);
-        for (size_t output_channel = 0; output_channel < weights_shape[0]; ++output_channel) {
-            values[output_channel * weights_shape[1] * weights_shape[2] * weights_shape[3]] =
-                0.5f + static_cast<float>(output_channel) * 0.001f;
-        }
-        weights = std::make_shared<ov::op::v0::Constant>(ov::element::f32, weights_shape, values);
-    } else {
-        weights = ov::op::v0::Constant::create(ov::element::f32, weights_shape, {0.0f});
-    }
-
-    std::shared_ptr<ov::op::v0::Constant> bias;
-    if (options.add_branch_bias) {
-        const ov::Shape bias_shape =
-            options.add_broadcast.m_type == ov::op::AutoBroadcastType::NONE ? ov::Shape{1, 512, 15, 20}
-                                                                              : ov::Shape{512, 15, 20};
-        std::vector<float> bias_values(ov::shape_size(bias_shape), 0.0f);
-        if (options.nonzero_weights) {
-            for (size_t output_channel = 0; output_channel < 512; ++output_channel) {
-                for (size_t y = 0; y < 15; ++y) {
-                    for (size_t x = 0; x < 20; ++x) {
-                        const auto index = (output_channel * 15 + y) * 20 + x;
-                        bias_values[index] = 0.1f + static_cast<float>(output_channel) * 0.0001f +
-                                             static_cast<float>(y) * 0.00001f + static_cast<float>(x) * 0.000001f;
-                    }
-                }
-            }
-        }
-        bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, bias_shape, bias_values);
-    }
-
-    ov::OutputVector branches;
-    ov::ResultVector extra_results;
-    branches.reserve(indices.size());
-    for (size_t i = 0; i < indices.size(); ++i) {
-        auto index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {indices[i]});
-        auto gather = std::make_shared<ov::op::v8::Gather>(input, index, axis, 0);
-        if (options.use_distinct_endpoint_names) {
-            gather->output(0).set_names({"camera_input_" + std::to_string(i)});
-        }
-        ov::Output<ov::Node> branch_weights = weights;
-        if (options.use_distinct_equal_weights) {
-            auto distinct_weights =
-                std::make_shared<ov::op::v0::Constant>(ov::element::f32,
-                                                        weights_shape,
-                                                        weights->cast_vector<float>());
-            distinct_weights->set_friendly_name("camera_weights_" + std::to_string(i));
-            branch_weights = distinct_weights;
-        }
-        if (options.add_decompression_metadata) {
-            auto weight_convert = std::make_shared<ov::op::v0::Convert>(branch_weights, ov::element::f32);
-            ov::mark_as_decompression(weight_convert);
-            branch_weights = weight_convert;
-        }
-        auto convolution = std::make_shared<ov::op::v1::Convolution>(
-            gather,
-            branch_weights,
-            ov::Strides{32, 32},
-            ov::CoordinateDiff{0, 0},
-            ov::CoordinateDiff{0, 0},
-            ov::Strides{1, 1});
-        std::shared_ptr<ov::Node> convolution_node = convolution;
-        if (options.use_duplicate_branch_friendly_names) {
-            convolution_node->set_friendly_name("camera_branch");
-        }
-        if (options.add_type_relaxed_branch) {
-            const auto origin_type = i == 1 ? ov::element::f16 : ov::element::f32;
-            convolution_node = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Convolution>>(
-                ov::element::TypeVector{origin_type, origin_type},
-                ov::element::TypeVector{ov::element::f32},
-                ov::op::TemporaryReplaceOutputType(gather, origin_type).get(),
-                ov::op::TemporaryReplaceOutputType(branch_weights, origin_type).get(),
-                ov::Strides{32, 32},
-                ov::CoordinateDiff{0, 0},
-                ov::CoordinateDiff{0, 0},
-                ov::Strides{1, 1});
-        }
-        if (options.add_port_runtime_info) {
-            convolution_node->input(0).get_rt_info()["camera_input_port"] = int64_t{1};
-            convolution_node->input(1).get_rt_info()["camera_weights_port"] = std::string{"weights"};
-            convolution_node->output(0).get_rt_info()["camera_output_port"] = int64_t{2};
-        }
-        if (options.different_branch_runtime_info && i == 1) {
-            convolution_node->get_rt_info()["camera_branch"] = static_cast<int64_t>(i);
-        }
-        ov::Output<ov::Node> branch = convolution_node;
-        if (options.add_unknown_runtime_info && i < 2) {
-            convolution_node->get_rt_info()["camera_branch"] = int64_t{7};
-            convolution_node->get_rt_info()["camera_label"] = std::string{"camera"};
-            convolution_node->get_rt_info()["camera_payload"] =
-                UnknownRuntimeInfo{static_cast<int>(i), {"front", "wide"}};
-        }
-        if (options.use_v14_max_pool) {
-            auto max_pool = std::make_shared<ov::op::v14::MaxPool>(branch,
-                                                                   ov::Strides{1, 1},
-                                                                   ov::Strides{1, 1},
-                                                                   ov::Shape{0, 0},
-                                                                   ov::Shape{0, 0},
-                                                                   ov::Shape{1, 1},
-                                                                   ov::op::RoundingType::FLOOR,
-                                                                   ov::op::PadType::EXPLICIT,
-                                                                   ov::element::i64,
-                                                                   2);
-            branch = max_pool->output(0);
-            if (options.add_max_pool_indices_user && i == 0) {
-                extra_results.push_back(std::make_shared<ov::op::v0::Result>(max_pool->output(1)));
-            }
-        }
-        if (options.use_nonzero_endpoint_output) {
-            auto max_pool = std::make_shared<ov::op::v8::MaxPool>(branch,
-                                                                   ov::Strides{1, 1},
-                                                                   ov::Strides{1, 1},
-                                                                   ov::Shape{0, 0},
-                                                                   ov::Shape{0, 0},
-                                                                   ov::Shape{1, 1});
-            branch = max_pool->output(1);
-        }
-        if (options.add_branch_bias) {
-            branch = std::make_shared<ov::op::v1::Add>(branch, bias, options.add_broadcast);
-        }
-        if (options.add_topology_difference && i == 2) {
-            branch = std::make_shared<ov::op::v0::Relu>(branch);
-        }
-        if (options.use_distinct_endpoint_names) {
-            branch.set_names({"camera_endpoint_" + std::to_string(i)});
-        }
-        if (options.use_duplicate_branch_tensor_names) {
-            branch.set_names({"camera_endpoint"});
-        }
-        branches.push_back(branch);
-    }
-
-    std::shared_ptr<ov::op::v0::Concat> output_concat;
-    if (options.add_type_relaxed_concat) {
-        ov::OutputVector relaxed_inputs;
-        relaxed_inputs.reserve(branches.size());
-        for (const auto& branch : branches) {
-            relaxed_inputs.push_back(ov::op::TemporaryReplaceOutputType(branch, ov::element::f16).get());
-        }
-        output_concat = std::make_shared<ov::op::TypeRelaxed<ov::op::v0::Concat>>(
-            ov::element::TypeVector(branches.size(), ov::element::f16),
-            ov::element::TypeVector{ov::element::f32},
-            relaxed_inputs,
-            3);
-    } else {
-        output_concat = std::make_shared<ov::op::v0::Concat>(branches, 3);
-    }
-    output_concat->set_friendly_name("camera_output_concat");
-    output_concat->output(0).set_names({"camera_output"});
-    auto result = std::make_shared<ov::op::v0::Result>(output_concat);
-    ov::ResultVector results{result};
-    results.insert(results.end(), extra_results.begin(), extra_results.end());
-    if (options.add_external_endpoint_user) {
-        if (options.add_external_data_user) {
-            auto relu = std::make_shared<ov::op::v0::Relu>(branches.front());
-            results.push_back(std::make_shared<ov::op::v0::Result>(relu));
-        } else {
-            auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(branches.front());
-            results.push_back(std::make_shared<ov::op::v0::Result>(shape_of));
-        }
-    }
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{input});
+std::ostream& operator<<(std::ostream& os, const BranchConfig& config) {
+    return os << "replicas=" << config.replicas << "_replica_axis=" << config.replica_axis << "_concat_axis=" << config.concat_axis
+              << (config.decompress_weights ? "_decompress" : "") << (config.max_pool ? "_pool" : "") << (config.bias ? "_bias" : "")
+              << (config.relu ? "_relu" : "") << (config.port_rt_info ? "_port_rt_info" : "");
 }
 
-class CameraGraphEvaluator {
-public:
-    explicit CameraGraphEvaluator(const ov::Tensor& input) : m_input(input) {}
+const Shape branch_input_shape{1, 3, 8, 8};
 
-    ov::Tensor evaluate(const std::shared_ptr<ov::Node>& node) {
-        const auto found = m_values.find(node.get());
-        if (found != m_values.end()) {
-            return found->second;
-        }
-
-        ov::Tensor value;
-        if (ov::is_type<ov::op::v0::Parameter>(node)) {
-            value = m_input;
-        } else if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-            value = constant->get_tensor_view();
-        } else if (const auto convolution = ov::as_type_ptr<ov::op::v1::Convolution>(node)) {
-            value = evaluate_convolution(convolution);
-        } else {
-            ov::TensorVector inputs;
-            inputs.reserve(node->get_input_size());
-            for (const auto& input : node->input_values()) {
-                inputs.push_back(evaluate(input.get_node_shared_ptr()));
-            }
-
-            ov::TensorVector outputs{
-                ov::Tensor(node->get_output_element_type(0), node->get_output_shape(0))};
-            if (!node->evaluate(outputs, inputs)) {
-                throw std::runtime_error(std::string("Camera graph evaluator does not support ") +
-                                         node->get_type_name());
-            }
-            value = outputs.front();
-        }
-
-        m_values.emplace(node.get(), value);
-        return value;
-    }
-
-private:
-    struct WeightEntry {
-        size_t input_channel;
-        size_t y;
-        size_t x;
-        float value;
-    };
-
-    ov::Tensor evaluate_convolution(const std::shared_ptr<ov::op::v1::Convolution>& convolution) {
-        const auto data = evaluate(convolution->input_value(0).get_node_shared_ptr());
-        const auto weights = evaluate(convolution->input_value(1).get_node_shared_ptr());
-        const auto data_shape = data.get_shape();
-        const auto weights_shape = weights.get_shape();
-        const auto output_shape = convolution->get_output_shape(0);
-
-        if (data_shape.size() != 4 || weights_shape != ov::Shape{512, 3, 32, 32} ||
-            convolution->get_strides() != ov::Strides{32, 32} ||
-            convolution->get_pads_begin() != ov::CoordinateDiff{0, 0} ||
-            convolution->get_pads_end() != ov::CoordinateDiff{0, 0} ||
-            convolution->get_dilations() != ov::Strides{1, 1}) {
-            throw std::runtime_error("Unexpected convolution in camera graph evaluator");
-        }
-
-        ov::Tensor output(convolution->get_output_element_type(0), output_shape);
-        const auto* data_values = data.data<const float>();
-        const auto* weight_values = weights.data<const float>();
-        auto* output_values = output.data<float>();
-
-        std::vector<std::vector<WeightEntry>> nonzero_weights(weights_shape[0]);
-        for (size_t output_channel = 0; output_channel < weights_shape[0]; ++output_channel) {
-            for (size_t input_channel = 0; input_channel < weights_shape[1]; ++input_channel) {
-                for (size_t y = 0; y < weights_shape[2]; ++y) {
-                    for (size_t x = 0; x < weights_shape[3]; ++x) {
-                        const auto weight_index =
-                            ((output_channel * weights_shape[1] + input_channel) * weights_shape[2] + y) *
-                                weights_shape[3] +
-                            x;
-                        if (weight_values[weight_index] != 0.0f) {
-                            nonzero_weights[output_channel].push_back(
-                                {input_channel, y, x, weight_values[weight_index]});
-                        }
-                    }
-                }
-            }
-        }
-
-        for (size_t batch = 0; batch < output_shape[0]; ++batch) {
-            for (size_t output_channel = 0; output_channel < output_shape[1]; ++output_channel) {
-                for (size_t y = 0; y < output_shape[2]; ++y) {
-                    for (size_t x = 0; x < output_shape[3]; ++x) {
-                        float sum = 0.0f;
-                        for (const auto& weight : nonzero_weights[output_channel]) {
-                            const auto input_index =
-                                ((batch * data_shape[1] + weight.input_channel) * data_shape[2] +
-                                 y * 32 + weight.y) *
-                                    data_shape[3] +
-                                x * 32 + weight.x;
-                            sum += data_values[input_index] * weight.value;
-                        }
-                        const auto output_index =
-                            ((batch * output_shape[1] + output_channel) * output_shape[2] + y) * output_shape[3] + x;
-                        output_values[output_index] = sum;
-                    }
-                }
-            }
-        }
-        return output;
-    }
-
-    const ov::Tensor& m_input;
-    std::unordered_map<const ov::Node*, ov::Tensor> m_values;
-};
-
-// The core reference evaluator has no convolution implementation. Evaluate
-// this fixed camera graph directly, using a sparse convolution implementation
-// and the actual OpenVINO evaluators for every other operation.
-std::vector<float> evaluate_camera_model(const std::shared_ptr<ov::Model>& model, const ov::Tensor& input) {
-    CameraGraphEvaluator evaluator(input);
-    const auto output = evaluator.evaluate(model->get_results().front()->input_value(0).get_node_shared_ptr());
-    return std::vector<float>(output.data<const float>(), output.data<const float>() + output.get_size());
+std::shared_ptr<op::v0::Parameter> make_data(const BranchConfig& config, element::Type type = element::f32) {
+    Shape shape = branch_input_shape;
+    shape.insert(shape.begin() + config.replica_axis, config.replicas);
+    return std::make_shared<op::v0::Parameter>(type, shape);
 }
 
-}  // namespace
+std::shared_ptr<Node> make_gather(const Output<Node>& data, int64_t index, const BranchConfig& config) {
+    return std::make_shared<op::v8::Gather>(data,
+                                            op::v0::Constant::create(element::i64, Shape{}, {index}),
+                                            op::v0::Constant::create(element::i64, Shape{}, {config.replica_axis}));
+}
+
+Output<Node> make_weights(const BranchConfig& config, float value = 0.5f) {
+    if (!config.decompress_weights)
+        return op::v0::Constant::create(element::f32, Shape{4, 3, 2, 2}, {value});
+    auto convert = std::make_shared<op::v0::Convert>(op::v0::Constant::create(element::f16, Shape{4, 3, 2, 2}, {value}), element::f32);
+    mark_as_decompression(convert);
+    return convert;
+}
+
+Output<Node> make_bias() {
+    return op::v0::Constant::create(element::f32, Shape{4, 1, 1}, {0.1f, 0.2f, 0.3f, 0.4f});
+}
+
+Output<Node> make_branch(const Output<Node>& input, const Output<Node>& weights, const Output<Node>& bias, const BranchConfig& config) {
+    auto conv = std::make_shared<op::v1::Convolution>(input, weights, Strides{2, 2}, CoordinateDiff{0, 0}, CoordinateDiff{0, 0}, Strides{1, 1});
+    if (config.port_rt_info) {
+        conv->input(0).get_rt_info()["port_info"] = std::string{"data"};
+        conv->output(0).get_rt_info()["port_info"] = std::string{"conv_output"};
+    }
+    Output<Node> branch = conv;
+    if (config.max_pool)
+        branch = std::make_shared<op::v8::MaxPool>(branch, Strides{2, 2}, Strides{1, 1}, Shape{0, 0}, Shape{0, 0}, Shape{2, 2})->output(0);
+    if (config.bias)
+        branch = std::make_shared<op::v1::Add>(branch, bias);
+    if (config.relu)
+        branch = std::make_shared<op::v0::Relu>(branch);
+    return branch;
+}
+
+std::shared_ptr<Model> make_concat_model(const OutputVector& branches, const BranchConfig& config, const ParameterVector& params) {
+    auto concat = std::make_shared<op::v0::Concat>(branches, config.concat_axis);
+    return std::make_shared<Model>(OutputVector{concat}, params);
+}
+
+// Branch i gathers slice indices[i] of the input
+std::shared_ptr<Model> getModel(const BranchConfig& config, std::vector<int64_t> indices = {}) {
+    if (indices.empty())
+        for (size_t i = 0; i < config.replicas; ++i)
+            indices.push_back(static_cast<int64_t>(i));
+    auto data = make_data(config);
+    const auto weights = make_weights(config);
+    const auto bias = make_bias();
+    OutputVector branches;
+    for (const auto index : indices)
+        branches.push_back(make_branch(make_gather(data, index, config), weights, bias, config));
+    return make_concat_model(branches, config, {data});
+}
+
+// Gather(0..N-1) -> Concat(axis 0) -> one branch on [N, ...] -> Transpose -> Reshape
+std::shared_ptr<Model> getModelRef(const BranchConfig& config) {
+    auto data = make_data(config);
+    OutputVector slices;
+    for (size_t i = 0; i < config.replicas; ++i)
+        slices.push_back(make_gather(data, static_cast<int64_t>(i), config));
+    auto batched_input = std::make_shared<op::v0::Concat>(slices, 0);
+    auto batched = make_branch(batched_input, make_weights(config), make_bias(), config);
+
+    const auto branch_shape = batched.get_shape();
+    std::vector<int64_t> order;
+    std::vector<int64_t> output_shape{1};
+    for (int64_t axis = 1; axis < 4; ++axis) {
+        if (axis == config.concat_axis)
+            order.push_back(0);
+        order.push_back(axis);
+        output_shape.push_back(static_cast<int64_t>(branch_shape[axis] * (axis == config.concat_axis ? config.replicas : 1)));
+    }
+    auto transpose = std::make_shared<op::v1::Transpose>(batched, op::v0::Constant::create(element::i64, Shape{4}, order));
+    auto reshape = std::make_shared<op::v1::Reshape>(transpose, op::v0::Constant::create(element::i64, Shape{4}, output_shape), false);
+    return std::make_shared<Model>(OutputVector{reshape}, ParameterVector{data});
+}
 
 class BatchReplicatedBranchesTests : public TransformationTestsF {
+public:
+    BatchReplicatedBranchesTests() {
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
+
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        manager.register_pass<ov::pass::DisableDecompressionConvertConstantFolding>();
         manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
-    }
-
-    void set_transformed_reference() {
-        model_ref = model->clone();
-        ov::pass::Manager reference_manager;
-        reference_manager.register_pass<ov::pass::InitNodeInfo>();
-        reference_manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
-        reference_manager.run_passes(model_ref);
-    }
-
-    void run_transformation() {
-        ov::pass::Manager local_manager;
-        local_manager.register_pass<ov::pass::DisableDecompressionConvertConstantFolding>();
-        local_manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
-        local_manager.run_passes(model);
-        manager.get_pass_config()->disable<ov::intel_gpu::BatchReplicatedBranches>();
     }
 };
 
-TEST_F(BatchReplicatedBranchesTests, FusesExactCameraOrderAndRepackagesWidth) {
-    CameraModelOptions options;
-    options.add_port_runtime_info = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    auto result_input = model->get_results().front()->input_value(0);
-    auto repacked = ov::as_type_ptr<ov::op::v1::Reshape>(result_input.get_node_shared_ptr());
-    ASSERT_NE(repacked, nullptr);
-    EXPECT_EQ(repacked->get_friendly_name(), "camera_output_concat");
-    EXPECT_TRUE(repacked->output(0).get_names().count("camera_output"));
-
-    auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(repacked->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(transpose, nullptr);
-    auto batched_branch = ov::as_type_ptr<ov::op::v1::Convolution>(
-        transpose->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(batched_branch, nullptr);
-    EXPECT_EQ(batched_branch->input(0).get_rt_info()["camera_input_port"].as<int64_t>(), 1);
-    EXPECT_EQ(batched_branch->input(1).get_rt_info()["camera_weights_port"].as<std::string>(), "weights");
-    EXPECT_EQ(batched_branch->output(0).get_rt_info()["camera_output_port"].as<int64_t>(), 2);
-    const ov::PartialShape expected_batched_shape{4, 512, 15, 20};
-    EXPECT_EQ(batched_branch->get_output_partial_shape(0), expected_batched_shape);
-
-    auto camera_batch = ov::as_type_ptr<ov::op::v0::Concat>(
-        batched_branch->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(camera_batch, nullptr);
-    ASSERT_EQ(camera_batch->get_input_size(), 4);
-    for (size_t i = 0; i < 4; ++i) {
-        auto gather = ov::as_type_ptr<ov::op::v8::Gather>(
-            camera_batch->input_value(i).get_node_shared_ptr());
-        ASSERT_NE(gather, nullptr);
-        auto index = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
-        ASSERT_NE(index, nullptr);
-        EXPECT_EQ(index->cast_vector<int64_t>()[0],
-                  static_cast<int64_t>(i));
+class BatchReplicatedBranchesParamTests : public BatchReplicatedBranchesTests, public WithParamInterface<BranchConfig> {
+public:
+    static std::string getTestCaseName(const TestParamInfo<BranchConfig>& info) {
+        std::ostringstream ss;
+        ss << info.param;
+        return ss.str();
     }
+};
+
+TEST_P(BatchReplicatedBranchesParamTests, BatchesBranches) {
+    model = getModel(GetParam());
+    model_ref = getModelRef(GetParam());
 }
 
-TEST_F(BatchReplicatedBranchesTests, IsIdempotentAfterCameraBatching) {
-    model = make_camera_model({0, 1, 2, 3});
-
-    run_transformation();
-
-    const auto first_result_input = model->get_results().front()->input_value(0);
-    const auto first_ops = model->get_ordered_ops();
-    std::vector<std::string> first_friendly_names;
-    std::vector<std::vector<std::pair<const ov::Node*, size_t>>> first_inputs;
-    first_friendly_names.reserve(first_ops.size());
-    first_inputs.reserve(first_ops.size());
-    for (const auto& node : first_ops) {
-        first_friendly_names.push_back(node->get_friendly_name());
-        std::vector<std::pair<const ov::Node*, size_t>> inputs;
-        inputs.reserve(node->get_input_size());
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            inputs.emplace_back(node->input_value(i).get_node_shared_ptr().get(), node->input_value(i).get_index());
-        }
-        first_inputs.push_back(std::move(inputs));
-    }
-
-    const auto count_named_nodes = [](const std::vector<std::shared_ptr<ov::Node>>& nodes,
-                                      const std::string& friendly_name) {
-        size_t count = 0;
-        for (const auto& node : nodes) {
-            count += node->get_friendly_name() == friendly_name;
-        }
-        return count;
-    };
-    const std::string replica_batch_name = "camera_output_concat/replica_batch";
-    const std::string replica_repack_name = "camera_output_concat/replica_repack_transpose";
-    EXPECT_EQ(count_named_nodes(first_ops, replica_batch_name), 1u);
-    EXPECT_EQ(count_named_nodes(first_ops, replica_repack_name), 1u);
-
-    run_transformation();
-
-    const auto second_result_input = model->get_results().front()->input_value(0);
-    const auto second_ops = model->get_ordered_ops();
-    ASSERT_EQ(second_ops.size(), first_ops.size());
-    ASSERT_EQ(first_result_input.get_node_shared_ptr().get(), second_result_input.get_node_shared_ptr().get());
-    EXPECT_EQ(first_result_input.get_index(), second_result_input.get_index());
-    EXPECT_EQ(count_named_nodes(second_ops, replica_batch_name), 1u);
-    EXPECT_EQ(count_named_nodes(second_ops, replica_repack_name), 1u);
-
-    for (size_t i = 0; i < first_ops.size(); ++i) {
-        ASSERT_EQ(second_ops[i].get(), first_ops[i].get());
-        EXPECT_EQ(second_ops[i]->get_friendly_name(), first_friendly_names[i]);
-        ASSERT_EQ(second_ops[i]->get_input_size(), first_inputs[i].size());
-        for (size_t j = 0; j < first_inputs[i].size(); ++j) {
-            EXPECT_EQ(second_ops[i]->input_value(j).get_node_shared_ptr().get(), first_inputs[i][j].first);
-            EXPECT_EQ(second_ops[i]->input_value(j).get_index(), first_inputs[i][j].second);
-        }
-    }
+BranchConfig make_config(size_t replicas,
+                         int64_t replica_axis,
+                         int64_t concat_axis,
+                         bool decompress_weights,
+                         bool max_pool,
+                         bool bias,
+                         bool relu,
+                         bool port_rt_info = false) {
+    return {replicas, replica_axis, concat_axis, decompress_weights, max_pool, bias, relu, port_rt_info};
 }
 
-TEST_F(BatchReplicatedBranchesTests, PreservesReplicaNamesForQueryModel) {
-    model = make_camera_model({0, 1, 2, 3});
-    set_transformed_reference();
-    std::vector<std::string> convolution_names;
-    for (const auto& node : model->get_ops()) {
-        if (ov::is_type<ov::op::v1::Convolution>(node)) {
-            convolution_names.push_back(node->get_friendly_name());
-        }
-    }
-    ASSERT_EQ(convolution_names.size(), 4u);
+INSTANTIATE_TEST_SUITE_P(BatchReplicatedBranches,
+                         BatchReplicatedBranchesParamTests,
+                         Values(make_config(4, 1, 3, false, false, false, false),
+                                make_config(4, 1, 3, true, true, true, true),
+                                make_config(2, 0, 1, false, false, true, false),
+                                make_config(3, 2, 2, false, true, false, true),
+                                make_config(4, 1, 3, false, false, false, false, true)),
+                         BatchReplicatedBranchesParamTests::getTestCaseName);
 
-    const auto supported_nodes = ov::get_supported_nodes(
-        model,
-        [](std::shared_ptr<ov::Model>& transformed_model) {
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::InitNodeInfo>();
-            manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
-            manager.run_passes(transformed_model);
-        },
-        [](const std::shared_ptr<ov::Node>& node) {
-            return !ov::is_type<ov::op::v1::Convolution>(node);
-        });
-
-    for (const auto& name : convolution_names) {
-        EXPECT_EQ(supported_nodes.count(name), 0u) << "Replica convolution was reported as supported: " << name;
-    }
+TEST_F(BatchReplicatedBranchesTests, IsIdempotent) {
+    const BranchConfig config{};
+    model = getModel(config);
+    model_ref = getModelRef(config);
+    manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
 }
 
-TEST_F(BatchReplicatedBranchesTests, RejectsDuplicateBranchFriendlyNames) {
-    CameraModelOptions options;
-    options.use_duplicate_branch_friendly_names = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
-    test_skipped = true;
+TEST_F(BatchReplicatedBranchesTests, BatchesBranchesWithDistinctEqualWeights) {
+    const BranchConfig config{};
+    auto data = make_data(config);
+    OutputVector branches;
+    for (size_t i = 0; i < config.replicas; ++i)
+        branches.push_back(make_branch(make_gather(data, static_cast<int64_t>(i), config), make_weights(config), make_bias(), config));
+    model = make_concat_model(branches, config, {data});
+    model_ref = getModelRef(config);
 }
 
-TEST_F(BatchReplicatedBranchesTests, RejectsDuplicateBranchTensorNames) {
-    CameraModelOptions options;
-    options.use_duplicate_branch_tensor_names = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
-    test_skipped = true;
+TEST_F(BatchReplicatedBranchesTests, RejectsNonExactReplicaOrder) {
+    model = getModel(BranchConfig{}, {0, 1, 3, 2});
 }
 
-TEST_F(BatchReplicatedBranchesTests, PreservesDistinctEqualConstantNamesForQueryModel) {
-    CameraModelOptions options;
-    options.use_distinct_equal_weights = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-    set_transformed_reference();
-    std::vector<std::string> weight_names;
-    for (const auto& node : model->get_ops()) {
-        if (node->get_friendly_name().find("camera_weights_") == 0) {
-            weight_names.push_back(node->get_friendly_name());
-        }
-    }
-    ASSERT_EQ(weight_names.size(), 4u);
-
-    const auto supported_nodes = ov::get_supported_nodes(
-        model,
-        [](std::shared_ptr<ov::Model>& transformed_model) {
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::InitNodeInfo>();
-            manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
-            manager.run_passes(transformed_model);
-        },
-        [](const std::shared_ptr<ov::Node>& node) {
-            return !ov::is_type<ov::op::v1::Convolution>(node);
-        });
-
-    for (const auto& name : weight_names) {
-        EXPECT_EQ(supported_nodes.count(name), 0u) << "Replica weight was reported as supported: " << name;
-    }
+TEST_F(BatchReplicatedBranchesTests, RejectsPartialReplicaDimension) {
+    model = getModel(BranchConfig{}, {0, 1, 2});
 }
 
-TEST_F(BatchReplicatedBranchesTests, DoesNotMutateDistinctConstantProvenance) {
-    CameraModelOptions options;
-    options.use_distinct_equal_weights = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-    std::vector<std::shared_ptr<ov::op::v0::Constant>> original_weights;
-    for (const auto& node : model->get_ops()) {
-        if (node->get_friendly_name().find("camera_weights_") == 0) {
-            original_weights.push_back(ov::as_type_ptr<ov::op::v0::Constant>(node));
-        }
-    }
-    ASSERT_EQ(original_weights.size(), 4u);
-
-    run_transformation();
-
-    for (const auto& weight : original_weights) {
-        EXPECT_TRUE(ov::getFusedNamesVector(weight).empty());
-    }
-}
-
-TEST_F(BatchReplicatedBranchesTests, DoesNotCopyConcatInputMetadataToReshapePorts) {
-    model = make_camera_model({0, 1, 2, 3});
-    auto concat = ov::as_type_ptr<ov::op::v0::Concat>(
-        model->get_results().front()->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(concat, nullptr);
-    concat->input(0).get_rt_info()["concat_input_0"] = int64_t{0};
-    concat->input(1).get_rt_info()["concat_input_1"] = int64_t{1};
-    concat->input(3).get_rt_info()["concat_input_3"] = int64_t{3};
-
-    run_transformation();
-
-    auto repacked = ov::as_type_ptr<ov::op::v1::Reshape>(
-        model->get_results().front()->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(repacked, nullptr);
-
-    // Concat input metadata must not leak to any Reshape input port.
-    EXPECT_FALSE(repacked->input(0).get_rt_info().count("concat_input_0"));
-    EXPECT_FALSE(repacked->input(1).get_rt_info().count("concat_input_0"));
-
-    EXPECT_FALSE(repacked->input(0).get_rt_info().count("concat_input_1"));
-    EXPECT_FALSE(repacked->input(1).get_rt_info().count("concat_input_1"));
-
-    EXPECT_FALSE(repacked->input(0).get_rt_info().count("concat_input_3"));
-    EXPECT_FALSE(repacked->input(1).get_rt_info().count("concat_input_3"));
-}
-
-TEST_F(BatchReplicatedBranchesTests, ActivatesWithDistinctEndpointNamesAndDecompression) {
-    CameraModelOptions options;
-    options.add_decompression_metadata = true;
-    options.use_distinct_endpoint_names = true;
-    options.use_v14_max_pool = true;
-    options.add_external_endpoint_user = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    const auto repacked =
-        ov::as_type_ptr<ov::op::v1::Reshape>(model->get_results().front()->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(repacked, nullptr);
-    EXPECT_TRUE(repacked->output(0).get_names().count("camera_output"));
-
-    const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(repacked->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(transpose, nullptr);
-    const auto batched_max_pool =
-        ov::as_type_ptr<ov::op::v14::MaxPool>(transpose->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(batched_max_pool, nullptr);
-    const auto batched_branch =
-        ov::as_type_ptr<ov::op::v1::Convolution>(batched_max_pool->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(batched_branch, nullptr);
-    EXPECT_TRUE(batched_max_pool->output(0).get_names().count("camera_endpoint_0"));
-    ASSERT_EQ(model->get_results().size(), 2);
-    EXPECT_TRUE(ov::is_type<ov::op::v3::ShapeOf>(model->get_results()[1]->input_value(0).get_node_shared_ptr()));
-
-    const auto decompressed_weights =
-        ov::as_type_ptr<ov::op::v0::Convert>(batched_branch->input_value(1).get_node_shared_ptr());
-    ASSERT_NE(decompressed_weights, nullptr);
-    EXPECT_TRUE(ov::is_decompression(decompressed_weights));
-    EXPECT_TRUE(ov::pass::constant_folding_is_disabled(decompressed_weights.get()));
-    test_skipped = true;
-}
-
-TEST_F(BatchReplicatedBranchesTests, RejectsExternalDataConsumer) {
-    CameraModelOptions options;
-    options.add_external_endpoint_user = true;
-    options.add_external_data_user = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
-    EXPECT_TRUE(ov::is_type<ov::op::v0::Relu>(model->get_results()[1]->input_value(0).get_node_shared_ptr()));
-}
-
-TEST_F(BatchReplicatedBranchesTests, RejectsNonExactCameraIndices) {
-    model = make_camera_model({0, 1, 3, 2});
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
+TEST_F(BatchReplicatedBranchesTests, RejectsConcatOnBatchAxis) {
+    BranchConfig config{};
+    config.concat_axis = 0;
+    model = getModel(config);
 }
 
 TEST_F(BatchReplicatedBranchesTests, RejectsDifferentBranchTopology) {
-    CameraModelOptions options;
-    options.add_topology_difference = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
-}
-
-TEST_F(BatchReplicatedBranchesTests, RejectsPartiallyDynamicShapes) {
-    CameraModelOptions options;
-    options.dynamic_camera_height = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
-}
-
-TEST_F(BatchReplicatedBranchesTests, RejectsAddWithoutSafeNumpyBatchBroadcast) {
-    CameraModelOptions options;
-    options.add_branch_bias = true;
-    options.add_broadcast = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NONE);
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
-}
-
-TEST_F(BatchReplicatedBranchesTests, RejectsDifferentBranchRuntimeInfo) {
-    CameraModelOptions options;
-    options.different_branch_runtime_info = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
-}
-
-TEST_F(BatchReplicatedBranchesTests, RejectsTypeRelaxedBranches) {
-    CameraModelOptions options;
-    options.add_type_relaxed_branch = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
-}
-
-TEST_F(BatchReplicatedBranchesTests, RejectsTypeRelaxedConcatRoot) {
-    CameraModelOptions options;
-    options.add_type_relaxed_concat = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    const auto concat =
-        ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(concat, nullptr);
-    EXPECT_NE(dynamic_cast<ov::op::TypeRelaxedBase*>(concat.get()), nullptr);
-}
-
-TEST_F(BatchReplicatedBranchesTests, RejectsControlDependentBranch) {
-    model = make_camera_model({0, 1, 2, 3});
-    std::shared_ptr<ov::op::v1::Convolution> convolution;
-    for (const auto& node : model->get_ordered_ops()) {
-        convolution = ov::as_type_ptr<ov::op::v1::Convolution>(node);
-        if (convolution) {
-            break;
-        }
+    BranchConfig config{};
+    auto data = make_data(config);
+    const auto weights = make_weights(config);
+    OutputVector branches;
+    for (size_t i = 0; i < config.replicas; ++i) {
+        config.relu = i == 2;
+        branches.push_back(make_branch(make_gather(data, static_cast<int64_t>(i), config), weights, make_bias(), config));
     }
-    ASSERT_NE(convolution, nullptr);
-
-    auto control_dependency = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {0.0f});
-    convolution->add_control_dependency(control_dependency);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
-    EXPECT_EQ(convolution->get_control_dependencies().size(), 1u);
-    model_ref = model;
+    model = make_concat_model(branches, config, {data});
 }
 
-TEST_F(BatchReplicatedBranchesTests, RejectsUnknownRuntimeInfoWithoutThrowing) {
-    CameraModelOptions options;
-    options.add_unknown_runtime_info = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    EXPECT_NO_THROW(run_transformation());
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
+TEST_F(BatchReplicatedBranchesTests, RejectsDifferentWeights) {
+    const BranchConfig config{};
+    auto data = make_data(config);
+    OutputVector branches;
+    for (size_t i = 0; i < config.replicas; ++i)
+        branches.push_back(make_branch(make_gather(data, static_cast<int64_t>(i), config), make_weights(config, i == 1 ? 1.0f : 0.5f), make_bias(), config));
+    model = make_concat_model(branches, config, {data});
 }
 
-TEST_F(BatchReplicatedBranchesTests, RejectsNonzeroEndpointOutputPort) {
-    CameraModelOptions options;
-    options.use_nonzero_endpoint_output = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
+TEST_F(BatchReplicatedBranchesTests, RejectsDynamicShape) {
+    const BranchConfig config{};
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 4, 3, Dimension::dynamic(), 8});
+    const auto weights = make_weights(config);
+    OutputVector branches;
+    for (size_t i = 0; i < config.replicas; ++i)
+        branches.push_back(make_branch(make_gather(data, static_cast<int64_t>(i), config), weights, make_bias(), config));
+    model = make_concat_model(branches, config, {data});
+}
 
-    EXPECT_NO_THROW(run_transformation());
-
-    const auto concat =
-        ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(concat, nullptr);
-    for (size_t i = 0; i < concat->get_input_size(); ++i) {
-        EXPECT_EQ(concat->input_value(i).get_index(), 1);
+TEST_F(BatchReplicatedBranchesTests, RejectsAddWithoutNumpyBroadcast) {
+    const BranchConfig config{};
+    auto data = make_data(config);
+    const auto weights = make_weights(config);
+    const auto bias = op::v0::Constant::create(element::f32, Shape{1, 4, 4, 4}, {0.1f});
+    OutputVector branches;
+    for (size_t i = 0; i < config.replicas; ++i) {
+        auto conv = make_branch(make_gather(data, static_cast<int64_t>(i), config), weights, bias, config);
+        branches.push_back(std::make_shared<op::v1::Add>(conv, bias, op::AutoBroadcastType::NONE));
     }
+    model = make_concat_model(branches, config, {data});
 }
 
-TEST_F(BatchReplicatedBranchesTests, RejectsMismatchedCameraDimensionSize) {
-    // The replica count is derived from the graph, not fixed to four. This
-    // model's camera dimension still holds 4 slots (per make_camera_model's
-    // fixed input shape), but only 3 of them are gathered into the Concat,
-    // so the Gather axis-dimension size (4) no longer matches the replica
-    // count (3). That structural mismatch, not a hard-coded "four" check,
-    // must still leave the Concat untouched.
-    model = make_camera_model({0, 1, 2});
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
+TEST_F(BatchReplicatedBranchesTests, RejectsExternalConsumer) {
+    const BranchConfig config{};
+    model = getModel(config);
+    const auto branch = model->get_results()[0]->get_input_node_shared_ptr(0)->input_value(0);
+    model->add_results({std::make_shared<op::v0::Result>(std::make_shared<op::v0::Relu>(branch))});
 }
 
-TEST_F(BatchReplicatedBranchesTests, FusesNonFourWayReplicaCountAndNonDefaultAxes) {
-    // Proves the pass generalizes beyond the four-camera / gather-axis-1 /
-    // concat-axis-3 reference topology: 3 replicas, gathered on axis 2 of a
-    // rank-5 input, concatenated on axis 1.
-    constexpr int64_t camera_axis = 2;
-    constexpr int64_t concat_axis = 1;
-    constexpr size_t replica_count = 3;
-
-    ov::Shape input_shape(5, 3);
-    input_shape[0] = 1;
-    input_shape[camera_axis] = replica_count;
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
-    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {camera_axis});
-
-    ov::OutputVector branches;
-    auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{3, 3, 1, 1}, {1.0f});
-    for (size_t i = 0; i < replica_count; ++i) {
-        auto index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(i)});
-        auto gather = std::make_shared<ov::op::v8::Gather>(input, index, axis, 0);
-        auto convolution = std::make_shared<ov::op::v1::Convolution>(
-            gather,
-            weights,
-            ov::Strides{1, 1},
-            ov::CoordinateDiff{0, 0},
-            ov::CoordinateDiff{0, 0},
-            ov::Strides{1, 1});
-        branches.push_back(std::make_shared<ov::op::v0::Relu>(convolution)->output(0));
-    }
-    auto output_concat = std::make_shared<ov::op::v0::Concat>(branches, concat_axis);
-    auto result = std::make_shared<ov::op::v0::Result>(output_concat);
-    model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-
-    run_transformation();
-
-    auto repacked = ov::as_type_ptr<ov::op::v1::Reshape>(model->get_results().front()->input_value(0)
-                                                             .get_node_shared_ptr());
-    ASSERT_NE(repacked, nullptr);
-    const ov::PartialShape expected_output_shape{1, replica_count * 3, 3, 3};
-    EXPECT_EQ(repacked->get_output_partial_shape(0), expected_output_shape);
+TEST_F(BatchReplicatedBranchesTests, RejectsShapeOfConsumer) {
+    const BranchConfig config{};
+    model = getModel(config);
+    const auto branch = model->get_results()[0]->get_input_node_shared_ptr(0)->input_value(0);
+    model->add_results({std::make_shared<op::v0::Result>(std::make_shared<op::v3::ShapeOf>(branch))});
 }
 
-TEST_F(BatchReplicatedBranchesTests, FusesReluOnlyBranches) {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 3, 3, 3});
-    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
-
-    ov::OutputVector branches;
-    for (int64_t index = 0; index < 3; ++index) {
-        auto gather_index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {index});
-        auto gather = std::make_shared<ov::op::v8::Gather>(input, gather_index, axis, 0);
-        branches.push_back(std::make_shared<ov::op::v0::Relu>(gather)->output(0));
-    }
-
-    auto output_concat = std::make_shared<ov::op::v0::Concat>(branches, 1);
-    auto result = std::make_shared<ov::op::v0::Result>(output_concat);
-    model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-
-    run_transformation();
-
-    const auto repacked =
-        ov::as_type_ptr<ov::op::v1::Reshape>(model->get_results().front()->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(repacked, nullptr);
-    const ov::PartialShape expected_output_shape{1, 9, 3, 3};
-    EXPECT_EQ(repacked->get_output_partial_shape(0), expected_output_shape);
+TEST_F(BatchReplicatedBranchesTests, RejectsUsedMaxPoolIndices) {
+    BranchConfig config{};
+    config.max_pool = true;
+    model = getModel(config);
+    const auto max_pool = model->get_results()[0]->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0);
+    ASSERT_TRUE(is_type<op::v8::MaxPool>(max_pool));
+    model->add_results({std::make_shared<op::v0::Result>(max_pool->output(1))});
 }
 
-TEST_F(BatchReplicatedBranchesTests, RejectsConsumedMaxPoolIndices) {
-    CameraModelOptions options;
-    options.use_v14_max_pool = true;
-    options.add_max_pool_indices_user = true;
-    model = make_camera_model({0, 1, 2, 3}, options);
-
-    run_transformation();
-
-    EXPECT_NE(ov::as_type_ptr<ov::op::v0::Concat>(model->get_results().front()->input_value(0)
-                                                      .get_node_shared_ptr()),
-              nullptr);
+TEST_F(BatchReplicatedBranchesTests, RejectsControlDependency) {
+    const BranchConfig config{};
+    model = getModel(config);
+    const auto conv = model->get_results()[0]->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1);
+    ASSERT_TRUE(is_type<op::v1::Convolution>(conv));
+    conv->add_control_dependency(model->get_parameters()[0]);
 }
 
-TEST_F(BatchReplicatedBranchesTests, NumericalRegressionPreservesCameraOrder) {
-    CameraModelOptions options;
-    options.add_branch_bias = true;
-    options.nonzero_weights = true;
-    auto reference_model = make_camera_model({0, 1, 2, 3}, options);
-    auto transformed_model = reference_model->clone();
-    model = transformed_model;
-
-    run_transformation();
-
-    auto transformed_output = transformed_model->get_results().front()->input_value(0).get_node_shared_ptr();
-    ASSERT_NE(ov::as_type_ptr<ov::op::v1::Reshape>(transformed_output), nullptr);
-    auto transformed_transpose =
-        ov::as_type_ptr<ov::op::v1::Transpose>(transformed_output->input_value(0).get_node_shared_ptr());
-    ASSERT_NE(transformed_transpose, nullptr);
-    ASSERT_NE(ov::as_type_ptr<ov::op::v1::Add>(
-                  transformed_transpose->input_value(0).get_node_shared_ptr()),
-              nullptr);
-
-    const ov::Shape input_shape{1, 4, 3, 480, 640};
-    ov::Tensor input(ov::element::f32, input_shape);
-    auto* input_values = input.data<float>();
-    for (size_t camera = 0; camera < input_shape[1]; ++camera) {
-        for (size_t channel = 0; channel < input_shape[2]; ++channel) {
-            for (size_t y = 0; y < input_shape[3]; ++y) {
-                for (size_t x = 0; x < input_shape[4]; ++x) {
-                    const auto index = ((camera * input_shape[2] + channel) * input_shape[3] + y) * input_shape[4] + x;
-                    input_values[index] = static_cast<float>(camera + 1) * 0.25f +
-                                          static_cast<float>(channel + 1) * 0.01f +
-                                          static_cast<float>(y) * 0.001f + static_cast<float>(x) * 0.00001f;
-                }
-            }
-        }
+TEST_F(BatchReplicatedBranchesTests, RejectsTypeRelaxedBranch) {
+    // Comparator can't compare TypeVector attributes of TypeRelaxed nodes
+    comparator.disable(FunctionsComparator::ATTRIBUTES);
+    const BranchConfig config{};
+    auto data = make_data(config);
+    const auto weights = make_weights(config);
+    OutputVector branches;
+    for (size_t i = 0; i < config.replicas; ++i) {
+        auto gather = make_gather(data, static_cast<int64_t>(i), config);
+        branches.push_back(std::make_shared<op::TypeRelaxed<op::v1::Convolution>>(element::TypeVector{element::f32, element::f32},
+                                                                                  element::TypeVector{element::f32},
+                                                                                  gather,
+                                                                                  weights,
+                                                                                  Strides{2, 2},
+                                                                                  CoordinateDiff{0, 0},
+                                                                                  CoordinateDiff{0, 0},
+                                                                                  Strides{1, 1}));
     }
-
-    const auto reference_values = evaluate_camera_model(reference_model, input);
-    const auto transformed_values = evaluate_camera_model(transformed_model, input);
-    ASSERT_EQ(reference_values.size(), transformed_values.size());
-    for (size_t i = 0; i < reference_values.size(); ++i) {
-        EXPECT_NEAR(reference_values[i], transformed_values[i], 1e-6f) << "at output index " << i;
-    }
-
-    // The transformed layout is [C,H,B,W] before the final reshape. The
-    // final width therefore contains camera 0, 1, 2, and 3 in that order.
-    constexpr size_t output_channels = 512;
-    constexpr size_t output_height = 15;
-    constexpr size_t output_width = 20;
-    for (size_t camera = 0; camera < 4; ++camera) {
-        const auto index = (0 * output_height + 0) * (4 * output_width) + camera * output_width;
-        EXPECT_NEAR(reference_values[index], transformed_values[index], 1e-6f);
-    }
-    const auto first_camera_value = transformed_values[0];
-    for (size_t camera = 1; camera < 4; ++camera) {
-        const auto index = camera * output_width;
-        EXPECT_GT(transformed_values[index], first_camera_value) << "camera ordering changed at camera " << camera;
-    }
-    EXPECT_EQ(transformed_values.size(), output_channels * output_height * 4 * output_width);
+    model = make_concat_model(branches, config, {data});
 }
+
+TEST_F(BatchReplicatedBranchesTests, RejectsTypeRelaxedConcat) {
+    // Comparator can't compare TypeVector attributes of TypeRelaxed nodes
+    comparator.disable(FunctionsComparator::ATTRIBUTES);
+    const BranchConfig config{};
+    auto data = make_data(config);
+    const auto weights = make_weights(config);
+    OutputVector branches;
+    for (size_t i = 0; i < config.replicas; ++i)
+        branches.push_back(make_branch(make_gather(data, static_cast<int64_t>(i), config), weights, make_bias(), config));
+    auto concat = std::make_shared<op::TypeRelaxed<op::v0::Concat>>(element::TypeVector(config.replicas, element::f32),
+                                                                    element::TypeVector{element::f32},
+                                                                    branches,
+                                                                    config.concat_axis);
+    model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{data});
+}
+
+}  // namespace

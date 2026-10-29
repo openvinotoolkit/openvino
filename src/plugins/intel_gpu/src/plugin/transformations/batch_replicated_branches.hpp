@@ -8,24 +8,15 @@
 
 namespace ov::intel_gpu {
 
-// Batches equivalent replicated branches to improve GPU
-// execution by replacing repeated per-replica computation with one batched
-// computation.
+// Runs N equal replicated branches (e.g. per-camera backbones) as one batched branch.
 //
 // Before:
-//     rank-5 input -> scalar Gather per replica -> equivalent branch -> Concat
-//
+//     data -> Gather(i) -> Convolution -> [MaxPool] -> [Add] -> [Relu] -> Concat(axis > 0), i = 0..N-1
 // After:
-//     rank-5 input -> batch Concat -> one batched branch -> Transpose/Reshape
-//     restoring the original Concat output layout
+//     data -> Gather(0..N-1) -> Concat(axis 0) -> Convolution -> [MaxPool] -> [Add] -> [Relu]
+//          -> Transpose -> Reshape
 //
-// The replica count, branch shape, and Concat axis are derived from the graph.
-// The pass applies only to graphs with at least two replicas, fully static
-// shapes (including all spatial and channel dimensions), supported branch
-// operations with matching attributes/runtime metadata, safe broadcast
-// semantics, and no unsupported control or data dependencies. Partially
-// dynamic shapes, TypeRelaxed branches, and other unsupported graphs are
-// intentionally left unchanged.
+// Branches must be static [1, C, H, W], feed only the Concat, and have equal attributes and constants.
 class BatchReplicatedBranches : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::BatchReplicatedBranches");

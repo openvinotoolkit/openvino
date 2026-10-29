@@ -6,13 +6,9 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstring>
-#include <functional>
 #include <memory>
+#include <optional>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <utility>
 #include <vector>
 
 #include "openvino/core/graph_util.hpp"
@@ -21,807 +17,297 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/decompression.hpp"
-#include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
 
 namespace {
 
-// The matcher recognizes an N-way replicated branch pipeline: N static
-// branches, each reducing a shared 5D [B, replicas, C, H, W]-style tensor via
-// a single Gather, that feed into one Concat. Neither N, the spatial/channel
-// sizes, nor the concat axis are fixed: they are derived from the matched
-// graph so the pass generalizes across models instead of one fixed topology.
-// `kBranchRank` reflects the NCHW-style 4D tensors the supported op set
-// below (Convolution/Add/Relu/MaxPool/Convert) is validated against.
-constexpr size_t kBranchRank = 4;
-constexpr size_t kMinReplicaCount = 2;
-constexpr char kRequiresPrecisionConversionKey[] = "requires_precision_conversion_0";
+using namespace ov::pass::pattern;
+using ov::pass::pattern::op::Predicate;
 
 using NodePtr = std::shared_ptr<ov::Node>;
-using NodeMap = std::unordered_map<const ov::Node*, NodePtr>;
-using NodeSet = std::unordered_set<ov::Node*>;
+using NodeVector = std::vector<NodePtr>;
 
-bool is_static_node(const NodePtr& node) {
-    for (size_t i = 0; i < node->get_output_size(); ++i) {
-        if (!node->get_output_partial_shape(i).is_static()) {
-            return false;
-        }
-    }
-    return true;
+constexpr char kRequiresPrecisionConversionKey[] = "requires_precision_conversion_0";
+
+bool is_type_relaxed(const ov::Node* node) {
+    return dynamic_cast<const ov::op::TypeRelaxedBase*>(node) != nullptr;
 }
 
-bool is_constant(const NodePtr& node) {
-    return ov::is_type<ov::op::v0::Constant>(node);
+int64_t normalized_concat_axis(const ov::op::v0::Concat& concat) {
+    const auto axis = concat.get_axis();
+    return axis < 0 ? axis + concat.get_output_partial_shape(0).rank().get_length() : axis;
 }
 
-bool is_constant_derived_convert(const NodePtr& node) {
-    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node);
-    return convert && convert->get_input_size() == 1 &&
-           is_constant(convert->input_value(0).get_node_shared_ptr());
-}
+struct BranchPattern {
+    BranchPattern() {
+        // Branch nodes are cloned with [N, ...] input instead of [1, ...], so they must have batch 1
+        // and a single consumer; TypeRelaxed and control dependencies are not preserved by cloning
+        const auto branch_node = has_static_shape() && shape_matches("[1, ?, ?, ?]") && consumers_count(1) &&
+                                 Predicate(
+                                     [](const ov::Output<ov::Node>& output) {
+                                         const auto node = output.get_node();
+                                         return !is_type_relaxed(node) && node->get_control_dependencies().empty() && node->get_control_dependents().empty();
+                                     },
+                                     "batchable_branch_node");
+        // MaxPool indices are not batched, so they must be unused
+        const auto indices_unused = Predicate(
+            [](const ov::Output<ov::Node>& output) {
+                const auto node = output.get_node();
+                return output.get_index() == 0 && (node->get_output_size() < 2 || node->output(1).get_target_inputs().empty());
+            },
+            "max_pool_indices_unused");
 
-bool is_batch_safe_add(const NodePtr& node, size_t replica_count) {
-    const auto add = ov::as_type_ptr<ov::op::v1::Add>(node);
-    if (!add || add->get_autob().m_type != ov::op::AutoBroadcastType::NUMPY ||
-        add->get_input_size() != 2 || add->get_output_size() == 0) {
-        return false;
+        data = any_input(has_static_shape());
+        gather = wrap_type<ov::op::v8::Gather>({data, wrap_type<ov::op::v0::Constant>(), wrap_type<ov::op::v0::Constant>()},
+                                               branch_node && attrs_match({{"batch_dims", 0}}));
+
+        weights_const = wrap_type<ov::op::v0::Constant>();
+        weights_convert = wrap_type<ov::op::v0::Convert>({weights_const});
+        const auto weights = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{weights_const, weights_convert});
+        conv = wrap_type<ov::op::v1::Convolution>({gather, weights}, branch_node);
+        pool = optional<ov::op::v1::MaxPool, ov::op::v8::MaxPool, ov::op::v14::MaxPool>({conv}, branch_node && indices_unused);
+        // Bias broadcast to [1, C, H, W] is also valid for [N, C, H, W]; checked after cloning
+        bias = wrap_type<ov::op::v0::Constant>();
+        add = optional<ov::op::v1::Add>({pool, bias}, branch_node && attrs_match({{"auto_broadcast", "numpy"}}));
+        relu = optional<ov::op::v0::Relu>({add}, branch_node);
     }
 
-    const auto output_shape = add->get_output_partial_shape(0);
-    if (!output_shape.is_static() || output_shape.rank() != static_cast<int64_t>(kBranchRank) ||
-        output_shape[0] != 1) {
-        return false;
+    std::shared_ptr<ov::Node> data, gather, weights_const, weights_convert, conv, pool, bias, add, relu;
+
+    std::vector<std::shared_ptr<ov::Node>> chain() const {
+        return {conv, pool, add, relu};
     }
-
-    ov::Shape expected_batched_shape = output_shape.to_shape();
-    expected_batched_shape[0] = replica_count;
-
-    ov::PartialShape merged_shape;
-    for (size_t i = 0; i < add->get_input_size(); ++i) {
-        auto input_shape = add->get_input_partial_shape(i);
-        if (!input_shape.is_static()) {
-            return false;
-        }
-
-        // Only constants are shared by all replicas. Every other input must be
-        // a branch value of the same rank whose original batch dimension is
-        // the one changed by this pass. This deliberately excludes shapes for
-        // which the new batch behavior cannot be proven from the original
-        // graph.
-        if (!is_constant(add->input_value(i).get_node_shared_ptr())) {
-            if (input_shape.rank() != static_cast<int64_t>(kBranchRank) || input_shape[0] != 1) {
-                return false;
-            }
-            auto batched_input_shape = input_shape.to_shape();
-            batched_input_shape[0] = replica_count;
-            input_shape = batched_input_shape;
-        }
-
-        if (i == 0) {
-            merged_shape = input_shape;
-        } else if (!ov::PartialShape::broadcast_merge_into(merged_shape,
-                                                            input_shape,
-                                                            ov::op::AutoBroadcastType::NUMPY)) {
-            return false;
-        }
-    }
-
-    return merged_shape == ov::PartialShape(expected_batched_shape);
-}
-
-bool constants_equal(const NodePtr& lhs, const NodePtr& rhs) {
-    const auto lhs_constant = ov::as_type_ptr<ov::op::v0::Constant>(lhs);
-    const auto rhs_constant = ov::as_type_ptr<ov::op::v0::Constant>(rhs);
-    if (!lhs_constant || !rhs_constant || lhs_constant->get_element_type() != rhs_constant->get_element_type() ||
-        lhs_constant->get_shape() != rhs_constant->get_shape() ||
-        lhs_constant->get_byte_size() != rhs_constant->get_byte_size()) {
-        return false;
-    }
-
-    return lhs_constant->get_byte_size() == 0 ||
-           std::memcmp(lhs_constant->get_data_ptr(),
-                       rhs_constant->get_data_ptr(),
-                       lhs_constant->get_byte_size()) == 0;
-}
-
-bool attributes_equal(const ov::op::v1::Convolution& lhs, const ov::op::v1::Convolution& rhs) {
-    return lhs.get_strides() == rhs.get_strides() && lhs.get_pads_begin() == rhs.get_pads_begin() &&
-           lhs.get_pads_end() == rhs.get_pads_end() && lhs.get_dilations() == rhs.get_dilations() &&
-           lhs.get_auto_pad() == rhs.get_auto_pad();
-}
-
-bool common_max_pool_attributes_equal(const ov::op::util::MaxPoolBase& lhs,
-                                      const ov::op::util::MaxPoolBase& rhs) {
-    return lhs.get_strides() == rhs.get_strides() && lhs.get_pads_begin() == rhs.get_pads_begin() &&
-           lhs.get_pads_end() == rhs.get_pads_end() && lhs.get_kernel() == rhs.get_kernel() &&
-           lhs.get_rounding_type() == rhs.get_rounding_type() && lhs.get_auto_pad() == rhs.get_auto_pad();
-}
-
-bool attributes_equal(const ov::op::v1::MaxPool& lhs, const ov::op::v1::MaxPool& rhs) {
-    return common_max_pool_attributes_equal(lhs, rhs);
-}
-
-template <typename MaxPool>
-bool attributes_equal(const MaxPool& lhs, const MaxPool& rhs) {
-    return common_max_pool_attributes_equal(lhs, rhs) && lhs.get_dilations() == rhs.get_dilations() &&
-           lhs.get_index_element_type() == rhs.get_index_element_type() && lhs.get_axis() == rhs.get_axis();
-}
-
-bool attributes_equal(const ov::op::v0::Convert& lhs, const ov::op::v0::Convert& rhs) {
-    return lhs.get_destination_type() == rhs.get_destination_type();
-}
-
-template <typename Op>
-bool attributes_equal_as(const NodePtr& lhs, const NodePtr& rhs) {
-    return attributes_equal(*std::static_pointer_cast<Op>(lhs), *std::static_pointer_cast<Op>(rhs));
-}
-
-bool is_type_relaxed(const NodePtr& node) {
-    return dynamic_cast<const ov::op::TypeRelaxedBase*>(node.get()) != nullptr;
-}
-
-bool operation_attributes_equal(const NodePtr& lhs, const NodePtr& rhs) {
-    if (ov::is_type<ov::op::v1::Convolution>(lhs)) {
-        return attributes_equal_as<ov::op::v1::Convolution>(lhs, rhs);
-    }
-    if (ov::is_type<ov::op::v1::MaxPool>(lhs)) {
-        return attributes_equal_as<ov::op::v1::MaxPool>(lhs, rhs);
-    }
-    if (ov::is_type<ov::op::v8::MaxPool>(lhs)) {
-        return attributes_equal_as<ov::op::v8::MaxPool>(lhs, rhs);
-    }
-    if (ov::is_type<ov::op::v14::MaxPool>(lhs)) {
-        return attributes_equal_as<ov::op::v14::MaxPool>(lhs, rhs);
-    }
-    if (ov::is_type<ov::op::v0::Convert>(lhs)) {
-        return attributes_equal_as<ov::op::v0::Convert>(lhs, rhs);
-    }
-    if (ov::is_type<ov::op::v1::Add>(lhs) || ov::is_type<ov::op::v0::Relu>(lhs)) {
-        return true;
-    }
-    OPENVINO_ASSERT(false, "Unexpected operation type in branch attribute comparison");
-    return false;
-}
-
-bool is_batch_safe_operation(const NodePtr& node, size_t replica_count) {
-    if (const auto convolution = ov::as_type_ptr<ov::op::v1::Convolution>(node)) {
-        const auto filters = convolution->input_value(1).get_node_shared_ptr();
-        return is_constant(filters) || is_constant_derived_convert(filters);
-    }
-    return is_constant(node) || is_batch_safe_add(node, replica_count) || ov::is_type<ov::op::v0::Relu>(node) ||
-           ov::is_type<ov::op::v1::MaxPool>(node) || ov::is_type<ov::op::v8::MaxPool>(node) ||
-           ov::is_type<ov::op::v14::MaxPool>(node) || ov::is_type<ov::op::v0::Convert>(node);
-}
-
-bool max_pool_indices_are_unused(const NodePtr& node) {
-    if (!ov::is_type<ov::op::v1::MaxPool>(node) && !ov::is_type<ov::op::v8::MaxPool>(node) &&
-        !ov::is_type<ov::op::v14::MaxPool>(node)) {
-        return true;
-    }
-    return node->get_output_size() < 2 || node->output(1).get_target_inputs().empty();
-}
-
-bool scalar_i64_constant(const ov::Output<ov::Node>& value, int64_t expected) {
-    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr());
-    if (!constant || constant->get_element_type() != ov::element::i64 ||
-        ov::shape_size(constant->get_shape()) != 1) {
-        return false;
-    }
-    const auto values = constant->cast_vector<int64_t>();
-    return values.size() == 1 && values[0] == expected;
-}
-
-bool output_shapes_equal(const NodePtr& lhs, const NodePtr& rhs) {
-    if (lhs->get_output_size() != rhs->get_output_size()) {
-        return false;
-    }
-    for (size_t i = 0; i < lhs->get_output_size(); ++i) {
-        if (lhs->get_output_element_type(i) != rhs->get_output_element_type(i) ||
-            lhs->get_output_partial_shape(i) != rhs->get_output_partial_shape(i)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool gather_attributes_equal(const std::shared_ptr<ov::op::v8::Gather>& lhs,
-                             const std::shared_ptr<ov::op::v8::Gather>& rhs) {
-    // The index input is intentionally not compared here: its values are
-    // checked against the final Concat input position by the caller. The
-    // axis input only needs to be self-consistent with each Gather's own
-    // normalized axis, not a global constant, so the pass is not tied to one
-    // fixed replica-axis position.
-    return lhs->get_axis() == rhs->get_axis() && lhs->get_batch_dims() == rhs->get_batch_dims() &&
-           lhs->input_value(0) == rhs->input_value(0) &&
-           scalar_i64_constant(lhs->input_value(2), lhs->get_axis()) &&
-           scalar_i64_constant(rhs->input_value(2), rhs->get_axis()) && output_shapes_equal(lhs, rhs);
-}
-
-void collect_branch_nodes(const NodePtr& node, size_t replica_count, NodeSet& nodes) {
-    ov::op::util::visit_path(
-        node.get(),
-        nodes,
-        [](ov::Node*) {},
-        [replica_count](ov::Node* raw_node) {
-            const auto current_node = raw_node->shared_from_this();
-            // Gather is the semantic boundary. Its data input is the shared
-            // replicated input tensor and its index/axis inputs are not part of a
-            // replica branch.
-            return ov::is_type<ov::op::v8::Gather>(current_node) ||
-                   !is_batch_safe_operation(current_node, replica_count);
-        });
-}
-
-template <typename... Types>
-bool equal_supported_scalars(const ov::Any& lhs, const ov::Any& rhs) {
-    return ((lhs.is<Types>() && lhs.as<Types>() == rhs.as<Types>()) || ...);
-}
-
-bool equivalent_supported_rt_value(const std::string& key, const ov::Any& lhs, const ov::Any& rhs) {
-    if (lhs.empty() || rhs.empty()) {
-        return lhs.empty() && rhs.empty();
-    }
-    if (lhs.type_info() != rhs.type_info()) {
-        return false;
-    }
-
-    // Decompression is a marker attribute with no payload.  It is
-    // intentionally non-copyable through ov::copy_runtime_info(), so it
-    // needs an explicit, type-safe equivalence rule here.
-    if (lhs.is<ov::Decompression>()) {
-        return rhs.is<ov::Decompression>();
-    }
-    if (lhs.is<ov::WeightlessCacheAttribute>()) {
-        const auto& lhs_attr = lhs.as<ov::WeightlessCacheAttribute>();
-        const auto& rhs_attr = rhs.as<ov::WeightlessCacheAttribute>();
-        return lhs_attr.original_size == rhs_attr.original_size && lhs_attr.bin_offset == rhs_attr.bin_offset &&
-               lhs_attr.original_dtype == rhs_attr.original_dtype;
-    }
-    if (lhs.is<ov::pass::DisableConstantFolding>()) {
-        return rhs.is<ov::pass::DisableConstantFolding>();
-    }
-    if (key == kRequiresPrecisionConversionKey) {
-        // ConstantFolding uses this payload-free marker internally. It has
-        // no value to compare, but must survive cloning of an equivalent op.
-        return true;
-    }
-    if (lhs.is<ov::FusedNames>()) {
-        // FusedNames records provenance only. Replica names are expected to
-        // differ, while the reference node's provenance is retained below.
-        return rhs.is<ov::FusedNames>();
-    }
-
-    if (equal_supported_scalars<bool,
-                                int8_t,
-                                int16_t,
-                                int32_t,
-                                int64_t,
-                                uint8_t,
-                                uint16_t,
-                                uint32_t,
-                                uint64_t,
-                                float,
-                                double>(lhs, rhs)) {
-        return true;
-    }
-    if (lhs.is<std::string>()) {
-        return lhs.as<std::string>() == rhs.as<std::string>();
-    }
-
-    // Runtime attributes and plugin-specific values do not have a uniform,
-    // non-throwing equality contract. Reject these entries rather than
-    // invoking ov::Any::operator==, which may throw for an unsupported type.
-    return false;
-}
-
-bool equivalent_runtime_info(const ov::RTMap& lhs, const ov::RTMap& rhs) {
-    if (lhs.size() != rhs.size()) {
-        return false;
-    }
-
-    for (const auto& [key, lhs_value] : lhs) {
-        const auto rhs_it = rhs.find(key);
-        if (rhs_it == rhs.end() || !equivalent_supported_rt_value(key, lhs_value, rhs_it->second)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool equivalent_node_metadata(const NodePtr& lhs, const NodePtr& rhs) {
-    if (!equivalent_runtime_info(lhs->get_rt_info(), rhs->get_rt_info()) ||
-        lhs->get_input_size() != rhs->get_input_size() ||
-        lhs->get_output_size() != rhs->get_output_size()) {
-        return false;
-    }
-
-    for (size_t i = 0; i < lhs->get_input_size(); ++i) {
-        if (!equivalent_runtime_info(lhs->input(i).get_rt_info(), rhs->input(i).get_rt_info())) {
-            return false;
-        }
-    }
-    for (size_t i = 0; i < lhs->get_output_size(); ++i) {
-        // The original branch nodes remain in place for any users other than
-        // the replaced Concat. Branch-local names are therefore safe to
-        // preserve on the cloned reference branch; the Concat names are
-        // copied to the externally visible repacked result.
-        if (!equivalent_runtime_info(lhs->output(i).get_rt_info(), rhs->output(i).get_rt_info())) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool equivalent_branch_nodes(const NodePtr& lhs,
-                             const NodePtr& rhs,
-                             const std::shared_ptr<ov::op::v8::Gather>& lhs_gather,
-                             const std::shared_ptr<ov::op::v8::Gather>& rhs_gather,
-                             size_t replica_count,
-                             NodeMap& lhs_to_rhs,
-                             NodeMap& rhs_to_lhs) {
-    // The transformed graph retains the first branch's nodes and metadata.
-    // Reject a match when a corresponding branch carries different metadata
-    // instead of silently dropping it.
-    if (!equivalent_node_metadata(lhs, rhs)) {
-        return false;
-    }
-
-    if (lhs == lhs_gather || rhs == rhs_gather) {
-        return lhs == lhs_gather && rhs == rhs_gather && gather_attributes_equal(lhs_gather, rhs_gather);
-    }
-
-    if (is_constant(lhs) || is_constant(rhs)) {
-        if (!is_constant(lhs) || !is_constant(rhs) || !constants_equal(lhs, rhs)) {
-            return false;
-        }
-        const auto lhs_it = lhs_to_rhs.find(lhs.get());
-        const auto rhs_it = rhs_to_lhs.find(rhs.get());
-        if (lhs_it != lhs_to_rhs.end() || rhs_it != rhs_to_lhs.end()) {
-            return lhs_it != lhs_to_rhs.end() && rhs_it != rhs_to_lhs.end() && lhs_it->second == rhs &&
-                   rhs_it->second == lhs;
-        }
-        lhs_to_rhs.emplace(lhs.get(), rhs);
-        rhs_to_lhs.emplace(rhs.get(), lhs);
-        return true;
-    }
-    if (!is_batch_safe_operation(lhs, replica_count) || !is_batch_safe_operation(rhs, replica_count)) {
-        return false;
-    }
-    if (lhs->get_type_info() != rhs->get_type_info() || is_type_relaxed(lhs) || is_type_relaxed(rhs) ||
-        !is_static_node(lhs) || !is_static_node(rhs) || !output_shapes_equal(lhs, rhs) ||
-        !operation_attributes_equal(lhs, rhs) || lhs->get_input_size() != rhs->get_input_size()) {
-        return false;
-    }
-
-    const auto lhs_it = lhs_to_rhs.find(lhs.get());
-    const auto rhs_it = rhs_to_lhs.find(rhs.get());
-    if (lhs_it != lhs_to_rhs.end() || rhs_it != rhs_to_lhs.end()) {
-        return lhs_it != lhs_to_rhs.end() && rhs_it != rhs_to_lhs.end() && lhs_it->second == rhs &&
-               rhs_it->second == lhs;
-    }
-
-    lhs_to_rhs.emplace(lhs.get(), rhs);
-    rhs_to_lhs.emplace(rhs.get(), lhs);
-    for (size_t i = 0; i < lhs->get_input_size(); ++i) {
-        if (!equivalent_branch_nodes(lhs->input_value(i).get_node_shared_ptr(),
-                                     rhs->input_value(i).get_node_shared_ptr(),
-                                     lhs_gather,
-                                     rhs_gather,
-                                     replica_count,
-                                     lhs_to_rhs,
-                                     rhs_to_lhs)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-struct BranchInfo {
-    std::shared_ptr<ov::op::v8::Gather> gather;
-    NodeSet nodes;
 };
 
-bool get_branch_info(const ov::Output<ov::Node>& endpoint_output,
-                     int64_t expected_index,
-                     size_t replica_count,
-                     BranchInfo& info) {
-    if (endpoint_output.get_index() != 0) {
-        return false;
-    }
-    const auto endpoint = endpoint_output.get_node_shared_ptr();
-    if (!is_static_node(endpoint)) {
-        return false;
-    }
-
-    // Every replica branch starts from an implicit batch of 1 so that the
-    // replicas can later be stacked into a batch of `replica_count`. The rank
-    // reflects the NCHW-style ops this pass supports, not one fixed model.
-    const auto endpoint_shape = endpoint->get_output_partial_shape(0);
-    if (endpoint_shape.rank() != static_cast<int64_t>(kBranchRank) || endpoint_shape[0] != 1) {
-        return false;
-    }
-
-    collect_branch_nodes(endpoint, replica_count, info.nodes);
-
-    std::vector<std::shared_ptr<ov::op::v8::Gather>> gathers;
-    for (auto* raw_node : info.nodes) {
-        const auto node = raw_node->shared_from_this();
-        if (!node->get_control_dependencies().empty() || !node->get_control_dependents().empty()) {
-            return false;
-        }
-        if (const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(node)) {
-            gathers.push_back(gather);
-        } else if (!is_batch_safe_operation(node, replica_count)) {
-            return false;
-        } else if (!max_pool_indices_are_unused(node)) {
-            return false;
-        }
-    }
-    if (gathers.size() != 1) {
-        return false;
-    }
-
-    info.gather = gathers.front();
-    if (info.gather->get_batch_dims() != 0 ||
-        !scalar_i64_constant(info.gather->input_value(1), expected_index) ||
-        !is_static_node(info.gather)) {
-        return false;
-    }
-
-    // A scalar-indexed Gather removes exactly the axis dimension from its
-    // data input. That dimension must hold exactly `replica_count` replica
-    // slots (not a fixed literal), and removing it must reproduce the
-    // Gather's own output shape dimension-for-dimension.
-    const auto gather_input_shape = info.gather->get_input_partial_shape(0);
-    const auto gather_output_shape = info.gather->get_output_partial_shape(0);
-    const auto axis = info.gather->get_axis();
-    if (!gather_input_shape.is_static() || !gather_output_shape.is_static() || axis < 0 ||
-        gather_input_shape.rank().get_length() != gather_output_shape.rank().get_length() + 1 ||
-        axis >= gather_input_shape.rank().get_length() ||
-        static_cast<size_t>(gather_input_shape[axis].get_length()) != replica_count ||
-        !scalar_i64_constant(info.gather->input_value(2), axis)) {
-        return false;
-    }
-    std::vector<ov::Dimension> expected_output_dims;
-    expected_output_dims.reserve(gather_output_shape.rank().get_length());
-    for (int64_t i = 0; i < gather_input_shape.rank().get_length(); ++i) {
-        if (i != axis) {
-            expected_output_dims.push_back(gather_input_shape[i]);
-        }
-    }
-    return ov::PartialShape(expected_output_dims) == gather_output_shape;
+bool constant_inputs_are_equal(const ov::Output<ov::Node>& lhs, const ov::Output<ov::Node>& rhs) {
+    if (lhs == rhs)
+        return true;
+    const auto lhs_node = lhs.get_node_shared_ptr();
+    const auto rhs_node = rhs.get_node_shared_ptr();
+    const auto lhs_constant = ov::as_type_ptr<ov::op::v0::Constant>(lhs_node);
+    const auto rhs_constant = ov::as_type_ptr<ov::op::v0::Constant>(rhs_node);
+    if (lhs_constant || rhs_constant)
+        return lhs_constant && rhs_constant && ov::op::util::constants_are_equal(*lhs_constant, *rhs_constant);
+    return ov::op::util::node_attributes_are_equal(lhs_node, rhs_node) && constant_inputs_are_equal(lhs_node->input_value(0), rhs_node->input_value(0));
 }
 
-bool has_external_consumers(const BranchInfo& branch, const NodePtr& output_concat) {
-    for (auto* raw_node : branch.nodes) {
-        const auto node = raw_node->shared_from_this();
-        if (is_constant(node) || is_constant_derived_convert(node)) {
+bool branches_are_equal(const BranchPattern& pattern, const PatternValueMap& reference, const PatternValueMap& branch) {
+    for (const auto& pattern_node : pattern.chain()) {
+        if (reference.count(pattern_node) != branch.count(pattern_node))
+            return false;
+        if (!reference.count(pattern_node))
             continue;
-        }
-        for (size_t output = 0; output < node->get_output_size(); ++output) {
-            for (const auto& target_input : node->output(output).get_target_inputs()) {
-                const auto target_node = target_input.get_node()->shared_from_this();
-                if (ov::is_type<ov::op::v0::ShapeOf>(target_node) ||
-                    ov::is_type<ov::op::v3::ShapeOf>(target_node)) {
-                    continue;
-                }
-                if (branch.nodes.count(target_node.get()) == 0 && target_node != output_concat) {
-                    return true;
-                }
-            }
-        }
+        const auto reference_node = reference.at(pattern_node).get_node_shared_ptr();
+        const auto branch_node = branch.at(pattern_node).get_node_shared_ptr();
+        if (!ov::op::util::node_attributes_are_equal(reference_node, branch_node))
+            return false;
     }
-    return false;
+    const auto weights = [&pattern](const PatternValueMap& map) {
+        return map.at(pattern.conv).get_node()->input_value(1);
+    };
+    if (!constant_inputs_are_equal(weights(reference), weights(branch)))
+        return false;
+    return !reference.count(pattern.add) || constant_inputs_are_equal(reference.at(pattern.bias), branch.at(pattern.bias));
 }
 
-bool branch_nodes_are_disjoint(const std::vector<BranchInfo>& branches) {
-    NodeSet seen;
-    bool disjoint = true;
-    for (const auto& branch : branches) {
-        for (auto* node : branch.nodes) {
-            // A conversion fed only by a constant is immutable branch data.
-            // Weight sharing may legally use one such node for every replica.
-            if (is_constant(node->shared_from_this()) || is_constant_derived_convert(node->shared_from_this()) ||
-                node == branch.gather.get()) {
+// Checks relations the single-branch pattern can't express: branch i gathers slice i of the same
+// tensor, the slices cover the whole replica dimension, and all branches are equal
+std::optional<std::vector<PatternValueMap>> match_branches(const BranchPattern& pattern, const ov::Output<ov::Node>& concat_output) {
+    const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(concat_output.get_node_shared_ptr());
+    const auto replica_count = concat ? concat->get_input_size() : 0;
+    // Replicas are stacked on axis 0, so Concat must be on another axis
+    if (replica_count < 2 || normalized_concat_axis(*concat) <= 0)
+        return std::nullopt;
+
+    std::vector<PatternValueMap> branches;
+    branches.reserve(replica_count);
+    for (size_t i = 0; i < replica_count; ++i) {
+        Matcher matcher(pattern.relu, "BatchReplicatedBranch");
+        if (!matcher.match(concat->input_value(i)))
+            return std::nullopt;
+        branches.push_back(matcher.get_pattern_value_map());
+        const auto& branch = branches.back();
+
+        const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(branch.at(pattern.gather).get_node_shared_ptr());
+        const auto index = ov::as_type_ptr<ov::op::v0::Constant>(gather->get_input_node_shared_ptr(1));
+        if (index->cast_vector<int64_t>() != std::vector<int64_t>{static_cast<int64_t>(i)})
+            return std::nullopt;
+
+        const auto& reference = branches.front();
+        const auto reference_gather = reference.at(pattern.gather).get_node_shared_ptr();
+        if (i == 0) {
+            const auto data_shape = gather->get_input_shape(0);
+            const auto axis = static_cast<size_t>(gather->get_axis());
+            if (axis >= data_shape.size() || data_shape[axis] != replica_count)
+                return std::nullopt;
+        } else if (branch.at(pattern.data) != reference.at(pattern.data) || !ov::op::util::node_attributes_are_equal(gather, reference_gather) ||
+                   gather->get_axis() != ov::as_type_ptr<ov::op::v8::Gather>(reference_gather)->get_axis() || !branches_are_equal(pattern, reference, branch)) {
+            return std::nullopt;
+        }
+    }
+    return branches;
+}
+
+// rt_info of all replicas is merged (e.g. fused names) so query_model reports all of them
+void copy_metadata(const NodeVector& replicas, const NodePtr& clone) {
+    const auto& reference = replicas.front();
+    clone->set_friendly_name(reference->get_friendly_name());
+    ov::copy_runtime_info(replicas, clone);
+    // copy_runtime_info skips non-copyable markers, replicas are equal so take them from the reference
+    if (ov::is_decompression(reference))
+        ov::mark_as_decompression(clone);
+    if (ov::pass::constant_folding_is_disabled(reference.get()))
+        ov::pass::disable_constant_folding(clone);
+    ov::copy_weightless_cache_attr(reference, clone);
+    const auto precision_marker = reference->get_rt_info().find(kRequiresPrecisionConversionKey);
+    if (precision_marker != reference->get_rt_info().end())
+        clone->get_rt_info()[kRequiresPrecisionConversionKey] = precision_marker->second;
+    for (size_t i = 0; i < clone->get_input_size(); ++i)
+        clone->input(i).get_rt_info() = reference->input(i).get_rt_info();
+    for (size_t i = 0; i < clone->get_output_size(); ++i) {
+        clone->output(i).get_rt_info() = reference->output(i).get_rt_info();
+        clone->output(i).set_names(reference->output(i).get_names());
+    }
+}
+
+// Shared constant is reused; equal but distinct constants are cloned to keep the rt_info of all
+// of them, since the originals are removed together with the branches
+ov::Output<ov::Node> make_batched_constant_input(const std::vector<ov::Output<ov::Node>>& replicas) {
+    const auto& reference = replicas.front();
+    if (std::all_of(replicas.begin(), replicas.end(), [&reference](const ov::Output<ov::Node>& replica) {
+            return replica == reference;
+        })) {
+        return reference;
+    }
+
+    NodeVector replica_nodes;
+    std::vector<ov::Output<ov::Node>> replica_inputs;
+    for (const auto& replica : replicas) {
+        replica_nodes.push_back(replica.get_node_shared_ptr());
+        if (replica.get_node()->get_input_size() != 0)
+            replica_inputs.push_back(replica.get_node()->input_value(0));
+    }
+    ov::OutputVector clone_inputs;
+    if (!replica_inputs.empty())
+        clone_inputs.push_back(make_batched_constant_input(replica_inputs));
+    const auto clone = reference.get_node()->clone_with_new_inputs(clone_inputs);
+    copy_metadata(replica_nodes, clone);
+    return clone->output(reference.get_index());
+}
+
+bool batch_replicated_branches(const BranchPattern& pattern,
+                               const std::shared_ptr<ov::op::v0::Concat>& output_concat,
+                               const std::vector<PatternValueMap>& branches) {
+    const auto& reference = branches.front();
+    const auto replica_count = branches.size();
+    const auto replicas_of = [&branches](const std::shared_ptr<ov::Node>& pattern_node) {
+        NodeVector replicas;
+        for (const auto& branch : branches)
+            replicas.push_back(branch.at(pattern_node).get_node_shared_ptr());
+        return replicas;
+    };
+
+    // [1, C, H, W] x N -> [N, C, H, W]
+    ov::OutputVector slices;
+    for (const auto& gather : replicas_of(pattern.gather))
+        slices.push_back(gather);
+    auto batched_input = std::make_shared<ov::op::v0::Concat>(slices, 0);
+    batched_input->set_friendly_name(output_concat->get_friendly_name() + "/replica_batch");
+    ov::copy_runtime_info(output_concat, batched_input);
+
+    ov::Output<ov::Node> reference_output = reference.at(pattern.gather);
+    ov::Output<ov::Node> batched = batched_input;
+    for (const auto& pattern_node : pattern.chain()) {
+        if (!reference.count(pattern_node))
+            continue;
+        const auto replicas = replicas_of(pattern_node);
+        const auto& reference_node = replicas.front();
+        ov::OutputVector inputs = reference_node->input_values();
+        for (size_t port = 0; port < inputs.size(); ++port) {
+            // Add is commutative, so the data input may be on any port
+            if (inputs[port] == reference_output) {
+                inputs[port] = batched;
                 continue;
             }
-            if (!seen.insert(node).second) {
-                disjoint = false;
-            }
+            std::vector<ov::Output<ov::Node>> replica_inputs;
+            for (const auto& replica : replicas)
+                replica_inputs.push_back(replica->input_value(port));
+            inputs[port] = make_batched_constant_input(replica_inputs);
         }
+        const auto clone = reference_node->clone_with_new_inputs(inputs);
+        copy_metadata(replicas, clone);
+        reference_output = reference_node->output(0);
+        batched = clone->output(0);
     }
-    return disjoint;
-}
 
-bool branch_nodes_have_name_collisions(const std::vector<BranchInfo>& branches) {
-    std::unordered_map<std::string, const ov::Node*> friendly_names;
-    std::unordered_map<std::string, std::pair<const ov::Node*, size_t>> tensor_names;
-    for (const auto& branch : branches) {
-        for (auto* raw_node : branch.nodes) {
-            const auto node = raw_node->shared_from_this();
-            const auto [friendly_it, friendly_inserted] =
-                friendly_names.emplace(node->get_friendly_name(), node.get());
-            if (!friendly_inserted && friendly_it->second != node.get()) {
-                return true;
-            }
-            for (size_t output = 0; output < node->get_output_size(); ++output) {
-                for (const auto& name : node->output(output).get_names()) {
-                    const auto [tensor_it, tensor_inserted] =
-                        tensor_names.emplace(name, std::make_pair(node.get(), output));
-                    if (!tensor_inserted &&
-                        (tensor_it->second.first != node.get() || tensor_it->second.second != output)) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    return false;
-}
-
-void copy_node_metadata_common(const NodePtr& original, const NodePtr& replacement) {
-    replacement->set_friendly_name(original->get_friendly_name());
-    ov::copy_runtime_info(original, replacement);
-    // Decompression is non-copyable by design because it must not propagate
-    // through arbitrary graph rewrites.  This pass has already established
-    // that the corresponding replica operations are equivalent, so preserve
-    // this known marker on the explicitly cloned operation.
-    if (ov::is_decompression(original)) {
-        ov::mark_as_decompression(replacement);
-    }
-    if (ov::pass::constant_folding_is_disabled(original.get())) {
-        ov::pass::disable_constant_folding(replacement);
-    }
-    ov::copy_weightless_cache_attr(original, replacement);
-    const auto precision_marker = original->get_rt_info().find(kRequiresPrecisionConversionKey);
-    if (precision_marker != original->get_rt_info().end()) {
-        replacement->get_rt_info()[kRequiresPrecisionConversionKey] = precision_marker->second;
-    }
-    for (size_t i = 0; i < std::min(original->get_output_size(), replacement->get_output_size()); ++i) {
-        replacement->output(i).get_rt_info() = original->output(i).get_rt_info();
-        replacement->output(i).set_names(original->output(i).get_names());
-    }
-}
-
-void copy_node_metadata(const NodePtr& original, const NodePtr& replacement) {
-    copy_node_metadata_common(original, replacement);
-    for (size_t i = 0; i < std::min(original->get_input_size(), replacement->get_input_size()); ++i) {
-        replacement->input(i).get_rt_info() = original->input(i).get_rt_info();
-    }
-}
-
-void copy_replacement_metadata(const NodePtr& original, const NodePtr& replacement) {
-    copy_node_metadata_common(original, replacement);
-}
-
-void merge_fused_names(const NodePtr& source,
-                       const std::vector<NodePtr>& corresponding_nodes,
-                       const NodePtr& replacement) {
-    auto& rt_info = replacement->get_rt_info();
-    auto fused_names_it = rt_info.find(ov::FusedNames::get_type_info_static());
-    if (fused_names_it == rt_info.end()) {
-        fused_names_it = rt_info.emplace(ov::FusedNames::get_type_info_static(), ov::FusedNames{}).first;
-    }
-    auto& fused_names = fused_names_it->second.as<ov::FusedNames>();
-    const auto merge_node_names = [&fused_names](const NodePtr& node) {
-        fused_names.fuseWith(ov::FusedNames(node->get_friendly_name()));
-        for (const auto& name : ov::getFusedNamesVector(node)) {
-            fused_names.fuseWith(ov::FusedNames(name));
-        }
-    };
-    merge_node_names(source);
-    for (const auto& node : corresponding_nodes) {
-        merge_node_names(node);
-    }
-}
-
-bool transform_replicated_branches(const std::shared_ptr<ov::op::v0::Concat>& output_concat) {
-    if (is_type_relaxed(output_concat)) {
+    const auto branch_shape = output_concat->get_input_shape(0);
+    auto batched_shape = branch_shape;
+    batched_shape[0] = replica_count;
+    if (batched.get_shape() != batched_shape)
         return false;
-    }
 
-    // The replica count, per-branch feature shape, and concat axis are all
-    // derived from the matched graph below instead of being pinned to one
-    // reference model's literal dimensions.
-    const size_t replica_count = output_concat->get_input_size();
-    if (replica_count < kMinReplicaCount) {
-        return false;
+    // Restore the Concat layout, e.g. for axis 3: [N, C, H, W] -> [C, H, N, W] -> [1, C, H, N * W]
+    const auto rank = branch_shape.size();
+    const auto concat_axis = static_cast<size_t>(normalized_concat_axis(*output_concat));
+    std::vector<int64_t> transpose_order;
+    std::vector<int64_t> output_shape{1};
+    for (size_t axis = 1; axis < rank; ++axis) {
+        if (axis == concat_axis)
+            transpose_order.push_back(0);
+        transpose_order.push_back(static_cast<int64_t>(axis));
+        output_shape.push_back(static_cast<int64_t>(axis == concat_axis ? replica_count * branch_shape[axis] : branch_shape[axis]));
     }
-
-    // The rewrite replaces only the replica Concat. Branches with external
-    // data consumers are rejected below because those consumers would retain
-    // dependencies on the original per-replica computation.
-    std::vector<BranchInfo> branches(replica_count);
-    for (size_t i = 0; i < replica_count; ++i) {
-        if (!get_branch_info(output_concat->input_value(i), static_cast<int64_t>(i), replica_count, branches[i])) {
-            return false;
-        }
-        if (has_external_consumers(branches[i], output_concat)) {
-            return false;
-        }
-    }
-    if (!branch_nodes_are_disjoint(branches)) {
-        return false;
-    }
-    if (branch_nodes_have_name_collisions(branches)) {
-        return false;
-    }
-
-    const auto& reference = branches.front();
-    const auto reference_endpoint = output_concat->input_value(0).get_node_shared_ptr();
-    const auto reference_shape = reference_endpoint->get_output_partial_shape(0).to_shape();
-
-    // The concat axis must select one of the genuine feature dimensions and
-    // never the implicit per-branch batch dimension at axis 0, which is what
-    // this pass repurposes to stack the replicas.
-    const auto concat_axis = output_concat->get_axis();
-    if (concat_axis <= 0 || static_cast<size_t>(concat_axis) >= reference_shape.size()) {
-        return false;
-    }
-
-    std::unordered_map<const ov::Node*, std::vector<NodePtr>> corresponding_nodes;
-    for (size_t i = 1; i < replica_count; ++i) {
-        NodeMap reference_to_branch;
-        NodeMap branch_to_reference;
-        if (!equivalent_branch_nodes(reference_endpoint,
-                                     output_concat->input_value(i).get_node_shared_ptr(),
-                                     reference.gather,
-                                     branches[i].gather,
-                                     replica_count,
-                                     reference_to_branch,
-                                     branch_to_reference)) {
-            return false;
-        }
-        for (const auto& [reference_node, corresponding_node] : reference_to_branch) {
-            corresponding_nodes[reference_node].push_back(corresponding_node);
-        }
-    }
-
-    const auto shared_input = reference.gather->input_value(0);
-    for (size_t i = 1; i < replica_count; ++i) {
-        if (branches[i].gather->input_value(0) != shared_input) {
-            return false;
-        }
-    }
-
-    ov::OutputVector replica_inputs;
-    replica_inputs.reserve(replica_count);
-    for (const auto& branch : branches) {
-        replica_inputs.push_back(branch.gather->output(0));
-    }
-    auto batched_replicas = std::make_shared<ov::op::v0::Concat>(replica_inputs, 0);
-    batched_replicas->set_friendly_name(output_concat->get_friendly_name() + "/replica_batch");
-    ov::copy_runtime_info({output_concat, reference.gather}, batched_replicas);
-    std::vector<NodePtr> corresponding_gathers;
-    corresponding_gathers.reserve(replica_count - 1);
-    for (size_t i = 1; i < replica_count; ++i) {
-        corresponding_gathers.push_back(branches[i].gather);
-    }
-    merge_fused_names(reference.gather, corresponding_gathers, batched_replicas);
-
-    NodeMap cloned_nodes;
-    std::function<NodePtr(const NodePtr&)> clone_node = [&](const NodePtr& original) -> NodePtr {
-        if (original == reference.gather) {
-            return batched_replicas;
-        }
-        if (is_constant(original)) {
-            if (const auto found = cloned_nodes.find(original.get()); found != cloned_nodes.end()) {
-                return found->second;
-            }
-            const auto corresponding = corresponding_nodes.find(original.get());
-            const bool has_distinct_correspondence =
-                corresponding != corresponding_nodes.end() &&
-                std::any_of(corresponding->second.begin(),
-                            corresponding->second.end(),
-                            [&](const NodePtr& node) {
-                                return node.get() != original.get();
-                            });
-            if (!has_distinct_correspondence) {
-                return original;
-            }
-            auto clone = original->clone_with_new_inputs({});
-            copy_node_metadata(original, clone);
-            merge_fused_names(original, corresponding->second, clone);
-            cloned_nodes.emplace(original.get(), clone);
-            return clone;
-        }
-        const auto found = cloned_nodes.find(original.get());
-        if (found != cloned_nodes.end()) {
-            return found->second;
-        }
-
-        ov::OutputVector new_inputs;
-        new_inputs.reserve(original->get_input_size());
-        for (const auto& input : original->input_values()) {
-            const auto source = clone_node(input.get_node_shared_ptr());
-            new_inputs.push_back(source->output(input.get_index()));
-        }
-        auto clone = original->clone_with_new_inputs(new_inputs);
-        copy_node_metadata(original, clone);
-        if (const auto corresponding = corresponding_nodes.find(original.get());
-            corresponding != corresponding_nodes.end()) {
-            merge_fused_names(original, corresponding->second, clone);
-        }
-        cloned_nodes.emplace(original.get(), clone);
-        return clone;
-    };
-
-    const auto batched_branch = clone_node(reference_endpoint);
-    ov::Shape expected_batched_shape = reference_shape;
-    expected_batched_shape[0] = replica_count;
-    if (batched_branch->get_output_partial_shape(0) != ov::PartialShape(expected_batched_shape)) {
-        return false;
-    }
-
-    // Move the replica (batch) dimension to sit directly before the original
-    // concat axis, then merge it with that axis. This reproduces the same
-    // concatenation order the original per-branch Concat produced, for
-    // whichever axis and rank the matched graph actually used.
-    const size_t rank = reference_shape.size();
-    std::vector<int64_t> transpose_order_values;
-    transpose_order_values.reserve(rank);
-    for (int64_t axis = 1; axis < concat_axis; ++axis) {
-        transpose_order_values.push_back(axis);
-    }
-    transpose_order_values.push_back(0);
-    for (int64_t axis = concat_axis; axis < static_cast<int64_t>(rank); ++axis) {
-        transpose_order_values.push_back(axis);
-    }
-
-    auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, transpose_order_values);
-    auto repack_transpose = std::make_shared<ov::op::v1::Transpose>(batched_branch, transpose_order);
+    auto repack_transpose = std::make_shared<ov::op::v1::Transpose>(batched, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, transpose_order));
     repack_transpose->set_friendly_name(output_concat->get_friendly_name() + "/replica_repack_transpose");
+    auto repacked_output =
+        std::make_shared<ov::op::v1::Reshape>(repack_transpose, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, output_shape), false);
     ov::copy_runtime_info(output_concat, repack_transpose);
-
-    std::vector<int64_t> reshape_shape_values;
-    reshape_shape_values.reserve(rank);
-    reshape_shape_values.push_back(1);
-    for (int64_t axis = 1; axis < concat_axis; ++axis) {
-        reshape_shape_values.push_back(static_cast<int64_t>(reference_shape[axis]));
-    }
-    reshape_shape_values.push_back(static_cast<int64_t>(replica_count * reference_shape[concat_axis]));
-    for (int64_t axis = concat_axis + 1; axis < static_cast<int64_t>(rank); ++axis) {
-        reshape_shape_values.push_back(static_cast<int64_t>(reference_shape[axis]));
-    }
-
-    auto reshape_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, reshape_shape_values);
-    auto repacked_output = std::make_shared<ov::op::v1::Reshape>(repack_transpose, reshape_shape, false);
-    copy_replacement_metadata(output_concat, repacked_output);
-    ov::copy_runtime_info({output_concat, repack_transpose}, repacked_output);
-    ov::replace_node(output_concat, repacked_output);
+    ov::replace_node_update_name(output_concat, repacked_output);
     return true;
 }
 
 }  // namespace
 
 BatchReplicatedBranches::BatchReplicatedBranches() {
-    using namespace ov::pass::pattern;
+    const auto branch_pattern = std::make_shared<BranchPattern>();
+    auto output_concat = wrap_type<ov::op::v0::Concat>(has_static_shape() &&
+                                                       Predicate(
+                                                           [](const ov::Output<ov::Node>& output) {
+                                                               return !is_type_relaxed(output.get_node());
+                                                           },
+                                                           "not_type_relaxed") &&
+                                                       Predicate(
+                                                           [branch_pattern](const ov::Output<ov::Node>& output) {
+                                                               return match_branches(*branch_pattern, output).has_value();
+                                                           },
+                                                           "replicated_branches_match"));
 
-    auto output_concat = wrap_type<ov::op::v0::Concat>(has_static_shape());
-    auto callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
-        const auto output_concat_node =
-            std::static_pointer_cast<ov::op::v0::Concat>(matcher.get_match_root());
-        if (transformation_callback(output_concat_node)) {
+    auto callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(m.get_match_root());
+        if (transformation_callback(concat))
             return false;
-        }
-        return transform_replicated_branches(output_concat_node);
+        const auto branches = match_branches(*branch_pattern, concat->output(0));
+        return branches && batch_replicated_branches(*branch_pattern, concat, *branches);
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(output_concat, "BatchReplicatedBranches");
+    auto matcher = std::make_shared<Matcher>(output_concat, "BatchReplicatedBranches");
     register_matcher(matcher, callback);
 }
 
