@@ -55,6 +55,7 @@
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -1085,6 +1086,176 @@ TEST(fully_connected_cm_woq_u2_epi_operand, runtime_row_broadcast_is_rejected) {
     // Wrong width.
     EXPECT_FALSE(woq_u2_check_epi_operand(f16({5, N / 2}), f16({5, N}), N).empty());
 }
+
+// Reproducer for Issue #1:
+// A dynamic u2 FC runs WoqU2FCImpl from m_dynamic_impls_cache on the first execution of shape M and
+// enqueues an async compilation task into m_static_impls_cache. Once that background task completes,
+// executing the same shape M again has SHAPE_CHANGED=false and IMPL_CHANGED=true. Because
+// WoqU2FCImpl's constructor never invokes update_dispatch_data_func (leaving kd.params.scalars empty)
+// and PrimitiveImplOCL::update_stages_flags clears need_dispatch_data_update when SHAPE_CHANGED=false,
+// the second execution fails in set_arguments with CL_INVALID_ARG_VALUE (-50) on scalar arg 6 (M).
+// Control: if a different shape (M_other) runs in between so SHAPE_CHANGED=true when returning to M,
+// update_stages_flags keeps need_dispatch_data_update=true and the cached static WoqU2FCImpl succeeds.
+void run_dynamic_repeated_shape_repro(int64_t M, int64_t M_interleaved = 0) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+
+    const int64_t K = 128, N = 256;
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto w = make_weights(engine, K, N, ZpKind::tensor_u8, rg, static_cast<uint32_t>(M * 37 + 11));
+
+    topology topo(input_layout("input", layout{ov::PartialShape{-1, K}, data_types::f16, format::bfyx}));
+    add_weights(topo, "", w);
+    topo.add(make_fc("fc_prim", "input", "", ZpKind::tensor_u8, data_types::f16, 2, w.zp_scalar));
+    topo.add(reorder("out", input_info("fc_prim"), format::bfyx, data_types::f16));
+
+    network::ptr net = get_network(engine, topo, woq_config(engine, {"fc_prim"}), get_test_stream_ptr(), false);
+
+    auto exec_and_check = [&](int64_t m) {
+        const auto a = random_activations(static_cast<size_t>(m * K), static_cast<uint64_t>(m * 1009 + K));
+        auto input_mem = engine.allocate_memory({ov::PartialShape{m, K}, data_types::f16, format::bfyx});
+        set_values(input_mem, a);
+        net->set_input_data("input", input_mem);
+        auto outputs = net->execute();
+        check_rows(outputs.at("out").get_memory(), m, a, all_rows(m), w, false);
+    };
+
+    // Iteration 1: runs dynamic impl and enqueues background static compilation for shape [M, K].
+    ASSERT_NO_FATAL_FAILURE(exec_and_check(M));
+
+    // Wait for the background compilation task to populate m_static_impls_cache for [M, K].
+    net->get_program()->get_compilation_context().wait_all();
+
+    if (M_interleaved > 0) {
+        // Intervening shape sets SHAPE_CHANGED=true on the subsequent return to M.
+        ASSERT_NO_FATAL_FAILURE(exec_and_check(M_interleaved));
+    }
+
+    // Re-execute shape [M, K] now that m_static_impls_cache holds the static WoqU2FCImpl.
+    exec_and_check(M);
+}
+
+TEST(smoke_fully_connected_cm_woq_u2_regression, dynamic_repeated_shape_after_async_compile_gemv) {
+    run_dynamic_repeated_shape_repro(1);
+}
+
+TEST(smoke_fully_connected_cm_woq_u2_regression, dynamic_repeated_shape_after_async_compile_tiled) {
+    run_dynamic_repeated_shape_repro(16);
+}
+
+TEST(smoke_fully_connected_cm_woq_u2_regression, dynamic_repeated_shape_control_interleaved_shape) {
+    run_dynamic_repeated_shape_repro(16, 32);
+}
+
+// Reproducer for Issue #2:
+// Dynamic u2 FC with a fused epilogue whose compile-time shapes are both dynamic ([-1, -1, K] and
+// [-1, -1, N]) passes validate_impl and selects CM. When runtime shapes require broadcasting the
+// epilogue operand (e.g. epi=[1, 1, N] with output=[2, 5, N]), support_shapes() returns false so
+// ImplementationsFactory falls back to ImplementationManagerLegacy<fully_connected> (bfyx_ref).
+// Because Step 4 in get_primitive_impl_for_params passes the concrete static runtime params to
+// find_impl(..., shape_types::dynamic_shape), bfyx_ref is compiled with is_shape_agnostic=false
+// (hardcoding S=5 in INPUT0_FEATURE_NUM and OUTPUT_SIZE_Y) and cached in m_dynamic_impls_cache.
+// A subsequent broadcast execution at S=8 reuses that S=5 kernel and corrupts the output.
+TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_fallback_corrupts_next_shape) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+
+    const int64_t K = 128, N = 64;
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto w = make_weights(engine, K, N, ZpKind::tensor_u8, rg, 77);
+
+    topology topo(input_layout("input", layout{ov::PartialShape{-1, -1, K}, data_types::f16, format::bfyx}));
+    add_weights(topo, "", w);
+    topo.add(make_fc("fc_prim", "input", "", ZpKind::tensor_u8, data_types::f32, 3, w.zp_scalar));
+    topo.add(input_layout("epi", layout{ov::PartialShape{-1, -1, N}, data_types::f32, format::bfyx}));
+    topo.add(eltwise("post", input_info("fc_prim"), input_info("epi"), eltwise_mode::sum));
+    topo.add(reorder("out", input_info("post"), format::bfyx, data_types::f32));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+    network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+
+    auto run_step = [&](int64_t B, int64_t S, bool broadcast_epi, float tol) {
+        const int64_t M = B * S;
+        const auto a = random_activations(static_cast<size_t>(M * K), static_cast<uint64_t>(M * 101 + 7));
+        auto in_mem = engine.allocate_memory({ov::PartialShape{B, S, K}, data_types::f16, format::bfyx});
+        set_values(in_mem, a);
+        net->set_input_data("input", in_mem);
+
+        const ov::PartialShape epi_shape = broadcast_epi ? ov::PartialShape{1, 1, N} : ov::PartialShape{B, S, N};
+        const size_t epi_count = static_cast<size_t>(ov::shape_size(epi_shape.to_shape()));
+        std::vector<float> epi_v(epi_count, 0.25f);
+        auto epi_mem = engine.allocate_memory({epi_shape, data_types::f32, format::bfyx});
+        set_values(epi_mem, epi_v);
+        net->set_input_data("epi", epi_mem);
+
+        auto outputs = net->execute();
+        const auto rows = all_rows(M);
+        const auto out = read_output(outputs.at("out").get_memory(), static_cast<size_t>(M * N), true);
+        auto ref = host_reference(a, rows, w);
+        for (float& v : ref)
+            v += 0.25f;
+
+        float max_err = 0.0f;
+        size_t bad = 0, first_bad = 0;
+        for (size_t i = 0; i < out.size(); ++i) {
+            const float err = std::fabs(out[i] - ref[i]);
+            max_err = std::max(max_err, err);
+            if (!(err <= tol)) {
+                if (bad++ == 0)
+                    first_bad = i;
+            }
+        }
+        ASSERT_EQ(bad, size_t(0)) << "B=" << B << " S=" << S << " broadcast_epi=" << broadcast_epi << ": " << bad << " / " << out.size()
+                                  << " elements exceed tol=" << tol << " (max|d|=" << max_err << "); first at row " << first_bad / N << ", col "
+                                  << first_bad % N << ": got " << out[first_bad] << ", ref " << ref[first_bad];
+    };
+
+    // 1. Non-broadcast [2, 5, 128] + [2, 5, 64]: runs on CM u2 kernel.
+    ASSERT_NO_FATAL_FAILURE(run_step(2, 5, false, 1e-4f));
+    // 2. Broadcast [2, 5, 128] + [1, 1, 64]: support_shapes() rejects CM; falls back to bfyx_ref (1e-2f absorbs f32-vs-f16 dequant).
+    ASSERT_NO_FATAL_FAILURE(run_step(2, 5, true, 1e-2f));
+    // 3. Broadcast [2, 8, 128] + [1, 1, 64]: reuses cached S=5 bfyx_ref kernel on S=8 tensor and corrupts batch 1 (max|d| ~ 0.74).
+    run_step(2, 8, true, 1e-2f);
+}
+
+TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_forced_cm_throws) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+
+    const int64_t M = 5, K = 128, N = 256;
+    tests::random_generator rg(GET_SUITE_NAME);
+    const auto w = make_weights(engine, K, N, ZpKind::tensor_u8, rg, 55);
+
+    topology topo(input_layout("input", layout{ov::PartialShape{-1, K}, data_types::f16, format::bfyx}));
+    add_weights(topo, "", w);
+    topo.add(make_fc("fc_prim", "input", "", ZpKind::tensor_u8, data_types::f32, 2, w.zp_scalar));
+    topo.add(input_layout("epi", layout{ov::PartialShape{-1, N}, data_types::f32, format::bfyx}));
+    topo.add(eltwise("post", input_info("fc_prim"), input_info("epi"), eltwise_mode::sum));
+    topo.add(reorder("out", input_info("post"), format::bfyx, data_types::f32));
+
+    network::ptr net = get_network(engine, topo, woq_config(engine, {"fc_prim"}), get_test_stream_ptr(), false);
+
+    const auto a = random_activations(static_cast<size_t>(M * K), 333);
+    auto in_mem = engine.allocate_memory({ov::PartialShape{M, K}, data_types::f16, format::bfyx});
+    set_values(in_mem, a);
+    net->set_input_data("input", in_mem);
+
+    std::vector<float> epi_v(static_cast<size_t>(N), 0.5f);
+    auto epi_mem = engine.allocate_memory({ov::PartialShape{1, N}, data_types::f32, format::bfyx});
+    set_values(epi_mem, epi_v);
+    net->set_input_data("epi", epi_mem);
+
+    auto outputs = net->execute();
+    HostEpi he{Epi::add, &epi_v, true};
+    check_rows(outputs.at("out").get_memory(), M, a, all_rows(M), w, true, he);
+}
+
 
 // ---- Native group-major (GNK) weights [G, N, 64] ----
 
