@@ -1,12 +1,12 @@
 # Qwen3.5 recurrent cache integration in llama.cpp
 
-The default Qwen GPU integration uses dynamic stateless execution with the
-independent internal `RecurrentConvCacheUpdate` and
-`RecurrentGatedDeltaNetUpdate` ops support llama.cpp's `qwen35` and `qwen35moe`
-graphs, including Qwen3.6. They fuse generic reset, original-row gather, reorder,
-computation and ordered writeback for `cache_r` and `cache_s`. Cache row capacity
-depends on sequence slots and rollback snapshots, not attention context length.
-Runtime row maps, offsets and write controls remain tensor inputs.
+The default Qwen GPU integration uses dynamic stateless execution with two
+internal ops: `RecurrentConvCacheUpdate` and `RecurrentGatedDeltaNetUpdate`.
+They support llama.cpp's `qwen35` and `qwen35moe` graphs, including Qwen3.6,
+and fuse generic reset, original-row gather, reorder, computation and ordered
+writeback for `cache_r` and `cache_s`. Cache row capacity depends on sequence
+slots and rollback snapshots, not attention context length. Runtime row maps,
+offsets and write controls remain tensor inputs.
 
 ## Stable in-place allocations
 
