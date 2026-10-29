@@ -175,11 +175,15 @@ class GroupState {
 public:
     /// \param collective_timeout  Upper bound on any single wait, host- or
     ///        device-side. Zero means wait forever.
+    /// \param fixed_staging_bytes  Size of every rank's staging, a multiple of
+    ///        512, handed over with adopt_staging(); zero lets each rank's
+    ///        staging grow with the largest payload it has seen.
     GroupState(TPL0SharedContextPtr shared,
                int world_size,
                int num_collectives,
                std::chrono::milliseconds collective_timeout = std::chrono::milliseconds{5000},
-               const CollectiveOptions& options = CollectiveOptions{});
+               const CollectiveOptions& options = CollectiveOptions{},
+               std::size_t fixed_staging_bytes = 0);
     GroupState(const GroupState&) = delete;
     GroupState& operator=(const GroupState&) = delete;
     ~GroupState();
@@ -216,26 +220,48 @@ public:
     }
 
     // ---------------------------------------------------------------
+    // Fixed staging
+    // ---------------------------------------------------------------
+
+    /// Device USM for `rank`'s fixed staging; freed when the last holder lets go.
+    static std::shared_ptr<void> allocate_staging(const TPL0SharedContextPtr& shared, int rank, std::size_t bytes);
+    /// Gives `rank` its fixed staging, allocated with allocate_staging() for
+    /// fixed_staging_bytes(). Before the rank's first collective.
+    void adopt_staging(int rank, std::shared_ptr<void> buffer);
+    /// Zero when the staging grows with the payload.
+    std::size_t fixed_staging_bytes() const {
+        return m_fixed_staging_bytes;
+    }
+    /// The largest staging half a call may ask for; zero for no limit.
+    std::size_t staging_half_limit() const {
+        return m_fixed_staging_bytes / 2;
+    }
+
+    // ---------------------------------------------------------------
     // Calls
     // ---------------------------------------------------------------
 
     /// What an allreduce learns from the call rendezvous.
     struct AllreduceCall {
-        int parity{0};
-        std::vector<void*> staging;        // [N] every rank's staging half for this call
-        std::vector<uint64_t> staging_ids; // [N]
-        std::vector<ze_event_handle_t>* recv{nullptr};  // pair: [r] = "rank r pushed its payload"
-        std::vector<ze_event_handle_t>* step{nullptr};  // ring/halving: [step * N + rank]
+        int parity{0};                      // of the call's first chunk; chunk c has (parity + c) & 1
+        std::vector<void*> staging[2];      // [parity][N] every rank's staging half
+        std::vector<uint64_t> staging_ids;  // [N]
+        std::vector<ze_event_handle_t>* recv[2]{};  // pair: [r] = "rank r pushed its payload"
+        std::vector<ze_event_handle_t>* step[2]{};  // ring/halving: [step * N + rank]
     };
 
     /// Makes `rank`'s staging hold two halves of `half_bytes`, then meets the
-    /// other ranks at the call rendezvous. Throws, and aborts the group, if the
-    /// ranks disagree on the call or one of them does not arrive in time.
+    /// other ranks at the call rendezvous. A call of `chunks` chunks is that
+    /// many sub-collectives in a row, each with its own call number, so the
+    /// chunks alternate staging halves and event sets like separate calls.
+    /// Throws, and aborts the group, if the ranks disagree on the call or one
+    /// of them does not arrive in time.
     void begin_allreduce(int rank,
                          int collective_id,
                          std::size_t n,
                          ov::element::Type dtype,
                          std::size_t half_bytes,
+                         std::size_t chunks,
                          AllreduceCall& call);
 
     /// What a gather learns from the call rendezvous.
@@ -375,13 +401,15 @@ private:
     };
 
     // A rank's staging: two halves, one per allreduce parity, each half of the
-    // allocation. Owned by that rank alone and published per call.
+    // allocation. Owned by that rank alone and published per call. A fixed
+    // staging is held through `fixed` and never grows.
     struct Staging {
         void* base{nullptr};
         std::size_t bytes{0};
         std::size_t payload_capacity{0};
         uint64_t id{0};
         uint64_t growth_count{0};
+        std::shared_ptr<void> fixed;
     };
 
     // One rank's entry of the call rendezvous.
@@ -392,7 +420,8 @@ private:
         std::size_t n{0};
         ov::element::Type dtype{ov::element::dynamic};
         std::size_t rows{0};
-        void* staging{nullptr};  // allreduce: this rank's staging half; gather: the root's output
+        void* staging{nullptr};  // allreduce: this rank's staging; gather: the root's output
+        std::size_t staging_half{0};
         uint64_t staging_id{0};
     };
 
@@ -420,16 +449,11 @@ private:
     void destroy_event_sets();
     RecordingResources create_recording_resources(int rank) const;
 
-    /// Makes `s` -- `rank`'s staging -- hold two halves of `half_bytes` and
-    /// returns the half for `parity`. Growing waits for the rank's own last
-    /// hand-over: by then every peer write into the old staging has landed,
-    /// because that collective waited for them.
-    void* ensure_staging(Staging& s,
-                         int rank,
-                         std::size_t payload_bytes,
-                         std::size_t half_bytes,
-                         int parity,
-                         int collective_id);
+    /// Makes `s` -- `rank`'s staging -- hold two halves of `half_bytes`.
+    /// Growing waits for the rank's own last hand-over: by then every peer
+    /// write into the old staging has landed, because that collective waited
+    /// for them.
+    void ensure_staging(Staging& s, int rank, std::size_t payload_bytes, std::size_t half_bytes, int collective_id);
     void destroy_staging();
 
     /// Publishes `mine` and waits until every rank has published the same call;
@@ -456,6 +480,7 @@ private:
     bool m_ready{false};
     std::chrono::milliseconds m_collective_timeout{5000};
     CollectiveOptions m_options;
+    std::size_t m_fixed_staging_bytes{0};
 
     std::atomic<bool> m_aborted{false};
     mutable std::mutex m_abort_mutex;
@@ -480,7 +505,7 @@ private:
     std::vector<Staging> m_staging;
     std::vector<uint64_t> m_seq;            // [N] calls of any kind: the mailbox set
     std::vector<uint64_t> m_allreduce_seq;  // [N] their parity picks staging half and events
-    std::vector<uint64_t> m_gather_seq;     // [N] kept apart: a gather waits on nobody
+    std::vector<uint64_t> m_gather_seq;     // [N] kept apart: a gather does not order the peers
     // The splice each rank handed over last; its completion means everything
     // the rank handed over before is done too.
     std::vector<Splice*> m_last_splice;

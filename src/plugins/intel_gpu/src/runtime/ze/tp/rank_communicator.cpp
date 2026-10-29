@@ -21,7 +21,7 @@ namespace tp {
 
 namespace {
 
-constexpr uint32_t payload_version = 1;
+constexpr uint32_t payload_version = 2;
 
 /// What every rank publishes after the common header. Only meaningful inside
 /// one process: the ranks find their shared state by the rank-0 id.
@@ -30,6 +30,7 @@ struct PayloadBody {
     uint64_t communicator_id = 0;
     uint32_t rank = 0;
     uint32_t world_size = 0;
+    uint64_t staging_bytes = 0;
 };
 
 uint64_t current_pid() {
@@ -97,14 +98,17 @@ RankCommunicator::RankCommunicator(std::shared_ptr<ov::tp::IExchange> exchange,
                                    const std::string& backend,
                                    TPL0SharedContextPtr shared,
                                    std::chrono::milliseconds timeout,
-                                   const CollectiveOptions& options)
+                                   const CollectiveOptions& options,
+                                   std::size_t comm_buffer_size)
     : m_exchange(std::move(exchange)),
       m_shared(std::move(shared)),
       m_timeout(timeout),
       m_options(options),
       m_rank(0),
       m_world_size(0),
-      m_id(next_communicator_id()) {
+      m_id(next_communicator_id()),
+      // Two halves, each a multiple of 256 bytes.
+      m_staging_bytes(comm_buffer_size / 512 * 512) {
     OPENVINO_ASSERT(m_exchange != nullptr, "[GPU][TP] the collective group has no exchange endpoint");
     OPENVINO_ASSERT(m_shared != nullptr, "[GPU][TP] the communicator needs the device-group context");
     m_rank = m_exchange->rank();
@@ -115,12 +119,19 @@ RankCommunicator::RankCommunicator(std::shared_ptr<ov::tp::IExchange> exchange,
                     "[GPU][TP] the device group has ", m_shared->devices.size(), " devices for ", m_world_size,
                     " ranks");
     resolve_backend(backend);
+    OPENVINO_ASSERT(comm_buffer_size == 0 || m_staging_bytes != 0,
+                    "[GPU][TP] ", ov::tp::internal::comm_buffer_size.name(), " of ", comm_buffer_size,
+                    " bytes is too small");
+    if (m_staging_bytes != 0) {
+        m_staging = GroupState::allocate_staging(m_shared, m_rank, m_staging_bytes);
+    }
 
     PayloadBody body;
     body.pid = current_pid();
     body.communicator_id = m_id;
     body.rank = static_cast<uint32_t>(m_rank);
     body.world_size = static_cast<uint32_t>(m_world_size);
+    body.staging_bytes = m_staging_bytes;
     m_exchange->publish(make_payload(body));
 }
 
@@ -137,6 +148,11 @@ void RankCommunicator::connect(int num_collectives) {
                         "[GPU][TP] payload ", r, " claims rank ", body.rank, " of ", body.world_size);
         OPENVINO_ASSERT(body.pid == pid,
                         "[GPU][TP] rank ", r, " runs in another process; ranks of one group must share a process");
+        // Chunk sizes follow from the staging size, and the ranks must agree on them.
+        OPENVINO_ASSERT(body.staging_bytes == m_staging_bytes,
+                        "[GPU][TP] rank ", r, " has ", body.staging_bytes, " bytes of fixed staging, rank ", m_rank,
+                        " ", m_staging_bytes, "; ", ov::tp::internal::comm_buffer_size.name(),
+                        " must be the same on every rank");
         bodies.push_back(body);
     }
     OPENVINO_ASSERT(bodies[static_cast<size_t>(m_rank)].communicator_id == m_id,
@@ -146,7 +162,8 @@ void RankCommunicator::connect(int num_collectives) {
     const auto key = bodies.front().communicator_id;
     auto group = registry[key].lock();
     if (!group) {
-        group = std::make_shared<GroupState>(m_shared, m_world_size, num_collectives, m_timeout, m_options);
+        group = std::make_shared<GroupState>(m_shared, m_world_size, num_collectives, m_timeout, m_options,
+                                             m_staging_bytes);
         for (auto it = registry.begin(); it != registry.end();) {
             it = it->second.expired() ? registry.erase(it) : std::next(it);
         }
@@ -184,6 +201,9 @@ std::shared_ptr<Channel> RankCommunicator::bind(const std::vector<CollectiveUse>
     const auto count = static_cast<int>(collectives.size());
     if (!m_group) {
         connect(count);
+        if (m_staging) {
+            m_group->adopt_staging(m_rank, m_staging);
+        }
     }
     OPENVINO_ASSERT(m_group->num_collectives() == count,
                     "[GPU][TP] the model has ", count, " collectives, the context's group was set up for ",

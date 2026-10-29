@@ -20,6 +20,7 @@
 // Namespace, property name, default value, [validator], description
 OV_CONFIG_RELEASE_OPTION(ov::device, priorities, "", "Rank devices, one rank per entry in rank order; set through the device name, e.g. \"TP:GPU.0,GPU.1\"")
 OV_CONFIG_RELEASE_OPTION(ov::tp::internal, communication_timeout_ms, 5000, "Milliseconds a rank waits inside a collective before the whole group is aborted. 0 waits indefinitely", [](int v) { return v >= 0; })
+OV_CONFIG_RELEASE_OPTION(ov::tp::internal, comm_buffer_size, size_t{0}, "Bytes of collective staging per rank, allocated once with the rank contexts; larger messages are split into chunks. 0 lets the staging grow with the largest message")
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp, input_stage_max_bytes, uint64_t{4096}, "Size ceiling in bytes for staging a user input through plugin-owned host memory. 0 always stages on the device")
 

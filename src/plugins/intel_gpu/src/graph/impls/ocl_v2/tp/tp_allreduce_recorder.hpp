@@ -19,7 +19,9 @@ namespace ov::intel_gpu::ocl {
 /// Three schedules, chosen per recording: two ranks exchange directly, larger
 /// worlds use a ring, and a power-of-two world carrying a small payload uses
 /// recursive halving. Peers write only into each other's staging; every rank
-/// delivers into its own output. A rank's recording is kept until its own
+/// delivers into its own output. With a fixed staging, a message that does not
+/// fit is split into chunks, each a complete allreduce, all in one recording.
+/// A rank's recording is kept until its own
 /// buffers, its kernel, the shape, or a peer's staging change.
 class TPAllReduceRecorder {
 public:
@@ -45,7 +47,7 @@ public:
 
 private:
     // What one parity's recording was built from: this rank's buffers and
-    // kernel, the shape, and where the peers' staging is.
+    // kernel, the shape and its chunks, and where the peers' staging is.
     struct Signature {
         bool valid{false};
         void* in{nullptr};
@@ -54,36 +56,59 @@ private:
         uint64_t out_id{0};
         ze_kernel_handle_t kernel{nullptr};
         std::size_t n{0};
+        std::size_t chunk_elems{0};  // every chunk but the last, which may be shorter
+        bool halving{false};
         ov::element::Type dtype{ov::element::dynamic};
-        std::vector<void*> staging;
+        std::vector<void*> staging[2];  // [parity][rank]
         std::vector<uint64_t> staging_ids;
 
         bool operator==(const Signature& o) const {
             return valid == o.valid && in == o.in && out == o.out && in_id == o.in_id && out_id == o.out_id &&
-                   kernel == o.kernel && n == o.n && dtype == o.dtype && staging == o.staging &&
+                   kernel == o.kernel && n == o.n && chunk_elems == o.chunk_elems && halving == o.halving &&
+                   dtype == o.dtype && staging[0] == o.staging[0] && staging[1] == o.staging[1] &&
                    staging_ids == o.staging_ids;
         }
     };
 
+    // How a payload is split so that every chunk fits the fixed staging.
+    struct ChunkPlan {
+        std::size_t chunk_elems{0};
+        std::size_t count{1};
+        bool halving{false};
+    };
+
+    // One chunk: a complete allreduce over part of the payload, on the
+    // staging half and event set of its own call parity.
+    struct Piece {
+        void* in{nullptr};
+        void* out{nullptr};
+        std::size_t n{0};
+        int parity{0};
+        bool halving{false};
+    };
+
+    ChunkPlan plan_chunks(std::size_t n, ov::element::Type dtype);
+
     void record(int parity);
-    void record_pair(int parity);
-    void record_ring(int parity);
-    void record_halving(int parity);
+    void record_pair(ze_command_list_handle_t list, const Signature& sig, const Piece& piece);
+    void record_ring(ze_command_list_handle_t list, const Signature& sig, const Piece& piece);
+    void record_halving(ze_command_list_handle_t list, const Signature& sig, const Piece& piece);
 
     // Staging layout, shared by the writer and the reader of every region.
     bool uses_halving(std::size_t payload_bytes) const;
-    std::size_t staging_bytes(std::size_t payload_bytes) const;
-    std::size_t chunk_stride(std::size_t payload_bytes) const;
-    std::size_t half_bytes(std::size_t payload_bytes) const;
+    std::size_t staging_bytes(std::size_t payload_bytes, bool halving) const;
+    std::size_t chunk_stride(std::size_t payload_bytes, bool halving) const;
+    std::size_t half_bytes(std::size_t payload_bytes, bool halving) const;
     void ring_chunk(std::size_t n, int chunk, std::size_t& offset, std::size_t& count) const;
-    void* ring_slot(const Signature& sig, int rank, int chunk) const;
+    void* ring_slot(const Signature& sig, const Piece& piece, int rank, int chunk) const;
     void halving_range(std::size_t n, int rank, int level, std::size_t& lo, std::size_t& hi) const;
-    void* halving_stage(const Signature& sig, int rank, int region) const;
+    void* halving_stage(const Signature& sig, const Piece& piece, int rank, int region) const;
 
     TPRecording m_rec;
     Signature m_sig[2];
     cldnn::ze::tp::GroupState::AllreduceCall m_call;
     int m_world_size{0};
+    std::size_t m_max_chunk_elems[2]{};  // by element size: 2, 4 bytes
 };
 
 }  // namespace ov::intel_gpu::ocl

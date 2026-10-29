@@ -102,6 +102,7 @@ today.
 | Property                   | Type       | Default | Description                                                                              |
 |----------------------------|------------|---------|------------------------------------------------------------------------------------------|
 | `COMMUNICATION_TIMEOUT_MS` | `uint32_t` | `5000`  | Longest a rank waits inside a collective before the group is aborted. `0` waits forever. |
+| `ov_internal_tp_comm_buffer_size` | `size_t` | `0` | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
 
 A collective needs all ranks to participate. If one rank never arrives or its
 device work never completes, `COMMUNICATION_TIMEOUT_MS` is what turns that into
@@ -112,6 +113,18 @@ every later inference on it fails immediately with the original reason.
 
 Raise the value for very large payloads on slow interconnects; lower it if you
 want a stuck rank reported sooner.
+
+The collectives pass every message through a staging buffer on each rank.
+Without `ov_internal_tp_comm_buffer_size` it grows to the largest message seen:
+a prompt's prefill, which is the hidden size times the prompt length (128 MiB
+per rank for an 8K-token prompt on Llama-3.1-8B), allocated when that prompt
+first arrives. Setting it reserves the memory up front, before the KV cache is
+sized, and caps it; a message that does not fit is sent in chunks. Splitting
+into two chunks costs little; on four ranks, four chunks of an 8K-token prompt
+cost about 6 % of the time to first token and eight about 11 %. Decode
+messages are small and never split. On more than two ranks a chunked prompt
+is summed in a different order, so the outputs may differ from the unchunked
+run in the last bits, the same way on every run.
 
 Any additional properties are passed through to the underlying
 `intel_gpu` plugin used to compile each per-rank submodel. Properties for one
@@ -219,8 +232,9 @@ both sides and compares at `1e-2` for f16 and `1e-5` for f32.
 
 ### The first inference is much slower than the rest
 
-Expected. Each collective records its command lists on first use and the
-staging arena grows to fit the payload; both are one-time costs per shape.
+Expected. Each collective records its command lists on first use and, unless
+`ov_internal_tp_comm_buffer_size` fixes it, the staging arena grows to fit the
+payload; both are one-time costs per shape.
 A shorter sequence afterwards reuses what is already there, a longer one pays
 again.
 

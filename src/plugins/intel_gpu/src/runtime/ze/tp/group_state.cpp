@@ -118,12 +118,14 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
                        int world_size,
                        int num_collectives,
                        std::chrono::milliseconds collective_timeout,
-                       const CollectiveOptions& options)
+                       const CollectiveOptions& options,
+                       std::size_t fixed_staging_bytes)
     : m_shared(std::move(shared)),
       m_world_size(world_size),
       m_num_collectives(num_collectives),
       m_collective_timeout(collective_timeout),
       m_options(options),
+      m_fixed_staging_bytes(fixed_staging_bytes),
       m_stats(world_size),
       m_dump_period(options.dump_period) {
     OPENVINO_ASSERT(m_shared && m_shared->context && static_cast<int>(m_shared->devices.size()) == world_size,
@@ -132,6 +134,9 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
                     " devices");
     OPENVINO_ASSERT(world_size >= 2, "[TP][L0] the group requires at least 2 ranks");
     OPENVINO_ASSERT(m_collective_timeout.count() >= 0, "[TP][L0] collective timeout must not be negative");
+    OPENVINO_ASSERT(fixed_staging_bytes % 512 == 0,
+                    "[TP][L0] the fixed staging size must be a multiple of 512, got ",
+                    fixed_staging_bytes);
 
     const auto n_ranks = static_cast<std::size_t>(world_size);
     m_ranks.resize(n_ranks);
@@ -369,14 +374,22 @@ void GroupState::destroy_event_sets() {
     }
 }
 
-void* GroupState::ensure_staging(Staging& s,
-                                 int rank,
-                                 std::size_t payload_bytes,
-                                 std::size_t half_bytes,
-                                 int parity,
-                                 int collective_id) {
+void GroupState::ensure_staging(Staging& s,
+                                int rank,
+                                std::size_t payload_bytes,
+                                std::size_t half_bytes,
+                                int collective_id) {
     const std::size_t need = checked_multiply(half_bytes, 2, "staging");
-    if (need > s.bytes) {
+    if (m_fixed_staging_bytes != 0) {
+        OPENVINO_ASSERT(s.fixed != nullptr, "[TP][L0] rank ", rank, " has not been given its fixed staging");
+        OPENVINO_ASSERT(need <= s.bytes,
+                        "[TP][L0] collective ",
+                        collective_id,
+                        " needs ",
+                        need,
+                        " bytes of staging, the fixed staging has ",
+                        s.bytes);
+    } else if (need > s.bytes) {
         ScopedTime stall(m_options.profiling_host, m_stats.scratch_stall_ns);
         if (Splice* last = m_last_splice[static_cast<std::size_t>(rank)]) {
             if (await_splice(*last, rank, collective_id) && m_options.profiling_host && last->allreduce) {
@@ -408,15 +421,48 @@ void* GroupState::ensure_staging(Staging& s,
         std::lock_guard<std::mutex> lock(m_staging_mutex);
         s.payload_capacity = payload_bytes;
     }
-    // Halves split the allocation, not the payload: calls of different sizes
-    // must not let one parity's half run into the other's.
-    return static_cast<uint8_t*>(s.base) + static_cast<std::size_t>(parity) * (s.bytes / 2);
+}
+
+std::shared_ptr<void> GroupState::allocate_staging(const TPL0SharedContextPtr& shared, int rank, std::size_t bytes) {
+    OPENVINO_ASSERT(shared && rank >= 0 && static_cast<std::size_t>(rank) < shared->devices.size() && bytes > 0,
+                    "[TP][L0] invalid fixed staging request: rank ",
+                    rank,
+                    ", ",
+                    bytes,
+                    " bytes");
+    ze_device_mem_alloc_desc_t mad{ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, nullptr};
+    void* base = nullptr;
+    ZE_THROW(ov::zeMemAllocDevice(shared->context, &mad, bytes, 256, shared->devices[static_cast<std::size_t>(rank)],
+                                  &base));
+    // The deleter holds the context, which must outlive the allocation.
+    return std::shared_ptr<void>(base, [shared](void* p) {
+        ov::zeMemFree(shared->context, p);
+    });
+}
+
+void GroupState::adopt_staging(int rank, std::shared_ptr<void> buffer) {
+    OPENVINO_ASSERT(m_fixed_staging_bytes != 0, "[TP][L0] the group has no fixed staging");
+    OPENVINO_ASSERT(rank >= 0 && rank < m_world_size && buffer != nullptr,
+                    "[TP][L0] invalid fixed staging for rank ",
+                    rank);
+    std::lock_guard<std::mutex> lock(m_staging_mutex);
+    auto& s = m_staging[static_cast<std::size_t>(rank)];
+    if (s.fixed == buffer) {
+        return;
+    }
+    OPENVINO_ASSERT(s.fixed == nullptr && s.base == nullptr, "[TP][L0] rank ", rank, " already has its staging");
+    s.base = buffer.get();
+    s.bytes = m_fixed_staging_bytes;
+    s.id = alloc_id_of(m_shared->context, s.base);
+    s.fixed = std::move(buffer);
+    TP_GROUP_LOG(ov::log::Level::INFO) << "[TP][MEM] fixed staging rank=" << rank << " bytes=" << s.bytes
+                                       << std::endl;
 }
 
 void GroupState::destroy_staging() {
     std::lock_guard<std::mutex> lock(m_staging_mutex);
     for (auto& s : m_staging) {
-        if (s.base && m_shared && m_shared->context) {
+        if (s.base && !s.fixed && m_shared && m_shared->context) {
             ov::zeMemFree(m_shared->context, s.base);
         }
         s = Staging{};
@@ -487,16 +533,16 @@ void GroupState::begin_allreduce(int rank,
                                  std::size_t n,
                                  ov::element::Type dtype,
                                  std::size_t half_bytes,
+                                 std::size_t chunks,
                                  AllreduceCall& call) {
+    OPENVINO_ASSERT(chunks > 0, "[TP][L0] an allreduce call has at least one chunk");
     const Stopwatch staging_time(m_options.profiling_host);
-    call.parity = static_cast<int>(m_allreduce_seq[static_cast<std::size_t>(rank)]++ & 1u);
+    auto& seq = m_allreduce_seq[static_cast<std::size_t>(rank)];
+    call.parity = static_cast<int>(seq & 1u);
+    seq += chunks;
     const std::size_t payload_bytes = checked_multiply(n, dtype.size(), "collective payload");
-    void* const my_half = ensure_staging(m_staging[static_cast<std::size_t>(rank)],
-                                         rank,
-                                         payload_bytes,
-                                         half_bytes,
-                                         call.parity,
-                                         collective_id);
+    auto& staging = m_staging[static_cast<std::size_t>(rank)];
+    ensure_staging(staging, rank, payload_bytes, half_bytes, collective_id);
     if (m_options.profiling_host) {
         m_stats.p2_gate_ns[rank].add(staging_time.elapsed().ns());
     }
@@ -506,20 +552,28 @@ void GroupState::begin_allreduce(int rank,
     mine.allreduce = true;
     mine.collective_id = collective_id;
     mine.n = n;
+    mine.rows = chunks;
     mine.dtype = dtype;
-    mine.staging = my_half;
-    mine.staging_id = m_staging[static_cast<std::size_t>(rank)].id;
+    mine.staging = staging.base;
+    // Halves split the allocation, not the payload: calls of different sizes
+    // must not let one parity's half run into the other's.
+    mine.staging_half = staging.bytes / 2;
+    mine.staging_id = staging.id;
     std::vector<MailboxSlot> all;
     call_rendezvous(rank, mine, all);
 
-    call.staging.resize(all.size());
+    for (int p = 0; p < 2; ++p) {
+        call.staging[p].resize(all.size());
+        for (std::size_t q = 0; q < all.size(); ++q) {
+            call.staging[p][q] = static_cast<uint8_t*>(all[q].staging) + static_cast<std::size_t>(p) * all[q].staging_half;
+        }
+        call.recv[p] = &m_events[p].recv;
+        call.step[p] = &m_events[p].step;
+    }
     call.staging_ids.resize(all.size());
     for (std::size_t q = 0; q < all.size(); ++q) {
-        call.staging[q] = all[q].staging;
         call.staging_ids[q] = all[q].staging_id;
     }
-    call.recv = &m_events[call.parity].recv;
-    call.step = &m_events[call.parity].step;
 }
 
 void GroupState::begin_gather(int rank,

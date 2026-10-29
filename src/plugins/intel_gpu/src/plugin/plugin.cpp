@@ -420,8 +420,7 @@ std::shared_ptr<RemoteContextImpl> Plugin::create_tp_context(const ov::AnyMap& p
     const auto channels = take(rest, ov::tp::internal::channels);
     OPENVINO_ASSERT(!channels.has_value() || *channels == 1,
                     "[GPU][TP] only one channel per TP context is supported, got ", channels.value_or(0));
-    OPENVINO_ASSERT(!take(rest, ov::tp::internal::comm_buffer_size).has_value(),
-                    "[GPU][TP] ", ov::tp::internal::comm_buffer_size.name(), " is not supported yet");
+    const auto comm_buffer_size = take(rest, ov::tp::internal::comm_buffer_size).value_or(0);
     const auto timeout_ms = take(rest, ov::tp::internal::communication_timeout_ms).value_or(5000);
     OPENVINO_ASSERT(timeout_ms >= 0, "[GPU][TP] ", ov::tp::internal::communication_timeout_ms.name(),
                     " must not be negative, got ", timeout_ms);
@@ -485,7 +484,8 @@ std::shared_ptr<RemoteContextImpl> Plugin::create_tp_context(const ov::AnyMap& p
                                                                            group.backend,
                                                                            std::move(shared),
                                                                            std::chrono::milliseconds{timeout_ms},
-                                                                           collective_options(config));
+                                                                           collective_options(config),
+                                                                           comm_buffer_size);
     return std::make_shared<RemoteContextImpl>(get_default_contexts(), std::move(communicator));
 }
 #endif  // ENABLE_TP

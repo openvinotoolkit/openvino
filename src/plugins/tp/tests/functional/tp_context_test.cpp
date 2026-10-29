@@ -57,9 +57,55 @@ protected:
                 {ov::tp::internal::communication_timeout_ms.name(), 5000}};
     }
 
-    static std::vector<ov::RemoteContext> create_contexts(ov::Core& core) {
+    static std::vector<ov::RemoteContext> create_contexts(ov::Core& core, size_t comm_buffer_size = 0) {
         auto group = InProcessExchange::create_group(2, std::chrono::milliseconds{5000});
-        return {core.create_context("GPU.0", rank_params(group, 0)), core.create_context("GPU.1", rank_params(group, 1))};
+        std::vector<ov::RemoteContext> contexts;
+        for (int rank = 0; rank < 2; ++rank) {
+            auto params = rank_params(group, rank);
+            if (comm_buffer_size != 0) {
+                params[ov::tp::internal::comm_buffer_size.name()] = comm_buffer_size;
+            }
+            contexts.push_back(core.create_context(rank == 0 ? "GPU.0" : "GPU.1", params));
+        }
+        return contexts;
+    }
+
+    /// Compiles x -> TPAllReduce on both contexts, runs both ranks and checks the sum.
+    static void expect_two_ranks_reduce(ov::Core& core, std::vector<ov::RemoteContext>& contexts) {
+        std::vector<ov::CompiledModel> compiled;
+        for (int rank = 0; rank < 2; ++rank) {
+            compiled.push_back(core.compile_model(make_allreduce_model(rank, 2), contexts[static_cast<size_t>(rank)]));
+        }
+
+        std::vector<ov::InferRequest> requests;
+        for (int rank = 0; rank < 2; ++rank) {
+            requests.push_back(compiled[static_cast<size_t>(rank)].create_infer_request());
+            ov::Tensor input(ov::element::f32, ov::Shape{1, elements});
+            auto* data = input.data<float>();
+            for (size_t i = 0; i < elements; ++i) {
+                data[i] = static_cast<float>(rank + 1) * static_cast<float>(i % 7);
+            }
+            requests.back().set_input_tensor(input);
+        }
+
+        // Every rank has to be in its collective at the same time.
+        std::vector<std::future<void>> ranks;
+        for (auto& request : requests) {
+            ranks.push_back(std::async(std::launch::async, [&request] {
+                request.infer();
+            }));
+        }
+        for (auto& rank : ranks) {
+            rank.get();
+        }
+
+        for (auto& request : requests) {
+            const auto output = request.get_output_tensor();
+            const auto* data = output.data<const float>();
+            for (size_t i = 0; i < elements; ++i) {
+                ASSERT_FLOAT_EQ(data[i], 3.0f * static_cast<float>(i % 7)) << "element " << i;
+            }
+        }
     }
 
     static size_t gpu_count;
@@ -79,41 +125,28 @@ TEST_F(TPContextTest, CollectiveNeedsATPContext) {
 TEST_F(TPContextTest, TwoRanksReduceThroughTheirContexts) {
     ov::Core core;
     auto contexts = create_contexts(core);
+    expect_two_ranks_reduce(core, contexts);
+}
 
-    std::vector<ov::CompiledModel> compiled;
-    for (int rank = 0; rank < 2; ++rank) {
-        compiled.push_back(core.compile_model(make_allreduce_model(rank, 2), contexts[static_cast<size_t>(rank)]));
-    }
+// 8 KiB of staging is smaller than the message, which therefore goes in chunks.
+TEST_F(TPContextTest, TwoRanksReduceThroughAFixedStagingInChunks) {
+    ov::Core core;
+    auto contexts = create_contexts(core, 8192);
+    expect_two_ranks_reduce(core, contexts);
+}
 
-    std::vector<ov::InferRequest> requests;
-    for (int rank = 0; rank < 2; ++rank) {
-        requests.push_back(compiled[static_cast<size_t>(rank)].create_infer_request());
-        ov::Tensor input(ov::element::f32, ov::Shape{1, elements});
-        auto* data = input.data<float>();
-        for (size_t i = 0; i < elements; ++i) {
-            data[i] = static_cast<float>(rank + 1) * static_cast<float>(i % 7);
-        }
-        requests.back().set_input_tensor(input);
-    }
-
-    // Every rank has to be in its collective at the same time.
-    std::vector<std::future<void>> ranks;
-    for (auto& request : requests) {
-        ranks.push_back(std::async(std::launch::async, [&request] {
-            request.infer();
-        }));
-    }
-    for (auto& rank : ranks) {
-        rank.get();
-    }
-
-    for (auto& request : requests) {
-        const auto output = request.get_output_tensor();
-        const auto* data = output.data<const float>();
-        for (size_t i = 0; i < elements; ++i) {
-            ASSERT_FLOAT_EQ(data[i], 3.0f * static_cast<float>(i % 7)) << "element " << i;
-        }
-    }
+TEST_F(TPContextTest, RejectsRanksThatDisagreeOnTheStagingSize) {
+    ov::Core core;
+    auto group = InProcessExchange::create_group(2, std::chrono::milliseconds{5000});
+    auto params = rank_params(group, 0);
+    params[ov::tp::internal::comm_buffer_size.name()] = size_t{8192};
+    auto rank0 = core.create_context("GPU.0", params);
+    params = rank_params(group, 1);
+    params[ov::tp::internal::comm_buffer_size.name()] = size_t{16384};
+    auto rank1 = core.create_context("GPU.1", params);
+    OV_EXPECT_THROW(core.compile_model(make_allreduce_model(0, 2), rank0),
+                    ov::Exception,
+                    HasSubstr("must be the same on every rank"));
 }
 
 TEST_F(TPContextTest, RejectsACollectiveOfAnotherRank) {

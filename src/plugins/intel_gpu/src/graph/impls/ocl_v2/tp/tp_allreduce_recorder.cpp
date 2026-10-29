@@ -130,6 +130,10 @@ void barrier(ze_command_list_handle_t list) {
     ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
 }
 
+void* byte_offset(void* base, std::size_t bytes) {
+    return static_cast<uint8_t*>(base) + bytes;
+}
+
 }  // namespace
 
 bool TPAllReduceRecorder::uses_halving(std::size_t payload_bytes) const {
@@ -138,8 +142,8 @@ bool TPAllReduceRecorder::uses_halving(std::size_t payload_bytes) const {
     return m_world_size > 2 && power_of_two && options.enable_halving && payload_bytes <= options.halving_max_bytes;
 }
 
-std::size_t TPAllReduceRecorder::staging_bytes(std::size_t payload_bytes) const {
-    if (!uses_halving(payload_bytes)) {
+std::size_t TPAllReduceRecorder::staging_bytes(std::size_t payload_bytes, bool halving) const {
+    if (!halving) {
         return payload_bytes;
     }
     const int levels = halving_levels(m_world_size);
@@ -150,18 +154,19 @@ std::size_t TPAllReduceRecorder::staging_bytes(std::size_t payload_bytes) const 
     return std::max(total, payload_bytes);
 }
 
-std::size_t TPAllReduceRecorder::chunk_stride(std::size_t payload_bytes) const {
+std::size_t TPAllReduceRecorder::chunk_stride(std::size_t payload_bytes, bool halving) const {
     // The largest chunk rounded up for alignment, with the slack halving_mid
     // may add; halving lays its regions out inside the same N slots.
-    const std::size_t need = staging_bytes(payload_bytes);
+    const std::size_t need = staging_bytes(payload_bytes, halving);
     const auto N = static_cast<std::size_t>(m_world_size);
     return align_up((need + N - 1) / N + kHalvingSlackBytes, 256);
 }
 
-std::size_t TPAllReduceRecorder::half_bytes(std::size_t payload_bytes) const {
-    return m_world_size > 2
-               ? checked_multiply(chunk_stride(payload_bytes), static_cast<std::size_t>(m_world_size), "ring staging")
-               : pair_stride(payload_bytes);
+std::size_t TPAllReduceRecorder::half_bytes(std::size_t payload_bytes, bool halving) const {
+    return m_world_size > 2 ? checked_multiply(chunk_stride(payload_bytes, halving),
+                                               static_cast<std::size_t>(m_world_size),
+                                               "ring staging")
+                            : pair_stride(payload_bytes);
 }
 
 void TPAllReduceRecorder::ring_chunk(std::size_t n, int chunk, std::size_t& offset, std::size_t& count) const {
@@ -179,10 +184,10 @@ void TPAllReduceRecorder::ring_chunk(std::size_t n, int chunk, std::size_t& offs
     count = (offset >= n) ? 0u : std::min(unit_cnt * kRingAlignElems, n - offset);
 }
 
-void* TPAllReduceRecorder::ring_slot(const Signature& sig, int rank, int chunk) const {
+void* TPAllReduceRecorder::ring_slot(const Signature& sig, const Piece& piece, int rank, int chunk) const {
     OPENVINO_ASSERT(chunk >= 0 && chunk < m_world_size, "[TP][L0] ring slot chunk out of range: ", chunk);
-    auto* base = static_cast<uint8_t*>(sig.staging[static_cast<std::size_t>(rank)]);
-    return base + static_cast<std::size_t>(chunk) * chunk_stride(sig.n * sig.dtype.size());
+    return byte_offset(sig.staging[piece.parity][static_cast<std::size_t>(rank)],
+                       static_cast<std::size_t>(chunk) * chunk_stride(piece.n * sig.dtype.size(), false));
 }
 
 void TPAllReduceRecorder::halving_range(std::size_t n, int rank, int level, std::size_t& lo, std::size_t& hi) const {
@@ -198,20 +203,65 @@ void TPAllReduceRecorder::halving_range(std::size_t n, int rank, int level, std:
     }
 }
 
-void* TPAllReduceRecorder::halving_stage(const Signature& sig, int rank, int region) const {
+void* TPAllReduceRecorder::halving_stage(const Signature& sig, const Piece& piece, int rank, int region) const {
     // Regions [0, levels) take the scatter steps, [levels, 2 * levels) the
     // gather steps: a partner may deliver the next step while this rank still
     // reads the last.
     const int levels = halving_levels(m_world_size);
     OPENVINO_ASSERT(region >= 0 && region < 2 * levels, "[TP][L0] halving staging region out of range: ", region);
-    const std::size_t payload_bytes = sig.n * sig.dtype.size();
+    const std::size_t payload_bytes = piece.n * sig.dtype.size();
     std::size_t offset = 0;
     for (int k = 0; k < region; ++k) {
         offset += halving_region_bytes(payload_bytes, k % levels);
     }
-    OPENVINO_ASSERT(offset + halving_region_bytes(payload_bytes, region % levels) <= half_bytes(payload_bytes),
+    OPENVINO_ASSERT(offset + halving_region_bytes(payload_bytes, region % levels) <= half_bytes(payload_bytes, true),
                     "[TP][L0] halving staging does not fit the staging half");
-    return static_cast<uint8_t*>(sig.staging[static_cast<std::size_t>(rank)]) + offset;
+    return byte_offset(sig.staging[piece.parity][static_cast<std::size_t>(rank)], offset);
+}
+
+TPAllReduceRecorder::ChunkPlan TPAllReduceRecorder::plan_chunks(std::size_t n, ov::element::Type dtype) {
+    const std::size_t elem = dtype.size();
+    const std::size_t payload = n * elem;
+    const std::size_t limit = m_rec.group().staging_half_limit();
+    ChunkPlan plan;
+    plan.chunk_elems = n;
+    plan.halving = uses_halving(payload);
+    if (limit == 0 || half_bytes(payload, plan.halving) <= limit) {
+        return plan;
+    }
+    plan.halving = false;
+    if (half_bytes(payload, false) <= limit) {
+        return plan;
+    }
+
+    // The largest chunk the staging holds, once per element size. Chunks of a
+    // split payload always take the ring or the pair exchange: their staging
+    // grows with the chunk, so a shorter last chunk fits as well.
+    std::size_t& max_elems = m_max_chunk_elems[elem == 2 ? 0 : 1];
+    if (max_elems == 0) {
+        std::size_t c = limit / elem / kRingAlignElems * kRingAlignElems;
+        while (c > 0) {
+            const std::size_t need = half_bytes(c * elem, false);
+            if (need <= limit) {
+                break;
+            }
+            c -= std::min(c, align_up((need - limit + elem - 1) / elem, kRingAlignElems));
+        }
+        OPENVINO_ASSERT(c > 0,
+                        "[TP][L0] the fixed staging of ",
+                        m_rec.group().fixed_staging_bytes(),
+                        " bytes cannot hold a chunk of ",
+                        kRingAlignElems,
+                        " ",
+                        dtype,
+                        " elements on ",
+                        m_world_size,
+                        " ranks");
+        max_elems = c;
+    }
+    plan.count = (n + max_elems - 1) / max_elems;
+    plan.chunk_elems = std::min(max_elems, align_up((n + plan.count - 1) / plan.count, kRingAlignElems));
+    return plan;
 }
 
 void TPAllReduceRecorder::record(int parity) {
@@ -219,45 +269,64 @@ void TPAllReduceRecorder::record(int parity) {
     auto& st = group.stats();
     const int rank = m_rec.rank();
     const bool measure = group.options().profiling_host;
+    const Signature& sig = m_sig[parity];
     m_rec.reset(parity, true);
+    ze_command_list_handle_t list = m_rec.list(parity);
 
     Counter* chosen = nullptr;
     {
         ScopedTime build(measure, st.rec_build_ns);
-        if (m_world_size == 2) {
-            chosen = &st.n_pair[rank];
-            record_pair(parity);
-        } else if (uses_halving(m_sig[parity].n * m_sig[parity].dtype.size())) {
-            // Both move 1.5*S per rank, but halving has both partners of a pair
-            // pushing across one link at once: free at decode sizes, where the
-            // saved round trips dominate, a loss at prompt sizes.
-            chosen = &st.n_halving[rank];
-            record_halving(parity);
-        } else {
-            chosen = &st.n_ring[rank];
-            record_ring(parity);
+        const std::size_t elem = sig.dtype.size();
+        // The first chunk has the call's parity, the others alternate like
+        // the calls they stand for.
+        int chunk_parity = parity;
+        for (std::size_t off = 0; off < sig.n; off += sig.chunk_elems) {
+            Piece piece;
+            piece.in = byte_offset(sig.in, off * elem);
+            piece.out = byte_offset(sig.out, off * elem);
+            piece.n = std::min(sig.chunk_elems, sig.n - off);
+            piece.parity = chunk_parity;
+            piece.halving = sig.halving;
+            chunk_parity ^= 1;
+            if (off != 0) {
+                // A chunk starts once the previous one, resets included, is
+                // done, as a call does after the call before it.
+                barrier(list);
+            }
+            if (m_world_size == 2) {
+                chosen = &st.n_pair[rank];
+                record_pair(list, sig, piece);
+            } else if (piece.halving) {
+                // Both move 1.5*S per rank, but halving has both partners of a pair
+                // pushing across one link at once: free at decode sizes, where the
+                // saved round trips dominate, a loss at prompt sizes.
+                chosen = &st.n_halving[rank];
+                record_halving(list, sig, piece);
+            } else {
+                chosen = &st.n_ring[rank];
+                record_ring(list, sig, piece);
+            }
         }
         ScopedTime close(measure, st.rec_close_ns);
-        ZE_THROW(ze_api()->zeCommandListClose(m_rec.list(parity)));
+        ZE_THROW(ze_api()->zeCommandListClose(list));
     }
     if (measure) {
         chosen->bump();
     }
 }
 
-void TPAllReduceRecorder::record_pair(int parity) {
-    const Signature& sig = m_sig[parity];
-    auto& ev_recv = *m_call.recv;
+void TPAllReduceRecorder::record_pair(ze_command_list_handle_t list, const Signature& sig, const Piece& piece) {
+    auto& ev_recv = *m_call.recv[piece.parity];
+    const auto& staging = sig.staging[piece.parity];
     const int r = m_rec.rank();
     const int peer = 1 - r;
-    const std::size_t bytes = sig.n * sig.dtype.size();
-    ze_command_list_handle_t list = m_rec.list(parity);
+    const std::size_t bytes = piece.n * sig.dtype.size();
 
     // Push our input into the peer's staging, never into the peer's own buffer,
     // which is what lets each rank record on its own. ev_recv[r] tells the peer.
     ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                     sig.staging[static_cast<std::size_t>(peer)],
-                                                     sig.in,
+                                                     staging[static_cast<std::size_t>(peer)],
+                                                     piece.in,
                                                      bytes,
                                                      ev_recv[r],
                                                      0,
@@ -266,16 +335,15 @@ void TPAllReduceRecorder::record_pair(int parity) {
     // This rank is the only waiter; the wait already orders what follows, so
     // the reset needs no barrier.
     ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev_recv[peer]));
-    append_reduce(list, sig.kernel, sig.out, sig.in, sig.staging[static_cast<std::size_t>(r)], sig.n);
+    append_reduce(list, sig.kernel, piece.out, piece.in, staging[static_cast<std::size_t>(r)], piece.n);
 }
 
-void TPAllReduceRecorder::record_ring(int parity) {
-    const Signature& sig = m_sig[parity];
-    auto& ev_ring = *m_call.step;
+void TPAllReduceRecorder::record_ring(ze_command_list_handle_t list, const Signature& sig, const Piece& piece) {
+    auto& ev_ring = *m_call.step[piece.parity];
     const int N = m_world_size;
     const int steps = N - 1;
     const int r = m_rec.rank();
-    const std::size_t n = sig.n;
+    const std::size_t n = piece.n;
     const std::size_t elem = sig.dtype.size();
 
     auto ev = [&](int step, int who) -> ze_event_handle_t& {
@@ -287,7 +355,6 @@ void TPAllReduceRecorder::record_ring(int parity) {
 
     const int next = (r + 1) % N;
     const int prev = (r + N - 1) % N;
-    ze_command_list_handle_t list = m_rec.list(parity);
 
     // Reduce-scatter: at step s rank r forwards chunk (r-s) and folds the
     // incoming chunk (r-s-1), which already carries the partial sum of every
@@ -303,9 +370,9 @@ void TPAllReduceRecorder::record_ring(int parity) {
         if (send_cnt == 0) {
             ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(s, r)));
         } else {
-            void* send_src = (s == 0) ? byte_at(sig.in, send_off) : byte_at(sig.out, send_off);
+            void* send_src = (s == 0) ? byte_at(piece.in, send_off) : byte_at(piece.out, send_off);
             ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             ring_slot(sig, next, send_chunk),
+                                                             ring_slot(sig, piece, next, send_chunk),
                                                              send_src,
                                                              send_cnt * elem,
                                                              ev(s, r),
@@ -318,9 +385,9 @@ void TPAllReduceRecorder::record_ring(int parity) {
         }
         append_reduce(list,
                       sig.kernel,
-                      byte_at(sig.out, recv_off),
-                      byte_at(sig.in, recv_off),
-                      ring_slot(sig, r, recv_chunk),
+                      byte_at(piece.out, recv_off),
+                      byte_at(piece.in, recv_off),
+                      ring_slot(sig, piece, r, recv_chunk),
                       recv_cnt);
         // The next send reads what this kernel wrote.
         barrier(list);
@@ -345,9 +412,9 @@ void TPAllReduceRecorder::record_ring(int parity) {
         if (send_cnt == 0) {
             ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(step, r)));
         } else {
-            void* send_src = (s == 0) ? byte_at(sig.out, send_off) : ring_slot(sig, r, send_chunk);
+            void* send_src = (s == 0) ? byte_at(piece.out, send_off) : ring_slot(sig, piece, r, send_chunk);
             ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             ring_slot(sig, next, send_chunk),
+                                                             ring_slot(sig, piece, next, send_chunk),
                                                              send_src,
                                                              send_cnt * elem,
                                                              ev(step, r),
@@ -357,8 +424,8 @@ void TPAllReduceRecorder::record_ring(int parity) {
         ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ev(step, prev)));
         if (recv_cnt > 0) {
             ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             byte_at(sig.out, recv_off),
-                                                             ring_slot(sig, r, recv_chunk),
+                                                             byte_at(piece.out, recv_off),
+                                                             ring_slot(sig, piece, r, recv_chunk),
                                                              recv_cnt * elem,
                                                              nullptr,
                                                              0,
@@ -375,12 +442,11 @@ void TPAllReduceRecorder::record_ring(int parity) {
     ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(2 * steps, next)));
 }
 
-void TPAllReduceRecorder::record_halving(int parity) {
-    const Signature& sig = m_sig[parity];
-    auto& ev_ring = *m_call.step;
+void TPAllReduceRecorder::record_halving(ze_command_list_handle_t list, const Signature& sig, const Piece& piece) {
+    auto& ev_ring = *m_call.step[piece.parity];
     const int N = m_world_size;
     const int r = m_rec.rank();
-    const std::size_t n = sig.n;
+    const std::size_t n = piece.n;
     const std::size_t elem = sig.dtype.size();
     const int levels = halving_levels(N);
     OPENVINO_ASSERT((1 << levels) == N, "[TP][L0] halving requires a power-of-two world size");
@@ -393,7 +459,6 @@ void TPAllReduceRecorder::record_halving(int parity) {
     auto byte_at = [elem](void* base, std::size_t offset_elems) -> void* {
         return static_cast<uint8_t*>(base) + offset_elems * elem;
     };
-    ze_command_list_handle_t list = m_rec.list(parity);
 
     // Scatter: each step moves half of what is left.
     for (int j = 0; j < levels; ++j) {
@@ -406,13 +471,13 @@ void TPAllReduceRecorder::record_halving(int parity) {
         const std::size_t keep_hi = keep_upper ? hi : mid;
         const std::size_t send_lo = keep_upper ? lo : mid;
         const std::size_t send_hi = keep_upper ? mid : hi;
-        void* mine = (j == 0) ? sig.in : sig.out;
+        void* mine = (j == 0) ? piece.in : piece.out;
 
         if (send_hi > send_lo) {
             // At the start of the partner's region for this step, which is only
             // as large as one half and keeps the source aligned.
             ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             halving_stage(sig, partner, j),
+                                                             halving_stage(sig, piece, partner, j),
                                                              byte_at(mine, send_lo),
                                                              (send_hi - send_lo) * elem,
                                                              ev(j, r),
@@ -425,9 +490,9 @@ void TPAllReduceRecorder::record_halving(int parity) {
         if (keep_hi > keep_lo) {
             append_reduce(list,
                           sig.kernel,
-                          byte_at(sig.out, keep_lo),
+                          byte_at(piece.out, keep_lo),
                           byte_at(mine, keep_lo),
-                          halving_stage(sig, r, j),
+                          halving_stage(sig, piece, r, j),
                           keep_hi - keep_lo);
         }
         barrier(list);
@@ -444,8 +509,8 @@ void TPAllReduceRecorder::record_halving(int parity) {
         halving_range(n, r, j + 1, lo, hi);
         if (hi > lo) {
             ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             halving_stage(sig, partner, region),
-                                                             byte_at(sig.out, lo),
+                                                             halving_stage(sig, piece, partner, region),
+                                                             byte_at(piece.out, lo),
                                                              (hi - lo) * elem,
                                                              ev(step, r),
                                                              0,
@@ -459,8 +524,8 @@ void TPAllReduceRecorder::record_halving(int parity) {
         halving_range(n, partner, j + 1, partner_lo, partner_hi);
         if (partner_hi > partner_lo) {
             ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                             byte_at(sig.out, partner_lo),
-                                                             halving_stage(sig, r, region),
+                                                             byte_at(piece.out, partner_lo),
+                                                             halving_stage(sig, piece, r, region),
                                                              (partner_hi - partner_lo) * elem,
                                                              nullptr,
                                                              0,
@@ -516,9 +581,14 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
         return;
     }
 
-    const std::size_t payload_bytes = collective_payload_bytes(n, dtype);
+    collective_payload_bytes(n, dtype);
     m_world_size = channel.world_size();
     m_rec.bind(channel, collective_id, true);
+
+    // A message larger than the fixed staging goes in chunks, all of them in
+    // the one recording: no rendezvous, list or re-recording per chunk.
+    const ChunkPlan plan = plan_chunks(n, dtype);
+    const std::size_t payload_bytes = n * dtype.size();
 
     using clk = std::chrono::steady_clock;
     auto& st = group.stats();
@@ -532,7 +602,13 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
     };
 
     const auto t0 = stamp();
-    group.begin_allreduce(rank, collective_id, n, dtype, half_bytes(payload_bytes), m_call);
+    group.begin_allreduce(rank,
+                          collective_id,
+                          n,
+                          dtype,
+                          half_bytes(plan.chunk_elems * dtype.size(), plan.halving),
+                          plan.count,
+                          m_call);
     const auto t1 = stamp();
     const int parity = m_call.parity;
 
@@ -559,8 +635,11 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
     sig.out_id = alloc_id_of(group.context(), out);
     sig.kernel = kernel;
     sig.n = n;
+    sig.chunk_elems = plan.chunk_elems;
+    sig.halving = plan.halving;
     sig.dtype = dtype;
-    sig.staging = m_call.staging;
+    sig.staging[0] = m_call.staging[0];
+    sig.staging[1] = m_call.staging[1];
     sig.staging_ids = m_call.staging_ids;
 
     // Runs only once the previous splice of the list has been consumed.

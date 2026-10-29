@@ -68,11 +68,16 @@ public:
                 int world_size,
                 int num_collectives,
                 std::chrono::milliseconds timeout = std::chrono::milliseconds{5000},
-                const CollectiveOptions& options = CollectiveOptions{})
-        : m_group(std::make_shared<GroupState>(std::move(shared), world_size, num_collectives, timeout, options)),
+                const CollectiveOptions& options = CollectiveOptions{},
+                size_t fixed_staging_bytes = 0)
+        : m_group(std::make_shared<GroupState>(shared, world_size, num_collectives, timeout, options,
+                                               fixed_staging_bytes)),
           m_world_size(world_size) {
         for (int r = 0; r < world_size; ++r) {
             m_channels.push_back(std::make_shared<Channel>(m_group, r));
+            if (fixed_staging_bytes != 0) {
+                m_group->adopt_staging(r, GroupState::allocate_staging(shared, r, fixed_staging_bytes));
+            }
         }
         for (int i = 0; i < num_collectives * world_size; ++i) {
             m_allreduce.push_back(std::make_unique<TPAllReduceRecorder>());
@@ -1748,6 +1753,127 @@ TEST_F(TPCollectivesTest, ForcingTheSyncPathKeepsTheSameResult) {
         std::vector<ov::float16> host(n);
         buffers.rs[r].copy_to_host(host.data(), buffers.outs[r], n * sizeof(ov::float16));
         EXPECT_EQ(count_mismatches(host, expected, f16_tolerance), 0u) << "rank " << r;
+    }
+    EXPECT_FALSE(coord->is_aborted());
+}
+
+// ---------------------------------------------------------------------------
+// Fixed staging.
+//
+// With a fixed staging a message that does not fit is split into chunks, each
+// a complete allreduce on the staging half and event set of its own call
+// number. 64 KiB of staging takes about 15K f16 elements per chunk on two,
+// three or four ranks.
+// ---------------------------------------------------------------------------
+
+constexpr size_t fixed_staging = 64 * 1024;
+
+TEST_F(TPCollectivesTest, ChunksMessagesLargerThanTheFixedStaging) {
+    Watchdog watchdog(180);
+
+    for (int ranks : {2, 3, 4}) {
+        if (available_gpus < ranks)
+            continue;
+        SCOPED_TRACE("ranks " + std::to_string(ranks));
+        auto shared = make_shared_ctx(ranks);
+        auto coord =
+            std::make_shared<Collectives>(shared, ranks, 1, std::chrono::milliseconds{5000}, CollectiveOptions{},
+                                          fixed_staging);
+        if (!coord->run_spliced())
+            GTEST_SKIP() << "driver has no immediate-append extension";
+
+        // One chunk, two, three (an odd count shifts the next call's parity) and seven.
+        constexpr size_t largest = 100003;
+        CollectiveBuffers buffers(shared, ranks, largest * sizeof(ov::float16));
+        for (size_t n : {size_t{1000}, size_t{20000}, size_t{33000}, largest}) {
+            SCOPED_TRACE("n=" + std::to_string(n));
+            for (int k = 0; k < 3; ++k) {
+                expect_spliced_allreduce_sum<ov::float16>(*coord, buffers, 0, n, ov::element::f16, f16_tolerance);
+            }
+            expect_allreduce_sum<ov::float16>(*coord, buffers, 0, n, ov::element::f16, f16_tolerance);
+        }
+        EXPECT_EQ(coord->get_scratch_stats().growth_count, 0u) << "a fixed staging never grows";
+        EXPECT_FALSE(coord->is_aborted());
+    }
+}
+
+// Chunked calls spliced back to back with nothing in between: a chunk reuses
+// the staging half and events of the chunk two calls before it, possibly in
+// the previous instance, while the peers may still be behind. Every instance
+// has its own buffers and values, and all are checked once the queues drain.
+TEST_F(TPCollectivesTest, SplicedChunkedAllReducesInARowStayCorrect) {
+    Watchdog watchdog(120);
+    const int ranks = std::min(available_gpus, 4);
+    auto shared = make_shared_ctx(ranks);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1, std::chrono::milliseconds{5000},
+                                               CollectiveOptions{}, fixed_staging);
+    if (!coord->run_spliced())
+        GTEST_SKIP() << "driver has no immediate-append extension";
+
+    constexpr int instances = 6;
+    constexpr size_t n = 33000;  // three chunks
+    constexpr size_t bytes = n * sizeof(ov::float16);
+    std::vector<std::unique_ptr<CollectiveBuffers>> buffers;
+    std::vector<ze_command_list_handle_t> queues(ranks);
+    for (int k = 0; k < instances; ++k) {
+        buffers.push_back(std::make_unique<CollectiveBuffers>(shared, ranks, bytes));
+        for (int r = 0; r < ranks; ++r) {
+            std::vector<ov::float16> host(n, ov::float16(static_cast<float>((r + 1) * (k + 1))));
+            buffers[k]->rs[r].copy_from_host(buffers[k]->ins[r], host.data(), bytes);
+        }
+    }
+    // One queue per rank for every instance, as a model has.
+    for (int r = 0; r < ranks; ++r)
+        queues[r] = buffers[0]->rs[r].model_queue();
+
+    for (int k = 0; k < instances; ++k)
+        run_collective(*coord, 0, buffers[k]->ins, buffers[k]->outs, n, ov::element::f16, queues);
+    for (int r = 0; r < ranks; ++r)
+        buffers[0]->rs[r].wait_for_model_queue();
+
+    const float rank_sum = static_cast<float>(ranks * (ranks + 1) / 2);
+    for (int k = 0; k < instances; ++k) {
+        for (int r = 0; r < ranks; ++r) {
+            std::vector<ov::float16> host(n);
+            buffers[k]->rs[r].copy_to_host(host.data(), buffers[k]->outs[r], bytes);
+            EXPECT_EQ(count_mismatches(host, rank_sum * static_cast<float>(k + 1), f16_tolerance), 0u)
+                << "instance " << k << " rank " << r;
+        }
+    }
+    EXPECT_FALSE(coord->is_aborted());
+}
+
+// Two ranks reduce in one step, so splitting the message must not change a bit.
+TEST_F(TPCollectivesTest, ChunkingKeepsTheSingleRounding) {
+    Watchdog watchdog(60);
+    auto shared = make_shared_ctx(2);
+    // 4 KiB halves: 4099 elements are three f16 chunks and five f32 ones.
+    auto coord = std::make_shared<Collectives>(shared, 2, 1, std::chrono::milliseconds{5000}, CollectiveOptions{},
+                                               size_t{8192});
+    CollectiveBuffers buffers(shared, 2, 4099 * sizeof(float));
+
+    expect_single_rounding<ov::float16>(*coord, buffers, ov::element::f16);
+    expect_single_rounding<ov::bfloat16>(*coord, buffers, ov::element::bf16);
+    expect_single_rounding<float>(*coord, buffers, ov::element::f32);
+    EXPECT_FALSE(coord->is_aborted());
+}
+
+// A staging too small for the smallest chunk fails the call before any rank
+// waits for another.
+TEST_F(TPCollectivesTest, RejectsAFixedStagingTooSmallForAChunk) {
+    Watchdog watchdog(60);
+    const int ranks = std::min(available_gpus, 4);
+    auto shared = make_shared_ctx(ranks);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1, std::chrono::milliseconds{5000},
+                                               CollectiveOptions{}, size_t{512});
+    constexpr size_t n = 4096;
+    CollectiveBuffers buffers(shared, ranks, n * sizeof(float));
+    try {
+        coord->allreduce(0, 0, buffers.ins[0], buffers.outs[0], n, ov::element::f32,
+                         reduce_kernel(*coord, 0, ov::element::f32));
+        ADD_FAILURE() << "a 512-byte staging cannot hold a chunk";
+    } catch (const ov::Exception& e) {
+        EXPECT_NE(std::string(e.what()).find("cannot hold a chunk"), std::string::npos) << e.what();
     }
     EXPECT_FALSE(coord->is_aborted());
 }

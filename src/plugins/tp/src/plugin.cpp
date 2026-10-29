@@ -236,6 +236,9 @@ std::vector<ov::SoPtr<ov::IRemoteContext>> Plugin::create_rank_contexts(const st
         params[ov::tp::internal::groups.name()] =
             std::map<int, CollectiveGroup>{{0, CollectiveGroup{endpoints[static_cast<size_t>(rank)], auto_backend}}};
         params[ov::tp::internal::communication_timeout_ms.name()] = timeout_ms;
+        if (const auto comm_buffer_size = config.get_comm_buffer_size(); comm_buffer_size != 0) {
+            params[ov::tp::internal::comm_buffer_size.name()] = comm_buffer_size;
+        }
         contexts[static_cast<size_t>(rank)] = get_core()->create_context(device_names[static_cast<size_t>(rank)], params);
     }
 

@@ -66,6 +66,8 @@ struct CollectiveUse {
 ///
 /// Created with the context, it publishes this rank's setup payload through the
 /// group's IExchange endpoint and returns without waiting for the other ranks.
+/// With a fixed staging size it also allocates the rank's staging then, so the
+/// memory is taken before any model is compiled.
 /// The first model bound to the context collects every rank's payload and
 /// connects to the group state all ranks of the group share in this process. Whichever rank binds first creates it; the others find it in a
 /// process registry under the id of the group's rank-0 communicator.
@@ -73,11 +75,15 @@ struct CollectiveUse {
 /// One channel (one stream of one model) at a time.
 class RankCommunicator {
 public:
+    /// \param comm_buffer_size  Bytes of this rank's staging, fixed for the
+    ///        context's lifetime; larger messages are chunked. Zero lets the
+    ///        staging grow with the largest message. Equal on every rank.
     RankCommunicator(std::shared_ptr<ov::tp::IExchange> exchange,
                      const std::string& backend,
                      TPL0SharedContextPtr shared,
                      std::chrono::milliseconds timeout,
-                     const CollectiveOptions& options);
+                     const CollectiveOptions& options,
+                     std::size_t comm_buffer_size = 0);
 
     RankCommunicator(const RankCommunicator&) = delete;
     RankCommunicator& operator=(const RankCommunicator&) = delete;
@@ -113,6 +119,8 @@ private:
     int m_rank;
     int m_world_size;
     uint64_t m_id;
+    std::size_t m_staging_bytes{0};
+    std::shared_ptr<void> m_staging;
 
     std::mutex m_mutex;
     GroupStatePtr m_group;

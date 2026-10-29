@@ -335,7 +335,8 @@ its own recording alone; nothing waits for rank 0.
 | `in_id`, `out_id`                 | the driver's allocation ids for those addresses |
 | `kernel`                          | this rank's reduction kernel                    |
 | `n`, `dtype`                      | payload shape                                   |
-| `staging[N]`, `staging_ids[N]`    | every rank's staging half for this parity, as published in the mailbox |
+| `chunk_elems`, `halving`          | how the payload is split and which schedule each chunk takes |
+| `staging[2][N]`, `staging_ids[N]` | every rank's two staging halves, as published in the mailbox |
 | gather: `rows`, `slice_elems`, `root_out`, `root_out_id` | the slice shape and the root's output the bands go to |
 
 The allocation ids are not redundant. intel_gpu frees and reallocates network
@@ -350,15 +351,48 @@ overwhelming majority of calls.
 ### Staging
 
 One device-USM allocation per rank, owned by that rank, shared by every
-collective, sized for the largest payload the rank has seen and split into two
-equal halves, one per call parity. The recorder says how large a half has to
-be for its schedule; the group only allocates. A rank publishes the address and
-allocation id of its half
-with every call, so it grows on its own: before it frees the old allocation it
+collective and split into two equal halves, one per call parity. The recorder
+says how large a half has to be for its schedule; the group only allocates. A
+rank publishes the address, half size and allocation id of its staging with
+every call.
+
+By default the staging is sized for the largest payload the rank has seen, so
+it grows on its own: before it frees the old allocation it
 waits for its own last splice, which itself waited for every peer write into
 that staging, and peers cannot write the new one before they have read its
 address in the rendezvous. Recordings that still point at the old staging see
-the id change in their signature.
+the id change in their signature. Prefill makes this large: at an 8K-token
+prompt on Llama-3.1-8B every rank holds 128 MiB, allocated during the first
+long prompt, after the KV cache took its share.
+
+With `ov_internal_tp_comm_buffer_size` the staging has that size, rounded down
+to 512 bytes, and is allocated once by `create_context()`, before any model is
+compiled; the ranks check at the first bind that they agree on it. A payload
+whose staging does not fit a half is split into chunks of equal size (the last
+may be shorter), each a complete allreduce with its own call number, so the
+chunks alternate staging halves and event sets exactly like separate calls.
+All chunks go into the one recording, separated by barriers, behind one call
+rendezvous: the barrier gives a chunk the same ordering a call has after the
+previous call in the in-order queue. Chunks never take halving, whose staging
+is larger than the ring's, so the last, shorter chunk fits whenever the others
+do. Chunking does not change a bit on two ranks; on more, the ring sums an
+element in an order that depends on where the chunk boundaries fall, so the
+result differs from the unchunked one in rounding, deterministically.
+
+Three other ways to run the chunks were measured against this one (Llama-3.1-8B,
+2 and 4 ranks, 1024- and 8K-token prompts, 2, 4 and 8 chunks): a call per
+chunk re-recording the two lists (each chunk waits for the device to finish the
+chunk two before it: up to +22 % TTFT at 1024 tokens), a call per chunk with a
+list per chunk created on first use (about 0.8 ms per list: up to +550 ms on the
+first prompt), and the same lists made with the group (up to +7.7 s model load,
+and the chunk count has to be known in advance). Mutable command lists cannot
+retarget memory copies, which every transfer here is. The single recording
+matched or beat all of them everywhere and costs nothing on the first prompt.
+
+What chunking costs in itself is device time: the chunks run one after the
+other, each with every step's cross-device round trip. On four ranks at an 8K
+prompt, 2 chunks cost +0.6 % TTFT, 4 chunks +6 %, 8 chunks +11 %; on two ranks
+nothing measurable.
 
 - TP=2: one payload-sized region per half, aligned to 256 bytes.
 - Ring / halving (N>2): `N` chunk slots per half, so concurrent steps never
@@ -378,10 +412,10 @@ the root's output, but only behind a handshake with the root's queue (see
 ```
 every rank
   |
-  | grow own staging if the payload does not fit (allreduce)
+  | grow own staging if the payload does not fit (allreduce, no fixed size)
   |
-  | call rendezvous: publish {seq, kind, collective_id, n, dtype, rows,
-  |   own staging half (allreduce) or the root's output (gather)} into
+  | call rendezvous: publish {seq, kind, collective_id, n, dtype, rows or
+  |   chunks, own staging (allreduce) or the root's output (gather)} into
   |   mailbox slots[seq & 1][rank]; the last arrival releases the others.
   |   A mismatch in seq, kind, id or shape aborts the group and throws.
   |
@@ -491,13 +525,14 @@ the context of one rank:
 - the device-group L0 context over every device of the group, created once
   per device list and shared by every rank's context in the process;
 - a remote context whose device and engine sit on that shared context;
-- this rank's `RankCommunicator`, which publishes its setup payload
-  (header, process id, a process-unique communicator id) and returns without
-  waiting.
+- this rank's `RankCommunicator`, which allocates the rank's fixed staging if
+  `ov_internal_tp_comm_buffer_size` is set, publishes its setup payload
+  (header, process id, a process-unique communicator id, the staging size)
+  and returns without waiting.
 
-Other accepted parameters: `COMMUNICATION_TIMEOUT_MS`, `DEVICE_ID` and the
-`GPU_TP_*` options. `ov_internal_tp_channels` other than 1 and
-`ov_internal_tp_comm_buffer_size` are refused until they are implemented;
+Other accepted parameters: `ov_internal_tp_comm_buffer_size`,
+`COMMUNICATION_TIMEOUT_MS`, `DEVICE_ID` and the `GPU_TP_*` options.
+`ov_internal_tp_channels` other than 1 is refused until it is implemented;
 any other parameter is an error.
 
 ### Binding

@@ -223,7 +223,7 @@ Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 
 | Suite                                     | What it covers                                                                                                                          | Needs GPUs |
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `TPCollectivesTest`                 | AllReduce and gather correctness on f16/bf16/f32 with the model's `tp_allreduce.cl`; one f32 rounding per step; all ranks bitwise equal; recording reuse across shifting pointers, sizes and dtypes; scratch growth; in-place operation; | yes, >=2   |
+| `TPCollectivesTest`                 | AllReduce and gather correctness on f16/bf16/f32 with the model's `tp_allreduce.cl`; one f32 rounding per step; all ranks bitwise equal; recording reuse across shifting pointers, sizes and dtypes; scratch growth; chunking through a fixed staging; in-place operation; | yes, >=2   |
 |                                           | allocation churn; wider worlds; ring and halving agreeing on the same payload and the ceiling where one flips to the other;             |            |
 |                                           | the spliced path matching the blocking one; timeout, abort and watchdog behaviour                                                       |            |
 
