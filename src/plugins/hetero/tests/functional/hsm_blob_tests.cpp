@@ -226,7 +226,7 @@ TEST_F(HeteroHsmBlobTests, export_to_non_seekable_stream) {
     expect_runs(import_from_stream(buffer.str()));
 }
 
-TEST_F(HeteroHsmBlobTests, legacy_blob_is_default_and_imports_in_hsm_mode) {
+TEST_F(HeteroHsmBlobTests, legacy_blob_imports_in_hsm_mode) {
     const auto legacy = export_blob(compile(create_model_with_subtract(), "MOCK0,MOCK1", false));
     EXPECT_FALSE(is_hsm_blob(legacy));
 
@@ -236,6 +236,7 @@ TEST_F(HeteroHsmBlobTests, legacy_blob_is_default_and_imports_in_hsm_mode) {
 }
 
 TEST_F(HeteroHsmBlobTests, plugin_property_selects_format_and_is_reported) {
+    core.set_property(ov::test::utils::DEVICE_HETERO, ov::hetero::export_hsm_format(false));
     EXPECT_FALSE(core.get_property(ov::test::utils::DEVICE_HETERO, ov::internal::emit_hsm_format));
     auto model = create_model_with_subtract();
     const auto default_blob =

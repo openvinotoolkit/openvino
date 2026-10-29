@@ -26,15 +26,23 @@ TEST_F(HeteroTests, get_property_supported_properties) {
 }
 
 TEST_F(HeteroTests, get_property_internal_supported_properties) {
-    const std::vector<ov::PropertyName> supported_properties = {ov::internal::caching_properties,
-                                                                ov::internal::emit_hsm_format};
-    auto actual_supported_properties =
-        core.get_property(ov::test::utils::DEVICE_HETERO, ov::internal::supported_properties);
-    EXPECT_EQ(supported_properties.size(), actual_supported_properties.size());
-    for (auto& supported_property : supported_properties) {
-        ASSERT_TRUE(std::find(actual_supported_properties.begin(),
-                              actual_supported_properties.end(),
-                              supported_property) != actual_supported_properties.end());
+    for (const bool hsm_format : {false, true}) {
+        SCOPED_TRACE(hsm_format);
+        core.set_property(ov::test::utils::DEVICE_HETERO, ov::hetero::export_hsm_format(hsm_format));
+
+        std::vector<ov::PropertyName> supported_properties = {ov::internal::caching_properties,
+                                                              ov::internal::emit_hsm_format};
+        if (hsm_format) {
+            supported_properties.emplace_back(ov::internal::caching_with_mmap);
+        }
+        auto actual_supported_properties =
+            core.get_property(ov::test::utils::DEVICE_HETERO, ov::internal::supported_properties);
+        EXPECT_EQ(supported_properties.size(), actual_supported_properties.size());
+        for (auto& supported_property : supported_properties) {
+            ASSERT_TRUE(std::find(actual_supported_properties.begin(),
+                                  actual_supported_properties.end(),
+                                  supported_property) != actual_supported_properties.end());
+        }
     }
 }
 
