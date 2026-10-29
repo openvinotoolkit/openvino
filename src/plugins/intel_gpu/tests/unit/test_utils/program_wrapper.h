@@ -53,6 +53,10 @@ namespace cldnn
         {
             p.transfer_memory_to_device();
         }
+        static void validate_partial_buffers(const program& p)
+        {
+            p.validate_partial_buffers();
+        }
         static void update_configs_properties(program& p, const ov::AnyMap& properties) {
             auto config_copy = p._config.clone();
             config_copy.set_property(properties);
