@@ -811,10 +811,10 @@ void MapHolder::adopt_pending_prefetch(std::shared_future<void> task) noexcept {
                                                     m_pending_prefetch.end(),
                                                     [](std::shared_future<void>& pending) {
                                                         return !pending.valid() ||
-                                                            pending.wait_for(std::chrono::seconds(0)) ==
-                                                                std::future_status::ready;
+                                                               pending.wait_for(std::chrono::seconds(0)) ==
+                                                                   std::future_status::ready;
                                                     }),
-                                    m_pending_prefetch.end());
+                                     m_pending_prefetch.end());
             m_pending_prefetch.push_back(std::move(task));
         } catch (...) {
             // Bookkeeping failed (e.g. allocation failure): the prefetch already started in the
