@@ -1,6 +1,7 @@
 # Qwen3.5 recurrent cache integration in llama.cpp
 
-The independent internal `RecurrentConvCacheUpdate` and
+The default Qwen GPU integration uses dynamic stateless execution with the
+independent internal `RecurrentConvCacheUpdate` and
 `RecurrentGatedDeltaNetUpdate` ops support llama.cpp's `qwen35` and `qwen35moe`
 graphs, including Qwen3.6. They fuse generic reset, original-row gather, reorder,
 computation and ordered writeback for `cache_r` and `cache_s`. Cache row capacity
@@ -51,3 +52,17 @@ precision, changing shapes, aliased/distinct allocations, exclusive Reshapes,
 shared readers, unrelated overlaps, host/device USM and export/import. Core shape
 and attribute tests cover the nine-input convolution contract, rejection of
 missing weights and GDN snapshots.
+
+## Companion frontend
+
+The llama.cpp frontend uses stable pure-top-k MTP sampling branches with packed
+runtime row controls and private inactive outputs. Active slot subsets reuse one
+compatible draft model; trunk and other graph configurations retain separate
+entries. This is a frontend translation change, not another native cache op.
+Unified attention KV is the recommended multi-slot layout because the current
+stateless attention KV fusion supports a single physical stream.
+
+Current configuration, validation, graph examples and measured results are indexed
+in llama.cpp at `ggml/src/ggml-openvino/dev_doc/README.md`. Historical rotation and
+separate-convolution comparisons are evidence for the selected default, not
+additional supported implementation modes.
