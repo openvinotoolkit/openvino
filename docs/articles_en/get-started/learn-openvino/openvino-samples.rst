@@ -16,6 +16,7 @@ OpenVINO™ Samples
 
    Get Started with C++ Samples <openvino-samples/get-started-demos>
    openvino-samples/hello-classification
+   openvino-samples/hello-remote-tensor
    openvino-samples/hello-nv12-input-classification
    openvino-samples/hello-query-device
    openvino-samples/hello-reshape-ssd
@@ -37,7 +38,8 @@ The applications include:
 .. important::
 
    All C++ samples support input paths containing only ASCII characters, except
-   for the Hello Classification Sample, which supports Unicode.
+   for the Hello Classification Sample and the Hello Remote Tensor Sample, which
+   support Unicode.
 
 - :doc:`Hello Classification Sample <openvino-samples/hello-classification>` -
   Inference of image classification networks like AlexNet and GoogLeNet using
@@ -45,6 +47,12 @@ The applications include:
   an infer request which will be pre-processed automatically during inference.
   The sample supports only images as input and supports input paths containing
   only Unicode characters.
+
+- :doc:`Hello Remote Tensor Sample <openvino-samples/hello-remote-tensor>` -
+  Inference of image classification networks on an Intel GPU, with input and
+  output tensors allocated in Level Zero device memory. The sample supports
+  only images as input and supports input paths containing Unicode characters.
+  It requires the experimental Level Zero GPU runtime.
 
 - :doc:`Hello NV12 Input Classification Sample <openvino-samples/hello-nv12-input-classification>` -
   Input of any size and layout can be provided to an infer request. The sample
