@@ -69,15 +69,16 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endif()
 
         # pass common variables
-        set(cmake_vars_to_pass CMAKE_SYSROOT
+        # CMAKE_TOOLCHAIN_FILE is always passed: a toolchain such as conan_toolchain.cmake carries
+        # Conan's prefix paths and CMakeDeps lookups (e.g. OpenCL) that the oneDNN build needs
+        set(cmake_vars_to_pass CMAKE_TOOLCHAIN_FILE CMAKE_SYSROOT
                                CMAKE_VERBOSE_MAKEFILE CMAKE_GENERATOR
                                CMAKE_CXX_COMPILER CMAKE_C_COMPILER
                                CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
-        # pass cross-compilation variables only when cross-compiling:
+        # pass the target system variables only when cross-compiling:
         # passing CMAKE_SYSTEM_NAME forces CMAKE_CROSSCOMPILING=TRUE in the oneDNN build
         if(CMAKE_CROSSCOMPILING)
-            list(APPEND cmake_vars_to_pass CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
-                                           CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE)
+            list(APPEND cmake_vars_to_pass CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION CMAKE_SYSTEM_PROCESSOR)
         endif()
         foreach(cmake_var IN LISTS cmake_vars_to_pass)
             if(${cmake_var})
