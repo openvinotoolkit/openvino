@@ -155,7 +155,3 @@ class TestHistc(PytorchLayerTest):
         data = np.random.RandomState(2).randn(4, 25)
         self._test(HistcInGraph(), "aten::histc", ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"data": data, "dtype": np.float32})
-
-
-# TODO: torch.histc has no integer CPU kernel (CUDA only), so integer inputs are not tested here.
-# Add integer tests compared against torch once GPU support is added.
