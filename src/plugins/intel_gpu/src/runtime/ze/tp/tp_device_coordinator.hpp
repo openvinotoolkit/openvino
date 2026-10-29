@@ -44,9 +44,9 @@ using TPL0SharedContextPtr = std::shared_ptr<TPL0SharedContext>;
 /// recursive halving. Every rank records and submits its own commands -- no
 /// rank drives the others.
 ///
-/// A recording is kept until the buffers, the reduction kernels, the element
-/// count or the dtype it was built from change, or until the staging arena
-/// moves.
+/// A rank's recording is kept until its own buffers, its reduction kernel,
+/// the element count or dtype, or a peer's published staging change. Every
+/// call goes through the call rendezvous, keyed by the per-rank call number.
 class TPDeviceCoordinator {
 public:
     /// \param shared       Shared L0 context (driver + N devices + ze_context).
@@ -228,40 +228,50 @@ private:
         uint64_t                    timestamp_mask{~uint64_t{0}};
     };
 
-    // Cached plan for a single AllReduce collective.
-    //
-    // Per-call inputs that select which plan applies:
-    // collective_id (slot index), in_ptr, out_ptr, n, dtype
+    // What one rank's recording was built from. Everything a rank's commands
+    // depend on is its own buffers and kernel, the call's shape, and where the
+    // peers it writes to have their staging -- never a peer's own buffers --
+    // so a rank decides on its own whether its recording is still current.
+    struct RankRecording {
+        bool                        valid{false};
+        void*                       in{nullptr};
+        void*                       out{nullptr};
+        uint64_t                    in_id{0};
+        uint64_t                    out_id{0};
+        ze_kernel_handle_t          kernel{nullptr};
+        std::size_t                 n{0};
+        ov::element::Type           dtype{ov::element::dynamic};
+        // Allreduce: every rank's staging half for this call, from the mailbox.
+        std::vector<void*>          staging;     // [N]
+        std::vector<uint64_t>       staging_ids; // [N]
+        // Gather: rows x slice of the local matrix, and the root's destination.
+        std::size_t                 rows{0};
+        std::size_t                 slice_elems{0};
+        void*                       root_out{nullptr};
+        uint64_t                    root_out_id{0};
+
+        bool operator==(const RankRecording& o) const {
+            return valid == o.valid && in == o.in && out == o.out && in_id == o.in_id && out_id == o.out_id &&
+                   kernel == o.kernel && n == o.n && dtype == o.dtype && staging == o.staging &&
+                   staging_ids == o.staging_ids && rows == o.rows && slice_elems == o.slice_elems &&
+                   root_out == o.root_out && root_out_id == o.root_out_id;
+        }
+        bool operator!=(const RankRecording& o) const { return !(*this == o); }
+    };
+
+    // The recordings of one collective for one call parity.
     struct Plan {
         // What the recorded lists do. A collective id belongs to exactly one
-        // of these for the life of the model, so the two share the same slot,
-        // the same command lists and the same rendezvous.
+        // of these for the life of the model.
         enum class Kind { allreduce, gather };
         Kind                        kind{Kind::allreduce};
 
-        // Which of the coordinator's resource sets this plan draws on. Baked
-        // into the recording, because the staging addresses are.
+        // Call parity this plan serves; selects the staging half and the
+        // event set baked into the recording.
         int                         buffer{0};
 
-        // Gather only: rows of the matrix being collected, and how many
-        // elements of each row this rank contributes. `n` stays the total
-        // element count of the local slice so the signature check is uniform.
-        std::size_t                 rows{0};
-        std::size_t                 slice_elems{0};
-        // Signature
-        std::vector<void*>          in_ptrs;        // [N]
-        std::vector<void*>          out_ptrs;       // [N]
-        std::vector<uint64_t>       in_ids;         // [N]
-        std::vector<uint64_t>       out_ids;        // [N]
-        std::vector<ze_kernel_handle_t> kernels;    // [N], allreduce only
-        std::size_t                 n{0};
-        ov::element::Type           dtype{ov::element::dynamic};
-        std::size_t                 max_payload_bytes{0};
-
-        // Resources
-        ze_event_pool_handle_t      pool{nullptr};
-        // Pair schedule only: [r] = "rank r finished pushing its payload".
-        std::vector<ze_event_handle_t> ev_recv;     // [2]
+        // [r] is written and read only by rank r.
+        std::vector<RankRecording>  rec;            // [N]
 
         // Signalled when this rank's spliced recording has finished on the
         // device. Host-visible, unlike everything else here, because two
@@ -284,143 +294,81 @@ private:
         // bandwidth several times what the hardware can do.
         std::vector<std::size_t>    spliced_bytes;  // [N]
 
-        // Ring schedule: one event per (step, rank), signaled by the rank's
-        // outgoing copy at that step and waited on by its successor.
-        // Laid out as [step * N + rank] over 2*(N-1) steps.
-        std::vector<ze_event_handle_t> ev_ring;
-
-        // Gather only: rank r != 0 signals ev_gather[r] when its slice is
-        // down, and the root waits on all of them. Created on first use --
-        // one collective out of the whole model is a gather, so building
-        // these for every plan would be waste.
-        ze_event_pool_handle_t      gather_pool{nullptr};
-        std::vector<ze_event_handle_t> ev_gather;   // [N], index 0 unused
-
-        // Optional device-side timestamp probes (N=2 path): ev_ts_kernel[r]
-        // is signaled by rank r's reduce kernel. Allocated out of `pool`,
-        // which carries KERNEL_TIMESTAMP, and only when device profiling is
-        // on -- entries stay null otherwise and act as a "no signal"
-        // sentinel for AppendLaunchKernel. The memcpy end is probed through
-        // ev_recv[r], which the copy signals anyway.
-        std::vector<ze_event_handle_t> ev_ts_kernel;  // [N]
-
         // Command lists holding this collective's recorded commands, one per
         // rank. Every collective owns its own so that a recording survives
         // the next collective: with a single list per rank each call
         // overwrote the previous recording, and one decode step re-recorded
-        // all 64 collectives for nothing. Empty on the immediate path,
-        // which appends directly at execute time.
+        // all 64 collectives for nothing.
         std::vector<ze_command_list_handle_t> compute_lists;  // [N]
-
-        // Per rank: whether that rank's lists hold commands matching the
-        // signature above, and which scratch generation they were recorded
-        // against (the staging pointers are baked into the recording).
-        // Per rank rather than per plan because ring and the direct N=2
-        // exchange record each rank from that rank's own pointers, so a rank
-        // can be re-recorded without touching the others. uint8_t rather
-        // than bool: std::vector<bool> packs bits, and neighbouring ranks
-        // would then be writing the same word.
-        std::vector<uint8_t>        recorded;                     // [N]
-        std::vector<uint64_t>       recorded_scratch_generation;  // [N]
-
-        bool matches(const std::vector<void*>& ins,
-                     const std::vector<void*>& outs,
-                     const std::vector<uint64_t>& in_alloc_ids,
-                     const std::vector<uint64_t>& out_alloc_ids,
-                     const std::vector<ze_kernel_handle_t>& reduce_kernels,
-                     std::size_t want_n,
-                     ov::element::Type want_dtype) const {
-            return n == want_n && dtype == want_dtype && in_ptrs == ins && out_ptrs == outs &&
-                   in_ids == in_alloc_ids && out_ids == out_alloc_ids && kernels == reduce_kernels;
-        }
-
-        bool matches_gather(const std::vector<void*>& ins,
-                            const std::vector<void*>& outs,
-                            const std::vector<uint64_t>& in_alloc_ids,
-                            const std::vector<uint64_t>& out_alloc_ids,
-                            std::size_t want_rows,
-                            std::size_t want_slice,
-                            ov::element::Type want_dtype) const {
-            return kind == Kind::gather && rows == want_rows && slice_elems == want_slice &&
-                   dtype == want_dtype && in_ptrs == ins && out_ptrs == outs &&
-                   in_ids == in_alloc_ids && out_ids == out_alloc_ids;
-        }
     };
 
-    // Device-USM staging shared by all collective plans.
-    //
-    //   * TP=2 direct exchange: one payload-sized allocation per rank.
-    //   * Ring (N>2): N chunk slots per rank, so every step of the
-    //     reduce-scatter lands in a slot of its own and no cross-rank
-    //     back-pressure is needed between steps. Total per rank is one
-    //     payload, the same order as TP=2.
-    //
-    // Every allocation is doubled by plan_buffers(): a rank that has left a
-    // collective may reach it again while a neighbour is still executing the
-    // previous instance, and the two must not share a byte.
-    struct ScratchArena {
-        std::vector<void*> allocations;              // [N]
-        std::vector<std::size_t> bytes_per_rank;     // [N]
-        std::size_t chunk_capacity_bytes{0};         // ring: stride between slots
-        std::size_t total_allocated_bytes{0};
-        uint64_t growth_count{0};
-        uint64_t allocation_count{0};
-        // These two are read outside the lock, by ranks deciding for
-        // themselves whether the arena is about to move under them.
-        // The generation is published last, so seeing a new one implies the
-        // capacity beside it is new too.
-        std::atomic<std::size_t> payload_capacity_bytes{0};
-        std::atomic<uint64_t> generation{0};
+    // Events the allreduces of one call parity signal and wait on. Shared by
+    // every allreduce of that parity: call k + 2 reuses them only after every
+    // rank finished call k + 1, which needs every rank's input of k + 1, which
+    // each rank sends only after its call k -- resets included -- completed.
+    struct EventSet {
+        ze_event_pool_handle_t         pool{nullptr};
+        // Pair schedule: [r] = "rank r finished pushing its payload".
+        std::vector<ze_event_handle_t> recv;   // [2]
+        // Ring and halving: [step * N + rank], signalled by `rank` at `step`
+        // and waited on by its partner at that step.
+        std::vector<ze_event_handle_t> step;
     };
 
-    // Cross-rank rendezvous slot: collects each rank's (in,out) pointers for
-    // a given collective_id before anyone records against them.
-    //
-    // The enter barrier is common to every collective: arrived++, and the last
-    // one in flips enter_gen and resets the count. What follows differs.
-    // allreduce releases the other ranks through record_gen once rank 0 has
-    // settled the signature, and has no exit barrier at all -- the two pointer
-    // sets below make one unnecessary. gather still has both: `done` marks
-    // rank 0's recording, and the exit barrier keeps a rank from re-entering
-    // while a peer is still reading the pointers.
-    //
-    // A mutex and a condition_variable, deliberately. These barriers are
-    // crossed twice per collective and once per layer, which looks like an
-    // obvious case for a lock-free counter -- but an atomic barrier that spins
-    // before parking measured worse at four ranks, and worse still when the
-    // fallback slept instead of spinning. What a rank waits for here is mostly
-    // its peers being genuinely late, not the barrier itself, and a spinning
-    // waiter takes the core that the late peer's dispatch thread needs. futex
-    // parks and wakes better than anything hand-rolled here did.
-    struct Rendezvous {
-        std::mutex                  mtx;
-        std::condition_variable     cv;
-        // Two sets, picked by the parity of the entry generation. Without the
-        // exit barrier a rank that has already left can reach this collective
-        // again and publish its pointers while a slower peer is still reading
-        // the ones from the instance it is in; alternating the sets keeps the
-        // two apart. Reaching the set again means passing the enter barrier
-        // twice, which the slow peer itself has to take part in, so a set is
-        // never rewritten while anyone still needs it.
-        std::vector<void*>          in_ptrs[2];     // [2][N], filled by ranks
-        std::vector<void*>          out_ptrs[2];    // [2][N], filled by ranks
-        std::vector<uint64_t>       in_ids[2];      // [2][N], filled by ranks
-        std::vector<uint64_t>       out_ids[2];     // [2][N], filled by ranks
-        std::vector<ze_kernel_handle_t> kernels[2]; // [2][N], filled by ranks
-        int                         arrived{0};
-        int                         departed{0};
-        bool                        done{false};
-        // Bumped by rank 0 once a collective's recording decision is settled.
-        // A counter rather than the `done` flag because nothing clears it any
-        // more: the exit barrier that used to reset the flag is gone.
-        uint64_t                    record_gen{0};
-        uint64_t                    enter_gen{0};
-        uint64_t                    exit_gen{0};
+    // Gather ordering: rank r != 0 signals [r] when its slice is down, and the
+    // root waits on all of them. One set per gather parity.
+    struct GatherEvents {
+        ze_event_pool_handle_t         pool{nullptr};
+        std::vector<ze_event_handle_t> ev;     // [N], index 0 unused
+    };
+
+    // A rank's staging: two halves, one per allreduce parity. Owned by that
+    // rank alone and published per call, so it grows without the group.
+    struct Staging {
+        void*                       base{nullptr};
+        std::size_t                 bytes{0};
+        std::size_t                 payload_capacity{0};
+        uint64_t                    id{0};
+        uint64_t                    growth_count{0};
+    };
+
+    // One rank's entry of the call rendezvous.
+    struct MailboxSlot {
+        uint64_t                    seq{0};
+        Plan::Kind                  kind{Plan::Kind::allreduce};
+        int                         collective_id{-1};
         std::size_t                 n{0};
         ov::element::Type           dtype{ov::element::dynamic};
-        // When the first rank reached this collective, used to measure how
-        // far behind the others are. Only written when profiling is on.
-        std::chrono::steady_clock::time_point first_arrival{};
+        std::size_t                 rows{0};
+        // Allreduce: this rank's staging half for the call.
+        void*                       staging{nullptr};
+        uint64_t                    staging_id{0};
+        // Gather, root only: where the slices go.
+        void*                       out{nullptr};
+        uint64_t                    out_id{0};
+    };
+
+    // The call rendezvous. Every rank publishes one slot per call, in the set
+    // picked by the parity of the call number, and waits until every rank has
+    // published the same call. A set is rewritten only at call k + 2, which a
+    // rank reaches after the rendezvous of k + 1 -- so after every peer has
+    // published k + 1, which a peer does only after it read the slots of k.
+    //
+    // A mutex and a condition_variable, deliberately. The rendezvous is
+    // crossed once per collective, which looks like an obvious case for a
+    // lock-free counter -- but an atomic barrier that spins before parking
+    // measured worse at four ranks: what a rank waits for here is mostly its
+    // peers being genuinely late, and a spinning waiter takes the core that
+    // the late peer's dispatch thread needs.
+    struct Mailbox {
+        std::mutex                  mtx;
+        std::condition_variable     cv;
+        std::vector<MailboxSlot>    slots[2];       // [2][N]
+        int                         arrived[2]{0, 0};
+        uint64_t                    released[2]{0, 0};
+        // When the first rank reached the call, used to measure how far
+        // behind the others are. Only written when profiling is on.
+        std::chrono::steady_clock::time_point first_arrival[2]{};
     };
 
     // A counter a std::vector can hold. The slots are written by their own
@@ -462,20 +410,19 @@ private:
 
     void destroy_plan(Plan& plan);
 
-    /// Creates the plan's event pool and its events. How many there are
-    /// depends only on the world size and on whether profiling is on, never on
-    /// the payload, so this runs once at construction. Doing it lazily put 64
-    /// pool creations on the first inference, which is the one whose latency
-    /// users measure as time to first token.
+    /// Creates the plan's completion events and command lists. How many there
+    /// are depends only on the world size, never on the payload, so this runs
+    /// once at construction. Doing it lazily put 64 pool creations on the
+    /// first inference, which is the one whose latency users measure as time
+    /// to first token.
     void create_plan_events(Plan& plan);
 
-    /// Creates the plan's per-rank command lists if it has none. Called at
-    /// setup so the cost does not land on the first inference, and again from
-    /// build_plan for safety.
+    /// Creates the plan's per-rank command lists if it has none.
     void ensure_plan_lists(Plan& plan);
 
-    /// Creates the gather ordering events on `plan` if they are not there.
-    void ensure_gather_events(Plan& plan);
+    /// The allreduce and gather event sets of both parities.
+    void create_event_sets();
+    void destroy_event_sets();
 
     // ---------------------------------------------------------------
     // Recording
@@ -513,10 +460,8 @@ private:
     /// its slice into the root's buffer. Ranks write disjoint columns, so
     /// there is no data to order between them, but the root still has to know
     /// when the columns are down: every other rank signals ev_gather[r] and
-    /// the root's recording waits on all of them before it ends. On the
-    /// spliced path that wait is the only thing holding the root's model
-    /// queue back; on the blocking path the exit barrier would do as well,
-    /// and one recording shape for both keeps the two from drifting apart.
+    /// the root's recording waits on all of them before it ends. That wait is
+    /// the only thing holding the root's queue back on either path.
     void record_gather_rank(Plan& plan, int rank);
 
     /// zeCommandListClose with its cost attributed to `into`: closing is where
@@ -527,70 +472,66 @@ private:
     void close_list(ze_command_list_handle_t list, Counter& into);
 
     // ---------------------------------------------------------------
-    // Staging arena and its addressing
+    // Staging and its addressing
     // ---------------------------------------------------------------
 
-    bool ensure_scratch_capacity(std::size_t payload_bytes);
+    /// Makes `rank`'s staging large enough for a payload of this size and
+    /// returns its half for call parity `buffer`. Growing waits for the rank's
+    /// own previous collective to finish on its device: by then every peer
+    /// write into the old staging has landed, because that collective waited
+    /// for them.
+    void* ensure_staging(int rank, std::size_t payload_bytes, int buffer, int collective_id);
+    void destroy_staging();
 
-    /// Which arena the current staging addresses belong to. Read without the
-    /// lock: a rank compares it against the one its recording was built on.
-    uint64_t scratch_generation() const {
-        return m_scratch.generation.load(std::memory_order_acquire);
-    }
+    /// Bytes of one staging half for a payload of this size.
+    std::size_t half_bytes(std::size_t payload_bytes) const;
 
-    /// Whether ensure_scratch_capacity() would have to allocate. Lock-free,
-    /// so a rank can decide on its own whether the arena is about to move
-    /// under it without taking part in the gate that settles it.
-    bool scratch_needs_growth(std::size_t payload_bytes) const {
-        return payload_bytes > m_scratch.payload_capacity_bytes.load(std::memory_order_acquire);
-    }
-    void destroy_scratch();
+    /// Ring: distance between chunk slots inside a staging half.
+    std::size_t chunk_stride(std::size_t payload_bytes) const;
 
-    /// Where the peer's payload lands on `rank`, in the half of the arena
-    /// belonging to `buffer`. Two ranks only; N>2 stages through ring_slot.
-    void* pair_stage(int rank, int buffer) const;
+    /// Where the peer's payload lands on `rank`. Two ranks only.
+    void* pair_stage(const RankRecording& rec, int rank) const;
 
     /// Element range of ring chunk `chunk` within a payload of `n` elements.
-    /// Chunks differ by at most one element, which keeps every one of them
-    /// non-empty and removes the need to signal skipped steps.
     void ring_chunk(std::size_t n, int chunk, std::size_t& offset, std::size_t& count) const;
 
-    /// Staging slot for `chunk` on `rank` inside the ring arena, in the
-    /// half of it belonging to `buffer`.
-    void* ring_slot(int rank, int chunk, int buffer) const;
+    /// Staging slot for `chunk` on `rank`.
+    void* ring_slot(const RankRecording& rec, int rank, int chunk) const;
 
     /// The element range this rank owns after `level` halvings of the payload.
     void halving_range(std::size_t n, int rank, int level,
                        std::size_t& lo, std::size_t& hi) const;
 
-    /// Where a partner deposits data on this rank for one halving step of a
-    /// `payload_bytes` collective. Regions [0, levels) take the scatter steps,
-    /// [levels, 2 * levels) the gather steps; every step has its own, because a
-    /// partner may deliver the next step while this rank still reads the last.
-    void* halving_stage(int rank, std::size_t payload_bytes, int region, int buffer) const;
+    /// Where a partner deposits data on `rank` for one halving step. Regions
+    /// [0, levels) take the scatter steps, [levels, 2 * levels) the gather
+    /// steps; every step has its own, because a partner may deliver the next
+    /// step while this rank still reads the last.
+    void* halving_stage(const RankRecording& rec, int rank, int region) const;
 
     /// Whether a payload of this size is reduced by recursive halving.
     bool uses_halving(std::size_t payload_bytes) const;
 
-    /// Staging bytes per rank and buffer that a payload of this size needs.
+    /// Staging bytes per rank and parity that a payload of this size needs.
     std::size_t staging_bytes(std::size_t payload_bytes) const;
 
-    /// How many independent sets of plans and staging exist per collective.
-    ///
-    /// Two, once ranks run their own schedule: a rank that has left a
-    /// collective may reach the same one again on the next token while its
-    /// neighbours are still executing the previous instance, and the ring
-    /// writes into a neighbour's staging. Alternating between two sets means
-    /// the recording being laid down and the one still running never share a
-    /// command list, an event or a byte of the arena.
+    /// Two sets of plans, staging halves and events, by call parity.
     int plan_buffers() const { return 2; }
 
-    /// The plan holding `collective_id` in the given buffer.
+    /// The plan holding `collective_id` for the given parity.
     Plan& plan_at(int collective_id, int buffer) const {
         return *m_plans[static_cast<std::size_t>(collective_id) *
                             static_cast<std::size_t>(plan_buffers()) +
                         static_cast<std::size_t>(buffer)];
     }
+
+    // ---------------------------------------------------------------
+    // Call rendezvous
+    // ---------------------------------------------------------------
+
+    /// Publishes `mine` for call `mine.seq` and waits until every rank has
+    /// published the same call; `all` receives every rank's slot. Ranks that
+    /// disagree on which collective this is, or on its shape, abort the group.
+    void call_rendezvous(int rank, const MailboxSlot& mine, std::vector<MailboxSlot>& all);
 
     // ---------------------------------------------------------------
     // Handing work to the devices
@@ -605,9 +546,8 @@ private:
     void sync_rank(Plan& plan, int rank);
 
     /// Waits until the previous splice of this rank's recording has finished,
-    /// so the list can be appended or re-recorded. The allreduce path has
-    /// the same wait inlined, where it also feeds the skew counters.
-    void await_previous_splice(Plan& plan, int rank, int collective_id);
+    /// so the list can be appended or re-recorded. Returns whether there was one.
+    bool await_previous_splice(Plan& plan, int rank, int collective_id);
 
     // ---------------------------------------------------------------
     // Timeouts and failure handling
@@ -662,7 +602,7 @@ private:
     // written only by that rank, except the totals, which are written under
     // the rendezvous mutex by whichever rank arrives last.
     struct SkewStats {
-        CounterVec ph1_ns;      // [N] time spent in the enter barrier
+        CounterVec ph1_ns;      // [N] time spent in the call rendezvous
         CounterVec ph2_ns;      // [N] time spent in the execute phase
         CounterVec late_ns;     // [N] arrival minus the first arrival
         CounterVec last_count;  // [N] how often this rank arrived last
@@ -679,7 +619,7 @@ private:
         // guessable from the outside: the gate is a condvar handoff for every
         // rank but rank 0, and the event wait is only supposed to fire when
         // the host has run two collectives ahead of the device.
-        CounterVec p2_gate_ns;    // [N] rank 0: prep; others: wait for the record gate
+        CounterVec p2_gate_ns;    // [N] staging check (and growth) before the rendezvous
         CounterVec p2_rec_ns;     // [N] recording this rank's commands
         CounterVec p2_wait_ns;    // [N] zeEventHostSynchronize on the previous splice
         CounterVec p2_reset_ns;   // [N] zeEventHostReset
@@ -731,13 +671,6 @@ private:
         CounterVec n_pair;        // [N]
         CounterVec n_ring;        // [N]
         CounterVec n_halving;     // [N]
-        // The record gate has a fast path a rank takes when it can see for
-        // itself that neither the signature nor the arena moved. It is the
-        // difference between a condvar handoff on every collective and almost
-        // none, so how often it actually holds is worth knowing rather than
-        // assuming.
-        CounterVec gate_fast;     // [N]
-        CounterVec gate_slow;     // [N]
         uint64_t spread_ns{0};             // sum of (last arrival - first arrival)
     };
 
@@ -746,7 +679,7 @@ private:
     /// root, sized by the vocabulary rather than the hidden dimension -- so
     /// folding it into the same averages would hide both it and them.
     struct GatherStats {
-        CounterVec barrier_ns;  // [N] the enter barrier
+        CounterVec barrier_ns;  // [N] the call rendezvous
         CounterVec append_ns;   // [N] the splice itself
         CounterVec calls;       // [N]
         CounterVec spliced;     // [N] how many of those rode the model queue
@@ -774,11 +707,11 @@ private:
     /// meant anything. Only rank 0 writes them and only rank 0 reads them at
     /// dump time, but they are Counters anyway so the type matches the rest.
     struct HostTotals {
-        Counter record_ns;   // the record gate
+        Counter record_ns;   // re-recording this rank's lists
         Counter splice_ns;   // handing the recording over
-        Counter prep_ns;     // barrier exit to the start of plan work
+        Counter prep_ns;     // rendezvous exit to the start of plan work
         Counter tail_ns;     // handover done to returning
-        Counter rebuilds;    // arena growths
+        Counter rebuilds;    // staging growths
         Counter records;     // re-recordings
     };
 
@@ -838,11 +771,19 @@ private:
 
     std::vector<RankState>          m_ranks;        // [N]
 
-    mutable std::mutex              m_scratch_mutex;
-    ScratchArena                    m_scratch;
+    // Per rank, touched only by that rank (stats read them under the lock).
+    mutable std::mutex              m_staging_mutex;
+    std::vector<Staging>            m_staging;      // [N]
+    std::vector<uint64_t>           m_seq;          // [N] calls of any kind
+    std::vector<uint64_t>           m_allreduce_seq;// [N] allreduce calls: their parity
+    std::vector<uint64_t>           m_gather_seq;   // [N] gather calls: their parity
+    // The plan this rank spliced last, whose completion means everything it
+    // handed over before is done too.
+    std::vector<Plan*>              m_last_splice;  // [N]
 
-    // One rendezvous + one cached plan per collective_id.
-    std::vector<std::unique_ptr<Rendezvous>> m_rendezvous;
+    Mailbox                         m_mailbox;
+    EventSet                        m_events[2];
+    GatherEvents                    m_gather_events[2];
     // One recording per slot, deliberately. Generation alternates between the
     // prompt-sized prefill and the single-token decode, so every switch
     // re-records every collective, and keeping both shapes recorded would
@@ -886,10 +827,9 @@ private:
     /// "append" figure -- build minus close -- able to come out negative.
     Counter                         m_gather_close_ns;
 
-    /// Time rank 0 spends inside ensure_scratch_capacity when it has to grow
-    /// the arena. That path drains every rank's queues before it can move the
-    /// staging addresses, so it is a full stop of the whole group -- rare, but
-    /// it lands in time to first token, which is where it is least welcome.
+    /// Time ranks spend growing their staging, which waits for their own
+    /// device to finish the previous collective. Rare, but it lands in time to
+    /// first token.
     Counter                         m_scratch_stall_ns;
 };
 

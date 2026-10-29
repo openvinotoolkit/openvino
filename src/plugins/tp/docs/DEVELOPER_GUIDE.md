@@ -140,8 +140,8 @@ the coordinator's block below appears once per collective):
 ```
 [TP][RANK|host] calls=…  arrival spread=…us/call
 [TP][RANK|host]   rank N: late=…us arrived_last=…%  ph1=…us ph2=…us  segment mean=…us min=…us max=…us
-[TP][RANK|host]     ph2 split: gate=…us record=…us(Nx) evt_wait=…us evt_reset=…us(Nx, blocked Nx) append=…us rest=…us
-[TP][RANK|host]     run-ahead: mean=… splices max=…  record gate: fast=…% of N
+[TP][RANK|host]     ph1 staging check=…us  ph2 split: record=…us(Nx) evt_wait=…us evt_reset=…us(Nx, blocked Nx) append=…us rest=…us
+[TP][RANK|host]     run-ahead: mean=… splices max=…
 [TP][TOTAL|host] r0 calls=…  rebuilds=… records=…  totals: … per-call: …
 [TP][TOTAL|host]   schedule of N recordings: pair=… ring=… halving=…
 [TP][TOTAL|host]   record breakdown: records=… per-record=…ms (drain=… reset=… append=… close=…)
@@ -162,16 +162,17 @@ under `TP_PROFILING=DEVICE` or `ALL`.
 
 Field semantics:
 
-- **ph1** — the enter barrier: waiting for the other ranks to arrive.
-- **ph2** — everything from leaving the barrier to having handed the work over.
+- **ph1** — the call rendezvous: waiting for the other ranks to arrive. Includes
+  the staging check before it.
+- **ph2** — everything from leaving the rendezvous to having handed the work over.
 - **late / arrived_last / arrival spread** — how far behind the first arrival
   this rank was, and how often it was the last one in. The group moves at the
   speed of the last rank, on every collective of every token.
 - **segment** — model work between leaving one collective and reaching the
   next. This is where the arrival skew is built, which is why its extremes are
   kept rather than just the mean.
-- **gate** — waiting for rank 0 to settle the signature and the staging arena.
-  On rank 0 itself it is the time spent settling them.
+- **staging check** — checking, and on growth reallocating, this rank's own
+  staging before the rendezvous. Near zero once the largest payload was seen.
 - **record** — laying down this rank's command lists, with the count in
   brackets. Rare, but every miss lands in time to first token.
 - **evt_wait / blocked** — waiting for the previous splice of this same list to
@@ -185,8 +186,6 @@ Field semantics:
 - **run-ahead** — how many splices this rank has handed over that the devices
   have not caught up with. This is what splicing buys; a mean near 1 means the
   host is not running ahead at all.
-- **record gate: fast** — how often a rank could skip the gate because it could
-  see for itself that neither the signature nor the arena had moved.
 - **queue busy** — how long the collective occupied the rank's model
   queue, read off the completion event. This is the one part of the cost no
   host phase contains: the splice hands the work over and returns, so the
@@ -194,8 +193,9 @@ Field semantics:
   measurement has ended. `cid` names the collective responsible for the max.
 - **between collectives** — device time spent on the model rather than on a
   collective, and the duty cycle that follows from it.
-- **rebuilds** — staging arena growths since process start. After the first
-  prefill of a given max-shape this should stop moving.
+- **rebuilds / grows** — staging growths since process start (`grows` is the
+  maximum over ranks, `allocations` the sum; `payload_capacity` the minimum).
+  After the first prefill of a given max-shape this should stop moving.
 - **schedule** — which of the three schedules the recordings chose. `halving`
   is default-on and bounded by payload, so the split says whether that bound is
   anywhere near right. Counted per rank, so N ranks re-recording one collective
@@ -321,20 +321,20 @@ large ones, where both partners of a pair contend for the same link.
 
 ### "The recording is redone on every call"
 
-Symptom: `record breakdown: records=N` climbs with the call count, or the
-`record gate: fast=` share is low.
+Symptom: `record breakdown: records=N` climbs with the call count.
 
-A recording survives while its signature holds: the per-rank input and output
-addresses, the driver's allocation ids for them, `n`, `dtype`, and the scratch
-generation. Anything moving re-records everyone.
+A rank's recording survives while its signature (`RankRecording`) holds: its
+own input and output addresses, the driver's allocation ids for them, its
+kernel, `n`, `dtype`, and the staging address and id of every rank for that
+call parity. Each rank checks and re-records only its own.
 
 - **Addresses shift every call.** intel_gpu reallocates network buffers between
-  inferences. Log `slot->in_ptrs` against `rdz.in_ptrs[rdz_set]` in the rank-0
-  branch of `allreduce()` to see which one moved.
+  inferences. Compare `sig` against `slot->rec[rank]` in `allreduce()` to see
+  which field moved.
 - **Allocation ids shift while addresses stay.** That is the case the ids exist
   for: a freed buffer reallocated at the same address. Re-recording is correct
   here, not waste -- it is what clears the stale residency.
-- **The arena grew.** `rebuilds` in the report counts that. It should stop
+- **A staging grew.** `grows` in the report counts that. It should stop
   moving after the first prefill of a given maximum shape.
 
 ### "Hang on the second inference"

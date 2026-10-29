@@ -194,9 +194,10 @@ RemoteContextImpl (TP context)
   │     │                              engine sit on it
   │     └── TPDeviceCoordinator        the group state, one per group in the
   │           │                        process, shared by every rank
-  │           ├── Plan[2 per collective]     recordings, event pools, lists
-  │           ├── Rendezvous[per collective] enter barrier + record gate
-  │           ├── ScratchArena               device-USM staging per rank
+  │           ├── Plan[2 per collective]     per-rank recordings, lists, done events
+  │           ├── Mailbox                    call rendezvous, slots[2][N]
+  │           ├── EventSet[2], GatherEvents[2] peer events, one set per call parity
+  │           ├── Staging[N]                 device-USM staging, owned per rank
   │           └── watchdog thread            started on the first splice
   └── network (per compiled model)     holds a Channel: group state + rank
 ```
@@ -287,23 +288,31 @@ every reduction step is one f32 addition; the coordinator launches it in
 
 ### Plan caching
 
-Each collective site (`collective_id`) owns two `Plan`s that alternate by
-the parity of the rendezvous generation. Two, because a rank that has left a
-collective may reach the same one again while a neighbour is still executing
-the previous instance, and the ring writes into a neighbour's staging: the
-recording being laid down and the one still running must not share a command
-list, an event or a byte of the arena.
+Every rank counts its allreduce calls and its gather calls separately; the
+parity of that count picks one of two `Plan`s of the collective site
+(`collective_id`), one of two staging halves and one of two event sets. Two,
+because a rank that has left a collective may reach the next one while a
+neighbour is still executing the previous instance, and peers write into each
+other's staging: the recording being laid down and the one still running must
+not share a command list, an event or a byte of staging. Gathers keep their own
+count because a gather waits on nobody: counted together with the allreduces,
+an allreduce on one side of a gather could share a parity with the allreduce on
+the other side while the first is still running.
 
-A plan owns its event pools, its per-rank command lists, and the signature the
-recording was built from:
+A plan owns its per-rank command lists and completion events, and per rank the
+signature that rank's recording was built from (`RankRecording`). A rank's
+commands depend only on its own buffers and kernel, the call's shape, and where
+the peers it writes to have their staging, so each rank checks and re-records
+its own recording alone; nothing waits for rank 0.
 
-| Part of the signature            | Why it is there                                 |
-|----------------------------------|-------------------------------------------------|
-| `in_ptrs[N]`, `out_ptrs[N]`      | the addresses baked into the recording          |
-| `in_ids[N]`, `out_ids[N]`        | the driver's allocation ids for those addresses |
-| `kernels[N]`                     | each rank's reduction kernel, launched by the recording |
-| `n`, `dtype`                     | payload shape                                   |
-| `recorded_scratch_generation[N]` | which staging arena the recording used          |
+| Part of the signature             | Why it is there                                 |
+|-----------------------------------|-------------------------------------------------|
+| `in`, `out`                       | this rank's addresses baked into the recording  |
+| `in_id`, `out_id`                 | the driver's allocation ids for those addresses |
+| `kernel`                          | this rank's reduction kernel                    |
+| `n`, `dtype`                      | payload shape                                   |
+| `staging[N]`, `staging_ids[N]`    | every rank's staging half for this parity, as published in the mailbox |
+| gather: `rows`, `slice_elems`, `root_out`, `root_out_id` | the slice shape and the root's destination |
 
 The allocation ids are not redundant. intel_gpu frees and reallocates network
 buffers between inferences, and a new allocation landing on an old address used
@@ -311,22 +320,24 @@ to make the signature check report a hit; the next submit then walked a
 destroyed `GraphicsAllocation`. Comparing the driver's id alongside the address
 catches that.
 
-A recording is reused whenever the signature and the arena generation both
-still hold, which is the overwhelming majority of calls. It is re-recorded when
-either moves.
+A recording is reused whenever its signature still holds, which is the
+overwhelming majority of calls.
 
-### Staging arena
+### Staging
 
-One device-USM allocation per rank, shared by every plan and sized to the
-largest payload seen so far (`payload_capacity_bytes`). Growth drains every
-rank's queue first, because the staging addresses are baked into recordings.
-The arena is doubled by `plan_buffers()` for the same reason the plans are.
+One device-USM allocation per rank, owned by that rank, shared by every plan,
+sized to the largest payload the rank has seen and split into two halves, one
+per call parity. A rank publishes the address and allocation id of its half
+with every call, so it grows on its own: before it frees the old allocation it
+waits for its own last splice, which itself waited for every peer write into
+that staging, and peers cannot write the new one before they have read its
+address in the rendezvous. Recordings that still point at the old staging see
+the id change in their signature.
 
-- TP=2: one payload-sized region per rank per buffer.
-- Ring / halving (N>2): `N` chunk slots per rank per buffer, so concurrent
-  steps never share a slot. `chunk_capacity_bytes` is the stride. Halving lays
-  one region per scatter step and one per gather step over the same space,
-  sized from the collective's own payload; `staging_bytes()` asks for that much.
+- TP=2: one payload-sized region per half, aligned to 256 bytes.
+- Ring / halving (N>2): `N` chunk slots per half, so concurrent steps never
+  share a slot. Halving lays one region per scatter step and one per gather
+  step over the same space, sized from the collective's own payload.
 
 No schedule writes into a peer's model buffers: peers write staging only, and
 each rank delivers into its own output. Remote writes into a buffer the
@@ -334,29 +345,30 @@ receiving rank's own kernels had just written were measured to lose against
 them now and then (the halving gather used to do this: about one decode run in
 twelve on four ranks produced a different token).
 
-`payload_capacity_bytes` and `generation` are atomic: ranks read them outside
-the scratch lock to decide for themselves whether the arena is about to move.
-
 ### Executing a collective
 
 ```
 every rank
   |
-  | enter barrier: publish (in, out, alloc ids), wait for all ranks
+  | grow own staging if the payload does not fit (allreduce)
   |
-  | record gate:
-  |   rank 0  settles the signature and grows the arena if needed,
-  |           then bumps record_gen
-  |   others  skip the gate entirely when they can see that neither the
-  |           signature nor the arena moved; otherwise wait for record_gen
+  | call rendezvous: publish {seq, kind, collective_id, n, dtype, rows,
+  |   own staging half (allreduce) or destination (gather root)} into
+  |   mailbox slots[seq & 1][rank]; the last arrival releases the others.
+  |   A mismatch in seq, kind, id or shape aborts the group and throws.
   |
-  | record own commands if this rank's recording is stale
+  | record own commands if this rank's signature moved
   |
   | splice: zeCommandListImmediateAppendCommandListsExp into the queue
   |         intel_gpu already runs the model on, then return
   |
-  └── no exit barrier: the two alternating plan buffers make one unnecessary
+  └── no exit barrier: the alternating slots, plans, staging halves and
+      event sets make one unnecessary
 ```
+
+A mailbox slot set is rewritten only at call `k + 2`, which a rank reaches
+after the rendezvous of `k + 1`, i.e. after every peer has published `k + 1`
+and therefore read the slots of `k`.
 
 The splice is what makes the collective asynchronous: the queue is in-order,
 so the recording lands after whatever produced `in_dev` and before whatever
@@ -400,7 +412,8 @@ column band of rank 0's buffer with one strided region copy — the slices are
 strided in the destination, not contiguous. Ranks write disjoint columns, so
 there is nothing to order between them, but the root must not read before they
 land: every other rank signals `ev_gather[r]` and the root's own recording
-waits on all of them. Unlike allreduce, gather keeps an exit barrier.
+waits on all of them. The root publishes its destination in the rendezvous;
+like allreduce, gather has no exit barrier.
 
 ## intel_gpu Integration
 
@@ -517,12 +530,11 @@ caching properties are aggregated across the rank devices and joined with `;`.
 - `infer_request.cpp` dispatches ranks 1..N-1 to those workers and runs rank 0
   on the calling thread.
 - `CompiledModel::lock_inference()` serializes outer inferences: the
-  rendezvous slots, the recorded command lists and the scratch arena support
+  rendezvous slots, the recorded command lists and the staging support
   one at a time. Rank execution inside that inference stays parallel.
-- Inside `TPDeviceCoordinator::allreduce`, ranks meet at an enter barrier
-  over a `std::condition_variable` with generation counters, then pass a
-  record gate that rank 0 releases. There is no exit barrier; `gather_to_root`
-  keeps one.
+- Inside `TPDeviceCoordinator::allreduce` and `gather_to_root`, ranks meet at
+  a call rendezvous (a mailbox over a `std::condition_variable`, slots
+  alternating by call parity). There is no record gate and no exit barrier.
 
 ## Options
 
