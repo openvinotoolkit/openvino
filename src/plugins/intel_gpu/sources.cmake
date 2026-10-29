@@ -53,6 +53,7 @@ set(GPU_PLUGIN_OPS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/fake_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/fully_connected.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/fully_connected_gguf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gated_delta_net.cpp
     # NOTE: filename contains a literal space (pre-existing, not a typo introduced here)
     "${CMAKE_CURRENT_LIST_DIR}/src/plugin/ops/gather tree.cpp"
@@ -152,6 +153,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_fc_to_compressed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_matmul_to_fc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_matmul_to_fc_gguf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_pooling_to_reduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_shapeof.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/convert_stridedslices_to_variadicsplit.cpp
@@ -212,6 +214,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_OP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/fully_connected.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/fully_connected_compressed.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/fully_connected_gguf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/gemm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/grouped_depth_to_space.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/op/grouped_space_to_depth.cpp

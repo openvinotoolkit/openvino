@@ -19,6 +19,7 @@
 #include "eltwise_inst.h"
 #include "embedding_bag_inst.h"
 #include "extract_image_patches_inst.h"
+#include "fully_connected_gguf_inst.h"
 #include "fully_connected_inst.h"
 #include "gather_elements_inst.h"
 #include "gather_inst.h"
@@ -801,6 +802,29 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return true;
         };
 
+        // FullyConnectedGGUF fuses one residual sum of its own shape and type (no broadcast), plain layouts.
+        auto fc_gguf_supports_fusing = [](fully_connected_gguf_node& node, const eltwise_node& eltw, const program_node& peer) -> bool {
+            const auto prim = eltw.get_primitive();
+            if (node.has_fused_primitives() || prim->mode != eltwise_mode::sum || !prim->coefficients.empty())
+                return false;
+            const auto& out = node.get_output_layout();
+            const auto& res = peer.get_output_layout();
+            const auto& eltw_out = eltw.get_output_layout();
+            if (res.data_type != out.data_type || eltw_out.data_type != out.data_type || !format::is_default_format(res.format) ||
+                !format::is_default_format(eltw_out.format) || res.data_padding)
+                return false;
+            const auto& a = out.get_partial_shape();
+            const auto& b = res.get_partial_shape();
+            if (a.rank().is_dynamic() || b.rank() != a.rank())
+                return false;
+            for (size_t i = 0; i < a.size(); i++) {
+                // equal where both are static; a static 1 against a dynamic dimension may broadcast
+                if (a[i].is_static() && b[i].is_static() ? a[i] != b[i] : (b[i].is_static() && b[i].get_length() == 1))
+                    return false;
+            }
+            return true;
+        };
+
         auto lora_supports_fusings = [&](lora_node& node) -> bool {
             const auto& lora_dep = node.get_dependency(0);
             bool lora_is_single_user = lora_dep.get_users().size() == 1;
@@ -1145,6 +1169,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<lrn>()) ||
                                       (parents[i].first->is_type<lora>() &&
                                        lora_supports_fusings(parents[i].first->as<lora>())) ||
+                                      (parents[i].first->is_type<fully_connected_gguf>() &&
+                                       fc_gguf_supports_fusing(parents[i].first->as<fully_connected_gguf>(), node,
+                                                               *parents[parents.size() - 1 - i].first)) ||
                                        (parents[i].first->is_type<broadcast>() &&
                                        broadcast_supports_fusings(parents[i].first->as<broadcast>()));
             }

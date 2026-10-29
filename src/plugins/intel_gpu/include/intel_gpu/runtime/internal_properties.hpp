@@ -240,6 +240,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> pa_integrity_check{"
 static constexpr Property<std::vector<int>, ov::PropertyMutability::RW> micro_sdpa_workgroup_config{"GPU_MICRO_SDPA_WORKGROUP_CONFIG"};
 static constexpr Property<int, ov::PropertyMutability::RW> micro_sdpa_disable_prefetch{"GPU_MICRO_SDPA_DISABLE_PREFETCH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> gguf_prefill_path{"GPU_GGUF_PREFILL_PATH"};
 static constexpr Property<bool, PropertyMutability::RW> record_replay_dynamic{"GPU_RECORD_REPLAY_DYNAMIC"};
 }  // namespace ov::intel_gpu
 

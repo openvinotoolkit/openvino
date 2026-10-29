@@ -50,6 +50,7 @@ set(OPS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/ops/extract_image_patches.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/fft.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ops/gguf_dequantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/gather_nd.cpp

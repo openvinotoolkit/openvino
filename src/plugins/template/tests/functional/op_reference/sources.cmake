@@ -81,6 +81,7 @@ set(OV_TEMPLATE_TESTS_OP_REFERENCE_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/floor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/floor_mod.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gguf_dequantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_nd.cpp
