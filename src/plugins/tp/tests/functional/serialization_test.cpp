@@ -130,6 +130,25 @@ TEST_F(TPSerializationTest, ImportedModelMatchesExportedOne) {
     expect_identical(exported, infer_to_host(imported, input));
 }
 
+// The same with a vocabulary projection, whose gather is a collective without
+// a kernel of its own: its impl has to survive the round trip as well.
+TEST_F(TPSerializationTest, ImportedModelWithAGatherMatchesExportedOne) {
+    BlockConfig config;
+    auto model = make_block_with_lm_head(config, 768);
+    const auto input = make_input(config);
+
+    std::stringstream blob;
+    ov::Tensor exported;
+    {
+        auto compiled = core.compile_model(model, tp_device(world_size), tp_config());
+        exported = infer_to_host(compiled, input);
+        compiled.export_model(blob);
+    }
+
+    auto imported = core.import_model(blob, tp_device(world_size), tp_config());
+    expect_identical(exported, infer_to_host(imported, input));
+}
+
 // The imported model has no IR behind it, so its ports come from rank 0.  They
 // still have to describe the user model: a caller that binds tensors by name or
 // by index against the exported model must keep working against the imported

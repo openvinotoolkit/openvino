@@ -65,7 +65,7 @@ for the current file layout. Key entry points:
 | intel_gpu `src/plugin/plugin.cpp` | `Plugin::create_tp_context` — the TP context from the `ov::tp::internal` parameters; `Graph::bind_collectives` in `graph.cpp` binds a model to it.                            |
 | intel_gpu `src/runtime/ze/tp/`  | `rank_communicator.cpp` (publish, connect, bind, group registry), `group_state.cpp` (the group's resources: call rendezvous, staging, peer events, fallback queues, watchdog, profiling report), `tp_l0_shared_context.cpp`. |
 | intel_gpu `impls/ocl_v2/tp/`, `impls/ocl_v2/tp_allreduce.cl` | `tp_allreduce.*`: the AllReduce impl, builds the reduction kernel with the model. `tp_allreduce_recorder.*`: the three schedules and their staging layout. `tp_gather_recorder.*`: the gather's strided copy. `tp_recording.*`: a primitive instance's command lists, completion events and splice. Registered from `graph/registry/tp_allreduce_impls.cpp`. |
-| intel_gpu `impls/ocl/tp_gather.cpp`  | The gather impl; runs `TPGatherRecorder`. Registered from `graph/registry/tp_gather_impls.cpp`. |
+| intel_gpu `impls/ocl_v2/tp/tp_gather.*`  | The gather impl (no kernel); runs `TPGatherRecorder`. Registered from `graph/registry/tp_gather_impls.cpp`. |
 
 ## Tunables
 

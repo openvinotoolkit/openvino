@@ -17,7 +17,9 @@ namespace ov::intel_gpu::ocl {
 /// \brief The Level Zero gather of one TPGather on one rank: each rank's
 /// `rows` x `slice_elems` matrix lands as a column band of the root's
 /// `rows` x (`slice_elems` * world_size) buffer. Only rank 0 is written -- the
-/// infer request reads outputs from rank 0 alone.
+/// infer request reads outputs from rank 0 alone. Peers push their slices
+/// into the root's staging and the root copies them into its output itself,
+/// so nothing writes into another rank's model buffer.
 class TPGatherRecorder {
 public:
     TPGatherRecorder() = default;
@@ -41,21 +43,24 @@ private:
     struct Signature {
         bool valid{false};
         void* in{nullptr};
+        void* out{nullptr};  // root only
         uint64_t in_id{0};
+        uint64_t out_id{0};
         std::size_t rows{0};
         std::size_t slice_elems{0};
         ov::element::Type dtype{ov::element::dynamic};
-        void* root_out{nullptr};
-        uint64_t root_out_id{0};
+        void* root_staging{nullptr};
+        uint64_t root_staging_id{0};
 
         bool operator==(const Signature& o) const {
-            return valid == o.valid && in == o.in && in_id == o.in_id && rows == o.rows &&
-                   slice_elems == o.slice_elems && dtype == o.dtype && root_out == o.root_out &&
-                   root_out_id == o.root_out_id;
+            return valid == o.valid && in == o.in && out == o.out && in_id == o.in_id && out_id == o.out_id &&
+                   rows == o.rows && slice_elems == o.slice_elems && dtype == o.dtype &&
+                   root_staging == o.root_staging && root_staging_id == o.root_staging_id;
         }
     };
 
-    void record(int parity, std::vector<ze_event_handle_t>& events);
+    void record(int parity);
+    static std::size_t slab_stride(std::size_t rows, std::size_t slice_bytes);
 
     TPRecording m_rec;
     Signature m_sig[2];

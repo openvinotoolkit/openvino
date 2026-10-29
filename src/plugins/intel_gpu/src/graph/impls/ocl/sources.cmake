@@ -106,6 +106,5 @@ set(GPU_OCL_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/strided_slice.cpp
     ${CMAKE_CURRENT_LIST_DIR}/swiglu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tile.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/tp_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/unique.cpp
 )

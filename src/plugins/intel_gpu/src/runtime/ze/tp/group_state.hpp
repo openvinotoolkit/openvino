@@ -241,19 +241,20 @@ public:
     /// What a gather learns from the call rendezvous.
     struct GatherCall {
         int parity{0};
-        void* root_out{nullptr};
-        uint64_t root_out_id{0};
+        void* root_staging{nullptr};  // the root's half for this call
+        uint64_t root_staging_id{0};
         std::vector<ze_event_handle_t>* events{nullptr};  // [r] = "rank r's slice is down", r > 0
+        std::vector<ze_event_handle_t>* acks{nullptr};    // [r] = "the root has taken rank r's slice", r > 0
     };
 
-    /// The call rendezvous of a gather. `out` is the destination on the root
-    /// and ignored on every other rank.
+    /// The call rendezvous of a gather. On the root, first makes its gather
+    /// staging hold two halves of `half_bytes`.
     void begin_gather(int rank,
                       int collective_id,
                       std::size_t rows,
                       std::size_t slice_elems,
                       ov::element::Type dtype,
-                      void* out,
+                      std::size_t half_bytes,
                       GatherCall& call);
 
     // ---------------------------------------------------------------
@@ -363,10 +364,15 @@ private:
         std::vector<ze_event_handle_t> step;  // ring/halving: [(2(N-1)+1) * N]
     };
 
-    // Gather ordering: rank r != 0 signals [r], the root waits on all of them.
+    // Gather ordering, one set per gather parity. Rank r != 0 signals ev[r]
+    // when its slice is in the root's staging; the root signals ack[r] once it
+    // has copied that slice out, and rank r waits for it before writing the
+    // same half again. Peers depend on nothing else of the root, so without
+    // the ack two gathers in a row could overwrite a half still being read.
     struct GatherEvents {
         ze_event_pool_handle_t pool{nullptr};
-        std::vector<ze_event_handle_t> ev;  // [N], index 0 unused
+        std::vector<ze_event_handle_t> ev;   // [N], index 0 unused
+        std::vector<ze_event_handle_t> ack;  // [N], index 0 unused; created signalled
     };
 
     // A rank's staging: two halves, one per allreduce parity, each half of the
@@ -387,10 +393,8 @@ private:
         std::size_t n{0};
         ov::element::Type dtype{ov::element::dynamic};
         std::size_t rows{0};
-        void* staging{nullptr};  // allreduce: this rank's staging half
+        void* staging{nullptr};  // allreduce: this rank's staging half; gather: the root's
         uint64_t staging_id{0};
-        void* out{nullptr};      // gather root: the destination
-        uint64_t out_id{0};
     };
 
     // The call rendezvous. Every rank publishes one slot per call, in the set
@@ -417,11 +421,16 @@ private:
     void destroy_event_sets();
     RecordingResources create_recording_resources(int rank) const;
 
-    /// Makes `rank`'s staging hold two halves of `half_bytes` and returns the
-    /// half for `parity`. Growing waits for the rank's own last hand-over: by
-    /// then every peer write into the old staging has landed, because that
-    /// collective waited for them.
-    void* ensure_staging(int rank, std::size_t payload_bytes, std::size_t half_bytes, int parity, int collective_id);
+    /// Makes `s` -- `rank`'s staging -- hold two halves of `half_bytes` and
+    /// returns the half for `parity`. Growing waits for the rank's own last
+    /// hand-over: by then every peer write into the old staging has landed,
+    /// because that collective waited for them.
+    void* ensure_staging(Staging& s,
+                         int rank,
+                         std::size_t payload_bytes,
+                         std::size_t half_bytes,
+                         int parity,
+                         int collective_id);
     void destroy_staging();
 
     /// Publishes `mine` and waits until every rank has published the same call;
@@ -470,6 +479,9 @@ private:
 
     mutable std::mutex m_staging_mutex;
     std::vector<Staging> m_staging;
+    // The root's landing area for gathers, apart from the allreduce staging:
+    // the two count their parities separately.
+    Staging m_gather_staging;
     std::vector<uint64_t> m_seq;            // [N] calls of any kind: the mailbox set
     std::vector<uint64_t> m_allreduce_seq;  // [N] their parity picks staging half and events
     std::vector<uint64_t> m_gather_seq;     // [N] kept apart: a gather waits on nobody

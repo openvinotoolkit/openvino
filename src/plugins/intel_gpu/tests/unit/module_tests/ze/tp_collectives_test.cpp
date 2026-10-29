@@ -462,14 +462,16 @@ void run_gather(Collectives& coord,
                 const std::vector<void*>& outs,
                 size_t rows,
                 size_t slice_elems,
-                ov::element::Type dtype) {
+                ov::element::Type dtype,
+                const std::vector<ze_command_list_handle_t>& queues = {}) {
     const int ranks = static_cast<int>(ins.size());
     std::vector<std::thread> threads;
     threads.reserve(ranks);
     for (int r = 0; r < ranks; ++r) {
         threads.emplace_back([&, r] {
+            auto* queue = queues.empty() ? nullptr : queues[r];
             EXPECT_NO_THROW(
-                coord.gather_to_root(collective_id, r, ins[r], outs[r], rows, slice_elems, dtype))
+                coord.gather_to_root(collective_id, r, ins[r], outs[r], rows, slice_elems, dtype, queue))
                 << "rank " << r;
         });
     }
@@ -1552,6 +1554,82 @@ TEST_F(TPCollectivesTest, GatherHandlesASingleRow) {
         ov::zeMemFree(shared->context, outs[r]);
         rs[r].destroy();
     }
+}
+
+// Gathers spliced back to back with nothing in between: the peers depend on
+// nothing of the root, so only the root's acknowledgement keeps a peer from
+// refilling a staging half the root has not copied out yet. Every instance
+// has its own buffers and values, and all are checked once the queues drain.
+TEST_F(TPCollectivesTest, SplicedGathersInARowKeepEveryBand) {
+    Watchdog watchdog(120);
+    const int ranks = std::min(available_gpus, 4);
+    auto shared = make_shared_ctx(ranks);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1);
+    if (!coord->run_spliced())
+        GTEST_SKIP() << "driver has no immediate-append extension";
+
+    constexpr int instances = 8;
+    constexpr size_t rows = 3;
+    constexpr size_t slice = 1000;
+    const size_t full = slice * static_cast<size_t>(ranks);
+    // Unique per instance, rank and position, and exact in f32.
+    auto value_at = [](int k, int r, size_t i) {
+        return static_cast<float>(k * 100000 + r * 10000 + static_cast<int>(i));
+    };
+
+    std::vector<RankScratch> rs(ranks);
+    std::vector<ze_command_list_handle_t> queues(ranks);
+    for (int r = 0; r < ranks; ++r) {
+        rs[r].init(shared->context, shared->devices[r]);
+        queues[r] = rs[r].model_queue();
+    }
+    std::vector<std::vector<void*>> ins(instances, std::vector<void*>(ranks));
+    std::vector<std::vector<void*>> outs(instances, std::vector<void*>(ranks));
+    for (int k = 0; k < instances; ++k) {
+        for (int r = 0; r < ranks; ++r) {
+            ins[k][r] = rs[r].alloc(rows * slice * sizeof(float));
+            outs[k][r] = rs[r].alloc(rows * full * sizeof(float));
+            std::vector<float> host(rows * slice);
+            for (size_t i = 0; i < host.size(); ++i)
+                host[i] = value_at(k, r, i);
+            rs[r].copy_from_host(ins[k][r], host.data(), host.size() * sizeof(float));
+        }
+    }
+
+    // Busy work in front of every gather on the root only, so its device
+    // falls behind while the peers' devices run ahead into the next instances.
+    constexpr size_t busy_bytes = size_t{256} << 20;
+    void* busy_src = rs[0].alloc(busy_bytes);
+    void* busy_dst = rs[0].alloc(busy_bytes);
+    for (int k = 0; k < instances; ++k) {
+        EXPECT_ZE(ov::zeCommandListAppendMemoryCopy(queues[0], busy_dst, busy_src, busy_bytes, nullptr, 0, nullptr));
+        run_gather(*coord, 0, ins[k], outs[k], rows, slice, ov::element::f32, queues);
+    }
+    for (int r = 0; r < ranks; ++r)
+        rs[r].wait_for_model_queue();
+    ov::zeMemFree(shared->context, busy_src);
+    ov::zeMemFree(shared->context, busy_dst);
+    for (int k = 0; k < instances; ++k) {
+        std::vector<float> got(rows * full);
+        rs[0].copy_to_host(got.data(), outs[k][0], got.size() * sizeof(float));
+        size_t wrong = 0;
+        for (size_t y = 0; y < rows; ++y)
+            for (int r = 0; r < ranks; ++r)
+                for (size_t x = 0; x < slice; ++x)
+                    wrong += got[y * full + r * slice + x] != value_at(k, r, y * slice + x);
+        EXPECT_EQ(wrong, 0u) << "instance " << k;
+    }
+    EXPECT_FALSE(coord->is_aborted());
+
+    coord.reset();
+    for (int k = 0; k < instances; ++k) {
+        for (int r = 0; r < ranks; ++r) {
+            ov::zeMemFree(shared->context, ins[k][r]);
+            ov::zeMemFree(shared->context, outs[k][r]);
+        }
+    }
+    for (int r = 0; r < ranks; ++r)
+        rs[r].destroy();
 }
 
 // ---------------------------------------------------------------------------
