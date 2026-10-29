@@ -13,9 +13,33 @@ namespace ov::pass {
  * @ingroup ov_transformation_common_api
  * @brief Fuses QSAPrepare and SparseAttentionIndexer into the stateful internal QSAIndexer op.
  *
- * The pass recognizes the supported RMSNorm -> SparseAttentionIndexer path and the
- * QSAPrepare state inputs, replacing them with one operation that produces selections
- * and updated cache state.
+ * The query RMSNorm, key block preparation and block scoring are executed by one kernel, which
+ * avoids materializing the intermediate block index keys and updated cache state separately.
+ *
+ * Before:                                            After:
+ *
+ *   Query  QWeight   RawKeys ... KeyLength ...         Query QWeight RawKeys ... KeyLength ...
+ *     │       │         │            │                    │     │       │            │
+ *   ┌─┴───────┴─┐   ┌───┴────────────┴───┐             ┌──┴─────┴───────┴────────────┴──┐
+ *   │  RMSNorm  │   │     QSAPrepare     │             │            QSAIndexer          │
+ *   └─────┬─────┘   └──┬──────┬──────┬───┘             └─┬────┬────────┬────────┬────┬──┘
+ *         │   BlockKeys│      │      │                 indices count  block  incomplete
+ *       ┌─┴────────────┴──────┴─┐    │                                 keys   keys/rope
+ *       │SparseAttentionIndexer │    │ incomplete keys/rope state
+ *       └───┬──────────────┬────┘    │
+ *        indices         count
+ *
+ * RMSNorm is either the internal RMSNorm op or its decomposition
+ * Multiply(Divide(x, Sqrt(Add(ReduceMean(Power(x, 2), last_axis, keep_dims), eps))), weight).
+ *
+ * The rewrite is applied only when:
+ *  - query is [?, 4, ?, 128] and raw keys are [?, ?, 128], with compatible batch and sequence;
+ *  - key_block_size is 4, num_selection_heads is 1 and token_budget <= 512;
+ *  - both RMSNorm epsilons are in [1e-6, 1e-5] and both norm weights are enabled;
+ *  - SparseAttentionIndexer consumes QSAPrepare output 0 and the same key length as QSAPrepare,
+ *    and has no index weights input;
+ *  - every RMSNorm node and every QSAPrepare output has a single consumer, since all of them are
+ *    replaced by QSAIndexer.
  */
 class TRANSFORMATIONS_API FuseQSAIndexer : public MatcherPass {
 public:

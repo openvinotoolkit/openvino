@@ -4,9 +4,9 @@
 
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 
-#include <algorithm>
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <string>
 #include <utility>
@@ -93,12 +93,7 @@ QsaGraph build_graph(const GraphOptions& options = {}) {
     Output<Node> rope_cos;
     Output<Node> rope_sin;
     Output<Node> incomplete_rope;
-    ParameterVector parameters{query,
-                               raw_keys,
-                               cache,
-                               key_length,
-                               query_weight,
-                               incomplete_keys};
+    ParameterVector parameters{query, raw_keys, cache, key_length, query_weight, incomplete_keys};
     if (options.disable_rope) {
         const auto empty = v0::Constant::create(options.precision, Shape{0}, std::vector<float>{});
         rope_cos = empty;
@@ -107,8 +102,8 @@ QsaGraph build_graph(const GraphOptions& options = {}) {
     } else {
         const auto rope_cos_parameter = std::make_shared<v0::Parameter>(options.precision, rope_shape);
         const auto rope_sin_parameter = std::make_shared<v0::Parameter>(options.precision, rope_shape);
-        const auto incomplete_rope_parameter = std::make_shared<v0::Parameter>(options.precision,
-                                                                               incomplete_rope_shape);
+        const auto incomplete_rope_parameter =
+            std::make_shared<v0::Parameter>(options.precision, incomplete_rope_shape);
         rope_cos = rope_cos_parameter;
         rope_sin = rope_sin_parameter;
         incomplete_rope = incomplete_rope_parameter;
@@ -288,9 +283,18 @@ TEST(FuseQSAIndexer, AcceptsDecomposedRMSNormAndReversedOperands) {
     GraphOptions options;
     options.decomposed_norm = true;
     options.reverse_norm_operands = true;
+    options.query_epsilon = 1e-5f;
     auto graph = build_graph(options);
     run_fusion(graph.model);
-    EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
+    const auto ordered_ops = graph.model->get_ordered_ops();
+    const auto fused_it = std::find_if(ordered_ops.begin(), ordered_ops.end(), [](const auto& node) {
+        return is_type<op::internal::QSAIndexer>(node);
+    });
+    const auto fused = fused_it == ordered_ops.end() ? nullptr : as_type_ptr<op::internal::QSAIndexer>(*fused_it);
+    ASSERT_NE(fused, nullptr);
+    EXPECT_EQ(fused->input_value(0), graph.fused_inputs[0]);
+    EXPECT_EQ(fused->input_value(5), graph.fused_inputs[5]);
+    EXPECT_FLOAT_EQ(fused->get_config().q_epsilon, options.query_epsilon);
 }
 
 TEST(FuseQSAIndexer, AcceptsInclusiveEpsilonUpperBound) {
