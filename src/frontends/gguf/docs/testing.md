@@ -1,5 +1,7 @@
 # Building and validating the GGUF frontend
 
+Run commands from the repository root. Shorthand paths below are relative to `src/frontends/gguf/`.
+
 Use the repository [build prerequisites](../../../../docs/dev/build.md). GGUF defaults to enabled
 (`ENABLE_OV_GGUF_FRONTEND=ON`); C++ tests require `ENABLE_TESTS=ON` and a shared-library build.
 This Linux single-configuration example puts binaries and libraries in an explicit directory:
@@ -27,13 +29,32 @@ Multi-configuration generators can add a configuration subdirectory.
 | mmproj | `GGUFMMProj`, `GGUFMMProjAccuracy`, `GGUFMMProjDynamicAccuracy`; relevant real-checkpoint tests |
 | Extension API or packaging | Builder/extension tests plus the separate architecture-library binary and actual shipped plugin |
 | Weight conversion | Weight/dequantization tests and checkpoint comparisons with recorded precision settings |
+| GGUF parsing or shard discovery | `GGUFParser`, `GGUFShards`, then the full frontend binary |
 
 Use `--gtest_list_tests` for exact parameterized names; filter while iterating, for example
 `--gtest_filter='GGUFOps.Scale*'`. A narrowed filter skips the operation-coverage gate. That gate
 runs in environment teardown, so inspect the process exit status even if no individual test failed.
 Shared changes require the affected architecture/projector numerical and structural regressions.
 
+`GGUFShards` covers discovery from either shard, unordered explicit lists, renamed files in
+different directories, metadata-only first shards, mapping lifetime, invalid or incomplete
+shard sets, repeated scalar/array metadata, and conversion equivalence with a single-file model,
+including Unicode filenames. Its generated fixtures use
+the standard `split.no` (u16), `split.count` (u16) and `split.tensors.count` (i32) metadata.
+
 ## Fixtures and oracles
+
+Regenerate the Q8_1 weight fixtures with a clean llama.cpp checkout at
+`476c01efe88aad7880a8132d5d3a415f2ca75139` and its freshly built `libggml-base`:
+
+```sh
+python3 src/frontends/gguf/tests/gen_q8_1_accuracy.py \
+  --llama-cpp /path/to/llama.cpp --library /path/to/libggml-base.so
+```
+
+The generator calls ggml's Q8_1 reference quantizer, then copies each block's F16 scale
+and signed codes into Q8_0 blocks for real ggml dequantization. Q8_1 has no `to_float`
+callback. The committed arrays and provenance JSON require no ggml dependency in unit tests.
 
 Small NPZ/NPY numerical references are committed and work offline. Missing numerical references
 fail their tests. Architecture header fixtures are generated separately; if none are present,
@@ -114,6 +135,24 @@ does not erase a failed comparison against quantized CPU arithmetic, and coheren
 does not establish encoder accuracy or broad answer quality.
 
 CI runs the two C++ binaries through [Smart CI's GGUF component gate](../../../../.github/workflows/job_cxx_unit_tests.yml).
+The jobs invoke GTest directly and upload XML reports. Fixture availability and
+conversion expectations are checked by the architecture suite itself. Run the
+same binaries locally with `--gtest_filter` while editing; use GHA for broader
+coverage and inspect test counts and skips in its artifacts.
 [Model-hub CI](../../../../.github/workflows/job_gguf_models_tests.yml) runs checkpoint lists;
 [llama.cpp compatibility CI](../../../../.github/workflows/job_gguf_llamacpp_validation.yml) records
 the backend revision, operator tests, state scenarios, and exclusions. These validate different contracts.
+
+[GenAI acceptance CI](../../../../.github/workflows/job_gguf_genai_validation.yml)
+uses this workflow's OpenVINO package and wheels and a pinned companion GenAI
+commit on a 4-core/16-GB runner. Precommit runs generated tiny decoder, MoE and
+recurrent models across SDPA, PA, AUTO and continuous batching, plus tiny GGUF
+tokenizer, input, beam-search, streaming and saved-IR regressions. The multimodal
+pytest harness builds an independent pinned llama.cpp CPU oracle, converts pinned
+tiny checkpoints, and runs square/JPEG, SDPA/PA, single/multiple media, video/audio,
+chat, cancellation/reset and beam-search cases. Separate checks cover Optimum
+directory/map loading. Scheduled runs also enable the real Qwen3.5 pure Q4_0 fixture
+through `run-real-models`; precommit uses tiny models only.
+Acceptance reports record required coverage and source/precision provenance;
+Q4_K_M is excluded from accuracy gates pending the plugin fix. Known Gemma4
+window and Unified prefix-cache parity gaps remain documented in [mmproj.md](mmproj.md).

@@ -247,7 +247,7 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
     auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
     auto p_gather = wrap_type<ov::op::util::GatherBase>({p_convert, p_index, p_axis}, {{"batch_dims", 0}});
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+    ov::matcher_pass_callback callback = [=](Matcher& m) {
         const auto gather = m.get_match_root();
 
         auto reshape = std::make_shared<v1::Reshape>(gather->input_value(0),

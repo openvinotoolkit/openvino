@@ -7,6 +7,8 @@
 runtime/run-policy-on-robot
 runtime/use-execution-modes
 runtime/add-runtime-callbacks
+runtime/share-a-robot
+runtime/upgrade-from-0-1-x
 inference/load-exported-policy
 inference/use-manifest
 inference/configure-pre-post-processing
@@ -23,6 +25,8 @@ This section contains task-oriented guides for common runtime workflows.
 - [Run a policy on a robot](runtime/run-policy-on-robot.md)
 - [Use execution modes](runtime/use-execution-modes.md)
 - [Add runtime callbacks](runtime/add-runtime-callbacks.md)
+- [Share a robot across processes](runtime/share-a-robot.md)
+- [Upgrade from 0.1.x](runtime/upgrade-from-0-1-x.md)
 
 ## Inference
 
