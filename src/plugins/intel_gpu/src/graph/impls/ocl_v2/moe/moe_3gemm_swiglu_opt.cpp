@@ -1254,19 +1254,21 @@ public:
     unpack_src_key _u2_unpack_shared_weight_key[4];
     unpack_src_key _u2_unpack_shared_zp_key[4];
 
-    // The native u2 GEMM may only serve a layer whose three expert GEMMs are ALL u2 (`_weights_u2`
-    // is their OR): it reads a u2 expert stride and unpacks every byte into four 2-bit values.
-    // The unpack decision in execute() and the routing in exec_prefill_grouped_gemm() must use this
-    // same predicate, or a mixed layer reaches the u4 path with routed weights never unpacked.
+    // Decided per GEMM: a u2 GEMM takes the native u2 GEMM when the kernel supports this layer, any
+    // other GEMM (u4/u8) always takes the oneDNN grouped GEMM. The native kernel reads a u2 expert
+    // stride, so it must never see a non-u2 weight.
+    // Stage registration, the unpack in execute() and the routing in exec_prefill_grouped_gemm() must
+    // all use this predicate, or a u2 GEMM reaches the oneDNN path with its weights never unpacked.
     // `arch` is a parameter because the kernel does not build for every (arch, group_size) pair;
-    // then the impl must decline here and let the unpack + grouped GEMM path run.
-    bool use_native_u2_prefill(gpu_arch arch) const {
-        return _gemm_weights_u2[0] && _gemm_weights_u2[1] && _gemm_weights_u2[2] &&
-               MoE3GemmSwigluU2Gemm::supported(arch,
-                                               static_cast<size_t>(_hidden_size),
-                                               static_cast<size_t>(_intermediate_size),
-                                               static_cast<size_t>(_gate_up_group_size),
-                                               static_cast<size_t>(_down_group_size));
+    // then the impl must decline here and let the unpack + grouped GEMM path run. Both group sizes
+    // are checked even for one GEMM: the three stages share one block list, so the DPAS/FMA choice
+    // must agree across them.
+    bool use_native_u2_gemm(gpu_arch arch, int gemm_idx) const {
+        return _gemm_weights_u2[gemm_idx] && MoE3GemmSwigluU2Gemm::supported(arch,
+                                                                             static_cast<size_t>(_hidden_size),
+                                                                             static_cast<size_t>(_intermediate_size),
+                                                                             static_cast<size_t>(_gate_up_group_size),
+                                                                             static_cast<size_t>(_down_group_size));
     }
 
     // Which variant of moe_u2_gemm was JIT-compiled. This mirrors the decision the kernel
@@ -1314,8 +1316,9 @@ public:
             use_micro_gemm_prefill = false;
         }
 
-        // micro-gemm and oneDNN have no u2 dtype: decode uses the batched GEMV kernels, prefill unpacks u2 into u4
-        // scratch for the grouped GEMM path. Any u2 GEMM in the layer selects this split.
+        // micro-gemm and oneDNN have no u2 dtype: decode uses the batched GEMV kernels, prefill runs each u2 GEMM
+        // natively or, where the native kernel is unsupported, unpacks it into u4 scratch for the grouped GEMM path.
+        // Any u2 GEMM in the layer selects this split.
         _gemm_weights_u2[0] = (weight_dt == data_types::u2);
         _gemm_weights_u2[1] = (params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1)).data_type == data_types::u2);
         _gemm_weights_u2[2] = (params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type == data_types::u2);
@@ -1384,11 +1387,15 @@ public:
         }
         if (_weights_u2 || has_u2_shared_weights()) {
             add_stage(u2_unpack, params);
-            // Native u2 GEMM stages, registered under the same predicate that decides whether they
-            // are dispatched: under the OR, a mixed layer would build a stage for its non-u2 GEMM.
-            if (use_native_u2_prefill(info.arch)) {
+            // Native u2 GEMM stages, registered under the same per-GEMM predicate that decides whether
+            // they are dispatched: the JIT of a non-u2 GEMM must never be built.
+            if (use_native_u2_gemm(info.arch, 0)) {
                 add_stage(u2_gemm_gate, params);
+            }
+            if (use_native_u2_gemm(info.arch, 1)) {
                 add_stage(u2_gemm_up, params);
+            }
+            if (use_native_u2_gemm(info.arch, 2)) {
                 add_stage(u2_gemm_down, params);
             }
         }
@@ -2585,10 +2592,14 @@ public:
         auto gk = std::make_shared<grouped_onednn_kernel>();
         gk->has_zp = has_zp;
 
+        // Primitives are built only for the GEMMs that do not take the native u2 GEMM: creating them is
+        // the expensive one-time TTFT cost. The native set is fixed per impl, so the cache key is unchanged.
+        const auto arch = instance.get_impl_params()->get_device_info().arch;
+
         // Gate GEMM with fused eltwise(swish/gelu) + binary_mul(up_output) post-ops.
         // This eliminates the separate grouped_gemm_prefill_swiglu OCL kernel.
         // Execution order: up GEMM first, then gate GEMM with post-ops consuming up output.
-        {
+        if (!use_native_u2_gemm(arch, 0)) {
             dnnl::primitive_attr gate_attr;
             gate_attr.set_fpmath_mode(dnnl::fpmath_mode::f16, true);
 
@@ -2622,24 +2633,28 @@ public:
             gk->gate_prim = dnnl::matmul(gk->gate_pd);
             gk->gate_has_post_ops = true;
             gk->gate_bin_po_idx = 1;  // eltwise is index 0, binary is index 1
-        }
-        gk->gate_scale_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, dnnl::memory::data_type::f16);
-        if (has_zp) {
-            gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, gw_dt);
-        }
-
-        gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt);
-        gk->up_prim = dnnl::matmul(gk->up_pd);
-        gk->up_scale_md = gk->gate_scale_md;
-        if (has_zp) {
-            gk->up_zp_md = gk->gate_zp_md;
+            gk->gate_scale_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, dnnl::memory::data_type::f16);
+            if (has_zp) {
+                gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, gw_dt);
+            }
         }
 
-        gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt);
-        gk->down_prim = dnnl::matmul(gk->down_pd);
-        gk->down_scale_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dnnl::memory::data_type::f16);
-        if (has_zp) {
-            gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dw_dt);
+        if (!use_native_u2_gemm(arch, 1)) {
+            gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt);
+            gk->up_prim = dnnl::matmul(gk->up_pd);
+            gk->up_scale_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, dnnl::memory::data_type::f16);
+            if (has_zp) {
+                gk->up_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, uw_dt);
+            }
+        }
+
+        if (!use_native_u2_gemm(arch, 2)) {
+            gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt);
+            gk->down_prim = dnnl::matmul(gk->down_pd);
+            gk->down_scale_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dnnl::memory::data_type::f16);
+            if (has_zp) {
+                gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dw_dt);
+            }
         }
 
         _grouped_kernels.add(key, gk);
@@ -2866,11 +2881,10 @@ public:
 
     // u2 prefill: unpack the u2 expert weights (and ZP) into u4 scratch for the grouped GEMM path, which has no u2
     // dtype. Runs once per bound weight buffer, not per prefill (see the *_key members).
-    // skip_routed: the native u2 GEMM reads the routed weights directly, so only the shared expert is unpacked.
+    // A routed GEMM served by the native u2 GEMM reads its weights directly and is not unpacked.
     cldnn::event::ptr unpack_u2_weights_for_prefill(typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                                     scratch_buffers& scratch,
-                                                    const std::vector<cldnn::event::ptr>& events,
-                                                    bool skip_routed = false) {
+                                                    const std::vector<cldnn::event::ptr>& events) {
         auto cur_moe = instance.get_typed_desc<moe_3gemm_fused_compressed>();
         const auto& config = cur_moe->_config;
         auto& engine = instance.get_network().get_engine();
@@ -2880,8 +2894,9 @@ public:
         const auto round_up = [](size_t v) {
             return (v + lws - 1) / lws * lws;
         };
-        for (int i = 0; i < 3 && !skip_routed; i++) {
-            if (!_gemm_weights_u2[i])
+        const auto arch = instance.get_impl_params()->get_device_info().arch;
+        for (int i = 0; i < 3; i++) {
+            if (!_gemm_weights_u2[i] || use_native_u2_gemm(arch, i))
                 continue;
 
             // Byte-wise u2 -> u4 unpack: both share the logical element order ([expert, oc, ic], LSB-first), so the
@@ -3239,19 +3254,22 @@ public:
                         " (GROUPED_OFFSETS), but only ",
                         intermediates_memories.size(),
                         " were allocated");
-        // Native u2 path: the three expert GEMMs run on the u2 weights directly, so no oneDNN
-        // grouped primitive is built and no u4 unpack scratch is allocated. Everything around
-        // them (gather, SiLU*mul, scatter_reduce, the shared expert) is unchanged.
-        const bool use_native_u2 = use_native_u2_prefill(instance.get_impl_params()->get_device_info().arch);
+        // Native u2 path, per GEMM: a native GEMM runs on the u2 weights directly, so it needs no oneDNN
+        // primitive and no u4 unpack scratch. Everything around the GEMMs (gather, SiLU*mul,
+        // scatter_reduce, the shared expert) is unchanged.
+        const auto arch = instance.get_impl_params()->get_device_info().arch;
+        const bool gate_native = use_native_u2_gemm(arch, 0);
+        const bool up_native = use_native_u2_gemm(arch, 1);
+        const bool down_native = use_native_u2_gemm(arch, 2);
         int u2_num_blocks = 0;
-        if (use_native_u2) {
+        if (gate_native || up_native || down_native) {
             u2_num_blocks = build_u2_gemm_blocks(instance, experts_id_cpu, tokens_lens_per_expert_cpu);
             OPENVINO_ASSERT(u2_num_blocks > 0, "moe_3gemm native u2 GEMM: no work blocks for ", total_gathered_tokens, " gathered tokens");
         }
 
-        // get_grouped_kernel() builds oneDNN primitives against u4 weight descriptors; on the
-        // native path those weights do not exist, so it must not be called at all.
-        grouped_onednn_kernel* gk_ptr = use_native_u2 ? nullptr : &get_grouped_kernel(total_gathered_tokens, instance);
+        // get_grouped_kernel() builds oneDNN primitives only for the non-native GEMMs; with none left
+        // there is nothing to build.
+        grouped_onednn_kernel* gk_ptr = (gate_native && up_native && down_native) ? nullptr : &get_grouped_kernel(total_gathered_tokens, instance);
         auto row_offsets = intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS];
 
         // Runtime dispatch hint: actual max tokens assigned to any single expert.
@@ -3267,7 +3285,7 @@ public:
         // This eliminates the separate grouped_gemm_prefill_swiglu OCL kernel launch.
 
         // up GEMM: [total, hidden] * W_up[E,hidden,inter] -> [total, inter]
-        if (use_native_u2) {
+        if (up_native) {
             ret_event =
                 run_u2_gemm(ret_event, instance, *u2_gemm_up, 1, scratch.x, scratch.up, scratch, static_cast<size_t>(_intermediate_size), u2_num_blocks);
         } else {
@@ -3290,7 +3308,7 @@ public:
 
         // gate GEMM with fused post-ops: gate_output = activation(X * W_gate) * up_output
         // Result written to scratch.gate, ready for down GEMM.
-        if (use_native_u2) {
+        if (gate_native) {
             // The native u2 GEMM has no post-ops: gate and up are combined by the separate SiLU*mul kernel.
             ret_event =
                 run_u2_gemm(ret_event, instance, *u2_gemm_gate, 0, scratch.x, scratch.gate, scratch, static_cast<size_t>(_intermediate_size), u2_num_blocks);
@@ -3325,7 +3343,7 @@ public:
         }
 
         // down GEMM: [total, inter] * W_down[E,inter,hidden] -> [total, hidden]
-        if (use_native_u2) {
+        if (down_native) {
             ret_event = run_u2_gemm(ret_event, instance, *u2_gemm_down, 2, scratch.gate, scratch.y, scratch, static_cast<size_t>(_hidden_size), u2_num_blocks);
         } else {
             auto& gk = *gk_ptr;
@@ -3438,12 +3456,9 @@ public:
         // prefill path.
         cldnn::event::ptr unpack_event = nullptr;
         if (_weights_u2 || has_u2_shared_weights()) {
-            // _weights_u2 => the routed experts take the native u2 GEMM below, so only the
-            // shared expert's projections still need a u4 copy.
-            unpack_event = unpack_u2_weights_for_prefill(instance,
-                                                         scratch,
-                                                         events,
-                                                         /*skip_routed=*/use_native_u2_prefill(instance.get_impl_params()->get_device_info().arch));
+            // Routed u2 GEMMs that take the native u2 GEMM below are skipped; the shared expert's
+            // projections always need a u4 copy.
+            unpack_event = unpack_u2_weights_for_prefill(instance, scratch, events);
         }
         if (_weights_u2) {
             // Routed experts: the native u2 GEMM, or else the unpacked u4 copies as regular u4 weights.
