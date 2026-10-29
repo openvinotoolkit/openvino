@@ -184,6 +184,33 @@ TEST(QSATypeProp, QSAIndexerInfersDisabledRoPEStateShape) {
     EXPECT_EQ(op->get_output_partial_shape(4), (PartialShape{2, 0}));
 }
 
+TEST(QSATypeProp, QSAIndexerDerivesHeadCountAndHeadSizeFromInputs) {
+    auto inputs = make_qsa_indexer_inputs(PartialShape{2, 8, 3, 64});
+    inputs[1] = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 64});
+    inputs[5] = std::make_shared<Parameter>(element::f32, PartialShape{64});
+    inputs[6] = std::make_shared<Parameter>(element::f32, PartialShape{64});
+    inputs[7] = std::make_shared<Parameter>(element::f32, PartialShape{2, 4, 64});
+    inputs[8] = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 64});
+    const auto op =
+        std::make_shared<op::internal::QSAIndexer>(inputs,
+                                                   op::internal::QSAIndexer::Config{4, 16, 1, 1e-6f, 1e-6f, true});
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, 3, 4}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{2, 4, 64}));
+}
+
+TEST(QSATypeProp, QSAIndexerRejectsRotaryDimensionLargerThanHeadSize) {
+    auto inputs = make_qsa_indexer_inputs(PartialShape{2, 4, 3, 8});
+    inputs[1] = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 8});
+    inputs[5] = std::make_shared<Parameter>(element::f32, PartialShape{8});
+    inputs[6] = std::make_shared<Parameter>(element::f32, PartialShape{8});
+    inputs[7] = std::make_shared<Parameter>(element::f32, PartialShape{2, 4, 8});
+    inputs[8] = std::make_shared<Parameter>(element::f32, PartialShape{2, 3, 8});
+    EXPECT_THROW(
+        std::make_shared<op::internal::QSAIndexer>(inputs,
+                                                   op::internal::QSAIndexer::Config{4, 16, 1, 1e-6f, 1e-6f, true}),
+        NodeValidationFailure);
+}
+
 TEST(QSATypeProp, QSAIndexerRejectsNonCausalConfigurationAndInvalidPorts) {
     auto config = op::internal::QSAIndexer::Config{4, 16, 1, 1e-6f, 1e-6f, false};
     EXPECT_THROW(std::make_shared<op::internal::QSAIndexer>(make_qsa_indexer_inputs(), config), NodeValidationFailure);
@@ -193,38 +220,10 @@ TEST(QSATypeProp, QSAIndexerRejectsNonCausalConfigurationAndInvalidPorts) {
         std::make_shared<op::internal::QSAIndexer>(inputs,
                                                    op::internal::QSAIndexer::Config{4, 16, 1, 1e-6f, 1e-6f, true}),
         NodeValidationFailure);
-    EXPECT_THROW(std::make_shared<op::internal::QSAIndexer>(
-                     make_qsa_indexer_inputs(),
-                     op::internal::QSAIndexer::Config{4, 16, 1, 0.0f, 1e-6f, true}),
-                 NodeValidationFailure);
-}
-
-TEST(QSATypeProp, QSAIndexerReportsKernelSupportWithoutThrowing) {
-    using Config = op::internal::QSAIndexer::Config;
-    const auto supported_config = Config{4, 512, 1, 1e-5f, 1e-6f, true};
-    const auto supported_query = PartialShape{-1, 4, -1, 128};
-    std::string reason;
-    EXPECT_TRUE(op::internal::QSAIndexer::is_supported(supported_config, supported_query, reason));
-    EXPECT_TRUE(reason.empty());
-
-    const std::vector<std::pair<Config, PartialShape>> unsupported_cases{
-        {Config{4, 16, 1, 1e-6f, 1e-6f, false}, supported_query},
-        {Config{8, 16, 1, 1e-6f, 1e-6f, true}, supported_query},
-        {Config{4, 16, 2, 1e-6f, 1e-6f, true}, supported_query},
-        {Config{4, 516, 1, 1e-6f, 1e-6f, true}, supported_query},
-        {Config{4, 18, 1, 1e-6f, 1e-6f, true}, supported_query},
-        {Config{4, 16, 1, 5e-7f, 1e-6f, true}, supported_query},
-        {Config{4, 16, 1, 1e-6f, 2e-5f, true}, supported_query},
-        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape::dynamic()},
-        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape{2, 8, 3, 128}},
-        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape{2, -1, 3, 128}},
-        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape{2, 4, 3, 64}},
-        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape{2, 4, 3, -1}},
-    };
-    for (const auto& [config, query_shape] : unsupported_cases) {
-        EXPECT_FALSE(op::internal::QSAIndexer::is_supported(config, query_shape, reason)) << query_shape;
-        EXPECT_FALSE(reason.empty()) << query_shape;
-    }
+    EXPECT_THROW(
+        std::make_shared<op::internal::QSAIndexer>(make_qsa_indexer_inputs(),
+                                                   op::internal::QSAIndexer::Config{4, 16, 1, 0.0f, 1e-6f, true}),
+        NodeValidationFailure);
 }
 
 TEST(QSATypeProp, OperationAttributesRoundTripThroughVisitors) {

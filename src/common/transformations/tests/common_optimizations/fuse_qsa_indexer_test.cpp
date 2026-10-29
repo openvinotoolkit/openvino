@@ -342,43 +342,39 @@ TEST(FuseQSAIndexer, DoesNotRejectFP32) {
     EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
 }
 
-TEST(FuseQSAIndexer, LeavesKernelLimitsToPluginCompilation) {
-    const std::vector<std::pair<std::string, GraphOptions>> cases{{"dynamic_query_heads",
-                                                                   [] {
-                                                                       GraphOptions options;
-                                                                       options.dynamic_query_heads = true;
-                                                                       return options;
-                                                                   }()},
-                                                                  {"dynamic_head_size",
-                                                                   [] {
-                                                                       GraphOptions options;
-                                                                       options.dynamic_head_size = true;
-                                                                       return options;
-                                                                   }()},
-                                                                  {"block_size",
-                                                                   [] {
-                                                                       GraphOptions options;
-                                                                       options.key_block_size = 8;
-                                                                       return options;
-                                                                   }()},
-                                                                  {"token_budget",
-                                                                   [] {
-                                                                       GraphOptions options;
-                                                                       options.token_budget = 516;
-                                                                       return options;
-                                                                   }()},
-                                                                  {"num_selection_heads",
-                                                                   [] {
-                                                                       GraphOptions options;
-                                                                       options.num_selection_heads = 2;
-                                                                       return options;
-                                                                   }()},
-                                                                  {"epsilons", [] {
-                                                                       GraphOptions options;
-                                                                       options.query_epsilon = 2e-5f;
-                                                                       options.key_epsilon = 5e-7f;
-                                                                       return options;
-                                                                   }()}};
+TEST(FuseQSAIndexer, DoesNotRestrictKernelDimensionsOrConfiguration) {
+    const auto with = [](auto&& setter) {
+        GraphOptions options;
+        setter(options);
+        return options;
+    };
+    const std::vector<std::pair<std::string, GraphOptions>> cases{
+        {"query_heads", with([](GraphOptions& o) {
+             o.query_heads = 8;
+         })},
+        {"head_size", with([](GraphOptions& o) {
+             o.head_size = 64;
+         })},
+        {"dynamic_query_heads", with([](GraphOptions& o) {
+             o.dynamic_query_heads = true;
+         })},
+        {"dynamic_head_size", with([](GraphOptions& o) {
+             o.dynamic_head_size = true;
+         })},
+        {"block_size", with([](GraphOptions& o) {
+             o.key_block_size = 8;
+         })},
+        {"token_budget", with([](GraphOptions& o) {
+             o.token_budget = 516;
+         })},
+        {"num_selection_heads", with([](GraphOptions& o) {
+             o.num_selection_heads = 2;
+         })},
+        {"epsilons", with([](GraphOptions& o) {
+             o.query_epsilon = 2e-5f;
+             o.key_epsilon = 5e-7f;
+         })},
+    };
 
     for (const auto& [name, options] : cases) {
         SCOPED_TRACE(name);

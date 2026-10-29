@@ -40,8 +40,9 @@ namespace ov::pass {
  *  - every RMSNorm node and every QSAPrepare output has a single consumer, since all of them are
  *    replaced by QSAIndexer.
  *
- * Kernel limits (head count, head size, key block size, selection heads, token budget, epsilons)
- * are not checked here; plugins verify them during compilation, e.g. via QSAIndexer::is_supported.
+ * Head count, head size, block size, token budget and epsilon values are not restricted here:
+ * QSAIndexer derives them from the matched graph, and plugins reject configurations their
+ * kernels do not support during compilation.
  */
 class TRANSFORMATIONS_API FuseQSAIndexer : public MatcherPass {
 public:

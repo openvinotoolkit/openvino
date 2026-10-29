@@ -15,35 +15,6 @@ QSAIndexer::QSAIndexer(const ov::OutputVector& args, const Config& config) : Op(
     constructor_validate_and_infer_types();
 }
 
-bool QSAIndexer::is_supported(const Config& config, const ov::PartialShape& query_shape, std::string& reason) {
-    const auto is_supported_epsilon = [](float epsilon) {
-        return std::isfinite(epsilon) && epsilon >= min_epsilon && epsilon <= max_epsilon;
-    };
-    if (!config.is_causal) {
-        reason = "only causal block selection is supported";
-    } else if (config.key_block_size != supported_key_block_size) {
-        reason = "key_block_size must be " + std::to_string(supported_key_block_size);
-    } else if (config.num_selection_heads != supported_num_selection_heads) {
-        reason = "num_selection_heads must be " + std::to_string(supported_num_selection_heads);
-    } else if (config.token_budget <= 0 || config.token_budget > max_token_budget ||
-               config.token_budget % config.key_block_size != 0) {
-        reason = "token_budget must be a positive multiple of key_block_size not greater than " +
-                 std::to_string(max_token_budget);
-    } else if (!is_supported_epsilon(config.q_epsilon) || !is_supported_epsilon(config.k_epsilon)) {
-        reason = "q_epsilon and k_epsilon must be in [1e-6, 1e-5]";
-    } else if (query_shape.rank().is_dynamic() || query_shape.size() != 4) {
-        reason = "index_query must have static rank 4";
-    } else if (query_shape[1] != Dimension(supported_num_heads)) {
-        reason = "index_query must have " + std::to_string(supported_num_heads) + " static heads";
-    } else if (query_shape[3] != Dimension(supported_head_size)) {
-        reason = "index_query must have static head size " + std::to_string(supported_head_size);
-    } else {
-        reason.clear();
-        return true;
-    }
-    return false;
-}
-
 bool QSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(QSAIndexer_visit_attributes);
     visitor.on_attribute("key_block_size", m_config.key_block_size);
@@ -124,8 +95,6 @@ void QSAIndexer::validate_and_infer_types() {
         sequence = query_shape[2];
         depth = query_shape[3];
         heads = query_shape[1];
-        NODE_VALIDATION_CHECK(this, heads.compatible(supported_num_heads));
-        NODE_VALIDATION_CHECK(this, depth.compatible(supported_head_size));
     }
     if (raw_keys_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(this, raw_keys_shape[0].compatible(batch));
@@ -163,7 +132,9 @@ void QSAIndexer::validate_and_infer_types() {
             rope_sin_shape[1].compatible(raw_keys_shape.rank().is_static() ? raw_keys_shape[1] : Dimension::dynamic()));
         NODE_VALIDATION_CHECK(this, rope_cos_shape[2].compatible(rope_sin_shape[2]));
         NODE_VALIDATION_CHECK(this,
-                              rope_cos_shape[2].is_dynamic() || rope_cos_shape[2].get_length() <= supported_head_size);
+                              rope_cos_shape[2].is_dynamic() || depth.is_dynamic() ||
+                                  rope_cos_shape[2].get_length() <= depth.get_length(),
+                              "Rotary dimension must not exceed the head size.");
         if (incomplete_rope_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(this, incomplete_rope_shape[0].compatible(batch));
             if (rope_cos_shape[2].is_static()) {
