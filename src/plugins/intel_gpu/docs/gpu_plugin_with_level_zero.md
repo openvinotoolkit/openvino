@@ -4,10 +4,6 @@ OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. Wh
 
 Level Zero is the better-performing runtime on Xe2 and newer Intel GPU architectures; on pre-Xe2 GPUs, OpenCL remains the better choice.
 
-## Requirements
-
-The target system needs an Intel GPU driver that provides the Level Zero packages (`intel-level-zero-gpu`, `level-zero` on Linux), as described in the [GPU configuration guide](https://docs.openvino.ai/2026/get-started/install-openvino/configurations/configurations-intel-gpu.html).
-
 ## How to build with Level Zero support
 
 1. Configure cmake with the following additional option:
