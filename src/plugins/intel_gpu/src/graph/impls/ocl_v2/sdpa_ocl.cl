@@ -43,6 +43,13 @@ extern void __builtin_IB_lsc_prefetch_global_uchar(const __global uchar *base, i
 #  define WIDE_Q_SLM 0
 #endif
 
+#ifdef HPG_PA_PREFILL
+// The xe_hpg PA PREFILL kernel takes the place of the one below (SDPAOclGenerator: hpg_pa_prefill_ok()).
+#include "sdpa_ocl_hpg_pa_prefill.cl"
+#  if !defined(SDPA_OCL_HPG_PA_PREFILL_INL)
+#    error "sdpa_ocl.cl: sdpa_ocl_hpg_pa_prefill.cl was not inlined"
+#  endif
+#else
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, sg_per_wg, 1)))
 KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
@@ -1228,3 +1235,4 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         }
     }
 }
+#endif  // HPG_PA_PREFILL
