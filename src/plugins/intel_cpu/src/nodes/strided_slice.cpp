@@ -365,7 +365,7 @@ void StridedSlice::createPrimitive() {
 }
 
 bool StridedSlice::needPrepareParams() const {
-    return true;
+    return Node::inputShapesModified() || shapeHasDataDependency;
 }
 
 void StridedSlice::prepareParams() {
