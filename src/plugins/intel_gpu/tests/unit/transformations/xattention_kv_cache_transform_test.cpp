@@ -11,7 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "../../../src/plugin/transformations_pipeline.cpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
@@ -25,11 +24,13 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "test_utils.h"
+
+#include "../../../src/plugin/transformations_pipeline.cpp"
 
 using namespace tests;
 
