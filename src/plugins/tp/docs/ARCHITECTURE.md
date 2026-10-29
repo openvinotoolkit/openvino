@@ -259,7 +259,7 @@ src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 │   ├── tp_allreduce.{hpp,cpp}              ← AllReduce impl
 │   ├── tp_gather.{hpp,cpp}                 ← Gather impl (copies only)
 │   ├── tp_allreduce_recorder.{hpp,cpp}     ← pair / ring / halving schedules
-│   ├── tp_gather_recorder.{hpp,cpp}        ← slices through the root's staging
+│   ├── tp_gather_recorder.{hpp,cpp}        ← bands into the root's output
 │   └── tp_recording.{hpp,cpp}              ← lists, completion events, splice
 ├── src/graph/impls/ocl_v2/tp_allreduce.cl  ← the reduction kernel (codegen
 │                                          reads .cl from the ocl_v2 root only)
@@ -319,7 +319,8 @@ collective may reach the next one while a neighbour is still executing the
 previous instance, and peers write into each other's staging: the recording
 being laid down and the one still running must not share a command list, an
 event or a byte of staging. Gathers keep their own count because a gather
-waits on nobody: counted together with the allreduces, an allreduce on one side
+does not order the peers against each other (each waits only for the root):
+counted together with the allreduces, an allreduce on one side
 of a gather could share a parity with the allreduce on the other side while the
 first is still running.
 
@@ -335,7 +336,7 @@ its own recording alone; nothing waits for rank 0.
 | `kernel`                          | this rank's reduction kernel                    |
 | `n`, `dtype`                      | payload shape                                   |
 | `staging[N]`, `staging_ids[N]`    | every rank's staging half for this parity, as published in the mailbox |
-| gather: `rows`, `slice_elems`, `root_staging`, `root_staging_id` | the slice shape and where the root takes the slices |
+| gather: `rows`, `slice_elems`, `root_out`, `root_out_id` | the slice shape and the root's output the bands go to |
 
 The allocation ids are not redundant. intel_gpu frees and reallocates network
 buffers between inferences, and a new allocation landing on an old address used
@@ -364,11 +365,13 @@ the id change in their signature.
   share a slot. Halving lays one region per scatter step and one per gather
   step over the same space, sized from the collective's own payload.
 
-No schedule writes into a peer's model buffers: peers write staging only, and
-each rank delivers into its own output. Remote writes into a buffer the
-receiving rank's own kernels had just written were measured to lose against
+No allreduce schedule writes into a peer's model buffers: peers write staging
+only, and each rank delivers into its own output. Remote writes into a buffer
+the receiving rank's own kernels had just written were measured to lose against
 them now and then (the halving gather used to do this: about one decode run in
-twelve on four ranks produced a different token).
+twelve on four ranks produced a different token). The gather does write into
+the root's output, but only behind a handshake with the root's queue (see
+"Gather").
 
 ### Executing a collective
 
@@ -378,7 +381,7 @@ every rank
   | grow own staging if the payload does not fit (allreduce)
   |
   | call rendezvous: publish {seq, kind, collective_id, n, dtype, rows,
-  |   own staging half (allreduce) or the root's gather staging half} into
+  |   own staging half (allreduce) or the root's output (gather)} into
   |   mailbox slots[seq & 1][rank]; the last arrival releases the others.
   |   A mismatch in seq, kind, id or shape aborts the group and throws.
   |
@@ -415,7 +418,7 @@ would hang the group with no deadline to catch it. A watchdog thread, started
 on the first spliced collective, polls the completion events the recordings
 registered and aborts the group if nothing advances within
 `COMMUNICATION_TIMEOUT_MS`. It then signals every event of the group from the
-host -- peer events, gather acks and completion events -- so the waiting queues
+host -- peer events, gather ready events and completion events -- so the waiting queues
 drain. What they produced is garbage, so the inference that ran into it throws
 once its stream has drained (`Graph::throw_if_collectives_failed()` in
 `SyncInferRequest::wait()`), every later collective throws at once, and binding
@@ -443,20 +446,34 @@ transfers zeros on the validated driver.
 ### Gather
 
 The gather collects every rank's `rows x slice` matrix as a column band of
-rank 0's output, and works like the allreduce: no rank writes into another
-rank's model buffer. The root keeps a gather staging of its own (two halves by
-gather parity, one slab per peer) and publishes its half in the rendezvous.
-Every other rank copies its slice there contiguously and signals `ev[r]`; the
-root copies its own band locally, waits for all `ev[r]`, then copies each slab
-into its band with one strided region copy.
+rank 0's output. The root publishes the output's address and allocation id in
+the rendezvous, and every rank copies its band straight there: one contiguous
+copy for a single row, one region copy otherwise. There is no gather staging.
 
-Unlike the allreduce, the peers depend on nothing the root produces, so the
-parity argument does not stop a peer from refilling a half the root has not
-copied out yet -- two gathers in a row would do it. The root therefore signals
-`ack[r]` once the slabs are out, and rank `r` waits for it before writing the
-same half again; the acks are created signalled, so the first gather of each
-parity does not wait. A test holding the root's device back corrupts every
-later instance without the ack.
+A peer may write the root's output only once the root's queue has reached the
+gather. Before that, the memory pool may still have the same memory under an
+earlier primitive the root is running: that primitive would overwrite the bands
+or take them for its own data, and dirty cache lines the root holds over the
+memory could be written back over them. So, per parity:
+
+- the root copies its own band, puts a barrier behind it and signals `ready[r]`
+  for every peer; the signal has device scope, so the root's writes are
+  flushed by then;
+- rank `r` waits for `ready[r]`, resets it, copies its band and signals
+  `ev[r]` through a barrier, so the reset is complete as well;
+- the root waits for every `ev[r]` and resets them; the rest of the root's
+  model is queued behind that wait.
+
+`ready` is created unsignalled. The root signals `ready[r]` of a parity again
+only from its next recording of that parity, which its in-order queue runs
+after the previous one has seen `ev[r]`, i.e. after rank `r` cleared `ready[r]`.
+
+A test that holds the root's queue back with a long copy and then writes over
+the output before each gather corrupts the bands every time without `ready`.
+In the LLM the gather writes the logits, a network output the pool does not
+hand to anything else, which is why no model run showed it. The handshake costs
+one more cross-device signal per gather; decode measured the same as with a
+gather staging and as without the handshake.
 
 ## intel_gpu Integration
 

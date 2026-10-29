@@ -241,20 +241,20 @@ public:
     /// What a gather learns from the call rendezvous.
     struct GatherCall {
         int parity{0};
-        void* root_staging{nullptr};  // the root's half for this call
-        uint64_t root_staging_id{0};
-        std::vector<ze_event_handle_t>* events{nullptr};  // [r] = "rank r's slice is down", r > 0
-        std::vector<ze_event_handle_t>* acks{nullptr};    // [r] = "the root has taken rank r's slice", r > 0
+        void* root_out{nullptr};
+        uint64_t root_out_id{0};
+        std::vector<ze_event_handle_t>* events{nullptr};  // [r] = "rank r's band is in the root's output", r > 0
+        std::vector<ze_event_handle_t>* ready{nullptr};   // [r] = "the root's output may be written", r > 0
     };
 
-    /// The call rendezvous of a gather. On the root, first makes its gather
-    /// staging hold two halves of `half_bytes`.
+    /// The call rendezvous of a gather. `out` is the destination on the root
+    /// and ignored on every other rank.
     void begin_gather(int rank,
                       int collective_id,
                       std::size_t rows,
                       std::size_t slice_elems,
                       ov::element::Type dtype,
-                      std::size_t half_bytes,
+                      void* out,
                       GatherCall& call);
 
     // ---------------------------------------------------------------
@@ -364,15 +364,14 @@ private:
         std::vector<ze_event_handle_t> step;  // ring/halving: [(2(N-1)+1) * N]
     };
 
-    // Gather ordering, one set per gather parity. Rank r != 0 signals ev[r]
-    // when its slice is in the root's staging; the root signals ack[r] once it
-    // has copied that slice out, and rank r waits for it before writing the
-    // same half again. Peers depend on nothing else of the root, so without
-    // the ack two gathers in a row could overwrite a half still being read.
+    // Gather ordering, one set per gather parity. The root signals ready[r]
+    // once its queue reaches the gather -- everything before it, including
+    // whatever else used the output's memory, is done -- and rank r writes its
+    // band only after that, then signals ev[r]; the root waits for every ev.
     struct GatherEvents {
         ze_event_pool_handle_t pool{nullptr};
-        std::vector<ze_event_handle_t> ev;   // [N], index 0 unused
-        std::vector<ze_event_handle_t> ack;  // [N], index 0 unused; created signalled
+        std::vector<ze_event_handle_t> ev;     // [N], index 0 unused
+        std::vector<ze_event_handle_t> ready;  // [N], index 0 unused
     };
 
     // A rank's staging: two halves, one per allreduce parity, each half of the
@@ -393,7 +392,7 @@ private:
         std::size_t n{0};
         ov::element::Type dtype{ov::element::dynamic};
         std::size_t rows{0};
-        void* staging{nullptr};  // allreduce: this rank's staging half; gather: the root's
+        void* staging{nullptr};  // allreduce: this rank's staging half; gather: the root's output
         uint64_t staging_id{0};
     };
 
@@ -479,9 +478,6 @@ private:
 
     mutable std::mutex m_staging_mutex;
     std::vector<Staging> m_staging;
-    // The root's landing area for gathers, apart from the allreduce staging:
-    // the two count their parities separately.
-    Staging m_gather_staging;
     std::vector<uint64_t> m_seq;            // [N] calls of any kind: the mailbox set
     std::vector<uint64_t> m_allreduce_seq;  // [N] their parity picks staging half and events
     std::vector<uint64_t> m_gather_seq;     // [N] kept apart: a gather waits on nobody

@@ -1556,10 +1556,12 @@ TEST_F(TPCollectivesTest, GatherHandlesASingleRow) {
     }
 }
 
-// Gathers spliced back to back with nothing in between: the peers depend on
-// nothing of the root, so only the root's acknowledgement keeps a peer from
-// refilling a staging half the root has not copied out yet. Every instance
-// has its own buffers and values, and all are checked once the queues drain.
+// Gathers spliced back to back, with the root's device held back and its
+// output still being written by earlier work when the peers get there: the
+// peers depend on nothing of the root, so only the root's ready signal keeps
+// their bands from landing before that earlier write and being overwritten by
+// it. Every instance has its own buffers and values, and all are checked once
+// the queues drain.
 TEST_F(TPCollectivesTest, SplicedGathersInARowKeepEveryBand) {
     Watchdog watchdog(120);
     const int ranks = std::min(available_gpus, 4);
@@ -1601,14 +1603,21 @@ TEST_F(TPCollectivesTest, SplicedGathersInARowKeepEveryBand) {
     constexpr size_t busy_bytes = size_t{256} << 20;
     void* busy_src = rs[0].alloc(busy_bytes);
     void* busy_dst = rs[0].alloc(busy_bytes);
+    // What the previous user of the output's memory leaves there.
+    std::vector<float> poison_host(rows * full, -1.0f);
+    void* poison = rs[0].alloc(poison_host.size() * sizeof(float));
+    rs[0].copy_from_host(poison, poison_host.data(), poison_host.size() * sizeof(float));
     for (int k = 0; k < instances; ++k) {
         EXPECT_ZE(ov::zeCommandListAppendMemoryCopy(queues[0], busy_dst, busy_src, busy_bytes, nullptr, 0, nullptr));
+        EXPECT_ZE(ov::zeCommandListAppendMemoryCopy(queues[0], outs[k][0], poison, poison_host.size() * sizeof(float),
+                                                    nullptr, 0, nullptr));
         run_gather(*coord, 0, ins[k], outs[k], rows, slice, ov::element::f32, queues);
     }
     for (int r = 0; r < ranks; ++r)
         rs[r].wait_for_model_queue();
     ov::zeMemFree(shared->context, busy_src);
     ov::zeMemFree(shared->context, busy_dst);
+    ov::zeMemFree(shared->context, poison);
     for (int k = 0; k < instances; ++k) {
         std::vector<float> got(rows * full);
         rs[0].copy_to_host(got.data(), outs[k][0], got.size() * sizeof(float));

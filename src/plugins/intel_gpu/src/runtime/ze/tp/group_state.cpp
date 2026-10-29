@@ -340,9 +340,7 @@ void GroupState::create_event_sets() {
         ZE_THROW(ov::zeEventPoolCreate(ctx, &epd, static_cast<uint32_t>(devs.size()), devs.data(), &set.pool));
         for (int i = 0; i < N; ++i) {
             set.ev.push_back(make(set.pool, static_cast<uint32_t>(i)));
-            set.ack.push_back(make(set.pool, static_cast<uint32_t>(N + i)));
-            // The first gather of each parity has nothing to wait for.
-            ZE_THROW(ze_api()->zeEventHostSignal(set.ack.back()));
+            set.ready.push_back(make(set.pool, static_cast<uint32_t>(N + i)));
         }
     }
 }
@@ -364,7 +362,7 @@ void GroupState::destroy_event_sets() {
     }
     for (auto& set : m_gather_events) {
         destroy(set.ev);
-        destroy(set.ack);
+        destroy(set.ready);
         if (set.pool)
             ov::zeEventPoolDestroy(set.pool);
         set.pool = nullptr;
@@ -417,12 +415,6 @@ void* GroupState::ensure_staging(Staging& s,
 
 void GroupState::destroy_staging() {
     std::lock_guard<std::mutex> lock(m_staging_mutex);
-    for (auto* s : {&m_gather_staging}) {
-        if (s->base && m_shared && m_shared->context) {
-            ov::zeMemFree(m_shared->context, s->base);
-        }
-        *s = Staging{};
-    }
     for (auto& s : m_staging) {
         if (s.base && m_shared && m_shared->context) {
             ov::zeMemFree(m_shared->context, s.base);
@@ -535,7 +527,7 @@ void GroupState::begin_gather(int rank,
                               std::size_t rows,
                               std::size_t slice_elems,
                               ov::element::Type dtype,
-                              std::size_t half_bytes,
+                              void* out,
                               GatherCall& call) {
     call.parity = static_cast<int>(m_gather_seq[static_cast<std::size_t>(rank)]++ & 1u);
 
@@ -547,18 +539,17 @@ void GroupState::begin_gather(int rank,
     mine.rows = rows;
     mine.dtype = dtype;
     if (rank == 0) {
-        const std::size_t payload_bytes =
-            checked_multiply(checked_multiply(rows, slice_elems, "gather slice"), dtype.size(), "gather slice");
-        mine.staging = ensure_staging(m_gather_staging, rank, payload_bytes, half_bytes, call.parity, collective_id);
-        mine.staging_id = m_gather_staging.id;
+        mine.staging = out;
+        mine.staging_id = alloc_id_of(m_shared->context, out);
     }
     std::vector<MailboxSlot> all;
     call_rendezvous(rank, mine, all);
 
-    call.root_staging = all[0].staging;
-    call.root_staging_id = all[0].staging_id;
+    OPENVINO_ASSERT(all[0].staging != nullptr, "[TP][L0] gather ", collective_id, " has no destination on the root");
+    call.root_out = all[0].staging;
+    call.root_out_id = all[0].staging_id;
     call.events = &m_gather_events[call.parity].ev;
-    call.acks = &m_gather_events[call.parity].ack;
+    call.ready = &m_gather_events[call.parity].ready;
 }
 
 void GroupState::track(Splice* splice) {
@@ -779,7 +770,7 @@ void GroupState::release_all_waits() {
         for (auto ev : set.ev) {
             signal(ev);
         }
-        for (auto ev : set.ack) {
+        for (auto ev : set.ready) {
             signal(ev);
         }
     }

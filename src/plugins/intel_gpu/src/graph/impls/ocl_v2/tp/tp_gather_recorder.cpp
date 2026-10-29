@@ -43,25 +43,16 @@ uint64_t ticks_to_ns(uint64_t start, uint64_t end, uint64_t mask, uint64_t ns_pe
 
 }  // namespace
 
-// Distance between two peers' slices in the root's staging.
-std::size_t TPGatherRecorder::slab_stride(std::size_t rows, std::size_t slice_bytes) {
-    const std::size_t slab = checked_multiply(rows, slice_bytes, "gather slab");
-    return (slab + 255) / 256 * 256;
-}
-
 void TPGatherRecorder::record(int parity) {
     const Signature& sig = m_sig[parity];
     auto& group = m_rec.group();
     auto& ev = *m_call.events;
-    auto& ack = *m_call.acks;
+    auto& ready = *m_call.ready;
     const int rank = m_rec.rank();
     const int world_size = group.world_size();
     const std::size_t slice_bytes = checked_multiply(sig.slice_elems, sig.dtype.size(), "gather slice");
     const std::size_t full_bytes = checked_multiply(slice_bytes, static_cast<std::size_t>(world_size), "gather row");
-    const std::size_t stride = slab_stride(sig.rows, slice_bytes);
 
-    // One region copy per band of the root's rows; the alternative is `rows`
-    // transfers, hundreds of driver calls at prompt length.
     OPENVINO_ASSERT(full_bytes <= std::numeric_limits<uint32_t>::max(),
                     "[TP][L0] gather row of ",
                     full_bytes,
@@ -74,59 +65,66 @@ void TPGatherRecorder::record(int parity) {
     m_rec.reset(parity, false);
     ze_command_list_handle_t list = m_rec.list(parity);
 
-    if (rank != 0) {
-        // The root has taken this rank's previous slice of the same parity out
-        // of the half before it may be written again.
-        auto* staged = static_cast<uint8_t*>(sig.root_staging) + static_cast<std::size_t>(rank - 1) * stride;
-        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ack[static_cast<std::size_t>(rank)]));
-        ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ack[static_cast<std::size_t>(rank)]));
-        ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
-                                                         staged,
-                                                         sig.in,
-                                                         sig.rows * slice_bytes,
-                                                         ev[static_cast<std::size_t>(rank)],
-                                                         0,
-                                                         nullptr));
-    } else {
-        auto band = [&](int r, void* src) {
-            ze_copy_region_t dst_region{};
-            dst_region.originX = static_cast<uint32_t>(static_cast<std::size_t>(r) * slice_bytes);
-            dst_region.width = static_cast<uint32_t>(slice_bytes);
-            dst_region.height = static_cast<uint32_t>(sig.rows);
-            dst_region.depth = 1;
-            ze_copy_region_t src_region{};
-            src_region.width = static_cast<uint32_t>(slice_bytes);
-            src_region.height = static_cast<uint32_t>(sig.rows);
-            src_region.depth = 1;
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopyRegion(list,
-                                                                   sig.out,
-                                                                   &dst_region,
-                                                                   static_cast<uint32_t>(full_bytes),
-                                                                   0,
-                                                                   src,
-                                                                   &src_region,
-                                                                   static_cast<uint32_t>(slice_bytes),
-                                                                   0,
-                                                                   nullptr,
-                                                                   0,
-                                                                   nullptr));
-        };
-        band(0, sig.in);
+    // This rank's band of the root's rows: one contiguous run for a single row,
+    // otherwise one region copy rather than `rows` transfers.
+    auto copy_band = [&] {
+        if (sig.rows == 1) {
+            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(list,
+                                                             static_cast<uint8_t*>(sig.root_out) +
+                                                                 static_cast<std::size_t>(rank) * slice_bytes,
+                                                             sig.in,
+                                                             slice_bytes,
+                                                             nullptr,
+                                                             0,
+                                                             nullptr));
+            return;
+        }
+        ze_copy_region_t dst_region{};
+        dst_region.originX = static_cast<uint32_t>(static_cast<std::size_t>(rank) * slice_bytes);
+        dst_region.width = static_cast<uint32_t>(slice_bytes);
+        dst_region.height = static_cast<uint32_t>(sig.rows);
+        dst_region.depth = 1;
+        ze_copy_region_t src_region{};
+        src_region.width = static_cast<uint32_t>(slice_bytes);
+        src_region.height = static_cast<uint32_t>(sig.rows);
+        src_region.depth = 1;
+        ZE_THROW(ze_api()->zeCommandListAppendMemoryCopyRegion(list,
+                                                               sig.root_out,
+                                                               &dst_region,
+                                                               static_cast<uint32_t>(full_bytes),
+                                                               0,
+                                                               sig.in,
+                                                               &src_region,
+                                                               static_cast<uint32_t>(slice_bytes),
+                                                               0,
+                                                               nullptr,
+                                                               0,
+                                                               nullptr));
+    };
 
+    if (rank != 0) {
+        // Not before the root's queue has reached this gather: until then its
+        // output's memory may still be in use by whatever ran there before.
+        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &ready[static_cast<std::size_t>(rank)]));
+        ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ready[static_cast<std::size_t>(rank)]));
+        copy_band();
+        // Signalled once the reset and the copy are both done, so the root
+        // cannot hand out the next ready of this parity before it is cleared.
+        ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, ev[static_cast<std::size_t>(rank)], 0, nullptr));
+    } else {
+        // Own band first: the barrier and the device-scope signals after it
+        // write its cache lines back before any peer writes next to them.
+        copy_band();
+        ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
+        for (int r = 1; r < world_size; ++r) {
+            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ready[static_cast<std::size_t>(r)]));
+        }
         // Holds everything queued behind this recording -- the rest of the
         // model on the root -- until every band is in place.
         std::vector<ze_event_handle_t> waits(ev.begin() + 1, ev.end());
         ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, static_cast<uint32_t>(waits.size()), waits.data()));
         for (auto* e : waits) {
             ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, e));
-        }
-        for (int r = 1; r < world_size; ++r) {
-            band(r, static_cast<uint8_t*>(sig.root_staging) + static_cast<std::size_t>(r - 1) * stride);
-        }
-        // The slices must be out of the staging before a peer may refill it.
-        ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
-        for (int r = 1; r < world_size; ++r) {
-            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ack[static_cast<std::size_t>(r)]));
         }
     }
 
@@ -163,11 +161,7 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
     const bool g_dev = group.options().profiling_device;
     const Stopwatch since_entry(g_host);
 
-    const std::size_t half_bytes =
-        checked_multiply(slab_stride(rows, checked_multiply(slice_elems, dtype.size(), "gather slice")),
-                         static_cast<std::size_t>(group.world_size() - 1),
-                         "gather staging");
-    group.begin_gather(rank, collective_id, rows, slice_elems, dtype, half_bytes, m_call);
+    group.begin_gather(rank, collective_id, rows, slice_elems, dtype, out, m_call);
     const int parity = m_call.parity;
     if (g_host) {
         st.gather_barrier_ns[rank].add(since_entry.elapsed().ns());
@@ -198,8 +192,8 @@ void TPGatherRecorder::run(const cldnn::ze::tp::Channel& channel,
     sig.rows = rows;
     sig.slice_elems = slice_elems;
     sig.dtype = dtype;
-    sig.root_staging = m_call.root_staging;
-    sig.root_staging_id = m_call.root_staging_id;
+    sig.root_out = m_call.root_out;
+    sig.root_out_id = m_call.root_out_id;
 
     // Runs only once the previous splice of the list has been consumed.
     auto record_if_stale = [&] {
