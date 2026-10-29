@@ -18,6 +18,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "ov_ops/gather_compressed.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -33,6 +34,23 @@ OutputVector translate_get_rows(const NodeContext& context) {
     ov::Output<ov::Node> indices;
     if (!relative_shift)
         indices = context.get_input(1);
+    if (data.get_element_type().is_gguf_block()) {
+        const auto weight_type = data.get_element_type();
+        const bool supported = weight_type == ov::element::gguf_q4_k || weight_type == ov::element::gguf_q5_k ||
+                               weight_type == ov::element::gguf_q6_k || weight_type == ov::element::gguf_q8_0;
+        FRONT_END_OP_CONVERSION_CHECK(!relative_shift && !context.get_attribute<bool>("gather_elements", false) &&
+                                          op_case == 0 && supported &&
+                                          ov::is_type<ov::op::v0::Constant>(data.get_node_shared_ptr()) &&
+                                          data.get_partial_shape().is_static() && data.get_shape().size() == 2 &&
+                                          data.get_shape()[0] > 0 && data.get_shape()[1] > 0 &&
+                                          data.get_shape()[1] % weight_type.block_elem_count() == 0 &&
+                                          (indices.get_element_type() == ov::element::i32 ||
+                                           indices.get_element_type() == ov::element::i64) &&
+                                          indices.get_partial_shape().rank() == 4 &&
+                                          indices.get_partial_shape()[0] == 1 && indices.get_partial_shape()[1] == 1,
+                                      "Unsupported raw GGUF GetRows weight, indices or op_case: ",
+                                      context.get_name());
+    }
     // GGML gathers integer rows as I32 and all floating/quantized rows as F32.
     const auto type = data.get_element_type() == ov::element::i32 ? ov::element::i32 : ov::element::f32;
     const auto convert_rows = [&](ov::Output<Node> rows) {
@@ -134,7 +152,12 @@ OutputVector translate_get_rows(const NodeContext& context) {
         }
     } else {
         auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-        res = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        if (data.get_element_type().is_gguf_block()) {
+            auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.f});
+            res = std::make_shared<ov::op::internal::GatherCompressed>(data, indices, axis, 0, scale);
+        } else {
+            res = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        }
     }
 
     // The two Squeezes above dropped the leading axes; restore ggml's rank-4 form.

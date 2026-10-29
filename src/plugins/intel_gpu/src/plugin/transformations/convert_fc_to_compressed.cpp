@@ -14,10 +14,13 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -238,8 +241,25 @@ ConvertGGUFFullyConnectedCompressed::ConvertGGUFFullyConnectedCompressed() {
                                 (value.get_partial_shape().is_static() && ov::shape_size(value.get_shape()) == 0));
         };
 
-        const auto& activation = fc->input_value(0);
+        auto activation = fc->input_value(0);
         const auto& weight = fc->input_value(1);
+        std::shared_ptr<ov::Node> restore_shape;
+        const auto rank = activation.get_partial_shape().rank();
+        if (rank.is_static() && rank.get_length() > 3) {
+            const auto weight_shape = weight.get_shape();
+            OPENVINO_ASSERT(weight_shape.size() == 2, "GGUF FC requires a 2D weight");
+            auto shape = std::make_shared<ov::op::v3::ShapeOf>(activation, ov::element::i64);
+            auto scalar = [](int64_t value) {
+                return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {value});
+            };
+            auto prefix = std::make_shared<ov::op::v8::Slice>(shape, scalar(0), scalar(rank.get_length() - 1), scalar(1));
+            restore_shape = std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{prefix, scalar(static_cast<int64_t>(weight_shape[0]))}, 0);
+            auto flat_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2},
+                                                         std::vector<int64_t>{-1, static_cast<int64_t>(weight_shape[1])});
+            activation = std::make_shared<ov::op::v1::Reshape>(activation, flat_shape, false);
+            ov::copy_runtime_info(fc, {shape, prefix, restore_shape, activation.get_node_shared_ptr()});
+        }
         ov::Output<ov::Node> bias = fc->input_value(2);
         if (is_empty_optional(bias)) {
             bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
@@ -252,9 +272,13 @@ ConvertGGUFFullyConnectedCompressed::ConvertGGUFFullyConnectedCompressed() {
                                                                                  scale,
                                                                                  zero_point,
                                                                                  fc->get_output_element_type(0));
-        gpu_fc->set_friendly_name(fc->get_friendly_name());
-        ov::copy_runtime_info(fc, gpu_fc);
-        ov::replace_node(fc, gpu_fc);
+        std::shared_ptr<ov::Node> replacement = gpu_fc;
+        if (restore_shape) {
+            replacement = std::make_shared<ov::op::v1::Reshape>(gpu_fc, restore_shape, false);
+        }
+        replacement->set_friendly_name(fc->get_friendly_name());
+        ov::copy_runtime_info(fc, {gpu_fc, replacement});
+        ov::replace_node(fc, replacement);
         return true;
     };
 

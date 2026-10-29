@@ -55,6 +55,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/fully_connected.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gather_gguf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_elements.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_nd.cpp
@@ -301,6 +302,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/registry/fully_connected_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gated_delta_net_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gather_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/gather_gguf_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gather_matmul_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gather_nd_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/gemm_impls.cpp

@@ -5,6 +5,7 @@
 #include "openvino/frontend/gguf/frontend.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 
@@ -199,8 +200,13 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                                     ov::util::path_to_string(path));
         }
         const auto discover = paths->size() == 1 && ov::frontend::get_path_from_any(variants.front()).has_value();
-        const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry)
-                                      : load_gguf_builder(*paths, m_impl->arch_registry);
+        const auto native_mode = std::getenv("OV_GGUF_NATIVE_WEIGHTS");
+        FRONT_END_GENERAL_CHECK(!native_mode || std::string(native_mode) == "0" || std::string(native_mode) == "1",
+                    "OV_GGUF_NATIVE_WEIGHTS must be 0 or 1");
+        const bool preserve = native_mode && std::string(native_mode) == "1";
+        const GGUFLoadOptions options{preserve, preserve, preserve, preserve};
+        const auto builder = discover ? load_gguf_builder(paths->front(), m_impl->arch_registry, options)
+                          : load_gguf_builder(*paths, m_impl->arch_registry, options);
         return std::make_shared<InputModel>(builder, m_extensions);
     }
 

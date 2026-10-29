@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <set>
 #include <tuple>
 
@@ -40,6 +41,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "quant/gguf.hpp"
 #include "utils.hpp"
 
@@ -985,18 +987,42 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     ov::frontend::gguf::FrontEnd fe;
     fe.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
     auto model = fe.convert(fe.load(model_path));
+    size_t raw_bytes = 0, raw_constants = 0, raw_fcs = 0, raw_gathers = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const std::string type = node->get_type_name();
+        if (type == "Constant" && node->get_output_element_type(0).is_gguf_block()) {
+            raw_bytes += ov::as_type_ptr<ov::op::v0::Constant>(node)->get_byte_size();
+            ++raw_constants;
+        } else if (type == "FullyConnectedCompressed" && node->get_input_element_type(1).is_gguf_block()) {
+            ++raw_fcs;
+        } else if (type == "GatherCompressed" && node->get_input_element_type(0).is_gguf_block()) {
+            ++raw_gathers;
+        }
+    }
+    RecordProperty("raw_constant_bytes", std::to_string(raw_bytes));
+    RecordProperty("raw_constants", std::to_string(raw_constants));
+    RecordProperty("raw_fc_nodes", std::to_string(raw_fcs));
+    RecordProperty("raw_gather_nodes", std::to_string(raw_gathers));
     if (mamba) {
         EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{lfm2 ? -1 : 1, -1}));
         EXPECT_NO_THROW(model->input("beam_idx"));
     }
     ov::Core core;
-    auto compiled = core.compile_model(model,
-                                       "CPU",
-                                       ov::hint::inference_precision(ov::element::f32),
-                                       ov::num_streams(1),
-                                       ov::inference_num_threads(4),
-                                       ov::hint::dynamic_quantization_group_size(0),
-                                       ov::hint::kv_cache_precision(ov::element::f16));
+    const auto device_override = std::getenv("OV_GGUF_ACCURACY_DEVICE");
+    const std::string device = device_override ? device_override : "CPU";
+    const auto precision = device == "CPU" ? ov::element::f32 : ov::element::f16;
+    ov::AnyMap properties{ov::hint::inference_precision(precision),
+                          ov::num_streams(1),
+                          ov::hint::dynamic_quantization_group_size(0),
+                          ov::hint::kv_cache_precision(ov::element::f16)};
+    if (device == "CPU") {
+        properties.insert(ov::inference_num_threads(4));
+    } else if (device.rfind("GPU", 0) == 0 && raw_fcs > 0) {
+        properties.insert(ov::enable_profiling(true));
+    }
+    RecordProperty("device", device);
+    RecordProperty("inference_precision", precision.get_type_name());
+    auto compiled = core.compile_model(model, device, properties);
     auto request = compiled.create_infer_request();
     const auto infer = [&](const std::vector<int64_t>& tokens, size_t past) {
         const auto count = tokens.size();
@@ -1067,6 +1093,32 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     }
     if (real_checkpoint) {
         EXPECT_GE(matching_tokens * 10, schedule.size() * 9) << "Fewer than 90% of greedy choices match";
+    }
+    if (device.rfind("GPU", 0) == 0 && raw_fcs > 0) {
+        size_t executed_fcs = 0, executed_gathers = 0;
+        std::map<std::string, size_t> weight_types;
+        for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
+            const auto& info = node->get_rt_info();
+            const auto impl = info.find(ov::exec_model_info::IMPL_TYPE);
+            if (impl == info.end())
+                continue;
+            const auto name = impl->second.as<std::string>();
+            if (name.find("fc_gguf") != std::string::npos) {
+                ++executed_fcs;
+                ++weight_types[info.at("weights_precision").as<std::string>()];
+            } else if (name.find("gather_gguf") != std::string::npos) {
+                ++executed_gathers;
+            } else {
+                continue;
+            }
+            EXPECT_NE(info.at(ov::exec_model_info::PERF_COUNTER).as<std::string>(), "not_executed");
+        }
+        RecordProperty("executed_gguf_fc_nodes", std::to_string(executed_fcs));
+        RecordProperty("executed_gguf_gather_nodes", std::to_string(executed_gathers));
+        for (const auto& [type, count] : weight_types)
+            RecordProperty("executed_fc_" + type, std::to_string(count));
+        EXPECT_EQ(executed_fcs, raw_fcs);
+        EXPECT_EQ(executed_gathers, raw_gathers);
     }
 }
 

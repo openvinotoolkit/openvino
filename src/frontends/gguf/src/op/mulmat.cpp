@@ -61,7 +61,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
                                                                          absent,
                                                                          absent,
                                                                          absent,
-                                                                         ov::element::f32)},
+                                                                         ov::element::dynamic)},
             context.get_name());
     }
 

@@ -94,12 +94,16 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
 
 }  // namespace
 
-GraphBuilder load_gguf_builder(const std::filesystem::path& file, const ArchRegistry& registry) {
-    return make_gguf_builder(get_gguf_data(file), registry);
+GraphBuilder load_gguf_builder(const std::filesystem::path& file,
+                              const ArchRegistry& registry,
+                              const GGUFLoadOptions& options) {
+    return make_gguf_builder(get_gguf_data(file, options), registry);
 }
 
-GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files, const ArchRegistry& registry) {
-    return make_gguf_builder(get_gguf_data(files), registry);
+GraphBuilder load_gguf_builder(const std::vector<std::filesystem::path>& files,
+                              const ArchRegistry& registry,
+                              const GGUFLoadOptions& options) {
+    return make_gguf_builder(get_gguf_data(files, options), registry);
 }
 
 }  // namespace ov::frontend::gguf

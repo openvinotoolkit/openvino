@@ -543,10 +543,16 @@ FusedQkvPart make_split_part(GgufTensorType qtype,
     const auto& weight = get(weights, base + ".weight");
     const auto zp = weights.find(base + ".zp");
     const ov::Tensor zero_point = zp != weights.end() ? zp->second : ov::Tensor{};
-    const auto format = get_weight_format(qtype, weight, zero_point, base);
     FusedQkvPart part;
     part.qtype = qtype;
     part.tensors.weight = slice(weight);
+    if (weight.get_element_type().is_gguf_block()) {
+        OPENVINO_ASSERT(weight.get_element_type() == gguf_raw_element_type(qtype) && !zero_point &&
+                            weights.count(base + ".scales") == 0,
+                        "[GGUF] invalid raw split weight contract: ", base);
+        return part;
+    }
+    const auto format = get_weight_format(qtype, weight, zero_point, base);
     if (format.has_scales()) {
         part.tensors.scales = slice(get(weights, base + ".scales"));
     }

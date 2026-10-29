@@ -98,6 +98,14 @@ prediction and at least 90% matching greedy choices, and records per-step normal
 It does not claim exact logit agreement for the frontend's lossy quantized-weight path.
 Use `OV_GGUF_Q4_K_ZP_F16=1` for Q4_K accuracy comparisons.
 
+`OV_GGUF_ACCURACY_DEVICE=GPU` runs this replay with GPU F16 inference; the default
+remains CPU F32. Set `OV_GGUF_NATIVE_WEIGHTS=1` as well to validate the experimental
+dense raw-block path, and filter to the selected supported architecture. The original
+first-prediction/90%-agreement gates remain unchanged. XML properties record raw Constant
+bytes, consumer counts, and executed GGUF FC/Gather implementations by weight type.
+These implementation counts do not distinguish native decode from transcode prefill;
+stage-level dispatch is covered separately by the GPU unit tests.
+
 For the embedding checkpoint, put `llama-embed.gguf` and the output of
 `embedding_oracle llama-embed.gguf llama-embed.bin "<prompt>"` in a directory and set
 `OV_GGUF_EMBEDDING_DATA` to it; `GGUFEmbeddingAccuracy` then compares per-token embeddings.

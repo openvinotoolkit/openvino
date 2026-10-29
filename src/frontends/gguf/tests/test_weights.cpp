@@ -170,10 +170,53 @@ TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
         emitter.add_input("indices", ov::element::i32, {2});
         EXPECT_THROW(emitter.add_op("GGML_OP_GET_ROWS", "embedding", {"projection.weight", "indices"}),
                      ov::frontend::OpConversionFailure);
+        emitter.add_input("embedding_indices", ov::element::i64, {1, 1, 1, -1});
+        for (const auto op_case : {2, 3, 4, 10}) {
+            EXPECT_THROW(emitter.add_op("GGML_OP_GET_ROWS", "unsupported_embedding",
+                                       {"projection.weight", "embedding_indices"}, op_case),
+                         ov::frontend::OpConversionFailure);
+        }
         EXPECT_THROW(emitter.add_op("GGML_OP_ADD", "add", {"projection.weight", "activation"}),
                      ov::frontend::OpConversionFailure);
         EXPECT_THROW(emitter.add_op("GGML_OP_MUL_MAT", "raw_activation", {"activation", "projection.weight"}),
                      ov::frontend::OpConversionFailure);
+    }
+}
+
+TEST(GGUFRawCompressedFC, RawRowSplitsPreserveBlocks) {
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0}) {
+        SCOPED_TRACE(qtype);
+        ov::Tensor raw(gguf_raw_element_type(qtype), {8, kCols});
+        auto* bytes = static_cast<uint8_t*>(raw.data());
+        for (size_t index = 0; index < raw.get_byte_size(); ++index) {
+            bytes[index] = static_cast<uint8_t>(index * 13 + index / 97);
+        }
+        const size_t row_bytes = raw.get_byte_size() / 8;
+        const std::unordered_map<std::string, ov::Tensor> weights{{"projection.weight", raw}};
+        const std::unordered_map<std::string, GgufTensorType> qtypes{{"projection.qtype", qtype}};
+        const auto parts = split_fused_qkv_extracted("projection", weights, qtypes, 2, 2, 4);
+        size_t first_row = 0;
+        for (const auto& part : parts) {
+            EXPECT_EQ(part.qtype, qtype);
+            EXPECT_EQ(part.tensors.weight.get_element_type(), raw.get_element_type());
+            EXPECT_FALSE(part.tensors.scales);
+            EXPECT_FALSE(part.tensors.zero_point);
+            EXPECT_EQ(std::memcmp(part.tensors.weight.data(), bytes + first_row * row_bytes,
+                                  part.tensors.weight.get_byte_size()), 0);
+            first_row += part.tensors.weight.get_shape()[0];
+        }
+        const auto interleaved = split_interleaved_q_gate("projection", weights, qtypes, 2);
+        for (size_t part_index = 0; part_index < interleaved.size(); ++part_index) {
+            const auto& part = interleaved[part_index];
+            ASSERT_EQ(part.tensors.weight.get_shape(), (ov::Shape{4, kCols}));
+            EXPECT_FALSE(part.tensors.scales);
+            EXPECT_FALSE(part.tensors.zero_point);
+            for (size_t row = 0; row < 4; ++row) {
+                const auto source_row = (row / 2) * 4 + part_index * 2 + row % 2;
+                EXPECT_EQ(std::memcmp(static_cast<const uint8_t*>(part.tensors.weight.data()) + row * row_bytes,
+                                      bytes + source_row * row_bytes, row_bytes), 0);
+            }
+        }
     }
 }
 

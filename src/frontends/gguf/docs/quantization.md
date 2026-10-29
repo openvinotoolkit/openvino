@@ -92,33 +92,36 @@ byte per 128 weights. Their native storage is identical, at `35/128` bytes per w
 (2.1875 bits per weight including metadata). The repeated zero point is currently allocated
 per group; the table does not assume that a later pass replaces it with a scalar.
 
-## Experimental Raw Q4_K Loading
+## Experimental Raw GPU Loading
 
-The internal `get_gguf_data` overloads accept `GGUFLoadOptions{true}` to preserve Q4_K
-blocks instead of unpacking them. The option's `preserve_q4_k` field defaults to false;
-existing overloads and the FrontEnd/GenAI conversion path retain their current behavior.
-This is not a public FrontEnd property or a GenAI configuration option.
+`OV_GGUF_NATIVE_WEIGHTS=1` opts the file-based FrontEnd loader into preserving Q4_K,
+Q5_K, Q6_K and Q8_0 blocks. This also applies to GenAI with `GGUF_READER="FRONTEND"`.
+The variable is an internal experimental control, not a stable FrontEnd property or
+GenAI configuration option. Unset or `0` retains the default decomposed representation;
+other values are rejected. Use a matching runtime/frontend/GPU build, not an older install.
 
-In this internal mode, a Q4_K entry in the weight array has element type `gguf_q4_k`
-and the original logical shape in OpenVINO dimension order. Each 256 logical elements
-occupies 144 bytes; scales and minima remain inside those bytes, with no separate
-scale or zero-point tensors. Each Tensor retains the file mapping, so a Constant wrapping
-it can outlive the loader result without copying the payload. Other formats still use
-the default representation. Every row must contain whole blocks; normal file bounds
-and checked element/byte counts apply before creating a view.
+The internal `GGUFLoadOptions` fields select the four formats independently and default
+to false; the existing `GGUFLoadOptions{true}` still selects only Q4_K. A preserved tensor
+uses the corresponding `gguf_*` element type and logical shape, with scales/minima inside
+the original bytes and no separate scale/zero-point tensors. Tensor/Constant ownership
+retains the file mapping. Each row must contain whole blocks; file bounds and checked
+element/byte counts apply before creating a view. Other formats retain their default path.
 
-The existing `make_weight_node(WeightTensors, ...)` rejects raw block tensors explicitly.
-The shared native weight translator can instead expose a validated, nonempty 2D raw
-Q4_K Constant. The default `GGML_OP_MUL_MAT` case consumes it through the existing
-internal `FullyConnectedCompressed` operation with F32 output, without converting the
-weight to a scalar type. F16 activations are converted to F32, matching the existing
-translator semantics. Empty F32 Constants represent absent bias, scale and zero point;
-the actual quantization parameters remain inside the raw blocks.
+Supported raw consumers are ordinary MatMul and embedding GetRows with nonempty static
+2D weights. MatMul uses the existing internal `FullyConnectedCompressed`; frontend
+activation/output semantics remain F32, while device precision conversion can select F16.
+GPU lowering flattens rank-4 activations and restores their dynamic leading dimensions.
+Embedding GetRows uses `GatherCompressed`; the source GPU kernel decodes selected rows
+to F16, followed by an explicit conversion to the frontend's F32 output. This does not
+recover precision lost in the F16 decode. Special view/transpose MatMul, special GetRows
+cases and other raw consumers are rejected. MoE is not enabled by this dense path.
 
-Other raw consumers, including Gather and special MatMul view/transpose cases, are
-explicitly rejected. This boundary is internal-only: the normal FrontEnd/GenAI loader
-still does not select raw loading. GPU lowering and native kernel execution are not
-implemented yet, and graph conversion alone does not establish model accuracy.
+Whole-row weight splitting preserves block bytes. Column permutations must also move
+whole quantization blocks; otherwise existing non-permuted execution is retained.
+SG shuffle is lossless repacking. With the source defaults, large prefill batches use
+F16 transcode plus GEMM rather than native block computation; preserving raw input does
+not mean every inference stage computes directly from GGUF blocks. The default prefill
+threshold is 32 flattened activation rows. Model accuracy requires independent validation.
 
 ## Floating-point formats
 

@@ -78,6 +78,9 @@ ov::Tensor permute_col_blocks(const ov::Tensor& t,
     if (shape.size() != 2 || shape[0] == 0 || logical_cols == 0 || t.get_byte_size() % shape[0] != 0) {
         return {};
     }
+    if (t.get_element_type().is_gguf_block() && block_cols % t.get_element_type().block_elem_count() != 0) {
+        return {};
+    }
     const size_t row_bytes = t.get_byte_size() / shape[0];
     if ((row_bytes * block_cols) % logical_cols != 0) {
         return {};

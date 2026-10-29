@@ -463,10 +463,12 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         ASSERT_EQ(std::memcmp(raw.data(), payload.data(), payload.size()), 0);
         owner = std::get<3>(loaded).at(0);
         GraphEmitter emitter(weights, std::get<2>(loaded), "test");
-        emitter.add_input("activation", ov::element::f32, {-1, columns});
+        emitter.add_input("activation", ov::element::f32, {1, 1, -1, columns});
         emitter.add_weight("projection.weight");
         emitter.add_op("GGML_OP_MUL_MAT", "output", {"projection.weight", "activation"});
-        emitter.graph()->model_output_names = {"output"};
+        emitter.add_input("indices", ov::element::i64, {1, 1, 1, -1});
+        emitter.add_op("GGML_OP_GET_ROWS", "embedding", {"projection.weight", "indices"});
+        emitter.graph()->model_output_names = {"output", "embedding"};
         std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
         FrontEnd frontend;
         model = frontend.convert(frontend.load(decoder));
@@ -479,18 +481,20 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         EXPECT_EQ(std::memcmp(constant->get_data_ptr(), payload.data(), payload.size()), 0);
     }
     EXPECT_FALSE(owner.expired());
-    const auto run = [&](const char* threshold_value, const char* shuffle_value) {
+    const auto run = [&](const char* threshold_value, const char* shuffle_value,
+                         ov::element::Type inference_type = ov::element::f32) {
         SCOPED_TRACE(threshold_value ? "native" : "default_f16_transcode");
         SCOPED_TRACE(shuffle_value);
         GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", threshold_value);
         GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
         GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", shuffle_value);
-        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f32));
+        SCOPED_TRACE(inference_type.get_type_name());
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(inference_type));
         auto request = compiled.create_infer_request();
         const std::array<size_t, 7> row_counts{1, 2, 33, 1, 1, 33, 2};
         for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
             const auto rows = row_counts[iteration];
-            ov::Tensor input(ov::element::f32, ov::Shape{rows, columns});
+            ov::Tensor input(ov::element::f32, ov::Shape{1, 1, rows, columns});
             for (size_t row = 0; row < rows; ++row) {
                 const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
                 for (size_t column = 0; column < columns; ++column) {
@@ -498,10 +502,15 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                         static_cast<float>(static_cast<int>(((column % 256) * 13) % 31) - 15);
                 }
             }
-            request.set_input_tensor(input);
+            request.set_input_tensor(0, input);
+            ov::Tensor indices(ov::element::i64, ov::Shape{1, 1, 1, rows});
+            for (size_t row = 0; row < rows; ++row) {
+                indices.data<int64_t>()[row] = static_cast<int64_t>((row * 7 + iteration) % channels);
+            }
+            request.set_input_tensor(1, indices);
             request.infer();
-            const auto output = request.get_output_tensor();
-            ASSERT_EQ(output.get_shape(), (ov::Shape{rows, channels}));
+            const auto output = request.get_output_tensor(0);
+            ASSERT_EQ(output.get_shape(), (ov::Shape{1, 1, rows, channels}));
             for (size_t row = 0; row < rows; ++row) {
                 for (size_t channel = 0; channel < channels; ++channel) {
                     float expected = 0.f;
@@ -511,8 +520,22 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                                                     ? static_cast<float>(ov::float16(weight)) : weight;
                         expected += reference * input.data<const float>()[row * columns + column];
                     }
+                    if (inference_type == ov::element::f16) {
+                        expected = ov::float16(expected);
+                    }
                     EXPECT_NEAR(output.data<const float>()[row * channels + channel], expected, 0.1f)
                         << "iteration=" << iteration << " row=" << row << " channel=" << channel;
+                }
+            }
+            const auto embedding = request.get_output_tensor(1);
+            ASSERT_EQ(embedding.get_element_type(), ov::element::f32);
+            ASSERT_EQ(embedding.get_shape(), (ov::Shape{1, 1, rows, columns}));
+            for (size_t row = 0; row < rows; ++row) {
+                const auto channel = static_cast<size_t>(indices.data<const int64_t>()[row]);
+                for (size_t column = 0; column < columns; ++column) {
+                    const float expected = ov::float16(decoded[(channel % 4) * 256 + column % 256]);
+                    EXPECT_EQ(embedding.data<const float>()[row * columns + column], expected)
+                        << "iteration=" << iteration << " row=" << row << " column=" << column;
                 }
             }
         }
@@ -521,6 +544,10 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     run("64", "0");
     run(nullptr, "1");
     run(nullptr, "0");
+    run("64", "1", ov::element::f16);
+    run("64", "0", ov::element::f16);
+    run(nullptr, "1", ov::element::f16);
+    run(nullptr, "0", ov::element::f16);
 #endif
 }
 
