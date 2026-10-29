@@ -194,10 +194,10 @@ ov::pass::FuseQSAIndexer::FuseQSAIndexer() {
         ov::copy_runtime_info(nodes, fused);
 
         for (size_t i = 0; i < 2; ++i) {
-            ov::replace_output_update_name(indexer->output(i), fused->output(i));
+            indexer->output(i).replace(fused->output(i));
         }
         for (size_t i = 0; i < 3; ++i) {
-            ov::replace_output_update_name(prepare->output(i), fused->output(i + 2));
+            prepare->output(i).replace(fused->output(i + 2));
         }
         return true;
     };
