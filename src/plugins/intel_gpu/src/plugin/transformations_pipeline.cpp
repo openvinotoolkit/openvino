@@ -488,7 +488,7 @@ public:
                 }
             }
             const auto& shape = root->get_input_partial_shape(0);
-            if (!gemm.get_node() || !routing.get_node() || shape.rank() != 2) {
+            if (gemm.get_node() == nullptr || routing.get_node() == nullptr || shape.rank() != 2) {
                 return false;
             }
             const auto target = ov::util::get_constant_from_source(root->input_value(1));
