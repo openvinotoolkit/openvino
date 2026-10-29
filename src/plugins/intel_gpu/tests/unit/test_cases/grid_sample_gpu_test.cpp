@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "intel_gpu/primitives/grid_sample.hpp"
+#include "primitive_inst.h"
 #include "test_utils/test_utils.h"
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
