@@ -7,8 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 /**
  * @ingroup ov_transformation_common_api
@@ -34,5 +33,4 @@ public:
     MarkMathBeforeFloorToKeepF16Rounding();
 };
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

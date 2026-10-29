@@ -693,6 +693,16 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeMatMul);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConstantFolding);
     CPU_REGISTER_PASS_ARM64(manager, ov::pass::HardSigmoidDecomposition);
+#if defined(OPENVINO_ARCH_ARM64)
+    // Keep HardSigmoid marked by MarkMathBeforeFloorToKeepF16Rounding intact: the marker is not propagated to
+    // the decomposed subgraph, so decomposing it would lose the f16 rounding preserved by ConvertPrecision.
+    CPU_SET_CALLBACK_COMMON(
+        manager,
+        [](const_node_ptr& node) -> bool {
+            return ov::is_conversion_disabled(node, ov::element::f16, ov::element::f32);
+        },
+        ov::pass::HardSigmoidDecomposition);
+#endif
 
     if (useLpt) {
         CPU_LPT_SCOPE(LowPrecisionTransformations_Part2);

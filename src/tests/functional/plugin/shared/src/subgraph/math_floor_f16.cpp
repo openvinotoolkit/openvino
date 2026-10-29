@@ -14,8 +14,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "shared_test_classes/single_op/activation.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 const std::vector<MathFloorF16Case>& MathFloorF16Test::all_cases() {
     using ov::test::utils::ActivationTypes;
@@ -90,5 +89,4 @@ void MathFloorF16Test::compile_model() {
     convert_precisions.clear();
 }
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

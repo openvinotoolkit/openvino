@@ -11,8 +11,7 @@
 #include "common_test_utils/test_enums.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 // Regression test for #184635: f16 inference must keep the f16 rounding of a Math op that feeds a Floor.
 //
@@ -45,5 +44,4 @@ protected:
     MathFloorF16Case test_case{};
 };
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test

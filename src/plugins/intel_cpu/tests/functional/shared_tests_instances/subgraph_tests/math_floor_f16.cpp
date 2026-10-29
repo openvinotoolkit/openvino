@@ -6,15 +6,13 @@
 
 #include "common_test_utils/test_constants.hpp"
 
-namespace {
-
-using ov::test::MathFloorF16Test;
+namespace ov::test {
 
 INSTANTIATE_TEST_SUITE_P(smoke_MathFloorF16,
                          MathFloorF16Test,
                          ::testing::Combine(::testing::ValuesIn(MathFloorF16Test::all_cases()),
                                             ::testing::Values(ov::element::f16, ov::element::dynamic),
-                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                                            ::testing::Values(utils::DEVICE_CPU)),
                          MathFloorF16Test::getTestCaseName);
 
-}  // namespace
+}  // namespace ov::test
