@@ -71,6 +71,18 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     const auto key = [&](const std::string& suffix) {
         return p.architecture + "." + suffix;
     };
+    if (p.architecture == "dflash") {
+        for (const auto& [name, value] : detail::MetadataAccess::get(m).map)
+            OPENVINO_ASSERT(name.rfind("lilicorr.", 0) != 0 && name.rfind("dflash.markov", 0) != 0,
+                            "[GGUF] unsupported DFlash auxiliary metadata '",
+                            name,
+                            "'; only the base DFlash architecture is supported");
+        for (const auto* suffix : {"conv_kernel_size", "conv_group_size", "selector_rank", "selector_top_k"})
+            OPENVINO_ASSERT(integer(m, key(suffix), 0) == 0,
+                            "[GGUF] unsupported DFlash auxiliary metadata '",
+                            key(suffix),
+                            "'; only the base DFlash architecture is supported");
+    }
     auto& d = p.dimensions;
     d.layers = integer(m, key("block_count"), d.layers, d.layers == 0);
     d.embedding = integer(m, key("embedding_length"), d.embedding, d.embedding == 0);
@@ -187,21 +199,6 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
         p.draft.target_layers = integers(m, key("target_layers"));
     if (p.architecture == "eagle3" || p.architecture == "dflash")
         p.draft.mask_token_id = integer(m, "tokenizer.ggml.mask_token_id", p.draft.mask_token_id);
-    p.draft.conv_kernel = integer(m, key("conv_kernel_size"), p.draft.conv_kernel);
-    p.draft.conv_group = integer(m, key("conv_group_size"), p.draft.conv_group);
-    p.draft.block_size = integer(m, key("block_size"), p.draft.block_size);
-    p.draft.sample_from_anchor = flag(m, key("sample_from_anchor"), p.draft.sample_from_anchor);
-    p.draft.selector_rank = integer(m, key("selector_rank"), p.draft.selector_rank);
-    p.draft.selector_top_k = integer(m, key("selector_top_k"), p.draft.selector_top_k);
-    auto& lattice = p.draft.lilicorr;
-    lattice.hidden_size = integer(m, "lilicorr.hidden_size", lattice.hidden_size);
-    lattice.candidate_topk = integer(m, "lilicorr.candidate_topk", lattice.candidate_topk);
-    lattice.heads = integer(m, "lilicorr.num_heads", lattice.heads);
-    lattice.layers = integer(m, "lilicorr.num_layers", lattice.layers);
-    lattice.factor_dim = integer(m, "lilicorr.factor_dim", lattice.factor_dim);
-    lattice.mlp_hidden_size = integer(m, "lilicorr.mlp_hidden_size", lattice.mlp_hidden_size);
-    lattice.vector_epsilon = real(m, "lilicorr.vector_eps", lattice.vector_epsilon);
-    lattice.logit_scale = real(m, "lilicorr.logit_scale", lattice.logit_scale);
     auto& e = p.experts;
     e.count = integer(m, key("expert_count"), e.count);
     e.used = integer(m, key("expert_used_count"), e.used);

@@ -46,14 +46,6 @@ private:
     std::string build_gemma3n(const std::string& embeddings);
     std::string build_eagle3(const std::string& embeddings);
     std::string build_dflash(const std::string& embeddings);
-    void build_dflash_selector(const std::string& logits);
-    void build_lilicorr(const std::string& logits);
-    std::string build_dflash_markov(const std::string& logits);
-    std::string build_dflash_conv(const std::string& hidden,
-                                  const std::string& dynamic,
-                                  const std::string& base,
-                                  int side,
-                                  const std::string& name);
     bool selects_output_rows(int il) const {
         return il == m_cfg.n_layer - 1 && !m_cfg.embedding_model;
     }

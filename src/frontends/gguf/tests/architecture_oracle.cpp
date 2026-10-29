@@ -73,12 +73,6 @@ int main(int argc, char** argv) {
     const bool dflash = argc == 5 && std::string(argv[3]) == "--dflash";
     const bool draft = argc == 5 && (std::string(argv[3]) == "--draft" || dflash);
     const bool embeddings = argc == 5 && std::string(argv[3]) == "--embeddings";
-    char lilicorr_metadata[32]{};
-    const bool lilicorr =
-        llama_model_meta_val_str(model, "lilicorr.hidden_size", lilicorr_metadata, sizeof(lilicorr_metadata)) >= 0;
-    char markov_metadata[32]{};
-    const bool markov =
-        llama_model_meta_val_str(model, "dflash.sample_from_anchor", markov_metadata, sizeof(markov_metadata)) >= 0;
     std::ifstream embedding_file;
     if (embeddings || draft)
         embedding_file.open(argv[4], std::ios::binary);
@@ -130,14 +124,12 @@ int main(int argc, char** argv) {
             }
         }
         if (dflash) {
-            if (llama_model_dflash_selector_top_k(model) > 0 || lilicorr || markov)
-                llama_set_embeddings_nextn(ctx, true, false);
             const size_t width = 3 * llama_model_n_embd(model);
             std::vector<float> features(tokens.size() * width);
             embedding_file.read(reinterpret_cast<char*>(features.data()), features.size() * sizeof(float));
             if (!embedding_file)
                 return 8;
-            const int offset = lilicorr ? step * 3 : step == 0 ? 0 : step == 1 ? 3 : 4;
+            const int offset = step == 0 ? 0 : step == 1 ? 3 : 4;
             auto* injection = llama_batch_ext_init(ctx);
             for (size_t i = 0; i < tokens.size(); ++i) {
                 const auto index = llama_batch_ext_add_embd(injection, 0, {features.data() + i * width, 1, width});
@@ -148,39 +140,16 @@ int main(int argc, char** argv) {
             llama_set_causal_attn(ctx, false);
             if (llama_process(ctx, LLAMA_PROCESS_TYPE_DECODE, injection))
                 return 9;
-            std::vector<float> anchors;
-            if (lilicorr) {
-                anchors.assign(llama_get_embeddings_nextn(ctx),
-                               llama_get_embeddings_nextn(ctx) + tokens.size() * llama_model_n_embd(model));
-                std::ofstream anchor_file(std::string(argv[2]) + ".anchor" + std::to_string(step), std::ios::binary);
-                anchor_file.write(reinterpret_cast<const char*>(anchors.data()), anchors.size() * sizeof(float));
-            }
             llama_batch_ext_free(injection);
             auto* decoder = llama_batch_ext_init(ctx);
             for (size_t i = 0; i < tokens.size(); ++i) {
                 const auto index = llama_batch_ext_add_token(decoder, 0, tokens[i]);
-                if (lilicorr)
-                    llama_batch_ext_set_embd_state(decoder,
-                                                   index,
-                                                   {anchors.data() + (tokens.size() - 1) * llama_model_n_embd(model),
-                                                    1,
-                                                    size_t(llama_model_n_embd(model))});
                 const llama_pos position = offset + tokens.size() + i;
                 llama_batch_ext_set_pos(decoder, index, &position);
                 llama_batch_ext_set_output_logits(decoder, index, true);
             }
             if (llama_process(ctx, LLAMA_PROCESS_TYPE_DECODE, decoder))
                 return 10;
-            if (markov) {
-                std::ofstream all_logits(std::string(argv[2]) + ".alllogits" + std::to_string(step), std::ios::binary);
-                all_logits.write(reinterpret_cast<const char*>(llama_get_logits(ctx)),
-                                 tokens.size() * llama_vocab_n_tokens(llama_model_get_vocab(model)) * sizeof(float));
-            }
-            if (llama_model_dflash_selector_top_k(model) > 0 || lilicorr || markov) {
-                std::ofstream lattice(std::string(argv[2]) + ".lattice" + std::to_string(step), std::ios::binary);
-                lattice.write(reinterpret_cast<const char*>(llama_get_embeddings_nextn(ctx)),
-                              tokens.size() * llama_model_n_embd(model) * sizeof(float));
-            }
             llama_batch_ext_free(decoder);
             if (!llama_memory_seq_rm(llama_get_memory(ctx), 0, offset + tokens.size(), -1))
                 return 11;
@@ -228,11 +197,10 @@ int main(int argc, char** argv) {
             }))
             return 13;
         out.write(reinterpret_cast<const char*>(logits), vocab * sizeof(float));
-        tokens = lilicorr     ? std::vector<llama_token>{4, 5, 6}
-                 : generation ? std::vector<llama_token>{static_cast<llama_token>(
-                                    std::max_element(logits, logits + vocab) - logits + vocab_offset)}
-                 : step == 0  ? std::vector<llama_token>{4}
-                              : std::vector<llama_token>{5, 6};
+        tokens = generation  ? std::vector<llama_token>{static_cast<llama_token>(
+                                  std::max_element(logits, logits + vocab) - logits + vocab_offset)}
+                 : step == 0 ? std::vector<llama_token>{4}
+                             : std::vector<llama_token>{5, 6};
     }
     llama_free(ctx);
     llama_model_free(model);

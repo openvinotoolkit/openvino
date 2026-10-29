@@ -48,14 +48,7 @@ CASES = {
     "dflash-post": {"architecture": "dflash", "layers": 2, "qk": True, "post": True,
                      "layer_scale": True, "fc_scale": True, "value_scale": 1.5, "hidden_act": "gelu_pytorch_tanh"},
     "dflash-shared": {"architecture": "dflash", "layers": 2, "qk": True, "shared_v": True},
-    "dflash-conv": {"architecture": "dflash", "layers": 2, "qk": True, "conv_kernel": 4, "conv_group": 8},
     "dflash-mapped": {"architecture": "dflash", "layers": 2, "qk": True, "output_vocab": 16, "d2t": True},
-    "dflash-selector": {"architecture": "dflash", "layers": 2, "qk": True, "conv_kernel": 4,
-                         "conv_group": 8, "selector": True},
-    "dflash-lilicorr": {"architecture": "dflash", "layers": 2, "qk": True, "lilicorr": True},
-    "dflash-markov": {"architecture": "dflash", "layers": 2, "qk": True, "markov": True},
-    "dflash-markov-mapped": {"architecture": "dflash", "layers": 2, "qk": True, "markov": True,
-                             "output_vocab": 16, "d2t": True, "sample_from_anchor": False},
     "qwen35-zero-scales": {"architecture": "qwen35", "zero_scales": True},
     "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
     # Real checkpoints quantize attn_gate apart from ssm_beta/ssm_alpha: F16 here selects the
@@ -561,55 +554,6 @@ def write_model(path, arch, opts):
         tensor("output.weight", (opts.get("output_vocab", vocab), d))
     if arch == "dflash":
         tensor("enc.output_norm.weight", (d,), True)
-        if opts.get("markov"):
-            w.add_uint32("dflash.block_size", 3)
-            w.add_bool("dflash.sample_from_anchor", opts.get("sample_from_anchor", True))
-            tensor("markov_w1.weight", (vocab, 8))
-            tensor("markov_w2.weight", (opts.get("output_vocab", vocab), 8))
-            w.add_tensor("markov_w2.scale", np.array([1.3], dtype=np.float32))
-            tensor("conf_proj.weight", (1, d + 8))
-            w.add_tensor("conf_proj.bias", np.array([.1], dtype=np.float32))
-        if opts.get("conv_kernel"):
-            w.add_uint32("dflash.conv_kernel_size", opts["conv_kernel"])
-            w.add_uint32("dflash.conv_group_size", opts["conv_group"])
-        if opts.get("selector"):
-            w.add_uint32("dflash.block_size", 3)
-            w.add_uint32("dflash.selector_rank", 8)
-            w.add_uint32("dflash.selector_top_k", 4)
-            tensor("selector_hidden.weight", (8, d))
-            tensor("selector_predecessor.weight", (vocab, 8))
-            tensor("selector_successor.weight", (vocab, 8))
-        if opts.get("lilicorr"):
-            w.add_uint32("dflash.block_size", 3)
-            for key, value in {"hidden_size": 32, "candidate_topk": 4, "num_heads": 4, "num_layers": 1,
-                               "factor_dim": 8, "mlp_hidden_size": 48}.items():
-                w.add_uint32("lilicorr." + key, value)
-            w.add_float32("lilicorr.vector_eps", 1e-6)
-            w.add_float32("lilicorr.logit_scale", 2.)
-            for name in ("pass_hidden_proj", "context_proj"):
-                tensor("lilicorr." + name + ".weight", (d, d))
-                tensor("lilicorr." + name + ".bias", (d,))
-            tensor("lilicorr.slot_embedding.weight", (2, d))
-            tensor("lilicorr.rank_embedding.weight", (4, d))
-            tensor("lilicorr.attention_bias.bias", (4, 8, 8))
-            tensor("lilicorr.layers.0.attn.in_proj.weight", (3 * d, d))
-            tensor("lilicorr.layers.0.attn.in_proj.bias", (3 * d,))
-            for name in ("output_norm", "anchor_norm"):
-                tensor("lilicorr." + name + ".weight", (d,), True)
-            for name, shape in {"factor_input_proj": (d, 3 * d), "out_head": (8, d),
-                                "in_head": (8, d), "anchor_out_head": (8, d)}.items():
-                tensor("lilicorr." + name + ".weight", shape)
-                tensor("lilicorr." + name + ".bias", (shape[0],))
-            for name in ("attn_norm", "ffn_norm"):
-                tensor("blk.2." + name + ".weight", (d,), True)
-            for name, shape in {"attn_output": (d, d), "ffn_up": (48, d), "ffn_down": (d, 48)}.items():
-                tensor("blk.2." + name + ".weight", shape)
-                tensor("blk.2." + name + ".bias", (shape[0],))
-            tensor("blk.3.ffn_norm.weight", (5,), True)
-            tensor("blk.3.ffn_norm.bias", (5,))
-            for name, shape in {"ffn_up": (d, 5), "ffn_down": (d, d)}.items():
-                tensor("blk.3." + name + ".weight", shape)
-                tensor("blk.3." + name + ".bias", (shape[0],))
     if arch in ("eagle3", "dflash"):
         tensor("fc.weight", (d, 3 * d))
         if opts.get("fc_scale"):
@@ -622,10 +566,6 @@ def write_model(path, arch, opts):
             w.add_tensor("d2t", np.arange(0, vocab, 2, dtype=np.int64))
     for layer in range(layers):
         p = f"blk.{layer}."
-        if opts.get("conv_kernel"):
-            for kind in ("attn", "ffn"):
-                tensor(p + kind + "_conv_base", (2, opts["conv_kernel"], d))
-                tensor(p + kind + "_conv_proj.weight", (2 * opts["conv_kernel"] * d // opts["conv_group"], d))
         if not opts.get("post_only"):
             norms = ("attn_norm",) if arch == "cohere2" else ("attn_norm", "post_attention_norm" if opts.get("ffn_post_attn") else "ffn_norm")
             for name in norms:
@@ -706,10 +646,8 @@ def main():
             oracle = args.embedding_oracle if CASES[arch].get("embedding_output") else args.oracle
             extra = {}
             command = [oracle, str(model), str(reference)]
-            if CASES[arch].get("selector"):
-                extra["selector"] = np.array([1], dtype=np.int32)
             if CASES[arch].get("architecture", arch) in ("eagle3", "dflash"):
-                feature_shape = (9 if CASES[arch].get("lilicorr") else 6, 96)
+                feature_shape = (6, 96)
                 if CASES[arch].get("q8_hidden_exact"):
                     codes = (np.arange(feature_shape[0])[:, None] * 47 + np.arange(feature_shape[1])[None, :] * 73) % 255 - 127
                     for block in range(0, feature_shape[1], 32):
@@ -750,17 +688,6 @@ def main():
                     logits = logits[:, extra["d2t"]]
             finite = logits[np.isfinite(logits)]
             assert not np.isnan(logits).any() and np.linalg.norm(finite) > 0
-            if CASES[arch].get("selector"):
-                for step, count in enumerate((3, 1, 2)):
-                    extra[f"lattice_{step}"] = np.fromfile(str(reference) + f".lattice{step}", dtype=np.float32).reshape(count, 32)
-            if CASES[arch].get("lilicorr"):
-                for step in range(3):
-                    extra[f"lattice_{step}"] = np.fromfile(str(reference) + f".lattice{step}", dtype=np.float32).reshape(3, 32)
-                    extra[f"anchor_{step}"] = np.fromfile(str(reference) + f".anchor{step}", dtype=np.float32).reshape(3, 32)
-            if CASES[arch].get("markov"):
-                for step, count in enumerate((3, 1, 2)):
-                    extra[f"confidence_{step}"] = np.fromfile(str(reference) + f".lattice{step}", dtype=np.float32).reshape(count, 32)
-                    extra[f"alllogits_{step}"] = np.fromfile(str(reference) + f".alllogits{step}", dtype=np.float32).reshape(count, vocab)
             save_npz(args.out_dir / f"{arch}.npz", {"model": np.fromfile(model, dtype=np.uint8), "logits": logits, **extra})
             print(f"{arch}: {model.stat().st_size} bytes, reference logits {logits.shape}", flush=True)
 

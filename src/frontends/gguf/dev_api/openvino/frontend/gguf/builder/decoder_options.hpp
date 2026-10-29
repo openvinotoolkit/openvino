@@ -122,29 +122,11 @@ struct GGUF_FRONTEND_API DecoderLayerOverrides {
     std::optional<bool> experts;
 };
 
-struct GGUF_FRONTEND_API DecoderLiliCorr {
-    int hidden_size = 0;
-    int candidate_topk = 0;
-    int heads = 0;
-    int layers = 0;
-    int factor_dim = 0;
-    int mlp_hidden_size = 0;
-    float vector_epsilon = 1e-6f;
-    float logit_scale = 1.f;
-};
-
 struct GGUF_FRONTEND_API DecoderDraft {
     bool norm_before_fc = false;
     bool norm_before_residual = false;
     std::vector<int32_t> target_layers;
     int mask_token_id = 0;
-    int conv_kernel = 0;
-    int conv_group = 0;
-    int block_size = 0;
-    bool sample_from_anchor = true;
-    int selector_rank = 0;
-    int selector_top_k = 0;
-    DecoderLiliCorr lilicorr;
 };
 
 struct GGUF_FRONTEND_API DecoderParameters {

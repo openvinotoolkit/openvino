@@ -15,10 +15,8 @@
 
 #include "builder/arch/decoder_builder.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <limits>
-#include <numeric>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/blocks/common.hpp"
@@ -28,39 +26,24 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/equal.hpp"
-#include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/log.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/maximum.hpp"
-#include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/pad.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_update.hpp"
-#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/softmax.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "utils.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -96,19 +79,6 @@ DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParamet
             info["mask_token_id"] = std::to_string(m_cfg.draft_mask_token_id);
             info["candidate_position_offset"] = "0";
             graph.model_rt_info["dflash"] = info;
-            if (m_emit.has_weight("markov_w1.weight")) {
-                graph.model_rt_info["gguf.dflash_block_size"] = m_cfg.draft_block_size;
-                graph.model_rt_info["gguf.dflash_markov"] = true;
-                graph.model_rt_info["gguf.dflash_sample_from_anchor"] = m_cfg.draft_sample_from_anchor;
-            }
-            if (m_emit.has_weight("selector_hidden.weight")) {
-                graph.model_rt_info["gguf.dflash_selector_top_k"] = m_cfg.draft_selector_top_k;
-                graph.model_rt_info["gguf.dflash_block_size"] = m_cfg.draft_block_size;
-            }
-            if (m_cfg.lilicorr_hidden > 0) {
-                graph.model_rt_info["gguf.lilicorr_top_k"] = m_cfg.lilicorr_top_k;
-                graph.model_rt_info["gguf.dflash_block_size"] = m_cfg.draft_block_size;
-            }
         }
     }
 }
@@ -437,7 +407,7 @@ std::string DecoderBuilder::build_head(const std::string& in) {
     }
     auto logits = m_emit.add_op("GGML_OP_MUL_MAT", "result_output", {lm_head_w, cur});
     // MiniCPM scales the logits (1/(n_embd/dim_model_base)).
-    const bool transform_logits = m_cfg.arch != "dflash" || m_emit.has_weight("selector_hidden.weight");
+    const bool transform_logits = m_cfg.arch != "dflash";
     if (transform_logits && m_cfg.logit_scale != 1.0f) {
         logits = blocks::scale(m_emit, logits, m_cfg.logit_scale, "result_output_scaled");
     }
@@ -470,8 +440,6 @@ std::string DecoderBuilder::build_head(const std::string& in) {
         m_emit.add_extra_input_node("result_output_mapped", scattered);
         logits = "result_output_mapped";
     }
-    if (m_cfg.arch == "dflash" && m_emit.has_weight("markov_w1.weight"))
-        logits = build_dflash_markov(logits);
     return logits;
 }
 
@@ -523,10 +491,6 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
     // become Assign sinks via MakeStateful.
     auto graph = m_emit.graph();
     graph->model_output_names.insert(graph->model_output_names.begin(), logits);
-    if (m_cfg.arch == "dflash" && m_emit.has_weight("selector_hidden.weight"))
-        build_dflash_selector(logits);
-    if (m_cfg.arch == "dflash" && m_cfg.lilicorr_hidden > 0)
-        build_lilicorr(logits);
     if (m_cfg.arch == "eagle3" && m_emit.has_weight("d2t")) {
         const auto& mapping = m_emit.weights().at("d2t");
         OPENVINO_ASSERT(mapping.get_element_type() == i64, "[GGUF] Eagle3 d2t must be i64");
@@ -536,378 +500,6 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
         graph->model_output_names.push_back("d2t");
     }
     return graph;
-}
-
-std::string DecoderBuilder::build_dflash_markov(const std::string& logits) {
-    using namespace ov::op;
-    using O = ov::Output<ov::Node>;
-    const auto scalar = [](int64_t value) {
-        return v0::Constant::create(i64, {}, {value});
-    };
-    const auto axis = [](int64_t value) {
-        return v0::Constant::create(i64, {1}, {value});
-    };
-    const auto weight = [&](const std::string& name) -> O {
-        if (name.size() >= 7 && name.compare(name.size() - 7, 7, ".weight") == 0)
-            m_emit.add_weight(name);
-        else
-            m_emit.add_named_weight(name);
-        return m_emit.value(name);
-    };
-    const auto w1 = weight("markov_w1.weight");
-    const auto w2 = weight("markov_w2.weight");
-    OPENVINO_ASSERT(m_cfg.draft_block_size > 0 && w1.get_partial_shape().rank() == 2 &&
-                        w2.get_partial_shape().rank() == 2 && w1.get_partial_shape()[1] == w2.get_partial_shape()[1],
-                    "[GGUF] invalid DFlash Markov geometry");
-    O base = m_emit.value(logits);
-    O hidden = m_emit.value("result_norm");
-    O length = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(base), scalar(2), scalar(0));
-    const auto column = [&](O value, int64_t index) -> O {
-        O safe = std::make_shared<v1::Minimum>(scalar(index), std::make_shared<v1::Subtract>(length, scalar(1)));
-        return std::make_shared<v8::Gather>(value, std::make_shared<v0::Unsqueeze>(safe, axis(0)), scalar(2));
-    };
-    O prev = std::make_shared<v8::Gather>(m_emit.value("inp_tokens"), scalar(0), scalar(3));
-    const bool confidence = m_emit.has_weight("conf_proj.weight");
-    ov::OutputVector columns, scores;
-    for (int64_t index = 0; index < m_cfg.draft_block_size; ++index) {
-        O value = column(base, index);
-        if (index || m_cfg.draft_sample_from_anchor) {
-            O latent = std::make_shared<v8::Gather>(w1, prev, scalar(0));
-            O bias = std::make_shared<v0::MatMul>(latent, w2, false, true);
-            if (m_emit.has_weight("markov_w2.scale"))
-                bias = std::make_shared<v1::Multiply>(bias, weight("markov_w2.scale"));
-            if (m_emit.has_weight("d2t")) {
-                auto full = std::make_shared<v3::Broadcast>(v0::Constant::create(f32, {}, {0.f}),
-                                                            std::make_shared<v3::ShapeOf>(value));
-                bias = std::make_shared<v3::ScatterUpdate>(full,
-                                                           std::make_shared<v0::Constant>(m_emit.weights().at("d2t")),
-                                                           bias,
-                                                           scalar(3));
-            }
-            value = std::make_shared<v1::Add>(value, bias);
-            if (confidence) {
-                O features = std::make_shared<v0::Concat>(ov::OutputVector{column(hidden, index), latent}, 3);
-                O score = std::make_shared<v0::MatMul>(features, weight("conf_proj.weight"), false, true);
-                if (m_emit.has_weight("conf_proj.bias"))
-                    score = std::make_shared<v1::Add>(score, weight("conf_proj.bias"));
-                scores.push_back(std::make_shared<v0::Sigmoid>(score));
-            }
-            prev =
-                std::make_shared<v0::Squeeze>(make_topk_indices(value, scalar(1), -1, v11::TopK::Mode::MAX), axis(3));
-        } else if (confidence) {
-            scores.push_back(std::make_shared<v0::Sigmoid>(std::make_shared<v8::Gather>(value, axis(0), scalar(3))));
-        }
-        columns.push_back(value);
-    }
-    const auto trim = [&](O value) -> O {
-        return std::make_shared<v8::Slice>(value,
-                                           axis(0),
-                                           std::make_shared<v0::Unsqueeze>(length, axis(0)),
-                                           axis(1),
-                                           axis(2));
-    };
-    O tail = std::make_shared<v8::Slice>(base,
-                                         axis(m_cfg.draft_block_size),
-                                         std::make_shared<v0::Unsqueeze>(length, axis(0)),
-                                         axis(1),
-                                         axis(2));
-    O chain = trim(std::make_shared<v0::Concat>(ov::OutputVector{std::make_shared<v0::Concat>(columns, 2), tail}, 2));
-    O result = std::make_shared<v1::Select>(std::make_shared<v1::Greater>(length, scalar(m_cfg.draft_block_size)),
-                                            base,
-                                            chain);
-    result.get_node_shared_ptr()->set_friendly_name("dflash.markov_logits");
-    m_emit.add_extra_input_node("dflash.markov_logits", result.get_node_shared_ptr());
-    if (confidence) {
-        O padding = std::make_shared<v8::Gather>(tail, axis(0), scalar(3));
-        padding = std::make_shared<v3::Broadcast>(v0::Constant::create(f32, {}, {0.f}),
-                                                  std::make_shared<v3::ShapeOf>(padding));
-        O score =
-            trim(std::make_shared<v0::Concat>(ov::OutputVector{std::make_shared<v0::Concat>(scores, 2), padding}, 2));
-        score = std::make_shared<v3::Broadcast>(score, std::make_shared<v3::ShapeOf>(hidden));
-        O empty = std::make_shared<v3::Broadcast>(v0::Constant::create(f32, {}, {0.f}),
-                                                  std::make_shared<v3::ShapeOf>(hidden));
-        score = std::make_shared<v1::Select>(std::make_shared<v1::Greater>(length, scalar(m_cfg.draft_block_size)),
-                                             empty,
-                                             score);
-        score.get_node_shared_ptr()->set_friendly_name("dflash.confidence");
-        m_emit.add_extra_input_node("dflash.confidence", score.get_node_shared_ptr());
-        m_emit.graph()->model_output_names.push_back("dflash.confidence");
-    }
-    return "dflash.markov_logits";
-}
-
-void DecoderBuilder::build_lilicorr(const std::string& logits) {
-    using namespace ov::op;
-    using O = ov::Output<ov::Node>;
-    const int h = m_cfg.lilicorr_hidden;
-    const int k = m_cfg.lilicorr_top_k;
-    const int slots = m_cfg.draft_block_size - 1;
-    const int nodes = slots * k;
-    const auto scalar = [](int64_t x) {
-        return v0::Constant::create(i64, {}, {x});
-    };
-    const auto axis = [](int64_t x) {
-        return v0::Constant::create(i64, {1}, {x});
-    };
-    const auto reshape = [](O x, std::vector<int64_t> shape, bool zeros = false) -> O {
-        return std::make_shared<v1::Reshape>(x, v0::Constant::create(i64, {shape.size()}, shape), zeros);
-    };
-    const auto weight = [&](const std::string& name) -> O {
-        m_emit.add_named_weight(name);
-        return m_emit.value(name);
-    };
-    const auto linear = [&](O x, const std::string& name) -> O {
-        m_emit.add_weight(name + ".weight");
-        O y = std::make_shared<v0::MatMul>(x, m_emit.value(name + ".weight"), false, true);
-        if (m_emit.has_weight(name + ".scale"))
-            y = std::make_shared<v1::Multiply>(y, weight(name + ".scale"));
-        if (m_emit.has_weight(name + ".bias"))
-            y = std::make_shared<v1::Add>(y, weight(name + ".bias"));
-        return y;
-    };
-    const auto norm = [&](O x, const std::string& name, float eps, bool center) -> O {
-        if (center)
-            x = std::make_shared<v1::Subtract>(x, std::make_shared<v1::ReduceMean>(x, axis(-1), true));
-        O square = std::make_shared<v1::Multiply>(x, x);
-        O variance = std::make_shared<v1::ReduceMean>(square, axis(-1), true);
-        O denominator =
-            std::make_shared<v0::Sqrt>(std::make_shared<v1::Add>(variance, v0::Constant::create(f32, {}, {eps})));
-        O y = std::make_shared<v1::Multiply>(std::make_shared<v1::Divide>(x, denominator), weight(name + ".weight"));
-        return m_emit.has_weight(name + ".bias") ? std::make_shared<v1::Add>(y, weight(name + ".bias"))->output(0) : y;
-    };
-    const auto silu = [](O x) -> O {
-        return std::make_shared<v1::Divide>(
-            x,
-            std::make_shared<v1::Add>(
-                v0::Constant::create(f32, {}, {1}),
-                std::make_shared<v0::Exp>(std::make_shared<v1::Multiply>(x, v0::Constant::create(f32, {}, {-1})))));
-    };
-    const auto l2 = [&](O x) -> O {
-        auto sum = std::make_shared<v1::ReduceSum>(std::make_shared<v1::Multiply>(x, x), axis(-1), true);
-        return std::make_shared<v1::Divide>(
-            x,
-            std::make_shared<v1::Maximum>(std::make_shared<v0::Sqrt>(sum),
-                                          v0::Constant::create(f32, {}, {m_cfg.lilicorr_eps})));
-    };
-    O values = reshape(m_emit.value(logits), {0, m_cfg.draft_block_size, -1}, true);
-    O ids = make_topk_indices(values, scalar(k), -1, v11::TopK::Mode::MAX);
-    O probabilities = std::make_shared<v8::Softmax>(values, -1);
-    O probs = std::make_shared<v8::Gather>(probabilities, ids, scalar(2), 2);
-    auto indices = std::make_shared<v4::Range>(scalar(1), scalar(slots + 1), scalar(1), i64);
-    ids = std::make_shared<v8::Gather>(ids, indices, scalar(1));
-    probs = std::make_shared<v8::Gather>(probs, indices, scalar(1));
-    O log_probs = std::make_shared<v0::Log>(probs);
-    O relative = std::make_shared<v1::Subtract>(log_probs, std::make_shared<v8::Gather>(log_probs, axis(0), scalar(2)));
-    std::vector<float> ranks(k), first(k, 0.f);
-    first[0] = 1.f;
-    for (int i = 0; i < k; ++i)
-        ranks[i] = k == 1 ? 0.f : float(i) / (k - 1);
-    O rank_values = std::make_shared<v3::Broadcast>(v0::Constant::create(f32, {size_t(k)}, ranks),
-                                                    std::make_shared<v3::ShapeOf>(probs));
-    O first_values = std::make_shared<v3::Broadcast>(v0::Constant::create(f32, {size_t(k)}, first),
-                                                     std::make_shared<v3::ShapeOf>(probs));
-    ov::OutputVector features;
-    for (O x : {log_probs, probs, relative, rank_values, first_values})
-        features.push_back(std::make_shared<v0::Unsqueeze>(x, axis(3)));
-    O feature_states = reshape(std::make_shared<v0::Concat>(features, 3), {0, nodes, 5}, true);
-    const auto feature_layer = "blk." + std::to_string(m_cfg.n_layer + m_cfg.lilicorr_layers) + ".";
-    feature_states = norm(feature_states, feature_layer + "ffn_norm", 1e-5f, true);
-    feature_states = linear(silu(linear(feature_states, feature_layer + "ffn_up")), feature_layer + "ffn_down");
-    O token_states = std::make_shared<v8::Gather>(m_emit.value("token_embd.weight"), ids, scalar(0));
-    token_states = reshape(token_states, {0, nodes, m_cfg.n_embd}, true);
-    if (h != m_cfg.n_embd)
-        token_states = linear(token_states, "lilicorr.token_proj");
-    O passes = reshape(m_emit.value("result_norm"), {0, m_cfg.draft_block_size, m_cfg.n_embd}, true);
-    passes = linear(std::make_shared<v8::Gather>(passes, indices, scalar(1)), "lilicorr.pass_hidden_proj");
-    passes = std::make_shared<v0::Unsqueeze>(passes, axis(2));
-    auto pass_shape = std::make_shared<v0::Concat>(
-        ov::OutputVector{std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(passes), axis(0), scalar(0)),
-                         v0::Constant::create(i64, {3}, {slots, k, h})},
-        0);
-    passes = reshape(std::make_shared<v3::Broadcast>(passes, pass_shape), {0, nodes, h}, true);
-    O positions = std::make_shared<v1::Add>(reshape(weight("lilicorr.slot_embedding.weight"), {1, slots, 1, h}),
-                                            reshape(weight("lilicorr.rank_embedding.weight"), {1, 1, k, h}));
-    positions = reshape(positions, {1, nodes, h});
-    O x = std::make_shared<v1::Add>(std::make_shared<v1::Add>(token_states, passes),
-                                    std::make_shared<v1::Add>(feature_states, positions));
-    O context = reshape(m_emit.value("dflash.encoder_norm"), {0, -1, m_cfg.n_embd}, true);
-    O context_length = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(context), axis(1), scalar(0));
-    O anchor_index = std::make_shared<v1::Subtract>(context_length, axis(1));
-    O anchor = linear(std::make_shared<v8::Gather>(context, anchor_index, scalar(1)), "lilicorr.context_proj");
-    for (int layer = 0; layer < m_cfg.lilicorr_layers; ++layer) {
-        const auto prefix = "blk." + std::to_string(m_cfg.n_layer + layer) + ".";
-        O input = norm(x, prefix + "attn_norm", m_cfg.rms_eps, false);
-        O qkv = linear(input, "lilicorr.layers." + std::to_string(layer) + ".attn.in_proj");
-        ov::OutputVector projected;
-        for (int side = 0; side < 3; ++side) {
-            O part = std::make_shared<v8::Slice>(qkv, axis(side * h), axis((side + 1) * h), axis(1), axis(2));
-            part = reshape(part, {0, nodes, m_cfg.lilicorr_heads, h / m_cfg.lilicorr_heads}, true);
-            projected.push_back(std::make_shared<v1::Transpose>(part, v0::Constant::create(i64, {4}, {0, 2, 1, 3})));
-        }
-        O attention = std::make_shared<v13::ScaledDotProductAttention>(projected[0],
-                                                                       projected[1],
-                                                                       projected[2],
-                                                                       weight("lilicorr.attention_bias.bias"),
-                                                                       false);
-        attention = reshape(std::make_shared<v1::Transpose>(attention, v0::Constant::create(i64, {4}, {0, 2, 1, 3})),
-                            {0, nodes, h},
-                            true);
-        x = std::make_shared<v1::Add>(x, linear(attention, prefix + "attn_output"));
-        O mlp = norm(x, prefix + "ffn_norm", m_cfg.rms_eps, false);
-        x = std::make_shared<v1::Add>(x, linear(silu(linear(mlp, prefix + "ffn_up")), prefix + "ffn_down"));
-    }
-    x = norm(x, "lilicorr.output_norm", m_cfg.rms_eps, false);
-    anchor = norm(anchor, "lilicorr.anchor_norm", m_cfg.rms_eps, false);
-    auto xshape = std::make_shared<v3::ShapeOf>(x);
-    O anchor_nodes = std::make_shared<v3::Broadcast>(anchor, xshape);
-    O factors = silu(linear(
-        std::make_shared<v0::Concat>(ov::OutputVector{x, anchor_nodes, std::make_shared<v1::Multiply>(x, anchor_nodes)},
-                                     2),
-        "lilicorr.factor_input_proj"));
-    O out = reshape(l2(linear(factors, "lilicorr.out_head")), {0, slots, k, m_cfg.lilicorr_factor}, true);
-    O in = reshape(l2(linear(factors, "lilicorr.in_head")), {0, slots, k, m_cfg.lilicorr_factor}, true);
-    O anchor_out = std::make_shared<v0::Unsqueeze>(l2(linear(anchor, "lilicorr.anchor_out_head")), axis(1));
-    O previous = std::make_shared<v8::Slice>(out, axis(0), axis(slots - 1), axis(1), axis(1));
-    auto ashape =
-        std::make_shared<v0::Concat>(ov::OutputVector{std::make_shared<v8::Gather>(xshape, axis(0), scalar(0)),
-                                                      v0::Constant::create(i64, {3}, {1, k, m_cfg.lilicorr_factor})},
-                                     0);
-    O predecessors =
-        std::make_shared<v0::Concat>(ov::OutputVector{std::make_shared<v3::Broadcast>(anchor_out, ashape), previous},
-                                     1);
-    O scores = std::make_shared<v1::Multiply>(std::make_shared<v0::MatMul>(predecessors, in, false, true),
-                                              v0::Constant::create(f32, {}, {m_cfg.lilicorr_scale}));
-    std::vector<float> score_mask(size_t(slots * k * k), 1.f);
-    std::fill(score_mask.begin() + k, score_mask.begin() + k * k, 0.f);
-    scores = std::make_shared<v1::Multiply>(reshape(scores, {0, slots, k * k}, true),
-                                            v0::Constant::create(f32, {1, size_t(slots), size_t(k * k)}, score_mask));
-    O row = std::make_shared<v0::Concat>(ov::OutputVector{std::make_shared<v0::Convert>(ids, f32), scores}, 2);
-    auto packed = std::make_shared<v12::Pad>(row,
-                                             v0::Constant::create(i64, {3}, {0, 1, 0}),
-                                             v0::Constant::create(i64, {3}, {0, 0, m_cfg.n_embd - k * (k + 1)}),
-                                             v0::Constant::create(f32, {}, {0}),
-                                             ov::op::PadMode::CONSTANT);
-    packed->set_friendly_name("lilicorr.lattice");
-    m_emit.add_extra_input_node("lilicorr.lattice", packed);
-    m_emit.graph()->model_output_names.push_back("lilicorr.lattice");
-}
-
-void DecoderBuilder::build_dflash_selector(const std::string& logits) {
-    using namespace ov::op;
-    const auto scalar = [](int64_t value) {
-        return v0::Constant::create(i64, {}, {value});
-    };
-    const auto axis = [](int64_t value) {
-        return v0::Constant::create(i64, {1}, {value});
-    };
-    auto raw_values = m_emit.value(logits);
-    auto vocab = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(raw_values), scalar(-1), scalar(0));
-    auto values = std::make_shared<v1::Reshape>(
-        raw_values,
-        std::make_shared<v0::Concat>(ov::OutputVector{v0::Constant::create(i64, {3}, {0, 1, -1}),
-                                                      std::make_shared<v0::Unsqueeze>(vocab, axis(0))},
-                                     0),
-        true);
-    const auto k = m_cfg.draft_selector_top_k;
-    auto candidates = make_topk_indices(values, scalar(k), -1, v11::TopK::Mode::MAX);
-    if (k > 1) {
-        std::vector<int64_t> order(k);
-        std::iota(order.begin(), order.end(), int64_t{0});
-        std::swap(order[0], order[1]);
-        candidates = std::make_shared<v8::Gather>(candidates, v0::Constant::create(i64, {size_t(k)}, order), scalar(3));
-    }
-    auto unary = std::make_shared<v8::Gather>(values, candidates, scalar(3), 3);
-    auto length = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(values), scalar(2), scalar(0));
-    auto end = std::make_shared<v1::Minimum>(length, scalar(m_cfg.draft_block_size));
-    auto slots = std::make_shared<v4::Range>(scalar(0), end, scalar(1), i64);
-    auto previous_slots = std::make_shared<v1::Maximum>(std::make_shared<v1::Subtract>(slots, scalar(1)), scalar(0));
-    auto current_ids = std::make_shared<v8::Gather>(candidates, slots, scalar(2));
-    auto previous_ids = std::make_shared<v8::Gather>(candidates, previous_slots, scalar(2));
-    auto anchor = std::make_shared<v8::Gather>(m_emit.value("inp_tokens"), axis(0), scalar(3));
-    auto anchor_ids = std::make_shared<v1::Reshape>(anchor, v0::Constant::create(i64, {4}, {0, 0, 1, 1}), true);
-    auto first = std::make_shared<v1::Reshape>(std::make_shared<v1::Equal>(slots, scalar(1)),
-                                               v0::Constant::create(i64, {4}, {1, 1, -1, 1}),
-                                               false);
-    auto predecessors = std::make_shared<v1::Select>(first, anchor_ids, previous_ids);
-    for (const auto name : {"selector_hidden.weight", "selector_predecessor.weight", "selector_successor.weight"})
-        m_emit.add_weight(name);
-    auto gate =
-        std::make_shared<v0::MatMul>(m_emit.value("result_norm"), m_emit.value("selector_hidden.weight"), false, true);
-    auto gate_run = std::make_shared<v0::Unsqueeze>(std::make_shared<v8::Gather>(gate, slots, scalar(2)), axis(3));
-    auto predecessor =
-        std::make_shared<v8::Gather>(m_emit.value("selector_predecessor.weight"), predecessors, scalar(0));
-    auto successor = std::make_shared<v8::Gather>(m_emit.value("selector_successor.weight"), current_ids, scalar(0));
-    auto scores =
-        std::make_shared<v0::MatMul>(std::make_shared<v1::Multiply>(predecessor, gate_run), successor, false, true);
-    auto unary_run = std::make_shared<v0::Unsqueeze>(std::make_shared<v8::Gather>(unary, slots, scalar(2)), axis(3));
-    auto flattened = std::make_shared<v1::Reshape>(std::make_shared<v1::Add>(scores, unary_run),
-                                                   v0::Constant::create(i64, {4}, {0, 0, 0, k * k}),
-                                                   true);
-    auto rows =
-        std::make_shared<v0::Concat>(ov::OutputVector{std::make_shared<v0::Convert>(current_ids, f32), flattened}, 3);
-    auto live = std::make_shared<v1::Reshape>(std::make_shared<v1::Equal>(slots, scalar(0)),
-                                              v0::Constant::create(i64, {4}, {1, 1, -1, 1}),
-                                              false);
-    auto zero_anchor = std::make_shared<v1::Select>(live, v0::Constant::create(f32, {}, {0}), rows);
-    auto packed = std::make_shared<v12::Pad>(zero_anchor,
-                                             v0::Constant::create(i64, {4}, {0, 0, 0, 0}),
-                                             v0::Constant::create(i64, {4}, {0, 0, 0, m_cfg.n_embd - k * (k + 1)}),
-                                             v0::Constant::create(f32, {}, {0}),
-                                             ov::op::PadMode::CONSTANT);
-    packed->set_friendly_name("dflash.lattice");
-    m_emit.add_extra_input_node("dflash.lattice", packed);
-    m_emit.graph()->model_output_names.push_back("dflash.lattice");
-}
-
-std::string DecoderBuilder::build_dflash_conv(const std::string& hidden,
-                                              const std::string& dynamic,
-                                              const std::string& base,
-                                              int side,
-                                              const std::string& name) {
-    using namespace ov::op;
-    const int groups = m_cfg.n_embd / m_cfg.draft_conv_group;
-    const int kernel = m_cfg.draft_conv_kernel;
-    m_emit.add_named_weight(base);
-    auto coefficients = std::make_shared<v1::Reshape>(m_emit.value(dynamic),
-                                                      v0::Constant::create(i64, {7}, {0, 0, 0, 2, kernel, groups, 1}),
-                                                      true);
-    auto bases =
-        std::make_shared<v1::Reshape>(m_emit.value(base),
-                                      v0::Constant::create(i64, {4}, {2, kernel, groups, m_cfg.draft_conv_group}),
-                                      false);
-    auto shape = std::make_shared<v3::ShapeOf>(m_emit.value(hidden));
-    auto length =
-        std::make_shared<v8::Gather>(shape, v0::Constant::create(i64, {1}, {2}), v0::Constant::create(i64, {}, {0}));
-    ov::Output<ov::Node> result;
-    for (int tap = 0; tap < kernel; ++tap) {
-        auto coefficient = std::make_shared<v8::Gather>(coefficients,
-                                                        v0::Constant::create(i64, {}, {side}),
-                                                        v0::Constant::create(i64, {}, {3}));
-        coefficient = std::make_shared<v8::Gather>(coefficient,
-                                                   v0::Constant::create(i64, {}, {tap}),
-                                                   v0::Constant::create(i64, {}, {3}));
-        auto weight = std::make_shared<v8::Gather>(bases,
-                                                   v0::Constant::create(i64, {}, {side}),
-                                                   v0::Constant::create(i64, {}, {0}));
-        weight = std::make_shared<v8::Gather>(weight,
-                                              v0::Constant::create(i64, {}, {tap}),
-                                              v0::Constant::create(i64, {}, {0}));
-        auto combined = std::make_shared<v1::Reshape>(std::make_shared<v1::Add>(coefficient, weight), shape, false);
-        auto padded = std::make_shared<v12::Pad>(m_emit.value(hidden),
-                                                 v0::Constant::create(i64, {4}, {0, 0, tap, 0}),
-                                                 v0::Constant::create(i64, {4}, {0, 0, 0, 0}),
-                                                 v0::Constant::create(f32, {}, {0}),
-                                                 ov::op::PadMode::CONSTANT);
-        auto shifted = std::make_shared<v8::Slice>(padded,
-                                                   v0::Constant::create(i64, {1}, {0}),
-                                                   length,
-                                                   v0::Constant::create(i64, {1}, {1}),
-                                                   v0::Constant::create(i64, {1}, {2}));
-        auto term = std::make_shared<v1::Multiply>(combined, shifted);
-        result = result.get_node() ? std::make_shared<v1::Add>(result, term)->output(0) : term->output(0);
-    }
-    m_emit.add_extra_input_node(name, result.get_node_shared_ptr());
-    return name;
 }
 
 std::string DecoderBuilder::build_dflash(const std::string& embeddings) {
@@ -940,20 +532,11 @@ std::string DecoderBuilder::build_dflash(const std::string& embeddings) {
     for (int layer = 0; layer < m_cfg.n_layer; ++layer) {
         const auto p = "blk." + std::to_string(layer) + ".";
         auto normalized = blocks::rms_norm(m_emit, current, p + "attn_norm.weight", p + "noise_norm", m_cfg.rms_eps);
-        std::string attn_dynamic;
-        if (m_cfg.draft_conv_kernel > 0) {
-            m_emit.add_weight(p + "attn_conv_proj.weight");
-            attn_dynamic =
-                m_emit.add_op("GGML_OP_MUL_MAT", p + "attn_dynamic", {p + "attn_conv_proj.weight", normalized});
-            normalized = build_dflash_conv(normalized, attn_dynamic, p + "attn_conv_base", 0, p + "attn_conv_in");
-        }
         auto joined = m_emit.add_op("GGML_OP_CONCAT", p + "context", {context, normalized}, 0, {{"concat_axis", 1}});
         auto attended = blocks::attention(m_emit, m_cfg, m_kv, layer, joined);
         attended = dynamic_slice(attended, p + "noise_attention", true);
         if (m_cfg.attention_value_scale != 0.f)
             attended = blocks::scale(m_emit, attended, m_cfg.attention_value_scale, p + "attention_scaled");
-        if (!attn_dynamic.empty())
-            attended = build_dflash_conv(attended, attn_dynamic, p + "attn_conv_base", 1, p + "attn_conv_out");
         if (m_cfg.has_attn_post_norm)
             attended = blocks::rms_norm(m_emit,
                                         attended,
@@ -962,16 +545,8 @@ std::string DecoderBuilder::build_dflash(const std::string& embeddings) {
                                         m_cfg.rms_eps);
         current = m_emit.add_op("GGML_OP_ADD", p + "attn_residual", {current, attended});
         normalized = blocks::rms_norm(m_emit, current, p + "ffn_norm.weight", p + "ffn_norm", m_cfg.rms_eps);
-        std::string ffn_dynamic;
-        if (m_cfg.draft_conv_kernel > 0) {
-            m_emit.add_weight(p + "ffn_conv_proj.weight");
-            ffn_dynamic = m_emit.add_op("GGML_OP_MUL_MAT", p + "ffn_dynamic", {p + "ffn_conv_proj.weight", normalized});
-            normalized = build_dflash_conv(normalized, ffn_dynamic, p + "ffn_conv_base", 0, p + "ffn_conv_in");
-        }
         auto ffn = m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, normalized)
                                   : blocks::dense_ffn(m_emit, m_cfg, p, normalized);
-        if (!ffn_dynamic.empty())
-            ffn = build_dflash_conv(ffn, ffn_dynamic, p + "ffn_conv_base", 1, p + "ffn_conv_out");
         if (m_cfg.has_ffn_post_norm)
             ffn = blocks::rms_norm(m_emit, ffn, p + m_cfg.ffn_post_norm_key, p + "post_ffw_norm", m_cfg.rms_eps);
         current = m_emit.add_op("GGML_OP_ADD", p + "ffn_residual", {current, ffn});

@@ -860,26 +860,6 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             result->input(0).replace_source_output(hidden);
         }
     }
-    if (arch == "dflash") {
-        for (const auto& result : auxiliary_results) {
-            const auto name = result->input_value(0).get_node()->get_friendly_name();
-            if (name.find("dflash.confidence") != std::string::npos) {
-                auto confidence = make_shared<v0::Squeeze>(result->input_value(0), one_1);
-                name_output(confidence, "draft_confidence");
-                result->input(0).replace_source_output(confidence);
-                continue;
-            }
-            if (name.find("lilicorr.lattice") != std::string::npos) {
-                name_output(result->input_value(0), "draft_lattice");
-                continue;
-            }
-            if (name.find("dflash.lattice") == std::string::npos)
-                continue;
-            auto lattice = make_shared<v0::Squeeze>(result->input_value(0), one_1);
-            name_output(lattice, "draft_lattice");
-            result->input(0).replace_source_output(lattice);
-        }
-    }
     for (size_t i = 1; arch == "eagle3" && i < auxiliary_results.size(); ++i) {
         const auto& result = auxiliary_results[i];
         if (result->input_value(0).get_node()->get_friendly_name().find("d2t") != std::string::npos) {

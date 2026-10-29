@@ -36,6 +36,18 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
         return weights.count(name) > 0;
     };
     arch = p.architecture;
+    if (arch == "dflash") {
+        for (const auto& [name, tensor] : weights) {
+            const bool auxiliary = name.rfind("markov_", 0) == 0 || name.rfind("conf_proj.", 0) == 0 ||
+                                   name.rfind("selector_", 0) == 0 || name.rfind("lilicorr.", 0) == 0 ||
+                                   name.find(".attn_conv_") != std::string::npos ||
+                                   name.find(".ffn_conv_") != std::string::npos;
+            OPENVINO_ASSERT(!auxiliary,
+                            "[GGUF] unsupported DFlash auxiliary tensor '",
+                            name,
+                            "'; only the base DFlash architecture is supported");
+        }
+    }
     model_contract = p.model_contract;
     parallel_ffn = p.parallel_ffn;
     deepstack_layers = p.deepstack_layers;
@@ -43,20 +55,6 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
     draft_norm_before_residual = p.draft.norm_before_residual;
     draft_target_layers = p.draft.target_layers;
     draft_mask_token_id = p.draft.mask_token_id;
-    draft_conv_kernel = p.draft.conv_kernel;
-    draft_conv_group = p.draft.conv_group;
-    draft_block_size = p.draft.block_size;
-    draft_sample_from_anchor = p.draft.sample_from_anchor;
-    draft_selector_rank = p.draft.selector_rank;
-    draft_selector_top_k = p.draft.selector_top_k;
-    lilicorr_hidden = p.draft.lilicorr.hidden_size;
-    lilicorr_top_k = p.draft.lilicorr.candidate_topk;
-    lilicorr_heads = p.draft.lilicorr.heads;
-    lilicorr_layers = p.draft.lilicorr.layers;
-    lilicorr_factor = p.draft.lilicorr.factor_dim;
-    lilicorr_mlp = p.draft.lilicorr.mlp_hidden_size;
-    lilicorr_eps = p.draft.lilicorr.vector_epsilon;
-    lilicorr_scale = p.draft.lilicorr.logit_scale;
     n_layer = p.dimensions.layers;
     n_embd = p.dimensions.embedding;
     const int query_heads = p.dimensions.query_heads;
@@ -77,23 +75,6 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
                     "[GGUF] DeepStack layers must fit the decoder stack");
     OPENVINO_ASSERT(n_embd_per_layer >= 0 && shared_kv_layers >= 0 && shared_kv_layers < n_layer,
                     "[GGUF] invalid per-layer embedding or shared KV dimensions");
-    if (lilicorr_hidden > 0) {
-        OPENVINO_ASSERT(draft_block_size > 1 && lilicorr_heads > 0 && lilicorr_hidden % lilicorr_heads == 0 &&
-                            lilicorr_top_k > 0 && lilicorr_layers > 0 && lilicorr_layers <= n_layer &&
-                            lilicorr_factor > 0 && lilicorr_mlp > 0 && draft_selector_top_k == 0 &&
-                            int64_t(lilicorr_top_k) * (int64_t(lilicorr_top_k) + 1) <= n_embd,
-                        "[GGUF] invalid LiLiCorr geometry");
-    }
-    if (weights.count("selector_hidden.weight")) {
-        OPENVINO_ASSERT(draft_block_size > 0 && draft_selector_rank > 0 && draft_selector_top_k > 0 &&
-                            draft_conv_kernel > 0 && draft_conv_group > 0 &&
-                            int64_t(draft_selector_top_k) * (int64_t(draft_selector_top_k) + 1) <= n_embd,
-                        "[GGUF] invalid DFlash selector geometry");
-    }
-    OPENVINO_ASSERT(draft_conv_kernel >= 0 && draft_conv_group >= 0 &&
-                        ((draft_conv_kernel == 0 && draft_conv_group == 0) ||
-                         (draft_conv_kernel > 0 && draft_conv_group > 0 && n_embd % draft_conv_group == 0)),
-                    "[GGUF] invalid draft convolution geometry");
     const auto valid_layer_count = [&](size_t count) {
         return count == 0 || count == static_cast<size_t>(n_layer) || count == static_cast<size_t>(stored_layers);
     };

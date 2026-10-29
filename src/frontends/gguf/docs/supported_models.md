@@ -212,9 +212,7 @@ Drafts may omit token embeddings and the output head. Conversion then exposes
 `gguf.target_token_embedding` and `gguf.target_lm_head` weight inputs; the GenAI
 consumer clones target weight subgraphs before compilation. EAGLE3's reduced-vocabulary
 `d2t` is an auxiliary mapping constant; omitted tables use identity mapping. DFlash
-selector/LiLiCorr lattice consumers use a fixed noise block. The DSpark Markov head
-under `dflash` supports greedy conditioning, confidence outputs, reduced vocabulary
-and both anchor rules. Independent fixtures check every token's logits and confidence.
+Markov, LiLiCorr, selector and convolution variants are unsupported.
 The real Qwen3-8B Q8_0/EAGLE3 F16 pair passes repeated PA generation, two-request
 continuous batching and target-only greedy agreement. The Qwen3.6-35B-A3B Q4_K_M/DFlash
 BF16 pair passes repeated single-request PA generation with prefix caching disabled.
