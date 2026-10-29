@@ -8,6 +8,10 @@
 
  * [Writing transformation tests](./writing_tests.md)
 
+## Transformations
+
+ * [QSAIndexer Fusion](./qsa_indexer_fusion.md)
+
 ## Debug capabilities
 
  * [Matcher logging README](./debug_capabilities/matcher_logging.md)
