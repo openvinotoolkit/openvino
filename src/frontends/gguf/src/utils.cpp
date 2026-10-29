@@ -41,10 +41,31 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/topk_base.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::frontend::gguf {
+
+bool has_nonnegative_indices(const ov::Output<ov::Node>& output) {
+    auto current = output;
+    while (true) {
+        const auto node = current.get_node_shared_ptr();
+        if (ov::is_type<ov::op::util::TopKBase>(node))
+            return current.get_index() == 1;
+        if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+            const auto source_type = convert->get_input_element_type(0);
+            const auto target_type = convert->get_output_element_type(0);
+            if (source_type != target_type && !(source_type == ov::element::i32 && target_type == ov::element::i64))
+                return false;
+        } else if (!ov::is_type<ov::op::v1::Reshape>(node) && !ov::is_type<ov::op::v1::Transpose>(node) &&
+                   !ov::is_type<ov::op::v0::Squeeze>(node) && !ov::is_type<ov::op::v0::Unsqueeze>(node) &&
+                   !ov::is_type<ov::op::v8::Slice>(node)) {
+            return false;
+        }
+        current = node->input_value(0);
+    }
+}
 
 namespace {
 constexpr char hadamard_marker[] = "gguf_hadamard_block";
@@ -287,6 +308,29 @@ std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::
         }
     }
     return nullptr;
+}
+
+int64_t mmproj_int_metadata(const std::shared_ptr<ov::Model>& model, const std::string& key, int64_t minimum) {
+    OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", key}), "[GGUF] missing mmproj metadata ", key);
+    const auto& attribute = model->get_rt_info<ov::Any>({"gguf_mmproj", key});
+    OPENVINO_ASSERT(attribute.is<std::string>(), "[GGUF] mmproj metadata must be a string: ", key);
+    const auto& text = attribute.as<std::string>();
+    int64_t value;
+    size_t end;
+    try {
+        value = std::stoll(text, &end);
+    } catch (const std::invalid_argument&) {
+        OPENVINO_THROW("[GGUF] invalid integer mmproj metadata ", key, ": '", text, "'");
+    } catch (const std::out_of_range&) {
+        OPENVINO_THROW("[GGUF] out-of-range integer mmproj metadata ", key, ": '", text, "'");
+    }
+    OPENVINO_ASSERT(end == text.size() && value >= minimum,
+                    "[GGUF] invalid integer mmproj metadata ",
+                    key,
+                    ": '",
+                    text,
+                    "'");
+    return value;
 }
 
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {

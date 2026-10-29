@@ -23,6 +23,7 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 
 | Architecture | Notes | Real checkpoint | Choices |
 |---|---|---|---|
+| `afmoe` | Dense lead, routed/shared experts, sigmoid gating, pre/post norms, three sliding layers then one global NoPE layer; F32 oracle fixture | — | |
 | `bailingmoe2` | Sigmoid routing, biased/grouped selection, shared experts | Ling-mini-2.0 Q2_K | 12/13 |
 | `deepseek2-ocr` | Language backbone: dense lead layers, shared/routed experts | DeepSeek-OCR-2 Q4_K_M | 13/13 |
 | `ernie4_5-moe` | Interleaved MoE, biased selection, normalized weights, shared experts | ERNIE-4.5-21B-A3B-PT Q4_K_M | 12/13 |
