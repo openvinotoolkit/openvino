@@ -14,8 +14,10 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/gguf_graph.hpp"
+#include "builder/metadata_checks.hpp"
 #include "builder/projector_registry.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "projector_adapter.hpp"
 #include "qwen3tts_projector.hpp"
 
 namespace ov::frontend::gguf {
@@ -119,12 +121,7 @@ bool rms_encoder(const EncoderConfig& c) {
 }
 
 int64_t positive(const GgufMetadata& meta, const std::string& key) {
-    const auto value = meta.get_int(key);
-    OPENVINO_ASSERT(value && *value > 0 && *value <= std::numeric_limits<int>::max(),
-                    "[GGUF] mmproj requires a positive integer '",
-                    key,
-                    "'");
-    return *value;
+    return require_positive_int(meta, key, "mmproj");
 }
 
 EncoderConfig config(const GgufMetadata& meta, const std::string& modality, const std::string& projector) {
@@ -180,9 +177,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
                                             : *std::max_element(c.feature_layers.begin(), c.feature_layers.end());
     }
     OPENVINO_ASSERT(c.width % c.heads == 0, "[GGUF] mmproj embedding width must be divisible by head count");
-    const auto eps = meta.get_float(key + "attention.layer_norm_epsilon");
-    OPENVINO_ASSERT(eps && std::isfinite(*eps) && *eps > 0, "[GGUF] invalid ", key, "attention.layer_norm_epsilon");
-    c.eps = c.topology == EncoderTopology::GEMMA4_AUDIO ? 1e-6f : static_cast<float>(*eps);
+    const float eps = require_positive_float(meta, key + "attention.layer_norm_epsilon", "mmproj");
+    c.eps = c.topology == EncoderTopology::GEMMA4_AUDIO ? 1e-6f : eps;
     const bool gelu = meta.get_bool("clip.use_gelu").value_or(false);
     const bool silu = meta.get_bool("clip.use_silu").value_or(false);
     OPENVINO_ASSERT(!(gelu && silu), "[GGUF] mmproj cannot enable both GELU and SiLU");
@@ -1468,6 +1464,7 @@ public:
         }
         const auto has_gen_audio = ctx.metadata.get_bool("clip.has_gen_audio_encoder").value_or(false);
         OPENVINO_ASSERT(!encoders.empty() || has_gen_audio, "[GGUF] mmproj has no encoder");
+        ModelAdapters adapters;
         branch_config["vision.auxiliary_count"] = "0";
         if (has_gen_audio) {
             const auto type = ctx.metadata.get_str("clip.gen.audio.projector_type").value_or("");
@@ -1487,8 +1484,18 @@ public:
                 branch_config[entry.first] = entry.second;
             }
             branch_config[definition->modality + ".projector"] = definition->projector_type;
+            const auto layout =
+                result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
+            branch_config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
+            auto callback = result.genai_adapter.value_or(definition->genai_adapter);
+            if (callback) {
+                auto adapter = std::make_shared<ModelAdapter>();
+                adapter->transform = std::move(callback);
+                adapters[definition->modality + ".embeddings"] = std::move(adapter);
+            }
         }
         auto graph = g.finish();
+        graph->model_adapters = std::move(adapters);
         const auto number = [](auto value) {
             std::ostringstream stream;
             stream.precision(std::numeric_limits<double>::max_digits10);
@@ -1539,7 +1546,13 @@ private:
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,
                                         const std::string& projector_type) {
-    return BuiltinProjectorBuilder(graph).build(modality, projector_type);
+    auto result = BuiltinProjectorBuilder(graph).build(modality, projector_type);
+    if (modality == "vision") {
+        const auto layout = builtin_projector_layout(projector_type);
+        if (layout != ProjectorLayout::Unsupported)
+            result.genai_layout = layout;
+    }
+    return result;
 }
 
 std::vector<ProjectorDefinition> builtin_projectors() {

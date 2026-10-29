@@ -120,7 +120,7 @@ std::vector<ArchitectureDefinition> builtin_architectures() {
 }
 
 bool arch_uses_neox_rope(const std::string& arch) {
-    if (arch == "afmoe" || arch == "qwen3next")
+    if (arch == "qwen3next")
         return true;
     for (const auto& entry : architectures) {
         if (arch == entry.name)

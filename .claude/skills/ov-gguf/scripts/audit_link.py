@@ -45,61 +45,80 @@ def aliases(first, second):
         return False
 
 
-def command_syntax_error(command):
+def parse_command(command):
+    tokens = []
+    token = []
+    started = False
     quote = None
-    escaped = False
     index = 0
     operators = ";&|<>()"
     while index < len(command):
         char = command[index]
-        if escaped:
-            escaped = False
-            index += 1
-            continue
         if quote == "'":
             if char == "'":
                 quote = None
+            else:
+                token.append(char)
             index += 1
             continue
         if char == "\\":
-            escaped = True
-            index += 1
+            if index + 1 == len(command):
+                raise AuditInputError("cannot parse command text: trailing escape")
+            escaped = command[index + 1]
+            if quote == '"' and escaped not in '$`"\\\n':
+                token.append(char)
+                index += 1
+                continue
+            if escaped != "\n":
+                token.append(escaped)
+                started = True
+            index += 2
             continue
         if quote == '"':
             if char == '"':
                 quote = None
             elif char == "`" or (char == "$" and index + 1 < len(command) and command[index + 1] == "("):
-                return "command substitution is not allowed"
+                raise AuditInputError("command substitution is not allowed")
+            elif char == "$":
+                raise AuditInputError("shell parameter expansion is not allowed; record literal arguments")
+            else:
+                token.append(char)
             index += 1
             continue
-        if char == "'":
-            quote = "'"
-        elif char == '"':
-            quote = '"'
-        elif char == "#" and (index == 0 or command[index - 1].isspace()):
+        if char in "'\"":
+            quote = char
+            started = True
+        elif char == "#" and not started:
             newline = command.find("\n", index)
             if newline < 0:
                 break
             index = newline
             continue
         elif char == "`" or (char == "$" and index + 1 < len(command) and command[index + 1] == "("):
-            return "command substitution is not allowed"
+            raise AuditInputError("command substitution is not allowed")
+        elif char == "$":
+            raise AuditInputError("shell parameter expansion is not allowed; record literal arguments")
+        elif char in "*?[{}~":
+            raise AuditInputError(
+                "shell pathname, brace and tilde expansions are not allowed; record literal arguments"
+            )
         elif char in operators:
-            return "shell operators and multiple commands are not allowed"
+            raise AuditInputError("shell operators and multiple commands are not allowed")
         elif char == "\n" and command[index + 1 :].strip():
-            return "multiple shell commands are not allowed"
+            raise AuditInputError("multiple shell commands are not allowed")
+        elif char in " \t\n":
+            if started:
+                tokens.append("".join(token))
+                token = []
+                started = False
+        else:
+            token.append(char)
+            started = True
         index += 1
-    return None
-
-
-def parse_command(command):
-    issue = command_syntax_error(command)
-    if issue:
-        raise AuditInputError(issue)
-    try:
-        tokens = shlex.split(command, comments=True, posix=True)
-    except ValueError as error:
-        raise AuditInputError(f"cannot parse command text: {error}")
+    if quote:
+        raise AuditInputError("cannot parse command text: unterminated quote")
+    if started:
+        tokens.append("".join(token))
     if not tokens:
         raise AuditInputError("command text is empty")
     return tokens
@@ -239,11 +258,12 @@ def audit(command_file, contract_file, directory, output_file):
         report["counts"]["expanded_tokens"] = len(expanded)
         report["counts"]["response_files"] = len(responses)
         report["response_files"] = sorted(str(path) for path in responses)
-        contract = load_contract(contract_file, directory)
         counts = object_occurrences(expanded, directory)
+        inputs.update(Path(path) for path in counts)
         report["counts"]["object_occurrences"] = sum(counts.values())
         report["counts"]["unique_objects"] = len(counts)
         report["objects"] = [{"path": path, "count": count} for path, count in sorted(counts.items())]
+        contract = load_contract(contract_file, directory)
 
         for path, count in sorted(counts.items()):
             if count > 1:

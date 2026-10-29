@@ -3,15 +3,15 @@
 Use these helpers for repeated batches or fragile overlays, alongside the existing test
 harness. They check coverage and link inputs; numerical gates remain in the tests.
 Save every attempt outside the checkout. Run scripts with Python 3.9 or newer.
+In the examples, `skill_scripts` points to this skill's `scripts/` directory and
+`validation_reports` to the task's artifact directory outside the checkout.
 
 ## Compiler warning policy
 
-Match CI's `CMAKE_COMPILE_WARNING_AS_ERROR=ON` when compiling changed frontend/tests.
-A local cache with this option disabled can pass while GCC rejects unbraced GTest macro
-conditionals or MSVC rejects implicit narrowing inside STL algorithms. Record the compiler
-and effective warning flags; a successful test run does not establish other-toolchain
-buildability. Use braces around conditional assertion macros and explicit checked or
-known-safe integer conversions in test tensor writes.
+Match the relevant CI warning configuration when compiling changed frontend code and tests,
+including `CMAKE_COMPILE_WARNING_AS_ERROR` where enabled. Record the compiler and effective
+flags; a successful run on one toolchain does not establish another's buildability. Brace
+conditional assertion macros and use checked or known-safe integer conversions in tensor writes.
 
 ## Test selection and required fixtures
 
@@ -19,14 +19,15 @@ Capture `--gtest_list_tests` from the actual binary with the same filter and env
 as the subsequent run. Check its exit code before using the listing. Define a contract
 with exact IDs or glob patterns (`*`, `?`, `[abc]`), required counts and absolute fixture paths:
 
+Example contract; replace the patterns, counts and paths with the requested scenarios:
+
 ```json
 {
   "selections": [
-    {"pattern": "*", "count": 2},
-    {"pattern": "Architectures/GGUFArchitectureAccuracy.PrefillAndCachedDecodeMatchLlamaCPU/qwen3next", "count": 1},
-    {"pattern": "GGUFEmbeddingAccuracy.RealCheckpointTokenEmbeddingsMatchLlamaCPU", "count": 1}
+    {"pattern": "DecoderChecks.PrefillAndCachedDecode", "count": 1},
+    {"pattern": "EmbeddingChecks.TokenLookup", "count": 1}
   ],
-  "required_files": ["/task/models/embedding.gguf"],
+  "required_files": ["/task/fixtures/decoder.npz"],
   "allowed_skips": []
 }
 ```
@@ -37,16 +38,20 @@ independent checks. Allowed skips apply only to optional coverage; required scen
 skip remain incomplete. File presence does not establish fixture validity or model identity.
 
 ```bash
-python check_test_coverage.py --contract coverage.json --listing selected-tests.txt --output preflight.json
+python "$skill_scripts/check_test_coverage.py" --contract "$validation_reports/coverage.json" \
+    --listing "$validation_reports/selected-tests.txt" --output "$validation_reports/preflight.json"
 ```
 
 After execution, retain the test process exit code and summarize its XML using the helper
-from this skill revision. The JSON now includes selected IDs, excluding suppressed/notrun
+from this skill revision. The JSON includes selected IDs, excluding suppressed/notrun
 cases. GTest IDs are `classname.name`; pytest IDs use the XML's corresponding names.
 
 ```bash
-python summarize_tests.py tests.xml --output test-summary.json --process-exit 0
-python check_test_coverage.py --contract coverage.json --listing selected-tests.txt --summary test-summary.json --output coverage-result.json
+python "$skill_scripts/summarize_tests.py" "$validation_reports/tests.xml" \
+    --output "$validation_reports/test-summary.json" --process-exit 0
+python "$skill_scripts/check_test_coverage.py" --contract "$validation_reports/coverage.json" \
+    --listing "$validation_reports/selected-tests.txt" --summary "$validation_reports/test-summary.json" \
+    --output "$validation_reports/coverage-result.json"
 ```
 
 Replace `0` with the recorded process exit code. Summary-only checks can be used for pytest
@@ -58,23 +63,29 @@ prove that a stale XML file belongs to the attempt: use unique paths and preserv
 ## Overlay link inputs
 
 Prefer normal CMake/Ninja targets. If an overlay is necessary, save its actual single
-compiler-driver link command in a text file and list the required replacement objects and
-superseded objects that must be absent:
+compiler-driver link command using POSIX shell quoting in a text file. List the required
+replacement objects and superseded objects that must be absent:
 
 ```json
 {
-  "required_objects": ["/task/overlay/eagle-test.o"],
-  "forbidden_objects": ["/task/base/eagle-test.o"]
+  "required_objects": ["/task/overlay/translation-unit.o"],
+  "forbidden_objects": ["/task/base/translation-unit.o"]
 }
 ```
 
 ```bash
-python audit_link.py --command-file link-command.txt --directory /task/build --contract link-contract.json --output link-audit.json
+python "$skill_scripts/audit_link.py" --command-file "$validation_reports/link-command.txt" \
+    --directory /task/build --contract "$validation_reports/link-contract.json" \
+    --output "$validation_reports/link-audit.json"
 ```
 
 The helper reads but never executes the command. It expands response files relative to the
 link working directory, canonicalizes object paths, rejects duplicate/missing/forbidden
-objects and refuses shell command sequences. Supply the inner compiler command when a
+objects and refuses shell command sequences or unresolved shell expansions (parameters,
+globs, braces and tildes). Record expanded arguments; the helper never evaluates shell
+expressions. Single-quote or escape literal shell characters, for example `'$ORIGIN'` in
+a linker rpath. Response-file contents are parsed as literal arguments without shell
+expansion. Supply the inner compiler command when a
 wrapper prints `cd ... && ...`; do not pass a build script. Full findings stay in JSON;
 the printed summary is bounded. A passing link audit does not prove objects are freshly
 compiled, dependency-complete or present inside archives. Rebuild all translation units
@@ -85,5 +96,5 @@ Both checks return nonzero on violated contracts or malformed inputs. The XML su
 returns parsing status only. Exercise the helpers with:
 
 ```bash
-python -m unittest discover -s scripts/tests -v
+python -m unittest discover -s "$skill_scripts/tests" -v
 ```

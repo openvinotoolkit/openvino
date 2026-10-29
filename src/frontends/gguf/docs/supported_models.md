@@ -23,6 +23,8 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 
 | Architecture | Notes | Real checkpoint | Choices |
 |---|---|---|---|
+| `afmoe` | Dense lead, routed/shared experts, sigmoid gating, pre/post norms, three sliding layers then one global NoPE layer; F32 oracle fixture | — | |
+
 | `cohere2` | Parallel LayerNorm attention/FFN; RoPE on local layers | c4ai-command-r7b-12-2024 Q4_0 | 13/13 |
 | `qwen3vl` | Interleaved multimodal RoPE and DeepStack inputs | Qwen3-VL-2B Q4_0 | 13/13 |
 | `gemma3n` | AltUp, Laurel, sparse FFN, per-layer embeddings and shared KV | Gemma3n E2B Q4_0 | 13/13 |
@@ -59,8 +61,8 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `phi3` | Fused QKV | — | |
 | `plamo3` | Fused QKV and gate/up, bare post-norms, SWA | plamo-3-nict-2b-base Q4_K_M | 12/13 |
 | `qwen2` | qwen2 / qwen2.5 | — | |
-| `qwen3` | QK-norm before RoPE; also Bonsai-8B (Q1_0) | — | |
-| `qwen35` | Hybrid GatedDeltaNet + attention, interleaved M-RoPE; batching and beam search with SDPA and PA; also Bonsai-27B (Q1_0), Ternary-Bonsai-27B (Q2_0 g64) | — | |
+| `qwen3` | QK-norm before RoPE | — | |
+| `qwen35` | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA | — | |
 | `qwen35moe` | Hybrid GatedDeltaNet, separate or fused routed experts, shared expert | Qwen3.6-35B-A3B Q4_K_M / Q4_0 | 13/13 / 12/13 |
 | `qwen3moe` | NEOX RoPE, per-head QK-norm, normalized experts | Qwen3-0.9B-A0.6B Q4_K_M | 13/13 |
 | `smollm3` | NORMAL RoPE, skipped on every fourth layer | SmolLM3-3B Q4_K_M | 12/13 |
@@ -163,32 +165,11 @@ require the `gguf-frontend-mmproj` integration. Older Mimi-based LFM2 speech out
 requires a separate codec. Other sizes, quantizations, long contexts,
 and downstream fine-tunes require their own checkpoint validation.
 
-## Bonsai and Bonsai-2
-
-The native GGUF frontend supports the following model families and weight formats:
-
-| Family | Sizes | Architecture | Weight formats |
-|---|---|---|---|
-| Bonsai | 1.7B, 4B, 8B | `qwen3` | Q1_0 |
-| Bonsai | 27B | `qwen35` | Q1_0, F16 |
-| Ternary-Bonsai | 1.7B, 4B, 8B | `qwen3` | F16, Q2_0 per-64/per-128, PQ2_0 |
-| Ternary-Bonsai | 27B | `qwen35` | F16, Q2_0 per-64/per-128, PQ2_0 |
-| Ternary-Bonsai-2 | 27B | `qwen35` | F16, PQ2_0, PTQ1_0, development Q2_0 per-64 |
-
-Bonsai-2 uses folded Hadamard weights, including its F16 checkpoints. Supported metadata is
-version 1 or tied-output version 2, normalized Sylvester, input-last-dimension, identity or
-explicit ±1 signs, and blocks up to 4096. The frontend applies the input activation transform
-for annotated projections and the inverse transform after latent token lookup, preserving
-annotations when splitting QKV and Q/gate weights.
-
-The BF16 and Q8_0 multimodal projector variants are supported directly by the built-in
-`qwen3vl_merger`; see [supported projectors](mmproj.md#supported-projectors).
-
 ## Block drafters
 
-| Architecture | Supported models | Features |
-|---|---|---|
-| `dspark` | Bonsai-27B and Ternary-Bonsai-27B BF16/Q4_1 drafts | Noncausal block attention, captured target features, log-SNR conditioning, optional Markov/confidence outputs |
+| Architecture | Features |
+|---|---|
+| `dspark` | Noncausal block attention, captured target features, log-SNR conditioning, optional Markov/confidence outputs |
 
 DSpark accepts a fixed draft block in `inp_tokens` and captured target-layer features in
 `dspark_ctx_feat` (`[1,1,context_rows,capture_count*embedding_width]`). Positions and cache-write
@@ -206,7 +187,7 @@ Draft blocks up to 4096 tokens are supported.
 
 ## 2026 family validation
 
-This change enables Cohere2, dense Qwen3VL, Gemma3n, EAGLE3 and Qwen-backed DFlash.
+Native checkpoint validation covers Cohere2, dense Qwen3VL, Gemma3n, EAGLE3 and the limited Qwen-backed DFlash path.
 The independent small F32 fixtures use llama.cpp CPU revision
 `098ce526b546b5a190327c1da82929cee051b9ac` and compare full logits through prefill,
 cached decode and cache append. Gemma3n's fixture uses a scoped `2e-5` NMSE limit

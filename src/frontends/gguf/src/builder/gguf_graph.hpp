@@ -42,6 +42,8 @@ struct GgufOp {
 struct GgufGraph {
     std::string architecture;
     ov::AnyMap model_rt_info;
+    ModelContract model_contract;
+    ModelAdapters model_adapters;
     std::vector<GgufOp> nodes;
     std::shared_ptr<TensorMap> values = std::make_shared<TensorMap>();
 

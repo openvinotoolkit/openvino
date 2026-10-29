@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -151,6 +152,72 @@ class AuditLinkTest(unittest.TestCase):
                 self.assertTrue(report["parse_errors"])
                 self.assertFalse((self.root / "marker").exists())
 
+    def test_unresolved_shell_inputs_are_rejected(self):
+        self.write_contract(forbidden=["base/old.o"])
+        base = self.cwd / "base"
+        base.mkdir()
+        (base / "old.o").write_bytes(b"old object")
+        for argument in ("base/*.o", "base/old.?", "base/[o]ld.o", "base/{old,new}.o",
+                         "~/old.o", "$BASE_DIR/old.o", '"$BASE_DIR/old.o"',
+                         "${BASE_DIR}/old.o", "$OBJECTS"):
+            with self.subTest(argument=argument):
+                result, summary, report = self.run_audit(f"c++ lib/required.o {argument} -o app")
+                self.assertEqual(result.returncode, 2)
+                self.assertFalse(report["passed"])
+                self.assertIn("expansion", summary["first_violations"][0]["message"])
+
+    def test_quoted_and_escaped_shell_characters_are_literal(self):
+        for argument in ("'literal/*.o'", '"literal/*.o"', r"literal/\*.o",
+                         "'literal/$NAME.o'", r"literal/\$NAME.o", r'"literal/\$NAME.o"'):
+            with self.subTest(argument=argument):
+                self.write_contract(required=["lib/required.o", "literal/" +
+                                              ("*.o" if "*" in argument else "$NAME.o")])
+                result, _, report = self.run_audit(
+                    f'c++ lib/required.o {argument} -Wl,-rpath,"\\$ORIGIN" -o app'
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue(report["passed"])
+
+    def test_double_quoted_escaped_dollar_cannot_hide_forbidden_object(self):
+        self.write_contract(forbidden=["literal/$NAME.o"])
+        result, _, report = self.run_audit(r'c++ lib/required.o "literal/\$NAME.o" -o app')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(report["violations"][0]["kind"], "forbidden_object")
+        self.assertEqual(report["violations"][0]["path"], str(self.cwd / "literal/$NAME.o"))
+
+    def test_comments_and_continuations_follow_shell_word_boundaries(self):
+        for argument, object_path in (("literal#dir/old.o", "literal#dir/old.o"),
+                                      ("literal/ol\\\nd.o", "literal/old.o"),
+                                      ('"literal/ol\\\nd.o"', "literal/old.o"),
+                                      (r'literal/\ #dir/old.o', "literal/ #dir/old.o"),
+                                      (r'"literal/\`NAME.o"', "literal/`NAME.o")):
+            with self.subTest(argument=argument):
+                self.write_contract(forbidden=[object_path])
+                result, _, report = self.run_audit(f"c++ lib/required.o {argument} # trailing comment")
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(report["violations"][0]["kind"], "forbidden_object")
+
+    def test_parameter_expansion_after_literal_hash_is_rejected(self):
+        self.write_contract()
+        result, summary, _ = self.run_audit(r"c++ lib/required.o literal/\ #dir/$OBJECTS")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("parameter expansion", summary["first_violations"][0]["message"])
+
+    def test_unterminated_quotes_and_trailing_escapes_are_rejected(self):
+        self.write_contract()
+        for command in ('c++ "lib/required.o', "c++ lib/required.o\\"):
+            with self.subTest(command=command):
+                result, _, report = self.run_audit(command)
+                self.assertEqual(result.returncode, 2)
+                self.assertFalse(report["passed"])
+
+    def test_response_file_shell_characters_remain_literal(self):
+        self.write_contract(required=["lib/required.o", "literal/*.o", "literal/$NAME.o"])
+        (self.cwd / "args.rsp").write_text("lib/required.o literal/*.o literal/$NAME.o", encoding="utf-8")
+        result, _, report = self.run_audit("c++ @args.rsp -o app")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(report["passed"])
+
     def test_output_collision_preserves_command_and_refuses_output(self):
         self.write_contract()
         original = "c++ lib/required.o"
@@ -183,6 +250,31 @@ class AuditLinkTest(unittest.TestCase):
         self.assertIsNone(summary["details"])
         self.assertTrue(any("aliases" in issue["message"] for issue in summary["first_violations"]))
         self.assertEqual(report["parse_errors"], 1)
+
+    def test_output_collision_preserves_objects_even_with_invalid_contract(self):
+        object_file = self.cwd / "lib/replacement.o"
+        object_file.parent.mkdir()
+        original = b"\x7fELF\x00object contents"
+        object_file.write_bytes(original)
+        symlink = self.root / "symlink.json"
+        symlink.symlink_to(object_file)
+        hardlink = self.root / "hardlink.json"
+        os.link(object_file, hardlink)
+        response = self.cwd / "args.rsp"
+        response.write_text("lib/replacement.o", encoding="utf-8")
+        for malformed in (False, True):
+            self.write_contract(required=["lib/replacement.o"])
+            if malformed:
+                self.contract.write_text("{invalid json", encoding="utf-8")
+            for command in ("c++ lib/replacement.o", "c++ @args.rsp"):
+                for output in (object_file, symlink, hardlink):
+                    with self.subTest(malformed=malformed, command=command, output=output):
+                        result, summary, _ = self.run_audit(command, output=output)
+                        self.assertEqual(result.returncode, 2)
+                        self.assertEqual(object_file.read_bytes(), original)
+                        self.assertIsNone(summary["details"])
+                        self.assertTrue(any("aliases" in issue["message"]
+                                            for issue in summary["first_violations"]))
 
     def test_malformed_required_list_is_parse_error(self):
         self.write_contract(required=[])

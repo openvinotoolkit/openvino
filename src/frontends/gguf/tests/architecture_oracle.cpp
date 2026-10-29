@@ -19,6 +19,9 @@
 int main(int argc, char** argv) {
     if (argc != 3 && argc != 4 && argc != 5)
         return 2;
+    if (argc == 5 && std::string(argv[3]) != "--draft" && std::string(argv[3]) != "--dflash" &&
+        std::string(argv[3]) != "--embeddings")
+        return 2;
     llama_backend_init();
     ggml_backend_dev_t devices[] = {ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU), nullptr};
     if (!devices[0])
@@ -69,7 +72,7 @@ int main(int argc, char** argv) {
     const bool generation = argc == 4;
     const bool dflash = argc == 5 && std::string(argv[3]) == "--dflash";
     const bool draft = argc == 5 && (std::string(argv[3]) == "--draft" || dflash);
-    const bool embeddings = argc == 5 && !draft;
+    const bool embeddings = argc == 5 && std::string(argv[3]) == "--embeddings";
     char lilicorr_metadata[32]{};
     const bool lilicorr =
         llama_model_meta_val_str(model, "lilicorr.hidden_size", lilicorr_metadata, sizeof(lilicorr_metadata)) >= 0;

@@ -277,9 +277,10 @@ def single_grid_width(projector):
     return 128 if projector.startswith("resampler") else 12 if projector == "qwen3vl_merger" else 6
 
 
-VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast", "_4x", "_uir")
+VARIANTS = ("_4x", "_resize", "_overview", "_one_sided", "_low_contrast", "_uir")
 # mmproj_ops_oracle output file -> test_data .npy name.
 OPS_EXPECTATIONS = {
+    "view_q8_input": "view_q8_input", "view_q8_34": "view_q8_34", "view_q8_102": "view_q8_102",
     "window_input": "mmproj_window_input", "windows": "mmproj_windows", "restored": "mmproj_restored",
     "relative_table": "mmproj_relative_table", "relative": "mmproj_relative",
     "vision": "vision_rope_expected", "imrope": "multimodal_imrope_expected",
@@ -494,7 +495,7 @@ def write_grid_model(path, family):
     else:
         w.add_uint32(key + "image_size", 8)
         w.add_uint32(key + "patch_size", 24 if low_contrast else 2)
-        w.add_uint32(key + "projector.scale_factor", 4 if family.startswith("minicpmv4_") and "_4x" not in variants else 2)
+        w.add_uint32(key + "projector.scale_factor", 4 if family in {"minicpmv4_6", "minicpmv4_7"} and "_4x" not in variants else 2)
         w.add_uint32(key + "image_min_pixels", 16)
         w.add_uint32(key + "image_max_pixels", 4096)
         w.add_array(key + "image_mean", [.5, .5, .5])

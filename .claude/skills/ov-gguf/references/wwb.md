@@ -1,38 +1,65 @@
-# WWB model validation
+# Generated-text quality with WWB
 
-Use WhoWhatBench (WWB) for generated-text quality when enabling a real GGUF decoder or investigating quantized output drift. Keep operation/layout, floating graph, state/cache and API checks: WWB complements them and does not validate media/projector or speech-output contracts. Quantized token/logit differences alone do not block support when graph/integration checks pass and WWB shows no material additional loss versus llama.cpp.
+Use WhoWhatBench (WWB) when generated-text quality or quantization loss is part of the task.
+Keep numerical parity, operation/layout, state/cache and API acceptance separate. Text quality
+scores do not validate projector, media or speech-output contracts and do not waive an existing
+numerical gate.
 
 ## Reference and comparison
 
-Generate reference answers once per model from original prequantization FP16/F32/BF16 weights. A publisher floating GGUF or a pinned HF export is suitable; converting original BF16 to FP16 is allowed. An FP16/F32 expansion of Q4/Q8 values is only an arithmetic diagnostic and cannot serve as this quality reference. Record ancestry, immutable revisions, file SHA256s and tensor-type inventories, and verify model architecture, tensor names/shapes and tokenizer tables agree.
+For quantization-quality evaluation, use the same saved reference answers from original
+prequantization floating weights for both backends. A pinned publisher floating GGUF or an HF
+export can supply that reference. An expansion of quantized values isolates arithmetic and
+cannot measure loss against original weights. Record reference ancestry, immutable revisions,
+file hashes, conversion options and tensor-type inventories; verify architecture, tensor shapes
+and tokenizer tables agree.
 
-Score native llama.cpp using the requested quantized GGUF and GenAI using that exact same file against the same saved reference CSV. Prefer WWB's standard semantic similarity (`sentence-transformers/all-mpnet-base-v2`); pin the encoder revision and WWB source. Its mean cosine score measures agreement with reference answers, not percent correctness. Built-in KL may reject GenAI; preflight actual version/backend support before proposing that metric.
+Generate native llama.cpp and GenAI answers using the exact same requested quantized file and
+score them against that saved reference. Pin WWB, the metric and any scoring encoder revision.
+Check the installed CLI/backend capabilities before a batch. Semantic similarity measures
+agreement with reference answers, not percentage correctness; choose metrics and material-loss
+criteria appropriate to the task before inspecting results.
 
-Choose a representative prompt set covering the model's intended language/tasks and enough generated tokens to expose drift. Record prompt provenance/count and maximum tokens; use a small one-prompt generation/scoring preflight before a long batch. Do not infer broad quality from a short replay. Greedy runs must disable repetition, frequency and presence penalties in both engines. Match chat rendering, special-token policy, EOG IDs, context, threads, attention and KV precision, and record backend arithmetic differences. On CPU use F32 inference hint, dynamic quantization disabled, and reference KV precision. For Q4_K comparisons set `OV_GGUF_Q4_K_ZP_F16=1` before the process; keep it unset for the unfiltered unit suite.
+Use representative prompts for the requested languages/tasks and enough generation to expose
+drift. Record prompt provenance/count and token limits. Preflight one prompt through generation
+and scoring; verify identical-answer scoring reaches the metric's expected maximum. For greedy
+runs, disable repetition, frequency and presence penalties in both engines. A short teacher-forced
+replay does not establish free-running quality.
 
 ## Inputs and execution
 
-Audit identical prompt token IDs and stopping behavior before comparing decoders. Render templates once or prove both runtimes render the same bytes. With differing tokenization/EOG configuration, retain the strict failure and generate a clearly labeled matched-input comparison using encoded reference tokens/configuration. Also measure the supported default string-input path for affected prompts; a forced-input result alone cannot establish tokenizer/API parity. Never silently change the user's default path.
+Audit prompt token IDs and stopping behavior first. Match rendered template bytes, special-token
+policy, EOG IDs, context, sampling/penalties, attention and KV precision, and record arithmetic
+settings independently. For strict CPU comparisons use the established F32 inference and
+disabled dynamic-quantization settings. Set checkpoint-specific zero-point modes before launch;
+keep them unset for ordinary focused frontend tests.
 
-Use WWB's model adapters where compatible. A native helper built against the pinned llama.cpp header/library is suitable when a Python wrapper lacks architecture support. Generate independently per prompt, with a fresh state and the same token limit, and save CSVs with `prompts,answers`. Enforce equal row counts, prompt strings and order before scoring: WWB may zip and truncate unequal inputs.
+If default string-input paths differ, retain that failure and label any comparison using matched
+encoded inputs. Also test the supported default path for affected prompts; forced inputs alone
+do not establish tokenizer or API parity. Start each independent prompt with fresh state.
 
-Example with compatible WWB CLI and precomputed answers:
+Save reference and backend answers as CSVs with `prompts,answers`; verify equal row counts,
+prompt strings and row order before scoring. Use a compatible pinned WWB adapter or a native
+helper built against the pinned backend headers. If scoring dependencies differ from inference,
+use an isolated environment and record the actual metric entrypoint without changing it.
 
-```bash
-wwb --model-type text --gt-data reference.csv --target-data llama_quant.csv \
-    --metrics similarity --data-encoder sentence-transformers/all-mpnet-base-v2 \
-    --output llama_score
-wwb --model-type text --gt-data reference.csv --target-data genai_quant.csv \
-    --metrics similarity --data-encoder sentence-transformers/all-mpnet-base-v2 \
-    --output genai_score
-```
+Keep fixtures and runtime stable. Reuse saved answers only when model, prompt, generation and
+runtime evidence match; record reused and regenerated counts. An input-path or stop-policy
+change also requires evidence that saved answers remain valid. Keep separate attempt outputs.
 
-If eager imports require unrelated modalities, use an isolated scoring environment and call the actual pinned WWB `TextSimilarity.evaluate` on audited CSVs. Keep metric implementation unchanged, record that entrypoint, and verify identical-answer scoring near one before real measurements. Pin/cache the encoder for reproducibility; avoid upgrading shared runtime dependencies.
+## Report
 
-Keep inputs stable and delegate prescribed download/generation/scoring batches according to local delegation instructions. Workers receive a reusable runner, pinned paths/hashes/settings, output paths and coverage/exit criteria. They return compact counts, means/minima, grouped failures and artifact paths; the main agent reviews low-score answers and accepts scope. Use fresh output paths after failures or plan-only attempts. Reuse saved reference and unchanged rows only with matching model, prompt, settings and runtime evidence; retain exact regeneration/reuse counts. Selective default-input reuse also needs proof that string and encoded overloads reach the same graph and changed stop IDs could not affect recorded generation.
+Report both backend scores against the same reference, their gap, and per-prompt results.
+Inspect low-score answers and large gaps for incoherence, repetition, task failure or truncation.
+State the tested checkpoint, device, quantization, configuration, prompt count and token limit.
+Retain answers, token histories, scoring inputs, commands and runtime/model hashes.
 
-## Support decision and report
+Report numerical parity, quality and integration outcomes independently. Preserve failures and
+missing coverage; similar text scores do not establish image/audio, long-context or another
+device's behavior. Apply the task's agreed acceptance criteria rather than inventing a universal
+threshold or requiring identical free-running tokens.
 
-Compare each backend's mean/per-prompt score against the same floating reference and report the GenAI-minus-llama.cpp gap. Review lowest-score answers and largest gaps for incoherence, repetition, task failure or truncation. Do not invent a universal threshold or require identical free-running tokens; make material degradation and required sample coverage explicit for the task. Similar scores plus coherent reviewed outputs establish support within the measured checkpoint/device/modality/configuration. Keep unresolved crashes, bad floating graph behavior, unsupported API contracts and material extra quality loss as issues.
-
-Preserve failed numerical/tokenizer/EOG results as diagnostics; do not relabel them as parity passes. A text WWB pass does not establish image/audio/TTS, long-context or GPU quality. Publish prompt count/token limit, original reference lineage, settings, both scores, gap and limitations in the support documentation/PR; retain all answers, token histories, per-prompt scores, commands and runtime/model hashes on disk.
+WWB can establish generated-text quality acceptance when graph and integration checks pass
+and the measured model shows no material additional quality loss versus llama.cpp. Report that
+quality result within the measured checkpoint, device, quantization and modality scope. Keep any
+failed numerical parity gate as a failure; a quality pass does not waive or relabel it.

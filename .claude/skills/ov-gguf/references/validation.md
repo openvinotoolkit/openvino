@@ -17,11 +17,10 @@ an unimplemented contract remains outstanding work, not an implicit scope reduct
 Test layout-sensitive recurrent paths with batching early, alongside single-sequence numerics.
 Include multiple heads/tokens and unequal Q/KV dimensions where applicable.
 
-Complete one coherent family stage before expanding implementation to the next, keeping the
-full requested scope and outstanding contracts in the manifest. Exercise the real GenAI
-constructor and a small prefill/decode early, including paired draft/target or media insertion
-when applicable. Check default configuration as well as explicitly supported overrides;
-conversion and factory fixtures alone do not exercise consumer restrictions.
+Complete a coherent family stage before expanding implementation, preserving remaining
+contracts in the manifest. Exercise the actual consumer constructor and a small prefill/decode
+early, including draft/target pairing or media insertion when applicable. Test default settings
+and supported overrides; conversion and factory fixtures do not exercise consumer restrictions.
 
 ## Multimodal contracts
 
@@ -50,13 +49,13 @@ inference; read [build and runtime identity](build-runtime.md) for overlays,
 incremental builds, multiple worktrees or dispatched CPU kernels.
 
 Use one reusable runner and task manifest, extending the existing harness where available.
-Update the manifest at milestones and input/environment changes; retain commands, completed
-checks, failure signatures and the next diagnostic so handoffs can resume without full logs.
-Keep current state compact and attempt history separate. Diagnose the first differing boundary
-on identical inputs, recording the predicted observation before each experiment. After two
-unchanged or inconclusive attempts, reassess that boundary and reference/runtime identity before
-another sweep. Preserve the original numerical gate and failed result; assess generated-text
-quality with [WWB](wwb.md) independently.
+Keep the current manifest compact and attempt history separate. Update it at milestones and
+input/environment changes; retain commands, completed checks, failure signatures and the next
+diagnostic so handoffs can resume without full logs. Diagnose the first differing boundary on
+identical inputs and record the predicted observation before each experiment. After two unchanged
+or inconclusive attempts, reassess that boundary, reference and loaded runtime before another sweep.
+Keep failed numerical results and
+assess generated-text quality with [WWB](wwb.md) separately when that evaluation is requested.
 Specify selected scenarios, per-case environments, expected test counts and allowed skips,
 existing numerical metrics/tolerances, timeouts and artifact paths. Keep runtime identity,
 completed cases and failed attempts in its reports; preserve the tests' acceptance gates
@@ -73,18 +72,19 @@ template and special-token policy. Compare prompt token IDs before blaming the
 encoder or decoder. Check matching explicit caches and the product default
 separately; user properties must override a model-specific default.
 
-Inspect tensor types rather than checkpoint names: Q4_0 files can also contain
-Q4_1, Q8_0 or K-quants. Validate the requested original quantized checkpoint. Use
-[WWB](wwb.md) against an original-weight floating reference to assess quality; do not
-substitute a different quantization solely to obtain closer token/logit parity.
+Inspect tensor types rather than checkpoint names: a nominal quantization can contain mixed
+weight types. Validate the requested original checkpoint; substituting another quantization
+creates a different fixture. When quantization-quality evaluation is requested, compare both
+backends with the same original-weight floating reference using [WWB](wwb.md). Retain the
+original numerical gates and failures.
 
 Use the pinned quantizer to create or exactly expand fixtures when needed,
 preserving hashes, conversion revision/options and tensor inventory.
 Requantization creates a different fixture. An F16 expansion of quantized weights
 isolates arithmetic; it is not the original unquantized checkpoint and does not
-change the numerical result. An original-weight floating reference serves a different
-purpose in WWB: measuring quantization quality. Exercise a new quantizer through its actual CMake
-target as well as checking its output.
+waive the failing comparison. Original-weight floating references serve the separate WWB purpose
+of measuring quantization quality. Exercise a new quantizer through its actual CMake target as
+well as checking its output.
 
 Keep the chosen reference and criteria. Never silently change precision,
 thresholds, expected failures or coverage to obtain a pass. For performance,
@@ -93,13 +93,14 @@ not establish a regression or improvement.
 
 ## Scenario environments
 
-Set the environment before each process starts; do not inherit checkpoint settings into the
-unfiltered unit suite. Record precision, KV precision and activation quantization independently.
+Set the environment before each process starts; do not inherit checkpoint settings into focused
+frontend tests unless the selected scenario requires them. Record precision, KV precision and
+activation quantization independently.
 
 | Scenario | Zero-point setting | Acceptance |
 |---|---|---|
-| Unfiltered frontend unit suite | Unset `OV_GGUF_Q4_K_ZP_F16` | Default test expectations, required fixtures and op coverage |
-| Quantized text quality / WWB | `OV_GGUF_Q4_K_ZP_F16=1` before process start | [Same-reference quality comparison](wwb.md), default-input behavior and recorded scope |
+| Focused frontend unit checks | Unset `OV_GGUF_Q4_K_ZP_F16` | Default test expectations; run mandatory op coverage when applicable |
+| Generated-text quality / WWB | Use and record the selected checkpoint environment | [Same-reference quality comparison](wwb.md); numerical and integration gates remain separate |
 | Strict quantized checkpoint comparison | `OV_GGUF_Q4_K_ZP_F16=1` | Original full-logit or feature parity gate |
 | Represented-F32 diagnostic | Explicit environment and tensor-type inventory | Arithmetic isolation; does not replace quantized parity |
 
@@ -122,20 +123,17 @@ from llama parity. Shared layout does not imply identical media geometry.
 State replay semantics: teacher-forced greedy choices on one engine's generated
 history measure local decisions, not identical free-running sequences. Tiny or
 random fixtures can produce nonsense text while numerically agreeing. Keep
-parity, model quality and fidelity to unquantized weights as separate claims. Use
-[WWB model validation](wwb.md) for generated-text quality and quantized-model acceptance.
-A failed quantized logit or token replay comparison alone does not make a model unsupported
-when graph/integration checks pass and WWB shows no material additional quality loss.
+parity, model quality and fidelity to unquantized weights as separate claims. WWB can satisfy the
+text-quality criterion for the measured scope when graph and integration checks pass and it shows
+no material additional quality loss versus llama.cpp. Keep a failed strict parity result separate;
+quality acceptance never turns it into a parity pass.
 
-GenAI-adapted Gemma4 image groups intentionally follow Optimum-intel's window behavior; see the
-[accepted parity gap](../../../../src/frontends/gguf/docs/mmproj.md#gemma4-image-window-parity-gap).
-Keep affected llama.cpp comparisons as diagnostics with their original gates; report
-SDPA/PA agreement and API compatibility separately. Do not attribute the semantic
-mismatch to quantization or turn it into a numerical-parity pass.
+Document intentional consumer/reference differences in the applicable frontend guide and
+retain affected comparisons with their original gates. Report SDPA/PA agreement and API
+compatibility separately; distinguish semantic mismatches from quantization differences.
 Exercise repeated media requests with prefix caching enabled and disabled; an isolated
-prefill pass cannot establish cache-reuse correctness. Keep default-cache failures
-separate from the [image prefix-cache gap](../../../../src/frontends/gguf/docs/mmproj.md#bidirectional-image-prefix-cache-gap)
-diagnostics.
+prefill does not establish cache-reuse correctness. Keep default-cache failures separate
+from results using explicitly disabled caches.
 
 For failures, follow [multimodal integration bisection](../../../../src/frontends/gguf/docs/debugging_accuracy.md#multimodal-integration-bisection):
 template/token IDs, encoder tensors, insertion/positions, masks/windows, cache
@@ -144,8 +142,9 @@ not rule out CPU activation arithmetic differences.
 
 ## Execute with existing workflows
 
-Iterate on a focused local reproducer, then use the repository's GHA workflows for
-broader validation. The [frontend GTest](../../../../.github/workflows/job_cxx_unit_tests.yml),
+Iterate on a focused local reproducer. Expand validation only for a concrete shared-path coverage
+gap, changed inputs, a new failure or a mandatory check. Use the repository's GHA workflows when
+the required coverage cannot be established with focused local checks. The [frontend GTest](../../../../.github/workflows/job_cxx_unit_tests.yml),
 [model-hub](../../../../.github/workflows/job_gguf_models_tests.yml) and
 [llama.cpp backend](../../../../.github/workflows/job_gguf_llamacpp_validation.yml) jobs
 run in OpenVINO's Ubuntu workflows. [Ubuntu 22](../../../../.github/workflows/ubuntu_22.yml)
@@ -156,17 +155,17 @@ skipped GGUF component or no collected tests provides no GGUF evidence.
 
 Use `gh workflow run <workflow> --ref <branch>` with supported revision inputs,
 then `gh run watch <run-id> --exit-status`. Record the workflow revision, tested
-commit (including PR merge commits), companion repository SHAs and reference pin.
+commit (including any merge commit), companion repository SHAs and reference pin.
 Verify artifact provenance when a workflow consumes another repository's build;
 `latest_available_commit` does not identify the requested frontend revision.
 Inspect GTest XML, pytest counts/skips and acceptance reports downloaded with
 `gh run download <run-id> --dir <artifact-directory>`. Required coverage and
 numerical gates belong in the tests, rather than a second report runner.
 
-Before a broad local batch, enforce exact selected IDs/counts and fixture prerequisites with
-the [coverage preflight](preflight.md#test-selection-and-required-fixtures). Audit overlay link
-inputs when used, and retain post-run coverage checks. An absent or suppressed required test
-is missing coverage, even when the process succeeds.
+For repeated local batches or a concrete coverage gap, check selected IDs/counts and required
+fixtures with the [coverage preflight](preflight.md#test-selection-and-required-fixtures). Retain
+post-run coverage checks too: an absent or suppressed required test remains missing coverage even
+with exit zero. Audit overlay link inputs when using a custom link command.
 
 For local checks, invoke the GTest binary or pytest/acceptance script directly,
 with explicit filters and report paths. Keep commands, logs and reports outside
@@ -176,8 +175,8 @@ an overlay. A successful local run does not prove GHA packaging or job selection
 
 Retain failed attempts. Use `gh run rerun <run-id> --failed` for a deliberate retry
 of transient failures; fixes require a new run at the new revision. Changed inputs
-invalidate reuse. Expand or repeat only for changed inputs, a new failure or
-missing required coverage. Before repeating an unchanged failing reproducer, record the
+invalidate reuse. Expand or repeat only for changed inputs, a new failure, a concrete shared-path
+gap, a mandatory op-coverage check or other missing required coverage. Before repeating an unchanged failing reproducer, record the
 new hypothesis or diagnostic; verify the actual graph/runtime inputs before another sweep.
 Stop on a user pause and retain the run IDs and logs.
 
@@ -210,25 +209,9 @@ The helper retains full failure/skip details in JSON and prints bounded counts/s
 Its exit status reports parsing success; test acceptance still requires the test process
 status, required coverage and original numerical gates.
 
-Give the worker a result contract, not an invitation to investigate the entire task. A compact
-handoff should identify actual source/runtime paths and revisions/hashes, command exit codes,
-selected/pass/fail/skip counts, grouped observed signatures, remaining cases, evidence paths,
-and whether runners and input audits have ended. Aim for about 700 tokens in routine handoffs;
-keep full details in machine-readable artifacts. Verify checkout identity with absolute paths
-and explicit `git -C`; requested working directories alone can be changed by login shells.
-Read a valid summary once and keep its outcome/path in the manifest. Open full evidence or ask
-for a targeted follow-up only for a concrete discrepancy, changed input or unresolved question.
-
-When available and authorized, run an independent read-only code review after focused checks
-and before the final broad batch/push for nontrivial implementation. Use the user's reviewer
-role with a fresh context, frozen diff/revisions, family/API contracts and compact test results.
-Review changed and directly affected code, including ownership/lifetime, tensor names/layouts
-and integer mappings, state/reset and consumer defaults. Fix substantiated findings and rerun
-affected checks. Review does not replace parity, real-checkpoint or packaging acceptance.
-
 Send checkpoints for completion, failure, missing prerequisites
 or a material state change. Distinguish selected skips from filtered or unregistered suites and disclose
 standalone fixture adapters. Group equivalent errors without asserting a common
 cause. Preserve original failures and numerical differences for diagnosis; known
-arithmetic differences remain failed parity checks. Report WWB quality acceptance
-and supported scope separately; do not turn a supported model into a parity pass.
+arithmetic differences remain failed parity checks unless the user changes the
+acceptance contract.

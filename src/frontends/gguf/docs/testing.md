@@ -50,6 +50,18 @@ the standard `split.no` (u16), `split.count` (u16) and `split.tensors.count` (i3
 
 ## Fixtures and oracles
 
+Regenerate the Q8_1 weight fixtures with a clean llama.cpp checkout at
+`476c01efe88aad7880a8132d5d3a415f2ca75139` and its freshly built `libggml-base`:
+
+```sh
+python3 src/frontends/gguf/tests/gen_q8_1_accuracy.py \
+  --llama-cpp /path/to/llama.cpp --library /path/to/libggml-base.so
+```
+
+The generator calls ggml's Q8_1 reference quantizer, then copies each block's F16 scale
+and signed codes into Q8_0 blocks for real ggml dequantization. Q8_1 has no `to_float`
+callback. The committed arrays and provenance JSON require no ggml dependency in unit tests.
+
 Small NPZ/NPY numerical references are committed and work offline. Missing numerical references
 fail their tests. Architecture header fixtures are generated separately; if none are present,
 `GGUFArchConversion` skips, while a partially generated set fails. Generate them before claiming

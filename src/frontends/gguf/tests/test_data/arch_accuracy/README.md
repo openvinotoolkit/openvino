@@ -114,3 +114,10 @@ and random seed 20261014. They cover four hybrid layers, four query/two KV heads
 three/four-tap convolution caches, a two-token attention window, dense leading layers,
 selection bias and normalized softmax/sigmoid expert weights. The sigmoid case includes
 expert-scale metadata that llama.cpp's LFM2 MoE loader ignores.
+
+`afmoe.npz` was extracted from OpenVINO donor `c4a023aeac0302c283295ba241ddee5af5ca4a0b`.
+It covers four layers (one dense, three routed/shared MoE), four query/two KV heads,
+pre/post RMS norms, QK norm, sigmoid attention gating and biased normalized sigmoid
+expert selection. The three cached batches cross a two-token sliding window; every
+fourth layer uses global attention without RoPE. The generator uses seed 20260907. Regeneration against the local CPU oracle built
+from llama.cpp `4b3951de9c87f66768e0fce4043756cc49efc20b` reproduced the NPZ byte for byte.

@@ -10,12 +10,18 @@
 #include <unordered_map>
 
 #include "gguf.hpp"
+#include "openvino/core/node_output.hpp"
 
 namespace ov {
 class Node;
-}
+class Model;
+}  // namespace ov
 
 namespace ov::frontend::gguf {
+
+void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model);
+
+ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices);
 
 // Element type of the zero-point constant for an asymmetric quantized weight.
 // Q2_0 always uses u8. The raw-byte Q8_0_C requantization path separately uses temporary f16
