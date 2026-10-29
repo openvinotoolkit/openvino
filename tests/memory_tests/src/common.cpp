@@ -5,7 +5,7 @@
 #include "common.hpp"
 
 
-ov::PartialShape get_default_shape(ov::PartialShape given_shape) {
+ov::PartialShape get_default_image_shape(ov::PartialShape given_shape) {
     if (given_shape.is_static()) {
         return given_shape.get_shape();
     }

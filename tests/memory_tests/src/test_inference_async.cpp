@@ -26,7 +26,7 @@ void do_test(memory_tests::Context &test) {
     std::map<ov::Output<ov::Node>, ov::PartialShape> input_shapes;
     for (const auto& input : model->inputs()) {
         if (!input.get_partial_shape().is_static()) {
-            input_shapes.emplace(input, get_default_shape(input.get_partial_shape()));
+            input_shapes.emplace(input, get_default_image_shape(input.get_partial_shape()));
         }
     }
     model->reshape(input_shapes);
