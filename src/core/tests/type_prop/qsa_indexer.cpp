@@ -199,6 +199,34 @@ TEST(QSATypeProp, QSAIndexerRejectsNonCausalConfigurationAndInvalidPorts) {
                  NodeValidationFailure);
 }
 
+TEST(QSATypeProp, QSAIndexerReportsKernelSupportWithoutThrowing) {
+    using Config = op::internal::QSAIndexer::Config;
+    const auto supported_config = Config{4, 512, 1, 1e-5f, 1e-6f, true};
+    const auto supported_query = PartialShape{-1, 4, -1, 128};
+    std::string reason;
+    EXPECT_TRUE(op::internal::QSAIndexer::is_supported(supported_config, supported_query, reason));
+    EXPECT_TRUE(reason.empty());
+
+    const std::vector<std::pair<Config, PartialShape>> unsupported_cases{
+        {Config{4, 16, 1, 1e-6f, 1e-6f, false}, supported_query},
+        {Config{8, 16, 1, 1e-6f, 1e-6f, true}, supported_query},
+        {Config{4, 16, 2, 1e-6f, 1e-6f, true}, supported_query},
+        {Config{4, 516, 1, 1e-6f, 1e-6f, true}, supported_query},
+        {Config{4, 18, 1, 1e-6f, 1e-6f, true}, supported_query},
+        {Config{4, 16, 1, 5e-7f, 1e-6f, true}, supported_query},
+        {Config{4, 16, 1, 1e-6f, 2e-5f, true}, supported_query},
+        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape::dynamic()},
+        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape{2, 8, 3, 128}},
+        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape{2, -1, 3, 128}},
+        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape{2, 4, 3, 64}},
+        {Config{4, 16, 1, 1e-6f, 1e-6f, true}, PartialShape{2, 4, 3, -1}},
+    };
+    for (const auto& [config, query_shape] : unsupported_cases) {
+        EXPECT_FALSE(op::internal::QSAIndexer::is_supported(config, query_shape, reason)) << query_shape;
+        EXPECT_FALSE(reason.empty()) << query_shape;
+    }
+}
+
 TEST(QSATypeProp, OperationAttributesRoundTripThroughVisitors) {
     NodeBuilder::opset().insert<op::v17::QSAPrepare>();
     NodeBuilder::opset().insert<op::v17::SparseAttentionIndexer>();

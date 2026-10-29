@@ -33,11 +33,12 @@ namespace ov::pass {
  * Multiply(Divide(x, Sqrt(Add(ReduceMean(Power(x, 2), last_axis, keep_dims), eps))), weight).
  *
  * The rewrite is applied only when:
- *  - query is [?, 4, ?, 128] and raw keys are [?, ?, 128], with compatible batch and sequence;
- *  - key_block_size is 4, num_selection_heads is 1 and token_budget <= 512;
- *  - both RMSNorm epsilons are in [1e-6, 1e-5] and both norm weights are enabled;
- *  - SparseAttentionIndexer consumes QSAPrepare output 0 and the same key length as QSAPrepare,
- *    and has no index weights input;
+ *  - QSAIndexer::is_supported accepts the resulting configuration and query shape (kernel limits on
+ *    head count, head size, key block size, selection heads, token budget and epsilons);
+ *  - query has rank 4 and raw keys have rank 3, with compatible batch and sequence;
+ *  - both source ops use the same key_block_size and the same key length input;
+ *  - SparseAttentionIndexer consumes QSAPrepare output 0 and has no index weights input;
+ *  - both RMSNorm weights are enabled (not empty Constants);
  *  - every RMSNorm node and every QSAPrepare output has a single consumer, since all of them are
  *    replaced by QSAIndexer.
  */
