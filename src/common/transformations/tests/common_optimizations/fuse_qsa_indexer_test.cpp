@@ -300,7 +300,7 @@ TEST(FuseQSAIndexer, AcceptsDecomposedRMSNormAndReversedOperands) {
 
 TEST(FuseQSAIndexer, AcceptsQueryAndKeyEpsilonsWithinRelativeTolerance) {
     GraphOptions options;
-    options.query_epsilon = 1e-5f * (1.0f + 5e-5f);
+    options.query_epsilon = 1e-5f * (1.0f + op::internal::QSAIndexer::max_epsilon_relative_difference / 2);
     options.key_epsilon = 1e-5f;
     auto graph = build_graph(options);
     run_fusion(graph.model);
