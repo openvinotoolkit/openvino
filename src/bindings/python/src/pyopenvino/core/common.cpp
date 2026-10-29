@@ -294,9 +294,7 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     // fixed-width strings keep their numpy dtype
     case ov::element::string: {
         py::array result = py::array::ensure(array, py::array::c_style);
-        if (!result) {
-            OPENVINO_THROW("Failed to ensure a contiguous NumPy array for string tensor.");
-        }
+        OPENVINO_ASSERT(result, "Failed to ensure a contiguous NumPy array for string tensor.");
         return result;
     }
     default:
