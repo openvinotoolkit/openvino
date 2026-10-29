@@ -955,7 +955,11 @@ private:
 */
 class UsmHolder {
 public:
-    UsmHolder(const cl::UsmHelper& usmHelper, void* ptr, bool shared_memory = false) : _usmHelper(usmHelper), _ptr(ptr), _shared_memory(shared_memory) {}
+    UsmHolder(const cl::UsmHelper& usmHelper, void* ptr, bool shared_memory = false, std::shared_ptr<UsmHolder> parent = nullptr)
+        : _usmHelper(usmHelper),
+          _ptr(ptr),
+          _shared_memory(shared_memory),
+          _parent(std::move(parent)) {}
 
     void* ptr() {
         return _ptr;
@@ -978,6 +982,8 @@ private:
     const cl::UsmHelper& _usmHelper;
     void* _ptr;
     bool _shared_memory = false;
+    // Keeps the parent allocation alive while this holder points into it (sub-buffer case)
+    std::shared_ptr<UsmHolder> _parent;
 };
 /*
     USM base class. Different usm types should derive from this class.
@@ -991,6 +997,14 @@ public:
         if (!usm_ptr) {
             throw std::runtime_error("[GPU] Can't share null usm pointer");
         }
+    }
+
+    // Creates a view into the parent allocation that shares its ownership
+    UsmMemory(const UsmMemory& parent, size_t offset) : _usmHelper(parent._usmHelper) {
+        if (!parent._usm_pointer || !parent.get()) {
+            throw std::runtime_error("[GPU] Can't create sub-buffer from empty usm memory");
+        }
+        _usm_pointer = std::make_shared<UsmHolder>(_usmHelper, static_cast<uint8_t*>(parent.get()) + offset, true, parent._usm_pointer);
     }
 
     // Get methods returns original pointer allocated by openCL.

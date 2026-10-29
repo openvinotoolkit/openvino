@@ -45,7 +45,7 @@ CPU_Functional_Tests:
   ...
   steps:
     - name: Save tests execution time
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       if: github.ref_name == 'master'
       with:
         path: ${{ env.PARALLEL_TEST_CACHE }}
@@ -64,7 +64,7 @@ CPU_Functional_Tests:
   ...
   steps:
     - name: Restore tests execution time
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ${{ env.PARALLEL_TEST_CACHE }}
         key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
@@ -89,9 +89,10 @@ add the mounting point under the `container`'s `volumes` key in a job configurat
 ```yaml
 Build:
   ...
+  needs: Docker
   runs-on: aks-linux-16-cores-32gb
   container:
-    image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     volumes:
       - /mount:/mount
       - /home/runner/secrets/:/secrets:ro
@@ -122,6 +123,16 @@ path in the Docker container where the resources will be available.
   * Used in the [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) workflow
 
 To add new resources, contact a member of the CI team for assistance.
+
+### Remote Storage Compiler Cache
+
+Builds can share compiled objects through ccache's remote storage on the shared drive
+by setting `CCACHE_SECONDARY_STORAGE` (or `CCACHE_REMOTE_STORAGE` on newer ccache)
+to `file:///mount/caches/ccache/shared`. The RISC-V GNU build in
+[`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) is the pilot user.
+Old entries are evicted together with the rest of `/mount/caches/ccache` by the
+`Cleanup_ccache_lin` job in
+[`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml).
 
 ## Cloud Storage via Azure Blob Storage
 
@@ -164,9 +175,10 @@ key under the `container` key to make them accessible for `sccache` inside the c
 ```yaml
 Build:
   ...
+  needs: Docker
   runs-on: aks-linux-16-cores-32gb
   container:
-    image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04
+    image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     volumes:
       - /mount:/mount
       - /home/runner/secrets/:/secrets:ro
@@ -194,7 +206,7 @@ Build:
     CMAKE_CXX_COMPILER_LAUNCHER: sccache
     CMAKE_C_COMPILER_LAUNCHER: sccache
     ...
-    SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+    SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
 ```
 
 ### Enabling `sccache` for C++/C Files
@@ -209,6 +221,6 @@ Build:
     CMAKE_CXX_COMPILER_LAUNCHER: sccache
     CMAKE_C_COMPILER_LAUNCHER: sccache
     ...
-    SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+    SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
 ```
 You can also set the options in the CMake configuration command.

@@ -22,10 +22,34 @@ updates:
       - "rkazants"
       - "mryzhov"
     versioning-strategy: increase-if-necessary
+    exclude-paths:
+      - "**/requirements*"
+      - "**/constraints*"
     groups:
       pip-root:
         patterns:
           - "*"
+
+  # Documentation dependencies
+  - package-ecosystem: pip
+    directory: "/docs/"
+    schedule:
+      interval: "weekly"
+      time: "09:00"
+      timezone: "Poland"
+    open-pull-requests-limit: 10
+    assignees:
+      - "whitneyfoster"
+      - "michalzx"
+    versioning-strategy: increase-if-necessary
+    groups:
+      pip-docs:
+        patterns:
+          - "*"
+        # Excluded from grouped updates due to CVS-190367.
+        exclude-patterns:
+          - "sphinx-sitemap"
+          - "pydata-sphinx-theme"
 
   # Python API, Frontends
   - package-ecosystem: pip
