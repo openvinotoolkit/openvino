@@ -342,68 +342,54 @@ TEST(FuseQSAIndexer, DoesNotRejectFP32) {
     EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
 }
 
+TEST(FuseQSAIndexer, LeavesKernelLimitsToPluginCompilation) {
+    const std::vector<std::pair<std::string, GraphOptions>> cases{{"dynamic_query_heads",
+                                                                   [] {
+                                                                       GraphOptions options;
+                                                                       options.dynamic_query_heads = true;
+                                                                       return options;
+                                                                   }()},
+                                                                  {"dynamic_head_size",
+                                                                   [] {
+                                                                       GraphOptions options;
+                                                                       options.dynamic_head_size = true;
+                                                                       return options;
+                                                                   }()},
+                                                                  {"block_size",
+                                                                   [] {
+                                                                       GraphOptions options;
+                                                                       options.key_block_size = 8;
+                                                                       return options;
+                                                                   }()},
+                                                                  {"token_budget",
+                                                                   [] {
+                                                                       GraphOptions options;
+                                                                       options.token_budget = 516;
+                                                                       return options;
+                                                                   }()},
+                                                                  {"num_selection_heads",
+                                                                   [] {
+                                                                       GraphOptions options;
+                                                                       options.num_selection_heads = 2;
+                                                                       return options;
+                                                                   }()},
+                                                                  {"epsilons", [] {
+                                                                       GraphOptions options;
+                                                                       options.query_epsilon = 2e-5f;
+                                                                       options.key_epsilon = 5e-7f;
+                                                                       return options;
+                                                                   }()}};
+
+    for (const auto& [name, options] : cases) {
+        SCOPED_TRACE(name);
+        auto graph = build_graph(options);
+        run_fusion(graph.model);
+        EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
+    }
+}
+
 TEST(FuseQSAIndexer, RejectsInvalidConfigurationAndProvenance) {
-    const std::vector<std::pair<std::string, GraphOptions>> negative_cases{{"query_heads",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.query_heads = 8;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"head_size",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.head_size = 64;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"dynamic_query_heads",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.dynamic_query_heads = true;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"dynamic_head_size",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.dynamic_head_size = true;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"block_size",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.key_block_size = 8;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"token_budget",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.token_budget = 516;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"num_selection_heads",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.num_selection_heads = 2;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"query_epsilon",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.query_epsilon = 2e-5f;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"query_epsilon_below_minimum",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.query_epsilon = 5e-7f;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"key_epsilon",
-                                                                            [] {
-                                                                                GraphOptions options;
-                                                                                options.key_epsilon = 2e-5f;
-                                                                                return options;
-                                                                            }()},
-                                                                           {"disabled_key_norm",
+    const std::vector<std::pair<std::string, GraphOptions>> negative_cases{{"disabled_key_norm",
                                                                             [] {
                                                                                 GraphOptions options;
                                                                                 options.disable_key_norm = true;
