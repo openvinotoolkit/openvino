@@ -216,10 +216,29 @@ size_t count_ops(const std::shared_ptr<Model>& model, const std::string& type_na
     });
 }
 
-void run_fusion(const std::shared_ptr<Model>& model) {
+void run_fusion(const std::shared_ptr<Model>& model, const pass::FuseQSAIndexer::Config& limits = {}) {
     pass::Manager manager;
-    manager.register_pass<pass::FuseQSAIndexer>();
+    manager.register_pass<pass::FuseQSAIndexer>(limits);
     manager.run_passes(model);
+}
+
+// Kernel limits that the GPU plugin passes to FuseQSAIndexer.
+pass::FuseQSAIndexer::Config gpu_limits() {
+    pass::FuseQSAIndexer::Config limits;
+    limits.supported_num_selection_heads = {1};
+    limits.max_epsilon_relative_difference = 1e-4f;
+    limits.require_static_head_dims = true;
+    limits.require_rope = true;
+    return limits;
+}
+
+std::shared_ptr<op::internal::QSAIndexer> find_fused(const std::shared_ptr<Model>& model) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto fused = as_type_ptr<op::internal::QSAIndexer>(node)) {
+            return fused;
+        }
+    }
+    return nullptr;
 }
 
 TEST(FuseQSAIndexer, FusesSupportedGraphAndMapsAllInputsAndOutputs) {
@@ -298,12 +317,13 @@ TEST(FuseQSAIndexer, AcceptsDecomposedRMSNormAndReversedOperands) {
     EXPECT_FLOAT_EQ(fused->get_config().q_epsilon, options.query_epsilon);
 }
 
-TEST(FuseQSAIndexer, AcceptsQueryAndKeyEpsilonsWithinRelativeTolerance) {
+TEST(FuseQSAIndexer, ConfiguredEpsilonToleranceAcceptsCloseQueryAndKeyEpsilons) {
+    const auto limits = gpu_limits();
     GraphOptions options;
-    options.query_epsilon = 1e-5f * (1.0f + op::internal::QSAIndexer::max_epsilon_relative_difference / 2);
+    options.query_epsilon = 1e-5f * (1.0f + *limits.max_epsilon_relative_difference / 2);
     options.key_epsilon = 1e-5f;
     auto graph = build_graph(options);
-    run_fusion(graph.model);
+    run_fusion(graph.model, limits);
     EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
 }
 
@@ -356,18 +376,18 @@ TEST(FuseQSAIndexer, DoesNotFixHeadCountHeadSizeBlockSizeOrTokenBudget) {
     for (const auto& [name, options] : cases) {
         SCOPED_TRACE(name);
         auto graph = build_graph(options);
-        run_fusion(graph.model);
+        run_fusion(graph.model, gpu_limits());
         EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
     }
 }
 
-TEST(FuseQSAIndexer, RejectsGraphsOutsideKernelLimits) {
+std::vector<std::pair<std::string, GraphOptions>> device_specific_cases() {
     const auto with = [](auto&& setter) {
         GraphOptions options;
         setter(options);
         return options;
     };
-    const std::vector<std::pair<std::string, GraphOptions>> cases{
+    return {
         {"dynamic_query_heads", with([](GraphOptions& o) {
              o.dynamic_query_heads = true;
          })},
@@ -390,15 +410,47 @@ TEST(FuseQSAIndexer, RejectsGraphsOutsideKernelLimits) {
              o.key_epsilon = 1e-6f;
          })},
     };
+}
 
-    for (const auto& [name, options] : cases) {
+TEST(FuseQSAIndexer, DefaultConfigFusesGraphsOutsideDeviceKernelLimits) {
+    for (const auto& [name, options] : device_specific_cases()) {
         SCOPED_TRACE(name);
         auto graph = build_graph(options);
         run_fusion(graph.model);
+        const auto fused = find_fused(graph.model);
+        ASSERT_NE(fused, nullptr);
+        EXPECT_EQ(fused->get_config().num_selection_heads, options.num_selection_heads);
+        EXPECT_FLOAT_EQ(fused->get_config().q_epsilon, options.query_epsilon);
+        EXPECT_FLOAT_EQ(fused->get_config().k_epsilon, options.key_epsilon);
+    }
+}
+
+TEST(FuseQSAIndexer, DefaultConfigPreservesDisabledRoPEStateShape) {
+    GraphOptions options;
+    options.disable_rope = true;
+    auto graph = build_graph(options);
+    run_fusion(graph.model);
+    const auto fused = find_fused(graph.model);
+    ASSERT_NE(fused, nullptr);
+    EXPECT_EQ(fused->get_output_partial_shape(4), (PartialShape{2, 0}));
+    EXPECT_EQ(graph.model->get_results()[3]->input_value(0), fused->output(4));
+}
+
+TEST(FuseQSAIndexer, RejectsGraphsOutsideConfiguredKernelLimits) {
+    for (const auto& [name, options] : device_specific_cases()) {
+        SCOPED_TRACE(name);
+        auto graph = build_graph(options);
+        run_fusion(graph.model, gpu_limits());
         EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 0);
         EXPECT_EQ(count_ops(graph.model, "QSAPrepare"), 1);
         EXPECT_EQ(count_ops(graph.model, "SparseAttentionIndexer"), 1);
     }
+}
+
+TEST(FuseQSAIndexer, ConfiguredKernelLimitsAcceptSupportedGraph) {
+    auto graph = build_graph();
+    run_fusion(graph.model, gpu_limits());
+    EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
 }
 
 TEST(FuseQSAIndexer, RejectsInvalidConfigurationAndProvenance) {
