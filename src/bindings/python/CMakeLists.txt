@@ -267,7 +267,7 @@ macro(ov_define_setup_py_dependencies)
             # C API
             openvino_c
             # plugins
-            ov_plugins
+            ov_plugins openvino_intel_npu_vm_runtime
             # frontends
             ov_frontends)
         if(TARGET ${_target})
