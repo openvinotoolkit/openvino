@@ -1243,7 +1243,7 @@ bool ov::npuw::util::isPastValueParam(const std::string& str) {
     //   - contiguous, e.g. past_key_values.0.value
     //   - block-split, e.g. past_key_values.0.value_block_3, past_key_values.0.value_block_tail
     //   - SWA-managed, e.g. past_key_values.0.swa.value
-    static const std::regex pattern(R"(past_key_values\.\d+(?:\.[^.]+)*\.value(_block_(\d+|tail))?)");
+    static const std::regex pattern(R"((?:input_restored\.)?past_key_values\.\d+(?:\.[^.]+)*\.value(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
 
@@ -1313,6 +1313,9 @@ std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& st
 }
 
 bool ov::npuw::util::isKVCacheName(const std::string& str) {
+    if (starts_with(str, "input_restored.") || starts_with(str, "output_restored.")) {
+        return isKVCacheName(str.substr(str.find('.') + 1));
+    }
     return isPastKeyValuesKey(str).has_value() || isPastKeyValuesValue(str).has_value() ||
            isPresentKeyValuesKey(str).has_value() || isPresentKeyValuesValue(str).has_value() ||
            str.find("/" + std::string(constants::past_key_values) + "/") != std::string::npos ||
@@ -1320,6 +1323,9 @@ bool ov::npuw::util::isKVCacheName(const std::string& str) {
 }
 
 std::string ov::npuw::util::present_to_past_key_values_name(const std::string& output_name) {
+    if (starts_with(output_name, "output_restored.")) {
+        return "input_restored." + output_name.substr(16);
+    }
     const std::string present_prefix = constants::present;
     const std::string past_prefix = constants::past_key_values;
 
@@ -1336,6 +1342,9 @@ std::string ov::npuw::util::present_to_past_key_values_name(const std::string& o
 }
 
 std::string ov::npuw::util::past_key_values_to_present_name(const std::string& input_name) {
+    if (starts_with(input_name, "input_restored.")) {
+        return "output_restored." + input_name.substr(15);
+    }
     const std::string present_prefix = constants::present;
     const std::string past_prefix = constants::past_key_values;
 
