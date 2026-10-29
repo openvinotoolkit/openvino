@@ -685,8 +685,11 @@ TEST_P(OVCompileAndInferRequestQoS, QosPropertiesAreReportedAsSupported) {
 TEST_P(OVCompileAndInferRequestQoS, QosIsWriteOnly) {
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(execNet.get_property(ov::qos.name()), ov::Exception, "WRITE-ONLY");
-    OV_EXPECT_THROW_HAS_SUBSTRING(core->get_property(target_device, ov::qos.name()), ov::Exception, "WRITE-ONLY");
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = execNet.get_property(ov::qos.name()));
+    EXPECT_TRUE(value.empty());
+    OV_ASSERT_NO_THROW(value = core->get_property(target_device, ov::qos.name()));
+    EXPECT_TRUE(value.empty());
 }
 
 TEST_P(OVCompileAndInferRequestQoS, QosInfoIsReadOnly) {
