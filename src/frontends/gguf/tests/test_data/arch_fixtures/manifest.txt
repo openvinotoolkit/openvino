@@ -60,8 +60,8 @@ jais-dense.gguf.hdr 4745856 reject
 jais2-dense.gguf.hdr 3956480 convert
 jamba-dense.gguf.hdr 6061856 reject
 kimi-linear-moe.gguf.hdr 2833984 reject
-lfm2-dense.gguf.hdr 4731520 reject
-lfm2moe-moe.gguf.hdr 5913248 reject
+lfm2-dense.gguf.hdr 4731520 convert
+lfm2moe-moe.gguf.hdr 5913248 convert
 llada-dense.gguf.hdr 4735104 reject
 llada-moe-moe.gguf.hdr 7096192 reject
 llama-dense.gguf.hdr 4741248 convert

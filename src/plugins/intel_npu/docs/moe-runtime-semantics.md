@@ -60,3 +60,21 @@ defaults.
   or scatter partial results.
 - Expert weight slices require a valid leading expert dimension and in-range
   expert index. Four-bit expert boundaries must be byte-aligned.
+
+## LLM stage configuration
+
+LLM compilation detects compatible batched-MoE graphs structurally and retains
+router/expert name hints for legacy exports. Host-routed stages preserve the
+`expert` partition tag even for small models, without replacing existing tags.
+The existing shape-compute folding runs after stage shapes are prepared.
+
+Without an explicit `NPUW_LLM_GENERATE_MOE_HINT`, automatic device routing requires
+NPU architecture `5010`, compiler version 7.29 or later, single-token generation,
+and a supported batched-MoE boundary in every prepared generate variant. Every
+candidate boundary must pass the shared matcher and device-eligibility checks;
+an unsupported expert body prevents automatic device routing. A name hint alone
+is insufficient. Other cases retain the host-routed default.
+
+Explicit routing hints are preserved. Device routing remains unsupported for
+prefill, and explicit device decode must satisfy the core lowering requirements.
+`DENSE` remains restricted to CPU execution.

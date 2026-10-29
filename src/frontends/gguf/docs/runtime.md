@@ -4,6 +4,47 @@
 turns a language model into a stateful model with the OpenVINO GenAI interface. Multimodal projector
 files use their own [encoder contract](mmproj.md#graph-boundary).
 
+## Split GGUF files
+
+The native frontend loads split models directly without writing a merged GGUF. Pass any shard
+with the standard `model-00001-of-00003.gguf` filename; the loader reads `split.count` and
+`split.no` and opens the other expected shards in the same directory. All shards of the
+chosen quantization must be available locally.
+
+```python
+from openvino.frontend import FrontEndManager
+
+frontend = FrontEndManager().load_by_framework("gguf")
+model = frontend.convert(frontend.load(
+    "Q4_K_M/Qwen3.5-122B-A10B-Q4_K_M-00001-of-00003.gguf"
+))
+```
+
+For renamed shards or files in different directories, supply a complete list of string paths.
+List order does not matter; the loader uses `split.no` to select shard zero's model metadata.
+
+```python
+model = frontend.convert(frontend.load([
+    "/models/part-a.gguf", "/other-disk/part-b.gguf", "/models/part-c.gguf"
+]))
+```
+
+C++ accepts a `std::vector<std::string>` or `std::vector<std::filesystem::path>`, and also
+separate path arguments to `load()`:
+
+```cpp
+auto input = frontend->load(std::vector<std::string>{
+    "/models/part-a.gguf", "/other-disk/part-b.gguf", "/models/part-c.gguf"});
+auto model = frontend->convert(input);
+```
+
+An explicit list must contain every shard; the loader does not fill in omitted entries.
+Inputs must belong to one split model. Missing shards,
+duplicate shard indices or tensor names, conflicting metadata and inconsistent total tensor
+counts produce load errors. Each shard keeps its own mapping; quantized weights use the same
+repacking as single-file inputs. This avoids a merged disk copy but does not reduce conversion
+or compilation memory requirements or extend architecture and quantization coverage.
+
 ## Stateless contract
 
 The default decoder graph mirrors the llama.cpp backend interface:
@@ -56,7 +97,8 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
 - The LM head is connected directly to the logits Result with a rank-3 input, so GenAI's
   slice-before-matmul optimization projects only the sampled rows during prefill.
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
-- Gated-DeltaNet states (`qwen35`, `qwen35moe`) get a dynamic batch, follow `beam_idx` and mask
+- Gated-DeltaNet states (`qwen35`, `qwen35moe`) and LFM2 short-convolution states
+  (`lfm2`, `lfm2moe`) get a dynamic batch, follow `beam_idx` and mask
   left padding. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
   A consumer must reset, not trim, the states listed in `gguf_recurrent_states`.
 - The pass does not create a tokenizer, sampler or pipeline, and it does not adapt encoder models.
