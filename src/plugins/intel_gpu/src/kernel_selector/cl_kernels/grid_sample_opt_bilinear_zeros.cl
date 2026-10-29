@@ -102,7 +102,7 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
                                        const __global grid_t* restrict grid,
                                        __global output_t* restrict output) {
 #if !defined(INTERPOLATION_MODE_BILINEAR)
-#    error[clDNN grid_sample_opt_bilinear.cl]: This kernel only support bilinear interppolation mode.
+#    error[clDNN grid_sample_opt_bilinear.cl]: This kernel only support bilinear interpolation mode.
 #endif
 
 #if !defined(PADDING_MODE_ZEROS) && !defined(PADDING_MODE_BORDER)
