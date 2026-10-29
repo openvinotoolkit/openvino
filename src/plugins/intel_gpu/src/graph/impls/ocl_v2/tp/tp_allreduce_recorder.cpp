@@ -611,6 +611,11 @@ void TPAllReduceRecorder::run(const cldnn::ze::tp::Channel& channel,
                           m_call);
     const auto t1 = stamp();
     const int parity = m_call.parity;
+    if (measure_host && rank == 0 && plan.count > 1) {
+        st.chunked_calls.bump();
+        st.chunks.add(plan.count);
+        st.max_chunks.keep_max(plan.count);
+    }
 
     // Whoever fails leaves the rest of the group waiting for something that
     // will never arrive.

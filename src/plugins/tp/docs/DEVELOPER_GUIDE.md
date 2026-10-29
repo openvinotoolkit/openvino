@@ -64,7 +64,7 @@ for the current file layout. Key entry points:
 | `include/tp/options.inl`    | The option table: defaults, validators, tiers.                                                                                                                                   |
 | intel_gpu `src/plugin/plugin.cpp` | `Plugin::create_tp_context` — the TP context from the `ov::tp::internal` parameters; `Graph::bind_collectives` in `graph.cpp` binds a model to it.                            |
 | intel_gpu `src/runtime/ze/tp/`  | `rank_communicator.cpp` (publish, connect, bind, group registry), `group_state.cpp` (the group's resources: call rendezvous, staging, peer events, fallback queues, watchdog, profiling report), `tp_l0_shared_context.cpp`. |
-| intel_gpu `impls/ocl_v2/tp/`, `impls/ocl_v2/tp_allreduce.cl` | `tp_allreduce.*`: the AllReduce impl, builds the reduction kernel with the model. `tp_allreduce_recorder.*`: the three schedules and their staging layout. `tp_gather_recorder.*`: the gather's band copies into the root's output and its `ready` handshake. `tp_recording.*`: a primitive instance's command lists, completion events and splice. Registered from `graph/registry/tp_allreduce_impls.cpp`. |
+| intel_gpu `impls/ocl_v2/tp/`, `impls/ocl_v2/tp_allreduce.cl` | `tp_allreduce.*`: the AllReduce impl, builds the reduction kernel with the model. `tp_allreduce_recorder.*`: the three schedules, their staging layout and the chunking of messages larger than a fixed staging. `tp_gather_recorder.*`: the gather's band copies into the root's output and its `ready` handshake. `tp_recording.*`: a primitive instance's command lists, completion events and splice. Registered from `graph/registry/tp_allreduce_impls.cpp`. |
 | intel_gpu `impls/ocl_v2/tp/tp_gather.*`  | The gather impl (no kernel); runs `TPGatherRecorder`. Registered from `graph/registry/tp_gather_impls.cpp`. |
 
 ## Tunables
@@ -74,7 +74,8 @@ They are plugin options, not bare environment reads: the table lives in
 getter, a default, validation, and environment and config-file support. An
 option's environment variable is `OV_` plus its property key.
 
-The device list (`"TP:GPU.0,GPU.1"`) and `COMMUNICATION_TIMEOUT_MS` are
+The device list (`"TP:GPU.0,GPU.1"`), `COMMUNICATION_TIMEOUT_MS` and
+`ov_internal_tp_comm_buffer_size` are
 documented in [USER_GUIDE.md § Configuration Properties](USER_GUIDE.md#configuration-properties).
 Everything below is reachable through the environment or a config file only.
 
@@ -144,21 +145,23 @@ the collectives' block below appears once per collective):
 [TP][RANK|host]     run-ahead: mean=… splices max=…
 [TP][TOTAL|host] r0 calls=…  rebuilds=… records=…  totals: … per-call: …
 [TP][TOTAL|host]   schedule of N recordings: pair=… ring=… halving=…
+[TP][TOTAL|host]   chunked: calls=… chunks/call=… max=…
 [TP][TOTAL|host]   record breakdown: records=… per-record=…ms (drain=… reset=… append=… close=…)
-[TP][TOTAL|host]   scratch: payload_capacity=…MB total=…MB generation=… grows=… allocations=… stall=…ms
+[TP][TOTAL|host]   scratch: payload_capacity=…MB total=…MB generation=… grows=… allocations=… stall=…ms fixed=…MB
 [TP][TOTAL|host]   gather rank N: calls=… spliced=… records=… barrier=…us append=…us close=…ms total
 [TP][RANK|dev] calls=… schedule=… world=…
 [TP][RANK|dev]   rank N: queue busy mean=…us max=…us(cid N)  sent=…MB/call effective=… GB/s (N samples)
 [TP][RANK|dev]     queue busy under: p50=…us p90=…us p99=…us
 [TP][RANK|dev]     between collectives: model=…us -> collectives own …% of device time (N gaps)
 [TP][TOTAL|dev] across N ranks: sent=…MB/call aggregate=… GB/s
+[TP][RANK|dev]   gather rank N: queue busy mean=…us max=…us  sent=…MB/call (N samples)
 ```
 
 The tags say what the numbers are about and where they came from.
 `RANK` is per rank and exists to expose imbalance between them; `TOTAL` is
 rank 0's aggregate and exists to price the collective as a whole. `host` means
 a host clock, `dev` means GPU kernel timestamps -- the `dev` lines appear only
-under `TP_PROFILING=DEVICE` or `ALL`.
+under `GPU_TP_PROFILING=DEVICE` or `ALL`.
 
 Field semantics:
 
@@ -195,7 +198,11 @@ Field semantics:
   collective, and the duty cycle that follows from it.
 - **rebuilds / grows** — staging growths since process start (`grows` is the
   maximum over ranks, `allocations` the sum; `payload_capacity` the minimum).
-  After the first prefill of a given max-shape this should stop moving.
+  After the first prefill of a given max-shape this should stop moving. With
+  `fixed` non-zero (`ov_internal_tp_comm_buffer_size`) the staging never grows.
+- **chunked** — allreduces split because the fixed staging could not hold
+  them, on rank 0; only printed when there were any. Chunks run one after the
+  other on the devices, so many chunks per call show up as prefill time.
 - **schedule** — which of the three schedules the recordings chose. `halving`
   is default-on and bounded by payload, so the split says whether that bound is
   anywhere near right. Counted per rank, so N ranks re-recording one collective
@@ -323,10 +330,10 @@ large ones, where both partners of a pair contend for the same link.
 
 Symptom: `record breakdown: records=N` climbs with the call count.
 
-A rank's recording survives while its signature (`RankRecording`) holds: its
+A rank's recording survives while its signature (`TPAllReduceRecorder::Signature`) holds: its
 own input and output addresses, the driver's allocation ids for them, its
-kernel, `n`, `dtype`, and the staging address and id of every rank for that
-call parity. Each rank checks and re-records only its own.
+kernel, `n`, `dtype`, the chunk size, and the staging addresses and id of
+every rank. Each rank checks and re-records only its own.
 
 - **Addresses shift every call.** intel_gpu reallocates network buffers between
   inferences. Compare `sig` against `m_sig[parity]` in `TPAllReduceRecorder::run()` to see

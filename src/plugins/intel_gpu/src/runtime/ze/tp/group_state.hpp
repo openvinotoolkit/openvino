@@ -151,6 +151,10 @@ struct CollectiveStats {
     Counter tail_ns;
     Counter rebuilds;
     Counter records;
+    // Allreduces split to fit a fixed staging.
+    Counter chunked_calls;
+    Counter chunks;
+    Counter max_chunks;
 
     // Recording time by stage, summed over all ranks.
     Counter rec_drain_ns;

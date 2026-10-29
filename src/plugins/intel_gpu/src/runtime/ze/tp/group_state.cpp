@@ -917,6 +917,11 @@ void GroupState::report_host_totals(uint64_t calls) {
     }
     TP_REPORT << "[TP][TOTAL|host]   schedule of " << (pair + ring + halving) << " recordings: pair=" << pair
               << " ring=" << ring << " halving=" << halving << std::endl;
+    if (st.chunked_calls.get() != 0) {
+        TP_REPORT << "[TP][TOTAL|host]   chunked: calls=" << st.chunked_calls.get()
+                  << " chunks/call=" << static_cast<double>(st.chunks.get()) / static_cast<double>(st.chunked_calls.get())
+                  << " max=" << st.max_chunks.get() << std::endl;
+    }
     // Divided by recordings, not calls: recording is rare but lands in time to first token.
     const double rc = std::max<double>(1.0, static_cast<double>(st.records.get()));
     auto rec_ms = [](const Counter& v) {
@@ -934,7 +939,8 @@ void GroupState::report_host_totals(uint64_t calls) {
               << " total=" << (scratch.total_allocated_bytes / (1024.0 * 1024.0)) << "MB"
               << " generation=" << scratch.generation << " grows=" << scratch.growth_count
               << " allocations=" << scratch.allocation_count
-              << " stall=" << (static_cast<double>(st.scratch_stall_ns.get()) / 1.0e6) << "ms" << std::endl;
+              << " stall=" << (static_cast<double>(st.scratch_stall_ns.get()) / 1.0e6) << "ms"
+              << " fixed=" << (m_fixed_staging_bytes / (1024.0 * 1024.0)) << "MB" << std::endl;
     for (int r = 0; r < m_world_size; ++r) {
         const uint64_t gc_calls = st.gather_calls[r].get();
         if (gc_calls == 0) {
