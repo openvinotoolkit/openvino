@@ -84,13 +84,11 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
                 OPENVINO_ASSERT(!zp.empty(), "zero point constant is unexpectedly empty in fp16 fallback");
                 const auto activation_out = conv_mul_add_fq->get_anchor("activation", pattern_map);
                 const bool uniform = is_uniform_zero_point(zp_constant);
-                // currently only u8-tail case can be fused as int8. A mismatched (e.g. i8) tail has no u8-src path in
-                // ACL.
-                // and only for 4D convs since they are only convs FuseConvolutionAndZeroPoints fuses (ACL limit);
-                // others fall back to fp16
-                // TODO: relax this check when u8-src f32-output LP conv is supported (corresponding to TODO in
-                // graph_optimizer.cpp)
-                if (uniform && !activation_out && fake_quantize->get_output_element_type(0) == element::u8 &&
+                // keep int8 (defer to FuseConvolutionAndZeroPoints) only in the case it fuses: uniform u8 zero point,
+                // u8 activation, u8 tail and 4D conv (ACL limit). Others fall back to fp16.
+                // TODO: relax the tail check when u8-src f32-output LP conv is supported (see graph_optimizer.cpp)
+                if (u8_subtract_out && zp_constant->get_element_type() == element::u8 && !activation_out && uniform &&
+                    fake_quantize->get_output_element_type(0) == element::u8 &&
                     conv->get_input_partial_shape(0).rank() == 4) {
                     return false;
                 }
