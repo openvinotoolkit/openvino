@@ -43,6 +43,8 @@ public:
                         "[GGUF] DSpark hidden correction is not supported");
         auto& e = m_emitter;
         m_config.configure_graph(e, m_metadata);
+        e.graph()->model_contract.genai.emplace();
+        e.graph()->model_contract.genai->enabled = false;
         const auto kv = blocks::KvCachePlan::build(m_config);
         e.add_input("inp_tokens", i32, ps({1, 1, 1, block}));
         e.add_input("inp_pos", i32, ps({1, 1, 1, -1}));

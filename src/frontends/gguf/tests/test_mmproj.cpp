@@ -29,6 +29,7 @@
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
@@ -674,6 +675,72 @@ TEST_F(GGUFMMProj, Gemma3CompilesAndMetadataSurvivesSerialization) {
         energy += std::abs(output.data<float>()[i]);
     }
     EXPECT_GT(energy, 0.01);
+}
+
+namespace {
+std::shared_ptr<ov::Model> embedding_output_contract_model() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 2, 6});
+    input->set_friendly_name("vision.values");
+    input->output(0).set_names({"vision.values"});
+    auto output = std::make_shared<ov::op::v1::Add>(input, ov::op::v0::Constant::create(ov::element::f32, {}, {0}));
+    output->output(0).set_names({"vision.embeddings"});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+    model->set_rt_info("custom_architecture", {"gguf_architecture"});
+    model->set_rt_info("custom_projector", {"gguf_mmproj", "vision.projector"});
+    return model;
+}
+}  // namespace
+
+TEST_F(GGUFMMProj, NamedEmbeddingOutputsSurviveIRAndOverrideLegacyHints) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    for (const bool explicit_contract : {false, true}) {
+        SCOPED_TRACE(explicit_contract);
+        auto model = embedding_output_contract_model();
+        model->set_rt_info(explicit_contract ? "99" : "1", {"gguf_mmproj", "vision.auxiliary_count"});
+        if (explicit_contract) {
+            model->set_rt_info("2", {"gguf_mmproj", "vision.embedding_output_count"});
+            model->set_rt_info("custom_primary", {"gguf_mmproj", "vision.embedding_output.0"});
+            model->set_rt_info("custom_auxiliary", {"gguf_mmproj", "vision.embedding_output.1"});
+        }
+        ov::serialize(model, path + ".xml", path + ".bin");
+        auto restored = ov::Core{}.read_model(path + ".xml");
+        ASSERT_TRUE(Adapter(Adapter::Modality::VISION).run_on_model(restored));
+        ASSERT_EQ(restored->outputs().size(), 2);
+        EXPECT_EQ(restored->output(0).get_any_name(), explicit_contract ? "custom_primary" : "image_features");
+        EXPECT_EQ(restored->output(1).get_any_name(), explicit_contract ? "custom_auxiliary" : "deepstack_features.0");
+        auto request = ov::Core{}
+                           .compile_model(restored, "CPU", ov::hint::inference_precision(ov::element::f32))
+                           .create_infer_request();
+        ov::Tensor values(ov::element::f32, {1, 1, 2, 6});
+        for (size_t i = 0; i < values.get_size(); ++i)
+            values.data<float>()[i] = float(i);
+        request.set_input_tensor(values);
+        request.infer();
+        for (size_t output = 0; output < 2; ++output) {
+            const auto actual = request.get_output_tensor(output);
+            EXPECT_EQ(actual.get_shape(), (ov::Shape{1, 2, 3}));
+            for (size_t token = 0; token < 2; ++token)
+                for (size_t channel = 0; channel < 3; ++channel)
+                    EXPECT_FLOAT_EQ(actual.data<const float>()[token * 3 + channel],
+                                    values.data<const float>()[token * 6 + output * 3 + channel]);
+        }
+    }
+}
+
+TEST_F(GGUFMMProj, InvalidEmbeddingOutputContractPreservesOriginalGraph) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    for (const auto* count : {"0", "-1", "2"}) {
+        SCOPED_TRACE(count);
+        auto model = embedding_output_contract_model();
+        model->set_rt_info(count, {"gguf_mmproj", "vision.embedding_output_count"});
+        model->set_rt_info("same", {"gguf_mmproj", "vision.embedding_output.0"});
+        model->set_rt_info("same", {"gguf_mmproj", "vision.embedding_output.1"});
+        const auto results = model->get_results();
+        const auto parameters = model->get_parameters();
+        EXPECT_THROW(Adapter(Adapter::Modality::VISION).run_on_model(model), ov::Exception);
+        EXPECT_EQ(model->get_results(), results);
+        EXPECT_EQ(model->get_parameters(), parameters);
+    }
 }
 
 TEST_F(GGUFMMProj, MixedFileHasIndependentVisionAndAudioBranches) {

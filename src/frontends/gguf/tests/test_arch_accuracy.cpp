@@ -25,6 +25,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
+#include "model_contract.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
@@ -112,6 +113,82 @@ TEST(GGUFEagle3Adaptation, KeepsBorrowedTargetWeightsWithoutDuplicateParameters)
         EXPECT_TRUE(parameters.insert(parameter.get()).second);
     EXPECT_NO_THROW(model->input("input_ids"));
     EXPECT_NO_THROW(model->input("hidden_states"));
+}
+
+TEST(GGUFQwen3TTSAdaptation, NativeHiddenStateContractSurvivesIRReloadAndArchitectureRename) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen3tts.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(pass::GGUFMakeStateful()));
+    const auto raw = frontend.convert(frontend.load(temporary.path));
+    const auto contract = read_model_contract(raw);
+    ASSERT_TRUE(contract.genai);
+    ASSERT_EQ(contract.genai->auxiliary_outputs.size(), 1);
+    EXPECT_EQ(contract.genai->auxiliary_outputs[0].source_tensor, "qwen3tts.hidden_states");
+    EXPECT_EQ(contract.genai->auxiliary_outputs[0].name, "last_hidden_state");
+    ASSERT_EQ(raw->output("qwen3tts.hidden_states").get_partial_shape().rank(), 4);
+    std::stringstream xml, weights;
+    ov::pass::Serialize(xml, weights).run_on_model(raw);
+    const auto bytes = weights.str();
+    ov::Tensor constants(ov::element::u8, {bytes.size()});
+    std::memcpy(constants.data(), bytes.data(), bytes.size());
+    ov::Core core;
+    const auto restored = core.read_model(xml.str(), constants);
+    restored->set_rt_info(std::string{"unknown-tts-decoder"}, {"gguf_architecture"});
+    ASSERT_TRUE(pass::AdaptToGenAI().run_on_model(restored));
+    EXPECT_EQ(restored->output("last_hidden_state").get_partial_shape().rank(), 3);
+    const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+        return core.compile_model(model,
+                                  "CPU",
+                                  ov::hint::inference_precision(ov::element::f32),
+                                  ov::hint::dynamic_quantization_group_size(0),
+                                  ov::hint::kv_cache_precision(ov::element::f16),
+                                  ov::inference_num_threads(4));
+    };
+    auto reference = compile(raw).create_infer_request();
+    auto adapted = compile(restored).create_infer_request();
+    ov::Tensor raw_ids(ov::element::i32, {1, 1, 1, 3}), ids(ov::element::i64, {1, 3});
+    ov::Tensor raw_positions(ov::element::i32, {1, 1, 1, 12}), positions(ov::element::i64, {1, 3});
+    for (size_t i = 0; i < 3; ++i) {
+        raw_ids.data<int32_t>()[i] = static_cast<int32_t>(i + 1);
+        ids.data<int64_t>()[i] = static_cast<int64_t>(i + 1);
+        positions.data<int64_t>()[i] = static_cast<int64_t>(i);
+        for (size_t section = 0; section < 4; ++section)
+            raw_positions.data<int32_t>()[section * 3 + i] = section == 3 ? 0 : static_cast<int32_t>(i);
+    }
+    ov::Tensor raw_mask(ov::element::f32, {1, 1, 3, 3}), mask(ov::element::i64, {1, 3});
+    std::fill_n(mask.data<int64_t>(), 3, 1);
+    for (size_t query = 0; query < 3; ++query)
+        for (size_t key = 0; key < 3; ++key)
+            raw_mask.data<float>()[query * 3 + key] = key <= query ? 0.f : -65504.f;
+    ov::Tensor count(ov::element::i64, {1}), last_row(ov::element::i32, {1, 1, 1, 1});
+    count.data<int64_t>()[0] = 3;
+    last_row.data<int32_t>()[0] = 2;
+    ov::Tensor beam(ov::element::i32, {1});
+    beam.data<int32_t>()[0] = 0;
+    reference.set_tensor("inp_tokens", raw_ids);
+    reference.set_tensor("inp_pos", raw_positions);
+    reference.set_tensor("self_kq_mask", raw_mask);
+    if (find_parameter(raw, "token_len_per_seq"))
+        reference.set_tensor("token_len_per_seq", count);
+    reference.set_tensor("inp_out_ids", last_row);
+    reference.set_tensor("beam_idx", beam);
+    adapted.set_tensor("input_ids", ids);
+    adapted.set_tensor("position_ids", positions);
+    adapted.set_tensor("attention_mask", mask);
+    adapted.set_tensor("beam_idx", beam);
+    reference.infer();
+    adapted.infer();
+    const auto expected = reference.get_tensor("qwen3tts.hidden_states");
+    const auto actual = adapted.get_tensor("last_hidden_state");
+    ASSERT_EQ(expected.get_shape().size(), 4);
+    EXPECT_EQ(actual.get_shape(),
+              (ov::Shape{expected.get_shape()[0], expected.get_shape()[2], expected.get_shape()[3]}));
+    ASSERT_EQ(actual.get_size(), expected.get_size());
+    ov_gguf_test::expect_near(
+        actual,
+        std::vector<float>(expected.data<const float>(), expected.data<const float>() + expected.get_size()));
 }
 
 TEST(GGUFAFMoE, MissingAndZeroRoutingUseSigmoidDefaults) {

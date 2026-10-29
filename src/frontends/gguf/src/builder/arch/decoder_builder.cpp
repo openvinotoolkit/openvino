@@ -120,6 +120,8 @@ std::string DecoderBuilder::build_embeddings() {
         weight->set_friendly_name("gguf.target_token_embedding");
         weight->output(0).set_names({"gguf.target_token_embedding"});
         m_emit.add_extra_input_node("token_embd.weight", weight);
+        if (auto& genai = m_emit.graph()->model_contract.genai)
+            genai->preserved_inputs.push_back("gguf.target_token_embedding");
     } else {
         // GET_ROWS(token_embd.weight, inp_tokens) -> "embd"
         m_emit.add_weight("token_embd.weight");
@@ -370,7 +372,10 @@ std::string DecoderBuilder::build_head(const std::string& in) {
     if (m_cfg.arch == "qwen3tts") {
         const auto hidden = "qwen3tts.hidden_states";
         m_emit.add_op("GGML_OP_SCALE", hidden, {cur}, 0, {{"scale", 1.f}, {"bias", 0.f}});
+        ov::Output<ov::Node>(m_emit.value(hidden)).set_names({hidden});
         m_emit.graph()->model_output_names.push_back(hidden);
+        if (auto& genai = m_emit.graph()->model_contract.genai)
+            genai->auxiliary_outputs.push_back({hidden, "last_hidden_state", 1});
     }
     if (m_cfg.embedding_model) {
         using namespace ov::op;
@@ -402,6 +407,8 @@ std::string DecoderBuilder::build_head(const std::string& in) {
         weight->set_friendly_name("gguf.target_lm_head");
         weight->output(0).set_names({"gguf.target_lm_head"});
         m_emit.add_extra_input_node(lm_head_w, weight);
+        if (auto& genai = m_emit.graph()->model_contract.genai)
+            genai->preserved_inputs.push_back("gguf.target_lm_head");
     } else {
         m_emit.add_weight(lm_head_w);
     }
@@ -497,7 +504,10 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
         auto constant = std::make_shared<ov::op::v0::Constant>(mapping);
         constant->set_friendly_name("d2t");
         m_emit.add_extra_input_node("d2t", constant);
+        constant->output(0).set_names({"d2t"});
         graph->model_output_names.push_back("d2t");
+        if (auto& genai = graph->model_contract.genai)
+            genai->auxiliary_outputs.push_back({"d2t", "d2t", std::nullopt});
     }
     return graph;
 }
@@ -589,7 +599,10 @@ std::string DecoderBuilder::build_eagle3(const std::string& embeddings) {
     auto normalized = blocks::rms_norm(m_emit, current, p + "ffn_norm.weight", p + "ffn_norm", m_cfg.rms_eps);
     auto ffn = blocks::dense_ffn(m_emit, m_cfg, p, normalized);
     current = m_emit.add_op("GGML_OP_ADD", "eagle3.prenorm", {current, ffn});
+    ov::Output<ov::Node>(m_emit.value(current)).set_names({current});
     m_emit.graph()->model_output_names.push_back(current);
+    if (auto& genai = m_emit.graph()->model_contract.genai)
+        genai->auxiliary_outputs.push_back({current, "last_hidden_state", 1});
     return current;
 }
 

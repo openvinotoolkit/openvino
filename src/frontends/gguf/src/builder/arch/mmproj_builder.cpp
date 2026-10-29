@@ -286,6 +286,12 @@ public:
             result.config["vision.minicpmv_version"] = std::to_string(c.version);
             result.config["vision.query_count"] = std::to_string(c.queries);
         }
+        const auto output_count = modality == "vision" ? auxiliary.size() + 1 : 1;
+        result.config[modality + ".embedding_output_count"] = std::to_string(output_count);
+        result.config[modality + ".embedding_output.0"] = modality == "vision" ? "image_features" : "audio_features";
+        for (size_t i = 1; i < output_count; ++i)
+            result.config[modality + ".embedding_output." + std::to_string(i)] =
+                "deepstack_features." + std::to_string(i - 1);
         if (modality == "vision") {
             result.config["vision.auxiliary_count"] = std::to_string(auxiliary.size());
             result.config["vision.patch_size"] = std::to_string(c.patch);

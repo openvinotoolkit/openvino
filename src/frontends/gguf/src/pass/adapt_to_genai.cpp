@@ -216,13 +216,11 @@ ov::Output<ov::Node> pad_media_placeholders(const ov::Model& model, const ov::Ou
 bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     using namespace ov::op;
 
-    if (find_parameter(model, "dspark_ctx_feat"))
+    auto contract = read_model_contract(model);
+    OPENVINO_ASSERT(contract.genai, "[GGUF] missing GenAI model contract");
+    const auto genai = *contract.genai;
+    if (!genai.enabled)
         return false;
-
-    for (const auto& output : model->outputs()) {
-        if (output.get_names().count("embeddings"))
-            return false;
-    }
 
     // Token count is optional: custom builders may leave it unused, so conversion prunes it.
     // The remaining inputs identify a GGUF graph that has not already been adapted.
@@ -232,7 +230,6 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto token_len_per_seq = find_parameter(model, "token_len_per_seq");
     const bool has_recurrent_states = model->get_rt_info().count(gguf_recurrent_states_key()) != 0;
     const auto operations = model->get_ops();
-    auto contract = read_model_contract(model);
     const auto has_gated_delta_net = [&] {
         return std::any_of(operations.begin(), operations.end(), [](const auto& node) {
             return ov::is_type<internal::GatedDeltaNet>(node);
@@ -244,6 +241,24 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (!inp_tokens || (!recurrent_only && !self_kq_mask)) {
         return false;
     }
+
+    std::vector<std::pair<std::shared_ptr<v0::Result>, ModelContract::GenAIContract::AuxiliaryOutput>> outputs;
+    for (const auto& output : genai.auxiliary_outputs) {
+        std::shared_ptr<v0::Result> found;
+        for (const auto& result : model->get_results()) {
+            if (!result->input_value(0).get_names().count(output.source_tensor))
+                continue;
+            OPENVINO_ASSERT(!found, "[GGUF] ambiguous GenAI output port ", output.source_tensor);
+            found = result;
+        }
+        OPENVINO_ASSERT(found && found != model->get_results().front(),
+                        "[GGUF] missing GenAI auxiliary output port ",
+                        output.source_tensor);
+        outputs.emplace_back(found, output);
+    }
+
+    for (const auto& input : genai.preserved_inputs)
+        OPENVINO_ASSERT(find_parameter(model, input), "[GGUF] missing preserved GenAI input ", input);
 
     // Token-only lookups move to the embedding model. FixEmbdAxis replaces them, keeping names.
     std::string embedding_name, per_layer_name;
@@ -282,7 +297,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     self_correcting_axis_manager.run_passes(model);
 
     std::shared_ptr<v0::Parameter> inputs_embeds, per_layer_inputs;
-    auto native_hidden = find_parameter(model, "hidden_states");
+    auto native_hidden =
+        find_parameter(model, genai.attention_context_input.empty() ? "hidden_states" : genai.attention_context_input);
     std::shared_ptr<v0::Parameter> hidden_states;
     if (native_hidden) {
         const auto width = native_hidden->get_partial_shape()[3];
@@ -439,9 +455,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     name_output(input_ids, "input_ids");
     auto attention_mask = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
     name_output(attention_mask, "attention_mask");
-    const auto arch_it = model->get_rt_info().find("gguf_architecture");
-    const auto arch = arch_it != model->get_rt_info().end() ? arch_it->second.as<std::string>() : std::string{};
-    const bool three_section_positions = arch == "qwen3vl" || arch == "qwen3vlmoe" || arch == "qwen3tts";
+    const bool three_section_positions =
+        genai.position_layout == ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
     const bool multimodal_positions = inputs_embeds && model->get_rt_info().count(gguf_imrope_key());
     auto position_ids = make_shared<v0::Parameter>(
         ov::element::i64,
@@ -480,7 +495,11 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto reduce_axis_0 = v0::Constant::create(ov::element::i64, {1}, {0});
     auto seq_len = make_shared<v1::ReduceProd>(ids_shape, reduce_axis_0, true);
     ov::Output<ov::Node> attention_shape = ids_shape;
-    if (arch == "dflash") {
+    if (!genai.attention_context_input.empty()) {
+        auto context = find_parameter(model, genai.attention_context_input);
+        OPENVINO_ASSERT(context, "[GGUF] missing attention context input ", genai.attention_context_input);
+        OPENVINO_ASSERT(context == native_hidden && hidden_states,
+                        "[GGUF] attention context requires a hidden-state input");
         auto context_len = get_dimensions(hidden_states, {1});
         attention_shape =
             make_shared<v0::Concat>(ov::OutputVector{gather_dims(ids_shape, {0}),
@@ -527,7 +546,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                                                     make_shared<v3::ShapeOf>(first_section));
             pos_i32 = make_shared<v0::Concat>(ov::OutputVector{pos_i32, zeros}, 0);
         } else {
-            // Qwen3.5 supplies [sequence, time, height, width].
+            // Move the sequence section behind the three spatial sections.
             pos_i32 = make_shared<v8::Gather>(pos_i32,
                                               v0::Constant::create(ov::element::i64, {4}, {1, 2, 3, 0}),
                                               v0::Constant::create(ov::element::i64, {}, {0}));
@@ -574,7 +593,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         make_shared<v0::CumSum>(make_shared<v0::Convert>(attention_mask, ov::element::i32), axis_1),
         one_i32);
     ov::Output<ov::Node> q_pos = make_shared<v0::Convert>(position_ids, ov::element::i32);
-    if (multimodal_positions) {
+    if (multimodal_positions || !genai.attention_context_input.empty()) {
         // Spatial coordinates can repeat or decrease; causality follows token order.
         q_pos = make_shared<v8::Slice>(key_positions, past_len, kv_len, one_1, one_1);
     }
@@ -585,10 +604,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     };
     const auto causal = make_shared<v1::LessEqual>(k_row, q_pos_col);
     ov::Output<ov::Node> allowed =
-        arch == "dflash" ? make_shared<v3::Broadcast>(v0::Constant::create(ov::element::boolean, {}, {true}),
-                                                      make_shared<v3::ShapeOf>(causal))
-                               ->output(0)
-                         : causal->output(0);
+        !genai.causal_attention ? make_shared<v3::Broadcast>(v0::Constant::create(ov::element::boolean, {}, {true}),
+                                                             make_shared<v3::ShapeOf>(causal))
+                                      ->output(0)
+                                : causal->output(0);
     ov::Output<ov::Node> same_image;
     ov::Output<ov::Node> causal_or_query_image = causal;
     ov::Output<ov::Node> causal_or_key_image = causal;
@@ -842,36 +861,25 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     new_result->set_friendly_name("logits");
 
     const auto auxiliary_results = model->get_results();
-    if (arch == "eagle3")
+    if (genai.logits_first)
         for (const auto& result : auxiliary_results)
             model->remove_result(result);
     else
         model->remove_result(old_result);
     model->add_results({new_result});
-    if (arch == "qwen3tts") {
-        for (const auto& result : auxiliary_results) {
-            if (result == old_result)
-                continue;
-            if (result->input_value(0).get_node()->get_friendly_name().find("qwen3tts.hidden_states") ==
-                std::string::npos)
-                continue;
-            auto hidden = make_shared<v0::Squeeze>(result->input_value(0), one_1);
-            name_output(hidden, "last_hidden_state");
-            result->input(0).replace_source_output(hidden);
-        }
+    for (const auto& [result, output] : outputs) {
+        ov::Output<ov::Node> value = result->input_value(0);
+        if (output.squeeze_axis)
+            value =
+                make_shared<v0::Squeeze>(value, v0::Constant::create(ov::element::i64, {1}, {*output.squeeze_axis}));
+        name_output(value, output.name);
+        result->input(0).replace_source_output(value);
+        result->output(0).set_names({output.name});
     }
-    for (size_t i = 1; arch == "eagle3" && i < auxiliary_results.size(); ++i) {
-        const auto& result = auxiliary_results[i];
-        if (result->input_value(0).get_node()->get_friendly_name().find("d2t") != std::string::npos) {
-            result->input_value(0).set_names({"d2t"});
-            model->add_results({result});
-            continue;
-        }
-        auto prenorm = make_shared<v0::Squeeze>(result->input_value(0), one_1);
-        name_output(prenorm, "last_hidden_state");
-        result->input(0).replace_source_output(prenorm);
-        model->add_results({result});
-    }
+    if (genai.logits_first)
+        for (const auto& result : auxiliary_results)
+            if (result != old_result)
+                model->add_results({result});
 
     // Swap the input list to the genai contract. beam_idx is kept as-is; every other old
     // gguf Parameter has had its output rewired (consumers now read the derived subgraph),
@@ -884,7 +892,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     model->add_parameters(kept);
     const auto params_snapshot = model->get_parameters();  // copy: remove_parameter mutates the list
     for (const auto& p : params_snapshot) {
-        if (p->get_friendly_name() == "gguf.target_token_embedding" || p->get_friendly_name() == "gguf.target_lm_head")
+        if (std::any_of(genai.preserved_inputs.begin(), genai.preserved_inputs.end(), [&](const auto& name) {
+                return p->output(0).get_names().count(name) != 0;
+            }))
             continue;
         if (p != beam_idx && std::find(kept.begin(), kept.end(), p) == kept.end())
             model->remove_parameter(p);

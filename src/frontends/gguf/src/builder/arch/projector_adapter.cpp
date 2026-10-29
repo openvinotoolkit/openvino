@@ -6,6 +6,7 @@
 
 #include <limits>
 #include <stdexcept>
+#include <unordered_set>
 #include <utility>
 
 #include "openvino/core/graph_util.hpp"
@@ -495,6 +496,35 @@ ProjectorLayout builtin_projector_layout(const std::string& projector_type) {
     if (projector_type == "minicpmv4_7")
         return ProjectorLayout::PackedPatches;
     return ProjectorLayout::Unsupported;
+}
+
+std::vector<std::string> projector_embedding_outputs(const std::shared_ptr<ov::Model>& model,
+                                                     const std::string& modality) {
+    const auto key = modality + ".embedding_output_count";
+    std::vector<std::string> outputs;
+    if (model->has_rt_info({"gguf_mmproj", key})) {
+        const auto count = mmproj_int_metadata(model, key);
+        OPENVINO_ASSERT(count > 0, "[GGUF] projector embedding output count must be positive");
+        std::unordered_set<std::string> names;
+        for (int64_t i = 0; i < count; ++i) {
+            const auto name_key = modality + ".embedding_output." + std::to_string(i);
+            OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", name_key}),
+                            "[GGUF] missing projector embedding output '",
+                            name_key,
+                            "'");
+            auto name = model->get_rt_info<std::string>({"gguf_mmproj", name_key});
+            OPENVINO_ASSERT(!name.empty() && names.insert(name).second,
+                            "[GGUF] projector embedding output names must be nonempty and unique");
+            outputs.push_back(std::move(name));
+        }
+    } else {
+        const auto auxiliary = modality == "vision" ? mmproj_int_metadata(model, "vision.auxiliary_count", 0) : 0;
+        OPENVINO_ASSERT(auxiliary >= 0, "[GGUF] projector auxiliary count must be nonnegative");
+        outputs.push_back(modality == "vision" ? "image_features" : "audio_features");
+        for (int64_t i = 0; i < auxiliary; ++i)
+            outputs.push_back("deepstack_features." + std::to_string(i));
+    }
+    return outputs;
 }
 
 void require_projector_layout(const std::shared_ptr<ov::Model>& model) {

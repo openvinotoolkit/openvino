@@ -12,6 +12,7 @@
 #include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
 #include "gtest/gtest.h"
+#include "model_contract.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
@@ -79,6 +80,40 @@ ArchitectureDefinition handler(const std::string& id, ArchitectureDefinition::Ma
             std::move(match)};
 }
 }  // namespace
+
+TEST(GGUFBuilderAPI, ArchitectureExtensionOverridesPersistedGenAIContract) {
+    Environment env;
+    env.architecture("eagle3");
+    struct ContractBuilder : ModelBuilder {
+        GgufGraphContext graph;
+        explicit ContractBuilder(const BuildContext& context) : graph(context) {}
+        std::shared_ptr<GgufGraph> build() override {
+            auto input = graph.add_input("opaque_input", ov::element::f32, {1, 1, 2, 3});
+            graph.set_output(input, "opaque_features");
+            ModelContract contract;
+            contract.genai.emplace();
+            contract.genai->enabled = false;
+            contract.genai->position_layout = ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
+            contract.genai->auxiliary_outputs = {{"opaque_features", "features", 1}};
+            graph.configure_model_contract(contract);
+            return graph.finish();
+        }
+    };
+    ArchitectureDefinition replacement{"eagle3", "eagle3", [](const BuildContext& context) {
+                                           return std::make_shared<ContractBuilder>(context);
+                                       }};
+    ArchRegistry registry;
+    registry.add_extension(std::make_shared<ArchitectureExtension>(replacement, RegistrationMode::Replace));
+    const auto selected = registry.find(env.context.metadata);
+    ASSERT_TRUE(selected);
+    const auto model = convert(selected->factory(env.context)->build());
+    const auto contract = read_model_contract(model);
+    ASSERT_TRUE(contract.genai);
+    EXPECT_FALSE(contract.genai->enabled);
+    EXPECT_EQ(contract.genai->position_layout, ModelContract::GenAIContract::PositionLayout::THREE_AXIS);
+    ASSERT_EQ(contract.genai->auxiliary_outputs.size(), 1);
+    EXPECT_EQ(contract.genai->auxiliary_outputs[0].source_tensor, model->output().get_any_name());
+}
 
 TEST(GGUFBuilderAPI, MetadataReadsReuseNumericConversionAcrossWidths) {
     Environment env;
@@ -1200,6 +1235,10 @@ TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogeth
     parameters.layers[1].rope = local_rope;
     parameters.model_contract.batchable_recurrent = true;
     parameters.model_contract.image_attention = ModelContract::ImageAttentionMode::SLIDING_ONLY;
+    parameters.model_contract.genai.emplace();
+    parameters.model_contract.genai->position_layout = ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
+    parameters.model_contract.genai->causal_attention = false;
+    parameters.model_contract.genai->attention_context_input = "custom_context";
     DecoderConfig resolved(parameters, env.weights);
     EXPECT_TRUE(resolved.layer_norm);
     EXPECT_FLOAT_EQ(resolved.rms_eps, 3e-4f);
@@ -1230,6 +1269,10 @@ TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogeth
     EXPECT_EQ(built->swa_window_size, 17);
     EXPECT_TRUE(built->model_contract.batchable_recurrent);
     EXPECT_EQ(built->model_contract.image_attention, ModelContract::ImageAttentionMode::SLIDING_ONLY);
+    ASSERT_TRUE(built->model_contract.genai);
+    EXPECT_EQ(built->model_contract.genai->position_layout, ModelContract::GenAIContract::PositionLayout::THREE_AXIS);
+    EXPECT_FALSE(built->model_contract.genai->causal_attention);
+    EXPECT_EQ(built->model_contract.genai->attention_context_input, "custom_context");
 }
 
 TEST(GGUFBuilderAPI, TypedSettingsRejectPartialLayersAndIncompatiblePresentMetadata) {
