@@ -41,11 +41,6 @@ bool is_supported_epsilon_constant(const ov::Output<ov::Node>& output) {
     return ov::op::util::get_single_value(constant, epsilon) && is_supported_epsilon(epsilon);
 }
 
-// An empty Constant disables the optional normalization weight; QSAIndexer requires both norms enabled.
-bool is_enabled_norm_weight(const ov::Output<ov::Node>& output) {
-    return !ov::util::is_empty_constant_tensor(output);
-}
-
 // QSAIndexer replaces every QSAPrepare output, so each of them must be consumed only by the fused subgraph.
 bool all_outputs_have_single_consumer(const ov::Output<ov::Node>& output) {
     const auto consumers_count = ov::pass::pattern::consumers_count(1);
@@ -65,8 +60,12 @@ ov::pass::FuseQSAIndexer::FuseQSAIndexer() {
 
     // Query RMSNorm: internal RMSNorm op or its decomposition x / Sqrt(ReduceMean(x^2) + eps) * gamma.
     // Both alternatives bind the same `query_m` / `query_weight_m` labels.
+    // An empty Constant disables the optional normalization weight; QSAIndexer requires both norms enabled.
+    const auto enabled_norm_weight = [](const ov::Output<ov::Node>& output) {
+        return !ov::util::is_empty_constant_tensor(output);
+    };
     const auto query_m = any_input(shape_matches("?, 4, ?, 128"));
-    const auto query_weight_m = any_input(op::Predicate(is_enabled_norm_weight));
+    const auto query_weight_m = any_input(enabled_norm_weight);
     const auto last_axis = value_matches("-1") || value_matches("3");
 
     const auto rms_norm_m = wrap_type<ov::op::internal::RMSNorm>(
@@ -95,7 +94,7 @@ ov::pass::FuseQSAIndexer::FuseQSAIndexer() {
     const auto key_length_m = any_input();
     const auto rope_cos_m = any_input();
     const auto rope_sin_m = any_input();
-    const auto key_weight_m = any_input(op::Predicate(is_enabled_norm_weight));
+    const auto key_weight_m = any_input(enabled_norm_weight);
     const auto incomplete_keys_m = any_input();
     const auto incomplete_rope_m = any_input();
     const auto prepare_m = wrap_type_strict_index<QSAPrepare>(
