@@ -28,17 +28,6 @@ public:
         bool is_causal = true;
     };
 
-    /// Limits of the QSAIndexer kernels. Shape inference does not enforce them; fusion passes and
-    /// plugins use them to decide whether a graph can be executed by QSAIndexer.
-    /// Query layout is [batch, heads, sequence, head_size].
-    static constexpr int64_t supported_num_heads = 4;
-    static constexpr int64_t supported_head_size = 128;
-    static constexpr int64_t supported_key_block_size = 4;
-    static constexpr int64_t supported_num_selection_heads = 1;
-    static constexpr int64_t max_token_budget = 512;
-    static constexpr float min_epsilon = 1e-6f;
-    static constexpr float max_epsilon = 1e-5f;
-
     QSAIndexer() = default;
     QSAIndexer(const ov::OutputVector& args, const Config& config);
 
