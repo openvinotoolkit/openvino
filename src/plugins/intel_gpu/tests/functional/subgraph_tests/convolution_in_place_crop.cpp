@@ -22,7 +22,6 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        configuration[ov::hint::inference_precision.name()] = ov::element::f32.get_type_name();
 
         const auto& precision = GetParam();
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
@@ -33,11 +32,17 @@ protected:
         std::shared_ptr<ov::Node> weights_data = weights;
 
         if (precision == "f32") {
+            configuration[ov::hint::inference_precision.name()] = ov::element::f32.get_type_name();
             input_data = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
             weights_data = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f32);
             expected_impl_type = "convolution_gpu_bfyx_os_iyx_osv16__f32";
         } else {
-            expected_impl_type = "convolution_gpu_bfyx_os_iyx_osv32";
+            configuration[ov::hint::inference_precision.name()] = ov::element::f16.get_type_name();
+            expected_impl_type = "convolution_gpu_bfyx_os_iyx_osv32__f16";
+            // The osv32 kernel accumulates in f16, so loosen the tolerance to
+            // account for the reduced precision over the feature dimension.
+            abs_threshold = 0.05;
+            rel_threshold = 0.05;
         }
 
         auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
