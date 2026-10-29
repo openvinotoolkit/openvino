@@ -4,6 +4,7 @@
 
 #include "builder/blocks/attention.hpp"
 
+#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -53,6 +54,8 @@ std::string attention(GraphEmitter& e,
     const RopeConfig rope_config_l = cfg.layer_rope_config(il);
     // Widen before multiplying the reshape dimensions.
     const int64_t q_width = static_cast<int64_t>(head_size_l) * cfg.n_head;
+    // Gemma4 shared-KV layers have no K/V of their own; newer GGUF files omit those weights.
+    const bool has_own_kv = (cfg.shared_kv_layers == 0) || (il < kv.n_own_kv);
 
     // Q/K/V projections: MUL_MAT(w, attn_norm), then conceptual reshape to heads.
     // Fused-QKV archs (phi-3, minicpm) carry a single attn_qkv weight; split it into
@@ -63,6 +66,8 @@ std::string attention(GraphEmitter& e,
         e.add_weight(p + "attn_v.weight");
     } else if (e.has_weight(p + "attn_qkv.weight")) {
         register_fused_qkv(e, cfg, il);
+    } else if (!has_own_kv) {
+        e.add_weight(p + "attn_q.weight");
     } else {
         e.add_weight(p + "attn_q.weight");
         e.add_weight(p + "attn_k.weight");
@@ -76,9 +81,21 @@ std::string attention(GraphEmitter& e,
             e.add_weight_from(p + "attn_v.weight", p + "attn_k");
         }
     }
-    auto q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm});
-    auto k = e.add_op("GGML_OP_MUL_MAT", p + "Kcur", {p + "attn_k.weight", attn_norm});
-    auto v = e.add_op("GGML_OP_MUL_MAT", p + "Vcur", {p + "attn_v.weight", attn_norm});
+    std::string q, gate;
+    if (e.weight_emitted(p + "attn_q_gate.weight")) {
+        const auto joint = e.add_op("GGML_OP_MUL_MAT", p + "q_gate", {p + "attn_q_gate.weight", attn_norm});
+        const auto projections =
+            split_interleaved_projection(e, joint, {p + "Qcur", p + "attn_gate_joint"}, cfg.n_head, head_size_l);
+        q = projections[0];
+        gate = projections[1];
+    } else {
+        q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm});
+    }
+    std::string k, v;
+    if (has_own_kv) {
+        k = e.add_op("GGML_OP_MUL_MAT", p + "Kcur", {p + "attn_k.weight", attn_norm});
+        v = e.add_op("GGML_OP_MUL_MAT", p + "Vcur", {p + "attn_v.weight", attn_norm});
+    }
 
     // Q/K/V projection biases (qwen2 / qwen2.5: separate attn_{q,k,v}.bias; phi-3-style
     // fused-QKV archs: attn_qkv.bias, already split into attn_{q,k,v}.bias by
@@ -86,14 +103,17 @@ std::string attention(GraphEmitter& e,
     // Qwen35 repacks a joint Q/gate projection; retain its separate bias policy.
     if (cfg.is_qwen35 ? cfg.has_qkv_bias : e.has_weight(p + "attn_q.bias")) {
         q = add_bias(e, q, p + "attn_q.bias", p + "Qcur_b");
-        k = add_bias(e, k, p + "attn_k.bias", p + "Kcur_b");
-        v = add_bias(e, v, p + "attn_v.bias", p + "Vcur_b");
+        if (has_own_kv) {
+            k = add_bias(e, k, p + "attn_k.bias", p + "Kcur_b");
+            v = add_bias(e, v, p + "attn_v.bias", p + "Vcur_b");
+        }
     }
 
     // Full-width q/k norm (OLMoE): normalize the whole projection before splitting heads.
     if (cfg.has_qk_norm && cfg.qk_norm_full) {
         q = rms_norm(e, q, p + "attn_q_norm.weight", p + "Qcur_normed", cfg.rms_eps);
-        k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
+        if (has_own_kv)
+            k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
 
     // reshape Q/K/V to [1, n_tokens, n_head(_kv), head_size]
@@ -102,24 +122,29 @@ std::string attention(GraphEmitter& e,
                  {q},
                  6,
                  {{"reshape_target", std::vector<int64_t>{0, -1, cfg.n_head, head_size_l}}, {"special_zero", true}});
-    k = e.add_op("GGML_OP_RESHAPE",
-                 p + "Kcur_r",
-                 {k},
-                 6,
-                 {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
-    v = e.add_op("GGML_OP_RESHAPE",
-                 p + "Vcur_r",
-                 {v},
-                 6,
-                 {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
+    if (has_own_kv) {
+        k = e.add_op(
+            "GGML_OP_RESHAPE",
+            p + "Kcur_r",
+            {k},
+            6,
+            {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
+        v = e.add_op(
+            "GGML_OP_RESHAPE",
+            p + "Vcur_r",
+            {v},
+            6,
+            {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
+    }
 
     // per-head q_norm / k_norm (qwen3, hunyuan, gemma4)
     if (cfg.has_qk_norm && !cfg.qk_norm_full && !cfg.qk_norm_after_rope) {
         q = rms_norm(e, q, p + "attn_q_norm.weight", p + "Qcur_normed", cfg.rms_eps);
-        k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
+        if (has_own_kv)
+            k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
     // gemma4: V gets a plain RMSNorm (no multiplicative weight, just normalize).
-    if (cfg.has_v_norm) {
+    if (cfg.has_v_norm && has_own_kv) {
         v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, 0, {{"eps", cfg.rms_eps}});
     }
 
@@ -138,12 +163,18 @@ std::string attention(GraphEmitter& e,
                                                    : std::vector<std::string>{k, "inp_pos"};
     if (use_rope) {
         q = e.add_op("GGML_OP_ROPE", p + "Qcur_rope", q_rope_in, cfg.rope_op_case, {{"rope_config", rope_config_l}});
-        k = e.add_op("GGML_OP_ROPE", p + "Kcur_rope", k_rope_in, cfg.rope_op_case, {{"rope_config", rope_config_l}});
+        if (has_own_kv)
+            k = e.add_op("GGML_OP_ROPE",
+                         p + "Kcur_rope",
+                         k_rope_in,
+                         cfg.rope_op_case,
+                         {{"rope_config", rope_config_l}});
     }
 
     if (cfg.has_qk_norm && !cfg.qk_norm_full && cfg.qk_norm_after_rope) {
         q = rms_norm(e, q, p + "attn_q_norm.weight", p + "Qcur_normed", cfg.rms_eps);
-        k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
+        if (has_own_kv)
+            k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
 
     if (cfg.attention_temperature_scale != 0.0f) {
@@ -171,7 +202,6 @@ std::string attention(GraphEmitter& e,
     // Gemma4: layers with shared_kv_layers have no K/V of their own; they reuse the KV
     // from the last layer of the same SWA type that has its own KV cache. SWA layers
     // reuse the last own-KV SWA layer; global layers reuse the last own-KV global layer.
-    const bool has_own_kv = (cfg.shared_kv_layers == 0) || (il < kv.n_own_kv);
     int anchor_il = il;
     if (!has_own_kv) {
         anchor_il = is_swa_layer ? kv.anchor_swa : kv.anchor_global;
@@ -181,7 +211,7 @@ std::string attention(GraphEmitter& e,
     const std::string kc = "cache_k_l" + std::to_string(anchor_il);
     const std::string vc = "cache_v_l" + std::to_string(anchor_il);
 
-    if (has_own_kv) {
+    if (!cfg.embedding_model && has_own_kv) {
         // Per-layer f16 KV cache Parameters. The K/V read back out of a cache are f16, and so is
         // Q after its convert in the translator, so the FLASH_ATTN inputs agree.
         const ov::PartialShape cache_shape = ps({1, D, n_head_kv_l, head_size_l});
@@ -200,7 +230,7 @@ std::string attention(GraphEmitter& e,
         // sink paired with the cache's ReadValue).
         graph.model_output_names.push_back(kc);
         graph.model_output_names.push_back(vc);
-    } else {
+    } else if (!cfg.embedding_model) {
         // Shared-KV layer: K/V have already been set in the anchor layer's SET_ROWS.
         // Use the anchor's combined cache. If the current layer has a smaller head size
         // (SWA shared layer vs a global anchor), slice K/V to the layer's head_size along
@@ -229,12 +259,16 @@ std::string attention(GraphEmitter& e,
     // FLASH_ATTN_EXT(q, k, v, mask[, sinks]) -> [1, n_tokens, n_head, head_size].
     // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
     const std::string mask_name = is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask";
-    std::vector<std::string> attn_in = {q, k, v, mask_name};
+    std::vector<std::string> attn_in = {q, k, v};
+    if (!cfg.embedding_model || cfg.causal_attention)
+        attn_in.push_back(mask_name);
     if (cfg.has_sinks) {
         e.add_named_weight(p + "attn_sinks.weight");
         attn_in.push_back(p + "attn_sinks.weight");
     }
     std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
+    if (cfg.embedding_model)
+        attn_attrs["f32_attention"] = true;
     if (cfg.attn_soft_cap != 0.0f) {
         attn_attrs["kq_soft_cap"] = cfg.attn_soft_cap;
     }
@@ -251,14 +285,47 @@ std::string attention(GraphEmitter& e,
                             6,
                             {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
 
-    // muse-glimmer: sigmoid output gate. The gate is a projection of the PRE-attention
-    // normed hidden (the same `attn_norm` tensor Q/K/V come from), squashed by sigmoid and
-    // multiplied elementwise into the merged attention output before the wo projection.
     if (cfg.has_attn_gate) {
-        e.add_weight(p + "attn_gate.weight");
-        auto gate = e.add_op("GGML_OP_MUL_MAT", p + "attn_gate", {p + "attn_gate.weight", attn_norm});
+        bool rank3_gate;
+        if (!gate.empty()) {
+            rank3_gate = e.weight_tensor(p + "attn_q.weight").get_element_type() != ov::element::u2;
+            gate =
+                e.add_op("GGML_OP_RESHAPE",
+                         p + "attn_gate",
+                         {gate},
+                         6,
+                         {{"reshape_target",
+                           rank3_gate ? std::vector<int64_t>{0, -1, q_width} : std::vector<int64_t>{0, 1, -1, q_width}},
+                          {"special_zero", true}});
+        } else {
+            e.add_weight(p + "attn_gate.weight");
+            const auto gate_weight = std::find_if(graph.nodes.begin(), graph.nodes.end(), [&](const auto& node) {
+                return node.name == p + "attn_gate.weight";
+            });
+            rank3_gate = gate_weight->attributes.at("gguf.blob.weight").template as<ov::Tensor>().get_element_type() !=
+                         ov::element::u2;
+            gate = e.add_op("GGML_OP_MUL_MAT",
+                            p + "attn_gate",
+                            {p + "attn_gate.weight", attn_norm},
+                            0,
+                            {{"activation_rank", rank3_gate ? 3 : 4}});
+        }
         gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate});
-        attn_2d = e.add_op("GGML_OP_MUL", p + "kqv_gated", {attn_2d, gate});
+        const auto gate_attention =
+            rank3_gate ? e.add_op("GGML_OP_RESHAPE",
+                                  p + "kqv_gate_input",
+                                  {attn_2d},
+                                  6,
+                                  {{"reshape_target", std::vector<int64_t>{0, -1, q_width}}, {"special_zero", true}})
+                       : attn_2d;
+        const auto gated = e.add_op("GGML_OP_MUL", p + "kqv_gated", {gate_attention, gate});
+        attn_2d = rank3_gate
+                      ? e.add_op("GGML_OP_RESHAPE",
+                                 p + "kqv_gated_4d",
+                                 {gated},
+                                 6,
+                                 {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}})
+                      : gated;
     }
 
     // output projection (+ optional bias)

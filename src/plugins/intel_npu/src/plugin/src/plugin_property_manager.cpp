@@ -599,14 +599,12 @@ void PluginPropertyManager::registerProperties() {
     register_property(ov::intel_npu::max_tiles.name(), true, ov::PropertyMutability::RO, 
         hasBackendAndValidDevice,
         [this](const ov::AnyMap& arguments) {
-            if (!_config.has<MAX_TILES>()) {
-                try {
-                    return static_cast<int64_t>(utils::getMaxTiles(_backend, getDeviceIdOrDefault(arguments)));
-                } catch (...) {
-                    _logger.warning("GetMaxTiles failed to get value from device.");
-                }
+            try {
+                return static_cast<int64_t>(utils::getMaxTiles(_backend, getDeviceIdOrDefault(arguments)));
+            } catch (...) {
+                _logger.warning("GetMaxTiles failed to get value from device.");
             }
-            return _config.get<MAX_TILES>();
+            return static_cast<int64_t>(-1);
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key: ", ov::intel_npu::max_tiles.name());
@@ -898,8 +896,7 @@ void PluginPropertyManager::registerProperties() {
         return decltype(ov::device::uuid)::value_type{devUuid};
     }, readOnlySetter);
     register_property(ov::device::architecture.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
-        const auto devName = utils::getDeviceName(_backend, getDeviceIdOrDefault(arguments));
-        return utils::getPlatformByDeviceName(devName);
+        return utils::getDeviceArchitecture(_backend, getDeviceIdOrDefault(arguments));
     }, readOnlySetter);
     register_property(ov::device::full_name.name(), true, ov::PropertyMutability::RO, hasBackendAndValidDevice, [this](const ov::AnyMap& arguments) {
         return utils::getFullDeviceName(_backend, getDeviceIdOrDefault(arguments));
