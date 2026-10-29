@@ -32,18 +32,22 @@ namespace ov::pass {
  * RMSNorm is either the internal RMSNorm op or its decomposition
  * Multiply(Divide(x, Sqrt(Add(ReduceMean(Power(x, 2), last_axis, keep_dims), eps))), weight).
  *
- * The rewrite is applied only when the matched graph is within the QSAIndexer kernel limits
- * (QSAIndexer::supported_* / max_token_budget / [min_epsilon, max_epsilon]):
- *  - query is [?, supported_num_heads, ?, supported_head_size] and raw keys have rank 3,
- *    with compatible batch and sequence;
- *  - both source ops use supported_key_block_size, SparseAttentionIndexer uses
- *    supported_num_selection_heads and a token_budget in (0, max_token_budget] divisible by the
- *    block size;
- *  - both RMSNorm epsilons are in [min_epsilon, max_epsilon] and both norm weights are enabled;
- *  - SparseAttentionIndexer consumes QSAPrepare output 0 and the same key length as QSAPrepare,
- *    and has no index weights input;
+ * The rewrite is applied only when the matched graph fits the QSAIndexer kernels (aligned with the
+ * GPU QSAIndexerFusion limits):
+ *  - query has rank 4 with static head count and head size, and raw keys have rank 3 with the
+ *    same static head size; batch and sequence of query and raw keys are compatible;
+ *  - RoPE is enabled: rope_cos / rope_sin have rank 3 with a static rotary dimension, and the
+ *    incomplete RoPE state has rank 2; the block-key cache and incomplete keys have rank 3;
+ *  - both source ops use the same key_block_size and the same key length input, and
+ *    SparseAttentionIndexer uses a single selection head;
+ *  - both RMSNorm weights are enabled and the query and key epsilons agree:
+ *    |q_eps - k_eps| <= 1e-4 * k_eps;
+ *  - SparseAttentionIndexer consumes QSAPrepare output 0 and has no index weights input;
  *  - every RMSNorm node and every QSAPrepare output has a single consumer, since all of them are
  *    replaced by QSAIndexer.
+ *
+ * Token budget positivity and divisibility, the minimum key block size, and the rotary dimension
+ * bounds are guaranteed by SparseAttentionIndexer and QSAPrepare validation.
  */
 class TRANSFORMATIONS_API FuseQSAIndexer : public MatcherPass {
 public:
