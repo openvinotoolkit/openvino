@@ -4,6 +4,7 @@
 
 #include "convert_fc_to_compressed.hpp"
 
+#include <algorithm>
 #include <memory>
 
 #include "compressed_weights_pattern.hpp"
@@ -13,6 +14,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -274,6 +276,43 @@ ConvertGGUFFullyConnectedCompressed::ConvertGGUFFullyConnectedCompressed() {
                                                                                  fc->get_output_element_type(0));
         std::shared_ptr<ov::Node> replacement = gpu_fc;
         if (restore_shape) {
+            const auto output_shape = fc->get_output_partial_shape(0);
+            const auto targets = fc->output(0).get_target_inputs();
+            const bool singleton_prefix = std::all_of(output_shape.begin(), output_shape.end() - 2,
+                                                      [](const ov::Dimension& dimension) { return dimension == 1; });
+            if (singleton_prefix && targets.size() == 1) {
+                const auto binary = targets.begin()->get_node()->shared_from_this();
+                if (ov::is_type<ov::op::v1::Add>(binary) || ov::is_type<ov::op::v1::Multiply>(binary)) {
+                    const auto arithmetic = ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(binary);
+                    const auto peer_index = binary->input_value(0) == fc->output(0) ? 1u : 0u;
+                    const auto peer = binary->input_value(peer_index);
+                    const auto peer_shape = peer.get_partial_shape();
+                    if (arithmetic->get_autob().m_type == ov::op::AutoBroadcastType::NUMPY &&
+                        peer_shape.rank() == output_shape.rank() &&
+                        peer_shape[peer_shape.size() - 1] == output_shape[output_shape.size() - 1] &&
+                        std::all_of(peer_shape.begin(), peer_shape.end() - 2,
+                                    [](const ov::Dimension& dimension) { return dimension == 1; })) {
+                        const auto flat_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2},
+                            std::vector<int64_t>{-1, static_cast<int64_t>(weight.get_shape()[0])});
+                        const auto flat_peer = std::make_shared<ov::op::v1::Reshape>(peer, flat_shape, false);
+                        auto inputs = binary->input_values();
+                        inputs[peer_index] = flat_peer;
+                        inputs[1 - peer_index] = gpu_fc;
+                        const auto flat_binary = binary->clone_with_new_inputs(inputs);
+                        flat_binary->set_friendly_name(binary->get_friendly_name());
+                        const auto prefix = ov::op::v0::Constant::create(ov::element::i64,
+                            ov::Shape{output_shape.size() - 2}, std::vector<int64_t>(output_shape.size() - 2, 1));
+                        const auto binary_shape = std::make_shared<ov::op::v3::ShapeOf>(flat_binary, ov::element::i64);
+                        const auto restored = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{prefix, binary_shape}, 0);
+                        replacement = std::make_shared<ov::op::v1::Reshape>(flat_binary, restored, false);
+                        replacement->set_friendly_name(binary->get_friendly_name() + "/restore_shape");
+                        ov::copy_runtime_info(fc, gpu_fc);
+                        ov::copy_runtime_info(binary, {flat_peer, flat_binary, prefix, binary_shape, restored, replacement});
+                        ov::replace_node(binary, replacement);
+                        return true;
+                    }
+                }
+            }
             replacement = std::make_shared<ov::op::v1::Reshape>(gpu_fc, restore_shape, false);
         }
         replacement->set_friendly_name(fc->get_friendly_name());

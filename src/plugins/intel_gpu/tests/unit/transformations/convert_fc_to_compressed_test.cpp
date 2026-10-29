@@ -175,6 +175,75 @@ TEST_F(TransformationTestsF, ConvertGGUFFCToCompressedPreservesBiasAndPrecision)
     model_ref = std::make_shared<ov::Model>(ov::OutputVector{gpu_fc}, ov::ParameterVector{activation});
 }
 
+TEST(GGUFConversion, RankFourBinaryPreservesBroadcastAndRejectsUnsafeShapes) {
+    struct Scenario {
+        ov::PartialShape activation;
+        ov::PartialShape peer;
+        bool move_binary;
+        bool shared_fc = false;
+        ov::op::AutoBroadcastType broadcast = ov::op::AutoBroadcastType::NUMPY;
+    };
+    const std::vector<Scenario> scenarios{
+        {{1, 1, -1, 256}, {1, 1, -1, 32}, true},
+        {{1, 1, 1, 256}, {1, 1, 7, 32}, true},
+        {{1, 1, 7, 256}, {1, 1, 1, 32}, true},
+        {{2, 1, -1, 256}, {2, 1, -1, 32}, false},
+        {{1, 1, -1, 256}, {1, 2, -1, 32}, false},
+        {{1, 1, -1, 256}, {32}, false},
+        {{1, 1, -1, 256}, {1, 1, -1, 1}, false},
+        {{1, 1, -1, 256}, ov::PartialShape::dynamic(), false},
+        {{1, 1, -1, 256}, {1, 1, -1, 32}, false, true},
+        {{1, 1, 7, 256}, {1, 1, 7, 32}, false, false, ov::op::AutoBroadcastType::NONE},
+    };
+    for (size_t scenario = 0; scenario < scenarios.size(); ++scenario) {
+        SCOPED_TRACE(scenario);
+        const auto& spec = scenarios[scenario];
+        for (const bool product : {false, true}) {
+            for (const bool reverse : {false, true}) {
+                SCOPED_TRACE(product);
+                SCOPED_TRACE(reverse);
+                auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, spec.activation);
+                auto peer = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, spec.peer);
+                auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, ov::Shape{32, 256});
+                auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+                auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+                    input, weight, absent, absent, absent, ov::element::f32);
+                const ov::Output<ov::Node> left = reverse ? peer->output(0) : fc->output(0);
+                const ov::Output<ov::Node> right = reverse ? fc->output(0) : peer->output(0);
+                std::shared_ptr<ov::Node> binary;
+                if (product)
+                    binary = std::make_shared<ov::op::v1::Multiply>(left, right, spec.broadcast);
+                else
+                    binary = std::make_shared<ov::op::v1::Add>(left, right, spec.broadcast);
+                binary->set_friendly_name("rank_four_binary");
+                ov::OutputVector outputs{binary};
+                if (spec.shared_fc)
+                    outputs.push_back(fc);
+                auto graph = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input, peer});
+                const auto expected_shape = binary->get_output_partial_shape(0);
+                ov::pass::Manager conversion;
+                conversion.register_pass<ConvertGGUFFullyConnectedCompressed>();
+                conversion.run_passes(graph);
+                auto result = graph->get_results().at(0)->get_input_node_shared_ptr(0);
+                EXPECT_EQ(result->get_output_partial_shape(0), expected_shape);
+                if (spec.move_binary) {
+                    ASSERT_TRUE(ov::is_type<ov::op::v1::Reshape>(result));
+                    auto flat_binary = result->get_input_node_shared_ptr(0);
+                    EXPECT_EQ(flat_binary->get_type_info(), binary->get_type_info());
+                    EXPECT_EQ(flat_binary->get_friendly_name(), "rank_four_binary");
+                    auto gpu_fc = flat_binary->get_input_node_shared_ptr(reverse ? 1 : 0);
+                    ASSERT_TRUE(ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(gpu_fc));
+                    EXPECT_EQ(gpu_fc->get_input_partial_shape(0).rank(), ov::Rank(2));
+                    EXPECT_EQ(gpu_fc->get_input_node_shared_ptr(1), weight);
+                } else {
+                    EXPECT_EQ(result, binary);
+                    EXPECT_TRUE(ov::is_type<ov::op::v1::Reshape>(binary->get_input_node_shared_ptr(reverse ? 1 : 0)));
+                }
+            }
+        }
+    }
+}
+
 TEST_F(TransformationTestsF, ConvertGGUFFCLeavesOtherCompressedWeightsUnchanged) {
     auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
     auto weight = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{32, 256}, {1});
