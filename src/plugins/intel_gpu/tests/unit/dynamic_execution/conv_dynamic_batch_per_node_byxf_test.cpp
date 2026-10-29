@@ -47,7 +47,8 @@ void PrintTo(const conv_geometry& g, std::ostream* os) {
     *os << geometry_name(g);
 }
 
-// ResNet-18 trunk at a 28x28 stage input. With b_fs_yx_fsv16, oneDNN only has its reference impl for these at a batch of 16 or more.
+// ResNet-18 trunk of the dynamic-batch customer video model at a 28x28 stage input (the per-node byxf shape list in layout_optimizer.cpp).
+// With b_fs_yx_fsv16, oneDNN only has its reference impl for these at a batch of 16 or more.
 const std::vector<conv_geometry> trunk_geometries = {
     {64, 64, 28, 3, 1, 1},
     {64, 128, 28, 3, 2, 1},
@@ -408,6 +409,27 @@ TEST_P(conv_dynamic_batch_per_node_byxf_geometry, uses_byxf_jit_at_batch25) {
 INSTANTIATE_TEST_SUITE_P(resnet18_trunk,
                          conv_dynamic_batch_per_node_byxf_geometry,
                          ::testing::ValuesIn(trunk_geometries),
+                         [](const ::testing::TestParamInfo<conv_geometry>& info) {
+                             return geometry_name(info.param);
+                         });
+
+// Shapes outside the shape list keep the blocked format: an SD 1.5 UNet convolution, and a trunk convolution with a larger input.
+const std::vector<conv_geometry> unlisted_geometries = {
+    {320, 320, 64, 3, 1, 1},
+    {64, 64, 32, 3, 1, 1},
+};
+
+class conv_dynamic_batch_per_node_byxf_unlisted_geometry : public conv_dynamic_batch_per_node_byxf, public ::testing::WithParamInterface<conv_geometry> {};
+
+TEST_P(conv_dynamic_batch_per_node_byxf_unlisted_geometry, keeps_fsv16) {
+    add_conv("conv", GetParam(), true);
+    auto net = build_network(ov::Dimension::dynamic());
+    check_onednn_conv_formats(*net, format::b_fs_yx_fsv16);
+}
+
+INSTANTIATE_TEST_SUITE_P(unlisted,
+                         conv_dynamic_batch_per_node_byxf_unlisted_geometry,
+                         ::testing::ValuesIn(unlisted_geometries),
                          [](const ::testing::TestParamInfo<conv_geometry>& info) {
                              return geometry_name(info.param);
                          });
