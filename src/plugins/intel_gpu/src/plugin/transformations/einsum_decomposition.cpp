@@ -635,6 +635,45 @@ void compute_ranges(const ov::Rank& input_rank,
     }
 }
 
+/// \brief      Adjust ranks of ellipsis dimensions in the subscripts of two given inputs so
+/// that both ellipses represent the same number of dimensions. This is needed for correct
+/// broadcasting when one input's ellipsis covers fewer dimensions than the other's.
+///
+/// \param      inputs              A vector of input nodes to Einsum operation
+/// \param      input_subscripts    A vector of corresponding subscripts for the input nodes
+/// \param      input_ind1          An index of the first operand
+/// \param      input_ind2          An index of the second operand
+/// \param      subgraph_nodes      A vector of operation nodes that is included into a
+/// sub-graph decomposing Einsum that is needed for copy_runtime_info
+///
+void unsqueeze_ellipses_to_same_rank(ov::OutputVector& inputs, std::vector<std::string>& input_subscripts,
+                                     size_t input_ind1, size_t input_ind2, ov::NodeVector& subgraph_nodes) {
+    static const std::string ellipsis = "...";
+    const auto& input1 = inputs[input_ind1];
+    const auto& input2 = inputs[input_ind2];
+    auto label_to_dim_map1 = compute_label_dim_map(input1.get_partial_shape().rank(), input_subscripts[input_ind1]);
+    auto label_to_dim_map2 = compute_label_dim_map(input2.get_partial_shape().rank(), input_subscripts[input_ind2]);
+    if (label_to_dim_map1.find(ellipsis) != label_to_dim_map1.end() &&
+        label_to_dim_map2.find(ellipsis) != label_to_dim_map2.end()) {
+        std::vector<int64_t> unsqueeze_axis1, unsqueeze_axis2;
+        const auto& ellipsis_dims1 = label_to_dim_map1[ellipsis];
+        const auto& ellipsis_dims2 = label_to_dim_map2[ellipsis];
+        if (ellipsis_dims2.size() > ellipsis_dims1.size()) {
+            for (size_t i = 0; i < ellipsis_dims2.size() - ellipsis_dims1.size(); ++i) {
+                unsqueeze_axis1.push_back(ellipsis_dims1[0] + static_cast<int64_t>(i));
+            }
+        } else if (ellipsis_dims1.size() > ellipsis_dims2.size()) {
+            for (size_t i = 0; i < ellipsis_dims1.size() - ellipsis_dims2.size(); ++i) {
+                unsqueeze_axis2.push_back(ellipsis_dims2[0] + static_cast<int64_t>(i));
+            }
+        }
+        auto unsqueeze_output1 = unsqueeze_input(input1, unsqueeze_axis1, subgraph_nodes);
+        auto unsqueeze_output2 = unsqueeze_input(input2, unsqueeze_axis2, subgraph_nodes);
+        inputs[input_ind1] = unsqueeze_output1;
+        inputs[input_ind2] = unsqueeze_output2;
+    }
+}
+
 /// \brief      Contract two inputs of Einsum operation according to equation.
 /// The result of the contraction is appended into input_nodes along with its subscript.
 /// The input nodes for these two operands are removed from input_nodes along with their input
@@ -662,6 +701,9 @@ void contract_two_inputs(EinsumDecomposition* einsum_decompose_ptr,
     auto num_inputs = input_nodes.size();
     OPENVINO_ASSERT(num_inputs == input_subscripts.size(), "Each input must have own subscript.");
     OPENVINO_ASSERT(input_ind2 < num_inputs && input_ind1 != input_ind2, "Incorrect input index is specified.");
+
+    // Unsqueeze inputs to have the same rank for the ellipsis label for correct broadcasting
+    unsqueeze_ellipses_to_same_rank(input_nodes, input_subscripts, input_ind1, input_ind2, subgraph_nodes);
 
     const auto& input_node1 = input_nodes[input_ind1];
     const auto& input_node2 = input_nodes[input_ind2];

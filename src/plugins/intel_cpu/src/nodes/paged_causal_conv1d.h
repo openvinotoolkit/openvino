@@ -49,10 +49,11 @@ public:
     }
 
 private:
-    // Per-node f32 scratch buffer holding one promoted conv-state block (hidden_size * kernel_size
-    // floats). Allocated once via the plugin scratchpad in createPrimitive() so that repeated
-    // execute() calls avoid per-invocation heap allocation.
+    // Per-node f32 scratch buffer holding one promoted conv-state block (hidden_size * window
+    // floats, window = (num_taps-1)*dilation+1). Allocated once via the plugin scratchpad in
+    // createPrimitive() so that repeated execute() calls avoid per-invocation heap allocation.
     MemoryPtr m_tmpLocalState;
+    size_t m_dilation = 1;
 };
 
 }  // namespace ov::intel_cpu::node
