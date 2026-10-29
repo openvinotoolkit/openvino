@@ -86,8 +86,10 @@ bool is_4d_float_attention_mask(const std::shared_ptr<ov::Model>& model) {
         }
     }
 
-    OPENVINO_ASSERT(attention_mask_param,
-                    "NPUW LLM mode expects an input named attention_mask, but no such input was found.");
+    // Models without an attention_mask input (e.g. the Whisper decoder) keep the binary-mask flow.
+    if (!attention_mask_param) {
+        return false;
+    }
 
     const auto elem_type = attention_mask_param->get_element_type();
     const auto pshape = attention_mask_param->get_partial_shape();
