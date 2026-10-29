@@ -282,6 +282,30 @@ TEST(GGUFBuilderAPI, DecoderOptionsAreResolvedBeforeRopePlans) {
     EXPECT_THROW(other.configure_decoder(RopeMode::Neox, invalid), ov::Exception);
 }
 
+TEST(GGUFBuilderAPI, RopeScalingDefaultsAndPositiveFactors) {
+    Environment env;
+    env.decoder();
+    EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")), 1.0f);
+    for (const float factor : {0.0f, 1.0f, 4.0f}) {
+        env.real("test.rope.scaling.factor", factor);
+        EXPECT_FLOAT_EQ(std::get<float>(decoder_config_from_meta(env.metadata).at("rope_freq_scale")),
+                        factor == 0.0f ? 1.0f : 1.0f / factor);
+    }
+}
+
+TEST(GGUFBuilderAPI, RejectsInvalidRopeScalingFactors) {
+    for (const float factor : {-1.0f,
+                               std::numeric_limits<float>::infinity(),
+                               std::numeric_limits<float>::quiet_NaN(),
+                               std::numeric_limits<float>::denorm_min()}) {
+        SCOPED_TRACE(factor);
+        Environment env;
+        env.decoder();
+        env.real("test.rope.scaling.factor", factor);
+        EXPECT_THROW(decoder_config_from_meta(env.metadata), ov::Exception);
+    }
+}
+
 TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
     Environment env;
     GgufGraphContext graph(env.context);
@@ -360,6 +384,30 @@ TEST(GGUFArchitectureRegistry, SupportedNamesTrackReplacementAndDeduplicateHandl
     registry.add_extension(std::make_shared<ArchitectureExtension>(replacement, RegistrationMode::Replace));
     EXPECT_EQ(registry.supported_archs(), (std::set<std::string>{"other"}));
     EXPECT_EQ(registry.describe_supported(), "other");
+}
+
+TEST(GGUFArchitectureRegistry, Lfm2AudioVocoderListsOnlyCanonicalName) {
+    ArchRegistry registry;
+    EXPECT_EQ(registry.supported_archs().count("lfm2.audio_vocoder"), 1);
+    Environment env;
+    const std::string publisher_name = "this model cannot be used as LLM, use it via --model-vocoder in TTS examples";
+    EXPECT_EQ(registry.supported_archs().count(publisher_name), 0);
+    EXPECT_EQ(registry.describe_supported().find(publisher_name), std::string::npos);
+    env.metadata["general.architecture"] = std::string("lfm2.audio_vocoder");
+    EXPECT_FALSE(registry.find(env.context.metadata));
+    env.integer("depthformer_n_layer", 2);
+    EXPECT_FALSE(registry.find(env.context.metadata));
+    env.integer("depthformer_n_embd", 16);
+    const auto definition = registry.find(env.context.metadata);
+    ASSERT_TRUE(definition);
+    EXPECT_EQ(definition->architecture, "lfm2.audio_vocoder");
+    EXPECT_TRUE(definition->factory);
+
+    auto replacement = *registry.find(env.context.metadata);
+    EXPECT_EQ(replacement.id, "lfm2.audio_vocoder");
+    registry.add_extension(std::make_shared<ArchitectureExtension>(replacement, RegistrationMode::Replace));
+    EXPECT_NO_THROW(registry.find(env.context.metadata));
+    ASSERT_TRUE(registry.find(env.context.metadata));
 }
 
 TEST(GGUFArchitectureRegistry, DisjointHandlersForTheSameArchitectureCoexist) {
