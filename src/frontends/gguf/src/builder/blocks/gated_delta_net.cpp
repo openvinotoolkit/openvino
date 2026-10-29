@@ -132,7 +132,8 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     std::string alpha_base = p + "ssm_alpha", beta_base = p + "ssm_beta";
     std::string conv_w = p + "ssm_conv1d.weight", a_w = p + "ssm_a", dt_w = p + "ssm_dt.bias";
     bool gqa_grouped = false;
-    if (!e.has_hadamard() && H_v != H_k && H_v % H_k == 0) {
+    const bool grouped_hadamard = e.has_grouped_hadamard_gdn();
+    if ((!e.has_hadamard() || grouped_hadamard) && H_v != H_k && H_v % H_k == 0) {
         const int64_t rep = H_v / H_k;
         std::vector<int64_t> src(H_v);
         for (int64_t n = 0; n < H_v; ++n) {
@@ -144,6 +145,8 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
             };
         };
         const auto cols = [&](const ov::Tensor& t) {
+            if (grouped_hadamard)
+                return t;
             return permute_col_blocks(t, value_dim, head_v, src);
         };
         struct Grouped {
@@ -169,7 +172,10 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         if (ok) {
             const std::string g = "_grouped";
             for (auto& w : grouped) {
+                if (grouped_hadamard && &w.base == &out_base)
+                    continue;
                 store_parts(e, w.base + g, w.parts, e.weight_qtype(w.base));
+                e.inherit_hadamard(w.base + g + ".weight", w.base + ".weight");
                 w.base += g;
             }
             conv_w = p + "ssm_conv1d" + g + ".weight", a_w = p + "ssm_a" + g, dt_w = p + "ssm_dt" + g + ".bias";
@@ -184,10 +190,10 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     e.add_weight(qkv_base + ".weight");
     auto qkv = e.add_op("GGML_OP_MUL_MAT", p + "qkv_mixed", {qkv_base + ".weight", attn_norm});
 
-    // z, ssm_beta and ssm_alpha share the input. beta/alpha produce one scalar per v-head, and
-    // such a narrow matmul costs about as much as a wide one, so all three run as one matmul when
-    // they share a quantization layout. Widening z to merge would cost more weight bandwidth.
+    // Merge compatible projections without widening z. Standalone FP32 scalar projections
+    // remain separate so their bias and activations can fuse into FCs.
     std::string z, beta, alpha;
+    const bool dense_gates = e.weight_qtype(beta_base) == GGUF_TYPE_F32 && e.weight_qtype(alpha_base) == GGUF_TYPE_F32;
     auto ba = concat_rows(e.weight_parts(beta_base),
                           e.weight_parts(alpha_base),
                           e.weight_qtype(beta_base),
@@ -210,7 +216,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                          {zba_out},
                          3,
                          {{"view_slice", std::vector<int64_t>{3, value_dim + H_v, H_v}}});
-    } else if (ba) {
+    } else if (ba && !dense_gates) {
         e.add_weight(gate_base + ".weight");
         z = e.add_op("GGML_OP_MUL_MAT", p + "z", {gate_base + ".weight", attn_norm});
         store_parts(e, p + "ssm_beta_alpha", *ba, e.weight_qtype(beta_base));
@@ -222,9 +228,17 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         e.add_weight(gate_base + ".weight");
         z = e.add_op("GGML_OP_MUL_MAT", p + "z", {gate_base + ".weight", attn_norm});
         e.add_weight(beta_base + ".weight");
-        beta = e.add_op("GGML_OP_MUL_MAT", p + "beta", {beta_base + ".weight", attn_norm});
+        beta = e.add_op("GGML_OP_MUL_MAT",
+                        p + "beta",
+                        {beta_base + ".weight", attn_norm},
+                        0,
+                        {{"activation_rank", dense_gates ? 3 : 4}});
         e.add_weight(alpha_base + ".weight");
-        alpha = e.add_op("GGML_OP_MUL_MAT", p + "alpha", {alpha_base + ".weight", attn_norm});
+        alpha = e.add_op("GGML_OP_MUL_MAT",
+                         p + "alpha",
+                         {alpha_base + ".weight", attn_norm},
+                         0,
+                         {{"activation_rank", dense_gates ? 3 : 4}});
     }
 
     // beta = sigmoid(ssm_beta @ x), one scalar per v-head
@@ -325,7 +339,11 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                     {"shape_axes", std::vector<int64_t>{0, 1, 2, -1}}});
 
     e.add_weight(out_base + ".weight");
-    return e.add_op("GGML_OP_MUL_MAT", p + "linear_attn_out", {out_base + ".weight", out});
+    return e.add_op("GGML_OP_MUL_MAT",
+                    p + "linear_attn_out",
+                    {out_base + ".weight", out},
+                    0,
+                    {{"gqa_grouped", gqa_grouped}});
 }
 
 }  // namespace ov::frontend::gguf::blocks

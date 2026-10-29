@@ -43,6 +43,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "pass/isolate_precision_sensitive_outputs.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
 #include "pass/prune_orphaned_parameters.hpp"
 #include "quant/weights.hpp"
@@ -404,6 +405,9 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     fold_hadamard_input_signs(model);
     manager.run_passes(model);
     normalize_u2_zero_points(model);
+    ov::pass::Manager precision_boundaries;
+    precision_boundaries.register_pass<pass::IsolatePrecisionSensitiveOutputs>();
+    precision_boundaries.run_passes(model);
     return model;
 }
 

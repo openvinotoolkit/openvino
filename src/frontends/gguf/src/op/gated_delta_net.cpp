@@ -12,6 +12,7 @@
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -25,6 +26,8 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
@@ -35,6 +38,49 @@
 namespace ov::frontend::gguf::op {
 
 static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
+
+static Output<Node> join_adjacent_qk(const Output<Node>& q, const Output<Node>& k) {
+    const auto qr = ov::as_type_ptr<ov::op::v1::Reshape>(q.get_node_shared_ptr());
+    const auto kr = ov::as_type_ptr<ov::op::v1::Reshape>(k.get_node_shared_ptr());
+    if (!qr || !kr || !qr->get_special_zero() || !kr->get_special_zero())
+        return {};
+    const auto qs = ov::as_type_ptr<ov::op::v8::Slice>(qr->get_input_node_shared_ptr(0));
+    const auto ks = ov::as_type_ptr<ov::op::v8::Slice>(kr->get_input_node_shared_ptr(0));
+    const auto shape = q.get_partial_shape();
+    if (!qs || !ks || qs->get_input_size() != 5 || ks->get_input_size() != 5 ||
+        qs->input_value(0) != ks->input_value(0) || shape.rank() != 4 || !shape[2].is_static() ||
+        !shape[3].is_static() || q.get_element_type() != k.get_element_type())
+        return {};
+    const auto integers = [](const Output<Node>& value) {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr());
+        return constant ? constant->cast_vector<int64_t>() : std::vector<int64_t>{};
+    };
+    const auto heads = shape[2].get_length(), width = shape[3].get_length();
+    const std::vector<int64_t> target{0, -1, heads, width};
+    const auto start = integers(qs->input_value(1)), middle = integers(qs->input_value(2));
+    const auto end = integers(ks->input_value(2));
+    const auto source_shape = qs->get_input_partial_shape(0);
+    if (integers(qr->input_value(1)) != target || integers(kr->input_value(1)) != target ||
+        integers(qs->input_value(3)) != std::vector<int64_t>{1} ||
+        integers(ks->input_value(3)) != std::vector<int64_t>{1} ||
+        integers(qs->input_value(4)) != std::vector<int64_t>{3} ||
+        integers(ks->input_value(4)) != std::vector<int64_t>{3} || start.size() != 1 || middle.size() != 1 ||
+        end.size() != 1 || integers(ks->input_value(1)) != middle || start[0] < 0 ||
+        middle[0] - start[0] != heads * width || end[0] - middle[0] != heads * width || source_shape.rank() != 4 ||
+        source_shape[1] != 1 || !source_shape[3].is_static() || end[0] > source_shape[3].get_length())
+        return {};
+    const auto slice = std::make_shared<ov::op::v8::Slice>(qs->input_value(0),
+                                                           qs->input_value(1),
+                                                           ks->input_value(2),
+                                                           qs->input_value(3),
+                                                           qs->input_value(4));
+    const auto joined = std::make_shared<ov::op::v1::Reshape>(
+        slice,
+        ov::op::v0::Constant::create<int64_t>(ov::element::i64, {4}, {0, -1, 2 * heads, width}),
+        true);
+    ov::copy_runtime_info({qs, ks, qr, kr}, {slice, joined});
+    return joined;
+}
 
 // GGML_OP_GATED_DELTA_NET (qwen3next linear-attention block). Emits the internal (non-opset) op
 // ov::op::internal::GatedDeltaNet for the device's fused kernel; a model using it is not
@@ -82,8 +128,15 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     // square root instead, which differs for small vectors, so normalize here.
     if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
         const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
-        q = make_l2_norm(q, eps);
-        k = make_l2_norm(k, eps);
+        if (const auto joined = join_adjacent_qk(q, k); joined.get_node()) {
+            const auto axis = ov::op::v0::Constant::create(ov::element::i64, {}, {2});
+            const auto normalized = std::make_shared<ov::op::v1::Split>(make_l2_norm(joined, eps), axis, 2);
+            q = normalized->output(0);
+            k = normalized->output(1);
+        } else {
+            q = make_l2_norm(q, eps);
+            k = make_l2_norm(k, eps);
+        }
     }
 
     // ggml maps GQA heads in tiled order, while the OV op maps repeated heads in grouped order:
