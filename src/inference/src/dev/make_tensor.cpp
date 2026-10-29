@@ -215,9 +215,9 @@ public:
 /**
  * @brief Read-only view tensor on the beginning of a buffer which it keeps alive
  */
-class BufferTensor : public ReadOnlyViewTensor {
+class BufferReadOnlyViewTensor : public ReadOnlyViewTensor {
 public:
-    BufferTensor(const element::Type element_type, const Shape& shape, std::shared_ptr<util::IBuffer> buffer)
+    BufferReadOnlyViewTensor(const element::Type element_type, const Shape& shape, std::shared_ptr<util::IBuffer> buffer)
         : ReadOnlyViewTensor{element_type, shape, buffer->data()},
           m_buffer{std::move(buffer)} {
         OPENVINO_ASSERT(get_byte_size() <= m_buffer->size(), "Tensor does not fit into the buffer");
@@ -236,7 +236,7 @@ std::shared_ptr<ITensor> make_tensor(const element::Type type,
                                      const Shape& shape,
                                      std::shared_ptr<util::IBuffer> buffer) {
     OPENVINO_ASSERT(buffer, "Buffer is not set");
-    return std::make_shared<BufferTensor>(type, shape, std::move(buffer));
+    return std::make_shared<BufferReadOnlyViewTensor>(type, shape, std::move(buffer));
 }
 
 /**
@@ -713,7 +713,7 @@ std::shared_ptr<util::IMemoryHints> get_memory_hints(const ov::Tensor& tensor) {
     while (auto roi = std::dynamic_pointer_cast<BaseRoiTensor>(itensor)) {
         itensor = roi->get_owner();
     }
-    const auto owner = std::dynamic_pointer_cast<BufferTensor>(itensor);
+    const auto owner = std::dynamic_pointer_cast<BufferReadOnlyViewTensor>(itensor);
     if (!owner || !tensor.is_continuous()) {
         return nullptr;
     }
