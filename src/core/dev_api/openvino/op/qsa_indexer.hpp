@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cstddef>
-#include <string>
 
 #include "openvino/op/op.hpp"
 
@@ -28,23 +27,6 @@ public:
         float k_epsilon = 1e-6f;
         bool is_causal = true;
     };
-
-    /// Query layout [batch, heads, sequence, head_size] limits of the QSAIndexer kernels.
-    static constexpr int64_t supported_num_heads = 4;
-    static constexpr int64_t supported_head_size = 128;
-    static constexpr int64_t supported_key_block_size = 4;
-    static constexpr int64_t supported_num_selection_heads = 1;
-    static constexpr int64_t max_token_budget = 512;
-    static constexpr float min_epsilon = 1e-6f;
-    static constexpr float max_epsilon = 1e-5f;
-
-    /// \brief Checks whether the QSAIndexer kernels support a configuration, without throwing.
-    ///
-    /// \param config Operation configuration.
-    /// \param query_shape Shape of the index_query input.
-    /// \param reason Receives a description of the first unsupported property.
-    /// \return true when the configuration and query shape are supported.
-    static bool is_supported(const Config& config, const ov::PartialShape& query_shape, std::string& reason);
 
     QSAIndexer() = default;
     QSAIndexer(const ov::OutputVector& args, const Config& config);
