@@ -23,7 +23,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ZERO_SHA = "0" * 40
-SET_PATTERN = re.compile(r"set\(([^)\s]+)\s+([^)]*)\)")
+SET_PATTERN = re.compile(r"^[ \t]*set\(([^)\s]+)\s+([^)]*)\)", re.MULTILINE)
 
 
 def append_step_summary(text: str) -> None:
@@ -78,7 +78,6 @@ def fetch_file(repo: str, file_path: str, ref: str) -> str:
 
 
 def get_val(cmake_text: str, variable: str) -> str:
-    prefix = f"set({variable}"
     for match in SET_PATTERN.finditer(cmake_text):
         if match.group(1) == variable:
             return re.sub(r"\s+", "", match.group(2))
@@ -115,7 +114,9 @@ def find_bump_commit(repo: str, file_path: str, tracked_vars: list[str], before:
         new_text = try_fetch_file(repo, file_path, candidate)
         if new_text is None:
             continue
-        old_text = try_fetch_file(repo, file_path, parents[0].get("sha") or "") or ""
+        old_text = try_fetch_file(repo, file_path, parents[0].get("sha") or "")
+        if old_text is None:
+            continue
         if any(get_val(old_text, var) != get_val(new_text, var) for var in tracked_vars):
             return candidate
     return after
