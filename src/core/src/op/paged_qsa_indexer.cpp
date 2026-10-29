@@ -12,110 +12,34 @@
 
 namespace ov::op::internal {
 
-namespace {
-// The kernels read every integer input as int32_t.
-void check_i32_input(const ov::Node* node, size_t idx, const char* name, int64_t rank) {
-    const auto& et = node->get_input_element_type(idx);
-    const auto& ps = node->get_input_partial_shape(idx);
-    NODE_VALIDATION_CHECK(node,
-                          et.is_dynamic() || et == element::i32,
-                          node->get_type_name(),
-                          " expects an i32 ",
-                          name,
-                          " input, got ",
-                          et);
-    NODE_VALIDATION_CHECK(node,
-                          ps.rank().compatible(rank),
-                          node->get_type_name(),
-                          " expects a rank-",
-                          rank,
-                          " ",
-                          name,
-                          " input, got ",
-                          ps);
-}
-
-void check_shape(const ov::Node* node, size_t idx, const char* name, const ov::PartialShape& expected) {
-    const auto& ps = node->get_input_partial_shape(idx);
-    NODE_VALIDATION_CHECK(node,
-                          ps.compatible(expected),
-                          node->get_type_name(),
-                          " expects ",
-                          name,
-                          " shaped ",
-                          expected,
-                          ", got ",
-                          ps);
-}
-
-void check_float_inputs(const ov::Node* node, std::initializer_list<size_t> indices) {
-    element::Type et = element::dynamic;
-    for (auto idx : indices) {
-        const auto& in_et = node->get_input_element_type(idx);
-        NODE_VALIDATION_CHECK(node,
-                              element::Type::merge(et, et, in_et),
-                              node->get_type_name(),
-                              " expects all floating-point inputs to share one element type; input ",
-                              idx,
-                              " is ",
-                              in_et);
-    }
-    NODE_VALIDATION_CHECK(node,
-                          et.is_dynamic() || et.is_real(),
-                          node->get_type_name(),
-                          " expects floating-point inputs, got ",
-                          et);
-}
-
-ov::Dimension dim_at(const ov::PartialShape& ps, size_t axis) {
-    return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
-}
-
-/// Head count of a flattened [tokens, H * D_idx] input; dynamic unless the last axis is static.
-ov::Dimension flat_heads(const ov::Node* node, const ov::PartialShape& ps, size_t head_dim, const char* name) {
-    const auto last = dim_at(ps, 1);
-    if (last.is_dynamic()) {
-        return ov::Dimension::dynamic();
-    }
-    NODE_VALIDATION_CHECK(node,
-                          last.get_length() > 0 && last.get_length() % static_cast<int64_t>(head_dim) == 0,
-                          node->get_type_name(),
-                          " expects the ",
-                          name,
-                          " last dimension to be a positive multiple of indexer_head_dim=",
-                          head_dim,
-                          ", got ",
-                          ps);
-    return last.get_length() / static_cast<int64_t>(head_dim);
-}
-}  // namespace
-
 PagedQSAIndexer::PagedQSAIndexer(const ov::OutputVector& args, const Config& config) : Op(args), m_config(config) {
     constructor_validate_and_infer_types();
 }
 
 bool PagedQSAIndexer::validate_config(const Config& c, std::string& reason) {
-    auto fail = [&reason](const char* msg) {
-        reason = msg;
-        return false;
-    };
     if (c.key_block_size == 0) {
-        return fail("key_block_size must be positive");
+        reason = "key_block_size must be positive";
+        return false;
     }
     if (c.block_topk == 0) {
-        return fail("block_topk must be positive");
+        reason = "block_topk must be positive";
+        return false;
     }
     if (c.num_selection_heads == 0) {
-        return fail("num_selection_heads must be positive");
+        reason = "num_selection_heads must be positive";
+        return false;
     }
     if (c.indexer_head_dim == 0) {
-        return fail("indexer_head_dim must be positive");
+        reason = "indexer_head_dim must be positive";
+        return false;
     }
     if (c.indexer_rotary_dim % 2 != 0 || c.indexer_rotary_dim > c.indexer_head_dim) {
-        return fail("indexer_rotary_dim must be even and not exceed indexer_head_dim");
+        reason = "indexer_rotary_dim must be even and not exceed indexer_head_dim";
+        return false;
     }
     if (!std::isfinite(c.scale) || c.scale < 0.0f) {
-        return fail("scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))");
+        reason = "scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))";
+        return false;
     }
     return true;
 }
@@ -177,16 +101,55 @@ void PagedQSAIndexer::validate_and_infer_types() {
                           raw_index_keys_ps.rank().is_dynamic() || raw_index_keys_ps.size() == 2,
                           "PagedQSAIndexer expects a rank-2 [tokens, H_ik*D_idx] raw_index_keys input, got ",
                           raw_index_keys_ps);
-    check_float_inputs(this,
-                       {InputIdx::INDEX_QUERY,
-                        InputIdx::RAW_INDEX_KEYS,
-                        InputIdx::ROPE_COS,
-                        InputIdx::ROPE_SIN,
-                        InputIdx::BLOCK_INDEX_KEYS_CACHE,
-                        InputIdx::INDEX_KEY_CACHE,
-                        InputIdx::Q_NORM_WEIGHT,
-                        InputIdx::K_NORM_WEIGHT,
-                        InputIdx::INDEX_BLOCK_ROPE_CACHE});
+    // All floating-point inputs must share one element type.
+    element::Type float_et = element::dynamic;
+    for (const auto idx : {InputIdx::INDEX_QUERY,
+                           InputIdx::RAW_INDEX_KEYS,
+                           InputIdx::ROPE_COS,
+                           InputIdx::ROPE_SIN,
+                           InputIdx::BLOCK_INDEX_KEYS_CACHE,
+                           InputIdx::INDEX_KEY_CACHE,
+                           InputIdx::Q_NORM_WEIGHT,
+                           InputIdx::K_NORM_WEIGHT,
+                           InputIdx::INDEX_BLOCK_ROPE_CACHE}) {
+        const auto& in_et = get_input_element_type(idx);
+        NODE_VALIDATION_CHECK(this,
+                              element::Type::merge(float_et, float_et, in_et),
+                              "PagedQSAIndexer expects all floating-point inputs to share one element type; input ",
+                              idx,
+                              " is ",
+                              in_et);
+    }
+    NODE_VALIDATION_CHECK(this,
+                          float_et.is_dynamic() || float_et.is_real(),
+                          "PagedQSAIndexer expects floating-point inputs, got ",
+                          float_et);
+
+    // The kernels read every integer input as int32_t.
+    for (const auto idx : {InputIdx::PAST_LENS,
+                           InputIdx::SUBSEQUENCE_BEGINS,
+                           InputIdx::BLOCK_INDICES,
+                           InputIdx::BLOCK_INDICES_BEGINS}) {
+        const auto& in_et = get_input_element_type(idx);
+        const auto& in_ps = get_input_partial_shape(idx);
+        NODE_VALIDATION_CHECK(this,
+                              in_et.is_dynamic() || in_et == element::i32,
+                              "PagedQSAIndexer expects an i32 index input; input ",
+                              idx,
+                              " is ",
+                              in_et);
+        NODE_VALIDATION_CHECK(this,
+                              in_ps.rank().is_dynamic() || in_ps.size() == 1,
+                              "PagedQSAIndexer expects a rank-1 index input; input ",
+                              idx,
+                              " is ",
+                              in_ps);
+    }
+
+    // Local helper: the extent of one axis, or dynamic when the rank or the axis is unknown.
+    const auto dim_at = [](const ov::PartialShape& ps, size_t axis) -> ov::Dimension {
+        return ps.rank().is_static() && ps.size() > axis ? ps[axis] : ov::Dimension::dynamic();
+    };
 
     const ov::Dimension tokens = dim_at(index_query_ps, 0);
     const ov::Dimension di(static_cast<int64_t>(m_config.indexer_head_dim));
@@ -204,14 +167,46 @@ void PagedQSAIndexer::validate_and_infer_types() {
             page_size);
         spp = ov::Dimension(static_cast<int64_t>(page_size / m_config.key_block_size));
     }
-    const auto h_iq = flat_heads(this, index_query_ps, m_config.indexer_head_dim, "index_query");
-    const auto h_ik = flat_heads(this, raw_index_keys_ps, m_config.indexer_head_dim, "raw_index_keys");
+    // H_iq / H_ik come from the flattened [tokens, H * D_idx] inputs; dynamic unless the last axis is static.
+    const auto flat_heads = [this, &dim_at](const ov::PartialShape& ps, const char* name) -> ov::Dimension {
+        const auto last = dim_at(ps, 1);
+        if (last.is_dynamic()) {
+            return ov::Dimension::dynamic();
+        }
+        NODE_VALIDATION_CHECK(this,
+                              last.get_length() > 0 &&
+                                  last.get_length() % static_cast<int64_t>(m_config.indexer_head_dim) == 0,
+                              "PagedQSAIndexer expects the ",
+                              name,
+                              " last dimension to be a positive multiple of indexer_head_dim=",
+                              m_config.indexer_head_dim,
+                              ", got ",
+                              ps);
+        return ov::Dimension(last.get_length() / static_cast<int64_t>(m_config.indexer_head_dim));
+    };
+    const auto h_iq = flat_heads(index_query_ps, "index_query");
+    const auto h_ik = flat_heads(raw_index_keys_ps, "raw_index_keys");
 
-    check_shape(this, InputIdx::RAW_INDEX_KEYS, "raw_index_keys", ov::PartialShape{tokens, -1});
-    check_shape(this, InputIdx::ROPE_COS, "rope_cos", ov::PartialShape{tokens, rot});
-    check_shape(this, InputIdx::ROPE_SIN, "rope_sin", ov::PartialShape{tokens, rot});
-    check_shape(this, InputIdx::Q_NORM_WEIGHT, "q_norm_weight", ov::PartialShape{di});
-    check_shape(this, InputIdx::K_NORM_WEIGHT, "k_norm_weight", ov::PartialShape{di});
+    NODE_VALIDATION_CHECK(this,
+                          raw_index_keys_ps.compatible(ov::PartialShape{tokens, -1}),
+                          "PagedQSAIndexer expects raw_index_keys shaped [tokens, H_ik*D_idx], got ",
+                          raw_index_keys_ps);
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::ROPE_COS).compatible(ov::PartialShape{tokens, rot}),
+                          "PagedQSAIndexer expects rope_cos shaped [tokens, indexer_rotary_dim], got ",
+                          get_input_partial_shape(InputIdx::ROPE_COS));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::ROPE_SIN).compatible(ov::PartialShape{tokens, rot}),
+                          "PagedQSAIndexer expects rope_sin shaped [tokens, indexer_rotary_dim], got ",
+                          get_input_partial_shape(InputIdx::ROPE_SIN));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::Q_NORM_WEIGHT).compatible(ov::PartialShape{di}),
+                          "PagedQSAIndexer expects q_norm_weight shaped [indexer_head_dim], got ",
+                          get_input_partial_shape(InputIdx::Q_NORM_WEIGHT));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::K_NORM_WEIGHT).compatible(ov::PartialShape{di}),
+                          "PagedQSAIndexer expects k_norm_weight shaped [indexer_head_dim], got ",
+                          get_input_partial_shape(InputIdx::K_NORM_WEIGHT));
 
     // The three paged caches share the main KV page pool (dim 0).
     ov::Dimension num_blocks = ov::Dimension::dynamic();
@@ -221,25 +216,38 @@ void PagedQSAIndexer::validate_and_infer_types() {
                               "PagedQSAIndexer expects block_index_keys_cache, index_key_cache and "
                               "index_block_rope_cache to share dim 0 (num_blocks)");
     }
-    check_shape(this,
-                InputIdx::BLOCK_INDEX_KEYS_CACHE,
-                "block_index_keys_cache",
-                ov::PartialShape{num_blocks, h_ik, spp, di});
-    check_shape(this, InputIdx::INDEX_KEY_CACHE, "index_key_cache", ov::PartialShape{num_blocks, h_ik, page, di});
-    check_shape(this,
-                InputIdx::INDEX_BLOCK_ROPE_CACHE,
-                "index_block_rope_cache",
-                ov::PartialShape{num_blocks, spp, rope_row});
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::BLOCK_INDEX_KEYS_CACHE)
+                              .compatible(ov::PartialShape{num_blocks, h_ik, spp, di}),
+                          "PagedQSAIndexer expects block_index_keys_cache shaped "
+                          "[num_blocks, H_ik, page_size/r, indexer_head_dim], got ",
+                          get_input_partial_shape(InputIdx::BLOCK_INDEX_KEYS_CACHE));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::INDEX_KEY_CACHE)
+                              .compatible(ov::PartialShape{num_blocks, h_ik, page, di}),
+                          "PagedQSAIndexer expects index_key_cache shaped [num_blocks, H_ik, page_size, indexer_head_dim], "
+                          "got ",
+                          get_input_partial_shape(InputIdx::INDEX_KEY_CACHE));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::INDEX_BLOCK_ROPE_CACHE)
+                              .compatible(ov::PartialShape{num_blocks, spp, rope_row}),
+                          "PagedQSAIndexer expects index_block_rope_cache shaped "
+                          "[num_blocks, page_size/r, 2*indexer_rotary_dim], got ",
+                          get_input_partial_shape(InputIdx::INDEX_BLOCK_ROPE_CACHE));
 
-    check_i32_input(this, InputIdx::PAST_LENS, "past_lens", 1);
-    check_i32_input(this, InputIdx::SUBSEQUENCE_BEGINS, "subsequence_begins", 1);
-    check_i32_input(this, InputIdx::BLOCK_INDICES, "block_indices", 1);
-    check_i32_input(this, InputIdx::BLOCK_INDICES_BEGINS, "block_indices_begins", 1);
     const auto num_seqs = dim_at(get_input_partial_shape(InputIdx::PAST_LENS), 0);
     const auto num_seqs_plus_one =
         num_seqs.is_static() ? ov::Dimension(num_seqs.get_length() + 1) : ov::Dimension::dynamic();
-    check_shape(this, InputIdx::SUBSEQUENCE_BEGINS, "subsequence_begins", ov::PartialShape{num_seqs_plus_one});
-    check_shape(this, InputIdx::BLOCK_INDICES_BEGINS, "block_indices_begins", ov::PartialShape{num_seqs_plus_one});
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::SUBSEQUENCE_BEGINS)
+                              .compatible(ov::PartialShape{num_seqs_plus_one}),
+                          "PagedQSAIndexer expects subsequence_begins shaped [num_sequences+1], got ",
+                          get_input_partial_shape(InputIdx::SUBSEQUENCE_BEGINS));
+    NODE_VALIDATION_CHECK(this,
+                          get_input_partial_shape(InputIdx::BLOCK_INDICES_BEGINS)
+                              .compatible(ov::PartialShape{num_seqs_plus_one}),
+                          "PagedQSAIndexer expects block_indices_begins shaped [num_sequences+1], got ",
+                          get_input_partial_shape(InputIdx::BLOCK_INDICES_BEGINS));
 
     if (h_iq.is_static() && h_ik.is_static()) {
         const auto h_iq_value = static_cast<size_t>(h_iq.get_length());
