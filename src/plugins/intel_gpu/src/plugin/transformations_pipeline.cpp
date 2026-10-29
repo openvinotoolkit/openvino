@@ -812,6 +812,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (fp16_activation_scaling_enabled)
             manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
+        manager.register_pass<DisableFP16ComForRoPEFreqConst>();
         manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
         manager.register_pass<DisableFP16CompCumSumSinGen>();
         // HiFiGAN matches a strict suffix of the CumSumSinGen chain — skip

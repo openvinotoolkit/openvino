@@ -41,6 +41,7 @@
 #include <plugin/transformations/increase_position_ids_precision.hpp>
 #include <plugin/transformations/increase_rms_input_precision.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/rt_info/disable_precision_conversion.hpp>
 #include <transformations/utils/utils.hpp>
 #include "openvino/pass/visualize_tree.hpp"
 
@@ -92,6 +93,45 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionWithoutUnsqueeze) {
 
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input});
     }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+// Same as IncreasePositionIdsPrecisionWithoutUnsqueeze, but the fused RoPE has a fourth input (as for Gemma 4):
+// the angle path must still be promoted to f32.
+TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForRoPEWithFourInputs) {
+    auto build = [](bool is_ref) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{ -1, -1 });
+        auto input_convert = std::make_shared<ov::op::v0::Convert>(input, ov::element::i32);
+        auto input_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(input_convert, std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{1}));
+        auto rotary_embd_const = std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{1, 64, 1});
+
+        std::shared_ptr<ov::Node> gemm;
+        if (is_ref) {
+            auto input_convert_f32 = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f32);
+            auto rotary_embd_const_convert_f32 = std::make_shared<ov::op::v0::Convert>(rotary_embd_const, ov::element::f32);
+            gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_convert_f32, rotary_embd_const_convert_f32, std::vector<int64_t>{}, std::vector<int64_t>{}, std::vector<int64_t>{});
+        } else {
+            auto input_convert_fp = std::make_shared<ov::op::v0::Convert>(input_unsqueeze, ov::element::f16);
+            gemm = std::make_shared<ov::intel_gpu::op::Gemm>(input_convert_fp, rotary_embd_const, std::vector<int64_t>{}, std::vector<int64_t>{}, std::vector<int64_t>{});
+        }
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gemm, gemm}, 2);
+
+        std::shared_ptr<ov::Node> cos = std::make_shared<ov::op::v0::Cos>(concat);
+        std::shared_ptr<ov::Node> sin = std::make_shared<ov::op::v0::Sin>(concat);
+        if (is_ref) {
+            cos = std::make_shared<ov::op::v0::Convert>(cos, ov::element::f16);
+            sin = std::make_shared<ov::op::v0::Convert>(sin, ov::element::f16);
+        }
+
+        auto rope_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic(4));
+        auto rope_extra_input = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{rope_input, cos, sin, rope_extra_input}, ov::op::internal::RoPE::Config());
+
+        return std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, rope_input});
+    };
+    model = build(false);
+    manager.register_pass<IncreasePositionIdsPrecision>();
+    model_ref = build(true);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
@@ -1285,4 +1325,36 @@ TEST_F(TransformationTestsF, IncreasePositionIdsPrecisionForGemma4) {
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope_local, rope_global}, ov::ParameterVector{position_ids, rope_input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+// An f32 inv_freq Constant of the RoPE angle path (MatMul -> [Transpose] -> Concat -> Sin/Cos) must not be converted
+// to f16, otherwise the f32 angles of IncreasePositionIdsPrecision are computed from rounded frequencies.
+TEST(IncreasePositionIdsPrecisionTest, DisableFP16ComForRoPEFreqConst) {
+    auto build = [](const ov::element::Type& freq_type, bool with_transpose) {
+        auto position_ids = std::make_shared<ov::op::v0::Parameter>(freq_type, ov::PartialShape{1, 1, -1});
+        auto inv_freq = ov::op::v0::Constant::create(freq_type, ov::Shape{1, 4, 1}, {1.f, 0.1f, 0.01f, 0.001f});
+        std::shared_ptr<ov::Node> freqs = std::make_shared<ov::op::v0::MatMul>(inv_freq, position_ids);
+        if (with_transpose)
+            freqs = std::make_shared<ov::op::v1::Transpose>(freqs, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1}));
+        auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{freqs, freqs}, -1);
+        auto sin = std::make_shared<ov::op::v0::Sin>(concat);
+        auto cos = std::make_shared<ov::op::v0::Cos>(concat);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{sin, cos}, ov::ParameterVector{position_ids});
+        return std::make_pair(model, inv_freq);
+    };
+    for (bool with_transpose : {true, false}) {
+        auto [model, inv_freq] = build(ov::element::f32, with_transpose);
+        ov::pass::Manager manager;
+        manager.register_pass<DisableFP16ComForRoPEFreqConst>();
+        manager.run_passes(model);
+        EXPECT_TRUE(ov::is_conversion_disabled(inv_freq, ov::element::f16)) << "with_transpose = " << with_transpose;
+    }
+    {
+        // already compressed frequencies are left alone
+        auto [model, inv_freq] = build(ov::element::f16, true);
+        ov::pass::Manager manager;
+        manager.register_pass<DisableFP16ComForRoPEFreqConst>();
+        manager.run_passes(model);
+        EXPECT_FALSE(ov::is_conversion_disabled(inv_freq, ov::element::f16));
+    }
 }
