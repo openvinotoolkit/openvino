@@ -4,6 +4,7 @@
 
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
+#include "common_test_utils/node_builders/group_convolution.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
@@ -18,6 +19,19 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
+enum class ConvType { Regular, Depthwise, Conv3D };
+inline std::ostream& operator<<(std::ostream& os, ConvType conv) {
+    switch (conv) {
+    case ConvType::Regular:
+        return os << "Regular";
+    case ConvType::Depthwise:
+        return os << "Depthwise";
+    case ConvType::Conv3D:
+        return os << "Conv3D";
+    }
+    return os;
+}
+
 struct QuantizationParams {
     std::vector<std::vector<float>> inputIntervals;   // quantize intervals before convolution
     std::vector<std::vector<float>> outputIntervals;  // quantize intervals after convolution
@@ -31,6 +45,7 @@ typedef std::tuple<InputShape,          // input shape
                    QuantizationParams,  // quantization parameters
                    bool,                // bias presence
                    bool,                // swish presence
+                   ConvType,            // convolution type
                    std::string          // device name
                    >
     ConvAndFQTestParams;
@@ -40,7 +55,8 @@ class ConvAndFQ : public testing::WithParamInterface<ConvAndFQTestParams>,
                   public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvAndFQTestParams>& obj) {
-        const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] = obj.param;
+        const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, convType, targetName] =
+            obj.param;
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision
@@ -53,7 +69,7 @@ public:
             results << ov::util::vector_to_string(vecInt) << ",";
         }
         results << "_fqShapes=" << ov::util::vector_to_string(quantizationParams.fqConstShapes)
-                << "_withBias=" << withBias << "_withSwish=" << withSwish
+                << "_withBias=" << withBias << "_withSwish=" << withSwish << "_convolutionType=" << convType
                 << "_perChannelWeightsScale=" << quantizationParams.perChannelWeightsScale
                 << "_targetDevice=" << targetName;
 
@@ -62,7 +78,7 @@ public:
 
 protected:
     void SetUp() override {
-        const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] =
+        const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, convType, targetName] =
             this->GetParam();
         abs_threshold = 1e-2f;
         targetDevice = targetName;
@@ -84,44 +100,78 @@ protected:
                                                              inputIntervals[2],
                                                              inputIntervals[3]);
 
-        auto weights = utils::make_constant(element::i8, {4, 3, 2, 2});
+        const size_t inputRank = static_cast<size_t>(inputDynamicShapes[0].rank().get_length());
+        const size_t spatialRank = inputRank - 2;
+        const bool isDepthwise = convType == ConvType::Depthwise;
+        const size_t numOutChannels = isDepthwise ? 3 : 4;
+        ov::Shape weightsShape;
+        switch (convType) {
+        case ConvType::Regular:
+            weightsShape = ov::Shape{4, 3, 2, 2};
+            break;
+        case ConvType::Depthwise:
+            weightsShape = ov::Shape{3, 1, 1, 2, 2};
+            break;
+        case ConvType::Conv3D:
+            weightsShape = ov::Shape{4, 3, 2, 2, 2};
+            break;
+        }
+        auto weights = utils::make_constant(element::i8, weightsShape);
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
 
         std::shared_ptr<ov::Node> multiply;
         if (quantizationParams.perChannelWeightsScale) {
+            auto weightScaleDim = ov::Shape(weightsShape.size(), 1);
+            weightScaleDim[0] = numOutChannels;
+            const std::vector<float> scales = {0.02f, 0.025f, 0.03f, 0.035f};
             multiply = std::make_shared<op::v1::Multiply>(
                 convert,
-                op::v0::Constant::create(element::f32, {4, 1, 1, 1}, {0.02f, 0.025f, 0.03f, 0.035f}));
+                op::v0::Constant::create(element::f32,
+                                         weightScaleDim,
+                                         std::vector<float>(scales.begin(), scales.begin() + numOutChannels)));
         } else {
+            auto weightScaleDim = ov::Shape(weightsShape.size(), 1);
             multiply =
                 std::make_shared<op::v1::Multiply>(convert,
-                                                   op::v0::Constant::create(element::f32, {1, 1, 1, 1}, {0.625f}));
+                                                   op::v0::Constant::create(element::f32, weightScaleDim, {0.625f}));
         }
 
         std::shared_ptr<Node> conv;
         {
-            const std::vector<size_t> kernelSize = {1, 1};
-            const std::vector<size_t> strides = {1, 1};
-            const std::vector<ptrdiff_t> padBegin = {0, 0};
-            const std::vector<ptrdiff_t> padEnd = {0, 0};
-            const std::vector<size_t> dilation = {1, 1};
-            const size_t numOutChannels = 4;
+            const std::vector<size_t> kernelSize(spatialRank, 1);
+            const std::vector<size_t> strides = std::vector<size_t>(spatialRank, 1);
+            const std::vector<ptrdiff_t> padBegin = std::vector<ptrdiff_t>(spatialRank, 0);
+            const std::vector<ptrdiff_t> padEnd = std::vector<ptrdiff_t>(spatialRank, 0);
+            const std::vector<size_t> dilation = std::vector<size_t>(spatialRank, 1);
             const op::PadType paddingType = op::PadType::EXPLICIT;
-            conv = ov::test::utils::make_convolution(fq_before,
-                                                     multiply,
-                                                     inputPrecision,
-                                                     kernelSize,
-                                                     strides,
-                                                     padBegin,
-                                                     padEnd,
-                                                     dilation,
-                                                     paddingType,
-                                                     numOutChannels);
+            if (isDepthwise) {
+                conv = ov::test::utils::make_group_convolution(fq_before,
+                                                               multiply,
+                                                               inputPrecision,
+                                                               strides,
+                                                               padBegin,
+                                                               padEnd,
+                                                               dilation,
+                                                               paddingType);
+            } else {
+                conv = ov::test::utils::make_convolution(fq_before,
+                                                         multiply,
+                                                         inputPrecision,
+                                                         kernelSize,
+                                                         strides,
+                                                         padBegin,
+                                                         padEnd,
+                                                         dilation,
+                                                         paddingType,
+                                                         numOutChannels);
+            }
         }
 
         auto fqInput = conv;
         if (withBias) {
-            auto bias = ov::test::utils::make_constant(ov::element::f16, ov::Shape({1, 4, 1, 1}));
+            auto biasDim = ov::Shape(inputRank, 1);
+            biasDim[1] = numOutChannels;
+            auto bias = ov::test::utils::make_constant(ov::element::f16, biasDim);
             auto convertBias = std::make_shared<op::v0::Convert>(bias, element::f32);
             auto convBiasAdd = std::make_shared<ov::op::v1::Add>(conv, convertBias);
             fqInput = convBiasAdd;
@@ -179,7 +229,8 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 
-    const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, targetName] = this->GetParam();
+    const auto& [inputShape, inputPrecision, quantizationParams, withBias, withSwish, convType, targetName] =
+        this->GetParam();
     checkConvolutionPrecision(quantizationParams.expectedPrecision);
     CheckPluginRelatedResults(compiledModel, "Convolution");
 }
@@ -187,6 +238,7 @@ TEST_P(ConvAndFQ, CompareWithRefs) {
 namespace {
 
 std::vector<InputShape> inputShapes{{{}, {{4, 3, 2, 2}}}, {{-1, 3, -1, 2}, {{1, 3, 4, 2}}}};
+std::vector<InputShape> inputShapes3D{{{}, {{4, 3, 2, 2, 2}}}};
 
 #if defined(OPENVINO_ARCH_ARM64)
 const element::Type expectedConvPrecBySignedFQRange = element::i8;
@@ -194,12 +246,14 @@ const element::Type expectedConvPrecByUnsignedFQRange = element::u8;
 const element::Type expectedConvPrecZeroPointNoBias = element::i8;
 const element::Type expectedConvPrecPerTensorZeroPointWithBias = element::u8;
 const element::Type expectedConvPrecPerChannelZeroPointWithBias = element::f16;
+const element::Type expected3DConvPrecPerTensorZeroPointWithBias = element::f16;
 #else
 const element::Type expectedConvPrecBySignedFQRange = element::f32;
 const element::Type expectedConvPrecByUnsignedFQRange = element::f32;
 const element::Type expectedConvPrecZeroPointNoBias = element::f32;
 const element::Type expectedConvPrecPerTensorZeroPointWithBias = element::f32;
 const element::Type expectedConvPrecPerChannelZeroPointWithBias = element::f32;
+const element::Type expected3DConvPrecPerTensorZeroPointWithBias = element::f32;
 #endif
 
 const std::vector<std::vector<float>> signedIntervals{{-1.28f}, {1.27f}, {-1.28f}, {1.27f}};
@@ -223,6 +277,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_CPU,
                                             ::testing::ValuesIn(quantizationParams),
                                             ::testing::Values(false, true),
                                             ::testing::Values(false),
+                                            ::testing::Values(ConvType::Regular),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 
@@ -233,6 +288,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQMixedOutput_CPU,
                                             ::testing::ValuesIn(mixedOutputQuantizationParams),
                                             ::testing::Values(true),
                                             ::testing::Values(false),
+                                            ::testing::Values(ConvType::Regular),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 
@@ -252,6 +308,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_CPU,
                                             ::testing::ValuesIn(withSwishQuantizationParams),
                                             ::testing::Values(true),  // withBias
                                             ::testing::Values(true),  // withSwish
+                                            ::testing::Values(ConvType::Regular),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 
@@ -279,6 +336,17 @@ std::vector<QuantizationParams> asymmetricZeroPointWithBiasParams{
      false},  // per-channel zp
 };
 
+// LPT GroupConvolutionTransformation is disabled on ARM -> expected precision f32
+std::vector<QuantizationParams> asymmetricZeroPointDepthwiseParams{
+    {asymmetricIntervals, signedIntervals, {}, element::f32, false},                      // per-tensor zp
+    {perChannelAsymmetricIntervals, signedIntervals, {1, 3, 1, 1}, element::f32, false},  // per-channel zp
+};
+
+// 3D conv is rejected by ACL (rank 5), so the zero point must not be fused and the conv falls back to fp16
+std::vector<QuantizationParams> asymmetricZeroPoint3DParams{
+    {asymmetricIntervals, signedIntervals, {}, expected3DConvPrecPerTensorZeroPointWithBias, false},  // per-tensor zp
+};
+
 std::vector<QuantizationParams> withSwishDynamicQuantizationParams{
     {signedIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, false},  // i8 -> i8, per-tensor
     {unsignedIntervals, unsignedIntervals, {}, element::f32, false},  // u8 -> u8, per-tensor (fallbacks to f32)
@@ -293,6 +361,7 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(asymmetricZeroPointParams),
                        ::testing::Values(false),  // withBias adds Add(bias) between the Convolution and the output FQ
                        ::testing::Values(false),  // withSwish
+                       ::testing::Values(ConvType::Regular),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     ConvAndFQ::getTestCaseName);
 
@@ -304,6 +373,31 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(asymmetricZeroPointWithBiasParams),
                        ::testing::Values(true),   // withBias adds Add(bias) between the Convolution and the output FQ.
                        ::testing::Values(false),  // withSwish
+                       ::testing::Values(ConvType::Regular),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    ConvAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ConvAndFQ_asymmetricZeroPointDepthwise_CPU,
+    ConvAndFQ,
+    ::testing::Combine(::testing::ValuesIn(inputShapes),
+                       ::testing::Values(element::f32),
+                       ::testing::ValuesIn(asymmetricZeroPointDepthwiseParams),
+                       ::testing::Values(true),   // withBias adds Add(bias) between the Convolution and the output FQ.
+                       ::testing::Values(false),  // withSwish
+                       ::testing::Values(ConvType::Depthwise),
+                       ::testing::Values(ov::test::utils::DEVICE_CPU)),
+    ConvAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ConvAndFQ_asymmetricZeroPoint3D_CPU,
+    ConvAndFQ,
+    ::testing::Combine(::testing::ValuesIn(inputShapes3D),
+                       ::testing::Values(element::f32),
+                       ::testing::ValuesIn(asymmetricZeroPoint3DParams),
+                       ::testing::Values(true),   // withBias adds Add(bias) between the Convolution and the output FQ.
+                       ::testing::Values(false),  // withSwish
+                       ::testing::Values(ConvType::Conv3D),
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     ConvAndFQ::getTestCaseName);
 
@@ -314,6 +408,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_CPU_Dynamic,
                                             ::testing::ValuesIn(withSwishDynamicQuantizationParams),
                                             ::testing::Values(true),  // withBias
                                             ::testing::Values(true),  // withSwish
+                                            ::testing::Values(ConvType::Regular),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          ConvAndFQ::getTestCaseName);
 }  // namespace

@@ -67,6 +67,10 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
         if (!subtract_out) {
             subtract_out = block->get_anchor("i8_subtract", pattern_map);
         }
+        // zero point is fused only into 4D convs due to ACL limit (see FuseConvolutionAndZeroPoints)
+        if (subtract_out && gemm->get_input_partial_shape(0).rank() != 4) {
+            return false;
+        }
         const auto& activation_type =
             subtract_out ? subtract_out->get_node()->get_input_element_type(0) : gemm->get_input_element_type(0);
         if (fakeQuantize->get_output_element_type(0) != activation_type) {

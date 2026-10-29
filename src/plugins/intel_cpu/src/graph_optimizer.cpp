@@ -939,7 +939,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // zero point is applied inside ACL via QuantizationInfo so just read per-tensor value and use typed setter
     auto isSuitableConvNode = [](const NodePtr& node) {
-        return node->getType() == Type::Convolution;
+        const auto conv = std::dynamic_pointer_cast<Convolution>(node);
+        return conv && conv->getGroupNum() == 1 && conv->getInputShapeAtPort(0).getRank() == 4;
     };
 
     auto tryFuseZeroPoint = [](const NodePtr& conv, const NodePtr& dataParent) {

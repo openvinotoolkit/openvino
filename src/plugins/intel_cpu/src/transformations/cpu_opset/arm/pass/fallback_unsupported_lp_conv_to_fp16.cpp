@@ -86,9 +86,12 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
                 const bool uniform = is_uniform_zero_point(zp_constant);
                 // currently only u8-tail case can be fused as int8. A mismatched (e.g. i8) tail has no u8-src path in
                 // ACL.
+                // and only for 4D convs since they are only convs FuseConvolutionAndZeroPoints fuses (ACL limit);
+                // others fall back to fp16
                 // TODO: relax this check when u8-src f32-output LP conv is supported (corresponding to TODO in
                 // graph_optimizer.cpp)
-                if (uniform && !activation_out && fake_quantize->get_output_element_type(0) == element::u8) {
+                if (uniform && !activation_out && fake_quantize->get_output_element_type(0) == element::u8 &&
+                    conv->get_input_partial_shape(0).rank() == 4) {
                     return false;
                 }
             }
