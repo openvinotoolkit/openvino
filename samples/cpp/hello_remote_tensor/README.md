@@ -28,8 +28,6 @@ Models with only one input and one output are supported.
   Level Zero context with `clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)`. If the query
   fails, for example because the device is served by the OpenCL runtime on a driver
   without LEO, the sample reports an error.
-- Level Zero development headers and the `ze_loader` library, available through
-  the OpenVINO source build or installed on the system.
 - OpenCL headers and the OpenCL ICD loader library.
 
 The following C++ API is used in the application:
@@ -92,14 +90,6 @@ top 10 classification results and returns a nonzero exit code on failure.
    staging buffers allocated with `zeMemAllocHost` in the same context, because
    Level Zero copies require memory accessible by the device. Each copy waits
    with `zeCommandListHostSynchronize` before the data are used.
-
-OpenVINO owns the context and tensor allocations. The application must not destroy
-the context or free the device pointers. Both tensors outlive all accesses through
-Level Zero, and the application's command list and staging buffers are released
-before those tensors. The upload completes before inference starts; `infer()`
-completes before the download starts. The sample does not demonstrate external
-context import (which the GPU plugin does not currently support for ZE), or
-asynchronous queue sharing.
 
 ## Smoke tests
 

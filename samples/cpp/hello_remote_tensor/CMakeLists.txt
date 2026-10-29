@@ -24,12 +24,7 @@ if(NOT TARGET OpenCL::OpenCL)
         return()
     endif()
 endif()
-set(hello_remote_tensor_opencl OpenCL::OpenCL)
-if(TARGET OpenCL::NewHeaders)
-    # OpenVINO source build: Khronos headers bundled with OpenVINO
-    list(APPEND hello_remote_tensor_opencl OpenCL::NewHeaders)
-endif()
 
 ov_add_sample(NAME hello_remote_tensor
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-              DEPENDENCIES format_reader ie_samples_utils LevelZero::LevelZero ${hello_remote_tensor_opencl})
+              DEPENDENCIES format_reader ie_samples_utils LevelZero::LevelZero OpenCL::OpenCL)
