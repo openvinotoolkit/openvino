@@ -475,6 +475,8 @@ set(GPU_KERNEL_SELECTOR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/kernels/one_hot/one_hot_kernel_selector.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/permute/permute_kernel_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/permute/permute_kernel_base.h
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/permute/permute_kernel_bf_swap.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/permute/permute_kernel_bf_swap.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/permute/permute_kernel_bfzyx_to_bfyxz.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/permute/permute_kernel_bfzyx_to_bfyxz.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/permute/permute_kernel_f_y_axes.cpp
@@ -933,6 +935,7 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/normalize_gpu_across_spatial_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/normalize_gpu_within_spatial_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/one_hot_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/permute_bf_swap.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/permute_bfzyx_to_bfyxz.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/permute_f_y_axes.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/permute_ref.cl
