@@ -47,7 +47,7 @@ class GGUFTestLfm3Media : public ::testing::TestWithParam<std::string> {};
 
 TEST_P(GGUFTestLfm3Media, IndependentCpuEncoderAndStates) {
     const auto family = GetParam();
-    const auto path = std::filesystem::path(TEST_DATA_DIR) / ("lfm3_media_" + family + ".npz");
+    const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / ("lfm3_media_" + family + ".npz");
     ASSERT_TRUE(std::filesystem::is_regular_file(path)) << "Generate with gen_lfm3_media_fixtures.py";
     const auto arrays = cnpy::npz_load(path.string());
     const std::map<std::string, cnpy::NpyArray> data(arrays.begin(), arrays.end());
@@ -60,8 +60,9 @@ TEST_P(GGUFTestLfm3Media, IndependentCpuEncoderAndStates) {
     ov::Core core;
     for (const bool adapted : {false, true}) {
         auto model = native->clone();
-        if (adapted)
+        if (adapted) {
             ASSERT_TRUE(Adapter(vision ? Adapter::Modality::VISION : Adapter::Modality::AUDIO).run_on_model(model));
+        }
         const auto pairs = model->has_rt_info(gguf_recurrent_states_key())
                                ? model->get_rt_info<std::vector<std::string>>(gguf_recurrent_states_key())
                                : std::vector<std::string>{};
@@ -133,7 +134,7 @@ INSTANTIATE_TEST_SUITE_P(Components,
                          });
 
 TEST(GGUFLfm3MediaAdapter, CombinedOmniPreservesIndependentComponentsAndStates) {
-    const auto path = std::filesystem::path(TEST_DATA_DIR) / "lfm3_media_omni.npz";
+    const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / "lfm3_media_omni.npz";
     ASSERT_TRUE(std::filesystem::is_regular_file(path));
     const auto arrays = cnpy::npz_load(path.string());
     const std::map<std::string, cnpy::NpyArray> data(arrays.begin(), arrays.end());
@@ -245,8 +246,9 @@ TEST(GGUFLfm3MediaAdapter, IndependentGenerationMapsPreserveCodecState) {
         std::vector<std::string>{"audio.codec.state.pos", "codec_position_update"};
     for (const bool stateful : {false, true}) {
         auto source = model->clone();
-        if (stateful)
+        if (stateful) {
             ASSERT_TRUE(GGUFMakeStateful().run_on_model(source));
+        }
         Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
         ASSERT_TRUE(adapter.run_on_model(source));
         const auto& models = adapter.get_audio_generation_models();
