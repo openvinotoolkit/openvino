@@ -160,6 +160,20 @@ inline size_t get_max_subsequence_len(const kernel_impl_params& params) {
     return max_len;
 }
 
+size_t get_max_context_len(const kernel_impl_params& params) {
+    const auto& input_mem = params.memory_deps;
+    const auto max_context_len = input_mem.at(PagedAttentionInputIdx::MAX_CONTEXT_LEN);
+    mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *params.strm);
+    const auto paged_attention_max_len = max_context_len_mem_lock[0];
+    return paged_attention_max_len;
+}
+
+// The fallback kernel reads the KV cache once per query token, pa_small_q_opt.cl once per partition at a higher fixed
+// cost, so the fallback is faster while query tokens x context stays small (measured on Xe2).
+inline bool prefer_gqa_multi_tokens_fallback_kernel(size_t max_tokens, size_t max_context_len) {
+    return max_tokens <= 3 || (max_tokens <= 8 && max_tokens * max_context_len <= 12 * 1024);
+}
+
 // GQA multi-token path of paged_attention_opt.cl; the sink and scores output code there assumes one head per work-item
 inline bool supports_gqa_multi_tokens_fallback_kernel(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<paged_attention>();
@@ -214,12 +228,12 @@ inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_par
     if (!supports_gqa_multi_tokens_dpas_kernel(params))
         return GQAMultiTokensKernel::FALLBACK;
 
+    if (forced != GQAMultiTokensKernel::SMALL_Q && prefer_gqa_multi_tokens_fallback_kernel(max_subsequence_len, get_max_context_len(params)))
+        return GQAMultiTokensKernel::FALLBACK;
+
     const auto subgroups_num = ceil_div(max_subsequence_len, get_gqa_multi_tokens_per_sg(params));
     if (subgroups_num * subgroup_size > params.get_device_info().max_work_group_size)
         return GQAMultiTokensKernel::NONE;
-
-    if (forced.has_value())
-        return *forced;
 
     return GQAMultiTokensKernel::SMALL_Q;
 }
@@ -325,14 +339,6 @@ static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const P
     }
 
     return aligned_seq_len;
-}
-
-size_t get_max_context_len(const kernel_impl_params& params) {
-    const auto& input_mem = params.memory_deps;
-    const auto max_context_len = input_mem.at(PagedAttentionInputIdx::MAX_CONTEXT_LEN);
-    mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *params.strm);
-    const auto paged_attention_max_len = max_context_len_mem_lock[0];
-    return paged_attention_max_len;
 }
 
 size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage) {
@@ -1618,8 +1624,7 @@ public:
         if (supports_gqa_multi_tokens_dpas_kernel(params)) {
             add_stage(pa_small_q, params);
         }
-        if (supports_gqa_multi_tokens_fallback_kernel(params) &&
-            (!supports_gqa_multi_tokens_dpas_kernel(params) || get_forced_gqa_multi_tokens_kernel() == GQAMultiTokensKernel::FALLBACK)) {
+        if (supports_gqa_multi_tokens_fallback_kernel(params)) {
             add_stage(pa_gqa_multi_token_fallback, params);
         }
         add_stage(pa_multi_token_finalization, params);
