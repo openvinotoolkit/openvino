@@ -44,7 +44,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/backend/include/
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero
             ${OpenVINO_SOURCE_DIR}/thirdparty/level_zero/level-zero/include
-            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/vm_runtime/vm_runtime/src/utils
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/utils/src/vm_runtime/vm_runtime/src/utils
         OBJECT_FILES
             # plugin/src
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/executor.cpp
