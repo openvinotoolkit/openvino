@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <vector>
 
 #include "node_context.hpp"
@@ -33,52 +34,67 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
 
 static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 
+namespace {
+
+struct FeatureSlice {
+    std::shared_ptr<ov::op::v1::Reshape> reshape;
+    std::shared_ptr<ov::op::v8::Slice> slice;
+    int64_t begin, end;
+};
+
+std::optional<FeatureSlice> match_feature_slice(const Output<Node>& value, const std::vector<int64_t>& target) {
+    using ov::op::util::has_constant_value;
+    const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(value.get_node_shared_ptr());
+    if (!reshape || !reshape->get_special_zero() ||
+        !has_constant_value<int64_t>(reshape->get_input_node_shared_ptr(1), target))
+        return std::nullopt;
+    const auto slice = ov::as_type_ptr<ov::op::v8::Slice>(reshape->get_input_node_shared_ptr(0));
+    if (!slice || slice->get_input_size() != 5 ||
+        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(3), {1}) ||
+        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(4), {3}))
+        return std::nullopt;
+    const auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->get_input_node_shared_ptr(1));
+    const auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->get_input_node_shared_ptr(2));
+    if (!begin || !end || ov::shape_size(begin->get_shape()) != 1 || ov::shape_size(end->get_shape()) != 1)
+        return std::nullopt;
+    return FeatureSlice{reshape, slice, begin->cast_vector<int64_t>()[0], end->cast_vector<int64_t>()[0]};
+}
+
+}  // namespace
+
 static Output<Node> join_adjacent_qk(const Output<Node>& q, const Output<Node>& k) {
-    const auto qr = ov::as_type_ptr<ov::op::v1::Reshape>(q.get_node_shared_ptr());
-    const auto kr = ov::as_type_ptr<ov::op::v1::Reshape>(k.get_node_shared_ptr());
-    if (!qr || !kr || !qr->get_special_zero() || !kr->get_special_zero())
-        return {};
-    const auto qs = ov::as_type_ptr<ov::op::v8::Slice>(qr->get_input_node_shared_ptr(0));
-    const auto ks = ov::as_type_ptr<ov::op::v8::Slice>(kr->get_input_node_shared_ptr(0));
     const auto shape = q.get_partial_shape();
-    if (!qs || !ks || qs->get_input_size() != 5 || ks->get_input_size() != 5 ||
-        qs->input_value(0) != ks->input_value(0) || shape.rank() != 4 || !shape[2].is_static() ||
-        !shape[3].is_static() || q.get_element_type() != k.get_element_type())
+    if (shape.rank() != 4 || !shape[2].is_static() || !shape[3].is_static() ||
+        q.get_element_type() != k.get_element_type())
         return {};
-    const auto integers = [](const Output<Node>& value) {
-        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr());
-        return constant ? constant->cast_vector<int64_t>() : std::vector<int64_t>{};
-    };
     const auto heads = shape[2].get_length(), width = shape[3].get_length();
     const std::vector<int64_t> target{0, -1, heads, width};
-    const auto start = integers(qs->input_value(1)), middle = integers(qs->input_value(2));
-    const auto end = integers(ks->input_value(2));
-    const auto source_shape = qs->get_input_partial_shape(0);
-    if (integers(qr->input_value(1)) != target || integers(kr->input_value(1)) != target ||
-        integers(qs->input_value(3)) != std::vector<int64_t>{1} ||
-        integers(ks->input_value(3)) != std::vector<int64_t>{1} ||
-        integers(qs->input_value(4)) != std::vector<int64_t>{3} ||
-        integers(ks->input_value(4)) != std::vector<int64_t>{3} || start.size() != 1 || middle.size() != 1 ||
-        end.size() != 1 || integers(ks->input_value(1)) != middle || start[0] < 0 ||
-        middle[0] - start[0] != heads * width || end[0] - middle[0] != heads * width || source_shape.rank() != 4 ||
-        source_shape[1] != 1 || !source_shape[3].is_static() || end[0] > source_shape[3].get_length())
+    const auto qs = match_feature_slice(q, target);
+    const auto ks = match_feature_slice(k, target);
+    if (!qs || !ks || qs->slice->input_value(0) != ks->slice->input_value(0))
         return {};
-    const auto slice = std::make_shared<ov::op::v8::Slice>(qs->input_value(0),
-                                                           qs->input_value(1),
-                                                           ks->input_value(2),
-                                                           qs->input_value(3),
-                                                           qs->input_value(4));
+    const auto source_shape = qs->slice->get_input_partial_shape(0);
+    if (qs->begin < 0 || qs->end - qs->begin != heads * width || ks->begin != qs->end ||
+        ks->end - ks->begin != heads * width || source_shape.rank() != 4 || source_shape[1] != 1 ||
+        !source_shape[3].is_static() || ks->end > source_shape[3].get_length())
+        return {};
+    const auto slice = std::make_shared<ov::op::v8::Slice>(qs->slice->input_value(0),
+                                                           qs->slice->input_value(1),
+                                                           ks->slice->input_value(2),
+                                                           qs->slice->input_value(3),
+                                                           qs->slice->input_value(4));
     const auto joined = std::make_shared<ov::op::v1::Reshape>(
         slice,
         ov::op::v0::Constant::create<int64_t>(ov::element::i64, {4}, {0, -1, 2 * heads, width}),
         true);
-    ov::copy_runtime_info({qs, ks, qr, kr}, {slice, joined});
+    ov::copy_runtime_info({qs->slice, ks->slice, qs->reshape, ks->reshape}, {slice, joined});
     return joined;
 }
 

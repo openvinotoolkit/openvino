@@ -402,12 +402,11 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
         manager.register_pass<pass::PruneParametersOrphanedSince>(live_before_gdn);
     }
 
+    manager.register_pass<pass::IsolatePrecisionSensitiveOutputs>();
+
     fold_hadamard_input_signs(model);
     manager.run_passes(model);
     normalize_u2_zero_points(model);
-    ov::pass::Manager precision_boundaries;
-    precision_boundaries.register_pass<pass::IsolatePrecisionSensitiveOutputs>();
-    precision_boundaries.run_passes(model);
     return model;
 }
 

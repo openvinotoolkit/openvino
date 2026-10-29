@@ -173,25 +173,22 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
         input = std::make_shared<v1::Multiply>(input, sign_node);
         input.get_node_shared_ptr()->get_rt_info()["gguf_hadamard_input_sign"] = true;
     }
-    std::vector<int64_t> matrix_shape(shape.size() + 1, 0);
-    matrix_shape[shape.size() - 1] = width / block;
-    matrix_shape.back() = block;
-    input = use_matrix ? std::make_shared<v1::Reshape>(input, pattern(matrix_shape), true)
-                       : std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
     if (use_matrix) {
+        std::vector<int64_t> matrix_shape(shape.size() + 1, 0);
+        matrix_shape[shape.size() - 1] = width / block;
+        matrix_shape.back() = block;
+        input = std::make_shared<v1::Reshape>(input, pattern(matrix_shape), true);
         input = std::make_shared<v0::MatMul>(input,
                                              context.get_hadamard_matrix(input.get_element_type(), block),
                                              false,
                                              false);
         input.get_node_shared_ptr()->get_rt_info()[hadamard_marker] = block;
-    } else {
-        input = hadamard_butterfly(input, block, &context, block == 1024);
-    }
-    if (use_matrix) {
         std::vector<int64_t> restored_shape(shape.size(), 0);
         restored_shape.back() = width;
         input = std::make_shared<v1::Reshape>(input, pattern(restored_shape), true);
     } else {
+        input = std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
+        input = hadamard_butterfly(input, block, &context, block == 1024);
         input = std::make_shared<v1::Reshape>(input, original, false);
     }
     if (signs && inverse)
@@ -215,15 +212,18 @@ void decompose_hadamard(Output<Node> input) {
     if (marker == rotation->get_rt_info().end() || rotation->output(0).get_target_inputs().empty())
         return;
     input = rotation->input_value(0);
-    const auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
-    if (input.get_partial_shape().rank() != 2) {
+    const auto block = marker->second.as<int64_t>();
+    const bool flatten = input.get_partial_shape().rank() != 2;
+    std::shared_ptr<ov::Node> shape;
+    if (flatten) {
+        shape = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
         input = std::make_shared<ov::op::v1::Reshape>(
             input,
-            ov::op::v0::Constant::create<int64_t>(ov::element::i64, {2}, {-1, marker->second.as<int64_t>()}),
+            ov::op::v0::Constant::create<int64_t>(ov::element::i64, {2}, {-1, block}),
             false);
     }
-    ov::Output<ov::Node> replacement = hadamard_butterfly(input, marker->second.as<int64_t>(), nullptr, true);
-    if (rotation->get_input_partial_shape(0).rank() != 2)
+    ov::Output<ov::Node> replacement = hadamard_butterfly(input, block, nullptr, true);
+    if (flatten)
         replacement = std::make_shared<ov::op::v1::Reshape>(replacement, shape, false);
     rotation->get_rt_info().erase(marker);
     ov::copy_runtime_info(rotation, replacement.get_node_shared_ptr());
@@ -313,13 +313,18 @@ ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps) {
     else
         norm =
             std::make_shared<ov::op::v1::Maximum>(length, ov::op::v0::Constant::create(ov::element::f32, {1}, {eps}));
-    const auto scale =
-        std::make_shared<ov::op::v1::Power>(norm, ov::op::v0::Constant::create(ov::element::f32, {}, {-1.f}));
-    ov::Output<ov::Node> result = eps > 0.f && eps < std::numeric_limits<float>::min()
-                                      ? ov::Output<ov::Node>(std::make_shared<ov::op::v1::Divide>(value, norm))
-                                      : ov::Output<ov::Node>(std::make_shared<ov::op::v1::Multiply>(value, scale));
-    ov::disable_conversion(scale, ov::element::f16);
-    for (const auto& node : ov::NodeVector{length, norm.get_node_shared_ptr(), result.get_node_shared_ptr()})
+    ov::NodeVector protected_nodes{length, norm.get_node_shared_ptr()};
+    ov::Output<ov::Node> result;
+    if (eps > 0.f && eps < std::numeric_limits<float>::min()) {
+        result = std::make_shared<ov::op::v1::Divide>(value, norm);
+    } else {
+        const auto scale =
+            std::make_shared<ov::op::v1::Power>(norm, ov::op::v0::Constant::create(ov::element::f32, {}, {-1.f}));
+        protected_nodes.push_back(scale);
+        result = std::make_shared<ov::op::v1::Multiply>(value, scale);
+    }
+    protected_nodes.push_back(result.get_node_shared_ptr());
+    for (const auto& node : protected_nodes)
         ov::disable_conversion(node, ov::element::f16);
     if (result.get_element_type() != x.get_element_type())
         result = std::make_shared<ov::op::v0::Convert>(result, x.get_element_type());

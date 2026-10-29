@@ -194,10 +194,11 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     // remain separate so their bias and activations can fuse into FCs.
     std::string z, beta, alpha;
     const bool dense_gates = e.weight_qtype(beta_base) == GGUF_TYPE_F32 && e.weight_qtype(alpha_base) == GGUF_TYPE_F32;
-    auto ba = concat_rows(e.weight_parts(beta_base),
-                          e.weight_parts(alpha_base),
-                          e.weight_qtype(beta_base),
-                          e.weight_qtype(alpha_base));
+    auto ba = !dense_gates || !e.has_hadamard() ? concat_rows(e.weight_parts(beta_base),
+                                                              e.weight_parts(alpha_base),
+                                                              e.weight_qtype(beta_base),
+                                                              e.weight_qtype(alpha_base))
+                                                : std::nullopt;
     auto zba = ba && !e.has_hadamard()
                    ? concat_rows(e.weight_parts(gate_base), *ba, e.weight_qtype(gate_base), e.weight_qtype(beta_base))
                    : std::nullopt;
@@ -225,20 +226,13 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         beta = e.add_op("GGML_OP_VIEW", p + "beta", {ba_out}, 3, {{"view_slice", std::vector<int64_t>{3, 0, H_v}}});
         alpha = e.add_op("GGML_OP_VIEW", p + "alpha", {ba_out}, 3, {{"view_slice", std::vector<int64_t>{3, H_v, H_v}}});
     } else {
+        const std::map<std::string, ov::Any> gate_attrs{{"activation_rank", dense_gates ? 3 : 4}};
         e.add_weight(gate_base + ".weight");
         z = e.add_op("GGML_OP_MUL_MAT", p + "z", {gate_base + ".weight", attn_norm});
         e.add_weight(beta_base + ".weight");
-        beta = e.add_op("GGML_OP_MUL_MAT",
-                        p + "beta",
-                        {beta_base + ".weight", attn_norm},
-                        0,
-                        {{"activation_rank", dense_gates ? 3 : 4}});
+        beta = e.add_op("GGML_OP_MUL_MAT", p + "beta", {beta_base + ".weight", attn_norm}, 0, gate_attrs);
         e.add_weight(alpha_base + ".weight");
-        alpha = e.add_op("GGML_OP_MUL_MAT",
-                         p + "alpha",
-                         {alpha_base + ".weight", attn_norm},
-                         0,
-                         {{"activation_rank", dense_gates ? 3 : 4}});
+        alpha = e.add_op("GGML_OP_MUL_MAT", p + "alpha", {alpha_base + ".weight", attn_norm}, 0, gate_attrs);
     }
 
     // beta = sigmoid(ssm_beta @ x), one scalar per v-head
