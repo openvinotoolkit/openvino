@@ -230,6 +230,11 @@ void run_fusion(const std::shared_ptr<Model>& model) {
 TEST(FuseQSAIndexer, FusesSupportedGraphAndMapsAllInputsAndOutputs) {
     auto graph = build_graph();
     const auto indexer_name = graph.indexer->get_friendly_name();
+    const auto original_results = graph.model->get_results();
+    std::vector<std::string> result_names;
+    for (const auto& result : original_results) {
+        result_names.push_back(result->get_friendly_name());
+    }
     run_fusion(graph.model);
 
     ASSERT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
@@ -267,6 +272,8 @@ TEST(FuseQSAIndexer, FusesSupportedGraphAndMapsAllInputsAndOutputs) {
     EXPECT_EQ(fused->get_output_partial_shape(4), graph.prepare->get_output_partial_shape(2));
     ASSERT_EQ(graph.model->get_results().size(), 4);
     for (size_t i = 0; i < 4; ++i) {
+        EXPECT_EQ(graph.model->get_results()[i], original_results[i]);
+        EXPECT_EQ(graph.model->get_results()[i]->get_friendly_name(), result_names[i]);
         EXPECT_EQ(graph.model->get_results()[i]->input_value(0), fused->output(i < 2 ? i : i + 1));
     }
     EXPECT_EQ(fused->get_rt_info().at("qsa_test").as<std::string>(), "runtime-info");
