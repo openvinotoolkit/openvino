@@ -174,9 +174,9 @@ set(FP16_COMPRESSION_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/convert_compression_only_to_legacy.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/convert_legacy_precision_attribute.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/disable_fp16_comp_ltx_rope.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_floatpoint_range.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_sin_cos_angles_to_keep_in_mixed_precision.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_subgraphs_to_keep_in_mixed_precision.hpp
 )
 

@@ -87,9 +87,9 @@
 #include "transformations/common_optimizations/wrap_interpolate_into_transposes.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
+#include "transformations/fp16_compression/disable_fp16_comp_ltx_rope.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/fp16_compression/mark_floatpoint_range.hpp"
-#include "transformations/fp16_compression/mark_sin_cos_angles_to_keep_in_mixed_precision.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
@@ -569,7 +569,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         type_to_fuse_map fuse_map = {{ov::op::PagedAttentionExtension::get_type_info_static(), fuse_type_to_pa}};
 #endif
         // must precede ConvertPrecision, which lowers everything not marked by then
-        CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkSinCosAnglesToKeepInMixedPrecision);
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::DisableFP16CompForLtxRope);
         const bool keep_precision_sensitive_in_fp32 = true;
         CPU_REGISTER_PASS_COMMON(manager,
                                  ov::pass::ConvertPrecision,
@@ -1216,7 +1216,7 @@ void Transformations::PostLpt() {
     // bf16 is enforced per node after the transformations, so the angle markup can run this late;
     // f16 is marked in PreLpt, before ConvertPrecision.
     if (config.inferencePrecision == ov::element::bf16) {
-        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::MarkSinCosAnglesToKeepInMixedPrecision);
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableFP16CompForLtxRope);
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
     }
 
