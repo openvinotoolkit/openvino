@@ -24,6 +24,8 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
+#include "openvino/frontend/gguf/extension/genai.hpp"
+#include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/frontend/gguf/tokenizer_metadata.hpp"
 #include "openvino/op/add.hpp"
@@ -1399,6 +1401,77 @@ TEST(GGUFAdaptToGenAI, InvalidSequenceContractsRejectBeforeRewiring) {
     model->get_rt_info()["gguf_model_contract"].as<ov::AnyMap>()["sequence_outputs"] =
         std::vector<std::string>{"duplicate", "duplicate"};
     EXPECT_THROW(AdaptToGenAI().run_on_model(model), ov::Exception);
+}
+
+class DefaultContractModelDecoder : public SingleOpDecoder {
+public:
+    explicit DefaultContractModelDecoder(bool with_context)
+        : SingleOpDecoder("GGML_OP_NONE", {}, {}, {"supplied_logits", ov::element::f32, {1, 1, -1, 1}}, {}) {
+        auto native = build_minimal_gguf_model();
+        auto axes = v0::Constant::create(ov::element::i64, {4}, {0, 1, 2, 3});
+        auto positions = std::make_shared<v0::Convert>(find_parameter(native.model, "inp_pos"), ov::element::f32);
+        auto position_sum = std::make_shared<v1::ReduceSum>(positions, axes, true);
+        auto mask_sum = std::make_shared<v1::ReduceSum>(find_parameter(native.model, "self_kq_mask"), axes, true);
+        auto dependency = std::make_shared<v1::Multiply>(std::make_shared<v1::Add>(position_sum, mask_sum),
+                                                         v0::Constant::create(ov::element::f32, {}, {0.f}));
+        auto beams = std::make_shared<v1::ReduceSum>(find_parameter(native.model, "beam_idx"),
+                                                     v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                     false);
+        auto beam_value = std::make_shared<v0::Convert>(beams, ov::element::f32);
+        std::shared_ptr<ov::Node> output = std::make_shared<v1::Add>(
+            std::make_shared<v1::Add>(native.model->get_results().front()->input_value(0), dependency),
+            beam_value);
+        if (with_context) {
+            auto context = ov::test::utils::make_param(ov::element::f32, {1, 1, 1, 1}, "dspark_ctx_feat");
+            native.model->add_parameters({context});
+            output = std::make_shared<v1::Add>(output, context);
+        }
+        for (const auto& parameter : native.model->get_parameters())
+            m_scope_inputs.emplace(parameter->get_friendly_name(), parameter);
+        m_scope_inputs.emplace("supplied_logits", output);
+    }
+    const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_inputs() const override {
+        return m_scope_inputs;
+    }
+    void visit_subgraph(std::function<void(std::shared_ptr<ov::frontend::gguf::GgufDecoder>)>) const override {}
+
+private:
+    std::map<std::string, std::shared_ptr<ov::Node>> m_scope_inputs;
+};
+
+TEST(GGUFAdaptToGenAI, SuppliedDecoderDefaultCapabilityResolvesBeforeSerialization) {
+    for (const bool with_context : {false, true}) {
+        SCOPED_TRACE(with_context);
+        const std::shared_ptr<ov::frontend::gguf::GgufDecoder> decoder =
+            std::make_shared<DefaultContractModelDecoder>(with_context);
+        EXPECT_FALSE(decoder->get_model_contract().supports_genai_adaptation.has_value());
+        ov::frontend::gguf::FrontEnd frontend;
+        auto converted = frontend.convert(frontend.load(decoder));
+        EXPECT_EQ(converted->get_rt_info<std::string>({"gguf_model_contract", "supports_genai_adaptation"}),
+                  with_context ? "false" : "true");
+        if (with_context) {
+            ov::frontend::gguf::FrontEnd genai;
+            genai.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+            EXPECT_THROW(genai.convert(genai.load(decoder)), ov::Exception);
+        }
+        for (const auto& source : {converted, reload_ir_model(converted)}) {
+            EXPECT_EQ(ov::frontend::gguf::read_model_contract(source).supports_genai_adaptation,
+                      std::optional<bool>{!with_context});
+            const auto parameters = source->get_parameters();
+            const auto results = source->get_results();
+            EXPECT_EQ(AdaptToGenAI().run_on_model(source), !with_context);
+            if (with_context) {
+                EXPECT_EQ(source->get_parameters(), parameters);
+                EXPECT_EQ(source->get_results(), results);
+                EXPECT_NE(find_parameter(source, "dspark_ctx_feat"), nullptr);
+            }
+        }
+        auto explicit_contract = ov::frontend::gguf::read_model_contract(converted);
+        explicit_contract.supports_genai_adaptation = true;
+        ov::frontend::gguf::write_model_contract(converted, explicit_contract);
+        EXPECT_EQ(ov::frontend::gguf::read_model_contract(reload_ir_model(converted)).supports_genai_adaptation,
+                  std::optional<bool>{true});
+    }
 }
 
 TEST(GGUFAdaptToGenAI, UnsupportedAdaptationUsesDeclaredCapabilityBeforeAndAfterReload) {

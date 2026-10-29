@@ -227,7 +227,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     const bool has_recurrent_states = model->get_rt_info().count(gguf_recurrent_states_key()) != 0;
     const auto operations = model->get_ops();
     auto contract = read_model_contract(model);
-    if (!contract.supports_genai_adaptation)
+    if (!contract.supports_genai_adaptation.value_or(true))
         return false;
     for (const auto& name : contract.sequence_outputs) {
         const auto result =

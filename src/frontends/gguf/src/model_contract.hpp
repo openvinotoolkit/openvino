@@ -61,12 +61,14 @@ inline void write_model_contract(const std::shared_ptr<ov::Model>& model, const 
                            ov::AnyMap{{"outputs", component.outputs}, {"state_prefix", component.state_prefix}});
         component_groups.emplace(name, ov::AnyMap{{"primary", group.primary}, {"models", models}});
     }
+    const bool supports_genai = contract.supports_genai_adaptation ? *contract.supports_genai_adaptation
+                                                                   : resolve_legacy_genai_adaptation(model);
     model->get_rt_info()["gguf_model_contract"] =
         ov::AnyMap{{"batchable_recurrent", recurrent},
                    {"image_attention", image_attention},
                    {"sequence_outputs", contract.sequence_outputs},
                    {"component_groups", component_groups},
-                   {"supports_genai_adaptation", std::string(contract.supports_genai_adaptation ? "true" : "false")}};
+                   {"supports_genai_adaptation", std::string(supports_genai ? "true" : "false")}};
 }
 
 inline ModelContract read_model_contract(const std::shared_ptr<ov::Model>& model,

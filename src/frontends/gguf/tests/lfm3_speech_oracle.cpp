@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 
 #include "clip-impl.h"
 #include "clip.h"
@@ -16,10 +18,16 @@ std::vector<T> read(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file)
         throw std::runtime_error("cannot read " + path.string());
-    const auto bytes = file.tellg();
-    std::vector<T> values(size_t(bytes) / sizeof(T));
+    const std::streamoff size = file.tellg();
+    if (size < 0)
+        throw std::runtime_error("invalid input size " + path.string());
+    const auto bytes = static_cast<uintmax_t>(size);
+    if (bytes % sizeof(T) != 0 || bytes > std::numeric_limits<size_t>::max() ||
+        bytes > static_cast<uintmax_t>(std::numeric_limits<std::streamsize>::max()))
+        throw std::runtime_error("invalid input size " + path.string());
+    std::vector<T> values(static_cast<size_t>(bytes) / sizeof(T));
     file.seekg(0);
-    file.read(reinterpret_cast<char*>(values.data()), bytes);
+    file.read(reinterpret_cast<char*>(values.data()), static_cast<std::streamsize>(bytes));
     if (!file)
         throw std::runtime_error("short input " + path.string());
     return values;

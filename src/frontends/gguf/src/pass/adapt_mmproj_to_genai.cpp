@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <unordered_set>
+#include <vector>
 
 #include "builder/arch/projector_adapter.hpp"
 #include "model_adapter_attribute.hpp"
@@ -14,6 +15,7 @@
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -122,8 +124,8 @@ void replace_model(const std::shared_ptr<ov::Model>& model, const std::shared_pt
         model->remove_variable(variable);
     model->add_parameters(adapted->get_parameters());
     model->add_results(adapted->get_results());
-    model->add_sinks(adapted->get_sinks());
     model->add_variables(adapted->get_variables());
+    model->add_sinks(adapted->get_sinks());
     model->get_rt_info() = adapted->get_rt_info();
 }
 
@@ -155,16 +157,29 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
     auto live_before = std::make_shared<std::unordered_set<const ov::Node*>>();
     SnapshotLiveParameters(live_before).run_on_model(model);
     ComponentStateSelection states;
+    ov::ResultVector retained_results;
     const auto contract = read_model_contract(model);
     if (const auto group = contract.component_groups.find(modality == Modality::VISION ? "vision" : "audio");
         group != contract.component_groups.end()) {
         states = select_component(model, group->second.models.at(group->second.primary));
         embedding_result(model, modality);
+        for (const auto& result : model->get_results()) {
+            if (result != selected) {
+                const auto value = result->input_value(0);
+                if (ov::as_type_ptr<ov::op::v0::Parameter>(value.get_node_shared_ptr())) {
+                    // Separate passthrough output names from renamed input names during cloning.
+                    auto passthrough = std::make_shared<ov::op::v0::Convert>(value, value.get_element_type());
+                    passthrough->output(0).set_names(result->output(0).get_names());
+                    result->set_argument(0, passthrough);
+                    result->validate_and_infer_types();
+                }
+                retained_results.push_back(result);
+            }
+        }
     }
     const auto results = model->get_results();
     for (const auto& result : results)
         model->remove_result(result);
-    model->add_results(states.results);
     auto embeddings = std::make_shared<ov::op::v0::Squeeze>(selected->input_value(0),
                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
     size_t auxiliary_count = 0;
@@ -183,6 +198,7 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
         embeddings->output(0).set_names({modality == Modality::VISION ? "image_features" : "audio_features"});
         model->add_results({std::make_shared<ov::op::v0::Result>(embeddings)});
     }
+    model->add_results(retained_results);
     PruneParametersOrphanedSince(live_before).run_on_model(model);
     for (const auto& p : model->get_parameters()) {
         const auto& name = p->get_friendly_name();

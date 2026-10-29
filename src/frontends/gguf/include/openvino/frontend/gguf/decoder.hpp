@@ -38,7 +38,7 @@ struct ModelContract {
     ImageAttentionMode image_attention = ImageAttentionMode::CAUSAL;
     std::vector<std::string> sequence_outputs;
     std::map<std::string, ModelComponentGroup> component_groups;
-    bool supports_genai_adaptation = true;
+    std::optional<bool> supports_genai_adaptation;
 };
 
 // Typed RoPE configuration, replacing the raw gguf `op_params`/`rope_params` int32 array
