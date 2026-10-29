@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <unordered_set>
 
-#include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
@@ -62,7 +61,6 @@ ov::Output<ov::Node> unwrapped(const ov::Output<ov::Node>& value) {
 }  // namespace
 
 bool SimplifyActivationShapes::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_MODEL_SCOPE(SimplifyActivationShapes);
     ov::pass::Manager symbols;
     symbols.set_per_pass_validation(false);
     symbols.register_pass<ov::pass::SymbolicPropagation>();
