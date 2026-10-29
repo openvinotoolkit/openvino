@@ -148,6 +148,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
         # set target GPU
         set(GPU_DEP_LIBS "")
         if(GPU_VENDOR STREQUAL "NVIDIA")
+            # Link dependencies of the static oneDNN library: resolve them with oneDNN's own Find
+            # modules, so that they match what the oneDNN build itself links against
             set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/cmake)
             find_package(cuBLAS REQUIRED)
             find_package(cublasLt REQUIRED)
