@@ -335,6 +335,33 @@ size_t get_max_context_len(const kernel_impl_params& params) {
     return paged_attention_max_len;
 }
 
+// Max query length over all subsequences of the current call, i.e.
+// max(subsequence_begins[i + 1] - subsequence_begins[i]). Falls back to the total number of query
+// tokens if subsequence_begins is not resolvable here (conservative for batched calls).
+// Returns 0 if the information is not available.
+inline size_t get_max_subsequence_length(const kernel_impl_params& impl_param) {
+    const auto& input_mem = impl_param.memory_deps;
+    const auto dep = input_mem.find(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS);
+    if (dep != input_mem.end() && dep->second) {
+        mem_lock<int32_t, mem_lock_type::read> subsequence_begins_mem_lock(dep->second, *impl_param.strm);
+        size_t max_length = 0;
+        for (size_t i = 0; i + 1 < subsequence_begins_mem_lock.size(); i++) {
+            const auto seq_length = subsequence_begins_mem_lock[i + 1] - subsequence_begins_mem_lock[i];
+            if (seq_length > 0 && static_cast<size_t>(seq_length) > max_length) {
+                max_length = static_cast<size_t>(seq_length);
+            }
+        }
+        if (max_length > 0) {
+            return max_length;
+        }
+    }
+    const auto& query_shape = impl_param.get_input_layout(PagedAttentionInputIdx::QUERY).get_partial_shape();
+    if (query_shape.is_static() && query_shape[0].get_length() > 0) {
+        return static_cast<size_t>(query_shape[0].get_length());
+    }
+    return 0;
+}
+
 size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage) {
     size_t partition_size = 0;
     if (stage == PagedAttentionStage::PREFILL) {
@@ -1021,6 +1048,62 @@ public:
     }
 };
 
+// Combines split-K partial results of the MIXED-stage micro SDPA kernels (see pa_micro_splitk_size).
+class PagedAttentionGeneratorMicroSplitKFinalization : public PagedAttentionGeneratorBase {
+public:
+    PagedAttentionGeneratorMicroSplitKFinalization() : PagedAttentionGeneratorBase("_micro_splitk_finalization") {}
+    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
+        auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
+        jit.make("SDPA_STAGE_MICRO_SPLITK_FINAL", 1);
+
+        const auto& in_offsets_map = params.in_port_to_shape_info_offset;
+        const auto& out_offsets_map = params.out_port_to_shape_info_offset;
+        jit.add(make_layout_jit_constants("INPUT3", params.input_layouts[5], in_offsets_map.at(5)));
+        jit.add(make_layout_jit_constants("INPUT6", params.input_layouts[6], in_offsets_map.at(6)));
+        jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});           // past_lens
+        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<size_t>(PaMicroSplitKBuffer::STATS)});    // splitk_stats
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<size_t>(PaMicroSplitKBuffer::TMP_OUT)});  // splitk_tmp_out
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});                                                           // subsequences_num
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});                                                           // np_max
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // part_align (K tile of the micro kernel)
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
+            assert(!params.is_dynamic());
+            auto& wgs = kd.params.workGroups;
+            auto& scalars = kd.params.scalars;
+            scalars.resize(3);
+
+            const auto desc = params.typed_desc<paged_attention>();
+            auto* rtp = static_cast<PagedAttentionRuntimeParams*>(rt_params);
+
+            const size_t total_tokens = params.input_layouts[0].get_partial_shape()[0].get_length();
+            const auto& past_lens = params.input_layouts[PagedAttentionInputIdx::PAST_LENS];
+            const auto subsequences_number = static_cast<size_t>(past_lens.get_partial_shape()[0].get_length());
+
+            wgs.global = {total_tokens, desc->heads_num, desc->v_head_size};
+            wgs.local = {1, 1, subgroup_size};
+
+            scalars[0].t = ScalarDescriptor::Types::UINT32;
+            scalars[0].v.u32 = static_cast<uint32_t>(subsequences_number);
+            scalars[1].t = ScalarDescriptor::Types::UINT32;
+            scalars[1].v.u32 = static_cast<uint32_t>(rtp->micro_splitk_partitions);
+            scalars[2].t = ScalarDescriptor::Types::UINT32;
+            scalars[2].v.u32 = static_cast<uint32_t>(rtp->micro_splitk_align);
+        }};
+    }
+};
+
 class PagedAttentionGeneratorScoresCalculation : public PagedAttentionGeneratorBase {
 public:
     PagedAttentionGeneratorScoresCalculation() : PagedAttentionGeneratorBase("_scores_calculation") {}
@@ -1593,6 +1676,7 @@ public:
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
     Stage::Ptr pa_tt_bounds = make_stage<PagedAttentionGeneratorTTBounds>();
+    Stage::Ptr pa_micro_splitk_finalization = make_stage<PagedAttentionGeneratorMicroSplitKFinalization>();
 #endif
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
@@ -1609,6 +1693,9 @@ public:
             add_stage(pa_sdpa_micro_mixed, params);
             if (pa_micro_uses_tt_bounds(*desc)) {
                 add_stage(pa_tt_bounds, params);
+            }
+            if (pa_micro_splitk_supported(params)) {
+                add_stage(pa_micro_splitk_finalization, params);
             }
         }
 #endif
@@ -1660,6 +1747,24 @@ public:
         return can_use_micro_sdpa;
     }
 
+    // Number of KV partitions for split-K micro mixed kernel (1 = disabled / not applicable).
+    size_t get_micro_splitk_partitions(const kernel_impl_params& params, const PagedAttentionStage& stage, bool use_micro_sdpa, size_t max_context_len) const {
+        if (stage != PagedAttentionStage::MIXED || !use_micro_sdpa || !pa_micro_splitk_supported(params))
+            return 1;
+        // Split-K only pays off for small q_len (speculative verify); large chunks (chunked prefill) already
+        // have enough parallelism and would need huge temporary buffers.
+        const auto max_q = get_max_subsequence_length(params);
+        if (max_q == 0 || max_q > pa_micro_splitk_max_q)
+            return 1;
+        const size_t np = max_context_len >= pa_micro_splitk_min_ctx ? ceil_div(max_context_len, pa_micro_splitk_size) : 1;
+        return std::max<size_t>(1, np);
+    }
+
+    size_t get_micro_splitk_align() const {
+        auto& kd = pa_sdpa_micro_mixed->kd;
+        return kd.micro_kernels.empty() ? 16 : get_micro_tile_ksize(kd);
+    }
+
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
         auto& engine = params.get_program().get_engine();
         const auto desc = params.typed_desc<paged_attention>();
@@ -1709,6 +1814,11 @@ public:
         // Disable micro SDPA for INT4 BY_TOKEN due to accuracy issues
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
         return !data_type_traits::is_i4_u4(kv_cache_dt) || desc->is_key_by_channel;
+    }
+
+    static size_t get_micro_tile_ksize(KernelData& kernel_data) {
+        OPENVINO_ASSERT(!kernel_data.micro_kernels.empty(), "[GPU] Invalid kernels passed to get_micro_tile_ksize() function");
+        return kernel_data.micro_kernels[0]->p.getSetting("wg_tile_m");
     }
 
     static size_t get_micro_tile_qsize(KernelData& kernel_data) {
@@ -1789,6 +1899,13 @@ public:
 #endif
 
         rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        rt_params->micro_splitk_partitions = get_micro_splitk_partitions(params, rt_params->stage, rt_params->use_micro_sdpa, rt_params->max_context_len);
+        rt_params->micro_splitk_align = rt_params->use_micro_sdpa ? get_micro_splitk_align() : 16;
+#else
+        rt_params->micro_splitk_partitions = 1;
+        rt_params->micro_splitk_align = 16;
+#endif
 
         rt_params->gqa_multi_tokens_kernel = GQAMultiTokensKernel::NONE;
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
@@ -1871,6 +1988,9 @@ public:
                         res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
                     }
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
+                    if (rt_params->micro_splitk_partitions > 1) {
+                        res_event = {execute_stage(res_event, instance, pa_micro_splitk_finalization)};
+                    }
                 } else
 #endif
                 {
@@ -2085,6 +2205,24 @@ public:
                 // 4: per-token [first, last] index of the token_type_ids == 1 run, filled by pa_tt_bounds.
                 // Not lockable: only kernels access it, so it stays in device memory.
                 internal_buffers.emplace_back(total_tokens * 2 * sizeof(int32_t), indexes_dt);
+            }
+
+            // Split-K buffers (PaMicroSplitKBuffer::STATS / PaMicroSplitKBuffer::TMP_OUT; only without
+            // scores output / adaptive RKV, see pa_micro_splitk_supported)
+            if (pa_micro_splitk_supported(params)) {
+                size_t splitk_np = 1;
+                if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
+                    splitk_np = rt_params->micro_splitk_partitions;
+                } else {
+                    splitk_np = get_micro_splitk_partitions(params, stage, can_use_micro_sdpa, get_max_context_len(params));
+                }
+                const auto tokens = static_cast<size_t>(std::max<int64_t>(total_tokens, 1));
+                // Buffers are unused when splitk_np == 1 (kernel writes the output directly)
+                const auto stats_bytes = splitk_np > 1 ? tokens * desc->heads_num * splitk_np * 2 * sizeof(float) : pa_micro_splitk_placeholder_bytes;
+                const auto tmp_bytes =
+                    splitk_np > 1 ? tokens * desc->heads_num * desc->v_head_size * splitk_np * sizeof(uint16_t) : pa_micro_splitk_placeholder_bytes;
+                internal_buffers.emplace_back(static_cast<int64_t>(stats_bytes), indexes_dt);  // splitk_stats
+                internal_buffers.emplace_back(static_cast<int64_t>(tmp_bytes), indexes_dt);    // splitk_tmp_out
             }
         }
 #endif

@@ -50,6 +50,10 @@ private:
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 
+    // Split-K runs on the MIXED micro path with several query tokens per subsequence only. One predicate so
+    // that the jit constant, the argument list and the dispatch data func cannot drift apart.
+    bool use_splitk(const kernel_impl_params& params) const;
+
     static void init_microkernels(const kernel_impl_params& params,
                                   const sdpa_configuration& sdpa_config,
                                   micro::Package& gemm_kq,
