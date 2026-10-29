@@ -7,6 +7,8 @@ gemma4v+gemma4a,unsloth/gemma-4-E2B-it-GGUF,mmproj-F16.gguf
 ultravox,ggml-org/ultravox-v0_5-llama-3_2-1b-GGUF,mmproj-ultravox-v0_5-llama-3_2-1b-f16.gguf
 qwen2.5vl_merger+qwen2a,ggml-org/Qwen2.5-Omni-3B-GGUF,mmproj-Qwen2.5-Omni-3B-Q8_0.gguf
 deepseekocr,ggml-org/deepseek-ocr-GGUF,mmproj-DeepSeek-OCR-Q8_0.gguf,skip,the test has no input contract for SAM tiles and views yet
+
+lfm2,LiquidAI/LFM2-VL-450M-GGUF,mmproj-LFM2-VL-450M-Q8_0.gguf
 qwen3vl_merger,prism-ml/Bonsai-27B-gguf,Bonsai-27B-mmproj-BF16.gguf
 qwen3vl_merger,prism-ml/Bonsai-27B-gguf,Bonsai-27B-mmproj-Q8_0.gguf
 qwen3vl_merger,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-mmproj-BF16.gguf
