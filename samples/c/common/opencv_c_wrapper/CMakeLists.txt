@@ -25,6 +25,8 @@ if(NOT OpenCV_FOUND OR NOT OpenCV_VERSION VERSION_GREATER_EQUAL 3)
 else()
     target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBRARIES})
+    # OpenCV headers do enum arithmetic that C++20 deprecates; treat them as system headers
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
