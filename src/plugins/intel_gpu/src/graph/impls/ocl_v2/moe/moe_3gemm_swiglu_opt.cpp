@@ -483,7 +483,6 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
     // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
     if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
-        jit.make("WEIGHT_COMPRESSEION_DT", 0);
         jit.make("MOE_WEI_DT", "uchar");
         jit.make("MOE_SCALE_DT", "half");
         jit.make("MOE_ZP_DT", "uchar");
@@ -494,24 +493,21 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
                         desc->_config.hidden_size,
                         ", inter_size=",
                         desc->_config.inter_size);
-        jit.make("WEIGHT_COMPRESSEION_DT", 3);
         jit.make("MOE_WEI_DT", "uchar");
         jit.make("MOE_SCALE_DT", "half");
         jit.make("MOE_ZP_DT", "uchar");
     } else if (weight_dt == ov::element::u8 || weight_dt == ov::element::i8) {
-        jit.make("WEIGHT_COMPRESSEION_DT", 1);
         jit.make("MOE_WEI_DT", "uchar");
         jit.make("MOE_SCALE_DT", "half");
         jit.make("MOE_ZP_DT", "uchar");
     } else if (weight_dt == ov::element::f16) {
-        jit.make("WEIGHT_COMPRESSEION_DT", 2);
         jit.make("MOE_WEI_DT", "half");
         jit.make("MOE_SCALE_DT", "half");  // not use
         jit.make("MOE_ZP_DT", "half");     // not use
     }
 
     // Per-GEMM weight dtype codes: gate, up and down may differ under NNCF mixed precision, and
-    // each is decoded with its own. Codes mirror WEIGHT_COMPRESSEION_DT: 0=u4/i4, 1=u8/i8, 2=f16, 3=u2.
+    // each is decoded with its own. Codes: 0=u4/i4, 1=u8/i8, 2=f16, 3=u2.
     const auto moe_weight_code = [](ov::element::Type dt) -> int {
         if (dt == ov::element::u4 || dt == ov::element::i4)
             return 0;
