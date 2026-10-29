@@ -6,6 +6,8 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <streambuf>
+#include <string>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/runtime/core.hpp"
@@ -14,6 +16,42 @@
 namespace ov {
 namespace hetero {
 namespace tests {
+
+// Output buffer that collects the written bytes and fails every seek.
+class NonSeekableOutputBuffer : public std::streambuf {
+public:
+    const std::string& str() const {
+        return _data;
+    }
+
+protected:
+    std::streamsize xsputn(const char* data, std::streamsize count) override {
+        if (count <= 0) {
+            return 0;
+        }
+        _data.append(data, static_cast<std::string::size_type>(count));
+        return count;
+    }
+
+    int_type overflow(int_type ch) override {
+        if (traits_type::eq_int_type(ch, traits_type::eof())) {
+            return traits_type::not_eof(ch);
+        }
+        _data.push_back(traits_type::to_char_type(ch));
+        return ch;
+    }
+
+    pos_type seekoff(off_type, std::ios_base::seekdir, std::ios_base::openmode) override {
+        return pos_type(off_type(-1));
+    }
+
+    pos_type seekpos(pos_type, std::ios_base::openmode) override {
+        return pos_type(off_type(-1));
+    }
+
+private:
+    std::string _data;
+};
 
 class HeteroTests : public ::testing::Test {
 public:

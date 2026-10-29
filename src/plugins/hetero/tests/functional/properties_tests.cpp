@@ -26,7 +26,8 @@ TEST_F(HeteroTests, get_property_supported_properties) {
 }
 
 TEST_F(HeteroTests, get_property_internal_supported_properties) {
-    const std::vector<ov::PropertyName> supported_properties = {ov::internal::caching_properties};
+    const std::vector<ov::PropertyName> supported_properties = {ov::internal::caching_properties,
+                                                                ov::internal::emit_hsm_format};
     auto actual_supported_properties =
         core.get_property(ov::test::utils::DEVICE_HETERO, ov::internal::supported_properties);
     EXPECT_EQ(supported_properties.size(), actual_supported_properties.size());

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -168,11 +169,33 @@ private:
     size_t m_size = 0;
 };
 
-/** @brief Non-owning byte view of @p value's object representation; @p value must outlive the view. */
+/** @brief True for types with std::data() and std::size() (containers, arrays). */
+template <typename T, typename = void>
+struct is_contiguous_range : std::false_type {};
+
+template <typename T>
+struct is_contiguous_range<
+    T,
+    std::void_t<decltype(std::data(std::declval<const T&>())), decltype(std::size(std::declval<const T&>()))>>
+    : std::true_type {};
+
+/**
+ * @brief Non-owning byte view of @p value; @p value must outlive the view.
+ *
+ * A contiguous container (std::string, std::vector, std::array, C array) is viewed by its elements,
+ * any other trivially copyable type by its object representation.
+ */
 template <typename T>
 MemoryView as_memory_view(const T& value) noexcept {
-    static_assert(std::is_trivially_copyable_v<T>, "as_memory_view requires a trivially copyable type");
-    return {reinterpret_cast<const std::byte*>(std::addressof(value)), sizeof(T)};
+    if constexpr (is_contiguous_range<T>::value) {
+        using element_type = std::remove_cv_t<std::remove_pointer_t<decltype(std::data(value))>>;
+        static_assert(std::is_trivially_copyable_v<element_type>,
+                      "as_memory_view requires trivially copyable elements");
+        return {reinterpret_cast<const std::byte*>(std::data(value)), std::size(value) * sizeof(element_type)};
+    } else {
+        static_assert(std::is_trivially_copyable_v<T>, "as_memory_view requires a trivially copyable type");
+        return {reinterpret_cast<const std::byte*>(std::addressof(value)), sizeof(T)};
+    }
 }
 
 template <typename T, std::enable_if_t<!std::is_lvalue_reference_v<T>>* = nullptr>
