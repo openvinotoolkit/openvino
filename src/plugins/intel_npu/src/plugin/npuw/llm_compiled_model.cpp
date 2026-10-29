@@ -106,15 +106,16 @@ bool is_4d_float_attention_mask(const std::shared_ptr<ov::Model>& model) {
     }
 
     const auto rank = pshape.rank().get_length();
-    if (rank == 2 && is_int_or_bool) {
+    // A 2D mask keeps the binary-mask flow whatever its element type; the infer request validates the type.
+    if (rank == 2) {
         return false;
     }
     if (rank == 4 && is_float) {
         return true;
     }
 
-    OPENVINO_THROW("Unsupported attention_mask contract for NPUW LLM. Expected either 2D integer/bool "
-                   "attention_mask or 4D float attention_mask, but got rank=",
+    OPENVINO_THROW("Unsupported attention_mask contract for NPUW LLM. Expected either 2D attention_mask "
+                   "or 4D float attention_mask, but got rank=",
                    rank,
                    ", element type=",
                    elem_type,
