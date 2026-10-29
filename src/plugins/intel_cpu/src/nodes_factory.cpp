@@ -36,6 +36,7 @@
 #include "nodes/experimental_detectron_topkrois.h"
 #include "nodes/extract_image_patches.h"
 #include "nodes/eye.h"
+#include "nodes/block_sparse_attention.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gated_delta_net.h"
 #include "nodes/gather.h"
@@ -244,6 +245,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Subgraph, Type::Subgraph);
     INTEL_CPU_NODE(Composite, Type::SubModel);
     INTEL_CPU_NODE(ScaledDotProductAttention, Type::ScaledDotProductAttention);
+    INTEL_CPU_NODE(BlockSparseAttention, Type::BlockSparseAttention);
     INTEL_CPU_NODE(PaKVReorder, Type::PaKVReorder);
     INTEL_CPU_NODE(SearchSorted, Type::SearchSorted);
     INTEL_CPU_NODE(SegmentMax, Type::SegmentMax);

@@ -84,6 +84,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/bitwise_or.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/bitwise_right_shift.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/bitwise_xor.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/block_sparse_attention.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/broadcast.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/bucketize.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/ceiling.hpp

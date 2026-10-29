@@ -28,6 +28,7 @@
 #include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/block_sparse_attention.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/bucketize.hpp"
 #include "openvino/op/ceiling.hpp"

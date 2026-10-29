@@ -28,6 +28,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/batch_norm_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/batch_to_space_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/binary_convolution_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/block_sparse_attention_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/broadcast_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/bucketize_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/col2im_shape_inference.hpp
