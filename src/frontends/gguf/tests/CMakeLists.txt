@@ -22,6 +22,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op_table.cpp"
     "${FE_SRC_DIR}/translate_session.cpp"
     "${FE_SRC_DIR}/utils.cpp"
+    "${FE_SRC_DIR}/hadamard_sign_folding.cpp"
     "${FE_SRC_DIR}/helper_ops/set_rows_op.cpp"
     "${FE_SRC_DIR}/pass/adapt_to_genai.cpp"
     "${FE_SRC_DIR}/pass/adapt_mmproj_to_genai.cpp"
@@ -119,6 +120,8 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_ops.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_parser.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_shared_linear_inputs.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_hadamard_sign_folding.cpp"
 )
 
 set(GGUF_TEST_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test_data")

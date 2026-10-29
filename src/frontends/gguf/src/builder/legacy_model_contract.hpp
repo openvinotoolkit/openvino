@@ -23,6 +23,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
@@ -42,7 +43,12 @@ inline std::shared_ptr<ov::op::v8::Gather> token_embedding_lookup(const std::sha
     auto source = unsqueeze->input_value(0).get_node_shared_ptr();
     if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(source))
         source = convert->input_value(0).get_node_shared_ptr();
-    const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(source);
+    auto gather = ov::as_type_ptr<ov::op::v8::Gather>(source);
+    if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(source)) {
+        const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(reshape->get_input_node_shared_ptr(0));
+        if (multiply)
+            gather = ov::as_type_ptr<ov::op::v8::Gather>(multiply->get_input_node_shared_ptr(1));
+    }
     if (!gather)
         return nullptr;
     auto indices = gather->input_value(1).get_node_shared_ptr();
@@ -115,6 +121,7 @@ inline LegacyEmbeddingBoundaries resolve_legacy_embedding_boundaries(const std::
                 if (const auto saved = dependencies.find(current.get()); saved != dependencies.end())
                     return saved->second;
                 bool valid = ov::is_type<ov::op::v0::Constant>(current) || ov::is_type<ov::op::v1::Add>(current) ||
+                             ov::is_type<ov::op::v8::Gather>(current) || ov::is_type<ov::op::v0::MatMul>(current) ||
                              ov::is_type<ov::op::v1::Subtract>(current) || ov::is_type<ov::op::v1::Multiply>(current) ||
                              ov::is_type<ov::op::v0::Concat>(current) || ov::is_type<ov::op::v1::Split>(current) ||
                              ov::is_type<ov::op::v1::Reshape>(current) || ov::is_type<ov::op::v1::Transpose>(current) ||
