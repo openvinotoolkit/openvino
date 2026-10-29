@@ -15,8 +15,8 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/transpose.hpp"
@@ -73,17 +73,16 @@ ov::OutputVector rotary_embedding(const ov::frontend::onnx::Node& node) {
     // offset, rather than repeating the same cache row for every token.
     ov::Output<ov::Node> rotary_position_ids = position_ids;
     const auto position_ids_shape = position_ids.get_partial_shape();
-    const bool position_ids_is_start_offset =
-        position_ids_shape.rank().is_static() && position_ids_shape.rank().get_length() == 1 &&
-        position_ids_shape[0].is_static() && position_ids_shape[0].get_length() == 1;
+    const bool position_ids_is_start_offset = position_ids_shape.rank().is_static() &&
+                                              position_ids_shape.rank().get_length() == 1 &&
+                                              position_ids_shape[0].compatible(1);
     if (position_ids_is_start_offset) {
-        const auto sequence_axis = v0::Constant::create(
-            ov::element::i64, ov::Shape{1}, {input_is_3d ? 1 : 2});
+        const auto sequence_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {input_is_3d ? 1 : 2});
         const auto sequence_length = std::make_shared<v8::Gather>(input_shape, sequence_axis, zero);
         const auto range_start = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
         const auto range_step = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
-        const auto sequence_positions = std::make_shared<v4::Range>(
-            range_start, sequence_length, range_step, ov::element::i64);
+        const auto sequence_positions =
+            std::make_shared<v4::Range>(range_start, sequence_length, range_step, ov::element::i64);
         rotary_position_ids = std::make_shared<v1::Add>(position_ids, sequence_positions);
     }
 
