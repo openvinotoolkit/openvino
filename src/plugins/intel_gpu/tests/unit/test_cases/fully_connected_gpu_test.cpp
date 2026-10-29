@@ -175,7 +175,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     const auto weight_type = GetParam().weight_type;
     const auto precision = GetParam().precision;
     const bool half_precision = precision == ov::element::f16;
-    const float input_scale = GetParam().post_eltwise ? 1.f / 16384.f
+    const bool signed_binary_weights = GetParam().post_eltwise && weight_type != ov::element::gguf_q4_k;
+    const float input_scale = GetParam().post_eltwise ? (signed_binary_weights ? 1.f / 64.f : 1.f / 16384.f)
                             : GetParam().post_activation == activation_func::swish ? 1.f / 1024.f
                                                                                 : half_precision ? 1.f / 64.f : 1.f;
     const auto block_columns = std::min(columns, size_t{256});
@@ -190,7 +191,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             activation_sum += static_cast<float>(static_cast<int>((column * 13) % 31) - 15);
         }
         for (size_t channel = 0; channel < reference.size(); ++channel) {
-            reference[channel] = static_cast<float>(channel + 1) * activation_sum;
+            const float sign = signed_binary_weights && channel % 2 ? -1.f : 1.f;
+            reference[channel] = sign * static_cast<float>(channel + 1) * activation_sum;
         }
     }
     float block_factor = 0.f;
@@ -202,7 +204,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         for (size_t block = 0; block < blocks; ++block) {
             const auto offset = (channel * blocks + block) * block_bytes;
             if (weight_type != ov::element::gguf_q4_k) {
-                const ov::float16 scale(std::ldexp(static_cast<float>(channel % reference.size() + 1),
+                const float sign = signed_binary_weights && channel % 2 ? -1.f : 1.f;
+                const ov::float16 scale(std::ldexp(sign * static_cast<float>(channel % reference.size() + 1),
                                                   -static_cast<int>(block % 4)));
                 for (size_t native_block = 0; native_block < native_blocks; ++native_block) {
                     auto* bytes = payload.data() + offset + native_block * weight_type.block_byte_size();
@@ -516,6 +519,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             mem_lock<float, mem_lock_type::read> locked_output(output, get_test_stream());
             actual.assign(locked_output.data(), locked_output.data() + rows * channels);
         }
+        bool detects_missing_fc = false;
+        bool detects_missing_binary = false;
         for (size_t row = 0; row < rows; ++row) {
             const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
             for (size_t channel = 0; channel < channels; ++channel) {
@@ -529,11 +534,15 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                 if (half_precision)
                     expected = static_cast<float>(ov::float16(expected));
                 if (GetParam().post_eltwise) {
+                    const float fc_reference = expected;
                     const auto peer = peer_values[(broadcast_peer ? 0 : row) * channels + channel];
                     expected = *GetParam().post_eltwise == eltwise_mode::sum ? expected + peer : expected * peer;
                     if (half_precision)
                         expected = static_cast<float>(ov::float16(expected));
                     expected = std::max(expected, 0.f);
+                    const float without_fc = *GetParam().post_eltwise == eltwise_mode::sum ? std::max(peer, 0.f) : 0.f;
+                    detects_missing_fc |= std::abs(expected - without_fc) > 0.2f;
+                    detects_missing_binary |= std::abs(expected - std::max(fc_reference, 0.f)) > 0.2f;
                 }
                 const float public_actual = half_precision
                     ? static_cast<float>(public_output.data<const ov::float16>()[row * channels + channel])
@@ -543,6 +552,10 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                 EXPECT_NEAR(public_actual, expected, 0.1f)
                     << "public pipeline iteration=" << iteration << " row=" << row << " channel=" << channel;
             }
+        }
+        if (signed_binary_weights) {
+            EXPECT_TRUE(detects_missing_fc) << "iteration=" << iteration;
+            EXPECT_TRUE(detects_missing_binary) << "iteration=" << iteration;
         }
     }
 #endif
@@ -817,7 +830,47 @@ INSTANTIATE_TEST_SUITE_P(gguf,
                                           gguf_fc_mode{"cm_static_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 128, eltwise_mode::prod},
                                           gguf_fc_mode{"cm_static_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 128, eltwise_mode::prod},
                                           gguf_fc_mode{"cm_sum_broadcast_rebind", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
-                                          gguf_fc_mode{"cm_prod_broadcast_rebind_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true}),
+                                          gguf_fc_mode{"cm_prod_broadcast_rebind_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"cm_q41_sum", true, nullptr, false, 64, 512, ov::element::gguf_q4_1, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q41_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_1, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q41_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_1, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q41_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_1, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q41_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q4_1, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q41_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_1, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q41_sum", false, nullptr, true, 64, 512, ov::element::gguf_q4_1, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q41_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q4_1, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q40_sum", true, nullptr, false, 64, 512, ov::element::gguf_q4_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q40_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q40_prod", true, nullptr, true, 64, 512, ov::element::gguf_q4_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q40_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q40_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q4_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q40_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q4_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q40_sum", false, nullptr, true, 64, 512, ov::element::gguf_q4_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q40_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q4_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q5k_sum", true, nullptr, false, 64, 512, ov::element::gguf_q5_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q5k_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q5_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q5k_prod", true, nullptr, true, 64, 512, ov::element::gguf_q5_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q5k_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q5_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q5k_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q5_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q5k_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q5_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q5k_sum", false, nullptr, true, 64, 512, ov::element::gguf_q5_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q5k_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q5_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q6k_sum", true, nullptr, false, 64, 512, ov::element::gguf_q6_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q6k_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q6_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q6k_prod", true, nullptr, true, 64, 512, ov::element::gguf_q6_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q6k_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q6_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q6k_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q6_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q6k_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q6_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q6k_sum", false, nullptr, true, 64, 512, ov::element::gguf_q6_k, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q6k_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q6_k, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q80_sum", true, nullptr, false, 64, 512, ov::element::gguf_q8_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q80_sum_f16", true, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"cm_q80_prod", true, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q80_prod_f16", true, nullptr, false, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod},
+                                          gguf_fc_mode{"cm_q80_sum_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q8_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum, true},
+                                          gguf_fc_mode{"cm_q80_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
+                                          gguf_fc_mode{"raw_q80_sum", false, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
+                                          gguf_fc_mode{"raw_q80_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod}),
                         [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
 
 TEST(fully_connected_gpu, dynamic_byxf) {
