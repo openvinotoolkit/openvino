@@ -3274,6 +3274,120 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
     }
 
+    void test_compressed_int8_broadcast_scale_zp(bool is_caching_test,
+                                                 bool transpose_parameters,
+                                                 size_t input_rank = 3,
+                                                 bool with_zp = true,
+                                                 bool broadcast = true) {
+        auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_fp16)
+            GTEST_SKIP() << "The test requires FP16 support.";
+
+        constexpr int64_t ofm = 3, ifm = 32, batch = 2, groups = 2;
+        const auto input_shape = input_rank == 2 ? ov::PartialShape{batch, ifm} : ov::PartialShape{1, batch, ifm};
+        const int64_t param_oc = broadcast ? 1 : ofm;
+        const auto param_shape = transpose_parameters ? ov::PartialShape{param_oc, groups} : ov::PartialShape{groups, param_oc};
+        auto input_mem = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+        auto weights_mem = engine.allocate_memory({ov::PartialShape{ofm, ifm}, data_types::u8, format::bfyx});
+        auto scale_mem = engine.allocate_memory({param_shape, data_types::f16, format::bfyx});
+        auto zp_mem = engine.allocate_memory({param_shape, data_types::u8, format::bfyx});
+        set_values<ov::float16>(input_mem, std::vector<ov::float16>(batch * ifm, ov::float16(1.0f)));
+        set_values<uint8_t>(weights_mem, std::vector<uint8_t>(ofm * ifm, 3));
+        std::vector<ov::float16> scales;
+        std::vector<uint8_t> zps;
+        for (int64_t i = 0; i < param_oc * groups; ++i) {
+            const auto group = transpose_parameters ? i % groups : i / param_oc;
+            scales.emplace_back(float(group + 2));
+            zps.emplace_back(static_cast<uint8_t>(group + 1));
+        }
+        set_values<ov::float16>(scale_mem, scales);
+        set_values<uint8_t>(zp_mem, zps);
+
+        auto fc_prim = fully_connected("fc_prim",
+                                       input_info("input"),
+                                       "weights",
+                                       "",
+                                       "scale",
+                                       with_zp ? "zp" : "",
+                                       data_types::f16,
+                                       input_rank,
+                                       2,
+                                       true,
+                                       transpose_parameters,
+                                       transpose_parameters);
+        topology topology(input_layout("input", input_mem->get_layout()), data("weights", weights_mem), data("scale", scale_mem), fc_prim);
+        if (with_zp)
+            topology.add(data("zp", zp_mem));
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+        const auto outputs = network->execute();
+        if (engine.get_device_info().supports_immad) {
+            ASSERT_TRUE(network->get_primitive("fc_prim")->get_impl()->is_onednn());
+        }
+        ASSERT_EQ(outputs.size(), size_t{1});
+        const auto output_mem = outputs.at("fc_prim").get_memory();
+        const auto output_shape = input_rank == 2 ? ov::PartialShape{batch, ofm} : ov::PartialShape{1, batch, ofm};
+        ASSERT_EQ(output_mem->get_layout().get_partial_shape(), output_shape);
+        mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        ASSERT_EQ(output_ptr.size(), size_t{batch * ofm});
+        // Both K groups share their decompression parameters across the output channels.
+        const auto expected = ov::float16(with_zp ? 112.0f : 240.0f);
+        for (size_t i = 0; i < output_ptr.size(); ++i)
+            EXPECT_EQ(output_ptr[i], expected) << "i = " << i;
+    }
+
+    void test_compressed_int4_single_oc_grouped(bool is_caching_test, bool with_zp) {
+        SCOPED_TRACE(::testing::Message() << "cached=" << is_caching_test << " zp=" << with_zp);
+        auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_immad || !engine.get_device_info().supports_fp16)
+            GTEST_SKIP() << "The test requires oneDNN FC and FP16 support.";
+        constexpr int64_t ifm = 2048, batch = 2, groups = 16;
+        auto input_mem = engine.allocate_memory({ov::PartialShape{batch, ifm}, data_types::f16, format::bfyx});
+        auto weights_mem = engine.allocate_memory({ov::PartialShape{1, ifm}, data_types::u4, format::bfyx});
+        auto scale_mem = engine.allocate_memory({ov::PartialShape{1, groups}, data_types::f16, format::bfyx});
+        auto zp_mem = engine.allocate_memory({ov::PartialShape{1, groups}, data_types::u8, format::bfyx});
+        set_values<ov::float16>(input_mem, std::vector<ov::float16>(batch * ifm, ov::float16(1.0f)));
+        set_values<uint8_t>(weights_mem, std::vector<uint8_t>(ifm / 2, 0x33));
+        std::vector<ov::float16> scales;
+        std::vector<uint8_t> zps;
+        for (int64_t group = 0; group < groups; ++group) {
+            scales.emplace_back(float(group % 2 + 2));
+            zps.emplace_back(static_cast<uint8_t>(group % 2 + 1));
+        }
+        set_values<ov::float16>(scale_mem, scales);
+        set_values<uint8_t>(zp_mem, zps);
+
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", with_zp ? "zp" : "", data_types::f16, 2, 2, true, true, true);
+        topology topology(input_layout("input", {ov::PartialShape{-1, ifm}, data_types::f16, format::bfyx}),
+                          data("weights", weights_mem),
+                          data("scale", scale_mem),
+                          fc_prim);
+        if (with_zp)
+            topology.add(data("zp", zp_mem));
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+        const auto output_mem = network->execute().at("fc_prim").get_memory();
+        const auto* fc_impl = network->get_primitive("fc_prim")->get_impl();
+        ASSERT_TRUE(fc_impl->is_onednn());
+        if (with_zp) {
+            // N=1 must retain the grouped mask, not fall back to oneDNN's reference matmul.
+            EXPECT_EQ(fc_impl->get_kernel_name().find(":ref:"), std::string::npos) << fc_impl->get_kernel_name();
+        }
+        mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        ASSERT_EQ(output_ptr.size(), size_t{batch});
+        for (size_t i = 0; i < output_ptr.size(); ++i)
+            EXPECT_EQ(output_ptr[i], ov::float16(with_zp ? 7168.0f : 15360.0f)) << "i = " << i;
+    }
+
     void test_dynamic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -5771,6 +5885,62 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_transpose_scale_zp) {
     this->test_compressed_int8_transpose_scale_zp(true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_broadcast_scale_zp) {
+    this->test_compressed_int8_broadcast_scale_zp(false, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_broadcast_scale_zp_cached) {
+    this->test_compressed_int8_broadcast_scale_zp(true, false);
+}
+
+using fc_grouped_broadcast_params = std::tuple<bool, bool, std::pair<size_t, bool>>;
+class fc_grouped_oc_broadcast_onednn : public fully_connected_gpu_tests, public ::testing::WithParamInterface<fc_grouped_broadcast_params> {
+public:
+    static std::string getTestCaseName(const ::testing::TestParamInfo<fc_grouped_broadcast_params>& info) {
+        const auto& [cached, transposed, shape_and_zp] = info.param;
+        return std::string(cached ? "Cached" : "Fresh") + (transposed ? "Transposed" : "Plain") + "Rank" + std::to_string(shape_and_zp.first) +
+               (shape_and_zp.second ? "WithZP" : "ScaleOnly");
+    }
+};
+
+TEST_P(fc_grouped_oc_broadcast_onednn, grouped_scale_zp) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "The test requires oneDNN FC support.";
+    const auto& [cached, transposed, shape_and_zp] = GetParam();
+    const auto& [rank, with_zp] = shape_and_zp;
+    this->test_compressed_int8_broadcast_scale_zp(cached, transposed, rank, with_zp);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    fully_connected_gpu,
+    fc_grouped_oc_broadcast_onednn,
+    ::testing::Combine(::testing::Bool(),
+                       ::testing::Bool(),
+                       ::testing::Values(std::pair<size_t, bool>{2, true}, std::pair<size_t, bool>{3, true}, std::pair<size_t, bool>{3, false})),
+    fc_grouped_oc_broadcast_onednn::getTestCaseName);
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_grouped_per_oc_control) {
+    if (!get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "The test requires oneDNN FC support.";
+    for (bool cached : {false, true})
+        for (bool transposed : {false, true})
+            for (bool with_zp : {false, true}) {
+                SCOPED_TRACE(::testing::Message() << "cached=" << cached << " transposed=" << transposed << " zp=" << with_zp);
+                this->test_compressed_int8_broadcast_scale_zp(cached, transposed, 2, with_zp, false);
+            }
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_single_oc_grouped_dynamic) {
+    for (bool with_zp : {false, true})
+        this->test_compressed_int4_single_oc_grouped(false, with_zp);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_single_oc_grouped_dynamic_cached) {
+    for (bool with_zp : {false, true})
+        this->test_compressed_int4_single_oc_grouped(true, with_zp);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
