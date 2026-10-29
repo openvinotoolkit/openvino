@@ -34,23 +34,29 @@ inline bool woq_u2_accepts_gnk(const cldnn::device_info& info,
                                bool has_zp,
                                ov::element::Type zp_et,
                                const ov::PartialShape& zp) {
-    if (!woq_u2_gnk_enabled_for_tests() || !cm_jit_supported)
+    if (!woq_u2_gnk_enabled_for_tests() || !cm_jit_supported) {
         return false;
-    if (info.arch != cldnn::gpu_arch::xe2 && info.arch != cldnn::gpu_arch::xe3)
+    }
+    if (info.arch != cldnn::gpu_arch::xe2 && info.arch != cldnn::gpu_arch::xe3) {
         return false;
-    if (info.max_local_mem_size < woq_u2_required_slm_bytes)
+    }
+    if (info.max_local_mem_size < woq_u2_required_slm_bytes) {
         return false;
-    if (w_et != ov::element::u2 || !w.is_static() || w.size() != 3)
+    }
+    if (w_et != ov::element::u2 || !w.is_static() || w.size() != 3) {
         return false;
+    }
     const auto G = w[0].get_length();
     const auto N = w[1].get_length();
-    if (w[2].get_length() != woq_u2_group_size || N % 32 != 0)
+    if (w[2].get_length() != woq_u2_group_size || N % 32 != 0) {
         return false;
+    }
     auto per_group = [&](const ov::PartialShape& p) {
         return p.is_static() && (p.size() == 2 || (p.size() == 3 && p[2].get_length() == 1)) && p[0].get_length() == G && p[1].get_length() == N;
     };
-    if (scale_et != ov::element::f16 || !per_group(scale))
+    if (scale_et != ov::element::f16 || !per_group(scale)) {
         return false;
+    }
     const bool zp_widens_to_u8 = zp_et == ov::element::u8 || zp_et == ov::element::u4 || zp_et == ov::element::u2;
     return has_zp && zp_widens_to_u8 && per_group(zp);
 }
