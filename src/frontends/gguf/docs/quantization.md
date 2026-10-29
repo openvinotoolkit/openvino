@@ -123,6 +123,12 @@ F16 transcode plus GEMM rather than native block computation; preserving raw inp
 not mean every inference stage computes directly from GGUF blocks. The default prefill
 threshold is 32 flattened activation rows. Model accuracy requires independent validation.
 
+For rank-4 raw FC outputs with singleton leading dimensions, GPU lowering can move a
+same-rank, same-channel NumPy Add/Multiply before the output shape restore, preserving
+row broadcasting. Actual fusion remains subject to implementation and runtime shape
+checks; static OCL may execute the binary operation separately. The file-based regression
+checks sum/prod followed by ReLU, not that every post-op is fused or every shape is supported.
+
 ## Floating-point formats
 
 F32, F16 and BF16 tensors are views of the memory-mapped file, without block unpacking or

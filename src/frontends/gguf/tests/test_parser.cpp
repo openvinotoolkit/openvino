@@ -21,6 +21,9 @@
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "quant/weights.hpp"
@@ -441,7 +444,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     const auto qbytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
     const auto decoded = load_npy<float>(std::string(format.name) + "_deq");
     ASSERT_EQ(decoded.size(), 4 * 256);
-    const size_t channels = format.type == GGUF_TYPE_Q4_0 || format.type == GGUF_TYPE_Q4_1 ? 64 : 32;
+    constexpr size_t channels = 64;
     constexpr size_t columns = 512;
     const auto row_bytes = qbytes.size() / 4;
     std::vector<uint8_t> payload(channels * 2 * row_bytes);
@@ -488,24 +491,56 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     EXPECT_FALSE(owner.expired());
     std::set<std::string> executed_stages;
     const auto run = [&](const char* threshold_value, const char* shuffle_value,
-                         ov::element::Type inference_type = ov::element::f32) {
+                         ov::element::Type inference_type = ov::element::f32, const char* binary_mode = nullptr,
+                         size_t static_rows = 0, bool rebind_broadcast = false) {
         SCOPED_TRACE(threshold_value ? "native" : "default_f16_transcode");
         SCOPED_TRACE(shuffle_value);
         GgufScopedEnvironment threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", threshold_value);
         GgufScopedEnvironment prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
         GgufScopedEnvironment shuffle("OV_GPU_GGUF_SHUFFLE", shuffle_value);
         SCOPED_TRACE(inference_type.get_type_name());
-        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(inference_type),
+        auto run_model = model->clone();
+        if (binary_mode) {
+            const auto fc_output = run_model->get_results().at(0)->input_value(0);
+            const auto peer = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, fc_output.get_partial_shape());
+            ov::Output<ov::Node> binary;
+            if (std::string(binary_mode) == "sum")
+                binary = std::make_shared<ov::op::v1::Add>(fc_output, peer);
+            else
+                binary = std::make_shared<ov::op::v1::Multiply>(fc_output, peer);
+            binary.get_node_shared_ptr()->set_friendly_name("file_binary_post");
+            run_model->get_results().at(0)->input(0).replace_source_output(std::make_shared<ov::op::v0::Relu>(binary));
+            run_model->add_parameters({peer});
+            run_model->validate_nodes_and_infer_types();
+        }
+        if (static_rows) {
+            run_model->get_parameters().at(0)->set_partial_shape(ov::Shape{1, 1, static_rows, columns});
+            run_model->get_parameters().at(1)->set_partial_shape(ov::Shape{1, 1, 1, static_rows});
+            run_model->get_parameters().at(2)->set_partial_shape(ov::Shape{1, 1, static_rows, channels});
+            run_model->validate_nodes_and_infer_types();
+            ASSERT_FALSE(run_model->is_dynamic());
+        }
+        const bool cm_requested = std::getenv("OV_GPU_GGUF_GEMM_CM") &&
+                                  std::string(std::getenv("OV_GPU_GGUF_GEMM_CM")) == "1";
+        GgufScopedEnvironment cm("OV_GPU_GGUF_GEMM_CM", cm_requested ? "1" : "0");
+        const bool shuffled = std::string(shuffle_value) == "1";
+        const std::string scenario = std::string(binary_mode ? binary_mode : "plain") + "_" +
+            inference_type.get_type_name() + "_s" + shuffle_value + (threshold_value ? "_native" : "_default") +
+            (static_rows ? "_static" : "_dynamic") + (rebind_broadcast ? "_broadcast" : "");
+        SCOPED_TRACE(scenario);
+        auto compiled = core.compile_model(run_model, "GPU", ov::hint::inference_precision(inference_type),
                            ov::enable_profiling(true));
         auto request = compiled.create_infer_request();
-        const std::array<size_t, 7> row_counts{1, 2, 33, 1, 1, 33, 2};
+        const std::vector<size_t> row_counts = static_rows ? std::vector<size_t>{static_rows, static_rows}
+                                                        : std::vector<size_t>{1, 2, 33, 1, 1, 33, 2};
         for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
             const auto rows = row_counts[iteration];
             ov::Tensor input(ov::element::f32, ov::Shape{1, 1, rows, columns});
             for (size_t row = 0; row < rows; ++row) {
                 const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
                 for (size_t column = 0; column < columns; ++column) {
-                    input.data<float>()[row * columns + column] = factor * static_cast<float>(column / 256 + 1) *
+                    input.data<float>()[row * columns + column] = (binary_mode ? 1.f / 64.f : 1.f) * factor *
+                        static_cast<float>(column / 256 + 1) *
                         static_cast<float>(static_cast<int>(((column % 256) * 13) % 31) - 15);
                 }
             }
@@ -515,17 +550,67 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                 indices.data<int64_t>()[row] = static_cast<int64_t>((row * 7 + iteration) % channels);
             }
             request.set_input_tensor(1, indices);
+            ov::Tensor peer;
+            const bool broadcast_peer = rebind_broadcast && rows > 1 && iteration % 2 == 0;
+            if (binary_mode) {
+                peer = ov::Tensor(ov::element::f32, ov::Shape{1, 1, broadcast_peer ? 1 : rows, channels});
+                for (size_t index = 0; index < peer.get_size(); ++index) {
+                    peer.data<float>()[index] = static_cast<float>(static_cast<int>((index + iteration * 3) % 7) - 3) / 4.f;
+                    if (std::string(binary_mode) == "sum") {
+                        float fc_reference = 0.f;
+                        for (size_t column = 0; column < columns; ++column)
+                            fc_reference += decoded[(index % channels % 4) * 256 + column % 256] *
+                                            input.data<const float>()[index / channels * columns + column];
+                        peer.data<float>()[index] += std::ceil(std::abs(fc_reference)) + 2.f;
+                    }
+                }
+                request.set_input_tensor(2, peer);
+            }
             request.infer();
+            std::string iteration_stages;
+            std::string iteration_fusions;
             for (const auto& operation : compiled.get_runtime_model()->get_ops()) {
                 const auto& info = operation->get_rt_info();
                 const auto stages = info.find("gguf_last_executed_kernels");
                 if (stages != info.end()) {
                     const auto& names = stages->second.as<std::vector<std::string>>();
                     executed_stages.insert(names.begin(), names.end());
+                    for (const auto& name : names)
+                        iteration_stages += name + ";";
                 }
+                const auto fusions = info.find("gguf_runtime_fused_ids");
+                if (fusions != info.end()) {
+                    iteration_fusions += info.at("gguf_runtime_fused_count").as<std::string>() + ":" +
+                                         fusions->second.as<std::string>() + ";";
+                }
+            }
+            if (binary_mode) {
+                const bool expect_fused = !static_rows || (cm_requested && shuffled);
+                EXPECT_EQ(iteration_fusions.find("file_binary_post") != std::string::npos, expect_fused) << iteration_fusions;
+                EXPECT_EQ(iteration_fusions.rfind("0:", 0) == 0u, !expect_fused) << iteration_fusions;
+                const bool prefill = !threshold_value && rows > 32;
+                const std::string sg_stage = format.type == GGUF_TYPE_Q4_0 ? "fc_gguf_q4_0_sg"
+                    : format.type == GGUF_TYPE_Q4_1 ? "fc_gguf_q4_1_sg"
+                    : format.type == GGUF_TYPE_Q4_K ? "fc_gguf_q4k_sg"
+                    : format.type == GGUF_TYPE_Q5_K ? "fc_gguf_q5k_sg"
+                    : format.type == GGUF_TYPE_Q6_K ? "fc_gguf_q6k_sg" : "fc_gguf_q8_0_sg";
+                const std::string cm_stage = format.type == GGUF_TYPE_Q4_0 ? "gemm_q40_full"
+                    : format.type == GGUF_TYPE_Q4_1 ? "gemm_q41_full"
+                    : format.type == GGUF_TYPE_Q4_K ? "gemm_q4k_full"
+                    : format.type == GGUF_TYPE_Q5_K ? "gemm_q5k_full"
+                    : format.type == GGUF_TYPE_Q6_K ? "gemm_q6k_full" : "gemm_q80_full";
+                const auto weight_name = gguf_raw_element_type(format.type).to_string();
+                const std::string expected_stage = broadcast_peer ? sg_stage
+                    : prefill ? (cm_requested && shuffled ? cm_stage : "fc_gguf_transcode_" + weight_name)
+                    : shuffled ? sg_stage : "fc_gguf_opt_" + weight_name;
+                EXPECT_NE(iteration_stages.find(expected_stage), std::string::npos) << iteration_stages;
+                RecordProperty(scenario + "_stage_" + std::to_string(iteration), iteration_stages);
+                RecordProperty(scenario + "_fusions_" + std::to_string(iteration), iteration_fusions);
             }
             const auto output = request.get_output_tensor(0);
             ASSERT_EQ(output.get_shape(), (ov::Shape{1, 1, rows, channels}));
+            bool detects_missing_fc = false;
+            bool detects_missing_binary = false;
             for (size_t row = 0; row < rows; ++row) {
                 for (size_t channel = 0; channel < channels; ++channel) {
                     float expected = 0.f;
@@ -538,9 +623,24 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                     if (inference_type == ov::element::f16) {
                         expected = ov::float16(expected);
                     }
+                    if (binary_mode) {
+                        const float fc_reference = expected;
+                        const auto operand = peer.data<const float>()[(broadcast_peer ? 0 : row) * channels + channel];
+                        expected = std::string(binary_mode) == "sum" ? expected + operand : expected * operand;
+                        if (inference_type == ov::element::f16)
+                            expected = ov::float16(expected);
+                        expected = std::max(expected, 0.f);
+                        const float without_fc = std::string(binary_mode) == "sum" ? std::max(operand, 0.f) : 0.f;
+                        detects_missing_fc |= std::abs(expected - without_fc) > 0.2f;
+                        detects_missing_binary |= std::abs(expected - std::max(fc_reference, 0.f)) > 0.2f;
+                    }
                     EXPECT_NEAR(output.data<const float>()[row * channels + channel], expected, 0.1f)
                         << "iteration=" << iteration << " row=" << row << " channel=" << channel;
                 }
+            }
+            if (binary_mode) {
+                EXPECT_TRUE(detects_missing_fc) << iteration;
+                EXPECT_TRUE(detects_missing_binary) << iteration;
             }
             const auto embedding = request.get_output_tensor(1);
             ASSERT_EQ(embedding.get_element_type(), ov::element::f32);
@@ -553,6 +653,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                         << "iteration=" << iteration << " row=" << row << " column=" << column;
                 }
             }
+            EXPECT_FALSE(owner.expired());
         }
     };
     run("64", "1");
@@ -563,12 +664,25 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     run("64", "0", ov::element::f16);
     run(nullptr, "1", ov::element::f16);
     run(nullptr, "0", ov::element::f16);
+    for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+        for (const char* binary : {"sum", "prod"}) {
+            for (const char* shuffle : {"0", "1"}) {
+                for (const char* threshold : {"64", static_cast<const char*>(nullptr)}) {
+                    run(threshold, shuffle, precision, binary);
+                    run(threshold, shuffle, precision, binary, 33);
+                }
+            }
+            run(nullptr, "1", precision, binary, 0, true);
+        }
+    }
     EXPECT_FALSE(executed_stages.empty());
     std::string stage_summary;
     for (const auto& stage : executed_stages) {
         stage_summary += stage + ";";
     }
     RecordProperty("gguf_executed_kernels", stage_summary);
+    model.reset();
+    EXPECT_TRUE(owner.expired());
 #endif
 }
 
