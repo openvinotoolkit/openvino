@@ -105,7 +105,16 @@ std::optional<NormPath> match_rms_norm(const ov::Output<ov::Node>& output) {
 }
 
 bool has_single_consumer(const ov::Output<ov::Node>& output) {
-    return output.get_target_inputs().size() == 1;
+    return ov::pass::pattern::consumers_count(1)(output);
+}
+
+bool has_single_consumer_each_output(const std::shared_ptr<ov::Node>& node) {
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        if (!has_single_consumer(node->output(i))) {
+            return false;
+        }
+    }
+    return true;
 }
 
 bool valid_epsilon(float epsilon) {
@@ -137,36 +146,62 @@ ov::pass::FuseQSAIndexer::FuseQSAIndexer() {
     MATCHER_SCOPE(FuseQSAIndexer);
     using namespace ov::pass::pattern;
 
-    const auto indexer_pattern = wrap_type<ov::op::v17::SparseAttentionIndexer>();
+    const auto query_norm_pattern = any_input([](const ov::Output<ov::Node>& output) {
+        const auto norm = match_rms_norm(output);
+        if (!norm || !valid_epsilon(norm->epsilon) || ov::util::is_empty_constant_tensor(norm->weight)) {
+            return false;
+        }
+        return std::all_of(norm->nodes.begin(), norm->nodes.end(), [](const auto& node) {
+            return has_single_consumer(node->output(0));
+        });
+    });
+
+    const auto prepare_inputs = PatternOps{any_input(),
+                                           any_input(),
+                                           any_input(),
+                                           any_input(),
+                                           any_input(),
+                                           any_input(),
+                                           any_input(),
+                                           any_input()};
+    const auto prepare_pattern = wrap_type<ov::op::v17::QSAPrepare>(
+        prepare_inputs,
+        consumers_count(1) &&
+            [](const ov::Output<ov::Node>& output) {
+                const auto prepare = ov::as_type_ptr<ov::op::v17::QSAPrepare>(output.get_node_shared_ptr());
+                OPENVINO_ASSERT(prepare, "FuseQSAIndexer: matched preparation must be QSAPrepare");
+                if (!valid_epsilon(prepare->get_epsilon()) ||
+                    ov::util::is_empty_constant_tensor(prepare->input_value(5))) {
+                    return false;
+                }
+                return has_single_consumer_each_output(prepare);
+            },
+        {{"key_block_size", int64_t{4}}});
+    const auto indexer_inputs = PatternOps{query_norm_pattern, prepare_pattern, any_input()};
+    const auto indexer_pattern = wrap_type<ov::op::v17::SparseAttentionIndexer>(
+        indexer_inputs,
+        [](const ov::Output<ov::Node>& output) {
+            const auto indexer = ov::as_type_ptr<ov::op::v17::SparseAttentionIndexer>(output.get_node_shared_ptr());
+            OPENVINO_ASSERT(indexer, "FuseQSAIndexer: matched indexer must be SparseAttentionIndexer");
+            if (indexer->get_token_budget() > 512) {
+                return false;
+            }
+            const auto prepare =
+                ov::as_type_ptr<ov::op::v17::QSAPrepare>(indexer->input_value(1).get_node_shared_ptr());
+            const auto norm = match_rms_norm(indexer->input_value(0));
+            return prepare && norm && indexer->input_value(1).get_index() == 0 &&
+                   indexer->input_value(2) == prepare->input_value(2) &&
+                   has_supported_dimensions(norm->data, prepare->input_value(0));
+        },
+        {{"key_block_size", int64_t{4}}, {"num_selection_heads", int64_t{1}}});
+
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
         const auto indexer = ov::as_type_ptr<ov::op::v17::SparseAttentionIndexer>(matcher.get_match_root());
-        if (!indexer || indexer->get_input_size() != 3 || indexer->get_key_block_size() != 4 ||
-            indexer->get_token_budget() > 512 || indexer->get_num_selection_heads() != 1) {
-            return false;
-        }
-
+        OPENVINO_ASSERT(indexer, "FuseQSAIndexer: matcher root must be SparseAttentionIndexer");
         const auto prepare = ov::as_type_ptr<ov::op::v17::QSAPrepare>(indexer->input_value(1).get_node_shared_ptr());
-        if (!prepare || prepare->get_key_block_size() != 4 || !valid_epsilon(prepare->get_epsilon()) ||
-            ov::util::is_empty_constant_tensor(prepare->input_value(5)) ||
-            indexer->input_value(2) != prepare->input_value(2) ||
-            !has_single_consumer(prepare->output(0)) || !has_single_consumer(prepare->output(1)) ||
-            !has_single_consumer(prepare->output(2))) {
-            return false;
-        }
-        if (indexer->input_value(1).get_index() != 0) {
-            return false;
-        }
-
+        OPENVINO_ASSERT(prepare, "FuseQSAIndexer: matched preparation input must be QSAPrepare");
         const auto norm = match_rms_norm(indexer->input_value(0));
-        if (!norm || !valid_epsilon(norm->epsilon) || ov::util::is_empty_constant_tensor(norm->weight) ||
-            !has_supported_dimensions(norm->data, prepare->input_value(0))) {
-            return false;
-        }
-        if (std::any_of(norm->nodes.begin(), norm->nodes.end(), [](const auto& node) {
-                return !has_single_consumer(node->output(0));
-            })) {
-            return false;
-        }
+        OPENVINO_ASSERT(norm, "FuseQSAIndexer: matched query must have supported RMSNorm provenance");
 
         ov::op::internal::QSAIndexer::Config config;
         config.key_block_size = prepare->get_key_block_size();
