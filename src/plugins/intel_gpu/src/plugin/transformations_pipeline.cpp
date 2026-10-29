@@ -851,9 +851,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
-        // Batch replicated branches before decomposing GroupQueryAttention.
-        // The batching pass relies on the original Gather/Concat topology;
-        // GQA decomposition may rewrite those nodes and hide the pattern.
+        // After CommonOptimizations: ShapeOf consumers of static branches are folded and do not block batching
         manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad);
 

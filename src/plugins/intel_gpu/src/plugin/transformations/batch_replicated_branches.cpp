@@ -4,7 +4,6 @@
 
 #include "batch_replicated_branches.hpp"
 
-#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -13,7 +12,6 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -24,14 +22,12 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
@@ -43,8 +39,6 @@ using ov::pass::pattern::op::Predicate;
 
 using NodePtr = std::shared_ptr<ov::Node>;
 using NodeVector = std::vector<NodePtr>;
-
-constexpr char kRequiresPrecisionConversionKey[] = "requires_precision_conversion_0";
 
 bool is_type_relaxed(const ov::Node* node) {
     return dynamic_cast<const ov::op::TypeRelaxedBase*>(node) != nullptr;
@@ -170,46 +164,12 @@ void copy_metadata(const NodeVector& replicas, const NodePtr& clone) {
     const auto& reference = replicas.front();
     clone->set_friendly_name(reference->get_friendly_name());
     ov::copy_runtime_info(replicas, clone);
-    // copy_runtime_info skips non-copyable markers, replicas are equal so take them from the reference
-    if (ov::is_decompression(reference))
-        ov::mark_as_decompression(clone);
-    if (ov::pass::constant_folding_is_disabled(reference.get()))
-        ov::pass::disable_constant_folding(clone);
-    ov::copy_weightless_cache_attr(reference, clone);
-    const auto precision_marker = reference->get_rt_info().find(kRequiresPrecisionConversionKey);
-    if (precision_marker != reference->get_rt_info().end())
-        clone->get_rt_info()[kRequiresPrecisionConversionKey] = precision_marker->second;
     for (size_t i = 0; i < clone->get_input_size(); ++i)
         clone->input(i).get_rt_info() = reference->input(i).get_rt_info();
     for (size_t i = 0; i < clone->get_output_size(); ++i) {
         clone->output(i).get_rt_info() = reference->output(i).get_rt_info();
         clone->output(i).set_names(reference->output(i).get_names());
     }
-}
-
-// Shared constant is reused; equal but distinct constants are cloned to keep the rt_info of all
-// of them, since the originals are removed together with the branches
-ov::Output<ov::Node> make_batched_constant_input(const std::vector<ov::Output<ov::Node>>& replicas) {
-    const auto& reference = replicas.front();
-    if (std::all_of(replicas.begin(), replicas.end(), [&reference](const ov::Output<ov::Node>& replica) {
-            return replica == reference;
-        })) {
-        return reference;
-    }
-
-    NodeVector replica_nodes;
-    std::vector<ov::Output<ov::Node>> replica_inputs;
-    for (const auto& replica : replicas) {
-        replica_nodes.push_back(replica.get_node_shared_ptr());
-        if (replica.get_node()->get_input_size() != 0)
-            replica_inputs.push_back(replica.get_node()->input_value(0));
-    }
-    ov::OutputVector clone_inputs;
-    if (!replica_inputs.empty())
-        clone_inputs.push_back(make_batched_constant_input(replica_inputs));
-    const auto clone = reference.get_node()->clone_with_new_inputs(clone_inputs);
-    copy_metadata(replica_nodes, clone);
-    return clone->output(reference.get_index());
 }
 
 bool batch_replicated_branches(const BranchPattern& pattern,
@@ -240,16 +200,11 @@ bool batch_replicated_branches(const BranchPattern& pattern,
         const auto replicas = replicas_of(pattern_node);
         const auto& reference_node = replicas.front();
         ov::OutputVector inputs = reference_node->input_values();
-        for (size_t port = 0; port < inputs.size(); ++port) {
-            // Add is commutative, so the data input may be on any port
-            if (inputs[port] == reference_output) {
-                inputs[port] = batched;
-                continue;
-            }
-            std::vector<ov::Output<ov::Node>> replica_inputs;
-            for (const auto& replica : replicas)
-                replica_inputs.push_back(replica->input_value(port));
-            inputs[port] = make_batched_constant_input(replica_inputs);
+        // Constant inputs are equal in all replicas, so the reference ones are reused as is with
+        // their markers. Add is commutative, so the data input may be on any port
+        for (auto& input : inputs) {
+            if (input == reference_output)
+                input = batched;
         }
         const auto clone = reference_node->clone_with_new_inputs(inputs);
         copy_metadata(replicas, clone);
