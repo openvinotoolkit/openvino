@@ -200,6 +200,11 @@ int tmain(int argc, tchar* argv[]) {
         ov::element::Type input_type = ov::element::u8;
         ov::Shape input_shape = {1, reader->height(), reader->width(), 3};
         std::shared_ptr<unsigned char> input_data = reader->getData();
+        OPENVINO_ASSERT(input_data != nullptr && reader->size() == ov::shape_size(input_shape),
+                        "Image must have 3 channels of 8 bit data: expected ",
+                        ov::shape_size(input_shape),
+                        " bytes, got ",
+                        reader->size());
 
         const ov::Layout tensor_layout{"NHWC"};
 
