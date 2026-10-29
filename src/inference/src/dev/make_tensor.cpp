@@ -217,7 +217,9 @@ public:
  */
 class BufferReadOnlyViewTensor : public ReadOnlyViewTensor {
 public:
-    BufferReadOnlyViewTensor(const element::Type element_type, const Shape& shape, std::shared_ptr<util::IBuffer> buffer)
+    BufferReadOnlyViewTensor(const element::Type element_type,
+                             const Shape& shape,
+                             std::shared_ptr<util::IBuffer> buffer)
         : ReadOnlyViewTensor{element_type, shape, buffer->data()},
           m_buffer{std::move(buffer)} {
         OPENVINO_ASSERT(get_byte_size() <= m_buffer->size(), "Tensor does not fit into the buffer");
