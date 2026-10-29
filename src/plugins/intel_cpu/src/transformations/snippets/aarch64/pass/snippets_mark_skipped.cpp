@@ -14,6 +14,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
@@ -128,6 +129,10 @@ bool isSuitableConvolutionParent(const std::shared_ptr<const Node>& node) {
 }
 bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& node) {
     if (!ov::is_type<ov::op::v1::Subtract>(node) || node->get_users().size() != 1) {
+        return false;
+    }
+
+    if (!any_of(node->get_input_element_type(0), ov::element::u8, ov::element::i8)) {
         return false;
     }
 
