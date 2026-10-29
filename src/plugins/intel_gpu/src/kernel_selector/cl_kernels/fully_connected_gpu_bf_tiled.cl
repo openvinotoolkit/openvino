@@ -258,7 +258,7 @@ inline void FUNC(fc_bf_tiled_kernel_default)(
 #endif
 
 #if COMPRESSED_WEIGHTS_SUB_BYTE
-    #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2
+    #if TILE_OFM == 1 && FILTER_LAYOUT_OS_IS_YX_OSV32_ISV2 && COMPRESSED_WEIGHTS_INT4
     const int power_of_two_for_simd = 4;
     const int power_of_two_for_osv = 5;
     const uint osv32_weight_base = (( (int) (out_f >> power_of_two_for_osv) ) << power_of_two_for_osv);

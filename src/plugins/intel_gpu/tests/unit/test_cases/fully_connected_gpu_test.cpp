@@ -6749,7 +6749,7 @@ static void run_fc_u2_bf_tiled(int batch_num,
 
     // The packing is chosen by a device-dependent heuristic, so assert it rather than infer it.
     auto weights_reorder = impl->get_weights_reorder_params();
-    ASSERT_NE(weights_reorder, nullptr) << "u2 weights are always repacked by reorder_weights_int4";
+    ASSERT_NE(weights_reorder, nullptr) << "u2 weights are always repacked by reorder_weights_compressed";
     ASSERT_EQ(weights_reorder->get_output_layout().format, expected_weights_format);
 
     if (expect_slm.has_value()) {
