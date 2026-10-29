@@ -888,6 +888,7 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/generic_vector_ops.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/imad.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/int2_utils.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/int3_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/int4_convert.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/int4_utils.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/include/batch_headers/sdpa_utils.cl
