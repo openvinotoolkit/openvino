@@ -42,6 +42,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("trace_model", [False, True])
     @pytest.mark.parametrize("use_kwargs", [False, True])
     @pytest.mark.parametrize("dtype", [np.float32, np.float64])
@@ -64,6 +65,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("shape", [(), (1,), (17,), (4, 5), (2, 3, 4), (2, 1, 3, 2, 2)])
     @pytest.mark.parametrize("dynamic_shapes", [False, True])
     def test_histc_shapes(self, shape, dynamic_shapes, ie_device, precision, ir_version):
@@ -73,6 +75,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("seed", [0, 1, 2])
     @pytest.mark.parametrize("bins,min,max", [(10, 0.0, 0.0), (7, -1.0, 1.0), (50, -5.0, 5.0)])
     def test_histc_random(self, seed, bins, min, max, ie_device, precision, ir_version):
@@ -81,6 +84,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("data,bins,min,max", [
         ([0.0, 4.0, 4.0], 4, 0.0, 4.0),                 # max is inclusive in the last bin
         ([0.0, 1.0, 2.0, 3.0, 4.0], 4, 0.0, 4.0),       # values exactly on bin edges
@@ -99,6 +103,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("data", [
         [NAN, 1.0, 2.0],
         [INF, 1.0, 2.0],
@@ -110,6 +115,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("min,max", [(0.0, 0.0), (0.0, 1.0)])
     @pytest.mark.parametrize("dynamic_shapes", [True, False])
     def test_histc_empty_input(self, min, max, dynamic_shapes, ie_device, precision, ir_version):
@@ -123,6 +129,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_histc_defaults(self, ie_device, precision, ir_version):
         class HistcDefaults(torch.nn.Module):
             def forward(self, x):
@@ -134,6 +141,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_histc_only_bins(self, ie_device, precision, ir_version):
         class HistcBins(torch.nn.Module):
             def forward(self, x):
@@ -145,6 +153,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_histc_in_graph(self, ie_device, precision, ir_version):
         # histc output feeds further ops, so output shape/type must be inferred correctly
         class HistcInGraph(torch.nn.Module):
