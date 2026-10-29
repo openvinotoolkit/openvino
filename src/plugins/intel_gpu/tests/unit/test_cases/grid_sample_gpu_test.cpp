@@ -717,7 +717,10 @@ struct grid_sample_border_compare : public grid_sample_gpu_test<TD, TG> {
         topology.add(reorder("reordered_data", input_info("data"), fmt, data_type));
         topology.add(reorder("reordered_grid", input_info("grid"), fmt, grid_type));
         topology.add(grid_sample("grid_sample", {input_info("reordered_data"), input_info("reordered_grid")}, params.attributes));
-        topology.add(reorder("output", input_info("grid_sample"), format::bfyx, data_type));
+        const primitive_id output_id = fmt == format::bfyx ? "grid_sample" : "output";
+        if (fmt != format::bfyx) {
+            topology.add(reorder(output_id, input_info("grid_sample"), format::bfyx, data_type));
+        }
 
         auto execute = [&](const std::string& kernel_name) {
             auto config = get_test_default_config(engine);
@@ -732,7 +735,7 @@ struct grid_sample_border_compare : public grid_sample_gpu_test<TD, TG> {
             network->set_input_data("data", data);
             network->set_input_data("grid", grid);
             const auto outputs = network->execute();
-            auto output = outputs.at("output").get_memory();
+            auto output = outputs.at(output_id).get_memory();
             cldnn::mem_lock<TD, mem_lock_type::read> output_ptr(output, get_test_stream());
             std::vector<float> values(output_ptr.size());
             for (size_t index = 0; index < values.size(); ++index) {
