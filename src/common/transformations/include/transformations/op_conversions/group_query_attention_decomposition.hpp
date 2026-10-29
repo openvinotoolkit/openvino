@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <optional>
-
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -25,13 +23,43 @@ public:
     GroupQueryAttentionDecomposition();
 
 protected:
-    struct CompressedKV {
-        ov::Output<ov::Node> key;
-        ov::Output<ov::Node> value;
-        ov::OutputVector quantization_inputs;
+    struct KVCacheMetadata {
+        ov::Output<ov::Node> k_scale;
+        ov::Output<ov::Node> v_scale;
+        bool should_quantize_kv = false;
+        bool should_dequantize_kv = false;
+        bool should_broadcast_kv = true;
+        virtual ~KVCacheMetadata() = default;
+    };
+    struct KVCacheOutputs {
+        ov::Output<ov::Node> present_key;
+        ov::Output<ov::Node> present_value;
+        ov::Output<ov::Node> sdpa_key;
+        ov::Output<ov::Node> sdpa_value;
+        ov::Output<ov::Node> mask_past_seqlen;
+        ov::Output<ov::Node> bias_col_offset;
     };
 
     ov::OutputVector decompose(std::shared_ptr<ov::op::internal::GroupQueryAttention> node);
+    virtual std::unique_ptr<KVCacheMetadata> create_metadata();
+    virtual KVCacheOutputs construct_kvcache(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+                                             const ov::Output<ov::Node>& past_key,
+                                             const ov::Output<ov::Node>& past_value,
+                                             const ov::Output<ov::Node>& key,
+                                             const ov::Output<ov::Node>& value,
+                                             const ov::Output<ov::Node>& seqlens_1d,
+                                             const std::shared_ptr<ov::Node>& kv_seqlen,
+                                             const std::shared_ptr<ov::Node>& past_seqlen,
+                                             const ov::Output<ov::Node>& current_seqlen_scalar,
+                                             KVCacheMetadata& metadata);
+    virtual KVCacheOutputs construct_batched_kvcache(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+                                                     const ov::Output<ov::Node>& past_key,
+                                                     const ov::Output<ov::Node>& past_value,
+                                                     const ov::Output<ov::Node>& key,
+                                                     const ov::Output<ov::Node>& value,
+                                                     const std::shared_ptr<ov::Node>& kv_past_b,
+                                                     const std::shared_ptr<ov::Node>& kv_rows,
+                                                     KVCacheMetadata& metadata);
     virtual std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
                                                 const ov::Output<ov::Node>& key,
                                                 const ov::Output<ov::Node>& value,
@@ -39,8 +67,8 @@ protected:
                                                 const ov::Output<ov::Node>& scale,
                                                 const ov::Output<ov::Node>& sink,
                                                 bool is_causal,
-                                                int64_t local_window_size = -1,
-                                                const std::optional<CompressedKV>& compressed_kv = std::nullopt);
+                                                int64_t local_window_size,
+                                                const KVCacheMetadata& metadata);
     // Explicit attention for softcap > 0 or a qk_output request (SDPA can neither soft-cap nor expose the scores):
     // softmax(cap(scale * Q * K^T) + mask [, sink]) * V, cap(x) = softcap * tanh(x / softcap) or x when softcap is 0.
     // key/value keep kv_num_heads heads; query heads are grouped onto them by MatMul broadcasting, so the KV cache is
@@ -65,17 +93,9 @@ protected:
                                               const ov::Output<ov::Node>& weight,
                                               float epsilon);
 
-    virtual std::optional<CompressedKV> prepare_compressed_kv(
-        const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
-        const ov::Output<ov::Node>& key,
-        const ov::Output<ov::Node>& value,
-        const ov::Output<ov::Node>& key_scale,
-        const ov::Output<ov::Node>& value_scale) {
-        return std::nullopt;
-    }
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
-    std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);
+    std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims);
     std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
                                               ov::Output<ov::Node> cos,
                                               ov::Output<ov::Node> sin,
@@ -104,7 +124,8 @@ protected:
                                                           const ov::Output<ov::Node>& bias_col_offset,
                                                           bool sliding_window_cache,
                                                           float scale,
-                                                          bool has_sink);
+                                                          bool has_sink,
+                                                          const KVCacheMetadata& metadata);
     // Additive [B, 1, S, kv_len] mask for a batch with per-batch lengths (batch not statically 1). total and past
     // are [B, 1, 1] (total = seqlens_k + 1, past = causal offset of the first query). Keys at or beyond a batch's
     // total are masked (right-padded prompts), then the causal / sliding-window rules apply per batch, matching

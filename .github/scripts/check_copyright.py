@@ -21,6 +21,14 @@ FILE_TYPES = {
     'python': (['.py'], '#', False),
 }
 
+# Files carrying a pre-existing, verbatim third-party license notice instead of
+# the standard OpenVINO header (e.g. vendored/ported code). Paths are relative
+# to the repository root and use forward slashes.
+THIRD_PARTY_LICENSE_EXCEPTIONS = {
+    # MIT, Copyright (c) 2020-2023, Intel Corporation
+    'src/plugins/intel_gpu/src/graph/impls/cm/include/sort.hpp',
+}
+
 
 def get_file_type_info(file_path: str) -> Optional[Tuple[str, bool]]:
     """Get (comment_style, has_extra_line) for a file, or None if not supported."""
@@ -34,6 +42,11 @@ def get_file_type_info(file_path: str) -> Optional[Tuple[str, bool]]:
 def is_supported_file_type(file_path: str) -> bool:
     """Check if this file type should have copyright headers validated."""
     return get_file_type_info(file_path) is not None
+
+
+def is_third_party_license_exception(file_path: str) -> bool:
+    """Check if file is exempt for carrying a pre-existing third-party license notice."""
+    return file_path.replace(os.sep, '/') in THIRD_PARTY_LICENSE_EXCEPTIONS
 
 
 def get_encoding_line_number(file_path: str) -> int:
@@ -78,7 +91,8 @@ def get_expected_header(file_path: str) -> str:
 
 def should_check_file(file_path: str) -> bool:
     """Determine if a file should be checked for copyright header."""
-    return os.path.isfile(file_path) and is_supported_file_type(file_path)
+    return os.path.isfile(file_path) and is_supported_file_type(file_path) \
+        and not is_third_party_license_exception(file_path)
 
 
 def get_file_header(file_path: str, num_lines: int = 3) -> str:
