@@ -39,25 +39,29 @@ const GgufMetadata& GgufGraphContext::metadata() const {
 }
 
 DecoderDimensions GgufGraphContext::configure_decoder(RopeMode rope, const DecoderOptions& options) {
+    return configure_decoder(resolve_decoder_parameters(metadata(), rope, options));
+}
+
+DecoderDimensions GgufGraphContext::configure_decoder(const DecoderParameters& parameters) {
     m_impl->check_open();
     OPENVINO_ASSERT(!m_impl->decoder, "[GGUF] decoder is already configured");
-    auto normalized = decoder_config_from_meta(detail::MetadataAccess::get(metadata()).map);
-    auto config = std::make_unique<DecoderConfig>(normalized, m_impl->build_ctx.weights->weights, rope, options);
-    auto& graph = *m_impl->emitter.graph();
-    graph.has_rope = true;
-    graph.rope_config = config->rope_config;
-    graph.use_per_op_rope = config->use_per_op_rope;
-    graph.swa_window_size = config->swa_window_size;
+    auto config = std::make_unique<DecoderConfig>(parameters, m_impl->build_ctx.weights->weights);
+    config->configure_graph(m_impl->emitter, metadata());
     const DecoderDimensions dimensions{config->n_layer, config->n_embd, config->rms_eps};
     m_impl->kv = blocks::KvCachePlan::build(*config);
     m_impl->decoder = std::move(config);
     return dimensions;
 }
 
+void GgufGraphContext::configure_model_contract(const ModelContract& contract) {
+    m_impl->check_open();
+    m_impl->emitter.graph()->model_contract = contract;
+}
+
 DecoderLayerParameters GgufGraphContext::decoder_layer_parameters(int layer) const {
     m_impl->check_layer(layer);
     const auto& cfg = *m_impl->decoder;
-    return {cfg.n_head,
+    return {cfg.layer_n_head(layer),
             cfg.layer_n_head_kv(layer),
             cfg.layer_head_size(layer),
             cfg.layer_kq_scale(layer),
@@ -132,7 +136,9 @@ GgufValue GgufGraphContext::add_constant(const std::string& name, const ov::Tens
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     OPENVINO_ASSERT(tok_embd, "[GGUF] build_inp_embd: the token embedding weight is missing");
     auto tokens = add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, D}));
-    return node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    auto embeddings = node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    embeddings.m_value.get_node_shared_ptr()->get_rt_info()["gguf.token_embedding"] = true;
+    return embeddings;
 }
 
 GgufValue GgufGraphContext::build_inp_pos() {
@@ -204,6 +210,18 @@ void GgufGraphContext::set_primary_output(const GgufValue& value) {
     outputs.insert(outputs.begin(), m_impl->value_name(value));
 }
 
+void GgufGraphContext::set_output(const GgufValue& value, const std::string& name) {
+    m_impl->check_open();
+    auto& emitter = m_impl->emitter;
+    OPENVINO_ASSERT(!name.empty() && !emitter.graph()->values->count(name) && !emitter.has_weight(name),
+                    "[GGUF] output name is already used: ",
+                    name);
+    emitter.add_op("GGML_OP_CONT", name, {m_impl->value_name(value)}, 1, {{"op_case", 1}});
+    // The copy may be the source tensor itself; keep the names it already exposes.
+    emitter.value(name).get_tensor().add_names({name});
+    emitter.graph()->model_output_names.push_back(name);
+}
+
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
     m_impl->check_open();
     OPENVINO_ASSERT(tokens > 0 && tokens <= std::numeric_limits<int>::max(),
@@ -232,6 +250,7 @@ void GgufGraphContext::add_recurrent_state(const GgufValue& input, const GgufVal
 
 std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
     m_impl->check_open();
+    m_impl->emitter.validate_hadamard();
     const auto graph = m_impl->emitter.graph();
     OPENVINO_ASSERT(!graph->model_output_names.empty(), "[GGUF] graph has no outputs");
     std::set<std::string> available;
@@ -244,6 +263,7 @@ std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
             OPENVINO_ASSERT(available.count(input), "[GGUF] node '", node.name, "' uses unknown value '", input, "'");
         }
         available.insert(node.output_name);
+        available.insert(node.extra_output_names.begin(), node.extra_output_names.end());
     }
     std::set<std::string> outputs;
     for (const auto& output : graph->model_output_names) {

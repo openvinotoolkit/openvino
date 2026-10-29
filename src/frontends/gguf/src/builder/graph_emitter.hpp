@@ -22,6 +22,10 @@
 
 namespace ov::frontend::gguf {
 
+// Split "<something>.weight" into "<something>"; return the name unchanged when it does not end
+// in ".weight" (biases and other plain tensors keep their full name as the base).
+std::string strip_weight_suffix(const std::string& name);
+
 // Builds OpenVINO values through the shared GGML converters.
 class GraphEmitter {
 public:
@@ -51,6 +55,11 @@ public:
     // First extent of a weight's OV shape (its row count), 1 when the weight is absent/scalar.
     int64_t weight_rows(const std::string& name) const;
 
+    // The "<base>.weight" / ".scales" / ".zp" tensors present for a weight, and its quant type
+    // ("<base>.qtype", F16 when absent).
+    WeightTensors weight_parts(const std::string& base) const;
+    GgufTensorType weight_qtype(const std::string& base) const;
+
     std::unordered_map<std::string, ov::Tensor>& weights() {
         return m_weights;
     }
@@ -72,7 +81,8 @@ public:
                        const std::string& name,
                        const std::vector<std::string>& inputs,
                        int op_case = 0,
-                       std::map<std::string, ov::Any> attrs = {});
+                       std::map<std::string, ov::Any> attrs = {},
+                       std::vector<std::string> extra_outputs = {});
 
     std::shared_ptr<ov::op::v0::Parameter> add_input(const std::string& name,
                                                      ov::element::Type type,
@@ -103,6 +113,13 @@ public:
         return m_emitted_weights.count(name) > 0;
     }
 
+    void configure_hadamard(const std::map<std::string, GGUFMetaData>& config);
+    void validate_hadamard() const;
+    bool has_hadamard() const {
+        return m_hadamard_block != 0;
+    }
+    void inherit_hadamard(const std::string& name, const std::string& source);
+
 private:
     std::unordered_map<std::string, ov::Tensor>& m_weights;
     std::unordered_map<std::string, GgufTensorType>& m_qtypes;
@@ -110,10 +127,18 @@ private:
     std::string m_arch;
 
     std::shared_ptr<GgufGraph> m_graph;
+    std::shared_ptr<ConstantCache> m_constant_cache = std::make_shared<ConstantCache>();
     std::unordered_map<std::string, CreatorFunction> m_translators;
     // Names of weights already emitted as GGML_OP_NONE leaves, so a weight referenced by several
     // ops (or tied, e.g. MQA tie-V) is emitted once.
     std::set<std::string> m_emitted_weights;
+    int64_t m_hadamard_block = 0;
+    int64_t m_hadamard_v_heads = 0;
+    int64_t m_hadamard_k_heads = 0;
+    std::set<std::string> m_hadamard_weights;
+    std::set<std::string> m_hadamard_inverse_weights;
+    std::set<std::string> m_hadamard_consumed;
+    std::map<int64_t, ov::Tensor> m_hadamard_signs;
 };
 
 // Shapes are kept in the OpenVINO/GGML logical order [ne3, ne2, ne1, ne0] (reverse of GGUF

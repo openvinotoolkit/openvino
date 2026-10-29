@@ -4,19 +4,29 @@
 
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/gguf/model_adapter.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
 namespace ov::frontend::gguf {
+
+struct ModelContract {
+    enum class ImageAttentionMode { CAUSAL, GLOBAL_AND_SLIDING, SLIDING_ONLY };
+
+    std::optional<bool> batchable_recurrent;
+    ImageAttentionMode image_attention = ImageAttentionMode::CAUSAL;
+};
 
 // Typed RoPE configuration, replacing the raw gguf `op_params`/`rope_params` int32 array
 // the translators used to dereference by byte offset. A decoder is responsible for
@@ -41,6 +51,9 @@ struct RopeConfig {
     // matches the per-op translate_rope path -- otherwise it builds a NEOX table whose token axis is
     // 4x the data's and the rope Multiply fails the eltwise broadcast check.
     bool is_imrope = false;
+    // Per-axis frequency counts for temporal, height, width and extra positions.
+    // An all-zero value retains the legacy interleaved three-axis assignment.
+    std::array<int32_t, 4> sections{};
 };
 
 // Decoder interface consumed by the gguf frontend translators.
@@ -134,6 +147,12 @@ public:
         return empty;
     }
 
+    // Full clip.* keys and resolved multimodal graph contracts. Values are serializable strings.
+    virtual const ov::AnyMap& get_mmproj_config() const {
+        static const ov::AnyMap empty;
+        return empty;
+    }
+
     // Recurrent states, as {input name, output name} pairs: a linear-attention architecture
     // (qwen35's Gated DeltaNet) carries a conv window and a delta matrix per recurrent layer,
     // which the stateless graph exposes as a Parameter read at the start of a step and a Result
@@ -146,6 +165,22 @@ public:
     // that knows which Result feeds which Parameter back.
     virtual const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const {
         static const std::vector<std::pair<std::string, std::string>> empty;
+        return empty;
+    }
+
+    /// \brief Resolved model semantics for shared conversion and runtime adaptation.
+    virtual ModelContract get_model_contract() const {
+        return {};
+    }
+
+    /// \brief Architecture identifier for diagnostics and converted-model metadata.
+    virtual std::string get_architecture() const {
+        return {};
+    }
+
+    /// \brief Builder-provided graph adapters applied during model conversion.
+    virtual const ModelAdapters& get_model_adapters() const {
+        static const ModelAdapters empty;
         return empty;
     }
 

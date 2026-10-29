@@ -226,6 +226,12 @@ public:
     void on_generate_step_done(uint32_t input_tokens_len) override {
         m_inner->on_generate_step_done(input_tokens_len);
     }
+    void rerotate_longrope_keys(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                const PortsMap& in_ports,
+                                uint32_t num_cached_tokens,
+                                bool to_long) override {
+        m_inner->rerotate_longrope_keys(request, in_ports, num_cached_tokens, to_long);
+    }
     void continue_prefill(uint32_t, uint32_t) override {
         OPENVINO_THROW("Injected continued-prefill failure.");
     }
@@ -276,8 +282,7 @@ protected:
                          {"NPUW_LLM_MAX_PROMPT_LEN", "256"},
                          {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
                          {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                         {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
-                         {"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}};
+                         {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}};
         for (const auto& [key, value] : extra_props) {
             props[key] = value;
         }
@@ -286,7 +291,7 @@ protected:
                                                                   props,
                                                                   factory.make_factory());
         ASSERT_NE(m_compiled, nullptr);
-        ASSERT_TRUE(m_compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED").as<bool>());
+        ASSERT_TRUE(m_compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
 
         m_request = std::make_unique<ov::npuw::LLMInferRequest>(m_compiled);
 

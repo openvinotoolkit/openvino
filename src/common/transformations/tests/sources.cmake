@@ -6,6 +6,7 @@ set(TESTS_ROOT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/const_folding_prior_box.cpp
     ${CMAKE_CURRENT_LIST_DIR}/hash_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/make_stateful_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ov_ops/moe_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/prelu_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/resolve_names_collisions.cpp
@@ -20,7 +21,6 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/add_fake_quantize_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/align_eltwise_input_ranks.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/align_mixed_fp32_fp16_types_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/attention_mask_shape_replacer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/augru_cell_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/batch_to_space_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/binarize_weights.cpp
@@ -93,6 +93,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/moe_transpose_weights_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/move_eltwise_up_data_movement_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mul_fake_quantize_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mvn_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nearest_neighbor_upsampling_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/ngraph_fq_transpose_test.cpp
@@ -251,6 +252,7 @@ set(SMART_RESHAPE_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/broadcast_const_range_replacement.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/lstm_states_broadcast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/reshape_sinking.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/restore_traced_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/shape_of_const_folding.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/sr_mimicking_sbs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/smart_reshape/sr_proposal_scales.cpp

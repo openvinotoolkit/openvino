@@ -32,6 +32,8 @@ public:
     const GgufMetadata& metadata() const;
     // Call once before using decoder blocks; optional for other families.
     // Options are validated before deriving execution plans and graph metadata.
+    DecoderDimensions configure_decoder(const DecoderParameters& parameters);
+    void configure_model_contract(const ModelContract& contract);
     DecoderDimensions configure_decoder(RopeMode rope, const DecoderOptions& options = {});
     DecoderLayerParameters decoder_layer_parameters(int layer) const;
     GgufValue decoder_attention(int layer, const GgufValue& normalized_input);
@@ -72,6 +74,7 @@ public:
     void set_output(const GgufValue& logits);
     // Put the data output before auxiliary cache outputs registered by decoder blocks.
     void set_primary_output(const GgufValue& value);
+    void set_output(const GgufValue& value, const std::string& name);
     // Record the sliding window for normalization passes.
     void set_sliding_window(int64_t tokens);
     // Registers an overwritten state, automatically marking the update as a model output.

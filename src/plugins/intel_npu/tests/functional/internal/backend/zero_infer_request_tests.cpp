@@ -11,12 +11,14 @@
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "compiled_model.hpp"
+#include "compiler_impl.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/non_zero.hpp"
@@ -208,7 +210,10 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
                        ? std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
                              std::make_shared<::intel_npu::DriverCompilerAdapter>(zeroInitStruct))
                        : std::dynamic_pointer_cast<::intel_npu::ICompilerAdapter>(
-                             std::make_shared<::intel_npu::PluginCompilerAdapter>(zeroInitStruct));
+                             std::make_shared<::intel_npu::PluginCompilerAdapter>(
+                                 zeroInitStruct,
+                                 std::make_shared<::intel_npu::VCLCompilerImpl>(
+                                     ::intel_npu::VCLLoader::getInstance()->sharedFunctions())));
     } catch (...) {
         GTEST_SKIP() << "Couldn't load compiler library";
     }
