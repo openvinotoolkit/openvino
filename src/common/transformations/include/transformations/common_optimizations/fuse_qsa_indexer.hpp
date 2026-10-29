@@ -32,17 +32,18 @@ namespace ov::pass {
  * RMSNorm is either the internal RMSNorm op or its decomposition
  * Multiply(Divide(x, Sqrt(Add(ReduceMean(Power(x, 2), last_axis, keep_dims), eps))), weight).
  *
- * The rewrite is applied only when:
- *  - query has rank 4 and raw keys have rank 3, with compatible batch and sequence;
- *  - both source ops use the same key_block_size and the same key length input;
- *  - SparseAttentionIndexer consumes QSAPrepare output 0 and has no index weights input;
- *  - both RMSNorm weights are enabled (not empty Constants);
+ * The rewrite is applied only when the matched graph is within the QSAIndexer kernel limits
+ * (QSAIndexer::supported_* / max_token_budget / [min_epsilon, max_epsilon]):
+ *  - query is [?, supported_num_heads, ?, supported_head_size] and raw keys have rank 3,
+ *    with compatible batch and sequence;
+ *  - both source ops use supported_key_block_size, SparseAttentionIndexer uses
+ *    supported_num_selection_heads and a token_budget in (0, max_token_budget] divisible by the
+ *    block size;
+ *  - both RMSNorm epsilons are in [min_epsilon, max_epsilon] and both norm weights are enabled;
+ *  - SparseAttentionIndexer consumes QSAPrepare output 0 and the same key length as QSAPrepare,
+ *    and has no index weights input;
  *  - every RMSNorm node and every QSAPrepare output has a single consumer, since all of them are
  *    replaced by QSAIndexer.
- *
- * Head count, head size, block size, token budget and epsilon values are not restricted here:
- * QSAIndexer derives them from the matched graph, and plugins reject configurations their
- * kernels do not support during compilation.
  */
 class TRANSFORMATIONS_API FuseQSAIndexer : public MatcherPass {
 public:
