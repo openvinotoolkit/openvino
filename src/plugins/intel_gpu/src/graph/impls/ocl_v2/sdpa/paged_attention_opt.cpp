@@ -1808,6 +1808,10 @@ public:
         }
 
         rt_params->query_block_size = get_query_block_size(params, rt_params->stage, rt_params->use_micro_sdpa);
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        rt_params->pair_query_blocks = rt_params->use_micro_sdpa && rt_params->stage == PagedAttentionStage::PREFILL &&
+                                       dpas_backend(PagedAttentionStage::PREFILL) == DpasBackend::ocl && SDPAOclGenerator::uses_hpg_pa_prefill(params);
+#endif
 
         // has_stage() rather than supported() alone: the stage is only compiled when the ctor saw
         // the same predicate, and dispatching an unbuilt stage would crash.
@@ -1863,7 +1867,11 @@ public:
         kernel_dump_info.clear_entries();
         auto* rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
-        prepare_internal_buffers(static_cast<paged_attention_inst&>(instance), rt_params->stage, rt_params->use_micro_sdpa, rt_params->query_block_size);
+        prepare_internal_buffers(static_cast<paged_attention_inst&>(instance),
+                                 rt_params->stage,
+                                 rt_params->use_micro_sdpa,
+                                 rt_params->query_block_size,
+                                 rt_params->pair_query_blocks);
         std::vector<event::ptr> res_event = events;
         if (desc->write_kv_cache) {
             if (has_rotated_blocks) {
@@ -2155,7 +2163,11 @@ public:
         return internal_buffers;
     }
 
-    static void prepare_internal_buffers(paged_attention_inst& instance, const PagedAttentionStage& stage, bool use_micro_sdpa, size_t query_block_size) {
+    static void prepare_internal_buffers(paged_attention_inst& instance,
+                                         const PagedAttentionStage& stage,
+                                         bool use_micro_sdpa,
+                                         size_t query_block_size,
+                                         bool pair_query_blocks) {
         const auto& desc = instance.get_impl_params()->typed_desc<paged_attention>();
         const bool has_scores_output = desc->has_scores_output();
         const bool has_score_aggregation = desc->has_score_aggregation;
@@ -2339,6 +2351,30 @@ public:
             if (subsequence_offsets_lock) {
                 subsequence_offsets_lock->operator[](i) = static_cast<int32_t>(subsequence_offsets_acc);
                 subsequence_offsets_acc += seq_length + past_len;
+            }
+        }
+
+        // The xe_hpg PA PREFILL kernel: the query blocks go heaviest, lightest, second heaviest, ... by causal key count,
+        // so the last workgroups to start are short ones instead of the whole diagonal tail. Every workgroup reads its own
+        // (block start, subsequence) pair, so any order computes the same result.
+        if (micro_sdpa_block_starts_and_gws_mapping_lock && pair_query_blocks) {
+            auto& mapping = *micro_sdpa_block_starts_and_gws_mapping_lock;
+            const auto block_size = static_cast<int32_t>(query_block_size);
+            std::vector<std::pair<int32_t, int32_t>> blocks(micro_sdpa_index / 2);
+            for (size_t b = 0; b < blocks.size(); b++) {
+                blocks[b] = {mapping[2 * b], mapping[2 * b + 1]};
+            }
+            const auto causal_keys = [&](const std::pair<int32_t, int32_t>& block) {
+                const auto begin = subsequence_begins_mem_lock[block.second];
+                return std::min(block.first - begin + block_size, subsequence_begins_mem_lock[block.second + 1] - begin);
+            };
+            std::stable_sort(blocks.begin(), blocks.end(), [&](const auto& a, const auto& b) {
+                return causal_keys(a) < causal_keys(b);
+            });
+            for (size_t b = 0; b < blocks.size(); b++) {
+                const auto& block = blocks[(b & 1) ? b / 2 : blocks.size() - 1 - b / 2];
+                mapping[2 * b] = block.first;
+                mapping[2 * b + 1] = block.second;
             }
         }
     }

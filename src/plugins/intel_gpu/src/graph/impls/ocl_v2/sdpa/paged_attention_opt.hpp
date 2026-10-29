@@ -42,6 +42,8 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     // tmp_out internal buffers (get_internal_buffer_descs), which sdpa_ocl_decode needs.
     bool use_ocl_decode = false;
     size_t query_block_size = 16;
+    // PREFILL runs the xe_hpg PA PREFILL kernel, whose query blocks are dispatched heaviest / lightest alternately.
+    bool pair_query_blocks = false;
 };
 
 struct PagedAttentionOpt : public ImplementationManager {

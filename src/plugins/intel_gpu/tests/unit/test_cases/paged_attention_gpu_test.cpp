@@ -455,6 +455,59 @@ INSTANTIATE_TEST_SUITE_P(
     paged_attention_feature_pad_test,
     ::testing::ValuesIn(feature_pad_cases()));
 
+// PA PREFILL at head 128: the xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl) on xe_hpg with the sdpa_ocl lane, the
+// generic kernels elsewhere. Lengths around its 32-query and 256-key workgroup tiles, several subsequences per call (its
+// workgroups are dispatched out of order), GQA and MQA, padded rows, and every case again with a sharp softmax, which a
+// misread Q or K row cannot pass.
+class paged_attention_prefill_h128_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_prefill_h128_test, matches_reference) {
+    auto p = GetParam();
+    // As in paged_attention_feature_pad_test: padded rows are sdpa_ocl's gate to get right (sdpa_micro misreads the 2 B one).
+    if (p.input_pads.has_value() && !sdpa_ocl_serves_prefill_mixed(p.k_head_size, pa_hpg_tiers(p)))
+        GTEST_SKIP() << "the padded cases check the gates of sdpa_ocl, which does not serve this op here";
+    execute(p, true);
+}
+
+namespace {
+std::vector<paged_attention_test_params> prefill_h128_cases() {
+    auto prefill = [](std::vector<SubsequenceDescriptor> subsequences, int heads, int kv_heads) {
+        return paged_attention_test_params{ subsequences, heads, kv_heads, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    std::vector<paged_attention_test_params> cases = {
+        prefill({{1, 0}}, 2, 2),
+        prefill({{7, 0}}, 2, 2),
+        prefill({{31, 0}}, 2, 2),
+        prefill({{32, 0}}, 2, 2),
+        prefill({{33, 0}}, 2, 2),
+        prefill({{255, 0}}, 2, 2),
+        prefill({{256, 0}}, 2, 2),
+        prefill({{257, 0}}, 2, 2),
+        prefill({{600, 0}}, 2, 2),
+        prefill({{17, 0}, {256, 0}, {33, 0}}, 2, 2),
+        prefill({{300, 0}, {1, 0}, {64, 0}, {129, 0}}, 2, 2),
+        prefill({{130, 0}, {77, 0}}, 8, 2),   // GQA
+        prefill({{100, 0}, {40, 0}}, 4, 1),   // MQA
+        prefill({{513, 0}}, 32, 8),
+        with_input_pads(prefill({{70, 0}, {200, 0}}, 2, 2), pads_qkv(2, 2, STATIC_PAD)),   // 4 B: still dword rows
+        with_input_pads(prefill({{70, 0}, {200, 0}}, 2, 2), pads_qkv(1, 1, STATIC_PAD)),   // 2 B: the generic kernel
+        with_input_pads(prefill({{70, 0}, {200, 0}}, 8, 2), pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_runtime_scale(prefill({{70, 0}, {200, 0}}, 2, 2)),                              // the generic kernel
+    };
+    const size_t base_count = cases.size();
+    for (size_t i = 0; i < base_count; i++) {
+        if (!cases[i].runtime_scale_multiplier.has_value())  // exclusive with logit_scale_gain
+            cases.push_back(sharp_softmax(cases[i]));
+    }
+    return cases;
+}
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_prefill_h128,
+    paged_attention_prefill_h128_test,
+    ::testing::ValuesIn(prefill_h128_cases()));
+
 // The dynamic K/V paddings the host cannot prove: the fixup tier takes a dynamic padding on trust ("Block2d rules" in
 // docs/sdpa_ocl.md), so a token stride that is not a multiple of 16 B, or a start of the first head that is not a multiple
 // of 4 B, still reads wrong values. Kept to reproduce that, not to pass: run with --gtest_also_run_disabled_tests.

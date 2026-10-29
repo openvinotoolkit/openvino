@@ -162,6 +162,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl.cl
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl_config.cl
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl_decode.cl
+    ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl_hpg_pa_prefill.cl
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl_mask.cl
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl_qk_load.cl
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl_v_load.cl

@@ -34,6 +34,10 @@ public:
     // uncomputed.
     static size_t get_query_block_size(const kernel_impl_params& params, bool is_prefill);
 
+    // Whether PA PREFILL runs the xe_hpg PA PREFILL kernel (sdpa_ocl_hpg_pa_prefill.cl), whose workgroups the host orders
+    // heaviest / lightest alternately (PagedAttentionOptImpl::prepare_internal_buffers()).
+    static bool uses_hpg_pa_prefill(const kernel_impl_params& params);
+
     // Whether a tiling exists for this (k_head_size, v_head_size) pair: KQ is tiled by k_head_size and the
     // S*V split by v_head_size, so the two need not be equal. Decidable from the descriptor and the arch,
     // because an added stage is compiled even for parameters it is never dispatched with.
