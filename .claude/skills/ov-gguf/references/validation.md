@@ -49,12 +49,11 @@ inference; read [build and runtime identity](build-runtime.md) for overlays,
 incremental builds, multiple worktrees or dispatched CPU kernels.
 
 Use one reusable runner and task manifest, extending the existing harness where available.
-Keep the current manifest compact and attempt history separate. Update it at milestones and
-input/environment changes; retain commands, completed checks, failure signatures and the next
-diagnostic so handoffs can resume without full logs. Diagnose the first differing boundary on
-identical inputs and record the predicted observation before each experiment. After two unchanged
-or inconclusive attempts, reassess that boundary, reference and loaded runtime before another sweep.
-Keep failed numerical results and
+Update the manifest at milestones and input/environment changes; retain commands, completed
+checks, failure signatures and the next diagnostic so handoffs can resume without full logs.
+Diagnose the first differing boundary on identical inputs and record the predicted observation
+before each experiment. Reassess the boundary, reference and loaded runtime after repeated
+unchanged or inconclusive attempts before another sweep. Keep failed numerical results and
 assess generated-text quality with [WWB](wwb.md) separately when that evaluation is requested.
 Specify selected scenarios, per-case environments, expected test counts and allowed skips,
 existing numerical metrics/tolerances, timeouts and artifact paths. Keep runtime identity,
@@ -82,9 +81,8 @@ Use the pinned quantizer to create or exactly expand fixtures when needed,
 preserving hashes, conversion revision/options and tensor inventory.
 Requantization creates a different fixture. An F16 expansion of quantized weights
 isolates arithmetic; it is not the original unquantized checkpoint and does not
-waive the failing comparison. Original-weight floating references serve the separate WWB purpose
-of measuring quantization quality. Exercise a new quantizer through its actual CMake target as
-well as checking its output.
+waive the failing comparison. Exercise a new quantizer through its actual CMake
+target as well as checking its output.
 
 Keep the chosen reference and criteria. Never silently change precision,
 thresholds, expected failures or coverage to obtain a pass. For performance,
@@ -93,13 +91,12 @@ not establish a regression or improvement.
 
 ## Scenario environments
 
-Set the environment before each process starts; do not inherit checkpoint settings into focused
-frontend tests unless the selected scenario requires them. Record precision, KV precision and
-activation quantization independently.
+Set the environment before each process starts; do not inherit checkpoint settings into the
+unfiltered unit suite. Record precision, KV precision and activation quantization independently.
 
 | Scenario | Zero-point setting | Acceptance |
 |---|---|---|
-| Focused frontend unit checks | Unset `OV_GGUF_Q4_K_ZP_F16` | Default test expectations; run mandatory op coverage when applicable |
+| Unfiltered frontend unit suite | Unset `OV_GGUF_Q4_K_ZP_F16` | Default test expectations, required fixtures and op coverage |
 | Generated-text quality / WWB | Use and record the selected checkpoint environment | [Same-reference quality comparison](wwb.md); numerical and integration gates remain separate |
 | Strict quantized checkpoint comparison | `OV_GGUF_Q4_K_ZP_F16=1` | Original full-logit or feature parity gate |
 | Represented-F32 diagnostic | Explicit environment and tensor-type inventory | Arithmetic isolation; does not replace quantized parity |
@@ -123,10 +120,7 @@ from llama parity. Shared layout does not imply identical media geometry.
 State replay semantics: teacher-forced greedy choices on one engine's generated
 history measure local decisions, not identical free-running sequences. Tiny or
 random fixtures can produce nonsense text while numerically agreeing. Keep
-parity, model quality and fidelity to unquantized weights as separate claims. WWB can satisfy the
-text-quality criterion for the measured scope when graph and integration checks pass and it shows
-no material additional quality loss versus llama.cpp. Keep a failed strict parity result separate;
-quality acceptance never turns it into a parity pass.
+parity, model quality and fidelity to unquantized weights as separate claims.
 
 Document intentional consumer/reference differences in the applicable frontend guide and
 retain affected comparisons with their original gates. Report SDPA/PA agreement and API
@@ -142,9 +136,8 @@ not rule out CPU activation arithmetic differences.
 
 ## Execute with existing workflows
 
-Iterate on a focused local reproducer. Expand validation only for a concrete shared-path coverage
-gap, changed inputs, a new failure or a mandatory check. Use the repository's GHA workflows when
-the required coverage cannot be established with focused local checks. The [frontend GTest](../../../../.github/workflows/job_cxx_unit_tests.yml),
+Iterate on a focused local reproducer, then use the repository's GHA workflows for
+broader validation. The [frontend GTest](../../../../.github/workflows/job_cxx_unit_tests.yml),
 [model-hub](../../../../.github/workflows/job_gguf_models_tests.yml) and
 [llama.cpp backend](../../../../.github/workflows/job_gguf_llamacpp_validation.yml) jobs
 run in OpenVINO's Ubuntu workflows. [Ubuntu 22](../../../../.github/workflows/ubuntu_22.yml)
@@ -155,17 +148,17 @@ skipped GGUF component or no collected tests provides no GGUF evidence.
 
 Use `gh workflow run <workflow> --ref <branch>` with supported revision inputs,
 then `gh run watch <run-id> --exit-status`. Record the workflow revision, tested
-commit (including any merge commit), companion repository SHAs and reference pin.
+commit (including PR merge commits), companion repository SHAs and reference pin.
 Verify artifact provenance when a workflow consumes another repository's build;
 `latest_available_commit` does not identify the requested frontend revision.
 Inspect GTest XML, pytest counts/skips and acceptance reports downloaded with
 `gh run download <run-id> --dir <artifact-directory>`. Required coverage and
 numerical gates belong in the tests, rather than a second report runner.
 
-For repeated local batches or a concrete coverage gap, check selected IDs/counts and required
-fixtures with the [coverage preflight](preflight.md#test-selection-and-required-fixtures). Retain
-post-run coverage checks too: an absent or suppressed required test remains missing coverage even
-with exit zero. Audit overlay link inputs when using a custom link command.
+Before repeated local batches, check selected IDs/counts and required fixtures with the
+[coverage preflight](preflight.md#test-selection-and-required-fixtures). Retain post-run coverage
+checks too: an absent or suppressed required test remains missing coverage even with exit zero.
+Audit overlay link inputs when using a custom link command.
 
 For local checks, invoke the GTest binary or pytest/acceptance script directly,
 with explicit filters and report paths. Keep commands, logs and reports outside
@@ -175,8 +168,8 @@ an overlay. A successful local run does not prove GHA packaging or job selection
 
 Retain failed attempts. Use `gh run rerun <run-id> --failed` for a deliberate retry
 of transient failures; fixes require a new run at the new revision. Changed inputs
-invalidate reuse. Expand or repeat only for changed inputs, a new failure, a concrete shared-path
-gap, a mandatory op-coverage check or other missing required coverage. Before repeating an unchanged failing reproducer, record the
+invalidate reuse. Expand or repeat only for changed inputs, a new failure or
+missing required coverage. Before repeating an unchanged failing reproducer, record the
 new hypothesis or diagnostic; verify the actual graph/runtime inputs before another sweep.
 Stop on a user pause and retain the run IDs and logs.
 

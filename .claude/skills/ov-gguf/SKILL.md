@@ -54,9 +54,8 @@ converters; builders and validation differ. Registration or conversion alone nev
 - **Registration timing.** Architecture/projector extensions before `load()`; converters and passes
   before `convert()`, on the same frontend instance. `GGUFMakeStateful` and `AdaptToGenAI` are C++ only.
 - **Test build.** New translator or builder sources go into the explicit `FRONTEND_SRCS` list in
-  `tests/CMakeLists.txt`, or the test binary fails to link. Start with focused tests for changed
-  paths. Run the smallest selection that executes the mandatory op-coverage teardown; use the
-  unfiltered frontend binary only when that gate requires it, and check its exit status.
+  `tests/CMakeLists.txt`, or the test binary fails to link. Run `ov_gguf_frontend_tests` unfiltered
+  before finishing: the op-coverage gate runs in teardown, so check the exit status.
   `GGUFArchConversion` skips without generated headers unless `OV_GGUF_REQUIRE_ARCH_FIXTURES=1`
   requires them; generate them with [gen_arch_fixtures.py](../../../src/frontends/gguf/tests/gen_arch_fixtures.py) `--fetch`.
   Check actual selected counts and skips; registration, conversion, decoder numerics and
@@ -69,18 +68,15 @@ converters; builders and validation differ. Registration or conversion alone nev
 - **Comparisons.** Use full logits or features on identical inputs and token histories, with
   `INFERENCE_PRECISION_HINT=f32`, `DYNAMIC_QUANTIZATION_GROUP_SIZE=0` and the reference's KV precision.
   For strict checkpoint comparisons, set `OV_GGUF_Q4_K_ZP_F16=1` before starting the process.
-  Keep this variable unset for default-mode focused frontend tests; integer-zero-point tests require
-  the default mode. Run broader selections only for a concrete shared-path coverage gap or a
-  mandatory op-coverage gate. Keep [scenario environments](references/validation.md#scenario-environments)
+  Run the unfiltered frontend unit suite with this variable unset: integer-zero-point tests require
+  the default mode. Keep [scenario environments](references/validation.md#scenario-environments)
   explicit. Report quantized-CPU and represented-F32 comparisons separately and keep failed results.
   `GGML_OPENVINO_*` variables configure only the llama.cpp backend.
   Inspect tensor-type inventory rather than checkpoint names. Identical quantized weights do
   not rule out CPU arithmetic differences; exact expansions isolate them but do not waive the
   original parity gate. Shared exported-model layout does not imply identical media geometry.
-- **Shared changes.** For translator, VIEW/`op_case` or shared block changes, start with focused
-  tests for the affected path. Expand to representative architecture, conversion or mmproj cases
-  only when a concrete shared-path gap requires them; run the mandatory op-coverage gate when
-  applicable.
+- **Shared changes.** Translator, VIEW/`op_case` or shared block changes rerun
+  `GGUFArchitectureAccuracy`, `GGUFArchConversion` and the mmproj suites, not just the target model.
 - **Long runs.** Redirect output to a file, keep the launched PID and stop only that process. Large quantized
   MoE checkpoints can expand at CPU compilation; check memory before starting one.
 - **Ineffective rebuilds.** Verify graph attributes, plugin/executor parameters and the linked,
@@ -88,5 +84,5 @@ converters; builders and validation differ. Registration or conversion alone nev
   for overlays or multiple worktrees; version strings and `ldd` alone do not prove execution identity.
 - **Validation batches.** Extend shared-path regression checks to tokenizer, mask and PA changes
   with representative SDPA/PA/media/chat cases. The [validation guide](references/validation.md)
-  separates numerical parity, model quality and Optimum compatibility. WWB may establish text-quality
-  acceptance for the measured scope, while a known arithmetic difference remains a failed parity check.
+  separates numerical parity, model quality and Optimum compatibility; a known arithmetic
+  difference remains a failed parity check unless the user changes the acceptance contract.

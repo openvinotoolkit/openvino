@@ -24,6 +24,7 @@ Example contract; replace the patterns, counts and paths with the requested scen
 ```json
 {
   "selections": [
+    {"pattern": "*", "count": 2},
     {"pattern": "DecoderChecks.PrefillAndCachedDecode", "count": 1},
     {"pattern": "EmbeddingChecks.TokenLookup", "count": 1}
   ],
@@ -63,8 +64,8 @@ prove that a stale XML file belongs to the attempt: use unique paths and preserv
 ## Overlay link inputs
 
 Prefer normal CMake/Ninja targets. If an overlay is necessary, save its actual single
-compiler-driver link command using POSIX shell quoting in a text file. List the required
-replacement objects and superseded objects that must be absent:
+compiler-driver link command using POSIX shell quoting in a text file. List the required replacement objects and
+superseded objects that must be absent:
 
 ```json
 {

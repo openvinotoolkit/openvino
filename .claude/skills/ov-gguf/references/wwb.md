@@ -22,9 +22,8 @@ criteria appropriate to the task before inspecting results.
 
 Use representative prompts for the requested languages/tasks and enough generation to expose
 drift. Record prompt provenance/count and token limits. Preflight one prompt through generation
-and scoring; verify identical-answer scoring reaches the metric's expected maximum. For greedy
-runs, disable repetition, frequency and presence penalties in both engines. A short teacher-forced
-replay does not establish free-running quality.
+and scoring; verify identical-answer scoring reaches the metric's expected maximum. A short
+teacher-forced replay does not establish free-running quality.
 
 ## Inputs and execution
 
@@ -32,7 +31,7 @@ Audit prompt token IDs and stopping behavior first. Match rendered template byte
 policy, EOG IDs, context, sampling/penalties, attention and KV precision, and record arithmetic
 settings independently. For strict CPU comparisons use the established F32 inference and
 disabled dynamic-quantization settings. Set checkpoint-specific zero-point modes before launch;
-keep them unset for ordinary focused frontend tests.
+keep them unset for the unfiltered unit suite.
 
 If default string-input paths differ, retain that failure and label any comparison using matched
 encoded inputs. Also test the supported default path for affected prompts; forced inputs alone
@@ -58,8 +57,3 @@ Report numerical parity, quality and integration outcomes independently. Preserv
 missing coverage; similar text scores do not establish image/audio, long-context or another
 device's behavior. Apply the task's agreed acceptance criteria rather than inventing a universal
 threshold or requiring identical free-running tokens.
-
-WWB can establish generated-text quality acceptance when graph and integration checks pass
-and the measured model shows no material additional quality loss versus llama.cpp. Report that
-quality result within the measured checkpoint, device, quantization and modality scope. Keep any
-failed numerical parity gate as a failure; a quality pass does not waive or relabel it.
