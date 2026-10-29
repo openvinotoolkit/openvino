@@ -578,11 +578,11 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     const auto& intermediate_mems = pa_inst->get_intermediates_memories();
 
     // Allocation-time and execution-time micro/non-micro decisions must agree; a mismatch shows up
-    // as the wrong buffer count. MIXED with token_type_ids stays on the DPAS kernel only where that is
-    // sdpa_ocl, which implements the bidirectional mask; sdpa_micro leaves it to pa_multi_token.
+    // as the wrong buffer count. MIXED with token_type_ids stays on the DPAS kernel of the lane; sdpa_micro
+    // has one extra buffer for the token_type_ids group bounds, sdpa_ocl reads token_type_ids itself.
     // token_type_ids makes it a PA_FEATURES op on xe_hpg.
-    const bool micro_layout = tests::expected_dpas_backend(engine, true, 64, tests::pa_hpg_tiers(true)) == tests::dpas_backend::ocl;
-    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 4u : 7u);
+    const auto backend = tests::expected_dpas_backend(engine, true, 64, tests::pa_hpg_tiers(true));
+    ASSERT_EQ(intermediate_mems.size(), backend == tests::dpas_backend::ocl ? 4u : backend == tests::dpas_backend::micro ? 5u : 7u);
 }
 TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) {
     tests::random_generator rg(GET_SUITE_NAME);
