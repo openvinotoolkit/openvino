@@ -23,7 +23,11 @@ CommonDispatchData GridSampleKernelOpt_BilinearZeros::CalcDispatch(const grid_sa
     return dispatch_data;
 }
 
-KernelsPriority GridSampleKernelOpt_BilinearZeros::GetKernelsPriority(const Params& /*params*/) const {
+KernelsPriority GridSampleKernelOpt_BilinearZeros::GetKernelsPriority(const Params& params) const {
+    const auto& kernel_params = static_cast<const grid_sample_params&>(params);
+    const auto& input = kernel_params.inputs[0];
+    if (input.X().v == 1 && input.Y().v == 1)
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE + 1.f;
     return FORCE_PRIORITY_8;
 }
 
