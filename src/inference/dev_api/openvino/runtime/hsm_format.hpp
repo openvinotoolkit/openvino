@@ -304,7 +304,7 @@ inline constexpr SectionTag runtime_requirements_tag = SectionTag::make(runtime_
 /// Wire tag for #weights - always pointer-mode. Payload contract: CVS-196451.
 inline constexpr SectionTag weights_tag = SectionTag::make(weights, /*is_inline=*/false);
 
-/// Wire tag for #compiled_options - always pointer-mode. Payload contract: CVS-196452.
+/// Wire tag for #compiled_options - always pointer-mode. Payload: see openvino/runtime/hsm_compiled_options_codec.hpp.
 inline constexpr SectionTag compiled_options_tag = SectionTag::make(compiled_options, /*is_inline=*/false);
 
 /**
