@@ -42,7 +42,7 @@ void maybe_flush_state(StateType* conv_state_table,
                        const size_t state_stride,
                        const size_t state_off,
                        const size_t h_count,
-                       const size_t kernel_size) {
+                       const size_t window) {
     const int32_t cached_tokens = prev_nums + (t + 1);
     const bool interval_hit = (seq_interval > 0) && ((cached_tokens % seq_interval) == 0);
     const bool is_last_token = (t == seq_tokens - 1);
@@ -50,7 +50,7 @@ void maybe_flush_state(StateType* conv_state_table,
         const int32_t slot = (seq_interval > 0) ? (1 + (cached_tokens - 1) / seq_interval) : 1;
         if (slot < block_span) {
             const int32_t physical_block = block_indices[blk_begin + slot];
-            const size_t write_count = h_count * kernel_size;
+            const size_t write_count = h_count * window;
             cvt_copy(conv_state_table + static_cast<size_t>(physical_block) * state_stride + state_off,
                      local_state + state_off,
                      /*m=*/size_t{1},
@@ -62,7 +62,8 @@ void maybe_flush_state(StateType* conv_state_table,
 }
 
 // Scalar conv1d computation for a channel range [h_begin, h_end).
-// Shifts state, inserts new token, computes dot product with weight.
+// Shifts state (over the full causal window), inserts new token, computes dot product with
+// weight (over num_taps taps spaced `dilation` apart within the window).
 // DataT may be f32/bf16/f16 for token_ptr/conv_weight/conv_bias/out_ptr;
 // local_state remains f32 to preserve accumulation precision.
 template <typename DataT>
@@ -74,18 +75,20 @@ void conv1d_scalar(float* local_state,
                    DataT* out_ptr,
                    const size_t h_begin,
                    const size_t h_end,
-                   const size_t kernel_size) {
+                   const size_t num_taps,
+                   const size_t dilation,
+                   const size_t window) {
     for (size_t h = h_begin; h < h_end; h++) {
-        float* state_h = local_state + h * kernel_size;
-        for (size_t k = 0; k + 1 < kernel_size; k++) {
+        float* state_h = local_state + h * window;
+        for (size_t k = 0; k + 1 < window; k++) {
             state_h[k] = state_h[k + 1];
         }
-        state_h[kernel_size - 1] = static_cast<float>(token_ptr[h]);
+        state_h[window - 1] = static_cast<float>(token_ptr[h]);
 
-        const DataT* weight_h = conv_weight + h * kernel_size;
+        const DataT* weight_h = conv_weight + h * num_taps;
         float sum = has_bias ? static_cast<float>(conv_bias[h]) : 0.0F;
-        for (size_t k = 0; k < kernel_size; k++) {
-            sum += state_h[k] * static_cast<float>(weight_h[k]);
+        for (size_t k = 0; k < num_taps; k++) {
+            sum += state_h[k * dilation] * static_cast<float>(weight_h[k]);
         }
         out_ptr[h] = static_cast<DataT>(sum);
     }
@@ -105,11 +108,13 @@ void paged_causal_conv1d_ref(const DataT* input_embeds,
                              DataT* output_embeds,
                              const size_t batch_size_in_tokens,
                              const size_t hidden_size,
-                             const size_t kernel_size,
+                             const size_t num_taps,
+                             const size_t dilation,
                              const size_t seq_count,
                              float* local_state,
                              const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
-    const size_t state_stride = hidden_size * kernel_size;
+    const size_t window = (num_taps - 1) * dilation + 1;
+    const size_t state_stride = hidden_size * window;
     const size_t block_count = (hidden_size + kChannelBlock - 1) / kChannelBlock;
 
     // Parallelize across (sequence, channel_block).
@@ -154,7 +159,7 @@ void paged_causal_conv1d_ref(const DataT* input_embeds,
         const size_t h_begin = blk * kChannelBlock;
         const size_t h_end = std::min(h_begin + kChannelBlock, hidden_size);
         const size_t h_count = h_end - h_begin;
-        const size_t state_off = h_begin * kernel_size;
+        const size_t state_off = h_begin * window;
 
         // Each worker thread owns a private [state_stride] row of local_state. Since different
         // (s, blk) pairs may land on the same thread, the row is reused across pairs but always
@@ -167,9 +172,9 @@ void paged_causal_conv1d_ref(const DataT* input_embeds,
         cvt_copy(thread_local_state + state_off,
                  conv_state_table + static_cast<size_t>(read_physical_block) * state_stride + state_off,
                  /*m=*/size_t{1},
-                 /*n=*/h_count * kernel_size,
-                 /*src_stride=*/h_count * kernel_size,
-                 /*dst_stride=*/h_count * kernel_size);
+                 /*n=*/h_count * window,
+                 /*src_stride=*/h_count * window,
+                 /*dst_stride=*/h_count * window);
 
         for (int32_t t = 0; t < seq_tokens; t++) {
             const size_t token_idx = static_cast<size_t>(token_begin) + static_cast<size_t>(t);
@@ -184,7 +189,9 @@ void paged_causal_conv1d_ref(const DataT* input_embeds,
                           out_ptr,
                           h_begin,
                           h_end,
-                          kernel_size);
+                          num_taps,
+                          dilation,
+                          window);
 
             maybe_flush_state(conv_state_table,
                               thread_local_state,
@@ -198,7 +205,7 @@ void paged_causal_conv1d_ref(const DataT* input_embeds,
                               state_stride,
                               state_off,
                               h_count,
-                              kernel_size);
+                              window);
         }
     });
 }
@@ -217,7 +224,8 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
                                    DataT* output_embeds,
                                    const size_t batch_size_in_tokens,
                                    const size_t hidden_size,
-                                   const size_t kernel_size,
+                                   const size_t num_taps,
+                                   const size_t dilation,
                                    const size_t seq_count,
                                    float* local_state,
                                    const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
@@ -235,12 +243,13 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
                             output_embeds,
                             batch_size_in_tokens,
                             hidden_size,
-                            kernel_size,
+                            num_taps,
+                            dilation,
                             seq_count,
                             local_state,
                             cpu_parallel);
 #else
-    if (kernel_size != 3 && kernel_size != 4) {
+    if (num_taps != 3 && num_taps != 4) {
         paged_causal_conv1d_ref(input_embeds,
                                 conv_state_table,
                                 conv_weight,
@@ -254,14 +263,16 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
                                 output_embeds,
                                 batch_size_in_tokens,
                                 hidden_size,
-                                kernel_size,
+                                num_taps,
+                                dilation,
                                 seq_count,
                                 local_state,
                                 cpu_parallel);
         return;
     }
 
-    const size_t state_stride = hidden_size * kernel_size;
+    const size_t window = (num_taps - 1) * dilation + 1;
+    const size_t state_stride = hidden_size * window;
     const size_t block_count = (hidden_size + kChannelBlock - 1) / kChannelBlock;
 
     // Parallelize across (sequence, channel_block).
@@ -306,7 +317,7 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
         const size_t h_begin = blk * kChannelBlock;
         const size_t h_end = std::min(h_begin + kChannelBlock, hidden_size);
         const size_t h_count = h_end - h_begin;
-        const size_t state_off = h_begin * kernel_size;
+        const size_t state_off = h_begin * window;
 
         // Each worker thread owns a private [state_stride] row of local_state. Since different
         // (s, blk) pairs may land on the same thread, the row is reused across pairs but always
@@ -319,16 +330,16 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
         cvt_copy(thread_local_state + state_off,
                  conv_state_table + static_cast<size_t>(read_physical_block) * state_stride + state_off,
                  /*m=*/size_t{1},
-                 /*n=*/h_count * kernel_size,
-                 /*src_stride=*/h_count * kernel_size,
-                 /*dst_stride=*/h_count * kernel_size);
+                 /*n=*/h_count * window,
+                 /*src_stride=*/h_count * window,
+                 /*dst_stride=*/h_count * window);
 
         for (int32_t t = 0; t < seq_tokens; t++) {
             const size_t token_idx = static_cast<size_t>(token_begin) + static_cast<size_t>(t);
             const auto* token_ptr = input_embeds + token_idx * hidden_size;
             auto* out_ptr = output_embeds + token_idx * hidden_size;
 
-            // SIMD-accelerated paths for kernel_size 3 and 4.
+            // SIMD-accelerated paths for num_taps 3 and 4.
             // Each path: shift state, gather into aligned buffers, vectorized MAC, scalar tail.
             size_t h = h_begin;
 
@@ -355,22 +366,22 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
                 float bias_buf[simd_step];
                 for (size_t i = 0; i < simd_step; i++) {
                     const size_t ch = h + i;
-                    float* state_h = thread_local_state + ch * kernel_size;
-                    for (size_t k = 0; k + 1 < kernel_size; k++) {
+                    float* state_h = thread_local_state + ch * window;
+                    for (size_t k = 0; k + 1 < window; k++) {
                         state_h[k] = state_h[k + 1];
                     }
-                    state_h[kernel_size - 1] = static_cast<float>(token_ptr[ch]);
-                    for (size_t k = 0; k < kernel_size; k++) {
-                        st[k][i] = state_h[k];
+                    state_h[window - 1] = static_cast<float>(token_ptr[ch]);
+                    for (size_t k = 0; k < num_taps; k++) {
+                        st[k][i] = state_h[k * dilation];
                     }
-                    const DataT* weight_h = conv_weight + ch * kernel_size;
-                    for (size_t k = 0; k < kernel_size; k++) {
+                    const DataT* weight_h = conv_weight + ch * num_taps;
+                    for (size_t k = 0; k < num_taps; k++) {
                         wt[k][i] = static_cast<float>(weight_h[k]);
                     }
                     bias_buf[i] = has_bias ? static_cast<float>(conv_bias[ch]) : 0.0F;
                 }
                 auto acc = simd_loadu(bias_buf);
-                for (size_t k = 0; k < kernel_size; k++) {
+                for (size_t k = 0; k < num_taps; k++) {
                     acc = simd_fmadd(simd_loadu(st[k]), simd_loadu(wt[k]), acc);
                 }
 #    if defined(HAVE_AVX512F)
@@ -389,7 +400,9 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
                           out_ptr,
                           h,
                           h_end,
-                          kernel_size);
+                          num_taps,
+                          dilation,
+                          window);
 
             maybe_flush_state(conv_state_table,
                               thread_local_state,
@@ -403,7 +416,7 @@ void paged_causal_conv1d_optimized(const DataT* input_embeds,
                               state_stride,
                               state_off,
                               h_count,
-                              kernel_size);
+                              window);
         }
     });
 #endif
@@ -424,7 +437,8 @@ void paged_causal_conv1d_exec(const void* input_embeds,
                               void* output_embeds,
                               const size_t batch_size_in_tokens,
                               const size_t hidden_size,
-                              const size_t kernel_size,
+                              const size_t num_taps,
+                              const size_t dilation,
                               const size_t seq_count,
                               const ov::element::Type data_precision,
                               const ov::element::Type state_precision,
@@ -449,7 +463,8 @@ void paged_causal_conv1d_exec(const void* input_embeds,
                                       static_cast<DataT*>(output_embeds),
                                       batch_size_in_tokens,
                                       hidden_size,
-                                      kernel_size,
+                                      num_taps,
+                                      dilation,
                                       seq_count,
                                       local_state,
                                       cpu_parallel);

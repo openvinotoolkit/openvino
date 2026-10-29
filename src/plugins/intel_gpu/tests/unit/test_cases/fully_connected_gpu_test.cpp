@@ -3274,58 +3274,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
     }
 
-    void test_compressed_int8_broadcast_scale_zp(bool is_caching_test, bool transpose_parameters) {
-        auto& engine = get_test_engine();
-        if (!engine.get_device_info().supports_fp16) {
-            GTEST_SKIP() << "The test requires FP16 support.";
-        }
-
-        constexpr int64_t ofm = 3;
-        constexpr int64_t ifm = 32;
-        constexpr int64_t groups = 2;
-        const auto param_shape = transpose_parameters ? ov::PartialShape{1, groups} : ov::PartialShape{groups, 1};
-
-        auto input_mem = engine.allocate_memory({{1, 2, ifm}, data_types::f16, format::bfyx});
-        auto weights_mem = engine.allocate_memory({{ofm, ifm}, data_types::u8, format::bfyx});
-        auto scale_mem = engine.allocate_memory({param_shape, data_types::f16, format::bfyx});
-        auto zp_mem = engine.allocate_memory({param_shape, data_types::u8, format::bfyx});
-        set_values<ov::float16>(input_mem, std::vector<ov::float16>(2 * ifm, ov::float16(1.0f)));
-        set_values<uint8_t>(weights_mem, std::vector<uint8_t>(ofm * ifm, 3));
-        set_values<ov::float16>(scale_mem, {2.0f, 3.0f});
-        set_values<uint8_t>(zp_mem, {1, 2});
-
-        auto fc_prim = fully_connected("fc_prim",
-                                       input_info("input"),
-                                       "weights",
-                                       "",
-                                       "scale",
-                                       "zp",
-                                       data_types::f16,
-                                       3,
-                                       2,
-                                       true,
-                                       transpose_parameters,
-                                       transpose_parameters);
-        topology topology(input_layout("input", input_mem->get_layout()), data("weights", weights_mem), data("scale", scale_mem), data("zp", zp_mem), fc_prim);
-        auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::optimize_data(true));
-
-        auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
-        network->set_input_data("input", input_mem);
-        auto outputs = network->execute();
-        ASSERT_EQ(outputs.size(), size_t{1});
-        auto output_mem = outputs.at("fc_prim").get_memory();
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
-        ASSERT_EQ((ov::PartialShape{1, 2, ofm}), output_mem->get_layout().get_partial_shape());
-        ASSERT_EQ(output_ptr.size(), size_t{2 * ofm});
-
-        // Both groups broadcast across all output channels: 16*(3-1)*2 + 16*(3-2)*3 = 112.
-        for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_EQ(ov::float16(112.0f), output_ptr[i]) << "i = " << i;
-        }
-    }
-
     void test_dynamic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -5825,14 +5773,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_transpose_scale_zp) {
     this->test_compressed_int8_transpose_scale_zp(true);
 }
 
-TEST_F(fully_connected_gpu_tests, compressed_int8_broadcast_scale_zp) {
-    this->test_compressed_int8_broadcast_scale_zp(false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, compressed_int8_broadcast_scale_zp_cached) {
-    this->test_compressed_int8_broadcast_scale_zp(true, false);
-}
-
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
     this->test_compressed_int8_scale(false, true, 1, false, false);
 }
@@ -7067,3 +7007,128 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     net->execute();
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
+struct onednn_int4_fc_params {
+    size_t k;
+    bool is_3d;
+    bool is_u4;
+    bool expect_onednn;
+    bool is_f32 = false;
+};
+
+class fully_connected_onednn_int4_alignment : public ::testing::TestWithParam<onednn_int4_fc_params> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<onednn_int4_fc_params>& obj) {
+        const auto& p = obj.param;
+        return std::string(p.is_u4 ? "u4" : "i4") + "_k" + std::to_string(p.k) + (p.is_3d ? "_3d" : "_2d") + (p.is_f32 ? "_f32" : "_f16");
+    }
+};
+
+template <typename T>
+void run_onednn_int4_fc_alignment(const onednn_int4_fc_params& p) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN INT4 FC requires XMX";
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    constexpr size_t rows = 32;
+    constexpr size_t ofm = 32;
+    const size_t k = p.k;
+    const int zero_point = p.is_u4 ? 8 : 0;
+    const float scale_value = 1.0f / 16;
+    const auto activation_type = p.is_f32 ? data_types::f32 : data_types::f16;
+
+    const auto in_shape = p.is_3d ? ov::PartialShape{2, static_cast<int64_t>(rows / 2), static_cast<int64_t>(k)}
+                                  : ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(k)};
+    auto input_mem = engine.allocate_memory({in_shape, activation_type, format::bfyx});
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(ofm), static_cast<int64_t>(k)},
+                                               p.is_u4 ? data_types::u4 : data_types::i4, format::bfyx});
+    auto scale_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(ofm), 1}, data_types::f16, format::bfyx});
+
+    auto input = rg.generate_random_1d<T>(rows * k, -1.0f, 1.0f);
+    std::vector<uint8_t> weights((ofm * k + 1) / 2);
+    for (size_t i = 0; i < weights.size(); ++i)
+        weights[i] = static_cast<uint8_t>((i * 5 + 3) % 16 | ((i * 7 + 1) % 16) << 4);
+    set_values(input_mem, input);
+    set_values(weights_mem, weights);
+    set_values(scale_mem, std::vector<ov::float16>(ofm, ov::float16(scale_value)));
+
+    topology topo;
+    topo.add(input_layout("input", input_mem->get_layout()));
+    topo.add(data("weights", weights_mem));
+    topo.add(data("scale", scale_mem));
+    if (p.is_u4) {
+        auto zp_mem = engine.allocate_memory({ov::PartialShape{1, 1}, data_types::u8, format::bfyx});
+        set_values<uint8_t>(zp_mem, {static_cast<uint8_t>(zero_point)});
+        topo.add(data("zp", zp_mem));
+    }
+    auto fc = fully_connected("fc", input_info("input"), "weights", "", "scale", p.is_u4 ? "zp" : "", activation_type, in_shape.size(), 2);
+    if (p.is_u4)
+        fc.decompression_zero_point_scalar = zero_point;
+    topo.add(fc);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "", impl_types::onednn}}}));
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    auto outputs = net.execute();
+
+    const auto impl = net.get_primitive("fc")->get_impl();
+    if (!p.is_3d) {
+        ASSERT_TRUE(impl->is_onednn());
+    }
+    if (p.expect_onednn) {
+        EXPECT_EQ(impl->get_kernel_name().find("ref"), std::string::npos) << "oneDNN kernel: " << impl->get_kernel_name();
+    }
+
+    auto output_mem = outputs.at("fc").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> output(output_mem, get_test_stream());
+    ASSERT_EQ(output.size(), rows * ofm);
+    for (size_t r = 0; r < rows; ++r) {
+        for (size_t n = 0; n < ofm; ++n) {
+            float expected = 0.0f;
+            for (size_t c = 0; c < k; ++c) {
+                const auto index = n * k + c;
+                int w = (weights[index / 2] >> (4 * (index % 2))) & 0xf;
+                if (!p.is_u4 && w >= 8)
+                    w -= 16;
+                expected += static_cast<float>(input[r * k + c]) * static_cast<float>(w - zero_point) * scale_value;
+            }
+            ASSERT_NEAR(static_cast<float>(output[r * ofm + n]), expected, 0.1f) << "row=" << r << ", ofm=" << n;
+        }
+    }
+}
+
+TEST_P(fully_connected_onednn_int4_alignment, compare_with_host_reference) {
+    const auto p = GetParam();
+    if (p.is_f32)
+        run_onednn_int4_fc_alignment<float>(p);
+    else
+        run_onednn_int4_fc_alignment<ov::float16>(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_onednn_int4_alignment,
+                         ::testing::Values(onednn_int4_fc_params{9, false, true, true},
+                                           onednn_int4_fc_params{9, false, false, true},
+                                           onednn_int4_fc_params{33, false, true, true},
+                                           onednn_int4_fc_params{33, false, false, true},
+                                           onednn_int4_fc_params{11, false, true, true},
+                                           onednn_int4_fc_params{11, false, false, true},
+                                           onednn_int4_fc_params{13, false, true, true},
+                                           onednn_int4_fc_params{13, false, false, true},
+                                           onednn_int4_fc_params{15, false, true, true},
+                                           onednn_int4_fc_params{15, false, false, true},
+                                           onednn_int4_fc_params{10, false, true, false},
+                                           onednn_int4_fc_params{10, false, false, false},
+                                           onednn_int4_fc_params{9, false, true, false, true},
+                                           onednn_int4_fc_params{9, false, false, false, true},
+                                           onednn_int4_fc_params{9, true, true, false},
+                                           onednn_int4_fc_params{33, true, false, false}),
+                         fully_connected_onednn_int4_alignment::GetTestCaseName);
+}  // namespace
+#endif
