@@ -7,6 +7,8 @@ import os
 import subprocess
 import sys
 
+import re
+
 import numpy as np
 
 import openvino as ov
@@ -465,6 +467,75 @@ def test_packing(shape, low, high, ov_type, dtype):
     packed_data = pack_data(data, ov_tensor.element_type)
     ov_tensor.data[:] = packed_data
     unpacked = unpack_data(ov_tensor.data, ov_tensor.element_type, ov_tensor.shape)
+    assert np.array_equal(unpacked, data)
+
+
+# ops.constant rejects these values for the integer types and nf4 (in_t_range);
+# f4e2m1 is checked as raw 4-bit codes
+@pytest.mark.parametrize(
+    ("ov_type", "values", "dtype"),
+    [
+        (ov.Type.u2, [4, 1], np.uint8),
+        (ov.Type.u3, [8, 1], np.uint8),
+        (ov.Type.u3, [1, 256], np.int64),
+        (ov.Type.u3, [1.0, 8.0], np.float32),
+        (ov.Type.u4, [16, 1], np.uint8),
+        (ov.Type.u4, [1, 16], np.uint8),
+        (ov.Type.u4, [[1, 2], [3, 16]], np.uint8),
+        (ov.Type.u4, [16.0, 1.0], np.float32),
+        (ov.Type.u4, [-1, 1], np.int8),
+        (ov.Type.u6, [64, 1], np.uint8),
+        (ov.Type.i4, [8, 1], np.int8),
+        (ov.Type.i4, [1, -9], np.int8),
+        (ov.Type.nf4, [16, 1], np.uint8),
+        (ov.Type.f4e2m1, [16, 1], np.uint8),
+        # A NaN must not hide an out-of-range value next to it
+        (ov.Type.u3, [np.nan, 8.0], np.float32),
+        (ov.Type.u6, [np.nan, 64.0], np.float32),
+    ],
+)
+def test_pack_data_rejects_values_out_of_range(ov_type, values, dtype):
+    low, high = (-8, 7) if ov_type == ov.Type.i4 else (0, (1 << ov_type.bitwidth) - 1)
+    with pytest.raises(RuntimeError, match=re.escape(f"out of the {ov_type.get_type_name()} range [{low}, {high}]")):
+        pack_data(np.array(values, dtype=dtype), ov_type)
+
+
+def test_pack_data_range_error_reports_summary_not_values():
+    # The error names dtype, shape, min and max instead of printing the whole array
+    data = np.zeros(100_000, dtype=np.uint8)
+    data[-1] = 16
+    with pytest.raises(RuntimeError) as e:
+        pack_data(data, ov.Type.u4)
+    message = str(e.value)
+    assert len(message) < 300
+    assert "uint8" in message
+    assert "(100000,)" in message
+    assert "min 0" in message
+    assert "max 16" in message
+
+
+def test_pack_data_range_error_ignores_nan_in_summary():
+    with pytest.raises(RuntimeError) as e:
+        pack_data(np.array([np.nan, 1.0, 64.0], dtype=np.float32), ov.Type.u6)
+    assert "min 1.0" in str(e.value)
+    assert "max 64.0" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    ("ov_type", "low", "high", "dtype"),
+    [
+        (ov.Type.u2, 0, 3, np.uint8),
+        (ov.Type.u3, 0, 7, np.uint8),
+        (ov.Type.u4, 0, 15, np.uint8),
+        (ov.Type.u6, 0, 63, np.uint8),
+        (ov.Type.i4, -8, 7, np.int8),
+        (ov.Type.nf4, 0, 15, np.uint8),
+        (ov.Type.f4e2m1, 0, 15, np.uint8),
+    ],
+)
+def test_pack_data_accepts_range_bounds(ov_type, low, high, dtype):
+    data = np.array([low, high, high, low, high], dtype=dtype)
+    unpacked = unpack_data(pack_data(data, ov_type), ov_type, data.shape)
     assert np.array_equal(unpacked, data)
 
 
