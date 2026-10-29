@@ -1,0 +1,111 @@
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the build would run'
+        type: string
+        required: true
+      build-type:
+        description: 'OpenVINO build type, e.g., "Release"'
+        type: string
+        required: true
+      target-branch:
+        description: 'Target branch for the build'
+        type: string
+        required: true
+      cmake-options:
+        description: 'A string of options passed to CMake'
+        type: string
+        required: true
+      build-variant:
+        description: 'Build variant including toolchain, e.g., "vs2022"'
+        type: string
+        required: false
+        default: 'vs2022'
+      cmake-build-parallel-level:
+        description: 'Number of threads for parallel build (hard-coded; NUMBER_OF_PROCESSORS does not respect container CPU limits)'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PYTHON_VERSION: '3.11'
+
+# Compile-only C++20 check. It is intentionally separate from job_build_windows.yml, so it
+# neither uploads artifacts nor shares compiler cache or shared-drive paths with the main Build.
+jobs:
+  Build:
+    name: Build
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: pwsh
+    runs-on: ${{ inputs.runner }}
+    env:
+      CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}_cpp20\\${{ inputs.target-branch }}"
+      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_MAXSIZE: 3G
+      CCACHE_SLOPPINESS: pch_defines,time_macros
+      OPENVINO_REPO: "${{ github.workspace }}\\openvino"
+      BUILD_DIR: "${{ github.workspace }}\\openvino_build"
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: ${{ inputs.cmake-build-parallel-level }}
+    steps:
+      - name: Clone OpenVINO
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          path: 'openvino'
+          submodules: 'recursive'
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./openvino/.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          use-pip-proxy: 'true'
+          self-hosted-runner: 'true'
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
+      - name: Install python dependencies
+        run: python3 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+
+      - name: Setup ccache
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cpp20-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-cpp20-ccache
+
+      - name: Configure Developer Command Prompt for Microsoft Visual C++
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          toolset: "14.42" # v2022
+
+      - name: CMake configure
+        env:
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+        run: |
+          $cmakeOptions = "$env:CMAKE_OPTIONS"
+          $splitCmakeOptions = $cmakeOptions.Split(" ")
+          $cmakeCommand = "cmake $splitCmakeOptions -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}"
+          Invoke-Expression $cmakeCommand
+
+      - name: Clean ccache stats
+        run: '& ccache --zero-stats'
+
+      - name: Cmake build - OpenVINO
+        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL -- --quiet
+
+      - name: Show ccache stats
+        if: always()
+        run: '& ccache --show-stats'

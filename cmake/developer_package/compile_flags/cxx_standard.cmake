@@ -13,7 +13,7 @@ if(NOT DEFINED OV_CXX_STANDARD_FALLBACK)
 endif()
 # OpenVINO has no C++20 named modules; this scanning only costs a version-matched
 # clang-scan-deps (CMP0155/CMake 3.28+) that may not exist in every toolchain/image.
-if(NOT DEFINED CMAKE_CXX_SCAN_FOR_MODULES)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28 AND NOT DEFINED CMAKE_CXX_SCAN_FOR_MODULES)
     set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 endif()
 
