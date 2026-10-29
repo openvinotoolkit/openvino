@@ -119,6 +119,13 @@ helpers remain internal migration adapters under builder. The topology never rer
 | Sliding-window attention | `attention.sliding_window(_pattern)`, or sinks |
 | Per-layer KV heads | `attention.head_count_kv` as an array |
 
+Attention output gates may provide one sigmoid value per channel or per head.
+The shared attention block reshapes per-head gates to `[B,T,H,1]` and broadcasts
+across head dimensions, preserving the existing full-width and interleaved gate
+paths. When GGUF frequency factors encode partial RoPE, retain those factors
+instead of reducing the rotary dimension; sliding layers can select a different
+RoPE configuration through the per-layer decoder parameters.
+
 MiniCPM's `logit_scale` is a divisor. When the key is absent, the builder uses
 `embedding_length / 256`, giving the model's `256 / embedding_length` output multiplier.
 This deliberately corrects the inverted fallback in unpatched llama.cpp, which defaults the
@@ -173,6 +180,14 @@ are a snapshot. `decoder_layer_parameters(layer)` supplies resolved heads, scale
 for a custom attention fragment. The Qwen3 builder in
 [`test_architecture_extension.cpp`](../tests/test_architecture_extension.cpp) owns its layer order
 this way; `VisionEncoderBuilder` in the same file is a larger non-decoder family.
+
+The [`lfm3` builder](../src/builder/arch/lfm3_builder.cpp) is a custom topology
+using typed decoder parameters and shared attention/FFN blocks. Zero per-layer KV
+heads select short convolution; other layers use sliding or full attention. Its
+dense SwiGLU layers require both post-attention and post-FFN norms or neither.
+Sliding layers rotate the full head, while full-attention layers retain the
+partial rotation encoded by `rope_freqs.weight`. Final normalization requires
+`output_norm.weight`; an absent output projection uses tied token embeddings.
 
 ### Declare model contracts
 

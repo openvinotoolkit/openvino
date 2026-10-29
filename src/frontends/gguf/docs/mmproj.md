@@ -1,8 +1,9 @@
 # Native GGUF multimodal conversion
 
 A llama.cpp multimodal projector file (`general.architecture = clip`, usually named
-`mmproj-*.gguf`) converts to an `ov::Model` that runs its vision and/or audio encoder and
-projector. The language model is a separate `.gguf` converted by the regular decoder path.
+`mmproj-*.gguf`) converts to an `ov::Model` with vision/audio encoders and
+projectors, and optional speech-generation components. The language model is a
+separate `.gguf` converted by the regular decoder path.
 
 ## Supported projectors
 
@@ -29,7 +30,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Vision | `gemma4v`, `gemma4uv` | two-axis positions, per-tensor clipping, pooling; unified patch normalization |
 | Vision | `muse-glimmer` | sparse/global windows, two-axis RoPE, pixel shuffle |
 | Vision | `deepseekocr`, `deepseekocr2` | SAM local/global attention, tiles, queries, view separators |
-| Audio | `lfm3a` | streaming mel encoder, causal convolution, KV/position state, reference normalization |
+| Audio | `lfm3a` | streaming mel encoder, causal convolution, KV/position state, learned normalization |
 | Speech | `lfm3a_gen` | MaskGIT depthformer, feedback lookup, FSQ and streaming spectral decoder |
 | Audio | `gemma4a` | causal convolution, 12-position relative attention with softcap |
 | Audio | `gemma4ua` | raw 640-sample waveform frames |
@@ -58,13 +59,13 @@ Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qw
 See [testing](testing.md) for commands and acceptance. A catalog entry is not a claim of coverage
 for every checkpoint, resolution, quantization, or device.
 
-## Files with vision and audio encoders
+## Files with multiple components
 
-A projector file holds at most one vision and one audio encoder; Gemma4 E2B/E4B/12B files carry
-both. Conversion builds every encoder the file declares into one model:
+The generic `clip` coordinator handles files with at most one vision and one audio encoder;
+Gemma4 E2B/E4B/12B files carry both. It builds every declared encoder into one model:
 
 1. `clip.has_vision_encoder` and `clip.has_audio_encoder` select the encoders. A file with
-   neither fails conversion.
+   neither is rejected by the generic encoder coordinator.
 2. Each encoder takes its projector from the global `clip.projector_type`, or else from
    `clip.vision.projector_type` / `clip.audio.projector_type`. A combined file therefore uses the
    per-modality keys; only the legacy `qwen2.5o` resolves to a different projector per modality
@@ -77,6 +78,10 @@ both. Conversion builds every encoder the file declares into one model:
 
 Running the combined model requires the inputs of both branches. `AdaptMmprojToGenAI` (below)
 turns it into one encoder; apply it to a clone per modality to obtain both.
+
+Files containing `lfm3vl`, `lfm3a`, or `lfm3a_gen` use a dedicated coordinator whose
+registry predicate is disjoint from the generic `clip` handler. It assembles vision,
+audio and speech-generation branches while reusing the shared projector registry.
 
 ## Graph boundary
 
@@ -94,6 +99,8 @@ fixed-resolution encoders retain the size recorded in metadata.
 | Muse Glimmer | pixels; `patch_indices` in window order with each window padded to `window_size²` slots; one-based `position_x` / `position_y` per slot; `output_indices`; pixel-shuffle `merge_indices`; additive key mask `window_mask [W,1,1,window_size²]` that hides the padding |
 | MiniCPM-V 4.6 | pixels, position IDs, `window_indices`, `inverse_window_indices`, `attention_mask`, `vit_merger.indices.N`, `merger.indices.N` |
 | DeepSeek-OCR / OCR2 | `vision.pixel_values [B,3,H,W]` (independent square tiles), local/global relative-position indices, `vision.output_indices`; OCR1 `position_indices`, OCR2 `query_indices`, `query_output_indices`, `position_ids`, `attention_mask` |
+| LFM3 vision | `vision.pixel_values [1,3,H,W]`, `vision.positions`; `vision.pixel_values_1 [1,3,H,W]` when the projector has a second-frame patch kernel |
+| LFM3 audio | `audio.features [1,1,mel,frames]`; streaming convolution, K/V and position state inputs |
 | Gemma4 audio | `audio.features [1,1,mel,frames]` |
 | Gemma4 unified audio | `audio.waveform_frames [1,1,T,640]`, 16 kHz waveform in 640-sample frames |
 | Whisper-derived audio | `audio.features [1,mel,1,frames]`, `audio.position_ids [1,1,1,ceil(frames/2)]` |
@@ -133,6 +140,14 @@ For real Gemma3 images, reproduce the reference resize/crop and RGB channel norm
 audio needs the reference mel extraction and frame padding before `audio.features`; Gemma4 unified
 audio instead takes consecutive 640-sample frames from a 16 kHz waveform, without mel extraction.
 
+The `lfm3vl` encoder uses raster patches and spatial merging at dynamic image
+resolutions. Paired-frame projectors take consecutive video frames; repeat a still
+image for the second frame. The `lfm3a` encoder takes mel features from mono 16 kHz
+audio. Streaming sessions retain position, downsampling, convolution and K/V state.
+Non-final chunks contain a multiple of eight mel frames; the final chunk is right
+padded. Seven frames of lookahead preserve the centered-convolution boundary.
+Flush ends the stream, and reset starts a new utterance.
+
 ## Using the encoders and a language model
 
 [`AdaptMmprojToGenAI`](../include/openvino/frontend/gguf/adapt_mmproj_to_genai.hpp) keeps one
@@ -141,9 +156,22 @@ exposes `[1,T,D]` outputs named
 `image_features` and `deepstack_features.N`, or `audio_features`. It rewrites the model in place,
 so run it on a separate clone for each modality of a combined file.
 
+For speech generation, select `Modality::AUDIO_GENERATION` on another clone.
+`get_audio_generation_models()` returns independent `depthformer`, `feedback` and
+`codec` models. Their named inputs, outputs, state declarations and `gguf_mmproj`
+configuration survive IR serialization.
+
+The `lfm3a_gen` depthformer uses twelve codebooks with 2017 entries (2016 FSQ codes
+and a mask token). Feedback maps sampled codes to decoder embeddings. The codec
+uses FSQ levels `[8,7,6,6]`, retains attention/convolution state and produces 1282
+polar spectral channels. Sampling and waveform reconstruction belong to the
+caller: use MaskGIT sampling and streaming overlap-add with a periodic 1280-point
+Hann window to reconstruct audio at 24 kHz.
+
 [`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) in `EMBEDS_TO_LOGITS`
 mode prepares the language model for media injection:
 
+- `lfm3` retains normalized `audio_hidden_states` for the speech depthformer alongside primary `logits`;
 - the token lookup moves to `get_embedding_model()`, sharing its weights, and the language model
   takes `inputs_embeds [B,T,D]`; token-embedding scaling is applied once;
 - Gemma4 E2B/E4B use a separate `get_per_layer_embedding_model()` whose output feeds
@@ -328,60 +356,3 @@ Speech API tests check deterministic repeated output, waveform chunk reconstruct
 text-only output, retained audio inputs, cancellation recovery and sequential TTS.
 Speech chunks are delivered after decoding the complete waveform; low-latency
 streaming and replay of assistant codec tokens in chat history are not implemented.
-
-## LFM3 components
-
-LFM3 `clip` files use a dedicated coordinator whose predicate is disjoint from
-the generic mmproj handler. VL files contain `lfm3vl`; Audio files contain
-`lfm3a` and `lfm3a_gen`; Omni files combine all three. The shared projector registry
-still supplies component implementations and extensions.
-
-Vision accepts dynamic image resolution and consecutive temporal frame pairs;
-a still image repeats its frame. Raster patch ordering, two-frame normalization,
-hybrid attention/convolution, spatial merging and output normalization match the
-pinned CPU reference. GenAI's vision layout exposes the corresponding packed
-patches and grid dimensions.
-
-Audio accepts 128-bin mel features from mono 16 kHz input. Streaming execution
-retains position, three downsampling states, and each encoder layer's convolution
-and K/V state. Non-final chunks contain a multiple of eight mel frames; the final
-chunk accepts the remainder with right padding. Seven frames of lookahead preserve
-offline behavior. A final chunk ends the stream; reset starts a new utterance.
-
-Speech uses 12 codebooks with a 2017-entry vocabulary (2016 FSQ codes plus mask),
-the reference MaskGIT schedule, codebook feedback embeddings, and an independent
-FSQ decoder with levels `[8,7,6,6]`. The hybrid codec retains attention and
-convolution state and produces 1282 polar spectral channels. GenAI performs
-streaming overlap-add with the periodic 1280-point Hann window at 24 kHz.
-
-Run `AdaptMmprojToGenAI` on independent clones for each modality. Selecting
-`AUDIO_GENERATION` exposes `get_audio_generation_models()` with independent
-`depthformer`, `feedback` and `codec` models. Inputs/outputs, state declarations and
-`gguf_mmproj` configuration survive IR serialization. The decoder's normalized
-`audio_hidden_states` supplies the depthformer; logits remain the primary output.
-
-Nonzero F32 fixtures compare rectangular temporal vision grids, cold/reset and
-24+17-frame streaming audio, depthformer logits, feedback, FSQ boundary codes,
-codec spectra and logical state updates. Combined Omni tests compare all native
-outputs/states, independently adapted components and codec IR reload. Component
-NMSE uses the existing CPU limit `1e-5`; depth/feedback/state also retain elementwise
-checks. Codec spectral F32 NMSE reaches `1.63e-10`; a stricter elementwise diagnostic
-has 12 values above `1e-4` (maximum `1.31e-4`) from accumulated F32 matrix arithmetic.
-This diagnostic is retained in the [speech fixture notes](../tests/lfm3_speech_README.md).
-
-Real Q8_0 VL, Audio and Omni media checkpoints were compared on 12 vision/audio
-embedding cases and 168 state metrics. Native quantized CPU comparisons fail
-156 of 180 metrics at NMSE `1e-5`, including all embeddings (NMSE `3.16e-4` to
-`7.70e-4`). Exact F32 expansions of the same stored weights pass all 180 metrics,
-with embedding NMSE `3.92e-9` to `3.24e-8`. An activation-rounding diagnostic matches
-the pinned Q8 CPU quantizer's scales and codes exactly for the first vision
-projection's input, but the complete 64x64 vision output still fails with NMSE
-`5.09e-4`. Native Q8 CPU parity is therefore not established.
-
-GenAI API coverage is recorded separately from these component comparisons. See
-[LFM3 decoder snapshots](supported_models.md#lfm3) for the pinned VL, Audio and Omni
-publisher revisions. CPU coverage does not establish GPU accuracy or Decision/D1
-support.
-
-The measured LFM3 CPU results and failed parity gates are collected in
-[LFM3 validation](lfm3_validation.md).
