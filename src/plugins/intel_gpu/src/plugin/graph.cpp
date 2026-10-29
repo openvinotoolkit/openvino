@@ -31,6 +31,10 @@
 #include "grouped_matmul_inst.h"
 #include "fully_connected_inst.h"
 
+#if OV_GPU_WITH_OCL_RT
+#include "impls/ocl_v2/primitive_ocl_base.hpp"
+#endif
+
 #include <list>
 #include <set>
 #include <unordered_set>
@@ -521,6 +525,34 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                     if (fc_prim->decompression_scale.is_valid()) {
                         auto wei_layout = node.get_input_layout(1);
                         info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
+#if OV_GPU_WITH_OCL_RT
+                        if (ov::element::is_gguf_block(wei_layout.data_type) && exec_time != "not_executed") {
+                            std::shared_ptr<const cldnn::primitive_inst> instance = get_network()->get_primitive(prim_info.original_id);
+                            bool unfused = false;
+                            while (const auto* subgraph = instance->get_unfused_subgraph_if_exists()) {
+                                instance = subgraph->get_primitive(prim_info.original_id);
+                                unfused = true;
+                            }
+                            const auto* implementation = dynamic_cast<const ocl::PrimitiveImplOCL*>(instance->get_impl());
+                            if (implementation && implementation->kernel_dump_info.has_entries()) {
+                                info["gguf_last_executed_kernels"] = implementation->kernel_dump_info.get_entries();
+                                info["gguf_runtime_implementation"] = implementation->get_kernel_name();
+                                info["gguf_runtime_input_shape"] = instance->get_impl_params()->get_input_layout(0).get_partial_shape().to_string();
+                                info["gguf_execution_scope"] = unfused ? "unfused_subgraph" : "primitive";
+                                std::vector<std::string> fused_ids;
+                                for (const auto& fused : instance->get_impl_params()->fused_desc)
+                                    fused_ids.push_back(fused.desc->id);
+                                info["gguf_runtime_fused_count"] = std::to_string(fused_ids.size());
+                                info["gguf_runtime_fused_ids"] = concat_strings(fused_ids, ',');
+                                info["gguf_weights_shape"] = wei_layout.get_partial_shape().to_string();
+                                info["gguf_weights_bytes"] = std::to_string(wei_layout.bytes_count());
+                                info["gguf_weights_id"] = instance->get_node().get_dependency(1).id();
+                                const auto storage = instance->dep_memory_ptr(1)->buffer_ptr();
+                                if (storage)
+                                    info["gguf_weights_storage_id"] = std::to_string(reinterpret_cast<uintptr_t>(storage));
+                            }
+                        }
+#endif
                         if (fc_prim->decompression_zero_point.is_valid()) {
                             size_t zp_idx = fc_prim->input.size() + 1 /*weights*/
                                             + (fc_prim->bias.is_valid() ? 1 : 0)

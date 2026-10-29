@@ -627,6 +627,7 @@ public:
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
+        kernel_dump_info.clear_entries();
         update_rt_params(instance);
 
         const auto& params = *instance.get_impl_params();

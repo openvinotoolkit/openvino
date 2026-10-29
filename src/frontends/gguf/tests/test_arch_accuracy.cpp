@@ -40,6 +40,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "quant/gguf.hpp"
@@ -1022,6 +1023,10 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     }
     RecordProperty("device", device);
     RecordProperty("inference_precision", precision.get_type_name());
+    const auto route_directory = std::getenv("OV_GGUF_ACCURACY_ROUTE_DIR");
+    const bool audit_routes = route_directory && *route_directory && device.rfind("GPU", 0) == 0 && raw_fcs > 0;
+    if (audit_routes)
+        std::filesystem::create_directories(route_directory);
     auto compiled = core.compile_model(model, device, properties);
     auto request = compiled.create_infer_request();
     const auto infer = [&](const std::vector<int64_t>& tokens, size_t past) {
@@ -1064,6 +1069,22 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         matching_tokens += predicted == wanted;
         RecordProperty("top1_match_step_" + std::to_string(step), predicted == wanted ? 1 : 0);
         RecordProperty("nmse_step_" + std::to_string(step), std::to_string(metric.value()));
+        if (audit_routes) {
+            const auto runtime_model = compiled.get_runtime_model();
+            size_t audited_fcs = 0;
+            for (const auto& operation : runtime_model->get_ordered_ops()) {
+                if (std::string(operation->get_type_name()) == "Result")
+                    continue;
+                const auto& info = operation->get_rt_info();
+                if (info.count("gguf_last_executed_kernels"))
+                    ++audited_fcs;
+            }
+            EXPECT_EQ(audited_fcs, raw_fcs) << "Missing per-step GGUF FC execution records";
+            RecordProperty("route_step_" + std::to_string(step) + "_tokens", std::to_string(tokens.size()));
+            RecordProperty("route_step_" + std::to_string(step) + "_fc_nodes", std::to_string(audited_fcs));
+            const auto prefix = std::filesystem::path(route_directory) / ("step-" + std::to_string(step));
+            ov::serialize(runtime_model, prefix.string() + ".xml", prefix.string() + ".bin");
+        }
         if (real_checkpoint) {
             // Real checkpoints can use different quantization arithmetic. Check the first prediction
             // and continuation agreement; keep their full-logit metrics in the XML report.

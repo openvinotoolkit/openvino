@@ -29,6 +29,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/negative.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/openvino.hpp"
@@ -164,7 +165,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     const auto weight_type = GetParam().weight_type;
     const auto precision = GetParam().precision;
     const bool half_precision = precision == ov::element::f16;
-    const float input_scale = half_precision ? 1.f / 64.f : 1.f;
+    const float input_scale = GetParam().post_activation == activation_func::swish ? 1.f / 1024.f
+                                                                                : half_precision ? 1.f / 64.f : 1.f;
     const auto block_columns = std::min(columns, size_t{256});
     ASSERT_EQ(columns % block_columns, 0);
     ASSERT_EQ(block_columns % weight_type.block_elem_count(), 0);
@@ -255,12 +257,17 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     ov::Output<ov::Node> public_result = public_fc;
     if (GetParam().post_activation == activation_func::relu)
         public_result = std::make_shared<ov::op::v0::Relu>(public_fc);
+    else if (GetParam().post_activation == activation_func::swish)
+        public_result = std::make_shared<ov::op::v4::Swish>(public_fc);
     else if (GetParam().post_activation == activation_func::negative)
         public_result = std::make_shared<ov::op::v0::Negative>(public_fc);
     auto public_graph = std::make_shared<ov::Model>(ov::OutputVector{public_result}, ov::ParameterVector{public_parameter});
     ov::Core core;
-    auto compiled = core.compile_model(public_graph, "GPU", ov::hint::inference_precision(precision));
+    auto compiled = core.compile_model(public_graph, "GPU", ov::hint::inference_precision(precision),
+                                       ov::enable_profiling(true), ov::num_streams(1));
     auto request = compiled.create_infer_request();
+    for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops())
+        EXPECT_EQ(operation->get_rt_info().count("gguf_last_executed_kernels"), 0u);
     const size_t cm_alignment = engine.get_device_info().arch >= gpu_arch::xe3 ? 64 : 32;
     const bool cm_selected = GetParam().cm && GetParam().use_cm && shuffled && channels % cm_alignment == 0;
     auto weights = engine.allocate_memory({ov::PartialShape(weight_shape), weight_type, format::bfyx});
@@ -276,7 +283,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     const bool has_post_activation = GetParam().post_activation != activation_func::none;
     const std::string output_id = has_post_activation ? "post" : "fc";
     if (has_post_activation)
-        topology.add(activation("post", input_info("fc"), GetParam().post_activation));
+        topology.add(activation("post", input_info("fc"), GetParam().post_activation,
+                                {GetParam().post_activation == activation_func::swish ? 1.f : 0.f, 0.f}));
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     if (has_post_activation)
@@ -321,6 +329,32 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         }
         request.set_input_tensor(public_input);
         request.infer();
+        std::string public_entries;
+        std::string public_fusions;
+        std::string public_diagnostics;
+        for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops()) {
+            if (std::string(operation->get_type_name()) == "Result")
+                continue;
+            const auto& info = operation->get_rt_info();
+            if (info.count("weights_precision")) {
+                public_diagnostics += operation->get_friendly_name() + ":" +
+                    info.at(ov::exec_model_info::IMPL_TYPE).as<std::string>() + ":" +
+                    info.at(ov::exec_model_info::PERF_COUNTER).as<std::string>() + " ";
+            }
+            const auto found = info.find("gguf_last_executed_kernels");
+            if (found == info.end())
+                continue;
+            public_entries += found->second.as<std::string>() + " ";
+            const auto fused_count = info.at("gguf_runtime_fused_count").as<std::string>();
+            const auto fused_ids = info.at("gguf_runtime_fused_ids").as<std::string>();
+            EXPECT_EQ(fused_count == "0", fused_ids.empty());
+            public_fusions += fused_count + ":" + fused_ids + " ";
+            EXPECT_EQ(info.at("gguf_weights_bytes").as<std::string>(), std::to_string(packed->get_byte_size()));
+            EXPECT_FALSE(info.at("gguf_weights_storage_id").as<std::string>().empty());
+        }
+        ASSERT_FALSE(public_entries.empty()) << "iteration=" << iteration << " " << public_diagnostics;
+        RecordProperty("public_stage_iteration_" + std::to_string(iteration), public_entries);
+        RecordProperty("public_fusions_iteration_" + std::to_string(iteration), public_fusions);
         if (has_post_activation && rows == 128) {
             std::string public_implementations;
             for (const auto& operation : compiled.get_runtime_model()->get_ordered_ops()) {
@@ -345,7 +379,6 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         auto* implementation = dynamic_cast<ov::intel_gpu::ocl::PrimitiveImplOCL*>(network.get_primitive("fc")->get_impl());
         ASSERT_NE(implementation, nullptr);
         const auto entries = implementation->kernel_dump_info.get_entries();
-        implementation->kernel_dump_info.clear_entries();
         if (has_post_activation) {
             const auto& fused = network.get_primitive("fc")->get_impl_params()->fused_desc;
             EXPECT_TRUE(fused.empty());
@@ -368,7 +401,17 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                           : prefill ? "fc_gguf_transcode_" + weight_type.to_string()
                           : shuffled ? sg_stage : "fc_gguf_opt_" + weight_type.to_string();
         EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
+        if (GetParam().post_activation != activation_func::negative && GetParam().use_cm)
+            EXPECT_NE(public_entries.find(expected_stage), std::string::npos) << public_entries;
+        if (GetParam().post_activation == activation_func::relu || GetParam().post_activation == activation_func::swish)
+            EXPECT_EQ(public_fusions.rfind("1:", 0), 0u) << public_fusions;
         EXPECT_EQ(entries.find("fc_gguf_act_dq"), std::string::npos) << entries;
+        if (!prefill) {
+            EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos) << entries;
+            EXPECT_EQ(entries.find("gemm_q"), std::string::npos) << entries;
+            EXPECT_EQ(public_entries.find("fc_gguf_transcode"), std::string::npos) << public_entries;
+            EXPECT_EQ(public_entries.find("gemm_q"), std::string::npos) << public_entries;
+        }
         if (cm_selected) {
             EXPECT_NE(implementation->get_kernel_name().find("fc_gguf_cm"), std::string::npos);
             EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos) << entries;
@@ -394,6 +437,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                 float expected = reference[channel % reference.size()] * input_scale * factor * block_factor;
                 if (GetParam().post_activation == activation_func::relu)
                     expected = std::max(expected, 0.f);
+                else if (GetParam().post_activation == activation_func::swish)
+                    expected = expected / (1.f + std::exp(-expected));
                 else if (GetParam().post_activation == activation_func::negative)
                     expected = -expected;
                 if (half_precision)
@@ -461,6 +506,9 @@ INSTANTIATE_TEST_SUITE_P(gguf,
                                           gguf_fc_mode{"cm_q80_f16", true, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16},
                                           gguf_fc_mode{"cm_config_disabled", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, false},
                                           gguf_fc_mode{"cm_post_relu", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::relu},
+                                          gguf_fc_mode{"cm_post_relu_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::relu},
+                                          gguf_fc_mode{"cm_post_swish", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::swish},
+                                          gguf_fc_mode{"cm_post_swish_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::swish},
                                           gguf_fc_mode{"cm_post_negative_broadcast", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::negative},
                                           gguf_fc_mode{"cm_static_prefill", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f32, true, activation_func::none, 128},
                                           gguf_fc_mode{"cm_static_decode_f16", true, nullptr, false, 64, 512, ov::element::gguf_q4_k, true, ov::element::f16, true, activation_func::none, 1}),

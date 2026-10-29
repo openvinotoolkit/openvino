@@ -828,6 +828,7 @@ public:
     }
 
     cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
+        kernel_dump_info.clear_entries();
         // Refresh per-stage need_args_update / need_dispatch_data_update from the current execution
         // flags (SHAPE_CHANGED, ARG_UPDATE_REQUIRED, ...). The base execute() does this; since we
         // override execute() and dispatch the GEMV stage directly, we must do it too. Without it the
