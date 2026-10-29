@@ -252,6 +252,7 @@ set(PAGED_ATTENTION_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/gemma4_mtp_state_management_pattern.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_qsa_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_selective_ssm_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/prev_sequence_length_pattern.cpp
@@ -261,6 +262,7 @@ set(PAGED_ATTENTION_SOURCES
 
 set(PATTERN_BLOCKS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/compressed_weights_block.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/qsa_index_query_block.cpp
 )
 
 set(RT_INFO_SOURCES

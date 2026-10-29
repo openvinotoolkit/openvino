@@ -16,6 +16,8 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
@@ -204,7 +206,15 @@ RoPEFusionGPTNEOX::RoPEFusionGPTNEOX(int rank) {
     auto int32_max = std::numeric_limits<std::int32_t>::max();
 
     auto x2 = op_util::NewGenSlice(x, "half_ndims", int32_max, 1, rank - 1);
-    auto x2neg = pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
+    // The -1 may still be a converted constant when the pass runs before constant folding (e.g. in
+    // SDPAToPagedAttention).
+    auto minus_one_converted = pattern::wrap_type<v0::Convert>({pattern::wrap_const()}, [](const Output<Node>& output) {
+        const auto constant = ov::util::get_constant_from_source(output);
+        return constant && ov::shape_size(constant->get_shape()) == 1 && constant->cast_vector<float>()[0] == -1.0f;
+    });
+    auto x2neg = pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), -1.0f}, {{"auto_broadcast", "numpy"}}) |
+                 pattern::wrap_type<v1::Multiply>({x2 | varsplit->output(1), minus_one_converted},
+                                                  {{"auto_broadcast", "numpy"}});
     auto x1 = op_util::NewGenSlice(x, 0, "half_ndims", 1, rank - 1);
     auto x_rotate_half = pattern::wrap_type<v0::Concat>({x2neg, x1 | varsplit->output(0)}, {{"axis", -1}});
 

@@ -43,6 +43,7 @@
 #include "openvino/util/pp.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/pattern_blocks/qsa_index_query_block.hpp"
 
 namespace ov::intel_gpu {
 
@@ -100,179 +101,19 @@ struct NodeBuilder {
     }
 };
 
-ov::Output<ov::Node> strip_converts(ov::Output<ov::Node> out) {
-    while (ov::is_type<ov::op::v0::Convert>(out.get_node())) {
-        out = out.get_node()->input_value(0);
-    }
-    return out;
-}
-
-/// Looks through the ops that only change the layout of RoPE cos/sin.
-ov::Output<ov::Node> strip_layout_ops(ov::Output<ov::Node> out) {
-    while (ov::is_type<ov::op::v0::Convert>(out.get_node()) || ov::is_type<ov::op::v0::Unsqueeze>(out.get_node()) ||
-           ov::is_type<ov::op::v0::Squeeze>(out.get_node()) || ov::is_type<ov::op::v1::Reshape>(out.get_node())) {
-        out = out.get_node()->input_value(0);
-    }
-    return out;
-}
-
-bool const_values(const ov::Output<ov::Node>& out, std::vector<int64_t>& values) {
-    auto c = ov::util::get_constant_from_source(out);
-    if (!c) {
-        return false;
-    }
-    values = c->cast_vector<int64_t>();
-    return true;
-}
-
-bool is_last_axis(int64_t axis, size_t rank) {
-    return axis == -1 || axis == static_cast<int64_t>(rank) - 1;
-}
-
-/// `out` = Slice(src, start:stop, step 1) along the last axis of a rank-4 tensor.
-bool match_last_axis_slice(const ov::Output<ov::Node>& out, int64_t& start, int64_t& stop, ov::Output<ov::Node>& src) {
-    auto slice = ov::as_type_ptr<ov::op::v8::Slice>(strip_converts(out).get_node_shared_ptr());
-    if (!slice || slice->get_input_size() < 5) {
-        return false;
-    }
-    std::vector<int64_t> begin, end, step, axes;
-    if (!const_values(slice->input_value(1), begin) || !const_values(slice->input_value(2), end) || !const_values(slice->input_value(3), step) ||
-        !const_values(slice->input_value(4), axes) || begin.size() != 1 || end.size() != 1 || step != std::vector<int64_t>{1} || axes.size() != 1 ||
-        !is_last_axis(axes[0], 4)) {
-        return false;
-    }
-    start = begin[0];
-    stop = end[0];
-    src = slice->input_value(0);
-    return true;
-}
-
-/// The index-query side of the public pair, still in front of SparseAttentionIndexer as regular
-/// graph ops: RMSNorm(gain) -> RoPE (partial, rotate-half) -> optional [N, L, H, D] -> [N, H, L, D]
-/// Transpose. QSAIndexer applies both itself, so it takes the raw query and the gain.
-struct QuerySide {
-    ov::Output<ov::Node> raw_blhd;               ///< RMSNorm input as [N, L, Hi, Di]
-    std::shared_ptr<ov::op::v0::Constant> gain;  ///< [Di], f16
-    double epsilon = 0.0;
-};
-
-bool match_query_side(const ov::Output<ov::Node>& index_query,
-                      const ov::Output<ov::Node>& rope_cos,
-                      const ov::Output<ov::Node>& rope_sin,
-                      size_t hi,
-                      size_t di,
-                      size_t dr,
-                      NodeBuilder& b,
-                      QuerySide& q) {
-    ov::Output<ov::Node> cur = strip_converts(index_query);
-    bool blhd = false;
-    if (auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(cur.get_node_shared_ptr())) {
-        std::vector<int64_t> order;
-        if (!const_values(transpose->input_value(1), order) || order != std::vector<int64_t>{0, 2, 1, 3}) {
-            return false;
-        }
-        cur = strip_converts(transpose->input_value(0));
-        blhd = true;
-    }
-
-    // Partial rotary: Concat(RoPE(x[..., :Dr]), x[..., Dr:]); full-width rotary: RoPE(x).
-    ov::Output<ov::Node> x;
-    std::shared_ptr<ov::op::internal::RoPE> rope;
-    if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(cur.get_node_shared_ptr())) {
-        if (concat->get_input_size() != 2 || !is_last_axis(concat->get_axis(), 4)) {
-            return false;
-        }
-        rope = ov::as_type_ptr<ov::op::internal::RoPE>(strip_converts(concat->input_value(0)).get_node_shared_ptr());
-        int64_t rotated_begin = 0, rotated_end = 0, passed_begin = 0, passed_end = 0;
-        ov::Output<ov::Node> rotated_src, passed_src;
-        if (!rope || !match_last_axis_slice(rope->input_value(0), rotated_begin, rotated_end, rotated_src) ||
-            !match_last_axis_slice(concat->input_value(1), passed_begin, passed_end, passed_src) || rotated_src != passed_src || rotated_begin != 0 ||
-            rotated_end != static_cast<int64_t>(dr) || passed_begin != static_cast<int64_t>(dr) || passed_end < static_cast<int64_t>(di)) {
-            return false;
-        }
-        x = rotated_src;
-    } else {
-        rope = ov::as_type_ptr<ov::op::internal::RoPE>(cur.get_node_shared_ptr());
-        if (!rope) {
-            return false;
-        }
-        x = rope->input_value(0);
-    }
-    if (rope->get_input_size() != 3 || !ov::op::internal::is_plain_rotate_half(rope->get_config()) || rope->get_config().rotary_ndims != dr) {
-        return false;
-    }
-    // The query rotates with the very cos/sin the block keys are rotated with.
-    if (strip_layout_ops(rope->input_value(1)) != strip_layout_ops(rope_cos) || strip_layout_ops(rope->input_value(2)) != strip_layout_ops(rope_sin)) {
-        return false;
-    }
-
-    // RMSNorm with gain: RMS(x, gain) or RMS(x) * gain.
-    ov::Output<ov::Node> norm = strip_converts(x);
-    ov::Output<ov::Node> gain;
-    std::shared_ptr<ov::op::internal::RMS> rms;
-    if (auto fused = ov::as_type_ptr<ov::op::internal::RMS>(norm.get_node_shared_ptr()); fused && fused->get_input_size() == 2) {
-        rms = fused;
-        gain = fused->input_value(1);
-    } else if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(norm.get_node_shared_ptr())) {
-        for (size_t i = 0; i < 2 && !rms; i++) {
-            auto candidate = ov::as_type_ptr<ov::op::internal::RMS>(strip_converts(mul->input_value(i)).get_node_shared_ptr());
-            if (candidate && candidate->get_input_size() == 1) {
-                rms = candidate;
-                gain = mul->input_value(1 - i);
-            }
-        }
-    }
-    if (!rms || !is_last_axis(rms->get_axis(), 4)) {
-        return false;
-    }
-    auto gain_const = ov::util::get_constant_from_source(gain);
-    if (!gain_const || ov::shape_size(gain_const->get_shape()) != di) {
-        return false;
-    }
-
-    // The norm input has the layout of the RoPE output; the kernels read [N, L, H, D].
-    ov::Output<ov::Node> raw = rms->input_value(0);
-    size_t heads = 0, width = 0;
-    if (!has_rank(raw, 4) || raw.get_element_type() != ov::element::f16 || !static_dim(raw.get_partial_shape(), blhd ? 2 : 1, heads) ||
-        !static_dim(raw.get_partial_shape(), 3, width) || heads != hi || width != di) {
-        return false;
-    }
-    if (!blhd) {
-        raw = b.add<ov::op::v1::Transpose>(raw, b.i64({0, 2, 1, 3}));
-    }
-    q.raw_blhd = raw;
-    q.gain = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{di}, gain_const->cast_vector<float>());
-    b.nodes.push_back(q.gain);
-    q.epsilon = rms->get_epsilon();
-    return true;
-}
-
 // ---------------------------------------------------------------------------------------------
 // Qwen Sparse Attention, non-paged: opset17 QSAPrepare + SparseAttentionIndexer -> QSAIndexer
 // ---------------------------------------------------------------------------------------------
-bool fuse_qsa_indexer(const std::shared_ptr<ov::op::v17::SparseAttentionIndexer>& indexer) {
-    using Prep = ov::op::v17::QSAPrepare;
+bool fuse_qsa_indexer(const ov::pass::pattern::op::QSAIndexQueryBlock::Match& match) {
     using QSAIn = ov::intel_gpu::op::QSAIndexer::InputIdx;
     using QSAOut = ov::intel_gpu::op::QSAIndexer::OutputIdx;
 
-    // index_weights (DSA) have no kernel support.
-    if (indexer->get_input_size() != 3 || indexer->get_num_selection_heads() != 1) {
-        return false;
-    }
-    if (indexer->input_value(1).get_index() != 0) {
-        return false;
-    }
-    auto prepare = ov::as_type_ptr<Prep>(indexer->get_input_node_shared_ptr(1));
-    if (!prepare || prepare->get_input_size() != 8) {
-        return false;
-    }
-    const int64_t r = prepare->get_key_block_size();
-    const int64_t token_budget = indexer->get_token_budget();
-    if (r < 2 || indexer->get_key_block_size() != r || token_budget <= 0 || token_budget % r != 0) {
-        return false;
-    }
+    const auto& indexer = match.indexer;
+    const auto& prepare = match.prepare;
+    const int64_t r = static_cast<int64_t>(match.key_block_size);
+    const size_t di = match.head_dim;
+    const size_t dr = match.rotary_dim;
 
-    const auto index_query = indexer->input_value(0);
     const auto raw_keys = prepare->input_value(0);
     const auto past_block_keys = prepare->input_value(1);
     const auto key_length = prepare->input_value(2);
@@ -282,38 +123,31 @@ bool fuse_qsa_indexer(const std::shared_ptr<ov::op::v17::SparseAttentionIndexer>
     const auto past_raw = prepare->input_value(6);
     const auto past_rope = prepare->input_value(7);
 
-    // Both ops are fed the same lengths in a real layer; the kernel takes a single key_length.
-    if (indexer->input_value(2) != key_length) {
+    if (!has_rank(past_block_keys, 3) || !has_rank(past_raw, 3) || !has_rank(past_rope, 2)) {
         return false;
     }
-    // Every optional input must be present: the kernels always normalize and rotate.
-    for (const auto& optional : {rope_cos, rope_sin, k_norm_weight, past_rope}) {
-        if (ov::util::is_empty_constant_tensor(optional)) {
-            return false;
-        }
-    }
-    if (!has_rank(index_query, 4) || !has_rank(raw_keys, 3) || !has_rank(past_block_keys, 3) || !has_rank(rope_cos, 3) || !has_rank(rope_sin, 3) ||
-        !has_rank(past_raw, 3) || !has_rank(past_rope, 2)) {
-        return false;
-    }
-    size_t hi = 0, di = 0, dr = 0, di_keys = 0;
-    if (!static_dim(index_query.get_partial_shape(), 1, hi) || !static_dim(index_query.get_partial_shape(), 3, di) ||
-        !static_dim(raw_keys.get_partial_shape(), 2, di_keys) || !static_dim(rope_cos.get_partial_shape(), 2, dr) || di != di_keys || dr == 0) {
-        return false;
-    }
-    for (const auto& data : {index_query, raw_keys, past_block_keys, rope_cos, rope_sin, k_norm_weight, past_raw, past_rope}) {
+    for (const auto& data : {match.raw_query, raw_keys, past_block_keys, rope_cos, rope_sin, k_norm_weight, past_raw, past_rope}) {
         if (data.get_element_type() != ov::element::f16) {
             return false;
         }
     }
+    // The kernels take the query gain as an f16 constant; ones for a gain-less RMSNorm.
+    std::vector<float> q_gain(di, 1.0f);
+    if (match.q_norm_weight.get_node()) {
+        const auto gain = ov::util::get_constant_from_source(match.q_norm_weight);
+        if (!gain) {
+            return false;
+        }
+        q_gain = gain->cast_vector<float>();
+    }
 
     ov::intel_gpu::op::QSAIndexer::Config config;
-    config.key_block_size = static_cast<size_t>(r);
-    config.block_topk = static_cast<size_t>(token_budget / r);
+    config.key_block_size = match.key_block_size;
+    config.block_topk = match.block_topk;
     config.num_selection_heads = 1;
     config.indexer_rotary_dim = dr;
     config.indexer_head_dim = di;
-    config.epsilon = prepare->get_epsilon();
+    config.epsilon = match.epsilon;
     config.scale = 1.0f / std::sqrt(static_cast<float>(di));
     std::string reason;
     if (!ov::intel_gpu::op::QSAIndexer::validate_config(config, reason)) {
@@ -321,10 +155,13 @@ bool fuse_qsa_indexer(const std::shared_ptr<ov::op::v17::SparseAttentionIndexer>
     }
 
     NodeBuilder b;
-    QuerySide query;
-    if (!match_query_side(index_query, rope_cos, rope_sin, hi, di, dr, b, query) || std::abs(query.epsilon - config.epsilon) > 1e-4 * config.epsilon) {
-        return false;
+    // The kernels read the raw query as [N, L, H, D].
+    ov::Output<ov::Node> raw_query = match.raw_query;
+    if (!match.raw_query_blhd) {
+        raw_query = b.add<ov::op::v1::Transpose>(raw_query, b.i64({0, 2, 1, 3}));
     }
+    auto q_norm_weight = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{di}, q_gain);
+    b.nodes.push_back(q_norm_weight);
     auto axis_const = [&](int64_t axis) {
         auto c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
         b.nodes.push_back(c);
@@ -350,9 +187,10 @@ bool fuse_qsa_indexer(const std::shared_ptr<ov::op::v17::SparseAttentionIndexer>
     };
 
     // The block-key state grows to the complete blocks of the longest sequence before the call.
-    auto key_length_i64 = b.add<ov::op::v0::Convert>(key_length, ov::element::i64);
-    auto longest = b.add<ov::op::v1::ReduceMax>(key_length_i64, axis_const(0), true);
-    auto needed_blocks = b.add<ov::op::v1::Divide>(longest, b.i64({r}));
+    // The reduction runs in i32, the GPU has no static-shape i64 reduce.
+    auto longest = b.add<ov::op::v1::ReduceMax>(b.to_i32(key_length), axis_const(0), true);
+    auto longest_i64 = b.add<ov::op::v0::Convert>(longest, ov::element::i64);
+    auto needed_blocks = b.add<ov::op::v1::Divide>(longest_i64, b.i64({r}));
     auto missing = b.add<ov::op::v1::Subtract>(needed_blocks, b.dim(past_block_keys, 1));
     auto growth = b.add<ov::op::v1::Maximum>(missing, b.i64({0}));
     auto zero_f16 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.0f});
@@ -363,24 +201,35 @@ bool fuse_qsa_indexer(const std::shared_ptr<ov::op::v17::SparseAttentionIndexer>
     auto cache_in = b.add<ov::op::v0::Concat>(ov::OutputVector{past_block_keys_bhbd, growth_zeros}, 2);
 
     ov::OutputVector args(QSAIn::COUNT);
-    args[QSAIn::INDEX_QUERY] = query.raw_blhd;
+    args[QSAIn::INDEX_QUERY] = raw_query;
     args[QSAIn::RAW_INDEX_KEYS] = raw_keys_blhd;
     args[QSAIn::ROPE_COS] = rope_for_batch(rope_cos);
     args[QSAIn::ROPE_SIN] = rope_for_batch(rope_sin);
     args[QSAIn::KEY_LENGTH] = key_length_b;
-    args[QSAIn::Q_NORM_WEIGHT] = query.gain;
+    args[QSAIn::Q_NORM_WEIGHT] = q_norm_weight;
     args[QSAIn::K_NORM_WEIGHT] = k_norm_weight;
     args[QSAIn::BLOCK_INDEX_KEYS_CACHE] = cache_in;
     args[QSAIn::PAST_INCOMPLETE_RAW_K] = past_raw_bhrd;
-    args[QSAIn::PAST_INCOMPLETE_ROPE] = past_rope;
+    // The QSAPrepare state keeps the cos / sin of a block start concatenated, the kernels interleave them.
+    auto rope_state_layout = [&](const ov::Output<ov::Node>& rope, bool to_interleaved) -> ov::Output<ov::Node> {
+        const auto half = static_cast<int64_t>(dr);
+        auto split = b.add<ov::op::v1::Reshape>(rope, b.i64(to_interleaved ? std::vector<int64_t>{0, 2, half} : std::vector<int64_t>{0, half, 2}), true);
+        auto swapped = b.add<ov::op::v1::Transpose>(split, b.i64({0, 2, 1}));
+        return b.add<ov::op::v1::Reshape>(swapped, b.i64({0, 2 * half}), true);
+    };
+    args[QSAIn::PAST_INCOMPLETE_ROPE] = rope_state_layout(past_rope, true);
     auto qsa_indexer = b.add<ov::intel_gpu::op::QSAIndexer>(args, config);
 
     // The public QSAPrepare outputs are the new values of its three states.
     auto block_keys_out = b.add<ov::op::v0::Squeeze>(qsa_indexer->output(QSAOut::BLOCK_INDEX_KEYS_CACHE), axis_const(1));
     auto raw_out = b.add<ov::op::v0::Squeeze>(qsa_indexer->output(QSAOut::PAST_INCOMPLETE_RAW_K), axis_const(1));
+    const auto rope_out = rope_state_layout(qsa_indexer->output(QSAOut::PAST_INCOMPLETE_ROPE), false);
 
-    ov::copy_runtime_info(ov::NodeVector{prepare, indexer}, b.nodes);
-    ov::replace_node(prepare, ov::OutputVector{block_keys_out->output(0), raw_out->output(0), qsa_indexer->output(QSAOut::PAST_INCOMPLETE_ROPE)});
+    auto matched_nodes = match.nodes;
+    matched_nodes.push_back(prepare);
+    matched_nodes.push_back(indexer);
+    ov::copy_runtime_info(matched_nodes, b.nodes);
+    ov::replace_node(prepare, ov::OutputVector{block_keys_out->output(0), raw_out->output(0), rope_out});
     ov::replace_node(indexer, ov::OutputVector{qsa_indexer->output(QSAOut::SELECTED_BLOCK_INDICES), qsa_indexer->output(QSAOut::SELECTED_BLOCK_COUNT)});
     qsa_indexer->set_friendly_name(indexer->get_friendly_name());
     return true;
@@ -536,13 +385,17 @@ bool convert_paged_sparse_attention(const std::shared_ptr<ov::op::internal::Page
 QSAIndexerFusion::QSAIndexerFusion() {
     using namespace ov::pass::pattern;
 
-    auto indexer_m = wrap_type<ov::op::v17::SparseAttentionIndexer>();
+    // The index query RMSNorm + RoPE, which QSAIndexer applies itself to the raw query.
+    auto index_query_m = std::make_shared<ov::pass::pattern::op::QSAIndexQueryBlock>();
+    auto indexer_m = wrap_type<ov::op::v17::SparseAttentionIndexer>({index_query_m, wrap_type<ov::op::v17::QSAPrepare>(), any_input()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         if (transformation_callback(m.get_match_root())) {
             return false;
         }
-        return fuse_qsa_indexer(ov::as_type_ptr<ov::op::v17::SparseAttentionIndexer>(m.get_match_root()));
+        const auto match =
+            index_query_m->get_match(m.get_pattern_value_map(), ov::as_type_ptr<ov::op::v17::SparseAttentionIndexer>(m.get_match_root()));
+        return match && fuse_qsa_indexer(*match);
     };
     register_matcher(std::make_shared<Matcher>(indexer_m, "QSAIndexerFusion"), callback);
 }
