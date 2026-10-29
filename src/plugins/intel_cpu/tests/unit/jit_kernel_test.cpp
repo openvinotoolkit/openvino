@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <kernels/x64/jit_kernel.hpp>
 #include <random>
 
@@ -409,7 +410,7 @@ struct jit_bf16_conversion_test_kernel {
 
     struct Params {
         const float* src;
-        ov::intel_cpu::bfloat16_t* dst;
+        dnnl::impl::bfloat16_t* dst;
     };
 
     jit_bf16_conversion_test_kernel() {
@@ -466,13 +467,15 @@ TEST(JitKernel, f32_to_bf16_generic_avx2_rounding_nan_and_overflow) {
     jit_bf16_conversion_test_kernel kernel;
     for (size_t batch = 0; batch < input_bits.size(); ++batch) {
         std::array<float, vector_size> input{};
-        std::array<ov::intel_cpu::bfloat16_t, vector_size> output{};
+        std::array<dnnl::impl::bfloat16_t, vector_size> output{};
         for (size_t lane = 0; lane < vector_size; ++lane) {
             input[lane] = ov::intel_cpu::bit_cast<float>(input_bits[batch][lane]);
         }
         kernel({input.data(), output.data()});
         for (size_t lane = 0; lane < output.size(); ++lane) {
-            EXPECT_EQ(output[lane].to_bits(), expected_bits[batch][lane]) << "batch " << batch << ", lane " << lane;
+            uint16_t actual_bits = 0;
+            std::memcpy(&actual_bits, &output[lane], sizeof(actual_bits));
+            EXPECT_EQ(actual_bits, expected_bits[batch][lane]) << "batch " << batch << ", lane " << lane;
         }
     }
 }
