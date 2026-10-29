@@ -1371,6 +1371,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("PA_MICRO_SPLITK", 1);
     }
     jit.make("IS_GQA_SINGLE_TOKEN", m_is_gqa_single_token);
+    jit.make("IS_GQA_PACKED", m_is_gqa_packed);
     jit.make("TRANSPOSE_K", false);
     jit.make("TRANSPOSE_V", micro_is_v_transposed(params));
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
@@ -1752,7 +1753,8 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
 DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
     const bool is_prefill = m_is_prefill;
     const bool is_gqa_single_token = m_is_gqa_single_token;
-    return DispatchDataFunc{[is_prefill, is_gqa_single_token](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
+    const bool is_gqa_packed = m_is_gqa_packed;
+    return DispatchDataFunc{[is_prefill, is_gqa_single_token, is_gqa_packed](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
@@ -1786,7 +1788,15 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
             wgs.local = {get_subgroup_size(device_info.arch), (size_t)sg_per_wg, 1};
             wgs.global = wgs.local;
 
-            wgs.global[0] *= ceil_div(n_queries.get_length(), wg_tile_q);
+            if (is_gqa_packed) {
+                // One work-group per (block of wg_tile_q / group tokens, KV head), see IS_GQA_PACKED in sdpa_micro.cl
+                const auto kv_heads = micro_get_num_heads(params, 1);
+                const int64_t tokens_per_wg = std::max<int64_t>(1, static_cast<int64_t>(wg_tile_q) / static_cast<int64_t>(head_num / kv_heads));
+                wgs.global[0] *= ceil_div(micro_get_aligned_seq_length(params, 0, tokens_per_wg).get_length(), tokens_per_wg);
+                head_num = kv_heads;
+            } else {
+                wgs.global[0] *= ceil_div(n_queries.get_length(), wg_tile_q);
+            }
             if (params.is_type<paged_attention>()) {
                 wgs.global[1] *= head_num;
                 wgs.global[2] *= 1;

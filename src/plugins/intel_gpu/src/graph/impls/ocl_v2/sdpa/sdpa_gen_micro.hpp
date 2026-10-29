@@ -22,16 +22,21 @@ namespace ov::intel_gpu::ocl {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 class SDPAMicroGenerator : public SDPABase {
 public:
-    explicit SDPAMicroGenerator(bool prefill, bool gqa_single_token = false)
+    explicit SDPAMicroGenerator(bool prefill, bool gqa_single_token = false, bool gqa_packed = false)
         : SDPABase("sdpa_micro",
                    prefill            ? "_prefill"
                    : gqa_single_token ? "_gqa_single_token"
+                   : gqa_packed       ? "_generate_gqa_packed"
                                       : "_generate",
                    false),
           m_is_prefill(prefill),
-          m_is_gqa_single_token(gqa_single_token) {
+          m_is_gqa_single_token(gqa_single_token),
+          m_is_gqa_packed(gqa_packed) {
         if (gqa_single_token) {
             OPENVINO_ASSERT(prefill == false, "prefill should be false when gqa_single_token is true");
+        }
+        if (gqa_packed) {
+            OPENVINO_ASSERT(!prefill && !gqa_single_token, "gqa_packed is a variant of the MIXED (generate) kernel");
         }
     }
 
@@ -66,6 +71,8 @@ private:
 
     bool m_is_prefill;
     bool m_is_gqa_single_token;
+    // PA MIXED: the query tile holds all heads of one KV head for wg_tile_n / group tokens (IS_GQA_PACKED in sdpa_micro.cl)
+    bool m_is_gqa_packed;
     static std::mutex m;
 
     static constexpr size_t kq_id = 0;

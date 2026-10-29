@@ -1493,6 +1493,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
+    Stage::Ptr pa_sdpa_micro_mixed_gqa_packed = make_stage<SDPAMicroGenerator>(false, false, true);
     Stage::Ptr pa_tt_bounds = make_stage<PagedAttentionGeneratorTTBounds>();
     Stage::Ptr pa_micro_splitk_finalization = make_stage<PagedAttentionGeneratorMicroSplitKFinalization>();
 #endif
@@ -1509,6 +1510,9 @@ public:
         if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
             add_stage(pa_sdpa_micro_mixed, params);
+            if (pa_micro_gqa_packed_supported(*desc)) {
+                add_stage(pa_sdpa_micro_mixed_gqa_packed, params);
+            }
             if (pa_micro_uses_tt_bounds(*desc)) {
                 add_stage(pa_tt_bounds, params);
             }
@@ -1568,6 +1572,17 @@ public:
             return 1;
         const size_t np = max_context_len >= pa_micro_splitk_min_ctx ? ceil_div(max_context_len, pa_micro_splitk_size) : 1;
         return std::max<size_t>(1, np);
+    }
+
+    // GQA-packed MIXED micro kernel for this call: small q_len on a supported layer, and the query tile holds whole groups.
+    bool use_micro_gqa_packed(const kernel_impl_params& params, const PagedAttentionStage& stage, bool use_micro_sdpa) const {
+        auto& kd = pa_sdpa_micro_mixed_gqa_packed->kd;
+        if (stage != PagedAttentionStage::MIXED || !use_micro_sdpa || kd.micro_kernels.empty())
+            return false;
+        const auto desc = params.typed_desc<paged_attention>();
+        const auto max_q = get_max_subsequence_length(params);
+        const auto group = static_cast<size_t>(desc->heads_num / desc->kv_heads_num);
+        return max_q > 0 && max_q <= pa_micro_gqa_packed_max_q && get_micro_tile_qsize(kd) % group == 0;
     }
 
     size_t get_micro_splitk_align() const {
@@ -1712,6 +1727,13 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
         rt_params->micro_splitk_partitions = get_micro_splitk_partitions(params, rt_params->stage, rt_params->use_micro_sdpa, rt_params->max_context_len);
         rt_params->micro_splitk_align = rt_params->use_micro_sdpa ? get_micro_splitk_align() : 16;
+        rt_params->micro_gqa_packed = use_micro_gqa_packed(params, rt_params->stage, rt_params->use_micro_sdpa);
+        if (rt_params->micro_gqa_packed) {
+            // Query blocks of the packed kernel are wg_tile_n / group tokens.
+            auto& kd = pa_sdpa_micro_mixed_gqa_packed->kd;
+            rt_params->query_block_size = get_micro_tile_qsize(kd) / static_cast<size_t>(desc->heads_num / desc->kv_heads_num);
+            rt_params->micro_splitk_align = get_micro_tile_ksize(kd);
+        }
 #else
         rt_params->micro_splitk_partitions = 1;
         rt_params->micro_splitk_align = 16;
@@ -1780,7 +1802,7 @@ public:
                     if (pa_micro_uses_tt_bounds(*desc)) {
                         res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
                     }
-                    res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
+                    res_event = {execute_stage(res_event, instance, rt_params->micro_gqa_packed ? pa_sdpa_micro_mixed_gqa_packed : pa_sdpa_micro_mixed)};
                     if (rt_params->micro_splitk_partitions > 1) {
                         res_event = {execute_stage(res_event, instance, pa_micro_splitk_finalization)};
                     }
@@ -1990,7 +2012,9 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         if (can_use_micro_sdpa) {
-            const auto wg_tile_q = 8;  // This is set as the minimum size of query block for sharing between sdpa_micro_prefill and mixed.
+            // Minimum query block size shared by sdpa_micro_prefill and mixed. The GQA-packed MIXED kernel uses blocks of
+            // wg_tile_n / group tokens (down to 1), and the aligned length here may come from the regular block size.
+            const int64_t wg_tile_q = (stage == PagedAttentionStage::MIXED && !pa_sdpa_micro_mixed_gqa_packed->kd.micro_kernels.empty()) ? 1 : 8;
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable, not_shareable);

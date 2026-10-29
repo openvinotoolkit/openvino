@@ -531,6 +531,67 @@ INSTANTIATE_TEST_SUITE_P(
         paged_attention_test_params{{{24, 5000}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
         paged_attention_test_params{{{16, 2000}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2}));
 
+// GQA-packed MIXED micro SDPA (speculative decoding verify, see pa_micro_gqa_packed_supported): when every subsequence
+// has q_len <= pa_micro_gqa_packed_max_q on a causal layer with grouped KV heads, one work-group computes all query heads
+// of a KV head for wg_tile_n / group tokens. The cases cover group sizes 2/4/8, head sizes 64-512, several token blocks
+// per KV head, batches mixing q_len 1, q_len > 1 and empty history, split-K on/off and compressed caches. Controls (MHA,
+// sliding window, q_len > 16) must run the regular MIXED kernel.
+class paged_attention_gqa_packed_mixed_micro_test : public PagedAttentionTest<paged_attention_test_params> {
+protected:
+    static bool packed_expected(const paged_attention_test_params& p) {
+        size_t max_q = 0;
+        for (const auto& subseq : p.subsequences)
+            max_q = std::max(max_q, static_cast<size_t>(subseq.num_tokens));
+        return p.num_heads > p.num_kv_heads && p.sliding_window_size == 0 && max_q <= ov::intel_gpu::ocl::pa_micro_gqa_packed_max_q;
+    }
+};
+
+TEST_P(paged_attention_gqa_packed_mixed_micro_test, matches_cpu_reference) {
+    if (!tests::get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    // Lists the kernels of the last execution.
+    const auto entries = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    RecordProperty("executed_kernels", entries);
+    ASSERT_TRUE(has_kernel(entries, "sdpa_micro", "generate")) << "Must exercise a MIXED micro SDPA kernel: " << entries;
+    ASSERT_EQ(has_kernel(entries, "sdpa_micro", "generate_gqa_packed"), packed_expected(p)) << entries;
+
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_gqa_packed_mixed_micro,
+    paged_attention_gqa_packed_mixed_micro_test,
+    ::testing::Values(
+        // group 4, one token block
+        paged_attention_test_params{{{4, 300}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // group 8, q_len 5 spans two token blocks, batched with a q_len 1 subsequence
+        paged_attention_test_params{{{5, 1000}, {1, 77}}, 16, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // group 2, q_len 16
+        paged_attention_test_params{{{16, 2000}}, 8, 4, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // subsequence without history next to one with history
+        paged_attention_test_params{{{4, 0}, {3, 50}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // split-K, head 256, two subsequences
+        paged_attention_test_params{{{3, 5000}, {7, 4500}}, 16, 2, 256, 256, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // Gemma 4 global layer (16 q / 2 kv heads x 512), MTP verify of 4 tokens: f16, u8 and u4 BY_CHANNEL caches, split-K
+        paged_attention_test_params{{{4, 8176}}, 16, 2, 512, 512, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        paged_attention_test_params{{{8, 1000}}, 16, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        paged_attention_test_params{{{4, 8176}}, 16, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        // controls: MHA, sliding window and q_len 17 > 16 keep the regular MIXED kernel
+        paged_attention_test_params{{{4, 300}}, 4, 4, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        paged_attention_test_params{{{4, 300}}, 8, 2, 128, 128, 16, 128, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        paged_attention_test_params{{{17, 300}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2}));
+
 #endif
 
 class paged_attention_u4_swa_tail_test : public PagedAttentionTest<paged_attention_test_params> {};

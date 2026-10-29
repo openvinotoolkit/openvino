@@ -42,6 +42,8 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t micro_splitk_partitions = 1;
     // Partition alignment (K tile of the micro kernel); partition sizes are multiples of it.
     size_t micro_splitk_align = 16;
+    // MIXED stage runs the GQA-packed micro SDPA kernel (see pa_micro_gqa_packed_supported).
+    bool micro_gqa_packed = false;
 };
 
 // Split-K (KV partitioning) for the MIXED-stage micro SDPA kernels. It is applied to calls with small
@@ -72,6 +74,17 @@ inline bool pa_micro_splitk_supported(const paged_attention& desc) {
 inline bool pa_micro_splitk_supported(const kernel_impl_params& params) {
     const auto desc = params.typed_desc<paged_attention>();
     return pa_micro_splitk_supported(*desc) && params.input_layouts[0].data_type == ov::element::f16 && params.output_layouts[0].data_type == ov::element::f16;
+}
+
+// GQA-packed MIXED micro SDPA for small per-sequence q_len (speculative decoding verify): one work-group computes all
+// query heads of a KV head for wg_tile_n / group tokens, so the KV cache is read once per KV head instead of once per
+// query head, and the query tile is not padded with unused rows. Used if every subsequence has q_len <= this value.
+constexpr size_t pa_micro_gqa_packed_max_q = 16;
+
+// Causal full attention with grouped KV heads only (the packed columns share one causal/window rule per token).
+inline bool pa_micro_gqa_packed_supported(const paged_attention& desc) {
+    return desc.heads_num > desc.kv_heads_num && desc.sliding_window == 0 && !desc.has_sink_input && !desc.has_token_type_ids &&
+           !desc.has_qq_bias && !desc.has_scores_output() && !desc.has_adaptive_rkv;
 }
 
 struct PagedAttentionOpt : public ImplementationManager {
