@@ -126,10 +126,8 @@ void PagedQSAIndexer::validate_and_infer_types() {
                           float_et);
 
     // The kernels read every integer input as int32_t.
-    for (const auto idx : {InputIdx::PAST_LENS,
-                           InputIdx::SUBSEQUENCE_BEGINS,
-                           InputIdx::BLOCK_INDICES,
-                           InputIdx::BLOCK_INDICES_BEGINS}) {
+    for (const auto idx :
+         {InputIdx::PAST_LENS, InputIdx::SUBSEQUENCE_BEGINS, InputIdx::BLOCK_INDICES, InputIdx::BLOCK_INDICES_BEGINS}) {
         const auto& in_et = get_input_element_type(idx);
         const auto& in_ps = get_input_partial_shape(idx);
         NODE_VALIDATION_CHECK(this,
@@ -173,15 +171,15 @@ void PagedQSAIndexer::validate_and_infer_types() {
         if (last.is_dynamic()) {
             return ov::Dimension::dynamic();
         }
-        NODE_VALIDATION_CHECK(this,
-                              last.get_length() > 0 &&
-                                  last.get_length() % static_cast<int64_t>(m_config.indexer_head_dim) == 0,
-                              "PagedQSAIndexer expects the ",
-                              name,
-                              " last dimension to be a positive multiple of indexer_head_dim=",
-                              m_config.indexer_head_dim,
-                              ", got ",
-                              ps);
+        NODE_VALIDATION_CHECK(
+            this,
+            last.get_length() > 0 && last.get_length() % static_cast<int64_t>(m_config.indexer_head_dim) == 0,
+            "PagedQSAIndexer expects the ",
+            name,
+            " last dimension to be a positive multiple of indexer_head_dim=",
+            m_config.indexer_head_dim,
+            ", got ",
+            ps);
         return ov::Dimension(last.get_length() / static_cast<int64_t>(m_config.indexer_head_dim));
     };
     const auto h_iq = flat_heads(index_query_ps, "index_query");
@@ -222,12 +220,12 @@ void PagedQSAIndexer::validate_and_infer_types() {
                           "PagedQSAIndexer expects block_index_keys_cache shaped "
                           "[num_blocks, H_ik, page_size/r, indexer_head_dim], got ",
                           get_input_partial_shape(InputIdx::BLOCK_INDEX_KEYS_CACHE));
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(InputIdx::INDEX_KEY_CACHE)
-                              .compatible(ov::PartialShape{num_blocks, h_ik, page, di}),
-                          "PagedQSAIndexer expects index_key_cache shaped [num_blocks, H_ik, page_size, indexer_head_dim], "
-                          "got ",
-                          get_input_partial_shape(InputIdx::INDEX_KEY_CACHE));
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(InputIdx::INDEX_KEY_CACHE).compatible(ov::PartialShape{num_blocks, h_ik, page, di}),
+        "PagedQSAIndexer expects index_key_cache shaped [num_blocks, H_ik, page_size, indexer_head_dim], "
+        "got ",
+        get_input_partial_shape(InputIdx::INDEX_KEY_CACHE));
     NODE_VALIDATION_CHECK(this,
                           get_input_partial_shape(InputIdx::INDEX_BLOCK_ROPE_CACHE)
                               .compatible(ov::PartialShape{num_blocks, spp, rope_row}),
@@ -238,16 +236,16 @@ void PagedQSAIndexer::validate_and_infer_types() {
     const auto num_seqs = dim_at(get_input_partial_shape(InputIdx::PAST_LENS), 0);
     const auto num_seqs_plus_one =
         num_seqs.is_static() ? ov::Dimension(num_seqs.get_length() + 1) : ov::Dimension::dynamic();
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(InputIdx::SUBSEQUENCE_BEGINS)
-                              .compatible(ov::PartialShape{num_seqs_plus_one}),
-                          "PagedQSAIndexer expects subsequence_begins shaped [num_sequences+1], got ",
-                          get_input_partial_shape(InputIdx::SUBSEQUENCE_BEGINS));
-    NODE_VALIDATION_CHECK(this,
-                          get_input_partial_shape(InputIdx::BLOCK_INDICES_BEGINS)
-                              .compatible(ov::PartialShape{num_seqs_plus_one}),
-                          "PagedQSAIndexer expects block_indices_begins shaped [num_sequences+1], got ",
-                          get_input_partial_shape(InputIdx::BLOCK_INDICES_BEGINS));
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(InputIdx::SUBSEQUENCE_BEGINS).compatible(ov::PartialShape{num_seqs_plus_one}),
+        "PagedQSAIndexer expects subsequence_begins shaped [num_sequences+1], got ",
+        get_input_partial_shape(InputIdx::SUBSEQUENCE_BEGINS));
+    NODE_VALIDATION_CHECK(
+        this,
+        get_input_partial_shape(InputIdx::BLOCK_INDICES_BEGINS).compatible(ov::PartialShape{num_seqs_plus_one}),
+        "PagedQSAIndexer expects block_indices_begins shaped [num_sequences+1], got ",
+        get_input_partial_shape(InputIdx::BLOCK_INDICES_BEGINS));
 
     if (h_iq.is_static() && h_ik.is_static()) {
         const auto h_iq_value = static_cast<size_t>(h_iq.get_length());

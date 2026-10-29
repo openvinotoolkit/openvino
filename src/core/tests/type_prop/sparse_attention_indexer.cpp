@@ -142,7 +142,7 @@ TEST_F(TypePropSparseAttentionIndexerTest, interval_dimensions) {
 
 TEST_F(TypePropSparseAttentionIndexerTest, dynamic_rank_index_query) {
     const auto op = make_op(param(element::f32, PartialShape::dynamic()),
-                            param(element::f32, PartialShape{1, 2500, 128}),
+                            param(element::f32, PartialShape{-1, 2500, 128}),
                             param(element::i32, PartialShape{1}),
                             4,
                             2048);

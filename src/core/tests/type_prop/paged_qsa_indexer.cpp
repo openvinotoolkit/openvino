@@ -35,27 +35,26 @@ OutputVector make_paged_qsa_indexer_inputs(int64_t query_heads = 2, int64_t key_
     constexpr int64_t rotary_dim = 2;
     constexpr int64_t num_pages = 8;
     const int64_t summaries_per_page = page_size / 4;  // page_size / key_block_size
-    return {std::make_shared<Parameter>(element::f32, PartialShape{6, query_heads * head_dim}),
-            std::make_shared<Parameter>(element::f32, PartialShape{6, key_heads * head_dim}),
-            std::make_shared<Parameter>(element::f32, PartialShape{6, rotary_dim}),
-            std::make_shared<Parameter>(element::f32, PartialShape{6, rotary_dim}),
-            std::make_shared<Parameter>(element::f32, PartialShape{head_dim}),
-            std::make_shared<Parameter>(element::f32, PartialShape{head_dim}),
-            std::make_shared<Parameter>(element::i32, PartialShape{2}),
-            std::make_shared<Parameter>(element::i32, PartialShape{3}),
-            std::make_shared<Parameter>(element::i32, PartialShape{4}),
-            std::make_shared<Parameter>(element::i32, PartialShape{3}),
-            std::make_shared<Parameter>(element::f32, PartialShape{num_pages, key_heads, page_size, head_dim}),
-            std::make_shared<Parameter>(element::f32, PartialShape{num_pages, summaries_per_page, 2 * rotary_dim}),
-            std::make_shared<Parameter>(element::f32,
-                                        PartialShape{num_pages, key_heads, summaries_per_page, head_dim})};
+    return {
+        std::make_shared<Parameter>(element::f32, PartialShape{6, query_heads * head_dim}),
+        std::make_shared<Parameter>(element::f32, PartialShape{6, key_heads * head_dim}),
+        std::make_shared<Parameter>(element::f32, PartialShape{6, rotary_dim}),
+        std::make_shared<Parameter>(element::f32, PartialShape{6, rotary_dim}),
+        std::make_shared<Parameter>(element::f32, PartialShape{head_dim}),
+        std::make_shared<Parameter>(element::f32, PartialShape{head_dim}),
+        std::make_shared<Parameter>(element::i32, PartialShape{2}),
+        std::make_shared<Parameter>(element::i32, PartialShape{3}),
+        std::make_shared<Parameter>(element::i32, PartialShape{4}),
+        std::make_shared<Parameter>(element::i32, PartialShape{3}),
+        std::make_shared<Parameter>(element::f32, PartialShape{num_pages, key_heads, page_size, head_dim}),
+        std::make_shared<Parameter>(element::f32, PartialShape{num_pages, summaries_per_page, 2 * rotary_dim}),
+        std::make_shared<Parameter>(element::f32, PartialShape{num_pages, key_heads, summaries_per_page, head_dim})};
 }
 
 }  // namespace
 
 TEST(type_prop, paged_qsa_indexer_output_shape_and_type) {
-    const auto op =
-        std::make_shared<PagedQSAIndexer>(make_paged_qsa_indexer_inputs(), make_paged_qsa_indexer_config());
+    const auto op = std::make_shared<PagedQSAIndexer>(make_paged_qsa_indexer_inputs(), make_paged_qsa_indexer_config());
 
     // Both outputs are i32 selections; the paged caches are updated in place and are not outputs.
     ASSERT_EQ(op->get_output_size(), 2);

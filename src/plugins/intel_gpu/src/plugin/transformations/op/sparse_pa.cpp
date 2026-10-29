@@ -6,38 +6,23 @@
 
 #include <string>
 
+#include "qsa_op_utils.hpp"
+
 namespace ov::intel_gpu::op {
+
+using namespace qsa_util;
 
 SparsePA::SparsePA(const ov::OutputVector& args, const Config& config) : Base(args, static_cast<int64_t>(config.key_block_size)), m_config(config) {
     constructor_validate_and_infer_types();
 }
 
 bool SparsePA::validate_config(const Config& c, std::string& reason) {
-    auto fail = [&reason](const char* msg) {
-        reason = msg;
-        return false;
-    };
-    if (c.num_heads == 0 || c.num_kv_heads == 0 || c.num_heads % c.num_kv_heads != 0) {
-        return fail("num_heads must be a positive multiple of num_kv_heads");
-    }
-    if (c.num_selection_heads != 1 && c.num_selection_heads != c.num_kv_heads && c.num_selection_heads != c.num_heads) {
-        return fail("num_selection_heads must be 1, num_kv_heads, or num_heads");
-    }
-    if (c.k_head_size == 0 || c.k_head_size % 16 != 0 || c.v_head_size == 0 || c.v_head_size % 16 != 0) {
-        return fail("k_head_size / v_head_size must be positive multiples of 16");
-    }
-    if (c.key_block_size == 0) {
-        return fail("key_block_size must be positive");
-    }
-    if (c.query_block_size != 1) {
-        return fail("query_block_size != 1 is not implemented in this pass");
-    }
-    return true;
+    return validate_sparse_attention_config(c, reason);
 }
 
 bool SparsePA::has_sinks() const {
     const auto& ps = get_input_partial_shape(InputIdx::SINKS);
-    return !(ps.rank().is_static() && ps.size() == 1 && ps[0].is_static() && ps[0].get_length() == 0);
+    return !ps.rank().is_static() || ps.size() != 1 || !ps[0].is_static() || ps[0].get_length() != 0;
 }
 
 bool SparsePA::visit_attributes(ov::AttributeVisitor& visitor) {
