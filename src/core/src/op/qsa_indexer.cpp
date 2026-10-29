@@ -71,19 +71,19 @@ void QSAIndexer::validate_and_infer_types() {
                           "rope_cos, rope_sin, and past_incomplete_rope must all be empty constants to disable RoPE.");
     const auto q_norm_disabled = ov::util::is_empty_constant_tensor(input_value(5));
     const auto k_norm_disabled = ov::util::is_empty_constant_tensor(input_value(6));
-    NODE_VALIDATION_CHECK(this, query_shape.rank().compatible(4));
-    NODE_VALIDATION_CHECK(this, raw_keys_shape.rank().compatible(3));
+    NODE_VALIDATION_CHECK(this, query_shape.rank().compatible(query_rank));
+    NODE_VALIDATION_CHECK(this, raw_keys_shape.rank().compatible(keys_rank));
     if (!rope_disabled) {
-        NODE_VALIDATION_CHECK(this, rope_cos_shape.rank().compatible(3));
-        NODE_VALIDATION_CHECK(this, rope_sin_shape.rank().compatible(3));
+        NODE_VALIDATION_CHECK(this, rope_cos_shape.rank().compatible(rope_rank));
+        NODE_VALIDATION_CHECK(this, rope_sin_shape.rank().compatible(rope_rank));
     }
     NODE_VALIDATION_CHECK(this, length_shape.rank().compatible(1));
     NODE_VALIDATION_CHECK(this, q_norm_disabled || q_weight_shape.rank().compatible(1));
     NODE_VALIDATION_CHECK(this, k_norm_disabled || k_weight_shape.rank().compatible(1));
-    NODE_VALIDATION_CHECK(this, cache_shape.rank().compatible(3));
-    NODE_VALIDATION_CHECK(this, incomplete_keys_shape.rank().compatible(3));
+    NODE_VALIDATION_CHECK(this, cache_shape.rank().compatible(keys_rank));
+    NODE_VALIDATION_CHECK(this, incomplete_keys_shape.rank().compatible(keys_rank));
     if (!rope_disabled) {
-        NODE_VALIDATION_CHECK(this, incomplete_rope_shape.rank().compatible(2));
+        NODE_VALIDATION_CHECK(this, incomplete_rope_shape.rank().compatible(incomplete_rope_rank));
     }
 
     auto batch = Dimension::dynamic();
