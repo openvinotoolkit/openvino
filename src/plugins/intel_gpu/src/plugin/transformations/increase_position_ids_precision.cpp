@@ -40,6 +40,7 @@
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -48,7 +49,6 @@
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
@@ -197,7 +197,7 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
                 insert_converts_after_if_needed(sin_node, rope_sin_et, output_idx);
             }
         }
-        return true;
+        return is_changed;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(rope, "IncreasePositionIdsPrecisionForRoPE");
@@ -786,11 +786,11 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
         }
 
         size_t idx = 0;
-        insert_converts_before_if_needed(matmul_node, desired_et, idx);
-        insert_converts_before_if_needed(mul_node1, desired_et, idx);
-        insert_converts_before_if_needed(mul_node2, desired_et, idx);
+        bool is_changed = insert_converts_before_if_needed(matmul_node, desired_et, idx);
+        is_changed = insert_converts_before_if_needed(mul_node1, desired_et, idx) || is_changed;
+        is_changed = insert_converts_before_if_needed(mul_node2, desired_et, idx) || is_changed;
 
-        return true;
+        return is_changed;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(rope_qk, "IncreasePositionIdsPrecisionForGPTOSS");
@@ -906,15 +906,23 @@ IncreasePositionIdsPrecisionForDirectMatMulSinCos::IncreasePositionIdsPrecisionF
 IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() = default;
 
 bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
-    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForRoPE>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForQwen25VL>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForQwen3VL>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForGPTOSS>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForLtxVideo>();
-    return symbolic_optimizations.run_on_model(model);
+    ov::pass::Manager specialized_manager(*get_pass_config());
+    // The outer pipeline runs Validate, so disable validation after each internal pass.
+    specialized_manager.set_per_pass_validation(false);
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForRoPE>();
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForQwen25VL>();
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForQwen3VL>();
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForGPTOSS>();
+    if (specialized_manager.run_passes(model)) {
+        // A specialized pass already matched and increased precision; return to avoid duplicate processing.
+        return true;
+    }
+
+    ov::pass::Manager ltx_manager(*get_pass_config());
+    ltx_manager.set_per_pass_validation(false);
+    ltx_manager.register_pass<IncreasePositionIdsPrecisionForLtxVideo>();
+    return ltx_manager.run_passes(model);
 }
 
 DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
