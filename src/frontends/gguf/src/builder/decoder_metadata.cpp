@@ -119,14 +119,10 @@ DecoderParameters read_decoder_parameters(const GgufMetadata& m, DecoderParamete
     auto& a = p.attention;
     a.rope.freq_base = real(m, key("rope.freq_base"), a.rope.freq_base > 0 ? a.rope.freq_base : 10000.0f);
     const auto factor_key = key("rope.scaling.factor");
-    float factor = real(m, factor_key, 1.0f);
-    const bool override_scale = m.has(factor_key) && factor != 0.0f;
-    // Zero means no scaling override; normalize the divisor to 1 before taking the reciprocal.
-    if (factor == 0.0f) {
-        factor = 1.0f;
-    }
+    const float factor = real(m, factor_key, 1.0f);
     a.rope.freq_scale = a.rope.freq_scale > 0 ? a.rope.freq_scale : 1.0f;
-    if (override_scale) {
+    // Missing or zero metadata preserves the architecture's scaling default.
+    if (m.has(factor_key) && factor != 0.0f) {
         OPENVINO_ASSERT(factor > 0.0f, "[GGUF] RoPE scaling factor must be finite and positive");
         const double inverse = 1.0 / static_cast<double>(factor);
         OPENVINO_ASSERT(inverse <= std::numeric_limits<float>::max(),
