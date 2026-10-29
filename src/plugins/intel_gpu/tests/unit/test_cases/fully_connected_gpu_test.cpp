@@ -5287,9 +5287,10 @@ TEST_P(fully_connected_onednn_expert_zero_points_test, per_expert_per_channel) {
     set_values<uint8_t>(weights, std::vector<uint8_t>(experts * ofm * ifm, 9));
     set_values<ov::float16>(scale, std::vector<ov::float16>(experts * ofm * scale_groups, ov::float16(1.0f)));
     std::vector<uint8_t> zp_values(experts * ofm * scale_groups);
+    const bool transpose_zp_layout = transpose_b_param;
     const auto zp_idx = [=](int64_t expert, int64_t group, int64_t oc) {
-        return transpose_b_param ? static_cast<size_t>(expert * ofm * scale_groups + oc * scale_groups + group)
-                                 : static_cast<size_t>(expert * scale_groups * ofm + group * ofm + oc);
+        return transpose_zp_layout ? static_cast<size_t>(expert * ofm * scale_groups + oc * scale_groups + group)
+                                   : static_cast<size_t>(expert * scale_groups * ofm + group * ofm + oc);
     };
     for (int64_t expert = 0; expert < experts; ++expert) {
         for (int64_t group = 0; group < scale_groups; ++group) {
