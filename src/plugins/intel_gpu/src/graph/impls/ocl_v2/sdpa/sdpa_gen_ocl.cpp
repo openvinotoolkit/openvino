@@ -1335,8 +1335,13 @@ size_t SDPAOclGenerator::get_query_block_size(const kernel_impl_params& params, 
     return static_cast<size_t>(make_problem(params, is_prefill).tiling.kq_wg_tile_queries());
 }
 
+// make_problem() takes hpg_pa_prefill_tiling() exactly when hpg_pa_prefill_ok(), so this skips the tiling solve; the arch
+// check first keeps every other device's PREFILL update_rt_params() at one compare.
 bool SDPAOclGenerator::uses_hpg_pa_prefill(const kernel_impl_params& params) {
-    return make_problem(params, true).tiling.hpg_pa_prefill;
+    if (params.get_device_info().arch != gpu_arch::xe_hpg) {
+        return false;
+    }
+    return hpg_pa_prefill_ok(params, qkv_head_size(params, 1), qkv_head_size(params, 2));
 }
 
 bool SDPAOclGenerator::supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size) {
