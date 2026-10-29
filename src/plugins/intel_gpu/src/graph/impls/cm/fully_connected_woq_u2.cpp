@@ -34,8 +34,9 @@ constexpr size_t gemv_maxt = 960;
 size_t rows_of(const RuntimeParams& params) {
     const auto& in_shape = params.get_input_layout(0).get_shape();
     size_t M = 1;
-    for (size_t i = 0; i + 1 < in_shape.size(); i++)
+    for (size_t i = 0; i + 1 < in_shape.size(); i++) {
         M *= in_shape[i];
+    }
     return M;
 }
 
@@ -92,15 +93,16 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(woq_u2_scale_idx(bias))});  // scales
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(woq_u2_zp_idx(bias))});     // zero points (u8)
         const auto epi = epilogue_of(params);
-        if (epi.dep >= 0)
+        if (epi.dep >= 0) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(epi.dep)});  // epi
-        else
+        } else {
             args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // epi (unused, epi_mode = 0)
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});      // C
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});      // M
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});      // K
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});      // N
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});      // epi_mode
+        }
+        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // C
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // M
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // N
+        args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // epi_mode
         return args;
     }
 
@@ -192,8 +194,9 @@ public:
 
     // One kernel per execution, chosen by the runtime M (M may be dynamic): GEMV for M <= gemv_max_m.
     [[nodiscard]] std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& impl_params) const override {
-        if (impl_params.is_dynamic())
+        if (impl_params.is_dynamic()) {
             return _order;
+        }
         return {rows_of(impl_params) <= gemv_max_m ? size_t(1) : size_t(0)};
     }
 
@@ -207,8 +210,9 @@ protected:
     [[nodiscard]] cldnn::kernel_arguments_data get_arguments(const cldnn::primitive_inst& instance) const override {
         cldnn::kernel_arguments_data args = PrimitiveImplCM::get_arguments(instance);
         args.inputs.clear();
-        for (size_t i = 0; i < instance.dependencies().size(); i++)
+        for (size_t i = 0; i < instance.dependencies().size(); i++) {
             args.inputs.push_back(instance.dep_memory_ptr(i));
+        }
         return args;
     }
 };
