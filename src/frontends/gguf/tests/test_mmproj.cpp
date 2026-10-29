@@ -914,9 +914,7 @@ TEST(GGUFMMProjLayout, DeclaredAuxiliaryOutputsSurviveSplitMergerAndIR) {
         lengths->output(0).set_names({"vision.lengths"});
         model->add_results({std::make_shared<ov::op::v0::Result>(lengths)});
         auto contract = read_model_contract(model);
-        contract.component_groups["vision"] = {
-            "encoder",
-            {{"encoder", {{"vision.embeddings", "vision.lengths"}, ""}}}};
+        contract.component_groups["vision"] = {"encoder", {{"encoder", {{"vision.embeddings", "vision.lengths"}, ""}}}};
         write_model_contract(model, contract);
         model->set_rt_info(std::string(deepstack ? "1" : "0"), {"gguf_mmproj", "vision.auxiliary_count"});
         Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
