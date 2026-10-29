@@ -1223,9 +1223,12 @@ sliding-window region (`openvino/reference/paged_attention.hpp`).
 - A small GQA MIXED step (at most 16 new tokens per subsequence, e.g. a speculative draft block)
   takes the GQA multi-token path as without token_type_ids. `pa_small_q_opt.cl` has no bidirectional
   mask, so that is the `paged_attention_opt.cl` fallback, which has one (on the token-major
-  BY_CHANNEL page, which the fallback cannot read, `sdpa_ocl`). Against `sdpa_ocl` on B70 (f16, 32/8
-  heads, head 128, 1K and 8K context, clock not pinned) the fallback was 2-3x faster at 4 new tokens
-  and 1.1-1.7x slower at 16.
+  BY_CHANNEL page, which the fallback cannot read, `sdpa_ocl`). Against `sdpa_ocl` (f16, 1K-8K
+  context, setup in "Performance opportunities") the fallback is 1.8-2.9x faster at 4 new tokens and
+  1.15-1.57x slower at 16. Giving `pa_small_q_opt.cl` the mask was measured through its time without
+  token_type_ids (the mask costs the fallback under 2%) and not done: with the default BY_CHANNEL
+  caches it would take 0.27-0.51x `sdpa_ocl`'s time from 4K but 1.13-1.74x at 1K, and with f16 or
+  i8 BY_TOKEN 1.3-4.8x the fallback's at 4 new tokens.
 - A runtime-empty `token_type_ids` (`[B_token | 0]`) is legal while `HAS_TOKEN_TYPE_IDS` is decided
   at compile time from a possibly dynamic shape, so every read is gated on the runtime count. The
   paged-attention impl is compiled once from dynamic params (`shape_types::any`) and afterwards only
@@ -1568,11 +1571,31 @@ Each needs its own measured change.
   (gemma-4-26b 9.5 against 9.2 us per call): each thread writes 8 bytes into 16 token rows, i.e. 16 different 128 B
   lines, where a d-major thread writes 2 ("The u4 token-major K writer (IGC 2.41)").
 - A small GQA MIXED step (at most 16 new tokens per subsequence) goes to `pa_small_q_opt.cl` whenever it can, as upstream
-  does against `sdpa_micro`. Against `sdpa_ocl` that wins at long context and not at short: 32/8 heads, head 128, 8K
-  context, 4 and 16 new tokens: `pa_small_q_opt.cl` took 0.27-0.44x (u4 / i8 BY_CHANNEL), 0.17-0.23x (i8 BY_TOKEN) and
-  0.52-0.74x (f16) of `sdpa_ocl`'s time per call; at 1K `sdpa_ocl` was level to ~2x faster. The 1K numbers are noisy:
-  unit-test perf rows with the inputs copied to `usm_device`, cliloader chrome kernel timeline, clock not pinned (the
-  400-2800 MHz governor lowers it between short calls). A context-length threshold needs a pinned clock to place.
+  does against `sdpa_micro`. Time per call without token_type_ids in us (kernel plus finalization; B70 pinned at
+  1800 MHz, 32/8 heads, head 128, one subsequence, unit-test perf rows with the inputs copied to `usm_device`, cliloader
+  chrome kernel timeline, median of 100 calls, two rounds within 1.5%; the fallback forced with
+  `OV_GPU_PA_GQA_MULTI_TOKENS_KERNEL=2`, one round):
+
+  | Cache | Kernel | 1K: 4 / 8 / 16 new tokens | 4K | 8K |
+  |---|---|---|---|---|
+  | f16 | `pa_small_q_opt.cl` | 129 / 105 / 96 | 155 / 144 / 187 | 245 / 261 / 354 |
+  | | fallback | 27 / 46 / 79 | 75 / 130 / 246 | 160 / 286 / 538 |
+  | | `sdpa_ocl` | 45 / 45 / 45 | 145 / 145 / 145 | 440 / 441 / 441 |
+  | i8 BY_TOKEN | `pa_small_q_opt.cl` | 169 / 122 / 108 | 182 / 157 / 172 | 227 / 238 / 312 |
+  | | fallback | 37 / 56 / 98 | 94 / 169 / 326 | 170 / 319 / 632 |
+  | | `sdpa_ocl` | 185 / 183 / 185 | 691 / 690 / 690 | 1366 / 1369 / 1367 |
+  | u4 BY_CHANNEL | `pa_small_q_opt.cl` | 180 / 141 / 125 | 189 / 161 / 177 | 211 / 227 / 313 |
+  | | `sdpa_ocl` | 99 / 99 / 98 | 354 / 353 / 352 | 695 / 694 / 694 |
+  | i8 BY_CHANNEL | `pa_small_q_opt.cl` | 145 / 124 / 119 | 156 / 152 / 175 | 200 / 237 / 302 |
+  | | `sdpa_ocl` | 104 / 104 / 104 | 376 / 375 / 373 | 737 / 737 / 734 |
+
+  With f16 and i8 BY_TOKEN `pa_small_q_opt.cl` loses to the fallback at 4 new tokens at every context (1.3-4.8x), and at
+  1K `sdpa_ocl` or the fallback beats it with every cache (the fallback cannot read the token-major BY_CHANNEL page). It
+  wins from 4K with the BY_CHANNEL caches (0.27-0.53x `sdpa_ocl`), from 8 new tokens at 4K with i8 BY_TOKEN, and at 8
+  and 16 new tokens at 8K with f16. `sdpa_ocl` takes the same time for 4-16 new tokens and grows linearly with context;
+  `pa_small_q_opt.cl` splits the context into 256-key partitions but gets slower with fewer new tokens (a workgroup has
+  `ceil(tokens / TOKENS_PER_SG)` subgroups to dequantize each K/V tile into SLM; not profiled). A threshold on context
+  and new tokens, or a dequant that does not depend on the token count, would recover the short cases.
 - PA PREFILL at 32 tokens is still slower than `sdpa_micro` per call after the causal tile skip: qwen3-8b 14.1 against
   12.6 us (1.12x), phi-3.5-mini 15.8 against 12.8 (1.23x), and at `d_max` 64, where the skip is off, llama-3.2-1b 13.1
   against 9.2 (1.42x) ("Paged-attention PREFILL: short prompts"). From 1K they are level or faster.
