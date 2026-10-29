@@ -301,6 +301,12 @@ void Graph::bind_collectives() {
                     ", ...) and needs a TP context, but was compiled for an ordinary context");
     m_network->set_tp_channel(communicator->bind(collectives, m_stream_id));
 }
+
+void Graph::throw_if_collectives_failed() const {
+    if (const auto& channel = m_network->get_tp_channel()) {
+        channel->throw_if_aborted();
+    }
+}
 #endif
 
 std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive_info>& primitives_info, bool filter_const_primitives) {

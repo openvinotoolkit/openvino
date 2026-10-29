@@ -412,8 +412,14 @@ marker (`enqueue_marker`) that completes with the collective.
 
 Because nothing on the host waits for the device any more, a rank that dies
 would hang the group with no deadline to catch it. A watchdog thread, started
-on the first spliced collective, polls the completion events and aborts the
-group if nothing advances within `COMMUNICATION_TIMEOUT_MS`.
+on the first spliced collective, polls the completion events the recordings
+registered and aborts the group if nothing advances within
+`COMMUNICATION_TIMEOUT_MS`. It then signals every event of the group from the
+host -- peer events, gather acks and completion events -- so the waiting queues
+drain. What they produced is garbage, so the inference that ran into it throws
+once its stream has drained (`Graph::throw_if_collectives_failed()` in
+`SyncInferRequest::wait()`), every later collective throws at once, and binding
+another model to the group fails.
 
 ### Schedules
 

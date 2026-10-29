@@ -545,6 +545,9 @@ void SyncInferRequest::wait() {
         GPU_DEBUG_IF(true)
         sync_total_time = std::chrono::duration_cast<std::chrono::microseconds>(sync_end - sync_start).count();
     }
+#ifdef ENABLE_TP
+    m_graph->throw_if_collectives_failed();
+#endif
 
     std::vector<cldnn::event::ptr> copy_events;
 

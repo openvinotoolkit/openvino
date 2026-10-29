@@ -81,6 +81,12 @@ public:
         return m_weight_sharing_source_buffers;
     }
 
+#ifdef ENABLE_TP
+    /// Throws if the model's collective group has failed during or before this
+    /// inference: the released device waits leave its outputs undefined.
+    void throw_if_collectives_failed() const;
+#endif
+
     std::vector<HostTimeProfilingEntry> host_exec_times;
 
 private:

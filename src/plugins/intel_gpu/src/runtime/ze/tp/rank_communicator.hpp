@@ -44,6 +44,10 @@ public:
     const GroupStatePtr& group() const {
         return m_group;
     }
+    /// Throws if the group has failed: whatever the devices produced since may be garbage.
+    void throw_if_aborted() const {
+        m_group->throw_if_aborted();
+    }
 
 private:
     GroupStatePtr m_group;

@@ -188,6 +188,8 @@ std::shared_ptr<Channel> RankCommunicator::bind(const std::vector<CollectiveUse>
     OPENVINO_ASSERT(m_group->num_collectives() == count,
                     "[GPU][TP] the model has ", count, " collectives, the context's group was set up for ",
                     m_group->num_collectives());
+    // A failed group is terminal: the ranks' call counters may differ.
+    m_group->throw_if_aborted();
 
     auto bound = std::make_shared<Channel>(m_group, m_rank);
     m_channel = bound;

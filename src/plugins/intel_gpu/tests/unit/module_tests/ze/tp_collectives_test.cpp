@@ -1769,6 +1769,55 @@ TEST_F(TPCollectivesTest, AbortAfterSplicingFailsSubsequentCalls) {
     EXPECT_LT(std::chrono::steady_clock::now() - before, std::chrono::seconds{1});
 }
 
+// A rank whose device never reaches its part of a collective leaves the peer's
+// device waiting with no deadline of its own. The watchdog has to turn that
+// into an aborted group and release the waiting queue, so the hosts get an
+// error instead of a hang.
+TEST_F(TPCollectivesTest, WatchdogReleasesAPeerThatNeverSignals) {
+    Watchdog watchdog(60);
+    auto shared = make_shared_ctx(2);
+    constexpr auto timeout = std::chrono::milliseconds{300};
+    auto coord = std::make_shared<Collectives>(shared, 2, 1, timeout);
+    if (!coord->run_spliced())
+        GTEST_SKIP() << "driver has no immediate-append extension";
+
+    constexpr size_t n = 4096;
+    CollectiveBuffers buffers(shared, 2, n * sizeof(ov::float16));
+    std::vector<ze_command_list_handle_t> queues{buffers.rs[0].model_queue(), buffers.rs[1].model_queue()};
+
+    // Rank 1's queue stalls in front of the collective until the test lets it go.
+    ze_event_pool_desc_t epd{ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr, ZE_EVENT_POOL_FLAG_HOST_VISIBLE, 1};
+    ze_event_pool_handle_t pool = nullptr;
+    ze_device_handle_t dev1 = shared->devices[1];
+    ASSERT_EQ(ZE_RESULT_SUCCESS, ov::zeEventPoolCreate(shared->context, &epd, 1, &dev1, &pool));
+    ze_event_desc_t ed{ZE_STRUCTURE_TYPE_EVENT_DESC, nullptr, 0, ZE_EVENT_SCOPE_FLAG_HOST, ZE_EVENT_SCOPE_FLAG_HOST};
+    ze_event_handle_t blocker = nullptr;
+    ASSERT_EQ(ZE_RESULT_SUCCESS, ov::zeEventCreate(pool, &ed, &blocker));
+    EXPECT_ZE(ov::zeCommandListAppendWaitOnEvents(queues[1], 1, &blocker));
+
+    run_collective(*coord, 0, buffers.ins, buffers.outs, n, ov::element::f16, queues);
+
+    const auto start = std::chrono::steady_clock::now();
+    while (!coord->is_aborted() && std::chrono::steady_clock::now() - start < 10 * timeout)
+        std::this_thread::sleep_for(std::chrono::milliseconds{20});
+    EXPECT_TRUE(coord->is_aborted()) << "the watchdog did not notice a device that never progressed";
+
+    // Rank 0 was only waiting on its peer, which the abort released.
+    EXPECT_ZE(ov::zeCommandListHostSynchronize(queues[0], 5'000'000'000ull));
+
+    // Let rank 1 run through as well before anything is torn down.
+    EXPECT_ZE(ov::zeEventHostSignal(blocker));
+    EXPECT_ZE(ov::zeCommandListHostSynchronize(queues[1], 5'000'000'000ull));
+
+    EXPECT_THROW(coord->allreduce(0, 0, buffers.ins[0], buffers.outs[0], n, ov::element::f16,
+                                  reduce_kernel(*coord, 0, ov::element::f16)),
+                 ov::Exception);
+
+    coord.reset();
+    ov::zeEventDestroy(blocker);
+    ov::zeEventPoolDestroy(pool);
+}
+
 }  // namespace
 
 #endif  // ENABLE_TP
