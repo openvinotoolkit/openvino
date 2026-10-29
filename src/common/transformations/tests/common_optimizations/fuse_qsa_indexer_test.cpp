@@ -342,7 +342,7 @@ TEST(FuseQSAIndexer, DoesNotRejectFP32) {
     EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
 }
 
-TEST(FuseQSAIndexer, DoesNotRestrictKernelDimensionsOrConfiguration) {
+TEST(FuseQSAIndexer, RejectsGraphsOutsideKernelLimits) {
     const auto with = [](auto&& setter) {
         GraphOptions options;
         setter(options);
@@ -370,8 +370,20 @@ TEST(FuseQSAIndexer, DoesNotRestrictKernelDimensionsOrConfiguration) {
         {"num_selection_heads", with([](GraphOptions& o) {
              o.num_selection_heads = 2;
          })},
-        {"epsilons", with([](GraphOptions& o) {
+        {"query_epsilon_above_maximum", with([](GraphOptions& o) {
              o.query_epsilon = 2e-5f;
+         })},
+        {"query_epsilon_below_minimum", with([](GraphOptions& o) {
+             o.query_epsilon = 5e-7f;
+         })},
+        {"decomposed_query_epsilon_above_maximum", with([](GraphOptions& o) {
+             o.decomposed_norm = true;
+             o.query_epsilon = 2e-5f;
+         })},
+        {"key_epsilon_above_maximum", with([](GraphOptions& o) {
+             o.key_epsilon = 2e-5f;
+         })},
+        {"key_epsilon_below_minimum", with([](GraphOptions& o) {
              o.key_epsilon = 5e-7f;
          })},
     };
@@ -380,8 +392,18 @@ TEST(FuseQSAIndexer, DoesNotRestrictKernelDimensionsOrConfiguration) {
         SCOPED_TRACE(name);
         auto graph = build_graph(options);
         run_fusion(graph.model);
-        EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
+        EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 0);
+        EXPECT_EQ(count_ops(graph.model, "QSAPrepare"), 1);
+        EXPECT_EQ(count_ops(graph.model, "SparseAttentionIndexer"), 1);
     }
+}
+
+TEST(FuseQSAIndexer, AcceptsMaximumTokenBudget) {
+    GraphOptions options;
+    options.token_budget = op::internal::QSAIndexer::max_token_budget;
+    auto graph = build_graph(options);
+    run_fusion(graph.model);
+    EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
 }
 
 TEST(FuseQSAIndexer, RejectsInvalidConfigurationAndProvenance) {
