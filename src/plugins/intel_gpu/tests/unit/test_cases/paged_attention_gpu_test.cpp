@@ -914,6 +914,267 @@ INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::v
     paged_attention_test_params{ {{4, 20}, {2, 32}, {4, 25}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 20, 36}} },
 }));
 
+// Test memory is typically zero-filled, so a kernel that reads rows past the context or skips a write can still match
+// the reference. The second run fills such locations with NaN to make those bugs visible.
+class paged_attention_gqa_multi_tokens_test_base : public PagedAttentionTest<paged_attention_test_params> {
+protected:
+    void check_accuracy_with_poisoned_memory(gpu_outputs& result, const paged_attention_test_params& p) {
+        auto pa_inst = result.network->get_primitive("paged_attention");
+        ASSERT_NE(pa_inst, nullptr);
+        SCOPED_TRACE(pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries());
+
+        const auto reference = PagedAttentionReference(*pam).get_reference(result.key_cache_mem);
+        ASSERT_NO_FATAL_FAILURE(compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference));
+
+        poison_kv_cache_tail_rows(result.key_cache_mem, result.value_cache_mem, p);
+        poison_kernel_written_buffers(*pa_inst, result.outputs.at("output_data").get_memory());
+        result.outputs = result.network->execute();
+        {
+            SCOPED_TRACE("rerun with NaN in unused KV cache rows and kernel-written buffers");
+            compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+        }
+    }
+
+private:
+    // Rows past the context in each subsequence's last block. By-channel key scales are shared with valid rows, so only
+    // uncompressed and by-token keys are poisoned there; every value cache format is.
+    void poison_kv_cache_tail_rows(const cldnn::memory::ptr& key_cache, const cldnn::memory::ptr& value_cache, const paged_attention_test_params& p) {
+        const ov::float16 nan = std::numeric_limits<ov::float16>::quiet_NaN();
+        constexpr size_t f16 = sizeof(ov::float16);
+        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> k(key_cache, tests::get_test_stream());
+        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> v(value_cache, tests::get_test_stream());
+        auto put_nan = [&](uint8_t* base, size_t byte_offset) {
+            std::memcpy(base + byte_offset, &nan, f16);
+        };
+
+        const bool int4 = pam->is_int4_kv_cache();
+        const bool key_by_token = p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN;
+        const size_t bs = p.block_size, kv_heads = p.num_kv_heads, kh = p.k_head_size, vh = p.v_head_size;
+        for (size_t i = 0; i < p.subsequences.size(); ++i) {
+            const size_t valid_rows = static_cast<size_t>(p.subsequences[i].past_len + p.subsequences[i].num_tokens) % bs;
+            if (valid_rows == 0)
+                continue;
+            const size_t block = pam->block_indices[pam->block_indices_begins[i + 1] - 1];
+            for (size_t h = 0; h < kv_heads; ++h) {
+                const size_t block_head = block * kv_heads + h;
+                for (size_t t = valid_rows; t < bs; ++t) {
+                    // key: [blocks, kv_heads, head_size (+ per-token scale/zp), block_size]
+                    if (!p.kv_cache_compression) {
+                        for (size_t d = 0; d < kh; ++d)
+                            put_nan(k.data(), ((block_head * kh + d) * bs + t) * f16);
+                    } else if (key_by_token) {
+                        const size_t data_rows = int4 ? kh / 2 : kh;
+                        put_nan(k.data(), block_head * (data_rows + 2 * f16) * bs + data_rows * bs + t * f16);
+                    }
+                    // value: [blocks, kv_heads, block_size, head_size (+ scale/zp)]
+                    if (!p.kv_cache_compression) {
+                        for (size_t d = 0; d < vh; ++d)
+                            put_nan(v.data(), ((block_head * bs + t) * vh + d) * f16);
+                    } else if (int4) {
+                        put_nan(v.data(), (block_head * bs + t) * (vh / 2 + 2 * f16) + vh / 2);
+                    } else {
+                        put_nan(v.data(), block_head * bs * (vh + 2 * f16) + bs * vh + t * f16);
+                    }
+                }
+            }
+        }
+    }
+
+    static void poison_kernel_written_buffers(cldnn::primitive_inst& pa_inst, const cldnn::memory::ptr& output) {
+        std::vector<cldnn::memory::ptr> buffers{output};
+        const auto& intermediates = pa_inst.get_intermediates_memories();
+        // MIXED without scores: kv update indexes [0..2], exp_sums [3], max_logits [4], tmp_out [5], subsequence mapping [6]
+        if (intermediates.size() == 7)
+            buffers.insert(buffers.end(), {intermediates[3], intermediates[4], intermediates[5]});
+        for (const auto& buffer : buffers) {
+            cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::write> bytes(buffer, tests::get_test_stream());
+            std::fill(bytes.begin(), bytes.end(), uint8_t{0xFF});  // NaN for both f16 and f32
+        }
+    }
+};
+
+// Speculative decoding MIXED step with GQA: subsequences of at most 16 query tokens go to pa_small_q_opt.cl on DPAS
+// platforms when the KV group size divides 8, otherwise to the GQA multi-token path of paged_attention_opt.cl.
+class paged_attention_gqa_multi_tokens_test : public paged_attention_gqa_multi_tokens_test_base {};
+TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    auto result = run_gpu_inference(pam, p);
+
+    // Mirrors supports_gqa_multi_tokens_dpas_kernel()
+    const auto& info = tests::get_test_engine().get_device_info();
+    const int kv_group_size = p.num_heads / p.num_kv_heads;
+    const bool expect_dpas = info.supports_immad && info.arch >= cldnn::gpu_arch::xe_hpc && 8 % kv_group_size == 0 &&
+                             p.k_head_size == p.v_head_size && p.k_head_size % 32 == 0 && p.k_head_size <= 256;
+    const std::string expected_kernel = expect_dpas ? "pa_small_q_opt" : "_gqa_multi_tokens_fallback";
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    const auto entries = pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    ASSERT_NE(entries.find(expected_kernel), std::string::npos) << "Expected " << expected_kernel << ", executed: " << entries;
+
+    check_accuracy_with_poisoned_memory(result, p);
+}
+
+// f16 means an uncompressed KV cache; i8 and u4 enable compression with the given key quantization mode
+static paged_attention_test_params make_gqa_multi_tokens_params(std::vector<SubsequenceDescriptor> subsequences,
+                                                                int num_heads,
+                                                                int num_kv_heads,
+                                                                int head_size,
+                                                                ov::element::Type kv_cache_precision = ov::element::f16,
+                                                                ov::internal::CacheQuantMode key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN) {
+    const bool compressed = kv_cache_precision != ov::element::f16;
+    paged_attention_test_params p{std::move(subsequences), num_heads, num_kv_heads, head_size, head_size, 16, 0, compressed, key_cache_quant_mode,
+                                  STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2};
+    p.kv_cache_precision = kv_cache_precision == ov::element::u4 ? ov::element::u4 : ov::element::dynamic;
+    return p;
+}
+
+static paged_attention_test_params with_sliding_window(paged_attention_test_params p, int sliding_window_size) {
+    p.sliding_window_size = sliding_window_size;
+    return p;
+}
+
+static paged_attention_test_params with_dynamic_paddings(paged_attention_test_params p) {
+    p.dynamic_paddings = DYNAMIC_INPUT_PAD;
+    return p;
+}
+
+static paged_attention_test_params with_qq_bias(paged_attention_test_params p, QueryToQueryAttentionDescriptor qq_bias_config) {
+    p.has_qq_bias = true;
+    p.qq_bias_config = std::move(qq_bias_config);
+    return p;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens, paged_attention_gqa_multi_tokens_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // GQA ratios 2/4/8, single and double-buffered K/V SLM (cut-off at 4 subgroups)
+    make_gqa_multi_tokens_params({{4, 32}}, 8, 2, 64),
+    make_gqa_multi_tokens_params({{16, 40}}, 4, 2, 64),
+    make_gqa_multi_tokens_params({{16, 300}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{6, 600}}, 4, 2, 128),
+    make_gqa_multi_tokens_params({{8, 1000}}, 16, 2, 64),
+    make_gqa_multi_tokens_params({{5, 250}}, 8, 2, 256),
+    // query tokens straddle the 256-token partition boundary: some write output directly, others go through finalization
+    make_gqa_multi_tokens_params({{8, 252}}, 8, 2, 128),
+
+    // multiple subsequences with different lengths, including a single-token one
+    make_gqa_multi_tokens_params({{8, 34}, {3, 600}, {1, 100}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{2, 10}, {16, 520}}, 8, 4, 64),
+
+    // compressed KV cache
+    make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
+    make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
+    make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+    make_gqa_multi_tokens_params({{16, 520}}, 16, 4, 256, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+
+    // sliding window, padded query, speculative tree mask
+    with_sliding_window(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128), 64),
+    // The window starts inside a KV block and wholly after the first context partition.
+    with_sliding_window(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128), 17),
+    with_dynamic_paddings(make_gqa_multi_tokens_params({{8, 34}}, 8, 2, 128)),
+    with_qq_bias(make_gqa_multi_tokens_params({{8, 34}}, 8, 2, 64), make_tree_qq_bias({8})),
+    with_qq_bias(make_gqa_multi_tokens_params({{16, 40}, {1, 100}, {8, 300}}, 8, 2, 64), make_tree_qq_bias({16, 1, 8})),
+
+    // KV group size 3 does not fit the DPAS tile and always takes the fallback kernel
+    make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 64),
+    make_gqa_multi_tokens_params({{8, 300}}, 12, 4, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
+    // Multiple subsequences with different query lengths; GQA ratio 3 forces fallback even on DPAS devices.
+    make_gqa_multi_tokens_params({{4, 32}, {3, 256}, {2, 600}}, 6, 2, 64),
+
+    // Last KV block partially filled (context % 16 != 0) in single and multiple partitions, per cache format
+    make_gqa_multi_tokens_params({{8, 35}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{8, 35}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
+    make_gqa_multi_tokens_params({{8, 35}}, 8, 2, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+    make_gqa_multi_tokens_params({{8, 291}}, 8, 2, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+    make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_TOKEN),
+    make_gqa_multi_tokens_params({{5, 27}, {8, 300}, {3, 513}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
+
+    // Fallback with fewer subgroups (v_head_size / 16 * sg_scale) than heads per work-item: every head must still
+    // write its partition statistics
+    make_gqa_multi_tokens_params({{8, 300}}, 4, 2, 16),
+    make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 16),
+    make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 16),
+    make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 32),
+    make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 48),
+    make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 32, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+    make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 16, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
+    make_gqa_multi_tokens_params({{8, 1000}}, 6, 2, 16),
+    make_gqa_multi_tokens_params({{3, 600}, {8, 20}, {5, 290}}, 6, 2, 32),
+    // KV group sizes 5 and 7 span several work-items, the last one holding leftover heads
+    make_gqa_multi_tokens_params({{8, 300}}, 10, 2, 32),
+    make_gqa_multi_tokens_params({{8, 300}}, 14, 2, 64),
+    // Controls: a single partition, and enough subgroups for every head
+    make_gqa_multi_tokens_params({{8, 35}}, 6, 2, 32),
+    make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 64),
+}));
+
+// Accuracy-only coverage for the default-mode GQA multi-token decode path. Unlike
+// paged_attention_gqa_multi_tokens_test it does not assert the executed kernel name, so it stays valid
+// whichever kernel the current device selects (pa_small_q_opt DPAS variant or the OCL fallback).
+class paged_attention_gqa_multi_tokens_accuracy_test : public paged_attention_gqa_multi_tokens_test_base {};
+TEST_P(paged_attention_gqa_multi_tokens_accuracy_test, matches_reference) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    auto result = run_gpu_inference(pam, p);
+    check_accuracy_with_poisoned_memory(result, p);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens_accuracy, paged_attention_gqa_multi_tokens_accuracy_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+    // Speculative width sweep across the (1, SMALL_Q_THRESHOLD] window at GQA 8/2
+    make_gqa_multi_tokens_params({{2, 48}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{3, 48}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{7, 48}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{9, 48}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{11, 48}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{13, 48}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{16, 48}}, 8, 2, 128),
+
+    // past_len boundaries: unaligned start, block (16) aligned, partition (256) boundary
+    make_gqa_multi_tokens_params({{8, 1}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{8, 15}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{8, 16}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{8, 255}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{8, 256}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{8, 257}}, 8, 2, 128),
+
+    // GQA ratios: group 2/4/8 (DPAS tile) and group 3 (fallback)
+    make_gqa_multi_tokens_params({{8, 300}}, 16, 8, 128),
+    make_gqa_multi_tokens_params({{8, 300}}, 16, 4, 128),
+    make_gqa_multi_tokens_params({{8, 300}}, 32, 8, 64),
+    make_gqa_multi_tokens_params({{8, 300}}, 8, 1, 64),
+    make_gqa_multi_tokens_params({{8, 300}}, 24, 8, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
+
+    // head size variety
+    make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 96),
+    make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 192),
+
+    // multi-subsequence speculative batches with mixed widths and past lengths
+    make_gqa_multi_tokens_params({{4, 16}, {8, 256}, {16, 600}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{1, 50}, {5, 50}, {12, 50}}, 8, 4, 64),
+
+    // compressed KV cache combined with sliding window / dynamic paddings / speculative tree mask
+    make_gqa_multi_tokens_params({{12, 300}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
+    make_gqa_multi_tokens_params({{12, 300}}, 16, 4, 256, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+    with_sliding_window(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL), 128),
+    with_dynamic_paddings(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
+    with_qq_bias(make_gqa_multi_tokens_params({{12, 40}}, 8, 2, 64, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN), make_tree_qq_bias({12})),
+
+    // context aligned to a KV block, and one row into a new block
+    make_gqa_multi_tokens_params({{8, 24}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{8, 25}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{8, 25}}, 6, 2, 64),
+
+    // small head sizes combined with the widest speculation, group size 8, sliding window and tree mask
+    make_gqa_multi_tokens_params({{16, 300}}, 6, 2, 32),
+    make_gqa_multi_tokens_params({{8, 300}}, 16, 2, 16),
+    with_sliding_window(make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 32), 17),
+    with_qq_bias(make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 32), make_tree_qq_bias({8})),
+    make_gqa_multi_tokens_params({{2, 700}, {16, 40}, {7, 256}}, 12, 4, 64, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
+}));
+
 INSTANTIATE_TEST_SUITE_P(smoke_cm_small_q, cm_small_q_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     // q_len sweep across the (1, SMALL_Q_THRESHOLD] window
     paged_attention_test_params{ {{2, 34}},  2, 2, 64, 64, 256, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, true, std::vector<float>{100.0f}, std::vector<int>{128} },
