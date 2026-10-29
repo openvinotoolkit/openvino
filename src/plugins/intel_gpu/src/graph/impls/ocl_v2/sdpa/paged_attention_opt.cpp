@@ -265,6 +265,11 @@ inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_par
     if (stage != PagedAttentionStage::MIXED || !supports_gqa_multi_tokens_fallback_kernel(params))
         return GQAMultiTokensKernel::NONE;
 
+    // pa_small_q_opt.cl reads the K page d-major only, and the fallback stage is not built where the DPAS
+    // kernel is supported, so a token-major K page (either layout) stays on the regular MIXED readers.
+    if (get_k_token_major(params) || is_by_channel_tm_page(params))
+        return GQAMultiTokensKernel::NONE;
+
     const auto max_tokens = get_max_gqa_multi_tokens_per_subsequence();
     const auto max_subsequence_len = get_max_subsequence_len(params);
     if (max_tokens <= 0 || max_subsequence_len > static_cast<size_t>(max_tokens))
@@ -1708,7 +1713,7 @@ public:
     // The DPAS PREFILL/MIXED kernels. Both types exist in every impl, because a loaded or cloned impl is
     // default-constructed and only gets _order (indices into _stages) back; the params ctor adds one pair
     // (choose_dpas_backend) and everything after that reads has_stage() (dpas_backend), never the environment.
-    // The sdpa_ocl pair comes first so it keeps indices 11/12.
+    // The sdpa_ocl pair comes first so it keeps indices 13/14.
     Stage::Ptr pa_sdpa_ocl = make_stage<SDPAOclGenerator>(true);
     Stage::Ptr pa_sdpa_ocl_mixed = make_stage<SDPAOclGenerator>(false);
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
