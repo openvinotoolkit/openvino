@@ -284,6 +284,7 @@ TEST(FuseQSAIndexer, AcceptsDecomposedRMSNormAndReversedOperands) {
     options.decomposed_norm = true;
     options.reverse_norm_operands = true;
     options.query_epsilon = 1e-5f;
+    options.key_epsilon = 1e-5f;
     auto graph = build_graph(options);
     run_fusion(graph.model);
     const auto ordered_ops = graph.model->get_ordered_ops();
@@ -297,28 +298,13 @@ TEST(FuseQSAIndexer, AcceptsDecomposedRMSNormAndReversedOperands) {
     EXPECT_FLOAT_EQ(fused->get_config().q_epsilon, options.query_epsilon);
 }
 
-TEST(FuseQSAIndexer, AcceptsInclusiveEpsilonUpperBound) {
+TEST(FuseQSAIndexer, AcceptsQueryAndKeyEpsilonsWithinRelativeTolerance) {
     GraphOptions options;
-    options.query_epsilon = 1e-5f;
+    options.query_epsilon = 1e-5f * (1.0f + 5e-5f);
     options.key_epsilon = 1e-5f;
     auto graph = build_graph(options);
     run_fusion(graph.model);
     EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
-}
-
-TEST(FuseQSAIndexer, PreservesDisabledRoPEStateShape) {
-    GraphOptions options;
-    options.disable_rope = true;
-    auto graph = build_graph(options);
-    run_fusion(graph.model);
-    const auto ordered_ops = graph.model->get_ordered_ops();
-    const auto fused_it = std::find_if(ordered_ops.begin(), ordered_ops.end(), [](const auto& node) {
-        return is_type<op::internal::QSAIndexer>(node);
-    });
-    const auto fused = fused_it == ordered_ops.end() ? nullptr : as_type_ptr<op::internal::QSAIndexer>(*fused_it);
-    ASSERT_NE(fused, nullptr);
-    EXPECT_EQ(fused->get_output_partial_shape(4), (PartialShape{2, 0}));
-    EXPECT_EQ(graph.model->get_results()[3]->input_value(0), fused->output(4));
 }
 
 TEST(FuseQSAIndexer, AcceptsDynamicBatchAndSequenceShapes) {
@@ -342,7 +328,7 @@ TEST(FuseQSAIndexer, DoesNotRejectFP32) {
     EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
 }
 
-TEST(FuseQSAIndexer, RejectsGraphsOutsideKernelLimits) {
+TEST(FuseQSAIndexer, DoesNotFixHeadCountHeadSizeBlockSizeOrTokenBudget) {
     const auto with = [](auto&& setter) {
         GraphOptions options;
         setter(options);
@@ -355,36 +341,53 @@ TEST(FuseQSAIndexer, RejectsGraphsOutsideKernelLimits) {
         {"head_size", with([](GraphOptions& o) {
              o.head_size = 64;
          })},
-        {"dynamic_query_heads", with([](GraphOptions& o) {
-             o.dynamic_query_heads = true;
-         })},
-        {"dynamic_head_size", with([](GraphOptions& o) {
-             o.dynamic_head_size = true;
-         })},
         {"block_size", with([](GraphOptions& o) {
              o.key_block_size = 8;
          })},
         {"token_budget", with([](GraphOptions& o) {
              o.token_budget = 516;
          })},
+        {"matching_epsilons_outside_former_range", with([](GraphOptions& o) {
+             o.query_epsilon = 2e-5f;
+             o.key_epsilon = 2e-5f;
+         })},
+    };
+
+    for (const auto& [name, options] : cases) {
+        SCOPED_TRACE(name);
+        auto graph = build_graph(options);
+        run_fusion(graph.model);
+        EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
+    }
+}
+
+TEST(FuseQSAIndexer, RejectsGraphsOutsideKernelLimits) {
+    const auto with = [](auto&& setter) {
+        GraphOptions options;
+        setter(options);
+        return options;
+    };
+    const std::vector<std::pair<std::string, GraphOptions>> cases{
+        {"dynamic_query_heads", with([](GraphOptions& o) {
+             o.dynamic_query_heads = true;
+         })},
+        {"dynamic_head_size", with([](GraphOptions& o) {
+             o.dynamic_head_size = true;
+         })},
         {"num_selection_heads", with([](GraphOptions& o) {
              o.num_selection_heads = 2;
          })},
-        {"query_epsilon_above_maximum", with([](GraphOptions& o) {
-             o.query_epsilon = 2e-5f;
+        {"disabled_rope", with([](GraphOptions& o) {
+             o.disable_rope = true;
          })},
-        {"query_epsilon_below_minimum", with([](GraphOptions& o) {
-             o.query_epsilon = 5e-7f;
+        {"mismatched_epsilons", with([](GraphOptions& o) {
+             o.query_epsilon = 1e-6f;
+             o.key_epsilon = 2e-6f;
          })},
-        {"decomposed_query_epsilon_above_maximum", with([](GraphOptions& o) {
+        {"mismatched_decomposed_epsilon", with([](GraphOptions& o) {
              o.decomposed_norm = true;
-             o.query_epsilon = 2e-5f;
-         })},
-        {"key_epsilon_above_maximum", with([](GraphOptions& o) {
-             o.key_epsilon = 2e-5f;
-         })},
-        {"key_epsilon_below_minimum", with([](GraphOptions& o) {
-             o.key_epsilon = 5e-7f;
+             o.query_epsilon = 2e-6f;
+             o.key_epsilon = 1e-6f;
          })},
     };
 
@@ -396,14 +399,6 @@ TEST(FuseQSAIndexer, RejectsGraphsOutsideKernelLimits) {
         EXPECT_EQ(count_ops(graph.model, "QSAPrepare"), 1);
         EXPECT_EQ(count_ops(graph.model, "SparseAttentionIndexer"), 1);
     }
-}
-
-TEST(FuseQSAIndexer, AcceptsMaximumTokenBudget) {
-    GraphOptions options;
-    options.token_budget = op::internal::QSAIndexer::max_token_budget;
-    auto graph = build_graph(options);
-    run_fusion(graph.model);
-    EXPECT_EQ(count_ops(graph.model, "QSAIndexer"), 1);
 }
 
 TEST(FuseQSAIndexer, RejectsInvalidConfigurationAndProvenance) {

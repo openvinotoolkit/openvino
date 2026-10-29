@@ -5,7 +5,6 @@
 #include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 
 #include <cmath>
-#include <string>
 
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -28,18 +27,13 @@
 
 namespace {
 
-using ov::op::internal::QSAIndexer;
 using ov::op::v17::QSAPrepare;
 using ov::op::v17::SparseAttentionIndexer;
 
-bool is_supported_epsilon(float epsilon) {
-    return std::isfinite(epsilon) && epsilon >= QSAIndexer::min_epsilon && epsilon <= QSAIndexer::max_epsilon;
-}
-
-bool is_supported_epsilon_constant(const ov::Output<ov::Node>& output) {
+bool is_single_value_constant(const ov::Output<ov::Node>& output) {
     float value = 0.0f;
     const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
-    return ov::op::util::get_single_value(constant, value) && is_supported_epsilon(value);
+    return ov::op::util::get_single_value(constant, value);
 }
 
 // QSAIndexer replaces every QSAPrepare output, so each of them must be consumed only by the fused subgraph.
@@ -65,24 +59,22 @@ ov::pass::FuseQSAIndexer::FuseQSAIndexer() {
     const auto enabled_norm_weight = [](const ov::Output<ov::Node>& output) {
         return !ov::util::is_empty_constant_tensor(output);
     };
-    const auto query_m = any_input(shape_matches("?, " + std::to_string(QSAIndexer::supported_num_heads) + ", ?, " +
-                                                 std::to_string(QSAIndexer::supported_head_size)));
+    // QSAIndexer kernels are specialized for the query head count and the head size, so both must be static.
+    // The shared `head_size` symbol requires the query and raw keys to have the same head size.
+    const auto query_m = any_input(rank_equals(4) && has_static_dims({1, 3}) && shape_matches("?, ?, ?, head_size"));
     const auto query_weight_m = any_input(enabled_norm_weight);
     const auto last_axis = value_matches("-1") || value_matches("3");
 
-    const auto rms_norm_m = wrap_type<ov::op::internal::RMSNorm>(
-        {query_m, wrap_type<ov::op::v0::Constant>(last_axis), query_weight_m},
-        consumers_count(1) && [](const ov::Output<ov::Node>& output) {
-            const auto epsilon = ov::as_type<ov::op::internal::RMSNorm>(output.get_node())->get_epsilon();
-            return is_supported_epsilon(static_cast<float>(epsilon));
-        });
+    const auto rms_norm_m =
+        wrap_type<ov::op::internal::RMSNorm>({query_m, wrap_type<ov::op::v0::Constant>(last_axis), query_weight_m},
+                                             consumers_count(1));
 
     const auto power_m = wrap_type<ov::op::v1::Power>({query_m, wrap_type<ov::op::v0::Constant>(value_matches("2"))},
                                                       consumers_count(1));
     const auto mean_m = wrap_type<ov::op::v1::ReduceMean>({power_m, wrap_type<ov::op::v0::Constant>(last_axis)},
                                                           consumers_count(1),
                                                           {{"keep_dims", true}});
-    const auto epsilon_m = wrap_type<ov::op::v0::Constant>(op::Predicate(is_supported_epsilon_constant));
+    const auto epsilon_m = wrap_type<ov::op::v0::Constant>(op::Predicate(is_single_value_constant));
     const auto add_eps_m = wrap_type<ov::op::v1::Add>({mean_m, epsilon_m}, consumers_count(1));
     const auto sqrt_m = wrap_type<ov::op::v0::Sqrt>({add_eps_m}, consumers_count(1));
     const auto divide_m = wrap_type<ov::op::v1::Divide>({query_m, sqrt_m}, consumers_count(1));
@@ -90,34 +82,30 @@ ov::pass::FuseQSAIndexer::FuseQSAIndexer() {
 
     const auto normalized_query_m = rms_norm_m | scale_m;
 
-    // QSAPrepare state inputs.
-    const auto raw_keys_m = any_input(rank_equals(3));
-    const auto cache_m = any_input();
+    // QSAPrepare state inputs. QSAIndexer kernels always apply RoPE, so the RoPE inputs must be present:
+    // the static ranks below exclude the rank-1 empty Constants that disable RoPE.
+    const auto raw_keys_m = any_input(rank_equals(3) && has_static_dim(2) && shape_matches("?, ?, head_size"));
+    const auto cache_m = any_input(rank_equals(3));
     const auto key_length_m = any_input();
-    const auto rope_cos_m = any_input();
-    const auto rope_sin_m = any_input();
+    const auto rope_cos_m = any_input(rank_equals(3) && has_static_dim(2));
+    const auto rope_sin_m = any_input(rank_equals(3));
     const auto key_weight_m = any_input(enabled_norm_weight);
-    const auto incomplete_keys_m = any_input();
-    const auto incomplete_rope_m = any_input();
+    const auto incomplete_keys_m = any_input(rank_equals(3));
+    const auto incomplete_rope_m = any_input(rank_equals(2));
     const auto prepare_m = wrap_type_strict_index<QSAPrepare>(
         {raw_keys_m, cache_m, key_length_m, rope_cos_m, rope_sin_m, key_weight_m, incomplete_keys_m, incomplete_rope_m},
-        op::Predicate(all_outputs_have_single_consumer) &&
-            [](const ov::Output<ov::Node>& output) {
-                return is_supported_epsilon(ov::as_type<QSAPrepare>(output.get_node())->get_epsilon());
-            },
-        {{"key_block_size", QSAIndexer::supported_key_block_size}});
+        op::Predicate(all_outputs_have_single_consumer));
 
     // `key_length_m` is shared with QSAPrepare, so both ops must consume the same key length.
+    // QSAIndexer has a single key_block_size, so both source ops must use the same one.
     const auto indexer_m = wrap_type<SparseAttentionIndexer>(
         {normalized_query_m, prepare_m->output(0), key_length_m},
         [](const ov::Output<ov::Node>& output) {
             const auto indexer = ov::as_type<SparseAttentionIndexer>(output.get_node());
-            const auto token_budget = indexer->get_token_budget();
-            return token_budget > 0 && token_budget <= QSAIndexer::max_token_budget &&
-                   token_budget % indexer->get_key_block_size() == 0;
+            const auto prepare = ov::as_type<QSAPrepare>(indexer->get_input_node_ptr(1));
+            return prepare && prepare->get_key_block_size() == indexer->get_key_block_size();
         },
-        {{"key_block_size", QSAIndexer::supported_key_block_size},
-         {"num_selection_heads", QSAIndexer::supported_num_selection_heads}});
+        {{"num_selection_heads", int64_t{1}}});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -151,13 +139,19 @@ ov::pass::FuseQSAIndexer::FuseQSAIndexer() {
             OPENVINO_ASSERT(ov::op::util::get_single_value(epsilon, query_epsilon),
                             "FuseQSAIndexer: matched epsilon is expected to be a single-value Constant");
         }
+        // QSAIndexer kernels normalize the query and the keys with one epsilon, so both RMSNorms must agree:
+        // |q_eps - k_eps| <= 1e-4 * k_eps. The epsilons live on different branches, so this is checked here.
+        const auto key_epsilon = prepare->get_epsilon();
+        if (std::abs(query_epsilon - key_epsilon) > 1e-4f * key_epsilon) {
+            return false;
+        }
 
         ov::op::internal::QSAIndexer::Config config;
         config.key_block_size = prepare->get_key_block_size();
         config.token_budget = indexer->get_token_budget();
         config.num_selection_heads = indexer->get_num_selection_heads();
         config.q_epsilon = query_epsilon;
-        config.k_epsilon = prepare->get_epsilon();
+        config.k_epsilon = key_epsilon;
         config.is_causal = true;
 
         const auto fused =
