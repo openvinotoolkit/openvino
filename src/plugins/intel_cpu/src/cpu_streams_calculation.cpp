@@ -343,8 +343,9 @@ void determine_tbb_partitioner_and_threads(Config& config,
         }
     }
 
-    if (has_lp_ecores && (is_static_partitioner_dense_conv_profile(tolerance) ||
-                          is_static_partitioner_int8_conv_profile(tolerance, int8_intensive))) {
+    if (has_lp_ecores && lp_ecore_share >= ThreadPreferenceConstants::LP_ECORE_SHARE_HIGH &&
+        (is_static_partitioner_dense_conv_profile(tolerance) ||
+         is_static_partitioner_int8_conv_profile(tolerance, int8_intensive))) {
         config.tbbPartitioner = TbbPartitioner::STATIC;
         return;
     }
