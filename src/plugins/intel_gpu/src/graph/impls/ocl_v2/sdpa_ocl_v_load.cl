@@ -12,6 +12,16 @@
 // tile reads an entry that exists (key < k) or none.
 SDPA_OCL_INLINE void FUNC(pa_v_pages)(__private uint *v_blk, const __global INPUT3_TYPE *block_indices,
                                       const uint base_block_index, const int k0, const int k, const int lane_i) {
+#if SG8
+    // SG8: one uniform load per cp page. The lane-load + sub_group_broadcast form below loads the same entries, yet on
+    // DG2 it gave wrong pages under some code shapes (MIXED with one KV head, head sizes 48 / 96: keys of a later page
+    // read another block), and which shapes failed moved with unrelated edits of the S*V loop.
+    #pragma unroll
+    for (int cp = 0; cp < sv_key_blocks; ++cp) {
+        const int key = k0 + cp * DPAS_K;
+        v_blk[cp] = (key < k) ? block_indices[base_block_index + key / PAGED_ATTENTION_BLOCK_SIZE] : 0u;
+    }
+#else
     #pragma unroll
     for (int g = 0; g < (sv_key_blocks + SUBGROUP_SIZE - 1) / SUBGROUP_SIZE; ++g) {
         const int key = k0 + (g * SUBGROUP_SIZE + lane_i) * DPAS_K;
@@ -22,6 +32,7 @@ SDPA_OCL_INLINE void FUNC(pa_v_pages)(__private uint *v_blk, const __global INPU
                 v_blk[g * SUBGROUP_SIZE + c] = sub_group_broadcast(blk, c);
         }
     }
+#endif
 }
 #endif
 
@@ -86,11 +97,12 @@ SDPA_OCL_INLINE void FUNC(v_tile_prefetch_l3)(const __global VAL_DATA_T *V, cons
 // f16 VNNI (dword key_pair packs keys 2*key_pair and 2*key_pair + 1, lane == value). Scratch arrays
 // belong to the caller, as for the K tiles.
 
-#if USE_2D_BLOCK_IO_KV || IS_PA_MIXED
+#if USE_2D_BLOCK_IO_KV || (IS_PA_MIXED && !SG8)
 // f16 [key, value] surface (the V input, MIXED's Vc, or one f16 V page) via the 16b VNNI-transform
 // read: value block cd at column x0 + sg_j0_sv + cd * SUBGROUP_SIZE, the cp block at row k0 + cp *
 // DPAS_K - y_sub. The coordinates are computed here, in the loop, from their leaves: a partial
 // sum passed in from the caller changed instruction order (and scheduling) on MIXED Vc reads.
+// SG8 has no 2D block IO, so an SG8 MIXED reads its f16 V page with pa_v_tile_gather.
 SDPA_OCL_INLINE void FUNC(v_tile_b2d16)(__private int8 *vb, const __global void *surf, const int w, const int h,
                                         const int p, const int x0, const size_t sg_j0_sv, const int k0, const int cp,
                                         const int y_sub) {

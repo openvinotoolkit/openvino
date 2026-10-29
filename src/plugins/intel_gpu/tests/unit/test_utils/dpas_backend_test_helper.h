@@ -60,6 +60,34 @@ inline dpas_backend expected_dpas_backend_for(const cldnn::device_info& info,
 #endif
 }
 
+// The HpgTier bits a PA op needs on xe_hpg, as SDPAOclGenerator::hpg_tier_required() derives them: `features` = a sink,
+// token_type_ids, qq_bias, a sliding window, k_head_size != v_head_size or a runtime scale. 0 without oneDNN.
+enum class pa_cache { f16, i8_by_token, i8_by_channel, u4 };
+inline uint32_t pa_hpg_tiers(bool features, pa_cache cache = pa_cache::f16) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    using namespace ov::intel_gpu::ocl;
+    uint32_t bits = PA_PREFILL | PA_MIXED_F16 | (features ? PA_FEATURES : 0u);
+    switch (cache) {
+    case pa_cache::f16:
+        break;
+    case pa_cache::i8_by_token:
+        bits |= PA_I8_TOKEN;
+        break;
+    case pa_cache::i8_by_channel:
+        bits |= PA_I8_CHANNEL;
+        break;
+    case pa_cache::u4:
+        bits |= PA_U4;
+        break;
+    }
+    return bits;
+#else
+    (void)features;
+    (void)cache;
+    return 0;
+#endif
+}
+
 // `hpg_tiers`: the HpgTier bits the op under test needs on xe_hpg (SDPAOclGenerator::hpg_tier_required()); 0 = the family's
 // base set (plain SDPA: PLAIN_F16_STATIC; PA: PA_PREFILL | PA_MIXED_F16). Ignored off xe_hpg. A caller whose op touches
 // more than the base set (a mask, bf16, a dynamic shape, ...) must pass the extra bits, or the helper expects sdpa_ocl for

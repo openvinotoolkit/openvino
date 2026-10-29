@@ -766,6 +766,44 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private ushort8 *k_raw, const __
 #if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_DT && !USE_2D_BLOCK_IO_K_PA_I8 && \
     !USE_1D_BLOCK_IO_K_PA_U4 && !IS_PA_KV_COMPRESSED
 // f16 K page (d-major, or token-major with a pitch the block2d rule rejects).
+#if SG8
+// SG8: the KQ A operand is an int8 (component = key row, lane = the dword of channels 2 lane, 2 lane + 1 of depth tile
+// db). Dword loads only: two 16-bit loads packed into a dword miscompiled under some jit constants on DG2 (the
+// plain-SDPA K fallback of plan S6b), so a d-major page is read as key pairs of each channel (keys 2r, 2r + 1 are
+// adjacent there, and a pair never straddles a page) and repacked with 16-bit shifts; a token-major page holds the two
+// channels side by side, one dword per key. A key at/past k reads as 0.
+SDPA_OCL_INLINE void FUNC(pa_k_tile_gather)(__private int8 *k_raw, const __global KEY_DATA_T *K,
+                                            const __private uint *k_page, const size_t b0_kv, const int key_base,
+                                            const int k, const int d, const int db, const size_t lane) {
+    const int head0 = db * DPAS_K + 2 * (int)lane;
+    const bool head_ok = head0 < d;
+    #pragma unroll
+    for (int mb = 0; mb < kq_key_blocks; ++mb) {
+        const size_t mb_page_base = PA_K_PAGE_OFF(k_page[mb], b0_kv) + (size_t)head0 * PA_K_HIDDEN_STRIDE;
+        #pragma unroll
+        for (int key_offset = 0; key_offset < DPAS_ROWS; key_offset += 2) {
+            const int key = key_base + mb * DPAS_ROWS + key_offset;
+            const uint keep0 = (head_ok && key < k) ? 0xFFFFFFFFu : 0u;
+            const uint keep1 = (head_ok && key + 1 < k) ? 0xFFFFFFFFu : 0u;
+            const size_t tok = (size_t)(key % PAGED_ATTENTION_BLOCK_SIZE);
+#if IS_PA_K_TOKEN_MAJOR
+            const __global uint *row = (const __global uint *)(K + mb_page_base + tok * PA_K_TOKEN_STRIDE);
+            const uint w0 = keep0 ? row[0] : 0u;
+            const uint w1 = keep1 ? row[PA_K_TOKEN_STRIDE / 2] : 0u;
+            k_raw[mb][key_offset] = as_int(w0);
+            k_raw[mb][key_offset + 1] = as_int(w1);
+#else
+            // c0 = (key, key + 1) of channel head0, c1 = the same keys of head0 + 1.
+            const uint c0 = (keep0 | keep1) ? *(const __global uint *)(K + mb_page_base + tok) : 0u;
+            const uint c1 =
+                (keep0 | keep1) ? *(const __global uint *)(K + mb_page_base + PA_K_HIDDEN_STRIDE + tok) : 0u;
+            k_raw[mb][key_offset] = as_int(((c0 & 0xFFFFu) | (c1 << 16)) & keep0);
+            k_raw[mb][key_offset + 1] = as_int(((c0 >> 16) | (c1 & 0xFFFF0000u)) & keep1);
+#endif
+        }
+    }
+}
+#else
 SDPA_OCL_INLINE void FUNC(pa_k_tile_gather)(__private ushort8 *k_raw, const __global KEY_DATA_T *K,
                                             const __private uint *k_page, const size_t b0_kv, const int key_base,
                                             const int k, const int d, const int db, const size_t lane) {
@@ -788,6 +826,7 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_gather)(__private ushort8 *k_raw, const __gl
         }
     }
 }
+#endif  // SG8
 #endif
 
 #if PA_K_PERMUTED && PA_CUR_KV_F16
