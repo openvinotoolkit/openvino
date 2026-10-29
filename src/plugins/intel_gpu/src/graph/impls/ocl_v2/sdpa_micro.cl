@@ -226,6 +226,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #if USE_TT_BOUNDS
         , const __global int* tt_bounds
     #endif
+#if PA_MICRO_SPLITK
+        , global float *splitk_stats   /* [token][head][NPmax][2] = {m2 (log2-domain max), l (sum)} */
+        , global half *splitk_tmp_out  /* [token][NPmax][HEADS_NUM*HEAD_SIZE] normalized partial outputs */
+#endif
 #else
         int d, int k, int q
 #endif
@@ -263,11 +267,23 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_GQA_SINGLE_TOKEN
     q *= KV_GROUP_SIZE;
 #endif
+#if IS_GQA_PACKED
+    /* GQA-packed MIXED (speculative verify): the work-group computes all KV_GROUP_SIZE query heads of KV head b0 for
+       PK_TOKENS consecutive tokens of the subsequence, so each K/V block is read once for all of them.
+       Tile column c is token pk_tok0 + c / KV_GROUP_SIZE, query head b0 * KV_GROUP_SIZE + c % KV_GROUP_SIZE. */
+    #if IS_PREFILL || IS_GQA_SINGLE_TOKEN || HAS_TOKEN_TYPE_IDS || HAS_QQ_BIAS || defined(HAS_SINK_INPUT) || SLIDING_WINDOW_SIZE
+        #error "sdpa_micro: IS_GQA_PACKED supports causal text-only full attention only"
+    #endif
+    #define PK_TOKENS (ugemm_kq_wg_tile_n / KV_GROUP_SIZE)
+    const int pk_tok0 = (int)subsequence_query_block_idx;
+    const int pk_tokens = min(q - pk_tok0, (int)PK_TOKENS);
+    q = pk_tokens * KV_GROUP_SIZE;
+#endif
 #endif
     uint sg_ij = sub_group_broadcast(get_local_id(1), 0);
     uint b0 = get_group_id(1);
     uint b1 = get_group_id(2);
-#if IS_GQA_SINGLE_TOKEN
+#if IS_GQA_SINGLE_TOKEN || IS_GQA_PACKED
     uint b0_kv = b0;
 #else
     uint b0_kv = b0 / KV_GROUP_SIZE;
@@ -296,7 +312,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     const uint b1_v = b1;
 #endif
 
-#if IS_PAGED_ATTENTION
+#if IS_GQA_PACKED
+    uint wg_j0 = 0;  /* packed columns start at the work-group's first token pk_tok0 */
+#elif IS_PAGED_ATTENTION
     uint wg_j0 = subsequence_query_block_idx;
 #else
     uint wg_j0 = get_group_id(0) * ugemm_kq_wg_tile_n;
@@ -305,7 +323,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     int causal_k = k;
 #if IS_CAUSAL
     #if IS_PAGED_ATTENTION && !IS_PREFILL
-        #if !IS_GQA_SINGLE_TOKEN
+        #if IS_GQA_PACKED
+            causal_k = min(k, past_len + pk_tok0 + pk_tokens);
+        #elif !IS_GQA_SINGLE_TOKEN
             causal_k = min(k, past_len + (int)wg_j0 + ugemm_kq_wg_tile_n);
         #endif
     #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
@@ -396,6 +416,27 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
     #endif
     window_k0_begin = (window_k_begin / ugemm_kq_wg_tile_m) * ugemm_kq_wg_tile_m;
+#endif
+
+#if PA_MICRO_SPLITK
+    /* Split-K over the KV (context) dimension. WG p processes past keys [p*P, min((p+1)*P, past_len)),
+       the last partition additionally processes the new (current-step) keys up to causal_k.
+       NP == 1 -> output written directly as in the non-split kernel. */
+    const int splitk_p = (int)get_group_id(2);
+    const int splitk_np_max = sub_group_broadcast((int)get_num_groups(2), 0);
+    /* np_max == 1 -> split disabled by the host for this call (e.g. large q_len) */
+    /* Partition size P is derived from (past_len, np_max) so that the host can raise np_max for short contexts;
+       must match pa_sdpa_micro_splitk_finalization (paged_attention_opt.cl), which gets ugemm_kq_wg_tile_m as align. */
+    const int splitk_part = max((int)ugemm_kq_wg_tile_m,
+            ((past_len + splitk_np_max - 1) / splitk_np_max + ugemm_kq_wg_tile_m - 1) / ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_m);
+    const int splitk_np = splitk_np_max > 1 ? max(1, (past_len + splitk_part - 1) / splitk_part) : 1;
+    if (splitk_p >= splitk_np)
+        return;
+    if (splitk_np > 1) {
+        window_k0_begin = max(window_k0_begin, splitk_p * splitk_part);
+        if (splitk_p < splitk_np - 1)
+            causal_k = min(causal_k, (splitk_p + 1) * splitk_part);
+    }
 #endif
 
     /* Leading dimension for matrices */
@@ -500,11 +541,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     local float S_check_slm[ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_n];
 #endif
 
-    const bool need_sum_barrier = (ugemm_vs_barrier_count == 0);
-
     /* Locate K/Q/V/A matrices within batch */
 #if IS_PAGED_ATTENTION
-    #if IS_GQA_SINGLE_TOKEN
+    #if IS_GQA_PACKED
+        Q += subsequence_begin * ldq + b0 * KV_GROUP_SIZE * HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
+        A += subsequence_begin * lda + b0 * KV_GROUP_SIZE * HEAD_SIZE;
+    #elif IS_GQA_SINGLE_TOKEN
         Q += subsequence_begin * ldq * HEADS_NUM * KV_GROUP_SIZE
            + b0 * HEAD_SIZE * KV_GROUP_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
         A += subsequence_begin * lda * HEADS_NUM * KV_GROUP_SIZE
@@ -581,7 +623,23 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Load Q tile, destined for SLM */
     q_tile_type Q_tile;
     uint q0_copy = q_tile_sg_n * sg_ij;
-#ifdef BLOCK_Q
+#if IS_GQA_PACKED
+    /* Gather: column c is query row pk_tok0 + c / KV_GROUP_SIZE, head c % KV_GROUP_SIZE of this KV head's group. */
+#pragma unroll
+    for (int j = 0; j < q_tile_sg_n; j++) {
+        const int c = (int)q0_copy + j;
+        if (c < q) {
+            const global uint *q_col = (const global uint *)(Q + (size_t)(pk_tok0 + c / KV_GROUP_SIZE) * ldq
+                    + (c % KV_GROUP_SIZE) * HEAD_SIZE);
+#pragma unroll
+            for (int i0 = 0; i0 < D_MAX / 2; i0 += SUBGROUP_SIZE) {
+                const int i = i0 + get_sub_group_local_id();
+                if (i < (d + 1) / 2)
+                    tile_access(Q_tile, i0, j, SUBGROUP_SIZE, D_MAX / 2, 1, 1) = q_col[i];
+            }
+        }
+    }
+#elif defined(BLOCK_Q)
     tile_load_block_rem_q(
             &Q_tile, (global uint *)Q, q, ldq >> 1, 0, wg_j0 + q0_copy);
 #elif Q_ALIGN >= 4
@@ -1259,6 +1317,24 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
             }
         }
+    #elif IS_GQA_PACKED
+        /* Causal mask by token: column i of this sub-tile is token pk_tok0 + (sg_j0_kq + i) / KV_GROUP_SIZE, whose
+           K position is past_len + that index. */
+        {
+            const int causal_k_begin = k0 + sg_i0_kq;
+            const int causal_k_end = causal_k_begin + ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1;
+            if (causal_k_end > past_len + pk_tok0 + (int)sg_j0_kq / KV_GROUP_SIZE) {
+                for (int j = 0; j < ugemm_kq_c_type_block1 * ugemm_kq_c_type_nblock1; j++) {
+                    for (int i0 = 0; i0 < ugemm_kq_c_type_block0 * ugemm_kq_c_type_nblock0; i0 += SUBGROUP_SIZE) {
+                        const int offset_q = past_len + pk_tok0
+                                + ((int)sg_j0_kq + i0 + (int)get_sub_group_local_id()) / KV_GROUP_SIZE;
+                        if (causal_k_begin + j > offset_q)
+                            tile_access(S_tile, i0, j, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+                                    ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0) = -FLT_MAX;
+                    }
+                }
+            }
+        }
     #else
         /* Apply causal mask */
         const int causal_k_begin = k0 + sg_i0_kq;
@@ -1613,10 +1689,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         /* Wait for S stores */
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
 
-        /* Last iteration: signal column sums are ready */
-        if (last && need_sum_barrier)
-            intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
-
         /* Accumulate A += V * S */
 #if IS_PAGED_ATTENTION && !IS_PREFILL
         int kb0 = 0;
@@ -1772,8 +1844,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     k0 += k_chunk;
     }
 
-    /* Wait for column sums to be ready */
-    if (need_sum_barrier) intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
+    /* Wait for column sums to be ready. The barrier is unconditional: in the PA MIXED
+       stage the last K iteration is clipped to the new tokens and runs ugemm_vcs only,
+       which reports no internal barrier, so nothing else orders the S_sum_slm store of
+       that iteration against the reads below. */
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     /* Load column sums from SLM + reduce in registers */
     a_scale_tile_type A_scale_tile, A_scale_tile_load;
@@ -1836,7 +1911,64 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     uint sg_i0_vs = sg_i_vs * ugemm_vs_sg_tile_m;
     uint sg_j0_vs = sg_j_vs * ugemm_vs_sg_tile_n + wg_j0;
 
-#ifdef BLOCK_2D_A
+#if PA_MICRO_SPLITK
+    if (splitk_np > 1) {
+        /* Per-query partition statistics: m2 = running max in log2 domain, l = sum of exp2(s*scale - m2). */
+        if (sg_ij == 0) {
+#ifdef LOG_2_E_MUL_SCALE
+            const float splitk_m2_scale = scale;
+#else
+            const float splitk_m2_scale = log2_e;
+#endif
+            for (int c0 = 0; c0 < ugemm_kq_wg_tile_n; c0 += SUBGROUP_SIZE) {
+                const int c = c0 + get_sub_group_local_id();
+                if (c < ugemm_kq_wg_tile_n && (int)wg_j0 + c < q) {
+                    float l = 0.0f;
+                    for (int sg1 = 0; sg1 < ugemm_kq_sg_per_wg_m; sg1++)
+                        l += S_sum_slm[sg1 * ugemm_kq_wg_tile_n + c];
+                    const float m2 = S_max_slm[c] * splitk_m2_scale;
+#if IS_GQA_PACKED
+                    const uint tok = subsequence_begin + pk_tok0 + c / KV_GROUP_SIZE;
+                    const uint st_off = ((tok * HEADS_NUM + b0 * KV_GROUP_SIZE + c % KV_GROUP_SIZE) * splitk_np_max + splitk_p) * 2;
+#else
+                    const uint tok = subsequence_begin + wg_j0 + c;
+                    const uint st_off = ((tok * HEADS_NUM + b0) * splitk_np_max + splitk_p) * 2;
+#endif
+                    splitk_stats[st_off] = m2;
+                    splitk_stats[st_off + 1] = l;
+                }
+            }
+        }
+        /* Redirect the (normalized) partial output to the temporary buffer. */
+#if IS_GQA_PACKED
+        A = splitk_tmp_out + ((size_t)subsequence_begin * splitk_np_max + splitk_p) * lda + b0 * KV_GROUP_SIZE * HEAD_SIZE;
+#else
+        A = splitk_tmp_out + ((size_t)subsequence_begin * splitk_np_max + splitk_p) * lda + b0 * HEAD_SIZE;
+#endif
+        lda *= splitk_np_max;
+    }
+#endif
+
+#if IS_GQA_PACKED
+    /* Scatter: column c goes to token pk_tok0 + c / KV_GROUP_SIZE, head c % KV_GROUP_SIZE of this group. */
+    #ifdef BLOCK_A
+        #define PK_A_BC 1
+    #else
+        #define PK_A_BC 8
+    #endif
+    for (int j = 0; j < ugemm_vs_sg_tile_n; j++) {
+        const int c = (int)sg_j0_vs + j;
+        if (c < q) {
+            global half *a_col = A + (size_t)(pk_tok0 + c / KV_GROUP_SIZE) * lda + (c % KV_GROUP_SIZE) * HEAD_SIZE;
+#pragma unroll
+            for (int i0 = 0; i0 < ugemm_vs_sg_tile_m; i0 += SUBGROUP_SIZE) {
+                const int i = (int)sg_i0_vs + i0 + (int)get_sub_group_local_id();
+                if (i < d)
+                    a_col[i] = tile_access(A_tile_half, i0, j, SUBGROUP_SIZE, ugemm_vs_sg_tile_m, PK_A_BC, 1);
+            }
+        }
+    }
+#elif defined(BLOCK_2D_A)
     tile_store_block2d(A_tile_half, A, d, q, lda, sg_i0_vs, sg_j0_vs);
 #elif defined(BLOCK_A)
     tile_store_block_rem_q(A_tile_half, A, q, lda, sg_i0_vs, sg_j0_vs);

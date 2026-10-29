@@ -578,7 +578,9 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
 
     // Allocation-time and execution-time micro/non-micro decisions must agree; a mismatch shows up
     // as the wrong buffer count. token_type_ids no longer forces the non-micro path in MIXED.
-    // The micro path has one extra buffer for the token_type_ids group bounds.
+    // The micro path has one extra buffer for the token_type_ids group bounds. The split-K pair
+    // (splitk_stats, splitk_tmp_out) reuses that slot and is mutually exclusive with token_type_ids
+    // (see pa_micro_splitk_supported), so the micro count stays 5 here.
     const bool micro_layout = engine.get_device_info().supports_immad;
     ASSERT_EQ(intermediate_mems.size(), micro_layout ? 5u : 7u);
 }

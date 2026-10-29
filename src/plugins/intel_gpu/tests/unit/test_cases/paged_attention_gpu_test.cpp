@@ -4,6 +4,13 @@
 
 #include "paged_attention_gpu_test.h"
 
+#include <cmath>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "impls/ocl_v2/sdpa/paged_attention_opt.hpp"
+
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_test, basic) {
     auto p = GetParam();
@@ -138,6 +145,453 @@ INSTANTIATE_TEST_SUITE_P(
         make_h256_mixed_qtile64_params({{128, 300}}, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
         make_h256_mixed_qtile64_params({{63, 200}}, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL),
         make_h256_mixed_qtile64_params({{65, 200}}, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)));
+
+// Constant Q/K plus a ramp over V give uniform scores, so the output is the ramp's mean: O(1) and far
+// above the tolerance, while dropping or mis-weighting one of the np partitions moves it by ~1/np.
+// Scaling the fixture's random data up instead peaks the softmax, making the result depend on which
+// quantized key wins the argmax - not something the u4 GPU path and the reference must agree on.
+// With uniform_scores = false the keys carry a decreasing ramp instead, so the scores are no longer
+// constant: every dim of key t is k(t) = 0.25 - 0.5*t/(total-1) and Q stays 0.5, which makes the score of
+// a key sqrt(k_head_size)/2*k(t), a ramp over [+1.4, -1.4] whose max is the first key.
+static void craft(PagedAttentionManager& pam, const paged_attention_test_params& p, bool uniform_scores = true) {
+    for (size_t seq = 0; seq < pam.subsequence_descs.size(); ++seq) {
+        const int total = pam.subsequence_descs[seq].past_len + pam.subsequence_descs[seq].num_tokens;
+        for (auto& x : pam.query_data[seq])
+            x = static_cast<ov::float16>(0.5f);
+        if (uniform_scores) {
+            for (auto& x : pam.key_data[seq])
+                x = static_cast<ov::float16>(0.5f);
+        } else {
+            // key_data is [token][kv_head][k_head_size], so one value per token gives that key one score.
+            const float denom = static_cast<float>(std::max(1, total - 1));
+            for (int t = 0; t < total; ++t) {
+                const ov::float16 k = static_cast<ov::float16>(0.25f - 0.5f * static_cast<float>(t) / denom);
+                const size_t key_off = static_cast<size_t>(t) * p.num_kv_heads * p.k_head_size;
+                std::fill_n(pam.key_data[seq].begin() + key_off,
+                            static_cast<size_t>(p.num_kv_heads) * p.k_head_size,
+                            k);
+            }
+        }
+        for (int t = 0; t < total; ++t) {
+            const ov::float16 v =
+                static_cast<ov::float16>(0.2f + 2.f * static_cast<float>(t) / static_cast<float>(total));
+            for (int head = 0; head < p.num_kv_heads; ++head) {
+                const size_t off = (static_cast<size_t>(t) * p.num_kv_heads + head) * p.v_head_size;
+                std::fill_n(pam.value_data[seq].begin() + off, p.v_head_size, v);
+            }
+        }
+    }
+}
+
+// Fills every byte with 0xFF, which reads back as NaN for f16/f32: an element a kernel fails to write
+// then shows up as NaN instead of hiding behind the previous run's value in the reused static-shape
+// buffer. memory::fill is used because these internal buffers are non-lockable (no host mapping).
+static void poison_with_nan(const cldnn::memory::ptr& mem) {
+    if (mem)
+        mem->fill(tests::get_test_stream(), 0xFF, {}, true);
+}
+
+// get_entries() is the space-separated list of kernel entry points, e.g. "sdpa_micro__generate_<hash>__sa"
+// (MIXED) or "sdpa_micro__prefill_<hash>__sa" (PREFILL, note the double underscore). The "__sa" suffix
+// means the dump lists every compiled stage, so a bare "sdpa_micro" match proves nothing - match the stage.
+static std::vector<std::string> kernel_entry_points(const std::string& entries) {
+    std::vector<std::string> res;
+    std::istringstream stream(entries);
+    std::string entry;
+    while (stream >> entry)
+        res.push_back(entry);
+    return res;
+}
+
+static bool has_kernel(const std::string& entries, const std::string& name, const std::string& stage) {
+    for (const auto& entry : kernel_entry_points(entries)) {
+        if (entry.compare(0, name.size(), name) == 0 && entry.find(stage) != std::string::npos)
+            return true;
+    }
+    return false;
+}
+
+static std::vector<ov::float16> read_output(const cldnn::memory::ptr& mem) {
+    std::vector<ov::float16> res(mem->count());
+    cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::read> lock(mem, tests::get_test_stream());
+    for (size_t i = 0; i < res.size(); ++i)
+        res[i] = lock[i];
+    return res;
+}
+
+// Re-runs the same call and requires bit-identical output. past_len must be a multiple of block_size for
+// a BY_CHANNEL cache: appending into a partially filled block re-quantizes the whole block, so a later run
+// would legitimately read different keys. extra_memories, when given, are poisoned alongside the output.
+// gpu_outputs is a member type of the fixture; alias it so the file-scope helpers can name it.
+using micro_pa_outputs = PagedAttentionTest<paged_attention_test_params>::gpu_outputs;
+
+static void check_bitwise_stable(const paged_attention_test_params& p,
+                                 micro_pa_outputs& result,
+                                 size_t runs,
+                                 const std::vector<cldnn::memory::ptr>& extra_memories = {}) {
+    auto first = read_output(result.outputs.at("output_data").get_memory());
+    ASSERT_FALSE(first.empty());
+    auto all_finite = [](const std::vector<ov::float16>& vals) {
+        return std::all_of(vals.begin(), vals.end(),
+                           [](ov::float16 v) { return std::isfinite(static_cast<float>(v)); });
+    };
+    ASSERT_TRUE(all_finite(first)) << "output contains a non-finite value";
+
+    for (size_t run = 0; run < runs; ++run) {
+        for (const auto& mem : extra_memories)
+            poison_with_nan(mem);
+        poison_with_nan(result.outputs.at("output_data").get_memory());
+        result.outputs = result.network->execute();
+        const auto next = read_output(result.outputs.at("output_data").get_memory());
+        ASSERT_EQ(next.size(), first.size());
+
+        size_t mismatches = 0;
+        size_t first_diff = 0;
+        float max_diff = 0.f;
+        for (size_t i = 0; i < first.size(); ++i) {
+            const float a = static_cast<float>(first[i]);
+            const float b = static_cast<float>(next[i]);
+            ASSERT_TRUE(std::isfinite(b)) << "output element " << i << " is not finite";
+            if (b != a) {
+                if (mismatches == 0)
+                    first_diff = i;
+                ++mismatches;
+                max_diff = std::max(max_diff, std::fabs(b - a));
+            }
+        }
+        ASSERT_EQ(mismatches, 0u) << "run " << run << " (q_len " << p.subsequences.front().num_tokens
+                                  << ", past_len " << p.subsequences.front().past_len << ", u4 = "
+                                  << p.kv_cache_compression << ") differs at element " << first_diff
+                                  << ", max diff " << max_diff;
+    }
+}
+
+// Split-K (KV partitioning) of the MIXED-stage micro SDPA for small q_len over a long context
+// (speculative decoding): a third grid dimension splits the KV range into np = ceil(max_context_len /
+// pa_micro_splitk_size) partitions when every subsequence has q_len <= pa_micro_splitk_max_q and
+// max_context_len >= pa_micro_splitk_min_ctx.
+class paged_attention_splitk_mixed_micro_test : public PagedAttentionTest<paged_attention_test_params> {
+protected:
+    // Taken from the implementation so that the gate recomputed here cannot drift from it.
+    static constexpr size_t splitk_part_size = ov::intel_gpu::ocl::pa_micro_splitk_size;
+    static constexpr size_t splitk_max_q = ov::intel_gpu::ocl::pa_micro_splitk_max_q;
+    static constexpr size_t splitk_min_ctx = ov::intel_gpu::ocl::pa_micro_splitk_min_ctx;
+    // Placeholder allocation of the split-K buffers for calls that don't use split-K.
+    static constexpr size_t splitk_unused = ov::intel_gpu::ocl::pa_micro_splitk_placeholder_bytes;
+    // Internal buffer indices of the split-K partial results in the micro layout.
+    static constexpr size_t stats_idx = static_cast<size_t>(ov::intel_gpu::ocl::PaMicroSplitKBuffer::STATS);
+    static constexpr size_t tmp_out_idx = static_cast<size_t>(ov::intel_gpu::ocl::PaMicroSplitKBuffer::TMP_OUT);
+
+    static size_t max_q_len(const paged_attention_test_params& p) {
+        size_t res = 0;
+        for (const auto& subseq : p.subsequences)
+            res = std::max(res, static_cast<size_t>(subseq.num_tokens));
+        return res;
+    }
+
+    // max_context_len is the scalar input the fixture computes as max(num_tokens + past_len).
+    static size_t max_context_len(const paged_attention_test_params& p) {
+        size_t res = 0;
+        for (const auto& subseq : p.subsequences)
+            res = std::max(res, static_cast<size_t>(subseq.num_tokens + subseq.past_len));
+        return res;
+    }
+
+    // Gate recomputed on the host; must match get_micro_splitk_partitions() / pa_micro_splitk_supported()
+    // (all params below are f16 in/out without sinks, scores output, sliding window or adaptive RKV).
+    static bool splitk_expected(const paged_attention_test_params& p) {
+        return max_q_len(p) <= splitk_max_q && max_context_len(p) >= splitk_min_ctx;
+    }
+
+    static size_t expected_partitions(const paged_attention_test_params& p) {
+        return splitk_expected(p) ? cldnn::ceil_div(max_context_len(p), splitk_part_size) : 1;
+    }
+
+    // STATS = [token][heads][np][2] floats, TMP_OUT = [token][np][heads*v_head_size] halves; a disabled
+    // gate leaves the placeholder-sized buffers. This is the only externally visible trace of np (the
+    // value itself is a dispatch-time scalar).
+    void check_splitk_buffers(const std::vector<cldnn::memory::ptr>& intermediates,
+                              size_t tokens,
+                              const paged_attention_test_params& p) {
+        // 0..2 block descriptors, 3 blocked indexes / query block mapping, 4 / 5 split-K partial results
+        ASSERT_EQ(intermediates.size(), 6u) << "unexpected micro SDPA internal buffer layout";
+
+        const auto np = expected_partitions(p);
+        const auto stats = splitk_expected(p) ? tokens * static_cast<size_t>(p.num_heads) * np * 2 * sizeof(float)
+                                              : splitk_unused;
+        const auto tmp = splitk_expected(p)
+            ? tokens * static_cast<size_t>(p.num_heads) * static_cast<size_t>(p.v_head_size) * np * sizeof(ov::float16)
+            : splitk_unused;
+
+        // The exact sizes already pin down the split-K decision: anything but the placeholder size means
+        // split-K is active, and the placeholder size means it is not.
+        EXPECT_EQ(intermediates[stats_idx]->count(), stats)
+            << "splitk_stats size (max_q = " << max_q_len(p) << ", max_context_len = " << max_context_len(p)
+            << ", np = " << np << ")";
+        EXPECT_EQ(intermediates[tmp_out_idx]->count(), tmp)
+            << "splitk_tmp_out size (max_q = " << max_q_len(p) << ", max_context_len = " << max_context_len(p)
+            << ", np = " << np << ")";
+    }
+};
+
+// q_len 16 over >= 4096 keys (split-K engaged) covering, per subsequence, np == np_max, 1 < np < np_max
+// ({4,108} -> np = 7) and np == 1 ({2,14}: the partition covers the K tile, so it is written directly).
+// The first case has 28 query tokens in total but <= 16 per subsequence, so the gate must use the
+// per-subsequence length, not the batch size. Controls (q_len 24 > 16, 2016 keys < 4096) stay on the
+// plain MIXED micro path.
+TEST_P(paged_attention_splitk_mixed_micro_test, matches_cpu_reference) {
+    if (!tests::get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+    craft(pam, p);
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
+    const auto entries = dump_info.get_entries();
+    RecordProperty("executed_kernels", entries);
+    // The MIXED stage kernel carries the generate suffix; PREFILL shares the sdpa_micro prefix.
+    ASSERT_TRUE(has_kernel(entries, "sdpa_micro", "generate"))
+        << "Regression must exercise the MIXED micro SDPA kernel: " << entries;
+    // The finalization kernel is built only for split-K calls, so its presence checks the gate directly.
+    const bool has_finalization = has_kernel(entries, "paged_attention_opt", "micro_splitk_finalization");
+    ASSERT_EQ(has_finalization, splitk_expected(p))
+        << "split-K finalization kernel vs gate (max_q = " << max_q_len(p)
+        << ", max_context_len = " << max_context_len(p) << "): " << dump_info.get_entries();
+    if (!splitk_expected(p)) {
+        ASSERT_FALSE(has_kernel(entries, "paged_attention_opt", "micro_splitk_finalization"))
+            << "max_q = " << max_q_len(p) << ", max_context_len = " << max_context_len(p)
+            << " stay below the split-K gate, so no finalization kernel may run: " << entries;
+    }
+    const auto tokens = static_cast<size_t>(
+        pa_inst->get_impl_params()->get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::QUERY)
+            .get_partial_shape()[0].get_length());
+    check_splitk_buffers(pa_inst->get_intermediates_memories(), tokens, p);
+
+    // Set on the fixture member: compare() reads that one.
+    this->tolerance = p.kv_cache_compression ? 5e-2f : 1e-2f;
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    // Guard against a vacuous comparison: the tolerance must stay well below the signal.
+    auto max_abs = 0.f;
+    for (const auto& v : std::get<0>(reference))
+        max_abs = std::max(max_abs, std::fabs(static_cast<float>(v)));
+    ASSERT_GE(max_abs, 10.f * this->tolerance)
+        << "output signal (" << max_abs << ") is not clearly above the tolerance (" << this->tolerance << ")";
+
+    // Poison the partitions and the output, then re-run: a correct run reads exactly what it wrote, while
+    // a partition never written or never combined by the finalization kernel reaches the output as NaN.
+    const auto& intermediates = pa_inst->get_intermediates_memories();
+    poison_with_nan(intermediates[stats_idx]);
+    poison_with_nan(intermediates[tmp_out_idx]);
+    poison_with_nan(result.outputs.at("output_data").get_memory());
+    result.outputs = result.network->execute();
+
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+// Repeating the same call must give the same output: split-K must not make the result run-dependent, and
+// the combined column sums must not be stale (see the fence regression above). past_len is a multiple of
+// block_size for the u4 case, as required by the BY_CHANNEL re-quantization note on check_bitwise_stable.
+TEST_P(paged_attention_splitk_mixed_micro_test, deterministic_across_runs) {
+    if (!tests::get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+    craft(pam, p);
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    const auto tokens = static_cast<size_t>(
+        pa_inst->get_impl_params()->get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::QUERY)
+            .get_partial_shape()[0].get_length());
+    check_splitk_buffers(pa_inst->get_intermediates_memories(), tokens, p);
+
+    constexpr size_t num_runs = 4;
+    const auto& intermediates = pa_inst->get_intermediates_memories();
+    check_bitwise_stable(p, result, num_runs, {intermediates[stats_idx], intermediates[tmp_out_idx]});
+}
+
+// max - min of the scaled scores of one query token over all of its keys, on the host, using the same
+// 1/sqrt(k_head_size) scale as the operator. Used to show that a case really has partition-dependent
+// logits: the constant Q/K of craft() give a span of 0, for which the exp2(m_p - m_max) reweighting across
+// partitions is a no-op whatever the partition size. The ramp of craft(uniform_scores = false) is monotone,
+// so a span >= 1 also means the partition maxima cannot all be equal.
+static float scores_span(const PagedAttentionManager& pam,
+                         const paged_attention_test_params& p,
+                         size_t seq,
+                         size_t tok,
+                         int head = 0) {
+    const auto& query = pam.query_data[seq];
+    const auto& key = pam.key_data[seq];
+    const int num_group = p.num_heads / p.num_kv_heads;
+    const int kv_head = head / num_group;
+    const float scale = 1.f / std::sqrt(static_cast<float>(p.k_head_size));
+    const int keys = pam.subsequence_descs[seq].past_len + static_cast<int>(tok) + 1;
+
+    auto score = [&](int t) {
+        float s = 0.f;
+        const size_t q_off = (tok * p.num_heads + head) * p.k_head_size;
+        const size_t k_off = (static_cast<size_t>(t) * p.num_kv_heads + kv_head) * p.k_head_size;
+        for (int d = 0; d < p.k_head_size; ++d)
+            s += static_cast<float>(query[q_off + d]) * static_cast<float>(key[k_off + d]);
+        return s * scale;
+    };
+
+    float hi = score(0);
+    float lo = hi;
+    for (int t = 1; t < keys; ++t) {
+        const float s = score(t);
+        hi = std::max(hi, s);
+        lo = std::min(lo, s);
+    }
+    return hi - lo;
+}
+
+// The reference check above cannot see the cross-partition softmax reweighting: craft() makes every score
+// equal, so all partition maxima are equal and exp2(m_p - m_max) is 1 whether or not the maxima are applied.
+// Same shapes, decreasing key ramp, uncompressed f16 (the u4 path quantizes the keys, so GPU and reference
+// need not agree on which key wins a peaked softmax), so the reweighting decides the result here.
+TEST_P(paged_attention_splitk_mixed_micro_test, nonuniform_scores_match_cpu_reference) {
+    if (!tests::get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
+    auto p = GetParam();
+    // Uncompressed only: a quantized cache rewrites the keys, so GPU and reference need not agree on which
+    // key wins a peaked softmax - the u4 split-K case stays on the uniform scores of craft().
+    if (p.kv_cache_compression)
+        GTEST_SKIP() << "Non-uniform logits need an uncompressed cache to be comparable to the reference";
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+    craft(pam, p, false /* uniform_scores */);
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto entries = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    RecordProperty("executed_kernels", entries);
+    ASSERT_TRUE(has_kernel(entries, "sdpa_micro", "generate"))
+        << "Regression must exercise the MIXED micro SDPA kernel: " << entries;
+    ASSERT_EQ(has_kernel(entries, "paged_attention_opt", "micro_splitk_finalization"), splitk_expected(p))
+        << "split-K finalization kernel vs gate (max_q = " << max_q_len(p)
+        << ", max_context_len = " << max_context_len(p) << "): " << entries;
+
+    const auto tokens = static_cast<size_t>(
+        pa_inst->get_impl_params()->get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::QUERY)
+            .get_partial_shape()[0].get_length());
+    check_splitk_buffers(pa_inst->get_intermediates_memories(), tokens, p);
+
+    // Set on the fixture member: compare() reads that one.
+    this->tolerance = 1e-2f;
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+
+    // Guard against a vacuous comparison: an O(1) signal, and partition-dependent logits.
+    auto max_abs = 0.f;
+    for (const auto& v : std::get<0>(reference))
+        max_abs = std::max(max_abs, std::fabs(static_cast<float>(v)));
+    ASSERT_GE(max_abs, 10.f * this->tolerance)
+        << "output signal (" << max_abs << ") is not clearly above the tolerance (" << this->tolerance << ")";
+    for (size_t seq = 0; seq < pam.subsequence_descs.size(); ++seq) {
+        if (pam.subsequence_descs[seq].past_len == 0)
+            continue;
+        ASSERT_GE(scores_span(pam, p, seq, 0), 1.f)
+            << "scores of subsequence " << seq << " are too uniform to cover the split-K reweighting";
+    }
+
+    const auto& intermediates = pa_inst->get_intermediates_memories();
+    poison_with_nan(intermediates[stats_idx]);
+    poison_with_nan(intermediates[tmp_out_idx]);
+    poison_with_nan(result.outputs.at("output_data").get_memory());
+    result.outputs = result.network->execute();
+
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    paged_attention_splitk_mixed_micro,
+    paged_attention_splitk_mixed_micro_test,
+    ::testing::Values(
+        // split-K, np = 6 per subsequence; 28 tokens in total but <= 16 per subsequence
+        paged_attention_test_params{{{16, 5008}, {12, 6004}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // split-K covering np == 8, np == 7 ({4,108}) and np == 1 ({2,14}, direct write); {16,0} has no key
+        paged_attention_test_params{{{16, 8176}, {4, 108}, {2, 14}, {16, 0}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // split-K with u4 BY_CHANNEL: exposed the missing fence; past_len is a block_size multiple
+        paged_attention_test_params{{{16, 8176}}, 8, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        // controls: no split-K (q_len 24 > 16, max_context_len 2016 < 4096)
+        paged_attention_test_params{{{24, 5000}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        paged_attention_test_params{{{16, 2000}}, 8, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2}));
+
+// GQA-packed MIXED micro SDPA (speculative decoding verify, see pa_micro_gqa_packed_supported): when every subsequence
+// has q_len <= pa_micro_gqa_packed_max_q on a causal layer with grouped KV heads, one work-group computes all query heads
+// of a KV head for wg_tile_n / group tokens. The cases cover group sizes 2/4/8, head sizes 64-512, several token blocks
+// per KV head, batches mixing q_len 1, q_len > 1 and empty history, split-K on/off and compressed caches. Controls (MHA,
+// sliding window, q_len > 16) must run the regular MIXED kernel.
+class paged_attention_gqa_packed_mixed_micro_test : public PagedAttentionTest<paged_attention_test_params> {
+protected:
+    static bool packed_expected(const paged_attention_test_params& p) {
+        size_t max_q = 0;
+        for (const auto& subseq : p.subsequences)
+            max_q = std::max(max_q, static_cast<size_t>(subseq.num_tokens));
+        return p.num_heads > p.num_kv_heads && p.sliding_window_size == 0 && max_q <= ov::intel_gpu::ocl::pa_micro_gqa_packed_max_q;
+    }
+};
+
+TEST_P(paged_attention_gqa_packed_mixed_micro_test, matches_cpu_reference) {
+    if (!tests::get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    // Lists the kernels of the last execution.
+    const auto entries = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+    RecordProperty("executed_kernels", entries);
+    ASSERT_TRUE(has_kernel(entries, "sdpa_micro", "generate")) << "Must exercise a MIXED micro SDPA kernel: " << entries;
+    ASSERT_EQ(has_kernel(entries, "sdpa_micro", "generate_gqa_packed"), packed_expected(p)) << entries;
+
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention_gqa_packed_mixed_micro,
+    paged_attention_gqa_packed_mixed_micro_test,
+    ::testing::Values(
+        // group 4, one token block
+        paged_attention_test_params{{{4, 300}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // group 8, q_len 5 spans two token blocks, batched with a q_len 1 subsequence
+        paged_attention_test_params{{{5, 1000}, {1, 77}}, 16, 2, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // group 2, q_len 16
+        paged_attention_test_params{{{16, 2000}}, 8, 4, 128, 128, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // subsequence without history next to one with history
+        paged_attention_test_params{{{4, 0}, {3, 50}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // split-K, head 256, two subsequences
+        paged_attention_test_params{{{3, 5000}, {7, 4500}}, 16, 2, 256, 256, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        // Gemma 4 global layer (16 q / 2 kv heads x 512), MTP verify of 4 tokens: f16, u8 and u4 BY_CHANNEL caches, split-K
+        paged_attention_test_params{{{4, 8176}}, 16, 2, 512, 512, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        paged_attention_test_params{{{8, 1000}}, 16, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        paged_attention_test_params{{{4, 8176}}, 16, 2, 512, 512, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        // controls: MHA, sliding window and q_len 17 > 16 keep the regular MIXED kernel
+        paged_attention_test_params{{{4, 300}}, 4, 4, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        paged_attention_test_params{{{4, 300}}, 8, 2, 128, 128, 16, 128, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2},
+        paged_attention_test_params{{{17, 300}}, 8, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2}));
+
 #endif
 
 class paged_attention_u4_swa_tail_test : public PagedAttentionTest<paged_attention_test_params> {};
