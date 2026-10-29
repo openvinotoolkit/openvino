@@ -10,6 +10,8 @@ endif()
 
 include(sources.cmake)
 
+set_source_files_properties(common_optimizations/fuse_qsa_indexer_test.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+
 ov_add_test_target(
     NAME ${TARGET_NAME}
     SOURCES

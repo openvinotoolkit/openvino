@@ -318,4 +318,5 @@ set(OV_TRANSFORMATIONS_TESTS_SRCS
     ${TRANSPOSE_SINKING_TESTS_SRCS}
     ${UTILS_TESTS_SRCS}
     ${TRANSPOSE_SINKING_TESTS_HDRS}
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fuse_qsa_indexer_test.cpp
 )

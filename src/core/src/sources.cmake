@@ -196,6 +196,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/prior_box_clustered.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/proposal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/psroi_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/qsa_prepare.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/range.cpp

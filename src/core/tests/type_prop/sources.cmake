@@ -224,3 +224,5 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/unsqueeze.cpp
     ${CMAKE_CURRENT_LIST_DIR}/variadic_split.cpp
 )
+
+set(OV_CORE_TESTS_QSA_SRCS ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer.cpp)
