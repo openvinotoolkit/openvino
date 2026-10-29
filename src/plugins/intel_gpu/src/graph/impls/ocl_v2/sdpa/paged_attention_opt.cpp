@@ -169,9 +169,9 @@ size_t get_max_context_len(const kernel_impl_params& params) {
 }
 
 // The fallback kernel reads the KV cache once per query token, pa_small_q_opt.cl once per partition at a higher fixed
-// cost, so the fallback is faster while query tokens x context stays small (measured on Xe2).
+// cost. Measured on Xe2/Xe3 for 3..16 tokens, the two cross where tokens^2 x context ~= 64K.
 inline bool prefer_gqa_multi_tokens_fallback_kernel(size_t max_tokens, size_t max_context_len) {
-    return max_tokens <= 3 || (max_tokens <= 8 && max_tokens * max_context_len <= 12 * 1024);
+    return max_tokens * max_tokens * max_context_len <= 64 * 1024;
 }
 
 // GQA multi-token path of paged_attention_opt.cl; the sink and scores output code there assumes one head per work-item

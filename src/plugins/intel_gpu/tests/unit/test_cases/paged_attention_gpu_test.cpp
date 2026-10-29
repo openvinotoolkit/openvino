@@ -1015,7 +1015,7 @@ TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
         max_tokens = std::max(max_tokens, static_cast<size_t>(s.num_tokens));
         max_context_len = std::max(max_context_len, static_cast<size_t>(s.past_len + s.num_tokens));
     }
-    const bool prefer_fallback = max_tokens <= 3 || (max_tokens <= 8 && max_tokens * max_context_len <= 12 * 1024);
+    const bool prefer_fallback = max_tokens * max_tokens * max_context_len <= 64 * 1024;
     const std::string expected_kernel = expect_dpas && !prefer_fallback ? "pa_small_q_opt" : "_gqa_multi_tokens_fallback";
     auto pa_inst = result.network->get_primitive("paged_attention");
     ASSERT_NE(pa_inst, nullptr);
@@ -1066,8 +1066,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens, paged_attention
     // query tokens straddle the 256-token partition boundary: some write output directly, others go through finalization
     make_gqa_multi_tokens_params({{8, 252}}, 8, 2, 128),
     // few query tokens with a context long enough for pa_small_q_opt.cl: subgroup rows beyond the query are masked
-    make_gqa_multi_tokens_params({{4, 3100}}, 8, 2, 128),
-    make_gqa_multi_tokens_params({{5, 2600}}, 8, 4, 64, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
+    make_gqa_multi_tokens_params({{4, 4200}}, 8, 2, 128),
+    make_gqa_multi_tokens_params({{5, 2700}}, 8, 4, 64, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL),
     make_gqa_multi_tokens_params({{8, 1600}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN),
 
     // multiple subsequences with different lengths, including a single-token one
