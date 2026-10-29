@@ -36,10 +36,10 @@ single-token (a static unaligned decode runs the opt multi-tokens kernel), ARL-H
 the opt kernel, and the xe3p workarounds (plain SDPA head <= 64, PA always) -- in the kernel choice
 only, `SDPAOpt::validate_impl()` does not apply them. It also refuses an f32 query or output,
 because `sdpa_micro.cl` loads Q as packed halves and stores half; its codegen happens to fail on
-f32 too ("No matching kernel", swallowed by `add_stage()`). Two gaps are upstream's as well:
-`sdpa_micro` MIXED has no bidirectional token_type_ids mask, so that combination runs
-`pa_multi_token`, which ignores the mask too (upstream dispatched `sdpa_micro` there), and an empty
-token_type_ids tensor is honoured only by `sdpa_ocl`.
+f32 too ("No matching kernel", swallowed by `add_stage()`). The bidirectional token_type_ids mask
+is upstream's on that lane too: `sdpa_micro` serves PREFILL and MIXED with it (MIXED reads the group
+bounds of a `pa_tt_bounds` pre-pass), and small GQA MIXED steps go to the `paged_attention_opt.cl`
+fallback, which implements it as well.
 
 `TEST_USE_SDPA_OCL_DECODE=0` disables `SDPAOclDecodeGenerator`, so GENERATE falls back to the
 `paged_attention_opt` single-token kernels. Either switch also keeps the i8/u4 BY_CHANNEL K cache
@@ -1213,13 +1213,17 @@ sliding-window region (`openvino/reference/paged_attention.hpp`).
 - `token_type_ids` covers the new tokens only, so it is indexed in LOCAL coordinates
   (subsequence-relative, `[0, q)`), while keys and `causal_k` / `window_k_begin` are KEY coordinates
   (`key = query_position_offset + local`). PREFILL is the `past_len == 0` case of the same code.
-  `sdpa_micro.cl` and `sdpa_opt.cl` omit the subsequence bump of the buffer, which only agrees for a
-  single subsequence starting at token 0.
 - The causal bound and the window start are extended to cover the groups that straddle them.
   Groups never leave the new-token region, and reading a future key from the cache relies on
   `pa_kv_cache_update` running before this stage, as the reference does.
 - The mask loop needs only per-query group bounds `[begin, end)`, computed once per workgroup;
-  `sdpa_micro` instead re-scans `token_type_ids` per (query, key) pair.
+  `sdpa_micro` reads per-token bounds from a separate `pa_tt_bounds` stage instead.
+- A small GQA MIXED step (at most 16 new tokens per subsequence, e.g. a speculative draft block)
+  takes the GQA multi-token path as without token_type_ids. `pa_small_q_opt.cl` has no bidirectional
+  mask, so that is the `paged_attention_opt.cl` fallback, which has one (on the token-major
+  BY_CHANNEL page, which the fallback cannot read, `sdpa_ocl`). Against `sdpa_ocl` on B70 (f16, 32/8
+  heads, head 128, 1K and 8K context, clock not pinned) the fallback was 2-3x faster at 4 new tokens
+  and 1.1-1.7x slower at 16.
 - A runtime-empty `token_type_ids` (`[B_token | 0]`) is legal while `HAS_TOKEN_TYPE_IDS` is decided
   at compile time from a possibly dynamic shape, so every read is gated on the runtime count. The
   paged-attention impl is compiled once from dynamic params (`shape_types::any`) and afterwards only

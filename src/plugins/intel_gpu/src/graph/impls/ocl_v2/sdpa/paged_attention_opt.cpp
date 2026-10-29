@@ -1792,26 +1792,16 @@ public:
         return DpasBackend::none;
     }
 
-    // Upstream let sdpa_micro serve MIXED with token_type_ids (bidirectional masking is implemented only in its
-    // PREFILL kernel, and in MIXED neither sdpa_micro nor paged_attention_opt.cl consumes token_type_ids). Here
-    // sdpa_ocl implements the mask for MIXED too, and sdpa_micro is kept off that combination -- see below.
-    // TODO: implement bidirectional attention for MIXED with token_type_ids in sdpa_micro
+    // token_type_ids does not change the choice: sdpa_ocl, sdpa_micro and paged_attention_opt.cl all implement the
+    // bidirectional mask in PREFILL and MIXED (pa_small_q_opt.cl does not, see supports_gqa_multi_tokens_dpas_kernel()).
+    // GENERATE never has a DPAS stage (dpas_backend() above) and needs nothing: that stage is defined by one new token
+    // per subsequence, so a query's image group is the query itself.
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
         const auto backend = dpas_backend(stage);
         // Speculative decoding MIXED case is faster with the GQA multi-token kernel than with micro SDPA
         if (backend == DpasBackend::none || can_use_gqa_multi_tokens_kernel(params, stage))
             return false;
         const auto desc = params.typed_desc<paged_attention>();
-        // The bidirectional image-token mask exists for PREFILL and MIXED in sdpa_ocl, but for PREFILL
-        // only in sdpa_micro (sdpa_micro.cl still gates its bidir block on IS_PREFILL), so MIXED has to
-        // follow the backend. GENERATE never has a DPAS stage (dpas_backend() above) and needs nothing anyway:
-        // that stage is defined by one new token per subsequence, so a query's image group is the
-        // query itself and the rule degenerates to plain causal.
-        // The fallback this leaves -- pa_multi_token / paged_attention_opt.cl -- has NO token_type_ids
-        // support at all and silently applies a plain causal mask; update_rt_params() logs when that
-        // combination is actually dispatched.
-        if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL && backend == DpasBackend::micro)
-            return false;
         // sdpa_micro's MIXED variant reads the K cache d-major (problem_kq.A.layout = N, ldk =
         // block_size, plus a K0 pointer pre-compensation for micro's Layout::N A-offset), so it
         // cannot read a token-major cache. PREFILL is unaffected: it reads the contiguous KEY input,
@@ -2062,22 +2052,6 @@ public:
 #else
         rt_params->use_micro_sdpa = false;
 #endif
-
-        // Only sdpa_ocl / sdpa_micro implement the bidirectional image-token mask; the MIXED fallback
-        // (pa_multi_token -> paged_attention_opt.cl) has no token_type_ids support at all and returns a
-        // plain causal result with no other signal. Reachable on a non-DPAS device, on the sdpa_micro lane
-        // (pre-Xe2 XMX or TEST_USE_SDPA_OCL=0), in a build without micro kernels, and for the KV-compression
-        // layouts can_use_micro_sdpa_for() rejects. The
-        // buffer count matters because has_token_type_ids is a COMPILE-time flag over a possibly
-        // dynamic shape while "[B_token | 0]" makes an empty tensor legal and harmless. layout::count()
-        // throws on a dynamic layout, hence the is_dynamic() guard first (same order as
-        // sdpa_ocl_token_type_ids_count()).
-        if (rt_params->stage == PagedAttentionStage::MIXED && desc->has_token_type_ids && !rt_params->use_micro_sdpa && !params.is_dynamic() &&
-            params.input_layouts.size() > static_cast<size_t>(PagedAttentionInputIdx::TOKEN_TYPE_IDS) &&
-            params.input_layouts[PagedAttentionInputIdx::TOKEN_TYPE_IDS].count() > 0) {
-            GPU_DEBUG_LOG << "paged_attention: MIXED with non-empty token_type_ids fell back to pa_multi_token, which "
-                             "ignores it -- the bidirectional image-token mask will NOT be applied to this step\n";
-        }
 
         rt_params->query_block_size = get_query_block_size(params, rt_params->stage, rt_params->use_micro_sdpa);
 #ifdef ENABLE_ONEDNN_FOR_GPU
