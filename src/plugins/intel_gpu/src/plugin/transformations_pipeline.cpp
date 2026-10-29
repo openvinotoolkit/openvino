@@ -250,7 +250,10 @@
 #include "openvino/util/log.hpp"
 
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/equal.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_or.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 namespace {
@@ -503,8 +506,7 @@ public:
                 }
                 if (shape[1].is_static() && shape[1].get_length() > 0 &&
                     ((values[0] == 0 && (values[1] == 0 || values[1] == shape[1].get_length())) || (values[0] == -1 && values[1] == 0))) {
-                    const auto new_target =
-                        ov::op::v0::Constant::create(target->get_element_type(), ov::Shape{2}, std::vector<int64_t>{-1, shape[1].get_length()});
+                    const auto new_target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{-1, shape[1].get_length()});
                     ov::copy_runtime_info(target, new_target);
                     root->input(1).replace_source_output(new_target);
                     root->set_special_zero(false);
@@ -524,7 +526,13 @@ public:
             }
 
             // Derive the original reduced shape without retaining the unfused expert computation.
-            const auto type = root->get_input_element_type(1);
+            const auto type = ov::element::i64;
+            ov::NodeVector new_nodes;
+            ov::Output<ov::Node> target_values = root->input_value(1);
+            if (target_values.get_element_type() != type) {
+                target_values = std::make_shared<ov::op::v0::Convert>(target_values, type);
+                new_nodes.push_back(target_values.get_node_shared_ptr());
+            }
             const auto axis = ov::op::v0::Constant::create(type, ov::Shape{}, {0});
             const auto indices_shape = std::make_shared<ov::op::v3::ShapeOf>(gemm.get_node()->input_value(2), type);
             const auto token_dim = std::make_shared<ov::op::v8::Gather>(indices_shape, ov::op::v0::Constant::create(type, ov::Shape{1}, {0}), axis);
@@ -539,24 +547,36 @@ public:
                 std::make_shared<ov::op::v8::Gather>(padded_routing_shape, ov::op::v0::Constant::create(type, ov::Shape{2}, {1, 2}), axis);
             const auto one = ov::op::v0::Constant::create(type, ov::Shape{}, {1});
             const auto original_shape = std::make_shared<ov::op::v1::Select>(std::make_shared<ov::op::v1::Equal>(gemm_shape, one), routing_tail, gemm_shape);
-            const auto zero = ov::op::v0::Constant::create(root->get_input_element_type(1), ov::Shape{}, {0});
-            const auto is_zero = std::make_shared<ov::op::v1::Equal>(root->input_value(1), zero);
-            const auto new_target = std::make_shared<ov::op::v1::Select>(is_zero, original_shape, root->input_value(1));
-            ov::copy_runtime_info(root,
-                                  {axis,
-                                   indices_shape,
-                                   token_dim,
-                                   weights_shape,
-                                   hidden_dim,
-                                   gemm_shape,
-                                   routing_shape,
-                                   padded_routing_shape,
-                                   routing_tail,
-                                   one,
-                                   original_shape,
-                                   zero,
-                                   is_zero,
-                                   new_target});
+            const auto zero = ov::op::v0::Constant::create(type, ov::Shape{}, {0});
+            const auto is_zero = std::make_shared<ov::op::v1::Equal>(target_values, zero);
+            // With an axis copy, special_zero infers -1 from the remaining original dimension, also for empty tensors.
+            const auto other_is_zero = std::make_shared<ov::op::v8::Gather>(is_zero, ov::op::v0::Constant::create(type, ov::Shape{2}, {1, 0}), axis);
+            const auto minus_one = ov::op::v0::Constant::create(type, ov::Shape{}, {-1});
+            const auto is_minus_one = std::make_shared<ov::op::v1::Equal>(target_values, minus_one);
+            const auto copied_minus_one = std::make_shared<ov::op::v1::LogicalAnd>(is_minus_one, other_is_zero);
+            const auto use_original = std::make_shared<ov::op::v1::LogicalOr>(is_zero, copied_minus_one);
+            const auto new_target = std::make_shared<ov::op::v1::Select>(use_original, original_shape, target_values);
+            new_nodes.insert(new_nodes.end(),
+                             {axis,
+                              indices_shape,
+                              token_dim,
+                              weights_shape,
+                              hidden_dim,
+                              gemm_shape,
+                              routing_shape,
+                              padded_routing_shape,
+                              routing_tail,
+                              one,
+                              original_shape,
+                              zero,
+                              is_zero,
+                              other_is_zero,
+                              minus_one,
+                              is_minus_one,
+                              copied_minus_one,
+                              use_original,
+                              new_target});
+            ov::copy_runtime_info(root, new_nodes);
             root->input(1).replace_source_output(new_target);
             root->set_special_zero(false);
             root->validate_and_infer_types();

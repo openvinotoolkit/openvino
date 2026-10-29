@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -256,6 +257,16 @@ TEST(XAttentionTransformPipelineTest, NormalizesByTokenFp16RtInfoToCompressedCac
     EXPECT_EQ(value_shape[3].get_length(), 68);
 }
 
+static std::optional<ov::Shape> infer_reshape(const ov::Shape& data_shape, const std::vector<int64_t>& target, bool special_zero) {
+    try {
+        const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, data_shape);
+        const auto pattern = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{target.size()}, target);
+        return std::make_shared<ov::op::v1::Reshape>(data, pattern, special_zero)->get_output_shape(0);
+    } catch (const ov::Exception&) {
+        return std::nullopt;
+    }
+}
+
 class NormalizeMoEOutputReshapeTest : public testing::TestWithParam<std::tuple<bool, bool, int>> {};
 
 TEST_P(NormalizeMoEOutputReshapeTest, ResolvesAxisCopies) {
@@ -332,7 +343,7 @@ TEST_P(NormalizeMoEOutputReshapeTest, ResolvesAxisCopies) {
         ov::TensorVector outputs{ov::Tensor(ov::element::i64, {2})};
         ASSERT_TRUE(shape_model->evaluate(outputs, inputs));
         EXPECT_EQ(outputs[0].data<int64_t>()[0], 4);
-        EXPECT_EQ(outputs[0].data<int64_t>()[1], target_kind == 3 ? -1 : target_kind == 5 ? 4 : 8);
+        EXPECT_EQ(outputs[0].data<int64_t>()[1], target_kind == 5 ? 4 : 8);
     } else {
         EXPECT_EQ(reshape->input_value(1), target);
     }
@@ -359,20 +370,67 @@ TEST(NormalizeMoEOutputReshapeTest, ResolvesDynamicHiddenSizeAndTarget) {
     for (const auto& node : shape_model->get_ordered_ops()) {
         EXPECT_FALSE(ov::is_type<ov::op::internal::GatherMatmul>(node));
     }
-    for (const auto& [tokens, routing_tokens] : std::vector<std::pair<size_t, size_t>>{{4, 4}, {1, 4}, {4, 1}, {0, 1}, {1, 0}}) {
+    for (const auto& [tokens, routing_tokens, hidden] : std::vector<std::tuple<size_t, size_t, size_t>>{{4, 4, 8}, {1, 4, 8}, {4, 1, 8}, {0, 1, 8}, {1, 0, 8}, {4, 4, 0}}) {
         for (const auto& values : std::vector<std::vector<int32_t>>{{0, 0}, {-1, 0}, {0, -1}, {2, 16}}) {
-            ov::TensorVector inputs{ov::Tensor(ov::element::f16, {3, 8, 8}),
+            ov::TensorVector inputs{ov::Tensor(ov::element::f16, {3, hidden, 8}),
                                     ov::Tensor(ov::element::i32, {tokens, 2}),
                                     ov::Tensor(ov::element::f16, {2, routing_tokens, 1}),
                                     ov::Tensor(ov::element::i32, {2})};
             std::copy(values.begin(), values.end(), inputs.back().data<int32_t>());
-            ov::TensorVector outputs{ov::Tensor(ov::element::i32, {2})};
+            ov::TensorVector outputs{ov::Tensor(shape_model->get_output_element_type(0), {2})};
             ASSERT_TRUE(shape_model->evaluate(outputs, inputs));
-            const auto broadcast_tokens = static_cast<int32_t>(tokens == 1 ? routing_tokens : tokens);
-            EXPECT_EQ(outputs[0].data<int32_t>()[0], values[0] == 0 ? broadcast_tokens : values[0]);
-            EXPECT_EQ(outputs[0].data<int32_t>()[1], values[1] == 0 ? 8 : values[1]);
+            const ov::Shape original_shape{tokens == 1 ? routing_tokens : tokens, hidden};
+            const auto resolved = ov::op::v0::Constant(outputs[0]).cast_vector<int64_t>();
+            EXPECT_EQ(infer_reshape(original_shape, resolved, false),
+                      infer_reshape(original_shape, {values[0], values[1]}, true));
         }
     }
 }
+
+class NormalizeMoEOutputReshapeTargetTypeTest : public testing::TestWithParam<ov::element::Type> {};
+
+TEST_P(NormalizeMoEOutputReshapeTargetTypeTest, SupportsIntegralTargetTypes) {
+    const auto type = GetParam();
+    for (const bool constant_target : {true, false}) {
+        const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, 8});
+        const auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, 2});
+        const auto weights = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{3, 8, 8}, {1});
+        const auto gemm = std::make_shared<ov::op::internal::GatherMatmul>(input, weights, indices);
+        const auto routing = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{2, -1, 1});
+        const auto product = std::make_shared<ov::op::v1::Multiply>(gemm, routing);
+        const auto reduction = std::make_shared<ov::op::v1::ReduceSum>(product, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}), false);
+        ov::ParameterVector parameters{input, indices, routing};
+        ov::Output<ov::Node> target = ov::op::v0::Constant::create(type, ov::Shape{2}, {0, 8});
+        if (!constant_target) {
+            const auto shape_parameter = std::make_shared<ov::op::v0::Parameter>(type, ov::Shape{2});
+            target = shape_parameter;
+            parameters.push_back(shape_parameter);
+        }
+        const auto reshape = std::make_shared<ov::op::v1::Reshape>(reduction, target, true);
+        const auto original_shape = reshape->get_output_partial_shape(0);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, parameters);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::intel_gpu::NormalizeMoEOutputReshape>();
+        ASSERT_NO_THROW(manager.run_passes(model));
+        EXPECT_FALSE(reshape->get_special_zero());
+        EXPECT_EQ(reshape->get_output_partial_shape(0), original_shape);
+        ov::ParameterVector shape_parameters{indices, routing};
+        ov::TensorVector inputs{ov::Tensor(ov::element::i32, {4, 2}), ov::Tensor(ov::element::f16, {2, 4, 1})};
+        const auto target_value = ov::op::v0::Constant::create(type, ov::Shape{2}, {0, 8});
+        if (!constant_target) {
+            shape_parameters.push_back(parameters.back());
+            inputs.push_back(target_value->get_tensor_view());
+        }
+        const auto shape_model = std::make_shared<ov::Model>(ov::OutputVector{reshape->input_value(1)}, shape_parameters);
+        ov::TensorVector outputs{ov::Tensor(shape_model->get_output_element_type(0), {2})};
+        ASSERT_TRUE(shape_model->evaluate(outputs, inputs));
+        const auto resolved = ov::op::v0::Constant(outputs[0]).cast_vector<int64_t>();
+        EXPECT_EQ(infer_reshape(ov::Shape{4, 8}, resolved, false), (std::optional<ov::Shape>{ov::Shape{4, 8}}));
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         NormalizeMoEOutputReshapeTargetTypeTest,
+                         testing::Values(ov::element::i8, ov::element::i16, ov::element::i32, ov::element::i64, ov::element::u8, ov::element::u32));
 
 }  // namespace ov::test::intel_gpu
