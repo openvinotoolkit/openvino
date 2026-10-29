@@ -684,6 +684,20 @@ Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx
     return x;
 }
 
+element::Type get_input_element_type(const NodeContext& context, size_t idx) {
+    auto type = context.get_input(static_cast<int>(idx)).get_element_type();
+    if (type.is_dynamic()) {
+        type = context.get_input_from_visible_context(idx).get_element_type();
+    }
+    if (type.is_dynamic()) {
+        const auto decoded = simplified_type_interpret(context.get_input_type(idx));
+        if (decoded.is<element::Type>()) {
+            type = decoded.as<element::Type>();
+        }
+    }
+    return type;
+}
+
 Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x) {
     if (x.get_element_type().is_static() && x.get_element_type().is_integral_number()) {
         return x;
@@ -1219,6 +1233,11 @@ bool index_tensor_on_list(ov::pass::NodeRegistry& rg,
         auto adv_index = rg.make<v1::Multiply>(m_idx, multiplier);
         cum_adv_index = rg.make<v1::Add>(cum_adv_index, adv_index);
         multiplier = rg.make<v1::Multiply>(multiplier, input_dims->output(input_id));
+    }
+    if (adv_idx_count > 1 && std::all_of(advanced_ids.begin(), advanced_ids.end(), [&](size_t id) {
+            return masked_indices[id].get_partial_shape().rank() == 0;
+        })) {
+        cum_adv_index = rg.make<v0::Squeeze>(cum_adv_index, zero);
     }
     std::shared_ptr<Node> gather = rg.make<v8::Gather>(flatten_input, cum_adv_index, zero);
     OutputVector concat_dims;

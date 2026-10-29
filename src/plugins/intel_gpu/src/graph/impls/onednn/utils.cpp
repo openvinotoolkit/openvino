@@ -592,6 +592,12 @@ std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc> get_conv_
     auto weights_desc = weights_mdb.build();
     auto output_desc = output_mdb.build();
 
+    // The rank-3 path pins a plain format_tag so that 1D activations stay representable in cldnn. Weights are converted
+    // by the oneDNN weights reorder, so keep format_tag::any and let oneDNN choose their layout as in the 4D/5D paths.
+    if (weights_desc.get_ndims() == 3) {
+        weights_desc = dnnl::memory::desc(weights_desc.get_dims(), weights_desc.get_data_type(), dnnl::memory::format_tag::any);
+    }
+
     GPU_DEBUG_TRACE_DETAIL << "input: " << input_layout.to_short_string() << " -> " << memory_desc_to_string(input_desc) << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "weights: " << weights_layout.to_short_string() << " -> " << memory_desc_to_string(weights_desc) << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "output: " << output_layout.to_short_string() << " -> " << memory_desc_to_string(output_desc) << std::endl;
