@@ -72,10 +72,14 @@
 
 using namespace cldnn;
 using namespace ::tests;
+using ov::intel_gpu::cm::woq_u2_nk_enabled_for_tests;
 using ov::intel_gpu::cm::woq_u2_weight_layout_for_tests;
 using ov::intel_gpu::cm::WoqU2WeightLayout;
 
 namespace {
+
+// The plugin selects CM for GNK weights only; the NK conformance and reorder tests below run it on NK weights.
+[[maybe_unused]] const bool nk_enabled_for_this_file = (woq_u2_nk_enabled_for_tests() = true);
 
 enum class ZpKind { none, tensor_f16, tensor_u8, scalar };
 
@@ -1338,5 +1342,50 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          [](const testing::TestParamInfo<std::tuple<int64_t, data_types>>& info) {
                              return "M" + std::to_string(std::get<0>(info.param)) + (std::get<1>(info.param) == data_types::f32 ? "_f32out" : "_f16out");
                          });
+
+// Clears the NK opt-in for the lifetime of the scope, i.e. the plugin's own behavior.
+struct NkDisabledScope {
+    bool saved = woq_u2_nk_enabled_for_tests();
+    NkDisabledScope() {
+        woq_u2_nk_enabled_for_tests() = false;
+    }
+    ~NkDisabledScope() {
+        woq_u2_nk_enabled_for_tests() = saved;
+    }
+};
+
+bool gnk_fc_cm_accepts(engine& engine, int64_t N, int64_t K) {
+    const int64_t G = K / 64;
+    topology topo(input_layout("input", layout{ov::PartialShape{16, K}, data_types::f16, format::bfyx}));
+    topo.add(data("weights", engine.allocate_memory({ov::PartialShape{G, N, 64}, data_types::u2, format::bfyx})));
+    topo.add(data("scale", engine.allocate_memory({ov::PartialShape{G, N}, data_types::f16, format::bfyx})));
+    topo.add(data("zp", engine.allocate_memory({ov::PartialShape{G, N}, data_types::u8, format::bfyx})));
+    topo.add(fully_connected("fc", input_info("input"), "weights", "", "scale", "zp", data_types::f16, 2, 3, true, false, false, FcWeightsLayout::GNK));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    auto prog = program::build_program(engine, topo, config, false, true);
+    auto& fc = prog->get_node("fc").as<fully_connected>();
+    fc.get_output_layouts(false);
+    return ov::intel_gpu::cm::FullyConnectedWoqU2ImplementationManager::validate_base(fc, true);
+}
+
+// CM is picked for GNK weights only: the same FC with NK weights is rejected unless a test opts in to NK, and then
+// takes the same scale / zp reorder as any other non-CM u2 FC.
+TEST(fully_connected_cm_woq_u2_gnk_only, nk_is_rejected_gnk_is_accepted) {
+    auto& engine = get_test_engine();
+    if (!cm_woq_u2_supported(engine))
+        GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
+
+    ASSERT_TRUE(run_u2_reorder_passes(engine, 64, 128, true, true).cm_accepts) << "NK must be accepted while the test opt-in is on";
+
+    const NkDisabledScope nk_off;
+    const auto nk = run_u2_reorder_passes(engine, 64, 128, true, true);
+    EXPECT_FALSE(nk.cm_accepts);
+    EXPECT_TRUE(nk.scale_reordered);
+    EXPECT_TRUE(nk.zp_reordered);
+    EXPECT_TRUE(gnk_fc_cm_accepts(engine, 64, 128));
+}
 
 }  // namespace

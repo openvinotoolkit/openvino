@@ -41,6 +41,12 @@ inline WoqU2WeightLayout& woq_u2_weight_layout_for_tests() {
     return layout;
 }
 
+// The plugin picks this implementation for GNK weights only. Tests that exercise the NK kernels turn this on.
+inline bool& woq_u2_nk_enabled_for_tests() {
+    static bool enabled = false;
+    return enabled;
+}
+
 // Dependencies of the FC: 0 = input, 1 = weights, [2 = bias], then decompression scale and zero point,
 // then the outer dependencies of fused primitives.
 constexpr size_t woq_u2_bias_idx = 2;
@@ -263,6 +269,9 @@ struct FullyConnectedWoqU2ImplementationManager : public ImplementationManager {
             CM_FC_LOG_AND_RETURN_FALSE(node, "weights not transposed");
         }
         const bool gnk = prim->weights_layout == ov::intel_gpu::op::FcWeightsLayout::GNK;
+        if (!gnk && !woq_u2_nk_enabled_for_tests()) {
+            CM_FC_LOG_AND_RETURN_FALSE(node, "only GNK weights are selected, weights_layout " << ov::intel_gpu::op::to_string(prim->weights_layout));
+        }
         if (!gnk && prim->weights_rank != 2) {
             CM_FC_LOG_AND_RETURN_FALSE(node, "weights_rank != 2: " << prim->weights_rank);
         }
