@@ -6,10 +6,13 @@
 
 #include <cstring>
 #include <exception>
+#include <ios>
+#include <new>
 #include <string>
 #include <string_view>
 
 #include "openvino/core/except.hpp"
+#include "openvino/util/log.hpp"
 
 namespace ov::runtime::hsm {
 inline namespace v1 {
@@ -76,7 +79,7 @@ void encode_map(std::vector<std::byte>& out, const ov::AnyMap& options, size_t d
         } else {
             std::string str;
             try {
-                str = value.as<std::string>();
+                str = ov::Any{value}.as<std::string>();
             } catch (const std::exception& e) {
                 OPENVINO_THROW("Cannot convert compiled option ", key, " to string: ", e.what());
             }
@@ -134,7 +137,8 @@ std::optional<ov::AnyMap> decode_map(ov::util::MemoryView bytes, size_t depth) {
     }
     Cursor cursor{bytes};
     Length count{};
-    if (!cursor.read(count)) {
+    constexpr size_t min_entry_size = 2 * sizeof(Length) + sizeof(CompiledOptionKind) + 1;
+    if (!cursor.read(count) || count > cursor.remaining() / min_entry_size) {
         return std::nullopt;
     }
 
@@ -194,18 +198,25 @@ std::vector<std::byte> encode_compiled_options(const ov::AnyMap& options) {
 }
 
 std::optional<ov::AnyMap> decode_compiled_options(ov::util::MemoryView payload) noexcept {
-    return payload.size() <= max_compiled_options_size ? decode_map(payload, 1) : std::nullopt;
+    return !payload.empty() && payload.size() <= max_compiled_options_size ? decode_map(payload, 1) : std::nullopt;
 }
 
 std::optional<ov::AnyMap> decode_compiled_options(const Section& section) noexcept {
-    OPENVINO_DEBUG_ASSERT(section.tag().value == compiled_options_tag.value);
-    if (section.size() > max_compiled_options_size) {
+    try {
+        if (section.size() > max_compiled_options_size) {
+            return std::nullopt;
+        } else if (const auto view = section.view(); !view.empty()) {
+            return decode_map(view, 1);
+        } else {
+            std::vector<std::byte> bytes(section.size());
+            return section.read(bytes.data()) ? decode_map({bytes.data(), bytes.size()}, 1) : std::nullopt;
+        }
+    } catch (const std::bad_alloc& exc) {
+        OPENVINO_ERR("Failed to decode compile options: ", exc.what());
         return std::nullopt;
-    } else if (const auto view = section.view(); !view.empty()) {
-        return decode_map(view, 1);
-    } else {
-        std::vector<std::byte> bytes(section.size());
-        return section.read(bytes.data()) ? decode_map({bytes.data(), bytes.size()}, 1) : std::nullopt;
+    } catch (const std::ios_base::failure& exc) {
+        OPENVINO_ERR("Failed to decode compile options: ", exc.what());
+        return std::nullopt;
     }
 }
 

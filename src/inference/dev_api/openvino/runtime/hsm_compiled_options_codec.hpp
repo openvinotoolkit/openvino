@@ -70,6 +70,7 @@ class CompiledOptionsEncoder final : public ISectionEncoder {
 public:
     explicit CompiledOptionsEncoder(const ov::AnyMap& options) noexcept : m_options(options) {}
     explicit CompiledOptionsEncoder(ov::AnyMap&&) = delete;
+    explicit CompiledOptionsEncoder(const ov::AnyMap&&) = delete;
 
     void encode(const SectionSink& sink) const override {
         const auto bytes = encode_compiled_options(m_options);
@@ -94,7 +95,7 @@ OPENVINO_RUNTIME_API std::optional<ov::AnyMap> decode_compiled_options(ov::util:
 /**
  * @overload Same as #decode_compiled_options(ov::util::MemoryView), for @p section backed by a buffer or a
  * stream; a section larger than #max_compiled_options_size is rejected before it is read.
- * @param section Section to decode; its tag must be #compiled_options_tag (debug-asserted).
+ * @param section Section to decode; its tag must be #compiled_options_tag.
  */
 OPENVINO_RUNTIME_API std::optional<ov::AnyMap> decode_compiled_options(const Section& section) noexcept;
 

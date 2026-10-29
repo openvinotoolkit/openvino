@@ -42,6 +42,8 @@ static_assert(std::is_constructible_v<hsm::CompiledOptionsEncoder, const ov::Any
               "CompiledOptionsEncoder must borrow an existing map.");
 static_assert(!std::is_constructible_v<hsm::CompiledOptionsEncoder, ov::AnyMap&&>,
               "CompiledOptionsEncoder must not borrow a temporary map.");
+static_assert(!std::is_constructible_v<hsm::CompiledOptionsEncoder, const ov::AnyMap&&>,
+              "CompiledOptionsEncoder must not borrow a temporary const map.");
 static_assert(std::is_same_v<decltype(std::declval<hsm::IWriter&>().add_section(
                                  hsm::DeviceId{},
                                  hsm::compiled_options_tag,
