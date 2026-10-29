@@ -171,10 +171,10 @@ private:
 
 /** @brief True for types with std::data() and std::size() (containers, arrays). */
 template <typename T, typename = void>
-struct is_contiguous_range : std::false_type {};
+struct IsContiguousRange : std::false_type {};
 
 template <typename T>
-struct is_contiguous_range<
+struct IsContiguousRange<
     T,
     std::void_t<decltype(std::data(std::declval<const T&>())), decltype(std::size(std::declval<const T&>()))>>
     : std::true_type {};
@@ -187,7 +187,7 @@ struct is_contiguous_range<
  */
 template <typename T>
 MemoryView as_memory_view(const T& value) noexcept {
-    if constexpr (is_contiguous_range<T>::value) {
+    if constexpr (IsContiguousRange<T>::value) {
         using element_type = std::remove_cv_t<std::remove_pointer_t<decltype(std::data(value))>>;
         static_assert(std::is_trivially_copyable_v<element_type>,
                       "as_memory_view requires trivially copyable elements");
