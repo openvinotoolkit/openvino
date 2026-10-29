@@ -11,6 +11,8 @@ Data are moved between the host and the device with a Level Zero command list.
 
 Models with only one input and one output are supported.
 
+For more detailed information on how this sample works, check the dedicated [article](https://docs.openvino.ai/2026/get-started/learn-openvino/openvino-samples/hello-remote-tensor.html)
+
 ## Requirements
 
 | Options                     | Values                                                                                           |
