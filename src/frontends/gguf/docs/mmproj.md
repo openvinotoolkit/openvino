@@ -23,6 +23,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) |
 | Vision | `pixtral` | 2D RoPE, patch merger, row separators |
 | Vision | `phi4` | dynamic resolution, resized positions |
+| Vision | `lfm2` | SigLIP, resized positions, pixel unshuffle, optional projector LayerNorm |
 | Vision | `gemma4v`, `gemma4uv` | two-axis positions, per-tensor clipping, pooling; unified patch normalization |
 | Vision | `muse-glimmer` | sparse/global windows, two-axis RoPE, pixel shuffle |
 | Vision | `deepseekocr`, `deepseekocr2` | SAM local/global attention, tiles, queries, view separators |
@@ -30,10 +31,12 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Audio | `gemma4ua` | raw 640-sample waveform frames |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders |
 
+The built-in `qwen3vl_merger` projector supports BF16 and Q8_0 weights.
+
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 
-Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`, `lfm2`,
-`kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `lfm2a`, `glm4v`, `youtuvl`, `yasa2`,
+Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`,
+`kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `glm4v`, `youtuvl`, `yasa2`,
 `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
 `granite4_vision`. `gemma3na` has no graph builder in the reference.
 
@@ -106,7 +109,8 @@ the DeepStack features after the primary ones along `D`.
 ## Runtime metadata
 
 Model rt_info `gguf_mmproj` keeps every source `clip.*` key and adds `<modality>.projector`,
-`<modality>.merge`, `vision.auxiliary_count`, `vision.window_size` (Muse Glimmer) and
+`<modality>.merge`, `vision.auxiliary_count`, the effective `vision.patch_size`,
+`vision.window_size` (Muse Glimmer) and
 `vision.minicpmv_version` / `vision.query_count` (resampler). Values are strings: numeric
 arrays are comma-separated, and string arrays are `length:value` entries flagged by a
 `<key>.encoding` companion. The metadata survives IR serialization and adaptation; supplied
@@ -128,7 +132,8 @@ audio instead takes consecutive 640-sample frames from a 16 kHz waveform, withou
 ## Using the encoders and a language model
 
 [`AdaptMmprojToGenAI`](../include/openvino/frontend/gguf/adapt_mmproj_to_genai.hpp) keeps one
-modality, drops the other branch's inputs and prefixes, and exposes `[1,T,D]` outputs named
+modality and drops the other branch's inputs and prefixes. Its default `Layout::EMBEDDINGS`
+exposes `[1,T,D]` outputs named
 `image_features` and `deepstack_features.N`, or `audio_features`. It rewrites the model in place,
 so run it on a separate clone for each modality of a combined file.
 
@@ -139,10 +144,87 @@ mode prepares the language model for media injection:
   takes `inputs_embeds [B,T,D]`; token-embedding scaling is applied once;
 - Gemma4 E2B/E4B use a separate `get_per_layer_embedding_model()` whose output feeds
   `per_layer_inputs [B,T,layers,width]`; it is not a second output of `get_embedding_model()`;
-- Gemma3 and Gemma4 without per-layer embeddings take `token_type_ids [B,T]`: image tokens attend
+- Gemma3 and Gemma4 outside the E2B/E4B embedding widths take `token_type_ids [B,T]`: image tokens attend
   bidirectionally within their image, in every Gemma3 layer and in Gemma4 sliding-window layers;
 - interleaved M-RoPE models take `position_ids [4,B,T]`: GenAI's sequence, time, height and width
-  sections.
+  sections;
+- the per-layer lookup reads image, video and audio placeholders as the padding token, as HF and
+  llama.cpp do;
+- Gemma4 image attention remains causal at the E2B/E4B embedding widths (1536/2560), matching
+  llama.cpp; other variants allow bidirectional attention within an image in sliding-window layers.
+
+For vision, `AdaptMmprojToGenAI(Modality::VISION, Layout::VISION_ENCODERS)` rewrites the
+model to the optimum-intel export layout, allowing OpenVINO GenAI to reuse its existing
+encoders. `get_vision_models()` returns the adapted model under `vision_embeddings`, or
+the three Qwen components below; the supplied model becomes the Qwen merger. Vision layout
+construction runs on a clone and replaces the supplied graph only on success, preserving it for
+native-embedding fallback if metadata, weights or graph requirements are invalid. GGUF
+preprocessing uses llama.cpp geometry and token limits:
+
+| Projector | Models | Inputs |
+|---|---|---|
+| `gemma3` | `vision_embeddings` | `pixel_values [1,3,S,S]` |
+| `gemma4v`, `gemma4uv` | `vision_embeddings` | `pixel_values [1,P,patch*patch*3]` with patches in raster order, then padding; `image_position_ids [1,P,2]` as (x, y), -1 for padding |
+| `muse-glimmer` | `vision_embeddings` | `pixel_values [rows*cols,3*patch*patch]`, `image_grid_thw [1,3]`; window, merge and position indices are derived in the graph |
+| `qwen3vl_merger` | `vision_embeddings`, `vision_embeddings_pos`, `vision_embeddings_merger` | flattened patches `hidden_states`; position-table indices `input [4,N]`; `hidden_states`, `attention_mask [1,N,N]`, `rotary_pos_emb [N,head/2]` |
+
+The adapted vision graphs preserve llama.cpp computation: Gemma4 retains GELU_QUICK unless the
+GGUF specifies GELU. Muse Glimmer GGUF files collapse HF's two-frame patch kernel,
+so the layout takes one frame per patch.
+
+GenAI selects these settings from the GGUF metadata while keeping the existing exported-model
+processor defaults. GGUF video inputs keep all supplied frames unless the caller provides
+sampled frame indices. Numerical acceptance uses the pinned llama.cpp CPU reference; an
+optimum-intel comparison checks compatibility and does not replace that reference.
+
+GenAI uses an F16 KV cache for GGUF multimodal models to match llama.cpp's default cache
+precision; explicit cache precision properties take precedence.
+
+### Gemma4 image-window parity gap
+
+GenAI-adapted GGUF masks follow Optimum-intel's sliding-window behavior in both SDPA and
+PagedAttention: tokens within the same image attend bidirectionally to the entire image
+group, even when its beginning lies outside the sliding window. Text queries still use
+the normal window. This allows reuse of existing PA implementations without a behavioral
+switch in `rt_info`; serialization or transformations can discard that metadata.
+
+The pinned llama.cpp CPU reference (`03fa73cb27f5c251b9528489b18d303b1366aca4`) clips older
+image patches at the window boundary. For example, an image spanning positions 10–150,
+query position 100 and window 64 permits keys 10–150 here, versus 37–150 in llama.cpp.
+Gemma4 and Unified multimodal logits, generated tokens and subsequent text can therefore
+diverge when image groups cross that boundary. This is an accepted integration gap, not
+quantization loss; numerical parity is not established for affected requests. Text-only
+requests and same-image keys already inside the window are unaffected by this difference.
+Native GGUF graphs before GenAI adaptation retain their supplied-mask semantics.
+
+To close the gap while supporting both reference behaviors, add an explicit serializable
+image-window policy to the PA operation contract and implement it in the target plugins,
+then emit the corresponding SDPA mask in the frontend. Do not use runtime metadata as a
+semantic switch. Retain llama.cpp comparisons and failed artifacts for affected scenarios;
+report API compatibility and SDPA/PA agreement separately from llama.cpp parity.
+
+### Bidirectional image prefix-cache gap
+
+The Unified fixture also exposes a separate GenAI PA prefix-cache issue: after a
+single-image request, a two-image request can differ from SDPA, and restarting image
+chat can change the generated tokens. With the same model, media and F16 KV precision,
+disabling `SchedulerConfig.enable_prefix_caching` restores backend token agreement and
+chat/reset checks. Full-prompt prefill logits agree closely before cache reuse. This
+diagnostic does not restore llama.cpp parity or waive the failing default-cache checks.
+
+Until GenAI prefix reuse handles bidirectional image groups correctly, disable prefix
+caching for affected requests. A reusable prefix must include complete image groups and
+their media identity; cached attention states cannot be reused across changed image
+context. Validate this independently of the serializable PA image-window policy above.
+
+Use language checkpoints containing Q4_0 weights for quantized generation accuracy tests;
+inspect their tensor types because files named Q4_0 can also contain Q5_K/Q6_K weights.
+Q4_0 can still diverge on close greedy choices because the CPU engines use different
+quantized arithmetic. Keep the original llama.cpp comparison and its accuracy thresholds;
+an exact F16 expansion can help distinguish arithmetic differences from integration errors.
+Q4_K_M conversion currently has an expected accuracy loss relative to llama.cpp; it retains the existing
+conversion until the plugin-side issue is resolved. Q4_K_M differences therefore do not
+establish an mmproj integration regression.
 
 Register `GenAIExtension` before converting the language model, as described in
 [runtime.md](runtime.md#stateful-and-genai-conversion). In C++, with a `FrontEndManager manager`
@@ -155,7 +237,10 @@ and an already converted combined `mmproj` model:
 using namespace ov::frontend::gguf::pass;
 auto vision = mmproj->clone();
 auto audio = mmproj->clone();
-AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::VISION).run_on_model(vision);
+AdaptMmprojToGenAI vision_adapter(AdaptMmprojToGenAI::Modality::VISION,
+                                 AdaptMmprojToGenAI::Layout::VISION_ENCODERS);
+vision_adapter.run_on_model(vision);
+auto vision_models = vision_adapter.get_vision_models();
 AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::AUDIO).run_on_model(audio);
 auto frontend = manager.load_by_framework("gguf");
 auto genai = std::make_shared<ov::frontend::gguf::GenAIExtension>(
@@ -177,3 +262,64 @@ they do not construct tokenizers, media preprocessing, or a complete GenAI pipel
 Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) to add or replace one
 vision/audio branch under the `clip` coordinator; the [examples](../examples/architecture_extension/README.md)
 build and run one. A different whole-model format needs an `ArchitectureExtension`.
+
+## LFM2 vision projectors
+
+The `lfm2` projector supports LFM2-VL and LFM2.5-VL SigLIP encoders, resized square
+position embeddings, spatial pixel unshuffle, optional input LayerNorm and a GELU MLP.
+Native IO is `vision.pixel_values` (NCHW) plus `vision.merge_indices` (row-major indices
+grouped by each spatial merge window). The embedding adapter preserves these inputs and
+exposes `image_features`. The `VISION_ENCODERS` adapter exposes the same native pixels
+and merge-index layout for a GenAI LFM2 vision encoder.
+
+Two nonzero F32 fixtures compare raw and adapted embeddings at multiple rectangular sizes
+on one compiled model, with and without projector input normalization. LFM2-VL-450M's
+Q8_0 projector from `LiquidAI/LFM2-VL-450M-GGUF` revision
+`7cf9679aa137039135e342aa77014f7b5f2bef73` matches a represented-F32 llama.cpp CPU
+reference at 256x128 and 128x192 pixels with NMSE `1.79e-6` and `7.38e-7`. This validates
+the encoder graph, not image preprocessing, chat assembly or full multimodal generation.
+
+## LFM2 audio components
+
+The `lfm2a` audio projector supports the LFM2/LFM2.5 conformer encoder: depthwise
+subsampling, relative-position attention, half-step feed-forward branches, temporal
+convolution and the GELU language projection. Native inputs are `audio.features`
+`[1,1,mel_bins,frames]` and `audio.pos_emb`
+`[1,1,2*ceil(frames/8)-1,encoder_width]`, with interleaved sine/cosine positions.
+The audio adapter exposes `features`, `pos_emb` and `audio_features` `[1,tokens,hidden]`.
+GenAI supplies mono 16 kHz waveform preprocessing; the frontend accepts features.
+
+A pinned llama.cpp fixture checks 49/101/49 frames on one compiled model. The
+LFM2.5-Audio-1.5B Q4_0 encoder from LiquidAI revision
+`7d525f883a077e20afb782f2ff618edcae0e39e4` matches exact F32 expansions of the same
+weights with NMSE `3.81e-10` and `2.35e-9`. This is represented-F32 reference parity.
+
+LFM2.5 Audio's separate vocoder GGUF is a standalone speech-component architecture,
+`lfm2.audio_vocoder`, with `depthformer_n_layer`/`depthformer_n_embd` metadata. The
+publisher's `general.architecture` string, `this model cannot be used as LLM, use it
+via --model-vocoder in TTS examples`, is normalized to `lfm2.audio_vocoder` during
+loading for compatibility. Only the canonical name appears in the architecture catalog.
+It exposes
+`audio.depth_logits`, summed `audio.feedback`, averaged `audio.codec_features`, and
+`audio.istft_window`. Its `lfm2` detokenizer uses a 1282-channel `dense_2` spectral
+head and preserves all frames, including after GenAI adaptation. Pinned publisher
+PyTorch fixtures check depthformer outputs and detokenizer sliding-window boundaries.
+Actual Q4_0 depthformer and detokenizer represented-F32 comparisons have NMSE
+`2.62e-12` and `1.32e-9`; feedback and codec lookups match exactly.
+
+The GenAI `gguf-frontend-mmproj` integration supplies audio input through
+`VLMPipeline` and LFM2.5 speech output through `OmniPipeline`, including audio
+feedback and 24 kHz ISTFT reconstruction. Older Mimi-based LFM2 speech output
+requires a different codec and is not covered by the LFM2.5 vocoder builder.
+
+Final GenAI acceptance used the same pinned LFM2.5 audio bundle and the
+LFM2-VL-450M language/projector pair. Audio SDPA and PagedAttention each matched
+109/109 greedy reference choices over text, spoken input, multiple/reversed clips,
+audio chat and reset. Vision SDPA/PagedAttention passed seven scenarios each for
+square, JPEG and tiled inputs, including reversed images and both chat APIs.
+These are teacher-forced greedy-choice checks on the generated history, not
+strict full-logit parity or identical free-running speech reference generation.
+Speech API tests check deterministic repeated output, waveform chunk reconstruction,
+text-only output, retained audio inputs, cancellation recovery and sequential TTS.
+Speech chunks are delivered after decoding the complete waveform; low-latency
+streaming and replay of assistant codec tokens in chat history are not implemented.

@@ -142,6 +142,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_ConditionGPUTest_static/StaticConditionLayerGPUTest.CompareWithRefs/IS=\(3.6\)_netPRC=i8_ifCond=PARAM_targetDevice=GPU_.*)"),
             // Use weight from model not from path hint
             std::regex(R"(.*compile_from_weightless_blob.*)"),
+            // u3 Transpose reference implementation is not upstreamed yet (non-transposed u3 weights fold a Transpose)
+            std::regex(R"(.*MatMulCompressedWeights.*weights_precision=u3_.*transpose_weights=0_.*)"),
+            // MoE expert offload does not support per-group u3 zero points: the weights file stores them packed, the graph has them as u8
+            std::regex(R"(.*smoke_MoE3GemmCompressedOffload.*WP=u3_DS=full.*)"),
 
 #if defined(_WIN32)
             // by calc abs_threshold with expected value
@@ -164,47 +168,35 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // ----------------------------------------------------------------------  ------------------------
             // LSTMCellCommon/LSTMCellTest.Inference/decomposition0_batch=5_hidden_si  [146, 622]
             // LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hidden_si  [132, 636]
-            // smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompre  [96, 288]
             // smoke_MaxPool8_ExplicitPad_FloorRounding/MaxPoolingV8LayerTest.Inferen  [64, 128]
             // smoke_MaxPool8_ExplicitPad_CeilRounding/MaxPoolingV8LayerTest.Inferenc  [32, 64]
-            // MatMulCompressedWeights_corner_cases_big/MatmulWeightsDecompression.In  [22, 362]
-            // smoke_MatMulCompressedWeights_basic/MatmulWeightsDecompression.Inferen  [16, 44]
-            // smoke_MatmulAndGatherSharedWeightsDecompression/SharedMatmulAndGatherW  [14, 10]
             // smoke_LoRA_HorizontalFusion/FullyConnectedHorizontalFusion.Inference/d  [12, 0]
             // smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition0_batch=5_hid  [8, 56]
             // smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hid  [8, 56]
             // smoke_Decomposition_3D/Mvn6LayerTest.Inference/IS=([])_TS={(1.37.9)}_M  [2, 46]
-            // smoke_MatmulWeightsDecompressionQuantizeConvolution_basic/MatmulWeight  [2, 10]
-            // smoke_MatMulCompressedWeights_dyn_quan/MatmulWeightsDecompression.Infe  [2, 4]
-            // smoke_MatMul_NoTranspose/MatMulLayerTest.Inference/IS=([]_[])_TS={(1.2  [2, 2]
             // smoke_static_conv_n_dynamic_concat/ConvStaticConcatDynamicGPUTestDynam  [2, 0]
             // LSTMSequenceCM/LSTMSequenceGPUTest.Inference/mode=PURE_SEQ_seq_lengths  [2, 0]
-            // smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled/GroupConvo  [2, 0]
             // LSTMSequenceCommonZeroClip/LSTMSequenceGPUTest.Inference/mode=CONVERT_  [1, 323]
             // LSTMSequenceCommonZeroClip/LSTMSequenceGPUTest.Inference/mode=PURE_SEQ  [1, 323]
             // smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netP  [1, 63]
-            // smoke_FC_3D/MatMulLayerGPUTest.Inference/IS=[]_[]_TS=((1.429))_((1.429  [1, 1]
             // Inference_without_convert/BF16WeightsDecompression.Inference_without_c  [1, 1]
             // smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest.  [1, 0]
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompre.*)"));
             patterns.push_back(std::regex(R"(.*smoke_MaxPool8_ExplicitPad_FloorRounding/MaxPoolingV8LayerTest.Inferen.*)"));
             patterns.push_back(std::regex(R"(.*smoke_MaxPool8_ExplicitPad_CeilRounding/MaxPoolingV8LayerTest.Inferenc.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/MatmulWeightsDecompression.Inferen.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatmulAndGatherSharedWeightsDecompression/SharedMatmulAndGatherW.*)"));
             patterns.push_back(std::regex(R"(.*smoke_LoRA_HorizontalFusion/FullyConnectedHorizontalFusion.Inference/d.*)"));
             patterns.push_back(std::regex(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition0_batch=5_hid.*)"));
             patterns.push_back(std::regex(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hid.*)"));
             patterns.push_back(std::regex(R"(.*smoke_Decomposition_3D/Mvn6LayerGPUTest.Inference/IS=.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic/MatmulWeight.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan/MatmulWeightsDecompression.Infe.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatMul_NoTranspose/MatMulLayerTest.Inference/IS=.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled/GroupConvo.*)"));
             patterns.push_back(std::regex(R"(.*smoke_static_conv_n_dynamic_concat/ConvStaticConcatDynamicGPUTestDynam.*)"));
             patterns.push_back(std::regex(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=(f16|f32)_.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_FC_3D/MatMulLayerGPUTest.Inference/.*)"));
             patterns.push_back(std::regex(R"(.*smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest..*)"));
-            patterns.push_back(std::regex(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_Nms9LayerTest/Nms9LayerTest.Inference/num_batches=2_num_boxes=50.*)"));
+            // oneDNN FC: grouped scales with group_size not aligned to 16 are rejected
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/.*group_size=4_weights_precision=(u8|u4|i4|u3)_.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[16,32\]_group_size=2_weights_precision=(u8|u4|i4|u3)_.*)"));
+            // 3/4-bit constant weights with odd K: no kernel for padding_reorder_for_constant
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_basic/.*weights_shape=\[377,335\]_group_size=1111_weights_precision=(u4|i4|u3)_.*)"));
+            // Non-transposed u4 weights + per-token dynamic quantization: no kernel found
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan/.*transpose_weights=0_.*_dyn_quan_group_size=9223372036854775807_.*)"));
         } else {
             // CVS-172342
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)"));
