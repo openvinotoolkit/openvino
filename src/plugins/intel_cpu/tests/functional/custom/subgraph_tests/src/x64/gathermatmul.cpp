@@ -27,9 +27,9 @@ const std::vector<MoeTestShapeParams> moe_params_smoke = {
 };
 
 // More experts than top-k and longer, varying sequences: each expert receives a different number of rows
-// (some none), and the row count changes between inferences. With bf16 on AMX hardware every expert then
-// runs a GEMM of its own height, so these cases cover several GEMM sizes inside one node, an expert whose
-// rows differ between experts, and a single-row input (GEMV) following a multi-row one.
+// (some none), and the row count changes between inferences. Every expert with at least four routed rows then
+// runs a GEMM of its own height and the others run GEMV, so these cases cover several GEMM sizes inside one
+// node, experts whose rows differ, and a single-row input (GEMV) following a multi-row one.
 const std::vector<MoeTestShapeParams> moe_params_uneven_routing = {
     {
         {{-1, -1, 256}, {{1, 96, 256}, {1, 1, 256}, {1, 40, 256}, {2, 64, 256}}},  // data_shape
