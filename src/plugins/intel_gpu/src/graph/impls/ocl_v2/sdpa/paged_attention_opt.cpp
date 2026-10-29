@@ -265,22 +265,22 @@ inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_par
     if (stage != PagedAttentionStage::MIXED || !supports_gqa_multi_tokens_fallback_kernel(params))
         return GQAMultiTokensKernel::NONE;
 
-    // pa_small_q_opt.cl reads the K page d-major only, and the fallback stage is not built where the DPAS
-    // kernel is supported, so a token-major K page (either layout) stays on the regular MIXED readers.
-    if (get_k_token_major(params) || is_by_channel_tm_page(params))
-        return GQAMultiTokensKernel::NONE;
-
     const auto max_tokens = get_max_gqa_multi_tokens_per_subsequence();
     const auto max_subsequence_len = get_max_subsequence_len(params);
     if (max_tokens <= 0 || max_subsequence_len > static_cast<size_t>(max_tokens))
         return GQAMultiTokensKernel::NONE;
 
+    // pa_small_q_opt.cl reads every K page layout, paged_attention_opt.cl the BY_CHANNEL page only d-major: the
+    // token-major one stays on sdpa_ocl, which by_channel_token_major_readable() guarantees for MIXED.
+    const auto fallback = is_by_channel_tm_page(params) ? GQAMultiTokensKernel::NONE : GQAMultiTokensKernel::FALLBACK;
     const auto forced = get_forced_gqa_multi_tokens_kernel();
-    if (forced == GQAMultiTokensKernel::NONE || forced == GQAMultiTokensKernel::FALLBACK)
-        return *forced;
+    if (forced == GQAMultiTokensKernel::NONE)
+        return GQAMultiTokensKernel::NONE;
+    if (forced == GQAMultiTokensKernel::FALLBACK)
+        return fallback;
 
     if (!supports_gqa_multi_tokens_dpas_kernel(params))
-        return GQAMultiTokensKernel::FALLBACK;
+        return fallback;
 
     if (forced != GQAMultiTokensKernel::SMALL_Q && prefer_gqa_multi_tokens_fallback_kernel(max_subsequence_len, get_max_context_len(params)))
         return GQAMultiTokensKernel::FALLBACK;
@@ -914,6 +914,10 @@ public:
         auto jit = PagedAttentionGeneratorMultiTokens::get_jit_constants(params);
         jit.make("TOKENS_PER_SG", get_gqa_multi_tokens_per_sg(params));
         jit.make("SINGLE_KV_SLM", 1);
+        // This kernel reads both token-major K pages; the base jits IS_KEY_TOKEN_MAJOR under the paged_attention_opt.cl name.
+        jit.remove("IS_KEY_TOKEN_MAJOR");
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "small_q") ? 1 : 0);
+        jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", is_by_channel_tm_page(params) ? 1 : 0);
         return jit;
     }
 
@@ -2077,16 +2081,17 @@ public:
             rt_params->use_gqa_kernel = false;
         }
 
-        // The token-major BY_CHANNEL K page has two readers here: sdpa_ocl for MIXED and sdpa_ocl_decode
-        // for GENERATE. transformations_pipeline.cpp only creates it when
+        // The token-major BY_CHANNEL K page has two readers here: sdpa_ocl for MIXED (or pa_small_q_opt.cl for its small
+        // queries) and sdpa_ocl_decode for GENERATE. transformations_pipeline.cpp only creates it when
         // paged_attention::by_channel_token_major_readable() promises both get chosen; if a gate refused
         // anyway (the two drifted apart, or add_stage() swallowed a decode codegen failure), the d-major
         // fallback would silently return garbage, so stop here instead.
         if (is_by_channel_tm_page(params)) {
+            const bool small_q_reads_page = rt_params->use_gqa_kernel && rt_params->gqa_multi_tokens_kernel == GQAMultiTokensKernel::SMALL_Q;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            const bool mixed_reads_page = rt_params->use_micro_sdpa && dpas_backend(PagedAttentionStage::MIXED) == DpasBackend::ocl;
+            const bool mixed_reads_page = small_q_reads_page || (rt_params->use_micro_sdpa && dpas_backend(PagedAttentionStage::MIXED) == DpasBackend::ocl);
 #else
-            const bool mixed_reads_page = false;
+            const bool mixed_reads_page = small_q_reads_page;
 #endif
             const bool generate_ok = rt_params->stage != PagedAttentionStage::GENERATE || rt_params->use_ocl_decode;
             const bool mixed_ok = rt_params->stage != PagedAttentionStage::MIXED || mixed_reads_page;

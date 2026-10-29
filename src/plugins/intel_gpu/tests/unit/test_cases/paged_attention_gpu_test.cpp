@@ -1582,6 +1582,9 @@ private:
 
         const bool int4 = pam->is_int4_kv_cache();
         const bool key_by_token = p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_TOKEN;
+        // Token-major pages (k_cache_token_major()): an uncompressed K row is [block_size][head_size], and the u4 V page
+        // keeps its per-token scale/zp in trailing arrays. The by-token K comp follows the data in both layouts.
+        const bool token_major = pam->k_cache_token_major();
         const size_t bs = p.block_size, kv_heads = p.num_kv_heads, kh = p.k_head_size, vh = p.v_head_size;
         for (size_t i = 0; i < p.subsequences.size(); ++i) {
             const size_t valid_rows = static_cast<size_t>(p.subsequences[i].past_len + p.subsequences[i].num_tokens) % bs;
@@ -1594,7 +1597,7 @@ private:
                     // key: [blocks, kv_heads, head_size (+ per-token scale/zp), block_size]
                     if (!p.kv_cache_compression) {
                         for (size_t d = 0; d < kh; ++d)
-                            put_nan(k.data(), ((block_head * kh + d) * bs + t) * f16);
+                            put_nan(k.data(), (token_major ? (block_head * bs + t) * kh + d : (block_head * kh + d) * bs + t) * f16);
                     } else if (key_by_token) {
                         const size_t data_rows = int4 ? kh / 2 : kh;
                         put_nan(k.data(), block_head * (data_rows + 2 * f16) * bs + data_rows * bs + t * f16);
@@ -1604,7 +1607,9 @@ private:
                         for (size_t d = 0; d < vh; ++d)
                             put_nan(v.data(), ((block_head * bs + t) * vh + d) * f16);
                     } else if (int4) {
-                        put_nan(v.data(), (block_head * bs + t) * (vh / 2 + 2 * f16) + vh / 2);
+                        put_nan(
+                            v.data(),
+                            token_major ? block_head * bs * (vh / 2 + 2 * f16) + bs * vh / 2 + t * f16 : (block_head * bs + t) * (vh / 2 + 2 * f16) + vh / 2);
                     } else {
                         put_nan(v.data(), block_head * bs * (vh + 2 * f16) + bs * vh + t * f16);
                     }
@@ -1627,8 +1632,13 @@ private:
 };
 
 // Speculative decoding MIXED step with GQA: subsequences of at most 16 query tokens go to pa_small_q_opt.cl on DPAS
+<<<<<<< HEAD
 // platforms when the KV group size divides 8 and query tokens x context is large enough, otherwise to the GQA
 // multi-token path of paged_attention_opt.cl.
+=======
+// platforms when the KV group size divides 8, otherwise to the GQA multi-token path of paged_attention_opt.cl -- or to
+// sdpa_ocl for the token-major BY_CHANNEL K page, which that path cannot read.
+>>>>>>> 3e77605067 (pa_small_q_opt: read the token-major K/V pages sdpa_ocl uses, so small GQA MIXED steps no longer leave them for sdpa_ocl)
 class paged_attention_gqa_multi_tokens_test : public paged_attention_gqa_multi_tokens_test_base {};
 TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
     auto p = GetParam();
@@ -1649,7 +1659,8 @@ TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
         max_context_len = std::max(max_context_len, static_cast<size_t>(s.past_len + s.num_tokens));
     }
     const bool prefer_fallback = max_tokens * max_tokens * max_context_len <= 64 * 1024;
-    const std::string expected_kernel = expect_dpas && !prefer_fallback ? "pa_small_q_opt" : "_gqa_multi_tokens_fallback";
+    const bool by_channel_tm_page = p.kv_cache_compression && p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL && pam.k_cache_token_major();
+    const std::string expected_kernel = expect_dpas && !prefer_fallback ? "pa_small_q_opt" : by_channel_tm_page ? "sdpa_ocl_mixed" : "_gqa_multi_tokens_fallback";
     auto pa_inst = result.network->get_primitive("paged_attention");
     ASSERT_NE(pa_inst, nullptr);
     const auto entries = pa_inst->get_impl()->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
@@ -1752,6 +1763,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens, paged_attention
     // Controls: a single partition, and enough subgroups for every head
     make_gqa_multi_tokens_params({{8, 35}}, 6, 2, 32),
     make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 64),
+
+    // Sharp softmax per cache layout: with the plain data a misread K or a permuted V head dim stays within tolerance.
+    // Token-major pages on Xe2: u4 / i8 BY_CHANNEL by default, f16 / i8 BY_TOKEN with OV_GPU_PA_K_TOKEN_MAJOR=1.
+    sharp_softmax(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128)),
+    sharp_softmax(make_gqa_multi_tokens_params({{8, 35}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN)),
+    sharp_softmax(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL)),
+    sharp_softmax(make_gqa_multi_tokens_params({{8, 291}}, 8, 2, 128, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
+    sharp_softmax(make_gqa_multi_tokens_params({{16, 40}}, 4, 2, 64, ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL)),
 }));
 
 // Accuracy-only coverage for the default-mode GQA multi-token decode path. Unlike

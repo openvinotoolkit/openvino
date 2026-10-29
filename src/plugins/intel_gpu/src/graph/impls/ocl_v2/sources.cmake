@@ -159,6 +159,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_reorder_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_rotate_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_cache_update_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/pa_small_q_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_attention_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net_opt.cl
