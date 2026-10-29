@@ -27,7 +27,9 @@ class ReshapeToStaticGQA : public ov::pass::ModelPass {
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::ReshapeToStaticGQA");
-    // `sliding_window_headroom` is the minimum extra capacity past the window (e.g. a shared prefill chunk).
+    // `sliding_window_size`: configured window size based on NPUW_LLM_SWA_LEN, overrides the GQA op attribute.
+    // `sliding_window_headroom`: configured KV-cache capacity added on top of the window size,
+    // overrides the query length.
     explicit ReshapeToStaticGQA(size_t max_seq_len,
                                 std::optional<size_t> sliding_window_size = std::nullopt,
                                 std::optional<size_t> sliding_window_headroom = std::nullopt);

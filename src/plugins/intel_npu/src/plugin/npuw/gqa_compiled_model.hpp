@@ -149,7 +149,7 @@ private:
         // Static KV-cache capacity actually used to reshape the model; stripped from the
         // inner CompiledModel's properties, so this is the only way to read it back.
         uint32_t effective_max_context_len = 0;
-        // Resolved sliding-window fallback length (see resolve_default_sliding_window_length()),
+        // Resolved sliding-window fallback length (see resolve_default_sliding_window_size()),
         // 0 if NPUW_LLM_SWA_LEN wasn't configured. Also stripped from the inner
         // CompiledModel's properties.
         uint32_t effective_sliding_window_length = 0;

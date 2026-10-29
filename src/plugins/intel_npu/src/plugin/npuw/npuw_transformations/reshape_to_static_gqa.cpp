@@ -102,9 +102,9 @@ std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::sh
 }
 
 // `sliding_window_cache=true` layers physically evict/repack their KV-cache ring buffer,
-// so they need their own, smaller static capacity derived from `local_window_size`
-// instead of the model-wide max_seq_len.
-//
+// so they need their own static capacity instead of the model-wide max_seq_len.
+// The capacity is align16(window size) + align16(headroom size), using user-provided or deduced values.
+
 std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::GroupQueryAttention& gqa,
                                                      std::optional<size_t> sliding_window_size,
                                                      std::optional<size_t> sliding_window_headroom) {
@@ -115,7 +115,7 @@ std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::Gro
 
     // Decide window size
     std::optional<int64_t> window = std::nullopt;
-    // Window P1. Use user-provided sliding_window_headroom if available
+    // Window P1. Use user-provided sliding_window_size if available
     if (sliding_window_size.has_value()) {
         window = static_cast<int64_t>(*sliding_window_size);
         const int64_t op_window = gqa.get_local_window_size();
@@ -128,9 +128,8 @@ std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::Gro
     if (!window.has_value() && gqa.get_local_window_size() != -1) {
         window = gqa.get_local_window_size();
     }
-    // Window P3. Ensure window has a value, fallback to default if necessary
+    // Window P3. No window source is available: return nullopt so the caller falls back to other capacity sources
     if (!window.has_value()) {
-        // if no sliding_window_size or local_window_size is available, we cannot determine a target capacity
         return std::nullopt;
     }
 
@@ -140,16 +139,17 @@ std::optional<size_t> sliding_window_target_capacity(const ov::op::internal::Gro
     if (sliding_window_headroom.has_value()) {
         headroom = static_cast<int64_t>(*sliding_window_headroom);
     }
-    // Headroom P2. Use the query sequence length as additional headroom if available.
-    // Skip this in the Generate case when query length is 1
-    const auto& query_shape = gqa.get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
-    if (!headroom.has_value() && query_shape.rank().is_static() && query_shape.size() > 2 &&
-        query_shape[2].is_static() && query_shape[2].get_length() > 1) {
-        headroom = query_shape[2].get_length();
-    }
-    // Headroom P3. Fallback to a default headroom if none was determined
+    // Headroom P2. Use the static query sequence length if available.
+    // Skip this in the Generate case (length 1) and for dynamic length.
     if (!headroom.has_value()) {
-        // Default window size set by Property value if no other sources are available
+        const auto& query_shape = gqa.get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
+        if (query_shape.rank().is_static() && query_shape.size() > 2 && query_shape[2].is_static() &&
+            query_shape[2].get_length() > 1) {
+            headroom = query_shape[2].get_length();
+        }
+    }
+    // Headroom P3. Default to 512 tokens if neither a configured value nor a query length is available
+    if (!headroom.has_value()) {
         headroom = 512;
     }
 
