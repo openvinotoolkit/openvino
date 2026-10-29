@@ -99,7 +99,9 @@ protected:
         });
         if (params.has_fused_primitives()) {
             const auto& out_l = params.output_layouts[0];
-            const std::vector<std::string> idx_order = {"out_b", "out_f", "n", "0"};
+            const std::vector<std::string> idx_order = out_l.get_partial_shape().size() == 2
+                ? std::vector<std::string>{"bm", "n", "0", "0"}
+                : std::vector<std::string>{"out_b", "out_f", "n", "0"};
             FusedOpsConfiguration conf = {"", idx_order, "dequantized", out_l.data_type};
             jit.add(make_fused_ops_jit_constants(params, {conf}));
         }

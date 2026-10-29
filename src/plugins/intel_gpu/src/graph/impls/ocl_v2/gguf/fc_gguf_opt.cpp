@@ -498,11 +498,12 @@ protected:
 
         // SwiGLU / residual eltwise + activation fused onto this FC apply at output-write time, so the
         // dequantized GEMV result `dequantized` is post-processed in registers (no separate kernels,
-        // no unfused subgraph, output stays in the reusable memory pool). The idx order matches
-        // gguf_output_index(): BM -> (out_b, out_f), n -> channel(y) axis.
+        // no unfused subgraph, output stays in the reusable memory pool).
         if (params.has_fused_primitives()) {
             const auto& out_l = params.output_layouts[0];
-            const std::vector<std::string> idx_order = {"out_b", "out_f", "n", "0"};
+            const std::vector<std::string> idx_order = out_l.get_partial_shape().size() == 2
+                ? std::vector<std::string>{"bm", "n", "0", "0"}
+                : std::vector<std::string>{"out_b", "out_f", "n", "0"};
             FusedOpsConfiguration conf = {"", idx_order, "dequantized", out_l.data_type};
             jit.add(make_fused_ops_jit_constants(params, {conf}));
         }
