@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <chrono>
-#include <iostream>
 #include <vector>
 
 #include "intel_gpu/primitives/grid_sample.hpp"
@@ -724,52 +722,21 @@ struct grid_sample_border_compare : public grid_sample_gpu_test<TD, TG> {
             topology.add(reorder(output_id, input_info("grid_sample"), format::bfyx, data_type));
         }
 
-        auto execute = [&](const std::string& kernel_name, double& average_time_us) {
+        auto execute = [&](const std::string& kernel_name) {
             auto config = get_test_default_config(engine);
-            config.set_property(ov::enable_profiling(true));
-            if (!kernel_name.empty()) {
-                config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-                    {"grid_sample", {fmt, kernel_name, impl_types::ocl}}}));
-            }
-            auto profiling_stream = engine.create_stream(config);
-            auto network = get_network(engine, topology, config, profiling_stream, is_caching_test);
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"grid_sample", {fmt, kernel_name, impl_types::ocl}}}));
+            auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
             const auto implementation = network->get_primitive("grid_sample")->get_impl();
             EXPECT_NE(implementation, nullptr);
             if (implementation != nullptr) {
-                if (kernel_name.empty()) {
-                    std::cout << "Default kernel: " << implementation->get_kernel_name() << std::endl;
-                } else {
-                    EXPECT_EQ(implementation->get_kernel_name(), kernel_name);
-                }
+                EXPECT_EQ(implementation->get_kernel_name(), kernel_name);
             }
             network->set_input_data("data", data);
             network->set_input_data("grid", grid);
-            constexpr size_t warmup_iterations = 5;
-            constexpr size_t measurement_iterations = 20;
-            for (size_t iteration = 0; iteration < warmup_iterations; ++iteration) {
-                network->execute();
-                profiling_stream->finish();
-            }
-            average_time_us = 0.0;
-            for (size_t iteration = 0; iteration < measurement_iterations; ++iteration) {
-                network->execute();
-                const auto kernel_event = network->get_primitive_event("grid_sample");
-                kernel_event->wait();
-                bool has_execution_time = false;
-                for (const auto& interval : kernel_event->get_profiling_info()) {
-                    if (interval.stage == instrumentation::profiling_stage::executing) {
-                        average_time_us += std::chrono::duration<double, std::micro>(interval.value->value()).count();
-                        has_execution_time = true;
-                    }
-                }
-                EXPECT_TRUE(has_execution_time) << "Missing GPU execution time for "
-                                                << (kernel_name.empty() ? "default kernel" : kernel_name);
-                profiling_stream->finish();
-            }
-            average_time_us /= measurement_iterations;
             const auto outputs = network->execute();
             auto output = outputs.at(output_id).get_memory();
-            cldnn::mem_lock<TD, mem_lock_type::read> output_ptr(output, *profiling_stream);
+            cldnn::mem_lock<TD, mem_lock_type::read> output_ptr(output, get_test_stream());
             std::vector<float> values(output_ptr.size());
             for (size_t index = 0; index < values.size(); ++index) {
                 values[index] = static_cast<float>(output_ptr[index]);
@@ -777,34 +744,27 @@ struct grid_sample_border_compare : public grid_sample_gpu_test<TD, TG> {
             return values;
         };
 
-        double default_time_us = 0.0;
-        double reference_time_us = 0.0;
-        const auto default_output = execute("", default_time_us);
-        const auto reference = execute("grid_sample_ref", reference_time_us);
-        std::cout << "grid_sample_default: " << default_time_us << " us; grid_sample_ref: "
-                  << reference_time_us << " us (mean of 20 GPU executions)" << std::endl;
-        if (default_time_us > reference_time_us) {
-            std::cout << "PERF DROP!!!" << std::endl;
-        }
+        const auto optimized = execute("grid_sample_opt_bilinear");
+        const auto reference = execute("grid_sample_ref");
         const size_t expected_size = static_cast<size_t>(params.data_shape[0]) * params.data_shape[1] *
                                      params.grid_shape[1] * params.grid_shape[2];
-        ASSERT_EQ(default_output.size(), expected_size);
+        ASSERT_EQ(optimized.size(), expected_size);
         ASSERT_EQ(reference.size(), expected_size);
         const float tolerance = data_type == ov::element::f16 ? 0.01f : 0.001f;
         for (size_t index = 0; index < expected_size; ++index) {
-            ASSERT_NEAR(default_output[index], reference[index], tolerance)
-                << "Output index: " << index << ", default: " << default_output[index] << ", reference: " << reference[index];
+            ASSERT_NEAR(optimized[index], reference[index], tolerance)
+                << "Output index: " << index << ", optimized: " << optimized[index] << ", reference: " << reference[index];
         }
     }
 };
 
 using grid_sample_border_compare_float = grid_sample_border_compare<float, float>;
-TEST_P(grid_sample_border_compare_float, default_matches_ref) {
+TEST_P(grid_sample_border_compare_float, opt_matches_ref) {
     ASSERT_NO_FATAL_FAILURE(compare());
 }
 
 using grid_sample_border_compare_half = grid_sample_border_compare<ov::float16, ov::float16>;
-TEST_P(grid_sample_border_compare_half, default_matches_ref) {
+TEST_P(grid_sample_border_compare_half, opt_matches_ref) {
     ASSERT_NO_FATAL_FAILURE(compare());
 }
 
