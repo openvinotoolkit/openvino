@@ -7,6 +7,7 @@ from openvino.opset17.ops import bgr_to_nv12
 from openvino.opset17.ops import erfinv
 from openvino.opset17.ops import grouped_matmul
 from openvino.opset17.ops import rgb_to_nv12
+from openvino.opset17.ops import histc
 
 # Operators from previous opsets
 # TODO (ticket: 179247): Add previous opset operators at the end of opset17 development
