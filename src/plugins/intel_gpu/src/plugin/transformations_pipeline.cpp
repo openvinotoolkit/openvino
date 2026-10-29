@@ -1877,6 +1877,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // the whole model if a linear-attention block is detected.
             const bool use_gs128_for_linear_attention = is_hybrid_linear_attention_model(*func);
             const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2;
+            // oneDNN has int8-activation kernels for u2 weights only on Xe3 so far
+            const bool u2_int8_activations = m_context->get_engine().get_device_info().arch == cldnn::gpu_arch::xe3;
+            const uint64_t dynamic_quantization_threshold = config.get_dynamic_quantization_threshold();
 
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
@@ -1901,6 +1904,25 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
                 }
+                if (root->get_input_element_type(1) == ov::element::u2 && !u2_int8_activations) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: no int8-activation kernels for u2 weights on this device" << std::endl;
+                    return true;
+                }
+                // Small batches are skipped at runtime (dynamic_quantization_threshold), but only for dynamic shapes:
+                // in a statically shaped model, e.g. a separate decode model, the activations would always be
+                // quantized. u2 has int8-activation kernels for prefill-sized batches only, so keep f16 there.
+                if (root->get_input_element_type(1) == ov::element::u2) {
+                    const auto& act_shape = root->get_input_partial_shape(0);
+                    if (act_shape.is_static() && act_shape.size() >= 2) {
+                        const auto rows = ov::shape_size(act_shape.to_shape()) / act_shape.to_shape().back();
+                        if (rows <= dynamic_quantization_threshold) {
+                            GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: static batch " << rows
+                                            << " is below the dynamic quantization threshold" << std::endl;
+                            return true;
+                        }
+                    }
+                }
+
                 uint64_t adj_group_size = dynamic_quantization_group_size;
                 const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
                 if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size, use_gs128_for_linear_attention)) {

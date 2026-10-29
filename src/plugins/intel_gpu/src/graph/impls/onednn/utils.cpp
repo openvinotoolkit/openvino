@@ -6,6 +6,7 @@
 
 #include <oneapi/dnnl/dnnl_debug.h>
 
+#include <algorithm>
 #include <numeric>
 
 namespace cldnn {
@@ -119,6 +120,43 @@ dnnl::memory::format_tag get_default_data_format(const cldnn::layout& l) {
     }
 }
 
+int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size_t weights_rank) {
+    const auto& pshape = param_layout.get_partial_shape();
+    const auto rank = static_cast<int64_t>(pshape.size());
+    // 1D [N] holds only OC; point past it so get_dim() hits the padded 1 (one IFM group).
+    if (rank <= 1)
+        return rank;
+    const auto logical_rank = std::min<int64_t>(rank, std::max<int64_t>(2, static_cast<int64_t>(weights_rank)));
+    // Extra dims are either legacy trailing padding (all 1) or leading broadcast dims.
+    const bool trailing_padded = std::all_of(pshape.begin() + logical_rank, pshape.end(), [](const ov::Dimension& d) {
+        return d.is_static() && d.get_length() == 1;
+    });
+    const int64_t base = trailing_padded ? 0 : rank - logical_rank;
+    return std::max<int64_t>(0, base + (transpose_b_param ? logical_rank - 1 : logical_rank - 2));
+}
+
+int64_t get_compressed_weights_rank(const layout& weights_layout) {
+    const auto& shape = weights_layout.get_partial_shape();
+    const auto rank = std::count_if(shape.begin(), shape.end(), [](const ov::Dimension& d) {
+        return d.get_length() > 1;
+    });
+    return std::max<int64_t>(2, rank);
+}
+
+std::pair<int64_t, int64_t> get_scale_groups(const layout& weights_layout,
+                                             const layout& scale_layout,
+                                             bool weights_transposed,
+                                             bool transpose_b_scale) {
+    const auto weights_rank = get_compressed_weights_rank(weights_layout);
+    const int64_t ifm = weights_layout.get_dim(weights_transposed ? weights_rank - 1 : weights_rank - 2);
+    const int64_t ngroups = scale_layout.get_dim(get_ifm_dim_idx(scale_layout, transpose_b_scale, weights_rank));
+    return {ngroups, ngroups != 0 ? ifm / ngroups : ifm};
+}
+
+bool is_supported_scale_group(int64_t ngroups, int64_t group_size) {
+    return group_size == 1 || ngroups == 1 || group_size % 16 == 0;
+}
+
 dnnl::memory::format_tag convert_gemm_data_format(dnnl::memory::dims dims, format target) {
     if (dims.size() == target.dimension()) {
         auto tag = convert_data_format(target);
@@ -178,6 +216,8 @@ dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         return dnnl::memory::data_type::s4;
     case cldnn::data_types::u4:
         return dnnl::memory::data_type::u4;
+    case cldnn::data_types::u2:
+        return dnnl::memory::data_type::u2;
     case cldnn::data_types::f4e2m1:
         return dnnl::memory::data_type::f4_e2m1;
     case cldnn::data_types::f8e4m3:
@@ -300,6 +340,8 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
     }
 
     switch (desc.get_data_type()) {
+    case dnnl::memory::data_type::u2:
+        return offset / 4;
     case dnnl::memory::data_type::s4:
     case dnnl::memory::data_type::u4:
     case dnnl::memory::data_type::f4_e2m1:
