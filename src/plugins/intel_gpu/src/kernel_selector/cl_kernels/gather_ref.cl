@@ -96,18 +96,6 @@ KERNEL(gather_ref)(
     }
 	// Variable val for fused ops
 	OUTPUT_TYPE val = TO_OUTPUT_TYPE(val_compute);
-#elif INPUT0_IS_F8E4M3
-    // fp8 is a 1-byte struct with no arithmetic/decode overloads; Gather just moves data by index,
-    // so copy the raw byte directly (ACTIVATION/TO_OUTPUT_TYPE won't compile on the struct). An
-    // out-of-range index yields a zero fp8 byte, mirroring the generic bounds check below.
-    #if GATHER_AXIS_SHAPE_INFO_INDEX
-        bool in_range = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < shape_info[GATHER_AXIS_SHAPE_INFO_INDEX]);
-    #elif AXIS_DIM
-        bool in_range = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < AXIS_DIM);
-    #else
-        bool in_range = true;
-    #endif
-    output[output_idx] = in_range ? dictionary[dictionary_idx] : INPUT0_VAL_ZERO;
 #else
     #if GATHER_AXIS_SHAPE_INFO_INDEX
         INPUT0_COMPUTE_TYPE val_compute = (INPUT_AXIS_INDEX >= 0 && INPUT_AXIS_INDEX < shape_info[GATHER_AXIS_SHAPE_INFO_INDEX]) ? DECODE_INPUT0_COMPUTE_TYPE(dictionary[dictionary_idx]) : 0;
@@ -120,10 +108,7 @@ KERNEL(gather_ref)(
 	INPUT0_TYPE val = TO_INPUT0_TYPE(val_compute);
 #endif
 
-#if INPUT0_IS_F8E4M3
-    // Output already written above; fp8 gather never carries fused ops (blocked in
-    // prepare_primitive_fusing.cpp since ACTIVATION/FUSED_OPS don't compile on the fp8 struct).
-#elif HAS_FUSED_OPS
+#if HAS_FUSED_OPS
     FUSED_OPS;
     output[output_idx] = FUSED_OPS_RESULT;
 #else

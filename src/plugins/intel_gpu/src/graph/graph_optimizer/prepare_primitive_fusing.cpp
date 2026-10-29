@@ -1039,6 +1039,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            (!lo.has_all_enabled_onednn_impls_optimization_attribute() ||
                              in_dt_is_i8_u8 || !out_dt_is_i8_u8);
 
+            should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt() && input_data.get_output_layout().data_type != data_types::f8e4m3;
+
             should_fuse |= input_data.is_type<gather_nd>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gather_elements>() && quantize_node.get_scale_shift_opt();
