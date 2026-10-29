@@ -575,7 +575,8 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     // Allocation-time and execution-time micro/non-micro decisions must agree; a mismatch shows up
     // as the wrong buffer count. MIXED with token_type_ids stays on the DPAS kernel only where that is
     // sdpa_ocl, which implements the bidirectional mask; sdpa_micro leaves it to pa_multi_token.
-    const bool micro_layout = tests::expected_dpas_backend(engine, true, 64) == tests::dpas_backend::ocl;
+    // token_type_ids makes it a PA_FEATURES op on xe_hpg.
+    const bool micro_layout = tests::expected_dpas_backend(engine, true, 64, tests::pa_hpg_tiers(true)) == tests::dpas_backend::ocl;
     ASSERT_EQ(intermediate_mems.size(), micro_layout ? 4u : 7u);
 }
 TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) {

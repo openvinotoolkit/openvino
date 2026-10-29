@@ -6,7 +6,23 @@
 
 #include "dpas_backend_test_helper.h"
 
-class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
+namespace {
+// The HpgTier bits of the PA primitive run_gpu_inference() builds for `p` (see tests::pa_hpg_tiers).
+uint32_t pa_hpg_tiers(const paged_attention_test_params& p) {
+    const bool token_type_ids = p.token_type_ids.has_value() || p.empty_token_type_ids || (p.has_sink_input && p.force_flashattn_v2);
+    const bool features = p.has_sink_input || token_type_ids || p.has_qq_bias || p.sliding_window_size != 0 || p.k_head_size != p.v_head_size ||
+                          p.runtime_scale_multiplier.has_value();
+    auto cache = tests::pa_cache::f16;
+    if (p.kv_cache_precision == ov::element::u4 || p.kv_cache_precision == ov::element::i4) {
+        cache = tests::pa_cache::u4;
+    } else if (p.kv_cache_compression) {
+        cache = p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL ? tests::pa_cache::i8_by_channel : tests::pa_cache::i8_by_token;
+    }
+    return tests::pa_hpg_tiers(features, cache);
+}
+}  // namespace
+
+class paged_attention_test: public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_test, basic) {
     auto p = GetParam();
 
@@ -21,7 +37,7 @@ class paged_attention_u4_mixed_micro_test : public PagedAttentionTest<paged_atte
 
 TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
     auto p = GetParam();
-    const auto backend = tests::expected_dpas_backend(tests::get_test_engine(), true, p.k_head_size);
+    const auto backend = tests::expected_dpas_backend(tests::get_test_engine(), true, p.k_head_size, pa_hpg_tiers(p));
     if (backend == tests::dpas_backend::none)
         GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl / sdpa_micro) on this device";
 
@@ -296,8 +312,8 @@ namespace {
 // The suite only means something where sdpa_ocl serves PREFILL / MIXED; elsewhere the multi-token kernel is
 // sdpa_micro or pa_sdpa_opt, which have their own padding handling. The lane alone is not enough: xe_hpg with
 // TEST_USE_SDPA_OCL_HPG=1 and no tier ready is on the lane, yet every op still runs sdpa_micro.
-bool sdpa_ocl_serves_prefill_mixed(size_t k_head_size = 64) {
-    return tests::expected_dpas_backend(tests::get_test_engine(), true, k_head_size) == tests::dpas_backend::ocl;
+bool sdpa_ocl_serves_prefill_mixed(size_t k_head_size = 64, uint32_t hpg_tiers = 0) {
+    return tests::expected_dpas_backend(tests::get_test_engine(), true, k_head_size, hpg_tiers) == tests::dpas_backend::ocl;
 }
 }  // namespace
 
@@ -508,10 +524,10 @@ class paged_attention_kv_head_size_uses_sdpa_ocl_test : public PagedAttentionTes
 TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
     // Where the sdpa_micro lane is the DPAS kernel, the k != v MIXED cases fall back to pa_multi_token
     // (sdpa_micro needs k == v), so there is no sdpa_ocl kernel to assert on.
-    if (!sdpa_ocl_serves_prefill_mixed())
+    auto p = GetParam();
+    if (!sdpa_ocl_serves_prefill_mixed(p.k_head_size, pa_hpg_tiers(p)))
         GTEST_SKIP() << "sdpa_ocl is not this device's DPAS kernel (pre-Xe2 without TEST_USE_SDPA_OCL_HPG=1 or a ready tier, TEST_USE_SDPA_OCL=0, or no oneDNN)";
 
-    auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
 
     auto result = run_gpu_inference(*this->pam, p);
@@ -556,7 +572,7 @@ TEST_P(paged_attention_by_channel_tm_guard_test, rejects_d_major_reader) {
         token_major_reader = cldnn::paged_attention::sdpa_ocl_decode_reader_available(info);
     } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        token_major_reader = sdpa_ocl_serves_prefill_mixed(p.k_head_size);
+        token_major_reader = sdpa_ocl_serves_prefill_mixed(p.k_head_size, pa_hpg_tiers(p));
 #endif
     }
     if (token_major_reader)
@@ -2052,7 +2068,7 @@ public:
         const bool prefill = std::all_of(p.subsequences.begin(), p.subsequences.end(), [](const SubsequenceDescriptor& s) {
             return s.past_len == 0;
         });
-        auto backend = tests::expected_dpas_backend(engine, true, p.k_head_size);
+        auto backend = tests::expected_dpas_backend(engine, true, p.k_head_size, pa_hpg_tiers(p));
         const bool int4 = p.kv_cache_precision == ov::element::u4 || p.kv_cache_precision == ov::element::i4;
         const bool by_channel_page = p.kv_cache_compression && (int4 || p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
         if (backend == tests::dpas_backend::ocl && !prefill && by_channel_page && !pam.k_cache_token_major()) {
