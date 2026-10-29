@@ -256,11 +256,21 @@ TEST(pre_post_process, postprocess_mean_scale) {
 
     auto mean_const = ov::as_type_ptr<op::v0::Constant>(mean_node->get_input_node_shared_ptr(1));
     ASSERT_NE(mean_const, nullptr);
-    EXPECT_EQ(mean_const->get_shape(), (Shape{1}));
+    EXPECT_EQ(mean_const->get_shape(), (Shape{}));
     EXPECT_EQ(mean_const->cast_vector<float>(), (std::vector<float>{1.f}));
     auto scale_const = ov::as_type_ptr<op::v0::Constant>(scale_node->get_input_node_shared_ptr(1));
     ASSERT_NE(scale_const, nullptr);
     EXPECT_EQ(scale_const->cast_vector<float>(), (std::vector<float>{0.5f}));
+}
+
+TEST(pre_post_process, postprocess_mean_scale_scalar_output) {
+    auto model = create_simple_function(element::f32, Shape{});
+    auto p = PrePostProcessor(model);
+    p.output().postprocess().mean(1.f).scale(2.f);
+    model = p.build();
+
+    EXPECT_EQ(model->get_output_shape(0), (Shape{}));
+    EXPECT_EQ(model->get_output_element_type(0), element::f32);
 }
 
 TEST(pre_post_process, postprocess_mean_scale_vector_model_layout) {

@@ -735,7 +735,8 @@ void PostStepsList::add_scale_impl(const std::vector<float>& values) {
         [values](const Output<Node>& node, PostprocessingContext& context) {
             Shape shape;
             if (values.size() == 1) {
-                shape = Shape{1};
+                // A scalar constant keeps the rank of the output, including scalar outputs.
+                shape = Shape{};
             } else {
                 shape = construct_mean_scale_shape(node, values.size(), context);
             }
@@ -758,7 +759,8 @@ void PostStepsList::add_mean_impl(const std::vector<float>& values) {
         [values](const Output<Node>& node, PostprocessingContext& context) {
             Shape shape;
             if (values.size() == 1) {
-                shape = Shape{1};
+                // A scalar constant keeps the rank of the output, including scalar outputs.
+                shape = Shape{};
             } else {
                 shape = construct_mean_scale_shape(node, values.size(), context);
             }
