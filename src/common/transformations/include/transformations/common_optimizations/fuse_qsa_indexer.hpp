@@ -32,16 +32,18 @@ namespace ov::pass {
  * RMSNorm is either the internal RMSNorm op or its decomposition
  * Multiply(Divide(x, Sqrt(Add(ReduceMean(Power(x, 2), last_axis, keep_dims), eps))), weight).
  *
- * The rewrite is applied only when the matched graph fits the QSAIndexer kernels (aligned with the
- * GPU QSAIndexerFusion limits):
- *  - query has rank 4 with static head count and head size, and raw keys have rank 3 with the
- *    same static head size; batch and sequence of query and raw keys are compatible;
- *  - RoPE is enabled: rope_cos / rope_sin have rank 3 with a static rotary dimension, and the
- *    incomplete RoPE state has rank 2; the block-key cache and incomplete keys have rank 3;
+ * The rewrite is applied only when the matched graph fits the QSAIndexer kernels. The numeric
+ * limits are defined once as QSAIndexer constants (aligned with the GPU QSAIndexerFusion limits):
+ *  - query has QSAIndexer::query_rank with static head count and head size, and raw keys have
+ *    QSAIndexer::keys_rank with the same static head size; batch and sequence of query and raw
+ *    keys are compatible;
+ *  - RoPE is enabled: rope_cos / rope_sin have QSAIndexer::rope_rank with a static rotary
+ *    dimension and the incomplete RoPE state has QSAIndexer::incomplete_rope_rank; the block-key
+ *    cache and incomplete keys have QSAIndexer::keys_rank;
  *  - both source ops use the same key_block_size and the same key length input, and
- *    SparseAttentionIndexer uses a single selection head;
+ *    SparseAttentionIndexer uses QSAIndexer::supported_num_selection_heads;
  *  - both RMSNorm weights are enabled and the query and key epsilons agree:
- *    |q_eps - k_eps| <= 1e-4 * k_eps;
+ *    |q_eps - k_eps| <= QSAIndexer::max_epsilon_relative_difference * k_eps;
  *  - SparseAttentionIndexer consumes QSAPrepare output 0 and has no index weights input;
  *  - every RMSNorm node and every QSAPrepare output has a single consumer, since all of them are
  *    replaced by QSAIndexer.
