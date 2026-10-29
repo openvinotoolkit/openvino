@@ -66,11 +66,11 @@ private:
     std::vector<size_t> m_sizes;                                   // Byte size, cached since weak_ptr may expire.
     std::vector<State> m_states;                                   // Indexed like m_constants.
     std::vector<std::shared_future<void>> m_futures;               // Indexed like m_constants.
-    std::unordered_map<const ov::Node*, size_t> m_indices;  // Constant address -> index into the vectors above.
-    size_t m_lookahead;            // Minimum number of constants kept prefetched and not released.
-    size_t m_min_bytes;            // Minimum number of prefetched-and-not-released bytes.
-    size_t m_next;                 // Index of the next constant to prefetch.
-    size_t m_in_flight;            // Number of constants currently prefetched and not released.
-    size_t m_in_flight_bytes;      // Bytes of the m_in_flight constants.
+    std::unordered_map<const ov::Node*, size_t> m_indices;         // Constant address -> index into the vectors above.
+    size_t m_lookahead;        // Minimum number of constants kept prefetched and not released.
+    size_t m_min_bytes;        // Minimum number of prefetched-and-not-released bytes.
+    size_t m_next;             // Index of the next constant to prefetch.
+    size_t m_in_flight;        // Number of constants currently prefetched and not released.
+    size_t m_in_flight_bytes;  // Bytes of the m_in_flight constants.
 };
 }  // namespace ov::util

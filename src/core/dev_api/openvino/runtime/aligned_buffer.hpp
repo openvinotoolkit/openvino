@@ -91,8 +91,8 @@ protected:
 
     virtual std::shared_future<void> hint_prefetch_async(size_t offset, size_t size) const noexcept;
     static std::shared_future<void> invoke_hint_prefetch_async(const AlignedBuffer& buffer,
-                                                                size_t offset,
-                                                                size_t size) noexcept;
+                                                               size_t offset,
+                                                               size_t size) noexcept;
 
     char* m_aligned_buffer;
     size_t m_byte_size;

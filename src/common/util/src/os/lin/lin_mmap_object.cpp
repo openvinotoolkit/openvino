@@ -127,10 +127,10 @@ class MapHolder final : public MappedMemory {
                                                         m_pending_prefetch.end(),
                                                         [](std::shared_future<void>& pending) {
                                                             return !pending.valid() ||
-                                                                pending.wait_for(std::chrono::seconds(0)) ==
-                                                                    std::future_status::ready;
+                                                                   pending.wait_for(std::chrono::seconds(0)) ==
+                                                                       std::future_status::ready;
                                                         }),
-                                        m_pending_prefetch.end());
+                                         m_pending_prefetch.end());
                 m_pending_prefetch.push_back(std::move(task));
             } catch (...) {
                 task.wait();
