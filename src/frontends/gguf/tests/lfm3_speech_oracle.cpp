@@ -32,6 +32,20 @@ std::vector<T> read(const std::filesystem::path& path) {
         throw std::runtime_error("short input " + path.string());
     return values;
 }
+constexpr size_t codebooks = 12;
+constexpr size_t codec_frames = 9;
+
+size_t validate_input_shapes(int width, size_t hidden_elements, size_t code_elements, size_t depth_code_elements) {
+    if (width <= 0 || hidden_elements % static_cast<size_t>(width) != 0)
+        throw std::runtime_error("invalid hidden state dimensions");
+    const auto frames = hidden_elements / static_cast<size_t>(width);
+    if (depth_code_elements % codebooks != 0 || depth_code_elements / codebooks < frames)
+        throw std::runtime_error("invalid depth code dimensions");
+    if (code_elements % codebooks != 0 || code_elements / codebooks < codec_frames)
+        throw std::runtime_error("invalid codec code dimensions");
+    return frames;
+}
+
 void write(const std::filesystem::path& path, const std::vector<float>& values) {
     std::ofstream file(path, std::ios::binary);
     file.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
@@ -57,6 +71,7 @@ int main(int argc, char** argv) {
     const auto codes = read<int32_t>(input / "codes.i32");
     const auto depth_codes = read<int32_t>(input / "depth_codes.i32");
     const int width = clip_n_mmproj_embd(contexts.ctx_gen_a);
+    const auto frames = validate_input_shapes(width, hidden.size(), codes.size(), depth_codes.size());
     clip_image_f32 image;
     image.set_size({1, width}, false, false);
     clip_image_f32_batch batch;
@@ -74,10 +89,11 @@ int main(int argc, char** argv) {
     params.out_feats = &features;
     params.gen_process = CLIP_GEN_PROCESS_GEN_CODE;
     for (int phase = 0; phase < 3; ++phase) {
-        for (size_t frame = 0; frame < hidden.size() / width; ++frame) {
+        for (size_t frame = 0; frame < frames; ++frame) {
             batch.entries[0].cpy_buf(
                 std::vector<float>(hidden.begin() + frame * width, hidden.begin() + (frame + 1) * width));
-            std::vector<int32_t> current(depth_codes.begin() + frame * 12, depth_codes.begin() + (frame + 1) * 12);
+            std::vector<int32_t> current(depth_codes.begin() + frame * codebooks,
+                                         depth_codes.begin() + (frame + 1) * codebooks);
             for (size_t book = 0; book < current.size(); ++book)
                 if (phase == 0 || (phase == 1 && book % 3 != 0))
                     current[book] = -1;
@@ -101,7 +117,8 @@ int main(int argc, char** argv) {
             clip_gen_state_reset(state);
             offset = step == 3 ? 1 : 0;
         }
-        std::vector<int32_t> current(codes.begin() + offset * 12, codes.begin() + (offset + counts[step]) * 12);
+        std::vector<int32_t> current(codes.begin() + offset * codebooks,
+                                     codes.begin() + (offset + counts[step]) * codebooks);
         params.codes = &current;
         if (!clip_encode(contexts.ctx_gen_a, &params))
             return 6;
