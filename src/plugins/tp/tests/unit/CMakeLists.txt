@@ -8,7 +8,7 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 # The plugin is built as a MODULE and exports no symbols, so the sources under
 # test are compiled into the test binary. The collectives are tested with the
-# GPU plugin that runs them (ov_gpu_unit_tests, TPDeviceCoordinatorTest).
+# GPU plugin that runs them (ov_gpu_unit_tests, TPCollectivesTest).
 list(APPEND SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../src/graph_rewriter.cpp)
 
 add_executable(${TARGET_NAME} ${SOURCES})

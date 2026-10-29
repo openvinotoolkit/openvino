@@ -63,9 +63,9 @@ for the current file layout. Key entry points:
 | `src/tp_config.cpp`             | Device-name resolution and validation.                                                                                                                                           |
 | `include/tp/options.inl`    | The option table: defaults, validators, tiers.                                                                                                                                   |
 | intel_gpu `src/plugin/plugin.cpp` | `Plugin::create_tp_context` — the TP context from the `ov::tp::internal` parameters; `Graph::bind_collectives` in `graph.cpp` binds a model to it.                            |
-| intel_gpu `src/runtime/ze/tp/`  | `rank_communicator.cpp` (publish, connect, bind, group registry), `tp_device_coordinator.cpp` (all L0 work: per-rank queues/cmdlists, plan caching, the three schedules, splicing and the watchdog), `tp_l0_shared_context.cpp`. |
-| intel_gpu `impls/ocl_v2/tp/tp_allreduce.*`, `impls/ocl_v2/tp_allreduce.cl` | The AllReduce impl: builds the reduction kernel (`tp_allreduce.cl`) with the model and hands it to the network's TP channel. Registered from `graph/registry/tp_allreduce_impls.cpp`. |
-| intel_gpu `impls/ocl/tp_gather.cpp`  | The gather impl, copies only. Registered from `graph/registry/tp_gather_impls.cpp`. |
+| intel_gpu `src/runtime/ze/tp/`  | `rank_communicator.cpp` (publish, connect, bind, group registry), `group_state.cpp` (the group's resources: call rendezvous, staging, peer events, fallback queues, watchdog, profiling report), `tp_l0_shared_context.cpp`. |
+| intel_gpu `impls/ocl_v2/tp/`, `impls/ocl_v2/tp_allreduce.cl` | `tp_allreduce.*`: the AllReduce impl, builds the reduction kernel with the model. `tp_allreduce_recorder.*`: the three schedules and their staging layout. `tp_gather_recorder.*`: the gather's strided copy. `tp_recording.*`: a primitive instance's command lists, completion events and splice. Registered from `graph/registry/tp_allreduce_impls.cpp`. |
+| intel_gpu `impls/ocl/tp_gather.cpp`  | The gather impl; runs `TPGatherRecorder`. Registered from `graph/registry/tp_gather_impls.cpp`. |
 
 ## Tunables
 
@@ -135,7 +135,7 @@ should; they exist to price a part of the pipeline by removing it.
 | `OV_GPU_TP_SKIP_COLLECTIVE=1`        | **Wrong by construction.** Return from every AllReduce without doing anything. The difference against a normal run is the whole cost of the collective.       |
 
 Profile output anatomy (one block per dump period; unset means every call, so
-the coordinator's block below appears once per collective):
+the collectives' block below appears once per collective):
 
 ```
 [TP][RANK|host] calls=…  arrival spread=…us/call
@@ -223,7 +223,7 @@ Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 
 | Suite                                     | What it covers                                                                                                                          | Needs GPUs |
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `TPDeviceCoordinatorTest`                 | AllReduce and gather correctness on f16/bf16/f32 with the model's `tp_allreduce.cl`; one f32 rounding per step; all ranks bitwise equal; plan reuse across shifting pointers, sizes and dtypes; scratch growth; in-place operation; | yes, >=2   |
+| `TPCollectivesTest`                 | AllReduce and gather correctness on f16/bf16/f32 with the model's `tp_allreduce.cl`; one f32 rounding per step; all ranks bitwise equal; recording reuse across shifting pointers, sizes and dtypes; scratch growth; in-place operation; | yes, >=2   |
 |                                           | allocation churn; wider worlds; ring and halving agreeing on the same payload and the ceiling where one flips to the other;             |            |
 |                                           | the spliced path matching the blocking one; timeout, abort and watchdog behaviour                                                       |            |
 
@@ -241,7 +241,7 @@ Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 |                           | a collective without a TP context, a collective of another rank, a second model on the channel, a context on the wrong device,           |
 |                           | unsupported parameters                                                                                                                   |
 
-The graph-rewriter suites need no GPU at all; `TPDeviceCoordinatorTest` and
+The graph-rewriter suites need no GPU at all; `TPCollectivesTest` and
 every functional suite skip when the machine has fewer GPUs than the world size they ask for.
 
 ### Running them
@@ -263,8 +263,8 @@ cd bin/intel64/Release
 
 ./ov_tp_unit_tests --gtest_list_tests
 ./ov_tp_unit_tests --gtest_filter='TPGraphRewriter*:-*PagedAttention*'
-./ov_gpu_unit_tests --gtest_filter='TPDeviceCoordinatorTest.*'
-./ov_gpu_unit_tests --gtest_filter='TPDeviceCoordinatorTest.RingAndHalvingAgree'
+./ov_gpu_unit_tests --gtest_filter='TPCollectivesTest.*'
+./ov_gpu_unit_tests --gtest_filter='TPCollectivesTest.RingAndHalvingAgree'
 
 # Parametrized suites carry the parameter in the name: world2/3/4, f16/f32.
 ./ov_tp_func_tests --gtest_filter='*world4*'
@@ -281,7 +281,7 @@ start at all:
   plugin is a MODULE and exports nothing -- so it never loads
   `libopenvino_tp_plugin.so` and does not care about `plugins.xml`.
 - `ov_gpu_unit_tests` links the intel_gpu runtime statically and talks to
-  Level Zero and OpenCL directly; `TPDeviceCoordinatorTest` is in it only in a
+  Level Zero and OpenCL directly; `TPCollectivesTest` is in it only in a
   build with `ENABLE_TP` on the Level Zero runtime.
 - `ov_tp_func_tests` goes through `ov::Core` and needs both
   `openvino_tp_plugin` and `openvino_intel_gpu_plugin` present and
@@ -295,7 +295,7 @@ start at all:
 device that **owns the source memory**. Enqueue it on the destination
 device's list and the driver reports `ZE_RESULT_SUCCESS` while silently
 transferring nothing. This is why every peer copy in
-`tp_device_coordinator.cpp` is recorded onto the sending rank's list,
+`tp_allreduce_recorder.cpp` is recorded onto the sending rank's list,
 never the receiving one. A collective that returns stale data with no
 error anywhere is almost always this rule being violated.
 
@@ -310,7 +310,7 @@ every rank context of the group sits on it.
 ### Topology cost
 
 A gather/scatter through one coordinating rank costs `2*(N-1)*bytes`
-over that rank's link, so the coordinator becomes the bottleneck from
+over that rank's link, so that rank becomes the bottleneck from
 N >= 3. The ring reduce-scatter + all-gather costs `2*(N-1)/N * bytes`
 per rank -- the bandwidth optimum, approaching `2*bytes` as N grows and
 never concentrating on one link. Recursive halving moves exactly the same
@@ -329,7 +329,7 @@ kernel, `n`, `dtype`, and the staging address and id of every rank for that
 call parity. Each rank checks and re-records only its own.
 
 - **Addresses shift every call.** intel_gpu reallocates network buffers between
-  inferences. Compare `sig` against `slot->rec[rank]` in `allreduce()` to see
+  inferences. Compare `sig` against `m_sig[parity]` in `TPAllReduceRecorder::run()` to see
   which field moved.
 - **Allocation ids shift while addresses stay.** That is the case the ids exist
   for: a freed buffer reallocated at the same address. Re-recording is correct
@@ -340,15 +340,18 @@ call parity. Each rank checks and re-records only its own.
 ### "Hang on the second inference"
 
 Almost always `zeMemFree` or `zeCommandListReset` on resources still in flight.
-The coordinator guards this in three places; if you add a path that frees or
-resets L0 resources, put the same guard at the top of it:
+These places guard it; if you add a path that frees or resets L0 resources,
+put the same guard at the top of it:
 
-- `destroy_plan` synchronizes every rank's compute queue before destroying
-  events, lists and pools.
-- `record_rank` synchronizes the rank's queue before `zeCommandListReset`.
-- On the spliced path the queue is not ours to drain, so `record_rank` is
-  reached only after `await_previous_splice` has confirmed the previous
-  handover completed.
+- `TPRecording::~TPRecording` waits for its in-flight splices before
+  destroying its lists and events, and leaks them if they never finish.
+- `TPRecording::reset` drains the rank's fallback queue before
+  `zeCommandListReset`.
+- On the spliced path the model queue is not ours to drain, so a recorder
+  resets a list only after the completion event of its previous splice has
+  been consumed.
+- `GroupState::ensure_staging` waits for the rank's last splice before it
+  frees the old staging.
 
 If the hang is on the device rather than the host, the watchdog turns it into
 an abort after `COMMUNICATION_TIMEOUT_MS` and names the rank and the stage.
@@ -359,8 +362,8 @@ In order of frequency:
 
 1. **Memcpy enqueued on the wrong rank's list.** L0 silently drops transfers
    when the source device is not the one issuing the copy. Every peer copy has
-   to be recorded on the *sending* rank's list; check `record_pair_rank`,
-   `record_ring_rank` and `record_halving_rank`.
+   to be recorded on the *sending* rank's list; check `record_pair`,
+   `record_ring` and `record_halving` in `tp_allreduce_recorder.cpp`.
 2. **Cross-device wait on a non-timestamp pool.** The Intel L0 driver has
    shipped versions where an event wait across devices only resolves reliably
    when the pool carries `ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP`. The N=2 pool
@@ -458,9 +461,9 @@ both are emitted by the rewriter. To add a third:
   `graph_rewriter.hpp`) stay in `src/`.
 - What the two plugins share is the private collective contract in
   `src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp` and the
-  ops in `ov_ops/tp_collective.hpp`. The communicator, the shared L0 context
-  and the coordinator are internal to intel_gpu; its impls reach the
-  coordinator through the network's `Channel`, never the L0 context directly.
+  ops in `ov_ops/tp_collective.hpp`. The communicator, the group state and
+  the shared L0 context are internal to intel_gpu; its impls reach them
+  through the network's `Channel`.
 
 ## Where Performance Lives
 

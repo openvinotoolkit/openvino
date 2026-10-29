@@ -1,7 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Tests for cldnn::ze::tp::TPDeviceCoordinator.
+// Tests for the TP collectives: cldnn::ze::tp::GroupState and the recorders of
+// the tp_allreduce and tp_gather impls (impls/ocl_v2/tp/).
 //
 // Goal: validate the L0 device-side AllReduce in isolation -- without the
 // graph rewriter, the GPU graph, or the TP plugin's
@@ -20,7 +21,8 @@
 
 // First: ze_common.hpp keeps the Level Zero symbol list it needs, which a
 // plain include of openvino/zero_api.hpp before it would drop.
-#include "ze/tp/tp_device_coordinator.hpp"
+#include "impls/ocl_v2/tp/tp_allreduce_recorder.hpp"
+#include "impls/ocl_v2/tp/tp_gather_recorder.hpp"
 #include "ze/tp/tp_l0_shared_context.hpp"
 
 #include <gtest/gtest.h>
@@ -47,12 +49,97 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 
+using cldnn::ze::tp::Channel;
 using cldnn::ze::tp::CollectiveOptions;
-using cldnn::ze::tp::TPDeviceCoordinator;
+using cldnn::ze::tp::GroupState;
 using cldnn::ze::tp::TPL0SharedContext;
 using cldnn::ze::tp::TPL0SharedContextPtr;
+using ov::intel_gpu::ocl::TPAllReduceRecorder;
+using ov::intel_gpu::ocl::TPGatherRecorder;
 
 namespace {
+
+/// A group with one channel per rank and, per collective and rank, the
+/// recorder a primitive instance would hold -- driven the way the impls drive
+/// them, one thread per rank.
+class Collectives {
+public:
+    Collectives(TPL0SharedContextPtr shared,
+                int world_size,
+                int num_collectives,
+                std::chrono::milliseconds timeout = std::chrono::milliseconds{5000},
+                const CollectiveOptions& options = CollectiveOptions{})
+        : m_group(std::make_shared<GroupState>(std::move(shared), world_size, num_collectives, timeout, options)),
+          m_world_size(world_size) {
+        for (int r = 0; r < world_size; ++r) {
+            m_channels.push_back(std::make_shared<Channel>(m_group, r));
+        }
+        for (int i = 0; i < num_collectives * world_size; ++i) {
+            m_allreduce.push_back(std::make_unique<TPAllReduceRecorder>());
+            m_gather.push_back(std::make_unique<TPGatherRecorder>());
+        }
+    }
+
+    void allreduce(int collective_id,
+                   int rank,
+                   void* in,
+                   void* out,
+                   size_t n,
+                   ov::element::Type dtype,
+                   ze_kernel_handle_t kernel,
+                   ze_command_list_handle_t model_queue = nullptr) {
+        m_allreduce[slot(collective_id, rank)]->run(*m_channels[rank], collective_id, in, out, n, dtype, kernel,
+                                                    model_queue);
+    }
+
+    void gather_to_root(int collective_id,
+                        int rank,
+                        void* in,
+                        void* out,
+                        size_t rows,
+                        size_t slice_elems,
+                        ov::element::Type dtype,
+                        ze_command_list_handle_t model_queue = nullptr) {
+        m_gather[slot(collective_id, rank)]->run(*m_channels[rank], collective_id, in, out, rows, slice_elems, dtype,
+                                                 model_queue);
+    }
+
+    const TPL0SharedContextPtr& shared_context() const {
+        return m_group->shared_context();
+    }
+    bool is_ready() const {
+        return m_group->is_ready();
+    }
+    bool is_aborted() const {
+        return m_group->is_aborted();
+    }
+    bool run_spliced() const {
+        return m_group->run_spliced();
+    }
+    void abort_all(const std::string& reason) {
+        m_group->abort_all(reason);
+    }
+    void note_collective_started(int rank) {
+        m_group->note_collective_started(rank);
+    }
+    GroupState::ScratchStats get_scratch_stats() const {
+        return m_group->get_scratch_stats();
+    }
+
+private:
+    size_t slot(int collective_id, int rank) const {
+        // Out-of-range ids reach the recorder, which is what rejects them.
+        const int id = std::max(0, std::min(collective_id, static_cast<int>(m_allreduce.size()) / m_world_size - 1));
+        return static_cast<size_t>(id * m_world_size + rank);
+    }
+
+    // Recorders last: they go first and hold the group until they have.
+    std::shared_ptr<GroupState> m_group;
+    int m_world_size;
+    std::vector<std::shared_ptr<Channel>> m_channels;
+    std::vector<std::unique_ptr<TPAllReduceRecorder>> m_allreduce;
+    std::vector<std::unique_ptr<TPGatherRecorder>> m_gather;
+};
 
 /// Non-fatal so it also works in helpers that return a value; the failing
 /// expression is reported verbatim.
@@ -85,7 +172,7 @@ TPL0SharedContextPtr make_shared_ctx(int min_gpus) {
             ov::zeDeviceGetProperties(dh, &p);
             // Prefer discrete GPUs; an integrated GPU shares system memory and
             // device USM allocations behave differently (the P2P paths the
-            // coordinator exercises do not apply meaningfully).
+            // collectives exercise do not apply meaningfully).
             const bool is_dgpu =
                 (p.type == ZE_DEVICE_TYPE_GPU) && (p.flags & ZE_DEVICE_PROPERTY_FLAG_INTEGRATED) == 0;
             if (is_dgpu)
@@ -110,7 +197,7 @@ TPL0SharedContextPtr make_shared_ctx(int min_gpus) {
 
 // ---------------------------------------------------------------------------
 // Per-rank scratch resources used to allocate and prime device USM buffers.
-// (The coordinator owns its own queues; these helpers are independent.)
+// (The group owns its own queues; these helpers are independent.)
 // ---------------------------------------------------------------------------
 struct RankScratch {
     ze_context_handle_t ctx{nullptr};
@@ -210,7 +297,7 @@ struct RankScratch {
 ///
 /// A context's kernels live until release_all(), which also keeps the context
 /// itself alive until then: recordings name the kernels, so they have to
-/// outlive every coordinator of the test.
+/// outlive every group of the test.
 class ReduceKernels {
 public:
     static ze_kernel_handle_t get(const TPL0SharedContextPtr& shared, int rank, ov::element::Type dtype) {
@@ -313,7 +400,7 @@ private:
     }
 };
 
-ze_kernel_handle_t reduce_kernel(const TPDeviceCoordinator& coord, int rank, ov::element::Type dtype) {
+ze_kernel_handle_t reduce_kernel(const Collectives& coord, int rank, ov::element::Type dtype) {
     return ReduceKernels::get(coord.shared_context(), rank, dtype);
 }
 
@@ -340,12 +427,12 @@ struct Watchdog {
     }
 };
 
-/// Drive the coordinator from one thread per rank, the way the plugin's
+/// Drive the collectives from one thread per rank, the way the plugin's
 /// per-rank infer requests do.
 ///
 /// `queues` is empty for the blocking path and holds one immediate command
 /// list per rank for the spliced one.
-void run_collective(TPDeviceCoordinator& coord,
+void run_collective(Collectives& coord,
                     int collective_id,
                     const std::vector<void*>& ins,
                     const std::vector<void*>& outs,
@@ -369,7 +456,7 @@ void run_collective(TPDeviceCoordinator& coord,
 
 /// Same, for the gather.  Only the root's buffer is written, so the other
 /// ranks pass their own (ignored) destination.
-void run_gather(TPDeviceCoordinator& coord,
+void run_gather(Collectives& coord,
                 int collective_id,
                 const std::vector<void*>& ins,
                 const std::vector<void*>& outs,
@@ -401,7 +488,7 @@ size_t count_mismatches(const std::vector<T>& values, float expected, float tole
 // ---------------------------------------------------------------------------
 // Fixture: probe the hardware once and skip the suite when it is not there.
 // ---------------------------------------------------------------------------
-class TPDeviceCoordinatorTest : public ::testing::Test {
+class TPCollectivesTest : public ::testing::Test {
 protected:
     /// Payload size for the cases that do not vary it themselves.
     static constexpr size_t elements = 64 * 1024;
@@ -440,15 +527,15 @@ protected:
     static int available_gpus;
 };
 
-std::shared_ptr<ov::ZeroApi> TPDeviceCoordinatorTest::zero_api;
-int TPDeviceCoordinatorTest::available_gpus = 0;
+std::shared_ptr<ov::ZeroApi> TPCollectivesTest::zero_api;
+int TPCollectivesTest::available_gpus = 0;
 
-TEST_F(TPDeviceCoordinatorTest, InitTeardownIsStable) {
+TEST_F(TPCollectivesTest, InitTeardownIsStable) {
     Watchdog watchdog(30);
 
     for (int attempt = 0; attempt < 3; ++attempt) {
         auto shared = make_shared_ctx(2);
-        auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, /*collectives=*/4);
+        auto coord = std::make_shared<Collectives>(shared, 2, /*collectives=*/4);
         EXPECT_TRUE(coord->is_ready()) << "attempt " << attempt;
         coord.reset();
         shared.reset();
@@ -459,7 +546,7 @@ TEST_F(TPDeviceCoordinatorTest, InitTeardownIsStable) {
 // The failure it is meant to catch is a wrong pitch or origin, which shows up
 // as a band landing at the wrong column rather than as garbage, so the check
 // is per element against the exact value that column should hold.
-TEST_F(TPDeviceCoordinatorTest, GatherToRootPlacesEveryRankSlice) {
+TEST_F(TPCollectivesTest, GatherToRootPlacesEveryRankSlice) {
     Watchdog watchdog(30);
     const int ranks = std::min(available_gpus, 4);
     if (ranks < 2) {
@@ -467,7 +554,7 @@ TEST_F(TPDeviceCoordinatorTest, GatherToRootPlacesEveryRankSlice) {
     }
 
     auto shared = make_shared_ctx(ranks);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
     // Deliberately not a round number of rows, and a slice that is not a
     // multiple of anything convenient.  The value at each position is unique
@@ -533,10 +620,10 @@ TEST_F(TPDeviceCoordinatorTest, GatherToRootPlacesEveryRankSlice) {
     }
 }
 
-TEST_F(TPDeviceCoordinatorTest, AllReduceF16) {
+TEST_F(TPCollectivesTest, AllReduceF16) {
     Watchdog watchdog(30);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1);
+    auto coord = std::make_shared<Collectives>(shared, 2, 1);
 
     std::vector<RankScratch> rs(2);
     for (int r = 0; r < 2; ++r)
@@ -571,10 +658,10 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceF16) {
     }
 }
 
-TEST_F(TPDeviceCoordinatorTest, AllReduceF32) {
+TEST_F(TPCollectivesTest, AllReduceF32) {
     Watchdog watchdog(30);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1);
+    auto coord = std::make_shared<Collectives>(shared, 2, 1);
 
     std::vector<RankScratch> rs(2);
     for (int r = 0; r < 2; ++r)
@@ -611,10 +698,10 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceF32) {
 // A stale plan or a rendezvous that does not reset would surface as the
 // previous iteration's values.
 //   iteration k:  rank0 = k+1, rank1 = k+2  ->  expected = 2k+3
-TEST_F(TPDeviceCoordinatorTest, ReusesPlanAcrossIterations) {
+TEST_F(TPCollectivesTest, ReusesPlanAcrossIterations) {
     Watchdog watchdog(60);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1);
+    auto coord = std::make_shared<Collectives>(shared, 2, 1);
 
     std::vector<RankScratch> rs(2);
     for (int r = 0; r < 2; ++r)
@@ -653,10 +740,10 @@ TEST_F(TPDeviceCoordinatorTest, ReusesPlanAcrossIterations) {
 
 // The scratch arena grows to the largest payload seen and never shrinks, so the
 // trailing smaller size must not trigger a fourth reallocation.
-TEST_F(TPDeviceCoordinatorTest, GrowsScratchOnSizeChange) {
+TEST_F(TPCollectivesTest, GrowsScratchOnSizeChange) {
     Watchdog watchdog(60);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1);
+    auto coord = std::make_shared<Collectives>(shared, 2, 1);
 
     std::vector<RankScratch> rs(2);
     for (int r = 0; r < 2; ++r)
@@ -701,14 +788,13 @@ TEST_F(TPDeviceCoordinatorTest, GrowsScratchOnSizeChange) {
         rs[r].destroy();
 }
 
-// The coordinator shares one compute list/queue per rank across all
-// collective_id slots, so slots are used one after another — the way per-layer
-// AllReduce ops appear in a transformer forward pass.  Each slot must re-record
-// the command lists while sharing one bounded scratch arena.
-TEST_F(TPDeviceCoordinatorTest, ReusesCollectiveSlotsSequentially) {
+// Collective slots are used one after another -- the way per-layer AllReduce
+// ops appear in a transformer forward pass -- each with its own recording, all
+// sharing one bounded staging per rank.
+TEST_F(TPCollectivesTest, ReusesCollectiveSlotsSequentially) {
     Watchdog watchdog(60);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 2);
+    auto coord = std::make_shared<Collectives>(shared, 2, 2);
 
     std::vector<RankScratch> rs(2);
     for (int r = 0; r < 2; ++r)
@@ -769,10 +855,10 @@ TEST_F(TPDeviceCoordinatorTest, ReusesCollectiveSlotsSequentially) {
 
 // Input and output may alias: a row-parallel MatMul output is reduced in place
 // rather than through a second buffer.
-TEST_F(TPDeviceCoordinatorTest, SupportsInPlaceAllReduce) {
+TEST_F(TPCollectivesTest, SupportsInPlaceAllReduce) {
     Watchdog watchdog(30);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1);
+    auto coord = std::make_shared<Collectives>(shared, 2, 1);
 
     std::vector<RankScratch> rs(2);
     for (int r = 0; r < 2; ++r)
@@ -804,7 +890,7 @@ TEST_F(TPDeviceCoordinatorTest, SupportsInPlaceAllReduce) {
 
 // Every other case runs two ranks.  The reduction tree and the rendezvous both
 // depend on the rank count, so exercise wider worlds as well.
-TEST_F(TPDeviceCoordinatorTest, AllReduceAcrossWiderWorlds) {
+TEST_F(TPCollectivesTest, AllReduceAcrossWiderWorlds) {
     Watchdog watchdog(120);
 
     for (int ranks : {3, 4}) {
@@ -813,7 +899,7 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceAcrossWiderWorlds) {
             continue;
 
         auto shared = make_shared_ctx(ranks);
-        auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+        auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
         std::vector<RankScratch> rs(ranks);
         for (int r = 0; r < ranks; ++r)
@@ -863,10 +949,10 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceAcrossWiderWorlds) {
 // what happens when that does not hold: the group must fail loudly instead of
 // parking the calling threads forever.
 
-TEST_F(TPDeviceCoordinatorTest, MissingRankTimesOut) {
+TEST_F(TPCollectivesTest, MissingRankTimesOut) {
     Watchdog watchdog(30);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{300});
+    auto coord = std::make_shared<Collectives>(shared, 2, 1, std::chrono::milliseconds{300});
 
     // Only rank 0 calls, so the enter barrier can never be satisfied.  The
     // buffers are real but never read: execution is not reached.
@@ -880,7 +966,7 @@ TEST_F(TPDeviceCoordinatorTest, MissingRankTimesOut) {
     EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32, kernel), ov::Exception);
     EXPECT_TRUE(coord->is_aborted());
 
-    // The device queues are left in an unknown state, so the coordinator stays
+    // The device queues are left in an unknown state, so the group stays
     // failed and rejects further work immediately rather than after a timeout.
     const auto before = std::chrono::steady_clock::now();
     EXPECT_THROW(coord->allreduce(0, 0, in, out, elements, ov::element::f32, kernel), ov::Exception);
@@ -891,11 +977,11 @@ TEST_F(TPDeviceCoordinatorTest, MissingRankTimesOut) {
     rank0.destroy();
 }
 
-TEST_F(TPDeviceCoordinatorTest, AbortReleasesWaitingRank) {
+TEST_F(TPCollectivesTest, AbortReleasesWaitingRank) {
     Watchdog watchdog(30);
     auto shared = make_shared_ctx(2);
     // No timeout: the only thing that can release the waiter is the abort.
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{0});
+    auto coord = std::make_shared<Collectives>(shared, 2, 1, std::chrono::milliseconds{0});
 
     std::thread waiter([&] {
         EXPECT_THROW(coord->allreduce(0, 1, nullptr, nullptr, elements, ov::element::f32, nullptr), ov::Exception);
@@ -916,10 +1002,10 @@ TEST_F(TPDeviceCoordinatorTest, AbortReleasesWaitingRank) {
 // a group that has died -- a 32k prefill hands over every collective of a pass
 // before a single one is accounted for.
 
-TEST_F(TPDeviceCoordinatorTest, WatchdogLeavesAGroupWithNothingOutstandingAlone) {
+TEST_F(TPCollectivesTest, WatchdogLeavesAGroupWithNothingOutstandingAlone) {
     Watchdog watchdog(30);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{200});
+    auto coord = std::make_shared<Collectives>(shared, 2, 1, std::chrono::milliseconds{200});
 
     // Collectives handed over and none of them reported back, for several
     // times the deadline.  Nothing was actually spliced, so nothing is
@@ -933,10 +1019,10 @@ TEST_F(TPDeviceCoordinatorTest, WatchdogLeavesAGroupWithNothingOutstandingAlone)
     EXPECT_FALSE(coord->is_aborted());
 }
 
-TEST_F(TPDeviceCoordinatorTest, WatchdogLeavesARunningGroupAlone) {
+TEST_F(TPCollectivesTest, WatchdogLeavesARunningGroupAlone) {
     Watchdog watchdog(30);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1, std::chrono::milliseconds{200});
+    auto coord = std::make_shared<Collectives>(shared, 2, 1, std::chrono::milliseconds{200});
 
     RankScratch rs[2];
     std::vector<void*> ins(2);
@@ -1012,7 +1098,7 @@ struct CollectiveBuffers {
 /// every rank against the expected sum.  Values stay small so f16 counts them
 /// exactly and a mismatch means misplacement, not rounding.
 template <typename T>
-void expect_allreduce_sum(TPDeviceCoordinator& coord,
+void expect_allreduce_sum(Collectives& coord,
                           CollectiveBuffers& buffers,
                           int collective_id,
                           size_t n,
@@ -1041,14 +1127,14 @@ void expect_allreduce_sum(TPDeviceCoordinator& coord,
 // A payload shorter than the alignment unit leaves every chunk but the first
 // empty, and one shorter than the world size leaves whole ranks with nothing to
 // send.  Both have to signal their step anyway or a peer waits forever.
-TEST_F(TPDeviceCoordinatorTest, AllReduceHandlesPayloadsBelowTheAlignmentUnit) {
+TEST_F(TPCollectivesTest, AllReduceHandlesPayloadsBelowTheAlignmentUnit) {
     Watchdog watchdog(120);
     const int ranks = std::min(available_gpus, 4);
     auto shared = make_shared_ctx(ranks);
 
     for (size_t n : {size_t{1}, size_t{2}, size_t{63}, size_t{127}, size_t{128}, size_t{129}}) {
         SCOPED_TRACE("n=" + std::to_string(n));
-        auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+        auto coord = std::make_shared<Collectives>(shared, ranks, 1);
         CollectiveBuffers buffers(shared, ranks, n * sizeof(ov::float16));
         expect_allreduce_sum<ov::float16>(*coord, buffers, 0, n, ov::element::f16, f16_tolerance);
         EXPECT_FALSE(coord->is_aborted());
@@ -1058,7 +1144,7 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceHandlesPayloadsBelowTheAlignmentUnit) {
 // Sizes chosen so that neither the world size nor the alignment divides them:
 // the last populated chunk is clipped to the payload and the tail must not run
 // past it.
-TEST_F(TPDeviceCoordinatorTest, AllReduceHandlesPayloadsThatDoNotDivide) {
+TEST_F(TPCollectivesTest, AllReduceHandlesPayloadsThatDoNotDivide) {
     Watchdog watchdog(120);
 
     for (int ranks : {2, 3, 4}) {
@@ -1073,7 +1159,7 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceHandlesPayloadsThatDoNotDivide) {
                 SCOPED_TRACE("n=" + std::to_string(n));
                 CollectiveOptions config;
                 config.enable_halving = halving;
-                auto coord = std::make_shared<TPDeviceCoordinator>(shared,
+                auto coord = std::make_shared<Collectives>(shared,
                                                                    ranks,
                                                                    1,
                                                                    std::chrono::milliseconds{5000},
@@ -1094,7 +1180,7 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceHandlesPayloadsThatDoNotDivide) {
 // numbers, and the existing cases only ever take one of them for a given world.
 // ---------------------------------------------------------------------------
 
-TEST_F(TPDeviceCoordinatorTest, RingAndHalvingAgree) {
+TEST_F(TPCollectivesTest, RingAndHalvingAgree) {
     Watchdog watchdog(120);
     if (available_gpus < 4)
         GTEST_SKIP() << "halving needs a power-of-two world larger than a pair";
@@ -1106,7 +1192,7 @@ TEST_F(TPDeviceCoordinatorTest, RingAndHalvingAgree) {
         SCOPED_TRACE(halving ? "halving" : "ring");
         CollectiveOptions config;
         config.enable_halving = halving;
-        auto coord = std::make_shared<TPDeviceCoordinator>(shared,
+        auto coord = std::make_shared<Collectives>(shared,
                                                            4,
                                                            1,
                                                            std::chrono::milliseconds{5000},
@@ -1117,10 +1203,10 @@ TEST_F(TPDeviceCoordinatorTest, RingAndHalvingAgree) {
     }
 }
 
-// The ceiling is a per-collective decision, so one coordinator can record
+// The ceiling is a per-collective decision, so one recorder can record
 // halving for a small payload and the ring for a large one.  Lowering the
 // ceiling puts the flip within reach of a test-sized payload.
-TEST_F(TPDeviceCoordinatorTest, ScheduleFlipsAtTheHalvingCeiling) {
+TEST_F(TPCollectivesTest, ScheduleFlipsAtTheHalvingCeiling) {
     Watchdog watchdog(120);
     if (available_gpus < 4)
         GTEST_SKIP() << "halving needs a power-of-two world larger than a pair";
@@ -1130,7 +1216,7 @@ TEST_F(TPDeviceCoordinatorTest, ScheduleFlipsAtTheHalvingCeiling) {
     CollectiveOptions config;
     config.halving_max_bytes = ceiling_elems * sizeof(float);
     auto coord =
-        std::make_shared<TPDeviceCoordinator>(shared, 4, 1, std::chrono::milliseconds{5000}, config);
+        std::make_shared<Collectives>(shared, 4, 1, std::chrono::milliseconds{5000}, config);
 
     // Under, exactly at, and over the ceiling, on the same collective slot and
     // the same buffers: the last call has to re-record from halving to the ring
@@ -1150,11 +1236,11 @@ TEST_F(TPDeviceCoordinatorTest, ScheduleFlipsAtTheHalvingCeiling) {
 // Prefill and decode alternate between a large and a tiny payload on the very
 // same collective, which re-records the command lists each time and grows the
 // arena on the first large one only.
-TEST_F(TPDeviceCoordinatorTest, AlternatesPayloadSizesInOneSlot) {
+TEST_F(TPCollectivesTest, AlternatesPayloadSizesInOneSlot) {
     Watchdog watchdog(120);
     const int ranks = std::min(available_gpus, 4);
     auto shared = make_shared_ctx(ranks);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
     constexpr size_t large = 16 * 1024;
     constexpr size_t small = 64;
@@ -1176,11 +1262,11 @@ TEST_F(TPDeviceCoordinatorTest, AlternatesPayloadSizesInOneSlot) {
 // The element type is part of the recorded signature -- it picks the kernel and
 // the byte stride -- so switching it has to re-record rather than reinterpret
 // the buffer.
-TEST_F(TPDeviceCoordinatorTest, SwitchesDtypeInOneSlot) {
+TEST_F(TPCollectivesTest, SwitchesDtypeInOneSlot) {
     Watchdog watchdog(120);
     const int ranks = std::min(available_gpus, 4);
     auto shared = make_shared_ctx(ranks);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
     constexpr size_t n = 4096;
     CollectiveBuffers buffers(shared, ranks, n * sizeof(float));
@@ -1230,7 +1316,7 @@ std::vector<T> random_operands(size_t n, uint32_t seed) {
 /// Two ranks reduce in one step, so the result has to be exactly the f32 sum
 /// of the operands rounded once to nearest even.
 template <typename T>
-void expect_single_rounding(TPDeviceCoordinator& coord, CollectiveBuffers& buffers, ov::element::Type dtype) {
+void expect_single_rounding(Collectives& coord, CollectiveBuffers& buffers, ov::element::Type dtype) {
     constexpr size_t n = 4099;  // a scalar tail, and an odd byte offset for the second staging set
     const size_t bytes = n * sizeof(T);
     const auto a = random_operands<T>(n, 1);
@@ -1258,10 +1344,10 @@ void expect_single_rounding(TPDeviceCoordinator& coord, CollectiveBuffers& buffe
     }
 }
 
-TEST_F(TPDeviceCoordinatorTest, ReductionRoundsOnceToNearestEven) {
+TEST_F(TPCollectivesTest, ReductionRoundsOnceToNearestEven) {
     Watchdog watchdog(60);
     auto shared = make_shared_ctx(2);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, 2, 1);
+    auto coord = std::make_shared<Collectives>(shared, 2, 1);
     CollectiveBuffers buffers(shared, 2, 4099 * sizeof(float));
 
     expect_single_rounding<ov::float16>(*coord, buffers, ov::element::f16);
@@ -1272,7 +1358,7 @@ TEST_F(TPDeviceCoordinatorTest, ReductionRoundsOnceToNearestEven) {
 
 /// Every rank's output carries exactly the same bits, whatever the schedule.
 template <typename T>
-void expect_ranks_agree(TPDeviceCoordinator& coord, CollectiveBuffers& buffers, size_t n, ov::element::Type dtype) {
+void expect_ranks_agree(Collectives& coord, CollectiveBuffers& buffers, size_t n, ov::element::Type dtype) {
     const int ranks = static_cast<int>(buffers.rs.size());
     const size_t bytes = n * sizeof(T);
     for (int r = 0; r < ranks; ++r) {
@@ -1292,7 +1378,7 @@ void expect_ranks_agree(TPDeviceCoordinator& coord, CollectiveBuffers& buffers, 
     }
 }
 
-TEST_F(TPDeviceCoordinatorTest, RanksAgreeBitwise) {
+TEST_F(TPCollectivesTest, RanksAgreeBitwise) {
     Watchdog watchdog(180);
 
     for (int ranks : {2, 3, 4}) {
@@ -1306,7 +1392,7 @@ TEST_F(TPDeviceCoordinatorTest, RanksAgreeBitwise) {
             CollectiveOptions config;
             config.enable_halving = halving;
             auto coord =
-                std::make_shared<TPDeviceCoordinator>(shared, ranks, 1, std::chrono::milliseconds{5000}, config);
+                std::make_shared<Collectives>(shared, ranks, 1, std::chrono::milliseconds{5000}, config);
             constexpr size_t n = 8 * 1024 + 5;
             CollectiveBuffers buffers(shared, ranks, n * sizeof(float));
             expect_ranks_agree<ov::float16>(*coord, buffers, n, ov::element::f16);
@@ -1331,11 +1417,11 @@ TEST_F(TPDeviceCoordinatorTest, RanksAgreeBitwise) {
 // why it shows up as roughly one crash in fifty runs.  Here it is forced.
 // ---------------------------------------------------------------------------
 
-TEST_F(TPDeviceCoordinatorTest, SurvivesABufferAddressBeingReused) {
+TEST_F(TPCollectivesTest, SurvivesABufferAddressBeingReused) {
     Watchdog watchdog(120);
     const int ranks = std::min(available_gpus, 4);
     auto shared = make_shared_ctx(ranks);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
     constexpr size_t n = 4096;
     const size_t bytes = n * sizeof(ov::float16);
@@ -1369,7 +1455,7 @@ TEST_F(TPDeviceCoordinatorTest, SurvivesABufferAddressBeingReused) {
 // address back while a recording still names it -- so the loop runs long
 // enough to give it many chances.  TP_STRESS_ROUNDS raises the count for
 // hunting, the default keeps the case affordable in CI.
-TEST_F(TPDeviceCoordinatorTest, SurvivesAModelShapedAllocationChurn) {
+TEST_F(TPCollectivesTest, SurvivesAModelShapedAllocationChurn) {
     const int rounds = [] {
         const char* env = std::getenv("TP_STRESS_ROUNDS");
         return env ? std::max(1, std::atoi(env)) : 40;
@@ -1381,7 +1467,7 @@ TEST_F(TPDeviceCoordinatorTest, SurvivesAModelShapedAllocationChurn) {
     // More than one collective, because a plan holds its own command lists
     // and a stale one only hurts when something else ran in between.
     constexpr int collectives = 8;
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, collectives);
+    auto coord = std::make_shared<Collectives>(shared, ranks, collectives);
 
     // Stand-ins for the prompt lengths the crash was seen with.
     const std::vector<size_t> prompt_elems{32, 128, 1024, 8192, 32768};
@@ -1412,7 +1498,7 @@ TEST_F(TPDeviceCoordinatorTest, SurvivesAModelShapedAllocationChurn) {
             }
         }
 
-        ASSERT_FALSE(coord->is_aborted()) << "coordinator aborted in round " << round;
+        ASSERT_FALSE(coord->is_aborted()) << "group aborted in round " << round;
     }
 }
 
@@ -1423,11 +1509,11 @@ TEST_F(TPDeviceCoordinatorTest, SurvivesAModelShapedAllocationChurn) {
 // A single row makes the region copy degenerate to one contiguous run, and a
 // slice that is not a multiple of anything keeps the destination pitch from
 // accidentally lining up.
-TEST_F(TPDeviceCoordinatorTest, GatherHandlesASingleRow) {
+TEST_F(TPCollectivesTest, GatherHandlesASingleRow) {
     Watchdog watchdog(60);
     const int ranks = std::min(available_gpus, 4);
     auto shared = make_shared_ctx(ranks);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1);
 
     constexpr size_t rows = 1;
     constexpr size_t slice = 7;
@@ -1471,7 +1557,7 @@ TEST_F(TPDeviceCoordinatorTest, GatherHandlesASingleRow) {
 // ---------------------------------------------------------------------------
 // Execution paths.
 //
-// Everything above hands the collective to the coordinator's own queues and
+// Everything above hands the collective to the group's own queues and
 // waits for them.  That is the fallback.  What a model actually runs is the
 // spliced path: the recording goes into the in-order list intel_gpu is already
 // dispatching on, and the call returns without waiting.  Until now nothing
@@ -1481,7 +1567,7 @@ TEST_F(TPDeviceCoordinatorTest, GatherHandlesASingleRow) {
 /// Same contributions and checks as expect_allreduce_sum, but the collectives
 /// ride the per-rank immediate lists and the host waits for those instead.
 template <typename T>
-void expect_spliced_allreduce_sum(TPDeviceCoordinator& coord,
+void expect_spliced_allreduce_sum(Collectives& coord,
                                   CollectiveBuffers& buffers,
                                   int collective_id,
                                   size_t n,
@@ -1514,11 +1600,11 @@ void expect_spliced_allreduce_sum(TPDeviceCoordinator& coord,
     }
 }
 
-TEST_F(TPDeviceCoordinatorTest, SplicedAllReduceMatchesTheBlockingPath) {
+TEST_F(TPCollectivesTest, SplicedAllReduceMatchesTheBlockingPath) {
     Watchdog watchdog(120);
     const int ranks = std::min(available_gpus, 4);
     auto shared = make_shared_ctx(ranks);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1);
     if (!coord->run_spliced())
         GTEST_SKIP() << "driver has no immediate-append extension";
 
@@ -1538,7 +1624,7 @@ TEST_F(TPDeviceCoordinatorTest, SplicedAllReduceMatchesTheBlockingPath) {
 
 // force_sync_collective exists so a suspected splice problem can be ruled out
 // without rebuilding.  It has to be an equivalence, not merely a slower path.
-TEST_F(TPDeviceCoordinatorTest, ForcingTheSyncPathKeepsTheSameResult) {
+TEST_F(TPCollectivesTest, ForcingTheSyncPathKeepsTheSameResult) {
     Watchdog watchdog(120);
     const int ranks = std::min(available_gpus, 4);
     auto shared = make_shared_ctx(ranks);
@@ -1546,13 +1632,13 @@ TEST_F(TPDeviceCoordinatorTest, ForcingTheSyncPathKeepsTheSameResult) {
     CollectiveOptions config;
     config.force_sync_collective = true;
     auto coord =
-        std::make_shared<TPDeviceCoordinator>(shared, ranks, 1, std::chrono::milliseconds{5000}, config);
+        std::make_shared<Collectives>(shared, ranks, 1, std::chrono::milliseconds{5000}, config);
     EXPECT_FALSE(coord->run_spliced()) << "the option must win over the driver's capability";
 
     constexpr size_t n = 8 * 1024;
     CollectiveBuffers buffers(shared, ranks, n * sizeof(ov::float16));
 
-    // A model queue is passed anyway.  The coordinator is what decides whether
+    // A model queue is passed anyway.  The recorder is what decides whether
     // to use it, and with the option set it must not -- otherwise a caller
     // that ignored run_spliced() would silently keep splicing.
     std::vector<ze_command_list_handle_t> queues(ranks);
@@ -1581,11 +1667,11 @@ TEST_F(TPDeviceCoordinatorTest, ForcingTheSyncPathKeepsTheSameResult) {
 
 // A group that fails while work is still outstanding on the devices must still
 // surface as an exception on every later call rather than as a hang.
-TEST_F(TPDeviceCoordinatorTest, AbortAfterSplicingFailsSubsequentCalls) {
+TEST_F(TPCollectivesTest, AbortAfterSplicingFailsSubsequentCalls) {
     Watchdog watchdog(60);
     const int ranks = 2;
     auto shared = make_shared_ctx(ranks);
-    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+    auto coord = std::make_shared<Collectives>(shared, ranks, 1);
     if (!coord->run_spliced())
         GTEST_SKIP() << "driver has no immediate-append extension";
 
@@ -1596,7 +1682,7 @@ TEST_F(TPDeviceCoordinatorTest, AbortAfterSplicingFailsSubsequentCalls) {
     coord->abort_all("test-initiated abort after a splice");
     EXPECT_TRUE(coord->is_aborted());
 
-    // Immediately, not after the timeout: the coordinator is single-use once
+    // Immediately, not after the timeout: the group is single-use once
     // it has failed.
     const auto before = std::chrono::steady_clock::now();
     EXPECT_THROW(coord->allreduce(0, 0, buffers.ins[0], buffers.outs[0], n, ov::element::f16,

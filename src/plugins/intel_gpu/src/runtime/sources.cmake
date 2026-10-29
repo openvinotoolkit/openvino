@@ -115,11 +115,11 @@ set(GPU_RUNTIME_ZE_COMPUTE_RUNTIME_HEADERS
 # Tensor-parallel collectives, added to the ZE sources only in builds with the TP plugin.
 set(GPU_RUNTIME_ZE_TP_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ze/tp/collective_options.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/tp/group_state.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ze/tp/group_state.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ze/tp/rank_communicator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ze/tp/rank_communicator.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ze/tp/tp_debug.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/ze/tp/tp_device_coordinator.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/ze/tp/tp_device_coordinator.hpp
     ${CMAKE_CURRENT_LIST_DIR}/ze/tp/tp_l0_shared_context.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ze/tp/tp_l0_shared_context.hpp
 )

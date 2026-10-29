@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "collective_options.hpp"
+#include "group_state.hpp"
 #include "openvino/runtime/tp/collective_contract.hpp"
-#include "tp_device_coordinator.hpp"
 #include "tp_l0_shared_context.hpp"
 
 namespace cldnn {
@@ -23,11 +23,11 @@ namespace tp {
 /// Backend name this communicator resolves "AUTO" to and publishes in its payload header.
 inline constexpr const char* l0_p2p_backend = "L0_P2P";
 
-/// One rank's end of its group's collectives on one channel. A network bound to
-/// a TP context holds one and calls its collectives through it.
+/// One rank's end of its group's collective resources on one channel. A network
+/// bound to a TP context holds one; its collective implementations run over it.
 class Channel {
 public:
-    Channel(TPDeviceCoordinatorPtr group, int rank) : m_group(std::move(group)), m_rank(rank) {}
+    Channel(GroupStatePtr group, int rank) : m_group(std::move(group)), m_rank(rank) {}
 
     int rank() const {
         return m_rank;
@@ -38,36 +38,15 @@ public:
     const CollectiveOptions& options() const {
         return m_group->options();
     }
-
-    /// See TPDeviceCoordinator::run_spliced().
     bool run_spliced() const {
         return m_group->run_spliced();
     }
-
-    /// See TPDeviceCoordinator::allreduce().
-    void allreduce(int collective_id,
-                   void* in_dev,
-                   void* out_dev,
-                   std::size_t n,
-                   ov::element::Type dtype,
-                   ze_kernel_handle_t reduce_kernel,
-                   ze_command_list_handle_t model_queue) {
-        m_group->allreduce(collective_id, m_rank, in_dev, out_dev, n, dtype, reduce_kernel, model_queue);
-    }
-
-    /// See TPDeviceCoordinator::gather_to_root().
-    void gather_to_root(int collective_id,
-                        void* in_dev,
-                        void* out_dev,
-                        std::size_t rows,
-                        std::size_t slice_elems,
-                        ov::element::Type dtype,
-                        ze_command_list_handle_t model_queue) {
-        m_group->gather_to_root(collective_id, m_rank, in_dev, out_dev, rows, slice_elems, dtype, model_queue);
+    const GroupStatePtr& group() const {
+        return m_group;
     }
 
 private:
-    TPDeviceCoordinatorPtr m_group;
+    GroupStatePtr m_group;
     int m_rank;
 };
 
@@ -84,8 +63,7 @@ struct CollectiveUse {
 /// Created with the context, it publishes this rank's setup payload through the
 /// group's IExchange endpoint and returns without waiting for the other ranks.
 /// The first model bound to the context collects every rank's payload and
-/// connects to the group state: the coordinator all ranks of the group share in
-/// this process. Whichever rank binds first creates it; the others find it in a
+/// connects to the group state all ranks of the group share in this process. Whichever rank binds first creates it; the others find it in a
 /// process registry under the id of the group's rank-0 communicator.
 ///
 /// One channel (one stream of one model) at a time.
@@ -133,7 +111,7 @@ private:
     uint64_t m_id;
 
     std::mutex m_mutex;
-    TPDeviceCoordinatorPtr m_group;
+    GroupStatePtr m_group;
     std::weak_ptr<Channel> m_channel;
 };
 

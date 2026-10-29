@@ -5,9 +5,8 @@
 #ifdef ENABLE_TP
 
 #include "ze/ze_stream.hpp"
-#include "ze/tp/rank_communicator.hpp"
+#include "impls/ocl_v2/tp/tp_gather_recorder.hpp"
 
-#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "register.hpp"
 #include "tp_gather_inst.h"
 #include "registry/implementation_map.hpp"
@@ -32,7 +31,7 @@ ze_command_list_handle_t model_queue_of(stream& s) {
 }  // namespace
 
 // An "OCL" impl that compiles no OpenCL kernel: the work is
-// a strided cross-device copy issued through Level Zero by the TP channel.
+// a strided cross-device copy issued through Level Zero by its recorder.
 // Registering as impl_types::ocl with is_cpu()=false is what makes intel_gpu
 // place this primitive's buffers in usm_device.
 struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
@@ -116,18 +115,25 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
             stream.finish();
         }
 
-        channel->gather_to_root(static_cast<int>(collective_id),
-                                input_mem_ptr->buffer_ptr(),
-                                output_mem_ptr->buffer_ptr(),
-                                rows,
-                                slice_elems,
-                                ov_dtype,
-                                async ? model_queue_of(stream) : nullptr);
-        return cpu::make_output_event(stream, instance.is_output());
+        m_recorder.run(*channel,
+                       static_cast<int>(collective_id),
+                       input_mem_ptr->buffer_ptr(),
+                       output_mem_ptr->buffer_ptr(),
+                       rows,
+                       slice_elems,
+                       ov_dtype,
+                       async ? model_queue_of(stream) : nullptr);
+        // In-order stream: only a network output needs an event that completes with the copy.
+        if (instance.is_output()) {
+            return stream.enqueue_marker({}, true);
+        }
+        return stream.aggregate_events(events, false, false);
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
     void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
+
+    ov::intel_gpu::ocl::TPGatherRecorder m_recorder;
 
 public:
     static std::unique_ptr<primitive_impl> create(const tp_gather_node& arg,

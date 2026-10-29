@@ -8,7 +8,7 @@
 // plain include of openvino/zero_api.hpp before it would drop.
 #include "ze/ze_kernel.hpp"
 #include "ze/ze_stream.hpp"
-#include "ze/tp/rank_communicator.hpp"
+#include "tp_allreduce_recorder.hpp"
 
 #include "tp_allreduce.hpp"
 
@@ -16,15 +16,14 @@
 
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
-#include "impls/cpu/cpu_impl_helpers.hpp"
 #include "tp_allreduce_inst.h"
 
 namespace ov::intel_gpu::ocl {
 namespace {
 
-// The reduction step the TP channel launches between its copies. Only the
-// element type specializes it: buffers, count and launch size are set by the
-// channel when it records the collective.
+// The reduction step the recorder launches between its copies. Only the
+// element type specializes it: buffers, count and launch size are set when the
+// collective is recorded.
 class TPAllReduceGenerator : public KernelGenerator {
 public:
     TPAllReduceGenerator() : KernelGenerator("tp_allreduce") {}
@@ -99,7 +98,7 @@ public:
 
         // Spliced, the recording lands in the model's in-order queue after the
         // operations that produced our input and before whatever reads our
-        // output. Draining is the fallback: on the coordinator's own queue the
+        // output. Draining is the fallback: on the group's own queue the
         // collective has no ordering against the model at all.
         if (!async) {
             if (!events.empty()) {
@@ -109,14 +108,20 @@ public:
         }
 
         const auto& layout = instance.get_impl_params()->get_input_layout(0);
-        channel.allreduce(static_cast<int>(instance.get_typed_desc<tp_allreduce>()->collective_id),
-                          instance.input_memory_ptr()->buffer_ptr(),
-                          instance.output_memory_ptr()->buffer_ptr(),
-                          layout.count(),
-                          ov::element::Type{layout.data_type},
-                          reduce_kernel(),
-                          async ? model_queue_of(stream) : nullptr);
-        return cldnn::cpu::make_output_event(stream, instance.is_output());
+        m_recorder.run(channel,
+                       static_cast<int>(instance.get_typed_desc<tp_allreduce>()->collective_id),
+                       instance.input_memory_ptr()->buffer_ptr(),
+                       instance.output_memory_ptr()->buffer_ptr(),
+                       layout.count(),
+                       ov::element::Type{layout.data_type},
+                       reduce_kernel(),
+                       async ? model_queue_of(stream) : nullptr);
+        // The stream is in-order, so consumers are ordered behind the collective;
+        // only a network output needs an event that completes with it.
+        if (instance.is_output()) {
+            return stream.enqueue_marker({}, true);
+        }
+        return stream.aggregate_events(events, false, false);
     }
 
 private:
@@ -125,6 +130,8 @@ private:
         OPENVINO_ASSERT(kernel != nullptr, "[GPU] tp_allreduce has no Level Zero reduction kernel");
         return kernel->get_kernel_handle();
     }
+
+    TPAllReduceRecorder m_recorder;
 };
 
 }  // namespace

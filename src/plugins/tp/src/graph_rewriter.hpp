@@ -15,8 +15,6 @@
 namespace ov {
 namespace tp {
 
-class TPDeviceCoordinator;
-
 /// \brief Sharding plan produced by model analysis.
 struct ShardingPlan {
     struct LinearDesc {

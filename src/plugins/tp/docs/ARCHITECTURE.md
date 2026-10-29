@@ -192,14 +192,18 @@ RemoteContextImpl (TP context)
   │     ├── TPL0SharedContext          one ze_context over all N devices, cached
   │     │                              per device list; the rank's device and
   │     │                              engine sit on it
-  │     └── TPDeviceCoordinator        the group state, one per group in the
-  │           │                        process, shared by every rank
-  │           ├── Plan[2 per collective]     per-rank recordings, lists, done events
+  │     └── GroupState                 the group's collective resources, one per
+  │           │                        group in the process, shared by every rank
   │           ├── Mailbox                    call rendezvous, slots[2][N]
   │           ├── EventSet[2], GatherEvents[2] peer events, one set per call parity
   │           ├── Staging[N]                 device-USM staging, owned per rank
-  │           └── watchdog thread            started on the first splice
+  │           ├── queue per rank             the synchronous fallback
+  │           └── watchdog thread            started on the first splice; polls the
+  │                                          splices the recordings register
   └── network (per compiled model)     holds a Channel: group state + rank
+        └── tp_allreduce / tp_gather impl, per primitive instance
+              └── recorder                 command lists[2], completion events[2],
+                                         signature[2], the schedules
 ```
 
 During `infer()`:
@@ -207,9 +211,9 @@ During `infer()`:
 ```
 rank 0 runs on the calling thread, ranks 1..N-1 on RankWorkers
     ↓ a rank's graph reaches a TPAllReduce or TPGather node
-intel_gpu OCL impl → that network's TP Channel
-    ↓ the model's own command list is passed along
-TPDeviceCoordinator::allreduce / gather_to_root(..., model_queue)
+intel_gpu impl → its recorder, over that network's TP Channel
+    ↓ GroupState::begin_allreduce / begin_gather (call rendezvous)
+    ↓ record if stale, splice into the model's own command list
 ```
 
 ## Source Tree (current)
@@ -246,61 +250,80 @@ src/plugins/intel_gpu/   (compiled only with ENABLE_TP)
 ├── src/runtime/ze/tp/
 │   ├── rank_communicator.{hpp,cpp}         ← RankCommunicator, Channel, the
 │   │                                         process registry of groups
+│   ├── group_state.{hpp,cpp}               ← GroupState: rendezvous, staging,
+│   │                                         events, watchdog, profiling report
 │   ├── tp_l0_shared_context.{hpp,cpp}      ← shared ze_context + its cache
-│   ├── tp_device_coordinator.{hpp,cpp}     ← L0 plans, cmdlists, exec
 │   ├── collective_options.hpp              ← CollectiveOptions (GPU_TP_*)
 │   └── tp_debug.hpp                        ← timers and report helpers
-├── src/graph/impls/ocl_v2/tp/tp_allreduce.{hpp,cpp} ← AllReduce impl
-├── src/graph/impls/ocl_v2/tp_allreduce.cl  ← its reduction kernel (codegen
+├── src/graph/impls/ocl_v2/tp/
+│   ├── tp_allreduce.{hpp,cpp}              ← AllReduce impl
+│   ├── tp_allreduce_recorder.{hpp,cpp}     ← pair / ring / halving schedules
+│   ├── tp_gather_recorder.{hpp,cpp}        ← the gather's strided copy
+│   └── tp_recording.{hpp,cpp}              ← lists, completion events, splice
+├── src/graph/impls/ocl_v2/tp_allreduce.cl  ← the reduction kernel (codegen
 │                                          reads .cl from the ocl_v2 root only)
 ├── src/graph/impls/ocl/tp_gather.cpp       ← Gather impl (copies only)
 ├── src/plugin/ops/tp_{allreduce,gather}.cpp       ← op → primitive
-└── tests/unit/module_tests/ze/tp_device_coordinator_test.cpp
+└── tests/unit/module_tests/ze/tp_collectives_test.cpp
 ```
 
 The collective ops themselves (`TPAllReduce`, `TPGather`) live in
 `src/common/transformations/include/ov_ops/tp_collective.hpp`.
 
-## TPDeviceCoordinator (Device-side Collectives)
+## Device-side Collectives
 
-The coordinator owns per-rank L0 resources and executes the cross-device
-sum on USM-device memory. Every rank records and submits its own commands;
-no rank drives the others. It lives in the GPU plugin and is the shared
-state of a group: the first rank model bound to a TP context creates it,
-the other ranks find it through the process registry.
+The collectives run on USM-device memory across the devices of one shared L0
+context. Every rank records and submits its own commands; no rank drives the
+others. The work is split in two:
+
+- `GroupState` holds the group's resources: the call rendezvous, every rank's
+  staging, the events the ranks signal each other, a queue per rank for the
+  synchronous fallback, failure handling and the watchdog. It knows nothing of
+  schedules. The first rank model bound to a TP context creates it, the other
+  ranks find it through the process registry.
+- The recorders of the `tp_allreduce` and `tp_gather` impls own everything
+  that runs over those resources: the schedules, the command lists, their
+  completion events and the signatures they were recorded from, one set per
+  primitive instance. A recorder registers its completion events with the
+  group, which polls them (watchdog), signals them (abort) and waits for the
+  rank's last one before moving its staging.
+
+The group makes every collective's lists and completion events when it is
+created, and a recorder takes its set over on first use. Creating them costs
+about a millisecond per collective and rank (measured: 256 sets on four ranks
+took 255 ms), which would otherwise land on the first inference.
 
 ### Per-rank state
 
-For every rank, the coordinator creates:
-- A compute queue on the compute ordinal. There is no separate copy queue:
-  the copies and the reduce kernel share one command list per collective.
+For every rank, the group creates:
+- A compute queue on the compute ordinal, used only by the synchronous
+  fallback. There is no separate copy queue: the copies and the reduce kernel
+  share one command list per collective.
 - The GPU timer period and timestamp mask, read once, used to turn kernel
   timestamps into nanoseconds.
 
-The coordinator builds no kernels. The reduction kernel (`tp_allreduce.cl`,
+Nothing here builds kernels. The reduction kernel (`tp_allreduce.cl`,
 f16/bf16/f32) belongs to the compiled model: the `ocl::tp_allreduce` impl
 builds it through the GPU kernel pipeline with the rest of the model, so it is
-stored in the cache blob and `import_model()` does not rebuild it. The impl
-passes its Level Zero kernel handle with every `allreduce()` call. The kernel
+stored in the cache blob and `import_model()` does not rebuild it. The kernel
 widens both operands to f32, adds them and rounds once to the element type, so
-every reduction step is one f32 addition; the coordinator launches it in
+every reduction step is one f32 addition; the recorder launches it in
 `append_reduce()` (argument order and 8 elements per work item).
 
-### Plan caching
+### Recordings
 
 Every rank counts its allreduce calls and its gather calls separately; the
-parity of that count picks one of two `Plan`s of the collective site
-(`collective_id`), one of two staging halves and one of two event sets. Two,
-because a rank that has left a collective may reach the next one while a
-neighbour is still executing the previous instance, and peers write into each
-other's staging: the recording being laid down and the one still running must
-not share a command list, an event or a byte of staging. Gathers keep their own
-count because a gather waits on nobody: counted together with the allreduces,
-an allreduce on one side of a gather could share a parity with the allreduce on
-the other side while the first is still running.
+parity of that count picks one of a recorder's two command lists, one of two
+staging halves and one of two event sets. Two, because a rank that has left a
+collective may reach the next one while a neighbour is still executing the
+previous instance, and peers write into each other's staging: the recording
+being laid down and the one still running must not share a command list, an
+event or a byte of staging. Gathers keep their own count because a gather
+waits on nobody: counted together with the allreduces, an allreduce on one side
+of a gather could share a parity with the allreduce on the other side while the
+first is still running.
 
-A plan owns its per-rank command lists and completion events, and per rank the
-signature that rank's recording was built from (`RankRecording`). A rank's
+Per parity a recorder keeps the signature its list was recorded from. A rank's
 commands depend only on its own buffers and kernel, the call's shape, and where
 the peers it writes to have their staging, so each rank checks and re-records
 its own recording alone; nothing waits for rank 0.
@@ -325,9 +348,11 @@ overwhelming majority of calls.
 
 ### Staging
 
-One device-USM allocation per rank, owned by that rank, shared by every plan,
-sized to the largest payload the rank has seen and split into two halves, one
-per call parity. A rank publishes the address and allocation id of its half
+One device-USM allocation per rank, owned by that rank, shared by every
+collective, sized for the largest payload the rank has seen and split into two
+equal halves, one per call parity. The recorder says how large a half has to
+be for its schedule; the group only allocates. A rank publishes the address and
+allocation id of its half
 with every call, so it grows on its own: before it frees the old allocation it
 waits for its own last splice, which itself waited for every peer write into
 that staging, and peers cannot write the new one before they have read its
@@ -362,8 +387,8 @@ every rank
   | splice: zeCommandListImmediateAppendCommandListsExp into the queue
   |         intel_gpu already runs the model on, then return
   |
-  └── no exit barrier: the alternating slots, plans, staging halves and
-      event sets make one unnecessary
+  └── no exit barrier: the alternating slots, command lists, staging halves
+      and event sets make one unnecessary
 ```
 
 A mailbox slot set is rewritten only at call `k + 2`, which a rank reaches
@@ -378,8 +403,12 @@ the same command list, which the extension forbids re-appending while in
 flight; with two buffers alternating, that has normally long finished.
 
 Without the splice extension, or under `GPU_TP_FORCE_SYNC_COLLECTIVE`, the
-collective runs on the coordinator's own queues and the call blocks until the
-queue drains.
+collective runs on the group's own queue of the rank and the call blocks until
+the queue drains.
+
+The impl returns no event of its own: the stream is in-order, so whatever
+reads the output is queued behind the splice. Only a network output gets a
+marker (`enqueue_marker`) that completes with the collective.
 
 Because nothing on the host waits for the device any more, a rank that dies
 would hang the group with no deadline to catch it. A watchdog thread, started
@@ -447,7 +476,7 @@ graph of the model to the context's communicator (`Graph::build`):
 - every collective's rank and world size must match the context, and the ids
   must number the model's collectives once each;
 - the first binding collects the payloads, checks them, and finds or creates
-  the group state (the coordinator) in a process registry keyed by the rank-0
+  the group state (`GroupState`) in a process registry keyed by the rank-0
   communicator id; every rank model must have the same number of collectives;
 - one model per channel at a time, and one channel per context, so a second
   stream fails the compilation;
@@ -466,10 +495,12 @@ Both primitives:
 - During `execute()`, read the `collective_id` carried by the primitive
   (`collective_id` is the op's position among the TP collectives of the
   program, assigned by the GPU `ProgramBuilder`; transitional until calls
-  carry a sequence number) and call the network's `Channel` with the model's
-  own command list, so the recording is spliced there. Because the primitive
-  stores only PODs, it serializes cleanly, and an imported model is bound the
-  same way as a compiled one.
+  carry a sequence number) and run their recorder over the network's
+  `Channel` with the model's own command list, so the recording is spliced
+  there. The recorder's lists and events belong to the primitive instance; a
+  cloned impl starts without them. Because the primitive stores only PODs, it
+  serializes cleanly, and an imported model is bound the same way as a
+  compiled one.
 
 There is no CPU fallback: the collective needs a shared L0 context spanning
 every rank's device, and without one the compilation fails rather than
@@ -517,8 +548,10 @@ caching properties are aggregated across the rank devices and joined with `;`.
 
 - Each rank's intel_gpu compiled model holds its TP context, the context owns
   the rank's `RankCommunicator`, and the communicators share the group's
-  `TPDeviceCoordinator` and the `TPL0SharedContext` through `std::shared_ptr`.
-  The shared context outlives the coordinator, and every rank's device and
+  `GroupState` and the `TPL0SharedContext` through `std::shared_ptr`. Every
+  recorder holds the group too, so the staging and events its lists name
+  outlive it; a recorder waits for its last splice before destroying its lists.
+  The shared context outlives the group, and every rank's device and
   engine, because each of them holds it. The TP `CompiledModel` holds no Level
   Zero state of its own.
 - `RankWorkers` belongs to the `CompiledModel`, not to a request: one thread
@@ -532,7 +565,7 @@ caching properties are aggregated across the rank devices and joined with `;`.
 - `CompiledModel::lock_inference()` serializes outer inferences: the
   rendezvous slots, the recorded command lists and the staging support
   one at a time. Rank execution inside that inference stays parallel.
-- Inside `TPDeviceCoordinator::allreduce` and `gather_to_root`, ranks meet at
+- Inside `GroupState::begin_allreduce` and `begin_gather`, ranks meet at
   a call rendezvous (a mailbox over a `std::condition_variable`, slots
   alternating by call parity). There is no record gate and no exit barrier.
 
@@ -585,7 +618,7 @@ Dev properties: [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables)
   model with more than one stream fails to compile.
 - All ranks of a group run in one process.
 - A failed collective is terminal. The device queues may still hold
-  unfinished work, so the coordinator refuses every later call rather than
+  unfinished work, so the group refuses every later call rather than
   running on top of unknown state; the compiled model has to be rebuilt.
 
 ## Pointers

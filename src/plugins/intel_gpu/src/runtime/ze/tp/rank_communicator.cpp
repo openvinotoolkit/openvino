@@ -89,7 +89,7 @@ PayloadBody parse_payload(const ov::tp::Blob& blob, int from_rank) {
 /// An id rather than an address: a communicator's address can be reused while
 /// the state of its group is still held by the other ranks.
 std::mutex registry_mutex;
-std::map<uint64_t, std::weak_ptr<TPDeviceCoordinator>> registry;
+std::map<uint64_t, std::weak_ptr<GroupState>> registry;
 
 }  // namespace
 
@@ -146,7 +146,7 @@ void RankCommunicator::connect(int num_collectives) {
     const auto key = bodies.front().communicator_id;
     auto group = registry[key].lock();
     if (!group) {
-        group = std::make_shared<TPDeviceCoordinator>(m_shared, m_world_size, num_collectives, m_timeout, m_options);
+        group = std::make_shared<GroupState>(m_shared, m_world_size, num_collectives, m_timeout, m_options);
         for (auto it = registry.begin(); it != registry.end();) {
             it = it->second.expired() ? registry.erase(it) : std::next(it);
         }

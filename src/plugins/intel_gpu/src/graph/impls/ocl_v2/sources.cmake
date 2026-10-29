@@ -112,6 +112,12 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ternocl_int2/ternocl_int2_weights_reorder.hpp
     ${CMAKE_CURRENT_LIST_DIR}/tp/tp_allreduce.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tp/tp_allreduce.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp/tp_allreduce_recorder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp/tp_allreduce_recorder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp/tp_gather_recorder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp/tp_gather_recorder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp/tp_recording.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tp/tp_recording.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/fused_ops_jitter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/fused_ops_jitter.hpp
     ${CMAKE_CURRENT_LIST_DIR}/utils/jitter.cpp
