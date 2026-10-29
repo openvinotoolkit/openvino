@@ -20,6 +20,7 @@ struct typed_program_node<data> : public typed_program_node_base<data> {
     memory& get_attached_memory() const { return *mem; }
     memory::ptr get_attached_memory_ptr() const { return mem; }
     void attach_memory(memory::ptr new_mem, bool invalidate_users_if_changed = true);
+    void validate_partial_buffer(const std::vector<std::pair<const program_node*, size_t>>& consumers) const;
 
 private:
     memory::ptr mem;

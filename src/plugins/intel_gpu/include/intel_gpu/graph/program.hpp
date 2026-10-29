@@ -419,6 +419,7 @@ private:
     void replace(program_node& old_node, program_node& new_node);
 
     void init_program();
+    void validate_partial_buffers() const;
 };
 
 }  // namespace cldnn
