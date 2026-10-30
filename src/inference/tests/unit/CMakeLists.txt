@@ -26,7 +26,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/cpu_stream_info_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/executor_config_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/executor_manager_tests.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/hsm_compiled_options_codec.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/hsm_compile_options_codec.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_deferred_writer.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_format.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/hsm_model_id_codec.cpp

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/runtime/hsm_compiled_options_codec.hpp"
+#include "openvino/runtime/hsm_compile_options_codec.hpp"
 
 #include <gtest/gtest.h>
 
@@ -29,34 +29,34 @@ using namespace std::string_literals;
 namespace {
 
 using SectionDecodeFn = std::optional<ov::AnyMap> (*)(const hsm::Section&) noexcept;
-using EncodedBytes = decltype(hsm::encode_compiled_options(std::declval<const ov::AnyMap&>()));
+using EncodedBytes = decltype(hsm::encode_compile_options(std::declval<const ov::AnyMap&>()));
 
-static_assert(std::is_convertible_v<decltype(static_cast<SectionDecodeFn>(&hsm::decode_compiled_options)),
+static_assert(std::is_convertible_v<decltype(static_cast<SectionDecodeFn>(&hsm::decode_compile_options)),
                                     hsm::SectionDecoder<ov::AnyMap>>,
-              "decode_compiled_options(const Section&) must be usable as a SectionDecoder<ov::AnyMap>.");
-static_assert(std::is_base_of_v<hsm::ISectionEncoder, hsm::CompiledOptionsEncoder>,
-              "CompiledOptionsEncoder must be an ISectionEncoder.");
-static_assert(std::is_convertible_v<std::shared_ptr<hsm::CompiledOptionsEncoder>, hsm::SectionEncoderPtr>,
-              "CompiledOptionsEncoder must be passable as a SectionEncoderPtr.");
-static_assert(std::is_constructible_v<hsm::CompiledOptionsEncoder, const ov::AnyMap&>,
-              "CompiledOptionsEncoder must borrow an existing map.");
-static_assert(!std::is_constructible_v<hsm::CompiledOptionsEncoder, ov::AnyMap&&>,
-              "CompiledOptionsEncoder must not borrow a temporary map.");
-static_assert(!std::is_constructible_v<hsm::CompiledOptionsEncoder, const ov::AnyMap&&>,
-              "CompiledOptionsEncoder must not borrow a temporary const map.");
+              "decode_compile_options(const Section&) must be usable as a SectionDecoder<ov::AnyMap>.");
+static_assert(std::is_base_of_v<hsm::ISectionEncoder, hsm::CompileOptionsEncoder>,
+              "CompileOptionsEncoder must be an ISectionEncoder.");
+static_assert(std::is_convertible_v<std::shared_ptr<hsm::CompileOptionsEncoder>, hsm::SectionEncoderPtr>,
+              "CompileOptionsEncoder must be passable as a SectionEncoderPtr.");
+static_assert(std::is_constructible_v<hsm::CompileOptionsEncoder, const ov::AnyMap&>,
+              "CompileOptionsEncoder must borrow an existing map.");
+static_assert(!std::is_constructible_v<hsm::CompileOptionsEncoder, ov::AnyMap&&>,
+              "CompileOptionsEncoder must not borrow a temporary map.");
+static_assert(!std::is_constructible_v<hsm::CompileOptionsEncoder, const ov::AnyMap&&>,
+              "CompileOptionsEncoder must not borrow a temporary const map.");
 static_assert(std::is_same_v<decltype(std::declval<hsm::IWriter&>().add_section(
                                  hsm::DeviceId{},
-                                 hsm::compiled_options_tag,
+                                 hsm::compile_options_tag,
                                  ov::util::MemoryView{std::declval<const EncodedBytes&>().data(),
                                                       std::declval<const EncodedBytes&>().size()})),
                              bool>,
-              "encode_compiled_options() result must fit IWriter::add_section(MemoryView).");
+              "encode_compile_options() result must fit IWriter::add_section(MemoryView).");
 static_assert(std::is_same_v<decltype(std::declval<hsm::IWriter&>().add_section(
                                  hsm::DeviceId{},
-                                 hsm::compiled_options_tag,
-                                 std::declval<std::shared_ptr<hsm::CompiledOptionsEncoder>>())),
+                                 hsm::compile_options_tag,
+                                 std::declval<std::shared_ptr<hsm::CompileOptionsEncoder>>())),
                              bool>,
-              "CompiledOptionsEncoder must fit the unsized IWriter::add_section(SectionEncoderPtr).");
+              "CompileOptionsEncoder must fit the unsized IWriter::add_section(SectionEncoderPtr).");
 
 constexpr hsm::DeviceId fake_device_id = hsm::private_device_id_range_start + 42;
 
@@ -245,15 +245,15 @@ ov::AnyMap nested_options(size_t depth) {
     return options;
 }
 
-const std::string at_value_limit(hsm::max_compiled_option_value_size, 'x');
-const std::string over_value_limit(hsm::max_compiled_option_value_size + 1, 'x');
+const std::string at_value_limit(hsm::max_compile_option_value_size, 'x');
+const std::string over_value_limit(hsm::max_compile_option_value_size + 1, 'x');
 
 std::string to_string(ov::util::MemoryView bytes) {
     return {reinterpret_cast<const char*>(bytes.data()), bytes.size()};
 }
 
 std::string encode(const ov::AnyMap& options) {
-    const auto bytes = hsm::encode_compiled_options(options);
+    const auto bytes = hsm::encode_compile_options(options);
     return to_string({bytes.data(), bytes.size()});
 }
 
@@ -262,11 +262,11 @@ ov::util::MemoryView view_of(std::string_view bytes) {
 }
 
 std::optional<ov::AnyMap> decode(std::string_view bytes) {
-    return hsm::decode_compiled_options(view_of(bytes));
+    return hsm::decode_compile_options(view_of(bytes));
 }
 
 std::string encode_with_encoder(const ov::AnyMap& options) {
-    const hsm::CompiledOptionsEncoder encoder{options};
+    const hsm::CompileOptionsEncoder encoder{options};
     std::string written;
     encoder.encode([&written](ov::util::MemoryView chunk) {
         written += to_string(chunk);
@@ -277,7 +277,7 @@ std::string encode_with_encoder(const ov::AnyMap& options) {
 hsm::ManifestEntry make_entry(size_t size) {
     hsm::ManifestEntry entry{};
     entry.device = fake_device_id;
-    entry.tag = hsm::compiled_options_tag;
+    entry.tag = hsm::compile_options_tag;
     entry.size = size;
     return entry;
 }
@@ -326,18 +326,18 @@ std::string case_name(const ::testing::TestParamInfo<Case>& info) {
 
 // --- Encoding: options -> reference bytes ---
 
-using HsmCompiledOptionsEncodeReferenceTest = ::testing::TestWithParam<ReferenceCase>;
+using HsmCompileOptionsEncodeReferenceTest = ::testing::TestWithParam<ReferenceCase>;
 
-TEST_P(HsmCompiledOptionsEncodeReferenceTest, encode_produces_reference_bytes) {
+TEST_P(HsmCompileOptionsEncodeReferenceTest, encode_produces_reference_bytes) {
     EXPECT_EQ(encode(GetParam().input), GetParam().bytes);
 }
 
-TEST_P(HsmCompiledOptionsEncodeReferenceTest, encoder_writes_reference_bytes_to_sink) {
+TEST_P(HsmCompileOptionsEncodeReferenceTest, encoder_writes_reference_bytes_to_sink) {
     EXPECT_EQ(encode_with_encoder(GetParam().input), GetParam().bytes);
 }
 
-INSTANTIATE_TEST_SUITE_P(HsmCompiledOptions,
-                         HsmCompiledOptionsEncodeReferenceTest,
+INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
+                         HsmCompileOptionsEncodeReferenceTest,
                          ::testing::ValuesIn(reference_cases()),
                          case_name<ReferenceCase>);
 
@@ -353,7 +353,7 @@ void PrintTo(const InvalidOptionsCase& invalid, std::ostream* os) {
 
 std::vector<InvalidOptionsCase> invalid_options_cases() {
     ov::AnyMap oversized_payload;
-    for (size_t i = 0; i <= hsm::max_compiled_options_size / at_value_limit.size(); ++i) {
+    for (size_t i = 0; i <= hsm::max_compile_options_size / at_value_limit.size(); ++i) {
         oversized_payload.emplace("KEY_" + std::to_string(i), at_value_limit);
     }
     return {
@@ -361,35 +361,35 @@ std::vector<InvalidOptionsCase> invalid_options_cases() {
         {"empty_nested_key", {{"M", ov::AnyMap{{"", "v"}}}}},
         {"oversized_key", {{over_value_limit, "v"}}},
         {"oversized_value", {{"k", over_value_limit}}},
-        {"too_deep", nested_options(hsm::max_compiled_options_depth + 1)},
+        {"too_deep", nested_options(hsm::max_compile_options_depth + 1)},
         {"oversized_payload", oversized_payload},
     };
 }
 }  // namespace
 
-using HsmCompiledOptionsEncodeInvalidTest = ::testing::TestWithParam<InvalidOptionsCase>;
+using HsmCompileOptionsEncodeInvalidTest = ::testing::TestWithParam<InvalidOptionsCase>;
 
-TEST_P(HsmCompiledOptionsEncodeInvalidTest, encode_throws) {
-    EXPECT_THROW(hsm::encode_compiled_options(GetParam().options), ov::Exception);
+TEST_P(HsmCompileOptionsEncodeInvalidTest, encode_throws) {
+    EXPECT_THROW(hsm::encode_compile_options(GetParam().options), ov::Exception);
 }
 
-TEST_P(HsmCompiledOptionsEncodeInvalidTest, encoder_throws) {
+TEST_P(HsmCompileOptionsEncodeInvalidTest, encoder_throws) {
     EXPECT_THROW(encode_with_encoder(GetParam().options), ov::Exception);
 }
 
-INSTANTIATE_TEST_SUITE_P(HsmCompiledOptions,
-                         HsmCompiledOptionsEncodeInvalidTest,
+INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
+                         HsmCompileOptionsEncodeInvalidTest,
                          ::testing::ValuesIn(invalid_options_cases()),
                          case_name<InvalidOptionsCase>);
 
-TEST(HsmCompiledOptionsEncodeTest, limits_are_inclusive) {
-    EXPECT_NO_THROW(hsm::encode_compiled_options({{at_value_limit, at_value_limit}}));
-    EXPECT_NO_THROW(hsm::encode_compiled_options(nested_options(hsm::max_compiled_options_depth)));
+TEST(HsmCompileOptionsEncodeTest, limits_are_inclusive) {
+    EXPECT_NO_THROW(hsm::encode_compile_options({{at_value_limit, at_value_limit}}));
+    EXPECT_NO_THROW(hsm::encode_compile_options(nested_options(hsm::max_compile_options_depth)));
 }
 
-TEST(HsmCompiledOptionsEncodeTest, encoder_encodes_borrowed_map_only_in_encode) {
+TEST(HsmCompileOptionsEncodeTest, encoder_encodes_borrowed_map_only_in_encode) {
     ov::AnyMap options{{"", "invalid until fixed"}};
-    const hsm::CompiledOptionsEncoder encoder{options};
+    const hsm::CompileOptionsEncoder encoder{options};
 
     EXPECT_THROW(encoder.encode([](ov::util::MemoryView) {}), ov::Exception);
 
@@ -403,16 +403,16 @@ TEST(HsmCompiledOptionsEncodeTest, encoder_encodes_borrowed_map_only_in_encode) 
 
 // --- Decoding: reference bytes -> options ---
 
-using HsmCompiledOptionsDecodeReferenceTest = ::testing::TestWithParam<ReferenceCase>;
+using HsmCompileOptionsDecodeReferenceTest = ::testing::TestWithParam<ReferenceCase>;
 
-TEST_P(HsmCompiledOptionsDecodeReferenceTest, decode_produces_reference_options) {
+TEST_P(HsmCompileOptionsDecodeReferenceTest, decode_produces_reference_options) {
     const auto decoded = decode(GetParam().bytes);
 
     ASSERT_TRUE(decoded);
     EXPECT_TRUE(same_options(*decoded, GetParam().expected_decoded()));
 }
 
-TEST_P(HsmCompiledOptionsDecodeReferenceTest, every_truncated_prefix_is_rejected) {
+TEST_P(HsmCompileOptionsDecodeReferenceTest, every_truncated_prefix_is_rejected) {
     const std::string_view bytes = GetParam().bytes;
 
     for (size_t size = 0; size < bytes.size(); ++size) {
@@ -420,8 +420,8 @@ TEST_P(HsmCompiledOptionsDecodeReferenceTest, every_truncated_prefix_is_rejected
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(HsmCompiledOptions,
-                         HsmCompiledOptionsDecodeReferenceTest,
+INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
+                         HsmCompileOptionsDecodeReferenceTest,
                          ::testing::ValuesIn(reference_cases()),
                          case_name<ReferenceCase>);
 
@@ -438,7 +438,7 @@ void PrintTo(const MalformedCase& malformed, std::ostream* os) {
 std::vector<MalformedCase> malformed_cases() {
     std::string oversized_entries;
     uint32_t oversized_count = 0;
-    for (; oversized_entries.size() <= hsm::max_compiled_options_size; ++oversized_count) {
+    for (; oversized_entries.size() <= hsm::max_compile_options_size; ++oversized_count) {
         oversized_entries += entry("KEY_" + std::to_string(oversized_count), 0, at_value_limit);
     }
     return {
@@ -513,7 +513,7 @@ std::vector<MalformedCase> malformed_cases() {
          "\x01"
          "\x04\x00\x00\x00"
          "\x01\x00\x00\x00"s},
-        {"too_deep", nested_payload(hsm::max_compiled_options_depth + 1)},
+        {"too_deep", nested_payload(hsm::max_compile_options_depth + 1)},
         {"oversized_key", map_of(1, entry(over_value_limit, 0, "v"))},
         {"oversized_value", map_of(1, entry("k", 0, over_value_limit))},
         {"oversized_payload", map_of(oversized_count, oversized_entries)},
@@ -521,23 +521,23 @@ std::vector<MalformedCase> malformed_cases() {
 }
 }  // namespace
 
-using HsmCompiledOptionsDecodeMalformedTest = ::testing::TestWithParam<MalformedCase>;
+using HsmCompileOptionsDecodeMalformedTest = ::testing::TestWithParam<MalformedCase>;
 
-TEST_P(HsmCompiledOptionsDecodeMalformedTest, decode_rejects) {
+TEST_P(HsmCompileOptionsDecodeMalformedTest, decode_rejects) {
     EXPECT_FALSE(decode(GetParam().bytes));
 }
 
-INSTANTIATE_TEST_SUITE_P(HsmCompiledOptions,
-                         HsmCompiledOptionsDecodeMalformedTest,
+INSTANTIATE_TEST_SUITE_P(HsmCompileOptions,
+                         HsmCompileOptionsDecodeMalformedTest,
                          ::testing::ValuesIn(malformed_cases()),
                          case_name<MalformedCase>);
 
-TEST(HsmCompiledOptionsDecodeTest, limits_are_inclusive) {
+TEST(HsmCompileOptionsDecodeTest, limits_are_inclusive) {
     EXPECT_TRUE(decode(map_of(1, entry(at_value_limit, 0, at_value_limit))));
-    EXPECT_TRUE(decode(nested_payload(hsm::max_compiled_options_depth)));
+    EXPECT_TRUE(decode(nested_payload(hsm::max_compile_options_depth)));
 }
 
-TEST(HsmCompiledOptionsDecodeTest, decoded_strings_convert_to_property_types) {
+TEST(HsmCompileOptionsDecodeTest, decoded_strings_convert_to_property_types) {
     const auto decoded = decode(typed_case.bytes);
 
     ASSERT_TRUE(decoded);
@@ -548,7 +548,7 @@ TEST(HsmCompiledOptionsDecodeTest, decoded_strings_convert_to_property_types) {
     EXPECT_EQ(decoded->at(ov::hint::num_requests.name()).as<uint32_t>(), 4u);
 }
 
-TEST(HsmCompiledOptionsDecodeTest, unknown_kind_is_skipped) {
+TEST(HsmCompileOptionsDecodeTest, unknown_kind_is_skipped) {
     const auto decoded = decode("\x02\x00\x00\x00"
                                 "\x01\x00\x00\x00"
                                 "F"
@@ -567,37 +567,37 @@ TEST(HsmCompiledOptionsDecodeTest, unknown_kind_is_skipped) {
 
 // --- Decoding from a Section ---
 
-TEST(HsmCompiledOptionsSectionTest, decodes_buffer_backed_section) {
+TEST(HsmCompileOptionsSectionTest, decodes_buffer_backed_section) {
     const auto& reference = nested_two_levels_case;
 
     const auto decoded =
-        hsm::decode_compiled_options(hsm::Section{make_entry(reference.bytes.size()), view_of(reference.bytes)});
+        hsm::decode_compile_options(hsm::Section{make_entry(reference.bytes.size()), view_of(reference.bytes)});
 
     ASSERT_TRUE(decoded);
     EXPECT_TRUE(same_options(*decoded, reference.expected_decoded()));
 }
 
-TEST(HsmCompiledOptionsSectionTest, decodes_stream_backed_section) {
+TEST(HsmCompileOptionsSectionTest, decodes_stream_backed_section) {
     const auto& reference = nested_two_levels_case;
     std::stringstream stream{"prefix" + reference.bytes};
 
-    const auto decoded = hsm::decode_compiled_options(hsm::Section{make_entry(reference.bytes.size()), stream, 6});
+    const auto decoded = hsm::decode_compile_options(hsm::Section{make_entry(reference.bytes.size()), stream, 6});
 
     ASSERT_TRUE(decoded);
     EXPECT_TRUE(same_options(*decoded, reference.expected_decoded()));
 }
 
-TEST(HsmCompiledOptionsSectionTest, oversized_section_is_rejected_before_read) {
+TEST(HsmCompileOptionsSectionTest, oversized_section_is_rejected_before_read) {
     std::stringstream stream{empty_map_case.bytes};
 
-    EXPECT_FALSE(hsm::decode_compiled_options(hsm::Section{make_entry(hsm::max_compiled_options_size + 1), stream, 0}));
+    EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(hsm::max_compile_options_size + 1), stream, 0}));
 }
 
-TEST(HsmCompiledOptionsSectionTest, unreadable_section_is_rejected) {
+TEST(HsmCompileOptionsSectionTest, unreadable_section_is_rejected) {
     const auto& reference = single_string_case;
     std::stringstream stream{reference.bytes.substr(0, reference.bytes.size() - 1)};
 
-    EXPECT_FALSE(hsm::decode_compiled_options(hsm::Section{make_entry(reference.bytes.size()), stream, 0}));
+    EXPECT_FALSE(hsm::decode_compile_options(hsm::Section{make_entry(reference.bytes.size()), stream, 0}));
 }
 
 }  // namespace ov::test

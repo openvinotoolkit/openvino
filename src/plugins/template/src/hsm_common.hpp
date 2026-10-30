@@ -35,7 +35,7 @@ inline constexpr SectionId model_id{runtime::hsm::any_device_id, runtime::hsm::m
 inline constexpr SectionId runtime_requirements{runtime::hsm::any_device_id, runtime::hsm::runtime_requirements_tag};
 inline constexpr SectionId model_struct{device_id, runtime::hsm::model_tag};
 inline constexpr SectionId weights{device_id, runtime::hsm::weights_tag};
-inline constexpr SectionId compiled_options{device_id, runtime::hsm::compiled_options_tag};
+inline constexpr SectionId compile_options{device_id, runtime::hsm::compile_options_tag};
 // TEMPLATE-specific: layout version and feature flags, no common equivalent.
 inline constexpr SectionId blob_info{device_id, runtime::hsm::SectionTag::make_device_tag(3, /*is_inline=*/true)};
 
