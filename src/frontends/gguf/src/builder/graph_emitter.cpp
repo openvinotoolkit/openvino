@@ -120,7 +120,8 @@ std::string GraphEmitter::add_op(const std::string& op_type,
     prepare_graph_inputs(*m_graph->values, *decoder);
     translate_node(std::make_shared<GgufBuilderDecoder>(m_graph, static_cast<int>(m_graph->nodes.size() - 1)),
                    m_graph->values,
-                   m_translators);
+                   m_translators,
+                   m_constant_cache);
     return name;
 }
 

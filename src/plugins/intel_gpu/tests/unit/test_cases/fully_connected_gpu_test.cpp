@@ -3274,58 +3274,6 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
     }
 
-    void test_compressed_int8_broadcast_scale_zp(bool is_caching_test, bool transpose_parameters) {
-        auto& engine = get_test_engine();
-        if (!engine.get_device_info().supports_fp16) {
-            GTEST_SKIP() << "The test requires FP16 support.";
-        }
-
-        constexpr int64_t ofm = 3;
-        constexpr int64_t ifm = 32;
-        constexpr int64_t groups = 2;
-        const auto param_shape = transpose_parameters ? ov::PartialShape{1, groups} : ov::PartialShape{groups, 1};
-
-        auto input_mem = engine.allocate_memory({{1, 2, ifm}, data_types::f16, format::bfyx});
-        auto weights_mem = engine.allocate_memory({{ofm, ifm}, data_types::u8, format::bfyx});
-        auto scale_mem = engine.allocate_memory({param_shape, data_types::f16, format::bfyx});
-        auto zp_mem = engine.allocate_memory({param_shape, data_types::u8, format::bfyx});
-        set_values<ov::float16>(input_mem, std::vector<ov::float16>(2 * ifm, ov::float16(1.0f)));
-        set_values<uint8_t>(weights_mem, std::vector<uint8_t>(ofm * ifm, 3));
-        set_values<ov::float16>(scale_mem, {2.0f, 3.0f});
-        set_values<uint8_t>(zp_mem, {1, 2});
-
-        auto fc_prim = fully_connected("fc_prim",
-                                       input_info("input"),
-                                       "weights",
-                                       "",
-                                       "scale",
-                                       "zp",
-                                       data_types::f16,
-                                       3,
-                                       2,
-                                       true,
-                                       transpose_parameters,
-                                       transpose_parameters);
-        topology topology(input_layout("input", input_mem->get_layout()), data("weights", weights_mem), data("scale", scale_mem), data("zp", zp_mem), fc_prim);
-        auto config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::optimize_data(true));
-
-        auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
-        network->set_input_data("input", input_mem);
-        auto outputs = network->execute();
-        ASSERT_EQ(outputs.size(), size_t{1});
-        auto output_mem = outputs.at("fc_prim").get_memory();
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
-        ASSERT_EQ((ov::PartialShape{1, 2, ofm}), output_mem->get_layout().get_partial_shape());
-        ASSERT_EQ(output_ptr.size(), size_t{2 * ofm});
-
-        // Both groups broadcast across all output channels: 16*(3-1)*2 + 16*(3-2)*3 = 112.
-        for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_EQ(ov::float16(112.0f), output_ptr[i]) << "i = " << i;
-        }
-    }
-
     void test_dynamic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -5825,14 +5773,6 @@ TEST_F(fully_connected_gpu_tests, compressed_int8_transpose_scale_zp) {
     this->test_compressed_int8_transpose_scale_zp(true);
 }
 
-TEST_F(fully_connected_gpu_tests, compressed_int8_broadcast_scale_zp) {
-    this->test_compressed_int8_broadcast_scale_zp(false, false);
-}
-
-TEST_F(fully_connected_gpu_tests, compressed_int8_broadcast_scale_zp_cached) {
-    this->test_compressed_int8_broadcast_scale_zp(true, false);
-}
-
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {
     this->test_compressed_int8_scale(false, true, 1, false, false);
 }
@@ -6566,8 +6506,8 @@ INSTANTIATE_TEST_SUITE_P(fully_connected_bf_tiled_dyn_b_accuracy,
                              // With post-op eltwise
                              std::make_tuple(16L, 256L, 1024L, true)));
 
-// Parameterized test fixture for UINT2 fully connected kernel across various matrix dimensions
-class fully_connected_gpu_u2_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, bool>> {
+// Common parameterized fixture for sub-byte (UINT2, UINT3) fully connected kernel tests across various matrix dimensions
+class fully_connected_gpu_sub_byte_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, bool>> {
 public:
     static std::string GetTestCaseName(const testing::TestParamInfo<std::tuple<int, int, int, int, int, bool>>& obj) {
         int batch = std::get<0>(obj.param);
@@ -6584,6 +6524,8 @@ public:
         return name;
     }
 };
+
+class fully_connected_gpu_u2_validation : public fully_connected_gpu_sub_byte_validation {};
 
 // Validates UINT2 decompression correctness across multiple sizes using random data vs inline CPU-computed reference
 TEST_P(fully_connected_gpu_u2_validation, various_sizes) {
@@ -6707,11 +6649,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            ),
                          fully_connected_gpu_u2_validation::GetTestCaseName);
 
-// The fixture above pins "fully_connected_gpu_bfyx_ref", so it never compiles the u2 branches in
-// fully_connected_gpu_bf_tiled.cl -- which is where COMPRESSED_WEIGHTS_UINT2 and the
-// FILTER_ELEMENTS_PER_BYTE / COMPRESSED_WEIGHTS_INT4 jit constants live. This fixture forces the
-// optimized kernel instead. Before the fix those branches keyed on a macro no C++ emitter ever
-// defined, so the u2 bf_tiled program did not build at all.
+// The fixture above pins "fully_connected_gpu_bfyx_ref"; this one forces fully_connected_gpu_bf_tiled.
 class fully_connected_gpu_u2_bf_tiled : public ::testing::TestWithParam<std::tuple<int, int, int, int, bool>> {
 public:
     static std::string GetTestCaseName(const testing::TestParamInfo<std::tuple<int, int, int, int, bool>>& obj) {
@@ -6723,15 +6661,15 @@ public:
     }
 };
 
-// Shared by the parameterized suite and the osv64_isv2 case below. The two differ only in which of
-// the two u2 weights packings bf_tiled repacks into, and pinning that packing is the point: a shape
-// that quietly fell back to the other one would still produce correct numbers and cover nothing.
+// The expected weights packing is asserted: a shape that fell back to the other packing would still
+// produce correct numbers and cover nothing.
 static void run_fc_u2_bf_tiled(int batch_num,
                                int ifm_num,
                                int ofm_num,
                                int scales_group_size,
                                bool use_zp,
-                               format::type expected_weights_format) {
+                               format::type expected_weights_format,
+                               std::optional<bool> expect_slm = std::nullopt) {
     auto& engine = get_test_engine();
 
     ASSERT_EQ(ifm_num % 4, 0) << "ifm_num must be multiple of 4 for U2";
@@ -6791,8 +6729,7 @@ static void run_fc_u2_bf_tiled(int batch_num,
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    // optimize_data enables allowStaticInputReordering, without which UpdateWeightsParams never
-    // runs and the bf_tiled kernel gets un-repacked weights.
+    // Without optimize_data the weights are not repacked for bf_tiled.
     config.set_property(ov::intel_gpu::optimize_data(true));
     ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bf_tiled", impl_types::ocl};
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
@@ -6812,12 +6749,22 @@ static void run_fc_u2_bf_tiled(int batch_num,
     ASSERT_EQ(impl->get_kernel_name(), "fully_connected_gpu_bf_tiled")
         << "forcing did not take effect; this test would not cover the u2 bf_tiled branches";
 
-    // u2 has two weights packings (bf_tiled.cpp:1106-1116) and reorder_weights_int4 has a separate
-    // INT2_PACKED branch for each. Which one runs is decided by a device-dependent heuristic, so
-    // assert it rather than infer it from the shape.
+    // The packing is chosen by a device-dependent heuristic, so assert it rather than infer it.
     auto weights_reorder = impl->get_weights_reorder_params();
-    ASSERT_NE(weights_reorder, nullptr) << "u2 weights are always repacked by reorder_weights_int4";
+    ASSERT_NE(weights_reorder, nullptr) << "u2 weights are always repacked by reorder_weights_compressed";
     ASSERT_EQ(weights_reorder->get_output_layout().format, expected_weights_format);
+
+    if (expect_slm.has_value()) {
+        // The SLM and default variants share one kernel name; only the JIT differs.
+        const auto& node = inst->get_node();
+        auto selected_impl = node.type()->create_impl(node);
+        bool has_slm = false;
+        for (auto& s : selected_impl->get_kernels_source()) {
+            if (s != nullptr && s->get_str().find("#define USE_SLM 1") != std::string::npos)
+                has_slm = true;
+        }
+        ASSERT_EQ(has_slm, *expect_slm) << "unexpected SLM kernel selection";
+    }
 
     auto output_mem = outputs.begin()->second.get_memory();
     cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
@@ -6844,6 +6791,16 @@ static void run_fc_u2_bf_tiled(int batch_num,
     }
 }
 
+// The u2 SLM kernel is static-shape, integrated-GPU only and needs batch >= 256 with batch % 64 == 0.
+static bool u2_slm_expected() {
+    return get_test_engine().get_device_info().dev_type == cldnn::device_type::integrated_gpu;
+}
+
+TEST(fully_connected_gpu_u2_bf_tiled_slm, osv16) {
+    run_fc_u2_bf_tiled(256, 512, 256, 128, false, format::os_iyx_osv16, u2_slm_expected());
+    run_fc_u2_bf_tiled(512, 512, 256, 128, true, format::os_iyx_osv16, u2_slm_expected());
+}
+
 TEST_P(fully_connected_gpu_u2_bf_tiled, various_sizes) {
     // Every shape below has OFM far under IFM * 3, so is_weight_horizontal() is false on any device
     // and os_iyx_osv16 is the packing under test.
@@ -6865,22 +6822,28 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            std::make_tuple(4, 256, 128, 64, true)),
                          fully_connected_gpu_u2_bf_tiled::GetTestCaseName);
 
-// The second u2 weights packing. is_weight_horizontal() requires OFM > IFM * 3 and
-// OFM / 4 > execution_units_count * SIMD * 1.5, so the shape has to be derived from the device:
-// any fixed OFM large enough for this GPU would silently fall back to os_iyx_osv16 on a bigger one,
-// and the test would keep passing while covering nothing.
-TEST(fully_connected_gpu_u2_bf_tiled_osv64, horizontal_weights) {
+// is_weight_horizontal() depends on the EU count, so the shape is derived from the device; a fixed
+// OFM would fall back to os_iyx_osv16 on a bigger GPU.
+static int u2_osv64_horizontal_ofm(int ifm_num) {
     constexpr size_t simd = 16;
     const size_t min_num_threads = get_test_engine().get_device_info().execution_units_count * simd;
 
-    const int ifm_num = 128;
     int ofm_num = static_cast<int>(min_num_threads * 6 + 64);  // OFM / 4 > min_num_threads * 1.5
     if (ofm_num < ifm_num * 3 + 64) {
         ofm_num = ifm_num * 3 + 64;
     }
-    ofm_num = (ofm_num + 63) / 64 * 64;  // whole osv64 blocks
+    return (ofm_num + 63) / 64 * 64;  // whole osv64 blocks
+}
 
-    run_fc_u2_bf_tiled(1, ifm_num, ofm_num, 32, false, format::os_is_yx_osv64_isv2);
+TEST(fully_connected_gpu_u2_bf_tiled_osv64, horizontal_weights) {
+    const int ifm_num = 128;
+    run_fc_u2_bf_tiled(1, ifm_num, u2_osv64_horizontal_ofm(ifm_num), 32, false, format::os_is_yx_osv64_isv2);
+}
+
+TEST(fully_connected_gpu_u2_bf_tiled_osv64, horizontal_weights_slm) {
+    const int ifm_num = 128;
+    run_fc_u2_bf_tiled(256, ifm_num, u2_osv64_horizontal_ofm(ifm_num), 32, false, format::os_is_yx_osv64_isv2,
+                       u2_slm_expected());
 }
 
 // TernOCL ternary FullyConnected (fully_connected_ternocl_int2): u2 codes {0, 1, 2} with the scalar
@@ -7244,9 +7207,8 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
 
-// Batch-1 FC on the GEMV kernel with u2 weights. Unlike the int4 GEMV cases above these do not skip
-// discrete or IMMAD devices: no oneDNN FC implementation takes u2, so GEMV is what u2 decode runs on
-// there.
+// Batch-1 FC on the GEMV kernel with u2 weights. Not skipped on discrete/IMMAD devices: no oneDNN FC
+// takes u2, so GEMV runs there too.
 enum class fc_gemv_zp { none, grouped, scalar };
 
 struct fc_gemv_case {
@@ -7392,12 +7354,252 @@ INSTANTIATE_TEST_SUITE_P(
         fc_gemv_case{data_types::u2, 2048, 512, 128, fc_gemv_zp::scalar, 1.5f, false, false, true},
         // Channel-wise scale: the SINGLE_GROUP_NUM path, which re-splits K by 128.
         fc_gemv_case{data_types::u2, 1024, 256, 1024, fc_gemv_zp::scalar, 1.5f, false, false, true},
+        // K % 128 == 64: the SINGLE_GROUP_NUM split falls back to 64.
+        fc_gemv_case{data_types::u2, 576, 256, 576, fc_gemv_zp::scalar, 1.5f, false, false, true},
         // Dynamic batch, as in LLM decode: the shape-agnostic kernel first, then the switch to GEMV.
         fc_gemv_case{data_types::u2, 2048, 512, 128, fc_gemv_zp::scalar, 1.5f, true, false, true},
         // Shapes the u2 unpack cannot decode must leave GEMV: K not a multiple of 64, and a scale
         // group that does not cover whole 64-value windows.
         fc_gemv_case{data_types::u2, 160, 256, 32, fc_gemv_zp::none, 0.0f, false, false, false},
         fc_gemv_case{data_types::u2, 512, 256, 32, fc_gemv_zp::scalar, 1.5f, false, false, false},
-        // u4 with an integer scalar zp through the same zp variable, now a half instead of a char.
+        // u4 with an integer scalar zp through the same (half) zp variable.
         fc_gemv_case{data_types::u4, 512, 256, 128, fc_gemv_zp::scalar, 8.0f, false, true, true}),
     fully_connected_gpu_u2_gemv::GetTestCaseName);
+
+class fully_connected_gpu_u3_validation : public fully_connected_gpu_sub_byte_validation {};
+
+// Validates UINT3 decompression correctness in the reference kernel. u3 is a tightly packed LSB-first bit stream,
+// so values straddle byte boundaries and rows are not byte-aligned when ifm_num * 3 is not a multiple of 8
+TEST_P(fully_connected_gpu_u3_validation, various_sizes) {
+    auto& engine = get_test_engine();
+
+    const int batch_num = std::get<0>(GetParam());
+    const int ifm_num = std::get<1>(GetParam());
+    const int ofm_num = std::get<2>(GetParam());
+    const int scales_group_size = std::get<3>(GetParam());
+    const int seq_len = std::get<4>(GetParam());  // 1 = 2D path, >1 = 3D (OUTPUT_3D) path
+    const bool use_zp = std::get<5>(GetParam());
+    const bool is_3d = seq_len > 1;
+
+    ASSERT_EQ(ifm_num % scales_group_size, 0) << "ifm_num must be multiple of scales_group_size";
+
+    auto input_shape = is_3d ? ov::PartialShape{batch_num, seq_len, ifm_num} : ov::PartialShape{batch_num, ifm_num};
+    auto input_mem = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u3, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+    auto zp_mem = use_zp ? engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx}) : nullptr;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    const int input_elems = is_3d ? batch_num * seq_len * ifm_num : batch_num * ifm_num;
+    auto input_data = rg.generate_random_1d<ov::float16>(input_elems, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+
+    const size_t weights_count = static_cast<size_t>(ofm_num) * ifm_num;
+    auto unpacked_weights = rg.generate_random_1d<uint8_t>(weights_count, 0, 7, 1);
+    std::vector<uint8_t> packed_weights((weights_count * 3 + 7) / 8, 0);
+    for (size_t i = 0; i < weights_count; ++i) {
+        const uint32_t bits = static_cast<uint32_t>(unpacked_weights[i] & 0x7) << ((i * 3) % 8);
+        const size_t byte_idx = i * 3 / 8;
+        packed_weights[byte_idx] |= static_cast<uint8_t>(bits);
+        if (bits > 0xFF)
+            packed_weights[byte_idx + 1] |= static_cast<uint8_t>(bits >> 8);
+    }
+    ASSERT_EQ(weights_mem->size(), packed_weights.size());
+    set_values(weights_mem, packed_weights);
+
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
+
+    std::vector<ov::float16> zp_data;
+    if (use_zp) {
+        zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 2.5f, 4.5f);
+        set_values(zp_mem, zp_data);
+    }
+
+    auto in_layout = layout{input_shape, data_types::f16, format::bfyx};
+    const int input_size = is_3d ? 3 : 2;
+
+    topology topology(input_layout("input", in_layout), data("weights", weights_mem), data("scale", scale_mem));
+    if (use_zp)
+        topology.add(data("zp", zp_mem));
+    topology.add(fully_connected("fc_prim", input_info("input"), "weights", "", "scale", use_zp ? "zp" : "", data_types::f16, input_size, 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    const int outer_count = is_3d ? batch_num * seq_len : batch_num;
+    std::vector<float> expected_output(outer_count * ofm_num);
+    for (int n = 0; n < outer_count; ++n) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float acc = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                int group_id = ifm / scales_group_size;
+                uint8_t weight_u3 = unpacked_weights[ofm * ifm_num + ifm];
+                float scale = static_cast<float>(scale_data[ofm * (ifm_num / scales_group_size) + group_id]);
+                float zp = use_zp ? static_cast<float>(zp_data[ofm * (ifm_num / scales_group_size) + group_id]) : 0.0f;
+                float weight_f16 = (static_cast<float>(weight_u3) - zp) * scale;
+                float inp = static_cast<float>(input_data[n * ifm_num + ifm]);
+                acc += inp * weight_f16;
+            }
+            expected_output[n * ofm_num + ofm] = acc;
+        }
+    }
+
+    ASSERT_EQ(output_ptr.size(), expected_output.size());
+    for (size_t i = 0; i < expected_output.size(); ++i) {
+        ASSERT_NEAR(expected_output[i], static_cast<float>(output_ptr[i]), 2.0f) << "Mismatch at output index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_gpu_u3_validation,
+                         ::testing::Values(std::make_tuple(1, 8, 4, 8, 1, false),         // minimum byte-aligned row
+                                           std::make_tuple(2, 16, 8, 4, 1, false),        // multiple batches, small group size
+                                           std::make_tuple(4, 64, 32, 32, 1, false),      // multiple groups per row
+                                           std::make_tuple(1, 512, 256, 128, 1, false),   // larger dimensions
+                                           std::make_tuple(2, 12, 7, 4, 1, false),        // rows not byte-aligned, odd ofm_num
+                                           std::make_tuple(2, 60, 63, 4, 1, false),       // rows not byte-aligned, many groups
+                                           std::make_tuple(2, 12, 4, 4, 3, false),        // 3D (OUTPUT_3D) path
+                                           std::make_tuple(2, 16, 8, 4, 1, true),         // with zero-point
+                                           std::make_tuple(1, 60, 33, 12, 1, true),       // zero-point, rows not byte-aligned
+                                           std::make_tuple(2, 12, 5, 4, 3, true)          // 3D with zero-point
+                                           ),
+                         fully_connected_gpu_u3_validation::GetTestCaseName);
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
+struct onednn_int4_fc_params {
+    size_t k;
+    bool is_3d;
+    bool is_u4;
+    bool expect_onednn;
+    bool is_f32 = false;
+};
+
+class fully_connected_onednn_int4_alignment : public ::testing::TestWithParam<onednn_int4_fc_params> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<onednn_int4_fc_params>& obj) {
+        const auto& p = obj.param;
+        return std::string(p.is_u4 ? "u4" : "i4") + "_k" + std::to_string(p.k) + (p.is_3d ? "_3d" : "_2d") + (p.is_f32 ? "_f32" : "_f16");
+    }
+};
+
+template <typename T>
+void run_onednn_int4_fc_alignment(const onednn_int4_fc_params& p) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN INT4 FC requires XMX";
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    constexpr size_t rows = 32;
+    constexpr size_t ofm = 32;
+    const size_t k = p.k;
+    const int zero_point = p.is_u4 ? 8 : 0;
+    const float scale_value = 1.0f / 16;
+    const auto activation_type = p.is_f32 ? data_types::f32 : data_types::f16;
+
+    const auto in_shape = p.is_3d ? ov::PartialShape{2, static_cast<int64_t>(rows / 2), static_cast<int64_t>(k)}
+                                  : ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(k)};
+    auto input_mem = engine.allocate_memory({in_shape, activation_type, format::bfyx});
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(ofm), static_cast<int64_t>(k)},
+                                               p.is_u4 ? data_types::u4 : data_types::i4, format::bfyx});
+    auto scale_mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(ofm), 1}, data_types::f16, format::bfyx});
+
+    auto input = rg.generate_random_1d<T>(rows * k, -1.0f, 1.0f);
+    std::vector<uint8_t> weights((ofm * k + 1) / 2);
+    for (size_t i = 0; i < weights.size(); ++i)
+        weights[i] = static_cast<uint8_t>((i * 5 + 3) % 16 | ((i * 7 + 1) % 16) << 4);
+    set_values(input_mem, input);
+    set_values(weights_mem, weights);
+    set_values(scale_mem, std::vector<ov::float16>(ofm, ov::float16(scale_value)));
+
+    topology topo;
+    topo.add(input_layout("input", input_mem->get_layout()));
+    topo.add(data("weights", weights_mem));
+    topo.add(data("scale", scale_mem));
+    if (p.is_u4) {
+        auto zp_mem = engine.allocate_memory({ov::PartialShape{1, 1}, data_types::u8, format::bfyx});
+        set_values<uint8_t>(zp_mem, {static_cast<uint8_t>(zero_point)});
+        topo.add(data("zp", zp_mem));
+    }
+    auto fc = fully_connected("fc", input_info("input"), "weights", "", "scale", p.is_u4 ? "zp" : "", activation_type, in_shape.size(), 2);
+    if (p.is_u4)
+        fc.decompression_zero_point_scalar = zero_point;
+    topo.add(fc);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"fc", {format::bfyx, "", impl_types::onednn}}}));
+    network net(engine, topo, config);
+    net.set_input_data("input", input_mem);
+    auto outputs = net.execute();
+
+    const auto impl = net.get_primitive("fc")->get_impl();
+    if (!p.is_3d) {
+        ASSERT_TRUE(impl->is_onednn());
+    }
+    if (p.expect_onednn) {
+        EXPECT_EQ(impl->get_kernel_name().find("ref"), std::string::npos) << "oneDNN kernel: " << impl->get_kernel_name();
+    }
+
+    auto output_mem = outputs.at("fc").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> output(output_mem, get_test_stream());
+    ASSERT_EQ(output.size(), rows * ofm);
+    for (size_t r = 0; r < rows; ++r) {
+        for (size_t n = 0; n < ofm; ++n) {
+            float expected = 0.0f;
+            for (size_t c = 0; c < k; ++c) {
+                const auto index = n * k + c;
+                int w = (weights[index / 2] >> (4 * (index % 2))) & 0xf;
+                if (!p.is_u4 && w >= 8)
+                    w -= 16;
+                expected += static_cast<float>(input[r * k + c]) * static_cast<float>(w - zero_point) * scale_value;
+            }
+            ASSERT_NEAR(static_cast<float>(output[r * ofm + n]), expected, 0.1f) << "row=" << r << ", ofm=" << n;
+        }
+    }
+}
+
+TEST_P(fully_connected_onednn_int4_alignment, compare_with_host_reference) {
+    const auto p = GetParam();
+    if (p.is_f32)
+        run_onednn_int4_fc_alignment<float>(p);
+    else
+        run_onednn_int4_fc_alignment<ov::float16>(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_onednn_int4_alignment,
+                         ::testing::Values(onednn_int4_fc_params{9, false, true, true},
+                                           onednn_int4_fc_params{9, false, false, true},
+                                           onednn_int4_fc_params{33, false, true, true},
+                                           onednn_int4_fc_params{33, false, false, true},
+                                           onednn_int4_fc_params{11, false, true, true},
+                                           onednn_int4_fc_params{11, false, false, true},
+                                           onednn_int4_fc_params{13, false, true, true},
+                                           onednn_int4_fc_params{13, false, false, true},
+                                           onednn_int4_fc_params{15, false, true, true},
+                                           onednn_int4_fc_params{15, false, false, true},
+                                           onednn_int4_fc_params{10, false, true, false},
+                                           onednn_int4_fc_params{10, false, false, false},
+                                           onednn_int4_fc_params{9, false, true, false, true},
+                                           onednn_int4_fc_params{9, false, false, false, true},
+                                           onednn_int4_fc_params{9, true, true, false},
+                                           onednn_int4_fc_params{33, true, false, false}),
+                         fully_connected_onednn_int4_alignment::GetTestCaseName);
+}  // namespace
+#endif

@@ -59,7 +59,7 @@ struct Moe3GemmReference {
         return packed;
     }
 
-    // u2 is 4 values per byte, LSB-first -- the same order the GEMV kernels' shift/mask assumes.
+    // u2 is 4 values per byte, LSB-first.
     static std::vector<uint8_t> pack_u2(const std::vector<uint8_t>& unpacked) {
         std::vector<uint8_t> packed((unpacked.size() + 3) / 4, 0);
         for (size_t i = 0; i < unpacked.size(); ++i) {
@@ -68,19 +68,9 @@ struct Moe3GemmReference {
         return packed;
     }
 
-    // u2 quantization with 4 levels. Unlike quantize() above this also returns the EXACT
-    // dequantized weights: at 4 levels the quantization error swamps any kernel bug, so the
-    // reference has to be computed from what the kernel will actually decode, not from the
-    // original floats. `fixed_zp >= 0` forces one broadcast zero point for every group, which is
-    // what a scalar (per-tensor) zp input means.
-    //
-    // Layouts match quantize(): q is [E, cols, rows] (cols-major), scale/zp are
-    // [E, num_groups_per_row, cols], and dequant is [E, rows, cols] row-major so it can be fed
-    // straight to run_reference_softmax in place of the original weights.
-    //
-    // `bits` = 4 gives the same exact-dequant quantizer on the u4 grid (levels 0..15), for the
-    // mixed-precision layers that pair u2 GEMMs with a u4 one. The values are unpacked either way;
-    // pack with pack_u2 or pack_u4 to match.
+    // u2 quantization that also returns the exact dequantized weights: at 4 levels the quantization error would
+    // swamp a kernel bug. `fixed_zp >= 0` forces one broadcast (scalar) zp. Layouts match quantize(); dequant is
+    // [E, rows, cols] row-major for run_reference_softmax. `bits` = 4 does the same on the u4 grid.
     struct QuantU2 {
         std::vector<uint8_t> q;
         std::vector<ov::float16> scale;
@@ -134,9 +124,7 @@ struct Moe3GemmReference {
                             std::round(std::max(0.0f, std::min(max_range, -min_val / scale))));
                     }
 
-                    // Round-trip the scale through f16 before dequantizing: that is the value the
-                    // kernel reads, and a f32 scale here would put a systematic bias in the
-                    // reference that the tight tolerance below would flag.
+                    // Round-trip the scale through f16: that is the value the kernel reads.
                     const float scale_f16 = static_cast<float>(static_cast<ov::float16>(scale));
                     out.scale[e * num_groups + g * cols + c] = static_cast<ov::float16>(scale);
                     out.zp[e * num_groups + g * cols + c] = zp_val;
@@ -762,6 +750,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp,
                                                               Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
                                                               Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64})));
 
+// Batched GEMV with a hidden_size that is not a multiple of 1024 (Gemma-4-26B-A4B: 2816).
+// The mlp_reduce local size must divide hidden_size; some drivers reject non-uniform work-groups.
+INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_hidden_not_multiple_of_1024,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX,
+                                                              cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(Moe3GemmTestParams{1, true, 2816, 512, 4, 2, 128},
+                                                              Moe3GemmTestParams{2, true, 2816, 512, 4, 2, 128})));
+
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MoERouterFused::RoutingType> {};
 
 class moe_3gemm_compressed_gpu_shared_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
@@ -1042,6 +1039,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp_shared,
                                            // Sub-128 group_size batched GEMV coverage.
                                            Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
                                            Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64}));
+
+// Shared-expert variant of smoke_batched_gemv_hidden_not_multiple_of_1024 (REDUCE_COUNT = MAX_TOPK + 1).
+INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_hidden_not_multiple_of_1024_shared,
+                         moe_3gemm_compressed_gpu_shared_random,
+                         ::testing::Values(Moe3GemmTestParams{1, true, 2816, 512, 4, 2, 128},
+                                           Moe3GemmTestParams{2, true, 2816, 512, 4, 2, 128}));
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();
@@ -1710,11 +1713,9 @@ TEST(moe_3gemm_expert_mask, shape_predictor_overflow_regression) {
 // ============================================================================
 // Mixed weight dtypes across the three expert GEMMs.
 //
-// The decode kernels took one weight dtype, expert stride and zp stride from the gate GEMM and
-// applied them to all three, so a layer with gate/up at u8 and down at u4 decoded down as u8:
-// wrong output, no error. Each GEMM is now decoded with its own dtype. gate and up still have to
-// agree on whether they are u4, because they read one SLM copy of the activations whose layout the
-// gate dtype picks; down stages its own copy and is free.
+// Each GEMM must be decoded with its own dtype. gate and up still have to agree on whether they are
+// u4, because they read one SLM copy of the activations whose layout the gate dtype picks; down
+// stages its own copy and is free.
 //
 // The reference uses the exact dequantized weights, so the tolerance only has to absorb f16
 // accumulation, and a GEMM decoded with the other dtype's stride is far outside it.
@@ -1890,29 +1891,18 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                              // Batched GEMV (MTP-style token counts).
                              MoeMixedDtypeParams{4, false, true},
                              MoeMixedDtypeParams{16, true, false},
-                             // Just above the 32-token batched-GEMV threshold: the prefill GEMM path, which
-                             // already took each GEMM's dtype; kept so a regression there is caught too.
+                             // Just above the 32-token batched-GEMV threshold: the prefill GEMM path.
                              MoeMixedDtypeParams{33, false, true},
                              MoeMixedDtypeParams{33, true, false}),
                          moe_3gemm_compressed_gpu_mixed_dtype::GetTestCaseName);
 // ============================================================================
 // u2 (UINT2) MoE with per-GEMM zero-point forms.
 //
-// The gate and the up projection are both served by ONE compiled body of gate_up_gemv_n2x_u2, but a
-// mixed-precision layer can pair an INT2_SYM GEMM (a single broadcast scalar zp) with an INT2_ASYM
-// one (a per-group zp). A layer-wide "is the zp scalar" jit constant therefore answers for both and
-// decodes whichever GEMM disagrees with it using the wrong rule.
-//
-// The reference is computed from the EXACT dequantized weights rather than the original floats: u2
-// has four levels, so quantization error alone would need a tolerance far too loose to see a
-// mis-read zero point.
-//
-// `down_u4` makes the down projection u4 with a per-group zp while gate/up stay u2: the NNCF recipe
-// that keeps gate/up at INT2_SYM and gives down INT4_ASYM. Gate/up and down each stage their own
-// SLM copy of the activations, and the u4 GEMV wants that copy interleaved where u2 wants it plain,
-// so this is the case where a layout chosen from the gate dtype would mis-feed down.
-// `gate_u4` / `up_u4` do the same for gate / up, which makes the prefill pick the native u2 GEMM
-// per GEMM (the u2 ones natively, the u4 ones on oneDNN).
+// gate and up share one compiled gate_up_gemv_n2x_u2 body, but a mixed layer can pair a scalar zp
+// (INT2_SYM) with a per-group one (INT2_ASYM), so the zp form must be resolved per GEMM. The reference
+// uses the exact dequantized weights: u2 quantization error alone would hide a mis-read zero point.
+// `down_u4` makes down u4 with a per-group zp while gate/up stay u2; down stages its own activation
+// copy, which u4 wants interleaved and u2 plain. `gate_u4` / `up_u4` do the same for gate / up.
 // ============================================================================
 
 struct MoeU2ZpParams {
@@ -2163,7 +2153,7 @@ INSTANTIATE_TEST_SUITE_P(
         // down_gemv_n2x_u2's own zp.
         MoeU2ZpParams{1, 128, 256, 64, true, true, false, false, "down_per_group_rest_scalar"},
         MoeU2ZpParams{1, 128, 256, 64, false, false, true, false, "down_scalar_rest_per_group"},
-        // Batched GEMV (MTP-style token counts).
+        // Batched GEMV (small token counts).
         MoeU2ZpParams{4, 128, 256, 64, true, false, false, false, "gate_scalar_up_per_group"},
         MoeU2ZpParams{16, 128, 256, 64, false, false, false, false, "all_per_group"},
         // The other two unpack arms: group_size 32 is ELEMS_PER_LANE 1 on xe2, 128 is 4.
@@ -2179,13 +2169,12 @@ INSTANTIATE_TEST_SUITE_P(
         // what selects the DPAS variant of the u2 GEMM.
         MoeU2ZpParams{64, 256, 256, 64, false, false, false, false, "prefill_dpas_all_per_group"},
         MoeU2ZpParams{64, 256, 256, 32, false, false, false, false, "prefill_dpas_gs32"},
-        // u4 down with u2 gate/up. The first row is the shipped recipe: INT2_SYM gate/up (scalar
-        // zp), INT4_ASYM down (per-group zp). No group_size 32 here: a layer that is not all-u2
-        // needs FAKE_GROUP_SIZE >= 2 * SUBGROUP_SIZE, which 32 does not meet on xe2.
+        // u4 down with u2 gate/up. No group_size 32 here: a layer that is not all-u2 needs
+        // FAKE_GROUP_SIZE >= 2 * SUBGROUP_SIZE, which 32 does not meet on xe2.
         MoeU2ZpParams{1, 128, 256, 64, true, true, false, true, "down_u4_rest_scalar"},
         MoeU2ZpParams{1, 128, 256, 64, false, false, false, true, "down_u4_rest_per_group"},
         MoeU2ZpParams{1, 128, 256, 128, true, true, false, true, "down_u4_rest_scalar"},
-        // Batched GEMV (MTP-style token counts).
+        // Batched GEMV (small token counts).
         MoeU2ZpParams{4, 128, 256, 64, true, true, false, true, "down_u4_rest_scalar"},
         MoeU2ZpParams{16, 128, 256, 64, false, false, false, true, "down_u4_rest_per_group"},
         // Prefill, mixed layer: each u2 GEMM takes the native u2 GEMM (gate/up here) and each u4 GEMM
@@ -2196,7 +2185,7 @@ INSTANTIATE_TEST_SUITE_P(
         MoeU2ZpParams{64, 128, 256, 64, false, false, false, false, "prefill_down_u2_gate_up_u4", true, true},
         // gate native only; up and down oneDNN.
         MoeU2ZpParams{64, 128, 256, 64, false, false, false, true, "prefill_gate_u2_only", false, true},
-        // up native only: the SiLU*mul kernel combines the native up output with the oneDNN gate output.
+        // up native only: gate oneDNN reads the native up output through its binary post-op.
         MoeU2ZpParams{64, 128, 256, 64, false, false, false, true, "prefill_up_u2_only", true, false},
         // up and down native, gate oneDNN.
         MoeU2ZpParams{64, 128, 256, 64, false, true, true, false, "prefill_gate_u4_up_down_u2", true, false},
@@ -2207,15 +2196,9 @@ INSTANTIATE_TEST_SUITE_P(
 // ============================================================================
 // u2 shared expert.
 //
-// A u2 shared-expert projection cannot be handed to the oneDNN primitives:
-// get_onednn_memory() reports it as u4, so it is unpacked into a u4 scratch buffer first. Under
-// NNCF mixed precision any SUBSET of the three projections is u2 and the unpack is driven by a
-// per-projection flag, so a subset is what has to be covered -- a layer-wide flag would either
-// unpack a u8 projection (reading it at a quarter of its true stride) or leave a u2 one packed.
-//
-// The routed experts are all u2 here so the native u2 GEMM owns them, which makes the prefill
-// cases below also cover the routed-GEMM skip in the unpack: the routed weights must NOT be
-// unpacked while the shared ones must.
+// A u2 shared-expert projection is unpacked into u4 scratch for the oneDNN primitives, per projection:
+// any subset of the three can be u2.
+// The routed experts are all u2, so these cases also check that the routed GEMMs are left packed.
 // ============================================================================
 
 struct MoeU2SharedParams {
@@ -2347,12 +2330,8 @@ TEST_P(moe_3gemm_compressed_gpu_u2_shared, mixed_u2_shared_projections) {
         return mem;
     };
 
-    // quantize() does not hand back the exact dequantized weights the way quantize_u2 does, so
-    // reconstruct them. Feeding run_reference_softmax the original floats instead leaves the u8
-    // quantization error in the reference, and on the decode path -- where the batched GEMV fuses
-    // the shared expert in-kernel -- that error is several times the tolerance a u2
-    // test wants. Layouts follow quantize(): q is [cols, rows] cols-major, scale/zp are
-    // [groups_per_row, cols], and the result is [rows, cols] row-major. expert_num is 1 here.
+    // Reconstruct the exact dequantized weights (quantize() does not return them): the u8 quantization error
+    // alone would exceed the u2 tolerance. Layouts follow quantize(); expert_num is 1 here.
     auto dequantize_u8 = [&](const std::vector<uint8_t>& q,
                              const std::vector<ov::float16>& scale,
                              const std::vector<uint8_t>& zp,
@@ -2362,8 +2341,7 @@ TEST_P(moe_3gemm_compressed_gpu_u2_shared, mixed_u2_shared_projections) {
         std::vector<float> out(rows * cols);
         for (size_t c = 0; c < cols; ++c) {
             for (size_t g = 0; g < groups_per_row; ++g) {
-                // The kernel reads an f16 scale, so the reference has to dequantize with the
-                // f16-rounded value or it carries a systematic bias of its own.
+                // The kernel reads an f16 scale, so dequantize with the f16-rounded value.
                 const float s = static_cast<float>(scale[g * cols + c]);
                 const float z = static_cast<float>(zp[g * cols + c]);
                 for (size_t i = 0; i < config.group_size; ++i) {
@@ -2375,9 +2353,7 @@ TEST_P(moe_3gemm_compressed_gpu_u2_shared, mixed_u2_shared_projections) {
         return out;
     };
 
-    // One shared projection, quantized either as u2 or as u8. Either way the reference is computed
-    // from the EXACT dequantized weights -- at four levels the u2 quantization error alone would
-    // need a tolerance far too loose to see a mis-decoded weight.
+    // One shared projection, quantized as u2 or u8; the reference uses the exact dequantized weights.
     struct SharedProj {
         cldnn::memory::ptr weight;
         cldnn::memory::ptr scale;
@@ -2512,13 +2488,9 @@ INSTANTIATE_TEST_SUITE_P(
     smoke,
     moe_3gemm_compressed_gpu_u2_shared,
     ::testing::Values(
-        // Decode, i.e. the batched GEMV, which fuses the shared expert in-kernel. Only the
-        // all-u2 case is listed: the GEMV picks ONE decode rule per compiled body, from the routed
-        // experts' dtype (GATE_WEIGHT_DT/UP_WEIGHT_DT), and the shared expert aliases those same
-        // pointers -- so a shared projection whose dtype differs from the routed one is decoded by
-        // the wrong rule: a u8 shared projection under u2 routed experts is far outside tolerance.
-        // Fixing it means a per-slot decode inside one kernel body, so the mixed cases below are
-        // prefill-only until that happens.
+        // Decode (batched GEMV, shared expert fused in-kernel): only all-u2 is listed. The GEMV picks one decode
+        // rule per compiled body from the routed experts' dtype, so a shared projection with another dtype would
+        // be mis-decoded; the mixed cases below are prefill-only.
         MoeU2SharedParams{true, true, true, 1, 64, "all_u2"},
         // Above the 32-token batched-GEMV threshold the shared expert goes through the oneDNN
         // primitives, which do resolve its dtype per projection. The routed experts take the native

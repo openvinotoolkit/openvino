@@ -24,7 +24,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout target branch
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.ref }}
 
@@ -52,11 +52,14 @@ jobs:
           added_files=0
 
           while IFS= read -r run_id; do
-            run_info=$(gh run view "$run_id" --repo "$GITHUB_REPOSITORY" --json status,conclusion,headBranch)
-            if ! jq -e --arg branch "$TARGET_BRANCH" \
-              '.status == "completed" and .conclusion == "success" and .headBranch == $branch' \
-              <<< "$run_info" >/dev/null; then
-              echo "::error::Workflow run ${run_id} must be successful and belong to target branch ${TARGET_BRANCH}."
+            run_info=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}")
+            if ! jq -e --arg repository "$GITHUB_REPOSITORY" \
+              '.repository.full_name == $repository' <<< "$run_info" >/dev/null; then
+              echo "::error::Workflow run ${run_id} must belong to repository ${GITHUB_REPOSITORY}."
+              exit 1
+            fi
+            if ! jq -e '.status == "completed" and .conclusion == "success"' <<< "$run_info" >/dev/null; then
+              echo "::error::Workflow run ${run_id} must be completed successfully."
               exit 1
             fi
 
@@ -64,7 +67,7 @@ jobs:
               "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}/artifacts?per_page=100" \
               --jq '.artifacts[] | select(.name | startswith("bom_")) | .name')
             if [[ -z "$artifact_names" ]]; then
-              echo "::error::Workflow run ${run_id} has no BOM artifacts."
+              echo "::error::The provided workflow run ${run_id} does not contain the required BOM artifacts. Verify that you provided the workflow run ID (not a job ID) of a build workflow containing artifacts whose names start with 'bom_'. Check https://github.com/${GITHUB_REPOSITORY}/actions/runs/${run_id} under Summary > Artifacts."
               exit 1
             fi
 

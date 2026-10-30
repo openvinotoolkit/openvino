@@ -84,7 +84,7 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
         // Grouped scales must also land on a whole number of 64-value windows; the
-        // channel-wise case takes the SINGLE_GROUP_NUM path and re-splits K by 128.
+        // channel-wise case takes the SINGLE_GROUP_NUM path, which splits K by 128 (by 64 when K % 128 != 0).
         const size_t sgs_u2 = weights.IFM().v / fc_params.decompression_scale.Feature().v;
         if (sgs_u2 != weights.IFM().v && sgs_u2 % 64 != 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
@@ -191,14 +191,9 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
 
     if (params.weights.GetDType() == WeightsType::UINT4) {
         jit.AddConstant(MakeJitConstant("WEI_UINT4", 1));
-        jit.AddConstant(MakeJitConstant("WEI_U2", 0));
     } else if (params.weights.GetDType() == WeightsType::INT4) {
-        jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
-        jit.AddConstant(MakeJitConstant("WEI_U2", 0));
+        jit.AddConstant(MakeJitConstant("WEI_INT4", 1));
     } else if (params.weights.GetDType() == WeightsType::UINT2) {
-        // unsigned like u4, but 4 values per byte; WEI_UINT4 stays 0 so the signed-int4
-        // sign-extension branch is not taken either
-        jit.AddConstant(MakeJitConstant("WEI_UINT4", 0));
         jit.AddConstant(MakeJitConstant("WEI_U2", 1));
     } else {
         OPENVINO_THROW("GEMV only supports INT4, UINT4 and UINT2, doesn't support ",
@@ -234,9 +229,7 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;
     if (fc_params.weights.GetDType() == WeightsType::UINT2) {
-        // u2 has one implemented layout here; skip the int4 heuristics entirely so a
-        // horizontal or swiglu-shaped weight cannot land on an osv32/osv64 packing the
-        // u2 path does not decode.
+        // Skip the int4 heuristics: they can pick osv32/osv64, which the u2 path does not decode.
         weights_layout = WeightsLayout::os_iyx_osv16;
     } else if (is_swiglu_fused(fc_params)) {
         weights_layout = WeightsLayout::os_is_yx_osv32_isv2;
@@ -266,8 +259,7 @@ KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params
         weights_layout = WeightsLayout::os_iyx_osv16;
     }
 
-    // Keeping an already-reordered layout must not drag u2 onto osv32/osv64, which it
-    // cannot decode. Validate() already rejects those, so this is belt and braces.
+    // Keeping an already-reordered layout must not move u2 onto osv32/osv64.
     if (fc_params.weights.GetDType() != WeightsType::UINT2 &&
         ((fc_params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) ||
          (fc_params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) ||

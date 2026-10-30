@@ -1,0 +1,165 @@
+﻿// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "reorder_weights_compressed.h"
+#include "kernel_selector_common.h"
+#include "kernel_selector_params.h"
+#include "kernel_selector_utils.h"
+#include "common_types.h"
+
+namespace kernel_selector {
+
+ParamsKey ReorderWeightsKernelCompressed::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputWeightsType(WeightsType::INT4);
+    k.EnableInputWeightsType(WeightsType::UINT4);
+    k.EnableInputWeightsType(WeightsType::UINT2);
+    k.EnableOutputWeightsType(WeightsType::UINT4);
+    k.EnableOutputWeightsType(WeightsType::INT4);
+    k.EnableOutputWeightsType(WeightsType::UINT2);
+    k.EnableInputWeightsLayout(WeightsLayout::oiyx);
+    k.EnableInputWeightsLayout(WeightsLayout::ioyx);
+    k.EnableOutputWeightsLayout(WeightsLayout::os_iyx_osv16);
+    k.EnableOutputWeightsLayout(WeightsLayout::os_iyx_osv32);
+    k.EnableOutputWeightsLayout(WeightsLayout::os_is_yx_osv32_isv2);
+    k.EnableOutputWeightsLayout(WeightsLayout::os_iyx_osv64);
+    k.EnableOutputWeightsLayout(WeightsLayout::os_is_yx_osv64_isv2);
+    k.EnableOutputWeightsLayout(WeightsLayout::oiyx);
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    return k;
+}
+
+KernelsData ReorderWeightsKernelCompressed::GetKernelsData(const Params& params) const {
+    const reorder_weights_params& orgParams = static_cast<const reorder_weights_params&>(params);
+    return GetCommonKernelsData(orgParams);
+}
+
+ReorderWeightsKernelCompressed::DispatchData ReorderWeightsKernelCompressed::SetDefault(const reorder_weights_params& params) const {
+    DispatchData dispatchData;
+
+    const auto& output = params.output;
+
+    const size_t values_per_byte = (output.GetDType() == WeightsType::UINT2) ? 4 : 2;
+
+    // Divide one of the dimensions by the number of values per byte to save with byte granularity
+    if (output.GetLayout() == WeightsLayout::os_iyx_osv32) {
+        dispatchData.gws = { Align(output.OFM().v, 32) / 2, output.IFM().v, 1 };
+    } else if (output.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
+        dispatchData.gws = { Align(output.OFM().v, 32), output.IFM().v / 2, 1 };
+    } else if (output.GetLayout() == WeightsLayout::os_iyx_osv16) {
+        dispatchData.gws = { Align(output.OFM().v, 16), output.IFM().v / values_per_byte, 1 };
+    } else if (output.GetLayout() == WeightsLayout::os_iyx_osv64) {
+        dispatchData.gws = { Align(output.OFM().v, 64) / 2, output.IFM().v, 1 };
+    } else if (output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
+        if (output.GetDType() == WeightsType::UINT2) {
+            // A u2 byte packs a k-pair of two OFMs, so a 64-OFM line is 32 bytes.
+            dispatchData.gws = { Align(output.OFM().v, 64) / 2, output.IFM().v / 2, 1 };
+        } else {
+            dispatchData.gws = { Align(output.OFM().v, 64), output.IFM().v / 2, 1 };
+        }
+    } else if (output.GetLayout() == WeightsLayout::oiyx) {
+        auto dims = output.GetDims();
+        bool has_pads = std::any_of(dims.begin(), dims.end(), [](const kernel_selector::Tensor::Dim& d) {
+            return d.pad.Total() != 0;
+        });
+        if (has_pads) {
+            dispatchData.gws = { CeilDiv(output.PhysicalSize(), values_per_byte), 1, 1 };
+        } else {
+            dispatchData.gws = { CeilDiv(output.LogicalSize(), values_per_byte), 1, 1 };
+        }
+    }
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+
+    return dispatchData;
+}
+
+JitConstants ReorderWeightsKernelCompressed::GetJitConstants(const reorder_weights_params& params) const {
+    auto jit = ReorderKernelBase::GetJitConstants(params);
+    const auto& input = params.input;
+    const auto& output = params.output;
+
+    if (output.GetDType() == WeightsType::UINT2) {
+        jit.AddConstant(MakeJitConstant("INT2_PACKED", 1));
+    }
+
+    if (input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) {
+        const auto idims = input.GetDims();
+        const auto odims = output.GetDims();
+
+        size_t input_inner_most_idx  = input.GetDims().size() - params.original_input_rank;
+        size_t output_inner_most_idx = output.GetDims().size() - params.original_output_rank;
+
+        const auto input_inner_most_dim = idims.at(input_inner_most_idx).LogicalDimPadded();
+        const auto output_inner_most_dim = odims.at(output_inner_most_idx).LogicalDimPadded();
+        const size_t values_per_byte = (output.GetDType() == WeightsType::UINT2) ? 4 : 2;
+        OPENVINO_ASSERT(input_inner_most_dim % values_per_byte != 0 && output_inner_most_dim % values_per_byte == 0,
+                        "Reorder weight i4 kernel for data padding only supports"
+                        "an unaligned input innermost dimension and an aligned output innermost dimension.");
+        jit.AddConstant(MakeJitConstant("INPUT0_INNERMOST_NUM", input_inner_most_dim));
+        jit.AddConstant(MakeJitConstant("OUTPUT_INNERMOST_NUM", output_inner_most_dim));
+    }
+
+    return jit;
+}
+
+bool ReorderWeightsKernelCompressed::Validate(const Params& params) const {
+    const auto& p = static_cast<const reorder_weights_params&>(params);
+    const auto& input = p.input;
+    const auto& output = p.output;
+
+    // To use the reorder weight i4 kernel for adding padding to an unaligned innermost dimension,
+    // the input tensor should have an unaligned innermost dimension without any padding,
+    // and the output tensor should have padding with only the pad.after value for the innermost dimension.
+    if (input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::oiyx) {
+        const auto idims = input.GetDims();
+        const auto odims = output.GetDims();
+
+        size_t input_inner_most_idx  = idims.size() - p.original_input_rank;
+        size_t output_inner_most_idx = odims.size() - p.original_output_rank;
+
+        const size_t values_per_byte = (output.GetDType() == WeightsType::UINT2) ? 4 : 2;
+
+        bool has_pads_for_input_dims = std::any_of(idims.begin(), idims.end(), [](const kernel_selector::Tensor::Dim& d) {
+            return d.pad.Total() != 0;
+        });
+        bool has_pads_for_output_dims_except_inner_most = std::any_of(odims.begin() + output_inner_most_idx + 1, odims.end(),
+            [](const kernel_selector::Tensor::Dim& d) {
+            return d.pad.Total() != 0;
+        });
+
+        if (idims[input_inner_most_idx].v % values_per_byte != 0
+            && !has_pads_for_input_dims
+            && !has_pads_for_output_dims_except_inner_most
+            && odims[output_inner_most_idx].pad.before == 0
+            && odims[output_inner_most_idx].LogicalDimPadded() % values_per_byte == 0) {
+            return true;
+        }
+    }
+
+    OPENVINO_ASSERT((input.LogicalSize() == input.OFM().v * input.IFM().v
+                    && output.LogicalSize() == output.OFM().v * output.IFM().v),
+                    "Reorder weight i4 only supports 2D input/output, except when adding padding for the same shape(WeightsLayout::oiyx).");
+
+    if (output.GetDType() == WeightsType::UINT2) {
+        bool supported_u2_case = input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv16;
+        supported_u2_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2;
+        supported_u2_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::oiyx;
+        return supported_u2_case;
+    }
+
+    bool supported_case = input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
+    supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2;
+    supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv16;
+    supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv64;
+    supported_case |= input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2;
+    supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::oiyx;
+    supported_case |= input.GetLayout() == WeightsLayout::ioyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
+    return supported_case;
+}
+
+KernelsPriority ReorderWeightsKernelCompressed::GetKernelsPriority(const Params& /*params*/) const {
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+}
+}  // namespace kernel_selector
