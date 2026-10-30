@@ -6,29 +6,43 @@
 
 namespace ov::runtime::hsm {
 inline namespace v1 {
+namespace {
 
-bool encode_weights(IWriter& writer, ov::util::MemoryView weights, SectionAlignment align) {
-    return writer.add_section(any_device_id, weights_tag, weights, align);
+class WeightsEncoder final : public ISectionEncoder {
+public:
+    explicit WeightsEncoder(ov::util::MemoryView weights) : m_weights(weights) {}
+
+    void encode(const SectionSink& sink) const override {
+        sink(m_weights);
+    }
+
+private:
+    ov::util::MemoryView m_weights;
+};
+
+}  // namespace
+
+SectionEncoderPtr encode_weights(ov::util::MemoryView weights) {
+    return std::make_shared<WeightsEncoder>(weights);
 }
 
-std::optional<WeightsBuffer> decode_weights(const Reader& reader) {
-    const SectionDecoder<WeightsBuffer> decoder = [](const Section& section) {
-        return section.to_bytes();
-    };
-    return reader.decode(Tags::weights, decoder);
+std::optional<WeightsBuffer> decode_weights(const Section& section) {
+    if (section.size() == 0) {
+        return WeightsBuffer{};
+    }
+    return section.to_bytes();
 }
 
-std::optional<ov::util::MemoryView> decode_weights_view(const Reader& reader) {
-    const auto section = reader.section(Tags::weights);
-    if (!section || !section->tag().is_pointer()) {
+std::optional<ov::util::MemoryView> decode_weights_view(const Section& section) {
+    if (!section.tag().is_pointer()) {
         return std::nullopt;
     }
 
-    if (section->size() == 0) {
+    if (section.size() == 0) {
         return ov::util::MemoryView{};
     }
 
-    const auto view = section->view();
+    const auto view = section.view();
     return view.empty() ? std::nullopt : std::optional{view};
 }
 

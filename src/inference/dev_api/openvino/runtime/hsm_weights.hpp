@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -18,24 +19,24 @@ inline namespace v1 {
 using WeightsBuffer = std::vector<std::byte>;
 
 /**
- * @brief Adds @p weights as the Core-owned #weights_tag section, as an unchanged byte copy made by the writer.
- * @param writer Writer receiving the section.
+ * @brief Produces raw weights bytes for a #weights_tag section on demand.
  * @param weights Raw weights bytes; borrowed, keep alive until #IWriter::finalize().
- * @param align Alignment requirements for the pointer-mode payload.
+ * @return Encoder for the sized or unsized pointer-mode #IWriter::add_section() overload.
  */
-OPENVINO_RUNTIME_API bool encode_weights(IWriter& writer, ov::util::MemoryView weights, SectionAlignment align = {});
+OPENVINO_RUNTIME_API SectionEncoderPtr encode_weights(ov::util::MemoryView weights);
 
 /**
- * @brief Decodes the Core-owned weights section into an unchanged owned byte buffer.
- * @return The weights bytes, or `std::nullopt` when the section is absent or cannot be read.
+ * @brief Copies the payload of a #weights_tag section into an owned byte buffer.
+ * @return The weights bytes, or `std::nullopt` when the section cannot be read.
  */
-OPENVINO_RUNTIME_API std::optional<WeightsBuffer> decode_weights(const Reader& reader);
+OPENVINO_RUNTIME_API std::optional<WeightsBuffer> decode_weights(const Section& section);
 
 /**
- * @brief Decodes the Core-owned weights section into a non-owning memory view.
- * @return The weights view, or `std::nullopt` when the section is absent or cannot be read.
+ * @brief Views a pointer-mode #weights_tag section without copying, when backed by addressable memory.
+ * @note The buffer backing the section must outlive the returned view.
+ * @return The weights view, or `std::nullopt` for an inline or stream-backed section.
  */
-OPENVINO_RUNTIME_API std::optional<ov::util::MemoryView> decode_weights_view(const Reader& reader);
+OPENVINO_RUNTIME_API std::optional<ov::util::MemoryView> decode_weights_view(const Section& section);
 
 }  // namespace v1
 }  // namespace ov::runtime::hsm
