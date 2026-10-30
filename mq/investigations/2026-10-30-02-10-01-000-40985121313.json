@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-30-02-10-01-000-40985121313",
+  "timestamp": "2026-10-30T02:10:01Z",
+  "run_id": "40985121313",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/40985121313",
+  "workflow_name": "Manylinux 2_28",
+  "pr_number": "39238",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39238",
+  "author": "tiger100256-hu",
+  "category": "Infrastructure",
+  "title": "Python API tests fail to download artifacts - GitHub Actions ArtifactService ListArtifacts request timeout",
+  "signature": "Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts|Infrastructure",
+  "signature_hash": "8330ab6cc84bf2e1",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Python API tests - Python 3.11 / Python API tests",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO artifacts (tests) step failed after 5 retry attempts against the GitHub Actions ArtifactService (ListArtifacts twirp RPC timed out each time)."
+    },
+    {
+      "name": "ci/gha_overall_status_manylinux_2_28",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the Python API tests job it depends on failed."
+    }
+  ],
+  "key_errors": [
+    "Attempt 1 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 3000 ms...",
+    "Attempt 4 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 12236 ms...",
+    "##[error]Action failed with error: Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
+    "fatal: unable to access 'https://github.com/openvinotoolkit/openvino/': Could not resolve host: github.com"
+  ],
+  "root_cause": "The 'Download OpenVINO artifacts (tests)' step (akashchi/download-artifact action) repeatedly timed out calling the GitHub Actions ArtifactService ListArtifacts twirp RPC, exhausting all 5 retry attempts. Immediately afterwards the same job also failed to resolve 'github.com' from DNS during post-job git cleanup, indicating a transient networking/DNS outage on the runner or in GitHub's Actions backend rather than any problem with the PR's code change (the PR only removes an unused member variable in a CPU emitter header, unrelated to artifact handling).",
+  "reproduction_steps": "N/A - not reproducible locally; this is a transient GitHub Actions infrastructure/networking issue tied to the specific runner and timing of this run.",
+  "recommended_actions": [
+    "Re-run the failed 'Python API tests - Python 3.11' job (and the dependent overall-status job) - a retry is expected to succeed since the PR's diff is unrelated to artifact handling.",
+    "If the ArtifactService timeout or DNS resolution failures recur across multiple PRs within a short window, escalate to GitHub Support / check the GitHub Status page for Actions service incidents."
+  ],
+  "prevention_strategies": "No code-side prevention is possible for transient GitHub infrastructure outages. Consider enabling automatic rerun-on-transient-failure via the workflow rerunner for ArtifactService timeout signatures (see rerun_search_string proposal) to reduce merge-queue friction from this class of failure.",
+  "historical_context": "Similar ArtifactService/artifact-download infrastructure failures have been seen before with different error text (ECONNREFUSED, 403 Forbidden, blob storage chunk timeout - patterns 1808e665f1f70825, 3a6ca31c39b0147d, 94ac5e158bc45b5a, b889d24cd154d2dd, bd5ee42b01f94f83), but this exact 'Request timeout' twirp RPC signature is new and has not been recorded before in this database."
+}
