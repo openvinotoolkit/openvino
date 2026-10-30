@@ -17,8 +17,8 @@ namespace ov::pass {
  * @ingroup ov_transformation_common_api
  * @brief Device-specific QSAIndexer kernel limits used by FuseQSAIndexer.
  *
- * The default configuration fuses every graph that QSAIndexer can represent; plugins narrow it to
- * the limits of their QSAIndexer kernels.
+ * The default configuration adds no limits of its own, and the CPU and GPU pipelines use it;
+ * a plugin may pass a narrower configuration that matches its QSAIndexer kernels.
  */
 struct FuseQSAIndexerConfig {
     /// Allowed SparseAttentionIndexer num_selection_heads values; empty allows any value.
@@ -26,10 +26,6 @@ struct FuseQSAIndexerConfig {
     /// When set, the query and key RMSNorm epsilons must agree:
     /// |q_eps - k_eps| <= max_epsilon_relative_difference * k_eps. Used by kernels with a single epsilon.
     std::optional<float> max_epsilon_relative_difference;
-    /// Require a static query head count, head size and (when RoPE is enabled) rotary dimension.
-    bool require_static_head_dims = false;
-    /// Require RoPE inputs; when false, RoPE may be disabled by empty Constant inputs.
-    bool require_rope = false;
 };
 
 /**
@@ -58,7 +54,9 @@ struct FuseQSAIndexerConfig {
  * The rewrite is applied only when:
  *  - query has QSAIndexer::query_rank and raw keys have QSAIndexer::keys_rank, with compatible
  *    batch and sequence; the block-key cache and incomplete keys have QSAIndexer::keys_rank;
- *  - RoPE inputs are either all disabled (empty Constants) or rope_cos / rope_sin have
+ *  - the query head count, the head size and the rotary dimension are static, since QSAIndexer
+ *    kernels are specialized for them;
+ *  - RoPE is enabled, since QSAIndexer kernels always apply it: rope_cos / rope_sin have
  *    QSAIndexer::rope_rank and the incomplete RoPE state has QSAIndexer::incomplete_rope_rank;
  *  - both source ops use the same key_block_size and the same key length input;
  *  - both RMSNorm weights are enabled;
@@ -66,10 +64,12 @@ struct FuseQSAIndexerConfig {
  *  - every RMSNorm node and every QSAPrepare output has a single consumer, since all of them are
  *    replaced by QSAIndexer;
  *  - the graph is within the device-specific kernel limits of FuseQSAIndexerConfig: selection
- *    head count, query/key epsilon agreement, static head dimensions and required RoPE.
+ *    head count and query/key epsilon agreement.
  *
- * Token budget positivity and divisibility, the minimum key block size, and the rotary dimension
- * bounds are guaranteed by SparseAttentionIndexer and QSAPrepare validation.
+ * Head count, head size, key block size and token budget values are taken from the graph and are
+ * not fixed, and element types are not restricted. Token budget positivity and divisibility, the
+ * minimum key block size, and the rotary dimension bounds are guaranteed by SparseAttentionIndexer
+ * and QSAPrepare validation.
  */
 class TRANSFORMATIONS_API FuseQSAIndexer : public MatcherPass {
 public:
