@@ -1028,6 +1028,16 @@ TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
     EXPECT_NO_THROW(convert());
 }
 
+TEST_F(GGUFMMProj, LegacyEncoderIgnoresUnrelatedGenerationMetadata) {
+    encoder("vision", "gemma3");
+    writer.kv_bool("clip.has_gen_audio_encoder", true);
+    writer.kv_str("clip.gen.audio.projector_type", "lfm2a_gen");
+    const auto model = convert();
+    ASSERT_EQ(model->outputs().size(), 1);
+    EXPECT_EQ(model->output().get_any_name(), "vision.embeddings");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "gemma3");
+}
+
 // Legacy Qwen2.5 Omni files name one global projector for both encoders.
 TEST_F(GGUFMMProj, Qwen25OmniResolvesProjectorPerModality) {
     encoder("vision", "unused_modality_key");

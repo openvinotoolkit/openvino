@@ -79,9 +79,9 @@ Gemma4 E2B/E4B/12B files carry both. It builds every declared encoder into one m
 Running the combined model requires the inputs of both branches. `AdaptMmprojToGenAI` (below)
 turns it into one encoder; apply it to a clone per modality to obtain both.
 
-Files containing `lfm3vl`, `lfm3a`, or `lfm3a_gen` use a dedicated coordinator whose
-registry predicate is disjoint from the generic `clip` handler. It assembles vision,
-audio and speech-generation branches while reusing the shared projector registry.
+All `clip` mmproj files use the same builder. It assembles registered vision/audio
+encoders and declared LFM3 speech-generation components, recording the component
+contracts used for GenAI selection and IR serialization.
 
 ## Graph boundary
 

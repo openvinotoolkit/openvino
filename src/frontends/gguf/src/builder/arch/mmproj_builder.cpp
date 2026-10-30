@@ -8,13 +8,16 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <optional>
 #include <sstream>
+#include <vector>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/gguf_graph.hpp"
 #include "builder/metadata_checks.hpp"
 #include "builder/projector_registry.hpp"
+#include "lfm3_audio_generator.hpp"
 #include "lfm3_projector_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "projector_adapter.hpp"
@@ -1195,27 +1198,6 @@ private:
     }
 };
 
-class MmprojBuilder : public ModelBuilder {
-public:
-    explicit MmprojBuilder(const BuildContext& context) : ctx(context), g(context) {}
-
-    std::shared_ptr<GgufGraph> build() override {
-        ModelAdapters adapters;
-        std::map<std::string, std::string> config;
-        OPENVINO_ASSERT(!build_mmproj_encoders(g, ctx, adapters, config).empty(), "[GGUF] mmproj has no encoder");
-        auto graph = g.finish();
-        graph->model_adapters = std::move(adapters);
-        write_mmproj_config(*graph, ctx.metadata, config);
-        return graph;
-    }
-
-private:
-    BuildContext ctx;
-    GgufGraphContext g;
-};
-
-}  // namespace
-
 std::vector<std::string> build_mmproj_encoders(GgufGraphContext& g,
                                                const BuildContext& ctx,
                                                ModelAdapters& adapters,
@@ -1298,6 +1280,51 @@ void write_mmproj_config(GgufGraph& graph,
     for (const auto& entry : config)
         graph.mmproj_config[entry.first] = entry.second;
 }
+
+class MmprojBuilder : public ModelBuilder {
+public:
+    explicit MmprojBuilder(const BuildContext& context) : ctx(context), g(context) {}
+
+    std::shared_ptr<GgufGraph> build() override {
+        ModelAdapters adapters;
+        std::map<std::string, std::string> config;
+        const auto modalities = build_mmproj_encoders(g, ctx, adapters, config);
+        const auto generation_type = resolve_projector_type(ctx.metadata, "gen.audio");
+        const bool lfm3 = resolve_projector_type(ctx.metadata, "vision") == "lfm3vl" ||
+                          resolve_projector_type(ctx.metadata, "audio") == "lfm3a" || generation_type == "lfm3a_gen";
+        const bool generation = lfm3 && ctx.metadata.get_bool("clip.has_gen_audio_encoder").value_or(false);
+        OPENVINO_ASSERT(!modalities.empty() || generation, "[GGUF] mmproj has no encoder");
+        if (lfm3) {
+            ModelContract contract;
+            contract.batchable_recurrent = false;
+            for (const auto& modality : modalities)
+                contract.component_groups[modality] = {
+                    "encoder",
+                    {{"encoder", {{modality + ".embeddings"}, modality == "audio" ? "audio.state." : ""}}}};
+            if (generation) {
+                OPENVINO_ASSERT(generation_type == "lfm3a_gen", "[GGUF] unsupported LFM3 audio generation projector");
+                build_lfm3_audio_generation(g);
+                contract.component_groups["audio_generation"] = {
+                    "depthformer",
+                    {{"depthformer", {{"audio.depth_logits"}, ""}},
+                     {"feedback", {{"audio.feedback"}, ""}},
+                     {"codec", {{"audio.spectrogram", "audio.istft_window"}, "audio.codec.state."}}}};
+                config["audio_generation.projector"] = "lfm3a_gen";
+            }
+            g.configure_model_contract(contract);
+        }
+        auto graph = g.finish();
+        graph->model_adapters = std::move(adapters);
+        write_mmproj_config(*graph, ctx.metadata, config);
+        return graph;
+    }
+
+private:
+    BuildContext ctx;
+    GgufGraphContext g;
+};
+
+}  // namespace
 
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,

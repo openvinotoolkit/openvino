@@ -51,7 +51,6 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/lfm_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/lfm2_vocoder_builder.cpp"
-    "${FE_SRC_DIR}/builder/arch/lfm3_mmproj_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/lfm3_projector_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/lfm3_audio_generator.cpp"
     "${FE_SRC_DIR}/builder/arch/dspark_builder.cpp"
