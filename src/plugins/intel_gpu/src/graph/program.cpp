@@ -8,6 +8,7 @@
 #include "registry/implementation_manager.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/util/file_util.hpp"
@@ -2053,6 +2054,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
                                               ib.get_stream_size(),
                                               allocation_type::usm_host,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
+        // Weights become sub-buffers of the blob, so its pages must stay resident.
+        if (auto* prefetch_buf = dynamic_cast<ov::util::PrefetchStreamBuf*>(ib.get_streambuf())) {
+            prefetch_buf->keep_read_data();
+        }
     }
 
     size_t num_nodes;

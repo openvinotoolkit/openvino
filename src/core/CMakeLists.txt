@@ -21,7 +21,8 @@ add_subdirectory(xml_util)
 set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/tensor.cpp")
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/tensor.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/weights_prefetch.cpp")
 
 set_property(SOURCE ${MIXED_SRC}
     APPEND PROPERTY INCLUDE_DIRECTORIES

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <future>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -187,8 +188,11 @@ public:
 
     /** @brief Hint to release the underlying memory if possible (e.g. unmaps/decommits). */
     virtual void hint_evict() noexcept = 0;
-    /** @brief Hint to fetch the data to memory. */
-    virtual void hint_prefetch() noexcept = 0;
+    /**
+     * @brief Hint to start fetching the data to memory in the background, returns immediately.
+     * @return A handle to wait for the data to be resident; an invalid handle means there is nothing to wait for.
+     */
+    virtual std::shared_future<void> hint_prefetch() noexcept = 0;
 };
 
 /**
