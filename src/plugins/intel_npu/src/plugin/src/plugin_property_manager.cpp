@@ -806,13 +806,12 @@ void PluginPropertyManager::registerProperties() {
     register_property(ov::available_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap&) {
         return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
     }, readOnlySetter);
-    register_property(ov::hint::model.name(), true, ov::PropertyMutability::RW,
+    register_property(ov::hint::model.name(), true, ov::PropertyMutability::WO,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::model.name());
         },
         [this](const ov::AnyMap&) -> ov::Any {
-            std::shared_ptr<const ov::Model> model = _config.get<MODEL_PTR>().lock();
-            return ov::Any(std::move(model));
+            return std::shared_ptr<const ov::Model>{};
         },
         [](const ov::Any&) {
             OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, it cannot be set otherwise");
@@ -833,7 +832,7 @@ void PluginPropertyManager::registerProperties() {
         return supportedProperties;
     }, readOnlySetter);
 
-    register_property(ov::loaded_from_cache.name(), false, ov::PropertyMutability::RW,
+    register_property(ov::loaded_from_cache.name(), false, ov::PropertyMutability::WO,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::loaded_from_cache.name());
         },

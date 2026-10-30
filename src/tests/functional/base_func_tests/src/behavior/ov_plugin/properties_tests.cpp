@@ -174,10 +174,6 @@ TEST_P(OVPropertiesDefaultSupportedTests, CanSetDefaultValueBackToPlugin) {
         if (supported_property.get_mutability() != ov::PropertyMutability::WO) {
             ASSERT_FALSE(property.empty());
         }
-        // On NPU, MODEL_PTR is RW but can be set only together with import_path
-        if (target_device == ov::test::utils::DEVICE_NPU && supported_property == ov::hint::model.name()) {
-            continue;
-        }
         // By definition, write-only properties have no readable value to set back
         if (supported_property.get_mutability() == ov::PropertyMutability::RW) {
             OV_ASSERT_NO_THROW(core.set_property(target_device, {{ supported_property, property}}));
