@@ -332,8 +332,9 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk, const pa::Dispatch
     // The logits port is dynamic (one row per sampled token), so set an
     // exact-sized tensor.
     const auto& oshape = m_chunked_logits->get_shape();
-    const auto out = ov::get_tensor_impl(ov::Tensor(m_chunked_logits->get_element_type(),
-                                                    ov::Shape{controls.logits_rows.size(), oshape.at(1), oshape.at(2)}));
+    const auto out =
+        ov::get_tensor_impl(ov::Tensor(m_chunked_logits->get_element_type(),
+                                       ov::Shape{controls.logits_rows.size(), oshape.at(1), oshape.at(2)}));
     chunk.request->set_tensor(chunk.logits, out);
 
     chunk.request->infer();
