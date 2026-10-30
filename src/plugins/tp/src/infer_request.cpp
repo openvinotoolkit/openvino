@@ -17,8 +17,6 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
-#include "openvino/runtime/intel_gpu/properties.hpp"
-#include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace ov {
@@ -323,15 +321,12 @@ ov::SoPtr<ov::ITensor> InferRequest::stage_input(size_t rank,
         try {
             const auto& ctx = m_compiled_model->get_rank_compiled()[rank]->get_context();
             OPENVINO_ASSERT(ctx, "[TP] rank ", rank, " has no remote context");
-            auto staged = ctx->create_tensor(
-                type,
-                shape,
-                {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::USM_HOST_BUFFER}});
-            slot = ov::SoPtr<ov::ITensor>(staged._ptr, staged._so);
+            // Host memory of the rank's own context, which its device reads directly.
+            slot = ctx->create_host_tensor(type, shape);
             capacity = bytes;
         } catch (const std::exception&) {
             // Nothing here is required for correctness: fall back to handing
-            // the caller's tensor over, which is what happened before.
+            // the caller's tensor over.
             m_input_stage_refused[rank][input_idx] = 1;
             slot = {};
             capacity = 0;
@@ -341,22 +336,7 @@ ov::SoPtr<ov::ITensor> InferRequest::stage_input(size_t rank,
         slot->set_shape(shape);
     }
 
-    void* dst = nullptr;
-    if (auto remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(slot._ptr)) {
-        const auto& props = remote->get_properties();
-        auto it = props.find(ov::intel_gpu::mem_handle.name());
-        if (it != props.end()) {
-            dst = it->second.as<ov::intel_gpu::gpu_handle_param>();
-        }
-    }
-    if (dst == nullptr) {
-        m_input_stage_refused[rank][input_idx] = 1;
-        slot = {};
-        capacity = 0;
-        return {};
-    }
-
-    std::memcpy(dst, user_tensor->data(), bytes);
+    std::memcpy(slot->data(), user_tensor->data(), bytes);
     return slot;
 }
 

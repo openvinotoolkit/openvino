@@ -8,10 +8,19 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tp_gpu/paged_attention_cache_controller.hpp"
+#include "remote_context.hpp"
 #include "tp_blob.hpp"
 
 namespace ov {
 namespace tp {
+
+namespace {
+ov::SoPtr<ov::IRemoteContext> make_context(const std::vector<ov::SoPtr<ov::ICompiledModel>>& rank_compiled,
+                                           const std::vector<std::string>& device_names) {
+    OPENVINO_ASSERT(!rank_compiled.empty(), "[TP] compiled model has no ranks");
+    return {std::make_shared<RemoteContext>(device_names, rank_compiled.front()->get_context()), nullptr};
+}
+}  // namespace
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -21,7 +30,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              std::vector<std::string>&& sharded_state_ids,
                              bool loaded_from_cache,
                              const TPConfig& config)
-    : ov::ICompiledModel(model, plugin),
+    : ov::ICompiledModel(model, plugin, make_context(rank_compiled, device_names)),
       m_rank_compiled(std::move(rank_compiled)),
       m_device_names(std::move(device_names)),
       m_num_collectives(num_collectives),

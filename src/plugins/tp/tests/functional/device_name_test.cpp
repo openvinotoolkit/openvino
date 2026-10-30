@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
 #include <string>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -153,6 +154,39 @@ TEST_F(TPDevicePropertiesTest, NamedBackendAndWorldSize) {
                                        ov::tp::tp_strategy(ov::tp::TPStrategy::COLUMN_ROW));
     EXPECT_EQ(compiled.get_property(ov::tp::internal::world_size.name()).as<int>(), 2);
     EXPECT_EQ(compiled.get_property(ov::num_streams), ov::streams::Num{1});
+}
+
+// A TP model has no single device: its context hands out host memory only, and
+// an input in that memory gives the same result as one in ordinary memory.
+TEST_F(TPDevicePropertiesTest, ContextGivesHostTensorsOnly) {
+    ov::Core core;
+    const BlockConfig config;
+    auto compiled = core.compile_model(make_transformer_block(config), tp_device(2));
+    auto context = compiled.get_context();
+    EXPECT_EQ(context.get_device_name(), "TP");
+    OV_EXPECT_THROW(context.create_tensor(ov::element::f32, ov::Shape{1, 4}, ov::AnyMap{}),
+                    ov::Exception,
+                    HasSubstr("a TP model has no single device"));
+
+    const ov::Shape shape{1, 5, config.hidden};
+    ov::Tensor plain(ov::element::f32, shape);
+    auto host = context.create_host_tensor(ov::element::f32, shape);
+    for (size_t i = 0; i < plain.get_size(); ++i) {
+        plain.data<float>()[i] = static_cast<float>(i % 13) * 0.01f;
+    }
+    plain.copy_to(host);
+
+    auto request = compiled.create_infer_request();
+    request.set_input_tensor(plain);
+    request.infer();
+    ov::Tensor expected(request.get_output_tensor().get_element_type(), request.get_output_tensor().get_shape());
+    request.get_output_tensor().copy_to(expected);
+
+    request.set_input_tensor(host);
+    request.infer();
+    const auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.get_shape(), expected.get_shape());
+    EXPECT_EQ(std::memcmp(actual.data(), expected.data(), expected.get_byte_size()), 0);
 }
 
 }  // namespace
