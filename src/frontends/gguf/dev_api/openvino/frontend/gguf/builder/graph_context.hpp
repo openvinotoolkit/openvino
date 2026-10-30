@@ -32,6 +32,8 @@ public:
     const GgufMetadata& metadata() const;
     // Call once before using decoder blocks; optional for other families.
     // Options are validated before deriving execution plans and graph metadata.
+    DecoderDimensions configure_decoder(const DecoderParameters& parameters);
+    void configure_model_contract(const ModelContract& contract);
     DecoderDimensions configure_decoder(RopeMode rope, const DecoderOptions& options = {});
     DecoderLayerParameters decoder_layer_parameters(int layer) const;
     GgufValue decoder_attention(int layer, const GgufValue& normalized_input);
