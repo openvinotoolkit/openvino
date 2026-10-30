@@ -837,7 +837,7 @@ void PluginPropertyManager::registerProperties() {
             return _config.hasOpt(ov::loaded_from_cache.name());
         },
         [](const ov::AnyMap&) -> ov::Any {
-            OPENVINO_THROW("Property '", ov::loaded_from_cache.name(),"' can only be provided when importing a compiled model, and read from compiled model");
+            return false;
         },
         [](const ov::Any&) {
             OPENVINO_THROW("Property '", ov::loaded_from_cache.name(),"' can only be provided when importing a compiled model from OpenVINO Cache, it cannot be set otherwise");
