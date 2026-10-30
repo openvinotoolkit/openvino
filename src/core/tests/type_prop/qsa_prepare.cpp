@@ -28,11 +28,11 @@ protected:
 TEST_F(TypePropQSAPrepareTest, default_ctor) {
     const auto op = make_op();
     op->set_key_block_size(4);
-    op->set_arguments(OutputVector{param(element::f32, PartialShape{1, 8, 128}),
-                                   param(element::f32, PartialShape{1, 0, 128}),
+    op->set_arguments(OutputVector{param(element::f32, PartialShape{1, 1, 128}),
+                                   param(element::f32, PartialShape{1, 2500, 128}),
                                    Constant::create(element::i64, Shape{1}, {10004}),
-                                   param(element::f32, PartialShape{1, 8, 64}),
-                                   param(element::f32, PartialShape{1, 8, 64}),
+                                   param(element::f32, PartialShape{1, 1, 64}),
+                                   param(element::f32, PartialShape{1, 1, 64}),
                                    param(element::f32, PartialShape{128}),
                                    param(element::f32, PartialShape{1, 3, 128}),
                                    param(element::f32, PartialShape{1, 128})});
@@ -46,8 +46,9 @@ TEST_F(TypePropQSAPrepareTest, default_ctor) {
 }
 
 TEST_F(TypePropQSAPrepareTest, static_shapes_with_constant_key_length) {
+    // The previous call ended with key_length [32, 15], so it cached 8 and 3 complete blocks.
     const auto op = make_op(param(element::f32, PartialShape{2, 8, 128}),
-                            param(element::f32, PartialShape{2, 4, 128}),
+                            param(element::f32, PartialShape{2, 8, 128}),
                             Constant::create(element::i32, Shape{2}, {40, 23}),
                             param(element::f32, PartialShape{2, 8, 64}),
                             param(element::f32, PartialShape{2, 8, 64}),
@@ -67,6 +68,20 @@ TEST_F(TypePropQSAPrepareTest, static_shapes_with_constant_key_length) {
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{2, 128}));
 }
 
+TEST_F(TypePropQSAPrepareTest, insufficient_cached_block_keys) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 8, 128}),
+                                          param(element::f32, PartialShape{2, 4, 128}),
+                                          Constant::create(element::i32, Shape{2}, {40, 23}),
+                                          param(element::f32, PartialShape{2, 8, 64}),
+                                          param(element::f32, PartialShape{2, 8, 64}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{2, 3, 128}),
+                                          param(element::f32, PartialShape{2, 128}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The second dimension of past_block_index_keys must cover the complete blocks"));
+}
+
 TEST_F(TypePropQSAPrepareTest, dynamic_key_length_keeps_block_count_dynamic) {
     const auto op = make_op(param(element::f16, PartialShape{2, 8, 128}),
                             param(element::f16, PartialShape{2, -1, 128}),
@@ -82,6 +97,35 @@ TEST_F(TypePropQSAPrepareTest, dynamic_key_length_keeps_block_count_dynamic) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, -1, 128}));
     EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{2, 3, 128}));
     EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{2, 128}));
+}
+
+TEST_F(TypePropQSAPrepareTest, dynamic_key_length_is_bounded_by_the_cached_blocks) {
+    const auto op = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                            param(element::f32, PartialShape{1, 10, 128}),
+                            param(element::i32, PartialShape{1}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{1, 8, 64}),
+                            param(element::f32, PartialShape{128}),
+                            param(element::f32, PartialShape{1, 3, 128}),
+                            param(element::f32, PartialShape{1, 128}),
+                            4);
+
+    // At most the 10 cached blocks plus ceil(8 / 4) completed by the new tokens.
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{1, Dimension(0, 12), 128}));
+}
+
+TEST_F(TypePropQSAPrepareTest, negative_key_length_value) {
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 8, 128}),
+                                          Constant::create(element::i32, Shape{1}, {-5}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{1, 8, 64}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{1, 128}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The key_length values must be non-negative."));
 }
 
 TEST_F(TypePropQSAPrepareTest, rotation_disabled_by_empty_rope) {
@@ -224,7 +268,22 @@ TEST_F(TypePropQSAPrepareTest, odd_number_of_rotated_dimensions) {
                                           param(element::f32, PartialShape{1, 130}),
                                           4),
                     NodeValidationFailure,
-                    HasSubstr("The number of rotated dimensions must be even."));
+                    HasSubstr("The number of rotated dimensions must be a positive even integer."));
+}
+
+TEST_F(TypePropQSAPrepareTest, zero_rotated_dimensions) {
+    // An enabled rotation of zero dimensions would be indistinguishable from a disabled one.
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{1, 8, 128}),
+                                          param(element::f32, PartialShape{1, 0, 128}),
+                                          param(element::i32, PartialShape{1}),
+                                          param(element::f32, PartialShape{1, 8, 0}),
+                                          param(element::f32, PartialShape{1, 8, 0}),
+                                          param(element::f32, PartialShape{128}),
+                                          param(element::f32, PartialShape{1, 3, 128}),
+                                          param(element::f32, PartialShape{1, 0}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The number of rotated dimensions must be a positive even integer."));
 }
 
 TEST_F(TypePropQSAPrepareTest, too_many_rotated_dimensions) {

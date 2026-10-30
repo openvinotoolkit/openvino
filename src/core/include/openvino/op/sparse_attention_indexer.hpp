@@ -82,8 +82,8 @@ public:
     }
 
 private:
-    int64_t m_key_block_size = 1;
-    int64_t m_token_budget = 1;
+    int64_t m_key_block_size = 0;
+    int64_t m_token_budget = 0;
     int64_t m_num_selection_heads = 1;
 };
 }  // namespace ov::op::v17

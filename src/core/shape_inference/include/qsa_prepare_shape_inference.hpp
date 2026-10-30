@@ -138,12 +138,12 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
         if (merged.is_static()) {
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   merged.get_length() % 2 == 0,
-                                   "The number of rotated dimensions must be even. Got: ",
+                                   merged.get_length() > 0 && merged.get_length() % 2 == 0,
+                                   "The number of rotated dimensions must be a positive even integer. Got: ",
                                    merged);
             NODE_SHAPE_INFER_CHECK(op,
                                    input_shapes,
-                                   !head_size.is_static() || merged.get_length() <= head_size.get_length(),
+                                   head_size.is_dynamic() || merged.get_length() <= head_size.get_length(),
                                    "The number of rotated dimensions must not exceed the head size of "
                                    "raw_index_keys.");
         }
@@ -198,6 +198,34 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
             longest = blocks > longest ? blocks : longest;
         }
         num_blocks = TDim(longest);
+
+        if (is_raw_keys_rank_static && raw_index_keys_shape[1].is_static() &&
+            past_block_index_keys_shape.rank().is_static() && past_block_index_keys_shape[1].is_static()) {
+            const auto new_tokens = raw_index_keys_shape[1].get_length();
+            int64_t cached = 0;
+            for (const auto& length : *key_lengths) {
+                const auto past = length - new_tokens;
+                const auto blocks = past > 0 ? past / key_block_size : 0;
+                cached = blocks > cached ? blocks : cached;
+            }
+            NODE_SHAPE_INFER_CHECK(op,
+                                   input_shapes,
+                                   past_block_index_keys_shape[1].get_length() >= cached,
+                                   "The second dimension of past_block_index_keys must cover the complete "
+                                   "blocks of the past tokens, at least: ",
+                                   cached,
+                                   ", got: ",
+                                   past_block_index_keys_shape[1]);
+        }
+    } else if (is_raw_keys_rank_static && past_block_index_keys_shape.rank().is_static()) {
+        // Without the key_length values only the upper bound is known: the cached blocks plus the new tokens,
+        // as the past incomplete block contributes at most key_block_size - 1 tokens.
+        const auto upper =
+            past_block_index_keys_shape[1] +
+            ov::util::dim::ceil_div(raw_index_keys_shape[1], static_cast<typename TDim::value_type>(key_block_size));
+        if (upper.is_static()) {
+            num_blocks = TDim(0, upper.get_length());
+        }
     }
 
     return {TRShape{batch, std::move(num_blocks), head_size},
