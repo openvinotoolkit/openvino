@@ -28,6 +28,8 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_fsv16.hpp
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_ref.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/histc.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/histc.hpp
     ${CMAKE_CURRENT_LIST_DIR}/lora.cpp
     ${CMAKE_CURRENT_LIST_DIR}/lora.hpp
     ${CMAKE_CURRENT_LIST_DIR}/moe/expert_weight_provider.hpp
@@ -124,6 +126,7 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_bfyx_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_fsv16.cl
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/histc.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_horizontal_fused.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_ref.cl

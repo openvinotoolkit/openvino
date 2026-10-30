@@ -57,6 +57,7 @@
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
+#include "openvino/op/histc.hpp"
 #include "openvino/op/lstm_cell.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
@@ -853,6 +854,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         for (auto& node : func->get_ops()) {
             ov::enable_constant_folding(node);
             ov::disable_keep_const_precision(node);
+            // Histc counts above 2048 are not exact in f16 and overflow above 65504.
+            if (ov::is_type<ov::op::v17::Histc>(node)) {
+                ov::disable_conversion(node, ov::element::f16);
+            }
         }
 
         manager.register_pass<ov::pass::TransposeMatMul>();

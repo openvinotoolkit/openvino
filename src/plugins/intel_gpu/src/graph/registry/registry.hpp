@@ -151,6 +151,7 @@ REGISTER_IMPLS(gated_delta_net);
 REGISTER_IMPLS(selective_ssm);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
+REGISTER_IMPLS(histc);
 REGISTER_IMPLS(loop);
 REGISTER_IMPLS(lora);
 REGISTER_IMPLS(lstm_cell);
