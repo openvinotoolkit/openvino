@@ -39,26 +39,29 @@ const GgufMetadata& GgufGraphContext::metadata() const {
 }
 
 DecoderDimensions GgufGraphContext::configure_decoder(RopeMode rope, const DecoderOptions& options) {
+    return configure_decoder(resolve_decoder_parameters(metadata(), rope, options));
+}
+
+DecoderDimensions GgufGraphContext::configure_decoder(const DecoderParameters& parameters) {
     m_impl->check_open();
     OPENVINO_ASSERT(!m_impl->decoder, "[GGUF] decoder is already configured");
-    auto normalized = decoder_config_from_meta(detail::MetadataAccess::get(metadata()).map);
-    m_impl->emitter.configure_hadamard(normalized);
-    auto config = std::make_unique<DecoderConfig>(normalized, m_impl->build_ctx.weights->weights, rope, options);
-    auto& graph = *m_impl->emitter.graph();
-    graph.has_rope = true;
-    graph.rope_config = config->rope_config;
-    graph.use_per_op_rope = config->use_per_op_rope;
-    graph.swa_window_size = config->swa_window_size;
+    auto config = std::make_unique<DecoderConfig>(parameters, m_impl->build_ctx.weights->weights);
+    config->configure_graph(m_impl->emitter, metadata());
     const DecoderDimensions dimensions{config->n_layer, config->n_embd, config->rms_eps};
     m_impl->kv = blocks::KvCachePlan::build(*config);
     m_impl->decoder = std::move(config);
     return dimensions;
 }
 
+void GgufGraphContext::configure_model_contract(const ModelContract& contract) {
+    m_impl->check_open();
+    m_impl->emitter.graph()->model_contract = contract;
+}
+
 DecoderLayerParameters GgufGraphContext::decoder_layer_parameters(int layer) const {
     m_impl->check_layer(layer);
     const auto& cfg = *m_impl->decoder;
-    return {cfg.n_head,
+    return {cfg.layer_n_head(layer),
             cfg.layer_n_head_kv(layer),
             cfg.layer_head_size(layer),
             cfg.layer_kq_scale(layer),
@@ -133,7 +136,9 @@ GgufValue GgufGraphContext::add_constant(const std::string& name, const ov::Tens
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     OPENVINO_ASSERT(tok_embd, "[GGUF] build_inp_embd: the token embedding weight is missing");
     auto tokens = add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, D}));
-    return node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    auto embeddings = node("GGML_OP_GET_ROWS", {tok_embd, tokens});
+    embeddings.m_value.get_node_shared_ptr()->get_rt_info()["gguf.token_embedding"] = true;
+    return embeddings;
 }
 
 GgufValue GgufGraphContext::build_inp_pos() {

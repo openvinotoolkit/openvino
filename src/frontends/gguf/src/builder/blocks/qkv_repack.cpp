@@ -12,8 +12,8 @@ namespace ov::frontend::gguf::blocks {
 
 void register_fused_qkv(GraphEmitter& e, const DecoderConfig& cfg, int il) {
     const std::string p = "blk." + std::to_string(il) + ".";
-    const size_t n_q = static_cast<size_t>(cfg.n_head) * cfg.head_size;
-    const size_t n_kv = static_cast<size_t>(cfg.n_head_kv) * cfg.head_size;
+    const size_t n_q = static_cast<size_t>(cfg.layer_n_head(il)) * cfg.layer_head_size(il);
+    const size_t n_kv = static_cast<size_t>(cfg.layer_n_head_kv(il)) * cfg.layer_head_size(il);
     auto parts = split_fused_qkv_extracted(p + "attn_qkv", e.weights(), e.qtypes(), n_q, n_kv, n_kv);
     const std::array<std::string, 3> names = {p + "attn_q.weight", p + "attn_k.weight", p + "attn_v.weight"};
     for (size_t i = 0; i < 3; ++i) {
@@ -33,14 +33,10 @@ void register_fused_qkv(GraphEmitter& e, const DecoderConfig& cfg, int il) {
     }
 }
 
-void register_qwen35_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il) {
+void register_interleaved_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il) {
     const std::string p = "blk." + std::to_string(il) + ".";
-    auto parts = split_interleaved_q_gate(p + "attn_q", e.weights(), e.qtypes(), static_cast<size_t>(cfg.head_size));
-    const std::array<std::string, 2> names = {p + "attn_q.weight", p + "attn_gate.weight"};
-    for (size_t i = 0; i < 2; ++i) {
-        e.inherit_hadamard(names[i], p + "attn_q.weight");
-        e.emit_weight_op(names[i], parts[i].tensors, parts[i].qtype);
-    }
+    e.inherit_hadamard(p + "attn_q_gate.weight", p + "attn_q.weight");
+    e.add_weight_from(p + "attn_q_gate.weight", p + "attn_q");
 }
 
 }  // namespace ov::frontend::gguf::blocks

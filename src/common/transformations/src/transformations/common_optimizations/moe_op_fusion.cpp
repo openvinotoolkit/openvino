@@ -31,6 +31,7 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/gather_matmul.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "ov_ops/moe_compressed.hpp"
@@ -55,16 +56,17 @@ static size_t weight_logical_K(const ov::Shape& shape) {
     return shape.size() == 4 ? shape[2] * shape[3] : shape[2];
 }
 
-// A rank-0 zp is a folded per-tensor zero point. All-zero is symmetric and becomes the absent-zp constant. A non-zero
-// one is kept only if allow_nonzero: MOE validation exempts rank-0 inputs, and only the u2 kernels broadcast it.
+// A single-element zp is a per-tensor zero point shared by all experts (MOE validation exempts it). All-zero is
+// symmetric and becomes the absent-zp constant. A non-zero one is kept only if allow_nonzero (only the u2 kernels
+// broadcast it) and only as rank-0, the layout those kernels read. u3 does not go through here: its scalar zp is kept.
 static bool normalize_scalar_zp(ov::Output<ov::Node>& zp, bool allow_nonzero) {
+    const auto ps = zp.get_partial_shape();
+    if (ps.is_static() && ov::shape_size(ps.to_shape()) != 1) {
+        return true;
+    }
     const auto zp_const = ov::as_type_ptr<v0::Constant>(zp.get_node_shared_ptr());
     if (!zp_const) {
-        const auto rank = zp.get_partial_shape().rank();
-        return rank.is_dynamic() || rank.get_length() != 0;
-    }
-    if (!zp_const->get_shape().empty()) {
-        return true;
+        return !ps.is_static();
     }
     // cast_vector is not meaningful on packed (u2/u4/i4) constants.
     const auto zp_et = zp_const->get_element_type();
@@ -74,7 +76,7 @@ static bool normalize_scalar_zp(ov::Output<ov::Node>& zp, bool allow_nonzero) {
     }
     for (const auto v : zp_const->cast_vector<int64_t>()) {
         if (v != 0) {
-            return allow_nonzero;
+            return allow_nonzero && zp_const->get_shape().empty();
         }
     }
     zp = std::make_shared<v0::Constant>(ov::element::dynamic, ov::Shape{0});
@@ -109,6 +111,7 @@ static bool broadcast_per_channel(ov::Output<ov::Node>& scale, size_t K, size_t 
 
 // Compressed weight dtypes the fused 3-GEMM MoE decodes.
 static const std::vector<ov::element::Type> moe_3gemm_weight_types = {ov::element::u2,
+                                                                      ov::element::u3,
                                                                       ov::element::u4,
                                                                       ov::element::i4,
                                                                       ov::element::u8,
@@ -247,9 +250,21 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
             auto up_zp = pm.at(up_zp_m);
             auto down_zp = pm.at(down_zp_m);
 
-            if (!normalize_scalar_zp(gate_zp, gate_w.get_element_type() == ov::element::u2) ||
-                !normalize_scalar_zp(up_zp, up_w.get_element_type() == ov::element::u2) ||
-                !normalize_scalar_zp(down_zp, down_w.get_element_type() == ov::element::u2)) {
+            // u3 keeps its scalar zp (oneDNN grouped GEMM common zero point), converted to u8 as oneDNN has no u3 zp.
+            // For the other types a scalar zp goes through normalize_scalar_zp (u2 only keeps a non-zero one).
+            const auto prepare_zp = [](ov::Output<ov::Node>& zp, const ov::Output<ov::Node>& weights) {
+                const auto wt = weights.get_element_type();
+                if (wt != ov::element::u3) {
+                    return normalize_scalar_zp(zp, wt == ov::element::u2);
+                }
+                if (zp.get_element_type() == ov::element::u3) {
+                    auto converted = ov::op::util::make_try_fold<v0::Convert>(zp, ov::element::u8);
+                    ov::copy_runtime_info(zp.get_node_shared_ptr(), converted);
+                    zp = converted->output(0);
+                }
+                return true;
+            };
+            if (!prepare_zp(gate_zp, gate_w) || !prepare_zp(up_zp, up_w) || !prepare_zp(down_zp, down_w)) {
                 return false;
             }
             const size_t num_dynamic_zp = static_cast<size_t>(gate_zp.get_element_type() == ov::element::dynamic) +
@@ -313,11 +328,14 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp() {
                     (down_G == 1 && !broadcast_per_channel(down_scale, down_K, group_size))) {
                     return false;
                 }
-                // Per-channel zps get the same expansion as their scales so the shapes match; rank-0 zps are kept.
+                // Per-channel zps get the same expansion as their scales so the shapes match; scalar zps are kept.
+                const auto is_scalar = [](const ov::Output<ov::Node>& zp) {
+                    return zp.get_partial_shape().is_static() && ov::shape_size(zp.get_shape()) == 1;
+                };
                 if (num_dynamic_zp == 0) {
-                    if ((gate_G == 1 && !broadcast_per_channel(gate_zp, gate_K, group_size)) ||
-                        (up_G == 1 && !broadcast_per_channel(up_zp, up_K, group_size)) ||
-                        (down_G == 1 && !broadcast_per_channel(down_zp, down_K, group_size))) {
+                    if ((gate_G == 1 && !is_scalar(gate_zp) && !broadcast_per_channel(gate_zp, gate_K, group_size)) ||
+                        (up_G == 1 && !is_scalar(up_zp) && !broadcast_per_channel(up_zp, up_K, group_size)) ||
+                        (down_G == 1 && !is_scalar(down_zp) && !broadcast_per_channel(down_zp, down_K, group_size))) {
                         return false;
                     }
                 }
@@ -462,7 +480,7 @@ Convert2GatherMatmulMoeBlockToMoeOp::Convert2GatherMatmulMoeBlockToMoeOp() {
     auto end_reshape_shape_m = pattern::any_input();
     auto end_reshape_m = pattern::wrap_type<v1::Reshape>({reduce_sum_m, end_reshape_shape_m});
 
-    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         auto& pm = m.get_pattern_value_map();
 
         if (transformation_callback(m.get_match_root())) {

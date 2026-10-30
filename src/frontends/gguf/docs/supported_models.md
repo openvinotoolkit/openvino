@@ -23,6 +23,7 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 
 | Architecture | Notes | Real checkpoint | Choices |
 |---|---|---|---|
+| `afmoe` | Dense lead, routed/shared experts, sigmoid gating, pre/post norms, three sliding layers then one global NoPE layer; F32 oracle fixture | — | |
 | `bailingmoe2` | Sigmoid routing, biased/grouped selection, shared experts | Ling-mini-2.0 Q2_K | 12/13 |
 | `deepseek2-ocr` | Language backbone: dense lead layers, shared/routed experts | DeepSeek-OCR-2 Q4_K_M | 13/13 |
 | `ernie4_5-moe` | Interleaved MoE, biased selection, normalized weights, shared experts | ERNIE-4.5-21B-A3B-PT Q4_K_M | 12/13 |
@@ -37,6 +38,9 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `hunyuan-dense` | Learned QK-norm after RoPE | Hunyuan-0.5B-Instruct Q8_0 | 13/13 |
 | `hunyuan-moe` | QK-norm after RoPE, routed and shared experts | Hunyuan-A13B-Instruct Q2_K | 13/13 |
 | `jais2` | Biased LayerNorm, ungated ReLU² FFN | Jais-2-8B-Chat Q4_K_M | 13/13 ² |
+| `lfm2` | LFM2 / LFM2.5 dense hybrid short convolution and GQA, QK-norm, tied head | LFM2-350M / LFM2.5-1.2B-Instruct Q4_0 | 13/13 each |
+| `lfm2.audio_vocoder` | Standalone speech component; accepts the existing publisher architecture string | LFM2.5-Audio-1.5B Q4_0 | [Component parity](mmproj.md#lfm2-audio-components) |
+| `lfm2moe` | LFM2 / LFM2.5 MoE hybrid, dense lead, biased normalized expert routing | LFM2.5-8B-A1B Q4_0 | 12/13 |
 | `llama` | llama-2 / llama-3, YaRN | Devstral Small 2507 24B Q4_K_M | 13/13 |
 | `llama-embed` | Per-token embeddings; mean/first/last pooling; causal or bidirectional | Llama-Nemotron-Embed-1B-v2 Q4_K_M | NMSE 3e-6 ² |
 | `maincoder` | NORMAL RoPE, QK-norm after RoPE | Maincoder-1B Q4_K_M | 13/13 |
@@ -51,8 +55,8 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `phi3` | Fused QKV | — | |
 | `plamo3` | Fused QKV and gate/up, bare post-norms, SWA | plamo-3-nict-2b-base Q4_K_M | 12/13 |
 | `qwen2` | qwen2 / qwen2.5 | — | |
-| `qwen3` | QK-norm before RoPE; also Bonsai-8B (Q1_0) | — | |
-| `qwen35` | Hybrid GatedDeltaNet + attention, interleaved M-RoPE; batching and beam search with SDPA and PA; also Bonsai-27B (Q1_0), Ternary-Bonsai-27B (Q2_0 g64) | — | |
+| `qwen3` | QK-norm before RoPE | — | |
+| `qwen35` | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA | — | |
 | `qwen35moe` | Hybrid GatedDeltaNet, separate or fused routed experts, shared expert | Qwen3.6-35B-A3B Q4_K_M / Q4_0 | 13/13 / 12/13 |
 | `qwen3moe` | NEOX RoPE, per-head QK-norm, normalized experts | Qwen3-0.9B-A0.6B Q4_K_M | 13/13 |
 | `smollm3` | NORMAL RoPE, skipped on every fourth layer | SmolLM3-3B Q4_K_M | 12/13 |
@@ -115,32 +119,51 @@ GGML_OPENVINO_DEVICE=CPU GGML_OPENVINO_STATEFUL_EXECUTION=1 \
 
 Checkpoints used `Q2_K`, `Q4_0`, `Q4_K_M`, `Q6_K` and `Q8_0`; other formats are covered by unit tests only.
 
-## Bonsai and Bonsai-2
+## LFM2 and LFM2.5 coverage
 
-The native GGUF frontend supports the following model families and weight formats:
+Dense and MoE language models use the `lfm2` and `lfm2moe` GGUF architecture names,
+respectively. The builder detects each convolution or attention layer from its weights;
+it supports arbitrary layer ordering, separate or fused QKV, per-head QK normalization,
+dense leading layers, softmax/sigmoid expert routing with selection bias, tied output
+weights, and attention sliding windows. No model-size-specific layer schedule is hardcoded.
+LFM2.5 8B-A1B and LFM2 24B-A2B use the same MoE builder; the 24B checkpoint has not been
+replayed. LFM2-VL and LFM2.5-VL language backbones use `lfm2`; their separate SigLIP vision
+projector is covered in [mmproj.md](mmproj.md).
 
-| Family | Sizes | Architecture | Weight formats |
-|---|---|---|---|
-| Bonsai | 1.7B, 4B, 8B | `qwen3` | Q1_0 |
-| Bonsai | 27B | `qwen35` | Q1_0, F16 |
-| Ternary-Bonsai | 1.7B, 4B, 8B | `qwen3` | F16, Q2_0 per-64/per-128, PQ2_0 |
-| Ternary-Bonsai | 27B | `qwen35` | F16, Q2_0 per-64/per-128, PQ2_0 |
-| Ternary-Bonsai-2 | 27B | `qwen35` | F16, PQ2_0, PTQ1_0, development Q2_0 per-64 |
+Six nonzero F32 llama.cpp fixtures cover mixed layer order, tied heads, a sliding-window
+boundary, fused QKV, dense-leading MoE, and all-routed sigmoid MoE. They compare full logits
+through prefill, cached one/multiple-token decode, and state reset with NMSE below `1e-5`.
+Batching, left padding, beam reordering, injected embeddings and structural conversion to
+PagedAttention/PagedCausalConv1D are covered separately. This does not establish a GenAI
+multimodal application or audio generation pipeline.
 
-Bonsai-2 uses folded Hadamard weights, including its F16 checkpoints. Supported metadata is
-version 1 or tied-output version 2, normalized Sylvester, input-last-dimension, identity or
-explicit ±1 signs, and blocks up to 4096. The frontend applies the input activation transform
-for annotated projections and the inverse transform after latent token lookup, preserving
-annotations when splitting QKV and Q/gate weights.
+Real CPU reference-token replay uses llama.cpp `03fa73cb27f5c251b9528489b18d303b1366aca4`,
+F32 inference, F16 KV, and disabled activation quantization. The prompt is
+`The capital of France is`. Quantized-CPU logit NMSE ranges are `2.32e-4..6.20e-3` for
+LFM2-350M, `3.99e-4..1.45e-3` for LFM2.5-1.2B-Instruct, and `2.98e-4..8.17e-2` for
+LFM2.5-8B-A1B. These pass the real-checkpoint greedy-choice gate above, not the F32
+fixture NMSE gate. Checkpoint revisions are `8fdc9d526b7ed346b19257551b05816c7912ecc2`,
+`8ed288026e23958ad9dfa92d53ed773a8eee7125`, and
+`49c14831707011e64d70b2ebd8462ba08d608434`, respectively, from LiquidAI's GGUF repositories.
 
-The BF16 and Q8_0 multimodal projector variants are supported directly by the built-in
-`qwen3vl_merger`; see [supported projectors](mmproj.md#supported-projectors).
+The standalone `lfm2.audio_vocoder` architecture loads LFM2.5 Audio depthformer and
+codec components; the existing publisher architecture string is also accepted.
+It consumes hidden states and codec codes rather than text tokens; see
+[audio component inputs and outputs](mmproj.md#lfm2-audio-components).
+
+Noncausal LFM2 embedding/encoder/ColBERT variants need centered convolution and their
+embedding/pooling output contracts and are rejected explicitly. LFM2.5-Audio's `lfm2a`
+conformer projector and LFM2.5 speech components are supported as described in
+[mmproj.md](mmproj.md#lfm2-audio-components). GenAI waveform preprocessing and generation
+require the `gguf-frontend-mmproj` integration. Older Mimi-based LFM2 speech output
+requires a separate codec. Other sizes, quantizations, long contexts,
+and downstream fine-tunes require their own checkpoint validation.
 
 ## Block drafters
 
-| Architecture | Supported models | Features |
-|---|---|---|
-| `dspark` | Bonsai-27B and Ternary-Bonsai-27B BF16/Q4_1 drafts | Noncausal block attention, captured target features, log-SNR conditioning, optional Markov/confidence outputs |
+| Architecture | Features |
+|---|---|
+| `dspark` | Noncausal block attention, captured target features, log-SNR conditioning, optional Markov/confidence outputs |
 
 DSpark accepts a fixed draft block in `inp_tokens` and captured target-layer features in
 `dspark_ctx_feat` (`[1,1,context_rows,capture_count*embedding_width]`). Positions and cache-write

@@ -33,7 +33,7 @@ for _ in range(100):
     observation = env.step(action)
 ```
 
-If you are building a robot control loop, use chunk prediction through `PolicyRuntime` instead of managing timing and buffering yourself.
+If you are building a robot control loop, use chunk prediction through `RobotRuntime` (via a `PolicySource` action source) instead of managing timing and buffering yourself.
 
 ```python
 chunk = model.predict_action_chunk(observation)
