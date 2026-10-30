@@ -9,25 +9,62 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 
 #include "async_infer_request.hpp"
 #include "blob_serialization.hpp"
 #include "graph_debug_dump.hpp"
+#include "hsm_writer_handler.hpp"
 #include "itt.hpp"
 #include "op/device_subgraph.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "perf_log.hpp"
 #include "properties.hpp"
 
 namespace {
+
+ov::SoPtr<ov::ICompiledModel> import_submodel_blob(const std::shared_ptr<ov::ICore>& core,
+                                                   const std::string& device,
+                                                   const ov::AnyMap& load_config,
+                                                   const ov::hetero::HsmLocatedSection& located,
+                                                   const ov::hetero::HsmBlobSource& source) {
+    if (source.stream != nullptr) {
+        auto& stream = *source.stream;
+        stream.clear();
+        stream.seekg(source.start + static_cast<std::streamoff>(located.entry.offset));
+        OPENVINO_ASSERT(stream, "Failed to seek to a HETERO compiled submodel section");
+        ov::hetero::BoundedStreamBuffer buffer{stream, located.entry.size};
+        std::istream payload{&buffer};
+        auto compiled_model = core->import_model(payload, device, load_config);
+        // The sub-device may leave the shared stream in a failed state; other sections are read next.
+        stream.clear();
+        return compiled_model;
+    }
+
+    const auto view = located.section.view();
+    OPENVINO_ASSERT(!view.empty(), "HETERO compiled submodel section is empty");
+    if (source.tensor.get_element_type() == ov::element::u8 && source.tensor.get_shape().size() == 1) {
+        try {
+            // A view of the mapped container lets the sub-device keep its weights zero-copy.
+            return core->import_model(ov::hetero::read_hsm_tensor(located, source), device, load_config);
+        } catch (const ov::Exception&) {
+            // The plugin wrapper reports a missing tensor import as a plain exception; a broken blob fails again below.
+        }
+    }
+    ov::SharedStreamBuffer buffer{view.data(), view.size()};
+    std::istream payload{&buffer};
+    return core->import_model(payload, device, load_config);
+}
 
 class CountingOutputBuffer : public std::streambuf {
 public:
@@ -122,6 +159,84 @@ void write_framed_payload_via_seekable_stream(std::ostream& modelStream,
     OPENVINO_ASSERT(payloadStream, "Failed to rewind HETERO compiled blob ", fieldName);
 
     ov::hetero::write_framed_payload(modelStream, payloadType, payloadStream, payloadSize);
+}
+
+ov::hetero::Configuration hetero_read_config(const pugi::xml_node& hetero_node, const ov::hetero::Configuration& base) {
+    using namespace ov::util::pugixml;
+
+    ov::AnyMap properties;
+    auto hetero_configs_node = hetero_node.child("hetero_config");
+    FOREACH_CHILD (hetero_config_node, hetero_configs_node, "config") {
+        properties.emplace(get_str_attr(hetero_config_node, "key"), get_str_attr(hetero_config_node, "value"));
+    }
+    return ov::hetero::Configuration(properties, base);
+}
+
+ov::hetero::SubgraphsMappingInfo hetero_read_mapping(const pugi::xml_node& hetero_node) {
+    using namespace ov::util::pugixml;
+
+    ov::hetero::SubgraphsMappingInfo mapping_info;
+    auto inputs_map_node = hetero_node.child("inputs_to_submodels_inputs");
+    FOREACH_CHILD (xml_node, inputs_map_node, "pair") {
+        mapping_info._inputs_to_submodels_inputs.emplace_back(get_uint64_attr(xml_node, "submodel_idx"),
+                                                              get_uint64_attr(xml_node, "node_idx"));
+    }
+    auto outputs_map_node = hetero_node.child("outputs_to_submodels_outputs");
+    FOREACH_CHILD (xml_node, outputs_map_node, "pair") {
+        mapping_info._outputs_to_submodels_outputs.emplace_back(get_uint64_attr(xml_node, "submodel_idx"),
+                                                                get_uint64_attr(xml_node, "node_idx"));
+    }
+    auto submodels_input_to_prev_output_node = hetero_node.child("submodels_input_to_prev_output");
+    FOREACH_CHILD (xml_node, submodels_input_to_prev_output_node, "record") {
+        std::pair<uint64_t, uint64_t> in_pair = {get_uint64_attr(xml_node, "in_submodel_idx"),
+                                                 get_uint64_attr(xml_node, "in_node_idx")};
+        std::pair<uint64_t, uint64_t> out_pair = {get_uint64_attr(xml_node, "out_submodel_idx"),
+                                                  get_uint64_attr(xml_node, "out_node_idx")};
+        mapping_info._submodels_input_to_prev_output.emplace(in_pair, out_pair);
+    }
+    return mapping_info;
+}
+
+// Metadata shared by the legacy and the HSM blob: everything but the name and the legacy format version.
+template <typename Submodels>
+void hetero_write_metadata(pugi::xml_node& hetero_node,
+                           const ov::hetero::SubgraphsMappingInfo& mapping_info,
+                           const Submodels& submodels,
+                           const ov::hetero::Configuration& cfg) {
+    auto inputs_map_node = hetero_node.append_child("inputs_to_submodels_inputs");
+    for (const auto& it : mapping_info._inputs_to_submodels_inputs) {
+        auto xml_node = inputs_map_node.append_child("pair");
+        xml_node.append_attribute("submodel_idx").set_value(std::to_string(it.first).c_str());
+        xml_node.append_attribute("node_idx").set_value(std::to_string(it.second).c_str());
+    }
+    auto outputs_map_node = hetero_node.append_child("outputs_to_submodels_outputs");
+    for (const auto& it : mapping_info._outputs_to_submodels_outputs) {
+        auto xml_node = outputs_map_node.append_child("pair");
+        xml_node.append_attribute("submodel_idx").set_value(std::to_string(it.first).c_str());
+        xml_node.append_attribute("node_idx").set_value(std::to_string(it.second).c_str());
+    }
+
+    auto submodels_input_to_prev_output_node = hetero_node.append_child("submodels_input_to_prev_output");
+    for (const auto& it : mapping_info._submodels_input_to_prev_output) {
+        auto xml_node = submodels_input_to_prev_output_node.append_child("record");
+        xml_node.append_attribute("in_submodel_idx").set_value(std::to_string(it.first.first).c_str());
+        xml_node.append_attribute("in_node_idx").set_value(std::to_string(it.first.second).c_str());
+        xml_node.append_attribute("out_submodel_idx").set_value(std::to_string(it.second.first).c_str());
+        xml_node.append_attribute("out_node_idx").set_value(std::to_string(it.second.second).c_str());
+    }
+
+    auto subnetworksNode = hetero_node.append_child("compiled_submodels");
+    for (const auto& submodel : submodels) {
+        auto sub_network_node = subnetworksNode.append_child("compiled_submodel");
+        sub_network_node.append_attribute("device").set_value(submodel.device.c_str());
+    }
+
+    auto heteroConfigsNode = hetero_node.append_child("hetero_config");
+    for (const auto& config : cfg.get_hetero_properties()) {
+        auto hetero_config_node = heteroConfigsNode.append_child("config");
+        hetero_config_node.append_attribute("key").set_value(config.first.c_str());
+        hetero_config_node.append_attribute("value").set_value(config.second.as<std::string>().c_str());
+    }
 }
 
 }  // namespace
@@ -254,6 +369,17 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
       m_cfg(cfg),
       m_name(),
       m_loaded_from_cache(loaded_from_cache) {
+    const auto start = model.tellg();
+    if (auto reader = ov::runtime::hsm::Reader::open(model)) {
+        import_container(*reader, HsmBlobSource{&model, start, {}});
+        return;
+    }
+    // Not an HSM container: rewind and read the legacy layout. A non-seekable stream was not consumed.
+    if (start != std::streampos(-1)) {
+        model.clear();
+        model.seekg(start);
+    }
+
     std::string heteroXmlStr;
     std::getline(model, heteroXmlStr);
 
@@ -285,22 +411,13 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     }
     const bool is_framed_blob = blob_format_version == HETERO_BLOB_FORMAT_VERSION;
 
-    ov::AnyMap properties;
-    auto heteroConfigsNode = heteroNode.child("hetero_config");
     // clang-format off
-    FOREACH_CHILD(heteroConfigNode, heteroConfigsNode, "config") {
-        properties.emplace(get_str_attr(heteroConfigNode, "key"), get_str_attr(heteroConfigNode, "value"));
-    }
-
-    m_cfg = ov::hetero::Configuration(properties, m_cfg);
+    m_cfg = hetero_read_config(heteroNode, m_cfg);
 
     pugi::xml_node subnetworksNode = heteroNode.child("compiled_submodels");
     FOREACH_CHILD(subnetworkNode, subnetworksNode, "compiled_submodel") {
         auto device = get_str_attr(subnetworkNode, "device");
-
-        auto meta_devices = get_hetero_plugin()->get_properties_per_device(device, m_cfg.get_device_properties());
-        assert(meta_devices.size() == 1);
-        auto& loadConfig = meta_devices[device];
+        auto loadConfig = get_load_config(device);
 
         ov::SoPtr<ov::ICompiledModel> compiled_model;
         std::shared_ptr<ov::Model> ov_model;
@@ -348,25 +465,80 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
         });
     }
 
-    auto inputs_map_node = heteroNode.child("inputs_to_submodels_inputs");
-    FOREACH_CHILD(xml_node, inputs_map_node, "pair") {
-        m_mapping_info._inputs_to_submodels_inputs.emplace_back(get_uint64_attr(xml_node, "submodel_idx"),
-                                                  get_uint64_attr(xml_node, "node_idx"));
-    }
-    auto outputs_map_node = heteroNode.child("outputs_to_submodels_outputs");
-    FOREACH_CHILD(xml_node, outputs_map_node, "pair") {
-        m_mapping_info._outputs_to_submodels_outputs.emplace_back(get_uint64_attr(xml_node, "submodel_idx"),
-                                                    get_uint64_attr(xml_node, "node_idx"));
-    }
-    auto submodels_input_to_prev_output_node = heteroNode.child("submodels_input_to_prev_output");
-    FOREACH_CHILD(xml_node, submodels_input_to_prev_output_node, "record") {
-        std::pair<uint64_t, uint64_t> in_pair = {get_uint64_attr(xml_node, "in_submodel_idx"),
-                                                 get_uint64_attr(xml_node, "in_node_idx")};
-        std::pair<uint64_t, uint64_t> out_pair = {get_uint64_attr(xml_node, "out_submodel_idx"),
-                                                  get_uint64_attr(xml_node, "out_node_idx")};
-        m_mapping_info._submodels_input_to_prev_output.emplace(in_pair, out_pair);
-    }
+    m_mapping_info = hetero_read_mapping(heteroNode);
     // clang-format on
+    set_inputs_and_outputs();
+}
+
+ov::hetero::CompiledModel::CompiledModel(const ov::Tensor& model,
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         const Configuration& cfg,
+                                         const bool loaded_from_cache)
+    : ov::ICompiledModel(nullptr, plugin),
+      m_cfg(cfg),
+      m_name(),
+      m_loaded_from_cache(loaded_from_cache) {
+    auto reader = ov::runtime::hsm::Reader::open(static_cast<const std::byte*>(model.data()), model.get_byte_size());
+    OPENVINO_ASSERT(reader, "[HETERO] Cannot import compiled blob: invalid HSM container.");
+    import_container(*reader, HsmBlobSource{nullptr, {}, model});
+}
+
+ov::AnyMap ov::hetero::CompiledModel::get_load_config(const std::string& device) const {
+    auto meta_devices = get_hetero_plugin()->get_properties_per_device(device, m_cfg.get_device_properties());
+    assert(meta_devices.size() == 1);
+    return meta_devices[device];
+}
+
+void ov::hetero::CompiledModel::import_container(const ov::runtime::hsm::Reader& reader, const HsmBlobSource& source) {
+    using namespace ov::util::pugixml;
+
+    // Before any other section is read: an incompatible blob must be rejected without touching its payload.
+    check_hsm_runtime_requirements(reader);
+
+    // Records the sections without reading them, so the structure is validated before any payload is touched.
+    HsmReaderHandler handler;
+    reader.read_sections({&handler});
+    handler.check_structure();
+
+    pugi::xml_document hetero_xml_doc;
+    OPENVINO_ASSERT(
+        hetero_xml_doc.load_string(read_hsm_string(handler.metadata().section).c_str()).status == pugi::status_ok,
+        "Failed to read Hetero device xml header");
+    const auto hetero_node = hetero_xml_doc.document_element();
+    m_name = get_str_attr(hetero_node, "name");
+    m_cfg = hetero_read_config(hetero_node, m_cfg);
+
+    std::vector<std::string> devices;
+    const auto sub_networks_node = hetero_node.child("compiled_submodels");
+    FOREACH_CHILD (sub_network_node, sub_networks_node, "compiled_submodel") {
+        devices.push_back(get_str_attr(sub_network_node, "device"));
+    }
+    OPENVINO_ASSERT(handler.submodel_count() == devices.size(),
+                    "[HETERO] Cannot import compiled blob: expected sections of ",
+                    devices.size(),
+                    " submodels, found ",
+                    handler.submodel_count());
+
+    const auto& core = get_hetero_plugin()->get_core();
+    for (size_t i = 0; i < devices.size(); ++i) {
+        const auto& device = devices[i];
+        const auto& sections = handler.submodel(i);
+        const auto load_config = get_load_config(device);
+
+        ov::SoPtr<ov::ICompiledModel> compiled_model;
+        std::shared_ptr<ov::Model> ov_model;
+        if (sections.blob) {
+            compiled_model = import_submodel_blob(core, device, load_config, *sections.blob, source);
+        } else {
+            const auto xml = read_hsm_string(sections.ir_xml->section);
+            const auto weights = sections.ir_weights ? read_hsm_tensor(*sections.ir_weights, source) : ov::Tensor{};
+            ov_model = core->read_model(xml, weights);
+            compiled_model = core->compile_model(ov_model, device, load_config);
+        }
+        m_compiled_submodels.emplace_back(CompiledModelDesc{device, ov_model, compiled_model});
+    }
+
+    m_mapping_info = hetero_read_mapping(hetero_node);
     set_inputs_and_outputs();
 }
 
@@ -519,48 +691,81 @@ void ov::hetero::CompiledModel::set_inputs_and_outputs() {
     }
 }
 
+void ov::hetero::CompiledModel::export_container(std::ostream& model_stream) const {
+    pugi::xml_document doc;
+    auto hetero_node = doc.append_child("hetero");
+    hetero_node.append_attribute("name").set_value(m_name.c_str());
+    hetero_write_metadata(hetero_node, m_mapping_info, m_compiled_submodels, m_cfg);
+    std::ostringstream metadata;
+    doc.save(metadata, nullptr, pugi::format_raw);
+
+    const auto& core = get_plugin()->get_core();
+    const auto metadata_text = metadata.str();
+    std::vector<bool> use_ir(m_compiled_submodels.size());
+    for (size_t i = 0; i < m_compiled_submodels.size(); ++i) {
+        OPENVINO_ASSERT(m_compiled_submodels[i].compiled_model);
+        use_ir[i] = !core->device_supports_model_caching(m_compiled_submodels[i].device);
+    }
+
+    const auto write_container = [&](std::ostream& stream) {
+        const auto container_start = stream.tellp();
+        while (true) {
+            std::vector<HsmSubmodelPayload> submodels(m_compiled_submodels.size());
+            std::optional<size_t> exporting;
+            for (size_t i = 0; i < submodels.size(); ++i) {
+                const auto& comp_model_desc = m_compiled_submodels[i];
+                if (use_ir[i]) {
+                    submodels[i].ir_model = comp_model_desc.model;
+                } else {
+                    submodels[i].export_blob = [&comp_model_desc, &exporting, i](std::ostream& blob_stream) {
+                        exporting = i;
+                        comp_model_desc.compiled_model->export_model(blob_stream);
+                        exporting.reset();
+                    };
+                }
+            }
+
+            HsmWriterHandler handler{stream, metadata_text, std::move(submodels)};
+            try {
+                auto writer = ov::runtime::hsm::DeferredWriter::open(stream);
+                OPENVINO_ASSERT(writer, "[HETERO] Cannot export in HSM format: the output stream must be seekable.");
+                writer->add_sections({&handler});
+                const auto error = writer->finalize();
+                OPENVINO_ASSERT(!error, "[HETERO] HSM export failed: ", error.message());
+                return;
+            } catch (const ov::NotImplemented& ex) {
+                OPENVINO_ASSERT(exporting, "[HETERO] Unexpected NotImplemented during HSM export: ", ex.what());
+                // E.g. the Auto batch plugin reports caching but cannot export: write the container again with IR.
+                use_ir[*exporting] = true;
+                stream.clear();
+                stream.seekp(container_start);
+            }
+        }
+    };
+
+    if (is_output_stream_seekable(model_stream)) {
+        write_container(model_stream);
+    } else {
+        std::stringstream staging_stream(std::ios::in | std::ios::out | std::ios::binary);
+        write_container(staging_stream);
+        model_stream << staging_stream.rdbuf();
+        OPENVINO_ASSERT(model_stream, "Failed to write HETERO compiled blob");
+    }
+}
+
 void ov::hetero::CompiledModel::export_model(std::ostream& model_stream) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "CompiledModel::export_model");
+
+    if (m_cfg.export_hsm_format) {
+        export_container(model_stream);
+        return;
+    }
 
     pugi::xml_document doc;
     auto heteroNode = doc.append_child("hetero");
     heteroNode.append_attribute("name").set_value(m_name.c_str());
     heteroNode.append_attribute(HETERO_BLOB_FORMAT_VERSION_ATTR).set_value(HETERO_BLOB_FORMAT_VERSION);
-
-    auto inputs_map_node = heteroNode.append_child("inputs_to_submodels_inputs");
-    for (const auto& it : m_mapping_info._inputs_to_submodels_inputs) {
-        auto xml_node = inputs_map_node.append_child("pair");
-        xml_node.append_attribute("submodel_idx").set_value(std::to_string(it.first).c_str());
-        xml_node.append_attribute("node_idx").set_value(std::to_string(it.second).c_str());
-    }
-    auto outputs_map_node = heteroNode.append_child("outputs_to_submodels_outputs");
-    for (const auto& it : m_mapping_info._outputs_to_submodels_outputs) {
-        auto xml_node = outputs_map_node.append_child("pair");
-        xml_node.append_attribute("submodel_idx").set_value(std::to_string(it.first).c_str());
-        xml_node.append_attribute("node_idx").set_value(std::to_string(it.second).c_str());
-    }
-
-    auto submodels_input_to_prev_output_node = heteroNode.append_child("submodels_input_to_prev_output");
-    for (const auto& it : m_mapping_info._submodels_input_to_prev_output) {
-        auto xml_node = submodels_input_to_prev_output_node.append_child("record");
-        xml_node.append_attribute("in_submodel_idx").set_value(std::to_string(it.first.first).c_str());
-        xml_node.append_attribute("in_node_idx").set_value(std::to_string(it.first.second).c_str());
-        xml_node.append_attribute("out_submodel_idx").set_value(std::to_string(it.second.first).c_str());
-        xml_node.append_attribute("out_node_idx").set_value(std::to_string(it.second.second).c_str());
-    }
-
-    auto subnetworksNode = heteroNode.append_child("compiled_submodels");
-    for (const auto& comp_model_desc : m_compiled_submodels) {
-        auto subnetworkNode = subnetworksNode.append_child("compiled_submodel");
-        subnetworkNode.append_attribute("device").set_value(comp_model_desc.device.c_str());
-    }
-
-    auto heteroConfigsNode = heteroNode.append_child("hetero_config");
-    for (const auto& config : m_cfg.get_hetero_properties()) {
-        auto heteroConfigNode = heteroConfigsNode.append_child("config");
-        heteroConfigNode.append_attribute("key").set_value(config.first.c_str());
-        heteroConfigNode.append_attribute("value").set_value(config.second.as<std::string>().c_str());
-    }
+    hetero_write_metadata(heteroNode, m_mapping_info, m_compiled_submodels, m_cfg);
 
     doc.save(model_stream, nullptr, pugi::format_raw);
     doc.reset();
