@@ -838,13 +838,19 @@ std::shared_ptr<v0::Constant> axis_const(int64_t axis) {
 }
 
 std::shared_ptr<ov::Node> make_producer(Producer type, const ov::Output<ov::Node>& input) {
-    if (type == Producer::Transpose)
+    const auto make_matmul = [&]() {
+        return std::make_shared<v0::MatMul>(input, v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f}));
+    };
+    switch (type) {
+    case Producer::MatMul:
+        return make_matmul();
+    case Producer::MatMulBias:
+        return std::make_shared<v1::Add>(make_matmul(),
+                                         v0::Constant::create(ov::element::f16, ov::Shape{1, 1, 16}, {0.5f}));
+    case Producer::Transpose:
         return std::make_shared<v1::Transpose>(input, v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1}));
-    const auto weights = v0::Constant::create(ov::element::f16, ov::Shape{8, 16}, {0.1f});
-    std::shared_ptr<ov::Node> producer = std::make_shared<v0::MatMul>(input, weights);
-    if (type == Producer::MatMulBias)
-        producer = std::make_shared<v1::Add>(producer, v0::Constant::create(ov::element::f16, ov::Shape{16}, {0.5f}));
-    return producer;
+    }
+    OPENVINO_THROW("Unexpected producer type");
 }
 
 // `target` is the Reshape target shape (special_zero = true) or the Unsqueeze axes
@@ -852,9 +858,13 @@ std::shared_ptr<ov::Node> make_data_mov(DataMov type,
                                         const ov::Output<ov::Node>& input,
                                         const std::vector<int64_t>& target) {
     const auto target_const = v0::Constant::create(ov::element::i64, ov::Shape{target.size()}, target);
-    if (type == DataMov::Reshape)
+    switch (type) {
+    case DataMov::Reshape:
         return std::make_shared<v1::Reshape>(input, target_const, true);
-    return std::make_shared<v0::Unsqueeze>(input, target_const);
+    case DataMov::Unsqueeze:
+        return std::make_shared<v0::Unsqueeze>(input, target_const);
+    }
+    OPENVINO_THROW("Unexpected data movement type");
 }
 
 std::shared_ptr<ov::Node> make_eltwise(Eltwise type, const ov::Output<ov::Node>& in0, const ov::Output<ov::Node>& in1) {
@@ -942,7 +952,9 @@ const std::vector<FusableProducerParams> fusable_producer_params = {
     {"ReshapeSameRankNoOp",                      Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 2, 32},     Eltwise::Add,      0, {2, 2, 32},      std::nullopt},
     {"ReshapeRankIncreaseWithSplitNoOp",         Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 1, 2, 32},  Eltwise::Add,      0, {2, 1, 2, 32},   std::nullopt},
     {"ReshapeRankIncreaseWithoutUnitDimNoOp",    Producer::MatMul,     {2, 4, 8},    DataMov::Reshape,   {2, 2, 2, 16},  Eltwise::Add,      0, {2, 2, 2, 16},   std::nullopt},
+    // The Reshape inserts a unit dim but also reinterprets the dynamic dims: not an Unsqueeze-like change
     {"ReshapeReorderedDynamicDimsNoOp",          Producer::Transpose,  {-1, -1, -1}, DataMov::Reshape,   {0, 1, 0, -1},  Eltwise::Add,      0, {-1, 1, -1, -1}, std::nullopt},
+    // A Reshape that only appends a unit dim is rejected with >1 dynamic dim: the shapes can't prove the data is not reinterpreted
     {"ReshapeTwoDynamicDimsNoOp",                Producer::Transpose,  {-1, -1, -1}, DataMov::Reshape,   {0, 0, 0, 1},   Eltwise::Add,      0, {-1, -1, -1, 1}, std::nullopt},
 };
 // clang-format on
