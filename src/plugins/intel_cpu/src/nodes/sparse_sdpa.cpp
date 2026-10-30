@@ -31,6 +31,7 @@
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp"
+#include "nodes/kernels/scaled_attn/sparse_sdpa_scratch.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -199,13 +200,13 @@ SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::
 }
 
 void SparseSDPA::createPrimitive() {
-    const auto Dh = static_cast<size_t>(getInputShapeAtPort(InputIdx::QUERY).getDims()[3]);
+    [[maybe_unused]] const auto Dh = static_cast<size_t>(getInputShapeAtPort(InputIdx::QUERY).getDims()[3]);
 #ifdef OPENVINO_ARCH_X86_64
     const auto Bk = m_key_block_size;
     // The matrix type of the AMX paths: bf16 / f16 when QUERY, KEY and VALUE are natively that type end to end (the
     // cache of the stateful form is always kept in the query's precision) and the CPU has the matching AMX. Both AMX
     // paths read KEY / VALUE zero-copy at this precision, rather than through the precision-agnostic load_row_f32() of
-    // the scalar fallback.
+    // the run-by-run fallback.
     ov::element::Type amx_type = ov::element::dynamic;
     {
         const auto qprec = getOriginalInputPrecisionAtPort(InputIdx::QUERY);
@@ -351,8 +352,8 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
         key_length_batch_stride = key_length.size(0) == 1 ? 0 : 1;
     }
 
-    // Per-worker-thread f32 scratch row: q_buf[Dh] | k_buf[Dh] | acc[Dv] | v_buf[Dv]
-    // (| raw[amx_raw_floats] when AMX-eligible). Per-worker-thread AMX run-decomposition scratch
+    // Per-worker-thread f32 scratch of the decode path (see SdpaDecodeScratch), then the per-worker-thread AMX
+    // run-decomposition scratch
     // (i64): chunk_block_start[K_max] | chunk_n_units[K_max] | leftover_block_start[K_max], where
     // K_max is SEL_INDICES' runtime last dimension -- the upper bound on nblocks for every
     // (b, sh, l) in this call, only known once actual input shapes are resolved (not in
@@ -363,21 +364,23 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
     // call -- sized for both regions together -- and slices it by byte offset, rather than
     // requesting the two regions separately. This scratch allocation needs GraphContext, so it
     // stays here rather than inside the cross-compiled sparse_sdpa_compute() kernel.
-    size_t amx_raw_floats = 0;
+    size_t amx_unit_blocks = 0;
     size_t runs_per_thread = 0;
 #ifdef OPENVINO_ARCH_X86_64
     if (m_amx_prec != ov::element::dynamic) {
-        amx_raw_floats = 4 * m_amx_unit_blocks * Bk;
-        if (key_quant.enabled() || value_quant.enabled()) {
-            // dequantized K and V rows of one AMX chunk (<= 4 merge units, bf16 / f16 elements), see
-            // sparse_sdpa_compute()
-            amx_raw_floats += div_up(amx_raw_floats * (Dh + Dv) * 2, sizeof(float));
-        }
+        amx_unit_blocks = m_amx_unit_blocks;
         const size_t K_max = sel_indices.size(3);
         runs_per_thread = 3 * K_max;
     }
 #endif
-    const size_t per_thread_floats = 2 * Dh + 2 * Dv + amx_raw_floats;
+    const ov::Extensions::Cpu::SdpaDecodeScratch decode_scratch(
+        Dh,
+        Dv,
+        ov::Extensions::Cpu::max_q_head_pack_size(Hq, Hkv, H_sel),
+        Bk,
+        amx_unit_blocks,
+        key_quant.enabled() || value_quant.enabled());
+    const size_t per_thread_floats = decode_scratch.total;
     const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
     const size_t float_bytes = num_threads * per_thread_floats * sizeof(float);
     const size_t float_bytes_aligned = rnd_up(float_bytes, alignof(int64_t));
@@ -409,7 +412,7 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
     const MemoryPtr scratch = context->getScratchPad()->createScratchPadMem(scratch_desc);
     uint8_t* const scratch_base_bytes = scratch->getDataAs<uint8_t>();
     float* const scratch_base = reinterpret_cast<float*>(scratch_base_bytes);
-    int64_t* const runs_base =
+    [[maybe_unused]] int64_t* const runs_base =
         runs_per_thread > 0 ? reinterpret_cast<int64_t*>(scratch_base_bytes + float_bytes_aligned) : nullptr;
     uint8_t* const brgemm_base = brgemm_bytes_per_thread > 0 ? scratch_base_bytes + brgemm_offset : nullptr;
 

@@ -32,13 +32,12 @@ namespace ov::intel_cpu::node {
 /// projection weights, no output gate, and no in-place KV write. Each query position `l` maps to
 /// the bottom-right-aligned logical position `q_abs = S - L + l` for the causal (token-level fine
 /// filter) comparison; the producer already applied the block-level coarse filter. QUERY / KEY /
-/// VALUE may be negotiated as f32, f16, or bf16 independently. The scalar and legacy AMX-GEMV paths compute in fp32;
-/// the brgemm prefill (bf16 / f16 with AMX, causal, more than one query) multiplies bf16 / f16 matrices: the scores and
-/// the accumulators are fp32 and the softmax weights are converted to the matrix type before P.V. block_indices /
-/// block_count / key_length are always negotiated as i32. v1 scope: the
-/// 5-input form (no padding) and the 6-input form (with key_length, honoring per-batch
-/// left-padding) are both accepted, with query_block_size == 1; the optional scale and sinks inputs
-/// are not supported -- the scale always defaults to `1 / sqrt(k_head_size)`.
+/// VALUE may be negotiated as f32, f16, or bf16 independently. The run-by-run SIMD and AMX-GEMV paths of the other
+/// cases compute in fp32; the brgemm prefill (bf16 / f16 with AMX, causal, more than one query) multiplies bf16 / f16
+/// matrices: the scores and the accumulators are fp32 and the softmax weights are converted to the matrix type before
+/// P.V. block_indices / block_count / key_length are always negotiated as i32. v1 scope: the 5-input form (no padding)
+/// and the 6-input form (with key_length, honoring per-batch left-padding) are both accepted, with query_block_size ==
+/// 1; the optional scale and sinks inputs are not supported -- the scale always defaults to `1 / sqrt(k_head_size)`.
 ///
 /// The node also implements ov::intel_cpu::SparseAttentionWithKVCache: the same attention, but the dense K/V cache
 /// is owned by a pair of VariableStateKVcacheBHLS states instead of being fed by a Concat. The state is assigned
@@ -148,10 +147,10 @@ private:
     // m_gemv_qk4 has 4x that, to further amortize over longer runs of adjacent selected blocks.
     // Both kernels are safe to share read-only across worker threads: tile_config()/tile_release()
     // only touch per-thread AMX hardware state, and operator() only reads immutable JIT code plus
-    // the pointers passed in -- see sparse_sdpa_kernel.cpp's run_amx_qk_chunks() for how they're
+    // the pointers passed in -- see sparse_sdpa_kernel.cpp's attend_amx_chunks() for how they're
     // used together under one tile_config()/tile_release() bracket. A run shorter than
-    // m_amx_unit_blocks (or the remainder after merging as many full units as fit) falls back to
-    // the scalar per-token path.
+    // m_amx_unit_blocks (or the remainder after merging as many full units as fit) is attended
+    // run by run with the SIMD block kernels.
     std::shared_ptr<ov::Extensions::Cpu::JitMatMulVecAMX> m_gemv_qk1;
     std::shared_ptr<ov::Extensions::Cpu::JitMatMulVecAMX> m_gemv_qk4;
     size_t m_amx_unit_blocks = 0;

@@ -350,7 +350,7 @@ void QSAIndexer::execute_typed() {
         if (summary_head_out_bytes != summary_copy_bytes) {
             std::memset(dst + summary_copy_bytes, 0, summary_head_out_bytes - summary_copy_bytes);
         }
-        if constexpr (!summary_is_f32) {
+        if constexpr (!std::is_same_v<T, float>) {
             for (size_t blk = 0; blk < static_cast<size_t>(plans[b].past_blocks); blk++) {
                 cpu_convert(summary_cache.ptr<T>(b, h, blk),
                             summary_f32_row(b, h, blk),
@@ -395,7 +395,7 @@ void QSAIndexer::execute_typed() {
                              block_ref_cos_sin + rotary_dim);
         const auto blk = static_cast<size_t>(plan.past_blocks) + j;
         cpu_convert(pooled, summary_cache.ptr<T>(b, h, blk), ov::element::f32, data_prec, D_idx);
-        if constexpr (!summary_is_f32) {
+        if constexpr (!std::is_same_v<T, float>) {
             // Phase 2 scores the value as stored (rounded to the cache precision).
             cpu_convert(summary_cache.ptr<T>(b, h, blk),
                         summary_f32_row(b, h, blk),

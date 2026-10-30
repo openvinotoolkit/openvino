@@ -209,7 +209,7 @@ bool SparsePA::deriveConfig(const ov::op::internal::PagedSparseAttention& op, Co
 }
 
 void SparsePA::createPrimitive() {
-    const auto Dh = m_config.k_head_size;
+    [[maybe_unused]] const auto Dh = m_config.k_head_size;
     // The page size is KEY_CACHE's dim 2; if it is dynamic the merge-unit/page fit can't be decided.
     // By-channel quantized key pages carry parameter rows in dim 2, so quantized caches use the derived page size.
     const auto page_size =

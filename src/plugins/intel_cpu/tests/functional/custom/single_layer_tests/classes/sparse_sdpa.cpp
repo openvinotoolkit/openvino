@@ -127,9 +127,8 @@ std::vector<float> run_sparse_sdpa_reference(size_t len,
                 // (possibly incomplete) block is never in them. When causal, the consumer derives
                 // and attends that tail itself from the query's own logical position.
                 if (causal) {
-                    const int64_t tail_start =
-                        pad + (((token_pos - pad + 1) / static_cast<int64_t>(sel_block_size)) *
-                               static_cast<int64_t>(sel_block_size));
+                    const int64_t tail_start = pad + (((token_pos - pad + 1) / static_cast<int64_t>(sel_block_size)) *
+                                                      static_cast<int64_t>(sel_block_size));
                     for (int64_t p = tail_start; p <= token_pos; p++) {
                         attend_token(p);
                     }
@@ -278,7 +277,9 @@ void SparseSDPALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
             fill_pseudo_random(key_slot, 2 + static_cast<uint32_t>(b) * 11U);
             fill_pseudo_random(value_slot, 3 + static_cast<uint32_t>(b) * 11U);
             std::copy(key_slot.begin(), key_slot.end(), key_data.begin() + static_cast<ptrdiff_t>(b * key_per_batch));
-            std::copy(value_slot.begin(), value_slot.end(), value_data.begin() + static_cast<ptrdiff_t>(b * value_per_batch));
+            std::copy(value_slot.begin(),
+                      value_slot.end(),
+                      value_data.begin() + static_cast<ptrdiff_t>(b * value_per_batch));
         }
         assign_precision(key, key_data);
         assign_precision(value, value_data);

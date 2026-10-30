@@ -10,6 +10,7 @@
 #include <cstring>
 #include <limits>
 #include <numeric>
+#include <type_traits>
 
 #include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
@@ -112,16 +113,160 @@ void dequant_rows(const PlainTensor& cache,
     }
 }
 
+// ---- decode path: one work item = (batch b, query l, pack of query heads sharing the K head and the selection head)
+// ---- Everything but the brgemm prefill. The rows of the selected blocks are attended run by run (adjacent blocks form
+// one run): the keys / values are read (or dequantized) once for all the heads of the pack, and every head applies the
+// online softmax over the run with vectorized block kernels, so a run of few rows costs far less than per-token code.
+
+template <typename T>
+constexpr ov::element::Type_t prec_of() {
+    if constexpr (std::is_same_v<T, ov::bfloat16>) {
+        return ov::element::bf16;
+    } else if constexpr (std::is_same_v<T, ov::float16>) {
+        return ov::element::f16;
+    } else {
+        return ov::element::f32;
+    }
+}
+
+// Calls f(T{}) with the C++ type of the (not quantized) element type `prec`.
+template <typename F>
+void visit_float_type(ov::element::Type prec, F&& f) {
+    if (prec == ov::element::bf16) {
+        f(ov::bfloat16{});
+    } else if (prec == ov::element::f16) {
+        f(ov::float16{});
+    } else {
+        f(float{});
+    }
+}
+
+struct DecodeItem {
+    const PlainTensor& query;
+    const PlainTensor& key;
+    const PlainTensor& value;
+    const SparseKVQuant& key_quant;
+    const SparseKVQuant& value_quant;
+    size_t b;
+    size_t kv;          // K / V head of the pack
+    size_t first_head;  // first query head of the pack
+    size_t l;           // query index
+    size_t pack;        // query heads of the pack
+    size_t Dh;
+    size_t Dv;
+    size_t Bk;
+    size_t S;
+    int64_t pad;        // physical start of the real (non-padded) history
+    int64_t valid_end;  // one past the last position the query may attend: S, or the query position + 1 when causal
+    float scale;
+    size_t max_run_rows;
+    size_t score_stride;
+    float* q;  // [pack, Dh] f32 query rows
+    float* acc;
+    float* run_max;
+    float* run_sum;
+    float* scores;   // [pack, score_stride]
+    float* dequant;  // rows of K, then of V, of a quantized cache
+};
+
+// Rows of [kpos0, kpos0 + n) the query attends (a prefix: the history ends at valid_end).
+inline int64_t visible_rows(const DecodeItem& it, int64_t kpos0, int64_t n) {
+    return kpos0 < it.pad ? 0 : std::max<int64_t>(std::min(n, it.valid_end - kpos0), 0);
+}
+
+// Online-softmax step of query head `head` over the raw scores scores[0, rows) of a run, of which the first `valid`
+// rows are attended: scales them, rescales the running state when there is a new maximum, and turns them into the
+// weights exp(score - max) in place (vectorized); the rows from `valid` on get weight 0.
+inline void softmax_step(DecodeItem& it, size_t head, size_t rows, size_t valid) {
+    float* scores = it.scores + head * it.score_stride;
+    float* acc = it.acc + head * it.Dv;
+    const float new_max = std::max(it.run_max[head], scale_and_max(scores, valid, it.scale));
+    if (new_max > it.run_max[head]) {
+        // corr == 0 for the first run (run_max == -inf), where acc and run_sum are still zero
+        const float corr = std::exp(it.run_max[head] - new_max);
+        it.run_sum[head] *= corr;
+        for (size_t d = 0; d < it.Dv; d++) {
+            acc[d] *= corr;
+        }
+        it.run_max[head] = new_max;
+    }
+    float sum = 0.0F;
+    exp_reduce_sum(scores, new_max, valid, sum);
+    it.run_sum[head] += sum;
+    std::fill(scores + valid, scores + rows, 0.0F);
+}
+
+// Attention of every head of the pack over `rows` key / value rows (all attended), in the element types TK / TV.
+template <typename TK, typename TV>
+void attend_run_rows(DecodeItem& it, void* key_rows, void* value_rows, size_t rows) {
+    for (size_t head = 0; head < it.pack; head++) {
+        float* scores = it.scores + head * it.score_stride;
+        dot_product_block<float, prec_of<TK>()>(it.q + head * it.Dh, key_rows, scores, it.Dh, rows, 0);
+        softmax_step(it, head, rows, rows);
+        attn_acc_value_block<TV, prec_of<TV>()>(it.acc + head * it.Dv,
+                                                scores,
+                                                static_cast<TV*>(value_rows),
+                                                it.Dv,
+                                                rows,
+                                                0);
+    }
+}
+
+// Attention over up to `n` consecutive rows from the physical position kpos0, clamped to the rows the query attends.
+inline void attend_run(DecodeItem& it, int64_t kpos0, int64_t n) {
+    n = visible_rows(it, kpos0, n);
+    if (n <= 0) {
+        return;
+    }
+    const auto rows = static_cast<size_t>(n);
+    const bool key_dequant = it.key_quant.enabled();
+    const bool value_dequant = it.value_quant.enabled();
+    float* k_run = it.dequant;
+    float* v_run = it.dequant + it.score_stride * it.Dh;
+    if (key_dequant) {
+        dequant_rows<float>(it.key, it.key_quant, it.b, it.kv, static_cast<size_t>(kpos0), rows, it.Dh, k_run);
+    }
+    if (value_dequant) {
+        dequant_rows<float>(it.value, it.value_quant, it.b, it.kv, static_cast<size_t>(kpos0), rows, it.Dv, v_run);
+    }
+    void* key_rows = key_dequant ? static_cast<void*>(k_run) : it.key.ptr_v(it.b, it.kv, kpos0);
+    void* value_rows = value_dequant ? static_cast<void*>(v_run) : it.value.ptr_v(it.b, it.kv, kpos0);
+    visit_float_type(key_dequant ? ov::element::f32 : it.key.get_precision(), [&](auto key_type) {
+        visit_float_type(value_dequant ? ov::element::f32 : it.value.get_precision(), [&](auto value_type) {
+            attend_run_rows<decltype(key_type), decltype(value_type)>(it, key_rows, value_rows, rows);
+        });
+    });
+}
+
+// Attention over the blocks that start at the positions start(0 .. count), ascending: adjacent blocks form one run of
+// at most max_run_rows rows.
+template <typename StartFn>
+void attend_blocks(DecodeItem& it, size_t count, StartFn start) {
+    const auto Bk = static_cast<int64_t>(it.Bk);
+    const auto max_run_blocks = std::max<int64_t>(static_cast<int64_t>(it.max_run_rows) / Bk, 1);
+    size_t i = 0;
+    while (i < count) {
+        const int64_t first = start(i);
+        int64_t run_blocks = 1;
+        while (i + run_blocks < count && run_blocks < max_run_blocks &&
+               start(i + run_blocks) == first + run_blocks * Bk) {
+            run_blocks++;
+        }
+        attend_run(it, first, run_blocks * Bk);
+        i += static_cast<size_t>(run_blocks);
+    }
+}
+
 #ifdef OPENVINO_ARCH_X86_64
 // Decomposition of one (b, sh, l) row's selected blocks into AMX-mergeable chunks, backed entirely
 // by caller-owned scratch (see sparse_sdpa_compute() below) -- no heap vectors, no thread_local.
 // Capacity of each array must be >= nblocks (bounded by SEL_INDICES' static K_max dimension for the
 // whole call), which is enough room for the worst case of every block becoming its own
 // chunk/leftover. chunk_block_start/chunk_n_units are KV-row starts (block_id * Bk) and merge-unit
-// counts (1 or 4, see run_amx_qk_chunks) for calls into gemv_qk1/gemv_qk4; leftover_block_start
+// counts (1 or 4, see attend_amx_chunks) for calls into gemv_qk1/gemv_qk4; leftover_block_start
 // holds starts of blocks that could not be grouped into a complete merge unit of `unit_blocks`
 // physically-adjacent blocks -- too short a run, or the remainder left over after greedily filling
-// as many whole units as fit -- and must fall back to the scalar per-token path.
+// as many whole units as fit -- and are attended run by run with the SIMD block kernels.
 struct DecomposedRuns {
     int64_t* chunk_block_start = nullptr;
     int64_t* chunk_n_units = nullptr;
@@ -174,113 +319,86 @@ void decompose_runs(const int32_t* sel_ids,
     }
 }
 
-// Legacy path (one query head per item: the decode, and the prefill when the node has no brgemm kernels). A "chunk"
-// here is a group of 1 or 4 GEMV row units, not a brgemm row block.
-// Runs all AMX-eligible selected-block chunks for one (b, h, l) query row through the flash-
-// attention block-wise online-softmax recurrence (mathematically equivalent to the per-token
-// recurrence in attend_token() below, just merged once per chunk instead of once per token), updating
-// the same running_max/running_sum/acc state so the scalar causal-tail block can continue it
-// afterwards. query/key/value are read directly at AmxT precision (zero-copy: sparse_sdpa_compute()
-// is only called with a non-dynamic amx_prec when QUERY and KEY already negotiated that exact
-// precision). QK^T uses the AMX tile-multiply kernels; P@V instead uses attn_acc_value_block()'s
-// vectorized batched FMA (paged_attn_kernel.hpp, genuinely vectorized here since this whole file is
-// cross-compiled) -- an AMX tile multiply for P@V would need V VNNI-repacked, disproportionate
-// for a single head (the brgemm prefill below repacks V once for a whole head pack instead). `acc` (Dv elements) and
-// `raw_buf` (>= 4 * unit_rows elements, reused in place as the chunk's post-softmax weights) are caller-owned scratch
-// rows out of the per-thread scratchpad -- see sparse_sdpa_compute() -- reused across (b, h, l) iterations instead of
-// allocated per call.
+// AMX chunks of the decode path: the QK^T of every head of the pack over a chunk of 1 or 4 merge units of rows is a
+// matrix-vector product on the AMX tile kernels (gemv1 / gemv4); P@V instead uses attn_acc_value_block()'s vectorized
+// batched FMA (an AMX tile multiply for P@V would need V VNNI-repacked, disproportionate for a few heads -- the brgemm
+// prefill repacks V once for a whole head pack instead). A chunk is read (or dequantized) once for all the heads of the
+// pack. The query rows are read directly at AmxT precision: sparse_sdpa_compute() only takes this path when QUERY, KEY
+// and VALUE negotiated exactly that precision.
 template <typename AmxT>
-void run_amx_qk_chunks(const PlainTensor& query,
-                       const PlainTensor& key,
-                       const PlainTensor& value,
+void attend_amx_chunks(DecodeItem& it,
                        ov::Extensions::Cpu::JitMatMulVecAMX& gemv1,
                        ov::Extensions::Cpu::JitMatMulVecAMX& gemv4,
-                       size_t b,
-                       size_t h,
-                       size_t l,
-                       size_t kv,
-                       size_t Dv,
                        size_t unit_rows,
-                       size_t S,
-                       int64_t pad,
-                       bool causal,
-                       int64_t token_pos,
-                       float scale,
                        const DecomposedRuns& runs,
-                       float* acc,
-                       float* raw_buf,
-                       float& running_max,
-                       float& running_sum,
-                       const SparseKVQuant& key_quant,
-                       const SparseKVQuant& value_quant,
                        AmxT* k_dq_buf,
                        AmxT* v_dq_buf) {
     if (runs.chunk_count == 0) {
         return;
     }
-    constexpr float neg_inf = -std::numeric_limits<float>::infinity();
-    const auto Dh_k = static_cast<size_t>(gemv1.m_head_size);
-    const auto* q_amx = query.ptr<AmxT>(b, h, l);
-    // Tile shape is derived from head_size only (identical for gemv1/gemv4), so one
-    // tile_config()/tile_release() bracket covers calls into either kernel below.
+    constexpr auto prec = prec_of<AmxT>();
+    // Tile shape is derived from head_size only (identical for gemv1/gemv4), so one tile_config()/tile_release()
+    // bracket covers calls into either kernel below.
     gemv1.tile_config();
     for (size_t idx = 0; idx < runs.chunk_count; idx++) {
         const int64_t block_start = runs.chunk_block_start[idx];
         const size_t n_units = static_cast<size_t>(runs.chunk_n_units[idx]);
         const size_t chunk_len = n_units * unit_rows;
+        // the rows of the chunk the query attends (a prefix); a chunk without any (only the last one can be, under
+        // causal) contributes nothing
+        const auto visible =
+            static_cast<size_t>(std::clamp<int64_t>(it.valid_end - block_start, 0, static_cast<int64_t>(chunk_len)));
+        if (visible == 0) {
+            continue;
+        }
         // a quantized cache is dequantized into the per-thread scratch first (contiguous rows, as the JIT kernel
         // needs); the rows past the end of the cache are zeroed, they are masked out below
-        const size_t valid_rows = std::min(chunk_len, S - std::min(S, static_cast<size_t>(block_start)));
+        const size_t valid_rows = std::min(chunk_len, it.S - std::min(it.S, static_cast<size_t>(block_start)));
         const AmxT* k_amx = nullptr;
-        if (key_quant.enabled()) {
-            dequant_rows<AmxT>(key, key_quant, b, kv, static_cast<size_t>(block_start), valid_rows, Dh_k, k_dq_buf);
-            std::fill(k_dq_buf + valid_rows * Dh_k, k_dq_buf + chunk_len * Dh_k, AmxT{});
+        if (it.key_quant.enabled()) {
+            dequant_rows<AmxT>(it.key,
+                               it.key_quant,
+                               it.b,
+                               it.kv,
+                               static_cast<size_t>(block_start),
+                               valid_rows,
+                               it.Dh,
+                               k_dq_buf);
+            std::fill(k_dq_buf + valid_rows * it.Dh, k_dq_buf + chunk_len * it.Dh, AmxT{});
             k_amx = k_dq_buf;
         } else {
-            k_amx = key.ptr<AmxT>(b, kv, static_cast<size_t>(block_start));
+            k_amx = it.key.ptr<AmxT>(it.b, it.kv, static_cast<size_t>(block_start));
         }
         auto& kernel = n_units == 4 ? gemv4 : gemv1;
-        kernel(q_amx, k_amx, raw_buf);
-
-        float chunk_max = neg_inf;
-        for (size_t r = 0; r < chunk_len; r++) {
-            const int64_t kpos = block_start + static_cast<int64_t>(r);
-            const bool valid = kpos >= pad && kpos < static_cast<int64_t>(S) && (!causal || kpos <= token_pos);
-            raw_buf[r] = valid ? raw_buf[r] * scale : neg_inf;
-            chunk_max = std::max(chunk_max, raw_buf[r]);
+        for (size_t head = 0; head < it.pack; head++) {
+            kernel(it.query.ptr<AmxT>(it.b, it.first_head + head, it.l), k_amx, it.scores + head * it.score_stride);
         }
-        if (chunk_max == neg_inf) {
-            continue;  // fully-masked chunk (only the last chunk can be, under causal)
-        }
-        const float new_max = std::max(running_max, chunk_max);
-        const float corr = std::exp(running_max - new_max);
-        running_sum *= corr;
-        for (size_t d = 0; d < Dv; d++) {
-            acc[d] *= corr;
-        }
-        // Turn raw_buf in place into this chunk's post-softmax weights -- masked rows naturally
-        // collapse to weight 0, so the vectorized accumulation below needs no per-row branch --
-        // then batch the whole chunk's P@V contribution through one vectorized FMA call instead
-        // of a per-row scalar loop.
-        for (size_t r = 0; r < chunk_len; r++) {
-            const float p = raw_buf[r] == neg_inf ? 0.0F : std::exp(raw_buf[r] - new_max);
-            raw_buf[r] = p;
-            running_sum += p;
+        for (size_t head = 0; head < it.pack; head++) {
+            softmax_step(it, head, chunk_len, visible);
         }
         AmxT* v_amx = nullptr;
-        if (value_quant.enabled()) {
-            dequant_rows<AmxT>(value, value_quant, b, kv, static_cast<size_t>(block_start), valid_rows, Dv, v_dq_buf);
-            std::fill(v_dq_buf + valid_rows * Dv, v_dq_buf + chunk_len * Dv, AmxT{});
+        if (it.value_quant.enabled()) {
+            dequant_rows<AmxT>(it.value,
+                               it.value_quant,
+                               it.b,
+                               it.kv,
+                               static_cast<size_t>(block_start),
+                               valid_rows,
+                               it.Dv,
+                               v_dq_buf);
+            std::fill(v_dq_buf + valid_rows * it.Dv, v_dq_buf + chunk_len * it.Dv, AmxT{});
             v_amx = v_dq_buf;
         } else {
-            v_amx = value.ptr<AmxT>(b, kv, static_cast<size_t>(block_start));
+            v_amx = it.value.ptr<AmxT>(it.b, it.kv, static_cast<size_t>(block_start));
         }
-        if constexpr (std::is_same_v<AmxT, ov::bfloat16>) {
-            attn_acc_value_block<ov::bfloat16, ov::element::bf16>(acc, raw_buf, v_amx, Dv, chunk_len, 0);
-        } else {
-            attn_acc_value_block<ov::float16, ov::element::f16>(acc, raw_buf, v_amx, Dv, chunk_len, 0);
+        for (size_t head = 0; head < it.pack; head++) {
+            attn_acc_value_block<AmxT, prec>(it.acc + head * it.Dv,
+                                             it.scores + head * it.score_stride,
+                                             v_amx,
+                                             it.Dv,
+                                             visible,
+                                             0);
         }
-        running_max = new_max;
     }
     gemv1.tile_release();
 }
@@ -460,8 +578,10 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
                          const SparseKVQuant& key_quant,
                          const SparseKVQuant& value_quant,
                          const ov::intel_cpu::CpuParallelPtr& cpu_parallel) {
+#ifdef OPENVINO_ARCH_X86_64
     auto* gemv_qk1 = static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(gemv_qk1_ptr);
     auto* gemv_qk4 = static_cast<ov::Extensions::Cpu::JitMatMulVecAMX*>(gemv_qk4_ptr);
+#endif
     const size_t q_per_sel = Hq / H_sel;
     const size_t group = Hq / Hkv;
 
@@ -505,95 +625,80 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
     }
 #endif
 
-    cpu_parallel->parallel_for3d(B, Hq, L, [&](size_t b, size_t h, size_t l) {
+    // The query heads that share a K head and a selection head are one work item, so the selection is decomposed and
+    // the (possibly dequantized) rows are read once for all of them. With too little work to keep every thread busy (a
+    // decode of few sequences) every query head is its own item instead.
+    const size_t max_pack = max_q_head_pack_size(Hq, Hkv, H_sel);
+    const bool amx = amx_prec != ov::element::dynamic;
+    const SdpaDecodeScratch layout(Dh,
+                                   Dv,
+                                   max_pack,
+                                   Bk,
+                                   amx ? amx_unit_blocks : 0,
+                                   key_quant.enabled() || value_quant.enabled());
+    OPENVINO_ASSERT(layout.total <= per_thread_floats, "[CPU] sparse_sdpa: scratch is too small");
+    // Parallelism: the work items are (b, pack of query heads, l), run in parallel over all three. A pack shares the
+    // selection decomposition and the K / V reads (and dequantization) among its heads, but it divides the number of
+    // items by its size, so it only pays off when there are enough items left to keep every thread busy. Hence packs
+    // only with at least 2 items per worker thread (some slack against uneven item cost, as in PagedAttention's
+    // loop_hk choice); with less work (a decode of few sequences on many threads: Hq / max_pack items per sequence)
+    // every query head is its own item, trading the sharing for parallelism.
+    const size_t pack =
+        B * L * (Hq / max_pack) >= 2 * static_cast<size_t>(cpu_parallel->get_num_worker_threads()) ? max_pack : 1;
+
+    cpu_parallel->parallel_for3d(B, Hq / pack, L, [&](size_t b, size_t pack_index, size_t l) {
         // Bottom-right-aligned logical position: the query at index l aligns with the last l-th
         // position of the dense [0, S) key/value history. Invariant to left-padding since
         // pad[b] + p == token_pos for the spec's logical query position p.
         const int64_t token_pos = static_cast<int64_t>(S) - static_cast<int64_t>(L) + static_cast<int64_t>(l);
-        const size_t sh = h / q_per_sel;
-        const size_t kv = h / group;
+        const size_t first_head = pack_index * pack;
+        const size_t sh = first_head / q_per_sel;
+        const size_t kv = first_head / group;
         // Physical start of batch b's real (non-padded) history; 0 when key_length is absent.
         const int64_t pad =
             key_length ? static_cast<int64_t>(S) - static_cast<int64_t>(key_length[key_length_batch_stride * b]) : 0;
 
         const size_t tid = static_cast<size_t>(parallel_get_thread_num());
         float* const row = scratch_floats + tid * per_thread_floats;
-        float* const q_buf = row;
-        float* const k_buf = row + Dh;
-        float* const acc = row + 2 * Dh;
-        float* const v_buf = row + 2 * Dh + Dv;
-#ifdef OPENVINO_ARCH_X86_64
-        float* const raw_buf = row + 2 * Dh + 2 * Dv;  // only valid when amx_prec != ov::element::dynamic
-        // dequantized K / V rows of one AMX chunk (<= 4 merge units), only used by a quantized cache
-        float* const dq_base = raw_buf + 4 * amx_unit_blocks * Bk;
-#endif
+        DecodeItem it{query,
+                      key,
+                      value,
+                      key_quant,
+                      value_quant,
+                      b,
+                      kv,
+                      first_head,
+                      l,
+                      pack,
+                      Dh,
+                      Dv,
+                      Bk,
+                      S,
+                      pad,
+                      causal ? std::min(static_cast<int64_t>(S), token_pos + 1) : static_cast<int64_t>(S),
+                      scale,
+                      layout.max_run_rows,
+                      layout.score_stride,
+                      row + layout.q,
+                      row + layout.acc,
+                      row + layout.run_max,
+                      row + layout.run_sum,
+                      row + layout.scores,
+                      row + layout.dequant};
+        for (size_t head = 0; head < pack; head++) {
+            load_row_f32(query, Dh, it.q + head * Dh, b, first_head + head, l);
+        }
+        std::fill(it.acc, it.acc + pack * Dv, 0.0F);
+        std::fill(it.run_max, it.run_max + pack, -std::numeric_limits<float>::infinity());
+        std::fill(it.run_sum, it.run_sum + pack, 0.0F);
 
-        load_row_f32(query, Dh, q_buf, b, h, l);
-        const float* q = q_buf;
-
-        std::fill(acc, acc + Dv, 0.0F);
-        float running_max = -std::numeric_limits<float>::infinity();
-        float running_sum = 0.0F;
-
-        // Attends the query row to the single key/value position `kpos` (one step of the per-token online-softmax
-        // recurrence). Positions outside the valid history [pad, S), or beyond the query when causal, are skipped.
-        //   score = (q . K[kpos]) * scale
-        //   new_max = max(running_max, score);  corr = exp(running_max - new_max);  p = exp(score - new_max)
-        //   running_sum = running_sum * corr + p
-        //   acc         = acc * corr + p * V[kpos]      (acc is normalized by running_sum after the last position)
-        // corr is 1 unless the score is a new maximum, so the common case skips the rescale of acc and one exp.
-        auto attend_token = [&](int64_t kpos) {
-            if (kpos < pad || kpos >= static_cast<int64_t>(S)) {
-                return;
-            }
-            if (causal && kpos > token_pos) {
-                return;
-            }
-            if (key_quant.enabled()) {
-                dequant_rows<float>(key, key_quant, b, kv, static_cast<size_t>(kpos), 1, Dh, k_buf);
-            } else {
-                load_row_f32(key, Dh, k_buf, b, kv, kpos);
-            }
-            if (value_quant.enabled()) {
-                dequant_rows<float>(value, value_quant, b, kv, static_cast<size_t>(kpos), 1, Dv, v_buf);
-            } else {
-                load_row_f32(value, Dv, v_buf, b, kv, kpos);
-            }
-            // vectorized: a scalar float reduction cannot be reassociated by the compiler and is latency-bound
-            const float score = dot_product(q, k_buf, Dh, nullptr, nullptr, nullptr, 0) * scale;
-            float p = 1.0F;
-            if (score > running_max) {
-                // a new maximum (corr == 0 on the first token, when acc is still zero)
-                const float corr = std::exp(running_max - score);
-                running_sum *= corr;
-                for (size_t d = 0; d < Dv; d++) {
-                    acc[d] *= corr;
-                }
-                running_max = score;
-            } else {
-                p = std::exp(score - running_max);
-            }
-            running_sum += p;
-            for (size_t d = 0; d < Dv; d++) {
-                acc[d] += p * v_buf[d];
-            }
-        };
-
+        const int32_t* block_ids = sel_indices.ptr<int32_t>(b, sh, l);
         const auto nblocks = static_cast<size_t>(*sel_count.ptr<int32_t>(b, sh, l));
-        // Scalar fallback: attends the query row token by token (attend_token) to every position of the Bk-row
-        // selected blocks listed in sel_indices[b, sh, l, 0 .. nblocks). Used when the AMX path is not taken; the
-        // causal tail block is handled separately below.
-        auto attend_selected_blocks_scalar = [&]() {
-            for (size_t i = 0; i < nblocks; i++) {
-                const auto block_id = static_cast<int64_t>(*sel_indices.ptr<int32_t>(b, sh, l, i));
-                const int64_t block_start = pad + block_id * static_cast<int64_t>(Bk);
-                for (int64_t p = block_start; p < block_start + static_cast<int64_t>(Bk); p++) {
-                    attend_token(p);
-                }
-            }
+        const auto block_start = [&](size_t i) {
+            return pad + static_cast<int64_t>(block_ids[i]) * static_cast<int64_t>(Bk);
         };
 #ifdef OPENVINO_ARCH_X86_64
-        if (amx_prec != ov::element::dynamic && nblocks > 0) {
+        if (amx && nblocks > 0) {
             // Per-thread slice of the runs scratch allocated by the caller (nblocks > 0 here
             // implies scratch_runs is non-null, since nblocks is always <= SEL_INDICES' K_max
             // dimension).
@@ -602,75 +707,38 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
             decomposed.chunk_block_start = scratch_runs + tid * runs_per_thread;
             decomposed.chunk_n_units = decomposed.chunk_block_start + K_max_per_thread;
             decomposed.leftover_block_start = decomposed.chunk_n_units + K_max_per_thread;
-            decompose_runs(sel_indices.ptr<int32_t>(b, sh, l), nblocks, Bk, amx_unit_blocks, pad, decomposed);
+            decompose_runs(block_ids, nblocks, Bk, amx_unit_blocks, pad, decomposed);
             const auto unit_rows = amx_unit_blocks * Bk;
+            // dequantized K / V rows of a quantized cache for one chunk (AmxT elements)
             if (amx_prec == ov::element::bf16) {
-                run_amx_qk_chunks<ov::bfloat16>(query,
-                                                key,
-                                                value,
+                auto* k_dq = reinterpret_cast<ov::bfloat16*>(it.dequant);
+                attend_amx_chunks<ov::bfloat16>(it,
                                                 *gemv_qk1,
                                                 *gemv_qk4,
-                                                b,
-                                                h,
-                                                l,
-                                                kv,
-                                                Dv,
                                                 unit_rows,
-                                                S,
-                                                pad,
-                                                causal,
-                                                token_pos,
-                                                scale,
                                                 decomposed,
-                                                acc,
-                                                raw_buf,
-                                                running_max,
-                                                running_sum,
-                                                key_quant,
-                                                value_quant,
-                                                reinterpret_cast<ov::bfloat16*>(dq_base),
-                                                reinterpret_cast<ov::bfloat16*>(dq_base) + 4 * unit_rows * Dh);
+                                                k_dq,
+                                                k_dq + 4 * unit_rows * Dh);
             } else {
-                run_amx_qk_chunks<ov::float16>(query,
-                                               key,
-                                               value,
+                auto* k_dq = reinterpret_cast<ov::float16*>(it.dequant);
+                attend_amx_chunks<ov::float16>(it,
                                                *gemv_qk1,
                                                *gemv_qk4,
-                                               b,
-                                               h,
-                                               l,
-                                               kv,
-                                               Dv,
                                                unit_rows,
-                                               S,
-                                               pad,
-                                               causal,
-                                               token_pos,
-                                               scale,
                                                decomposed,
-                                               acc,
-                                               raw_buf,
-                                               running_max,
-                                               running_sum,
-                                               key_quant,
-                                               value_quant,
-                                               reinterpret_cast<ov::float16*>(dq_base),
-                                               reinterpret_cast<ov::float16*>(dq_base) + 4 * unit_rows * Dh);
+                                               k_dq,
+                                               k_dq + 4 * unit_rows * Dh);
             }
-            // Blocks that couldn't be grouped into a complete 16-row-multiple AMX chunk (too short
-            // a run, or the remainder after merging as many whole units as fit) still need to
-            // contribute -- fall back to the scalar per-token path for just those blocks.
-            for (size_t li = 0; li < decomposed.leftover_count; li++) {
-                const int64_t block_start = decomposed.leftover_block_start[li];
-                for (int64_t p = block_start; p < block_start + static_cast<int64_t>(Bk); p++) {
-                    attend_token(p);
-                }
-            }
+            // Blocks that couldn't be grouped into a complete 16-row-multiple AMX chunk (too short a run, or the
+            // remainder after merging as many whole units as fit) still need to contribute: attend them run by run.
+            attend_blocks(it, decomposed.leftover_count, [&](size_t i) {
+                return decomposed.leftover_block_start[i];
+            });
         } else {
-            attend_selected_blocks_scalar();
+            attend_blocks(it, nblocks, block_start);
         }
 #else
-        attend_selected_blocks_scalar();
+        attend_blocks(it, nblocks, block_start);
 #endif
 
         // sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never
@@ -679,16 +747,17 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
         if (causal) {
             const int64_t tail_start =
                 pad + (((token_pos - pad + 1) / static_cast<int64_t>(Bk)) * static_cast<int64_t>(Bk));
-            for (int64_t p = tail_start; p <= token_pos; p++) {
-                attend_token(p);
-            }
+            attend_run(it, tail_start, token_pos - tail_start + 1);
         }
 
-        const float inv_sum = running_sum > 0.0F ? 1.0F / running_sum : 0.0F;
-        for (size_t d = 0; d < Dv; d++) {
-            acc[d] *= inv_sum;
+        for (size_t head = 0; head < pack; head++) {
+            float* acc = it.acc + head * Dv;
+            const float inv_sum = it.run_sum[head] > 0.0F ? 1.0F / it.run_sum[head] : 0.0F;
+            for (size_t d = 0; d < Dv; d++) {
+                acc[d] *= inv_sum;
+            }
+            store_row_f32(out, Dv, acc, b, first_head + head, l);
         }
-        store_row_f32(out, Dv, acc, b, h, l);
     });
 }
 

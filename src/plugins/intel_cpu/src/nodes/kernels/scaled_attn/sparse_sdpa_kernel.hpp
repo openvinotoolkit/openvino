@@ -8,6 +8,7 @@
 
 #include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
+#include "nodes/kernels/scaled_attn/sparse_sdpa_scratch.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 
@@ -45,7 +46,7 @@ namespace ov::Extensions::Cpu::XARCH {
 // PlainTensors, resolve its own GraphContext-owned DnnlScratchPad allocation (scratch sizing/
 // allocation needs GraphContext, which kernels/ must never depend on), and call this once --
 // mirroring nodes/paged_gated_delta_net.cpp's recurrent_linear_attn_paged() entry point. Every
-// other compute step (the scalar online-softmax reference path, the legacy AMX matrix-vector QK^T
+// other compute step (the run-by-run SIMD online-softmax path, the legacy AMX matrix-vector QK^T
 // with vectorized P@V, the brgemm prefill over head packs of sparse_brgemm_kernel.hpp, row
 // precision conversion) lives entirely inside sparse_sdpa_kernel.cpp, so it is
 // genuinely vectorized by cross_compiled_file()'s per-ISA clones instead of silently falling back
