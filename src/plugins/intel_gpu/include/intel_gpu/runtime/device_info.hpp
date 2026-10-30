@@ -157,6 +157,10 @@ struct device_info {
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device
 
+    inline bool supports_bf16() const {
+        return supports_immad;
+    }
+
     inline bool is_same_device(const device_info &other) const {
         // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
         // where the UUID may be missing or incorrectly generated
