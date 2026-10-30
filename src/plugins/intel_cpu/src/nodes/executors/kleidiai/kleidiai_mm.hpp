@@ -3,11 +3,17 @@
 //
 #pragma once
 
+#include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/NEON/functions/NEActivationLayer.h>
+#include <arm_compute/runtime/Tensor.h>
+
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <optional>
 
 #include "arm_neon.h"
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "kleidiai_common.hpp"
 #include "nodes/executors/acl/acl_fullyconnected_utils.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
@@ -27,6 +33,9 @@ public:
     bool update(const MemoryArgs& memory) override;
 
     static bool supports(const FCConfig& config);
+
+    // Activations that can be fused into the executor as a post-op
+    static bool isSupportedActivation(Algorithm algorithm);
 
     void moveMemToNumaNode(int numaNodeID) override;
 
@@ -67,6 +76,10 @@ private:
     ExecutorContext::CPtr executorContext;
     std::shared_ptr<kai_common::uKernelBase> _kernel;
     size_t kernelLookupKey = 0;
+    // Fused activation, applied in place on the output after the matmul
+    std::optional<arm_compute::ActivationLayerInfo> activationInfo;
+    arm_compute::Tensor dstTensor;
+    std::unique_ptr<arm_compute::NEActivationLayer> activation;
 };
 
 using MatMulKleidiAIExecutorPtr = std::shared_ptr<MatMulKleidiAIExecutor>;
