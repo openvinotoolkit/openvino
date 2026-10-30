@@ -874,8 +874,15 @@ bool FullyConnectedInt3Dpas::validate_impl(const program_node& node) const {
     const auto& program = node.get_program();
     const auto& config = program.get_config();
 
-    // SIMD16 DPAS is required; pre-Xe2 (e.g. DG2) keeps u3 decompressed at the transformation stage instead.
+    // SIMD16 DPAS is required, so pre-Xe2 (e.g. DG2) u3 FCs are left to the other impls.
     if (program.get_engine().get_device_info().arch < gpu_arch::xe2) {
+        return false;
+    }
+
+    // The kernel always quantizes activations to int8, so a model that opts out of dynamic quantization
+    // (group size 0, or GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX below the group size) keeps f16 activations elsewhere.
+    const auto dyn_quan_group_size = config.get_dynamic_quantization_group_size();
+    if (dyn_quan_group_size == 0 || config.get_dynamic_quantization_group_size_max() < dyn_quan_group_size) {
         return false;
     }
 
@@ -915,7 +922,7 @@ bool FullyConnectedInt3Dpas::validate_impl(const program_node& node) const {
     }
 
     Int3FcInfo info;
-    return get_int3_fc_info(desc, node.get_input_layouts(), config.get_dynamic_quantization_group_size(), info);
+    return get_int3_fc_info(desc, node.get_input_layouts(), dyn_quan_group_size, info);
 }
 
 bool FullyConnectedInt3Dpas::support_shapes(const RuntimeParams& params) const {

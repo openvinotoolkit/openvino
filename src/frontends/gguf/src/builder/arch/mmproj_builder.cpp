@@ -13,8 +13,10 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/gguf_graph.hpp"
+#include "builder/metadata_checks.hpp"
 #include "builder/projector_registry.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "projector_adapter.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
@@ -75,6 +77,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"audio", "lfm2a", EncoderTopology::LFM2_AUDIO},
     {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
     {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
+    {"vision", "minicpmv4_7", EncoderTopology::MINICPM46},
     {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
@@ -110,12 +113,7 @@ bool rms_encoder(const EncoderConfig& c) {
 }
 
 int64_t positive(const GgufMetadata& meta, const std::string& key) {
-    const auto value = meta.get_int(key);
-    OPENVINO_ASSERT(value && *value > 0 && *value <= std::numeric_limits<int>::max(),
-                    "[GGUF] mmproj requires a positive integer '",
-                    key,
-                    "'");
-    return *value;
+    return require_positive_int(meta, key, "mmproj");
 }
 
 EncoderConfig config(const GgufMetadata& meta, const std::string& modality, const std::string& projector) {
@@ -156,9 +154,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
                                             : *std::max_element(c.feature_layers.begin(), c.feature_layers.end());
     }
     OPENVINO_ASSERT(c.width % c.heads == 0, "[GGUF] mmproj embedding width must be divisible by head count");
-    const auto eps = meta.get_float(key + "attention.layer_norm_epsilon");
-    OPENVINO_ASSERT(eps && std::isfinite(*eps) && *eps > 0, "[GGUF] invalid ", key, "attention.layer_norm_epsilon");
-    c.eps = c.topology == EncoderTopology::GEMMA4_AUDIO ? 1e-6f : static_cast<float>(*eps);
+    const float eps = require_positive_float(meta, key + "attention.layer_norm_epsilon", "mmproj");
+    c.eps = c.topology == EncoderTopology::GEMMA4_AUDIO ? 1e-6f : eps;
     const bool gelu = meta.get_bool("clip.use_gelu").value_or(false);
     const bool silu = meta.get_bool("clip.use_silu").value_or(false);
     OPENVINO_ASSERT(!(gelu && silu), "[GGUF] mmproj cannot enable both GELU and SiLU");
@@ -198,8 +195,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
             if (c.topology == EncoderTopology::MINICPM46) {
                 auto layers = meta.get_int_array(key + "wa_layer_indexes");
                 c.window_pattern = layers.empty() ? 0 : layers.front();
-                OPENVINO_ASSERT(c.merge == 4 && c.window_pattern >= 0 && c.window_pattern < c.layers,
-                                "[GGUF] invalid minicpmv4_6 merger configuration");
+                OPENVINO_ASSERT((c.merge == 2 || c.merge == 4) && c.window_pattern >= 0 && c.window_pattern < c.layers,
+                                "[GGUF] invalid MiniCPM-V merger configuration");
             }
             return c;
         }
@@ -251,6 +248,13 @@ public:
         c.rms = rms_encoder(c);
         clippable = c.topology == EncoderTopology::GEMMA4 || c.topology == EncoderTopology::GEMMA4_AUDIO;
         ProjectorResult result;
+        if (c.topology == EncoderTopology::MINICPM46) {
+            const auto positions = g.tensors().require("v.position_embd.weight").ne(1);
+            const auto side = int64_t(std::sqrt(double(positions)));
+            OPENVINO_ASSERT(positions > 0 && side * side == positions,
+                            "[GGUF] MiniCPM-V requires a square learned position grid");
+            result.config["vision.position_grid_size"] = std::to_string(side);
+        }
         result.output = modality == "vision" ? vision(c) : audio(c);
         result.config[modality + ".merge"] = std::to_string(c.merge);
         if (c.topology == EncoderTopology::MUSE_GLIMMER)
@@ -714,6 +718,14 @@ private:
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
         auto x = patch_embeddings(convolution(pixels, "v.patch_embd.weight", c.patch), c.width);
         auto learned = gather_rows(g.tensors().require("v.position_embd.weight"), "position_ids");
+        if (c.merge == 2) {
+            x = vit(x, c, learned);
+            std::array<GgufValue, 4> parts;
+            for (int i = 0; i < 4; ++i)
+                parts[i] = gather_rows(x, "merger.indices." + std::to_string(i));
+            auto cat = concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
+            return ffn(norm(cat, "mm.input_norm", c.eps), "mm.up", "mm.down", "GGML_UNARY_OP_GELU_ERF");
+        }
         x = vit(x, c, learned, {}, {}, {}, 0, c.window_pattern + 1, false);
         const std::string p = "v.vit_merger.";
         auto z = gather_rows(norm(x, p + "ln1", c.eps), "window_indices");
@@ -1199,6 +1211,7 @@ public:
             encoders.push_back(definition);
         }
         OPENVINO_ASSERT(!encoders.empty(), "[GGUF] mmproj has no encoder");
+        ModelAdapters adapters;
         std::map<std::string, std::string> branch_config;
         branch_config["vision.auxiliary_count"] = "0";
         for (const auto& definition : encoders) {
@@ -1211,8 +1224,18 @@ public:
                 branch_config[entry.first] = entry.second;
             }
             branch_config[definition->modality + ".projector"] = definition->projector_type;
+            const auto layout =
+                result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
+            branch_config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
+            auto callback = result.genai_adapter.value_or(definition->genai_adapter);
+            if (callback) {
+                auto adapter = std::make_shared<ModelAdapter>();
+                adapter->transform = std::move(callback);
+                adapters[definition->modality + ".embeddings"] = std::move(adapter);
+            }
         }
         auto graph = g.finish();
+        graph->model_adapters = std::move(adapters);
         const auto number = [](auto value) {
             std::ostringstream stream;
             stream.precision(std::numeric_limits<double>::max_digits10);
@@ -1263,7 +1286,13 @@ private:
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,
                                         const std::string& projector_type) {
-    return BuiltinProjectorBuilder(graph).build(modality, projector_type);
+    auto result = BuiltinProjectorBuilder(graph).build(modality, projector_type);
+    if (modality == "vision") {
+        const auto layout = builtin_projector_layout(projector_type);
+        if (layout != ProjectorLayout::Unsupported)
+            result.genai_layout = layout;
+    }
+    return result;
 }
 
 std::vector<ProjectorDefinition> builtin_projectors() {

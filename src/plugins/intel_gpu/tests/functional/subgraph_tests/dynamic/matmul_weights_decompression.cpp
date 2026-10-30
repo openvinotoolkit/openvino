@@ -18,6 +18,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/utils/utils.hpp"
@@ -269,7 +270,7 @@ TEST_P(MatmulWeightsDecompression, Inference) {
 }
 
 // A model that caps the dynamic quantization group size below the requested one opts out of int8
-// activations. The int3 FC kernel always quantizes activations, so u3 weights must be decompressed then.
+// activations. The int3 FC kernel always quantizes activations, so it must not be selected then.
 class MatmulWeightsDecompressionU3DynQuanOptOut : public MatmulWeightsDecompression {
 protected:
     void SetUp() override {
@@ -280,8 +281,10 @@ protected:
     void validate() override {
         MatmulWeightsDecompression::validate();
         for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
-            for (const auto& output : n->outputs()) {
-                ASSERT_NE(output.get_element_type(), ov::element::u3) << n->get_friendly_name();
+            const auto& info = n->get_rt_info();
+            const auto impl_type = info.find(ov::exec_model_info::IMPL_TYPE);
+            if (impl_type != info.end()) {
+                ASSERT_NE(impl_type->second.as<std::string>(), "ocl::fc_int3_dpas") << n->get_friendly_name();
             }
         }
     }
@@ -651,6 +654,40 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_input_4d,
                                             ::testing::Values(false),
                                             ::testing::Values(ov::test::utils::DecompressionType::empty),
                                             ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(1.0f)),
+                         MatmulWeightsDecompression::get_test_case_name);
+
+// Compressed FC (Qwen3-8B q_proj prefill shape) followed by a Transpose, which runs as a separate OCL kernel
+// reading the oneDNN gemm output on the same in-order queue without a host wait. A tail of the output channels can
+// still be in the non-coherent L1 and the Transpose reads stale data.
+// Needs a static shape and a non-oneDNN consumer: a oneDNN consumer or host read-back does not expose it.
+class MatmulWeightsDecompressionWithConsumer : public MatmulWeightsDecompression {
+protected:
+    void SetUp() override {
+        MatmulWeightsDecompression::SetUp();
+        const auto mat_mul = function->get_results()[0]->input_value(0);
+        const auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
+        const auto transpose = std::make_shared<ov::op::v1::Transpose>(mat_mul, transpose_order);
+        function = std::make_shared<ov::Model>(ov::OutputVector{transpose}, function->get_parameters(), "MatmulWeightsDecompressionWithConsumer");
+    }
+};
+
+TEST_P(MatmulWeightsDecompressionWithConsumer, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_gemm_output_coherency,
+                         MatmulWeightsDecompressionWithConsumer,
+                         ::testing::Combine(::testing::Values(ShapeParams{{{}, {{1, 15, 4096}}}, {4096, 6144}, 128}),
+                                            ::testing::ValuesIn({ov::element::u4, ov::element::u3}),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(true),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(0),

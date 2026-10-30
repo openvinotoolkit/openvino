@@ -50,11 +50,11 @@ void ParamsKey::EnableInputDataType(Datatype dt) {
         case Datatype::UINT2:
             key.inputType.val.uint2 = 1;
             break;
-        case Datatype::INT4:
-            key.inputType.val.int4 = 1;
-            break;
         case Datatype::UINT3:
             key.inputType.val.uint3 = 1;
+            break;
+        case Datatype::INT4:
+            key.inputType.val.int4 = 1;
             break;
         case Datatype::UINT4:
             key.inputType.val.uint4 = 1;
@@ -113,11 +113,11 @@ void ParamsKey::EnableOutputDataType(Datatype dt) {
         case Datatype::UINT2:
             key.outputType.val.uint2 = 1;
             break;
-        case Datatype::INT4:
-            key.outputType.val.int4 = 1;
-            break;
         case Datatype::UINT3:
             key.outputType.val.uint3 = 1;
+            break;
+        case Datatype::INT4:
+            key.outputType.val.int4 = 1;
             break;
         case Datatype::UINT4:
             key.outputType.val.uint4 = 1;

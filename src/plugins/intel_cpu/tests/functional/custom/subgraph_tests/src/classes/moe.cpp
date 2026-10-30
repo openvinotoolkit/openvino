@@ -10,6 +10,7 @@
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
+#include "u3_symmetric_zero_point.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "moe.hpp"
@@ -205,6 +206,19 @@ void MoECompressedWeightsSubgraphTest::SetUp() {
         rel_threshold = 0.05f;
         abs_threshold = 0.05f;
         }
+    // Quantizing the activations adds a small noise on top of u3's 8-level weights,
+    // so such dynamic quantization path gets a slightly looser threshold.
+    const bool is_bf16 = itr != configuration.end() && itr->second == ov::element::bf16;
+    const auto dq_itr = configuration.find(ov::hint::dynamic_quantization_group_size.name());
+    const uint64_t dq_group_size = dq_itr != configuration.end() ? dq_itr->second.as<uint64_t>() : 32;
+    const bool dyn_quant =
+        dq_group_size != 0 && dq_group_size % 32 == 0 &&
+        (decompression_group_size == -1 || static_cast<uint64_t>(decompression_group_size) % dq_group_size == 0);
+    if (weights_precision == ov::element::u3 && !is_bf16 && dyn_quant &&
+        (ov::with_cpu_x86_avx2_vnni() || ov::with_cpu_x86_avx512_core_vnni())) {
+        rel_threshold = 0.05f;
+        abs_threshold = 0.05f;
+    }
 
     if (moe_type == MoEType::MoE2GeMM) {
         ASSERT_TRUE(activation_type == MoEActivationType::SWISH) << "MoE2GeMM only supports SWISH activation";
@@ -313,6 +327,17 @@ TEST_P(MoECompressedWeightsSubgraphTest, CompareWithRefs) {
             GTEST_SKIP();
         }
     #endif
+    run();
+    check_results();
+}
+
+void MoECompressedWeightsU3SymmetricZpSubgraphTest::SetUp() {
+    MoECompressedWeightsSubgraphTest::SetUp();
+    make_u3_symmetric_zero_points(function);
+}
+
+TEST_P(MoECompressedWeightsU3SymmetricZpSubgraphTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     check_results();
 }

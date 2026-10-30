@@ -5,8 +5,8 @@
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/fetch_weights.cl"
 #include "include/batch_headers/int4_utils.cl"
-#include "include/batch_headers/int2_utils.cl"
 #include "include/batch_headers/int3_utils.cl"
+#include "include/batch_headers/int2_utils.cl"
 
 KERNEL(fc)(
     OPTIONAL_SHAPE_INFO_ARG
@@ -74,7 +74,7 @@ KERNEL(fc)(
                 ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
             #elif COMPRESSED_WEIGHTS_UINT3
-                ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(UNPACK_UINT3_AT(weights, filter_idx));
+                ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(get_uint3_weight(weights, filter_idx));
                 ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                 dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
             #else
@@ -132,7 +132,7 @@ KERNEL(fc)(
                     ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
                 #elif COMPRESSED_WEIGHTS_UINT3
-                    ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(UNPACK_UINT3_AT(weights, filter_idx));
+                    ACCUMULATOR_TYPE filter_compressed = TO_ACCUMULATOR_TYPE(get_uint3_weight(weights, filter_idx));
                     ACCUMULATOR_TYPE filter_val = (filter_compressed - zp) * scale;
                     dotProd += (ACCUMULATOR_TYPE)(input[input0_idx]) * filter_val;
                 #else
