@@ -446,7 +446,6 @@ protected:
     std::vector<memory::ptr> _outputs;
     // Borrowed view of a remote output tensor while a runtime-skippable permute stays optimized out.
     memory::ptr _remote_permute_output_alias;
-    memory::ptr _remote_recurrent_cache_output_alias;
 
     std::vector<memory::ptr> _intermediates_memory;
 
@@ -497,7 +496,8 @@ protected:
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
     bool try_bind_remote_permute_output(const layout& actual_layout);
-    bool try_bind_recurrent_cache_output(const layout& actual_layout, size_t idx);
+    // Let a primitive supply caller-owned output storage before the ordinary allocation path.
+    virtual bool try_bind_output_memory(const layout&, size_t) { return false; }
     void realloc_if_needed(bool prev_execution_skipped = false);
     void realloc_outputs(bool prev_execution_skipped = false);
     void realloc_outputs_for_stateless_kv();

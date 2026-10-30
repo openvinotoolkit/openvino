@@ -1,5 +1,6 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
 

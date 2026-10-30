@@ -1,5 +1,6 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 #include "keep_recurrent_cache_precision.hpp"
 #include "openvino/op/recurrent_cache_update.hpp"
 #include "openvino/op/parameter.hpp"

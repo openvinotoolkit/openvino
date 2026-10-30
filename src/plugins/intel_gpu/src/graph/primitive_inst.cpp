@@ -24,7 +24,6 @@
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "fully_connected_inst.h"
 #include "gather_inst.h"
-#include "gated_delta_net_inst.h"
 #include "gemm_inst.h"
 #include "graph_optimizer/prepare_buffer_fusing.h"
 #include "input_layout_inst.h"
@@ -54,7 +53,6 @@
 #include "read_value_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "registry/registry.hpp"
-#include "recurrent_cache_update_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
@@ -311,13 +309,6 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     if (is_constant()) {
         ev = mem_new->copy_from(get_network().get_stream(), *_outputs[idx], false);
     } else {
-        // set_output_memory can replace a pooled producer allocation through
-        // a Result's optimized output chain. Its old pool record must lose
-        // this owner before the caller allocation replaces it.
-        if (_outputs[idx] && !eng.is_the_same_buffer(*_outputs[idx], *mem_new) &&
-            get_node().get_program().get_config().get_enable_memory_pool()) {
-            get_network().get_memory_pool().release_memory(_outputs[idx].get(), get_node().get_unique_id(), id(), get_network_id());
-        }
         _outputs[idx] = mem_new;
         _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
         // Replacing the primary output means any borrowed remote permute view is no longer active.
@@ -835,106 +826,6 @@ bool primitive_inst::try_bind_remote_permute_output(const layout& actual_layout)
     return false;
 }
 
-bool primitive_inst::try_bind_recurrent_cache_output(const layout& actual_layout, size_t idx) {
-    // Qwen3.5 llama.cpp Update ops permit exact, exclusive cache aliases on port 1.
-    const bool cache_port = idx == 1 && get_node().is_type<recurrent_cache_update>();
-    if (!cache_port || !is_dynamic())
-        return false;
-
-    for (auto* user : get_user_insts()) {
-        if (!user->is_output() || !user->get_node().is_type<reorder>() || !user->can_be_optimized() || user->dependencies().size() != 1 ||
-            user->dependencies().front().first != this || user->dependencies().front().second != static_cast<int32_t>(idx) ||
-            !get_network().has_output_remote_memory_ptr(user->id()))
-            continue;
-        if (!user->_update_shape_done_by_other) {
-            user->update_shape();
-            user->_update_shape_done_by_other = true;
-        }
-        auto remote = user->output_memory_ptr();
-        if (!remote || !get_network().get_engine().is_the_same_buffer(*remote, get_network().get_output_remote_memory(user->id())))
-            continue;
-        const auto& target_layout = user->_impl_params->get_output_layout();
-        if (!remote || (remote->get_allocation_type() != allocation_type::usm_device && remote->get_allocation_type() != allocation_type::usm_host) || !target_layout.is_static() ||
-            actual_layout.data_type != target_layout.data_type || actual_layout.format != target_layout.format ||
-            actual_layout.get_pitches() != target_layout.get_pitches() || actual_layout.get_linear_offset() != target_layout.get_linear_offset() ||
-            actual_layout.bytes_count() > remote->size())
-            continue;
-        const size_t cache_input = get_node().as<recurrent_cache_update>().get_primitive()->history == 0 ? 3 : 0;
-        bool alias_cache = get_network().get_engine().is_the_same_buffer(*input_memory_ptr(cache_input), *remote);
-        const primitive_inst* cache_root = dependencies().at(cache_input).first;
-        if (alias_cache) {
-            const auto& source_layout = input_memory_ptr(cache_input)->get_layout();
-            alias_cache = source_layout.data_type == actual_layout.data_type && source_layout.format == actual_layout.format &&
-                          source_layout.get_pitches() == actual_layout.get_pitches() && source_layout.get_linear_offset() == actual_layout.get_linear_offset();
-            // Only this new op may consume the original cache. Other graph readers retain
-            // immutable semantics; partial overlaps and unrelated input aliases fall back.
-            // llama.cpp views introduce optimized Reshapes between Parameter and
-            // cache input. Follow only exclusive, memory-identical alias steps;
-            // checking the immediate producer alone misses readers at the root.
-            const primitive_inst* consumer = this;
-            while (alias_cache) {
-                for (auto* reader : cache_root->get_user_insts()) {
-                    if (reader != consumer) {
-                        alias_cache = false;
-                        break;
-                    }
-                }
-                if (!alias_cache || !cache_root->can_be_optimized() || cache_root->dependencies().size() != 1)
-                    break;
-                auto* source = cache_root->dependencies().front().first;
-                if (!source->output_memory_ptr() ||
-                    !get_network().get_engine().is_the_same_buffer(*source->output_memory_ptr(), *remote))
-                    break;
-                consumer = cache_root;
-                cache_root = source;
-            }
-        }
-        bool overlap = false;
-        for (size_t input = 0; input < inputs_memory_count(); ++input) {
-            auto memory = input_memory_ptr(input);
-            if (alias_cache && input == cache_input)
-                continue;
-            if (!memory || !memory->buffer_ptr())
-                continue;
-            const auto source = reinterpret_cast<uintptr_t>(memory->buffer_ptr());
-            const auto destination = reinterpret_cast<uintptr_t>(remote->buffer_ptr());
-            overlap |= source <= destination ? destination - source < memory->size() : source - destination < actual_layout.bytes_count();
-        }
-        // A caller can also bind this Result over an unrelated graph input.
-        // Its independent readers may execute after this kernel on another branch.
-        if (!overlap) {
-            for (const auto& input_id : get_network().get_input_ids()) {
-                auto memory = get_network().get_primitive(input_id)->output_memory_ptr();
-                if (alias_cache && get_network().get_primitive(input_id).get() == cache_root)
-                    continue;
-                if (!memory || !memory->buffer_ptr())
-                    continue;
-                const auto source = reinterpret_cast<uintptr_t>(memory->buffer_ptr());
-                const auto destination = reinterpret_cast<uintptr_t>(remote->buffer_ptr());
-                if (source <= destination ? destination - source < memory->size() : source - destination < actual_layout.bytes_count()) {
-                    overlap = true;
-                    break;
-                }
-            }
-        }
-        // Rejected aliases retain private output and a final Result copy.
-        if (overlap)
-            continue;
-        auto& engine = get_network().get_engine();
-        const bool changed = !_outputs[idx] || !engine.is_the_same_buffer(*_outputs[idx], *remote);
-        if (changed && _outputs[idx] && !_remote_recurrent_cache_output_alias && get_node().get_program().get_config().get_enable_memory_pool()) {
-            get_network().get_memory_pool().release_memory(_outputs[idx].get(), get_node().get_unique_id(), get_node().id(), get_network_id());
-        }
-        _outputs[idx] = engine.reinterpret_buffer(*remote, actual_layout);
-        _remote_recurrent_cache_output_alias = _outputs[idx];
-        _max_output_layout_count[idx] = remote->size() / data_type_traits::size_of(actual_layout.data_type);
-        if (changed)
-            set_flag(ExecutionFlags::MEMORY_CHANGED);
-        return true;
-    }
-    return false;
-}
-
 void primitive_inst::realloc_outputs_for_stateless_kv() {
     const auto& users = get_user_insts();
     const auto output_it = std::find_if(users.begin(), users.end(), [](primitive_inst* user) {
@@ -1083,15 +974,7 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         if (reorder_inst->is_output() && reorder_inst->output_memory_ptr() && get_network().has_output_remote_memory_ptr(reorder_inst->id()) &&
             get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {
             if (actual_layouts[0].get_linear_size() <= reorder_inst->get_max_output_layout_count()) {
-                // A growing caller output can replace a previously pooled
-                // allocation. Drop this primitive's pool ownership before
-                // borrowing the Result buffer, or old shapes stay resident.
-                if (_outputs[0] && !get_network().get_engine().is_the_same_buffer(*_outputs[0], *reorder_inst->_outputs[0]) &&
-                    get_node().get_program().get_config().get_enable_memory_pool()) {
-                    get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
-                }
                 this->_outputs[0] = reorder_inst->_outputs[0];
-                _max_output_layout_count[0] = reorder_inst->get_max_output_layout_count();
                 GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
                 return;
             }
@@ -1465,18 +1348,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     // allocate_output() params of the nodes that don't use fake_aligned_params, built on the first allocation
     std::optional<kernel_impl_params> alloc_params;
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
-        if (try_bind_recurrent_cache_output(actual_layouts[i], i))
+        if (try_bind_output_memory(actual_layouts[i], i))
             continue;
-        if (i == 1 && _remote_recurrent_cache_output_alias) {
-            // A later call may bind an aliased, smaller or different output.
-            // Drop borrowed storage before the ordinary reuse path can select it.
-            if (_outputs[i] && get_network().get_engine().is_the_same_buffer(*_outputs[i], *_remote_recurrent_cache_output_alias)) {
-                _outputs[i].reset();
-                _max_output_layout_count[i] = 0;
-                set_flag(ExecutionFlags::MEMORY_CHANGED);
-            }
-            _remote_recurrent_cache_output_alias.reset();
-        }
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
         if (get_node().is_type<kv_cache>() && i != 1) {
@@ -3290,12 +3163,7 @@ memory::ptr primitive_inst::allocate_output(engine& _engine,
     bool is_cpu = node.get_selected_impl() ? node.get_selected_impl()->is_cpu() : node.get_preferred_impl_type() == impl_types::cpu;
 
     auto total_output_bytes = layout.bytes_count();
-    // Qwen3.5 llama.cpp fused cache outputs stay on the GPU between calls. The
-    // ordinary iGPU output policy picks host USM, causing a full host-USM->device
-    // cache copy even when the caller binds device USM. Keep the private cache
-    // staging allocation on device; CPU consumers still require lockable memory.
-    const bool recurrent_cache_output = idx == 1 && node.is_type<recurrent_cache_update>();
-    auto use_lockable_memory = (is_output_buffer && !recurrent_cache_output && ov::intel_gpu::can_use_usm_host(_engine, total_output_bytes)) || is_cpu ||
+    auto use_lockable_memory = (is_output_buffer && ov::intel_gpu::can_use_usm_host(_engine, total_output_bytes)) || is_cpu ||
                                has_any_cpu_user_not_shape_of(node.get_users()) || !_engine.supports_allocation(allocation_type::usm_device) ||
                                (node.is_shape_infer_dep() && device_info.dev_type == device_type::integrated_gpu);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());

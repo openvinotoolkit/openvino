@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/execution_config.hpp"
-
 #include <algorithm>
 #include <cstdlib>
 
@@ -12,11 +10,11 @@
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/istft.hpp"
 #include "openvino/op/loop.hpp"
@@ -36,6 +34,7 @@
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "ov_ops/dynamic_quantize.hpp"
 #include "ov_ops/rms.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

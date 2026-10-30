@@ -1,5 +1,6 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 #include <string>
@@ -37,6 +38,11 @@ public:
 
     static std::string to_string(const recurrent_cache_update_node& node);
     typed_primitive_inst(network& network, const recurrent_cache_update_node& node);
+
+private:
+    bool try_bind_output_memory(const layout& actual_layout, size_t idx) override;
+    bool try_bind_cache_output(const layout& actual_layout);
+    memory::ptr _remote_cache_output_alias;
 };
 
 using recurrent_cache_update_inst = typed_primitive_inst<recurrent_cache_update>;

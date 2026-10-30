@@ -16,6 +16,13 @@ cache readers, including exclusive optimized Reshape chains. It protects FP32
 cache inputs from FP16 precision conversion. Host USM and device USM are both
 eligible. There are no rotation banks or pointer swaps.
 
+The recurrent GPU primitive owns its cache binding and alias state. A small
+`try_bind_output_memory` hook selects caller storage before ordinary output
+allocation, preserving the allocation-stage ordering used by StatelessKV. This
+avoids allocating a temporary full cache when the caller binding is usable.
+Rejected bindings return to the normal GPU allocation policy; recurrent outputs
+have no special device-USM allocation preference.
+
 The first kernel stages required active rows and nonidentity reorder sources in
 private device scratch, applying logical reset and computation-precision rounding.
 The second kernel computes convolution/GDN and performs ordered cache writes.
