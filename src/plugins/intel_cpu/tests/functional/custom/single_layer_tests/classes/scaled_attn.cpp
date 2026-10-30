@@ -54,6 +54,10 @@ void ScaledAttnLayerCPUTest::SetUp() {
         // Issue: 163144
         if (with_cpu_x86_avx2_vnni_2()) {
             rel_threshold = 0.2f;
+            // Bf16 rounding requires looser threshold for cases without scale
+            if (!has_scale) {
+                abs_threshold = 0.2f;
+            }
         } else {
             rel_threshold = 2e-2f;
         }

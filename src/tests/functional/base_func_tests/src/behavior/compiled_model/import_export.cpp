@@ -24,7 +24,8 @@ namespace test {
 namespace behavior {
 namespace hsm = ov::runtime::hsm;
 
-std::string OVCompiledGraphImportExportTest::getTestCaseName(testing::TestParamInfo<OVCompiledGraphImportExportTestParams> obj) {
+std::string OVCompiledGraphImportExportTest::getTestCaseName(
+    testing::TestParamInfo<OVCompiledGraphImportExportTestParams> obj) {
     const auto& [elementType, _targetDevice, configuration] = obj.param;
     auto targetDevice = _targetDevice;
     std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
@@ -43,14 +44,14 @@ std::string OVCompiledGraphImportExportTest::getTestCaseName(testing::TestParamI
     return result.str();
 }
 
-void  OVCompiledGraphImportExportTest::SetUp() {
+void OVCompiledGraphImportExportTest::SetUp() {
     // Skip test according to plugin specific disabled_test_patterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     std::tie(elementType, target_device, configuration) = this->GetParam();
     APIBaseTest::SetUp();
 }
 
-void  OVCompiledGraphImportExportTest::TearDown() {
+void OVCompiledGraphImportExportTest::TearDown() {
     if (!configuration.empty()) {
         utils::PluginCache::get().reset();
     }
@@ -76,15 +77,13 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunction) {
               importedExecNet.input(0).get_tensor().get_partial_shape());
     EXPECT_EQ(function->input(0).get_tensor().get_element_type(),
               importedExecNet.input(0).get_tensor().get_element_type());
-    EXPECT_EQ(function->input(0).get_element_type(),
-              importedExecNet.input(0).get_tensor().get_element_type());
+    EXPECT_EQ(function->input(0).get_element_type(), importedExecNet.input(0).get_tensor().get_element_type());
     EXPECT_EQ(function->input(1).get_tensor().get_names(), importedExecNet.input(1).get_tensor().get_names());
     EXPECT_EQ(function->input(1).get_tensor().get_partial_shape(),
               importedExecNet.input(1).get_tensor().get_partial_shape());
     EXPECT_EQ(function->input(1).get_tensor().get_element_type(),
               importedExecNet.input(1).get_tensor().get_element_type());
-    EXPECT_EQ(function->input(1).get_element_type(),
-              importedExecNet.input(1).get_tensor().get_element_type());
+    EXPECT_EQ(function->input(1).get_element_type(), importedExecNet.input(1).get_tensor().get_element_type());
     EXPECT_EQ(importedExecNet.input(0).get_node(), importedExecNet.input("data1").get_node());
     EXPECT_NE(importedExecNet.input(1).get_node(), importedExecNet.input("data1").get_node());
     EXPECT_EQ(importedExecNet.input(1).get_node(), importedExecNet.input("data2").get_node());
@@ -97,15 +96,13 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunction) {
               importedExecNet.output(0).get_tensor().get_partial_shape());
     EXPECT_EQ(function->output(0).get_tensor().get_element_type(),
               importedExecNet.output(0).get_tensor().get_element_type());
-    EXPECT_EQ(function->output(0).get_element_type(),
-              importedExecNet.output(0).get_tensor().get_element_type());
+    EXPECT_EQ(function->output(0).get_element_type(), importedExecNet.output(0).get_tensor().get_element_type());
     EXPECT_EQ(function->output(1).get_tensor().get_names(), importedExecNet.output(1).get_tensor().get_names());
     EXPECT_EQ(function->output(1).get_tensor().get_partial_shape(),
               importedExecNet.output(1).get_tensor().get_partial_shape());
     EXPECT_EQ(function->output(1).get_tensor().get_element_type(),
               importedExecNet.output(1).get_tensor().get_element_type());
-    EXPECT_EQ(function->output(1).get_element_type(),
-              importedExecNet.output(1).get_tensor().get_element_type());
+    EXPECT_EQ(function->output(1).get_element_type(), importedExecNet.output(1).get_tensor().get_element_type());
     EXPECT_EQ(importedExecNet.output(0).get_node(), importedExecNet.output("concat1").get_node());
     EXPECT_NE(importedExecNet.output(1).get_node(), importedExecNet.output("concat1").get_node());
     EXPECT_EQ(importedExecNet.output(1).get_node(), importedExecNet.output("concat2").get_node());
@@ -124,8 +121,7 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionParameterResultOnl
         param->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::op::v0::Result>(param);
         result->set_friendly_name("result");
-        function = std::make_shared<ov::Model>(ov::ResultVector{result},
-                                                      ov::ParameterVector{param});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
         function->set_friendly_name("ParamResult");
     }
 
@@ -143,8 +139,7 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionParameterResultOnl
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
     EXPECT_NO_THROW(importedCompiledModel.output());
-    EXPECT_EQ(function->output(0).get_tensor().get_names(),
-              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_EQ(function->output(0).get_tensor().get_names(), importedCompiledModel.output(0).get_tensor().get_names());
     EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
     EXPECT_THROW(importedCompiledModel.output("param"), ov::Exception);
 
@@ -160,8 +155,7 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionConstantResultOnly
         constant->output(0).get_tensor().set_names({"data"});
         auto result = std::make_shared<ov::op::v0::Result>(constant);
         result->set_friendly_name("result");
-        function = std::make_shared<ov::Model>(ov::ResultVector{result},
-                                                      ov::ParameterVector{});
+        function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{});
         function->set_friendly_name("ConstResult");
     }
 
@@ -179,8 +173,7 @@ TEST_P(OVCompiledGraphImportExportTest, importExportedFunctionConstantResultOnly
     EXPECT_EQ(function->outputs().size(), 1);
     EXPECT_EQ(function->outputs().size(), importedCompiledModel.outputs().size());
     EXPECT_NO_THROW(importedCompiledModel.output());
-    EXPECT_EQ(function->output(0).get_tensor().get_names(),
-              importedCompiledModel.output(0).get_tensor().get_names());
+    EXPECT_EQ(function->output(0).get_tensor().get_names(), importedCompiledModel.output(0).get_tensor().get_names());
     EXPECT_NO_THROW(importedCompiledModel.output("data").get_node());
     EXPECT_THROW(importedCompiledModel.output("constant"), ov::Exception);
 
@@ -308,18 +301,21 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkThrowWithDevice
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core ie = ov::test::utils::create_core();
     std::stringstream wrongStm;
-    // Import model with wrong format throws exception
+    // Plugins with their own blob header (CPU/Hetero) reject it there; others fall back to the generic
+    // Core::read_model rejection.
     OV_EXPECT_THROW((ie.import_model(wrongStm, target_device)),
                     ov::Exception,
                     testing::AnyOf(testing::HasSubstr("device xml header"),
-                                   testing::HasSubstr("requirements header")));
+                                   testing::HasSubstr("requirements header"),
+                                   testing::HasSubstr("Unable to read the model")));
 }
 
 //
 // GetRuntimeModel
 //
 
-std::string OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName(testing::TestParamInfo<OVCompiledModelGraphUniqueNodeNamesTestParams> obj) {
+std::string OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName(
+    testing::TestParamInfo<OVCompiledModelGraphUniqueNodeNamesTestParams> obj) {
     const auto& [netPrecision, inputShapes, _targetDevice] = obj.param;
     auto targetDevice = _targetDevice;
     std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
@@ -697,7 +693,7 @@ void OVExecGraphSerializationTest::TearDown() {
     ov::test::utils::removeIRFiles(m_out_xml_path, m_out_bin_path);
 }
 
-bool OVExecGraphSerializationTest::exec_graph_walker::for_each(pugi::xml_node &node) {
+bool OVExecGraphSerializationTest::exec_graph_walker::for_each(pugi::xml_node& node) {
     std::string node_name{node.name()};
     if (node_name == "layer" || node_name == "data") {
         nodes.push_back(node);
@@ -705,8 +701,8 @@ bool OVExecGraphSerializationTest::exec_graph_walker::for_each(pugi::xml_node &n
     return true;  // continue traversal
 }
 
-std::pair<bool, std::string> OVExecGraphSerializationTest::compare_nodes(const pugi::xml_node &node1,
-                                                                         const pugi::xml_node &node2) {
+std::pair<bool, std::string> OVExecGraphSerializationTest::compare_nodes(const pugi::xml_node& node1,
+                                                                         const pugi::xml_node& node2) {
     // node names must be the same
     const std::string node1_name{node1.name()};
     const std::string node2_name{node2.name()};
@@ -720,9 +716,9 @@ std::pair<bool, std::string> OVExecGraphSerializationTest::compare_nodes(const p
     const auto attr1_size = std::distance(attr1.begin(), attr1.end());
     const auto attr2_size = std::distance(attr2.begin(), attr2.end());
     if (attr1_size != attr2_size) {
-        return {false, "Attribute count is different in <" + node1_name + "> :" +
-                       std::to_string(attr1_size) + " != " +
-                       std::to_string(attr2_size)};
+        return {false,
+                "Attribute count is different in <" + node1_name + "> :" + std::to_string(attr1_size) +
+                    " != " + std::to_string(attr2_size)};
     }
 
     // every node attribute name must be the same
@@ -738,27 +734,26 @@ std::pair<bool, std::string> OVExecGraphSerializationTest::compare_nodes(const p
             if (a1_value == "Output" && a2_value == "Result") {
                 continue;
             }
-            return {false, "Attributes are different in <" + node1_name + "> : " +
-                           a1_name + "=" + a1_value + " != " + a2_name +
-                           "=" + a2_value};
+            return {false,
+                    "Attributes are different in <" + node1_name + "> : " + a1_name + "=" + a1_value +
+                        " != " + a2_name + "=" + a2_value};
         }
     }
     return {true, ""};
 }
 
-std::pair<bool, std::string> OVExecGraphSerializationTest::compare_docs(const pugi::xml_document &doc1,
-                                                                      const pugi::xml_document &doc2) {
+std::pair<bool, std::string> OVExecGraphSerializationTest::compare_docs(const pugi::xml_document& doc1,
+                                                                        const pugi::xml_document& doc2) {
     // traverse document and prepare vector of <layer> & <data> nodes to compare
     exec_graph_walker walker1, walker2;
     doc1.child("net").child("layers").traverse(walker1);
     doc2.child("net").child("layers").traverse(walker2);
 
     // nodes count must be the same
-    const auto &nodes1 = walker1.nodes;
-    const auto &nodes2 = walker2.nodes;
+    const auto& nodes1 = walker1.nodes;
+    const auto& nodes2 = walker2.nodes;
     if (nodes1.size() != nodes2.size()) {
-        return {false, "Node count differ: " + std::to_string(nodes1.size()) +
-                       " != " + std::to_string(nodes2.size())};
+        return {false, "Node count differ: " + std::to_string(nodes1.size()) + " != " + std::to_string(nodes2.size())};
     }
 
     // every node must be equivalent
