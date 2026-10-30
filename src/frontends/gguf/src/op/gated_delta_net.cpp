@@ -57,8 +57,8 @@ std::optional<FeatureSlice> match_feature_slice(const Output<Node>& value, const
         return std::nullopt;
     const auto slice = ov::as_type_ptr<ov::op::v8::Slice>(reshape->get_input_node_shared_ptr(0));
     if (!slice || slice->get_input_size() != 5 ||
-        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(3), {1}) ||
-        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(4), {3}))
+        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(3), 1) ||
+        !has_constant_value<int64_t>(slice->get_input_node_shared_ptr(4), 3))
         return std::nullopt;
     const auto begin = ov::as_type_ptr<ov::op::v0::Constant>(slice->get_input_node_shared_ptr(1));
     const auto end = ov::as_type_ptr<ov::op::v0::Constant>(slice->get_input_node_shared_ptr(2));

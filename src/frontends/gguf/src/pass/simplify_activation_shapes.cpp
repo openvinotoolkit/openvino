@@ -51,7 +51,7 @@ bool same_shape(const ov::PartialShape& lhs, const ov::PartialShape& rhs) {
 ov::Output<ov::Node> unwrapped(const ov::Output<ov::Node>& value) {
     const auto node = ov::as_type_ptr<ov::op::v0::Unsqueeze>(value.get_node_shared_ptr());
     if (node && node->input_value(0).get_partial_shape().rank() == 3 &&
-        ov::op::util::has_constant_value<int64_t>(node->get_input_node_shared_ptr(1), {1}))
+        ov::op::util::has_constant_value<int64_t>(node->get_input_node_shared_ptr(1), 1))
         return node->input_value(0);
     return value;
 }
@@ -125,8 +125,8 @@ bool SimplifyActivationShapes::run_on_model(const std::shared_ptr<ov::Model>& mo
             if (!activation_shape(node->get_input_partial_shape(0)))
                 continue;
             const auto axes = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
-            if (!ov::op::util::has_constant_value<int64_t>(axes, {-1}) &&
-                !ov::op::util::has_constant_value<int64_t>(axes, {3}))
+            if (!ov::op::util::has_constant_value<int64_t>(axes, -1) &&
+                !ov::op::util::has_constant_value<int64_t>(axes, 3))
                 continue;
             const auto last = ov::op::v0::Constant::create(axes->get_element_type(), axes->get_shape(), {-1});
             created.push_back(last);
