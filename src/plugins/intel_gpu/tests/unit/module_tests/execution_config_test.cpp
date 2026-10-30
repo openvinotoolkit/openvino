@@ -245,7 +245,6 @@ TEST(execution_config, kv_cache_4bit_by_token_throws) {
 
     ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
 }
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
 
