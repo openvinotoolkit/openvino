@@ -7,6 +7,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <exception>
 #include <functional>
 #include <future>
 #include <list>
@@ -161,7 +162,7 @@ std::shared_future<void> submit_page_toucher_tasks(void* ptr, size_t size, size_
         auto future = latch->get_future();
         ThreadPool::instance().submit(std::move(jobs));
         return future;
-    } catch (...) {
+    } catch (const std::exception&) {
         return {};
     }
 }

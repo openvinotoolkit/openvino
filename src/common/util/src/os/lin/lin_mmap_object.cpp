@@ -132,7 +132,7 @@ class MapHolder final : public MappedMemory {
                                                         }),
                                          m_pending_prefetch.end());
                 m_pending_prefetch.push_back(std::move(task));
-            } catch (...) {
+            } catch (const std::exception&) {
                 task.wait();
             }
         }

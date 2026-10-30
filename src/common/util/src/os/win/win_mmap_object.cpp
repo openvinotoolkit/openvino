@@ -816,7 +816,7 @@ void MapHolder::adopt_pending_prefetch(std::shared_future<void> task) noexcept {
                                                     }),
                                      m_pending_prefetch.end());
             m_pending_prefetch.push_back(std::move(task));
-        } catch (...) {
+        } catch (const std::exception&) {
             // Bookkeeping failed (e.g. allocation failure): the prefetch already started in the
             // background, so block here instead of returning with it untracked, or ~MapHolder could
             // unmap while it is still touching these pages.

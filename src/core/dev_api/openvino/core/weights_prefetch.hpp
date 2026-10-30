@@ -22,7 +22,8 @@ class OPENVINO_API IPrefetchScheduler {
 public:
     virtual ~IPrefetchScheduler() = default;
 
-    /** @brief Waits for the node weights to be loaded. Call it right before the node is read. */
+    /** @brief Requests asynchronous prefetch of the node's weights if not already requested. Call it right before the
+     * node is read. */
     virtual void acquire(const ov::Node& node) noexcept = 0;
 
     /** @brief Evicts the node weights and prefetches the next ones. Call it once the node is not read. */
@@ -36,6 +37,18 @@ public:
  * prefetch A, B; acquire A, release A (evict A, prefetch C); acquire B, release B (evict B, prefetch D); ...
  *
  * Non-constant nodes and constants not backed by a file mapping are ignored. Not thread safe.
+ *
+ * Entry states:
+ * @verbatim
+   pending ---(1)---> prefetch_requested ---(2)---> released
+      |                                                ^
+      +----------------------(3)-----------------------+
+   @endverbatim
+ * (1) prefetch_ahead() or acquire(), only if hint_prefetch() started loading (constant is file-backed).
+ * (2) release(): waits for the load to finish, then evicts.
+ * (3) release() of a constant that was never prefetched, or prefetch_ahead() finds the constant destroyed.
+ *
+ * released is final: the entry is never prefetched again.
  */
 class OPENVINO_API OrderedPrefetchScheduler : public IPrefetchScheduler {
 public:
@@ -55,18 +68,21 @@ public:
     void release(const ov::Node& node) noexcept override;
 
 private:
-    // pending: not yet prefetched. prefetch_requested: hint_prefetch() was called, m_futures may still be
-    // running. released: hint_evict() was called; terminal, never re-prefetched.
     enum class State { pending, prefetch_requested, released };
 
+    struct Entry {
+        std::weak_ptr<ov::op::v0::Constant> constant;  // Does not keep the constant alive.
+        size_t size;                                   // Byte size, cached since weak_ptr may expire.
+        State state = State::pending;
+        std::shared_future<void> future;  // Valid while state is prefetch_requested.
+    };
+
+    void prefetch(Entry& entry, const ov::op::v0::Constant& constant) noexcept;
     void prefetch_ahead() noexcept;
     std::optional<size_t> index_of(const ov::Node& node) const noexcept;
 
-    std::vector<std::weak_ptr<ov::op::v0::Constant>> m_constants;  // Does not keep constants alive.
-    std::vector<size_t> m_sizes;                                   // Byte size, cached since weak_ptr may expire.
-    std::vector<State> m_states;                                   // Indexed like m_constants.
-    std::vector<std::shared_future<void>> m_futures;               // Indexed like m_constants.
-    std::unordered_map<const ov::Node*, size_t> m_indices;         // Constant address -> index into the vectors above.
+    std::vector<Entry> m_entries;                           // In the order of consumption.
+    std::unordered_map<const ov::Node*, size_t> m_indices;  // Constant address -> index into m_entries.
     size_t m_lookahead;        // Minimum number of constants kept prefetched and not released.
     size_t m_min_bytes;        // Minimum number of prefetched-and-not-released bytes.
     size_t m_next;             // Index of the next constant to prefetch.
