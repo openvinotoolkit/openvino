@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# The sample works with any GPU runtime: it takes the plugin's default context and, when it is
-# an OpenCL context, obtains the underlying Level Zero context through LEO.
 if(OpenVINO_SOURCE_DIR AND NOT ENABLE_INTEL_GPU)
     message(STATUS "hello_remote_tensor SKIPPED: GPU plugin is not built")
     return()
