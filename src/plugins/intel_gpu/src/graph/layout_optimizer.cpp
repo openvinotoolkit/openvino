@@ -1044,10 +1044,7 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
     return false;
 }
 
-// OneDNN previously selects formats like b_fs_yx_fsv16 or bs_fs_yx_bsv16_fsv16 based on batch size.
-// For dynamic batches, this approach is inefficient.
-// We plan to switch to byxf for better flexibility across varying batch sizes.
-// The whitelist below defines the initial target scope (CVS-176149).
+// Primitive types allowed next to a byxf oneDNN convolution (CVS-176149). See set_onednn_dyn_conv_preferred_format().
 bool layout_optimizer::is_byxf_onednn_conv_compatible(primitive_type_id type) {
     static const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::activation::type_id(),
                                                                                      cldnn::arg_max_min::type_id(),
@@ -1077,7 +1074,7 @@ bool layout_optimizer::is_byxf_onednn_conv_compatible(primitive_type_id type) {
 }
 
 namespace {
-// Temporary list of convolution shapes of a dynamic-batch customer video model until the oneDNN fix (CVS-196865).
+// IC, OC, kernel y / x, stride y / x, pad begin y / x, pad end y / x, dilation y / x, groups, input y / x.
 constexpr std::array<std::array<int64_t, 15>, 10> dynamic_batch_byxf_conv_shapes = {{
     {64, 64, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 28, 28},
     {64, 128, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 28, 28},
@@ -1121,6 +1118,19 @@ bool is_dynamic_batch_byxf_shape_whitelisted(const convolution_node& node) {
 }
 }  // namespace
 
+// Layout policy for dynamic oneDNN convolutions:
+// - Default (code below): blocked formats by data type and channel count, e.g. b_fs_yx_fsv16 for f16.
+//   With these formats, oneDNN jit:ir rejects runtime batches of 16 or more and the reference implementation runs.
+// - byxf (bzyxf for rank 5) runs jit:ir at all batches. A convolution gets byxf in two cases:
+//   1. Network-wide: program::set_layout_optimizer_attributes() sets byxf_onednn_convolution. The model has
+//      dynamic-batch oneDNN convolutions and rank <= 4 data flow, and all data-flow primitives pass
+//      is_byxf_onednn_conv_compatible() (or the model has SDPA and at most 5 such convolutions).
+//   2. Per node: a rank-4 f16 convolution with a dynamic batch. Its non-constant inputs and its users pass
+//      is_byxf_onednn_conv_compatible(), so byxf adds no reorders or slower neighbor kernels. Its static parameters
+//      are in dynamic_batch_byxf_conv_shapes (shapes of a dynamic-batch customer video model). With a byxf source,
+//      jit:ir is slower than with b_fs_yx_fsv16 for some convolutions at batches below 16, so the list stays until
+//      the oneDNN fix (CVS-196865).
+// - A static batch with dynamic height / width keeps the default (node.is_dynamic() is true, but the batch is fixed).
 void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
     OPENVINO_ASSERT(node.is_dynamic());
 
@@ -1131,8 +1141,6 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     OPENVINO_ASSERT(rank == output_layout.get_partial_shape().size(), "Input and output ranks must match");
     OPENVINO_ASSERT(rank <= 5, "Not supported rank");
 
-    // oneDNN jit:ir accepts byxf at any batch, but not the blocked formats below once the runtime batch reaches 16.
-    // Neighbors outside the byxf list would run slower kernels or need reorders in byxf, also at small runtime batches.
     auto byxf_compatible_neighbors = [&node]() {
         for (const auto& dep : node.get_dependencies()) {
             if (!dep.first->is_constant() && !is_byxf_onednn_conv_compatible(dep.first->type()))
@@ -1144,7 +1152,6 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
         }
         return true;
     };
-    // node.is_dynamic() also holds for a static batch with dynamic height/width, whose batch does not change at runtime.
     const bool dynamic_batch_byxf = rank == 4 && input_layout.data_type == data_types::f16 && output_layout.get_partial_shape()[0].is_dynamic() &&
                                     byxf_compatible_neighbors() && is_dynamic_batch_byxf_shape_whitelisted(node);
 
