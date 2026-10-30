@@ -42,7 +42,8 @@ OutputVector translate_mulmat(const NodeContext& context) {
                                weight_type == ov::element::gguf_q6_k || weight_type == ov::element::gguf_q8_0 ||
                                weight_type == ov::element::gguf_q4_0 || weight_type == ov::element::gguf_q4_1 ||
                                weight_type == ov::element::gguf_q3_k || weight_type == ov::element::gguf_iq2_xs ||
-                               weight_type == ov::element::gguf_iq2_s || weight_type == ov::element::gguf_iq3_xxs;
+                               weight_type == ov::element::gguf_iq2_s || weight_type == ov::element::gguf_iq3_xxs ||
+                               weight_type == ov::element::gguf_iq3_s;
         FRONT_END_OP_CONVERSION_CHECK(op_case == 0 && supported &&
                                           ov::is_type<ov::op::v0::Constant>(B.get_node_shared_ptr()) &&
                                           B.get_partial_shape().is_static() && B.get_shape().size() == 2 &&

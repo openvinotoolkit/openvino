@@ -150,6 +150,17 @@ provenance are recorded in
 file regression checks actual raw/transcode stages and safe OCL fallback when CM
 is requested. This is not a full IQ3_XXS checkpoint or GenAI support claim.
 
+The appended `preserve_iq3_s` field provides explicit internal file-to-FC loading
+for IQ3_S (GGUF type 21, 110 bytes per 256 values), using the existing raw OCL
+and default large-M F16 transcode implementations. Default loading, independent
+opt-out and the old `{true}` option still reject IQ3_S; no decomposed representation
+is added. The format is not part of the global six-format selection and does not
+gain Gather, SG or CM support. Its F32/F16 dynamic file regression uses independent
+ggml CPU fixtures with provenance in
+[iq3_s_fixture.json](../tests/test_data/iq3_s_fixture.json), checks actual
+raw/transcode stages and verifies OCL fallback when CM is requested. This is not
+a full IQ3_S checkpoint or GenAI support claim.
+
 For the six formats selected by the environment variable, supported raw consumers are
 ordinary MatMul and embedding GetRows with nonempty static 2D weights. MatMul uses the
 existing internal `FullyConnectedCompressed`; frontend

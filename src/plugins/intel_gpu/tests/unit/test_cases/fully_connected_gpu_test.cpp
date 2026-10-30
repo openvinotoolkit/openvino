@@ -104,6 +104,7 @@ struct gguf_fc_mode {
     bool broadcast_peer = false;
     gguf_bias_mode bias_mode = gguf_bias_mode::none;
     size_t rank4_batch = 0;
+    bool low_bit_prefill = false;
 };
 
 class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
@@ -167,7 +168,11 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     }
     gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", GetParam().shuffle ? "1" : "0");
     gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", GetParam().threshold);
-    gguf_scoped_env_var prefill_f16("OV_GPU_GGUF_PREFILL_F16", nullptr);
+    gguf_scoped_env_var prefill_f16("OV_GPU_GGUF_PREFILL_F16", GetParam().low_bit_prefill ? "0" : nullptr);
+    gguf_scoped_env_var dq_act("OV_GPU_GGUF_PREFILL_DQ_ACT", GetParam().low_bit_prefill ? "0" : nullptr);
+    gguf_scoped_env_var dq_group("OV_GPU_GGUF_PREFILL_DQ_GROUP_SIZE", nullptr);
+    gguf_scoped_env_var dq_asymmetric("OV_GPU_GGUF_PREFILL_DQ_ASYMMETRIC", nullptr);
+    gguf_scoped_env_var requant_group("OV_GPU_GGUF_REQUANT_GROUP", nullptr);
     gguf_scoped_env_var cm("OV_GPU_GGUF_GEMM_CM", GetParam().cm ? "1" : "0");
     std::array<float, 32> reference = {
         47592.5f, -49073.5f, 51735.f, -21023.f, 21752.5f, -15406.f, 11638.f, -308.5f,
@@ -543,6 +548,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             EXPECT_NE(public_fusions.find("binary_post"), std::string::npos) << public_fusions;
         }
         EXPECT_EQ(entries.find("fc_gguf_act_dq"), std::string::npos) << entries;
+        EXPECT_EQ(public_entries.find("fc_gguf_act_dq"), std::string::npos) << public_entries;
         if (!prefill) {
             EXPECT_EQ(entries.find("fc_gguf_transcode"), std::string::npos) << entries;
             EXPECT_EQ(entries.find("gemm_q"), std::string::npos) << entries;
@@ -854,6 +860,23 @@ INSTANTIATE_TEST_SUITE_P(gguf,
                                           gguf_qkv_mode{"cm_bias_f32_rank3", true, true, ov::element::f32, true, true},
                                           gguf_qkv_mode{"cm_bias_f16_rank2", true, true, ov::element::f16, false, true}),
                         [](const ::testing::TestParamInfo<gguf_qkv_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_nondefault_prefill,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const std::string name : {"q5k_f16_baseline", "q5k_woq"}) {
+                                gguf_fc_mode mode{name, false, nullptr};
+                                mode.channels = 32;
+                                mode.columns = 512;
+                                mode.weight_type = ov::element::gguf_q5_k;
+                                mode.precision = ov::element::f16;
+                                mode.low_bit_prefill = name != "q5k_f16_baseline";
+                                modes.push_back(mode);
+                            }
+                            return modes;
+                        }()),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
 
 INSTANTIATE_TEST_SUITE_P(gguf,
                         gguf_fc_dynamic_reference,

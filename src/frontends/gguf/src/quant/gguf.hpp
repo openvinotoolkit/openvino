@@ -37,6 +37,7 @@ enum GgufTensorType {
     GGUF_TYPE_Q8_K = 15,
     GGUF_TYPE_IQ2_XS = 17,
     GGUF_TYPE_IQ3_XXS = 18,
+    GGUF_TYPE_IQ3_S = 21,
     GGUF_TYPE_IQ2_S = 22,
     GGUF_TYPE_I8 = 24,
     GGUF_TYPE_I16 = 25,
@@ -149,6 +150,7 @@ struct GGUFLoadOptions {
     bool preserve_iq2_xs = false;
     bool preserve_iq2_s = false;
     bool preserve_iq3_xxs = false;
+    bool preserve_iq3_s = false;
 };
 
 ov::element::Type gguf_raw_element_type(GgufTensorType type);

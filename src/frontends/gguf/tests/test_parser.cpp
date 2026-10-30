@@ -73,12 +73,13 @@ struct GgufRawFormat {
     GgufTensorType type;
 };
 
-const std::array<GgufRawFormat, 10> kRawFormats{{
+const std::array<GgufRawFormat, 11> kRawFormats{{
     {"q4_k", GGUF_TYPE_Q4_K}, {"q5_k", GGUF_TYPE_Q5_K},
     {"q6_k", GGUF_TYPE_Q6_K}, {"q8_0", GGUF_TYPE_Q8_0},
     {"q4_0", GGUF_TYPE_Q4_0}, {"q4_1", GGUF_TYPE_Q4_1},
     {"q3_k", GGUF_TYPE_Q3_K}, {"iq2_xs", GGUF_TYPE_IQ2_XS},
-    {"iq2_s", GGUF_TYPE_IQ2_S}, {"iq3_xxs", GGUF_TYPE_IQ3_XXS}}};
+    {"iq2_s", GGUF_TYPE_IQ2_S}, {"iq3_xxs", GGUF_TYPE_IQ3_XXS},
+    {"iq3_s", GGUF_TYPE_IQ3_S}}};
 
 class GGUFParser : public ::testing::Test {
 protected:
@@ -387,9 +388,10 @@ TEST_F(GGUFParser, RawFormatsPayloadAndOwnerOutliveParserResult) {
                                          format.type != GGUF_TYPE_Q6_K, format.type != GGUF_TYPE_Q8_0,
                                          format.type != GGUF_TYPE_Q4_0, format.type != GGUF_TYPE_Q4_1,
                                          format.type != GGUF_TYPE_Q3_K, format.type != GGUF_TYPE_IQ2_XS,
-                                         format.type != GGUF_TYPE_IQ2_S, format.type != GGUF_TYPE_IQ3_XXS};
+                                         format.type != GGUF_TYPE_IQ2_S, format.type != GGUF_TYPE_IQ3_XXS,
+                                         format.type != GGUF_TYPE_IQ3_S};
         if (format.type == GGUF_TYPE_IQ2_XS || format.type == GGUF_TYPE_IQ2_S ||
-            format.type == GGUF_TYPE_IQ3_XXS) {
+            format.type == GGUF_TYPE_IQ3_XXS || format.type == GGUF_TYPE_IQ3_S) {
             const auto error = "unsupported non-quantized type " + std::to_string(format.type);
             OV_EXPECT_THROW(get_gguf_data(m_path), ov::Exception,
                             testing::HasSubstr(error));
@@ -406,7 +408,7 @@ TEST_F(GGUFParser, RawFormatsPayloadAndOwnerOutliveParserResult) {
             const auto decomposed = get_gguf_data(m_path, unselected);
             EXPECT_FALSE(std::get<1>(decomposed).at("blk.0.attn_q.weight").get_element_type().is_gguf_block());
         }
-        const GGUFLoadOptions options{true, true, true, true, true, true, true, true, true, true};
+        const GGUFLoadOptions options{true, true, true, true, true, true, true, true, true, true, true};
         std::shared_ptr<ov::op::v0::Constant> constant;
         std::weak_ptr<ov::MappedMemory> owner;
         {
@@ -460,7 +462,8 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     }
     const auto format = GetParam();
     const bool has_gather = format.type != GGUF_TYPE_Q3_K && format.type != GGUF_TYPE_IQ2_XS &&
-                            format.type != GGUF_TYPE_IQ2_S && format.type != GGUF_TYPE_IQ3_XXS;
+                            format.type != GGUF_TYPE_IQ2_S && format.type != GGUF_TYPE_IQ3_XXS &&
+                            format.type != GGUF_TYPE_IQ3_S;
     const auto qbytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
     const auto decoded = load_npy<float>(std::string(format.name) + "_deq");
     ASSERT_EQ(decoded.size(), 4 * 256);
@@ -483,7 +486,8 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                           format.type == GGUF_TYPE_Q6_K, format.type == GGUF_TYPE_Q8_0,
                           format.type == GGUF_TYPE_Q4_0, format.type == GGUF_TYPE_Q4_1,
                           format.type == GGUF_TYPE_Q3_K, format.type == GGUF_TYPE_IQ2_XS,
-                          format.type == GGUF_TYPE_IQ2_S, format.type == GGUF_TYPE_IQ3_XXS};
+                          format.type == GGUF_TYPE_IQ2_S, format.type == GGUF_TYPE_IQ3_XXS,
+                          format.type == GGUF_TYPE_IQ3_S};
         auto loaded = get_gguf_data(m_path, options);
         auto& weights = std::get<1>(loaded);
         const auto& raw = weights.at("projection.weight");
@@ -612,6 +616,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                                          fusions->second.as<std::string>() + ";";
                 }
             }
+            RecordProperty(scenario + "_stage_" + std::to_string(iteration), iteration_stages);
             if (!has_gather) {
                 const auto weight_name = gguf_raw_element_type(format.type).to_string();
                 const std::string expected_stage = !threshold_value && rows > 32
@@ -619,8 +624,8 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                 EXPECT_NE(iteration_stages.find(expected_stage), std::string::npos) << iteration_stages;
                 EXPECT_EQ(iteration_stages.find("_sg"), std::string::npos) << iteration_stages;
                 EXPECT_EQ(iteration_stages.find("gemm_q"), std::string::npos) << iteration_stages;
-                RecordProperty(scenario + "_stage_" + std::to_string(iteration), iteration_stages);
             }
+            EXPECT_EQ(iteration_stages.find("fc_gguf_act_dq"), std::string::npos) << iteration_stages;
             if (binary_mode) {
                 const bool expect_fused = !static_rows || (cm_requested && shuffled);
                 EXPECT_EQ(iteration_fusions.find("file_binary_post") != std::string::npos, expect_fused) << iteration_fusions;
@@ -641,13 +646,13 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                     : prefill ? (cm_requested && shuffled ? cm_stage : "fc_gguf_transcode_" + weight_name)
                     : shuffled ? sg_stage : "fc_gguf_opt_" + weight_name;
                 EXPECT_NE(iteration_stages.find(expected_stage), std::string::npos) << iteration_stages;
-                RecordProperty(scenario + "_stage_" + std::to_string(iteration), iteration_stages);
                 RecordProperty(scenario + "_fusions_" + std::to_string(iteration), iteration_fusions);
             }
             const auto output = request.get_output_tensor(0);
             ASSERT_EQ(output.get_shape(), (ov::Shape{1, 1, rows, channels}));
             bool detects_missing_fc = false;
             bool detects_missing_binary = false;
+            float max_fc_error = 0.f;
             for (size_t row = 0; row < rows; ++row) {
                 for (size_t channel = 0; channel < channels; ++channel) {
                     float expected = 0.f;
@@ -671,10 +676,13 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                         detects_missing_fc |= std::abs(expected - without_fc) > 0.2f;
                         detects_missing_binary |= std::abs(expected - std::max(fc_reference, 0.f)) > 0.2f;
                     }
+                    max_fc_error = std::max(max_fc_error,
+                        std::abs(output.data<const float>()[row * channels + channel] - expected));
                     EXPECT_NEAR(output.data<const float>()[row * channels + channel], expected, 0.1f)
                         << "iteration=" << iteration << " row=" << row << " channel=" << channel;
                 }
             }
+            RecordProperty(scenario + "_max_error_" + std::to_string(iteration), max_fc_error);
             if (binary_mode) {
                 EXPECT_TRUE(detects_missing_fc) << iteration;
                 EXPECT_TRUE(detects_missing_binary) << iteration;
@@ -748,7 +756,7 @@ TEST_F(GGUFParser, Q4KRawRejectsInvalidRowsAndTruncatedPayload) {
 }
 
 TEST_F(GGUFParser, RawFormatsRejectInvalidRowsAndTruncatedPayload) {
-    const GGUFLoadOptions options{true, true, true, true, true, true, true, true, true, true};
+    const GGUFLoadOptions options{true, true, true, true, true, true, true, true, true, true, true};
     for (const auto& format : kRawFormats) {
         SCOPED_TRACE(format.name);
         const auto block = gguf_raw_element_type(format.type).block_elem_count();

@@ -60,6 +60,8 @@ ov::element::Type gguf_raw_element_type(GgufTensorType type) {
         return ov::element::gguf_iq2_s;
     case GGUF_TYPE_IQ3_XXS:
         return ov::element::gguf_iq3_xxs;
+    case GGUF_TYPE_IQ3_S:
+        return ov::element::gguf_iq3_s;
     default:
         return ov::element::dynamic;
     }
@@ -121,6 +123,8 @@ TypeTraits type_traits(uint32_t type) {
         return {256, 82};
     case GGUF_TYPE_IQ3_XXS:
         return {256, 98};
+    case GGUF_TYPE_IQ3_S:
+        return {256, 110};
     case GGUF_TYPE_I8:
         return {1, 1};
     case GGUF_TYPE_I16:
@@ -664,7 +668,8 @@ void load_gguf_tensors(GgufFile& file,
              (options.preserve_q3_k && type == GGUF_TYPE_Q3_K) ||
              (options.preserve_iq2_xs && type == GGUF_TYPE_IQ2_XS) ||
              (options.preserve_iq2_s && type == GGUF_TYPE_IQ2_S) ||
-             (options.preserve_iq3_xxs && type == GGUF_TYPE_IQ3_XXS);
+             (options.preserve_iq3_xxs && type == GGUF_TYPE_IQ3_XXS) ||
+             (options.preserve_iq3_s && type == GGUF_TYPE_IQ3_S);
     };
     for (const auto& info : infos) {
         if (preserve_raw(info.type)) {

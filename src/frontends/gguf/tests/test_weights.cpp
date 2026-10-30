@@ -113,11 +113,12 @@ TEST(GGUFRawCompressedFC, RejectsIncompatibleReductionDimension) {
 }
 
 TEST(GGUFRawCompressedFC, SharedEmitterPreservesRawWeightThroughConversion) {
-    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_IQ2_XS, GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS}) {
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_IQ2_XS, GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS, GGUF_TYPE_IQ3_S}) {
         SCOPED_TRACE(qtype);
         const auto bytes = load_npy<uint8_t>(qtype == GGUF_TYPE_Q4_K ? "q4_k_qbytes" :
                                              qtype == GGUF_TYPE_IQ2_XS ? "iq2_xs_qbytes" :
-                                             qtype == GGUF_TYPE_IQ2_S ? "iq2_s_qbytes" : "iq3_xxs_qbytes");
+                                             qtype == GGUF_TYPE_IQ2_S ? "iq2_s_qbytes" :
+                                             qtype == GGUF_TYPE_IQ3_XXS ? "iq3_xxs_qbytes" : "iq3_s_qbytes");
         const auto weight_type = gguf_raw_element_type(qtype);
         for (const auto activation_type : {ov::element::f32, ov::element::f16}) {
             SCOPED_TRACE(activation_type);
@@ -162,7 +163,7 @@ TEST(GGUFRawCompressedFC, SharedEmitterPreservesRawWeightThroughConversion) {
 TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
     for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0,
                             GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1, GGUF_TYPE_Q3_K, GGUF_TYPE_IQ2_XS,
-                            GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS}) {
+                            GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS, GGUF_TYPE_IQ3_S}) {
         SCOPED_TRACE(qtype);
         std::unordered_map<std::string, ov::Tensor> weights;
         weights.emplace("projection.weight", ov::Tensor(gguf_raw_element_type(qtype), {kRows, kCols}));
@@ -181,7 +182,7 @@ TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
                      ov::frontend::OpConversionFailure);
         emitter.add_input("embedding_indices", ov::element::i64, {1, 1, 1, -1});
         if (qtype == GGUF_TYPE_Q3_K || qtype == GGUF_TYPE_IQ2_XS || qtype == GGUF_TYPE_IQ2_S ||
-            qtype == GGUF_TYPE_IQ3_XXS) {
+            qtype == GGUF_TYPE_IQ3_XXS || qtype == GGUF_TYPE_IQ3_S) {
             EXPECT_THROW(emitter.add_op("GGML_OP_GET_ROWS", "unsupported_raw_embedding",
                                        {"projection.weight", "embedding_indices"}),
                          ov::frontend::OpConversionFailure);
@@ -201,7 +202,7 @@ TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
 TEST(GGUFRawCompressedFC, RawRowSplitsPreserveBlocks) {
     for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0,
                             GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1, GGUF_TYPE_Q3_K, GGUF_TYPE_IQ2_XS,
-                            GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS}) {
+                            GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS, GGUF_TYPE_IQ3_S}) {
         SCOPED_TRACE(qtype);
         ov::Tensor raw(gguf_raw_element_type(qtype), {8, kCols});
         auto* bytes = static_cast<uint8_t*>(raw.data());
@@ -240,7 +241,7 @@ TEST(GGUFRawCompressedFC, RawRowSplitsPreserveBlocks) {
 TEST(GGUFRawCompressedFC, RejectsMismatchedRawQuantType) {
     for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0,
                             GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1, GGUF_TYPE_Q3_K, GGUF_TYPE_IQ2_XS,
-                            GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS}) {
+                            GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS, GGUF_TYPE_IQ3_S}) {
         SCOPED_TRACE(qtype);
         std::unordered_map<std::string, ov::Tensor> weights;
         weights.emplace("projection.weight", ov::Tensor(gguf_raw_element_type(qtype), {kRows, kCols}));
