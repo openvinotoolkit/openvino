@@ -28,6 +28,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <fstream>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/paged_qsa_indexer.hpp>
@@ -70,10 +71,27 @@ using DenseIdxIn = ov::intel_gpu::op::QSAIndexer::InputIdx;
 using SparsePAIn = cldnn::sparse_pa::InputIdx;
 using SparseSDPAIn = ov::intel_gpu::op::SparseSDPA::InputIdx;
 
+/// OV_GPU_QSA_IMPL selects the back end under test: OpenCL by default, `cm` for the CM implementation.
+bool ocl_qsa_ops_available() {
+    auto& engine = get_test_engine();
+    const auto& info = engine.get_device_info();
+    return info.supports_intel_subgroups && info.supports_intel_subgroups_short;
+}
+
+bool qsa_uses_ocl() {
+    const char* v = std::getenv("OV_GPU_QSA_IMPL");
+    const bool cm_requested = v != nullptr && std::string(v) == "cm";
+    return !cm_requested && ocl_qsa_ops_available();
+}
+
 bool cm_qsa_ops_available() {
     auto& engine = get_test_engine();
     ExecutionConfig config = get_test_default_config(engine);
-    return cldnn::check_cm_jit_support(engine, config) && engine.get_device_info().supports_immad;
+    const char* v = std::getenv("OV_GPU_QSA_IMPL");
+    if (v != nullptr && std::string(v) == "cm") {
+        return cldnn::check_cm_jit_support(engine, config) && engine.get_device_info().supports_immad;
+    }
+    return ocl_qsa_ops_available();
 }
 
 int64_t I(size_t v) {
@@ -1056,13 +1074,15 @@ struct pair_outputs {
     std::vector<std::string> indexer_kernels, attention_kernels;
 };
 
-/// CM kernels the primitive's last execute() enqueued, in order, without the `_cm_<hash>` suffix.
+/// Kernels the primitive's last execute() enqueued, in order, without the `_cm_<hash>` / `_ocl_<hash>` suffix.
 std::vector<std::string> executed_kernels(network& net, const primitive_id& id) {
     auto inst = net.get_primitive(id);
     std::istringstream entries(inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries());
     std::vector<std::string> names;
     for (std::string entry; entries >> entry;) {
-        names.push_back(entry.substr(0, entry.rfind("_cm_")));
+        const auto cm = entry.rfind("_cm_");
+        const auto ocl = entry.rfind("_ocl_");
+        names.push_back(entry.substr(0, cm != std::string::npos ? cm : ocl));
     }
     return names;
 }
@@ -1100,7 +1120,12 @@ std::vector<std::string> expected_indexer_kernels(bool paged, const route& r) {
         k.insert(k.end(), {"qsa_indexer_score_dpas", "qsa_indexer_topk"});
         break;
     case IndexerPath::Fused:
-        k.push_back("qsa_indexer_score_topk_fused");
+        if (qsa_uses_ocl()) {
+            // The OpenCL implementation has no single-thread fused kernel: partition scorer + prefill top-k.
+            k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk"});
+        } else {
+            k.push_back("qsa_indexer_score_topk_fused");
+        }
         break;
     }
     return k;
@@ -1193,12 +1218,31 @@ void print_error_stats(const char* label, const error_stats& s) {
               << " max_rel=" << s.max_rel << std::endl;
 }
 
+/// With QSA_DUMP_DIR set, writes the GPU attention output and selection plan of every validated pair so that two backends
+/// (OV_GPU_QSA_IMPL=cm|ocl) can be diffed directly.
+void dump_pair_outputs(const pair_outputs& gpu) {
+    const char* dir = std::getenv("QSA_DUMP_DIR");
+    if (dir == nullptr) {
+        return;
+    }
+    static int counter = 0;
+    const std::string base = std::string(dir) + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + "_" + std::to_string(counter++);
+    auto write = [&](const std::string& suffix, const auto& v) {
+        std::ofstream f(base + suffix, std::ios::binary);
+        f.write(reinterpret_cast<const char*>(v.data()), static_cast<std::streamsize>(v.size() * sizeof(v[0])));
+    };
+    write(".attn.f32", gpu.attn);
+    write(".sel.i32", gpu.plan.sel);
+    write(".count.i32", gpu.plan.count);
+}
+
 /// Checks the GPU plan against the reference scores (count exact; every selected block
 /// complete, unique, and scoring within fp16 tolerance of the k-th best), then compares
 /// attention computed by the reference over that same plan using a combined
 /// absolute+relative tolerance (`atol + rtol * |ref|`), after asserting every output
 /// element is finite.
 void validate_pair(const split_reference& ref, const pair_outputs& gpu, float atol, float rtol) {
+    dump_pair_outputs(gpu);
     const auto& d = ref.d;
     ASSERT_EQ(gpu.plan.count.size(), ref.q_len);
     ASSERT_EQ(gpu.plan.sel.size(), ref.q_len * d.block_topk);
@@ -2752,8 +2796,13 @@ TEST_P(qsa_ops_perf, qwen38) {
         d.rotary = 8;
     }
     auto& engine = get_test_engine();
-    constexpr int warmup = 3;
-    constexpr int iterations = 20;
+    // Microsecond kernels never ramp the GPU clock in 3 warmups: QSA_PERF_WARMUP / QSA_PERF_ITERS settle it.
+    auto env_int = [](const char* name, int fallback) {
+        const char* v = std::getenv(name);
+        return v ? static_cast<int>(std::strtol(v, nullptr, 10)) : fallback;
+    };
+    const int warmup = env_int("QSA_PERF_WARMUP", 3);
+    const int iterations = env_int("QSA_PERF_ITERS", 20);
 
     const char* indexer_name = c.paged ? "PagedQSAIndexer" : "QSAIndexer";
     const char* attention_name = c.paged ? "SparsePA" : "SparseSDPA";
@@ -2809,7 +2858,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_qsa_ops_perf,
 // SparseSDPA) or paged (PagedQSAIndexer + SparsePA) pair with Qwen3.8 dims, configured via the
 // environment: QSA_PERF_IMPL=dense|paged, QSA_PERF_PHASE=prefill|decode, QSA_PERF_B, QSA_PERF_LEN
 // (prompt length / history length), QSA_PERF_ITERS, QSA_PERF_WARMUP, QSA_PERF_FLUSH_MB (writes
-// that many MiB between iterations to evict L2).
+// that many MiB between iterations to evict L2), QSA_PERF_STAGES (comma list of pair|indexer|attention, default pair).
 TEST(qsa_ops_perf_sweep, DISABLED_pair) {
     if (!cm_qsa_ops_available()) {
         GTEST_SKIP() << "CM is not supported on this device";
@@ -2833,38 +2882,46 @@ TEST(qsa_ops_perf_sweep, DISABLED_pair) {
     ASSERT_TRUE(impl == "dense" || impl == "paged") << impl;
     const size_t past = phase == "prefill" ? 0 : len;
     const size_t q_len = phase == "prefill" ? len : 1;
-    std::unique_ptr<network> net;
-    if (impl == "paged") {
-        net = build_paged_network(engine, paged_inputs_synthetic(qwen38_dims(), past, q_len, batch), Stage::Pair);
-    } else {
-        net = build_dense_network(engine, dense_inputs_synthetic(qwen38_dims(), past, q_len, batch), Stage::Pair);
-    }
+    const char* stages_env = std::getenv("QSA_PERF_STAGES");
+    std::stringstream stages(stages_env ? stages_env : "pair");
     memory::ptr flush;
     if (flush_mb != 0) {
         flush = engine.allocate_memory(layout{ov::PartialShape{I(flush_mb << 20)}, data_types::u8, format::bfyx}, allocation_type::usm_device);
     }
-    auto run_once = [&]() {
-        if (flush) {
-            flush->fill(get_test_stream(), static_cast<unsigned char>(0), {}, true);
+    std::string stage_name;
+    while (std::getline(stages, stage_name, ',')) {
+        ASSERT_TRUE(stage_name == "pair" || stage_name == "indexer" || stage_name == "attention") << stage_name;
+        const Stage stage = stage_name == "pair" ? Stage::Pair : (stage_name == "indexer" ? Stage::IndexerOnly : Stage::AttentionOnly);
+        const std::string out_id = stage == Stage::IndexerOnly ? "indexer" : "attn";
+        std::unique_ptr<network> net;
+        if (impl == "paged") {
+            net = build_paged_network(engine, paged_inputs_synthetic(qwen38_dims(), past, q_len, batch), stage);
+        } else {
+            net = build_dense_network(engine, dense_inputs_synthetic(qwen38_dims(), past, q_len, batch), stage);
         }
-        const auto start = std::chrono::steady_clock::now();
-        auto outputs = net->execute();
-        outputs.at("attn").get_memory();
-        net->get_stream().finish();
-        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
-    };
-    for (int i = 0; i < warmup; i++) {
-        run_once();
+        auto run_once = [&]() {
+            if (flush) {
+                flush->fill(get_test_stream(), static_cast<unsigned char>(0), {}, true);
+            }
+            const auto start = std::chrono::steady_clock::now();
+            auto outputs = net->execute();
+            outputs.at(out_id).get_memory();
+            net->get_stream().finish();
+            return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        };
+        for (int i = 0; i < warmup; i++) {
+            run_once();
+        }
+        double total = 0.0;
+        double best = std::numeric_limits<double>::max();
+        for (int i = 0; i < iterations; i++) {
+            const double ms = run_once();
+            total += ms;
+            best = std::min(best, ms);
+        }
+        std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " len=" << len << " calls=" << warmup + iterations
+                  << " wall_avg_ms=" << total / iterations << " wall_min_ms=" << best << " flush_mb=" << flush_mb << " stage=" << stage_name << std::endl;
     }
-    double total = 0.0;
-    double best = std::numeric_limits<double>::max();
-    for (int i = 0; i < iterations; i++) {
-        const double ms = run_once();
-        total += ms;
-        best = std::min(best, ms);
-    }
-    std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " len=" << len << " calls=" << warmup + iterations
-              << " wall_avg_ms=" << total / iterations << " wall_min_ms=" << best << " flush_mb=" << flush_mb << std::endl;
 }
 
 }  // namespace

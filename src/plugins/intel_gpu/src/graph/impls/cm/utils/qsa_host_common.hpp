@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <limits>
 #include <optional>
+#include <string_view>
 
 #include "common_utils/kernel_generator_base.hpp"
 #include "intel_gpu/runtime/device_info.hpp"
@@ -20,6 +21,12 @@
 #include "openvino/core/type/float16.hpp"
 
 namespace ov::intel_gpu::cm {
+
+/// The CM implementation is opt-in: it is selected only when OV_GPU_QSA_IMPL=cm.
+inline bool cm_impl_allowed() {
+    const char* v = std::getenv("OV_GPU_QSA_IMPL");
+    return v != nullptr && std::string_view(v) == "cm";
+}
 
 inline constexpr const char* qsa_cm_build_options = " -cmc -Qxcm_register_file_size=256";
 

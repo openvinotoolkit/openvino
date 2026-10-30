@@ -590,7 +590,7 @@ bool QSAIndexerCMImplementationManager::validate_impl(const cldnn::program_node&
     auto& engine = node.get_program().get_engine();
     const auto& config = node.get_program().get_config();
     const auto& info = engine.get_device_info();
-    if (!check_cm_jit_support(engine, config) || !info.supports_immad || !config.get_use_cm()) {
+    if (!cm_impl_allowed() || !check_cm_jit_support(engine, config) || !info.supports_immad || !config.get_use_cm()) {
         return false;
     }
 
@@ -625,5 +625,4 @@ std::unique_ptr<cldnn::primitive_impl> QSAIndexerCMImplementationManager::create
 
 }  // namespace ov::intel_gpu::cm
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::qsa_indexer)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::QSAIndexerCmImpl)

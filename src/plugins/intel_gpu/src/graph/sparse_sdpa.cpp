@@ -66,3 +66,5 @@ sparse_sdpa_inst::typed_primitive_inst(network& network, const sparse_sdpa_node&
 }
 
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::sparse_sdpa)

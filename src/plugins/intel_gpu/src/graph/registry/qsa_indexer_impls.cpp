@@ -6,6 +6,9 @@
 #include "primitive_inst.h"
 #include "registry.hpp"
 
+#if OV_GPU_WITH_OCL
+#    include "impls/ocl_v2/qsa_indexer/qsa_indexer.hpp"
+#endif
 #if OV_GPU_WITH_CM
 #    include "impls/cm/qsa_indexer/qsa_indexer.hpp"
 #endif
@@ -16,8 +19,11 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<qsa_indexer>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+#if OV_GPU_WITH_OCL
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::QSAIndexerImplementationManager, shape_types::any)
+#endif
 #if OV_GPU_WITH_CM
-        OV_GPU_CREATE_INSTANCE_CM(cm::QSAIndexerCMImplementationManager, shape_types::any)
+            OV_GPU_CREATE_INSTANCE_CM(cm::QSAIndexerCMImplementationManager, shape_types::any)
 #endif
     };
 

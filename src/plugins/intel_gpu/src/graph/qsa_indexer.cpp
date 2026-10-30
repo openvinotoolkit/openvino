@@ -74,3 +74,5 @@ qsa_indexer_inst::typed_primitive_inst(network& network, const qsa_indexer_node&
 }
 
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::qsa_indexer)
