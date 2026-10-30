@@ -85,6 +85,8 @@ ComponentStateSelection select_component(const std::shared_ptr<ov::Model>& model
             if (result->input_value(0).get_names().count(name) || result->get_friendly_name() == name) {
                 selected = true;
                 found.insert(name);
+                if (!result->output(0).get_names().count(name))
+                    result->output(0).add_names({name});
             }
         }
         if (!selected && std::find(retained.results.begin(), retained.results.end(), result) == retained.results.end())

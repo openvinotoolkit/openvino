@@ -1643,6 +1643,37 @@ TEST(GGUFMMProjContract, StatefulPrimaryDoesNotDuplicateVariableRegistration) {
     EXPECT_EQ(restored->get_variables().size(), 1);
 }
 
+TEST(GGUFMMProjContract, FriendlyNameOnlyComponentOutputIsExposedByTensorName) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    input->output(0).set_names({"render_input"});
+    auto output = std::make_shared<ov::op::v1::Add>(input, ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+    model->get_results().front()->set_friendly_name("friendly_only");
+    ASSERT_TRUE(model->get_results().front()->output(0).get_names().empty());
+    model->get_rt_info()["gguf_architecture"] = std::string("custom-mmproj");
+    ov::frontend::gguf::ModelContract contract;
+    contract.component_groups["audio_generation"] = {"renderer", {{"renderer", {{"friendly_only"}, ""}}}};
+    ov::frontend::gguf::write_model_contract(model, contract);
+    for (const bool reload : {false, true}) {
+        auto source = model->clone();
+        if (reload)
+            source = ov_gguf_test::reload_ir_model(source);
+        Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
+        ASSERT_TRUE(adapter.run_on_model(source));
+        auto component = adapter.get_audio_generation_models().at("renderer");
+        EXPECT_NO_THROW(component->output("friendly_only"));
+        auto restored = ov_gguf_test::reload_ir_model(component);
+        EXPECT_NO_THROW(restored->output("friendly_only"));
+        auto request = ov::Core{}.compile_model(restored, "CPU").create_infer_request();
+        ov::Tensor data(ov::element::f32, {1, 2});
+        std::fill_n(data.data<float>(), 2, 1.f);
+        request.set_tensor("render_input", data);
+        request.infer();
+        EXPECT_EQ(request.get_tensor("friendly_only").data<float>()[0], 2.f);
+    }
+}
+
 TEST(GGUFMMProjContract, DeclaredAuxiliaryOutputsSurviveExtractionCallbacksAndIR) {
     using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
     using namespace ov::frontend::gguf;

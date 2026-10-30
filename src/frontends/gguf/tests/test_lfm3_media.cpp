@@ -11,6 +11,7 @@
 #include "model_contract.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
+#include "openvino/frontend/gguf/extension/projector.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/add.hpp"
@@ -208,6 +209,69 @@ TEST(GGUFLfm3MediaAdapter, CombinedOmniPreservesIndependentComponentsAndStates) 
     compare(core.read_model(xml), {{"audio.spectrogram", "audio.spectrogram"}}, 13);
     std::filesystem::remove(xml);
     std::filesystem::remove(fixture.path + ".bin");
+}
+
+ov::frontend::gguf::ProjectorDefinition lfm3_replacement(const std::string& modality,
+                                                         ov::frontend::gguf::ProjectorDefinition::BuildFn build) {
+    const auto type = modality == "vision" ? "lfm3vl" : "lfm3a";
+    return {"clip." + modality + "." + type, "clip", modality, type, std::move(build), {}};
+}
+
+TEST(GGUFLfm3MediaAdapter, BuiltinProjectorHelperBuildsLfm3Types) {
+    using namespace ov::frontend::gguf;
+    for (const std::string modality : {"vision", "audio"}) {
+        SCOPED_TRACE(modality);
+        const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / ("lfm3_media_" + modality + ".npz");
+        ASSERT_TRUE(std::filesystem::is_regular_file(path)) << "Generate with gen_lfm3_media_fixtures.py";
+        const auto arrays = cnpy::npz_load(path.string());
+        const std::map<std::string, cnpy::NpyArray> data(arrays.begin(), arrays.end());
+        ov_gguf_test::TemporaryGguf fixture(data.at("model"));
+        FrontEnd reference_frontend;
+        auto reference = reference_frontend.convert(reference_frontend.load(fixture.path));
+        FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ProjectorExtension>(
+            lfm3_replacement(
+                modality,
+                [modality](GgufGraphContext& graph) {
+                    return build_builtin_projector(graph, modality, modality == "vision" ? "lfm3vl" : "lfm3a");
+                }),
+            RegistrationMode::Replace));
+        auto model = frontend.convert(frontend.load(fixture.path));
+        EXPECT_EQ(model->get_ordered_ops().size(), reference->get_ordered_ops().size());
+        EXPECT_EQ(model->inputs().size(), reference->inputs().size());
+        EXPECT_NO_THROW(model->output(modality + ".embeddings"));
+    }
+}
+
+TEST(GGUFLfm3MediaAdapter, ProjectorSuppliedContractIsPreserved) {
+    using namespace ov::frontend::gguf;
+    const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / "lfm3_media_audio.npz";
+    ASSERT_TRUE(std::filesystem::is_regular_file(path)) << "Generate with gen_lfm3_media_fixtures.py";
+    const auto arrays = cnpy::npz_load(path.string());
+    const std::map<std::string, cnpy::NpyArray> data(arrays.begin(), arrays.end());
+    ov_gguf_test::TemporaryGguf fixture(data.at("model"));
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(
+        lfm3_replacement(
+            "audio",
+            [](GgufGraphContext& graph) {
+                ModelContract contract;
+                contract.batchable_recurrent = true;
+                contract.component_groups["audio"] = {"custom",
+                                                      {{"custom", {{"audio.embeddings"}, "audio.custom_state."}}}};
+                graph.configure_model_contract(contract);
+                auto input = graph.add_input("audio.custom", ov::element::f32, {1, 1, 2, 2});
+                return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}, {"bias", 0.f}}), {}};
+            }),
+        RegistrationMode::Replace));
+    auto model = frontend.convert(frontend.load(fixture.path));
+    const auto contract = read_model_contract(model);
+    EXPECT_EQ(contract.batchable_recurrent, std::optional<bool>(true));
+    const auto& group = contract.component_groups.at("audio");
+    EXPECT_EQ(group.primary, "custom");
+    EXPECT_EQ(group.models.size(), 1);
+    EXPECT_EQ(group.models.at("custom").state_prefix, "audio.custom_state.");
+    EXPECT_EQ(group.models.at("custom").outputs, std::vector<std::string>{"audio.embeddings"});
 }
 
 TEST(GGUFLfm3MediaAdapter, IndependentGenerationMapsPreserveCodecState) {

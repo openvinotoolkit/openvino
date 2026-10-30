@@ -1295,20 +1295,25 @@ public:
         const bool generation = lfm3 && ctx.metadata.get_bool("clip.has_gen_audio_encoder").value_or(false);
         OPENVINO_ASSERT(!modalities.empty() || generation, "[GGUF] mmproj has no encoder");
         if (lfm3) {
-            ModelContract contract;
-            contract.batchable_recurrent = false;
+            auto contract = g.model_contract();
+            if (!contract.batchable_recurrent)
+                contract.batchable_recurrent = false;
             for (const auto& modality : modalities)
-                contract.component_groups[modality] = {
-                    "encoder",
-                    {{"encoder", {{modality + ".embeddings"}, modality == "audio" ? "audio.state." : ""}}}};
+                contract.component_groups.try_emplace(
+                    modality,
+                    ModelComponentGroup{
+                        "encoder",
+                        {{"encoder", {{modality + ".embeddings"}, modality == "audio" ? "audio.state." : ""}}}});
             if (generation) {
                 OPENVINO_ASSERT(generation_type == "lfm3a_gen", "[GGUF] unsupported LFM3 audio generation projector");
                 build_lfm3_audio_generation(g);
-                contract.component_groups["audio_generation"] = {
-                    "depthformer",
-                    {{"depthformer", {{"audio.depth_logits"}, ""}},
-                     {"feedback", {{"audio.feedback"}, ""}},
-                     {"codec", {{"audio.spectrogram", "audio.istft_window"}, "audio.codec.state."}}}};
+                contract.component_groups.try_emplace(
+                    "audio_generation",
+                    ModelComponentGroup{
+                        "depthformer",
+                        {{"depthformer", {{"audio.depth_logits"}, ""}},
+                         {"feedback", {{"audio.feedback"}, ""}},
+                         {"codec", {{"audio.spectrogram", "audio.istft_window"}, "audio.codec.state."}}}});
                 config["audio_generation.projector"] = "lfm3a_gen";
             }
             g.configure_model_contract(contract);
@@ -1329,6 +1334,8 @@ private:
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,
                                         const std::string& projector_type) {
+    if ((modality == "vision" && projector_type == "lfm3vl") || (modality == "audio" && projector_type == "lfm3a"))
+        return build_lfm3_projector(graph, modality);
     auto result = BuiltinProjectorBuilder(graph).build(modality, projector_type);
     if (modality == "vision") {
         const auto layout = builtin_projector_layout(projector_type);

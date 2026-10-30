@@ -272,12 +272,13 @@ private:
     }
 };
 
+}  // namespace
+
 ProjectorResult build_lfm3_projector(GgufGraphContext& graph, const std::string& modality) {
     OPENVINO_ASSERT(modality == "vision" || modality == "audio", "[GGUF] invalid LFM3 projector modality");
     Lfm3Projector builder(graph, modality);
     return modality == "vision" ? builder.vision() : builder.audio();
 }
-}  // namespace
 
 std::vector<ProjectorDefinition> lfm3_projector_definitions() {
     std::vector<ProjectorDefinition> result;

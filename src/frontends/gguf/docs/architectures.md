@@ -91,7 +91,7 @@ Complete parameters and overrides are validated before dependent plans are deriv
 
 `ModelContract` declares recurrent batching and image-attention semantics consumed by generic
 GenAI adaptation. Decoder configuration exports it automatically; other builders may call
-`configure_model_contract(contract)`. The common `GgufDecoder::get_model_contract()` accessor
+`configure_model_contract(contract)`; `model_contract()` returns the declarations made so far. The common `GgufDecoder::get_model_contract()` accessor
 also lets the llama.cpp adapter supply resolved facts. Architecture names are diagnostic data.
 An explicit `batchable_recurrent` value overrides structural inference; leave it unset to infer
 batching from generic operation capabilities. All three states survive IR serialization.
