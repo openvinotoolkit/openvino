@@ -722,7 +722,7 @@ struct grid_sample_border_compare : public grid_sample_gpu_test<TD, TG> {
             topology.add(reorder(output_id, input_info("grid_sample"), format::bfyx, data_type));
         }
 
-        auto execute = [&](const std::string& kernel_name) {
+        auto execute = [&, fmt = fmt, is_caching_test = is_caching_test](const std::string& kernel_name) {
             auto config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
                 {"grid_sample", {fmt, kernel_name, impl_types::ocl}}}));
