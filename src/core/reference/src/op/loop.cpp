@@ -99,6 +99,9 @@ void loop(const std::shared_ptr<Model>& func,
                 slice_inputs.push_back(slice_desc);
                 auto shape = args[slice_desc->m_input_index].get_shape();
                 uint64_t num_iterations = shape.at(slice_desc->m_axis);
+                OPENVINO_ASSERT(num_iterations > 0,
+                                "Incorrect input! Loop slice input has zero length along the slice axis ",
+                                slice_desc->m_axis);
                 shape.at(slice_desc->m_axis) = 1;
                 sliced_values.emplace_back(ov::TensorVector());
                 for (uint64_t i = 0; i < num_iterations; ++i) {
