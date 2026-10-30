@@ -312,6 +312,59 @@ TEST_F(PaKVReorderFloatCacheTest, CrossBlock) {
     expect_token_payload_equals(value_data, value_data_copy, 1, 10, 0, 5);
 }
 
+TEST_F(PaKVReorderFloatCacheTest, F16TreeCompactionUsesOriginalSourceTokens) {
+    constexpr size_t num_blocks = 1;
+    const size_t cache_size = num_blocks * kNumHeads * kBlockSize * kHeadSize;
+
+    std::vector<ov::float16> key_data(cache_size);
+    std::vector<ov::float16> value_data(cache_size);
+    for (size_t h = 0; h < kNumHeads; h++) {
+        for (size_t t = 0; t < kBlockSize; t++) {
+            for (size_t d = 0; d < kHeadSize; d++) {
+                const size_t offset = cache_offset(0, h, t) + d;
+                key_data[offset] = ov::float16(static_cast<float>(t * 100 + h * 10 + d));
+                value_data[offset] = ov::float16(static_cast<float>(t * 100 + h * 10 + d + 10000));
+            }
+        }
+    }
+    const auto key_data_copy = key_data;
+    const auto value_data_copy = value_data;
+
+    PlainTensor key_cache;
+    key_cache.resize<ov::float16>({num_blocks, kNumHeads, kBlockSize, kHeadSize}, key_data.data());
+    PlainTensor value_cache;
+    value_cache.resize<ov::float16>({num_blocks, kNumHeads, kBlockSize, kHeadSize}, value_data.data());
+
+    std::vector<int32_t> block_indices_data = {0};
+    std::vector<int32_t> block_indices_begins_data = {0, 1};
+    std::vector<int32_t> block_update_indices_data = {15, 13, 18, 14};
+    std::vector<int32_t> block_update_indices_begins_data = {0, 2};
+
+    auto block_indices = make_index_tensor(block_indices_data);
+    auto block_indices_begins = make_index_tensor(block_indices_begins_data);
+    auto block_update_indices = make_index_tensor(block_update_indices_data);
+    auto block_update_indices_begins = make_index_tensor(block_update_indices_begins_data);
+
+    reorder_kv_cache(key_cache,
+                     value_cache,
+                     block_indices,
+                     block_indices_begins,
+                     block_update_indices,
+                     block_update_indices_begins,
+                     /*key_by_channel=*/false,
+                     /*value_by_channel=*/false,
+                     make_cpu_parallel());
+
+    for (size_t h = 0; h < kNumHeads; h++) {
+        for (size_t d = 0; d < kHeadSize; d++) {
+            EXPECT_EQ(key_data[cache_offset(0, h, 13) + d], key_data_copy[cache_offset(0, h, 15) + d]);
+            EXPECT_EQ(key_data[cache_offset(0, h, 14) + d], key_data_copy[cache_offset(0, h, 18) + d]);
+            EXPECT_EQ(value_data[cache_offset(0, h, 13) + d], value_data_copy[cache_offset(0, h, 15) + d]);
+            EXPECT_EQ(value_data[cache_offset(0, h, 14) + d], value_data_copy[cache_offset(0, h, 18) + d]);
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Quantized cache tests
 // ----------------------------------------------------------------------------
