@@ -14,18 +14,22 @@ PagedCausalConv1D
 The *PagedCausalConv1D* operation performs a causal 1D grouped convolution over a batch of token sequences,
 maintaining the convolution state in paged memory blocks. The causal 1D-convolution is a 1D convolution layer where each output
 at time step ``t`` depends only on inputs from time ``<=t`` (not future values),
-making it suitable for time-series and autoregressive models. 
+making it suitable for time-series and autoregressive models. An optional *dilation* attribute spaces the
+convolution taps across the cached state window, as in a standard dilated causal convolution.
 
 **Detailed description**
 
 *PagedCausalConv1D* processes a flat batch of tokens that may belong to multiple independent sequences.
 The token sequences are described by ``subsequence_begins``. Paged memory uses a fixed ``BLOCK_SIZE=1``,
-meaning each physical block in ``conv_state_table`` stores exactly one convolution state snapshot of shape ``[hidden_size, kernel_size]``.
+meaning each physical block in ``conv_state_table`` stores exactly one convolution state snapshot of shape
+``[hidden_size, causal_window]``, where ``causal_window = (kernel_taps-1)*dilation+1`` and ``kernel_taps`` is
+``conv_weight``'s 3rd dimension. With the default ``dilation == 1``, ``causal_window`` equals ``kernel_taps``.
 For each sequence, the operation:
 
-1. Loads the current convolution state (a window of the last `kernel_size` input vectors) from paged memory using the block table.
+1. Loads the current convolution state (a window of the last ``causal_window`` input vectors) from paged memory using the block table.
 
-2. For each token, shifts the state window, inserts the new token, and applies a grouped causal 1D convolution to produce the output embedding.
+2. For each token, shifts the state window, inserts the new token, and applies a grouped causal 1D convolution over taps
+   spaced ``dilation`` positions apart within the window to produce the output embedding.
 
 3. Caches intermediate states to paged memory blocks at intervals controlled by `cache_interval`  
    (used during prefill to support prefix caching and chunked prefill).
@@ -82,6 +86,8 @@ Cases for reading and updating blocks:
 .. code-block:: py
     :force:
 
+    causal_window = (kernel_taps - 1) * dilation + 1  # kernel_taps is conv_weight's 3rd dimension
+
     for s in range(batch_size_in_sequences):
         token_start = subsequence_begins[s]
         token_end   = subsequence_begins[s + 1]
@@ -93,19 +99,19 @@ Cases for reading and updating blocks:
         seq_blocks = la_block_indices[blk_start:blk_end]  # list of physical block indices
 
         # Load current convolution state from the last assigned block.
-        # state shape: [hidden_size, kernel_size], where state[:, -1] is
+        # state shape: [hidden_size, causal_window], where state[:, -1] is
         # the most recently seen input and state[:, 0] is the oldest.
         # Initially zero if the sequence has not been processed before.
-        state = conv_state_table[seq_blocks[-1]]  # [hidden_size, kernel_size]
+        state = conv_state_table[seq_blocks[-1]]  # [hidden_size, causal_window]
 
         for t in range(seq_len):
             x = input_embeds[token_start + t]  # [hidden_size]
 
             # Shift state left and append the new token on the right
-            state = concat([state[:, 1:], x[:, newaxis]], axis=-1)  # [hidden_size, kernel_size]
+            state = concat([state[:, 1:], x[:, newaxis]], axis=-1)  # [hidden_size, causal_window]
 
-            # Grouped causal 1D convolution output
-            output_embeds[token_start + t] = grouped_conv1d(state, conv_weight, conv_bias)
+            # Grouped causal 1D convolution output, sampling taps `dilation` positions apart
+            output_embeds[token_start + t] = grouped_conv1d(state, conv_weight, conv_bias, dilation)
 
             # Cache state at regular intervals (for prefix caching / chunked prefill)
             abs_pos = num_processed_tokens[s] + t  # 0-based absolute position of the token
@@ -116,8 +122,10 @@ Cases for reading and updating blocks:
         # Persist the final state for this sequence into the last block
         conv_state_table[seq_blocks[-1]] = state
 
-Where ``grouped_conv1d`` computes a standard grouped (or depthwise when ``group_size == hidden_size``) convolution
-over the state window. Here ``group_size`` is the number of input channels per group, ``groups = hidden_size // group_size``
+Where ``grouped_conv1d`` computes a standard grouped (or depthwise when ``group_size == hidden_size``) convolution,
+sampling ``kernel_taps`` positions spaced ``dilation`` apart out of the ``causal_window``
+(the last tap always aligns with the most recent token, ``state[:, -1]``). Here ``group_size`` is the number of
+input channels per group, ``groups = hidden_size // group_size``
 is the total number of groups (equivalent to ``out_channels // (hidden_size // group_size)`` given
 the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal ``hidden_size``
 (as required by the output shape). The weight tensor second dimension is ``hidden_size // group_size`` (channels per group):
@@ -125,9 +133,9 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
 .. code-block:: py
     :force:
 
-    def grouped_conv1d(state, conv_weight, conv_bias):
-        # state:       [hidden_size, kernel_size]
-        # conv_weight: [out_channels, hidden_size // group_size, kernel_size]
+    def grouped_conv1d(state, conv_weight, conv_bias, dilation):
+        # state:       [hidden_size, causal_window], causal_window = (kernel_taps-1)*dilation+1
+        # conv_weight: [out_channels, hidden_size // group_size, kernel_taps]
         #              where out_channels == hidden_size (constraint for this operation)
         # conv_bias:   [out_channels]
         # returns:     [out_channels]
@@ -136,16 +144,29 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
         #              (equals hidden_size for depthwise; 1 for channel-wise)
         groups       = hidden_size // group_size   # total number of groups (== out_channels / ic_per_group, given out_channels == hidden_size)
         ic_per_group = hidden_size // groups       # == group_size
+        kernel_taps  = conv_weight.shape[-1]
         output = zeros(out_channels)
         for oc in range(out_channels):
             g          = oc * groups // out_channels  # group index for output channel oc
             ic_start   = g * ic_per_group
             ic_end     = ic_start + ic_per_group
-            output[oc] = sum(conv_weight[oc, :, :] * state[ic_start:ic_end, :]) + conv_bias[oc]
+            # tap k reads state[:, k*dilation]; with dilation == 1 this is a contiguous window
+            sampled = state[ic_start:ic_end, 0:kernel_taps * dilation:dilation]
+            output[oc] = sum(conv_weight[oc, :, :] * sampled) + conv_bias[oc]
         return output
 
 
-**Attributes**: *PagedCausalConv1D* operation has no attributes.
+**Attributes**
+
+* *dilation*
+
+  * **Description**: *dilation* specifies the spacing between the convolution taps sampled from the causal
+    window, analogous to the ``dilations`` attribute of *GroupConvolution* applied to a single spatial axis.
+    With the default ``dilation == 1``, ``causal_window`` equals ``kernel_taps`` and taps are contiguous.
+  * **Range of values**: a positive integer
+  * **Type**: ``size_t``
+  * **Default value**: 1
+  * **Required**: *no*
 
 
 **Inputs**
@@ -155,20 +176,22 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
   Input token embeddings from all sequences in the batch. **Required.**
 
 * **1**: ``conv_state_table``
-  A 3D tensor of type *T_cache* with shape ``[num_physical_blocks, hidden_size, kernel_size]``.
+  A 3D tensor of type *T_cache* with shape ``[num_physical_blocks, hidden_size, causal_window]``, where
+  ``causal_window = (kernel_taps-1)*dilation+1`` (``kernel_taps`` is the 3rd dimension of ``conv_weight``).
+  With the default ``dilation == 1``, ``causal_window`` equals ``kernel_taps``.
   Paged block table holding the convolution cache states. The paged memory block size is fixed at ``BLOCK_SIZE=1``,
-  meaning each physical block stores exactly one convolution state of shape ``[hidden_size, kernel_size]``,
-  representing the last ``kernel_size`` input vectors seen by the corresponding sequence.
+  meaning each physical block stores exactly one convolution state of shape ``[hidden_size, causal_window]``,
+  representing the last ``causal_window`` input vectors seen by the corresponding sequence.
   ``num_physical_blocks`` equals the total number of physical state rows allocated in the table. It may be
   smaller than the number of logical entries in ``la_block_indices`` when several entries refer to the same row.
   The table is updated in-place: during prefill by the plugin, during decoding by GenAI. Initially all states are zero tensors.
   **Required.**
 
 * **2**: ``conv_weight``
-  A 3D tensor of type *T* with shape ``[out_channels, hidden_size / group_size, kernel_size]``.
+  A 3D tensor of type *T* with shape ``[out_channels, hidden_size / group_size, kernel_taps]``.
   Convolution filter weights, where ``group_size`` is the number of input channels per convolution group
   (``1 <= group_size <= hidden_size``). For a depthwise convolution
-  ``group_size == hidden_size`` and ``out_channels == hidden_size``, so the shape becomes ``[hidden_size, 1, kernel_size]``.
+  ``group_size == hidden_size`` and ``out_channels == hidden_size``, so the shape becomes ``[hidden_size, 1, kernel_taps]``.
   The constraint ``out_channels == hidden_size`` is required so that the output shape matches the input shape. **Required.**
 
 * **3**: ``conv_bias``
