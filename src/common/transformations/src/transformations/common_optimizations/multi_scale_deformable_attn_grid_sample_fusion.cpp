@@ -226,15 +226,20 @@ struct GridCoords {
     double shift = 0.0;
 };
 
-// Walks back from the GridSample coordinates through reshapes, Converts, a no-op Slice, the Transpose and scalar
-// Multiply/Add/Subtract: GPU low-precision passes rewrite and move the 2 * x - 1 normalization across the Transpose.
+// Walks back from the GridSample coordinates through reshapes, real-typed Converts, a no-op Slice, the Transpose and
+// scalar Multiply/Add/Subtract: GPU low-precision passes rewrite and move the 2 * x - 1 normalization across the
+// Transpose. Reshapes keep the element order only between the Transpose and GridSample; above the Transpose only
+// shape-preserving ops are accepted, so the returned source has the Transpose input shape.
 std::optional<GridCoords> grid_coords_source(ov::Output<ov::Node> output, ov::NodeVector& visited) {
     GridCoords coords;
     bool transposed = false;
     while (true) {
         const auto node = output.get_node_shared_ptr();
-        if (ov::is_type<v1::Reshape>(node) || ov::is_type<v0::Squeeze>(node) || ov::is_type<v0::Unsqueeze>(node) ||
-            ov::is_type<v0::Convert>(node) || is_identity_slice(node)) {
+        const bool reshape =
+            ov::is_type<v1::Reshape>(node) || ov::is_type<v0::Squeeze>(node) || ov::is_type<v0::Unsqueeze>(node);
+        const bool real_convert = ov::is_type<v0::Convert>(node) && node->get_input_element_type(0).is_real() &&
+                                  node->get_output_element_type(0).is_real();
+        if ((reshape && !transposed) || real_convert || is_identity_slice(node)) {
             visited.push_back(node);
             output = node->input_value(0);
             continue;

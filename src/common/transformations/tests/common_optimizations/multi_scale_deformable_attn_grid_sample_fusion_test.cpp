@@ -457,6 +457,8 @@ struct SingleScaleParams {
     bool dynamic_value = false;
     bool align_corners = false;
     bool wrong_weights_order = false;
+    // Reshape [B, Q, H, P, 2] -> [B, H, Q, P, 2] before the coordinate Transpose: a different axis meaning.
+    bool regroup_before_transpose = false;
 };
 
 // Single-level deformable attention as exported by RF-DETR: no VariadicSplit and no level Concat.
@@ -487,7 +489,10 @@ std::shared_ptr<ov::Model> getSingleScaleModel(const SingleScaleParams& p) {
         auto norm = std::make_shared<v1::Add>(mul, v0::Constant::create(p.data_type, Shape{1}, {p.offset}));
         // The level slice of a single level keeps every point.
         auto slice = std::make_shared<v8::Slice>(norm, i64_const({0}), i64_const({P}), i64_const({1}), i64_const({3}));
-        coords = std::make_shared<v1::Transpose>(slice, i64_const({0, 2, 1, 3, 4}));
+        std::shared_ptr<ov::Node> grid_src = slice;
+        if (p.regroup_before_transpose)
+            grid_src = std::make_shared<v1::Reshape>(slice, i64_const({B, H, Q, P, 2}), false);
+        coords = std::make_shared<v1::Transpose>(grid_src, i64_const({0, 2, 1, 3, 4}));
     }
     auto grid_coords = std::make_shared<v1::Reshape>(coords, i64_const({B * H, Q, P, 2}), false);
 
@@ -621,5 +626,12 @@ TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, AlignCorners) {
 TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, WrongWeightsOrder) {
     SingleScaleParams p;
     p.wrong_weights_order = true;
+    model = getSingleScaleModel(p);
+}
+
+TEST_F(SingleScaleDeformableAttnGridSampleFusionTest, ReshapeBeforeCoordsTranspose) {
+    // locations [1,6,2,2,2] -> Reshape [1,2,6,2,2] -> Transpose(0,2,1,3,4) -> Reshape [2,6,2,2] -> GridSample
+    SingleScaleParams p;
+    p.regroup_before_transpose = true;
     model = getSingleScaleModel(p);
 }
