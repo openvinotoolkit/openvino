@@ -18,7 +18,7 @@ namespace ov::frontend::gguf {
 class GraphEmitter;
 
 // Internal configuration resolved from metadata, tensor shapes and architecture semantics.
-// Extensions override ambiguous semantics through DecoderOptions before dependent plans are built.
+// Typed parameters resolve semantics before dependent plans are built.
 struct DecoderConfig {
     DecoderConfig(const DecoderParameters& parameters, const std::unordered_map<std::string, ov::Tensor>& weights);
 
@@ -41,6 +41,8 @@ struct DecoderConfig {
     int pooling_type = 0;
     bool causal_attention = true;
     bool layer_norm = false;
+    bool parallel_ffn = false;
+    int deepstack_layers = 0;
     bool relu_squared_ffn = false;
 
     // ---- auto-detected per-architecture structure ----
@@ -89,8 +91,13 @@ struct DecoderConfig {
     int expert_groups = 1;
     int expert_groups_used = 1;
     float embedding_scale = 1.0f;
+    float attention_value_scale = 0.0f;
     // Like llama.cpp's Gemma3/Gemma4, scale token lookups only; injected embeddings stay raw.
     bool embedding_scale_tokens_only = false;
+    bool draft_norm_before_fc = false;
+    bool draft_norm_before_residual = false;
+    std::vector<int32_t> draft_target_layers;
+    int draft_mask_token_id = 0;
     float residual_scale = 1.0f;
     float logit_scale = 1.0f;
     float attention_temperature_scale = 0.0f;

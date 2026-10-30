@@ -12,6 +12,7 @@
 // test_dequant_vs_ggml.cpp.
 
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <vector>
@@ -990,6 +991,49 @@ TEST(GGUFWeight, UsesIntegerZeroPointForRequantizedMatmulWeights) {
     EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_PTQ1_0), ov::element::f16);
 }
 
+TEST(GGUFWeight, SelectsFractionalZeroPointsForStrictMatmulWeights) {
+    using namespace ov::frontend::gguf;
+
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q4_1, GGUF_TYPE_Q5_K}) {
+        SCOPED_TRACE(qtype);
+        EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down_exps.weight", qtype, false), ov::element::u8);
+        EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down_exps.weight", qtype, true), ov::element::f16);
+        EXPECT_EQ(gguf_zero_point_type("token_embd.weight", qtype, false), ov::element::f16);
+        EXPECT_EQ(gguf_zero_point_type("output.weight", qtype, true), ov::element::f16);
+    }
+    EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down.weight", GGUF_TYPE_Q2_0, true), ov::element::u8);
+    for (const auto qtype : {GGUF_TYPE_PQ2_0, GGUF_TYPE_PTQ1_0}) {
+        EXPECT_EQ(gguf_zero_point_type("blk.2.ffn_down.weight", qtype, true), ov::element::f16);
+    }
+}
+
+TEST(GGUFWeight, FractionalQ5KPreservesSourceCodesAndMatchesGgmlToFloat) {
+    using namespace ov::frontend::gguf;
+
+    const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    const auto reference = load_npy<float>("q5_k_deq");
+    GgufTensor tensor;
+    tensor.type = GGUF_TYPE_Q5_K;
+    tensor.bsize = bytes.size();
+    tensor.num_weights = kRows * kCols;
+    tensor.weights_data = bytes.data();
+    WeightTensors extracted{
+        ov::Tensor(ov::element::u8, {kRows, kCols}),
+        ov::Tensor(ov::element::f16, {kRows, kCols / 32}),
+        ov::Tensor(gguf_zero_point_type("blk.2.ffn_down_exps.weight", GGUF_TYPE_Q5_K, true), {kRows, kCols / 32})};
+    gguf_fill_asym(tensor, extracted.weight, extracted.scales, extracted.zero_point);
+    for (size_t i = 0; i < extracted.weight.get_size(); ++i) {
+        EXPECT_LE(extracted.weight.data<uint8_t>()[i], 31);
+    }
+    const auto node = make_weight_node(extracted, GGUF_TYPE_Q5_K, "blk.2.ffn_down_exps.weight");
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i) {
+        EXPECT_NEAR(output.data<float>()[i], reference[i], kTolFaithful);
+    }
+}
+
 class GGUFQ5KNative : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -1023,6 +1067,35 @@ protected:
     }
     std::string path;
 };
+
+TEST_F(GGUFQ5KNative, StorageMatchesFractionalZeroPointMode) {
+    using namespace ov::frontend::gguf;
+    const auto* mode = std::getenv("OV_GGUF_Q4_K_ZP_F16");
+    const bool fractional = mode && *mode && std::strcmp(mode, "0") != 0;
+    const auto bytes = load_npy<uint8_t>("q5_k_qbytes");
+    const std::string name = "blk.0.ffn_up.weight";
+    ASSERT_NO_FATAL_FAILURE(write_tensor(name, bytes));
+    const auto loaded = get_gguf_data(path);
+    const auto& arrays = std::get<1>(loaded);
+    const auto& weight = arrays.at(name);
+    EXPECT_EQ(weight.get_element_type(), fractional ? ov::element::u8 : ov::element::i8);
+    if (fractional) {
+        WeightTensors tensors{weight, arrays.at("blk.0.ffn_up.scales"), arrays.at("blk.0.ffn_up.zp")};
+        EXPECT_EQ(tensors.zero_point.get_element_type(), ov::element::f16);
+        const auto reference = load_npy<float>("q5_k_deq");
+        const auto model =
+            std::make_shared<ov::Model>(ov::OutputVector{make_weight_node(tensors, GGUF_TYPE_Q5_K, name)},
+                                        ov::ParameterVector{});
+        const auto output = run_on_cpu(model, {});
+        ASSERT_EQ(output.get_size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i) {
+            EXPECT_LE(weight.data<const uint8_t>()[i], 31);
+            EXPECT_NEAR(output.data<const float>()[i], reference[i], kTolFaithful);
+        }
+    } else {
+        EXPECT_EQ(arrays.count("blk.0.ffn_up.zp"), 0u);
+    }
+}
 
 TEST_F(GGUFQ5KNative, KeepsDiskTypeAndUsesSymmetricStorageForMatrices) {
     using namespace ov::frontend::gguf;

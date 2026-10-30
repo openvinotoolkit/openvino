@@ -43,6 +43,7 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
     const std::string prefix = modality == Modality::VISION ? "vision." : "audio.";
     const auto selected = embedding_result(model, modality);
     const auto adapter = get_model_adapter(selected);
+    const auto output_names = projector_embedding_outputs(model, modality == Modality::VISION ? "vision" : "audio");
     if (layout == Layout::VISION_ENCODERS && !adapter)
         require_projector_layout(model);
     auto live_before = std::make_shared<std::unordered_set<const ov::Node*>>();
@@ -52,20 +53,16 @@ ModelAdapterResult adapt_mmproj(const std::shared_ptr<ov::Model>& model,
         model->remove_result(result);
     auto embeddings = std::make_shared<ov::op::v0::Squeeze>(selected->input_value(0),
                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
-    size_t auxiliary_count = 0;
-    if (modality == Modality::VISION && model->has_rt_info({"gguf_mmproj", "vision.auxiliary_count"}))
-        auxiliary_count = size_t(mmproj_int_metadata(model, "vision.auxiliary_count", 0));
-    if (auxiliary_count) {
+    if (output_names.size() > 1) {
         auto split = std::make_shared<ov::op::v1::Split>(embeddings,
                                                          ov::op::v0::Constant::create(ov::element::i64, {}, {2}),
-                                                         auxiliary_count + 1);
-        for (size_t i = 0; i <= auxiliary_count; ++i) {
-            split->output(i).set_names({i == 0 ? "image_features" : "deepstack_features." + std::to_string(i - 1)});
+                                                         output_names.size());
+        for (size_t i = 0; i < output_names.size(); ++i) {
+            split->output(i).set_names({output_names[i]});
             model->add_results({std::make_shared<ov::op::v0::Result>(split->output(i))});
         }
     } else {
-        // Only the tensor that becomes a Result is named; the Split path names output 0 instead.
-        embeddings->output(0).set_names({modality == Modality::VISION ? "image_features" : "audio_features"});
+        embeddings->output(0).set_names({output_names.front()});
         model->add_results({std::make_shared<ov::op::v0::Result>(embeddings)});
     }
     PruneParametersOrphanedSince(live_before).run_on_model(model);

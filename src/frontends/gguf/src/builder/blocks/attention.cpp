@@ -145,7 +145,7 @@ std::string attention(GraphEmitter& e,
             k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
     // gemma4: V gets a plain RMSNorm (no multiplicative weight, just normalize).
-    if (cfg.has_v_norm && has_own_kv) {
+    if ((cfg.has_v_norm || (cfg.arch == "dflash" && !e.has_weight(p + "attn_v.weight"))) && has_own_kv) {
         v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, 0, {{"eps", cfg.rms_eps}});
     }
 

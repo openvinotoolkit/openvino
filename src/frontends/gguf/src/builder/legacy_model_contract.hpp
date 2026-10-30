@@ -27,6 +27,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
@@ -210,9 +211,51 @@ inline LegacyEmbeddingBoundaries resolve_legacy_embedding_boundaries(const std::
     return boundaries;
 }
 
+inline ModelContract::GenAIContract resolve_legacy_genai_contract(const std::shared_ptr<ov::Model>& model) {
+    ModelContract::GenAIContract contract;
+    const auto architecture = model->has_rt_info({"gguf_architecture"})
+                                  ? model->get_rt_info<std::string>({"gguf_architecture"})
+                                  : std::string{};
+    for (const auto& parameter : model->get_parameters()) {
+        const auto& names = parameter->output(0).get_names();
+        if (names.count("dspark_ctx_feat"))
+            contract.enabled = false;
+        if (parameter->get_friendly_name() == "gguf.target_token_embedding" ||
+            parameter->get_friendly_name() == "gguf.target_lm_head")
+            contract.preserved_inputs.push_back(parameter->output(0).get_any_name());
+    }
+    for (const auto& output : model->outputs())
+        if (output.get_names().count("embeddings"))
+            contract.enabled = false;
+    if (architecture == "qwen3vl" || architecture == "qwen3vlmoe" || architecture == "qwen3tts")
+        contract.position_layout = ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
+    if (architecture == "dflash") {
+        contract.causal_attention = false;
+        contract.attention_context_input = "hidden_states";
+    }
+    contract.logits_first = architecture == "eagle3";
+    const auto& results = model->get_results();
+    for (size_t i = 1; i < results.size(); ++i) {
+        auto source = results[i]->input_value(0);
+        const auto& name = source.get_node()->get_friendly_name();
+        if (architecture != "eagle3" &&
+            (architecture != "qwen3tts" || name.find("qwen3tts.hidden_states") == std::string::npos))
+            continue;
+        const bool mapping = architecture == "eagle3" && name.find("d2t") != std::string::npos;
+        const auto selector = "gguf.legacy_auxiliary_output." + std::to_string(i);
+        auto names = source.get_names();
+        names.insert(selector);
+        source.set_names(names);
+        contract.auxiliary_outputs.push_back(
+            {selector, mapping ? "d2t" : "last_hidden_state", mapping ? std::nullopt : std::optional<int64_t>{1}});
+    }
+    return contract;
+}
+
 inline ModelContract resolve_legacy_model_contract(const std::shared_ptr<ov::Model>& model,
                                                    std::optional<int64_t> embedding_width) {
     ModelContract contract;
+    contract.genai = resolve_legacy_genai_contract(model);
     if (!model->has_rt_info({"gguf_architecture"}))
         return contract;
     const auto architecture = model->get_rt_info<std::string>({"gguf_architecture"});

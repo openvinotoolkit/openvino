@@ -9,6 +9,7 @@
 #include <cmath>
 #include <limits>
 #include <optional>
+#include <set>
 #include <sstream>
 
 #include "builder/api/metadata_store.hpp"
@@ -17,6 +18,7 @@
 #include "builder/projector_registry.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "projector_adapter.hpp"
+#include "qwen3tts_projector.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
@@ -28,6 +30,9 @@ enum class EncoderTopology {
     SIGLIP,
     CLIP,
     WHISPER,
+    QWEN3_AUDIO,
+    QWEN3_SPEAKER,
+    MOBILENET,
     QWEN,
     INTERNVL,
     RESAMPLER,
@@ -78,6 +83,8 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
     {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
     {"vision", "minicpmv4_7", EncoderTopology::MINICPM46},
+    {"audio", "qwen3a", EncoderTopology::QWEN3_AUDIO},
+    {"audio", "qwen3tts_spkenc", EncoderTopology::QWEN3_SPEAKER},
     {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
@@ -87,6 +94,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "qwen2vl_merger", EncoderTopology::QWEN, SWAPPED_FFN},
     {"vision", "qwen2.5vl_merger", EncoderTopology::QWEN, RMS_NORM | SWAPPED_FFN},
     {"vision", "qwen3vl_merger", EncoderTopology::QWEN},
+    {"vision", "gemma3nv", EncoderTopology::MOBILENET},
     {"audio", "qwen2a", EncoderTopology::WHISPER, POOL_2},
     {"audio", "ultravox", EncoderTopology::WHISPER},
     {"audio", "voxtral", EncoderTopology::WHISPER, POOL_2},
@@ -133,6 +141,21 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
                     "'");
     c.topology = entry->topology;
     c.traits = entry->traits;
+    if (c.topology == EncoderTopology::QWEN3_SPEAKER) {
+        c.width = positive(meta, key + "projection_dim");
+        c.heads = c.kv_heads = 1;
+        c.layers = 3;
+        c.eps = 1e-12f;
+        return c;
+    }
+    if (c.topology == EncoderTopology::MOBILENET) {
+        c.width = positive(meta, key + "embedding_length");
+        c.image_size = positive(meta, key + "image_size");
+        c.heads = c.kv_heads = 1;
+        c.layers = 0;
+        c.eps = 1e-6f;
+        return c;
+    }
     if (c.topology == EncoderTopology::UNIFIED_AUDIO) {
         c.width = 640;
         c.heads = 1;
@@ -263,6 +286,12 @@ public:
             result.config["vision.minicpmv_version"] = std::to_string(c.version);
             result.config["vision.query_count"] = std::to_string(c.queries);
         }
+        const auto output_count = modality == "vision" ? auxiliary.size() + 1 : 1;
+        result.config[modality + ".embedding_output_count"] = std::to_string(output_count);
+        result.config[modality + ".embedding_output.0"] = modality == "vision" ? "image_features" : "audio_features";
+        for (size_t i = 1; i < output_count; ++i)
+            result.config[modality + ".embedding_output." + std::to_string(i)] =
+                "deepstack_features." + std::to_string(i - 1);
         if (modality == "vision") {
             result.config["vision.auxiliary_count"] = std::to_string(auxiliary.size());
             result.config["vision.patch_size"] = std::to_string(c.patch);
@@ -539,7 +568,116 @@ private:
     GgufValue gather_rows(const GgufValue& x, const std::string& index_name) {
         return g.node("GGML_OP_GET_ROWS", {x, index_input(index_name)});
     }
+    GgufValue mobilenet(const EncoderConfig& c) {
+        const auto has = [&](const std::string& name) {
+            return g.tensors().has(name + ".weight");
+        };
+        const auto conv = [&](const GgufValue& x, const std::string& name, int64_t stride, bool depthwise = false) {
+            const auto weight = g.tensors().require(name + ".weight");
+            const auto padding = stride == 1 ? weight.ne(0) / 2 : 0;
+            auto y = g.node("GGML_OP_CONV_2D",
+                            {weight, x},
+                            0,
+                            {{"conv_params", std::vector<int64_t>{stride, stride, padding, padding, 1, 1}},
+                             {"same_padding", stride > 1},
+                             {"depthwise", depthwise}});
+            return y;
+        };
+        const auto spatial_norm = [&](const GgufValue& x, const std::string& name) {
+            if (!has(name))
+                return x;
+            auto y = g.build_norm(transpose(x, {0, 3, 2, 1}), g.tensors()(name + ".weight"), 1e-6f);
+            return transpose(y, {0, 3, 2, 1});
+        };
+        const auto activate = [&](const GgufValue& x) {
+            return g.node("GGML_UNARY_OP_GELU", {x});
+        };
+        auto x = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, c.image_size, c.image_size});
+        x = conv(x, "v.conv_stem.conv", 2);
+        if (auto bias = g.tensors()("v.conv_stem.conv.bias"))
+            x = add(x, reshape(bias, {1, -1, 1, 1}));
+        x = activate(spatial_norm(x, "v.conv_stem.bn"));
+        std::vector<GgufValue> stages;
+        for (int stage = 0; stage < 4; ++stage) {
+            bool found = false;
+            for (int block = 0;; ++block) {
+                const auto p = "v.blk." + std::to_string(stage) + "." + std::to_string(block) + ".";
+                if (!has(p + "conv_exp") && !has(p + "dw_start.conv") && !has(p + "pw_exp.conv") &&
+                    !has(p + "attn.query.proj"))
+                    break;
+                found = true;
+                const auto residual = x;
+                const int64_t stride = block == 0 ? 2 : 1;
+                if (has(p + "conv_exp")) {
+                    x = activate(spatial_norm(conv(x, p + "conv_exp", stride), p + "bn1"));
+                    x = spatial_norm(conv(x, p + "conv_pwl", 1), p + "bn2");
+                } else if (has(p + "attn.query.proj")) {
+                    auto normalized = spatial_norm(x, p + "norm");
+                    auto q = conv(normalized, p + "attn.query.proj", 1);
+                    const auto kv = [&](const std::string& side) {
+                        auto value = normalized;
+                        if (has(p + "attn." + side + ".down_conv"))
+                            value = spatial_norm(conv(value, p + "attn." + side + ".down_conv", 2, true),
+                                                 p + "attn." + side + ".norm");
+                        return conv(value, p + "attn." + side + ".proj", 1);
+                    };
+                    auto k = kv("key"), v = kv("value");
+                    const auto width = k.ne(2), heads = q.ne(2) / width;
+                    q = transpose(reshape(q, {1, heads, width, -1}), {0, 3, 1, 2});
+                    k = transpose(reshape(k, {1, 1, width, -1}), {0, 3, 1, 2});
+                    v = transpose(reshape(v, {1, 1, width, -1}), {0, 3, 1, 2});
+                    auto attended = attention(q, k, v, 1.f / std::sqrt(float(width)));
+                    attended = transpose(attended, {0, 2, 3, 1});
+                    attended = reshape(attended, {1, heads * width, residual.ne(1), residual.ne(0)});
+                    x = conv(attended, p + "attn.output.proj", 1);
+                } else {
+                    if (has(p + "dw_start.conv"))
+                        x = spatial_norm(conv(x, p + "dw_start.conv", 1, true), p + "dw_start.bn");
+                    if (has(p + "pw_exp.conv"))
+                        x = activate(spatial_norm(conv(x, p + "pw_exp.conv", 1), p + "pw_exp.bn"));
+                    if (has(p + "dw_mid.conv"))
+                        x = activate(spatial_norm(conv(x, p + "dw_mid.conv", stride, true), p + "dw_mid.bn"));
+                    if (has(p + "pw_proj.conv"))
+                        x = spatial_norm(conv(x, p + "pw_proj.conv", 1), p + "pw_proj.bn");
+                }
+                if (!has(p + "conv_exp"))
+                    if (auto gamma = g.tensors()(p + "layer_scale.gamma"))
+                        x = mul(x, reshape(gamma, {1, -1, 1, 1}));
+                if (x.shape() == residual.shape())
+                    x = add(x, residual);
+            }
+            if (found)
+                stages.push_back(x);
+        }
+        OPENVINO_ASSERT(!stages.empty(), "[GGUF] Gemma3n vision requires MobileNet blocks");
+        std::vector<GgufValue> features =
+            stages.size() == 4 ? std::vector<GgufValue>{stages[2], stages[3]} : std::vector<GgufValue>{stages.back()};
+        x = features.front();
+        for (size_t i = 1; i < features.size(); ++i) {
+            auto resized = g.node("GGML_OP_UPSCALE",
+                                  {features[i], features.front()},
+                                  0,
+                                  {{"resize_like", true}, {"interpolation_mode", 0}});
+            x = concat(x, resized, 2);
+        }
+        if (has("v.msfa.ffn.pw_exp.conv"))
+            x = activate(spatial_norm(conv(x, "v.msfa.ffn.pw_exp.conv", 1), "v.msfa.ffn.pw_exp.bn"));
+        if (has("v.msfa.ffn.pw_proj.conv"))
+            x = spatial_norm(conv(x, "v.msfa.ffn.pw_proj.conv", 1), "v.msfa.ffn.pw_proj.bn");
+        if (x.ne(0) > 16) {
+            OPENVINO_ASSERT(x.ne(0) % 16 == 0, "[GGUF] Gemma3n output grid must be divisible by 16");
+            x = pool(x, x.ne(0) / 16, x.ne(0) / 16);
+        }
+        x = spatial_norm(x, "v.msfa.norm");
+        OPENVINO_ASSERT(x.ne(2) == c.width, "[GGUF] Gemma3n vision channel width mismatch");
+        x = transpose(reshape(x, {1, 1, c.width, -1}));
+        x = g.build_norm(scale(x, std::sqrt(float(c.width))), g.tensors()("mm.soft_emb_norm.weight"), 1e-6f);
+        x = linear(x, "mm.input_projection", false);
+        return g.build_norm(x, {}, 1e-6f);
+    }
     GgufValue vision(const EncoderConfig& c) {
+        if (c.topology == EncoderTopology::MOBILENET)
+            return mobilenet(c);
         if (c.topology == EncoderTopology::OCR || c.topology == EncoderTopology::OCR2)
             return ocr_vision(c);
         if (c.topology == EncoderTopology::PIXTRAL || c.topology == EncoderTopology::GEMMA4 ||
@@ -1135,7 +1273,99 @@ private:
         x = g.build_norm(x, g.tensors()("mm.a.soft_emb_norm.weight"), c.eps);
         return linear(x, "mm.a.input_projection", false);
     }
+    GgufValue speaker_convolution(const GgufValue& input, const std::string& base, int dilation = 1) {
+        auto weight = g.tensors().require(base + ".weight");
+        const auto kernel = weight.ne(0), channels = weight.ne(1), output = weight.ne(2);
+        auto x = reshape(input, {1, channels, 1, -1});
+        const auto padding = (kernel - 1) * dilation / 2;
+        if (padding)
+            x = g.node("GGML_OP_PAD", {x}, 0, {{"reflect_last_axis", padding}});
+        weight = reshape(weight, {output, channels, 1, kernel});
+        x = g.node("GGML_OP_CONV_2D", {weight, x}, 0, {{"conv_params", std::vector<int64_t>{1, 1, 0, 0, dilation, 1}}});
+        return add(x, reshape(g.tensors().require(base + ".bias"), {1, output, 1, 1}));
+    }
+    GgufValue speaker_encoder(const EncoderConfig& c) {
+        const auto mel = positive(g.metadata(), "clip.audio.num_mel_bins");
+        auto x = g.add_input("audio.features", ov::element::f32, {1, mel, 1, -1});
+        const auto relu = [&](const GgufValue& value) {
+            return g.node("GGML_UNARY_OP_RELU", {value});
+        };
+        const auto mean = [&](const GgufValue& value) {
+            auto sum = g.node("GGML_OP_SUM_ROWS", {value});
+            return g.node(
+                "GGML_OP_DIV",
+                {sum, g.node("GGML_OP_SUM_ROWS", {g.node("GGML_OP_FILL", {value}, 0, {{"fill_value", 1.f}})})});
+        };
+        const auto deviation = [&](const GgufValue& variance) {
+            return g.node("GGML_OP_SQRT", {scale(variance, 1.f, c.eps)});
+        };
+        x = relu(speaker_convolution(x, "a.conv1d.0"));
+        std::vector<GgufValue> blocks;
+        for (int layer = 1; layer <= 3; ++layer) {
+            const auto p = "a.blk." + std::to_string(layer) + ".";
+            auto residual = x;
+            x = relu(speaker_convolution(x, p + "conv_pw1"));
+            const auto channels = x.shape()[1].get_length();
+            OPENVINO_ASSERT(channels % 8 == 0, "[GGUF] speaker Res2Net channels must be divisible by eight");
+            const auto branch_width = channels / 8;
+            auto first = slice(x, 1, 0, branch_width);
+            auto branches = first;
+            GgufValue previous;
+            for (int branch = 1; branch < 8; ++branch) {
+                auto part = slice(x, 1, branch * branch_width, branch_width);
+                if (previous)
+                    part = add(part, previous);
+                previous = relu(speaker_convolution(part, p + "res2." + std::to_string(branch - 1), layer + 1));
+                branches = concat(branches, previous, 2);
+            }
+            x = relu(speaker_convolution(branches, p + "conv_pw2"));
+            auto gate = relu(speaker_convolution(mean(x), p + "se_conv1"));
+            gate = g.node("GGML_UNARY_OP_SIGMOID", {speaker_convolution(gate, p + "se_conv2")});
+            x = add(mul(x, gate), residual);
+            blocks.push_back(x);
+        }
+        x = relu(speaker_convolution(concat(concat(blocks[0], blocks[1], 2), blocks[2], 2), "a.conv_out"));
+        auto average = mean(x);
+        auto centered = g.node("GGML_OP_SUB", {x, average});
+        auto stddev = deviation(mean(g.node("GGML_OP_SQR", {centered})));
+        auto mean_repeated = g.node("GGML_OP_REPEAT", {average, x});
+        auto std_repeated = g.node("GGML_OP_REPEAT", {stddev, x});
+        auto context = concat(concat(x, mean_repeated, 2), std_repeated, 2);
+        auto attention = g.node("GGML_UNARY_OP_TANH", {relu(speaker_convolution(context, "a.asp_tdnn"))});
+        attention = g.node("GGML_OP_SOFT_MAX", {speaker_convolution(attention, "a.asp_attn")});
+        auto weighted_mean = g.node("GGML_OP_SUM_ROWS", {mul(attention, x)});
+        auto delta = g.node("GGML_OP_SUB", {x, weighted_mean});
+        auto variance = g.node("GGML_OP_SUM_ROWS", {mul(attention, g.node("GGML_OP_SQR", {delta}))});
+        return reshape(speaker_convolution(concat(weighted_mean, deviation(variance), 2), "mm.a.fc"),
+                       {1, 1, 1, c.width});
+    }
     GgufValue audio(const EncoderConfig& c) {
+        if (c.topology == EncoderTopology::QWEN3_SPEAKER)
+            return speaker_encoder(c);
+        if (c.topology == EncoderTopology::QWEN3_AUDIO) {
+            const auto mel = positive(g.metadata(), "clip.audio.num_mel_bins");
+            auto features = g.add_input("audio.features", ov::element::f32, {1, mel, 1, -1});
+            auto chunks = reshape(features, {1, mel, -1, 100});
+            auto x = transpose(chunks, {2, 0, 1, 3});
+            for (int i = 1; i <= 3; ++i) {
+                const auto base = "a.conv2d." + std::to_string(i);
+                auto weight = g.tensors().require(base + ".weight");
+                x = convolution(x, weight, 2, 1);
+                if (auto bias = g.tensors()(base + ".bias"))
+                    x = add(x, reshape(bias, {1, weight.ne(3), 1, 1}));
+                x = g.node("GGML_UNARY_OP_GELU_ERF", {x});
+            }
+            const auto conv_width = g.tensors().require("a.conv_out.weight").ne(0);
+            x = reshape(transpose(x, {0, 3, 1, 2}), {1, 1, -1, conv_width});
+            x = linear(x, "a.conv_out");
+            auto table = g.tensors().require("a.position_embd.weight");
+            auto positions = slice(reshape(table, {1, 1, table.ne(1), c.width}), 2, 0, 13);
+            auto target = reshape(x, {1, -1, 13, c.width});
+            auto tiled = g.node("GGML_OP_REPEAT", {positions, target});
+            x = add(x, reshape(tiled, {1, 1, -1, c.width}));
+            x = vit(x, c, {});
+            return ffn(x, "mm.a.mlp.1", "mm.a.mlp.2", "GGML_UNARY_OP_GELU_ERF");
+        }
         if (c.topology == EncoderTopology::LFM2_AUDIO)
             return lfm2_audio(c);
         if (c.topology == EncoderTopology::GEMMA4_AUDIO)
@@ -1194,6 +1424,26 @@ private:
     }
 };
 
+class Qwen3TTSBuilder : public ModelBuilder {
+public:
+    explicit Qwen3TTSBuilder(const BuildContext& context) : g(context) {}
+
+    std::shared_ptr<GgufGraph> build() override {
+        RopeConfig rope;
+        rope.per_op = true;
+        g.configure_rope(rope);
+        Qwen3TTSProjector(g).build();
+        auto graph = g.finish();
+        graph->mmproj_config = {{"gen_audio.projector", std::string("qwen3tts_gen")},
+                                {"gen_audio.window_size", std::string("72")},
+                                {"gen_audio.sample_rate", std::string("24000")}};
+        return graph;
+    }
+
+private:
+    GgufGraphContext g;
+};
+
 class MmprojBuilder : public ModelBuilder {
 public:
     explicit MmprojBuilder(const BuildContext& context) : ctx(context), g(context) {}
@@ -1202,18 +1452,34 @@ public:
         std::optional<ProjectorRegistry> defaults;
         const auto& registry = ctx.projectors ? *ctx.projectors : defaults.emplace();
         std::vector<std::shared_ptr<const ProjectorDefinition>> encoders;
+        std::map<std::string, std::string> branch_config;
         for (const auto* modality : {"vision", "audio"}) {
             if (!ctx.metadata.get_bool(std::string("clip.has_") + modality + "_encoder").value_or(false))
                 continue;
             const auto type = resolve_projector_type(ctx.metadata, modality);
             const auto definition = registry.find(ctx.metadata, modality, type);
+            if (!definition && std::string(modality) == "audio" && type == "gemma3na" &&
+                ctx.metadata.get_bool("clip.has_vision_encoder").value_or(false) &&
+                resolve_projector_type(ctx.metadata, "vision") == "gemma3nv") {
+                branch_config["audio.projector"] = type;
+                branch_config["audio.supported"] = "false";
+                continue;
+            }
             OPENVINO_ASSERT(definition, "[GGUF] unsupported ", modality, " mmproj projector '", type, "'");
             encoders.push_back(definition);
         }
-        OPENVINO_ASSERT(!encoders.empty(), "[GGUF] mmproj has no encoder");
+        const auto has_gen_audio = ctx.metadata.get_bool("clip.has_gen_audio_encoder").value_or(false);
+        OPENVINO_ASSERT(!encoders.empty() || has_gen_audio, "[GGUF] mmproj has no encoder");
         ModelAdapters adapters;
-        std::map<std::string, std::string> branch_config;
         branch_config["vision.auxiliary_count"] = "0";
+        if (has_gen_audio) {
+            const auto type = ctx.metadata.get_str("clip.gen.audio.projector_type").value_or("");
+            OPENVINO_ASSERT(type == "qwen3tts_gen", "[GGUF] unsupported generated audio projector '", type, "'");
+            Qwen3TTSProjector(g).build();
+            branch_config["gen_audio.projector"] = type;
+            branch_config["gen_audio.window_size"] = "72";
+            branch_config["gen_audio.sample_rate"] = "24000";
+        }
         for (const auto& definition : encoders) {
             auto result = definition->build(g);
             OPENVINO_ASSERT(result.output, "[GGUF] projector handler '", definition->id, "' returned no output");
@@ -1314,6 +1580,10 @@ std::vector<ProjectorDefinition> builtin_projectors() {
 
 std::shared_ptr<ModelBuilder> make_mmproj_builder(const BuildContext& context) {
     return std::make_shared<MmprojBuilder>(context);
+}
+
+std::shared_ptr<ModelBuilder> make_qwen3tts_projector_builder(const BuildContext& context) {
+    return std::make_shared<Qwen3TTSBuilder>(context);
 }
 
 }  // namespace ov::frontend::gguf

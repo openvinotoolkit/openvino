@@ -25,11 +25,22 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
     p.architecture = arch;
     p.attention.rope_mode = arch_uses_neox_rope(arch) ? RopeMode::Neox : RopeMode::Normal;
     p.embedding_model = arch == "llama-embed";
-    if (arch == "jais2") {
+    p.causal_attention = arch != "dflash";
+    p.model_contract.genai.emplace();
+    auto& genai = *p.model_contract.genai;
+    genai.enabled = arch != "dspark" && !p.embedding_model;
+    genai.causal_attention = p.causal_attention;
+    if (is_one_of(arch, {"qwen3vl", "qwen3vlmoe", "qwen3tts"}))
+        genai.position_layout = ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
+    if (arch == "dflash")
+        genai.attention_context_input = "hidden_states";
+    genai.logits_first = arch == "eagle3";
+    if (is_one_of(arch, {"jais2", "cohere2"}))
         p.normalization.kind = NormalizationKind::Layer;
+    p.parallel_ffn = arch == "cohere2";
+    if (arch == "jais2")
         p.activation = FfnActivation::ReluSquared;
-    }
-    if (is_one_of(arch, {"gemma", "gemma2", "gemma3", "gemma4"})) {
+    if (is_one_of(arch, {"gemma", "gemma2", "gemma3", "gemma3n", "gemma4"})) {
         p.activation = FfnActivation::GeGlu;
         p.scales.embedding = std::sqrt(static_cast<float>(embedding));
     }
@@ -43,21 +54,25 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
     }
     p.normalization.qk_after_rope = is_one_of(arch, {"hunyuan-dense", "hunyuan-moe", "maincoder"});
     p.normalization.post_only = arch == "exaone4";
-    p.normalization.value_norm = arch == "gemma4";
+    p.normalization.value_norm = arch == "gemma4" || arch == "gemma3n";
     if (arch == "gemma4") {
         p.normalization.qk_full_width = false;
+    }
+    if (arch == "gemma4" || arch == "gemma3n") {
         p.scales.attention = 1.0f;
     } else if (arch == "gemma2" && layers == 46 && heads > 0) {
         p.scales.attention = 1.0f / std::sqrt(static_cast<float>(embedding / heads));
     }
-    p.scales.token_embeddings_only = is_one_of(arch, {"gemma3", "gemma4"});
-    p.attention.sliding_window = p.scales.token_embeddings_only;
+    p.scales.token_embeddings_only = is_one_of(arch, {"gemma3", "gemma3n", "gemma4"});
+    p.attention.sliding_window = is_one_of(arch, {"gemma3", "gemma4"});
     p.attention.window_size = (arch == "gemma2" || (arch == "exaone4" && layers == 64)) ? 4096 : 0;
-    p.attention.sliding_period = arch == "gemma3"                                                 ? 6
-                                 : arch == "plamo3"                                               ? 8
-                                 : (arch == "afmoe" || arch == "exaone4" || arch == "exaone-moe") ? 4
-                                                                                                  : 2;
-    if (is_one_of(arch, {"gemma3", "plamo3"}))
+    p.attention.sliding_period = arch == "gemma3n"  ? 5
+                                 : arch == "gemma3" ? 6
+                                 : arch == "plamo3" ? 8
+                                 : (arch == "afmoe" || arch == "cohere2" || arch == "exaone4" || arch == "exaone-moe")
+                                     ? 4
+                                     : 2;
+    if (is_one_of(arch, {"gemma3", "gemma3n", "plamo3"}))
         p.attention.sliding_rope.freq_base = 10000.0f;
     // Zero inherits the global scale; local Gemma RoPE retains its training scale.
     if (is_one_of(arch, {"gemma3", "gemma4"}))
@@ -67,16 +82,24 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
         p.normalization.post_epsilon = 1e-8f;
     }
     p.attention.rope_on_sliding_only =
-        arch == "muse-glimmer" || arch == "exaone-moe" || (arch == "exaone4" && layers == 64);
+        arch == "muse-glimmer" || arch == "cohere2" || arch == "exaone-moe" || (arch == "exaone4" && layers == 64);
     if (is_one_of(arch, {"afmoe", "smollm3"}))
         p.attention.rope_skip_period = 4;
-    p.experts.normalize_weights =
-        is_one_of(arch, {"hunyuan-moe", "minimax-m2", "qwen3moe", "qwen35moe", "ernie4_5-moe", "mellum", "gemma4"});
+    p.experts.normalize_weights = is_one_of(arch,
+                                            {"hunyuan-moe",
+                                             "minimax-m2",
+                                             "qwen3moe",
+                                             "qwen3next",
+                                             "qwen3vlmoe",
+                                             "qwen35moe",
+                                             "ernie4_5-moe",
+                                             "mellum",
+                                             "gemma4"});
     if (is_one_of(arch, {"afmoe", "glm4moe"}))
         p.experts.routing = ExpertRouting::Sigmoid;
-    if (is_one_of(arch, {"qwen35", "qwen35moe"})) {
+    if (is_one_of(arch, {"qwen35", "qwen35moe", "qwen3next"})) {
         p.hybrid.kind = RecurrentKind::GatedDeltaNet;
-        p.attention.rope_mode = RopeMode::Interleaved;
+        p.attention.rope_mode = arch == "qwen3next" ? RopeMode::Neox : RopeMode::Interleaved;
         p.attention.interleaved_q_gate = true;
         p.attention.fused_qkv = false;
         p.attention.output_gate = true;
@@ -87,6 +110,13 @@ DecoderParameters decoder_family_defaults(const std::string& arch, int layers, i
     if (is_one_of(arch, {"lfm2", "lfm2moe"})) {
         p.attention.sliding_on_attention_layers = true;
         p.model_contract.batchable_recurrent = true;
+    }
+    if (is_one_of(arch, {"qwen3vl", "qwen3vlmoe", "qwen3tts"}))
+        p.attention.rope_mode = RopeMode::Interleaved;
+    if (arch == "gemma3n") {
+        p.dimensions.per_layer_embedding = 256;
+        p.dimensions.shared_kv_layers = std::max(0, layers - 20);
+        p.scales.logits_soft_cap = 30.0f;
     }
     if (arch == "gemma3")
         p.model_contract.image_attention = ModelContract::ImageAttentionMode::GLOBAL_AND_SLIDING;
@@ -131,6 +161,13 @@ DecoderParameters resolve_decoder_parameters(const GgufMetadata& metadata,
         p.scales.logits = 1.0f / p.scales.logits;
     if (p.architecture == "lfm2moe")
         p.experts.weights_scale = 0.0f;
+    if (p.architecture == "dflash" && metadata.has(p.architecture + ".hidden_activation")) {
+        const auto activation = metadata.get_str(p.architecture + ".hidden_activation");
+        OPENVINO_ASSERT(
+            activation && (*activation == "silu" || *activation == "gelu" || *activation == "gelu_pytorch_tanh"),
+            "[GGUF] unsupported DFlash hidden activation");
+        p.activation = *activation == "silu" ? FfnActivation::SwiGlu : FfnActivation::GeGlu;
+    }
     apply_decoder_options(p, options);
     return p;
 }

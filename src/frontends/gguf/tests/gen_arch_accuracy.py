@@ -28,6 +28,27 @@ CASES = {
     "lfm2moe": {"moe": True, "lead": 1},
     "lfm2moe-all-experts": {"architecture": "lfm2moe", "moe": True, "sigmoid": True, "expert_scale": 2.5},
     "qwen35": {}, "qwen35moe": {},
+    "qwen3next": {}, "qwen3next-legacy": {"architecture": "qwen3next", "legacy": True},
+    "qwen3vl": {"qk": True, "mrope": True},
+    "qwen3tts": {"qk": True, "mrope": True, "vocab": 3072, "output_vocab": 3072},
+    "qwen3vlmoe": {"qk": True, "mrope": True, "moe": True},
+    "qwen3vl-deepstack": {"architecture": "qwen3vl", "qk": True, "mrope": True, "layers": 4, "deepstack": 2},
+    "cohere2": {"layer_norm": True, "swa": True, "layers": 4, "tied": True},
+    "gemma3n": {},
+    "eagle3": {"layers": 1},
+    "eagle3-fc-q4_1": {"architecture": "eagle3", "layers": 1,
+                       "quantized": {"fc.weight": gguf.GGMLQuantizationType.Q4_1},
+                       "q4_1_fc_exact": True, "q8_hidden_exact": True},
+    "eagle3-mapped": {"architecture": "eagle3", "layers": 1, "output_vocab": 16, "norm_before_fc": True,
+                      "norm_before_residual": True, "d2t": True},
+    "dflash": {"layers": 2, "qk": True},
+    "dflash-fc-q4_1": {"architecture": "dflash", "layers": 2, "qk": True,
+                       "quantized": {"fc.weight": gguf.GGMLQuantizationType.Q4_1},
+                       "q4_1_fc_exact": True, "q8_hidden_exact": True},
+    "dflash-post": {"architecture": "dflash", "layers": 2, "qk": True, "post": True,
+                     "layer_scale": True, "fc_scale": True, "value_scale": 1.5, "hidden_act": "gelu_pytorch_tanh"},
+    "dflash-shared": {"architecture": "dflash", "layers": 2, "qk": True, "shared_v": True},
+    "dflash-mapped": {"architecture": "dflash", "layers": 2, "qk": True, "output_vocab": 16, "d2t": True},
     "qwen35-zero-scales": {"architecture": "qwen35", "zero_scales": True},
     "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
     # Real checkpoints quantize attn_gate apart from ssm_beta/ssm_alpha: F16 here selects the
@@ -75,13 +96,22 @@ CASES = {
 }
 
 
-def tensor_writer(writer, rng, f16=()):
+def tensor_writer(writer, rng, f16=(), quantized=None, exact_q4_1=False):
     """Uniform random F32 tensors; norm weights are centered at 1. Names containing an `f16`
     entry are stored as F16."""
+    quantized = quantized or {}
+
     def tensor(name, shape, norm=False):
         values = rng.uniform(-1, 1, shape).astype(np.float32)
         values = 1 + values * .3 if norm else values * .2
-        writer.add_tensor(name, values.astype(np.float16) if any(s in name for s in f16) else values)
+        if exact_q4_1 and name == "fc.weight":
+            codes = (np.arange(shape[0])[:, None] * 5 + np.arange(shape[1])[None, :] * 7) % 16
+            values = -1.0 + codes.astype(np.float32) * np.float32(0.125)
+        quantization = quantized.get(name)
+        if quantization is not None:
+            writer.add_tensor(name, gguf.quants.quantize(values, quantization), raw_dtype=quantization)
+        else:
+            writer.add_tensor(name, values.astype(np.float16) if any(s in name for s in f16) else values)
     return tensor
 
 
@@ -120,7 +150,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
         tensor(p + "attn_norm.weight", (d,), True)
         if hybrid and layer == 1:
             for name, width in (("q", 32), ("k", 16), ("v", 16)):
-                tensor(p + f"attn_{name}.weight", (width, d))
+                tensor(p + f"attn_{name}.weight", (width, 2 * d if arch == "eagle3" else d))
                 tensor(p + f"attn_{name}.bias", (width,))
             tensor(p + "attn_output.weight", (d, 32))
             tensor(p + "attn_output.bias", (d,))
@@ -142,7 +172,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     finish(w)
 
 
-def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, zero_scales=False):
+def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, legacy=False, zero_scales=False):
     w = gguf.GGUFWriter(path, arch)
     d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
     state, groups, vheads, kernel = 8, 2, 4, 4
@@ -157,7 +187,8 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
     w.add_value_length(head)
     w.add_rope_dimension_count(8)
     w.add_rope_freq_base(10000.)
-    w.add_array(arch + ".rope.dimension_sections", [1, 1, 2, 0])
+    if arch != "qwen3next":
+        w.add_array(arch + ".rope.dimension_sections", [1, 1, 2, 0])
     w.add_layer_norm_rms_eps(1e-5)
     w.add_vocab_size(vocab)
     w.add_tokenizer_model("none")
@@ -184,7 +215,7 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
         w.add_key_value("prism.hadamard.sign_widths", [32, 48, 64], gguf.GGUFValueType.ARRAY, gguf.GGUFValueType.INT32)
         w.add_key_value("prism.hadamard.sign_values", [(-1 if i % 3 else 1) for i in range(144)], gguf.GGUFValueType.ARRAY, gguf.GGUFValueType.INT32)
         w.add_bool("prism.hadamard.gdn_v_grouped", True)
-    moe = arch == "qwen35moe"
+    moe = arch in ("qwen35moe", "qwen3next")
     if moe:
         w.add_expert_count(4)
         w.add_expert_used_count(2)
@@ -201,18 +232,24 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
         tensor(p + "attn_norm.weight", (d,), True)
         tensor(p + "post_attention_norm.weight", (d,), True)
         if layer < 3:
-            tensor(p + "attn_qkv.weight", (conv, d))
-            tensor(p + "attn_gate.weight", (inner, d))
+            if legacy:
+                tensor(p + "ssm_in.weight", (conv + inner, d))
+            else:
+                tensor(p + "attn_qkv.weight", (conv, d))
+                tensor(p + "attn_gate.weight", (inner, d))
             tensor(p + "ssm_conv1d.weight", (conv, kernel))
             tensor(p + "ssm_dt.bias", (vheads,))
             w.add_tensor(p + "ssm_a", -rng.uniform(.5, 1.5, vheads).astype(np.float32))
-            for name in ("beta", "alpha"):
-                tensor(p + f"ssm_{name}.weight", (vheads, d))
+            if arch == "qwen3next":
+                tensor(p + "ssm_ba.weight", (2 * vheads, d))
+            else:
+                for name in ("beta", "alpha"):
+                    tensor(p + f"ssm_{name}.weight", (vheads, d))
             tensor(p + "ssm_norm.weight", (state,), True)
             tensor(p + "ssm_out.weight", (d, inner))
         else:
             for name, width in (("q", 2 * heads * head), ("k", kv * head), ("v", kv * head)):
-                tensor(p + f"attn_{name}.weight", (width, d))
+                tensor(p + f"attn_{name}.weight", (width, 2 * d if arch == "eagle3" else d))
             for name in ("q", "k"):
                 tensor(p + f"attn_{name}_norm.weight", (head,), True)
             tensor(p + "attn_output.weight", (d, heads * head))
@@ -303,6 +340,51 @@ def write_gemma4_model(path, opts):
     finish(w)
 
 
+def write_gemma3n_model(path):
+    w = gguf.GGUFWriter(path, "gemma3n")
+    d, heads, kv, head, ff, vocab, layers, pe = 32, 4, 2, 8, 48, 32, 5, 256
+    w.add_context_length(128)
+    w.add_embedding_length(d)
+    w.add_block_count(layers)
+    w.add_head_count(heads)
+    w.add_head_count_kv(kv)
+    w.add_key_length(head)
+    w.add_value_length(head)
+    w.add_feed_forward_length(ff)
+    w.add_layer_norm_rms_eps(1e-6)
+    w.add_sliding_window(2)
+    w.add_sliding_window_pattern(5)
+    w.add_rope_dimension_count(head)
+    w.add_rope_freq_base(100.)
+    w.add_rope_freq_base_swa(100.)
+    w.add_final_logit_softcapping(30.)
+    w.add_vocab_size(vocab)
+    w.add_tokenizer_model("none")
+    tensor = tensor_writer(w, np.random.default_rng(20261020))
+    tensor("token_embd.weight", (vocab, d))
+    tensor("output_norm.weight", (d,), True)
+    tensor("per_layer_token_embd.weight", (vocab, pe * layers))
+    tensor("per_layer_model_proj.weight", (pe * layers, d))
+    tensor("per_layer_proj_norm.weight", (pe,), True)
+    for name in ("altup_proj", "altup_unembd_proj"):
+        tensor(name + ".weight", (3, d, d))
+    for layer in range(layers):
+        p = f"blk.{layer}."
+        for name in ("attn_norm", "post_attention_norm", "ffn_norm", "post_ffw_norm", "post_norm",
+                     "altup_correct_scale", "altup_router_norm", "laurel_post_norm"):
+            tensor(p + name + ".weight", (d,), True)
+        for name in ("attn_q_norm", "attn_k_norm"):
+            tensor(p + name + ".weight", (head,), True)
+        for name, shape in (("attn_q", (heads * head, d)), ("attn_k", (kv * head, d)),
+                            ("attn_v", (kv * head, d)), ("attn_output", (d, heads * head)),
+                            ("ffn_gate", (ff, d)), ("ffn_up", (ff, d)), ("ffn_down", (d, ff)),
+                            ("inp_gate", (pe, d)), ("proj", (d, pe)), ("altup_correct_coef", (4, 4)),
+                            ("altup_predict_coef", (16, 4)), ("altup_router", (4, d)),
+                            ("laurel_l", (64, d)), ("laurel_r", (d, 64))):
+            tensor(p + name + ".weight", shape)
+    finish(w)
+
+
 def write_lfm2_model(path, arch, opts):
     w = gguf.GGUFWriter(path, arch)
     d, heads, kv, head, ff, vocab = 32, 4, 2, 8, 48, 32
@@ -367,16 +449,18 @@ def write_lfm2_model(path, arch, opts):
 
 def write_model(path, arch, opts):
     arch = opts.get("architecture", arch)
+    if arch == "gemma3n":
+        return write_gemma3n_model(path)
     if arch in ("lfm2", "lfm2moe"):
         return write_lfm2_model(path, arch, opts)
     if arch == "gemma4":
         return write_gemma4_model(path, opts)
-    if arch in ("qwen35", "qwen35moe"):
-        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False), opts.get("zero_scales", False))
+    if arch in ("qwen35", "qwen35moe", "qwen3next"):
+        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False), legacy=opts.get("legacy", False), zero_scales=opts.get("zero_scales", False))
     if arch in ("mamba2", "nemotron_h"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
-    d, heads, head, ff, vocab = opts.get("embedding", 32), 4, 8, 48, 32
+    d, heads, head, ff, vocab = opts.get("embedding", 32), 4, 8, 48, opts.get("vocab", 32)
     kv = 1 if opts.get("mqa") else heads if opts.get("full_qk") or arch == "deepseek2-ocr" else 2
     layers = opts.get("layers", 2)
     w.add_context_length(128)
@@ -391,6 +475,20 @@ def write_model(path, arch, opts):
     w.add_value_length(head)
     w.add_rope_dimension_count(opts.get("rope_dims", head))
     w.add_rope_freq_base(10000.0 if arch == "deepseek2-ocr" else 100.0)
+    if arch in ("eagle3", "dflash"):
+        w.add_array(arch + ".target_layers", [0, 1, 2])
+        w.add_uint32(arch + ".target_hidden_size", d)
+        for name in ("norm_before_fc", "norm_before_residual"):
+            if opts.get(name):
+                w.add_bool(arch + "." + name, True)
+    if opts.get("hidden_act"):
+        w.add_string(arch + ".hidden_activation", opts["hidden_act"])
+    if opts.get("value_scale"):
+        w.add_float32(arch + ".attention.value_scale", opts["value_scale"])
+    if opts.get("deepstack"):
+        w.add_uint32(arch + ".n_deepstack_layers", opts["deepstack"])
+    if opts.get("mrope"):
+        w.add_array(arch + ".rope.dimension_sections", [1, 1, 2, 0])
     if opts.get("layer_norm"):
         w.add_layer_norm_eps(1e-5)
     else:
@@ -414,7 +512,7 @@ def write_model(path, arch, opts):
         w.add_attn_temperature_scale(opts.get("temperature", 0.0))
     if opts.get("swa"):
         w.add_sliding_window(2)
-        w.add_sliding_window_pattern(4 if arch == "afmoe" else 2)
+        w.add_sliding_window_pattern(4 if arch in ("cohere2", "afmoe") else 2)
         if arch == "plamo3":
             w.add_rope_freq_base_swa(100.0)
     if opts.get("softcap"):
@@ -422,6 +520,8 @@ def write_model(path, arch, opts):
         w.add_final_logit_softcapping(3.0)
     if arch == "muse-glimmer":
         w.add_logit_scale(1.0)
+    if arch == "cohere2":
+        w.add_logit_scale(0.3)
     if arch == "minicpm" and not opts.get("default_logit_scale"):
         w.add_logit_scale(d / 256.0)
     if opts.get("moe"):
@@ -435,7 +535,7 @@ def write_model(path, arch, opts):
         w.add_uint32(arch + ".expert_gating_func", 2 if opts.get("sigmoid") else 1)
         if opts.get("expert_scale"):
             w.add_expert_weights_scale(opts["expert_scale"])
-        if arch not in ("hunyuan-moe", "qwen3moe", "ernie4_5-moe", "mellum", "minimax-m2"):
+        if arch not in ("qwen3vlmoe", "hunyuan-moe", "qwen3moe", "ernie4_5-moe", "mellum", "minimax-m2"):
             w.add_expert_weights_norm(arch != "olmoe")
         if arch == "bailingmoe2":
             w.add_expert_group_count(2)
@@ -443,20 +543,34 @@ def write_model(path, arch, opts):
         if arch == "ernie4_5-moe":
             w.add_interleave_moe_layer_step(2)
     rng = np.random.default_rng(20260907)
-    tensor = tensor_writer(w, rng)
+    tensor = tensor_writer(w, rng, quantized=opts.get("quantized"),
+                           exact_q4_1=opts.get("q4_1_fc_exact", False))
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
-    if opts.get("layer_norm"):
+    if opts.get("layer_norm") and arch != "cohere2":
         tensor("output_norm.bias", (d,))
     if not opts.get("tied"):
-        tensor("output.weight", (vocab, d))
+        tensor("output.weight", (opts.get("output_vocab", vocab), d))
+    if arch == "dflash":
+        tensor("enc.output_norm.weight", (d,), True)
+    if arch in ("eagle3", "dflash"):
+        tensor("fc.weight", (d, 3 * d))
+        if opts.get("fc_scale"):
+            tensor("fc.scale", (1,), True)
+        if arch == "eagle3":
+            tensor("blk.0.attn_norm_2.weight", (d,), True)
+            if opts.get("norm_before_fc"):
+                tensor("enc.output_norm.weight", (3 * d,), True)
+        if opts.get("d2t"):
+            w.add_tensor("d2t", np.arange(0, vocab, 2, dtype=np.int64))
     for layer in range(layers):
         p = f"blk.{layer}."
         if not opts.get("post_only"):
-            for name in ("attn_norm", "post_attention_norm" if opts.get("ffn_post_attn") else "ffn_norm"):
+            norms = ("attn_norm",) if arch == "cohere2" else ("attn_norm", "post_attention_norm" if opts.get("ffn_post_attn") else "ffn_norm")
+            for name in norms:
                 tensor(p + name + ".weight", (d,), True)
-                if opts.get("layer_norm"):
+                if opts.get("layer_norm") and arch != "cohere2":
                     tensor(p + name + ".bias", (d,))
         if opts.get("post") or opts.get("post_only"):
             for name in ("post_attention_norm", "post_ffw_norm"):
@@ -465,12 +579,16 @@ def write_model(path, arch, opts):
             tensor(p + "attn_qkv.weight", ((heads + 2 * kv) * head, d))
         else:
             for name, width in (("q", heads * head), ("k", kv * head), ("v", kv * head)):
-                tensor(p + f"attn_{name}.weight", (width, d))
+                if name == "v" and opts.get("shared_v"):
+                    continue
+                tensor(p + f"attn_{name}.weight", (width, 2 * d if arch == "eagle3" else d))
                 if opts.get("bias"):
                     tensor(p + f"attn_{name}.bias", (width,))
         tensor(p + "attn_output.weight", (d, heads * head))
-        if opts.get("layer_norm"):
+        if opts.get("layer_norm") and arch != "cohere2":
             tensor(p + "attn_output.bias", (d,))
+        if opts.get("layer_scale"):
+            tensor(p + "layer_output_scale.weight", (1,), True)
         if opts.get("qk") or opts.get("full_qk"):
             for name, width in (("q", heads * head), ("k", kv * head)):
                 tensor(p + f"attn_{name}_norm.weight", (width if opts.get("full_qk") else head,), True)
@@ -498,7 +616,7 @@ def write_model(path, arch, opts):
     if opts.get("nextn"):
         p = f"blk.{layers}."
         for name, width in (("q", heads * head), ("k", kv * head), ("v", kv * head)):
-            tensor(p + f"attn_{name}.weight", (width, d))
+            tensor(p + f"attn_{name}.weight", (width, 2 * d if arch == "eagle3" else d))
         tensor(p + "attn_output.weight", (d, heads * head))
         for name in ("attn_norm", "attn_q_norm", "attn_k_norm", "ffn_norm"):
             tensor(p + name + ".weight", (head if "_q_" in name or "_k_" in name else d,), True)
@@ -526,7 +644,32 @@ def main():
             reference = model.with_suffix(".bin")
             write_model(model, arch, CASES[arch])
             oracle = args.embedding_oracle if CASES[arch].get("embedding_output") else args.oracle
-            result = subprocess.run([oracle, str(model), str(reference)], capture_output=True)
+            extra = {}
+            command = [oracle, str(model), str(reference)]
+            if CASES[arch].get("architecture", arch) in ("eagle3", "dflash"):
+                feature_shape = (6, 96)
+                if CASES[arch].get("q8_hidden_exact"):
+                    codes = (np.arange(feature_shape[0])[:, None] * 47 + np.arange(feature_shape[1])[None, :] * 73) % 255 - 127
+                    for block in range(0, feature_shape[1], 32):
+                        codes[:, block] = 127
+                        codes[:, block + 1] = -127
+                    features = codes.astype(np.float32) * np.float32(1 / 512)
+                else:
+                    features = np.random.default_rng(20261021).uniform(-.2, .2, feature_shape).astype(np.float32)
+                features.tofile(model.with_suffix(".features"))
+                command += ["--dflash" if CASES[arch].get("architecture", arch) == "dflash" else "--draft", str(model.with_suffix(".features"))]
+                extra["hidden_states"] = features
+            if CASES[arch].get("deepstack"):
+                reader = gguf.GGUFReader(model)
+                embedding = next(t.data for t in reader.tensors if t.name == "token_embd.weight")
+                count = CASES[arch]["deepstack"]
+                width = embedding.shape[1]
+                features = np.random.default_rng(20261019).uniform(-.2, .2, (6, count, width)).astype(np.float32)
+                packed = np.concatenate((embedding[[1, 2, 3, 4, 5, 6]][:, None, :], features), axis=1)
+                packed.tofile(model.with_suffix(".embeddings"))
+                command += ["--embeddings", str(model.with_suffix(".embeddings"))]
+                extra["deepstack"] = features
+            result = subprocess.run(command, capture_output=True)
             if result.returncode:
                 raise RuntimeError(f"{arch}: oracle failed\n{result.stderr.decode()}")
             if CASES[arch].get("embedding_output"):
@@ -539,8 +682,13 @@ def main():
                 continue
             vocab = np.fromfile(reference, dtype="<i4", count=1)[0]
             logits = np.fromfile(reference, dtype="<f4", offset=4).reshape(3, vocab)
-            assert np.isfinite(logits).all() and np.linalg.norm(logits) > 0
-            save_npz(args.out_dir / f"{arch}.npz", {"model": np.fromfile(model, dtype=np.uint8), "logits": logits})
+            if CASES[arch].get("d2t"):
+                extra["d2t"] = np.arange(0, vocab, 2, dtype=np.int64)
+                if CASES[arch].get("architecture", arch) != "dflash":
+                    logits = logits[:, extra["d2t"]]
+            finite = logits[np.isfinite(logits)]
+            assert not np.isnan(logits).any() and np.linalg.norm(finite) > 0
+            save_npz(args.out_dir / f"{arch}.npz", {"model": np.fromfile(model, dtype=np.uint8), "logits": logits, **extra})
             print(f"{arch}: {model.stat().st_size} bytes, reference logits {logits.shape}", flush=True)
 
 

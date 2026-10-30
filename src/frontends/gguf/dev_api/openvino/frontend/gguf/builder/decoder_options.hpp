@@ -57,6 +57,7 @@ struct GGUF_FRONTEND_API DecoderScales {
     bool token_embeddings_only = false;
     float attention = 0.0f;
     float attention_temperature = 0.0f;
+    float attention_value = 0.0f;
     float attention_soft_cap = 0.0f;
     float logits_soft_cap = 0.0f;
 };
@@ -121,6 +122,13 @@ struct GGUF_FRONTEND_API DecoderLayerOverrides {
     std::optional<bool> experts;
 };
 
+struct GGUF_FRONTEND_API DecoderDraft {
+    bool norm_before_fc = false;
+    bool norm_before_residual = false;
+    std::vector<int32_t> target_layers;
+    int mask_token_id = 0;
+};
+
 struct GGUF_FRONTEND_API DecoderParameters {
     std::string architecture;
     DecoderShape dimensions;
@@ -129,6 +137,9 @@ struct GGUF_FRONTEND_API DecoderParameters {
     DecoderAttention attention;
     DecoderExperts experts;
     DecoderHybrid hybrid;
+    DecoderDraft draft;
+    bool parallel_ffn = false;
+    int deepstack_layers = 0;
     FfnActivation activation = FfnActivation::SwiGlu;
     bool embedding_model = false;
     int pooling_type = 0;

@@ -78,7 +78,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
 
     auto B_shape = context.get_input_shape(0);
     auto A_shape = context.get_input_shape(1);
-    if (A_shape[1].is_dynamic() || B_shape[1].is_dynamic()) {
+    if (B_shape.rank() == 2 || A_shape[1].is_dynamic() || B_shape[1].is_dynamic()) {
         // Variable encoder grids use equal or singleton batch axes. MatMul validates
         // their broadcast compatibility at runtime; do not freeze a grid dimension.
         res = std::make_shared<ov::op::v0::MatMul>(A, B, false, transpose_b);

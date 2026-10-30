@@ -12,6 +12,7 @@
 #include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
 #include "gtest/gtest.h"
+#include "model_contract.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
@@ -79,6 +80,40 @@ ArchitectureDefinition handler(const std::string& id, ArchitectureDefinition::Ma
             std::move(match)};
 }
 }  // namespace
+
+TEST(GGUFBuilderAPI, ArchitectureExtensionOverridesPersistedGenAIContract) {
+    Environment env;
+    env.architecture("eagle3");
+    struct ContractBuilder : ModelBuilder {
+        GgufGraphContext graph;
+        explicit ContractBuilder(const BuildContext& context) : graph(context) {}
+        std::shared_ptr<GgufGraph> build() override {
+            auto input = graph.add_input("opaque_input", ov::element::f32, {1, 1, 2, 3});
+            graph.set_output(input, "opaque_features");
+            ModelContract contract;
+            contract.genai.emplace();
+            contract.genai->enabled = false;
+            contract.genai->position_layout = ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
+            contract.genai->auxiliary_outputs = {{"opaque_features", "features", 1}};
+            graph.configure_model_contract(contract);
+            return graph.finish();
+        }
+    };
+    ArchitectureDefinition replacement{"eagle3", "eagle3", [](const BuildContext& context) {
+                                           return std::make_shared<ContractBuilder>(context);
+                                       }};
+    ArchRegistry registry;
+    registry.add_extension(std::make_shared<ArchitectureExtension>(replacement, RegistrationMode::Replace));
+    const auto selected = registry.find(env.context.metadata);
+    ASSERT_TRUE(selected);
+    const auto model = convert(selected->factory(env.context)->build());
+    const auto contract = read_model_contract(model);
+    ASSERT_TRUE(contract.genai);
+    EXPECT_FALSE(contract.genai->enabled);
+    EXPECT_EQ(contract.genai->position_layout, ModelContract::GenAIContract::PositionLayout::THREE_AXIS);
+    ASSERT_EQ(contract.genai->auxiliary_outputs.size(), 1);
+    EXPECT_EQ(contract.genai->auxiliary_outputs[0].source_tensor, model->output().get_any_name());
+}
 
 TEST(GGUFBuilderAPI, MetadataReadsReuseNumericConversionAcrossWidths) {
     Environment env;
@@ -306,6 +341,153 @@ TEST(GGUFBuilderAPI, RejectsInvalidRopeScalingFactors) {
         env.real("test.rope.scaling.factor", factor);
         EXPECT_THROW(env.parameters(), ov::Exception);
     }
+}
+
+TEST(GGUFBuilderAPI, RetainedFamilyDefaultsAndTypedOverrides) {
+    Environment cohere;
+    cohere.decoder();
+    cohere.real("test.attention.layer_norm_epsilon", 1e-5f);
+    cohere.integer("test.attention.sliding_window", 128);
+    cohere.architecture("cohere2");
+    auto parameters = cohere.parameters();
+    DecoderConfig config(parameters, cohere.weights);
+    EXPECT_TRUE(config.layer_norm);
+    EXPECT_TRUE(config.parallel_ffn);
+    EXPECT_TRUE(config.rope_on_swa_only);
+    EXPECT_EQ(config.swa_layer_pattern, 4);
+    parameters.parallel_ffn = false;
+    EXPECT_FALSE(DecoderConfig(parameters, cohere.weights).parallel_ffn);
+
+    Environment gemma;
+    gemma.decoder();
+    gemma.integer("test.block_count", 30);
+    gemma.integer("test.attention.sliding_window", 128);
+    gemma.real("test.rope.scaling.factor", 4.f);
+    gemma.architecture("gemma3n");
+    parameters = gemma.parameters();
+    DecoderConfig gemma_config(parameters, gemma.weights);
+    EXPECT_FLOAT_EQ(parameters.scales.attention, 1.0f);
+    EXPECT_FLOAT_EQ(gemma_config.layer_kq_scale(0), 1.0f);
+    EXPECT_TRUE(gemma_config.is_geglu);
+    EXPECT_TRUE(gemma_config.has_v_norm);
+    EXPECT_TRUE(gemma_config.embedding_scale_tokens_only);
+    EXPECT_EQ(gemma_config.n_embd_per_layer, 256);
+    EXPECT_EQ(gemma_config.shared_kv_layers, 10);
+    EXPECT_EQ(gemma_config.swa_layer_pattern, 5);
+    EXPECT_FLOAT_EQ(gemma_config.final_logit_soft_cap, 30.f);
+    EXPECT_FLOAT_EQ(gemma_config.layer_rope_config(0).freq_scale, 0.25f);
+    parameters.dimensions.per_layer_embedding = 128;
+    parameters.dimensions.shared_kv_layers = 0;
+    parameters.normalization.value_norm = false;
+    parameters.scales.attention = 0.25f;
+    DecoderConfig overridden(parameters, gemma.weights);
+    EXPECT_EQ(overridden.n_embd_per_layer, 128);
+    EXPECT_EQ(overridden.shared_kv_layers, 0);
+    EXPECT_FALSE(overridden.has_v_norm);
+    EXPECT_FLOAT_EQ(overridden.layer_kq_scale(0), 0.25f);
+}
+
+TEST(GGUFBuilderAPI, DraftFeaturesAndDeepStackUseTypedMetadata) {
+    Environment env;
+    env.decoder();
+    env.architecture("eagle3");
+    env.metadata["eagle3.target_layers"] = std::vector<int32_t>{0, 1, 2};
+    env.integer("eagle3.norm_before_fc", 1);
+    env.integer("eagle3.norm_before_residual", 1);
+    auto parameters = env.parameters();
+    EXPECT_EQ(parameters.draft.target_layers, (std::vector<int32_t>{0, 1, 2}));
+    EXPECT_TRUE(parameters.draft.norm_before_fc);
+    EXPECT_TRUE(parameters.draft.norm_before_residual);
+    parameters.draft.norm_before_fc = false;
+    EXPECT_FALSE(DecoderConfig(parameters, env.weights).draft_norm_before_fc);
+    env.metadata["eagle3.norm_before_fc"] = 0.5f;
+    EXPECT_THROW(env.parameters(), ov::Exception);
+
+    Environment visual;
+    visual.decoder();
+    visual.architecture("qwen3vl");
+    visual.integer("qwen3vl.n_deepstack_layers", 1);
+    DecoderConfig config(visual.parameters(RopeMode::Interleaved), visual.weights);
+    EXPECT_EQ(config.deepstack_layers, 1);
+    visual.integer("qwen3vl.n_deepstack_layers", std::numeric_limits<int>::max());
+    EXPECT_THROW(DecoderConfig(visual.parameters(RopeMode::Interleaved), visual.weights), ov::Exception);
+    visual.integer("qwen3vl.n_deepstack_layers", std::numeric_limits<uint32_t>::max());
+    EXPECT_THROW(visual.parameters(), ov::Exception);
+}
+
+TEST(GGUFBuilderAPI, ExpertProbeDoesNotOverflowAtMaximumDenseLead) {
+    Environment env;
+    env.decoder();
+    auto parameters = env.parameters();
+    parameters.experts.dense_lead = std::numeric_limits<int>::max();
+    parameters.experts.layer_step = 1;
+    EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+    parameters.experts.layer_step = std::numeric_limits<int>::max();
+    EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+}
+
+TEST(GGUFBuilderAPI, RejectsUnsupportedDFlashAuxiliaryTensors) {
+    for (const auto* name : {"markov_w1.weight",
+                             "conf_proj.weight",
+                             "selector_hidden.weight",
+                             "lilicorr.token_proj.weight",
+                             "blk.0.attn_conv_proj.weight",
+                             "blk.0.ffn_conv_base.weight"}) {
+        SCOPED_TRACE(name);
+        Environment env;
+        env.decoder();
+        env.architecture("dflash");
+        env.weights[name] = ov::Tensor(ov::element::f32, {1});
+        try {
+            (void)DecoderConfig(env.parameters(), env.weights);
+            FAIL() << "Expected unsupported DFlash auxiliary tensor";
+        } catch (const ov::Exception& error) {
+            EXPECT_NE(std::string(error.what()).find("unsupported DFlash auxiliary tensor"), std::string::npos);
+            EXPECT_NE(std::string(error.what()).find(name), std::string::npos);
+        }
+        auto parameters = env.parameters();
+        parameters.architecture = "dspark";
+        EXPECT_NO_THROW(DecoderConfig(parameters, env.weights));
+    }
+}
+
+TEST(GGUFBuilderAPI, RejectsUnsupportedDFlashAuxiliaryMetadata) {
+    for (const auto* name : {"dflash.conv_kernel_size",
+                             "dflash.conv_group_size",
+                             "dflash.selector_rank",
+                             "dflash.selector_top_k",
+                             "lilicorr.hidden_size",
+                             "dflash.markov_rank"}) {
+        SCOPED_TRACE(name);
+        Environment env;
+        env.decoder();
+        env.architecture("dflash");
+        env.integer(name, 1);
+        try {
+            (void)env.parameters();
+            FAIL() << "Expected unsupported DFlash auxiliary metadata";
+        } catch (const ov::Exception& error) {
+            EXPECT_NE(std::string(error.what()).find("unsupported DFlash auxiliary metadata"), std::string::npos);
+            EXPECT_NE(std::string(error.what()).find(name), std::string::npos);
+        }
+    }
+}
+
+TEST(GGUFBuilderAPI, BaseDFlashMetadataDoesNotSelectAuxiliaryVariants) {
+    Environment env;
+    env.decoder();
+    env.architecture("dflash");
+    env.integer("dflash.block_size", 16);
+    env.integer("dflash.sample_from_anchor", 1);
+    for (const auto* name :
+         {"dflash.conv_kernel_size", "dflash.conv_group_size", "dflash.selector_rank", "dflash.selector_top_k"})
+        env.integer(name, 0);
+    env.metadata["dflash.target_layers"] = std::vector<int32_t>{2, 7, 12};
+    env.real("dflash.attention.value_scale", 0.5f);
+    const auto parameters = env.parameters(RopeMode::Neox);
+    EXPECT_FALSE(parameters.causal_attention);
+    EXPECT_EQ(parameters.draft.target_layers, (std::vector<int32_t>{2, 7, 12}));
+    EXPECT_FLOAT_EQ(DecoderConfig(parameters, env.weights).attention_value_scale, 0.5f);
 }
 
 TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
@@ -977,8 +1159,15 @@ TEST(GGUFBuilderAPI, ExpertNormalizationMetadataOverridesBuilderDefaults) {
 }
 
 TEST(GGUFBuilderAPI, BuiltinExpertNormalizationPreservesLlamaPolicyAndOptions) {
-    for (const auto* architecture :
-         {"hunyuan-moe", "minimax-m2", "qwen3moe", "qwen35moe", "ernie4_5-moe", "mellum", "gemma4"}) {
+    for (const auto* architecture : {"hunyuan-moe",
+                                     "minimax-m2",
+                                     "qwen3moe",
+                                     "qwen3next",
+                                     "qwen3vlmoe",
+                                     "qwen35moe",
+                                     "ernie4_5-moe",
+                                     "mellum",
+                                     "gemma4"}) {
         SCOPED_TRACE(architecture);
         Environment env;
         env.decoder();
@@ -1046,6 +1235,10 @@ TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogeth
     parameters.layers[1].rope = local_rope;
     parameters.model_contract.batchable_recurrent = true;
     parameters.model_contract.image_attention = ModelContract::ImageAttentionMode::SLIDING_ONLY;
+    parameters.model_contract.genai.emplace();
+    parameters.model_contract.genai->position_layout = ModelContract::GenAIContract::PositionLayout::THREE_AXIS;
+    parameters.model_contract.genai->causal_attention = false;
+    parameters.model_contract.genai->attention_context_input = "custom_context";
     DecoderConfig resolved(parameters, env.weights);
     EXPECT_TRUE(resolved.layer_norm);
     EXPECT_FLOAT_EQ(resolved.rms_eps, 3e-4f);
@@ -1076,6 +1269,10 @@ TEST(GGUFBuilderAPI, TypedCustomLayerNormScalesAndLayerSettingsAreResolvedTogeth
     EXPECT_EQ(built->swa_window_size, 17);
     EXPECT_TRUE(built->model_contract.batchable_recurrent);
     EXPECT_EQ(built->model_contract.image_attention, ModelContract::ImageAttentionMode::SLIDING_ONLY);
+    ASSERT_TRUE(built->model_contract.genai);
+    EXPECT_EQ(built->model_contract.genai->position_layout, ModelContract::GenAIContract::PositionLayout::THREE_AXIS);
+    EXPECT_FALSE(built->model_contract.genai->causal_attention);
+    EXPECT_EQ(built->model_contract.genai->attention_context_input, "custom_context");
 }
 
 TEST(GGUFBuilderAPI, TypedSettingsRejectPartialLayersAndIncompatiblePresentMetadata) {

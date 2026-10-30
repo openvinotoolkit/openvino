@@ -414,9 +414,8 @@ bool needs_q8_0_c_requant(const std::string& name, GgufTensorType qtype) {
            (is_embedding_or_output(name) || qtype == GGUF_TYPE_Q5_K);
 }
 
-// Keep an exact-decode escape hatch for strict validation against ggml's original Q4_K / Q4_1 values.
-// Production leaves this unset and uses the compressed-FC-friendly u4 requantization.
-bool q4_k_f16_zero_point_enabled() {
+// Keep fractional zero points for strict Q4_K / Q4_1 / Q5_K validation.
+bool fractional_zero_point_enabled() {
     // Read once: this sits on a per-tensor path (gguf_zero_point_type is consulted for every
     // asymmetric weight, twice per tensor during parsing).
     static const bool enabled = [] {
@@ -661,7 +660,7 @@ void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {
 }
 
 bool native_q5_k_is_symmetric(const std::string& name) {
-    return !is_embedding_or_output(name) && ov::util::ends_with(name, ".weight");
+    return !fractional_zero_point_enabled() && !is_embedding_or_output(name) && ov::util::ends_with(name, ".weight");
 }
 
 void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
@@ -718,18 +717,22 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
 }
 
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype) {
+    return gguf_zero_point_type(name, qtype, fractional_zero_point_enabled());
+}
+
+ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype, bool fractional_zero_point) {
     // The CPU compressed-FullyConnected fast path only folds the dequant when the zero-point is an
     // INTEGER constant; a fractional f16 one leaves a ~2x slower kernel, and the GPU oneDNN FC
     // rejects it. Q4_K and Q4_1 matmul weights are decoded and requantized to an OpenVINO u4 grid
     // and Q5_K ones to a u8 grid, all with an integer zero-point. Strict oracle validation can
-    // request the faithful f16 zero-point of both u4 formats via OV_GGUF_Q4_K_ZP_F16. Q2_0's zero-point is exactly
+    // request fractional f16 zero-points for these formats via OV_GGUF_Q4_K_ZP_F16. Q2_0's zero-point is exactly
     // 1, so u8 is faithful there. Other asymmetric formats keep f16 because their zero-point can
     // exceed u8 range. token_embd/output keep a faithful f16 zero-point.
     if (qtype == GGUF_TYPE_Q2_0) {
         return ov::element::u8;
     }
-    const bool requantized = qtype == GGUF_TYPE_Q5_K ||
-                             ((qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q4_1) && !q4_k_f16_zero_point_enabled());
+    const bool requantized =
+        (qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q4_1 || qtype == GGUF_TYPE_Q5_K) && !fractional_zero_point;
     return requantized && !is_embedding_or_output(name) ? ov::element::u8 : ov::element::f16;
 }
 

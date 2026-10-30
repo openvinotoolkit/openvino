@@ -24,8 +24,26 @@ namespace ov::frontend::gguf {
 struct ModelContract {
     enum class ImageAttentionMode { CAUSAL, GLOBAL_AND_SLIDING, SLIDING_ONLY };
 
+    struct GenAIContract {
+        enum class PositionLayout { THREE_AXIS, SEQUENCE_THREE_AXIS };
+        struct AuxiliaryOutput {
+            std::string source_tensor;
+            std::string name;
+            std::optional<int64_t> squeeze_axis;
+        };
+
+        bool enabled = true;
+        PositionLayout position_layout = PositionLayout::SEQUENCE_THREE_AXIS;
+        bool causal_attention = true;
+        std::string attention_context_input;
+        std::vector<AuxiliaryOutput> auxiliary_outputs;
+        std::vector<std::string> preserved_inputs;
+        bool logits_first = false;
+    };
+
     std::optional<bool> batchable_recurrent;
     ImageAttentionMode image_attention = ImageAttentionMode::CAUSAL;
+    std::optional<GenAIContract> genai;
 };
 
 // Typed RoPE configuration, replacing the raw gguf `op_params`/`rope_params` int32 array

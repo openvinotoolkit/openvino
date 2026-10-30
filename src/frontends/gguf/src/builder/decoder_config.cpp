@@ -36,7 +36,25 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
         return weights.count(name) > 0;
     };
     arch = p.architecture;
+    if (arch == "dflash") {
+        for (const auto& [name, tensor] : weights) {
+            const bool auxiliary = name.rfind("markov_", 0) == 0 || name.rfind("conf_proj.", 0) == 0 ||
+                                   name.rfind("selector_", 0) == 0 || name.rfind("lilicorr.", 0) == 0 ||
+                                   name.find(".attn_conv_") != std::string::npos ||
+                                   name.find(".ffn_conv_") != std::string::npos;
+            OPENVINO_ASSERT(!auxiliary,
+                            "[GGUF] unsupported DFlash auxiliary tensor '",
+                            name,
+                            "'; only the base DFlash architecture is supported");
+        }
+    }
     model_contract = p.model_contract;
+    parallel_ffn = p.parallel_ffn;
+    deepstack_layers = p.deepstack_layers;
+    draft_norm_before_fc = p.draft.norm_before_fc;
+    draft_norm_before_residual = p.draft.norm_before_residual;
+    draft_target_layers = p.draft.target_layers;
+    draft_mask_token_id = p.draft.mask_token_id;
     n_layer = p.dimensions.layers;
     n_embd = p.dimensions.embedding;
     const int query_heads = p.dimensions.query_heads;
@@ -53,6 +71,10 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
                     n_layer_nextn);
     const int stored_layers = n_layer;
     n_layer -= n_layer_nextn;
+    OPENVINO_ASSERT(deepstack_layers >= 0 && deepstack_layers < n_layer,
+                    "[GGUF] DeepStack layers must fit the decoder stack");
+    OPENVINO_ASSERT(n_embd_per_layer >= 0 && shared_kv_layers >= 0 && shared_kv_layers < n_layer,
+                    "[GGUF] invalid per-layer embedding or shared KV dimensions");
     const auto valid_layer_count = [&](size_t count) {
         return count == 0 || count == static_cast<size_t>(n_layer) || count == static_cast<size_t>(stored_layers);
     };
@@ -98,6 +120,7 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
     expert_weights_scale = p.experts.weights_scale;
     expert_weights_norm = p.experts.normalize_weights;
     embedding_scale = p.scales.embedding;
+    attention_value_scale = p.scales.attention_value;
     residual_scale = p.scales.residual;
     logit_scale = p.scales.logits;
     embedding_scale_tokens_only = p.scales.token_embeddings_only;
@@ -106,6 +129,7 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
     attn_soft_cap = p.scales.attention_soft_cap;
     final_logit_soft_cap = p.scales.logits_soft_cap;
     for (const auto value : {embedding_scale,
+                             attention_value_scale,
                              residual_scale,
                              logit_scale,
                              attention_scale,
@@ -149,7 +173,7 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
     has_sinks = p.attention.sinks.value_or(has("blk.0.attn_sinks.weight"));
     has_swa = has_swa || has_sinks;
     const bool periodic_swa = has_swa;
-    const int probe = (std::max(0, dense_lead) / moe_layer_step + 1) * moe_layer_step - 1;
+    const int64_t probe = (int64_t(std::max(0, dense_lead)) / moe_layer_step + 1) * moe_layer_step - 1;
     const auto expert_prefix = "blk." + std::to_string(probe) + ".";
     const bool is_moe = p.experts.enabled.value_or(has(expert_prefix + "ffn_gate_exps.weight") ||
                                                    has(expert_prefix + "ffn_gate_up_exps.weight"));

@@ -28,8 +28,10 @@ ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const 
 // zero-points for its host dequantizer, including Q2_0 embedding/output tensors.
 // Q4_K and Q4_1 matmul weights are faithfully decoded and requantized to u4 with an integer
 // zero-point, which keeps the compressed-FullyConnected path available on CPU and GPU. Native
-// Q5_K matmul weights use symmetric i8. token_embd/output keep an f16 zero-point.
+// Q5_K matmul weights use symmetric i8 by default. OV_GGUF_Q4_K_ZP_F16 selects fractional f16
+// zero-points for Q4_K, Q4_1 and Q5_K. token_embd/output keep an f16 zero-point.
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype);
+ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype, bool fractional_zero_point);
 
 bool native_q5_k_is_symmetric(const std::string& name);
 

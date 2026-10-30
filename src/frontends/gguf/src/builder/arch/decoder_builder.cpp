@@ -16,18 +16,34 @@
 #include "builder/arch/decoder_builder.hpp"
 
 #include <cmath>
+#include <limits>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/transpose.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -45,6 +61,26 @@ DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParamet
       m_emit(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
     m_cfg.configure_graph(m_emit, context.metadata);
+    auto& graph = *m_emit.graph();
+    if (m_cfg.arch == "eagle3" || m_cfg.arch == "dflash") {
+        const auto& captures = m_cfg.draft_target_layers;
+        OPENVINO_ASSERT(!captures.empty(), "[GGUF] draft target_layers must not be empty");
+        if (m_cfg.arch == "eagle3") {
+            OPENVINO_ASSERT(captures.size() == 3, "[GGUF] Eagle3 requires three target layers");
+            graph.model_rt_info["eagle3_mode"] = true;
+            graph.model_rt_info["hidden_layers_list"] = captures;
+        } else {
+            graph.model_rt_info["dflash_mode"] = true;
+            ov::AnyMap info;
+            std::string layers;
+            for (const auto layer : captures)
+                layers += (layers.empty() ? "" : ",") + std::to_string(layer - 1);
+            info["target_layer_ids"] = layers;
+            info["mask_token_id"] = std::to_string(m_cfg.draft_mask_token_id);
+            info["candidate_position_offset"] = "0";
+            graph.model_rt_info["dflash"] = info;
+        }
+    }
 }
 
 void DecoderBuilder::build_inputs() {
@@ -79,8 +115,17 @@ void DecoderBuilder::build_inputs() {
 }
 
 std::string DecoderBuilder::build_embeddings() {
-    // GET_ROWS(token_embd.weight, inp_tokens) -> "embd"
-    m_emit.add_weight("token_embd.weight");
+    if ((m_cfg.arch == "eagle3" || m_cfg.arch == "dflash") && !m_emit.has_weight("token_embd.weight")) {
+        auto weight = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{-1, m_cfg.n_embd});
+        weight->set_friendly_name("gguf.target_token_embedding");
+        weight->output(0).set_names({"gguf.target_token_embedding"});
+        m_emit.add_extra_input_node("token_embd.weight", weight);
+        if (auto& genai = m_emit.graph()->model_contract.genai)
+            genai->preserved_inputs.push_back("gguf.target_token_embedding");
+    } else {
+        // GET_ROWS(token_embd.weight, inp_tokens) -> "embd"
+        m_emit.add_weight("token_embd.weight");
+    }
     std::string cur = m_emit.add_op("GGML_OP_GET_ROWS", "embd", {"token_embd.weight", "inp_tokens"});
     // The tagged node ends the lookup that AdaptToGenAI moves into the embedding model.
     const auto mark_token_embedding = [&](const std::string& name) {
@@ -285,8 +330,10 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     auto ffn_inp = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa});
 
     // Pre-FFN/MoE norm. Key varies by arch (ffn_norm_key is resolved in DecoderConfig).
-    auto ffn_norm =
-        m_cfg.post_norm_only ? ffn_inp : norm(m_emit, ffn_inp, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
+    auto ffn_norm = m_cfg.parallel_ffn ? attn_norm
+                    : m_cfg.post_norm_only
+                        ? ffn_inp
+                        : norm(m_emit, ffn_inp, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
 
     // Hybrid MoE: lead layers (il < n_dense_lead) are always dense regardless of is_moe.
     const bool is_moe_layer = m_cfg.layer_is_moe(il);
@@ -322,6 +369,14 @@ std::string DecoderBuilder::build_head(const std::string& in) {
     // final norm + lm_head
     const auto norm = m_cfg.layer_norm ? blocks::layer_norm : blocks::rms_norm;
     std::string cur = norm(m_emit, in, "output_norm.weight", "result_norm", m_cfg.rms_eps);
+    if (m_cfg.arch == "qwen3tts") {
+        const auto hidden = "qwen3tts.hidden_states";
+        m_emit.add_op("GGML_OP_SCALE", hidden, {cur}, 0, {{"scale", 1.f}, {"bias", 0.f}});
+        ov::Output<ov::Node>(m_emit.value(hidden)).set_names({hidden});
+        m_emit.graph()->model_output_names.push_back(hidden);
+        if (auto& genai = m_emit.graph()->model_contract.genai)
+            genai->auxiliary_outputs.push_back({hidden, "last_hidden_state", 1});
+    }
     if (m_cfg.embedding_model) {
         using namespace ov::op;
         auto embeddings = m_emit.value(cur);
@@ -345,24 +400,62 @@ std::string DecoderBuilder::build_head(const std::string& in) {
         return "embeddings";
     }
 
-    const std::string lm_head_w = m_emit.has_weight("output.weight") ? "output.weight" : "token_embd.weight";
-    m_emit.add_weight(lm_head_w);
+    const bool draft = m_cfg.arch == "eagle3" || m_cfg.arch == "dflash";
+    const std::string lm_head_w = m_emit.has_weight("output.weight") || draft ? "output.weight" : "token_embd.weight";
+    if (draft && !m_emit.has_weight(lm_head_w)) {
+        auto weight = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{-1, m_cfg.n_embd});
+        weight->set_friendly_name("gguf.target_lm_head");
+        weight->output(0).set_names({"gguf.target_lm_head"});
+        m_emit.add_extra_input_node(lm_head_w, weight);
+        if (auto& genai = m_emit.graph()->model_contract.genai)
+            genai->preserved_inputs.push_back("gguf.target_lm_head");
+    } else {
+        m_emit.add_weight(lm_head_w);
+    }
     auto logits = m_emit.add_op("GGML_OP_MUL_MAT", "result_output", {lm_head_w, cur});
     // MiniCPM scales the logits (1/(n_embd/dim_model_base)).
-    if (m_cfg.logit_scale != 1.0f) {
+    const bool transform_logits = m_cfg.arch != "dflash";
+    if (transform_logits && m_cfg.logit_scale != 1.0f) {
         logits = blocks::scale(m_emit, logits, m_cfg.logit_scale, "result_output_scaled");
     }
     // Gemma2/Gemma3 final logit soft-cap: tanh(logits / cap) * cap.
-    if (m_cfg.final_logit_soft_cap != 0.0f) {
+    if (transform_logits && m_cfg.final_logit_soft_cap != 0.0f) {
         logits = blocks::scale(m_emit, logits, 1.0f / m_cfg.final_logit_soft_cap, "logits_softcap_scaled");
         logits = m_emit.add_op("GGML_UNARY_OP_TANH", "logits_softcap_tanh", {logits});
         logits = blocks::scale(m_emit, logits, m_cfg.final_logit_soft_cap, "result_output_softcapped");
+    }
+    if (m_cfg.arch == "dflash" && m_emit.has_weight("d2t")) {
+        using namespace ov::op;
+        const auto& mapping = m_emit.weights().at("d2t");
+        OPENVINO_ASSERT(mapping.get_element_type() == i64 && mapping.get_shape().size() == 1,
+                        "[GGUF] DFlash d2t must be a rank-one i64 tensor");
+        auto shape = std::make_shared<v3::ShapeOf>(m_emit.value(logits));
+        auto leading = std::make_shared<v8::Slice>(shape,
+                                                   v0::Constant::create(i64, {1}, {0}),
+                                                   v0::Constant::create(i64, {1}, {3}),
+                                                   v0::Constant::create(i64, {1}, {1}));
+        auto vocab = std::make_shared<v8::Gather>(std::make_shared<v3::ShapeOf>(m_emit.value("token_embd.weight")),
+                                                  v0::Constant::create(i64, {1}, {0}),
+                                                  v0::Constant::create(i64, {}, {0}));
+        auto target =
+            std::make_shared<v3::Broadcast>(v0::Constant::create(f32, {}, {-std::numeric_limits<float>::infinity()}),
+                                            std::make_shared<v0::Concat>(ov::OutputVector{leading, vocab}, 0));
+        auto scattered = std::make_shared<v3::ScatterUpdate>(target,
+                                                             std::make_shared<v0::Constant>(mapping),
+                                                             m_emit.value(logits),
+                                                             v0::Constant::create(i64, {}, {3}));
+        m_emit.add_extra_input_node("result_output_mapped", scattered);
+        logits = "result_output_mapped";
     }
     return logits;
 }
 
 std::shared_ptr<GgufGraph> DecoderBuilder::build() {
     build_inputs();
+    if (m_cfg.deepstack_layers > 0) {
+        OPENVINO_ASSERT(m_cfg.deepstack_layers < m_cfg.n_layer, "[GGUF] DeepStack layers exceed the decoder stack");
+        m_emit.add_input("deepstack_embeds", f32, ps({D, m_cfg.deepstack_layers, D, m_cfg.n_embd}));
+    }
 
     std::string cur = build_embeddings();
 
@@ -379,9 +472,24 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
         build_per_layer_embeddings(cur);
     }
 
-    for (int il = 0; il < m_cfg.n_layer; ++il) {
-        cur = build_layer(il, cur);
-    }
+    if (m_cfg.arch == "gemma3n") {
+        cur = build_gemma3n(cur);
+    } else if (m_cfg.arch == "eagle3") {
+        cur = build_eagle3(cur);
+    } else if (m_cfg.arch == "dflash") {
+        cur = build_dflash(cur);
+    } else
+        for (int il = 0; il < m_cfg.n_layer; ++il) {
+            cur = build_layer(il, cur);
+            if (il < m_cfg.deepstack_layers) {
+                auto visual = m_emit.add_op("GGML_OP_VIEW",
+                                            "blk." + std::to_string(il) + ".deepstack_slice",
+                                            {"deepstack_embeds"},
+                                            3,
+                                            {{"view_slice", std::vector<int64_t>{1, il, 1}}});
+                cur = m_emit.add_op("GGML_OP_ADD", "blk." + std::to_string(il) + ".deepstack_out", {cur, visual});
+            }
+        }
 
     const std::string logits = build_head(cur);
     m_emit.validate_hadamard();
@@ -390,7 +498,235 @@ std::shared_ptr<GgufGraph> DecoderBuilder::build() {
     // become Assign sinks via MakeStateful.
     auto graph = m_emit.graph();
     graph->model_output_names.insert(graph->model_output_names.begin(), logits);
+    if (m_cfg.arch == "eagle3" && m_emit.has_weight("d2t")) {
+        const auto& mapping = m_emit.weights().at("d2t");
+        OPENVINO_ASSERT(mapping.get_element_type() == i64, "[GGUF] Eagle3 d2t must be i64");
+        auto constant = std::make_shared<ov::op::v0::Constant>(mapping);
+        constant->set_friendly_name("d2t");
+        m_emit.add_extra_input_node("d2t", constant);
+        constant->output(0).set_names({"d2t"});
+        graph->model_output_names.push_back("d2t");
+        if (auto& genai = graph->model_contract.genai)
+            genai->auxiliary_outputs.push_back({"d2t", "d2t", std::nullopt});
+    }
     return graph;
+}
+
+std::string DecoderBuilder::build_dflash(const std::string& embeddings) {
+    m_emit.add_weight("fc.weight");
+    const auto width = m_emit.value("fc.weight").get_partial_shape().rbegin()->get_length();
+    m_emit.add_input("hidden_states", f32, {1, 1, -1, width});
+    auto context = m_emit.add_op("GGML_OP_MUL_MAT", "dflash.fc", {"fc.weight", "hidden_states"});
+    if (m_emit.has_weight("fc.scale")) {
+        m_emit.add_named_weight("fc.scale");
+        context = m_emit.add_op("GGML_OP_MUL", "dflash.fc_scaled", {context, "fc.scale"});
+    }
+    context = blocks::rms_norm(m_emit, context, "enc.output_norm.weight", "dflash.encoder_norm", m_cfg.rms_eps);
+    std::string current = embeddings;
+    const auto dynamic_slice = [&](const std::string& value, const std::string& name, bool keep_noise) {
+        using namespace ov::op;
+        auto context_shape = std::make_shared<v3::ShapeOf>(m_emit.value(context));
+        auto noise_shape = std::make_shared<v3::ShapeOf>(m_emit.value(embeddings));
+        auto axis = v0::Constant::create(i64, {1}, {2});
+        auto scalar_axis = v0::Constant::create(i64, {}, {0});
+        auto n_context = std::make_shared<v8::Gather>(context_shape, axis, scalar_axis);
+        auto n_noise = std::make_shared<v8::Gather>(noise_shape, axis, scalar_axis);
+        ov::Output<ov::Node> begin = keep_noise ? n_context->output(0) : v0::Constant::create(i64, {1}, {0});
+        ov::Output<ov::Node> end =
+            keep_noise ? std::make_shared<v1::Add>(n_context, n_noise)->output(0) : n_context->output(0);
+        auto sliced =
+            std::make_shared<v8::Slice>(m_emit.value(value), begin, end, v0::Constant::create(i64, {1}, {1}), axis);
+        m_emit.add_extra_input_node(name, sliced);
+        return name;
+    };
+    for (int layer = 0; layer < m_cfg.n_layer; ++layer) {
+        const auto p = "blk." + std::to_string(layer) + ".";
+        auto normalized = blocks::rms_norm(m_emit, current, p + "attn_norm.weight", p + "noise_norm", m_cfg.rms_eps);
+        auto joined = m_emit.add_op("GGML_OP_CONCAT", p + "context", {context, normalized}, 0, {{"concat_axis", 1}});
+        auto attended = blocks::attention(m_emit, m_cfg, m_kv, layer, joined);
+        attended = dynamic_slice(attended, p + "noise_attention", true);
+        if (m_cfg.attention_value_scale != 0.f)
+            attended = blocks::scale(m_emit, attended, m_cfg.attention_value_scale, p + "attention_scaled");
+        if (m_cfg.has_attn_post_norm)
+            attended = blocks::rms_norm(m_emit,
+                                        attended,
+                                        p + m_cfg.attn_post_norm_key,
+                                        p + "post_attention_norm",
+                                        m_cfg.rms_eps);
+        current = m_emit.add_op("GGML_OP_ADD", p + "attn_residual", {current, attended});
+        normalized = blocks::rms_norm(m_emit, current, p + "ffn_norm.weight", p + "ffn_norm", m_cfg.rms_eps);
+        auto ffn = m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, normalized)
+                                  : blocks::dense_ffn(m_emit, m_cfg, p, normalized);
+        if (m_cfg.has_ffn_post_norm)
+            ffn = blocks::rms_norm(m_emit, ffn, p + m_cfg.ffn_post_norm_key, p + "post_ffw_norm", m_cfg.rms_eps);
+        current = m_emit.add_op("GGML_OP_ADD", p + "ffn_residual", {current, ffn});
+        if (m_emit.has_weight(p + "layer_output_scale.weight")) {
+            m_emit.add_weight(p + "layer_output_scale.weight");
+            current = m_emit.add_op("GGML_OP_MUL", p + "scaled_out", {current, p + "layer_output_scale.weight"});
+        }
+        for (const auto side : {"k", "v"}) {
+            const auto cache = "cache_" + std::string(side) + "_l" + std::to_string(layer);
+            m_emit.value(cache).get_node_shared_ptr()->get_rt_info()["gguf.draft_context"] =
+                m_emit.value(context).get_node_shared_ptr()->get_friendly_name();
+        }
+    }
+    return current;
+}
+
+std::string DecoderBuilder::build_eagle3(const std::string& embeddings) {
+    using namespace ov::op;
+    OPENVINO_ASSERT(m_cfg.n_layer == 1, "[GGUF] Eagle3 requires one decoder layer");
+    m_emit.add_weight("fc.weight");
+    const auto feature_width = m_emit.value("fc.weight").get_partial_shape().rbegin()->get_length();
+    m_emit.add_input("hidden_states", f32, {1, 1, -1, feature_width});
+    std::string hidden = "hidden_states";
+    if (m_cfg.draft_norm_before_fc)
+        hidden = blocks::rms_norm(m_emit, hidden, "enc.output_norm.weight", "eagle3.encoder_norm", m_cfg.rms_eps);
+    hidden = m_emit.add_op("GGML_OP_MUL_MAT", "eagle3.fc", {"fc.weight", hidden});
+    const std::string p = "blk.0.";
+    auto normalized_embedding =
+        blocks::rms_norm(m_emit, embeddings, p + "attn_norm.weight", p + "embedding_norm", m_cfg.rms_eps);
+    auto normalized_hidden =
+        blocks::rms_norm(m_emit, hidden, p + "attn_norm_2.weight", p + "hidden_norm", m_cfg.rms_eps);
+    auto joined = m_emit.add_op("GGML_OP_CONCAT",
+                                p + "joined",
+                                {normalized_embedding, normalized_hidden},
+                                0,
+                                {{"concat_axis", 0}});
+    auto attention = blocks::attention(m_emit, m_cfg, m_kv, 0, joined);
+    auto residual = m_cfg.draft_norm_before_residual ? normalized_hidden : hidden;
+    auto current = m_emit.add_op("GGML_OP_ADD", p + "attention_residual", {attention, residual});
+    auto normalized = blocks::rms_norm(m_emit, current, p + "ffn_norm.weight", p + "ffn_norm", m_cfg.rms_eps);
+    auto ffn = blocks::dense_ffn(m_emit, m_cfg, p, normalized);
+    current = m_emit.add_op("GGML_OP_ADD", "eagle3.prenorm", {current, ffn});
+    ov::Output<ov::Node>(m_emit.value(current)).set_names({current});
+    m_emit.graph()->model_output_names.push_back(current);
+    if (auto& genai = m_emit.graph()->model_contract.genai)
+        genai->auxiliary_outputs.push_back({current, "last_hidden_state", 1});
+    return current;
+}
+
+std::string DecoderBuilder::build_gemma3n(const std::string& embeddings) {
+    using namespace ov::op;
+    using Value = ov::Output<ov::Node>;
+    auto& e = m_emit;
+    const auto scalar = [](float value) {
+        return v0::Constant::create(f32, {}, {value});
+    };
+    const auto axis = [](int64_t value) {
+        return v0::Constant::create(i64, {1}, {value});
+    };
+    const auto reshape = [](const Value& x, const std::vector<int64_t>& shape) -> Value {
+        return std::make_shared<v1::Reshape>(x, v0::Constant::create(i64, {shape.size()}, shape), true);
+    };
+    const auto transpose = [](const Value& x, const std::vector<int64_t>& order) -> Value {
+        return std::make_shared<v1::Transpose>(x, v0::Constant::create(i64, {order.size()}, order));
+    };
+    const auto publish = [&](const Value& x, const std::string& name) {
+        x.get_node_shared_ptr()->set_friendly_name(name);
+        e.add_extra_input_node(name, x.get_node_shared_ptr());
+        return name;
+    };
+    const auto weight = [&](const std::string& name) -> Value {
+        e.add_weight(name);
+        return e.value(name);
+    };
+    const auto linear = [&](const Value& x, const std::string& name) -> Value {
+        return std::make_shared<v0::MatMul>(x, weight(name + ".weight"), false, true);
+    };
+    const auto norm = [&](const Value& x, const std::string& name) -> Value {
+        return e.value(blocks::rms_norm(e, publish(x, name + ".input"), name + ".weight", name, m_cfg.rms_eps));
+    };
+    const auto magnitude = [&](const Value& x) -> Value {
+        return std::make_shared<v0::Sqrt>(
+            std::make_shared<v1::ReduceSum>(std::make_shared<v1::Multiply>(x, x), axis(3), true));
+    };
+    const auto rescale = [&](const Value& x, const Value& target) -> Value {
+        return std::make_shared<v1::Divide>(std::make_shared<v1::Multiply>(x, target), magnitude(x));
+    };
+    const auto select = [&](const Value& x, int64_t index) -> Value {
+        return std::make_shared<v8::Gather>(x, axis(index), v0::Constant::create(i64, {}, {1}));
+    };
+    const auto router = [&](const Value& x, const std::string& p) -> Value {
+        auto normalized = norm(x, p + "altup_router_norm");
+        return std::make_shared<v0::Tanh>(
+            linear(std::make_shared<v1::Multiply>(normalized, scalar(1.f / m_cfg.n_embd)), p + "altup_router"));
+    };
+    constexpr int64_t streams = 4;
+    auto input = e.value(embeddings);
+    auto added = linear(input, "altup_proj");
+    added = rescale(added, magnitude(input));
+    Value current = std::make_shared<v0::Concat>(ov::OutputVector{input, added}, 1);
+    publish(current, "inp_stacked");
+    for (int il = 0; il < m_cfg.n_layer; ++il) {
+        const auto p = "blk." + std::to_string(il) + ".";
+        auto coefficients =
+            reshape(linear(router(select(current, 0), p), p + "altup_predict_coef"), {0, -1, streams, streams});
+        auto token_major = transpose(current, {0, 2, 1, 3});
+        auto prediction = std::make_shared<v0::MatMul>(coefficients, token_major);
+        Value predictions = std::make_shared<v1::Add>(current, transpose(prediction, {0, 2, 1, 3}));
+        publish(predictions, p + "predictions");
+        auto active = select(predictions, 0);
+        auto normalized = norm(active, p + "attn_norm");
+        auto laurel = norm(linear(linear(normalized, p + "laurel_l"), p + "laurel_r"), p + "laurel_post_norm");
+        laurel = std::make_shared<v1::Add>(laurel, normalized);
+        auto attention = blocks::attention(e, m_cfg, m_kv, il, publish(normalized, p + "normalized"));
+        auto attended = norm(e.value(attention), p + "post_attention_norm");
+        attended = std::make_shared<v1::Add>(attended, active);
+        Value combined =
+            std::make_shared<v1::Multiply>(std::make_shared<v1::Add>(attended, laurel), scalar(1.f / std::sqrt(2.f)));
+        publish(combined, p + "attn_laurel");
+        auto ffn_input = norm(combined, p + "ffn_norm");
+        auto gate = linear(ffn_input, p + "ffn_gate");
+        if (il < 10) {
+            auto mean = std::make_shared<v1::ReduceMean>(gate, axis(3), true);
+            auto delta = std::make_shared<v1::Subtract>(gate, mean);
+            auto variance =
+                std::make_shared<v1::ReduceSum>(std::make_shared<v1::Multiply>(delta, delta), axis(3), true);
+            const auto width = e.weight_rows(p + "ffn_gate.weight");
+            auto deviation =
+                std::make_shared<v0::Sqrt>(std::make_shared<v1::Multiply>(variance, scalar(1.f / (width - 1))));
+            gate = std::make_shared<v0::Relu>(std::make_shared<v1::Subtract>(
+                gate,
+                std::make_shared<v1::Add>(mean,
+                                          std::make_shared<v1::Multiply>(deviation, scalar(1.6448533535003662f)))));
+        }
+        publish(gate, p + "sparse_gate");
+        auto activated_gate = std::make_shared<v7::Gelu>(gate, GeluApproximationMode::TANH);
+        auto ffn =
+            linear(std::make_shared<v1::Multiply>(activated_gate, linear(ffn_input, p + "ffn_up")), p + "ffn_down");
+        auto output = std::make_shared<v1::Add>(norm(ffn, p + "post_ffw_norm"), combined);
+        publish(output, p + "attn_ffw_laurel_gated");
+        auto innovation = std::make_shared<v1::Subtract>(output, active);
+        auto correction = linear(router(output, p), p + "altup_correct_coef");
+        correction = std::make_shared<v1::Add>(correction, scalar(1.f));
+        correction = transpose(correction, {0, 3, 2, 1});
+        Value corrected =
+            std::make_shared<v1::Add>(predictions, std::make_shared<v1::Multiply>(innovation, correction));
+        publish(corrected, p + "corrected");
+        auto corrected_active =
+            std::make_shared<v1::Multiply>(select(corrected, 0), weight(p + "altup_correct_scale.weight"));
+        auto injection = linear(corrected_active, p + "inp_gate");
+        publish(injection, p + "input_projection");
+        injection = std::make_shared<v7::Gelu>(injection, GeluApproximationMode::TANH);
+        auto per_layer = select(e.value("per_layer_embd"), il);
+        injection = norm(linear(std::make_shared<v1::Multiply>(injection, per_layer), p + "proj"), p + "post_norm");
+        auto rest = std::make_shared<v8::Gather>(corrected,
+                                                 v0::Constant::create(i64, {3}, {1, 2, 3}),
+                                                 v0::Constant::create(i64, {}, {1}));
+        current = std::make_shared<v0::Concat>(
+            ov::OutputVector{select(corrected, 0), std::make_shared<v1::Add>(rest, injection)},
+            1);
+        publish(current, p + "l_out");
+    }
+    auto active = select(current, 0);
+    auto rest = std::make_shared<v8::Gather>(current,
+                                             v0::Constant::create(i64, {3}, {1, 2, 3}),
+                                             v0::Constant::create(i64, {}, {1}));
+    auto projected = rescale(linear(rest, "altup_unembd_proj"), magnitude(active));
+    auto summed = std::make_shared<v1::ReduceSum>(projected, axis(1), true);
+    return publish(std::make_shared<v1::Multiply>(std::make_shared<v1::Add>(active, summed), scalar(.25f)),
+                   "gemma3n.output");
 }
 
 }  // namespace ov::frontend::gguf

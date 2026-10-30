@@ -24,6 +24,12 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | Architecture | Notes | Real checkpoint | Choices |
 |---|---|---|---|
 | `afmoe` | Dense lead, routed/shared experts, sigmoid gating, pre/post norms, three sliding layers then one global NoPE layer; F32 oracle fixture | — | |
+
+| `cohere2` | Parallel LayerNorm attention/FFN; RoPE on local layers | c4ai-command-r7b-12-2024 Q4_0 | 13/13 |
+| `qwen3vl` | Interleaved multimodal RoPE and DeepStack inputs | Qwen3-VL-2B Q4_0 | 13/13 |
+| `gemma3n` | AltUp, Laurel, sparse FFN, per-layer embeddings and shared KV | Gemma3n E2B Q4_0 | 13/13 |
+| `eagle3` | Target feature fusion, optional pre-FC/residual norms and vocabulary mapping | — | |
+| `dflash` | Context-only cache commits, noncausal noise block, optional post-norms/scales and shared V | — | |
 | `bailingmoe2` | Sigmoid routing, biased/grouped selection, shared experts | Ling-mini-2.0 Q2_K | 12/13 |
 | `deepseek2-ocr` | Language backbone: dense lead layers, shared/routed experts | DeepSeek-OCR-2 Q4_K_M | 13/13 |
 | `ernie4_5-moe` | Interleaved MoE, biased selection, normalized weights, shared experts | ERNIE-4.5-21B-A3B-PT Q4_K_M | 12/13 |
@@ -178,3 +184,121 @@ endpoints to 1000 and 0, independent of the bounds. Both bounds must still be pr
 finite and strictly ordered, as required by the model's conditioning metadata.
 Hidden-correction checkpoints and generic GenAI decoder adaptation are not supported.
 Draft blocks up to 4096 tokens are supported.
+
+## 2026 family validation
+
+Native checkpoint validation covers Cohere2, dense Qwen3VL, Gemma3n, EAGLE3 and the limited Qwen-backed DFlash path.
+The independent small F32 fixtures use llama.cpp CPU revision
+`098ce526b546b5a190327c1da82929cee051b9ac` and compare full logits through prefill,
+cached decode and cache append. Gemma3n's fixture uses a scoped `2e-5` NMSE limit
+and requires matching greedy predictions at every step; its final-step NMSE is
+`1.65684e-5`. Other decoder fixtures retain `1e-5`. Gemma3n uses standard SDPA and
+GenAI PagedAttention with the existing plugins. Its SDPA/PA full-logit regression
+checks retain `1e-5`; Cohere2 also checks prefill, decode and multi-token append.
+
+Original Cohere2 Q4_0, Qwen3-VL-2B Q4_0 and Gemma3n E2B Q4_0 each match all
+13 checked greedy predictions. This meets the real-checkpoint gate: the first prediction
+must match and at least 90% of the 13 choices must agree. Full-logit NMSE is recorded
+separately; Gemma3n's maximum is `0.001477`, which does not use the synthetic-fixture
+NMSE gate. Cohere2's repeated GenAI SDPA and PA outputs now agree. The original combined
+Gemma3n projector passes the vision feature gate and repeated PA image generation;
+its audio branch is unsupported, as described in [mmproj.md](mmproj.md#added-2026-projector-paths).
+
+A real Llama-Nemotron-Embed-1B-v2 F16 checkpoint at revision
+`effc8deb9688852dbf4ba458301999f7133f8eed` passes per-token embedding comparison
+against the same pinned CPU oracle.
+
+Drafts may omit token embeddings and the output head. Conversion then exposes
+`gguf.target_token_embedding` and `gguf.target_lm_head` weight inputs; the GenAI
+consumer clones target weight subgraphs before compilation. EAGLE3's reduced-vocabulary
+`d2t` is an auxiliary mapping constant; omitted tables use identity mapping. DFlash
+Markov, LiLiCorr, selector and convolution variants are unsupported.
+The real Qwen3-8B Q8_0/EAGLE3 F16 pair passes repeated PA generation, two-request
+continuous batching and target-only greedy agreement. The Qwen3.6-35B-A3B Q4_K_M/DFlash
+BF16 pair passes repeated single-request PA generation with prefix caching disabled.
+DeepSeek-V4 and multiple active DFlash requests are deferred.
+
+### Quantized support and model quality
+
+The enabled families use the frontend's [implemented weight formats](quantization.md).
+Quantized decoder and projector files are accepted; F32/F16 files establish the
+reference graph behavior, rather than restricting which formats can be loaded.
+The CPU checkpoint results below use llama.cpp revision
+`098ce526b546b5a190327c1da82929cee051b9ac`. F32 materialization preserves the source
+represented values in a separate GGUF file with `general.file_type=0`.
+Known quantized numerical differences remain recorded. Model support depends on
+floating graph correctness, integration checks and validated output quality;
+quantized replay divergence alone does not disable a format. Passing conversion
+alone does not establish numerical parity or generated-output quality.
+
+AFMoE (Trinity-Nano-Preview Q4_K_S) and Qwen3-Omni-30B-A3B-Instruct Q4_K_M
+are supported on CPU with GenAI PagedAttention. WWB validates their quantized text
+quality against original-weight FP16 references using the same quantized file in
+llama.cpp and GenAI; the token-replay differences below are numerical diagnostics,
+with no material additional GenAI quality loss in the measured prompts.
+
+| Quantized checkpoint | llama.cpp vs original FP16 | GenAI matched-input decoder vs same FP16 | GenAI default inputs vs same FP16 | GenAI matched minus llama.cpp |
+|---|---:|---:|---:|---:|
+| Trinity-Nano-Preview Q4_K_S (AFMoE) | 0.9174 | 0.9272 | 0.9275 | +0.0098 |
+| Qwen3-Omni-30B-A3B-Instruct Q4_K_M | 0.9844 | 0.9832 | 0.9832 | −0.0011 |
+
+These WWB mean semantic cosine scores use 20 prompts per model and at most 128
+generated tokens, greedy sampling without penalties, CPU with four threads, F16 KV,
+F32 inference hint, dynamic quantization disabled and `OV_GGUF_Q4_K_ZP_F16=1`.
+They measure reference-answer agreement, not percent accuracy. The lowest AFMoE
+score is 0.7204 on a flawed French translation shared by both quantized backends.
+Omni's lowest GenAI score is 0.9133; reviewed low-score outputs remain coherent.
+Image/audio/TTS, long-context and GPU quality are outside this WWB result.
+
+References come from original publisher BF16 GGUFs converted to F16, with only
+BF16/F32 input tensors; they are not expansions of quantized weights. Publisher
+revisions are `arcee-ai/Trinity-Nano-Preview-GGUF@2aa08593b79242d224da0215fb36924dcc0f87ea`
+and `ggml-org/Qwen3-Omni-30B-A3B-Instruct-GGUF@6e35a28f4a19b18730f8949b0c579c6429649ab8`.
+Reference answers use the pinned llama.cpp CPU revision above. Scoring uses WWB
+from GenAI `0169aa93d98811cdec1e4ea52e56396b9fbc4166` and
+`sentence-transformers/all-mpnet-base-v2@e8c3b32edf5434bc2275fc9bab85f82640a19130`.
+
+The matched-input runs use identical reference token IDs and EOG sets. AFMoE's
+GenAI tokenizer segments ` $` and `-sentence` differently on two prompts; those
+two prompts were regenerated with actual default string inputs, reusing 18
+verified unchanged rows. Omni's GenAI default stop set omits llama.cpp's
+`<|fim_pad|>`, `<|repo_name|>` and `<|file_sep|>` markers. All 20 Omni prompt
+encodings match and none of those markers was sampled, so audited default-input
+reuse gives the same score. These integration differences remain recorded. See
+[WWB validation](../../../../.claude/skills/ov-gguf/references/wwb.md) for the method.
+
+| Family | Floating-point reference evidence | Quantized accuracy observations |
+|---|---|---|
+| AFMoE | Original-weight F16 reference used by WWB; represented-F32 decoder matches 13/13 in the arithmetic diagnostic | Q4_K_S text quality supported by WWB above; token replay matches 11/13; Q4_0/DQ32 matches 7/13 |
+| Qwen3-ASR | Original BF16 decoder matches 13/13; F32 `qwen3a` projector feature parity passes | Q8_0 decoder with CPU DQ32 matches 12/13, with DQ disabled 10/13; original BF16/Q8_0 projectors differ from llama.cpp |
+| MiniCPM-V 4.7 | F32 `minicpmv4_7` projector passes 448×448 and 224×112 feature checks; existing `qwen35` decoder matches 13/13 | Original mixed BF16/F32 projector exceeds the feature parity gate |
+| Qwen3TTS | Represented-F32 decoder matches 13/13; F32 speaker/predictor/codec projector checks pass | Original Q4_K_M decoder matches 8/13; original BF16/Q8_0 projectors differ from llama.cpp |
+| Qwen3VL MoE / Qwen3-Omni | Original-weight F16 Omni reference used by WWB; represented mixed-F16 decoder matches 13/13; F32 combined projector feature parity passes | Omni Q4_K_M text quality supported by WWB above; token replay matches 11/13; original Q8_0 projector differs from llama.cpp |
+
+ASR's F32 projector feature NMSE is `4.60e-9` / `4.74e-8` for 100 / 200 frames.
+Both the original BF16 decoder and Q8_0 decoder with CPU DQ32, paired with this projector, pass two pinned LibriSpeech clips
+with aggregate WER `3.7%`, exact repeats, first-output cancellation, one terminal
+callback, and reset after cancellation through the GenAI ASR pipeline.
+MiniCPM's F32 projector feature NMSE is `7.65e-7` / `3.61e-6`.
+Qwen3TTS's F32 path passes 14 full predictor logits, all 15 sampled codes, exact
+feedback, and two 138,240-sample forced-code waveform chunks (NMSE `2.31e-6` /
+`1.23e-6`). Its speaker encoder passes 100/200-frame feature checks. Standard
+codec convolutions preserve llama.cpp's F16 operand rounding through serialization
+and CPU compilation. GenAI passes two identical finite 3,840-sample outputs at
+24 kHz using three generated tokens and a zero speaker vector. Speech quality,
+voice cloning and longer generation are outside this validation; the current
+Text2SpeechPipeline has no public cancellation callback.
+
+Qwen3-Omni mixed-F16 preserves the source F32 router/norm tensors. The decoder
+passes all 13 choices against its own llama.cpp CPU reference, with full-logit
+NMSE up to `1.37e-2` recorded separately. The runtime keeps 144 expert tensors
+in F16 and expands only selected experts, peaking at 27.2 GiB for this replay.
+Repeated native SDPA and PA text outputs agree. Image and audio generation are validated
+with PA and 16-token prefill chunks; unchunked SDPA image prefill exceeded the
+RAM guard. See [projector and scheduler limits](mmproj.md#projector-reference-accuracy-and-runtime-limits).
+
+### Deferred families
+
+| Family | Remaining evidence |
+|---|---|
+| Qwen3Next | Canonical 80B-A3B Q4_K_M frontend attempt stopped at 12.56 GB available RAM. A complete first-layer audit keeps experts compressed, but source plus executor expert copies estimate 111 GiB before globals and temporary allocations. No completed full decoder or API result |
