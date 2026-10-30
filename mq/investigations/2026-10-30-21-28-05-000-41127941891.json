@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-30-21-28-05-000-41127941891",
+  "timestamp": "2026-10-30T21:28:05Z",
+  "run_id": "41127941891",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41127941891",
+  "workflow_name": "Android",
+  "pr_number": "39293",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39293",
+  "author": "mvafin",
+  "category": "Network",
+  "title": "Android Build x64 fails uploading unit test artifact due to Azure blob storage DNS resolution failure",
+  "signature": "getaddrinfo eai again blob core windows net during artifact upload|Network",
+  "signature_hash": "8a9dfcece16ecc76",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "Step 'Upload CPU unit test binary' failed with getaddrinfo EAI_AGAIN productionresultssa6.blob.core.windows.net while uploading the ov_cpu_unit_tests_android_x64 artifact to Azure Blob Storage."
+    }
+  ],
+  "key_errors": [
+    "2026-10-30T21:20:24.9371655Z Beginning upload of artifact content to blob storage\n2026-10-30T21:20:38.5821893Z ##[error]getaddrinfo EAI_AGAIN productionresultssa6.blob.core.windows.net"
+  ],
+  "root_cause": "The Android Build x64 job completed the OpenVINO build successfully and uploaded one artifact (ov_cpu_func_tests_android_x64) without issue, but the subsequent 'Upload CPU unit test binary' step failed when the actions/upload-artifact backend tried to resolve the hostname of the Azure Blob Storage backend (productionresultssa6.blob.core.windows.net) used by GitHub Actions to store artifact content. getaddrinfo EAI_AGAIN indicates a transient DNS resolution failure (temporary nameserver non-response), not a code or configuration problem on the OpenVINO side. The job container itself appears to have working network connectivity up to this point (earlier git clones, package installs, and the prior artifact upload all succeeded), so this is most likely an intermittent GitHub Actions / Azure-hosted-runner DNS blip rather than a persistent outage. This exact failure signature (same normalized error, same category) was already recorded once before on 2026-10-30 for an unrelated ARM64 cross-compile Build job on PR #39290, confirming it is a recurring, job-agnostic infrastructure/network issue rather than anything specific to this PR's code changes.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a transient DNS resolution failure specific to the GitHub Actions hosted-runner's network path to Azure Blob Storage (productionresultssa6.blob.core.windows.net) during artifact upload. Re-running the failed job is the only practical reproduction/verification path.",
+  "recommended_actions": [
+    "Re-run the failed 'Build x64' job (or the whole workflow) - this is a transient network blip, not a code defect in PR #39293.",
+    "If the failure recurs across multiple PRs/runs, escalate to GitHub Actions support regarding DNS resolution reliability for *.blob.core.windows.net from hosted runners.",
+    "Consider adding automatic retry-with-backoff around the upload-artifact step (e.g., wrapping it in a retry action) to absorb transient DNS blips without requiring a full job re-run."
+  ],
+  "prevention_strategies": "Add retry/backoff wrapping around artifact upload steps in CI workflows to tolerate transient DNS failures without failing the whole job. Monitor the frequency of 'getaddrinfo EAI_AGAIN ... blob.core.windows.net' failures across workflows; if it becomes frequent, file a ticket with GitHub Actions support, since this is outside repository control.",
+  "historical_context": "A nearly identical failure (same normalized signature, hash 8a9dfcece16ecc76) was recorded on 2026-10-30T12:12:48Z for an ARM64 cross-compile Build job uploading the openvino_package artifact on PR #39290 (run https://github.com/openvinotoolkit/openvino/actions/runs/41050129111). Two other related but distinct DNS-resolution patterns exist in the database for Python-side 'urlopen error errno 11001 getaddrinfo failed' failures when downloading external model artifacts in NPU Models Tests (hashes 688d70acdbdfc8ce and dfd265b1c0ea3af5) - those are a different normalized signature (Python urllib vs Node upload-artifact action) but the same underlying class of transient DNS/network issue."
+}
