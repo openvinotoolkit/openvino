@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-30-14-20-46-591-41057277285",
+  "timestamp": "2026-10-30T14:20:46Z",
+  "run_id": "41057277285",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41057277285",
+  "workflow_name": "OpenVINO JS API (24) / OpenVINO JS API",
+  "pr_number": "39357",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39357",
+  "author": "dependabot[bot]",
+  "category": "Network",
+  "title": "OpenVINO JS API tests fail to download test model from raw.githubusercontent.com (request timed out)",
+  "signature": "request was timed out downloading test model from raw githubusercontent com|Network",
+  "signature_hash": "197368415f8ae13d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (24) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "npm run test fails with an unhandled promise rejection while downloading the test model fixture"
+    }
+  ],
+  "key_errors": [
+    "Downloading file by link: https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml to /__w/openvino/openvino/src/bindings/js/node/tests/unit/test_models with filename: test_model_fp32.xml",
+    "Failed to download the model: Request was timed out after 30000 ms..",
+    "UnhandledPromiseRejection: ... The promise rejected with the reason \"Request was timed out after 30000 ms.\".",
+    "code: 'ERR_UNHANDLED_REJECTION'"
+  ],
+  "root_cause": "The JS API test suite's setup script (tests/setup.js) downloads a fixture model (test_model_fp32.xml) from raw.githubusercontent.com before running unit tests. On this run the download request to raw.githubusercontent.com timed out after the hardcoded 30000 ms limit, and the rejection from that failed fetch was never wrapped in a try/catch, so Node.js crashed the whole test_setup step with an unhandled promise rejection (exit code 1). This is unrelated to the PR's actual change (a package-lock.json dependency bump for typescript-eslint) and is the second occurrence of this exact signature within the last day, indicating intermittent slowness/unavailability of raw.githubusercontent.com or GitHub's CDN from the CI runner network, not a problem in the PR.",
+  "reproduction_steps": "Not reliably reproducible locally since it depends on transient network conditions to raw.githubusercontent.com from GitHub-hosted runners. To exercise the same code path: cd src/bindings/js/node && node ./tests/setup.js (requires network access); the failure manifests only when the download exceeds the 30s timeout.",
+  "recommended_actions": [
+    "Re-run the failed 'OpenVINO JS API' job; the failure is unrelated to the PR diff and typically clears on retry.",
+    "In src/bindings/js/node/tests/setup.js, wrap the model-download call in a try/catch (or add a .catch handler) so a timeout produces a clear test failure/log instead of an unhandled promise rejection crashing the process.",
+    "Consider raising the download timeout and/or adding 2-3 retries with backoff for the test fixture download, and optionally caching the fixture model between CI runs to avoid repeated external fetches."
+  ],
+  "prevention_strategies": "Add retry logic with exponential backoff around external test-fixture downloads in tests/setup.js, and always attach a .catch()/try-catch around async setup steps that perform network I/O so failures surface as a clear error rather than an unhandled rejection. Where feasible, mirror/cache small test fixtures (such as test_model_fp32.xml) in the repository or an internal artifact store to remove the external network dependency from the critical test path.",
+  "historical_context": "Identical signature (download of test_model_fp32.xml from raw.githubusercontent.com timing out after 30000 ms) was previously recorded on 2026-10-30T04:34:49Z in run 40999556324 for PR #39318 (pattern 197368415f8ae13d, now count=2). A related but distinct pattern (ffd22b8ddfd9b602) recorded the same test fixture failing with HTTP 503 from raw.githubusercontent.com on 2026-09-17. Together these indicate recurring flakiness of this specific external download in the JS API test setup."
+}

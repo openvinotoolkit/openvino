@@ -4,16 +4,19 @@
   "signature_hash": "197368415f8ae13d",
   "title": "OpenVINO JS API tests fail to download test model from raw.githubusercontent.com (request timed out)",
   "category": "Network",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-10-30T04:34:49Z",
-  "last_seen": "2026-10-30T04:34:49Z",
+  "last_seen": "2026-10-30T14:20:46Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41057277285",
     "https://github.com/openvinotoolkit/openvino/actions/runs/40999556324"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39357",
     "https://github.com/openvinotoolkit/openvino/pull/39318"
   ],
   "recent_timestamps": [
+    "2026-10-30T14:20:46Z",
     "2026-10-30T04:34:49Z"
   ],
   "rerun_search_string": "Failed to download the model"
