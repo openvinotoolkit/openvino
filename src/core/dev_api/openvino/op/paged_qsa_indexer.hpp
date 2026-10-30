@@ -29,31 +29,33 @@ public:
 
     /// @brief Fixed input order of the PagedQSAIndexer op.
     struct InputIdx {
-        static constexpr size_t INDEX_QUERY = 0;                  ///< [tokens, H_iq*D_idx]
-        static constexpr size_t RAW_INDEX_KEYS = 1;                  ///< [tokens, H_ik*D_idx]
-        static constexpr size_t ROPE_COS = 2;               ///< [tokens, indexer_rotary_dim]
-        static constexpr size_t ROPE_SIN = 3;               ///< [tokens, indexer_rotary_dim]
-        static constexpr size_t Q_NORM_WEIGHT = 4;          ///< [D_idx]
-        static constexpr size_t K_NORM_WEIGHT = 5;          ///< [D_idx]
-        static constexpr size_t PAST_LENS = 6;              ///< [num_sequences]
-        static constexpr size_t SUBSEQUENCE_BEGINS = 7;     ///< [num_sequences+1]
-        static constexpr size_t BLOCK_INDICES = 8;          ///< [total_logical_blocks]
-        static constexpr size_t BLOCK_INDICES_BEGINS = 9;   ///< [num_sequences+1]
-        static constexpr size_t INDEX_KEY_CACHE = 10;   ///< [N_phys, H_ik, page_size, D_idx], writable in place; page_size = shape[2]
-        static constexpr size_t INDEX_BLOCK_ROPE_CACHE = 11;    ///< [N_phys, page_size/r, 2*indexer_rotary_dim], (cos_j, sin_j) interleaved, writable in place
-        static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 12;         ///< [N_phys, H_ik, page_size/r, D_idx], writable in place
+        static constexpr size_t INDEX_QUERY = 0;           ///< [tokens, H_iq*D_idx]
+        static constexpr size_t RAW_INDEX_KEYS = 1;        ///< [tokens, H_ik*D_idx]
+        static constexpr size_t ROPE_COS = 2;              ///< [tokens, indexer_rotary_dim]
+        static constexpr size_t ROPE_SIN = 3;              ///< [tokens, indexer_rotary_dim]
+        static constexpr size_t Q_NORM_WEIGHT = 4;         ///< [D_idx]
+        static constexpr size_t K_NORM_WEIGHT = 5;         ///< [D_idx]
+        static constexpr size_t PAST_LENS = 6;             ///< [num_sequences]
+        static constexpr size_t SUBSEQUENCE_BEGINS = 7;    ///< [num_sequences+1]
+        static constexpr size_t BLOCK_INDICES = 8;         ///< [total_logical_blocks]
+        static constexpr size_t BLOCK_INDICES_BEGINS = 9;  ///< [num_sequences+1]
+        static constexpr size_t INDEX_KEY_CACHE =
+            10;  ///< [N_phys, H_ik, page_size, D_idx], writable in place; page_size = shape[2]
+        static constexpr size_t INDEX_BLOCK_ROPE_CACHE =
+            11;  ///< [N_phys, page_size/r, 2*indexer_rotary_dim], (cos_j, sin_j) interleaved, writable in place
+        static constexpr size_t BLOCK_INDEX_KEYS_CACHE = 12;  ///< [N_phys, H_ik, page_size/r, D_idx], writable in place
 
         static constexpr size_t COUNT = 13;
     };
 
     struct Config {
-        size_t key_block_size = 4;      ///< r
-        size_t block_topk = 0;          ///< K_max, required
-        size_t num_selection_heads = 1;               ///< 1 or H_ik
-        size_t indexer_rotary_dim = 0;  ///< <= indexer_head_dim, even
-        size_t indexer_head_dim = 0;    ///< D_idx
-        float epsilon = 1e-6f;              ///< RMSNorm epsilon
-        float scale = 0.0f;             ///< positive score multiplier; 0 is resolved to 1 / sqrt(indexer_head_dim) by the op
+        size_t key_block_size = 4;       ///< r
+        size_t block_topk = 0;           ///< K_max, required
+        size_t num_selection_heads = 1;  ///< 1 or H_ik
+        size_t indexer_rotary_dim = 0;   ///< <= indexer_head_dim, even
+        size_t indexer_head_dim = 0;     ///< D_idx
+        float epsilon = 1e-6f;           ///< RMSNorm epsilon
+        float scale = 0.0f;  ///< positive score multiplier; 0 is resolved to 1 / sqrt(indexer_head_dim) by the op
     };
 
     PagedQSAIndexer() = default;

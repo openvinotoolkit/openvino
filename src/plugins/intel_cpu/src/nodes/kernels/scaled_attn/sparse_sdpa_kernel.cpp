@@ -136,7 +136,12 @@ struct DecomposedRuns {
 // split into 4-unit chunks, then a tail of 1-unit chunks, then any remaining blocks that don't fill
 // a whole unit are returned as leftovers, bounding the raw-score scratch size and the number of JIT
 // kernel variants to two.
-void decompose_runs(const int32_t* sel_ids, size_t nblocks, size_t Bk, size_t unit_blocks, int64_t pad, DecomposedRuns& result) {
+void decompose_runs(const int32_t* sel_ids,
+                    size_t nblocks,
+                    size_t Bk,
+                    size_t unit_blocks,
+                    int64_t pad,
+                    DecomposedRuns& result) {
     result.chunk_count = 0;
     result.leftover_count = 0;
     size_t i = 0;
