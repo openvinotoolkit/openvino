@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "android sdk sdkmanager failed to connect to host dl.google.com repository manifest io exception while downloading manifest error preparing sdk package build-tools dl.google.com|Network",
+    "signature_hash": "5b1ba0ca6abffb89",
+    "title": "Android emulator jobs fail installing SDK build-tools 37 - cannot connect to dl.google.com",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-10-30T05:18:51Z",
+    "last_seen": "2026-10-30T05:18:51Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41005295048"
+    ],
+    "affected_commits": [
+        "8214ba7ea594a9bd4be77dfca2d9a7504b76f4a2"
+    ],
+    "recent_timestamps": [
+        "2026-10-30T05:18:51Z"
+    ]
+}

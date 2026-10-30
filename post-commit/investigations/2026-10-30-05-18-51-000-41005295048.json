@@ -1,0 +1,52 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-30-05-18-51-000-41005295048",
+    "timestamp": "2026-10-30T05:18:51Z",
+    "run_id": "41005295048",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41005295048",
+    "workflow_name": "Android",
+    "commit_sha": "8214ba7ea594a9bd4be77dfca2d9a7504b76f4a2",
+    "pr_number": "39035",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39035",
+    "author": "mitruska",
+    "category": "Network",
+    "title": "Android emulator jobs fail installing SDK build-tools 37 - cannot connect to dl.google.com",
+    "signature": "android sdk sdkmanager failed to connect to host dl.google.com repository manifest io exception while downloading manifest error preparing sdk package build-tools dl.google.com|Network",
+    "signature_hash": "5b1ba0ca6abffb89",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "CXX_Func_Tests",
+            "conclusion": "failure",
+            "symptom": "Android SDK install step (sdkmanager --install 'build-tools;37.0.0' ...) failed to connect to dl.google.com before emulator could run CPU func tests"
+        },
+        {
+            "name": "CXX_Unit_Tests",
+            "conclusion": "failure",
+            "symptom": "Android SDK install step (sdkmanager --install 'build-tools;37.0.0' ...) failed to connect to dl.google.com before emulator could run CPU unit tests"
+        },
+        {
+            "name": "ci/gha_overall_status_android",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check failed because CXX_Func_Tests and CXX_Unit_Tests failed"
+        }
+    ],
+    "key_errors": [
+        "Warning: Failed to connect to host: https://dl.google.com/android/repository/addons_list-6.xml (repeated for addons_list-5..1.xml)",
+        "Warning: Failed to download any source lists!",
+        "Warning: IO exception while downloading manifest",
+        "Warning: An error occurred while preparing SDK package Android SDK Build-Tools 37: dl.google.com.",
+        "##[error]The process '/usr/bin/sh' failed with exit code 1",
+        "error: could not connect to TCP port 5554: Connection refused (adb emu kill after emulator never started)"
+    ],
+    "root_cause": "Both the CPU functional and unit test jobs in the Android workflow run the `reactivecircus/android-emulator-runner` action, whose 'Install Android SDK' step shells out to `sdkmanager --install 'build-tools;37.0.0' platform-tools 'platforms;android-30'`. sdkmanager could not reach dl.google.com (DNS/network connectivity to Google's Android repository servers failed from the runner/container), so it could not download the manifest or install build-tools;37.0.0, causing the install step to fail outright (exit code 1) before the emulator was ever booted. Because the emulator never started, the subsequent 'adb -s emulator-5554 emu kill' cleanup step also failed with 'could not connect to TCP port 5554: Connection refused', compounding the failure. Both jobs failed identically and at nearly the same wall-clock time (05:13-05:14 UTC), strongly indicating a transient network/DNS outage reaching Google's Android SDK repository from the CI runner rather than anything related to the triggering commit (#39035, a Core-only operator class addition unrelated to Android build/test tooling).",
+    "reproduction_steps": "Not reliably reproducible locally since it depends on runner network connectivity to dl.google.com at a specific point in time. To reproduce the failure mode: run `sdkmanager --install 'build-tools;37.0.0' platform-tools 'platforms;android-30'` on a host where dl.google.com is unreachable (e.g., via firewall block or DNS failure) and observe the same 'IO exception while downloading manifest' error.",
+    "recommended_actions": [
+        "Re-run the Android workflow; this is almost certainly a transient network blip reaching dl.google.com rather than a code regression from PR #39035.",
+        "Consider caching the Android SDK build-tools;37.0.0 component (similar to the existing AVD cache already used in this workflow) so transient network issues reaching dl.google.com do not block the job.",
+        "Add a retry/backoff wrapper around the `sdkmanager --install ...` command in the workflow (e.g., retry 2-3 times with a short delay) to tolerate brief Google repository outages.",
+        "Monitor whether this recurs frequently; if dl.google.com connectivity issues become common, consider mirroring the required SDK components in an internal/self-hosted artifact store."
+    ],
+    "prevention_strategies": "Cache Android SDK components (build-tools, platform-tools, platforms) across runs the same way the AVD snapshot is already cached, and/or wrap sdkmanager install calls with a retry loop so a single transient DNS/network failure to dl.google.com does not fail the whole job.",
+    "historical_context": "No prior pattern in the post-commit knowledge base matches an Android SDK / dl.google.com connectivity failure; this is the first recorded occurrence of this specific signature. Other previously seen Network-category patterns in this workflow's history involve unrelated hosts (archive.ubuntu.com apt mirrors, HuggingFace Hub, GitHub artifact upload endpoints, github.com DNS resolution) - none involve Google's Android SDK repository."
+}

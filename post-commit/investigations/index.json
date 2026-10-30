@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 50,
+  "total": 51,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -513,6 +513,17 @@
       "category": "Network",
       "signature_hash": "23eeaa0c051f425e",
       "commit_sha": "8bebd6df62d9e12334c77d4baa6cd96c05cb5c36"
+    },
+    {
+      "investigation_id": "2026-10-30-05-18-51-000-41005295048",
+      "run_id": "41005295048",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41005295048",
+      "workflow_name": "Android",
+      "timestamp": "2026-10-30T05:18:51Z",
+      "title": "Android emulator jobs fail installing SDK build-tools 37 - cannot connect to dl.google.com",
+      "category": "Network",
+      "signature_hash": "5b1ba0ca6abffb89",
+      "commit_sha": "8214ba7ea594a9bd4be77dfca2d9a7504b76f4a2"
     }
   ]
 }
