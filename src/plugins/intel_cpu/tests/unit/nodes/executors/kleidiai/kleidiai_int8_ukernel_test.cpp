@@ -24,7 +24,9 @@
 #    include "cpu_parallel.hpp"
 #    include "cpu_shape.h"
 #    include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod.h"
+#    include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp1x8_qsi8cxp4x8_1x4_neon_dotprod.h"
 #    include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp4x4_qsi8cxp4x4_16x4_neon_dotprod.h"
+#    include "kai/ukernels/matmul/matmul_clamp_f32_qai8dxp_qsi8cxp/kai_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm.h"
 #    include "memory_desc/cpu_blocked_memory_desc.h"
 #    include "nodes/executors/kleidiai/kleidiai_common.hpp"
 #    include "openvino/core/type/element_type.hpp"
@@ -37,10 +39,11 @@ using kai_common::KAIKernelTag;
 namespace {
 
 using DotprodKernel = kai_common::uKernelQai8dxpQsi8cxp<KAIKernelTag::I8_NEON_DOTPROD>;
+using I8mmKernel = kai_common::uKernelQai8dxpQsi8cxp<KAIKernelTag::I8_NEON_IMM>;
 
 const std::vector<size_t> multi_row_counts = {0, 2, 3, 4, 5, 15, 16, 17, 33, 1024};
 
-// The GEMV runs only for single-row calls, and only when allowed (it needs FEAT_DotProd).
+// The GEMV runs only for single-row calls, and only when allowed (it needs FEAT_DotProd on both pairs).
 TEST(KleidiAIInt8KernelSelection, DotprodPair) {
     EXPECT_TRUE(DotprodKernel::selectKernel(1, true).run_matmul ==
                 &kai_run_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod);
@@ -50,6 +53,21 @@ TEST(KleidiAIInt8KernelSelection, DotprodPair) {
         EXPECT_TRUE(DotprodKernel::selectKernel(M, true).run_matmul ==
                     &kai_run_matmul_clamp_f32_qai8dxp4x4_qsi8cxp4x4_16x4_neon_dotprod)
             << "M=" << M;
+    }
+}
+
+TEST(KleidiAIInt8KernelSelection, I8mmPair) {
+    EXPECT_TRUE(I8mmKernel::selectKernel(1, true).run_matmul ==
+                &kai_run_matmul_clamp_f32_qai8dxp1x8_qsi8cxp4x8_1x4_neon_dotprod);
+    // i8mm without dotprod: keep the i8mm GEMM even for a single row
+    EXPECT_TRUE(I8mmKernel::selectKernel(1, false).run_matmul ==
+                &kai_run_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm);
+    for (const size_t M : multi_row_counts) {
+        for (const bool useGemv : {true, false}) {
+            EXPECT_TRUE(I8mmKernel::selectKernel(M, useGemv).run_matmul ==
+                        &kai_run_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm)
+                << "M=" << M << " useGemv=" << useGemv;
+        }
     }
 }
 
@@ -171,15 +189,23 @@ protected:
 
 TEST_P(KleidiAIInt8GemvGemmTest, RowsMatchBitExact) {
     const auto& [tag, N, K] = GetParam();
+    // Every GEMV here executes SDOT; the i8mm pair also needs FEAT_I8MM for its GEMM.
     if (!hasArmISASupport(ArmISA::DOTPROD)) {
         GTEST_SKIP() << "FEAT_DotProd is not available";
     }
-    check<KAIKernelTag::I8_NEON_DOTPROD>(N, K);
+    if (tag == KAIKernelTag::I8_NEON_IMM) {
+        if (!hasArmISASupport(ArmISA::I8MM)) {
+            GTEST_SKIP() << "FEAT_I8MM is not available";
+        }
+        check<KAIKernelTag::I8_NEON_IMM>(N, K);
+    } else {
+        check<KAIKernelTag::I8_NEON_DOTPROD>(N, K);
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_KleidiAIInt8,
                          KleidiAIInt8GemvGemmTest,
-                         ::testing::Combine(::testing::Values(KAIKernelTag::I8_NEON_DOTPROD),
+                         ::testing::Combine(::testing::Values(KAIKernelTag::I8_NEON_DOTPROD, KAIKernelTag::I8_NEON_IMM),
                                             ::testing::Values(size_t{3}, size_t{30}),
                                             ::testing::Values(size_t{32}, size_t{77}, size_t{513})),
                          KleidiAIInt8GemvGemmTest::getTestCaseName);
