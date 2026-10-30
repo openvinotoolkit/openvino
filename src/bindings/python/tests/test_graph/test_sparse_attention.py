@@ -98,7 +98,7 @@ def test_sparse_attention_indexer_with_weights_and_selection_heads():
 
 def test_qsa_prepare():
     raw_index_keys = parameter([2, 8, 128], name="raw_index_keys", dtype=Type.f32)
-    past_block_index_keys = parameter([2, 0, 128], name="past_block_index_keys", dtype=Type.f32)
+    past_block_index_keys = parameter([2, -1, 128], name="past_block_index_keys", dtype=Type.f32)
     key_length = parameter([2], name="key_length", dtype=Type.i32)
     rope_cos = parameter([2, 8, 64], name="rope_cos", dtype=Type.f32)
     rope_sin = parameter([2, 8, 64], name="rope_sin", dtype=Type.f32)

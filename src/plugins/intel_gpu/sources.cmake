@@ -176,6 +176,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fc_per_layer_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fold_activation_transpose.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fold_rms_transposes.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/force_fp32_selective.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_atan2_decomposed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_avg_down.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_grouped_depth_to_space.cpp
@@ -245,8 +246,8 @@ set(GPU_PLUGIN_MLIR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/common/convert_common.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/conversion/patterns.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/convert.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/gc_gpu_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/graph_converter.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/mlir_evaluate.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/mlir/subgraph_tracker.cpp
 )
 

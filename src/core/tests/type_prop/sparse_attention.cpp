@@ -294,6 +294,18 @@ TEST_F(TypePropSparseAttentionTest, selection_heads_taken_from_block_count) {
                     HasSubstr("The number of query heads must be divisible by the number of selection heads."));
 }
 
+TEST_F(TypePropSparseAttentionTest, selection_heads_taken_from_block_count_with_dynamic_rank_block_indices) {
+    // block_count is the only source of the selection head count.
+    OV_EXPECT_THROW(std::ignore = make_op(param(element::f32, PartialShape{2, 24, 5, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 64}),
+                                          param(element::f32, PartialShape{2, 2, 12, 32}),
+                                          param(element::i32, PartialShape::dynamic()),
+                                          param(element::i32, PartialShape{2, 5, 5}),
+                                          4),
+                    NodeValidationFailure,
+                    HasSubstr("The number of query heads must be divisible by the number of selection heads."));
+}
+
 TEST_F(TypePropSparseAttentionTest, symbols_propagation) {
     auto query_shape = PartialShape{-1, -1, -1, 64};
     auto value_shape = PartialShape{-1, 2, 12, -1};
