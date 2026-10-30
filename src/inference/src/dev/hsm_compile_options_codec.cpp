@@ -145,7 +145,7 @@ void encode_map(std::vector<std::byte>& out, const ov::AnyMap& options, size_t d
 
 class Cursor {
 public:
-    explicit Cursor(ov::util::MemoryView bytes) noexcept : m_pos(bytes.data()), m_end(bytes.data() + bytes.size()) {}
+    explicit Cursor(ov::util::MemoryView bytes) noexcept : m_pos{bytes.data()}, m_end{bytes.data() + bytes.size()} {}
 
     template <class T>
     bool read(T& value) noexcept {

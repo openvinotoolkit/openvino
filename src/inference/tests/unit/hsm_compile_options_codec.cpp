@@ -245,12 +245,12 @@ std::vector<ReferenceCase> reference_cases() {
 
 // Builders only for payloads too large to spell out; the reference payloads above stay literal.
 std::string u32(uint32_t value) {
-    return std::string(reinterpret_cast<const char*>(&value), sizeof(value));
+    return std::string{reinterpret_cast<const char*>(&value), sizeof(value)};
 }
 
 std::string entry(std::string_view key, uint8_t kind, std::string_view value) {
-    return u32(static_cast<uint32_t>(key.size())) + std::string(key) + static_cast<char>(kind) +
-           u32(static_cast<uint32_t>(value.size())) + std::string(value);
+    return u32(static_cast<uint32_t>(key.size())) + std::string{key} + static_cast<char>(kind) +
+           u32(static_cast<uint32_t>(value.size())) + std::string{value};
 }
 
 std::string map_of(uint32_t count, const std::string& entries = {}) {
@@ -444,7 +444,7 @@ struct GroupingNumpunct : std::numpunct<char> {
 
 class GlobalLocaleGuard {
 public:
-    explicit GlobalLocaleGuard(const std::locale& locale) : m_previous(std::locale::global(locale)) {}
+    explicit GlobalLocaleGuard(const std::locale& locale) : m_previous{std::locale::global(locale)} {}
     ~GlobalLocaleGuard() {
         std::locale::global(m_previous);
     }
@@ -455,7 +455,7 @@ private:
 }  // namespace
 
 TEST(HsmCompileOptionsEncodeTest, numbers_do_not_depend_on_global_locale) {
-    const GlobalLocaleGuard guard{std::locale(std::locale::classic(), new GroupingNumpunct)};
+    const GlobalLocaleGuard guard{std::locale{std::locale::classic(), new GroupingNumpunct}};
     std::ostringstream global_format;
     global_format << 1234.5;
     ASSERT_EQ(global_format.str(), "12_34/5");

@@ -70,7 +70,7 @@ OPENVINO_RUNTIME_API std::vector<std::byte> encode_compile_options(const ov::Any
  */
 class CompileOptionsEncoder final : public ISectionEncoder {
 public:
-    explicit CompileOptionsEncoder(const ov::AnyMap& options) noexcept : m_options(options) {}
+    explicit CompileOptionsEncoder(const ov::AnyMap& options) noexcept : m_options{options} {}
     explicit CompileOptionsEncoder(ov::AnyMap&&) = delete;
     explicit CompileOptionsEncoder(const ov::AnyMap&&) = delete;
 
