@@ -64,6 +64,11 @@ using std::make_shared;
 // f16 lowest, matches genai's causal-mask "-inf" fill.
 constexpr float NEG_INF = -65504.0f;
 
+bool has_output_name(const std::shared_ptr<ov::op::v0::Result>& result, const std::string& name) {
+    return result->get_friendly_name() == name || result->input_value(0).get_names().count(name) ||
+           result->output(0).get_names().count(name);
+}
+
 // translate_get_rows's embedding-table lookup restores ggml's rank-4 form with a fixed
 // Unsqueeze(axis=0), pinning the residual stream's leading axis to a literal 1 regardless of
 // backend -- correct for SDPA, but wrong once SDPAToPagedAttention rewrites input_ids to rank-1
@@ -232,7 +237,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     for (const auto& name : contract.sequence_outputs) {
         const auto result =
             std::find_if(model->get_results().begin(), model->get_results().end(), [&](const auto& output) {
-                return output->input_value(0).get_names().count(name);
+                return has_output_name(output, name);
             });
         OPENVINO_ASSERT(result != model->get_results().end(), "[GGUF] missing declared sequence output ", name);
         const auto rank = (*result)->input_value(0).get_partial_shape().rank();
@@ -761,13 +766,19 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     std::unordered_set<std::string> normalized;
     for (const auto& result : model->get_results()) {
         const auto source = result->input_value(0);
-        const auto names = source.get_names();
         const auto selected =
             std::find_if(contract.sequence_outputs.begin(), contract.sequence_outputs.end(), [&](const auto& name) {
-                return names.count(name);
+                return has_output_name(result, name);
             });
         if (selected == contract.sequence_outputs.end())
             continue;
+        auto names = source.get_names();
+        const auto& result_names = result->output(0).get_names();
+        names.insert(result_names.begin(), result_names.end());
+        for (const auto& name : contract.sequence_outputs) {
+            if (has_output_name(result, name))
+                names.insert(name);
+        }
         const auto shape = source.get_partial_shape();
         OPENVINO_ASSERT(shape.rank().is_static() && (shape.size() == 3 || shape.size() == 4),
                         "[GGUF] sequence output requires rank 3 or 4: ",
@@ -782,6 +793,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         name_output(reshaped, *selected);
         reshaped->output(0).set_names(names);
         result->input(0).replace_source_output(reshaped);
+        result->validate_and_infer_types();
+        result->output(0).add_names(names);
         normalized.insert(names.begin(), names.end());
     }
     for (const auto& name : contract.sequence_outputs)

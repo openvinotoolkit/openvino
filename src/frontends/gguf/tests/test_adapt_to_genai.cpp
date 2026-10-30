@@ -1425,9 +1425,81 @@ public:
     }
     void visit_subgraph(std::function<void(std::shared_ptr<ov::frontend::gguf::GgufDecoder>)>) const override {}
 
+protected:
+    void add_sequence_output(bool rank_three) {
+        std::shared_ptr<ov::Node> features =
+            std::make_shared<v1::Multiply>(m_scope_inputs.at("supplied_logits"),
+                                           v0::Constant::create(ov::element::f32, {}, {2.f}));
+        if (rank_three)
+            features = std::make_shared<v0::Squeeze>(features, v0::Constant::create(ov::element::i64, {1}, {0}));
+        m_scope_inputs.emplace("decoder_features", features);
+    }
+
 private:
     std::map<std::string, std::shared_ptr<ov::Node>> m_scope_inputs;
 };
+
+class SequenceOutputModelDecoder : public DefaultContractModelDecoder {
+public:
+    explicit SequenceOutputModelDecoder(bool rank_three) : DefaultContractModelDecoder(false) {
+        add_sequence_output(rank_three);
+    }
+    std::vector<std::string> get_model_output_names() const override {
+        return {"supplied_logits", "decoder_features"};
+    }
+    ov::frontend::gguf::ModelContract get_model_contract() const override {
+        ov::frontend::gguf::ModelContract contract;
+        contract.sequence_outputs = {"decoder_features"};
+        return contract;
+    }
+};
+
+TEST(GGUFAdaptToGenAI, SuppliedDecoderSequenceOutputsSupportResultNamesAndIR) {
+    using namespace ov::frontend::gguf;
+    for (const bool rank_three : {false, true}) {
+        auto decoder = std::make_shared<SequenceOutputModelDecoder>(rank_three);
+        FrontEnd frontend;
+        auto converted = frontend.convert(frontend.load(std::shared_ptr<GgufDecoder>(decoder)));
+        ASSERT_EQ(converted->get_results().back()->get_friendly_name(), "decoder_features");
+        ASSERT_TRUE(converted->get_results().back()->input_value(0).get_names().empty());
+        const auto shape = converted->get_results().back()->input_value(0).get_partial_shape();
+        const auto width = static_cast<size_t>(shape[shape.rank().get_length() - 1].get_length());
+        for (const bool reload : {false, true}) {
+            for (const bool alias : {false, true}) {
+                SCOPED_TRACE("rank=" + std::to_string(rank_three ? 3 : 4) + " reload=" + std::to_string(reload) +
+                             " alias=" + std::to_string(alias));
+                auto model = reload ? ov_gguf_test::reload_ir_model(converted) : converted->clone();
+                if (alias)
+                    model->get_results().back()->output(0).set_names({"existing_alias"});
+                bool adapted = false;
+                ASSERT_NO_THROW(adapted = AdaptToGenAI().run_on_model(model));
+                ASSERT_TRUE(adapted);
+                EXPECT_EQ(model->output(0).get_any_name(), "logits");
+                EXPECT_EQ(model->output("decoder_features").get_partial_shape().rank(), 3);
+                if (alias) {
+                    EXPECT_EQ(model->output("existing_alias"), model->output("decoder_features"));
+                }
+                auto restored = ov_gguf_test::reload_ir_model(model);
+                auto request = ov::Core{}.compile_model(restored, "CPU").create_infer_request();
+                for (const size_t length : {3, 1}) {
+                    for (const auto& [name, tensor] : make_genai_inputs(length))
+                        request.set_tensor(name, tensor);
+                    request.infer();
+                    auto features = request.get_tensor("decoder_features");
+                    auto logits = request.get_tensor("logits");
+                    ASSERT_EQ(features.get_shape(), (ov::Shape{1, length, width}));
+                    ASSERT_EQ(features.get_shape(), logits.get_shape());
+                    for (size_t i = 0; i < features.get_size(); ++i)
+                        EXPECT_EQ(features.data<float>()[i], 2.f * logits.data<float>()[i]);
+                }
+            }
+        }
+        FrontEnd genai;
+        genai.add_extension(std::make_shared<GenAIExtension>());
+        auto adapted = genai.convert(genai.load(std::shared_ptr<GgufDecoder>(decoder)));
+        EXPECT_EQ(adapted->output("decoder_features").get_partial_shape().rank(), 3);
+    }
+}
 
 TEST(GGUFAdaptToGenAI, SuppliedDecoderDefaultCapabilityResolvesBeforeSerialization) {
     for (const bool with_context : {false, true}) {
