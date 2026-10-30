@@ -448,8 +448,8 @@ void InferRequest::report_breakdown(const Stages& stages) {
 }
 
 void InferRequest::infer() {
-    // Serialize complete outer inferences so two requests cannot mix ranks
-    // in the same rendezvous epoch or overwrite shared L0 command lists.
+    // One TP request at a time on these devices, so two requests cannot mix
+    // their ranks in one collective call.
     [[maybe_unused]] auto inference_guard = m_compiled_model->lock_inference();
 
     Stages stages;

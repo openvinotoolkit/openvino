@@ -85,6 +85,9 @@ private:
     /// `device_names` with the configured backend; throws its reason if not.
     void check_collective_support(const std::vector<std::string>& device_names, const TPConfig& config) const;
 
+    /// The UUIDs of the devices, which identify a device across its names.
+    std::vector<std::string> device_uuids(const std::vector<std::string>& device_names) const;
+
     /// Only ever holds what was explicitly set -- defaults, environment and
     /// config file are resolved per call.
     TPConfig m_config;

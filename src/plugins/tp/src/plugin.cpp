@@ -362,6 +362,15 @@ void Plugin::check_collective_support(const std::vector<std::string>& device_nam
     OPENVINO_ASSERT(reason.empty(), get_device_name(), ": ", reason);
 }
 
+std::vector<std::string> Plugin::device_uuids(const std::vector<std::string>& device_names) const {
+    std::vector<std::string> uuids;
+    uuids.reserve(device_names.size());
+    for (const auto& name : device_names) {
+        uuids.push_back(ov::Any(get_core()->get_property(name, ov::device::uuid)).as<std::string>());
+    }
+    return uuids;
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     TPConfig cfg;
@@ -382,6 +391,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         device_names.resize(1);
     }
     const auto rank_count = static_cast<uint32_t>(device_names.size());
+    auto device_keys = device_uuids(device_names);
 
     auto sharding_plan = GraphRewriter::analyze(model);
     const int num_collectives =
@@ -413,6 +423,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return std::make_shared<CompiledModel>(model, shared_from_this(),
                                            std::move(rank_compiled),
                                            std::move(device_names),
+                                           std::move(device_keys),
                                            GraphRewriter::sharded_state_ids(model, sharding_plan),
                                            /*loaded_from_cache=*/false,
                                            cfg);
@@ -559,6 +570,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
                     ov::Any(header.device_names).as<std::string>(), " but ",
                     ov::Any(requested_devices).as<std::string>(), " was requested");
     check_collective_support(header.device_names, cfg);
+    auto device_keys = device_uuids(header.device_names);
 
     const auto rank_contexts = create_rank_contexts(header.device_names, cfg);
 
@@ -589,6 +601,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
     return std::make_shared<CompiledModel>(nullptr, shared_from_this(),
                                            std::move(rank_compiled),
                                            std::move(header.device_names),
+                                           std::move(device_keys),
                                            std::move(header.sharded_state_ids),
                                            /*loaded_from_cache=*/true,
                                            cfg,

@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <future>
 #include <string>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -187,6 +188,48 @@ TEST_F(TPDevicePropertiesTest, ContextGivesHostTensorsOnly) {
     const auto actual = request.get_output_tensor();
     ASSERT_EQ(actual.get_shape(), expected.get_shape());
     EXPECT_EQ(std::memcmp(actual.data(), expected.data(), expected.get_byte_size()), 0);
+}
+
+// Two TP models over the same devices, listed in opposite rank order, inferred
+// from two threads at once: their requests take the devices one at a time and
+// in one order, so neither deadlocks nor sees the other's data.
+TEST_F(TPDevicePropertiesTest, OverlappingModelsRunConcurrently) {
+    ov::Core core;
+    const BlockConfig config;
+    const auto model = make_transformer_block(config);
+    auto forward = core.compile_model(model, "TP:GPU.0,GPU.1");
+    auto backward = core.compile_model(model, "TP:GPU.1,GPU.0");
+
+    ov::Tensor input(ov::element::f32, ov::Shape{1, 5, config.hidden});
+    for (size_t i = 0; i < input.get_size(); ++i) {
+        input.data<float>()[i] = static_cast<float>(i % 11) * 0.02f;
+    }
+    auto run = [&input](ov::CompiledModel& compiled, size_t iterations) {
+        auto request = compiled.create_infer_request();
+        request.set_input_tensor(input);
+        std::vector<float> first;
+        for (size_t i = 0; i < iterations; ++i) {
+            request.infer();
+            const auto output = request.get_output_tensor();
+            const auto* data = output.data<const float>();
+            std::vector<float> values(data, data + output.get_size());
+            if (i == 0) {
+                first = std::move(values);
+            } else if (values != first) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    auto forward_done = std::async(std::launch::async, [&] {
+        return run(forward, 50);
+    });
+    auto backward_done = std::async(std::launch::async, [&] {
+        return run(backward, 50);
+    });
+    EXPECT_TRUE(forward_done.get());
+    EXPECT_TRUE(backward_done.get());
 }
 
 }  // namespace

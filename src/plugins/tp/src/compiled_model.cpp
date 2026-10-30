@@ -52,6 +52,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              std::vector<ov::SoPtr<ov::ICompiledModel>>&& rank_compiled,
                              std::vector<std::string>&& device_names,
+                             std::vector<std::string> device_keys,
                              std::vector<std::string>&& sharded_state_ids,
                              bool loaded_from_cache,
                              const TPConfig& config,
@@ -63,7 +64,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       m_imported_inputs(make_inputs(imported_ports.inputs)),
       m_imported_outputs(make_outputs(imported_ports.outputs)),
       m_loaded_from_cache(loaded_from_cache),
-      m_config(config) {
+      m_config(config),
+      m_device_locks(std::move(device_keys)) {
     OPENVINO_ASSERT(!m_rank_compiled.empty(), "[TP] compiled model has no ranks");
     OPENVINO_ASSERT(m_rank_compiled.size() == m_device_names.size(),
                     "[TP] ", m_rank_compiled.size(), " rank models against ",

@@ -11,6 +11,7 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 #include "cache_controller.hpp"
+#include "device_locks.hpp"
 #include "rank_workers.hpp"
 #include "tp/tp_config.hpp"
 #include "tp_blob.hpp"
@@ -29,10 +30,13 @@ public:
     /// \param model The user model. Null when the compiled model was
     ///        restored from a blob: there is no IR at that point, and the
     ///        ports come from `imported_ports` instead.
+    /// \param device_keys One key per rank device that identifies it across
+    ///        aliases, for the process-wide device locks.
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   std::vector<ov::SoPtr<ov::ICompiledModel>>&& rank_compiled,
                   std::vector<std::string>&& device_names,
+                  std::vector<std::string> device_keys,
                   std::vector<std::string>&& sharded_state_ids = {},
                   bool loaded_from_cache = false,
                   const TPConfig& config = TPConfig{},
@@ -71,11 +75,12 @@ public:
     /// one scheduler driving it.
     const CacheControllerPtr& get_cache_controller() const { return m_cache_controller; }
 
-    /// The rank rendezvous, Level Zero command lists and shared scratch arena
-    /// of the device plugin's collectives support one outer inference at a
-    /// time. Rank execution inside that inference remains parallel.
-    std::unique_lock<std::mutex> lock_inference() const {
-        return std::unique_lock<std::mutex>(m_inference_mutex);
+    /// One TP request at a time on the devices of this model, across every
+    /// TP compiled model of the process whose devices overlap: the rank
+    /// rendezvous and the device queues of the collectives serve one TP
+    /// request at a time. Rank execution inside that request remains parallel.
+    std::vector<std::unique_lock<std::mutex>> lock_inference() const {
+        return m_device_locks.lock();
     }
 
     /// Threads the ranks run on. Created on first use, which is always under
@@ -103,7 +108,7 @@ private:
     CacheControllerPtr m_cache_controller;
     bool m_loaded_from_cache{false};
     TPConfig m_config;
-    mutable std::mutex m_inference_mutex;
+    DeviceLocks m_device_locks;
     // Declared last so it is destroyed first: the worker threads must be
     // joined before anything they might still be touching goes away.
     mutable std::unique_ptr<RankWorkers> m_rank_workers;
