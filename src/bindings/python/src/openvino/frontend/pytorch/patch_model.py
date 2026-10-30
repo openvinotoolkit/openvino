@@ -153,12 +153,29 @@ def _stash_weights_as_fp32_placeholders(module, supported, weight_attrs=("weight
         setattr(module, stash_name, param)
         placeholder = torch.zeros((), dtype=torch.float32,
                                   device=param.device).expand(param.shape)
-        setattr(module, attr, torch.nn.Parameter(placeholder, requires_grad=False))
+        placeholder = torch.nn.Parameter(placeholder, requires_grad=False)
+        # Constant creation emits the original tensor for tracing placeholders (see torch_tensor_to_ov_const).
+        placeholder._openvino_orig_tensor = param
+        setattr(module, attr, placeholder)
+
+
+# Packed expert weights of Transformers MoE modules, e.g. (num_experts, hidden, 2 * intermediate).
+_PACKED_EXPERT_WEIGHT_NAMES = ("gate_up_proj", "up_proj", "down_proj")
+
+
+def _packed_expert_weight_names(module, supported):
+    """Return names of packed 16-bit expert weights, which are too large to copy to FP32."""
+    if isinstance(module, torch.jit.ScriptModule):
+        return ()  # parameters cannot be added to a scripted module
+    num_experts = getattr(module, "num_experts", None)
+    return tuple(name for name, param in module.named_parameters(recurse=False)
+                 if name in _PACKED_EXPERT_WEIGHT_NAMES and param.dtype in supported
+                 and param.ndim == 3 and param.shape[0] == num_experts)
 
 
 def _restore_stashed_weights(module):
     """Undo ``_stash_weights_as_fp32_placeholders`` for a single module."""
-    stash_names = [n for n in list(module._parameters) + list(module.__dict__)
+    stash_names = [n for n in list(module._parameters.keys()) + list(module.__dict__)
                    if n.startswith(_ORIG_WEIGHT_ATTR_PREFIX)]
     for stash_name in stash_names:
         attr = stash_name[len(_ORIG_WEIGHT_ATTR_PREFIX):]
@@ -648,8 +665,10 @@ def __make_16bit_traceable(model: torch.nn.Module,
             _stash_weights_as_fp32_placeholders(module, supported)
             module_patcher(module, name, orig_forward_name, extensions)
         else:
-            for param in module.parameters(recurse=False):
-                if param.dtype in supported:
+            # Memory-free placeholders for packed experts; they are only consumed by the patched torch.bmm.
+            _stash_weights_as_fp32_placeholders(module, supported, _packed_expert_weight_names(module, supported))
+            for attr, param in module._parameters.items():
+                if param is not None and param.dtype in supported and not attr.startswith(_ORIG_WEIGHT_ATTR_PREFIX):
                     log.debug("Casting parameter of module %s to float32", name)
                     param.data = param.data.float()
             for buf in module.buffers(recurse=False):

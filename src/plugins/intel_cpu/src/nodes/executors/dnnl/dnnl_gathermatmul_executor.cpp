@@ -337,12 +337,10 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
         return std::make_shared<InnerProduct>(eng, threadPool, k);
     });
 
-    if (m_bf16AmxMode) {
-        // The M > 1 GEMMs solve the GEMV problem on the weights layout the GEMV selected (the weights are
-        // repacked to it below); createGemm() sets the row count.
-        key.weights_md = m_gemvImpl->get_weights_md();
-        m_gemmKey = std::make_shared<const InnerProductKey>(std::move(key));
-    }
+    // The M > 1 GEMMs solve the GEMV problem on the weights layout the GEMV selected (the weights are
+    // repacked to it below); createGemm() sets the row count.
+    key.weights_md = m_gemvImpl->get_weights_md();
+    m_gemmKey = std::make_shared<const InnerProductKey>(std::move(key));
 
     // Repack weights: convert from [G, K, N] to [G, (packed_N, K)] format expected by oneDNN
     auto gemvWeightsDesc =
@@ -409,10 +407,6 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
 }
 
 bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
-    if (!m_bf16AmxMode) {
-        return true;
-    }
-
     const auto& srcMem = memory.at(ARG_SRC);
     const auto& srcShape = srcMem->getStaticDims();
     // srcShape is [B, M, K]
@@ -497,90 +491,88 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             }
         }
 
-        if (m_bf16AmxMode) {
-            OPENVINO_ASSERT(m_tmpInpBuffer, "Temporary input/output memory is not created");
-            OPENVINO_ASSERT(m_tmpInputDesc, "Temporary input memory desc is not created");
-            OPENVINO_ASSERT(m_tmpOutputDesc, "Temporary output memory desc is not created");
+        OPENVINO_ASSERT(m_tmpInpBuffer, "Temporary input/output memory is not created");
+        OPENVINO_ASSERT(m_tmpInputDesc, "Temporary input memory desc is not created");
+        OPENVINO_ASSERT(m_tmpOutputDesc, "Temporary output memory desc is not created");
 
-            const auto element_size = m_tmpInputDesc->getPrecision().size();
-            const auto K_size = m_tmpInputDesc->getShape().getStaticDims()[1];
-            const auto M_size = m_tmpInputDesc->getShape().getStaticDims()[0];
-            const auto N_size = dstMem->getStaticDims()[2];
+        const auto element_size = m_tmpInputDesc->getPrecision().size();
+        const auto K_size = m_tmpInputDesc->getShape().getStaticDims()[1];
+        const auto M_size = m_tmpInputDesc->getShape().getStaticDims()[0];
+        const auto N_size = dstMem->getStaticDims()[2];
 
-            auto* input_ptr = m_tmpInpBuffer->getDataAs<uint8_t>();
-            auto* output_ptr = input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);
+        auto* input_ptr = m_tmpInpBuffer->getDataAs<uint8_t>();
+        auto* output_ptr = input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);
 
-            Memory tmpInput(m_context->getEngine(), m_tmpInputDesc, m_tmpInpBuffer->getMemoryBlock());
-            Memory tmpOutput(m_context->getEngine(), m_tmpOutputDesc, output_ptr);
+        Memory tmpInput(m_context->getEngine(), m_tmpInputDesc, m_tmpInpBuffer->getMemoryBlock());
+        Memory tmpOutput(m_context->getEngine(), m_tmpOutputDesc, output_ptr);
 
-            auto tmp_input_offset = OffsetHelper::createOffsetHelper(tmpInput);
-            auto tmp_dst_offset = OffsetHelper::createOffsetHelper(tmpOutput);
+        auto tmp_input_offset = OffsetHelper::createOffsetHelper(tmpInput);
+        auto tmp_dst_offset = OffsetHelper::createOffsetHelper(tmpOutput);
 
-            // Gather indices with the same rounded row count share one GEMM within this call. The runtime cache
-            // keeps the primitives across calls.
-            std::unordered_map<size_t, InnerProductPtr> gemmBySize;
-            for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
-                const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
-                if (0 == num_valid_rows) {
-                    continue;
-                }
+        // Gather indices with the same rounded row count share one GEMM within this call. The runtime cache
+        // keeps the primitives across calls.
+        std::unordered_map<size_t, InnerProductPtr> gemmBySize;
+        // On AMX a GEMM is cheap even for a few rows; elsewhere experts with fewer rows run per-row GEMV.
+        const size_t min_rows_for_gemm = m_bf16AmxMode ? 1 : 4;
+        for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
+            const size_t num_valid_rows = elements_per_gather_indx[gather_axis_index];
+            if (0 == num_valid_rows) {
+                continue;
+            }
+            OPENVINO_ASSERT(num_valid_rows <= M_size,
+                            "GatherMatmul: a gather index received more rows than the input has");
 
-                // Size the GEMM to the rows routed to this gather index (rounded up by normalizeM), not to
-                // the full input length: with top-k routing most rows of a full-length GEMM are zero padding.
-                OPENVINO_ASSERT(num_valid_rows <= M_size,
-                                "GatherMatmul: a gather index received more rows than the input has");
-                const size_t gemm_rows = normalizeM(num_valid_rows);
-                auto& gemmImpl = gemmBySize[gemm_rows];
-                if (!gemmImpl) {
-                    gemmImpl = createGemm(gemm_rows);
-                }
-
-                cpu_parallel->parallel_for(gemm_rows, [&](size_t m) {
-                    auto* dst_row = tmp_input_offset(m);
-                    if (m < num_valid_rows) {
-                        const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
-                        const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
-                        const auto* src_data = src_offset(batch_index, row_id);
-                        std::memcpy(dst_row, src_data, K_size * element_size);
-                    } else {
-                        std::memset(dst_row, 0, K_size * element_size);
-                    }
-                });
-
-                auto* src = tmp_input_offset.get_base();
-                auto* dst = tmp_dst_offset.get_base();
-                auto* wei = wei_offset(gather_axis_index);
-                auto* bias = bias_offset(gather_axis_index);
-                auto* scale = scale_offset(gather_axis_index);
-                auto* zp = zp_offset(gather_axis_index);
-                gemmImpl->exec(src, dst, wei, bias, scale, zp);
-
-                cpu_parallel->parallel_for(num_valid_rows, [&](size_t m) {
-                    const auto* src_row = tmp_dst_offset(m);
+            // Few rows: per-row GEMV is cheaper than gathering, padding, and scattering them for a GEMM.
+            // A decode step of N requests is M = N, so most experts get one or two rows.
+            if (num_valid_rows < min_rows_for_gemm) {
+                for (size_t m = 0; m < num_valid_rows; ++m) {
                     const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
                     const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
-                    auto* dst_row = dst_offset(batch_index, row_id);
-                    std::memcpy(dst_row, src_row, N_size * element_size);
-                });
-            }
-        } else {
-            OPENVINO_ASSERT(m_gemvImpl, "GEMV implementation is not created");
-            for (size_t gather_axis_index = 0; gather_axis_index < gather_axis_size; gather_axis_index++) {
-                if (0 == elements_per_gather_indx[gather_axis_index]) {
-                    continue;
+                    m_gemvImpl->exec(src_offset(batch_index, row_id),
+                                     dst_offset(batch_index, row_id),
+                                     wei_offset(gather_axis_index),
+                                     bias_offset(gather_axis_index),
+                                     scale_offset(gather_axis_index),
+                                     zp_offset(gather_axis_index));
                 }
-                auto* wei = wei_offset(gather_axis_index);
-                auto* bias = bias_offset(gather_axis_index);
-                auto* scale = scale_offset(gather_axis_index);
-                auto* zp = zp_offset(gather_axis_index);
-                for (int32_t m = 0; m < elements_per_gather_indx[gather_axis_index]; ++m) {
+                continue;
+            }
+
+            // Size the GEMM to the rows routed to this gather index (rounded up by normalizeM), not to
+            // the full input length: with top-k routing most rows of a full-length GEMM are zero padding.
+            const size_t gemm_rows = normalizeM(num_valid_rows);
+            auto& gemmImpl = gemmBySize[gemm_rows];
+            if (!gemmImpl) {
+                gemmImpl = createGemm(gemm_rows);
+            }
+
+            cpu_parallel->parallel_for(gemm_rows, [&](size_t m) {
+                auto* dst_row = tmp_input_offset(m);
+                if (m < num_valid_rows) {
                     const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
                     const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
-                    auto* src = src_offset(batch_index, row_id);
-                    auto* dst = dst_offset(batch_index, row_id);
-                    m_gemvImpl->exec(src, dst, wei, bias, scale, zp);
+                    const auto* src_data = src_offset(batch_index, row_id);
+                    std::memcpy(dst_row, src_data, K_size * element_size);
+                } else {
+                    std::memset(dst_row, 0, K_size * element_size);
                 }
-            }
+            });
+
+            auto* src = tmp_input_offset.get_base();
+            auto* dst = tmp_dst_offset.get_base();
+            auto* wei = wei_offset(gather_axis_index);
+            auto* bias = bias_offset(gather_axis_index);
+            auto* scale = scale_offset(gather_axis_index);
+            auto* zp = zp_offset(gather_axis_index);
+            gemmImpl->exec(src, dst, wei, bias, scale, zp);
+
+            cpu_parallel->parallel_for(num_valid_rows, [&](size_t m) {
+                const auto* src_row = tmp_dst_offset(m);
+                const auto row_id = gather_idx_map[gather_axis_index * M + m].first;
+                const auto batch_index = gather_idx_map[gather_axis_index * M + m].second;
+                auto* dst_row = dst_offset(batch_index, row_id);
+                std::memcpy(dst_row, src_row, N_size * element_size);
+            });
         }
     } else {
         OPENVINO_ASSERT(m_gemvImpl, "GEMV implementation is not created");

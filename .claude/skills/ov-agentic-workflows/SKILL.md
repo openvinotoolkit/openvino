@@ -137,6 +137,9 @@ General, applies to any agentic workflow:
 
 Known pitfalls from existing workflows (check whether they still apply, and add new ones as you find
 them — see below):
+- **PR comment collapsibles** (`ci-doctor`) — keep the overview visible and use a separate
+  collapsed-by-default `<details>` block per pipeline. HTML-escape dynamic `<summary>` text and leave
+  blank lines around the Markdown body. This GitHub-only formatting must not leak into Teams reports.
 - **Teams markdown** (`ci-doctor-mq`) — Adaptive Cards render a limited subset; use `~~~` (tilde)
   fences for log excerpts, no raw HTML (`<details>`, `<br>`, `<table>`).
 - **Signature hashing** (`ci-doctor-mq`) — the pattern hash must stay job-agnostic (normalized error +
@@ -144,6 +147,29 @@ them — see below):
 - **Read-only knowledge base** (`ci-doctor`) — must never write under `/tmp/gh-aw/repo-memory/default/`;
   only `ci-doctor-mq` (branch `memory/ci-doctor-mq`) and `ci-doctor-post-commit` (branch
   `memory/ci-doctor-post-commit`) write to their own memory branches.
+- **Rerun strings are human-approved only** (`ci-doctor-mq`, `workflow_rerunner.yml`) — the rerunner
+  restarts every failed pipeline whose log matches a string, so it reads only
+  `.github/scripts/workflow_rerun/errors_to_look_for.json` (never the memory branch). The agent must never
+  edit that file: the `rerun_search_string` in `mq/patterns/` is a candidate, submitted via
+  `propose_rerun_pattern` (`propose-rerun-pattern.md`), which opens a review PR against `master` appending
+  it with ticket `9999999`. The job authenticates with the `RERUNNER_DB_UPDATE` secret (not
+  `GITHUB_TOKEN`, whose PRs would not trigger CI).
+  Candidate and sample evidence must be single-line: normalization otherwise joins CR/LF boundaries
+  into matches the line-by-line rerunner cannot reproduce. Bare test names also match passing logs.
+- **Compiler version drift** — before compiling, compare `gh aw version` with the setup-cli `version`
+  in [agentic_workflows_check.yml](../../../.github/workflows/agentic_workflows_check.yml).
+  If they differ, resolve the latest stable release with
+  `gh release view --repo github/gh-aw --json tagName --jq .tagName`, update the workflow's version,
+  and install that same release locally (`gh extension upgrade gh-aw --force --pin <version>`, or
+  `gh extension install github/gh-aw --pin <version>` if not installed). Verify both versions match
+  before running `gh aw compile`. A compiler upgrade can regenerate every lock file; include all
+  affected generated files, since the CI check recompiles every workflow and rejects any diff.
+  Do not keep an older compiler just to match existing lock-file metadata. Review action-pin changes:
+  recompilation may revert Dependabot updates, and any pin correction must also be reproducible by
+  the CI compilation check.
+- **`workflow_run` branch scope** (`CTR-021`, gh-aw ≥ v0.93) — `on.workflow_run.branches` must be a
+  non-empty positive list. For merge-queue triggers use `gh-readonly-queue/**`: merge-queue runs always
+  execute on those base-repo branches, even for PRs from forks.
 - **Teams source badge** (`notify-teams.md`) — the shared Teams job is used by both `ci-doctor-mq` and
   `ci-doctor-post-commit`; each must pass the `source` input (`merge_queue` / `post_commit`) so the
   card shows the right `[MQ]` / `[PC]` badge and uploads the correctly-named statistics artifact.
