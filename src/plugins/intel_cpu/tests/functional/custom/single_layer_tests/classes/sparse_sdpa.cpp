@@ -88,7 +88,9 @@ std::vector<float> run_sparse_sdpa_reference(size_t len,
                 std::vector<float> acc(kDv, 0.0F);
                 float running_max = -std::numeric_limits<float>::infinity();
                 float running_sum = 0.0F;
-                auto consume = [&](int64_t kpos) {
+                // One online-softmax step for key/value position `kpos`: score = (q . K) * scale, rescale the running
+                // max/sum by corr, then acc = acc * corr + p * V. Positions outside the valid history are skipped.
+                auto attend_token = [&](int64_t kpos) {
                     if (kpos < pad || kpos >= static_cast<int64_t>(len)) {
                         return;
                     }
@@ -117,7 +119,7 @@ std::vector<float> run_sparse_sdpa_reference(size_t len,
                     const int64_t block_id = sel_indices[((b * h_sel + sh) * len + l) * kmax + i];
                     const int64_t block_start = pad + block_id * static_cast<int64_t>(sel_block_size);
                     for (int64_t p = block_start; p < block_start + static_cast<int64_t>(sel_block_size); p++) {
-                        consume(p);
+                        attend_token(p);
                     }
                 }
 
@@ -129,7 +131,7 @@ std::vector<float> run_sparse_sdpa_reference(size_t len,
                         pad + (((token_pos - pad + 1) / static_cast<int64_t>(sel_block_size)) *
                                static_cast<int64_t>(sel_block_size));
                     for (int64_t p = tail_start; p <= token_pos; p++) {
-                        consume(p);
+                        attend_token(p);
                     }
                 }
 

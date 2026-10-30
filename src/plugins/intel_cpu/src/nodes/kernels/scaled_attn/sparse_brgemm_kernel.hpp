@@ -103,6 +103,7 @@ struct BrgemmBuffers {
 /// of a row block are packed into the AMX layout once for all the heads of the pack.
 template <typename T>
 void qk_scores_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows_pad) {
+    ov::intel_cpu::AmxTileState tiles;  // the row blocks share one tile configuration
     for (size_t row = 0; row < rows_pad; row += kBrgemmRowBlock) {
         b.qk->copy_buffer_b(b.k_rows + row * p.k_head_size, b.scratch_b);
         b.qk->executeGemm(true,
@@ -112,7 +113,8 @@ void qk_scores_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t row
                           nullptr,
                           nullptr,
                           b.wsp,
-                          b.scratch_a);
+                          b.scratch_a,
+                          tiles);
     }
 }
 
@@ -146,10 +148,19 @@ void softmax_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows,
 /// overwrites acc (beta = 0), every other one accumulates (beta = 1).
 template <typename T>
 void pv_accumulate_brgemm(const BrgemmPack& p, const BrgemmBuffers<T>& b, size_t rows_pad, bool first_tile) {
+    ov::intel_cpu::AmxTileState tiles;  // the row blocks share one tile configuration
     for (size_t row = 0; row < rows_pad; row += kBrgemmRowBlock) {
         b.pv_overwrite->copy_buffer_b(b.v_rows + row * p.v_head_size, b.scratch_b);
         (first_tile && row == 0 ? b.pv_overwrite : b.pv_accumulate)
-            ->executeGemm(true, b.weights.weights(0) + row, b.scratch_b, p.acc, nullptr, nullptr, b.wsp, b.scratch_a);
+            ->executeGemm(true,
+                          b.weights.weights(0) + row,
+                          b.scratch_b,
+                          p.acc,
+                          nullptr,
+                          nullptr,
+                          b.wsp,
+                          b.scratch_a,
+                          tiles);
     }
 }
 

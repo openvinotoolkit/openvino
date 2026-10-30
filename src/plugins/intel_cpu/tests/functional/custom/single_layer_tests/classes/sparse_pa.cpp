@@ -176,7 +176,9 @@ std::vector<float> run_sparse_pa_reference(const ReferenceDims& d,
             std::vector<float> acc(d.v_head_size, 0.0F);
             float running_max = -std::numeric_limits<float>::infinity();
             float running_sum = 0.0F;
-            auto consume = [&](int64_t kpos) {
+            // One online-softmax step for key/value position `kpos`: score = (q . K) * scale, rescale the running
+            // max/sum by corr, then acc = acc * corr + p * V. Positions outside the valid history are skipped.
+            auto attend_token = [&](int64_t kpos) {
                 if (kpos < 0 || kpos >= history_len || kpos > token_pos) {
                     return;
                 }
@@ -202,14 +204,14 @@ std::vector<float> run_sparse_pa_reference(const ReferenceDims& d,
             for (size_t i = 0; i < nblocks; i++) {
                 const int64_t block_start = static_cast<int64_t>(sel_indices[row * d.max_selected_blocks + i]) * Bk;
                 for (int64_t p = block_start; p < block_start + Bk; p++) {
-                    consume(p);
+                    attend_token(p);
                 }
             }
 
             // sel_indices/sel_count only ever carry *complete* blocks. The consumer derives and attends the
             // incomplete block of the query itself, which is empty when the position ends a block.
             for (int64_t p = ((token_pos + 1) / Bk) * Bk; p <= token_pos; p++) {
-                consume(p);
+                attend_token(p);
             }
 
             const float inv_sum = running_sum > 0.0F ? 1.0F / running_sum : 0.0F;

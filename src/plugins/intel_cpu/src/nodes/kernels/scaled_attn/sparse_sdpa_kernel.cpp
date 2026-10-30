@@ -173,7 +173,7 @@ void decompose_runs(const int32_t* sel_ids, size_t nblocks, size_t Bk, size_t un
 // here is a group of 1 or 4 GEMV row units, not a brgemm row block.
 // Runs all AMX-eligible selected-block chunks for one (b, h, l) query row through the flash-
 // attention block-wise online-softmax recurrence (mathematically equivalent to the per-token
-// recurrence in consume() below, just merged once per chunk instead of once per token), updating
+// recurrence in attend_token() below, just merged once per chunk instead of once per token), updating
 // the same running_max/running_sum/acc state so the scalar causal-tail block can continue it
 // afterwards. query/key/value are read directly at AmxT precision (zero-copy: sparse_sdpa_compute()
 // is only called with a non-dynamic amx_prec when QUERY and KEY already negotiated that exact
@@ -530,7 +530,14 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
         float running_max = -std::numeric_limits<float>::infinity();
         float running_sum = 0.0F;
 
-        auto consume = [&](int64_t kpos) {
+        // Attends the query row to the single key/value position `kpos` (one step of the per-token online-softmax
+        // recurrence). Positions outside the valid history [pad, S), or beyond the query when causal, are skipped.
+        //   score = (q . K[kpos]) * scale
+        //   new_max = max(running_max, score);  corr = exp(running_max - new_max);  p = exp(score - new_max)
+        //   running_sum = running_sum * corr + p
+        //   acc         = acc * corr + p * V[kpos]      (acc is normalized by running_sum after the last position)
+        // corr is 1 unless the score is a new maximum, so the common case skips the rescale of acc and one exp.
+        auto attend_token = [&](int64_t kpos) {
             if (kpos < pad || kpos >= static_cast<int64_t>(S)) {
                 return;
             }
@@ -547,28 +554,36 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
             } else {
                 load_row_f32(value, Dv, v_buf, b, kv, kpos);
             }
-            float dot = 0.0F;
-            for (size_t d = 0; d < Dh; d++) {
-                dot += q[d] * k_buf[d];
+            // vectorized: a scalar float reduction cannot be reassociated by the compiler and is latency-bound
+            const float score = dot_product(q, k_buf, Dh, nullptr, nullptr, nullptr, 0) * scale;
+            float p = 1.0F;
+            if (score > running_max) {
+                // a new maximum (corr == 0 on the first token, when acc is still zero)
+                const float corr = std::exp(running_max - score);
+                running_sum *= corr;
+                for (size_t d = 0; d < Dv; d++) {
+                    acc[d] *= corr;
+                }
+                running_max = score;
+            } else {
+                p = std::exp(score - running_max);
             }
-            const float score = dot * scale;
-            const float new_max = std::max(running_max, score);
-            const float corr = std::exp(running_max - new_max);
-            const float p = std::exp(score - new_max);
-            running_sum = running_sum * corr + p;
+            running_sum += p;
             for (size_t d = 0; d < Dv; d++) {
-                acc[d] = acc[d] * corr + p * v_buf[d];
+                acc[d] += p * v_buf[d];
             }
-            running_max = new_max;
         };
 
         const auto nblocks = static_cast<size_t>(*sel_count.ptr<int32_t>(b, sh, l));
-        auto consume_blocks_scalar = [&]() {
+        // Scalar fallback: attends the query row token by token (attend_token) to every position of the Bk-row
+        // selected blocks listed in sel_indices[b, sh, l, 0 .. nblocks). Used when the AMX path is not taken; the
+        // causal tail block is handled separately below.
+        auto attend_selected_blocks_scalar = [&]() {
             for (size_t i = 0; i < nblocks; i++) {
                 const auto block_id = static_cast<int64_t>(*sel_indices.ptr<int32_t>(b, sh, l, i));
                 const int64_t block_start = pad + block_id * static_cast<int64_t>(Bk);
                 for (int64_t p = block_start; p < block_start + static_cast<int64_t>(Bk); p++) {
-                    consume(p);
+                    attend_token(p);
                 }
             }
         };
@@ -643,14 +658,14 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
             for (size_t li = 0; li < decomposed.leftover_count; li++) {
                 const int64_t block_start = decomposed.leftover_block_start[li];
                 for (int64_t p = block_start; p < block_start + static_cast<int64_t>(Bk); p++) {
-                    consume(p);
+                    attend_token(p);
                 }
             }
         } else {
-            consume_blocks_scalar();
+            attend_selected_blocks_scalar();
         }
 #else
-        consume_blocks_scalar();
+        attend_selected_blocks_scalar();
 #endif
 
         // sel_indices/sel_count only ever carry *complete* selected blocks -- the producer never
@@ -660,7 +675,7 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
             const int64_t tail_start =
                 pad + (((token_pos - pad + 1) / static_cast<int64_t>(Bk)) * static_cast<int64_t>(Bk));
             for (int64_t p = tail_start; p <= token_pos; p++) {
-                consume(p);
+                attend_token(p);
             }
         }
 

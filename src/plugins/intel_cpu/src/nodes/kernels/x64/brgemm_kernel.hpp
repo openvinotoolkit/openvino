@@ -8,9 +8,31 @@
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
+#include <cstring>
 #include <openvino/core/type/element_type.hpp>
 
 namespace ov::intel_cpu {
+
+// Which AMX palette the calling thread's tiles hold, to skip redundant configurations of back-to-back brgemm calls (a
+// ldtilecfg each), like prev_ker_idx of the oneDNN brgemm primitives. Make it a local of the loop that runs the
+// calls, so it starts out "unknown", and pass it to every executeGemm() of the loop; the thread must not run other
+// AMX code that changes the tile configuration (oneDNN primitives, calls without the state) between those calls.
+class AmxTileState {
+public:
+    // Whether `palette` has to be loaded on the tile hardware; remembers it as the configured one.
+    bool needs_configure(const char* palette) {
+        if (m_configured && std::memcmp(m_palette, palette, sizeof(m_palette)) == 0) {
+            return false;
+        }
+        std::memcpy(m_palette, palette, sizeof(m_palette));
+        m_configured = true;
+        return true;
+    }
+
+private:
+    char m_palette[dnnl::impl::cpu::x64::AMX_PALETTE_SIZE] = {};
+    bool m_configured = false;
+};
 
 class BrgemmKernel {
 public:
@@ -46,6 +68,16 @@ public:
     // scratch_a, pointer to store temp a
     virtual void
     executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a);
+    // The same, configuring the AMX tiles only when `tiles` does not hold the palette of the call already
+    virtual void executeGemm(bool is_M_tail,
+                             void* a,
+                             void* b,
+                             void* c,
+                             void* d,
+                             float* scale_b,
+                             void* wsp,
+                             void* scratch_a,
+                             AmxTileState& tiles);
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
@@ -117,7 +149,13 @@ protected:
     static size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
-    void execute_without_scale(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
+    void execute_without_scale(bool is_M_tail,
+                               void* a,
+                               void* b,
+                               void* c,
+                               void* wsp,
+                               void* scratch_a,
+                               AmxTileState* tiles = nullptr);
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
     // LDA, LDB is used for stride of target memory
     void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
@@ -149,7 +187,8 @@ protected:
                            void* Dout,
                            const float* bScale,
                            void* wsp,
-                           bool doPostops);
+                           bool doPostops,
+                           AmxTileState* tiles = nullptr);
 };
 
 class BrgemmKernelQuantized : public BrgemmKernel {
@@ -172,5 +211,25 @@ public:
     // execute by m_blk + scale
     void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a)
         override;
+    void executeGemm(bool is_M_tail,
+                     void* a,
+                     void* b,
+                     void* c,
+                     void* d,
+                     float* scale_b,
+                     void* wsp,
+                     void* scratch_a,
+                     AmxTileState& tiles) override;
+
+private:
+    void execute_scaled(bool is_M_tail,
+                        void* a,
+                        void* b,
+                        void* c,
+                        void* d,
+                        float* scale_b,
+                        void* wsp,
+                        void* scratch_a,
+                        AmxTileState* tiles);
 };
 }  // namespace ov::intel_cpu

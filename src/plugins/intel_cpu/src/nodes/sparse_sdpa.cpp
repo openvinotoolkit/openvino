@@ -371,7 +371,7 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
         if (key_quant.enabled() || value_quant.enabled()) {
             // dequantized K and V rows of one AMX chunk (<= 4 merge units, bf16 / f16 elements), see
             // sparse_sdpa_compute()
-            amx_raw_floats += (amx_raw_floats * (Dh + Dv) * 2 + sizeof(float) - 1) / sizeof(float);
+            amx_raw_floats += div_up(amx_raw_floats * (Dh + Dv) * 2, sizeof(float));
         }
         const size_t K_max = sel_indices.size(3);
         runs_per_thread = 3 * K_max;
@@ -380,7 +380,7 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
     const size_t per_thread_floats = 2 * Dh + 2 * Dv + amx_raw_floats;
     const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
     const size_t float_bytes = num_threads * per_thread_floats * sizeof(float);
-    const size_t float_bytes_aligned = (float_bytes + 7U) & ~size_t{7U};
+    const size_t float_bytes_aligned = rnd_up(float_bytes, alignof(int64_t));
     const size_t runs_bytes = num_threads * runs_per_thread * sizeof(int64_t);
     // Third region: the per-thread buffers of the brgemm prefill (64-byte aligned parts): the state of the head pack,
     // then the gather tile and the brgemm scratch (see PackStateLayout, SparseBrgemmLayout).
@@ -532,7 +532,7 @@ void SparseSDPA::updateKVCache() {
         const bool by_channel = quantized && spec.by_channel;
         const size_t szp_cols = !quantized ? 0 : (by_channel ? S : 2 * S / spec.group_size);
         auto szp_rows = [&](size_t length) {
-            return by_channel ? 2 * ((length + spec.group_size - 1) / spec.group_size) : length;
+            return by_channel ? 2 * div_up(length, spec.group_size) : length;
         };
         auto mem = state->internal_state_mem();
 

@@ -460,7 +460,25 @@ void BrgemmKernel::executeGemm(bool is_M_tail,
     execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
 }
 
-void BrgemmKernel::execute_without_scale(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a) {
+void BrgemmKernel::executeGemm(bool is_M_tail,
+                               void* a,
+                               void* b,
+                               void* c,
+                               [[maybe_unused]] void* d,
+                               [[maybe_unused]] float* scale_b,
+                               void* wsp,
+                               void* scratch_a,
+                               AmxTileState& tiles) {
+    execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a, &tiles);
+}
+
+void BrgemmKernel::execute_without_scale(bool is_M_tail,
+                                         void* a,
+                                         void* b,
+                                         void* c,
+                                         void* wsp,
+                                         void* scratch_a,
+                                         AmxTileState* tiles) {
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
     auto* ptr_C = reinterpret_cast<uint8_t*>(c);
     auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
@@ -517,7 +535,8 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail, void* a, void* b, void*
                            nullptr,
                            nullptr,
                            wsp,
-                           false);
+                           false,
+                           tiles);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
@@ -538,8 +557,9 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
                               void* Dout,
                               const float* bScale,
                               void* wsp,
-                              bool doPostops) {
-    if (ctx.is_with_amx) {
+                              bool doPostops,
+                              AmxTileState* tiles) {
+    if (ctx.is_with_amx && (tiles == nullptr || tiles->needs_configure(ctx.palette))) {
         amx_tile_configure(ctx.palette);
     }
     if (doPostops) {
@@ -582,9 +602,33 @@ void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
                                         float* scale_b,
                                         void* wsp,
                                         void* scratch_a) {
+    execute_scaled(is_M_tail, a, b, c, d, scale_b, wsp, scratch_a, nullptr);
+}
+
+void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
+                                        void* a,
+                                        void* b,
+                                        void* c,
+                                        void* d,
+                                        float* scale_b,
+                                        void* wsp,
+                                        void* scratch_a,
+                                        AmxTileState& tiles) {
+    execute_scaled(is_M_tail, a, b, c, d, scale_b, wsp, scratch_a, &tiles);
+}
+
+void BrgemmKernelQuantized::execute_scaled(bool is_M_tail,
+                                           void* a,
+                                           void* b,
+                                           void* c,
+                                           void* d,
+                                           float* scale_b,
+                                           void* wsp,
+                                           void* scratch_a,
+                                           AmxTileState* tiles) {
     // If no scale is provided, run kernel without post-scales
     if (scale_b == nullptr) {
-        execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
+        execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a, tiles);
         return;
     }
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
@@ -646,7 +690,8 @@ void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
                            d_ptr,
                            scale_b + n * count_N,
                            wsp,
-                           do_post);
+                           do_post,
+                           tiles);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {
                     count_K = brgemmCtx.K * brgemmCtx.LDB;
