@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -42,7 +41,6 @@ private:
     template <class T>
     void executeImpl();
 
-    size_t m_bins = 0;
     double m_min = 0.0;
     double m_max = 0.0;
 };

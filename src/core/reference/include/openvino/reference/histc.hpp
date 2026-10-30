@@ -74,8 +74,8 @@ void histc(const T* data, T* out, const size_t count, const size_t bins, double 
     }
     std::transform(hist.begin(), hist.end(), out, [](size_t n) {
         if constexpr (std::is_integral_v<T>) {
-            // Saturate counts that do not fit into T.
-            return static_cast<T>(std::min<size_t>(n, static_cast<size_t>(std::numeric_limits<T>::max())));
+            // Like torch.histc, the output keeps the input type and counts that do not fit into T wrap around.
+            return static_cast<T>(n);
         } else {
             return static_cast<T>(static_cast<C>(n));
         }

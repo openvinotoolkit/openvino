@@ -23,6 +23,7 @@
 #include "openvino/op/histc.hpp"
 #include "openvino/reference/histc.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -33,7 +34,6 @@ Histc::Histc(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     const auto histc = ov::as_type_ptr<const ov::op::v17::Histc>(op);
-    m_bins = static_cast<size_t>(histc->get_bins());
     m_min = histc->get_min();
     m_max = histc->get_max();
 }
@@ -51,7 +51,12 @@ void Histc::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    const auto prec = getOriginalInputPrecisionAtPort(0).is_real() ? ov::element::f32 : ov::element::i32;
+    auto prec = getOriginalInputPrecisionAtPort(0);
+    if (prec.is_real()) {
+        prec = ov::element::f32;
+    } else if (none_of(prec, ov::element::i8, ov::element::u8)) {
+        prec = ov::element::i32;
+    }
     addSupportedPrimDesc({{LayoutType::ncsp, prec}}, {{LayoutType::ncsp, prec}}, impl_desc_type::ref);
 }
 
@@ -65,16 +70,28 @@ void Histc::executeImpl() {
     ov::reference::histc(src->getDataAs<const T>(),
                          getDstDataAtPortAs<T>(0),
                          ov::shape_size(src->getStaticDims()),
-                         m_bins,
+                         ov::shape_size(getDstMemoryAtPort(0)->getStaticDims()),
                          m_min,
                          m_max);
 }
 
 void Histc::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (getParentEdgeAt(0)->getMemory().getDesc().getPrecision() == ov::element::f32) {
+    const auto prec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
+    switch (prec) {
+    case ov::element::f32:
         executeImpl<float>();
-    } else {
+        break;
+    case ov::element::i32:
         executeImpl<int32_t>();
+        break;
+    case ov::element::i8:
+        executeImpl<int8_t>();
+        break;
+    case ov::element::u8:
+        executeImpl<uint8_t>();
+        break;
+    default:
+        CPU_NODE_THROW("has unsupported precision: ", prec);
     }
 }
 

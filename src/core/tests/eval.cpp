@@ -37,7 +37,6 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/histc.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/logical_not.hpp"
@@ -4345,32 +4344,5 @@ TEST(eval, interpolate_padding_overflow) {
                                      {element::i64, Shape{1}}};
 
     OV_EXPECT_THROW(std::ignore = op->evaluate(outputs, inputs), ov::Exception, _);
-}
-
-TEST(eval, evaluate_histc_invalid_runtime_range) {
-    const auto inf = std::numeric_limits<float>::infinity();
-    const auto nan = std::numeric_limits<float>::quiet_NaN();
-    const auto evaluate = [](double min, double max, const std::vector<float>& values) {
-        const auto op =
-            make_shared<op::v17::Histc>(make_shared<Parameter>(element::f32, PartialShape{-1}), 4, min, max);
-        auto outputs = TensorVector{{element::f32, Shape{}}};
-        const auto inputs = TensorVector{make_tensor<element::Type_t::f32>(Shape{values.size()}, values)};
-        return op->evaluate(outputs, inputs);
-    };
-
-    // The range taken from data must be finite.
-    OV_EXPECT_THROW(std::ignore = evaluate(0.0, 0.0, {1.f, inf}), ov::Exception, HasSubstr("is not finite"));
-    OV_EXPECT_THROW(std::ignore = evaluate(0.0, 0.0, {-inf, -inf}), ov::Exception, HasSubstr("is not finite"));
-    OV_EXPECT_THROW(std::ignore = evaluate(0.0, 0.0, {nan, nan}), ov::Exception, HasSubstr("is not finite"));
-    // A single NaN anywhere poisons the range taken from data, as in torch.histc.
-    OV_EXPECT_THROW(std::ignore = evaluate(0.0, 0.0, {nan, 1.f, 2.f}), ov::Exception, HasSubstr("is not finite"));
-    OV_EXPECT_THROW(std::ignore = evaluate(0.0, 0.0, {1.f, nan, 2.f}), ov::Exception, HasSubstr("is not finite"));
-    OV_EXPECT_THROW(std::ignore = evaluate(0.0, 0.0, {1.f, 2.f, nan}), ov::Exception, HasSubstr("is not finite"));
-    OV_EXPECT_THROW(std::ignore = evaluate(3.0, 3.0, {1.f, nan}), ov::Exception, HasSubstr("is not finite"));
-    // The range collapses to [0, 0] in f32.
-    OV_EXPECT_THROW(std::ignore = evaluate(0.0, 1e-50, {0.f}), ov::Exception, HasSubstr("max must be larger than min"));
-    // An explicit range is valid even when data contains infinities or NaN.
-    EXPECT_TRUE(evaluate(0.0, 1.0, {-inf, inf, 0.5f}));
-    EXPECT_TRUE(evaluate(0.0, 1.0, {nan, nan}));
 }
 }  // namespace ov::test

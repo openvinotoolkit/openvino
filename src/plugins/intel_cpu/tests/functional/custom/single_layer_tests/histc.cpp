@@ -89,6 +89,8 @@ const std::vector<InputShape> shapes = {
     {{}, {{2, 3, 17}}},
     // Single-bin counts above 255 (u8), 127 (i8) and 256 (bf16 integer step).
     {{}, {{50, 50}}},
+    // Single-bin counts above 65535 (u16) and 32767 (i16).
+    {{}, {{300, 300}}},
     {{}, {{0}}},
     {{}, {{2, 0, 3}}},
     {{-1, -1}, {{4, 5}, {0, 3}, {32, 32}, {1, 1}}},
@@ -112,7 +114,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_Histc,
                                                               ElementType::i32,
                                                               ElementType::i64,
                                                               ElementType::u8,
-                                                              ElementType::i8)),
+                                                              ElementType::i8,
+                                                              ElementType::u16,
+                                                              ElementType::i16)),
                          HistcLayerCPUTest::getTestCaseName);
 
 // Like torch.histc, NaN is ignored for an explicit range but makes a range taken from data invalid.

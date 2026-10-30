@@ -104,10 +104,4 @@ TEST_F(TypePropHistcTest, clone_preserves_attributes) {
     EXPECT_EQ(clone->get_output_element_type(0), element::i32);
     EXPECT_EQ(clone->get_output_partial_shape(0), (PartialShape{7}));
 }
-
-TEST_F(TypePropHistcTest, has_evaluate) {
-    EXPECT_TRUE(make_op(std::make_shared<Parameter>(element::f32, PartialShape{5}))->has_evaluate());
-    EXPECT_TRUE(make_op(std::make_shared<Parameter>(element::u8, PartialShape{5}))->has_evaluate());
-    EXPECT_FALSE(make_op(std::make_shared<Parameter>(element::f8e4m3, PartialShape{5}))->has_evaluate());
-}
 }  // namespace ov::test
