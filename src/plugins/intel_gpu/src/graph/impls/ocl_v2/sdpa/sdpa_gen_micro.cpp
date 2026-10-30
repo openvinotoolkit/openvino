@@ -1339,8 +1339,14 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("WITH_ATTN_MASK", 0);
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
         const auto desc = params.typed_desc<paged_attention>();
-        if (desc->has_token_type_ids && m_is_prefill) {
+        if (desc->has_token_type_ids) {
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
+            // the kernel checks the runtime size: an empty token_type_ids input disables the bidirectional masking
+            const size_t tensor_id = PagedAttentionInputIdx::TOKEN_TYPE_IDS;
+            jit.add(make_layout_jit_constants("TOKEN_TYPE_IDS", params.input_layouts[tensor_id], params.in_port_to_shape_info_offset.at(tensor_id)));
+            if (pa_micro_uses_tt_bounds(*desc)) {
+                jit.make("USE_TT_BOUNDS", 1);  // group bounds precomputed by the pa_tt_bounds stage
+            }
         }
     }
 
@@ -1683,11 +1689,14 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
                 {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
         }
 
-        if (desc->has_token_type_ids && m_is_prefill) {
+        if (desc->has_token_type_ids) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
         }
 
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
+        if (pa_micro_uses_tt_bounds(*desc)) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // tt_bounds
+        }
     } else {
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::KEY});    // K
         args.push_back({ArgumentDescriptor::Types::INPUT, ScaledDotProductAttentionInputIdx::QUERY});  // Q
