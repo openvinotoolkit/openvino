@@ -17,10 +17,7 @@
 namespace ov::intel_gpu::ocl::moe {
 namespace {
 
-void validate_resident_buffer_capacity(const cldnn::memory::ptr& memory,
-                                       size_t capacity,
-                                       size_t total_experts,
-                                       const char* tensor_name) {
+void validate_resident_buffer_capacity(const cldnn::memory::ptr& memory, size_t capacity, size_t total_experts, const char* tensor_name) {
     if (!memory) {
         return;
     }
@@ -67,14 +64,14 @@ OffloadExpertWeightProvider::OffloadExpertWeightProvider(size_t capacity,
 
 void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
     const std::array<std::pair<const char*, cldnn::memory::ptr>, 9> routed_buffers = {{{"gate_w", resident.gate_w},
-                                                                                     {"up_w", resident.up_w},
-                                                                                     {"down_w", resident.down_w},
-                                                                                     {"gate_s", resident.gate_s},
-                                                                                     {"up_s", resident.up_s},
-                                                                                     {"down_s", resident.down_s},
-                                                                                     {"gate_z", resident.gate_z},
-                                                                                     {"up_z", resident.up_z},
-                                                                                     {"down_z", resident.down_z}}};
+                                                                                       {"up_w", resident.up_w},
+                                                                                       {"down_w", resident.down_w},
+                                                                                       {"gate_s", resident.gate_s},
+                                                                                       {"up_s", resident.up_s},
+                                                                                       {"down_s", resident.down_s},
+                                                                                       {"gate_z", resident.gate_z},
+                                                                                       {"up_z", resident.up_z},
+                                                                                       {"down_z", resident.down_z}}};
     for (const auto& [name, memory] : routed_buffers) {
         validate_resident_buffer_capacity(memory, _capacity, static_cast<size_t>(_config.num_expert), name);
     }
