@@ -5,28 +5,13 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "openvino/frontend/gguf/builder/model_builder.hpp"
 
 namespace ov::frontend::gguf {
-struct LfmDecoderLayer {
-    bool recurrent = false;
-    bool sandwich_norm = false;
-};
-
-struct LfmDecoderConfig {
-    std::vector<LfmDecoderLayer> layers;
-    GgufValue output_norm;
-    GgufValue output_weight;
-    GgufValue output_bias;
-    std::string hidden_output;
-    bool select_output_rows = true;
-};
-
-std::shared_ptr<GgufGraph> build_lfm_decoder(GgufGraphContext& g,
-                                             const DecoderDimensions& dims,
-                                             const LfmDecoderConfig& config);
+std::shared_ptr<ModelBuilder> make_lfm_builder(const BuildContext& context);
+std::shared_ptr<ModelBuilder> make_lfm2_vocoder_builder(const BuildContext& context);
 
 // Returns C * conv(B * x), retaining trailing taps from the [B, C, x] input projection.
 GgufValue build_lfm_short_conv(GgufGraphContext& g,

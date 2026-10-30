@@ -2,56 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lfm2_builder.hpp"
-
 #include <cmath>
 #include <limits>
 
-#include "builder/decoder_metadata.hpp"
 #include "lfm_builder.hpp"
-#include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
-class Lfm2Builder : public ModelBuilder {
-public:
-    explicit Lfm2Builder(const BuildContext& context) : g(context) {}
-
-    std::shared_ptr<GgufGraph> build() override {
-        const auto kernel = g.metadata().get_int(g.arch() + ".shortconv.l_cache");
-        OPENVINO_ASSERT(kernel && *kernel > 1 && *kernel <= std::numeric_limits<int>::max(),
-                        "[GGUF] LFM2 requires shortconv.l_cache > 1");
-        OPENVINO_ASSERT(g.metadata().get_bool(g.arch() + ".attention.causal").value_or(true),
-                        "[GGUF] noncausal LFM2 embedding models require a centered convolution builder");
-        DecoderOptions options;
-        options.normalize_expert_weights = true;
-        const auto parameters = resolve_decoder_parameters(g.metadata(), RopeMode::Neox, options);
-        const auto dims = g.configure_decoder(parameters);
-        OPENVINO_ASSERT(dims.layers > 0 && dims.embedding > 0,
-                        "[GGUF] LFM2 requires positive layer and embedding counts");
-        auto weights = g.tensors();
-        LfmDecoderConfig config;
-        config.layers.resize(dims.layers);
-        for (int layer = 0; layer < dims.layers; ++layer)
-            config.layers[layer].recurrent = weights.has("blk." + std::to_string(layer) + ".shortconv.in_proj.weight");
-        config.output_norm = weights.require("token_embd_norm.weight");
-        const bool detokenizer = weights.has("dense_2.weight");
-        if (detokenizer) {
-            config.output_weight = weights.require("dense_2.weight");
-            OPENVINO_ASSERT(config.output_weight.ne(0) == dims.embedding && config.output_weight.ne(1) == 1282,
-                            "[GGUF] LFM2 audio detokenizer requires a 1282-channel spectral head");
-            config.output_bias = weights("dense_2.bias");
-            config.select_output_rows = false;
-        } else {
-            config.output_weight =
-                weights.has("output.weight") ? weights.require("output.weight") : weights.require("token_embd.weight");
-        }
-        return build_lfm_decoder(g, dims, config);
-    }
-
-private:
-    GgufGraphContext g;
-};
 class Lfm2VocoderBuilder : public ModelBuilder {
 public:
     explicit Lfm2VocoderBuilder(const BuildContext& context) : g(context) {}
@@ -178,10 +135,6 @@ private:
     GgufGraphContext g;
 };
 }  // namespace
-
-std::shared_ptr<ModelBuilder> make_lfm2_builder(const BuildContext& context) {
-    return std::make_shared<Lfm2Builder>(context);
-}
 
 std::shared_ptr<ModelBuilder> make_lfm2_vocoder_builder(const BuildContext& context) {
     return std::make_shared<Lfm2VocoderBuilder>(context);
