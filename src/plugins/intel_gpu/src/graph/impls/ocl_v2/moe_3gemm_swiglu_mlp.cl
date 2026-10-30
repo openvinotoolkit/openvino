@@ -1120,7 +1120,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_down)(const
 #else
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(mlp_reduce)(const __global MOE_DTYPE* x,  // [token_num * REDUCE_COUNT, HIDDEN_SIZE]
                                                                              __global MOE_DTYPE* y) {      // [token_num, HIDDEN_SIZE]
-    // gws={token_num, HIDDEN_SIZE}, lws={1, min(max_wgs, 1024)}
+    // gws={token_num, HIDDEN_SIZE}, lws={1, largest multiple of SUBGROUP_SIZE that divides HIDDEN_SIZE and is <= min(max_wgs, 1024)}
     int token_idx = get_global_id(0);
     int n = get_global_id(1);
 #    if SHARED_EXPERT_ENABLE

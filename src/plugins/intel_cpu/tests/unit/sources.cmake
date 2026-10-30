@@ -19,6 +19,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/graph/resolve_edge_conflicts_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/memory_desc/empty_memory_desc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/tensoriterator_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/cpu_runtime_configurator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/enforce_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/mul_add_to_fma.cpp
@@ -33,6 +34,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_gather_matmul_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp
@@ -185,6 +187,7 @@ set(CPU_UNIT_TESTS_X64_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/softmax_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/xattention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/eltwise_node_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/kernels/x64/selective_ssm_jit_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/brgemm_supported_precisions.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/fake_quantize_tokenization_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/x64/fuse_brgemm_cpu_postops.cpp
@@ -258,6 +261,7 @@ if(ENABLE_UNITY_BUILD)
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_gather_matmul_to_compressed_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp

@@ -49,12 +49,13 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             return dt == ov::element::i4 || dt == ov::element::i8;
         };
 
-        // Only support weight: u4, i4, u8, i8
+        // Only support weight: u4, i4, u8, i8, u3 (u3 has no batched GEMV kernel and runs decode via OneDNN grouped GEMM)
         static constexpr std::array supported_wei_type = {
             ov::element::u4,
             ov::element::i4,
             ov::element::u8,
             ov::element::i8,
+            ov::element::u3,
         };
         // Only support scale: f16
         static constexpr std::array supported_scale_type = {
@@ -83,8 +84,10 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             }
             if (config.has_zp) {
                 const auto zp_dt = dt_of(zps[i]);
-                // The kernel strides zp by the weight's bit width (MOE_EXPERT_ZP_BYTES), so they must match.
-                if (!one_of(zp_dt, supported_zp_type) || zp_dt.bitwidth() != wei_dt.bitwidth()) {
+                // The batched GEMV strides zp by the weight's bit width (MOE_EXPERT_ZP_BYTES), so they must match.
+                // u3 never runs it (OneDNN grouped GEMM) and its zp is u8, so it is exempt.
+                const bool zp_width_ok = wei_dt == ov::element::u3 || zp_dt.bitwidth() == wei_dt.bitwidth();
+                if (!one_of(zp_dt, supported_zp_type) || !zp_width_ok) {
                     return false;
                 }
             }

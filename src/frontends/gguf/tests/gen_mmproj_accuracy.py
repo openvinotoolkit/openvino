@@ -18,7 +18,7 @@ from pathlib import Path
 import gguf
 import numpy as np
 
-from mmproj_fixtures import TensorWriter, finish, merge_window_order, muse_glimmer_indices, save_npz, split_variants
+from mmproj_fixtures import TensorWriter, finish, merge_window_order, muse_glimmer_indices, save_npz, split_variants, lfm2_audio_positions
 
 SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro", "mlp", "mlp_norm", "mlp_feature",
                "qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma", "qwen2vl_merger",
@@ -26,8 +26,8 @@ SINGLE_GRID = ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro
                "voxtral_odd", "resampler", "resampler_v2", "resampler_v4")
 # Single-grid models rerun here on two grids with different token counts.
 REGRIDDED = ("qwen2.5vl_merger_grids", "resampler_grids")
-TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
-            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2",
+TWO_GRID = ("muse-glimmer", "pixtral", "pixtral_merge", "phi4", "lfm2", "lfm2_no_norm", "lfm2a", "gemma4v", "gemma4uv", "gemma4uv_low_contrast",
+            "gemma4ua", "gemma4v_one_sided", "minicpmv4_6", "minicpmv4_7", "minicpmv4_7_4x", "gemma4a", "deepseekocr", "deepseekocr2",
             "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview", *REGRIDDED)
 
 
@@ -275,9 +275,10 @@ def single_grid_width(projector):
     return 128 if projector.startswith("resampler") else 12 if projector == "qwen3vl_merger" else 6
 
 
-VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast")
+VARIANTS = ("_4x", "_resize", "_overview", "_one_sided", "_low_contrast")
 # mmproj_ops_oracle output file -> test_data .npy name.
 OPS_EXPECTATIONS = {
+    "view_q8_input": "view_q8_input", "view_q8_34": "view_q8_34", "view_q8_102": "view_q8_102",
     "window_input": "mmproj_window_input", "windows": "mmproj_windows", "restored": "mmproj_restored",
     "relative_table": "mmproj_relative_table", "relative": "mmproj_relative",
     "vision": "vision_rope_expected", "imrope": "multimodal_imrope_expected",
@@ -330,6 +331,47 @@ def write_muse_model(path):
 
 
 def write_grid_model(path, family):
+    if family == "lfm2a":
+        w = gguf.GGUFWriter(path, "clip")
+        t = TensorWriter(w, np.random.default_rng(2718))
+        width, hidden, output, channels = 16, 24, 12, 4
+        w.add_bool("clip.has_audio_encoder", True)
+        w.add_string("clip.projector_type", family)
+        for name, value in {"embedding_length": width, "feed_forward_length": hidden,
+                            "block_count": 2, "projection_dim": output, "attention.head_count": 2,
+                            "num_mel_bins": 8}.items():
+            w.add_uint32("clip.audio." + name, value)
+        w.add_float32("clip.audio.attention.layer_norm_epsilon", 1e-5)
+        t.tensor("a.position_embd.weight", (256, output))
+        for i in (0, 2, 3, 5, 6):
+            t.tensor(f"a.conv1d.{i}.weight", (channels, 1 if i in (0, 2, 5) else channels,
+                                                      3 if i in (0, 2, 5) else 1,
+                                                      3 if i in (0, 2, 5) else 1))
+            t.tensor(f"a.conv1d.{i}.bias", (channels, 1, 1))
+        t.linear("a.pre_encode.out", channels, width)
+        for i in range(2):
+            p = f"a.blk.{i}."
+            for name in ("ffn_norm", "ffn_norm_1", "ln1", "ln2", "norm_conv", "conv_norm"):
+                t.norm(p + name, width)
+            for name in ("attn_q", "attn_k", "attn_v", "attn_out", "conv_pw2"):
+                t.linear(p + name, width, width)
+            t.linear(p + "linear_pos", 512, width, False)
+            for name in ("pos_bias_u", "pos_bias_v"):
+                t.tensor(p + name, (2, width // 2))
+            for suffix in ("", "_1"):
+                t.linear(p + "ffn_up" + suffix, width, hidden)
+                t.linear(p + "ffn_down" + suffix, hidden, width)
+            t.linear(p + "conv_pw1", width, width * 2)
+            t.tensor(p + "conv_dw.weight", (width, 9))
+            t.tensor(p + "conv_dw.bias", (width,))
+        t.norm("mm.a.mlp.0", width)
+        t.linear("mm.a.mlp.1", width, hidden)
+        t.linear("mm.a.mlp.3", hidden, output)
+        finish(w)
+        return output
+    lfm2_norm = family != "lfm2_no_norm"
+    if family == "lfm2_no_norm":
+        family = "lfm2"
     if family == "muse-glimmer":
         return write_muse_model(path)
     family, variants = split_variants(family, *VARIANTS)
@@ -384,7 +426,7 @@ def write_grid_model(path, family):
     else:
         w.add_uint32(key + "image_size", 8)
         w.add_uint32(key + "patch_size", 24 if low_contrast else 2)
-        w.add_uint32(key + "projector.scale_factor", 4 if family == "minicpmv4_6" else 2)
+        w.add_uint32(key + "projector.scale_factor", 4 if family in {"minicpmv4_6", "minicpmv4_7"} and "_4x" not in variants else 2)
         w.add_uint32(key + "image_min_pixels", 16)
         w.add_uint32(key + "image_max_pixels", 4096)
         w.add_array(key + "image_mean", [.5, .5, .5])
@@ -449,9 +491,11 @@ def write_grid_model(path, family):
             if family == "gemma4v":
                 tensor("v.std_bias", (width,))
                 tensor("v.std_scale", (width,), True)
-        elif family == "phi4":
+        elif family in {"phi4", "lfm2"}:
             tensor("v.position_embd.weight", (16, width))
-            linear("mm.0", width, hidden)
+            if family == "lfm2" and lfm2_norm:
+                norm("mm.input_norm", width * 4)
+            linear("mm.1" if family == "lfm2" else "mm.0", width * 4 if family == "lfm2" else width, hidden)
             linear("mm.2", hidden, output)
         elif family.startswith("pixtral"):
             tensor("v.token_embd.img_break", (output,))
@@ -461,16 +505,19 @@ def write_grid_model(path, family):
                 w.add_uint32(key + "spatial_merge_size", 2)
                 norm("mm.input_norm", width, False)
                 linear("mm.patch_merger", width * 4, width, False)
-        elif family == "minicpmv4_6":
+        elif family in {"minicpmv4_6", "minicpmv4_7"}:
             tensor("v.position_embd.weight", (4900, width))
             w.add_array(key + "wa_layer_indexes", [0])
             p = "v.vit_merger."
-            norm(p + "ln1", width)
-            for name in ("attn_q", "attn_k", "attn_v", "attn_out"):
-                linear(p + name, width, width)
-            norm(p + "ds_ln", width * 4)
-            linear(p + "ds_ffn_up", width * 4, hidden)
-            linear(p + "ds_ffn_down", hidden, width)
+            if "_4x" not in variants:
+                norm(p + "ln1", width)
+                for name in ("attn_q", "attn_k", "attn_v", "attn_out"):
+                    linear(p + name, width, width)
+                norm(p + "ds_ln", width * 4)
+                linear(p + "ds_ffn_up", width * 4, hidden)
+                linear(p + "ds_ffn_down", hidden, width)
+            if family == "minicpmv4_7":
+                tensor("v.tok_embd_sep", (4, output))
             norm("mm.input_norm", width * 4)
             linear("mm.up", width * 4, hidden)
             linear("mm.down", hidden, output)
@@ -503,6 +550,14 @@ def write_grid_model(path, family):
 
 
 def grid_inputs(family, width, height):
+    if family == "lfm2a":
+        raw = np.random.default_rng(42).normal(.1, .4, (height, width)).astype(np.float32)
+        return raw, {"features": raw.reshape(1, 1, height, width),
+                     "pos_emb": lfm2_audio_positions(width, 512)}
+    if family in {"lfm2", "lfm2_no_norm"}:
+        raw = np.random.default_rng(42).normal(.1, .4, (height, width, 3)).astype(np.float32)
+        return raw, {"pixel_values": raw.transpose(2, 0, 1)[None],
+                     "merge_indices": np.array(merge_window_order(height // 2, width // 2), np.int32).reshape(1, 1, 1, -1)}
     if family == "muse-glimmer":
         raw = np.random.default_rng(42).uniform(-1, 1, (height, width, 3)).astype(np.float32)
         return raw, {"pixel_values": raw.transpose(2, 0, 1)[None], **muse_glimmer_indices(height // 2, width // 2, 3)}
@@ -549,14 +604,18 @@ def grid_inputs(family, width, height):
     if family.startswith(("pixtral", "gemma4")):
         result.update(position_x=cols.astype(np.int32).reshape(1, 1, 1, -1),
                       position_y=rows.astype(np.int32).reshape(1, 1, 1, -1))
-    if family == "minicpmv4_6":
+    if family in {"minicpmv4_6", "minicpmv4_7"}:
         result["position_ids"] = (70 * (70 * rows // h) + 70 * cols // w).astype(np.int32).reshape(1, 1, 1, -1)
         order = merge_window_order(h, w)
         result["window_indices"] = np.array(order, np.int32).reshape(1, 1, 1, -1)
         result["inverse_window_indices"] = np.argsort(order).astype(np.int32).reshape(1, 1, 1, -1)
         index = np.arange(h * w) // 4
         result["attention_mask"] = np.where(index[:, None] == index[None], 0, np.finfo(np.float32).min).astype(np.float32)[None, None]
-        for name, dh, dw in (("vit_merger", h, w), ("merger", h // 2, w // 2)):
+        mergers = (("merger", h, w),) if "_4x" in variants else (("vit_merger", h, w), ("merger", h // 2, w // 2))
+        if "_4x" in variants:
+            for key in ("window_indices", "inverse_window_indices", "attention_mask"):
+                result.pop(key)
+        for name, dh, dw in mergers:
             for i, (dy, dx) in enumerate(((0, 0), (0, 1), (1, 0), (1, 1))):
                 result[f"{name}.indices.{i}"] = np.array([(y + dy) * dw + x + dx
                     for y in range(0, dh, 2) for x in range(0, dw, 2)], np.int32).reshape(1, 1, 1, -1)
@@ -597,6 +656,7 @@ def two_grid_fixture(oracle, family):
                 "deepseekocr_overview": [(256, 256), (256, 256)],
                 "deepseekocr": [(256, 256), (256, 512)],
                 "gemma4a": [(49, 8), (101, 8)],
+                "lfm2a": [(49, 8), (101, 8)],
                 "gemma4ua": [(3, 640), (5, 640)],
                 "gemma4uv_low_contrast": [(96, 48), (48, 144)],
                 "muse-glimmer": [(12, 8), (4, 4)],

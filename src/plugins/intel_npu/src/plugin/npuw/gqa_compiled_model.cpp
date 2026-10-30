@@ -133,7 +133,8 @@ bool has_2bit_group_quantized_weights(const std::shared_ptr<const ov::Model>& mo
 }
 
 std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov::Model>& model,
-                                                       const ov::AnyMap& properties) {
+                                                       const ov::AnyMap& properties,
+                                                       ov::npuw::GQACompiledModel::Case gqa_case) {
     const auto detect_gqa_model_stage = [&]() {
         // The activation tensor ("input_hidden_states") is what the embedding
         // model stage feeds into the transformer.  For the generate (iter) model
@@ -219,29 +220,38 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
     };
 
     // V0/V1 are pre-assembled GQA graphs that online partitioning would only get in the way
-    // of. V2 (2-bit group-quantized weights) still benefits from online partitioning, so it
-    // keeps the default pipeline (REG) instead of being forced to NONE.
-    ov::AnyMap config = {{"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
+    // of. V2 (2-bit group-quantized weights) still benefits from online partitioning: its
+    // prefill stage switches to the REP (repeated-block) pipeline below, and both stages
+    // compile their partitioned blocks in parallel via NPUW_PARALLEL_COMPILE; V0/V1 don't
+    // use online partitioning at all, so that option would have no effect for them.
+    const bool is_v2 = gqa_case == ov::npuw::GQACompiledModel::Case::V2;
+    ov::AnyMap config = {{std::string(::intel_npu::COMPILER_DYNAMIC_QUANTIZATION::key()), "YES"},
                          {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
                          {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
-                         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"}};
-    if (!has_2bit_group_quantized_weights(model)) {
-        config.emplace("NPUW_ONLINE_PIPELINE", "NONE");
+                         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
+                         {std::string(::intel_npu::COMPILATION_MODE_PARAMS::key()), "optimization-level=3"}};
+    if (!is_v2) {
+        config.emplace(std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key()), "NONE");
+    } else {
+        config.emplace(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key()), "YES");
     }
 
     const auto stage = detect_gqa_model_stage();
     if (stage == GQAModelStage::PREFILL) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
-                           {"NPUW_FOLD_ONLY", "attn"},
-                           {"NPUW_ONLINE_ISOLATE", "ATTN"},
-                           {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn"},
-                           {"NPUW_ATTN", "STATIC"}});
+                           {std::string(::intel_npu::NPUW_FOLD_ONLY::key()), "attn"},
+                           {std::string(::intel_npu::NPUW_ONLINE_ISOLATE::key()), "ATTN"},
+                           {std::string(::intel_npu::NPUW_ONLINE_KEEP_BLOCKS_TAGGED::key()), "attn"},
+                           {std::string(::intel_npu::NPUW_ATTN::key()), "STATIC"}});
+        if (is_v2) {
+            merge_config_with(config, {{std::string(::intel_npu::NPUW_ONLINE_PIPELINE::key()), "REP"}});
+        }
         LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
     } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
                           {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
-                           {"NPUW_FOLD_ONLY", "attn"},
+                           {std::string(::intel_npu::NPUW_FOLD_ONLY::key()), "attn"},
                            {std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
                            {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "YES"}});
 
@@ -282,7 +292,7 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
-    auto [prepared_properties, stage] = with_gqa_defaults(model, properties);
+    auto [prepared_properties, stage] = with_gqa_defaults(model, properties, identify_case(model));
 
     static std::atomic<std::size_t> mcount{0u};
 
@@ -805,7 +815,7 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
                   << inner_model->outputs().size() << " outputs");
 
         // Zero-initialize every dynamic-axis KV-cache/bias input's full capacity, once.
-        size_t zeroed_count = 0;
+        [[maybe_unused]] size_t zeroed_count = 0;  // only read by the developer-build GQA_TRACE below
         for (const auto& kv : m_compiled_model->m_dynamic_kv_cache_axes) {
             // Pre-C++20: structured bindings can't be captured by lambdas, so use a named local.
             const auto& name = kv.first;

@@ -13,8 +13,10 @@
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/gguf_graph.hpp"
+#include "builder/metadata_checks.hpp"
 #include "builder/projector_registry.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "projector_adapter.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
@@ -36,7 +38,9 @@ enum class EncoderTopology {
     MINICPM46,
     MUSE_GLIMMER,
     PHI4,
+    LFM2,
     GEMMA4_AUDIO,
+    LFM2_AUDIO,
     OCR,
     OCR2
 };
@@ -65,12 +69,15 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "deepseekocr2", EncoderTopology::OCR2, RMS_NORM},
     {"vision", "pixtral", EncoderTopology::PIXTRAL, RMS_NORM},
     {"vision", "phi4", EncoderTopology::PHI4},
+    {"vision", "lfm2", EncoderTopology::LFM2},
     {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER},
     {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM},
     {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION},
     {"audio", "gemma4a", EncoderTopology::GEMMA4_AUDIO},
+    {"audio", "lfm2a", EncoderTopology::LFM2_AUDIO},
     {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
     {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
+    {"vision", "minicpmv4_7", EncoderTopology::MINICPM46},
     {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
@@ -106,12 +113,7 @@ bool rms_encoder(const EncoderConfig& c) {
 }
 
 int64_t positive(const GgufMetadata& meta, const std::string& key) {
-    const auto value = meta.get_int(key);
-    OPENVINO_ASSERT(value && *value > 0 && *value <= std::numeric_limits<int>::max(),
-                    "[GGUF] mmproj requires a positive integer '",
-                    key,
-                    "'");
-    return *value;
+    return require_positive_int(meta, key, "mmproj");
 }
 
 EncoderConfig config(const GgufMetadata& meta, const std::string& modality, const std::string& projector) {
@@ -152,9 +154,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
                                             : *std::max_element(c.feature_layers.begin(), c.feature_layers.end());
     }
     OPENVINO_ASSERT(c.width % c.heads == 0, "[GGUF] mmproj embedding width must be divisible by head count");
-    const auto eps = meta.get_float(key + "attention.layer_norm_epsilon");
-    OPENVINO_ASSERT(eps && std::isfinite(*eps) && *eps > 0, "[GGUF] invalid ", key, "attention.layer_norm_epsilon");
-    c.eps = c.topology == EncoderTopology::GEMMA4_AUDIO ? 1e-6f : static_cast<float>(*eps);
+    const float eps = require_positive_float(meta, key + "attention.layer_norm_epsilon", "mmproj");
+    c.eps = c.topology == EncoderTopology::GEMMA4_AUDIO ? 1e-6f : eps;
     const bool gelu = meta.get_bool("clip.use_gelu").value_or(false);
     const bool silu = meta.get_bool("clip.use_silu").value_or(false);
     OPENVINO_ASSERT(!(gelu && silu), "[GGUF] mmproj cannot enable both GELU and SiLU");
@@ -178,12 +179,14 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
         }
         if (c.topology == EncoderTopology::PIXTRAL || c.topology == EncoderTopology::GEMMA4 ||
             c.topology == EncoderTopology::UNIFIED_VISION || c.topology == EncoderTopology::MINICPM46 ||
-            c.topology == EncoderTopology::PHI4) {
+            c.topology == EncoderTopology::PHI4 || c.topology == EncoderTopology::LFM2) {
             if (c.topology == EncoderTopology::PIXTRAL)
                 c.merge = meta.get_int(key + "spatial_merge_size").value_or(1);
             else if (c.topology != EncoderTopology::PHI4)
                 c.merge = meta.get_int(key + "projector.scale_factor")
-                              .value_or(c.topology == EncoderTopology::MINICPM46 ? 4 : 3);
+                              .value_or(c.topology == EncoderTopology::MINICPM46 ? 4
+                                        : c.topology == EncoderTopology::LFM2    ? 2
+                                                                                 : 3);
             OPENVINO_ASSERT(c.merge > 0, "[GGUF] invalid vision merge size");
             if (c.topology == EncoderTopology::UNIFIED_VISION) {
                 c.patch *= c.merge;
@@ -192,8 +195,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
             if (c.topology == EncoderTopology::MINICPM46) {
                 auto layers = meta.get_int_array(key + "wa_layer_indexes");
                 c.window_pattern = layers.empty() ? 0 : layers.front();
-                OPENVINO_ASSERT(c.merge == 4 && c.window_pattern >= 0 && c.window_pattern < c.layers,
-                                "[GGUF] invalid minicpmv4_6 merger configuration");
+                OPENVINO_ASSERT((c.merge == 2 || c.merge == 4) && c.window_pattern >= 0 && c.window_pattern < c.layers,
+                                "[GGUF] invalid MiniCPM-V merger configuration");
             }
             return c;
         }
@@ -245,6 +248,13 @@ public:
         c.rms = rms_encoder(c);
         clippable = c.topology == EncoderTopology::GEMMA4 || c.topology == EncoderTopology::GEMMA4_AUDIO;
         ProjectorResult result;
+        if (c.topology == EncoderTopology::MINICPM46) {
+            const auto positions = g.tensors().require("v.position_embd.weight").ne(1);
+            const auto side = int64_t(std::sqrt(double(positions)));
+            OPENVINO_ASSERT(positions > 0 && side * side == positions,
+                            "[GGUF] MiniCPM-V requires a square learned position grid");
+            result.config["vision.position_grid_size"] = std::to_string(side);
+        }
         result.output = modality == "vision" ? vision(c) : audio(c);
         result.config[modality + ".merge"] = std::to_string(c.merge);
         if (c.topology == EncoderTopology::MUSE_GLIMMER)
@@ -533,7 +543,8 @@ private:
         if (c.topology == EncoderTopology::OCR || c.topology == EncoderTopology::OCR2)
             return ocr_vision(c);
         if (c.topology == EncoderTopology::PIXTRAL || c.topology == EncoderTopology::GEMMA4 ||
-            c.topology == EncoderTopology::UNIFIED_VISION || c.topology == EncoderTopology::PHI4)
+            c.topology == EncoderTopology::UNIFIED_VISION || c.topology == EncoderTopology::PHI4 ||
+            c.topology == EncoderTopology::LFM2)
             return dynamic_vision(c);
         if (c.topology == EncoderTopology::MINICPM46)
             return minicpm46(c);
@@ -636,7 +647,7 @@ private:
             x = patch_embeddings(spatial, c.width, c.topology != EncoderTopology::GEMMA4);
         }
         GgufValue pos_a, pos_b, learned;
-        if (c.topology == EncoderTopology::PHI4) {
+        if (c.topology == EncoderTopology::PHI4 || c.topology == EncoderTopology::LFM2) {
             auto table =
                 resize_square_table(g.tensors().require("v.position_embd.weight"), spatial, c.width, 0x201, "phi4");
             learned = reshape(transpose(table, {0, 2, 3, 1}), {1, 1, -1, c.width});
@@ -663,6 +674,15 @@ private:
                 c.topology == EncoderTopology::PIXTRAL ? pos_b : pos_a,
                 {},
                 c.topology == EncoderTopology::PIXTRAL ? pos_a : pos_b);
+        if (c.topology == EncoderTopology::LFM2) {
+            x = gather_rows(x, "merge_indices");
+            x = reshape(x, {1, 1, -1, c.width * c.merge * c.merge});
+            if (g.tensors().has("mm.input_norm.weight"))
+                x = norm(x, "mm.input_norm", 1e-5f);
+            else if (auto bias = g.tensors()("mm.input_norm.bias"))
+                x = add(x, bias);
+            return ffn(x, "mm.1", "mm.2", "GGML_UNARY_OP_GELU");
+        }
         if (c.topology == EncoderTopology::PHI4) {
             g.tensors().require("mm.0.bias");
             g.tensors().require("mm.2.bias");
@@ -698,6 +718,14 @@ private:
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
         auto x = patch_embeddings(convolution(pixels, "v.patch_embd.weight", c.patch), c.width);
         auto learned = gather_rows(g.tensors().require("v.position_embd.weight"), "position_ids");
+        if (c.merge == 2) {
+            x = vit(x, c, learned);
+            std::array<GgufValue, 4> parts;
+            for (int i = 0; i < 4; ++i)
+                parts[i] = gather_rows(x, "merger.indices." + std::to_string(i));
+            auto cat = concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
+            return ffn(norm(cat, "mm.input_norm", c.eps), "mm.up", "mm.down", "GGML_UNARY_OP_GELU_ERF");
+        }
         x = vit(x, c, learned, {}, {}, {}, 0, c.window_pattern + 1, false);
         const std::string p = "v.vit_merger.";
         auto z = gather_rows(norm(x, p + "ln1", c.eps), "window_indices");
@@ -935,6 +963,74 @@ private:
         x = concat(x, reshape(g.tensors().require("v.view_seperator"), {1, 1, 1, width}), 1);
         return gather_rows(x, "output_indices");
     }
+    GgufValue lfm2_audio(const EncoderConfig& c) {
+        const auto mel = positive(g.metadata(), "clip.audio.num_mel_bins");
+        auto x = transpose(g.add_input("audio.features", ov::element::f32, {1, 1, mel, -1}));
+        for (int i : {0, 2, 3, 5, 6}) {
+            const auto p = "a.conv1d." + std::to_string(i);
+            const bool depthwise = i == 2 || i == 5;
+            const int64_t stride = i == 0 || depthwise ? 2 : 1;
+            x = g.node("GGML_OP_CONV_2D",
+                       {g.tensors().require(p + ".weight"), x},
+                       0,
+                       {{"conv_params", std::vector<int64_t>{stride, stride, stride - 1, stride - 1, 1, 1}},
+                        {"depthwise", depthwise}});
+            x = add(x, g.tensors().require(p + ".bias"));
+            if (i == 0 || i == 3 || i == 6)
+                x = g.node("GGML_UNARY_OP_RELU", {x});
+        }
+        const auto flattened = g.tensors().require("a.pre_encode.out.weight").ne(0);
+        x = linear(reshape(transpose(x, {0, 2, 1, 3}), {1, 1, -1, flattened}), "a.pre_encode.out");
+        const auto pos_width = g.tensors().require("a.blk.0.linear_pos.weight").ne(0);
+        auto positions = g.add_input("audio.pos_emb", ov::element::f32, {1, 1, -1, pos_width});
+        const auto head = c.width / c.heads;
+        const auto half_ffn = [&](const GgufValue& value, const std::string& p, const std::string& suffix) {
+            return add(value,
+                       scale(ffn(norm(value, p + "ffn_norm" + suffix, c.eps),
+                                 p + "ffn_up" + suffix,
+                                 p + "ffn_down" + suffix,
+                                 "GGML_UNARY_OP_SILU"),
+                             .5f));
+        };
+        for (int64_t i = 0; i < c.layers; ++i) {
+            const auto p = "a.blk." + std::to_string(i) + ".";
+            x = half_ffn(x, p, "");
+            auto z = norm(x, p + "ln1", c.eps);
+            auto q = reshape(linear(z, p + "attn_q"), {1, -1, c.heads, head});
+            const auto biased_query = [&](const char* name) {
+                return transpose(add(q, reshape(g.tensors().require(p + name), {1, 1, c.heads, head})), {0, 2, 1, 3});
+            };
+            auto k = transpose(reshape(linear(z, p + "attn_k"), {1, -1, c.heads, head}), {0, 2, 1, 3});
+            auto v = transpose(reshape(linear(z, p + "attn_v"), {1, -1, c.heads, head}), {0, 2, 3, 1});
+            auto pos =
+                transpose(reshape(linear(positions, p + "linear_pos", false), {1, -1, c.heads, head}), {0, 2, 1, 3});
+            auto content = g.node("GGML_OP_MUL_MAT", {k, biased_query("pos_bias_u")});
+            auto relative = g.node("GGML_OP_MUL_MAT", {pos, biased_query("pos_bias_v")});
+            relative = g.node("GGML_OP_GET_ROWS", {relative}, 0, {{"relative_shift", true}});
+            auto probability = g.node("GGML_OP_SOFT_MAX",
+                                      {scale(add(content, relative), 1.f / std::sqrt(float(head)))},
+                                      0,
+                                      {{"scale", 1.f}});
+            z = g.node("GGML_OP_MUL_MAT", {v, probability});
+            x = add(x, linear(reshape(transpose(z, {0, 2, 1, 3}), {1, 1, -1, c.width}), p + "attn_out"));
+            z = linear(norm(x, p + "norm_conv", c.eps), p + "conv_pw1");
+            z = transpose(
+                mul(slice(z, 3, 0, c.width), g.node("GGML_UNARY_OP_SIGMOID", {slice(z, 3, c.width, c.width)})));
+            const auto kernel = g.tensors().require(p + "conv_dw.weight").ne(0);
+            OPENVINO_ASSERT(kernel % 2 == 1, "[GGUF] LFM2 audio requires an odd convolution kernel");
+            z = g.node(
+                "GGML_OP_PAD",
+                {z},
+                0,
+                {{"pad_params", std::vector<int32_t>{int32_t(kernel / 2), int32_t(kernel / 2), 0, 0, 0, 0, 0, 0}}});
+            z = add(g.node("GGML_OP_SSM_CONV", {z, g.tensors().require(p + "conv_dw.weight")}),
+                    g.tensors().require(p + "conv_dw.bias"));
+            z = add(mul(z, g.tensors().require(p + "conv_norm.weight")), g.tensors().require(p + "conv_norm.bias"));
+            x = add(x, linear(g.node("GGML_UNARY_OP_SILU", {z}), p + "conv_pw2"));
+            x = norm(half_ffn(x, p, "_1"), p + "ln2", c.eps);
+        }
+        return ffn(norm(x, "mm.a.mlp.0", c.eps), "mm.a.mlp.1", "mm.a.mlp.3", "GGML_UNARY_OP_GELU_ERF");
+    }
     GgufValue gemma4_audio(const EncoderConfig& c) {
         const auto mel = positive(g.metadata(), "clip.audio.num_mel_bins");
         auto x = g.add_input("audio.features", ov::element::f32, {1, 1, mel, -1});
@@ -1040,6 +1136,8 @@ private:
         return linear(x, "mm.a.input_projection", false);
     }
     GgufValue audio(const EncoderConfig& c) {
+        if (c.topology == EncoderTopology::LFM2_AUDIO)
+            return lfm2_audio(c);
         if (c.topology == EncoderTopology::GEMMA4_AUDIO)
             return gemma4_audio(c);
         if (c.topology == EncoderTopology::UNIFIED_AUDIO) {
@@ -1113,6 +1211,7 @@ public:
             encoders.push_back(definition);
         }
         OPENVINO_ASSERT(!encoders.empty(), "[GGUF] mmproj has no encoder");
+        ModelAdapters adapters;
         std::map<std::string, std::string> branch_config;
         branch_config["vision.auxiliary_count"] = "0";
         for (const auto& definition : encoders) {
@@ -1125,8 +1224,18 @@ public:
                 branch_config[entry.first] = entry.second;
             }
             branch_config[definition->modality + ".projector"] = definition->projector_type;
+            const auto layout =
+                result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
+            branch_config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
+            auto callback = result.genai_adapter.value_or(definition->genai_adapter);
+            if (callback) {
+                auto adapter = std::make_shared<ModelAdapter>();
+                adapter->transform = std::move(callback);
+                adapters[definition->modality + ".embeddings"] = std::move(adapter);
+            }
         }
         auto graph = g.finish();
+        graph->model_adapters = std::move(adapters);
         const auto number = [](auto value) {
             std::ostringstream stream;
             stream.precision(std::numeric_limits<double>::max_digits10);
@@ -1177,7 +1286,13 @@ private:
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,
                                         const std::string& projector_type) {
-    return BuiltinProjectorBuilder(graph).build(modality, projector_type);
+    auto result = BuiltinProjectorBuilder(graph).build(modality, projector_type);
+    if (modality == "vision") {
+        const auto layout = builtin_projector_layout(projector_type);
+        if (layout != ProjectorLayout::Unsupported)
+            result.genai_layout = layout;
+    }
+    return result;
 }
 
 std::vector<ProjectorDefinition> builtin_projectors() {

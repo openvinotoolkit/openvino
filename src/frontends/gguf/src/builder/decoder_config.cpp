@@ -1,355 +1,260 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Architecture detection for the dense/MoE decoder family: turn the parsed GGUF metadata and
-// tensor table into the flat DecoderConfig the topology builder reads.
-//
-// Ground truth for each rule is llama.cpp's per-architecture hparam loading
-// (src/models/*.cpp::load_arch_hparams) and llm_graph_context.
 
 #include "builder/decoder_config.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <variant>
+#include <limits>
 
-#include "arch_registry.hpp"
+#include "builder/arch_registry.hpp"
+#include "builder/graph_emitter.hpp"
+#include "builder/metadata_checks.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::frontend::gguf {
-
 namespace {
-
-int cfg_int(const std::map<std::string, GGUFMetaData>& config, const std::string& k) {
-    auto it = config.find(k);
-    OPENVINO_ASSERT(it != config.end(), "[GGUF] internal: missing config key '", k, "'");
-    const auto* v = std::get_if<int>(&it->second);
-    OPENVINO_ASSERT(v, "[GGUF] internal: config key '", k, "' is not an int");
-    return *v;
+bool same_rope(const RopeConfig& a, const RopeConfig& b) {
+    return a.per_op == b.per_op && a.n_ctx_orig == b.n_ctx_orig && a.n_dims == b.n_dims && a.freq_base == b.freq_base &&
+           a.freq_scale == b.freq_scale && a.ext_factor == b.ext_factor && a.attn_factor == b.attn_factor &&
+           a.beta_fast == b.beta_fast && a.beta_slow == b.beta_slow && a.sections == b.sections;
 }
 
-float cfg_float(const std::map<std::string, GGUFMetaData>& config, const std::string& k) {
-    auto it = config.find(k);
-    OPENVINO_ASSERT(it != config.end(), "[GGUF] internal: missing config key '", k, "'");
-    const auto* v = std::get_if<float>(&it->second);
-    OPENVINO_ASSERT(v, "[GGUF] internal: config key '", k, "' is not a float");
-    return *v;
+void validate_rope(const RopeConfig& rope, int head_size) {
+    OPENVINO_ASSERT(rope.n_dims >= 0 && rope.n_dims % 2 == 0 && rope.n_dims <= head_size,
+                    "[GGUF] RoPE dimensions must be nonnegative, even and fit the attention head");
+    if (rope.n_dims > 0) {
+        require_positive_finite(rope.freq_base, "RoPE frequency base");
+        require_positive_finite(rope.freq_scale, "RoPE frequency scale");
+    }
 }
-
 }  // namespace
 
-DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
-                             const std::unordered_map<std::string, ov::Tensor>& weights,
-                             std::optional<RopeMode> rope,
-                             const DecoderOptions& options) {
+DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_map<std::string, ov::Tensor>& weights) {
     const auto has = [&weights](const std::string& name) {
         return weights.count(name) > 0;
     };
-    const auto cfg_i = [&config](const std::string& k) {
-        return cfg_int(config, k);
+    arch = p.architecture;
+    model_contract = p.model_contract;
+    n_layer = p.dimensions.layers;
+    n_embd = p.dimensions.embedding;
+    const int query_heads = p.dimensions.query_heads;
+    const int kv_heads = p.dimensions.kv_heads;
+    head_size = p.dimensions.head_size;
+    const auto& kv_heads_per_layer = p.dimensions.kv_heads_per_layer;
+    n_embd_per_layer = p.dimensions.per_layer_embedding;
+    shared_kv_layers = p.dimensions.shared_kv_layers;
+    const int n_layer_nextn = p.hybrid.nextn_layers;
+    OPENVINO_ASSERT(n_layer > 0 && n_embd > 0 && query_heads > 0 && kv_heads >= 0 && head_size > 0,
+                    "[GGUF] invalid decoder dimensions");
+    OPENVINO_ASSERT(n_layer_nextn >= 0 && n_layer_nextn < n_layer,
+                    "[GGUF] invalid number of NextN blocks: ",
+                    n_layer_nextn);
+    const int stored_layers = n_layer;
+    n_layer -= n_layer_nextn;
+    const auto valid_layer_count = [&](size_t count) {
+        return count == 0 || count == static_cast<size_t>(n_layer) || count == static_cast<size_t>(stored_layers);
     };
-    const auto cfg_f = [&config](const std::string& k) {
-        return cfg_float(config, k);
+    OPENVINO_ASSERT(valid_layer_count(p.layers.size()) && valid_layer_count(kv_heads_per_layer.size()) &&
+                        valid_layer_count(p.attention.sliding_layers.size()) &&
+                        valid_layer_count(p.hybrid.recurrent_layers.size()),
+                    "[GGUF] per-layer settings must describe every decoder layer");
+    rms_eps = p.normalization.epsilon;
+    require_positive_finite(rms_eps, "normalization epsilon");
+    layer_norm = p.normalization.kind == NormalizationKind::Layer;
+    relu_squared_ffn = p.activation == FfnActivation::ReluSquared;
+    is_geglu = p.activation == FfnActivation::GeGlu;
+    embedding_model = p.embedding_model;
+    pooling_type = p.pooling_type;
+    causal_attention = p.causal_attention;
+    OPENVINO_ASSERT(!embedding_model || (pooling_type >= 0 && pooling_type <= 3),
+                    "[GGUF] unsupported embedding pooling type: ",
+                    pooling_type);
+    qk_norm_after_rope = p.normalization.qk_after_rope;
+    post_norm_only = p.normalization.post_only;
+    has_v_norm = p.normalization.value_norm;
+    scaleless_embd_norm = p.normalization.embedding_norm;
+    post_norm_eps = p.normalization.post_epsilon;
+    if (post_norm_eps != 0.0f)
+        require_positive_finite(post_norm_eps, "post-norm epsilon");
+    attn_norm_key = p.normalization.attention_key;
+    ffn_norm_key = p.normalization.ffn_key;
+    attn_post_norm_key = p.normalization.attention_post_key;
+    ffn_post_norm_key = p.normalization.ffn_post_key;
+    const bool gated_delta_net = p.hybrid.kind == RecurrentKind::GatedDeltaNet;
+    ssm_conv_kernel = p.hybrid.conv_kernel;
+    ssm_state_size = p.hybrid.state_size;
+    ssm_group_count = p.hybrid.group_count;
+    ssm_dt_rank = p.hybrid.time_step_rank;
+    ssm_inner_size = p.hybrid.inner_size;
+    n_expert = p.experts.count;
+    n_expert_used = p.experts.used;
+    const int dense_lead = p.experts.dense_lead;
+    const int moe_layer_step = std::max(1, p.experts.layer_step);
+    expert_groups = std::max(1, p.experts.groups);
+    expert_groups_used = std::max(1, p.experts.groups_used);
+    moe_sigmoid_gating = p.experts.routing == ExpertRouting::Sigmoid;
+    expert_weights_scale = p.experts.weights_scale;
+    expert_weights_norm = p.experts.normalize_weights;
+    embedding_scale = p.scales.embedding;
+    residual_scale = p.scales.residual;
+    logit_scale = p.scales.logits;
+    embedding_scale_tokens_only = p.scales.token_embeddings_only;
+    const float attention_scale = p.scales.attention;
+    attention_temperature_scale = p.scales.attention_temperature;
+    attn_soft_cap = p.scales.attention_soft_cap;
+    final_logit_soft_cap = p.scales.logits_soft_cap;
+    for (const auto value : {embedding_scale,
+                             residual_scale,
+                             logit_scale,
+                             attention_scale,
+                             attention_temperature_scale,
+                             attn_soft_cap,
+                             final_logit_soft_cap,
+                             expert_weights_scale})
+        OPENVINO_ASSERT(std::isfinite(value), "[GGUF] decoder scales must be finite");
+    const int head_size_swa = p.attention.sliding_head_size;
+    swa_window_size = p.attention.window_size;
+    swa_layer_pattern = p.attention.sliding_period;
+    const auto& swa_layer_flags = p.attention.sliding_layers;
+    has_swa = p.attention.sliding_window || swa_window_size > 0 || !swa_layer_flags.empty();
+    rope_on_swa_only = p.attention.rope_on_sliding_only;
+    rope_skip_period = p.attention.rope_skip_period;
+    OPENVINO_ASSERT(rope_skip_period >= 0, "[GGUF] RoPE skip period must be nonnegative");
+    OPENVINO_ASSERT(swa_window_size >= 0 && swa_layer_pattern >= 0, "[GGUF] invalid sliding-window settings");
+    rope_config = p.attention.rope;
+    auto rope_config_swa = p.attention.sliding_rope;
+    if (rope_config_swa.n_dims == 0)
+        rope_config_swa = rope_config;
+    rope_freq_base_swa = rope_config_swa.freq_base;
+    OPENVINO_ASSERT(attention_temperature_scale == 0.0f || rope_config.n_ctx_orig > 0,
+                    "[GGUF] Attention temperature scaling requires a positive original context length");
+    const float yarn_log_mul = p.attention.yarn_log_multiplier;
+    if (rope_config.ext_factor != 0.0f && yarn_log_mul != 0.0f && rope_config.freq_scale < 1.0f) {
+        const float magnitude = 1.0f + 0.1f * yarn_log_mul * std::log(1.0f / rope_config.freq_scale);
+        rope_config.attn_factor /= magnitude;
+        rope_config_swa.attn_factor /= magnitude;
+    }
+    rope_op_case = p.attention.rope_mode == RopeMode::Interleaved ? ROPE_OP_CASE_IMROPE
+                   : p.attention.rope_mode == RopeMode::Neox      ? ROPE_OP_CASE_NEOX
+                                                                  : ROPE_OP_CASE_NORMAL;
+    if (rope_op_case == ROPE_OP_CASE_IMROPE) {
+        rope_config.is_imrope = true;
+        rope_config_swa.is_imrope = true;
+        rope_config_swa.sections = rope_config.sections;
+    }
+    OPENVINO_ASSERT(rope_config.is_imrope == (rope_op_case == ROPE_OP_CASE_IMROPE),
+                    "[GGUF] RoPE configuration must match the selected position layout");
+    has_sinks = p.attention.sinks.value_or(has("blk.0.attn_sinks.weight"));
+    has_swa = has_swa || has_sinks;
+    const bool periodic_swa = has_swa;
+    const int probe = (std::max(0, dense_lead) / moe_layer_step + 1) * moe_layer_step - 1;
+    const auto expert_prefix = "blk." + std::to_string(probe) + ".";
+    const bool is_moe = p.experts.enabled.value_or(has(expert_prefix + "ffn_gate_exps.weight") ||
+                                                   has(expert_prefix + "ffn_gate_up_exps.weight"));
+    const auto layer_overrides = [&p](int il) -> const DecoderLayerOverrides* {
+        return p.layers.empty() ? nullptr : &p.layers.at(il);
     };
-
-    n_layer = cfg_i("layer_num");
-    n_head = cfg_i("head_num");
-    n_head_kv = cfg_i("head_num_kv");
-    head_size = cfg_i("head_size");
-    n_embd = cfg_i("hidden_size");
-    rms_eps = cfg_f("rms_norm_eps");
-    if (config.count("head_num_kv_per_layer")) {
-        if (auto* t = std::get_if<ov::Tensor>(&config.at("head_num_kv_per_layer"))) {
-            const auto* data = t->data<uint32_t>();
-            n_head_kv_per_layer.assign(data, data + t->get_size());
+    const auto periodic_or_listed_swa = [&](int il) {
+        if (!swa_layer_flags.empty())
+            return swa_layer_flags.at(il) != 0;
+        return periodic_swa && swa_layer_pattern > 0 && il % swa_layer_pattern < swa_layer_pattern - 1;
+    };
+    // Layers flagged by explicit overrides or the period/flag rules decide whether the model uses
+    // SWA at all; attention-only SWA layouts then follow it.
+    for (int il = 0; il < n_layer; ++il) {
+        const auto* o = layer_overrides(il);
+        has_swa = has_swa ||
+                  (o && o->sliding_window ? *o->sliding_window
+                                          : !p.attention.sliding_on_attention_layers && periodic_or_listed_swa(il));
+    }
+    m_layers.resize(n_layer);
+    for (int il = 0; il < n_layer; ++il) {
+        const auto* o = layer_overrides(il);
+        auto& layer = m_layers[il];
+        layer.n_head = o && o->query_heads ? *o->query_heads : query_heads;
+        layer.n_head_kv = o && o->kv_heads              ? *o->kv_heads
+                          : !kv_heads_per_layer.empty() ? static_cast<int>(kv_heads_per_layer.at(il))
+                                                        : kv_heads;
+        layer.swa = o && o->sliding_window                    ? *o->sliding_window
+                    : p.attention.sliding_on_attention_layers ? has_swa && layer.n_head_kv > 0
+                                                              : periodic_or_listed_swa(il);
+        layer.head_size = o && o->head_size                ? *o->head_size
+                          : layer.swa && head_size_swa > 0 ? head_size_swa
+                                                           : head_size;
+        layer.kq_scale = o && o->attention_scale   ? *o->attention_scale
+                         : attention_scale != 0.0f ? attention_scale
+                                                   : 1.0f / std::sqrt(static_cast<float>(layer.head_size));
+        layer.rope = o && o->rope ? *o->rope : layer.swa ? rope_config_swa : rope_config;
+        layer.moe = o && o->experts ? *o->experts : is_moe && il >= dense_lead && (il + 1) % moe_layer_step == 0;
+        layer.recurrent = o && o->recurrent                    ? *o->recurrent
+                          : !gated_delta_net                   ? false
+                          : !p.hybrid.recurrent_layers.empty() ? p.hybrid.recurrent_layers.at(il) != 0
+                                                               : p.hybrid.full_attention_interval > 0 &&
+                                                                     (il + 1) % p.hybrid.full_attention_interval != 0;
+    }
+    std::string attention_probe = "blk.0.";
+    int attention_layer = 0;
+    for (int layer = 0; layer < n_layer; ++layer) {
+        const auto prefix = "blk." + std::to_string(layer) + ".";
+        if (has(prefix + "attn_q_norm.weight")) {
+            attention_probe = prefix;
+            attention_layer = layer;
+            break;
         }
     }
-
-    arch = std::get<std::string>(config.at("architecture"));
-    embedding_model = arch == "llama-embed";
-    if (embedding_model) {
-        pooling_type = cfg_i("pooling_type");
-        causal_attention = cfg_i("causal_attention") != 0;
-        OPENVINO_ASSERT(pooling_type >= 0 && pooling_type <= 3,
-                        "[GGUF] unsupported embedding pooling type: ",
-                        pooling_type);
+    has_qk_norm = p.normalization.qk_norm.value_or(has(attention_probe + "attn_q_norm.weight"));
+    if (has_qk_norm && has(attention_probe + "attn_q_norm.weight")) {
+        const auto& shape = weights.at(attention_probe + "attn_q_norm.weight").get_shape();
+        OPENVINO_ASSERT(!shape.empty(), "[GGUF] empty Q normalization weight");
+        qk_norm_full = shape[0] != static_cast<size_t>(layer_head_size(attention_layer));
     }
-    layer_norm = arch == "jais2";
-    relu_squared_ffn = arch == "jais2";
-
-    // Per-architecture structure, auto-detected from the GGUF tensor table (layer 0).
-    has_qk_norm = has("blk.0.attn_q_norm.weight");
-    // q/k norm width: per-head (head_size, applied after reshape -> qwen3/hunyuan/gemma4)
-    // vs full projection width (n_head*head_size, applied before reshape -> OLMoE).
-    // For gemma4, norm width equals per-layer head_size (may differ by SWA/global); always
-    // per-head. For OLMoE, norm width equals n_head*head_size. Detect by checking against
-    // the global head_size; but for gemma4 override to per-head since it has mixed head sizes.
-    if (has_qk_norm) {
-        const size_t qn = weights.at("blk.0.attn_q_norm.weight").get_shape()[0];
-        qk_norm_full = (arch != "gemma4") && (qn != static_cast<size_t>(head_size));
-    }
-    n_dense_lead = cfg_i("n_layer_dense_lead");
-    moe_layer_step = std::max(1, cfg_i("moe_layer_step"));
-    // Inspect the first routed layer, accounting for both dense lead layers and MoE stride.
-    {
-        const int probe = (std::max(0, n_dense_lead) / moe_layer_step + 1) * moe_layer_step - 1;
-        const std::string pp = "blk." + std::to_string(probe) + ".";
-        is_moe = has(pp + "ffn_gate_exps.weight") || has(pp + "ffn_gate_up_exps.weight");
-    }
-    // Gemma/Gemma2 use GeGLU (GELU-gated FFN). Detected by arch name since other archs
-    // in the supported set (llama, qwen2, qwen3, phi3) all use SwiGLU.
-    is_geglu = arch == "gemma" || arch == "gemma2" || arch == "gemma3" || arch == "gemma4";
-    // gemma4 only: V projection is also RMSNorm'd (no weight, just normalize). gemma3 has
-    // Q/K norm but NO V norm -- llama.cpp src/models/gemma3.cpp norms Qcur/Kcur only and
-    // sends Vcur straight to the cache (gemma4.cpp:227 adds the extra ggml_rms_norm on V).
-    has_v_norm = (arch == "gemma4");
-    n_expert = cfg_i("expert_count");
-    n_expert_used = cfg_i("expert_used_count");
-    expert_groups = std::max(1, cfg_i("expert_groups"));
-    expert_groups_used = std::max(1, cfg_i("expert_groups_used"));
-    has_moe_gate_bias = has("blk.0.ffn_gate_inp.bias");     // gpt-oss
-    has_moe_expert_bias = has("blk.0.ffn_gate_exps.bias");  // gpt-oss
-    has_sinks = has("blk.0.attn_sinks.weight");             // gpt-oss
-    qk_norm_after_rope =
-        options.qk_norm_after_rope.value_or(arch == "hunyuan-dense" || arch == "hunyuan-moe" || arch == "maincoder");
-    post_norm_only = options.post_norm_only.value_or(arch == "exaone4");
-    // EXAONE4 has only post-norms; GPT-OSS names its pre-FFN norm post_attention_norm.
+    qk_norm_full = p.normalization.qk_full_width.value_or(qk_norm_full);
+    has_moe_gate_bias = has(expert_prefix + "ffn_gate_inp.bias");
+    has_moe_expert_bias = has(expert_prefix + "ffn_gate_exps.bias");
+    moe_softmax_weight = p.experts.softmax_after_topk.value_or(has_moe_gate_bias);
+    moe_swiglu_oai = p.experts.swiglu_oai.value_or(has_moe_gate_bias);
+    interleaved_q_gate = p.attention.interleaved_q_gate;
+    qkv_bias_override = p.attention.qkv_bias;
+    output_bias_override = p.attention.output_bias;
+    fused_qkv_override = p.attention.fused_qkv;
+    has_qkv_bias = p.attention.qkv_bias.value_or(has("blk.0.attn_q.bias") || has("blk.0.attn_qkv.bias"));
+    has_attn_out_bias = p.attention.output_bias.value_or(has("blk.0.attn_output.bias"));
+    has_attn_gate = p.attention.output_gate.value_or(has("blk.0.attn_gate.weight"));
+    has_rope_freqs = has("rope_freqs.weight");
     if (!has("blk.0." + attn_post_norm_key) && has("blk.0.post_attention_norm"))
         attn_post_norm_key = "post_attention_norm";
     if (!has("blk.0." + ffn_post_norm_key) && has("blk.0.post_ffw_norm"))
         ffn_post_norm_key = "post_ffw_norm";
-    has_attn_post_norm = has("blk.0." + attn_post_norm_key) &&
-                         (post_norm_only || (has("blk.0.attn_norm.weight") && has("blk.0.ffn_norm.weight")));
-    has_ffn_post_norm = has("blk.0." + ffn_post_norm_key) && (post_norm_only || has("blk.0.ffn_norm.weight"));
-    if (!post_norm_only && !has("blk.0.ffn_norm.weight") && has("blk.0.post_attention_norm.weight"))
+    has_attn_post_norm = p.normalization.attention_post.value_or(
+        has("blk.0." + attn_post_norm_key) &&
+        (post_norm_only || (has("blk.0." + attn_norm_key) && has("blk.0." + ffn_norm_key))));
+    has_ffn_post_norm = p.normalization.ffn_post.value_or(has("blk.0." + ffn_post_norm_key) &&
+                                                          (post_norm_only || has("blk.0." + ffn_norm_key)));
+    if (!post_norm_only && !has("blk.0." + ffn_norm_key) && has("blk.0.post_attention_norm.weight"))
         ffn_norm_key = "post_attention_norm.weight";
-    moe_sigmoid_gating = cfg_i("expert_gating_func") == 2;
-    // gpt-oss uses "softmax-after-topk" gating + the OAI gated activation; OLMoE uses
-    // softmax-before-topk + plain SwiGLU. Detect by weight-tensor presence so the logic
-    // extends to future architectures without touching this file.
-    moe_swiglu_oai = has_moe_gate_bias;      // gate_inp bias is OAI-gating-specific
-    moe_softmax_weight = has_moe_gate_bias;  // same tensor signals softmax-after-topk
-    // SWA is present if sinks (gpt-oss), per-layer flags (gemma4), or has_swa was set
-    // from the GGUF metadata (smollm3, exaone-moe, gemma3, and future archs that set
-    // attention.sliding_window_pattern / attention.sliding_window).
-    has_swa = has_sinks || (arch == "gemma3") || (arch == "gemma4") || cfg_i("has_swa") != 0;
-    has_fused_qkv = has("blk.0.attn_qkv.weight");  // phi-3, minicpm
-    has_qkv_bias = has("blk.0.attn_q.bias") || has("blk.0.attn_qkv.bias");
-    has_attn_out_bias = has("blk.0.attn_output.bias");
-    has_rope_freqs = has("rope_freqs.weight");
-    // muse-glimmer: sigmoid output gate on the attention sublayer. The gate is projected
-    // from the SAME pre-attention normed hidden the Q/K/V projections consume, so it is
-    // wired inside the layer right before the output projection.
-    has_attn_gate = has("blk.0.attn_gate.weight");
-    // muse-glimmer applies a weightless RMSNorm to the token embeddings before layer 0
-    // (llama.cpp src/models/muse-glimmer.cpp: build_norm(inpL, nullptr, nullptr, RMS, -1)),
-    // ropes only its sliding-window layers (global layers are NoPE), and post-norms with a
-    // tighter eps (post_norm_eps = 1e-8) than the pre-norms use.
-    const bool is_muse_glimmer = arch == "muse-glimmer";
-    scaleless_embd_norm = is_muse_glimmer;
-    rope_on_swa_only = is_muse_glimmer || arch == "exaone-moe" || (arch == "exaone4" && n_layer == 64);
-    rope_skip_period = options.rope_skip_period.value_or(arch == "smollm3" ? 4 : 0);
-    OPENVINO_ASSERT(rope_skip_period >= 0, "[GGUF] RoPE skip period must be nonnegative");
-    post_norm_eps = is_muse_glimmer ? 1e-8f : 0.0f;  // 0 -> reuse rms_eps
-
-    // ---- qwen35 (Qwen3.5/3.6): hybrid Gated-DeltaNet + full attention ----
-    // Layers alternate: every full_attention_interval-th layer is full attention, the rest
-    // run a linear-attention (GDN) block. llama.cpp src/models/qwen35.cpp.
-    is_qwen35 = arch == "qwen35" || arch == "qwen35moe";
-    ssm_conv_kernel = cfg_i("ssm_conv_kernel");
-    ssm_state_size = cfg_i("ssm_state_size");
-    ssm_group_count = cfg_i("ssm_group_count");
-    ssm_dt_rank = cfg_i("ssm_time_step_rank");
-    ssm_inner_size = cfg_i("ssm_inner_size");
-    full_attn_interval = cfg_i("full_attention_interval");
-    // NextN/MTP blocks live past the main stack and are not executed in a normal forward
-    // pass, so the layer loop must stop before them (llama.cpp runs 0..n_layer(), where
-    // n_layer() already excludes them; the GGUF block_count counts them in).
-    n_layer_nextn = cfg_i("nextn_predict_layers");
-    if (config.count("recurrent_layer_flags")) {
-        if (const auto* v = std::get_if<std::vector<int32_t>>(&config.at("recurrent_layer_flags")))
-            recurrent_layer_flags = *v;
+    for (int layer = 0; layer < n_layer; ++layer) {
+        const auto& settings = m_layers[layer];
+        OPENVINO_ASSERT(settings.n_head > 0 && settings.n_head_kv >= 0 && settings.head_size > 0,
+                        "[GGUF] invalid per-layer dimensions at layer ",
+                        layer);
+        validate_rope(settings.rope, settings.head_size);
+        OPENVINO_ASSERT(std::isfinite(settings.kq_scale), "[GGUF] nonfinite per-layer attention scale");
+        OPENVINO_ASSERT(settings.rope.is_imrope == rope_config.is_imrope,
+                        "[GGUF] per-layer RoPE must use the shared position layout");
+        use_per_op_rope = use_per_op_rope || !same_rope(settings.rope, rope_config);
     }
-    if (config.count("rope_sections")) {
-        if (const auto* v = std::get_if<std::vector<int32_t>>(&config.at("rope_sections")))
-            rope_sections = *v;
-    }
-    if (is_qwen35) {
-        // blk.0 is a RECURRENT layer whose attn_qkv.weight is the GDN q/k/v/z projection, not
-        // a fused attention QKV -- the generic probe above would mistake it for phi-3-style
-        // fused QKV and try to split it by attention head counts. Likewise blk.0's
-        // attn_gate.weight is the GDN output gate (z), not an attention gate.
-        has_fused_qkv = false;
-        // qwen35's full-attention layers DO have a sigmoid attention output gate, and it is
-        // the same construction muse-glimmer uses -- projected from the pre-attention normed
-        // hidden, sigmoid'd, multiplied into the merged attention output before wo. The only
-        // difference is where the weight lives: qwen35 interleaves it per head inside attn_q
-        // rather than storing a separate tensor, so register_qwen35_q_gate() de-interleaves it
-        // into blk.N.attn_q.weight + blk.N.attn_gate.weight and the shared path handles it.
-        has_attn_gate = true;
-        // Per-head QK-norm on the full-attention layers. Auto-detection probes blk.0, which is
-        // recurrent and carries no attn_q_norm, so set it explicitly.
-        has_qk_norm = true;
-        qk_norm_full = false;
-        // qwen35's pre-FFN norm key ("post_attention_norm.weight", HF's
-        // post_attention_layernorm) already falls out of the generic rule above: attn_norm
-        // exists, ffn_norm does not, which is the gpt-oss pattern.
-    }
-    // Trailing MTP/NextN blocks are excluded from the decoder trunk.
-    OPENVINO_ASSERT(n_layer_nextn >= 0 && n_layer_nextn < n_layer,
-                    "[GGUF] invalid number of NextN blocks: ",
-                    n_layer_nextn);
-    n_layer -= n_layer_nextn;
-
-    // Per-architecture scalars from metadata (1.0 / 0.0 when absent -> no-op).
-    embedding_scale = cfg_f("embedding_scale");
-    embedding_scale_tokens_only = arch == "gemma3" || arch == "gemma4";
-    residual_scale = cfg_f("residual_scale");
-    logit_scale = cfg_f("logit_scale");
-    attention_scale = cfg_f("attention_scale");            // 0 -> 1/sqrt(head_size)
-    expert_weights_scale = cfg_f("expert_weights_scale");  // 0 -> 1.0 no-op
-    // These llama.cpp builders require normalization independently of optional GGUF metadata.
-    expert_weights_norm = options.normalize_expert_weights.value_or(
-        arch == "hunyuan-moe" || arch == "minimax-m2" || arch == "qwen3moe" || arch == "qwen35moe" ||
-        arch == "ernie4_5-moe" || arch == "mellum" || arch == "gemma4" || cfg_i("expert_weights_norm") != 0);
-    rope_freq_base_swa = cfg_f("rope_freq_base_swa");
-    swa_layer_pattern = cfg_i("swa_layer_pattern");
-    // Gemma4: per-layer SWA boolean flags (non-empty when swa_layer_pattern==0).
-    if (config.count("swa_layer_flags"))
-        swa_layer_flags = std::get<std::vector<int32_t>>(config.at("swa_layer_flags"));
-    attn_soft_cap = cfg_f("attn_logit_softcapping");          // 0 -> no soft-cap
-    final_logit_soft_cap = cfg_f("final_logit_softcapping");  // 0 -> no soft-cap
-    // Gemma4: per-layer input embeddings and shared KV layers.
-    n_embd_per_layer = cfg_i("n_embd_per_layer");
-    shared_kv_layers = cfg_i("shared_kv_layers");
-    // Gemma4: SWA layers use a smaller head size than global attention layers.
-    head_size_swa = cfg_i("head_size_swa");
-    rope_dim_swa = cfg_i("rope_dimension_count_swa");
-    swa_window_size = cfg_i("swa_window_size");
-
-    // Interleaved M-RoPE (qwen35 / qwen3vl) is its own mode, so it must be decided here rather
-    // than in the per-arch block above -- this assignment runs later and would overwrite it.
-    rope_op_case = is_qwen35                   ? ROPE_OP_CASE_IMROPE
-                   : arch_uses_neox_rope(arch) ? ROPE_OP_CASE_NEOX
-                                               : ROPE_OP_CASE_NORMAL;
-
-    rope_config.n_dims = cfg_i("rope_dimension_count");
-    rope_config.n_ctx_orig = cfg_i("rope_n_ctx_orig");
-    rope_config.freq_base = cfg_f("rope_freq_base");
-    rope_config.freq_scale = cfg_f("rope_freq_scale");
-    rope_config.ext_factor = cfg_f("rope_ext_factor");
-    rope_config.attn_factor = 1.0f;
-    rope_config.beta_fast = cfg_f("rope_yarn_beta_fast");
-    rope_config.beta_slow = cfg_f("rope_yarn_beta_slow");
-    const float yarn_log_mul = cfg_f("rope_yarn_log_mul");
-    if (rope_config.ext_factor != 0.0f && yarn_log_mul != 0.0f && rope_config.freq_scale < 1.0f) {
-        // The RoPE translator already applies YaRN's default magnitude factor.
-        rope_config.attn_factor /= 1.0f + 0.1f * yarn_log_mul * std::log(1.0f / rope_config.freq_scale);
-    }
-    attention_temperature_scale = cfg_f("attention_temperature_scale");
-    OPENVINO_ASSERT(attention_temperature_scale == 0.0f || rope_config.n_ctx_orig > 0,
-                    "[GGUF] Attention temperature scaling requires a positive original context length");
-    // Gemma4: separate rope config for SWA layers (different freq_base and n_dims).
-    rope_config_swa = rope_config;
-    rope_config_swa.freq_base = cfg_f("rope_freq_base_swa");
-    rope_config_swa.n_dims = cfg_i("rope_dimension_count_swa");
-    // Gemma local attention uses the training default, independently of global
-    // linear RoPE scaling (for example 1/8 in Gemma3 4B).
-    if (arch == "gemma3" || arch == "gemma4")
-        rope_config_swa.freq_scale = 1.0f;
-    if (options.geglu)
-        is_geglu = *options.geglu;
-    if (options.value_norm)
-        has_v_norm = *options.value_norm;
-    if (options.embedding_norm)
-        scaleless_embd_norm = *options.embedding_norm;
-    if (options.rope_on_swa_only)
-        rope_on_swa_only = *options.rope_on_swa_only;
-    if (options.post_norm_epsilon) {
-        OPENVINO_ASSERT(std::isfinite(*options.post_norm_epsilon) && *options.post_norm_epsilon > 0,
-                        "[GGUF] post-norm epsilon must be finite and positive");
-        post_norm_eps = *options.post_norm_epsilon;
-    }
-    if (options.swa_rope_frequency_base) {
-        OPENVINO_ASSERT(std::isfinite(*options.swa_rope_frequency_base) && *options.swa_rope_frequency_base > 0,
-                        "[GGUF] SWA RoPE frequency base must be finite and positive");
-        rope_freq_base_swa = rope_config_swa.freq_base = *options.swa_rope_frequency_base;
-    }
-    if (options.swa_rope_dimensions) {
-        OPENVINO_ASSERT(*options.swa_rope_dimensions > 0 && *options.swa_rope_dimensions % 2 == 0 &&
-                            *options.swa_rope_dimensions <= (head_size_swa > 0 ? head_size_swa : head_size),
-                        "[GGUF] SWA RoPE dimensions must be positive, even and fit the attention head");
-        rope_dim_swa = rope_config_swa.n_dims = *options.swa_rope_dimensions;
-    }
-    if (options.sliding_window) {
-        OPENVINO_ASSERT(*options.sliding_window > 0, "[GGUF] sliding window must be positive");
-        swa_window_size = *options.sliding_window;
-        has_swa = true;
-    }
-    if (rope) {
-        rope_op_case = *rope == RopeMode::Interleaved ? ROPE_OP_CASE_IMROPE
-                       : *rope == RopeMode::Neox      ? ROPE_OP_CASE_NEOX
-                                                      : ROPE_OP_CASE_NORMAL;
-    }
-    // Per-op sin/cos is required whenever SWA and global layers differ in any rope
-    // parameter that feeds the shared sin/cos table: n_dims (gemma4) OR freq_base (gemma3,
-    // whose SWA layers rope at 10000 vs the global 1000000). Without it every layer would
-    // share the global table and SWA layers would be roped wrong.
-    const bool swa_dims_differ = rope_dim_swa > 0 && rope_dim_swa != rope_config.n_dims;
-    const bool swa_freq_differs = rope_config_swa.freq_base != rope_config.freq_base;
-    const bool swa_scale_differs = rope_config_swa.freq_scale != rope_config.freq_scale;
-    if (has_swa && (swa_dims_differ || swa_freq_differs || swa_scale_differs)) {
-        use_per_op_rope = true;
-    }
-    // M-RoPE: inp_pos carries 4 sections per token and only the first n_dims of each head
-    // are rotated (qwen35: head_size 256, rope.dimension_count 64). Build sin/cos per ROPE op
-    // rather than from the shared table, whose layout assumes the single-section full-head
-    // case (see RopeConfig::is_imrope / use_per_op_rope).
-    if (rope_op_case == ROPE_OP_CASE_IMROPE) {
-        rope_config.is_imrope = true;
-        OPENVINO_ASSERT(rope_sections.size() <= rope_config.sections.size(), "[GGUF] too many M-RoPE sections");
-        std::copy(rope_sections.begin(), rope_sections.end(), rope_config.sections.begin());
-        use_per_op_rope = true;
-    }
+    use_per_op_rope = use_per_op_rope || rope_op_case == ROPE_OP_CASE_IMROPE || rope_config.per_op;
 }
 
-bool DecoderConfig::layer_is_moe(int il) const {
-    return is_moe && il >= n_dense_lead && (il + 1) % moe_layer_step == 0;
+void DecoderConfig::configure_graph(GraphEmitter& emitter, const GgufMetadata& metadata) const {
+    emitter.configure_hadamard(decoder_weight_transform_metadata(metadata, ssm_dt_rank, ssm_group_count));
+    auto& graph = *emitter.graph();
+    graph.has_rope = true;
+    graph.rope_config = rope_config;
+    graph.use_per_op_rope = use_per_op_rope;
+    graph.swa_window_size = swa_window_size;
+    graph.model_contract = model_contract;
 }
-
-bool DecoderConfig::layer_is_swa(int il) const {
-    if (!swa_layer_flags.empty()) {
-        return il < static_cast<int>(swa_layer_flags.size()) && swa_layer_flags[il] != 0;
-    }
-    return has_swa && swa_layer_pattern > 0 && (il % swa_layer_pattern < (swa_layer_pattern - 1));
-}
-
-int DecoderConfig::layer_head_size(int il) const {
-    return (layer_is_swa(il) && head_size_swa > 0) ? head_size_swa : head_size;
-}
-
-int DecoderConfig::layer_n_head_kv(int il) const {
-    return (!n_head_kv_per_layer.empty() && il < static_cast<int>(n_head_kv_per_layer.size()))
-               ? static_cast<int>(n_head_kv_per_layer[il])
-               : n_head_kv;
-}
-
-float DecoderConfig::layer_kq_scale(int il) const {
-    return attention_scale != 0.0f ? attention_scale : 1.0f / std::sqrt(static_cast<float>(layer_head_size(il)));
-}
-
-RopeConfig DecoderConfig::layer_rope_config(int il) const {
-    return layer_is_swa(il) ? rope_config_swa : rope_config;
-}
-
-bool DecoderConfig::is_recurrent_layer(int il) const {
-    if (!is_qwen35) {
-        return false;
-    }
-    if (il < static_cast<int>(recurrent_layer_flags.size())) {
-        return recurrent_layer_flags[il] != 0;
-    }
-    return full_attn_interval > 0 && ((il + 1) % full_attn_interval != 0);
-}
-
 }  // namespace ov::frontend::gguf
