@@ -1,0 +1,43 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-30-17-21-15-000-41095713725",
+    "timestamp": "2026-10-30T17:21:15Z",
+    "run_id": "41095713725",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41095713725",
+    "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+    "pr_number": "38993",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38993",
+    "author": "olpipi",
+    "category": "Code Issue",
+    "title": "RISC-V build fails: MockMappedMemory::hint_prefetch_async conflicting return type",
+    "signature": "conflicting return type specified for virtual hint_prefetch_async override|Code Issue",
+    "signature_hash": "4178da568a100f35",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Build (RVV 1.0)",
+            "conclusion": "failure",
+            "symptom": "Cmake build fails compiling src/core/tests/ov_tensor_test.cpp: GMock MOCK_METHOD conflicting return type for hint_prefetch_async"
+        },
+        {
+            "name": "ci/gha_overall_status_linux_riscv",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check fails because the Build (RVV 1.0) job failed"
+        }
+    ],
+    "key_errors": [
+        "../openvino/src/core/tests/ov_tensor_test.cpp:1370:23: error: conflicting return type specified for 'virtual testing::internal::Function<void(long unsigned int, long unsigned int)>::Result ov::test::{anonymous}::MockMappedMemory::hint_prefetch_async(...)'",
+        "1370 |     MOCK_METHOD(void, hint_prefetch_async, (size_t offset, size_t size), (override));",
+        "../openvino/src/common/util/include/openvino/util/mmap_object.hpp:85:33: note: overridden function is 'virtual ov::util::PrefetchToken ov::MappedMemory::hint_prefetch_async(size_t, size_t)'",
+        "ninja: build stopped: subcommand failed."
+    ],
+    "root_cause": "PR #38993 changed the pure-virtual method ov::MappedMemory::hint_prefetch_async in src/common/util/include/openvino/util/mmap_object.hpp from returning void to returning util::PrefetchToken (a handle used to wait on the async prefetch), as part of introducing the PrefetchScheduler feature. The PR did not update the pre-existing MockMappedMemory test double in src/core/tests/ov_tensor_test.cpp (not in the PR's changed-files list), which still declares MOCK_METHOD(void, hint_prefetch_async, (size_t, size_t), (override)). GMock generates a method whose return type must exactly match the overridden virtual, so the mismatched 'void' vs 'util::PrefetchToken' return types trigger a hard compile error (deterministic, every RISC-V/any toolchain build with -Werror compiling this test target).",
+    "reproduction_steps": "Configure and build ov_core_unit_tests with warnings-as-errors enabled, e.g.: cmake -DENABLE_TESTS=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -S . -B build && cmake --build build --target ov_core_unit_tests. The error reproduces on any platform/toolchain compiling src/core/tests/ov_tensor_test.cpp against the updated mmap_object.hpp interface, not just RISC-V.",
+    "recommended_actions": [
+        "Update the MOCK_METHOD declaration for hint_prefetch_async in src/core/tests/ov_tensor_test.cpp (around line 1370) to MOCK_METHOD(ov::util::PrefetchToken, hint_prefetch_async, (size_t offset, size_t size), (noexcept, override)) to match the new interface signature in mmap_object.hpp:85.",
+        "Check for any other mock/stub implementations of MappedMemory in the test tree (e.g. under src/core/tests or src/inference/tests) that may need the same signature update.",
+        "Re-run the full unit test build locally with -Werror before pushing to catch similar interface/mock mismatches early."
+    ],
+    "prevention_strategies": "When changing a pure-virtual method's signature (return type, parameters, or noexcept-ness) in a public interface header, grep the whole tree for MOCK_METHOD/MOCK_CONST_METHOD declarations and hand-written overrides of that method and update them in the same commit. Add a CI/pre-commit grep check that flags mock declarations whose signature no longer matches the interface they implement.",
+    "historical_context": "No prior CI Doctor MQ investigation recorded for this exact signature; this is the first occurrence (count=1) in the pattern database."
+}
