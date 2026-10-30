@@ -116,6 +116,7 @@ struct device_info {
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
+    bool supports_bf16;                         ///< Does engine support bf16 inference
 
     bool supports_mutable_command_list;         ///< [ZE] Does the target runtime/device support mutable command list feature
 
@@ -156,10 +157,6 @@ struct device_info {
 
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device
-
-    inline bool supports_bf16() const {
-        return supports_immad;
-    }
 
     inline bool is_same_device(const device_info &other) const {
         // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
