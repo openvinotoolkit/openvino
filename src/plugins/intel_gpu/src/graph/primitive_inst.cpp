@@ -849,12 +849,13 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     }
     result.realloc_if_needed();
 
+    const bool past_empty = past_layout.count() == 0;
     const auto past_tensor = input_memory_ptr(0);
-    OPENVINO_ASSERT(past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
+    OPENVINO_ASSERT(past_empty || past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
     const auto present_tensor = result.output_memory_ptr();
     OPENVINO_ASSERT(present_tensor, "[GPU] Output memory of ", result.id(), " is not prepared for stateless_kv node ", id());
     auto& engine = _network.get_engine();
-    const auto is_same = engine.is_the_same_buffer(*present_tensor, *past_tensor);
+    const auto is_same = !past_empty && engine.is_the_same_buffer(*present_tensor, *past_tensor);
     const auto& present_layout = result._impl_params->get_output_layout();
     const auto same_placement = [&]() {
         return past_layout.data_type == mid_layout.data_type && past_layout.format == mid_layout.format &&
@@ -901,9 +902,9 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
         if (mid_layout == present_layout)
             result.set_can_be_optimized(true);
     }
-    GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_tensor->buffer_ptr() << "](" << past_tensor->get_layout().to_short_string() << ") and output["
-                           << present_tensor->buffer_ptr() << "](" << present_tensor->get_layout().to_short_string() << ")(" << result.id()
-                           << ") same:" << is_same << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << (past_tensor ? past_tensor->buffer_ptr() : nullptr) << "]("
+                           << (past_tensor ? past_tensor->get_layout().to_short_string() : "") << ") and output[" << present_tensor->buffer_ptr() << "]("
+                           << present_tensor->get_layout().to_short_string() << ")(" << result.id() << ") same:" << is_same << std::endl;
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
                            << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
                            << ") opt:" << result.can_be_optimized() << std::endl;
@@ -1114,10 +1115,30 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
 
     // Update output layout with respect to FC's fake alignment
     auto updated_layouts = actual_layouts;
+    auto is_fused_prim_of_user = [](const primitive_inst* user, const primitive_id& id) -> bool {
+        for (const auto& p : user->get_node().get_fused_primitives()) {
+            if (p.has_outer_dep()) {
+                const auto start_idx = p.outer_dep_start_idx;
+                // exclude fused_node from total_num_deps
+                const auto end_idx = p.outer_dep_start_idx + p.total_num_deps - 1;
+                for (size_t idx = start_idx; idx < end_idx; idx++) {
+                    if (user->get_node().get_dependency(idx).id() == id) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    };
     // A skipped node takes its input's memory right below and returns, so the sizing would be thrown away; its FC users
-    // then run update_shape() themselves.
+    // then run update_shape() themselves. Except an FC user whose shape was already updated by its input[0] producer:
+    // it skips its own update_shape(), so a skipped node that is its fused-op input must still refresh it below.
     const bool reuses_input_memory =
-        !get_node().is_type<concatenation>() && (get_node().is_runtime_skippable() || get_node().is_type<crop>()) && can_be_optimized();
+        !get_node().is_type<concatenation>() && (get_node().is_runtime_skippable() || get_node().is_type<crop>()) && can_be_optimized() &&
+        std::none_of(get_user_insts().begin(), get_user_insts().end(), [&](const primitive_inst* user) {
+            return user->get_node().is_type<fully_connected>() && user->is_dynamic() && user->_update_shape_done_by_other &&
+                   is_fused_prim_of_user(user, id());
+        });
     std::vector<cldnn::primitive_inst*> user_insts;
     if (!reuses_input_memory) {
         const auto& user_insts_origin = get_user_insts();
@@ -1140,25 +1161,10 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         OPENVINO_ASSERT(user_insts.size() == user_insts_origin.size(), "Should have same size between ", user_insts.size(), " and ", user_insts_origin.size());
     }
     for (auto* user : user_insts) {
-        auto is_fused_prim_of_user = [&](primitive_id id) -> bool {
-            for (const auto& p : user->get_node().get_fused_primitives()) {
-                if (p.has_outer_dep()) {
-                    const auto start_idx = p.outer_dep_start_idx;
-                    // exclude fused_node from total_num_deps
-                    const auto end_idx = p.outer_dep_start_idx + p.total_num_deps - 1;
-                    for (size_t idx = start_idx; idx < end_idx; idx++) {
-                        if (user->get_node().get_dependency(idx).id() == id) {
-                            return true;
-                        }
-                    }
-                }
-            }
-            return false;
-        };
         // Since fake alignment is applicable for input tensor as well, make sure we allocate enough memory
         // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
-            if (user->_deps[0].first == this || (is_fused_prim_of_user(id()) && user->_update_shape_done_by_other)) {
+            if (user->_deps[0].first == this || (is_fused_prim_of_user(user, id()) && user->_update_shape_done_by_other)) {
                 size_t dep_idx = 0;
                 for (const auto& dep : user->_deps) {
                     if (dep.first->id() == id()) {
