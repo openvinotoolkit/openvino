@@ -20,6 +20,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Vision | `internvl` | InternViT, class token, pixel-shuffle merge |
 | Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045 |
 | Vision | `minicpmv4_6` | window attention, two-stage merging |
+| Vision | `minicpmv4_7` | window-attention and direct 2x2 merging; packed-patch GenAI layout |
 | Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) |
 | Vision | `pixtral` | 2D RoPE, patch merger, row separators |
 | Vision | `phi4` | dynamic resolution, resized positions |
@@ -31,10 +32,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Audio | `gemma4ua` | raw 640-sample waveform frames |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders |
 
-Bonsai-27B, Ternary-Bonsai-27B and Ternary-Bonsai-2-27B BF16 and Q8_0 projector files are
-supported by the built-in `qwen3vl_merger` projector. They use patch size 16, spatial merge 2,
-output width 5120 and no DeepStack outputs. Load these files directly through the native GGUF
-frontend.
+The built-in `qwen3vl_merger` projector supports BF16 and Q8_0 weights.
 
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 
@@ -169,6 +167,7 @@ preprocessing uses llama.cpp geometry and token limits:
 | `gemma3` | `vision_embeddings` | `pixel_values [1,3,S,S]` |
 | `gemma4v`, `gemma4uv` | `vision_embeddings` | `pixel_values [1,P,patch*patch*3]` with patches in raster order, then padding; `image_position_ids [1,P,2]` as (x, y), -1 for padding |
 | `muse-glimmer` | `vision_embeddings` | `pixel_values [rows*cols,3*patch*patch]`, `image_grid_thw [1,3]`; window, merge and position indices are derived in the graph |
+| `minicpmv4_7` | `vision_embeddings` | packed `pixel_values [1,3,patch,N*patch]`, `position_ids [N]`, `patch_grid [2]`, `merge_index`; the two-stage merger also uses `window_index` |
 | `qwen3vl_merger` | `vision_embeddings`, `vision_embeddings_pos`, `vision_embeddings_merger` | flattened patches `hidden_states`; position-table indices `input [4,N]`; `hidden_states`, `attention_mask [1,N,N]`, `rotary_pos_emb [N,head/2]` |
 
 The adapted vision graphs preserve llama.cpp computation: Gemma4 retains GELU_QUICK unless the
