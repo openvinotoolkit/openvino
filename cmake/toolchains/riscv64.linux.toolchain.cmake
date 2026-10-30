@@ -18,5 +18,4 @@ set(CMAKE_STRIP riscv64-linux-gnu-strip)
 # GCC on RISC-V emits calls to __atomic_* libcalls for certain atomic ops.
 # These are resolved by libatomic which must appear at the END of the link
 # command (after static libraries that reference the symbols).
-set(CMAKE_CXX_STANDARD_LIBRARIES "-latomic" CACHE STRING "" FORCE)
-set(CMAKE_C_STANDARD_LIBRARIES "-latomic" CACHE STRING "" FORCE)
+set(OV_EXPLICIT_ATOMIC_LIB "-latomic" CACHE STRING "" FORCE)
