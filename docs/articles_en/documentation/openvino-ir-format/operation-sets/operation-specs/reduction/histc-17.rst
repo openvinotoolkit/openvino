@@ -34,7 +34,7 @@ The operation is performed in the following steps:
    * Elements with ``x < lo``, ``x > hi``, and NaN elements are ignored.
    * Any other element goes to the bin with the index ``idx = floor((x - lo) * bins / (hi - lo))``, where the result of the division is truncated toward zero. Bins are half-open ``[lo + i * w, lo + (i + 1) * w)``, where ``w = (hi - lo) / bins``, except for the last bin, which is closed and includes ``hi``. This is enforced by ``idx = bins - 1`` whenever ``x == hi``.
 
-The output element ``output[i]`` is the number of elements assigned to the bin ``i``, represented in type *T*. If *T* is an integer type and the count exceeds its maximum value, the output element is saturated to that maximum.
+The output element ``output[i]`` is the number of elements assigned to the bin ``i``, converted to type *T*. As in ``torch.histc``, if *T* is an integer type and the count does not fit into it, the value wraps around modulo ``2^N``, where ``N`` is the bit width of *T*. For example, 300 elements in one bin give ``44`` for ``u8`` and ``i8``. To get exact counts for narrow integer types, convert the input to a wider type first.
 
 **Attributes**
 
