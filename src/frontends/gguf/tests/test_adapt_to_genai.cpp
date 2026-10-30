@@ -35,6 +35,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
@@ -1401,7 +1402,10 @@ public:
         auto axes = v0::Constant::create(ov::element::i64, {4}, {0, 1, 2, 3});
         auto positions = std::make_shared<v0::Convert>(find_parameter(native.model, "inp_pos"), ov::element::f32);
         auto position_sum = std::make_shared<v1::ReduceSum>(positions, axes, true);
-        auto mask_sum = std::make_shared<v1::ReduceSum>(find_parameter(native.model, "self_kq_mask"), axes, true);
+        auto allowed = std::make_shared<v1::Equal>(find_parameter(native.model, "self_kq_mask"),
+                                                   v0::Constant::create(ov::element::f32, {}, {0.f}));
+        auto mask_sum =
+            std::make_shared<v1::ReduceSum>(std::make_shared<v0::Convert>(allowed, ov::element::f32), axes, true);
         auto dependency = std::make_shared<v1::Multiply>(std::make_shared<v1::Add>(position_sum, mask_sum),
                                                          v0::Constant::create(ov::element::f32, {}, {0.f}));
         auto beams = std::make_shared<v1::ReduceSum>(find_parameter(native.model, "beam_idx"),
@@ -1489,8 +1493,10 @@ TEST(GGUFAdaptToGenAI, SuppliedDecoderSequenceOutputsSupportResultNamesAndIR) {
                     auto logits = request.get_tensor("logits");
                     ASSERT_EQ(features.get_shape(), (ov::Shape{1, length, width}));
                     ASSERT_EQ(features.get_shape(), logits.get_shape());
-                    for (size_t i = 0; i < features.get_size(); ++i)
+                    for (size_t i = 0; i < features.get_size(); ++i) {
+                        ASSERT_TRUE(std::isfinite(logits.data<float>()[i]));
                         EXPECT_EQ(features.data<float>()[i], 2.f * logits.data<float>()[i]);
+                    }
                 }
             }
         }
