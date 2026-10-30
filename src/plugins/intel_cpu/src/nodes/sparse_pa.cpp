@@ -4,26 +4,34 @@
 
 #include "sparse_pa.h"
 
+#include <algorithm>
 #include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "cpu_memory.h"
-#include "cpu_parallel.hpp"
 #include "cpu_shape.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/kernels/scaled_attn/attn_memcpy.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
 #include "nodes/kernels/scaled_attn/sparse_pa_kernel.hpp"
 #include "nodes/paged_attn.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -136,7 +144,7 @@ void SparsePA::writeKV() {
         const int32_t past = past_lens.ptr<int32_t>()[seq];
         const int32_t first_block = block_indices_begins.ptr<int32_t>()[seq];
         for (int32_t j = 0; j < q_len; j++) {
-            const auto pos = static_cast<size_t>(past + j);
+            const auto pos = static_cast<size_t>(past) + static_cast<size_t>(j);
             const auto block = static_cast<size_t>(block_indices.ptr<int32_t>()[first_block + pos / block_size]);
             m_slot_mapping.ptr<int32_t>()[idx++] = static_cast<int32_t>(block * block_size + pos % block_size);
         }
@@ -439,8 +447,8 @@ bool SparsePA::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, s
             errorMessage = "SparsePA CPU implementation requires plain caches to have the query precision.";
             return false;
         }
-        if (!(is_plain(key_cache_prec) && is_plain(value_cache_prec)) &&
-            !(is_quantized(key_cache_prec) && is_quantized(value_cache_prec))) {
+        if ((!is_plain(key_cache_prec) || !is_plain(value_cache_prec)) &&
+            (!is_quantized(key_cache_prec) || !is_quantized(value_cache_prec))) {
             errorMessage =
                 "SparsePA CPU implementation requires both caches to be plain f32/f16/bf16 or both quantized to u8/u4.";
             return false;

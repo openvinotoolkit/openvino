@@ -4,7 +4,6 @@
 
 #include "sparse_attention_with_kv_cache.hpp"
 
-#include <cstddef>
 #include <memory>
 
 #include "openvino/core/attribute_visitor.hpp"
@@ -12,7 +11,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 

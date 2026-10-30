@@ -11,18 +11,20 @@
 #include <functional>
 #include <memory>
 #include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "config.h"
 #include "cpu_memory.h"
-#include "cpu_parallel.hpp"
 #include "cpu_shape.h"
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_state.h"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
@@ -30,11 +32,14 @@
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
 #include "nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp"
 #include "nodes/kernels/scaled_attn/sparse_sdpa_scratch.hpp"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/dimension.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -410,8 +415,8 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
         ov::element::u8,
         ov::intel_cpu::Shape{brgemm_offset + num_threads * brgemm_bytes_per_thread});
     const MemoryPtr scratch = context->getScratchPad()->createScratchPadMem(scratch_desc);
-    uint8_t* const scratch_base_bytes = scratch->getDataAs<uint8_t>();
-    float* const scratch_base = reinterpret_cast<float*>(scratch_base_bytes);
+    auto* const scratch_base_bytes = scratch->getDataAs<uint8_t>();
+    auto* const scratch_base = reinterpret_cast<float*>(scratch_base_bytes);
     [[maybe_unused]] int64_t* const runs_base =
         runs_per_thread > 0 ? reinterpret_cast<int64_t*>(scratch_base_bytes + float_bytes_aligned) : nullptr;
     uint8_t* const brgemm_base = brgemm_bytes_per_thread > 0 ? scratch_base_bytes + brgemm_offset : nullptr;
@@ -533,7 +538,10 @@ void SparseSDPA::updateKVCache() {
         //  - by token:   [capacity of L, B, H, 2 * S / group_size]
         //  - by channel: [2 * ceil(capacity of L / group_size), B, H, S]
         const bool by_channel = quantized && spec.by_channel;
-        const size_t szp_cols = !quantized ? 0 : (by_channel ? S : 2 * S / spec.group_size);
+        size_t szp_cols = 0;
+        if (quantized) {
+            szp_cols = by_channel ? S : 2 * S / spec.group_size;
+        }
         auto szp_rows = [&](size_t length) {
             return by_channel ? 2 * div_up(length, spec.group_size) : length;
         };

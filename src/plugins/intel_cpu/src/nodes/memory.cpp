@@ -1188,7 +1188,7 @@ MemoryInputSparseSDPA::MemoryInputSparseSDPA(const std::string& id,
 
 void MemoryInputSparseSDPA::createPrimitive() {
     // MemoryInputSDPA::createPrimitive() looks for the (absent) SDPA node
-    MemoryInputBase::createPrimitive();
+    MemoryInputBase::createPrimitive();  // NOLINT(bugprone-parent-virtual-call): skips MemoryInputSDPA on purpose
     auto sparseNode = m_sparseNode.lock();
     for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
         if (edge->getChild() == sparseNode) {

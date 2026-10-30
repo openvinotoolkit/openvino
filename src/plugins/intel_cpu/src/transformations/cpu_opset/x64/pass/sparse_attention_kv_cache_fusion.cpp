@@ -28,13 +28,14 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
-#include "transformations/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::pass;
@@ -103,8 +104,8 @@ SparseAttentionKVCacheFusion::SparseAttentionKVCacheFusion() {
 
         const auto past_k_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_k).get_node_shared_ptr());
         const auto past_v_node = ov::as_type_ptr<ov::op::v6::ReadValue>(pattern_map.at(past_v).get_node_shared_ptr());
-        if (m_processed_k_variable_ids.count(past_k_node->get_variable_id()) ||
-            m_processed_v_variable_ids.count(past_v_node->get_variable_id())) {
+        if (m_processed_k_variable_ids.count(past_k_node->get_variable_id()) != 0 ||
+            m_processed_v_variable_ids.count(past_v_node->get_variable_id()) != 0) {
             return false;
         }
 

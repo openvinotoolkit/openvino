@@ -114,13 +114,12 @@ struct PackStateLayout {
                     size_t v_head_size,
                     size_t max_pack_size,
                     size_t data_size,
-                    bool copy_query) {
-        q_rows = offset;
-        acc = q_rows + aligned(copy_query ? max_pack_size * k_head_size * data_size : 0);
-        running_max = acc + aligned(max_pack_size * v_head_size * sizeof(float));
-        running_sum = running_max + aligned(max_pack_size * sizeof(float));
-        total = running_sum + aligned(max_pack_size * sizeof(float));
-    }
+                    bool copy_query)
+        : q_rows(offset),
+          acc(q_rows + aligned(copy_query ? max_pack_size * k_head_size * data_size : 0)),
+          running_max(acc + aligned(max_pack_size * v_head_size * sizeof(float))),
+          running_sum(running_max + aligned(max_pack_size * sizeof(float))),
+          total(running_sum + aligned(max_pack_size * sizeof(float))) {}
 };
 
 /// @brief Byte layout of the buffers of the brgemm path in the per-thread scratch (the gather tile, the scores /
@@ -141,15 +140,14 @@ struct SparseBrgemmLayout {
                        size_t v_head_size,
                        size_t max_pack_size,
                        size_t data_size,
-                       const SparseBrgemmSizes& sizes) {
-        k_rows = offset;
-        v_rows = k_rows + aligned(sizes.tile_rows * k_head_size * data_size);
-        weights = v_rows + aligned(sizes.tile_rows * v_head_size * data_size);
-        brg_a = weights + aligned(max_pack_size * sizes.tile_rows * sizeof(float));
-        brg_b = brg_a + aligned(sizes.scratch_a);
-        brg_wsp = brg_b + aligned(sizes.scratch_b);
-        total = brg_wsp + aligned(sizes.wsp);
-    }
+                       const SparseBrgemmSizes& sizes)
+        : k_rows(offset),
+          v_rows(k_rows + aligned(sizes.tile_rows * k_head_size * data_size)),
+          weights(v_rows + aligned(sizes.tile_rows * v_head_size * data_size)),
+          brg_a(weights + aligned(max_pack_size * sizes.tile_rows * sizeof(float))),
+          brg_b(brg_a + aligned(sizes.scratch_a)),
+          brg_wsp(brg_b + aligned(sizes.scratch_b)),
+          total(brg_wsp + aligned(sizes.wsp)) {}
 };
 
 #ifdef OPENVINO_ARCH_X86_64

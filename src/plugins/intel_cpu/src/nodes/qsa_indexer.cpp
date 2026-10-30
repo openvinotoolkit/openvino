@@ -11,6 +11,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -19,20 +20,24 @@
 
 #include "cpu_memory.h"
 #include "cpu_parallel.hpp"
+#include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/common/cpu_convert.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "qsa_indexer_common.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
+#include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
@@ -70,7 +75,7 @@ public:
         const auto& q_dims = input_shapes[InputIdx::Q_IDX].get();
         const auto& summary_dims = input_shapes[InputIdx::SUMMARY_CACHE].get();
         const size_t batch = q_dims[0];
-        const auto key_length = data_dependency.at(InputIdx::KEY_LENGTH);
+        const auto& key_length = data_dependency.at(InputIdx::KEY_LENGTH);
         const auto* key_length_p = key_length->getDataAs<const int32_t>();
         // key_length is [batch] or [1] (the same length for all the rows)
         const size_t key_length_count = input_shapes[InputIdx::KEY_LENGTH].get()[0];
@@ -199,7 +204,7 @@ void QSAIndexer::execute_typed() {
     const auto rope_sin_batch = [&rope_sin](size_t b) {
         return rope_sin.size(0) == 1 ? 0 : b;
     };
-    const int64_t L = static_cast<int64_t>(q_idx.size(1));
+    const auto L = static_cast<int64_t>(q_idx.size(1));
     const size_t H_iq = q_idx.size(2);
     const size_t D_idx = q_idx.size(3);
     const size_t H_ik = k_idx.size(2);
@@ -492,7 +497,7 @@ void QSAIndexer::execute_typed() {
 
             auto* out_row = sel_indices.ptr<int32_t>(b, sh, l_u, 0);
             for (size_t i = 0; i < k; i++) {
-                out_row[i] = static_cast<int32_t>(chosen[i]);
+                out_row[i] = chosen[i];
             }
             *sel_count.ptr<int32_t>(b, sh, l_u) = static_cast<int32_t>(k);
         }

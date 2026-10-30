@@ -8,18 +8,23 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "cpu_memory.h"
-#include "cpu_parallel.hpp"
 #include "graph_context.h"
 #include "kernels/scaled_attn/common.hpp"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -100,31 +105,29 @@ struct SeqPlan {
 // Float buffers (offsets in floats) and the (score, block) / chosen arrays (offsets in bytes) of a worker thread's
 // scratch slice; the phases run one after the other, so they share the buffers.
 struct ThreadLayout {
-    size_t q_normed_off;     // [H_iq, D_idx] normalized + rotated index queries
-    size_t row_buf_off;      // [D_idx] a converted row
-    size_t summary_buf_off;  // [D_idx] a converted / pooled summary row
-    size_t pooled_off;       // [D_idx] the mean of the raw keys of a block
-    size_t cos_sin_off;      // [2 * rotary_dim] the interleaved cos / sin row of a block
-    size_t cos_tmp_off;      // [rotary_dim] a converted cos row
-    size_t sin_tmp_off;      // [rotary_dim] a converted sin row
-    size_t scores_off;       // bytes: (score, block) pairs of the complete blocks
-    size_t chosen_off;       // bytes: block ids of the selection
+    size_t q_normed_off = 0;  // [H_iq, D_idx] normalized + rotated index queries
+    size_t row_buf_off;       // [D_idx] a converted row
+    size_t summary_buf_off;   // [D_idx] a converted / pooled summary row
+    size_t pooled_off;        // [D_idx] the mean of the raw keys of a block
+    size_t cos_sin_off;       // [2 * rotary_dim] the interleaved cos / sin row of a block
+    size_t cos_tmp_off;       // [rotary_dim] a converted cos row
+    size_t sin_tmp_off;       // [rotary_dim] a converted sin row
+    size_t scores_off;        // bytes: (score, block) pairs of the complete blocks
+    size_t chosen_off;        // bytes: block ids of the selection
     size_t bytes;
 
-    ThreadLayout(size_t H_iq, size_t D_idx, size_t rotary_dim, size_t max_blocks, size_t block_topk) {
-        constexpr size_t kAlign = 64;
-        q_normed_off = 0;
-        row_buf_off = q_normed_off + H_iq * D_idx;
-        summary_buf_off = row_buf_off + D_idx;
-        pooled_off = summary_buf_off + D_idx;
-        cos_sin_off = pooled_off + D_idx;
-        cos_tmp_off = cos_sin_off + 2 * rotary_dim;
-        sin_tmp_off = cos_tmp_off + rotary_dim;
-        const size_t floats = sin_tmp_off + rotary_dim;
-        scores_off = rnd_up(floats * sizeof(float), kAlign);
-        chosen_off = rnd_up(scores_off + max_blocks * sizeof(std::pair<float, int32_t>), kAlign);
-        bytes = rnd_up(chosen_off + block_topk * sizeof(int32_t), kAlign);
-    }
+    static constexpr size_t kAlign = 64;
+
+    ThreadLayout(size_t H_iq, size_t D_idx, size_t rotary_dim, size_t max_blocks, size_t block_topk)
+        : row_buf_off(q_normed_off + H_iq * D_idx),
+          summary_buf_off(row_buf_off + D_idx),
+          pooled_off(summary_buf_off + D_idx),
+          cos_sin_off(pooled_off + D_idx),
+          cos_tmp_off(cos_sin_off + 2 * rotary_dim),
+          sin_tmp_off(cos_tmp_off + rotary_dim),
+          scores_off(rnd_up((sin_tmp_off + rotary_dim) * sizeof(float), kAlign)),
+          chosen_off(rnd_up(scores_off + max_blocks * sizeof(std::pair<float, int32_t>), kAlign)),
+          bytes(rnd_up(chosen_off + block_topk * sizeof(int32_t), kAlign)) {}
 };
 
 // Everything the three phases read, see PagedQSAIndexer::execute_typed().
