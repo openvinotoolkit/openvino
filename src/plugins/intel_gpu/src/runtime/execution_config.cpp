@@ -173,7 +173,7 @@ void ExecutionConfig::finalize(cldnn::engine& engine) {
     PluginConfig::finalize(ctx.get(), nullptr);
 }
 
-void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_llm, bool is_paged_attention_model, bool has_lora) {
+void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTMap& rt_info, bool is_paged_attention_model) {
     const auto* remote_context = dynamic_cast<const RemoteContextImpl*>(context);
     OPENVINO_ASSERT(remote_context != nullptr, "Expected GPU RemoteContextImpl in ExecutionConfig::apply_rt_info");
     const auto& info = remote_context->get_engine().get_device_info();
@@ -181,10 +181,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
         apply_rt_info_property(ov::hint::kv_cache_precision, rt_info);
     }
 
-    if (!is_llm || (has_lora && !info.supports_immad)) {
-        apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
-    }
-
+    apply_rt_info_property(ov::hint::activations_scale_factor, rt_info);
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
     apply_rt_info_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max, rt_info);
 
@@ -208,12 +205,8 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
         return ov::is_type<ov::intel_gpu::op::KVCache>(node);
     });
-    const auto has_lora = std::any_of(model.get_variables().begin(), model.get_variables().end(),
-        [](const std::shared_ptr<ov::op::util::Variable>& var) {
-            return var->get_info().variable_id.find("lora_state_") == 0;
-        });
 
-    apply_rt_info(context, get_rt_info(model), is_LLM, is_paged_attention_model, has_lora);
+    apply_rt_info(context, get_rt_info(model), is_paged_attention_model);
 
     const auto& ops = model.get_ops();
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
