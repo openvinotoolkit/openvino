@@ -2464,6 +2464,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x32_zp) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x48_zp_unaligned) {
+    // Three 4-bit zero points per row occupy two bytes, with one padding nibble per row.
+    // Ensure unpacking at import preserves the valid values and inference result.
+    const auto model = convert_model("com.microsoft/matmulnbits_3x48_zp_unaligned.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(
+        {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6,
+         7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2,
+         3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8,
+         3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8,
+         9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4,
+         5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    test_case.add_input<float>({1, 1, 1, 1, 1, 1, 1, 1, 1});
+    test_case.add_expected_output<float>(Shape{2, 3}, {352, 24, -72, 344, 28, -100});
+    test_case.run_with_tolerance_as_fp(0.01f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_zp_size_mismatch) {
     // An undersized packed uint8 zero_points (1 byte where 6 are needed) must be rejected before the
     // Constant copy reads past it.
