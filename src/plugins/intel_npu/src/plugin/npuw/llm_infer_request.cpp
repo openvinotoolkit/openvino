@@ -292,6 +292,7 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
     init_ports();
+    m_is_guard = compiled_model->m_is_guard;
 
     auto input_ids_port =
         ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::input_ids);
@@ -1485,6 +1486,11 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
             LOG_DEBUG("Calling inference for LM head model.");
             m_lm_head_request->infer();
             m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
+        } else if (m_is_guard) {
+            collect_guard_logits(
+                m_prefill_request,
+                m_prefill_out_ports,
+                static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]));
         } else {
             m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
         }
@@ -1788,7 +1794,11 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             copy_lincache(m_kvcache_request, m_kvcache_request, m_kvcache_out_ports, m_kvcache_in_ports);
         });
 
-        m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
+        if (m_is_guard) {
+            collect_guard_logits(m_kvcache_request, m_kvcache_out_ports, input_tokens_len);
+        } else {
+            m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
+        }
     }
 
     for (auto&& [name, port] : m_kvcache_out_ports) {
@@ -1973,8 +1983,59 @@ void ov::npuw::LLMInferRequest::infer() {
     }
 }
 
+void ov::npuw::LLMInferRequest::collect_guard_logits(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                                     const PortsMap& out_ports,
+                                                     uint32_t valid_len) {
+    // For every exposed classifier head, copy the last `valid_len` positions of the (static)
+    // sub-request output into a [batch, valid_len, num_classes] tensor. The real tokens of a
+    // prefill/generate step are right-aligned, so the valid per-token logits are the last rows.
+    for (const auto& model_out : m_npuw_llm_compiled_model->outputs()) {
+        const ov::Output<const ov::Node>* sub_port = nullptr;
+        for (const auto& name : model_out.get_names()) {
+            auto it = out_ports.find(name);
+            if (it != out_ports.end()) {
+                sub_port = &it->second;
+                break;
+            }
+        }
+        if (sub_port == nullptr) {
+            continue;
+        }
+
+        auto full = request->get_tensor(*sub_port);
+        const auto& full_shape = full->get_shape();  // [batch, seq, num_classes]
+        OPENVINO_ASSERT(full_shape.size() == 3u, "Guard head output must be 3-D [batch, seq, num_classes].");
+        const size_t batch = full_shape[0];
+        const size_t seq = full_shape[1];
+        const size_t num_classes = full_shape[2];
+        const size_t keep = std::min<size_t>(static_cast<size_t>(valid_len), seq);
+
+        auto head = ov::make_tensor(full->get_element_type(), ov::Shape{batch, keep, num_classes});
+        const size_t row_bytes = num_classes * full->get_element_type().size();
+        const auto* src = static_cast<const uint8_t*>(full->data());
+        auto* dst = static_cast<uint8_t*>(head->data());
+        for (size_t b = 0; b < batch; ++b) {
+            const uint8_t* src_b = src + (b * seq + (seq - keep)) * row_bytes;
+            uint8_t* dst_b = dst + b * keep * row_bytes;
+            std::copy_n(src_b, keep * row_bytes, dst_b);
+        }
+        m_guard_logits[model_out.get_any_name()] = ov::SoPtr<ov::ITensor>(head);
+    }
+}
+
 ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     const auto& port_names = port.get_names();
+
+    if (m_is_guard) {
+        // A guard model exposes several per-token classifier heads; each was filled by the last
+        // infer step keyed by the exposed output name.
+        for (const auto& name : port_names) {
+            auto it = m_guard_logits.find(name);
+            if (it != m_guard_logits.end() && it->second) {
+                return it->second;
+            }
+        }
+    }
 
     if (port_names.count("logits") > 0) {
         if (!m_logits) {

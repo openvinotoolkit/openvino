@@ -545,17 +545,56 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
     return kv_kache_storage_type;
 }
 
+// Count only LM-head-like outputs: a Result fed (directly or through a single
+// Add/Transpose/Convert/Multiply) by a MatMul. By the time this runs the KV cache is already
+// unrolled into explicit present.* Results (produced by Concat), which must NOT be counted,
+// otherwise a regular single-head LLM would also be misdetected as multi-head. A regular LLM
+// returns 1 (the vocabulary projection); a multi-head classifier / "guard" model (e.g.
+// Qwen3Guard-Stream) returns several small per-token heads.
+size_t count_lm_head_outputs(const std::shared_ptr<ov::Model>& m) {
+    auto is_lm_head_result = [](const std::shared_ptr<ov::op::v0::Result>& result) {
+        if (result->get_rt_info().count("manually_added_output")) {
+            // Skip manually added auxiliary outputs (e.g. Eagle-3 last_hidden_state).
+            return false;
+        }
+        ov::Node* node = result->get_input_node_ptr(0);
+        if (ov::is_type<ov::op::v1::Add>(node) || ov::is_type<ov::op::v1::Transpose>(node) ||
+            ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Multiply>(node)) {
+            node = node->get_input_node_ptr(0);
+        }
+        return ov::is_type<ov::op::v0::MatMul>(node);
+    };
+    size_t count = 0;
+    for (const auto& result : m->get_results()) {
+        if (is_lm_head_result(result)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m, const ::intel_npu::Config& cfg) {
     bool shared_head_enabled = cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     if (shared_head_enabled) {
-        LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-        lm_head_model = cut_lm_head(m);
-        if (lm_head_model) {
-            LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
+        // The shared-LM-head optimization (CutLMHead) assumes a single vocabulary projection.
+        // Multi-head classifier / "guard" models instead expose several small per-token Result
+        // heads, all of which would match the MatMul->Result pattern and corrupt the graph.
+        // Detect that case and fall back to the two-model pipeline.
+        const size_t num_output_heads = count_lm_head_outputs(m);
+        if (num_output_heads > 1) {
+            LOG_INFO("Detected " << num_output_heads
+                                 << " LM-head outputs (classifier/guard model); skipping shared LM head."
+                                    " Two-model pipeline will be created.");
         } else {
-            LOG_WARN("Three-model pipeline is requested, but LM head cutting is failed,"
-                     " two-model pipeline will be created!");
+            LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
+            lm_head_model = cut_lm_head(m);
+            if (lm_head_model) {
+                LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
+            } else {
+                LOG_WARN("Three-model pipeline is requested, but LM head cutting is failed,"
+                         " two-model pipeline will be created!");
+            }
         }
     } else {
         LOG_INFO("Two-model pipeline will be created.");
@@ -850,7 +889,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
     uint32_t max_generation_token_len = m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>();
-    if (max_generation_token_len != 1) {
+    // A guard model scores exactly the tokens fed per generate step, so it can use small chunk
+    // sizes directly. Speculative decoding instead needs an 8-aligned candidate window, so the
+    // align-to-8 is kept only for the non-guard case. Guard detection here mirrors the later
+    // m_is_guard assignment (raw stateful model exposes one Result per classifier head).
+    const bool is_guard_model = count_lm_head_outputs(model) > 1;
+    if (max_generation_token_len != 1 && !is_guard_model) {
         max_generation_token_len = align_to(max_generation_token_len, 8u);
     }
 
@@ -984,6 +1028,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
     auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
+
+    // A multi-head classifier / "guard" model (e.g. Qwen3Guard-Stream) exposes several per-token
+    // Result heads instead of a single vocabulary projection. Such a model is used as a per-token
+    // classifier, not a next-token generator, so the LLM pipeline must keep the full sequence of
+    // logits (no last-token slice) and forward every head to the exposed outputs.
+    m_is_guard = count_lm_head_outputs(kvcache_model) > 1;
+    if (m_is_guard) {
+        LOG_INFO("Guard model detected: per-token multi-head outputs will be preserved for every head.");
+    }
 
     // Detect attention mask kind before the SDPA subgraph is isolated by partitioning,
     // annotating each SDPA node's rt_info. HostFlashAttention reads this per-node to
@@ -1272,6 +1325,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         prefill_config.erase("NPUW_SLICE_OUT");
     }
     merge_config_with(generate_config, generate_config_addition_value);
+
+    if (m_is_guard) {
+        // NPUW_SLICE_OUT inserts a Slice before the last MatMul to keep only the last token's
+        // logits. A guard model has several MatMul heads and needs the full per-token sequence, so
+        // the slice would both corrupt shapes and drop required outputs. Force it off for guards.
+        prefill_config.erase("NPUW_SLICE_OUT");
+        generate_config.erase("NPUW_SLICE_OUT");
+    }
     if (user_compilation_mode_params.has_value() && default_compilation_mode_params.has_value() &&
         user_compilation_mode_params.value() != default_compilation_mode_params.value()) {
         LOG_WARN("User-provided NPU_COMPILATION_MODE_PARAMS overrides arch-aware setting \""
@@ -1679,7 +1740,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
             m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
-            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding & m_swa_window_size;
+            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding & m_swa_window_size & m_is_guard;
 
         // LongRoPE cos/sin tables: the transformed graphs have npuw_lr_cos/npuw_lr_sin
         // inputs the host must fill every call, but deserialization imports already-
@@ -1883,7 +1944,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
             compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
-            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size;
+            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size &
+            compiled->m_is_guard;
 
         // LongRoPE cos/sin tables - see the matching comment in serialize()
         stream & compiled->m_longrope_tables;
