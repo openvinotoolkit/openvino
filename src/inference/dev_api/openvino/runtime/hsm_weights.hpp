@@ -29,14 +29,14 @@ OPENVINO_RUNTIME_API SectionEncoderPtr encode_weights(ov::util::MemoryView weigh
  * @brief Copies the payload of a #weights_tag section into an owned byte buffer.
  * @return The weights bytes, or `std::nullopt` when the section cannot be read.
  */
-OPENVINO_RUNTIME_API std::optional<WeightsBuffer> decode_weights(const Section& section);
+OPENVINO_RUNTIME_API std::optional<WeightsBuffer> decode_weights(const Section& section) noexcept;
 
 /**
  * @brief Views a pointer-mode #weights_tag section without copying, when backed by addressable memory.
  * @note The buffer backing the section must outlive the returned view.
  * @return The weights view, or `std::nullopt` for an inline or stream-backed section.
  */
-OPENVINO_RUNTIME_API std::optional<ov::util::MemoryView> decode_weights_view(const Section& section);
+OPENVINO_RUNTIME_API std::optional<ov::util::MemoryView> decode_weights_view(const Section& section) noexcept;
 
 }  // namespace v1
 }  // namespace ov::runtime::hsm

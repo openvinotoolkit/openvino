@@ -26,14 +26,16 @@ SectionEncoderPtr encode_weights(ov::util::MemoryView weights) {
     return std::make_shared<WeightsEncoder>(weights);
 }
 
-std::optional<WeightsBuffer> decode_weights(const Section& section) {
+std::optional<WeightsBuffer> decode_weights(const Section& section) noexcept try {
     if (section.size() == 0) {
         return WeightsBuffer{};
     }
     return section.to_bytes();
+} catch (...) {
+    return std::nullopt;
 }
 
-std::optional<ov::util::MemoryView> decode_weights_view(const Section& section) {
+std::optional<ov::util::MemoryView> decode_weights_view(const Section& section) noexcept {
     if (!section.tag().is_pointer()) {
         return std::nullopt;
     }
