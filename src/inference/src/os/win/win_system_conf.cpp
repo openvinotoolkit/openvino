@@ -12,12 +12,16 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "dev/threading/thread_affinity.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "os/cpu_map_info.hpp"
 
 namespace ov {
 
 CPU::CPU() {
+    // Snapshot the process affinity baseline before any thread is pinned.
+    std::tie(_process_mask, _process_mask_ncpus) = ov::threading::query_process_mask();
+
     DWORD len = 0;
     if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
         return;
