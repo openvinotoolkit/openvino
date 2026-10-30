@@ -49,13 +49,14 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             return dt == ov::element::i4 || dt == ov::element::i8;
         };
 
-        // Only support weight: u4, i4, u2, u8, i8
+        // Only support weight: u4, i4, u2, u8, i8, u3 (u3 has no batched GEMV kernel and runs decode via OneDNN grouped GEMM)
         static constexpr std::array supported_wei_type = {
             ov::element::u4,
             ov::element::i4,
             ov::element::u2,
             ov::element::u8,
             ov::element::i8,
+            ov::element::u3,
         };
         // Only support scale: f16
         static constexpr std::array supported_scale_type = {
@@ -86,10 +87,11 @@ struct moe_3gemm_swiglu_opt : public ImplementationManager {
             if (config.has_zp) {
                 const auto zp_dt = dt_of(zps[i]);
                 // A single-element zp is broadcast in-kernel (GATE/UP/DOWN_ZP_SCALAR, zp stride 0), so only its type is
-                // checked. Otherwise the kernel strides zp by the weight's bit width (MOE_EXPERT_ZP_BYTES): they must match.
+                // checked. Otherwise the batched GEMV strides zp by the weight's bit width (MOE_EXPERT_ZP_BYTES): they must
+                // match. u3 never runs it (OneDNN grouped GEMM) and its zp is u8, so it is exempt.
                 const auto& zp_layout = node.get_input_layout(static_cast<size_t>(zps[i]));
                 const bool scalar_zp = zp_layout.is_static() && zp_layout.count() == 1;
-                if (!one_of(zp_dt, supported_zp_type) || (!scalar_zp && zp_dt.bitwidth() != wei_dt.bitwidth())) {
+                if (!one_of(zp_dt, supported_zp_type) || (!scalar_zp && wei_dt != ov::element::u3 && zp_dt.bitwidth() != wei_dt.bitwidth())) {
                     return false;
                 }
             }
