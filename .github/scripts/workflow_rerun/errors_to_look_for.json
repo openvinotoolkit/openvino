@@ -508,5 +508,10 @@
         "error_text": "Server returned status code 503",
         "ticket": 9999999,
         "category": "External Service"
+    },
+    {
+        "error_text": "Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
+        "ticket": 9999999,
+        "category": "Infrastructure"
     }
 ]
