@@ -510,7 +510,7 @@
         "category": "External Service"
     },
     {
-        "error_text": "Failed to download the model",
+        "error_text": "Failed to download the model: Request was timed out",
         "ticket": 9999999,
         "category": "Network"
     }
