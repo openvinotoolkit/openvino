@@ -565,14 +565,14 @@ class AsyncInferQueue(AsyncInferQueueBase):
                               Default value: False
         :type share_inputs: bool, optional
         """
-        super().start_async(
-            _data_dispatch(
-                self[self.get_idle_request_id()],
-                inputs,
-                is_shared=share_inputs,
-            ),
-            userdata,
-        )
+        request_id = self.get_idle_request_id()
+        request = self[request_id]
+        dispatched = _data_dispatch(request, inputs, is_shared=share_inputs)
+        if share_inputs:
+            if not hasattr(self, "_inputs_data"):
+                self._inputs_data = {}
+            self._inputs_data[request_id] = getattr(request, "_inputs_data", None)
+        super().start_async(dispatched, userdata)
 
 
 class Core(CoreBase):
