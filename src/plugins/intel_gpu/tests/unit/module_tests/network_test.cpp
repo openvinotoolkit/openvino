@@ -55,7 +55,7 @@ TEST(network_test, model_with_empty_input_is_not_dynamic) {
     ASSERT_FALSE(net.is_dynamic());
 }
 
-// Remote tensor memory exntends zero dims to 1 for layout
+// Remote tensor memory extends 0 dims to 1 for layout
 TEST(network_test, zero_size_remote_tensor_static_input) {
     auto& engine = get_test_engine();
     layout in_layout{ov::PartialShape{1, 0, 2}, data_types::f32, format::bfyx};

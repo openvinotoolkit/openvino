@@ -5145,27 +5145,22 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 // Runs FC on a zero-size batch with the given implementation forced; execution must not throw.
-void run_fc_zero_size_input(impl_types impl, bool is_dynamic) {
-    const int64_t input_f = 16, output_f = 8;
+static void run_fc_zero_size_input(impl_types impl, bool is_dynamic) {
+    constexpr int64_t input_f = 16, output_f = 8;
     auto& engine = get_test_engine();
 
-    auto input_layout_desc = is_dynamic ? layout{ov::PartialShape{-1, input_f}, data_types::f32, format::bfyx}
-                                        : layout{ov::PartialShape{0, input_f}, data_types::f32, format::bfyx};
+    auto input_layout_desc = layout{ov::PartialShape{is_dynamic ? -1 : 0, input_f}, data_types::f32, format::bfyx};
     auto input_mem = engine.allocate_memory({ov::PartialShape{0, input_f}, data_types::f32, format::bfyx});
     auto weights_mem = engine.allocate_memory({ov::PartialShape{output_f, input_f}, data_types::f32, format::bfyx});
     set_values(weights_mem, std::vector<float>(output_f * input_f, 1.0f));
 
-    topology topology(
-        input_layout("input", input_layout_desc),
-        data("weights", weights_mem),
-        fully_connected("fc_prim", input_info("input"), "weights")
-    );
+    topology topology(input_layout("input", input_layout_desc), data("weights", weights_mem), fully_connected("fc_prim", input_info("input"), "weights"));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
-    ov::intel_gpu::ImplementationDesc fc_impl_desc = { format::bfyx, "", impl };
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl_desc} }));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "", impl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
 
     network network(engine, topology, config);
     network.set_input_data("input", input_mem);
@@ -5176,10 +5171,13 @@ void run_fc_zero_size_input(impl_types impl, bool is_dynamic) {
     ASSERT_EQ(outputs.begin()->first, "fc_prim");
     ASSERT_EQ(outputs.begin()->second.get_layout().count(), size_t(0));
 
-    // Dynamic zero-size primitives are skipped at runtime, so no impl exists.
+    auto fc_inst = network.get_primitive("fc_prim");
     if (!is_dynamic) {
-        auto fc_impl = network.get_primitive("fc_prim")->get_impl();
-        ASSERT_NE(fc_impl, nullptr);
+        ASSERT_TRUE(fc_inst->can_be_optimized());
+    }
+
+    // zero-size primitives are skipped, so impl may not exist.
+    if (const auto* fc_impl = fc_inst->get_impl(); fc_impl != nullptr) {
         ASSERT_EQ(fc_impl->is_onednn(), impl == impl_types::onednn);
     }
 }
