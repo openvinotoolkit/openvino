@@ -4,11 +4,11 @@
 
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 
 #include "cnpy.h"
 #include "common_test_utils/common_utils.hpp"
 #include "gtest/gtest.h"
+#include "model_contract.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
@@ -26,15 +26,9 @@ using ov::frontend::gguf::pass::GGUFMakeStateful;
 
 void expect_nmse(const ov::Tensor& actual, const cnpy::NpyArray& expected) {
     ASSERT_EQ(actual.get_size(), expected.num_vals);
-    double error = 0, energy = 0;
-    for (size_t i = 0; i < actual.get_size(); ++i) {
-        const auto reference = expected.data<float>()[i];
-        const auto difference = double(actual.data<const float>()[i]) - reference;
-        error += difference * difference;
-        energy += double(reference) * reference;
-    }
-    ASSERT_GT(energy, 0.);
-    EXPECT_LT(error / energy, 1e-5);
+    ov_gguf_test::expect_nmse_below(
+        ov_gguf_test::nmse(actual.data<const float>(), expected.data<float>(), expected.num_vals),
+        1e-5);
 }
 
 ov::Tensor tensor(const cnpy::NpyArray& value, ov::element::Type type = ov::element::f32) {
@@ -178,14 +172,7 @@ TEST(GGUFLfm3MediaAdapter, CombinedOmniPreservesIndependentComponentsAndStates) 
             if (state.get_name().find("conv") != std::string::npos && actual.get_size() != expected.num_vals) {
                 const auto shape = actual.get_shape();
                 const auto channels = shape[shape.size() - 2];
-                const auto taps = expected.num_vals / channels;
-                const auto stride = actual.get_size() / channels;
-                ov::Tensor logical(ov::element::f32, {channels, taps});
-                for (size_t channel = 0; channel < channels; ++channel)
-                    std::copy_n(actual.data<float>() + channel * stride + stride - taps,
-                                taps,
-                                logical.data<float>() + channel * taps);
-                actual = logical;
+                actual = ov_gguf_test::trailing_conv_taps(actual, channels, expected.num_vals / channels);
             }
             if (state.get_name().rfind("audio.state.", 0) == 0) {
                 expect_nmse(actual, expected);
@@ -241,7 +228,12 @@ TEST(GGUFLfm3MediaAdapter, IndependentGenerationMapsPreserveCodecState) {
     auto model = std::make_shared<ov::Model>(ov::OutputVector{depth, feedback, spectrum, update},
                                              ov::ParameterVector{depth, feedback, spectrum, state});
     model->get_results().back()->set_friendly_name("codec_position_update");
-    model->get_rt_info()["gguf_mmproj"] = ov::AnyMap{{"lfm3", std::string("true")}};
+    ov::frontend::gguf::ModelContract contract;
+    contract.component_groups["audio_generation"] = {"depthformer",
+                                                     {{"depthformer", {{"audio.depth_logits"}, ""}},
+                                                      {"feedback", {{"audio.feedback"}, ""}},
+                                                      {"codec", {{"audio.spectrogram"}, "audio.codec.state."}}}};
+    ov::frontend::gguf::write_model_contract(model, contract);
     model->get_rt_info()[gguf_recurrent_states_key()] =
         std::vector<std::string>{"audio.codec.state.pos", "codec_position_update"};
     for (const bool stateful : {false, true}) {

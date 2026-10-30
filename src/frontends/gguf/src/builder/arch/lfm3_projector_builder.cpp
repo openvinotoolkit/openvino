@@ -5,9 +5,9 @@
 #include "lfm3_projector_builder.hpp"
 
 #include <cmath>
-#include <limits>
 
 #include "builder/metadata_checks.hpp"
+#include "lfm2_builder.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
@@ -22,12 +22,7 @@ public:
         eps = require_positive_float(g.metadata(), key + "attention.layer_norm_epsilon", "LFM3 mmproj");
         OPENVINO_ASSERT(width % heads == 0 && heads % kv_heads == 0, "[GGUF] invalid LFM3 encoder head geometry");
         head = width / heads;
-        RopeConfig config;
-        config.per_op = true;
-        config.n_dims = int(head);
-        config.freq_base = 1e6f;
-        config.freq_scale = config.attn_factor = 1.f;
-        g.configure_rope(config);
+        g.configure_rope(rope_config(head));
     }
 
     ProjectorResult vision() {
@@ -54,12 +49,8 @@ public:
                 auto projection = linear(z, p + "conv2d_in_proj");
                 auto gated = mul(slice(projection, 3, 0, width), slice(projection, 3, 2 * width, width));
                 if (g.tensors().has(p + "conv2d_spatial.weight")) {
-                    auto grid = g.node("GGML_OP_RESHAPE",
-                                       {transpose(gated), spatial},
-                                       0,
-                                       {{"reshape_target", std::vector<int64_t>{1, width, 0, 0}},
-                                        {"shape_axes", std::vector<int64_t>{-1, -1, 2, 3}}});
-                    gated = transpose(reshape(conv(grid, p + "conv2d_spatial", 1, 1, 1, 1, true), {1, 1, width, -1}));
+                    gated = transpose(reshape(conv(to_grid(gated, spatial), p + "conv2d_spatial", 1, 1, 1, 1, true),
+                                              {1, 1, width, -1}));
                 }
                 z = linear(mul(slice(projection, 3, width, width), gated), p + "conv2d_out_proj");
             } else {
@@ -72,14 +63,9 @@ public:
                             g.tensors().require("mm.input_norm.weight"),
                             g.tensors().require("mm.input_norm.bias"),
                             1e-6f);
-        auto grid = g.node("GGML_OP_RESHAPE",
-                           {transpose(x), spatial},
-                           0,
-                           {{"reshape_target", std::vector<int64_t>{1, width, 0, 0}},
-                            {"shape_axes", std::vector<int64_t>{-1, -1, 2, 3}}});
         // Unfold is channel-major; restore raster 2x2 patches with features innermost.
         x = g.node("GGML_OP_IM2COL",
-                   {grid},
+                   {to_grid(x, spatial)},
                    0,
                    {{"kernel_shape", ov::Shape{size_t(4 * width), size_t(width), 2, 2}},
                     {"im2col_params", std::vector<int32_t>{2, 2, 0, 0, 1, 1, 1}},
@@ -103,11 +89,9 @@ public:
         x = downsample(x, "ds0", "a.conv1d.0", false);
         x = g.node("GGML_UNARY_OP_SILU", {x});
         x = downsample(x, "ds1", "a.conv1d.2", true);
-        x = g.node("GGML_UNARY_OP_SILU",
-                   {add(conv(x, "a.conv1d.3", 1, 1, 0, 0), g.tensors().require("a.conv1d.3.bias"))});
+        x = pointwise_silu(x, "a.conv1d.3");
         x = downsample(x, "ds2", "a.conv1d.5", true);
-        x = g.node("GGML_UNARY_OP_SILU",
-                   {add(conv(x, "a.conv1d.6", 1, 1, 0, 0), g.tensors().require("a.conv1d.6.bias"))});
+        x = pointwise_silu(x, "a.conv1d.6");
         const auto flat = g.tensors().require("a.pre_encode.out.weight").ne(0);
         x = linear(reshape(transpose(x, {0, 3, 1, 2}), {1, 1, -1, flat}), "a.pre_encode.out");
         auto index = scale(g.node("GGML_OP_CUMSUM", {transpose(scale(slice(x, 3, 0, 1), 0.f, 1.f))}), 1.f, -1.f);
@@ -117,14 +101,13 @@ public:
             const auto p = "a.blk." + std::to_string(layer) + ".";
             auto z = rms(x, p + "ln1");
             if (g.tensors().has(p + "conv_dw.weight")) {
-                auto projection = linear(z, p + "conv_pw1");
-                auto bx = transpose(mul(slice(projection, 3, 0, width), slice(projection, 3, 2 * width, width)));
-                const auto taps = g.tensors().require(p + "conv_dw.weight").ne(0) - 1;
-                auto previous = state("conv_" + std::to_string(layer), {1, 1, width, taps});
-                bx = concat(previous, bx, 3);
-                update(previous, slice(bx, 3, -taps, taps));
-                z = g.node("GGML_OP_SSM_CONV", {bx, g.tensors().require(p + "conv_dw.weight")});
-                z = linear(mul(slice(projection, 3, width, width), z), p + "conv_pw2");
+                z = build_lfm_short_conv(g,
+                                         linear(z, p + "conv_pw1"),
+                                         g.tensors().require(p + "conv_dw.weight"),
+                                         width,
+                                         "audio.state.conv_" + std::to_string(layer),
+                                         false);
+                z = linear(z, p + "conv_pw2");
             } else {
                 z = attention(z, p, positions, false, layer, index, base_position);
             }
@@ -144,6 +127,16 @@ private:
     GgufGraphContext& g;
     int64_t width, heads, kv_heads, layers, head, prefix = 0;
     float eps;
+    GgufValue audio_mask;
+
+    static RopeConfig rope_config(int64_t dims) {
+        RopeConfig config;
+        config.per_op = true;
+        config.n_dims = int(dims);
+        config.freq_base = 1e6f;
+        config.freq_scale = config.attn_factor = 1.f;
+        return config;
+    }
 
     GgufValue reshape(const GgufValue& x, std::vector<int64_t> shape) {
         return g.node("GGML_OP_RESHAPE", {x}, 6, {{"reshape_target", std::move(shape)}});
@@ -188,6 +181,16 @@ private:
                       0,
                       {{"conv_params", std::vector<int64_t>{sx, sy, px, py, 1, 1}}, {"depthwise", dw}});
     }
+    GgufValue to_grid(const GgufValue& tokens, const GgufValue& spatial) {
+        return g.node("GGML_OP_RESHAPE",
+                      {transpose(tokens), spatial},
+                      0,
+                      {{"reshape_target", std::vector<int64_t>{1, width, 0, 0}},
+                       {"shape_axes", std::vector<int64_t>{-1, -1, 2, 3}}});
+    }
+    GgufValue pointwise_silu(const GgufValue& x, const std::string& name) {
+        return g.node("GGML_UNARY_OP_SILU", {add(conv(x, name, 1, 1, 0, 0), g.tensors().require(name + ".bias"))});
+    }
     GgufValue state(const std::string& name, const ov::PartialShape& shape) {
         return g.add_input("audio.state." + name, ov::element::f32, shape);
     }
@@ -226,11 +229,7 @@ private:
             q = rms(q, p + "attn_q_norm");
         if (g.tensors().has(p + "attn_k_norm.weight"))
             k = rms(k, p + "attn_k_norm");
-        RopeConfig rope;
-        rope.per_op = true;
-        rope.n_dims = int(vision ? head / 2 : head);
-        rope.freq_base = 1e6f;
-        rope.freq_scale = rope.attn_factor = 1.f;
+        auto rope = rope_config(vision ? head / 2 : head);
         if (vision) {
             rope.n_ctx_orig = 32768;
             rope.beta_fast = 32.f;
@@ -249,16 +248,20 @@ private:
             update(previous_v, slice(flat_v, 2, -prefix, prefix));
             k = reshape(flat_k, {1, -1, kv_heads, head});
             v = reshape(flat_v, {1, -1, kv_heads, head});
-            auto key_index = scale(g.node("GGML_OP_CUMSUM", {transpose(scale(slice(flat_k, 3, 0, 1), 0.f, 1.f))}),
-                                   1.f,
-                                   -1.f - float(prefix));
-            auto distance = g.node("GGML_OP_SUB", {transpose(index), key_index});
-            auto clamp = [&](const GgufValue& value) {
-                return g.node("GGML_OP_CLAMP", {value}, 0, {{"clamp_min", 0.f}, {"clamp_max", 1.f}});
-            };
-            auto inside = mul(clamp(scale(distance, 1.f, 1.f)), clamp(scale(distance, -1.f, float(prefix + 1))));
-            inside = mul(inside, clamp(scale(add(key_index, base_position), 1.f, 1.f)));
-            inputs = {q, k, v, scale(inside, 1e9f, -1e9f)};
+            // Every streaming layer sees the same [prefix + T] keys, so the window mask is built once.
+            if (!audio_mask) {
+                auto key_index = scale(g.node("GGML_OP_CUMSUM", {transpose(scale(slice(flat_k, 3, 0, 1), 0.f, 1.f))}),
+                                       1.f,
+                                       -1.f - float(prefix));
+                auto distance = g.node("GGML_OP_SUB", {transpose(index), key_index});
+                auto clamp = [&](const GgufValue& value) {
+                    return g.node("GGML_OP_CLAMP", {value}, 0, {{"clamp_min", 0.f}, {"clamp_max", 1.f}});
+                };
+                auto inside = mul(clamp(scale(distance, 1.f, 1.f)), clamp(scale(distance, -1.f, float(prefix + 1))));
+                inside = mul(inside, clamp(scale(add(key_index, base_position), 1.f, 1.f)));
+                audio_mask = scale(inside, 1e9f, -1e9f);
+            }
+            inputs = {q, k, v, audio_mask};
         }
         return linear(reshape(g.node("GGML_OP_FLASH_ATTN_EXT",
                                      inputs,
@@ -268,13 +271,13 @@ private:
                       p + "attn_out");
     }
 };
-}  // namespace
 
 ProjectorResult build_lfm3_projector(GgufGraphContext& graph, const std::string& modality) {
     OPENVINO_ASSERT(modality == "vision" || modality == "audio", "[GGUF] invalid LFM3 projector modality");
     Lfm3Projector builder(graph, modality);
     return modality == "vision" ? builder.vision() : builder.audio();
 }
+}  // namespace
 
 std::vector<ProjectorDefinition> lfm3_projector_definitions() {
     std::vector<ProjectorDefinition> result;

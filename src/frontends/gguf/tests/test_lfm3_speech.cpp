@@ -100,10 +100,7 @@ protected:
             if (slot.find("conv_") == 0) {
                 // GGUFMakeStateful retains one extra sample for causal-convolution fusion.
                 ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 512, 4}));
-                ov::Tensor logical(ov::element::f32, {1, 1, 512, 3});
-                for (size_t channel = 0; channel < 512; ++channel)
-                    std::copy_n(actual.data<float>() + channel * 4 + 1, 3, logical.data<float>() + channel * 3);
-                actual = logical;
+                actual = ov_gguf_test::trailing_conv_taps(actual, 512, 3);
             }
             ov_gguf_test::expect_near(actual, expected);
         }

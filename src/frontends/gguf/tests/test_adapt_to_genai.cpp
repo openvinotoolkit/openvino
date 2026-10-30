@@ -475,16 +475,6 @@ static void image_attention_contract(const std::shared_ptr<ov::Model>& model, Im
     ov::frontend::gguf::write_model_contract(model, contract);
 }
 
-static std::shared_ptr<ov::Model> reload_ir_model(const std::shared_ptr<ov::Model>& model) {
-    std::stringstream xml, weights;
-    ov::pass::Serialize(xml, weights).run_on_model(model);
-    const auto bytes = weights.str();
-    ov::Tensor constants(ov::element::u8, {bytes.size()});
-    if (!bytes.empty())
-        std::memcpy(constants.data(), bytes.data(), bytes.size());
-    return ov::Core{}.read_model(xml.str(), constants);
-}
-
 class GGUFAdaptToGenAIImageMask : public testing::TestWithParam<ImageAttentionMode> {};
 
 TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
@@ -1335,7 +1325,7 @@ TEST(GGUFAdaptToGenAI, SequenceOutputsUseDeclaredContractBeforeAndAfterReload) {
     ov::frontend::gguf::write_model_contract(native.model, contract);
     for (const bool reload : {false, true}) {
         for (const auto mode : {AdaptToGenAI::InputMode::IDS_TO_LOGITS, AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS}) {
-            auto model = reload ? reload_ir_model(native.model) : native.model->clone();
+            auto model = reload ? ov_gguf_test::reload_ir_model(native.model) : native.model->clone();
             EXPECT_EQ(ov::frontend::gguf::read_model_contract(model).sequence_outputs, contract.sequence_outputs);
             AdaptToGenAI adapter(mode);
             ASSERT_TRUE(adapter.run_on_model(model));
@@ -1397,7 +1387,7 @@ TEST(GGUFAdaptToGenAI, InvalidSequenceContractsRejectBeforeRewiring) {
     auto model = build_minimal_gguf_model().model;
     model->get_rt_info()["gguf_architecture"] = std::string("lfm3");
     ov::frontend::gguf::write_model_contract(model, {});
-    EXPECT_TRUE(ov::frontend::gguf::read_model_contract(reload_ir_model(model)).sequence_outputs.empty());
+    EXPECT_TRUE(ov::frontend::gguf::read_model_contract(ov_gguf_test::reload_ir_model(model)).sequence_outputs.empty());
     model->get_rt_info()["gguf_model_contract"].as<ov::AnyMap>()["sequence_outputs"] =
         std::vector<std::string>{"duplicate", "duplicate"};
     EXPECT_THROW(AdaptToGenAI().run_on_model(model), ov::Exception);
@@ -1454,7 +1444,7 @@ TEST(GGUFAdaptToGenAI, SuppliedDecoderDefaultCapabilityResolvesBeforeSerializati
             genai.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
             EXPECT_THROW(genai.convert(genai.load(decoder)), ov::Exception);
         }
-        for (const auto& source : {converted, reload_ir_model(converted)}) {
+        for (const auto& source : {converted, ov_gguf_test::reload_ir_model(converted)}) {
             EXPECT_EQ(ov::frontend::gguf::read_model_contract(source).supports_genai_adaptation,
                       std::optional<bool>{!with_context});
             const auto parameters = source->get_parameters();
@@ -1469,8 +1459,9 @@ TEST(GGUFAdaptToGenAI, SuppliedDecoderDefaultCapabilityResolvesBeforeSerializati
         auto explicit_contract = ov::frontend::gguf::read_model_contract(converted);
         explicit_contract.supports_genai_adaptation = true;
         ov::frontend::gguf::write_model_contract(converted, explicit_contract);
-        EXPECT_EQ(ov::frontend::gguf::read_model_contract(reload_ir_model(converted)).supports_genai_adaptation,
-                  std::optional<bool>{true});
+        EXPECT_EQ(
+            ov::frontend::gguf::read_model_contract(ov_gguf_test::reload_ir_model(converted)).supports_genai_adaptation,
+            std::optional<bool>{true});
     }
 }
 
@@ -1480,7 +1471,7 @@ TEST(GGUFAdaptToGenAI, UnsupportedAdaptationUsesDeclaredCapabilityBeforeAndAfter
     contract.supports_genai_adaptation = false;
     model->get_rt_info()["gguf_architecture"] = std::string("custom-unsupported-decoder");
     ov::frontend::gguf::write_model_contract(model, contract);
-    for (const auto& source : {model, reload_ir_model(model)}) {
+    for (const auto& source : {model, ov_gguf_test::reload_ir_model(model)}) {
         const auto parameters = source->get_parameters();
         const auto results = source->get_results();
         EXPECT_FALSE(AdaptToGenAI().run_on_model(source));
@@ -1489,7 +1480,7 @@ TEST(GGUFAdaptToGenAI, UnsupportedAdaptationUsesDeclaredCapabilityBeforeAndAfter
     }
     auto legacy = build_minimal_gguf_model().model;
     legacy->add_parameters({ov::test::utils::make_param(ov::element::f32, {1}, "dspark_ctx_feat")});
-    EXPECT_FALSE(AdaptToGenAI().run_on_model(reload_ir_model(legacy)));
+    EXPECT_FALSE(AdaptToGenAI().run_on_model(ov_gguf_test::reload_ir_model(legacy)));
 }
 
 TEST(GGUFAdaptToGenAI, ModelContractSurvivesIRReloadBeforeAdaptation) {
@@ -1522,7 +1513,7 @@ TEST(GGUFAdaptToGenAI, LegacyRecurrentContractSurvivesIRReloadBeforeAdaptation) 
         auto model = build_minimal_gguf_model().model;
         model->get_rt_info()["gguf_architecture"] = architecture;
         model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] = std::vector<std::string>{};
-        auto restored = reload_ir_model(model);
+        auto restored = ov_gguf_test::reload_ir_model(model);
         ASSERT_FALSE(restored->has_rt_info({"gguf_model_contract"}));
         ASSERT_EQ(restored->get_rt_info<std::string>({"gguf_architecture"}), architecture);
         const bool batchable = architecture == "lfm2" || architecture == "lfm2moe";
@@ -1551,7 +1542,7 @@ TEST_P(GGUFAdaptToGenAILegacyImageContract, ReloadsOldSchemaAndKeepsGlobalAndSli
     m.model->add_parameters({sliding_mask});
     add_probe_result(m.model, global_mask, "test_probe_global_mask");
     add_probe_result(m.model, sliding_mask, "test_probe_sliding_mask");
-    auto restored = reload_ir_model(m.model);
+    auto restored = ov_gguf_test::reload_ir_model(m.model);
     ASSERT_FALSE(restored->has_rt_info({"gguf_model_contract"}));
     ASSERT_EQ(restored->get_rt_info<std::string>({"gguf_architecture"}), architecture);
     for (const auto& node : restored->get_ops())
@@ -1614,7 +1605,7 @@ TEST(GGUFAdaptToGenAI, ExplicitPartialContractPreventsLegacyRecurrentFallbackAft
             model->get_rt_info()["gguf_architecture"] = architecture;
             model->get_rt_info()["gguf_model_contract"] = contract;
             model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] = std::vector<std::string>{};
-            auto restored = reload_ir_model(model);
+            auto restored = ov_gguf_test::reload_ir_model(model);
             ASSERT_TRUE(restored->has_rt_info({"gguf_model_contract"}));
             EXPECT_NE(ov::frontend::gguf::read_model_contract(restored).batchable_recurrent, std::optional<bool>{true});
             ASSERT_TRUE(AdaptToGenAI().run_on_model(restored));
@@ -1636,7 +1627,7 @@ TEST(GGUFAdaptToGenAI, ExplicitPartialContractPreventsLegacyImageFallbackAfterIR
             table->set_friendly_name("token_embd.weight");
             m.model->get_rt_info()["gguf_architecture"] = architecture;
             m.model->get_rt_info()["gguf_model_contract"] = contract;
-            auto restored = reload_ir_model(m.model);
+            auto restored = ov_gguf_test::reload_ir_model(m.model);
             ASSERT_TRUE(restored->has_rt_info({"gguf_model_contract"}));
             EXPECT_EQ(ov::frontend::gguf::read_model_contract(restored, 32).image_attention,
                       ImageAttentionMode::CAUSAL);
@@ -1705,7 +1696,7 @@ class GGUFAdaptToGenAILegacyScaledEmbedding : public testing::TestWithParam<std:
 TEST_P(GGUFAdaptToGenAILegacyScaledEmbedding, ReloadPreservesTokenScalingAndInjectedMediaValues) {
     const auto& [architecture, per_layer] = GetParam();
     auto m = build_scaled_legacy_gguf_model(architecture, per_layer);
-    auto restored = reload_ir_model(m.model);
+    auto restored = ov_gguf_test::reload_ir_model(m.model);
     ASSERT_FALSE(restored->has_rt_info({"gguf_model_contract"}));
     for (const auto& node : restored->get_ops()) {
         ASSERT_EQ(node->get_rt_info().count("gguf.token_embedding"), 0);
@@ -1828,7 +1819,7 @@ TEST_P(GGUFAdaptToGenAILegacyHadamardEmbedding, ReloadExtractsCompleteInverseGet
     logits->input(0).replace_source_output(endpoint);
     m.model->get_rt_info()["gguf_architecture"] = std::string{"qwen35"};
     m.model->validate_nodes_and_infer_types();
-    const auto restored = reload_ir_model(m.model);
+    const auto restored = ov_gguf_test::reload_ir_model(m.model);
     for (const auto& node : restored->get_ops())
         ASSERT_EQ(node->get_rt_info().count("gguf.token_embedding"), 0);
     AdaptToGenAI direct_adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
@@ -1884,7 +1875,7 @@ TEST(GGUFAdaptToGenAI, LegacyCompleteEmbeddingEndpointRejectsSeparateBranches) {
     const auto left_result = std::make_shared<v0::Result>(left);
     const auto right_result = std::make_shared<v0::Result>(right);
     m.model->add_results({left_result, right_result});
-    const auto restored = reload_ir_model(m.model);
+    const auto restored = ov_gguf_test::reload_ir_model(m.model);
     AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
     EXPECT_THROW(adapter.run_on_model(restored), ov::Exception);
 }
@@ -1898,7 +1889,7 @@ TEST(GGUFAdaptToGenAI, LegacyCompleteEmbeddingEndpointIgnoresPerLayerSuffix) {
     per_layer->set_friendly_name("Convert_native_per_layer_embd");
     const auto result = std::make_shared<v0::Result>(per_layer);
     m.model->add_results({result});
-    const auto restored = reload_ir_model(m.model);
+    const auto restored = ov_gguf_test::reload_ir_model(m.model);
     const auto legacy = ov::frontend::gguf::resolve_legacy_embedding_boundaries(restored, true, false);
     ASSERT_NE(legacy.token, nullptr);
     EXPECT_EQ(legacy.token->get_friendly_name(), m.embd->get_friendly_name());

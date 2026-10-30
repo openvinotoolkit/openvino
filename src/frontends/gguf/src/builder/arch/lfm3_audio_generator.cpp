@@ -4,10 +4,9 @@
 
 #include "lfm3_audio_generator.hpp"
 
-#include <algorithm>
 #include <cmath>
-#include <limits>
 
+#include "lfm2_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {
@@ -80,13 +79,12 @@ private:
                         "[GGUF] invalid LFM3 audio attention dimensions at ",
                         prefix);
         const bool streaming = layer >= 0;
-        const auto heads = [&](const GgufValue& value, int64_t channels) {
-            return streaming ? reshape(value, {1, -1, channels / head, head})
-                             : reshape(value, {-1, books, channels / head, head});
+        const auto heads = [&](const GgufValue& value, int64_t count, int64_t size) {
+            return streaming ? reshape(value, {1, -1, count, size}) : reshape(value, {-1, books, count, size});
         };
-        auto q = norm(heads(linear(x, prefix + "attn_q"), qwidth), prefix + "attn_q_norm", epsilon);
-        auto k = norm(heads(linear(x, prefix + "attn_k"), kvwidth), prefix + "attn_k_norm", epsilon);
-        auto v = heads(linear(x, prefix + "attn_v"), kvwidth);
+        auto q = norm(heads(linear(x, prefix + "attn_q"), qwidth / head, head), prefix + "attn_q_norm", epsilon);
+        auto k = norm(heads(linear(x, prefix + "attn_k"), kvwidth / head, head), prefix + "attn_k_norm", epsilon);
+        auto v = heads(linear(x, prefix + "attn_v"), kvwidth / head, head);
         RopeConfig rope;
         rope.n_dims = int(head);
         rope.freq_base = 1000000.f;
@@ -102,7 +100,7 @@ private:
                                          {1, 1, 29, kvwidth});
                 auto all = concat(input, reshape(current, {1, 1, -1, kvwidth}), 1);
                 g.add_recurrent_state(input, slice(all, 2, -29, 29));
-                return heads(all, kvwidth);
+                return heads(all, kvwidth / head, head);
             };
             k = state("k", k);
             v = state("v", v);
@@ -118,8 +116,7 @@ private:
             OPENVINO_ASSERT(gate_weight.ne(1) == qwidth / head,
                             "[GGUF] LFM3 audio requires one sigmoid gate per query head");
             auto gate = g.node("GGML_UNARY_OP_SIGMOID", {linear(x, prefix + "attn_gate")});
-            gate = streaming ? reshape(gate, {1, -1, qwidth / head, 1}) : reshape(gate, {-1, books, qwidth / head, 1});
-            output = mul(output, gate);
+            output = mul(output, heads(gate, qwidth / head, 1));
         }
         output = streaming ? reshape(output, {1, 1, -1, qwidth}) : reshape(output, {-1, 1, books, qwidth});
         return linear(output, prefix + "attn_out");
@@ -129,21 +126,12 @@ private:
         const auto kernel = g.tensors().require(prefix + "conv_dw.weight").ne(0);
         OPENVINO_ASSERT(kernel > 1 && g.tensors().require(prefix + "conv_pw1.weight").ne(1) == 3 * channels,
                         "[GGUF] invalid LFM3 codec short convolution");
-        const auto projected = linear(x, prefix + "conv_pw1");
-        const auto b = slice(projected, 3, 0, channels);
-        const auto c = slice(projected, 3, channels, channels);
-        const auto input = slice(projected, 3, 2 * channels, channels);
-        const auto bx = g.node("GGML_OP_TRANSPOSE", {mul(b, input)});
-        const auto state = g.add_input("audio.codec.state.conv." + std::to_string(layer),
-                                       ov::element::f32,
-                                       {1, 1, channels, kernel - 1});
-        const auto window = concat(state, bx, 0);
-        g.add_recurrent_state(state, slice(window, 3, -(kernel - 1), kernel - 1));
-        const auto conv = g.node("GGML_OP_SSM_CONV",
-                                 {window, g.tensors().require(prefix + "conv_dw.weight")},
-                                 0,
-                                 {{"batch_major", true}});
-        return linear(mul(c, conv), prefix + "conv_pw2");
+        const auto gated = build_lfm_short_conv(g,
+                                                linear(x, prefix + "conv_pw1"),
+                                                g.tensors().require(prefix + "conv_dw.weight"),
+                                                channels,
+                                                "audio.codec.state.conv." + std::to_string(layer));
+        return linear(gated, prefix + "conv_pw2");
     }
     GgufValue block(const GgufValue& x,
                     const std::string& prefix,
@@ -158,8 +146,7 @@ private:
             g.tensors().has(prefix + "attn_post_norm.weight") == g.tensors().has(prefix + "ffn_post_norm.weight"),
             "[GGUF] LFM3 audio sandwich norms must appear as a pair");
         auto y = norm(x, prefix + "ln1", epsilon);
-        y = g.tensors().has(prefix + "conv_dw.weight") ? convolution(y, prefix, layer)
-                                                       : attention(y, prefix, epsilon, positions, mask, layer);
+        y = conv ? convolution(y, prefix, layer) : attention(y, prefix, epsilon, positions, mask, layer);
         if (g.tensors().has(prefix + "attn_post_norm.weight"))
             y = norm(y, prefix + "attn_post_norm", epsilon);
         auto residual = add(x, y);
@@ -176,14 +163,11 @@ private:
         const auto hidden = g.add_input("audio.depth.hidden_states", ov::element::f32, {1, 1, -1, projection.ne(0)});
         const auto codes = g.add_input("audio.depth.codes", ov::element::i32, {1, 1, -1, books});
         const auto mask = g.add_input("audio.depth.mask", ov::element::f32, {1, 1, -1, books});
+        const auto tables = reshape(g.tensors().require("a.gen.code.embd.weight"), {1, books, vocabulary, width});
         GgufValue embedded;
         for (int64_t book = 0; book < books; ++book) {
-            const auto table =
-                slice(reshape(g.tensors().require("a.gen.code.embd.weight"), {1, books, vocabulary, width}),
-                      1,
-                      book,
-                      1);
-            auto token = g.node("GGML_OP_GET_ROWS", {table, book_ids(codes, book, "audio.depth", false)});
+            auto token =
+                g.node("GGML_OP_GET_ROWS", {slice(tables, 1, book, 1), book_ids(codes, book, "audio.depth", false)});
             auto revealed = slice(mask, 3, book, 1);
             token = add(mul(token, revealed),
                         mul(g.tensors().require("a.gen.code.mask_embd"),
@@ -203,20 +187,11 @@ private:
         for (int layer = 0; layer < layers; ++layer)
             current = block(current, "a.gen.code.blk." + std::to_string(layer) + ".", epsilon, pos);
         current = norm(current, "a.gen.code.output_norm", epsilon);
+        const auto head_norms = reshape(g.tensors().require("a.gen.code.head_norm.weight"), {1, 1, books, width});
         GgufValue logits;
         for (int64_t book = 0; book < books; ++book) {
-            auto value = slice(current, 2, book, 1);
-            value = g.build_norm(
-                value,
-                slice(reshape(g.tensors().require("a.gen.code.head_norm.weight"), {1, 1, books, width}), 2, book, 1),
-                epsilon);
-            auto output =
-                g.node("GGML_OP_MUL_MAT",
-                       {slice(reshape(g.tensors().require("a.gen.code.embd.weight"), {1, books, vocabulary, width}),
-                              1,
-                              book,
-                              1),
-                        value});
+            const auto value = g.build_norm(slice(current, 2, book, 1), slice(head_norms, 2, book, 1), epsilon);
+            auto output = g.node("GGML_OP_MUL_MAT", {slice(tables, 1, book, 1), value});
             logits = logits ? concat(logits, output, 1) : output;
         }
         g.set_output(reshape(logits, {1, -1, books, vocabulary}), "audio.depth_logits");

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "lfm2_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {
@@ -79,18 +80,12 @@ public:
                                     out.ne(0) == dims.embedding && out.ne(1) == dims.embedding,
                                 "[GGUF] invalid LFM3 short-convolution weights in layer ",
                                 layer);
-                const auto projected = g.node("GGML_OP_MUL_MAT", {in, cur});
-                const auto b = slice(projected, 0, dims.embedding);
-                const auto c = slice(projected, dims.embedding, dims.embedding);
-                const auto x = slice(projected, int64_t{2} * dims.embedding, dims.embedding);
-                const auto bx = g.node("GGML_OP_TRANSPOSE", {g.node("GGML_OP_MUL", {b, x})});
-                const auto state = g.add_input("conv_state_l" + std::to_string(layer),
-                                               ov::element::f32,
-                                               {1, 1, dims.embedding, *kernel - 1});
-                const auto window = g.node("GGML_OP_CONCAT", {state, bx}, 0, {{"concat_axis", 0}});
-                g.add_recurrent_state(state, slice(window, -(*kernel - 1), *kernel - 1));
-                const auto conv = g.node("GGML_OP_SSM_CONV", {window, convolution_weight}, 0, {{"batch_major", true}});
-                cur = g.node("GGML_OP_MUL_MAT", {out, g.node("GGML_OP_MUL", {c, conv})});
+                const auto gated = build_lfm_short_conv(g,
+                                                        g.node("GGML_OP_MUL_MAT", {in, cur}),
+                                                        convolution_weight,
+                                                        dims.embedding,
+                                                        "conv_state_l" + std::to_string(layer));
+                cur = g.node("GGML_OP_MUL_MAT", {out, gated});
             } else {
                 OPENVINO_ASSERT(!weights.has(prefix + "shortconv.in_proj.weight"),
                                 "[GGUF] LFM3 convolution tensor conflicts with attention-layer metadata");
@@ -123,9 +118,6 @@ public:
     }
 
 private:
-    GgufValue slice(const GgufValue& value, int64_t start, int64_t length) {
-        return g.node("GGML_OP_VIEW", {value}, 3, {{"view_slice", std::vector<int64_t>{3, start, length}}});
-    }
     GgufGraphContext g;
 };
 }  // namespace

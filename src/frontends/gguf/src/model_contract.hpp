@@ -86,9 +86,6 @@ inline ModelContract read_model_contract(const std::shared_ptr<ov::Model>& model
     } else {
         contract.supports_genai_adaptation = resolve_legacy_genai_adaptation(model);
     }
-    const bool has_sequence_outputs = model->has_rt_info({"gguf_model_contract", "sequence_outputs"});
-    const bool has_component_groups = model->has_rt_info({"gguf_model_contract", "component_groups"});
-    resolve_legacy_adaptation_contract(model, contract, !has_sequence_outputs, !has_component_groups);
     if (model->has_rt_info({"gguf_model_contract", "batchable_recurrent"})) {
         const auto value = model->get_rt_info<std::string>({"gguf_model_contract", "batchable_recurrent"});
         OPENVINO_ASSERT(value == "true" || value == "false" || value == "auto",
@@ -106,10 +103,10 @@ inline ModelContract read_model_contract(const std::shared_ptr<ov::Model>& model
             OPENVINO_ASSERT(value == "causal", "[GGUF] invalid image attention contract");
         }
     }
-    if (has_sequence_outputs)
+    if (model->has_rt_info({"gguf_model_contract", "sequence_outputs"}))
         contract.sequence_outputs =
             model->get_rt_info<std::vector<std::string>>({"gguf_model_contract", "sequence_outputs"});
-    if (has_component_groups) {
+    if (model->has_rt_info({"gguf_model_contract", "component_groups"})) {
         const auto groups = model->get_rt_info<ov::AnyMap>({"gguf_model_contract", "component_groups"});
         for (const auto& [name, value] : groups) {
             const auto& group = value.as<ov::AnyMap>();

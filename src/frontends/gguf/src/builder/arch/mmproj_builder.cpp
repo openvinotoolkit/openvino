@@ -1200,80 +1200,12 @@ public:
     explicit MmprojBuilder(const BuildContext& context) : ctx(context), g(context) {}
 
     std::shared_ptr<GgufGraph> build() override {
-        std::optional<ProjectorRegistry> defaults;
-        const auto& registry = ctx.projectors ? *ctx.projectors : defaults.emplace();
-        std::vector<std::shared_ptr<const ProjectorDefinition>> encoders;
-        for (const auto* modality : {"vision", "audio"}) {
-            if (!ctx.metadata.get_bool(std::string("clip.has_") + modality + "_encoder").value_or(false))
-                continue;
-            const auto type = resolve_projector_type(ctx.metadata, modality);
-            const auto definition = registry.find(ctx.metadata, modality, type);
-            OPENVINO_ASSERT(definition, "[GGUF] unsupported ", modality, " mmproj projector '", type, "'");
-            encoders.push_back(definition);
-        }
-        OPENVINO_ASSERT(!encoders.empty(), "[GGUF] mmproj has no encoder");
         ModelAdapters adapters;
-        std::map<std::string, std::string> branch_config;
-        branch_config["vision.auxiliary_count"] = "0";
-        for (const auto& definition : encoders) {
-            auto result = definition->build(g);
-            OPENVINO_ASSERT(result.output, "[GGUF] projector handler '", definition->id, "' returned no output");
-            g.set_output(result.output, definition->modality + ".embeddings");
-            for (const auto& entry : result.config) {
-                OPENVINO_ASSERT(entry.first.rfind(definition->modality + ".", 0) == 0,
-                                "[GGUF] projector metadata must use its modality prefix");
-                branch_config[entry.first] = entry.second;
-            }
-            branch_config[definition->modality + ".projector"] = definition->projector_type;
-            const auto layout =
-                result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
-            branch_config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
-            auto callback = result.genai_adapter.value_or(definition->genai_adapter);
-            if (callback) {
-                auto adapter = std::make_shared<ModelAdapter>();
-                adapter->transform = std::move(callback);
-                adapters[definition->modality + ".embeddings"] = std::move(adapter);
-            }
-        }
+        std::map<std::string, std::string> config;
+        OPENVINO_ASSERT(!build_mmproj_encoders(g, ctx, adapters, config).empty(), "[GGUF] mmproj has no encoder");
         auto graph = g.finish();
         graph->model_adapters = std::move(adapters);
-        const auto number = [](auto value) {
-            std::ostringstream stream;
-            stream.precision(std::numeric_limits<double>::max_digits10);
-            stream << value;
-            return stream.str();
-        };
-        const auto join = [&](const auto& values) {
-            std::string text;
-            for (size_t i = 0; i < values.size(); ++i)
-                text += (i ? "," : "") + number(values[i]);
-            return text;
-        };
-        // Preserve full metadata names. Strings serialize through the standard IR rt_info path.
-        for (const auto& [key, value] : detail::MetadataAccess::get(ctx.metadata).map) {
-            if (key.rfind("clip.", 0) != 0)
-                continue;
-            if (const auto s = ctx.metadata.get_str(key)) {
-                graph->mmproj_config[key] = *s;
-            } else if (const auto n = ctx.metadata.get_int(key)) {
-                graph->mmproj_config[key] = std::to_string(*n);
-            } else if (const auto f = ctx.metadata.get_float(key)) {
-                graph->mmproj_config[key] = number(*f);
-            } else if (std::holds_alternative<std::vector<std::string>>(value)) {
-                // Length-prefixed strings preserve commas, quotes and empty entries.
-                std::ostringstream stream;
-                for (const auto& item : ctx.metadata.get_str_array(key))
-                    stream << item.size() << ':' << item;
-                graph->mmproj_config[key] = stream.str();
-                graph->mmproj_config[key + ".encoding"] = std::string("length-prefixed-strings");
-            } else if (const auto integers = ctx.metadata.get_int_array(key); !integers.empty()) {
-                graph->mmproj_config[key] = join(integers);
-            } else {
-                graph->mmproj_config[key] = join(ctx.metadata.get_float_array(key));
-            }
-        }
-        for (const auto& entry : branch_config)
-            graph->mmproj_config[entry.first] = entry.second;
+        write_mmproj_config(*graph, ctx.metadata, config);
         return graph;
     }
 
@@ -1283,6 +1215,89 @@ private:
 };
 
 }  // namespace
+
+std::vector<std::string> build_mmproj_encoders(GgufGraphContext& g,
+                                               const BuildContext& ctx,
+                                               ModelAdapters& adapters,
+                                               std::map<std::string, std::string>& config) {
+    std::optional<ProjectorRegistry> defaults;
+    const auto& registry = ctx.projectors ? *ctx.projectors : defaults.emplace();
+    std::vector<std::shared_ptr<const ProjectorDefinition>> encoders;
+    for (const auto* modality : {"vision", "audio"}) {
+        if (!ctx.metadata.get_bool(std::string("clip.has_") + modality + "_encoder").value_or(false))
+            continue;
+        const auto type = resolve_projector_type(ctx.metadata, modality);
+        const auto definition = registry.find(ctx.metadata, modality, type);
+        OPENVINO_ASSERT(definition, "[GGUF] unsupported ", modality, " mmproj projector '", type, "'");
+        encoders.push_back(definition);
+    }
+    std::vector<std::string> modalities;
+    config.emplace("vision.auxiliary_count", "0");
+    for (const auto& definition : encoders) {
+        auto result = definition->build(g);
+        OPENVINO_ASSERT(result.output, "[GGUF] projector handler '", definition->id, "' returned no output");
+        g.set_output(result.output, definition->modality + ".embeddings");
+        for (const auto& entry : result.config) {
+            OPENVINO_ASSERT(entry.first.rfind(definition->modality + ".", 0) == 0,
+                            "[GGUF] projector metadata must use its modality prefix");
+            config[entry.first] = entry.second;
+        }
+        config[definition->modality + ".projector"] = definition->projector_type;
+        const auto layout =
+            result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
+        config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
+        auto callback = result.genai_adapter.value_or(definition->genai_adapter);
+        if (callback) {
+            auto adapter = std::make_shared<ModelAdapter>();
+            adapter->transform = std::move(callback);
+            adapters[definition->modality + ".embeddings"] = std::move(adapter);
+        }
+        modalities.push_back(definition->modality);
+    }
+    return modalities;
+}
+
+void write_mmproj_config(GgufGraph& graph,
+                         const GgufMetadata& metadata,
+                         const std::map<std::string, std::string>& config) {
+    const auto number = [](auto value) {
+        std::ostringstream stream;
+        stream.precision(std::numeric_limits<double>::max_digits10);
+        stream << value;
+        return stream.str();
+    };
+    const auto join = [&](const auto& values) {
+        std::string text;
+        for (size_t i = 0; i < values.size(); ++i)
+            text += (i ? "," : "") + number(values[i]);
+        return text;
+    };
+    // Preserve full metadata names. Strings serialize through the standard IR rt_info path.
+    for (const auto& [key, value] : detail::MetadataAccess::get(metadata).map) {
+        if (key.rfind("clip.", 0) != 0)
+            continue;
+        if (const auto s = metadata.get_str(key)) {
+            graph.mmproj_config[key] = *s;
+        } else if (const auto n = metadata.get_int(key)) {
+            graph.mmproj_config[key] = std::to_string(*n);
+        } else if (const auto f = metadata.get_float(key)) {
+            graph.mmproj_config[key] = number(*f);
+        } else if (std::holds_alternative<std::vector<std::string>>(value)) {
+            // Length-prefixed strings preserve commas, quotes and empty entries.
+            std::ostringstream stream;
+            for (const auto& item : metadata.get_str_array(key))
+                stream << item.size() << ':' << item;
+            graph.mmproj_config[key] = stream.str();
+            graph.mmproj_config[key + ".encoding"] = std::string("length-prefixed-strings");
+        } else if (const auto integers = metadata.get_int_array(key); !integers.empty()) {
+            graph.mmproj_config[key] = join(integers);
+        } else {
+            graph.mmproj_config[key] = join(metadata.get_float_array(key));
+        }
+    }
+    for (const auto& entry : config)
+        graph.mmproj_config[entry.first] = entry.second;
+}
 
 ProjectorResult build_builtin_projector(GgufGraphContext& graph,
                                         const std::string& modality,

@@ -8,5 +8,4 @@
 
 namespace ov::frontend::gguf {
 std::vector<ProjectorDefinition> lfm3_projector_definitions();
-ProjectorResult build_lfm3_projector(GgufGraphContext& graph, const std::string& modality);
 }  // namespace ov::frontend::gguf

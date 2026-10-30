@@ -47,19 +47,12 @@ public:
             cur = g.build_norm(cur, w("attn_norm.weight"), dims.norm_epsilon);
             if (weights.has(prefix + "shortconv.in_proj.weight")) {
                 const auto projected = g.node("GGML_OP_MUL_MAT", {w("shortconv.in_proj.weight"), cur});
-                const auto b = slice(projected, 0, dims.embedding);
-                const auto c = slice(projected, dims.embedding, dims.embedding);
-                const auto x = slice(projected, 2 * int64_t{dims.embedding}, dims.embedding);
-                const auto bx = g.node("GGML_OP_TRANSPOSE", {g.node("GGML_OP_MUL", {b, x})});
-                const auto state = g.add_input("conv_state_l" + std::to_string(layer),
-                                               ov::element::f32,
-                                               {1, 1, dims.embedding, *kernel - 1});
-                const auto window = g.node("GGML_OP_CONCAT", {state, bx}, 0, {{"concat_axis", 0}});
-                g.add_recurrent_state(state, slice(window, -(*kernel - 1), *kernel - 1));
-                const auto convolution =
-                    g.node("GGML_OP_SSM_CONV", {window, w("shortconv.conv.weight")}, 0, {{"batch_major", true}});
-                cur = g.node("GGML_OP_MUL_MAT",
-                             {w("shortconv.out_proj.weight"), g.node("GGML_OP_MUL", {c, convolution})});
+                const auto gated = build_lfm_short_conv(g,
+                                                        projected,
+                                                        w("shortconv.conv.weight"),
+                                                        dims.embedding,
+                                                        "conv_state_l" + std::to_string(layer));
+                cur = g.node("GGML_OP_MUL_MAT", {w("shortconv.out_proj.weight"), gated});
             } else {
                 cur = g.decoder_attention(layer, cur);
             }
@@ -87,10 +80,6 @@ public:
     }
 
 private:
-    GgufValue slice(const GgufValue& value, int64_t start, int64_t length) {
-        return g.node("GGML_OP_VIEW", {value}, 3, {{"view_slice", std::vector<int64_t>{3, start, length}}});
-    }
-
     GgufGraphContext g;
 };
 class Lfm2VocoderBuilder : public ModelBuilder {
@@ -219,6 +208,26 @@ private:
     GgufGraphContext g;
 };
 }  // namespace
+
+GgufValue build_lfm_short_conv(GgufGraphContext& g,
+                               const GgufValue& projected,
+                               const GgufValue& conv_weight,
+                               int64_t channels,
+                               const std::string& state_name,
+                               bool batch_major) {
+    const auto slice = [&](const GgufValue& value, int64_t start, int64_t length) {
+        return g.node("GGML_OP_VIEW", {value}, 3, {{"view_slice", std::vector<int64_t>{3, start, length}}});
+    };
+    const auto taps = conv_weight.ne(0) - 1;
+    const auto bx =
+        g.node("GGML_OP_TRANSPOSE",
+               {g.node("GGML_OP_MUL", {slice(projected, 0, channels), slice(projected, 2 * channels, channels)})});
+    const auto state = g.add_input(state_name, ov::element::f32, {1, 1, channels, taps});
+    const auto window = g.node("GGML_OP_CONCAT", {state, bx}, 0, {{"concat_axis", 0}});
+    g.add_recurrent_state(state, slice(window, -taps, taps));
+    const auto conv = g.node("GGML_OP_SSM_CONV", {window, conv_weight}, 0, {{"batch_major", batch_major}});
+    return g.node("GGML_OP_MUL", {slice(projected, channels, channels), conv});
+}
 
 std::shared_ptr<ModelBuilder> make_lfm2_builder(const BuildContext& context) {
     return std::make_shared<Lfm2Builder>(context);

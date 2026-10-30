@@ -924,12 +924,7 @@ TEST(GGUFMMProjLayout, DeclaredAuxiliaryOutputsSurviveSplitMergerAndIR) {
         if (deepstack) {
             EXPECT_NO_THROW(model->output("deepstack_feature_lists"));
         }
-        std::stringstream xml, weights;
-        ov::pass::Serialize(xml, weights).run_on_model(model);
-        const auto bytes = weights.str();
-        ov::Tensor constants(ov::element::u8, {bytes.size()});
-        std::memcpy(constants.data(), bytes.data(), bytes.size());
-        auto restored = ov::Core{}.read_model(xml.str(), constants);
+        auto restored = ov_gguf_test::reload_ir_model(model);
         EXPECT_NO_THROW(restored->output("vision.lengths"));
         auto compiled = ov::Core{}.compile_model(restored, "CPU");
         EXPECT_NO_THROW(compiled.output("vision.lengths"));
@@ -1562,16 +1557,6 @@ std::pair<std::shared_ptr<ov::Model>, ov::frontend::gguf::ModelContract> compone
     return {model, contract};
 }
 
-std::shared_ptr<ov::Model> reload_component_contract_model(const std::shared_ptr<ov::Model>& model) {
-    std::stringstream xml, weights;
-    ov::pass::Serialize(xml, weights).run_on_model(model);
-    const auto bytes = weights.str();
-    ov::Tensor constants(ov::element::u8, {bytes.size()});
-    if (!bytes.empty())
-        std::memcpy(constants.data(), bytes.data(), bytes.size());
-    return ov::Core{}.read_model(xml.str(), constants);
-}
-
 TEST(GGUFMMProjContract, DeclaredComponentsPreservePrimaryNamesStateAndIR) {
     using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
     using ov::frontend::gguf::pass::GGUFMakeStateful;
@@ -1584,7 +1569,7 @@ TEST(GGUFMMProjContract, DeclaredComponentsPreservePrimaryNamesStateAndIR) {
                 ASSERT_TRUE(GGUFMakeStateful().run_on_model(source));
             }
             if (reload)
-                source = reload_component_contract_model(source);
+                source = ov_gguf_test::reload_ir_model(source);
             const auto run_stream = [&](const std::shared_ptr<ov::Model>& model,
                                         const std::string& input,
                                         const std::string& output,
@@ -1625,7 +1610,7 @@ TEST(GGUFMMProjContract, DeclaredComponentsPreservePrimaryNamesStateAndIR) {
             EXPECT_EQ(models.at("lookup")->get_parameters().size(), 1);
             EXPECT_TRUE(models.at("score")->get_sinks().empty());
             EXPECT_TRUE(models.at("lookup")->get_sinks().empty());
-            auto renderer = reload_component_contract_model(models.at("renderer"));
+            auto renderer = ov_gguf_test::reload_ir_model(models.at("renderer"));
             EXPECT_EQ(renderer->output("window").get_shape(), (ov::Shape{1}));
             run_stream(renderer, "render_input", "rendered", "speech.cache.counter", {1, 1, 2, 2});
         }
@@ -1644,7 +1629,7 @@ TEST(GGUFMMProjContract, StatefulPrimaryDoesNotDuplicateVariableRegistration) {
     EXPECT_EQ(adapter.get_audio_generation_models().at("renderer"), model);
     ASSERT_EQ(model->get_variables().size(), 1);
     EXPECT_EQ(model->get_variables().front()->get_info().variable_id, "speech.cache.counter");
-    auto restored = reload_component_contract_model(model);
+    auto restored = ov_gguf_test::reload_ir_model(model);
     EXPECT_EQ(restored->get_variables().size(), 1);
 }
 
@@ -1691,7 +1676,7 @@ TEST(GGUFMMProjContract, DeclaredAuxiliaryOutputsSurviveExtractionCallbacksAndIR
                 model->get_results().front()->get_rt_info()[ModelAdapterAttribute::get_type_info_static()] =
                     ModelAdapterAttribute(adapter);
             } else if (mode % 3 == 1) {
-                model = reload_component_contract_model(model);
+                model = ov_gguf_test::reload_ir_model(model);
             }
             ASSERT_TRUE(Adapter(modality == "vision" ? Adapter::Modality::VISION : Adapter::Modality::AUDIO)
                             .run_on_model(model));
@@ -1701,7 +1686,7 @@ TEST(GGUFMMProjContract, DeclaredAuxiliaryOutputsSurviveExtractionCallbacksAndIR
             if (passthrough) {
                 ASSERT_NO_THROW(model->input("lengths"));
             }
-            auto restored = reload_component_contract_model(model);
+            auto restored = ov_gguf_test::reload_ir_model(model);
             if (passthrough) {
                 ASSERT_NO_THROW(restored->input("lengths"));
             }
