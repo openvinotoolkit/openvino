@@ -2,18 +2,21 @@
   "schema_version": "1.0",
   "signature": "Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts|Infrastructure",
   "signature_hash": "8330ab6cc84bf2e1",
-  "title": "Python API tests fail to download artifacts - GitHub Actions ArtifactService ListArtifacts request timeout",
+  "title": "PyTorch Models tests fail to download artifacts - GitHub Actions ArtifactService ListArtifacts request timeout",
   "category": "Infrastructure",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-10-30T02:10:01Z",
-  "last_seen": "2026-10-30T02:10:01Z",
+  "last_seen": "2026-10-30T02:34:55Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/40984294752",
     "https://github.com/openvinotoolkit/openvino/actions/runs/40985121313"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36006",
     "https://github.com/openvinotoolkit/openvino/pull/39238"
   ],
   "recent_timestamps": [
+    "2026-10-30T02:34:55Z",
     "2026-10-30T02:10:01Z"
   ],
   "rerun_search_string": "Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts"

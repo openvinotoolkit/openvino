@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-30-02-34-55-345-40984294752",
+  "timestamp": "2026-10-30T02:34:55Z",
+  "run_id": "40984294752",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/40984294752",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36006",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36006",
+  "author": "ahnyoung-paul",
+  "category": "Infrastructure",
+  "title": "PyTorch Models tests fail to download artifacts - GitHub Actions ArtifactService ListArtifacts request timeout",
+  "signature": "Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts|Infrastructure",
+  "signature_hash": "8330ab6cc84bf2e1",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO artifacts (wheels) step exhausted 5 retry attempts against the GitHub Actions ArtifactService ListArtifacts twirp RPC, and the subsequent Upload Test Results step then failed because no test output existed to upload."
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed (exit 1) because the PyTorch Models tests job it depends on failed."
+    }
+  ],
+  "key_errors": [
+    "Attempt 1 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 3000 ms...",
+    "Attempt 4 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 10814 ms...",
+    "##[error]Action failed with error: Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
+    "##[error]Unable to download artifact(s): Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts"
+  ],
+  "root_cause": "The 'Download OpenVINO artifacts (wheels)' step (download-artifact action) repeatedly timed out calling the GitHub Actions ArtifactService ListArtifacts twirp RPC, exhausting all 5 retry attempts over roughly 50 seconds with exponential backoff. This is a transient GitHub Actions backend/infrastructure availability issue unrelated to the PR's content: the PR under test only adds a new GPU debug transformation (force_fp32_selective) and does not touch artifact upload/download tooling or workflow configuration.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a transient GitHub Actions ArtifactService backend availability issue tied to the specific runner and timing of this run.",
+  "recommended_actions": [
+    "Re-run the failed 'PyTorch Models tests' job (and the dependent overall-status job) - a retry is expected to succeed since the PR's diff (GPU-only transformation pass) is unrelated to artifact handling.",
+    "If ArtifactService ListArtifacts timeouts recur across multiple PRs within a short window, check the GitHub Status page for Actions service incidents and consider escalating to GitHub Support."
+  ],
+  "prevention_strategies": "No code-side prevention is possible for transient GitHub Actions infrastructure outages. The matching rerun pattern (signature_hash 8330ab6cc84bf2e1) already has a verified rerun_search_string; continuing to propose/approve it for the workflow rerunner reduces merge-queue friction from this exact signature.",
+  "historical_context": "This exact signature (8330ab6cc84bf2e1, 'Request timeout: /twirp/.../ListArtifacts') was first recorded earlier today (run 40985121313, PR #39238) and recurs here only ~25 minutes later on an unrelated PR (#36006), strongly suggesting a short-lived GitHub Actions ArtifactService outage window rather than a repo-specific or PR-specific issue. Other artifact-download infrastructure/network failures with different error text (ECONNREFUSED, 403 Forbidden) are tracked separately under patterns 1808e665f1f70825, 3a6ca31c39b0147d, 94ac5e158bc45b5a, b889d24cd154d2dd."
+}
