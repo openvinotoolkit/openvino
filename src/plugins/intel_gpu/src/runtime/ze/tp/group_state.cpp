@@ -4,6 +4,8 @@
 
 #include "group_state.hpp"
 
+#include "intel_gpu/runtime/engine.hpp"
+
 #include <algorithm>
 #include <limits>
 #include <sstream>
@@ -144,6 +146,7 @@ GroupState::GroupState(TPL0SharedContextPtr shared,
         m_ranks[static_cast<std::size_t>(r)].device = m_shared->devices[static_cast<std::size_t>(r)];
     }
     m_staging.assign(n_ranks, Staging{});
+    m_memory_accounts.assign(n_ranks, {});
     m_seq.assign(n_ranks, 0);
     m_allreduce_seq.assign(n_ranks, 0);
     m_gather_seq.assign(n_ranks, 0);
@@ -405,11 +408,13 @@ void GroupState::ensure_staging(Staging& s,
             std::lock_guard<std::mutex> lock(m_staging_mutex);
             if (s.base) {
                 ov::zeMemFree(m_shared->context, s.base);
+                account_staging(rank, s.bytes, false);
             }
             s.base = fresh;
             s.bytes = need;
             s.id = alloc_id_of(m_shared->context, fresh);
             ++s.growth_count;
+            account_staging(rank, need, true);
         }
         if (rank == 0 && m_options.profiling_host) {
             m_stats.rebuilds.bump();
@@ -455,17 +460,41 @@ void GroupState::adopt_staging(int rank, std::shared_ptr<void> buffer) {
     s.bytes = m_fixed_staging_bytes;
     s.id = alloc_id_of(m_shared->context, s.base);
     s.fixed = std::move(buffer);
+    account_staging(rank, s.bytes, true);
     TP_GROUP_LOG(ov::log::Level::INFO) << "[TP][MEM] fixed staging rank=" << rank << " bytes=" << s.bytes
                                        << std::endl;
 }
 
 void GroupState::destroy_staging() {
     std::lock_guard<std::mutex> lock(m_staging_mutex);
-    for (auto& s : m_staging) {
+    for (std::size_t r = 0; r < m_staging.size(); ++r) {
+        auto& s = m_staging[r];
+        if (s.base) {
+            account_staging(static_cast<int>(r), s.bytes, false);
+        }
         if (s.base && !s.fixed && m_shared && m_shared->context) {
             ov::zeMemFree(m_shared->context, s.base);
         }
         s = Staging{};
+    }
+}
+
+void GroupState::set_memory_account(int rank, std::weak_ptr<cldnn::engine> engine) {
+    OPENVINO_ASSERT(rank >= 0 && rank < m_world_size, "[TP][L0] invalid rank ", rank);
+    std::lock_guard<std::mutex> lock(m_staging_mutex);
+    m_memory_accounts[static_cast<std::size_t>(rank)] = std::move(engine);
+}
+
+// Under m_staging_mutex. A rank whose engine is gone has nothing left to count in.
+void GroupState::account_staging(int rank, std::size_t bytes, bool allocated) {
+    const auto engine = m_memory_accounts[static_cast<std::size_t>(rank)].lock();
+    if (!engine) {
+        return;
+    }
+    if (allocated) {
+        engine->add_memory_used(bytes, cldnn::allocation_type::usm_device);
+    } else {
+        engine->subtract_memory_used(bytes, cldnn::allocation_type::usm_device);
     }
 }
 

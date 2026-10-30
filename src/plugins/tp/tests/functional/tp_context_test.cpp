@@ -17,6 +17,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/tp/collective_contract.hpp"
 #include "ov_ops/tp_collective.hpp"
 
@@ -133,6 +134,27 @@ TEST_F(TPContextTest, TwoRanksReduceThroughAFixedStagingInChunks) {
     ov::Core core;
     auto contexts = create_contexts(core, 8192);
     expect_two_ranks_reduce(core, contexts);
+}
+
+// What the TP contexts hold, the collectives' fixed staging included, is part of
+// the device's memory statistics while they live, and is given back with them.
+TEST_F(TPContextTest, DeviceMemoryStatisticsCountTheTPContexts) {
+    ov::Core core;
+    auto usm_device = [&core] {
+        return core.get_property("GPU.0", ov::intel_gpu::memory_statistics).at("usm_device");
+    };
+    core.get_default_context("GPU.0");
+    core.get_default_context("GPU.1");
+    const auto before = usm_device();
+
+    constexpr size_t staging = size_t{8} << 20;
+    {
+        auto contexts = create_contexts(core, staging);
+        expect_two_ranks_reduce(core, contexts);
+        // The models are gone, the bound group and its staging are not.
+        EXPECT_GE(usm_device(), before + staging);
+    }
+    EXPECT_EQ(usm_device(), before);
 }
 
 TEST_F(TPContextTest, RejectsRanksThatDisagreeOnTheStagingSize) {

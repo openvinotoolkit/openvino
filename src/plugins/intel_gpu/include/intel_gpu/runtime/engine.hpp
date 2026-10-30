@@ -143,6 +143,10 @@ public:
     /// @note It contains information about current memory usage
     std::map<std::string, uint64_t> get_memory_statistics() const;
 
+    /// The same, summed over every live engine of the device described by @p info (matched by UUID),
+    /// whichever context created it.
+    static std::map<std::string, uint64_t> get_device_memory_statistics(const device_info& info);
+
     /// Adds @p bytes count to currently used memory size of the specified allocation @p type
     void add_memory_used(uint64_t bytes, allocation_type type);
 

@@ -246,7 +246,7 @@ Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 | `TPSerializationTest`  | export/import round-trip, cache entries per topology                                                                                     |
 | `TPContextTest`        | The rank contexts through the collective contract, without the TP plugin: two ranks reducing through their contexts, and the refusals -- |
 |                           | a collective without a TP context, a collective of another rank, a second model on the channel, a context on the wrong device,           |
-|                           | unsupported parameters, an unknown backend, a device listed twice; the backend and support queries; a fixed staging                      |
+|                           | unsupported parameters, an unknown backend, a device listed twice; the backend and support queries; a fixed staging; device memory statistics |
 
 The graph-rewriter suites need no GPU at all; `TPCollectivesTest` and
 every functional suite skip when the machine has fewer GPUs than the world size they ask for.

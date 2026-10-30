@@ -21,6 +21,8 @@
 #include "ze/ze_common.hpp"
 
 namespace cldnn {
+class engine;
+
 namespace ze {
 namespace tp {
 
@@ -232,6 +234,9 @@ public:
     /// Gives `rank` its fixed staging, allocated with allocate_staging() for
     /// fixed_staging_bytes(). Before the rank's first collective.
     void adopt_staging(int rank, std::shared_ptr<void> buffer);
+    /// The engine `rank`'s staging is counted in (usm_device), so that the
+    /// device's memory statistics include it. Before adopt_staging().
+    void set_memory_account(int rank, std::weak_ptr<cldnn::engine> engine);
     /// Zero when the staging grows with the payload.
     std::size_t fixed_staging_bytes() const {
         return m_fixed_staging_bytes;
@@ -459,6 +464,7 @@ private:
     /// for them.
     void ensure_staging(Staging& s, int rank, std::size_t payload_bytes, std::size_t half_bytes, int collective_id);
     void destroy_staging();
+    void account_staging(int rank, std::size_t bytes, bool allocated);
 
     /// Publishes `mine` and waits until every rank has published the same call;
     /// `all` receives every rank's slot.
@@ -507,6 +513,7 @@ private:
 
     mutable std::mutex m_staging_mutex;
     std::vector<Staging> m_staging;
+    std::vector<std::weak_ptr<cldnn::engine>> m_memory_accounts;  // [N]
     std::vector<uint64_t> m_seq;            // [N] calls of any kind: the mailbox set
     std::vector<uint64_t> m_allreduce_seq;  // [N] their parity picks staging half and events
     std::vector<uint64_t> m_gather_seq;     // [N] kept apart: a gather does not order the peers

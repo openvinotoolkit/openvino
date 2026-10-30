@@ -147,6 +147,7 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
     m_device_name = get_device_name(known_contexts, m_device);
 
     initialize();
+    m_tp_communicator->set_memory_account(m_engine);
 }
 #endif
 

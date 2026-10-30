@@ -104,6 +104,12 @@ public:
         return m_options;
     }
 
+    /// The engine of this rank's context; the rank's collective staging is
+    /// counted in its memory statistics. Before the first bind.
+    void set_memory_account(std::weak_ptr<cldnn::engine> engine) {
+        m_memory_account = std::move(engine);
+    }
+
     /// Binds a model's collectives to channel `channel` of this communicator.
     ///
     /// Checks every collective against this rank and group, connects to the
@@ -125,6 +131,7 @@ private:
     uint64_t m_id;
     std::size_t m_staging_bytes{0};
     std::shared_ptr<void> m_staging;
+    std::weak_ptr<cldnn::engine> m_memory_account;
 
     std::mutex m_mutex;
     GroupStatePtr m_group;

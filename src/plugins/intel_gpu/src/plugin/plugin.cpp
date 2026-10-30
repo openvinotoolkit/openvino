@@ -961,22 +961,9 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         return decltype(ov::range_for_streams)::value_type {range};
     }
     if (name == ov::intel_gpu::memory_statistics) {
-        const auto& ctx = get_default_context(device_id, false);
-        if (!ctx->is_initialized()) {
-            decltype(ov::intel_gpu::memory_statistics)::value_type res;
-            auto add_zero_mem_usage = [&res](auto alloc_type) {
-                std::ostringstream oss;
-                oss << alloc_type;
-                res[oss.str()] = 0;
-            };
-            add_zero_mem_usage(cldnn::allocation_type::unknown);
-            add_zero_mem_usage(cldnn::allocation_type::cl_mem);
-            add_zero_mem_usage(cldnn::allocation_type::usm_host);
-            add_zero_mem_usage(cldnn::allocation_type::usm_shared);
-            add_zero_mem_usage(cldnn::allocation_type::usm_device);
-            return res;
-        }
-        return decltype(ov::intel_gpu::memory_statistics)::value_type{ctx->get_engine().get_memory_statistics()};
+        // Device-wide: every context on the device, TP and user contexts included.
+        return decltype(ov::intel_gpu::memory_statistics)::value_type{
+            cldnn::engine::get_device_memory_statistics(device_info)};
     }
     if (name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {get_max_batch_size(options)};

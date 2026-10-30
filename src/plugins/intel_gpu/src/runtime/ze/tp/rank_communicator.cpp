@@ -197,6 +197,7 @@ std::shared_ptr<Channel> RankCommunicator::bind(const std::vector<CollectiveUse>
     const auto count = static_cast<int>(collectives.size());
     if (!m_group) {
         connect(count);
+        m_group->set_memory_account(m_rank, m_memory_account);
         if (m_staging) {
             m_group->adopt_staging(m_rank, m_staging);
         }

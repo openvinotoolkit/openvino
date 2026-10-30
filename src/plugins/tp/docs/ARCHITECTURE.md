@@ -394,6 +394,12 @@ other, each with every step's cross-device round trip. On four ranks at an 8K
 prompt, 2 chunks cost +0.6 % TTFT, 4 chunks +6 %, 8 chunks +11 %; on two ranks
 nothing measurable.
 
+A rank's staging, grown or fixed, is counted as `usm_device` in the engine of
+the rank's TP context from the first bind on, and `ov::intel_gpu::memory_statistics`
+sums every live engine of a device -- default, user and TP contexts alike -- so
+total device memory minus that figure is what the process has left on the
+device (other processes are not seen), e.g. for sizing a KV cache.
+
 - TP=2: one payload-sized region per half, aligned to 256 bytes.
 - Ring / halving (N>2): `N` chunk slots per half, so concurrent steps never
   share a slot. Halving lays one region per scatter step and one per gather

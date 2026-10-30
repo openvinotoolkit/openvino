@@ -18,7 +18,9 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <set>
+#include <sstream>
 #include <stdexcept>
 #include <algorithm>
 
@@ -62,6 +64,25 @@ static size_t get_cpu_ram_size() {
 #endif
 
 namespace cldnn {
+
+namespace {
+
+// Every engine created in the process; a device's memory in use is the sum over its engines.
+std::mutex live_engines_mutex;
+std::vector<std::weak_ptr<engine>> live_engines;
+
+void register_engine(const std::shared_ptr<engine>& created) {
+    std::lock_guard<std::mutex> lock(live_engines_mutex);
+    live_engines.erase(std::remove_if(live_engines.begin(),
+                                      live_engines.end(),
+                                      [](const std::weak_ptr<engine>& e) {
+                                          return e.expired();
+                                      }),
+                       live_engines.end());
+    live_engines.push_back(created);
+}
+
+}  // namespace
 
 engine::engine(const device::ptr device)
     : _device(device) {}
@@ -243,6 +264,30 @@ std::map<std::string, uint64_t> engine::get_memory_statistics() const {
     return statistics;
 }
 
+std::map<std::string, uint64_t> engine::get_device_memory_statistics(const device_info& info) {
+    std::map<std::string, uint64_t> statistics;
+    for (const auto type : {allocation_type::unknown,
+                            allocation_type::cl_mem,
+                            allocation_type::usm_host,
+                            allocation_type::usm_shared,
+                            allocation_type::usm_device}) {
+        std::ostringstream oss;
+        oss << type;
+        statistics[oss.str()] = 0;
+    }
+    std::lock_guard<std::mutex> lock(live_engines_mutex);
+    for (const auto& weak : live_engines) {
+        const auto e = weak.lock();
+        if (!e || e->get_device_info().uuid.uuid != info.uuid.uuid) {
+            continue;
+        }
+        for (const auto& [type, bytes] : e->get_memory_statistics()) {
+            statistics[type] += bytes;
+        }
+    }
+    return statistics;
+}
+
 void engine::add_memory_used(uint64_t bytes, allocation_type type) {
     auto idx = static_cast<size_t>(type);
     const auto new_val = _memory_usage_data[idx].fetch_add(bytes) + bytes;
@@ -294,6 +339,7 @@ std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_
     default:
         throw std::runtime_error("Invalid engine type");
     }
+    register_engine(ret);
     const auto& info = device->get_info();
     GPU_DEBUG_INFO << "Selected Device: " << info.dev_name << std::endl;
     return ret;
