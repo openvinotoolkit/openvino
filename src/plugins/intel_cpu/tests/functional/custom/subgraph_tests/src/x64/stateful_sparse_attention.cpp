@@ -161,15 +161,18 @@ protected:
                                                           size_t head_size,
                                                           size_t block_size,
                                                           size_t sel_heads) {
-        auto q = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kHeads, -1, head_size});
-        auto k = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_size});
-        auto v = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_size});
+        // PartialShape takes signed dimensions: convert the runtime sizes explicitly (-Werror=narrowing)
+        const auto head_dim = static_cast<int64_t>(head_size);
+        const auto sel_dim = static_cast<int64_t>(sel_heads);
+        auto q = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kHeads, -1, head_dim});
+        auto k = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_dim});
+        auto v = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_dim});
         auto sel_idx =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, sel_heads, -1, kTopK});
-        auto sel_cnt = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, sel_heads, -1});
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, sel_dim, -1, kTopK});
+        auto sel_cnt = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, sel_dim, -1});
         auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
         auto past_init =
-            std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_size});
+            std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_dim});
         set_name(q, "q");
         set_name(k, "k");
         set_name(v, "v");
@@ -179,9 +182,9 @@ protected:
         set_name(past_init, "past_init");
 
         auto variable_k = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{-1, kKvHeads, -1, head_size}, data_prec, "pastk"});
+            ov::op::util::VariableInfo{ov::PartialShape{-1, kKvHeads, -1, head_dim}, data_prec, "pastk"});
         auto variable_v = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{-1, kKvHeads, -1, head_size}, data_prec, "pastv"});
+            ov::op::util::VariableInfo{ov::PartialShape{-1, kKvHeads, -1, head_dim}, data_prec, "pastv"});
         auto past_k = std::make_shared<ov::op::v6::ReadValue>(past_init, variable_k);
         auto past_v = std::make_shared<ov::op::v6::ReadValue>(past_init, variable_v);
 
@@ -211,12 +214,15 @@ protected:
                                                            size_t head_size,
                                                            size_t block_size,
                                                            size_t sel_heads) {
-        auto q = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kHeads, -1, head_size});
-        auto k = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_size});
-        auto v = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_size});
+        // PartialShape takes signed dimensions: convert the runtime sizes explicitly (-Werror=narrowing)
+        const auto head_dim = static_cast<int64_t>(head_size);
+        const auto sel_dim = static_cast<int64_t>(sel_heads);
+        auto q = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kHeads, -1, head_dim});
+        auto k = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_dim});
+        auto v = std::make_shared<ov::op::v0::Parameter>(data_prec, ov::PartialShape{-1, kKvHeads, -1, head_dim});
         auto sel_idx =
-            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, sel_heads, -1, kTopK});
-        auto sel_cnt = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, sel_heads, -1});
+            std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, sel_dim, -1, kTopK});
+        auto sel_cnt = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1, sel_dim, -1});
         set_name(q, "q");
         set_name(k, "k");
         set_name(v, "v");
