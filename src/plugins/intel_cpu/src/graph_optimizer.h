@@ -43,6 +43,11 @@ private:
 
     static void DropDoubleReorders(Graph& graph);
     static void FuseConvolutionAndZeroPoints(Graph& graph);
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    static void FuseConvolutionAndZeroPointsARM(Graph& graph);
+#else
+    static void FuseConvolutionAndZeroPointsNonARM(Graph& graph);
+#endif
     void FuseBroadcastAndEltwise(Graph& graph);
     static void FuseEltwiseAndSimple(Graph& graph);
     static void FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph);
