@@ -122,6 +122,13 @@ inline void serialize(Stream& stream, std::byte& value) {
     stream.bytes(&value, sizeof(value));
 }
 
+template <typename T, std::enable_if_t<std::is_enum<T>::value, bool> = true>
+void serialize(Stream& stream, T& value) {
+    auto raw = static_cast<std::underlying_type_t<T>>(value);
+    stream.bytes(&raw, sizeof(raw));
+    value = static_cast<T>(raw);
+}
+
 void serialize(Stream& stream, std::string& value);
 
 template <typename T1, typename T2>

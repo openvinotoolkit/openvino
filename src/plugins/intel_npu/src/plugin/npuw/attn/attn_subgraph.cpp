@@ -188,8 +188,11 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     OPENVINO_ASSERT(hfa != nullptr, "Missing compiled HFA state");
 
     auto& request = get_request(ctx);
-    const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
-    state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
+    // The selector works in present-KV units: the final tile size equals the original
+    // (pre-PropagateSliceUp) query length, except when Q is GQA-grouped.
+    state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(static_cast<size_t>(hfa->_final_tile_size),
+                                                                          hfa->_sdpa_attention_info._kv_order,
+                                                                          request);
     if (!state.hfa_selector) {
         OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
     }
@@ -903,7 +906,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             return;
                         }
                         if (this_case == pyramid_attention::Selector::Case::PREFILL) {
-                            if (pyramid->_data_left_aligned) {
+                            if (pyramid->_kv_order == ov::npuw::util::KVOrder::PresentFirst) {
                                 copy_mask_segment(0, 0, pyramid->get_context_length(pyramid_id));
                             } else {
                                 // Clamp past_len to this SWA tier's window
@@ -957,10 +960,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         // chunk size shared by every layer (present_tile_size / final_tile_size).
                         const int64_t past_tile_size = hfa_desc->_past_tile_size;
                         const int64_t final_tile_size = hfa_desc->_final_tile_size;
-                        const int64_t present_tile_size =
-                            static_cast<int64_t>(hfa_desc->_sdpa_attention_info._query_size);
-                        OPENVINO_ASSERT(final_tile_size == present_tile_size,
-                                        "HFA: final tile size must equal the query size (PREFILL-only)");
+                        // The final tile consumes the whole present KV. Its length equals the query
+                        // length, except when Q is GQA-grouped (then Q seq_len = group * present).
+                        const int64_t present_tile_size = final_tile_size;
 
                         const auto& hfa_inputs = io.inputs;
                         const auto& sdpa_info = hfa_desc->_sdpa_attention_info;
@@ -1179,14 +1181,22 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             }
                         };
 
-                        int64_t mask_tile_offset = 0;
+                        const bool present_first =
+                            hfa_desc->_sdpa_attention_info._kv_order == ov::npuw::util::KVOrder::PresentFirst;
+                        // Mask KV column layout follows the KV Concat order:
+                        //   past first   : [ past capacity | present reservation ]
+                        //   present first: [ present | past capacity ]
+                        // Regular tiles always walk the past region; the final tile always
+                        // covers the present one, wherever it sits.
+                        int64_t mask_tile_offset = present_first ? final_tile_size : 0;
                         int64_t remaining_full_tiles = past_full_tiles;  // tiles driven from past blocks
 
                         // For the fused hfa, the regular tile model has no mask input (6 inputs)
                         const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
 
-                        // Regular tiles read the leading mask region, while the final tile reads
-                        // the trailing region. Validate both ranges before creating tensor views.
+                        // Regular tiles read the past mask region, while the final tile reads the
+                        // present one (see the layout above). Validate both ranges before creating
+                        // tensor views.
                         int64_t mask_total_length = 0;
                         if (attention_mask_tensor) {
                             OPENVINO_ASSERT(MASK_KV_SEQ_DIM < attention_mask_tensor->get_shape().size(),
@@ -1235,9 +1245,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             const int64_t present_seq_length =
                                 static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
                             OPENVINO_ASSERT(present_seq_length == present_tile_size,
-                                            "HFA: present KV length must equal the compiled query/present tile size");
+                                            "HFA: present KV length must equal the compiled present tile size");
+                            // The present reservation is graph-fixed: it starts at 0 when the
+                            // present KV precedes the past cache, and at the very end otherwise.
                             const int64_t final_mask_offset =
-                                attention_mask_tensor ? mask_total_length - final_tile_size : 0;
+                                (attention_mask_tensor && !present_first) ? mask_total_length - final_tile_size : 0;
                             process_tile(final_tile_request,
                                          hfa_desc->_compiled_final_tile_model,
                                          present_key_tensor,
