@@ -5,11 +5,11 @@
 #pragma once
 
 #include <cstdint>
-#include <future>
 #include <memory>
 
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/core_visibility.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov {
 
@@ -81,7 +81,7 @@ public:
     /// \brief Starts populating the buffer in the background and returns immediately.
     /// \return A handle that can be waited on to know when the data is actually resident; an
     ///         invalid handle means there is nothing to wait for.
-    virtual std::shared_future<void> hint_prefetch_async() const noexcept;
+    virtual util::PrefetchToken hint_prefetch_async() const noexcept;
 
 protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
@@ -89,10 +89,10 @@ protected:
 
     static void invoke_hint_prefetch(const AlignedBuffer& buffer);
 
-    virtual std::shared_future<void> hint_prefetch_async(size_t offset, size_t size) const noexcept;
-    static std::shared_future<void> invoke_hint_prefetch_async(const AlignedBuffer& buffer,
-                                                               size_t offset,
-                                                               size_t size) noexcept;
+    virtual util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) const noexcept;
+    static util::PrefetchToken invoke_hint_prefetch_async(const AlignedBuffer& buffer,
+                                                          size_t offset,
+                                                          size_t size) noexcept;
 
     char* m_aligned_buffer;
     size_t m_byte_size;

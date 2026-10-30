@@ -55,7 +55,7 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept;
  * The handle does not keep the populated memory alive: the caller must keep that memory valid until
  * the handle becomes ready. Returns an invalid handle if the work could not be scheduled.
  */
-std::shared_future<void> vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept;
+PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
  * @brief Submits page-population jobs for [ptr, ptr + size) to the shared background thread pool,
@@ -68,7 +68,7 @@ std::shared_future<void> vm_prefetch_async(void* ptr, size_t size, size_t num_th
  * Returns a handle that becomes ready once every chunk has been touched, or an invalid handle if
  * the work could not be scheduled (e.g. an allocation failure).
  */
-std::shared_future<void> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
+PrefetchToken submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
  * @brief Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result, rounding

@@ -69,7 +69,7 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     }
 }
 
-std::shared_future<void> vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
+PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
     assert(ptr != nullptr && size > 0);
     if (num_threads == 0) {
         WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};

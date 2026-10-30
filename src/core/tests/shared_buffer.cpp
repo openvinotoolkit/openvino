@@ -547,7 +547,7 @@ public:
 
     MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (noexcept, override));
 
-    MOCK_METHOD(std::shared_future<void>, hint_prefetch_async, (size_t offset, size_t size), (noexcept, override));
+    MOCK_METHOD(ov::util::PrefetchToken, hint_prefetch_async, (size_t offset, size_t size), (noexcept, override));
 
 private:
     std::vector<char> m_data;

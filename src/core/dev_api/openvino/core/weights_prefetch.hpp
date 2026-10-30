@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cstddef>
-#include <future>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -74,7 +73,7 @@ private:
         std::weak_ptr<ov::op::v0::Constant> constant;  // Does not keep the constant alive.
         size_t size;                                   // Byte size, cached since weak_ptr may expire.
         State state = State::pending;
-        std::shared_future<void> future;  // Valid while state is prefetch_requested.
+        PrefetchToken future;  // Valid while state is prefetch_requested.
     };
 
     void prefetch(Entry& entry, const ov::op::v0::Constant& constant) noexcept;

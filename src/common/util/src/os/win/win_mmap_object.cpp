@@ -316,14 +316,14 @@ public:
 
     void hint_prefetch(size_t offset, size_t size) noexcept override;
 
-    std::shared_future<void> hint_prefetch_async(size_t offset, size_t size) noexcept override;
+    util::PrefetchToken hint_prefetch_async(size_t offset, size_t size) noexcept override;
 
 private:
     /**
      * @brief Adopts the handle returned by util::vm_prefetch_async(), reaping already-finished ones
      * so the pending list doesn't grow unbounded across repeated hint_prefetch_async() calls.
      */
-    void adopt_pending_prefetch(std::shared_future<void> task) noexcept;
+    void adopt_pending_prefetch(util::PrefetchToken task) noexcept;
 
     /** @brief Joins all outstanding background prefetch tasks. Must run before any teardown that
      *  unmaps or frees the view, since a detached task may still be touching those pages. */
@@ -401,7 +401,7 @@ private:
 
     // Handles shared with hint_prefetch_async()'s caller; joined before unmapping (see ~MapHolder).
     std::mutex m_pending_prefetch_mutex;
-    std::vector<std::shared_future<void>> m_pending_prefetch;
+    std::vector<util::PrefetchToken> m_pending_prefetch;
 };
 
 LONG NTAPI MmapVehRegistry::veh(PEXCEPTION_POINTERS ep) {
@@ -801,7 +801,7 @@ util::AlignedRegion clamp_align_region(const void* data, size_t mapping_size, si
 
 }  // namespace
 
-void MapHolder::adopt_pending_prefetch(std::shared_future<void> task) noexcept {
+void MapHolder::adopt_pending_prefetch(util::PrefetchToken task) noexcept {
     if (task.valid()) {
         try {
             std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
@@ -809,7 +809,7 @@ void MapHolder::adopt_pending_prefetch(std::shared_future<void> task) noexcept {
             // hint_prefetch_async() calls over this mapping's lifetime.
             m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
                                                     m_pending_prefetch.end(),
-                                                    [](std::shared_future<void>& pending) {
+                                                    [](util::PrefetchToken& pending) {
                                                         return !pending.valid() ||
                                                                pending.wait_for(std::chrono::seconds(0)) ==
                                                                    std::future_status::ready;
@@ -845,7 +845,7 @@ void MapHolder::hint_prefetch(size_t offset, size_t size) noexcept {
     }
 }
 
-std::shared_future<void> MapHolder::hint_prefetch_async(size_t offset, size_t size) noexcept {
+util::PrefetchToken MapHolder::hint_prefetch_async(size_t offset, size_t size) noexcept {
     if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
         region.m_length > util::default_parallel_io_threshold) {
         auto future = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),

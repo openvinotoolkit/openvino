@@ -128,7 +128,7 @@ public:
         }
     }
 
-    std::shared_future<void> get_future() {
+    PrefetchToken get_future() {
         return m_promise.get_future().share();
     }
 
@@ -139,7 +139,7 @@ private:
 
 }  // namespace
 
-std::shared_future<void> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept {
+PrefetchToken submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept {
     try {
         const auto page_size = static_cast<size_t>(get_system_page_size());
         const auto chunk_size =
