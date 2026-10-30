@@ -86,16 +86,19 @@ private:
  * @note Every count and length is checked against the bytes remaining and the `max_compiled_*` limits before
  * anything is allocated, so a corrupted or hostile payload cannot trigger a large allocation.
  * @param payload Encoded payload.
- * @return Decoded options, with string values as `std::string`; `std::nullopt` if the payload is truncated,
+ * @return Decoded options, with string values as `std::string`; `std::nullopt` if the payload is empty, truncated,
  * has trailing bytes, an empty or duplicate key, exceeds a limit, or a nested map doesn't span exactly its
  * `value_len`.
+ * @throw std::bad_alloc if memory runs out while building the result; malformed content never throws.
  */
-OPENVINO_RUNTIME_API std::optional<ov::AnyMap> decode_compiled_options(ov::util::MemoryView payload) noexcept;
+OPENVINO_RUNTIME_API std::optional<ov::AnyMap> decode_compiled_options(ov::util::MemoryView payload);
 
 /**
  * @overload Same as #decode_compiled_options(ov::util::MemoryView), for @p section backed by a buffer or a
  * stream; a section larger than #max_compiled_options_size is rejected before it is read.
+ * @note Use this overload as a #SectionDecoder - it never throws, per the #SectionDecoder convention.
  * @param section Section to decode; its tag must be #compiled_options_tag.
+ * @return As the #ov::util::MemoryView overload, or `std::nullopt` if the section can't be read.
  */
 OPENVINO_RUNTIME_API std::optional<ov::AnyMap> decode_compiled_options(const Section& section) noexcept;
 

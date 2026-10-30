@@ -197,7 +197,7 @@ std::vector<std::byte> encode_compiled_options(const ov::AnyMap& options) {
     return bytes;
 }
 
-std::optional<ov::AnyMap> decode_compiled_options(ov::util::MemoryView payload) noexcept {
+std::optional<ov::AnyMap> decode_compiled_options(ov::util::MemoryView payload) {
     return !payload.empty() && payload.size() <= max_compiled_options_size ? decode_map(payload, 1) : std::nullopt;
 }
 
@@ -211,10 +211,7 @@ std::optional<ov::AnyMap> decode_compiled_options(const Section& section) noexce
             std::vector<std::byte> bytes(section.size());
             return section.read(bytes.data()) ? decode_map({bytes.data(), bytes.size()}, 1) : std::nullopt;
         }
-    } catch (const std::bad_alloc& exc) {
-        OPENVINO_ERR("Failed to decode compile options: ", exc.what());
-        return std::nullopt;
-    } catch (const std::ios_base::failure& exc) {
+    } catch (const std::exception& exc) {
         OPENVINO_ERR("Failed to decode compile options: ", exc.what());
         return std::nullopt;
     }
