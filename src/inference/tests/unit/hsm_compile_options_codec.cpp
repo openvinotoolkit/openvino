@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <locale>
 #include <memory>
 #include <optional>
 #include <ostream>
@@ -203,6 +204,32 @@ const ReferenceCase sorted_keys_case{"sorted_keys",
                                      "\x01\x00\x00\x00"
                                      "2"s};
 
+const ReferenceCase numeric_case{
+    "numeric",
+    {{"D", 0.1}, {"F", 0.1f}, {"I", int64_t{-9000000000}}, {"N", uint32_t{1234}}},
+    ov::AnyMap{{"D", "0.10000000000000001"}, {"F", "0.100000001"}, {"I", "-9000000000"}, {"N", "1234"}},
+    "\x04\x00\x00\x00"
+    "\x01\x00\x00\x00"
+    "D"
+    "\x00"
+    "\x13\x00\x00\x00"
+    "0.10000000000000001"
+    "\x01\x00\x00\x00"
+    "F"
+    "\x00"
+    "\x0b\x00\x00\x00"
+    "0.100000001"
+    "\x01\x00\x00\x00"
+    "I"
+    "\x00"
+    "\x0b\x00\x00\x00"
+    "-9000000000"
+    "\x01\x00\x00\x00"
+    "N"
+    "\x00"
+    "\x04\x00\x00\x00"
+    "1234"s};
+
 std::vector<ReferenceCase> reference_cases() {
     return {empty_map_case,
             single_string_case,
@@ -212,7 +239,8 @@ std::vector<ReferenceCase> reference_cases() {
             special_chars_case,
             nested_empty_map_case,
             nested_two_levels_case,
-            sorted_keys_case};
+            sorted_keys_case,
+            numeric_case};
 }
 
 // Builders only for payloads too large to spell out; the reference payloads above stay literal.
@@ -401,6 +429,40 @@ TEST(HsmCompileOptionsEncodeTest, encoder_encodes_borrowed_map_only_in_encode) {
     EXPECT_EQ(written, single_string_case.bytes);
 }
 
+namespace {
+struct GroupingNumpunct : std::numpunct<char> {
+    char do_decimal_point() const override {
+        return '/';
+    }
+    char do_thousands_sep() const override {
+        return '_';
+    }
+    std::string do_grouping() const override {
+        return "\2";
+    }
+};
+
+class GlobalLocaleGuard {
+public:
+    explicit GlobalLocaleGuard(const std::locale& locale) : m_previous(std::locale::global(locale)) {}
+    ~GlobalLocaleGuard() {
+        std::locale::global(m_previous);
+    }
+
+private:
+    std::locale m_previous;
+};
+}  // namespace
+
+TEST(HsmCompileOptionsEncodeTest, numbers_do_not_depend_on_global_locale) {
+    const GlobalLocaleGuard guard{std::locale(std::locale::classic(), new GroupingNumpunct)};
+    std::ostringstream global_format;
+    global_format << 1234.5;
+    ASSERT_EQ(global_format.str(), "12_34/5");
+
+    EXPECT_EQ(encode(numeric_case.input), numeric_case.bytes);
+}
+
 // --- Decoding: reference bytes -> options ---
 
 using HsmCompileOptionsDecodeReferenceTest = ::testing::TestWithParam<ReferenceCase>;
@@ -546,6 +608,16 @@ TEST(HsmCompileOptionsDecodeTest, decoded_strings_convert_to_property_types) {
     EXPECT_EQ(decoded->at(ov::hint::inference_precision.name()).as<ov::element::Type>(), ov::element::f16);
     EXPECT_TRUE(decoded->at(ov::enable_profiling.name()).as<bool>());
     EXPECT_EQ(decoded->at(ov::hint::num_requests.name()).as<uint32_t>(), 4u);
+}
+
+TEST(HsmCompileOptionsDecodeTest, decoded_numbers_restore_exact_values) {
+    const auto decoded = decode(numeric_case.bytes);
+
+    ASSERT_TRUE(decoded);
+    EXPECT_EQ(decoded->at("D").as<double>(), 0.1);
+    EXPECT_EQ(decoded->at("F").as<float>(), 0.1f);
+    EXPECT_EQ(decoded->at("I").as<int64_t>(), int64_t{-9000000000});
+    EXPECT_EQ(decoded->at("N").as<uint32_t>(), 1234u);
 }
 
 TEST(HsmCompileOptionsDecodeTest, unknown_kind_is_skipped) {

@@ -48,9 +48,11 @@ enum class CompileOptionKind : uint8_t {
 
 /**
  * @brief Encodes @p options into a #compile_options_tag payload.
- * @note A value holding an `ov::AnyMap` is encoded as a nested map; any other non-empty value as its
- * `ov::Any::as<std::string>()` form. A type without a string conversion yields an empty string - leave
- * such values (callbacks, tensors, model pointers) out of @p options.
+ * @note A value holding an `ov::AnyMap` is encoded as a nested map; any other non-empty value as a string, written
+ * in the classic "C" locale: `std::string` as is, `bool` as `YES`/`NO`, integers, and floating-point values with
+ * `max_digits10` digits so they parse back unchanged. A value of any other type (e.g. an enum or
+ * `ov::element::Type`) is written via `ov::Any::print()`; a type without a string form yields an empty string -
+ * leave such values (callbacks, tensors, model pointers) out of @p options.
  * @note Pass the result to the #ov::util::MemoryView overload of #IWriter::add_section(), keeping it alive until
  * #IWriter::finalize().
  * @param options Options to encode.

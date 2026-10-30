@@ -6,8 +6,13 @@
 
 #include <cstring>
 #include <exception>
+#include <iomanip>
+#include <limits>
+#include <locale>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #include "openvino/core/except.hpp"
@@ -51,6 +56,51 @@ void check_size(const std::string& key, const std::vector<std::byte>& out) {
                     key);
 }
 
+template <class T>
+bool write_number_if(std::ostream& os, const ov::Any& value) {
+    if (!value.is<T>()) {
+        return false;
+    }
+    if constexpr (std::is_floating_point_v<T>) {
+        os << std::setprecision(std::numeric_limits<T>::max_digits10);
+    }
+    os << value.as<T>();
+    return true;
+}
+
+template <class... T>
+bool write_number(std::ostream& os, const ov::Any& value) {
+    return (write_number_if<T>(os, value) || ...);
+}
+
+// Classic locale and max_digits10 keep the string form deterministic and parseable back to the same value.
+std::string to_option_string(const ov::Any& value) {
+    if (value.is<std::string>()) {
+        return value.as<std::string>();
+    } else if (value.is<bool>()) {
+        return value.as<bool>() ? "YES" : "NO";
+    }
+
+    std::ostringstream os;
+    os.imbue(std::locale::classic());
+    if (write_number<short,
+                     unsigned short,
+                     int,
+                     unsigned,
+                     long,
+                     unsigned long,
+                     long long,
+                     unsigned long long,
+                     float,
+                     double,
+                     long double>(os, value)) {
+        return os.str();
+    }
+
+    value.print(os);
+    return os.str();
+}
+
 void encode_map(std::vector<std::byte>& out, const ov::AnyMap& options, size_t depth) {
     OPENVINO_ASSERT(depth <= max_compile_options_depth,
                     "Compile options nest deeper than ",
@@ -77,7 +127,7 @@ void encode_map(std::vector<std::byte>& out, const ov::AnyMap& options, size_t d
         } else {
             std::string str;
             try {
-                str = ov::Any{value}.as<std::string>();
+                str = to_option_string(value);
             } catch (const std::exception& e) {
                 OPENVINO_THROW("Cannot convert compile option ", key, " to string: ", e.what());
             }
