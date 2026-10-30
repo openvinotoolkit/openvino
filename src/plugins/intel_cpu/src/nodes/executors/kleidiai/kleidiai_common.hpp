@@ -249,9 +249,12 @@ public:
     }  // end of execute()...
 };
 
+// Kernel interfaces for the INT8 per-channel symmetric path (qai8dxp LHS, qsi8cxp RHS)
+template <KAIKernelTag tag>
+struct Qai8dxpQsi8cxpKernels;
+
 template <>
-class uKernel<KAIKernelTag::I8_NEON_DOTPROD> : public uKernelBase {
-private:
+struct Qai8dxpQsi8cxpKernels<KAIKernelTag::I8_NEON_DOTPROD> {
     static constexpr kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel uKernelInterface{
         kai_get_m_step_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod,
         kai_get_n_step_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod,
@@ -264,19 +267,42 @@ private:
         kai_get_dst_offset_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod,
         kai_get_dst_size_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod,
         kai_run_matmul_clamp_f32_qai8dxp1x4_qsi8cxp4x4_1x4_neon_dotprod};
+};
+
+template <>
+struct Qai8dxpQsi8cxpKernels<KAIKernelTag::I8_NEON_IMM> {
+    static constexpr kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel uKernelInterface{
+        kai_get_m_step_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_n_step_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_mr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_nr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_kr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_sr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_lhs_packed_offset_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_rhs_packed_offset_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_dst_offset_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_get_dst_size_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
+        kai_run_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm};
+};
+
+// Common implementation of the INT8 per-channel symmetric uKernels
+template <KAIKernelTag tag>
+class uKernelQai8dxpQsi8cxp : public uKernelBase {
+private:
+    using Kernels = Qai8dxpQsi8cxpKernels<tag>;
     MemoryPtr rhsPackedMem;
     MemoryPtr& lhsPackedMem;
 
 public:
-    uKernel(size_t N, size_t K, MemoryPtr& lhsPackedMem) : lhsPackedMem(lhsPackedMem) {
+    uKernelQai8dxpQsi8cxp(size_t N, size_t K, MemoryPtr& lhsPackedMem) : lhsPackedMem(lhsPackedMem) {
         this->N = N;
         this->K = K;
         this->BLOCK_SIZE = 16;
-        this->mr = uKernelInterface.get_mr();
-        this->nr = uKernelInterface.get_nr();
-        this->kr = uKernelInterface.get_kr();
-        this->sr = uKernelInterface.get_sr();
-    }  // end of uKernel()...
+        this->mr = Kernels::uKernelInterface.get_mr();
+        this->nr = Kernels::uKernelInterface.get_nr();
+        this->kr = Kernels::uKernelInterface.get_kr();
+        this->sr = Kernels::uKernelInterface.get_sr();
+    }  // end of uKernelQai8dxpQsi8cxp()...
 
     size_t get_rhsPackedSize() override {
         return kai_get_rhs_packed_size_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(N, K, nr, kr, sr);
@@ -309,11 +335,11 @@ public:
     }
 
     KernelInterface getuKernelInterface() override {
-        return uKernelInterface;
+        return Kernels::uKernelInterface;
     }
 
     KAIKernelTag getKernelTag() override {
-        return KAIKernelTag::I8_NEON_DOTPROD;
+        return tag;
     }
 
     size_t getLHSPackedSize(size_t m) override {
@@ -384,137 +410,15 @@ public:
 };
 
 template <>
-class uKernel<KAIKernelTag::I8_NEON_IMM> : public uKernelBase {
-private:
-    static constexpr kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel uKernelInterface{
-        kai_get_m_step_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_get_n_step_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_get_mr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_get_nr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_get_kr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_get_sr_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_get_lhs_packed_offset_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_get_rhs_packed_offset_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_get_dst_offset_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_get_dst_size_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm,
-        kai_run_matmul_clamp_f32_qai8dxp4x8_qsi8cxp4x8_16x4_neon_i8mm};
-    MemoryPtr rhsPackedMem;
-    MemoryPtr& lhsPackedMem;
-
+class uKernel<KAIKernelTag::I8_NEON_DOTPROD> : public uKernelQai8dxpQsi8cxp<KAIKernelTag::I8_NEON_DOTPROD> {
 public:
-    uKernel(size_t N, size_t K, MemoryPtr& lhsPackedMem) : lhsPackedMem(lhsPackedMem) {
-        this->N = N;
-        this->K = K;
-        this->BLOCK_SIZE = 16;
-        this->mr = uKernelInterface.get_mr();
-        this->nr = uKernelInterface.get_nr();
-        this->kr = uKernelInterface.get_kr();
-        this->sr = uKernelInterface.get_sr();
-    }  // end of uKernel()...
+    using uKernelQai8dxpQsi8cxp::uKernelQai8dxpQsi8cxp;
+};
 
-    size_t get_rhsPackedSize() override {
-        return kai_get_rhs_packed_size_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(N, K, nr, kr, sr);
-    }
-
-    void packData([[maybe_unused]] bool isTransposed,
-                  MemoryCPtr weightsMemory,
-                  MemoryPtr biasMem,
-                  [[maybe_unused]] bool hasBias,
-                  float* rhs_scales,
-                  MemoryPtr rhsPackedMemory) override {
-        rhsPackedMem = rhsPackedMemory;
-        auto* rhs_native_qs8cx = weightsMemory->getDataAs<int8_t>();
-        auto* bias = biasMem->getDataAs<float>();
-        auto* rhs_packed_qs8cx = static_cast<int8_t*>(rhsPackedMem->getData());
-        kai_rhs_pack_qsi8cx_params params{};
-        params.lhs_zero_point = 1;
-        kai_run_rhs_pack_kxn_qsi8cxp_qsi8cx_neon(1,
-                                                 N,
-                                                 K,
-                                                 nr,
-                                                 kr,
-                                                 sr,
-                                                 rhs_native_qs8cx,
-                                                 bias,
-                                                 rhs_scales,
-                                                 rhs_packed_qs8cx,
-                                                 0,
-                                                 &params);
-    }
-
-    KernelInterface getuKernelInterface() override {
-        return uKernelInterface;
-    }
-
-    KAIKernelTag getKernelTag() override {
-        return KAIKernelTag::I8_NEON_IMM;
-    }
-
-    size_t getLHSPackedSize(size_t m) override {
-        const size_t _m_blocks = (m + BLOCK_SIZE - 1) / BLOCK_SIZE;
-        packedlhs_block_in_bytes = kai_get_lhs_packed_size_lhs_quant_pack_qai8dxp_f32(BLOCK_SIZE, K, mr, kr, sr);
-        const size_t lhsPackedSize = packedlhs_block_in_bytes * _m_blocks;
-        return lhsPackedSize;
-    }
-
-    void execute(const ov::intel_cpu::CpuParallelPtr& cpu_parallel,
-                 ov::intel_cpu::Dim M,
-                 ov::intel_cpu::Dim K,
-                 ov::intel_cpu::MemoryPtr dstMem,
-                 ov::intel_cpu::MemoryPtr srcMem) override {
-        auto _ukernel = std::get<kai_matmul_clamp_f32_qai8dxp_qsi8cxp_ukernel>(getuKernelInterface());
-        size_t m_step = BLOCK_SIZE;
-        constexpr size_t n_step = 4;
-        const size_t M_BLOCKS = (M + m_step - 1) / m_step;
-        const size_t N_BLOCKS = (N + n_step - 1) / n_step;
-        const size_t lhs_packed_offset = _ukernel.get_lhs_packed_offset(0, K);
-        const size_t lhs_stride = K * sizeof(float);
-
-        auto* lhs = srcMem->getDataAs<float>();
-        auto* dst = dstMem->getDataAs<float>();
-
-        auto* lhs_packed_lowp = lhsPackedMem->getDataAs<int8_t>();
-        auto* rhs_packed_lowp = rhsPackedMem->getDataAs<int8_t>();
-
-        const size_t dst_stride_row = N * sizeof(float);
-        const size_t dst_stride_col = sizeof(float);
-
-        ParallelNestingContext nested_context;
-        cpu_parallel->parallel_for(M_BLOCKS, [&](size_t m_blk) {
-            const size_t M_iter = std::min(M - m_blk * m_step, m_step);
-            auto* lhs_packed_block = lhs_packed_lowp + m_blk * packedlhs_block_in_bytes;
-
-            kai_run_lhs_quant_pack_qai8dxp_f32(M_iter,
-                                               K,
-                                               mr,
-                                               kr,
-                                               sr,
-                                               0,
-                                               lhs + m_blk * m_step * K,  // LHS (F32)
-                                               lhs_stride,
-                                               lhs_packed_block  // lhs packed output
-            );
-            cpu_parallel->parallel_for(N_BLOCKS, [&](size_t n_blk) {
-                //  matmul exec
-                const size_t rhs_packed_offset = _ukernel.get_rhs_packed_offset(n_blk * n_step, K);
-                const size_t dst_offset = _ukernel.get_dst_offset(m_blk * m_step, n_blk * n_step, dst_stride_row);
-                const auto* rhs_ptr = static_cast<const void*>(rhs_packed_lowp + rhs_packed_offset);
-                const auto* lhs_ptr = static_cast<const void*>(lhs_packed_block + lhs_packed_offset);
-                float* dst_ptr = (dst + dst_offset / sizeof(float));
-                const size_t N_iter = std::min(N - n_blk * n_step, n_step);
-                _ukernel.run_matmul(M_iter,
-                                    N_iter,
-                                    K,
-                                    lhs_ptr,
-                                    rhs_ptr,
-                                    dst_ptr,
-                                    dst_stride_row,
-                                    dst_stride_col,
-                                    FLOAT_MIN,
-                                    FLOAT_MAX);
-            });
-        });
-    }  // end of execute()...
+template <>
+class uKernel<KAIKernelTag::I8_NEON_IMM> : public uKernelQai8dxpQsi8cxp<KAIKernelTag::I8_NEON_IMM> {
+public:
+    using uKernelQai8dxpQsi8cxp::uKernelQai8dxpQsi8cxp;
 };
 
 template <>
