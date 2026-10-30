@@ -398,7 +398,7 @@ TEST(qsa_gr_fusion, gated_residual_read_rejects_rank_changing_split) {
 }
 
 TEST(qsa_gr_fusion, gated_residual_read_rejects_f32) {
-    // The CM kernels are f16-only; an f32 pattern must stay decomposed rather than be
+    // The kernels are f16-only; an f32 pattern must stay decomposed rather than be
     // fused into a node with no available GPU implementation.
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{T, C * D});
     auto mixed = build_gr_read(residual, 1.0f / C, 1.0f / C, C, ov::element::f32);

@@ -5,8 +5,6 @@
 #include "gated_residual.hpp"
 
 #include <algorithm>
-#include <cctype>
-#include <cstdlib>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -35,19 +33,6 @@ constexpr size_t gr_down_tn = 32;      // low-rank columns per down-projection s
 constexpr size_t gr_decode_rows = 32;  // up to here both GEMMs use decode tiling
 constexpr size_t gr_read_dpas_tm = 32;
 constexpr size_t gr_read_dpas_nt = 2;
-
-/// OpenCL is the default; OV_GPU_GR_IMPL=cm hands the primitive to the other implementation.
-bool ocl_impl_allowed() {
-    const char* v = std::getenv("OV_GPU_GR_IMPL");
-    if (v == nullptr) {
-        return true;
-    }
-    std::string s(v);
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return s != "cm";
-}
 
 /// Per-stage GPU events recorded by the most recent GatedResidualImpl::execute() call (thread local: networks may run on
 /// different threads); exposed through gr_debug::take_stage_events().
@@ -704,7 +689,7 @@ std::vector<std::pair<std::string, event::ptr>> take_stage_events() {
 bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node& node) const {
     assert(node.is_type<cldnn::gated_residual>());
 
-    if (node.has_fused_primitives() || !ocl_impl_allowed()) {
+    if (node.has_fused_primitives()) {
         return false;
     }
 

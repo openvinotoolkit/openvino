@@ -98,9 +98,9 @@ public:
         return m_output_type;
     }
 
-    /// Geometry the CM kernels can execute; shared by the fusion pass and the impl's validate_impl.
+    /// Geometry the kernels can execute; shared by the fusion pass and the impl's validate_impl.
     static constexpr size_t supported_hc_count = 4;
-    static constexpr size_t max_lowrank = 512;        // kept in registers by gr_read.cm
+    static constexpr size_t max_lowrank = 512;        // kept in registers by gr_read.cl
     static constexpr size_t max_total_width = 16384;  // C*D must fit into SLM as f16
 
     static constexpr bool is_geometry_supported(Mode mode, size_t hc_count, size_t hidden_size, size_t lowrank) {

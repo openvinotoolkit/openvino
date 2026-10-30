@@ -145,7 +145,7 @@ bool second_to_last_dim_is_one(const ov::Output<ov::Node>& out) {
     return ps.rank().is_static() && ps.size() >= 2 && !ps[ps.size() - 2].is_dynamic() && ps[ps.size() - 2].get_length() == 1;
 }
 
-/// The CM kernels are f16-only; fusing an f32 (or other) subgraph would produce a node with
+/// The kernels are f16-only; fusing an f32 (or other) subgraph would produce a node with
 /// no available GPU implementation at all, turning a working decomposed graph into a hard
 /// compile failure.
 bool is_f16(const ov::Output<ov::Node>& out) {
@@ -360,7 +360,7 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
             // --- the grouped norm must be per branch (gain width C*D or D) ------
             const auto gain = rms_node->input_value(1);
             if (static_element_count(gain.get_partial_shape()) != C * D) {
-                // A [D]-wide gain would be a valid branch-shared gain, but the CM kernel
+                // A [D]-wide gain would be a valid branch-shared gain, but the kernels
                 // expects the expanded [C*D] form; leave such graphs untouched.
                 return false;
             }

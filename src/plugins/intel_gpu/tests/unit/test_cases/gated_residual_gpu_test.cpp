@@ -1,8 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Unit tests for the gated_residual primitive. The implementation under test follows OV_GPU_GR_IMPL (OpenCL by default,
-// OV_GPU_GR_IMPL=cm selects the CM one).
+// Unit tests for the gated_residual primitive.
 //
 // Covered:
 //  - READ / MIX: per-branch, per-channel comparison with an FP32 reference, including
@@ -26,7 +25,6 @@
 #include <vector>
 
 #include "gated_residual_inst.h"
-#include "impls/cm/gated_residual/gr_stage_events.hpp"
 #include "impls/ocl_v2/gated_residual/gated_residual_stage_events.hpp"
 #include "intel_gpu/op/gated_residual.hpp"
 #include "openvino/op/add.hpp"
@@ -54,24 +52,13 @@ namespace {
 
 constexpr size_t kBranches = 4;
 
-/// The implementation under test follows OV_GPU_GR_IMPL (cm / ocl); unset means OpenCL, the default.
-bool cm_selected() {
-    const char* v = std::getenv("OV_GPU_GR_IMPL");
-    return v != nullptr && std::string(v) == "cm";
-}
-
 bool gr_available() {
-    auto& engine = get_test_engine();
-    ExecutionConfig config = get_test_default_config(engine);
-    const auto& info = engine.get_device_info();
-    if (cm_selected()) {
-        return cldnn::check_cm_jit_support(engine, config) && info.supports_immad;
-    }
+    const auto& info = get_test_engine().get_device_info();
     return info.supports_intel_subgroups && info.supports_intel_subgroups_short;
 }
 
 std::vector<std::pair<std::string, cldnn::event::ptr>> take_stage_events() {
-    return cm_selected() ? ov::intel_gpu::cm::gr_debug::take_stage_events() : ov::intel_gpu::ocl::gr_debug::take_stage_events();
+    return ov::intel_gpu::ocl::gr_debug::take_stage_events();
 }
 
 float sigmoidf(float x) {
@@ -187,7 +174,7 @@ memory::ptr make_f16(engine& eng, const ov::PartialShape& shape, const std::vect
     return mem;
 }
 
-/// Stage names recorded by the last GatedResidualCMImpl::execute() on this thread.
+/// Stage names recorded by the last GatedResidualImpl::execute() on this thread.
 std::vector<std::string> executed_stages() {
     std::vector<std::string> names;
     for (const auto& stage_event : take_stage_events()) {
@@ -197,7 +184,7 @@ std::vector<std::string> executed_stages() {
 }
 
 /// With C = 4, C*D is always a multiple of 64, so only L decides the DPAS READ path. Above
-/// 4 rows per EU (and D % 32 == 0) the single-kernel gr_read_dpas.cm replaces the 3-kernel
+/// 4 rows per EU (and D % 32 == 0) the single-kernel gr_read_dpas.cl replaces the 3-kernel
 /// pipeline, whose DOWN_PROJ carries the write gate and UP_PROJ the branch mix.
 std::vector<std::string> expected_read_stages(size_t rows, size_t D, size_t L) {
     if (L % 32 != 0) {
@@ -306,9 +293,9 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{1, 64, 16, true},
                                            gr_read_case{7, 128, 32, true},
                                            gr_read_case{16, 32, 16, true},
-                                           // Below: C*D and L satisfy can_use_dpas_gr_read(), so these route
-                                           // through gr_rbar_dpas -> gr_down_proj_dpas[+write gate] ->
-                                           // gr_up_proj_dpas[+branch mix] instead of gr_read.cm. Up to 32
+                                           // Below: C*D and L allow the dpas paths, so these route
+                                           // through RBAR -> DOWN_PROJ[+write gate] ->
+                                           // UP_PROJ[+branch mix] instead of gr_read.cl. Up to 32
                                            // rows the decode tiling is used, up to 4 rows per EU the mid
                                            // (split-K wide) tiling, above it the wide one.
                                            gr_read_case{32, 64, 32, true},           // exact token-tile boundary
@@ -331,7 +318,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{777, 48, 64, false},         // wide tiling, partial tiles (D % 32 != 0)
                                            gr_read_case{1111, 128, 64, true, true},  // single kernel, partial 32-row tile
                                            gr_read_case{700, 640, 320, false},       // single kernel, production-like width
-                                           // L=16 keeps these on gr_read.cm; above 32 rows one work-group owns
+                                           // L=16 keeps these on gr_read.cl; above 32 rows one work-group owns
                                            // several rows, the last group only partially filled.
                                            gr_read_case{37, 64, 16, true},
                                            gr_read_case{100, 48, 16, false},
@@ -461,7 +448,7 @@ TEST(gated_residual_gpu_test, write_combines_branches) {
 }
 
 // D=48 is a multiple of 16 but not of 32 or 64, so the generator's gr_best_tile() falls
-// back to GR_WRITE_TILE=16 - the same per-thread width as the original gr_write.cm. This
+// back to GR_WRITE_TILE=16. This
 // exercises that fallback path (the smoke test above only ever hits GR_WRITE_TILE=64).
 TEST(gated_residual_gpu_test, write_combines_branches_narrow_tile) {
     if (!gr_available()) {
@@ -526,7 +513,7 @@ TEST(gated_residual_gpu_test, write_combines_branches_narrow_tile) {
 }
 
 TEST(gated_residual_gpu_test, unsupported_branch_count_is_rejected) {
-    // C != 4 is outside the first supported configuration; the CM implementation
+    // C != 4 is outside the first supported configuration; the implementation
     // manager must reject it instead of silently producing wrong results.
     gated_residual prim("gr", {input_info("a"), input_info("b"), input_info("c"), input_info("d")}, gated_residual::Mode::READ, 3, 64, 16, 1e-6f, false, false);
     ASSERT_EQ(prim.hc_count, 3u);
@@ -543,7 +530,7 @@ TEST(gated_residual_gpu_test, unsupported_branch_count_is_rejected) {
 // ov::intel_gpu::op::GatedResidual(Mode::WRITE) node (no pattern-fusion involved) and
 // runs it through ov::Core::compile_model("GPU") + ov::InferRequest::infer(), mirroring
 // how a real model reaches this op after GatedResidualWriteFusion, to check whether the
-// WRITE-mode CM kernel segfaults when reached via the full plugin pipeline instead of the
+// WRITE-mode kernel segfaults when reached via the full plugin pipeline instead of the
 // raw topology API above.
 TEST(gated_residual_gpu_test, ov_model_write_mode_direct_construction) {
     if (!gr_available()) {
@@ -713,8 +700,8 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_da
 }
 
 // Companion to ov_model_read_mode_dynamic_rows_reuses_dispatch_data above, but for the
-// scalar (non-DPAS) gr_read.cm kernel: L=16 fails can_use_dpas_gr_read()'s "lowrank must
-// be a multiple of 32" check, so GatedResidualCMImpl selects the single-kernel gr_read
+// scalar (non-DPAS) gr_read.cl kernel: L=16 fails the dpas path's "lowrank must
+// be a multiple of 32" check, so GatedResidualImpl selects the single-kernel gr_read
 // stage instead of the rbar/down/up dpas pipeline. Exercises the SAME
 // dispatch-data bug (the unconditional `if (params.is_dynamic()) return;` guard) in the
 // one generator the DPAS-path test above never reaches.
@@ -726,7 +713,7 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_scalar_kernel) {
     ov::Core core;
     const size_t C = kBranches;
     const size_t D = 64;
-    const size_t L = 16;  // not a multiple of 32 -> forces the scalar gr_read.cm path
+    const size_t L = 16;  // not a multiple of 32 -> forces the scalar gr_read.cl path
     const size_t CD = C * D;
 
     auto residual_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, static_cast<int64_t>(CD)});
@@ -794,7 +781,7 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_scalar_kernel) {
     }
 }
 
-// Companion covering GatedResidualWriteGenerator's dispatch-data path (the gr_write.cm
+// Companion covering GrWriteGenerator's dispatch-data path (the gr_write.cl
 // stage, used both for WRITE and reached whenever `desc->mode == Mode::WRITE`) under a
 // dynamic row count on the SAME compiled model / infer request.
 TEST(gated_residual_gpu_test, ov_model_write_mode_dynamic_rows_reuses_dispatch_data) {
@@ -903,11 +890,11 @@ double executing_ms(const event::ptr& ev) {
     return -1.0;
 }
 
-/// GPU-side total duration of one gated_residual call, summed across every CM kernel
-/// dispatch recorded via gr_stage_events.hpp. The systolic READ/FINAL_MIX path runs 3
+/// GPU-side total duration of one gated_residual call, summed across every kernel
+/// dispatch recorded via gated_residual_stage_events.hpp. The systolic READ/FINAL_MIX path runs 3
 /// kernels (RBAR, down-proj, up-proj) behind one clDNN primitive, so
 /// `network::get_executed_primitives()` alone would only expose the last of them (see
-/// gr_stage_events.hpp). `per_stage`, if
+/// gated_residual_stage_events.hpp). `per_stage`, if
 /// given, receives each stage's mean time in dispatch order.
 double time_primitive_ms(network& net,
                          const std::string& primitive_id,
@@ -1182,277 +1169,3 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_fuses_and_matches_reference)
 }
 
 }  // namespace
-
-// OV_GPU_GR_IMPL picks the backend: unset / ocl -> OpenCL, cm -> CM.
-TEST(gated_residual_gpu_test, env_switch_selects_backend) {
-    auto& engine = get_test_engine();
-    ExecutionConfig probe = get_test_default_config(engine);
-    const auto& info = engine.get_device_info();
-    if ((!info.supports_intel_subgroups || !info.supports_intel_subgroups_short) || !cldnn::check_cm_jit_support(engine, probe) || !info.supports_immad) {
-        GTEST_SKIP() << "both GatedResidual backends are needed";
-    }
-
-    const size_t rows = 4, C = kBranches, D = 64, L = 32;
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-    const size_t CD = C * D;
-    auto residual_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, random_vec(rg, rows * CD, 1.0f));
-
-    // Restores the caller's OV_GPU_GR_IMPL even when an assertion or exception leaves the test early.
-    struct EnvGuard {
-        std::string saved;
-        bool had = false;
-        EnvGuard() {
-            if (const char* v = std::getenv("OV_GPU_GR_IMPL")) {
-                saved = v;
-                had = true;
-            }
-        }
-        ~EnvGuard() {
-            if (had) {
-                setenv("OV_GPU_GR_IMPL", saved.c_str(), 1);
-            } else {
-                unsetenv("OV_GPU_GR_IMPL");
-            }
-        }
-    } env_guard;
-
-    auto run = [&](const char* impl) {
-        if (impl != nullptr) {
-            setenv("OV_GPU_GR_IMPL", impl, 1);
-        } else {
-            unsetenv("OV_GPU_GR_IMPL");
-        }
-        topology topology;
-        topology.add(input_layout("residual", residual_mem->get_layout()));
-        topology.add(data("gain", make_f16(engine, {static_cast<int64_t>(CD)}, random_vec(rg, CD, 0.5f, 1.0f))));
-        topology.add(data("w_down", make_f16(engine, {static_cast<int64_t>(L), static_cast<int64_t>(CD)}, random_vec(rg, L * CD, 0.1f))));
-        topology.add(data("w_up", make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(L)}, random_vec(rg, CD * L, 0.1f))));
-        topology.add(gated_residual("gr_env",
-                                    {input_info("residual"), input_info("gain"), input_info("w_down"), input_info("w_up")},
-                                    gated_residual::Mode::READ,
-                                    C,
-                                    D,
-                                    L,
-                                    1e-6f,
-                                    false,
-                                    false));
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        network net(engine, topology, config);
-        net.set_input_data("residual", residual_mem);
-        auto outputs = net.execute();
-        outputs.at("gr_env").get_memory();
-        return ov::intel_gpu::ocl::gr_debug::take_stage_events().size();
-    };
-    // take_stage_events() of the other backend stays empty, so counting OpenCL events identifies the backend.
-    ov::intel_gpu::cm::gr_debug::take_stage_events();
-    const size_t ocl_default = run(nullptr);
-    const size_t ocl_forced = run("ocl");
-    const size_t ocl_when_cm = run("cm");
-    const size_t cm_events = ov::intel_gpu::cm::gr_debug::take_stage_events().size();
-    EXPECT_GT(ocl_default, 0u);
-    EXPECT_GT(ocl_forced, 0u);
-    EXPECT_EQ(ocl_when_cm, 0u);
-    EXPECT_GT(cm_events, 0u);
-}
-
-// Same-process OpenCL vs CM comparison of the READ path. Both networks are built up front (OV_GPU_GR_IMPL picks the backend
-// at build time) and then measured alternately round by round, so the GPU clock state hits both the same way; each backend
-// reports the best round. GR_AB_WARMUP / GR_AB_ITERS / GR_AB_ROUNDS / GR_AB_FLUSH (default 1: evict L2 between iterations
-// with a 128 MB fill) tune the run. Run with --gtest_also_run_disabled_tests --gtest_filter='*DISABLED_ab*'.
-namespace {
-namespace ab_perf {
-
-size_t env_size(const char* name, size_t fallback) {
-    const char* v = std::getenv(name);
-    return v != nullptr ? static_cast<size_t>(std::strtoull(v, nullptr, 10)) : fallback;
-}
-
-struct built_net {
-    std::unique_ptr<network> net;
-    bool cm = false;
-};
-
-}  // namespace ab_perf
-}  // namespace
-
-struct gr_ab_case {
-    size_t rows;
-    size_t D;
-    size_t L;
-    bool wgate;
-};
-
-class gated_residual_ab_perf : public ::testing::TestWithParam<gr_ab_case> {};
-
-TEST_P(gated_residual_ab_perf, ocl_vs_cm) {
-    auto& engine = get_test_engine();
-    ExecutionConfig probe = get_test_default_config(engine);
-    const auto& info = engine.get_device_info();
-    if ((!info.supports_intel_subgroups || !info.supports_intel_subgroups_short) || !cldnn::check_cm_jit_support(engine, probe) || !info.supports_immad) {
-        GTEST_SKIP() << "both GatedResidual backends are needed";
-    }
-    const auto p = GetParam();
-    const size_t C = kBranches;
-    const size_t CD = C * p.D;
-
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-    auto residual_mem = engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(p.rows), static_cast<int64_t>(CD)}, data_types::f16, format::bfyx},
-                                               allocation_type::usm_device);
-    const auto residual_f16 = to_f16(random_vec(rg, p.rows * CD, 1.0f));
-    residual_mem->copy_from(get_test_stream(), residual_f16.data(), true);
-    const auto gain = random_vec(rg, CD, 0.5f, 1.0f);
-    const auto w_down = random_vec(rg, p.L * CD, 0.1f);
-    const auto w_up = random_vec(rg, CD * p.L, 0.1f);
-    const auto w_inject = random_vec(rg, C * CD, 0.1f);
-    // L == 0 selects the WRITE mode: residual + gate * y
-    const bool write_mode = p.L == 0;
-    auto device_f16 = [&](int64_t rows, int64_t cols, const std::vector<float>& v) {
-        auto mem = engine.allocate_memory(layout{ov::PartialShape{rows, cols}, data_types::f16, format::bfyx}, allocation_type::usm_device);
-        const auto h = to_f16(v);
-        mem->copy_from(get_test_stream(), h.data(), true);
-        return mem;
-    };
-    auto y_mem = device_f16(static_cast<int64_t>(p.rows), static_cast<int64_t>(p.D), random_vec(rg, p.rows * p.D, 1.0f));
-    auto gate_mem = device_f16(static_cast<int64_t>(p.rows), static_cast<int64_t>(C), random_vec(rg, p.rows * C, 1.0f, 1.0f));
-
-    const char* saved = std::getenv("OV_GPU_GR_IMPL");
-    const std::string saved_value = saved != nullptr ? saved : "";
-    auto build = [&](bool cm) {
-        setenv("OV_GPU_GR_IMPL", cm ? "cm" : "ocl", 1);
-        topology topology;
-        topology.add(input_layout("residual", residual_mem->get_layout()));
-        if (write_mode) {
-            topology.add(input_layout("y", y_mem->get_layout()));
-            topology.add(input_layout("gate", gate_mem->get_layout()));
-            topology.add(gated_residual("gr_write",
-                                        {input_info("residual"), input_info("y"), input_info("gate")},
-                                        gated_residual::Mode::WRITE,
-                                        C,
-                                        p.D,
-                                        0,
-                                        1e-6f,
-                                        false,
-                                        false));
-        } else {
-            topology.add(data("gain", make_f16(engine, {static_cast<int64_t>(CD)}, gain)));
-            topology.add(data("w_down", make_f16(engine, {static_cast<int64_t>(p.L), static_cast<int64_t>(CD)}, w_down)));
-            topology.add(data("w_up", make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(p.L)}, w_up)));
-            std::vector<input_info> inputs = {input_info("residual"), input_info("gain"), input_info("w_down"), input_info("w_up")};
-            if (p.wgate) {
-                topology.add(data("w_inject", make_f16(engine, {static_cast<int64_t>(C), static_cast<int64_t>(CD)}, w_inject)));
-                inputs.emplace_back("w_inject");
-            }
-            topology.add(gated_residual("gr_read", inputs, gated_residual::Mode::READ, C, p.D, p.L, 1e-6f, false, p.wgate));
-        }
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::enable_profiling(true));
-        ab_perf::built_net b;
-        b.net = std::make_unique<network>(engine, topology, config);
-        b.net->set_input_data("residual", residual_mem);
-        if (write_mode) {
-            b.net->set_input_data("y", y_mem);
-            b.net->set_input_data("gate", gate_mem);
-        }
-        b.cm = cm;
-        return b;
-    };
-    auto ocl_net = build(false);
-    auto cm_net = build(true);
-    if (saved != nullptr) {
-        setenv("OV_GPU_GR_IMPL", saved_value.c_str(), 1);
-    } else {
-        unsetenv("OV_GPU_GR_IMPL");
-    }
-
-    const size_t warmup = ab_perf::env_size("GR_AB_WARMUP", 200);
-    const size_t iters = ab_perf::env_size("GR_AB_ITERS", 50);
-    const size_t rounds = ab_perf::env_size("GR_AB_ROUNDS", 5);
-    const bool flush = ab_perf::env_size("GR_AB_FLUSH", 1) != 0;
-    auto flush_mem = engine.allocate_memory(layout{ov::PartialShape{64 * 1024 * 1024}, data_types::i16, format::bfyx}, allocation_type::usm_device);
-
-    auto run_block = [&](ab_perf::built_net& b, size_t count) {
-        std::vector<std::vector<std::pair<std::string, event::ptr>>> all;
-        all.reserve(count);
-        for (size_t i = 0; i < count; i++) {
-            if (flush) {
-                flush_mem->fill(get_test_stream(), {}, false);
-            }
-            b.net->execute();
-            all.push_back(b.cm ? ov::intel_gpu::cm::gr_debug::take_stage_events() : ov::intel_gpu::ocl::gr_debug::take_stage_events());
-        }
-        b.net->get_stream().finish();
-        // mean per stage name, in dispatch order
-        std::vector<std::pair<std::string, double>> sums;
-        for (const auto& events : all) {
-            for (size_t k = 0; k < events.size(); k++) {
-                if (events[k].second == nullptr) {
-                    continue;
-                }
-                events[k].second->wait();
-                const double ms = roofline::executing_ms(events[k].second);
-                if (sums.size() <= k) {
-                    sums.emplace_back(events[k].first, 0.0);
-                }
-                sums[k].second += ms;
-            }
-        }
-        for (auto& s : sums) {
-            s.second /= static_cast<double>(count);
-        }
-        return sums;
-    };
-
-    run_block(ocl_net, warmup);
-    run_block(cm_net, warmup);
-    std::vector<std::pair<std::string, double>> best[2];
-    for (size_t r = 0; r < rounds; r++) {
-        for (int which = 0; which < 2; which++) {
-            auto& b = which == 0 ? ocl_net : cm_net;
-            auto sums = run_block(b, iters);
-            if (best[which].empty()) {
-                best[which] = sums;
-            } else {
-                for (size_t k = 0; k < sums.size() && k < best[which].size(); k++) {
-                    best[which][k].second = std::min(best[which][k].second, sums[k].second);
-                }
-            }
-        }
-    }
-    for (int which = 0; which < 2; which++) {
-        double total = 0.0;
-        for (const auto& s : best[which]) {
-            total += s.second;
-            std::cout << "GR_AB {\"impl\":\"" << (which == 0 ? "ocl" : "cm") << "\",\"rows\":" << p.rows << ",\"D\":" << p.D << ",\"L\":" << p.L
-                      << ",\"wgate\":" << p.wgate << ",\"stage\":\"" << s.first << "\",\"ms\":" << s.second << "}" << std::endl;
-        }
-        std::cout << "GR_AB {\"impl\":\"" << (which == 0 ? "ocl" : "cm") << "\",\"rows\":" << p.rows << ",\"D\":" << p.D << ",\"L\":" << p.L
-                  << ",\"wgate\":" << p.wgate << ",\"stage\":\"TOTAL\",\"ms\":" << total << "}" << std::endl;
-    }
-}
-
-INSTANTIATE_TEST_SUITE_P(DISABLED_ab,
-                         gated_residual_ab_perf,
-                         ::testing::Values(gr_ab_case{1, 640, 320, true},
-                                           gr_ab_case{8, 640, 320, true},
-                                           gr_ab_case{32, 640, 320, true},
-                                           gr_ab_case{128, 640, 320, true},
-                                           gr_ab_case{512, 640, 320, true},
-                                           gr_ab_case{1024, 640, 320, true},
-                                           gr_ab_case{2048, 640, 320, true},
-                                           gr_ab_case{4096, 640, 320, true},
-                                           gr_ab_case{8192, 640, 320, true},
-                                           gr_ab_case{1, 2560, 320, true},
-                                           gr_ab_case{32, 2560, 320, true},
-                                           gr_ab_case{512, 2560, 320, true},
-                                           gr_ab_case{2048, 2560, 320, true},
-                                           gr_ab_case{8192, 2560, 320, true},
-                                           gr_ab_case{1, 640, 0, false},
-                                           gr_ab_case{32, 640, 0, false},
-                                           gr_ab_case{1024, 640, 0, false},
-                                           gr_ab_case{8192, 640, 0, false},
-                                           gr_ab_case{8192, 2560, 0, false}));
