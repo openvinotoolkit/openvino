@@ -44,6 +44,8 @@ ov::element::Type gguf_raw_element_type(GgufTensorType type) {
         return ov::element::gguf_q4_0;
     case GGUF_TYPE_Q4_1:
         return ov::element::gguf_q4_1;
+    case GGUF_TYPE_Q3_K:
+        return ov::element::gguf_q3_k;
     case GGUF_TYPE_Q4_K:
         return ov::element::gguf_q4_k;
     case GGUF_TYPE_Q5_K:
@@ -52,6 +54,12 @@ ov::element::Type gguf_raw_element_type(GgufTensorType type) {
         return ov::element::gguf_q6_k;
     case GGUF_TYPE_Q8_0:
         return ov::element::gguf_q8_0;
+    case GGUF_TYPE_IQ2_XS:
+        return ov::element::gguf_iq2_xs;
+    case GGUF_TYPE_IQ2_S:
+        return ov::element::gguf_iq2_s;
+    case GGUF_TYPE_IQ3_XXS:
+        return ov::element::gguf_iq3_xxs;
     default:
         return ov::element::dynamic;
     }
@@ -107,6 +115,12 @@ TypeTraits type_traits(uint32_t type) {
         return {256, 210};
     case GGUF_TYPE_Q8_K:
         return {256, 292};
+    case GGUF_TYPE_IQ2_XS:
+        return {256, 74};
+    case GGUF_TYPE_IQ2_S:
+        return {256, 82};
+    case GGUF_TYPE_IQ3_XXS:
+        return {256, 98};
     case GGUF_TYPE_I8:
         return {1, 1};
     case GGUF_TYPE_I16:
@@ -646,7 +660,11 @@ void load_gguf_tensors(GgufFile& file,
                (options.preserve_q6_k && type == GGUF_TYPE_Q6_K) ||
              (options.preserve_q8_0 && type == GGUF_TYPE_Q8_0) ||
              (options.preserve_q4_0 && type == GGUF_TYPE_Q4_0) ||
-             (options.preserve_q4_1 && type == GGUF_TYPE_Q4_1);
+             (options.preserve_q4_1 && type == GGUF_TYPE_Q4_1) ||
+             (options.preserve_q3_k && type == GGUF_TYPE_Q3_K) ||
+             (options.preserve_iq2_xs && type == GGUF_TYPE_IQ2_XS) ||
+             (options.preserve_iq2_s && type == GGUF_TYPE_IQ2_S) ||
+             (options.preserve_iq3_xxs && type == GGUF_TYPE_IQ3_XXS);
     };
     for (const auto& info : infos) {
         if (preserve_raw(info.type)) {

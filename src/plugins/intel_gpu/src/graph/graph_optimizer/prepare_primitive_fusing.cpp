@@ -498,6 +498,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<fully_connected>()) {
             auto& fc = replace_candidate.as<fully_connected>();
             auto desc = fc.get_primitive();
+            if (ov::element::is_gguf_block(fc.get_input_layout(1).data_type))
+                continue;
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (fc.bias_term()) {

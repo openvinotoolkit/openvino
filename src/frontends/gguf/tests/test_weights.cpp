@@ -113,40 +113,47 @@ TEST(GGUFRawCompressedFC, RejectsIncompatibleReductionDimension) {
 }
 
 TEST(GGUFRawCompressedFC, SharedEmitterPreservesRawWeightThroughConversion) {
-    const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
-    for (const auto activation_type : {ov::element::f32, ov::element::f16}) {
-        std::unordered_map<std::string, ov::Tensor> weights;
-        weights.emplace("projection.weight", ov::Tensor(ov::element::gguf_q4_k, {kRows, kCols}));
-        std::memcpy(weights.at("projection.weight").data(), bytes.data(), bytes.size());
-        std::unordered_map<std::string, GgufTensorType> qtypes{{"projection.qtype", GGUF_TYPE_Q4_K}};
-        GraphEmitter emitter(weights, qtypes, "test");
-        emitter.add_input("activation", activation_type, {1, 1, -1, kCols});
-        emitter.add_weight("projection.weight");
-        emitter.add_op("GGML_OP_MUL_MAT", "first", {"projection.weight", "activation"});
-        emitter.add_op("GGML_OP_MUL_MAT", "second", {"projection.weight", "activation"});
-        emitter.graph()->model_output_names = {"first", "second"};
-        std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
-        FrontEnd frontend;
-        const auto model = frontend.convert(frontend.load(decoder));
-        std::shared_ptr<ov::Node> shared_weight;
-        for (const auto& result : model->get_results()) {
-            const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
-                result->get_input_node_shared_ptr(0));
-            ASSERT_TRUE(fc);
-            EXPECT_EQ(fc->get_output_partial_shape(0), (ov::PartialShape{1, 1, -1, kRows}));
-            EXPECT_EQ(fc->get_output_element_type(0), ov::element::f32);
-            const auto raw = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
-            ASSERT_TRUE(raw);
-            EXPECT_EQ(raw->get_element_type(), ov::element::gguf_q4_k);
-            EXPECT_EQ(raw->get_data_ptr(), weights.at("projection.weight").data());
-            EXPECT_EQ(raw->get_byte_size(), bytes.size());
-            EXPECT_EQ(std::memcmp(raw->get_data_ptr(), bytes.data(), bytes.size()), 0);
-            if (shared_weight) {
-                EXPECT_EQ(raw, shared_weight);
-            }
-            shared_weight = raw;
-            for (size_t input = 2; input < 5; ++input) {
-                EXPECT_EQ(fc->get_input_shape(input), (ov::Shape{0}));
+    for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_IQ2_XS, GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS}) {
+        SCOPED_TRACE(qtype);
+        const auto bytes = load_npy<uint8_t>(qtype == GGUF_TYPE_Q4_K ? "q4_k_qbytes" :
+                                             qtype == GGUF_TYPE_IQ2_XS ? "iq2_xs_qbytes" :
+                                             qtype == GGUF_TYPE_IQ2_S ? "iq2_s_qbytes" : "iq3_xxs_qbytes");
+        const auto weight_type = gguf_raw_element_type(qtype);
+        for (const auto activation_type : {ov::element::f32, ov::element::f16}) {
+            SCOPED_TRACE(activation_type);
+            std::unordered_map<std::string, ov::Tensor> weights;
+            weights.emplace("projection.weight", ov::Tensor(weight_type, {kRows, kCols}));
+            std::memcpy(weights.at("projection.weight").data(), bytes.data(), bytes.size());
+            std::unordered_map<std::string, GgufTensorType> qtypes{{"projection.qtype", qtype}};
+            GraphEmitter emitter(weights, qtypes, "test");
+            emitter.add_input("activation", activation_type, {1, 1, -1, kCols});
+            emitter.add_weight("projection.weight");
+            emitter.add_op("GGML_OP_MUL_MAT", "first", {"projection.weight", "activation"});
+            emitter.add_op("GGML_OP_MUL_MAT", "second", {"projection.weight", "activation"});
+            emitter.graph()->model_output_names = {"first", "second"};
+            std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
+            FrontEnd frontend;
+            const auto model = frontend.convert(frontend.load(decoder));
+            std::shared_ptr<ov::Node> shared_weight;
+            for (const auto& result : model->get_results()) {
+                const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+                    result->get_input_node_shared_ptr(0));
+                ASSERT_TRUE(fc);
+                EXPECT_EQ(fc->get_output_partial_shape(0), (ov::PartialShape{1, 1, -1, kRows}));
+                EXPECT_EQ(fc->get_output_element_type(0), ov::element::f32);
+                const auto raw = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+                ASSERT_TRUE(raw);
+                EXPECT_EQ(raw->get_element_type(), weight_type);
+                EXPECT_EQ(raw->get_data_ptr(), weights.at("projection.weight").data());
+                EXPECT_EQ(raw->get_byte_size(), bytes.size());
+                EXPECT_EQ(std::memcmp(raw->get_data_ptr(), bytes.data(), bytes.size()), 0);
+                if (shared_weight) {
+                    EXPECT_EQ(raw, shared_weight);
+                }
+                shared_weight = raw;
+                for (size_t input = 2; input < 5; ++input) {
+                    EXPECT_EQ(fc->get_input_shape(input), (ov::Shape{0}));
+                }
             }
         }
     }
@@ -154,7 +161,8 @@ TEST(GGUFRawCompressedFC, SharedEmitterPreservesRawWeightThroughConversion) {
 
 TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
     for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0,
-                            GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1}) {
+                            GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1, GGUF_TYPE_Q3_K, GGUF_TYPE_IQ2_XS,
+                            GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS}) {
         SCOPED_TRACE(qtype);
         std::unordered_map<std::string, ov::Tensor> weights;
         weights.emplace("projection.weight", ov::Tensor(gguf_raw_element_type(qtype), {kRows, kCols}));
@@ -172,6 +180,12 @@ TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
         EXPECT_THROW(emitter.add_op("GGML_OP_GET_ROWS", "embedding", {"projection.weight", "indices"}),
                      ov::frontend::OpConversionFailure);
         emitter.add_input("embedding_indices", ov::element::i64, {1, 1, 1, -1});
+        if (qtype == GGUF_TYPE_Q3_K || qtype == GGUF_TYPE_IQ2_XS || qtype == GGUF_TYPE_IQ2_S ||
+            qtype == GGUF_TYPE_IQ3_XXS) {
+            EXPECT_THROW(emitter.add_op("GGML_OP_GET_ROWS", "unsupported_raw_embedding",
+                                       {"projection.weight", "embedding_indices"}),
+                         ov::frontend::OpConversionFailure);
+        }
         for (const auto op_case : {2, 3, 4, 10}) {
             EXPECT_THROW(emitter.add_op("GGML_OP_GET_ROWS", "unsupported_embedding",
                                        {"projection.weight", "embedding_indices"}, op_case),
@@ -186,7 +200,8 @@ TEST(GGUFRawCompressedFC, RejectsUnsupportedConsumersAndMatmulCases) {
 
 TEST(GGUFRawCompressedFC, RawRowSplitsPreserveBlocks) {
     for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0,
-                            GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1}) {
+                            GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1, GGUF_TYPE_Q3_K, GGUF_TYPE_IQ2_XS,
+                            GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS}) {
         SCOPED_TRACE(qtype);
         ov::Tensor raw(gguf_raw_element_type(qtype), {8, kCols});
         auto* bytes = static_cast<uint8_t*>(raw.data());
@@ -224,7 +239,8 @@ TEST(GGUFRawCompressedFC, RawRowSplitsPreserveBlocks) {
 
 TEST(GGUFRawCompressedFC, RejectsMismatchedRawQuantType) {
     for (const auto qtype : {GGUF_TYPE_Q4_K, GGUF_TYPE_Q5_K, GGUF_TYPE_Q6_K, GGUF_TYPE_Q8_0,
-                            GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1}) {
+                            GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_1, GGUF_TYPE_Q3_K, GGUF_TYPE_IQ2_XS,
+                            GGUF_TYPE_IQ2_S, GGUF_TYPE_IQ3_XXS}) {
         SCOPED_TRACE(qtype);
         std::unordered_map<std::string, ov::Tensor> weights;
         weights.emplace("projection.weight", ov::Tensor(gguf_raw_element_type(qtype), {kRows, kCols}));

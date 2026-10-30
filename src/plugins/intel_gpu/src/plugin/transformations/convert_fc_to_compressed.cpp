@@ -24,6 +24,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -263,14 +264,19 @@ ConvertGGUFFullyConnectedCompressed::ConvertGGUFFullyConnectedCompressed() {
             ov::copy_runtime_info(fc, {shape, prefix, restore_shape, activation.get_node_shared_ptr()});
         }
         ov::Output<ov::Node> bias = fc->input_value(2);
-        if (is_empty_optional(bias)) {
-            bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        bool has_bias = !is_empty_optional(bias) && !ov::is_type<ov::intel_gpu::op::Placeholder>(bias.get_node_shared_ptr());
+        if (has_bias) {
+            if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(bias.get_node_shared_ptr())) {
+                const auto values = constant->cast_vector<double>();
+                has_bias = !std::all_of(values.begin(), values.end(), [](double value) { return value == 0.; });
+            }
         }
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f});
         auto zero_point = std::make_shared<ov::intel_gpu::op::Placeholder>();
         auto gpu_fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(activation,
                                                                                  weight,
-                                                                                 bias,
+                                                                                 no_bias,
                                                                                  scale,
                                                                                  zero_point,
                                                                                  fc->get_output_element_type(0));
@@ -278,9 +284,22 @@ ConvertGGUFFullyConnectedCompressed::ConvertGGUFFullyConnectedCompressed() {
         if (restore_shape) {
             const auto output_shape = fc->get_output_partial_shape(0);
             const auto targets = fc->output(0).get_target_inputs();
+            if (!has_bias && targets.size() == 1) {
+                const auto swish = ov::as_type_ptr<ov::op::v4::Swish>(targets.begin()->get_node()->shared_from_this());
+                if (swish && swish->get_input_size() == 1) {
+                    const auto flat_swish = swish->clone_with_new_inputs({gpu_fc});
+                    flat_swish->set_friendly_name(swish->get_friendly_name());
+                    replacement = std::make_shared<ov::op::v1::Reshape>(flat_swish, restore_shape, false);
+                    replacement->set_friendly_name(swish->get_friendly_name() + "/restore_shape");
+                    ov::copy_runtime_info(fc, gpu_fc);
+                    ov::copy_runtime_info(swish, {flat_swish, replacement});
+                    ov::replace_node(swish, replacement);
+                    return true;
+                }
+            }
             const bool singleton_prefix = std::all_of(output_shape.begin(), output_shape.end() - 2,
                                                       [](const ov::Dimension& dimension) { return dimension == 1; });
-            if (singleton_prefix && targets.size() == 1) {
+            if (!has_bias && singleton_prefix && targets.size() == 1) {
                 const auto binary = targets.begin()->get_node()->shared_from_this();
                 if (ov::is_type<ov::op::v1::Add>(binary) || ov::is_type<ov::op::v1::Multiply>(binary)) {
                     const auto arithmetic = ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(binary);
@@ -314,6 +333,20 @@ ConvertGGUFFullyConnectedCompressed::ConvertGGUFFullyConnectedCompressed() {
                 }
             }
             replacement = std::make_shared<ov::op::v1::Reshape>(gpu_fc, restore_shape, false);
+        }
+        if (has_bias) {
+            const auto bias_rank = bias.get_partial_shape().rank();
+            if (rank.is_static() && bias_rank.is_static() && bias_rank.get_length() < rank.get_length()) {
+                const auto prefix_length = static_cast<size_t>(rank.get_length() - bias_rank.get_length());
+                const auto prefix = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{prefix_length},
+                                                              std::vector<int64_t>(prefix_length, 1));
+                const auto bias_shape = std::make_shared<ov::op::v3::ShapeOf>(bias, ov::element::i64);
+                const auto aligned_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{prefix, bias_shape}, 0);
+                const auto aligned_bias = std::make_shared<ov::op::v1::Reshape>(bias, aligned_shape, false);
+                ov::copy_runtime_info(fc, {prefix, bias_shape, aligned_shape, aligned_bias});
+                bias = aligned_bias;
+            }
+            replacement = std::make_shared<ov::op::v1::Add>(replacement, bias);
         }
         replacement->set_friendly_name(fc->get_friendly_name());
         ov::copy_runtime_info(fc, {gpu_fc, replacement});

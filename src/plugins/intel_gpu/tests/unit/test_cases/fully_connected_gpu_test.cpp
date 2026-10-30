@@ -85,8 +85,10 @@ private:
     bool had_previous = false;
 };
 
+enum class gguf_bias_mode { none, constant, parameter, add };
+
 struct gguf_fc_mode {
-    const char* name;
+    std::string name;
     bool shuffle;
     const char* threshold;
     bool rank3 = false;
@@ -100,6 +102,8 @@ struct gguf_fc_mode {
     size_t static_rows = 0;
     std::optional<eltwise_mode> post_eltwise;
     bool broadcast_peer = false;
+    gguf_bias_mode bias_mode = gguf_bias_mode::none;
+    size_t rank4_batch = 0;
 };
 
 class gguf_fc_dynamic_reference : public ::testing::TestWithParam<gguf_fc_mode> {};
@@ -175,8 +179,9 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     const auto weight_type = GetParam().weight_type;
     const auto precision = GetParam().precision;
     const bool half_precision = precision == ov::element::f16;
-    const bool signed_binary_weights = GetParam().post_eltwise && weight_type != ov::element::gguf_q4_k;
-    const float input_scale = GetParam().post_eltwise ? (signed_binary_weights ? 1.f / 64.f : 1.f / 16384.f)
+    const bool has_bias = GetParam().bias_mode != gguf_bias_mode::none;
+    const bool signed_binary_weights = (GetParam().post_eltwise || has_bias) && weight_type != ov::element::gguf_q4_k;
+    const float input_scale = GetParam().post_eltwise || has_bias ? (signed_binary_weights ? 1.f / 64.f : 1.f / 16384.f)
                             : GetParam().post_activation == activation_func::swish ? 1.f / 1024.f
                                                                                 : half_precision ? 1.f / 64.f : 1.f;
     const auto block_columns = std::min(columns, size_t{256});
@@ -249,7 +254,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     if (GetParam().rank3)
         input_shape[0] = 1;
     if (GetParam().static_rows)
-        input_shape[input_shape.size() - 2] = GetParam().static_rows;
+        input_shape[input_shape.size() - 2] = GetParam().static_rows * std::max(size_t{1}, GetParam().rank4_batch);
     auto parameter = std::make_shared<ov::op::v0::Parameter>(precision, input_shape);
     auto absent = std::make_shared<ov::intel_gpu::op::Placeholder>();
     auto scale_node = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
@@ -262,29 +267,57 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     auto packed = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
     const bool shuffled = GetParam().shuffle && channels % 16 == 0 && columns % 256 == 0;
     ASSERT_EQ(packed == raw, !shuffled);
-    auto bias = ov::op::v0::Constant::create(precision, ov::Shape{channels}, {0.f});
     auto public_parameter = parameter;
+    if (GetParam().rank4_batch) {
+        ov::PartialShape public_shape{GetParam().rank4_batch, 1, -1, columns};
+        if (GetParam().static_rows)
+            public_shape[2] = GetParam().static_rows;
+        public_parameter = std::make_shared<ov::op::v0::Parameter>(precision, public_shape);
+    }
+    RecordProperty("public_input_rank", static_cast<int>(public_parameter->get_partial_shape().size()));
+    RecordProperty("public_rank4_batch", std::to_string(GetParam().rank4_batch));
+    auto make_bias_values = [channels](size_t iteration) {
+        std::vector<float> values(channels);
+        for (size_t channel = 0; channel < channels; ++channel)
+            values[channel] = 8.f + static_cast<float>(channel % 7) / 4.f + static_cast<float>(iteration % 2) * 4.f;
+        return values;
+    };
+    const auto bias_values = make_bias_values(0);
+    ov::Output<ov::Node> bias = ov::op::v0::Constant::create(precision, ov::Shape{channels}, {0.f});
+    ov::ParameterVector public_parameters{public_parameter};
+    if (GetParam().bias_mode == gguf_bias_mode::constant) {
+        bias = ov::op::v0::Constant::create(precision, ov::Shape{channels}, bias_values);
+    } else if (GetParam().bias_mode == gguf_bias_mode::parameter) {
+        const auto bias_parameter = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{channels});
+        bias = bias_parameter;
+        public_parameters.push_back(bias_parameter);
+    }
     auto public_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(public_parameter, raw, bias,
                                                                                 scale_node, precision);
     ov::Output<ov::Node> public_result = public_fc;
+    if (GetParam().bias_mode == gguf_bias_mode::add) {
+        const auto bias_constant = ov::op::v0::Constant::create(precision, ov::Shape{channels}, bias_values);
+        public_result = std::make_shared<ov::op::v1::Add>(public_result, bias_constant);
+        public_result.get_node_shared_ptr()->set_friendly_name("bias_post");
+    }
     if (GetParam().post_activation == activation_func::relu)
-        public_result = std::make_shared<ov::op::v0::Relu>(public_fc);
+        public_result = std::make_shared<ov::op::v0::Relu>(public_result);
     else if (GetParam().post_activation == activation_func::swish)
-        public_result = std::make_shared<ov::op::v4::Swish>(public_fc);
+        public_result = std::make_shared<ov::op::v4::Swish>(public_result);
     else if (GetParam().post_activation == activation_func::negative)
-        public_result = std::make_shared<ov::op::v0::Negative>(public_fc);
-    ov::ParameterVector public_parameters{public_parameter};
+        public_result = std::make_shared<ov::op::v0::Negative>(public_result);
     auto peer_shape = public_parameter->get_partial_shape();
     peer_shape[peer_shape.size() - 1] = channels;
     auto direct_peer_shape = input_shape;
     direct_peer_shape[direct_peer_shape.size() - 1] = channels;
+    const auto public_peer_index = public_parameters.size();
     if (GetParam().post_eltwise) {
         const auto peer = std::make_shared<ov::op::v0::Parameter>(precision, peer_shape);
         public_parameters.push_back(peer);
         if (*GetParam().post_eltwise == eltwise_mode::sum)
-            public_result = std::make_shared<ov::op::v1::Add>(public_fc, peer);
+            public_result = std::make_shared<ov::op::v1::Add>(public_result, peer);
         else
-            public_result = std::make_shared<ov::op::v1::Multiply>(public_fc, peer);
+            public_result = std::make_shared<ov::op::v1::Multiply>(public_result, peer);
         public_result.get_node_shared_ptr()->set_friendly_name("binary_post");
         public_result = std::make_shared<ov::op::v0::Relu>(public_result);
     }
@@ -343,9 +376,13 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
     if (GetParam().static_rows)
         row_counts = {GetParam().static_rows, GetParam().static_rows};
     for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
-        const auto rows = row_counts[iteration];
+        const auto rows = row_counts[iteration] * std::max(size_t{1}, GetParam().rank4_batch);
         const auto concrete_input = GetParam().rank3 ? ov::Shape{1, rows, columns} : ov::Shape{rows, columns};
         const auto expected_output = GetParam().rank3 ? ov::Shape{1, rows, channels} : ov::Shape{rows, channels};
+        const auto public_input_shape = GetParam().rank4_batch
+            ? ov::Shape{GetParam().rank4_batch, 1, row_counts[iteration], columns} : concrete_input;
+        const auto public_expected_output = GetParam().rank4_batch
+            ? ov::Shape{GetParam().rank4_batch, 1, row_counts[iteration], channels} : expected_output;
         const bool broadcast_peer = GetParam().broadcast_peer && rows > 1 && iteration % 2 == 0;
         auto peer_output = expected_output;
         if (broadcast_peer)
@@ -353,13 +390,15 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         auto input = engine.allocate_memory({ov::PartialShape(concrete_input), precision, format::bfyx});
         std::vector<float> values(rows * columns);
         for (size_t row = 0; row < rows; ++row) {
-            const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
+            const float batch_factor = GetParam().rank4_batch
+                ? 1.f + static_cast<float>(row / row_counts[iteration]) / 4.f : 1.f;
+            const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1)) * batch_factor;
             for (size_t column = 0; column < columns; ++column) {
                 values[row * columns + column] = input_scale * factor * static_cast<float>(column / block_columns + 1) *
                     static_cast<float>(static_cast<int>(((column % block_columns) * 13) % 31) - 15);
             }
         }
-        ov::Tensor public_input(precision, concrete_input);
+        ov::Tensor public_input(precision, public_input_shape);
         if (half_precision) {
             const std::vector<ov::float16> half_values(values.begin(), values.end());
             set_values(input, half_values);
@@ -369,10 +408,24 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             std::memcpy(public_input.data<float>(), values.data(), values.size() * sizeof(float));
         }
         request.set_input_tensor(0, public_input);
+        const auto current_bias = GetParam().bias_mode == gguf_bias_mode::parameter ? make_bias_values(iteration) : bias_values;
+        if (GetParam().bias_mode == gguf_bias_mode::parameter) {
+            ov::Tensor bias_tensor(precision, ov::Shape{channels});
+            if (half_precision) {
+                const std::vector<ov::float16> converted(current_bias.begin(), current_bias.end());
+                std::memcpy(bias_tensor.data(), converted.data(), converted.size() * sizeof(ov::float16));
+            } else {
+                std::memcpy(bias_tensor.data(), current_bias.data(), current_bias.size() * sizeof(float));
+            }
+            request.set_input_tensor(1, bias_tensor);
+        }
         std::vector<float> peer_values((broadcast_peer ? 1 : rows) * channels);
         if (GetParam().post_eltwise) {
             auto peer_memory = engine.allocate_memory({ov::PartialShape(peer_output), precision, format::bfyx});
-            ov::Tensor peer_tensor(precision, peer_output);
+            auto public_peer_output = public_expected_output;
+            if (broadcast_peer)
+                public_peer_output[public_peer_output.size() - 2] = 1;
+            ov::Tensor peer_tensor(precision, public_peer_output);
             for (size_t index = 0; index < peer_values.size(); ++index) {
                 peer_values[index] = static_cast<float>(static_cast<int>((index + iteration * 3) % 7) - 3) / 4.f;
                 if (half_precision)
@@ -384,7 +437,7 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                 set_values(peer_memory, std::vector<ov::float16>(peer_values.begin(), peer_values.end()));
             else
                 set_values(peer_memory, peer_values);
-            request.set_input_tensor(1, peer_tensor);
+            request.set_input_tensor(public_peer_index, peer_tensor);
             network.set_input_data("peer", peer_memory);
         }
         request.infer();
@@ -429,7 +482,8 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
             ASSERT_FALSE(public_implementations.empty());
         }
         auto public_output = request.get_output_tensor();
-        ASSERT_EQ(public_output.get_shape(), expected_output);
+        ASSERT_EQ(public_output.get_shape(), public_expected_output);
+        RecordProperty("public_rows_iteration_" + std::to_string(iteration), std::to_string(rows));
         network.set_input_data("input", input);
         auto outputs = network.execute();
         ASSERT_EQ(outputs.at(output_id).get_layout().get_shape(), expected_output);
@@ -473,11 +527,18 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                           : prefill ? "fc_gguf_transcode_" + weight_type.to_string()
                           : shuffled ? sg_stage : "fc_gguf_opt_" + weight_type.to_string();
         EXPECT_NE(entries.find(expected_stage), std::string::npos) << "iteration=" << iteration << " entries=" << entries;
-        if (GetParam().post_activation != activation_func::negative && GetParam().use_cm)
+        if (!has_bias && GetParam().post_activation != activation_func::negative && GetParam().use_cm)
             EXPECT_NE(public_entries.find(expected_stage), std::string::npos) << public_entries;
+        if (has_bias) {
+            EXPECT_TRUE(public_entries.find(sg_stage) != std::string::npos ||
+                public_entries.find(cm_stage) != std::string::npos ||
+                public_entries.find("fc_gguf_opt_" + weight_type.to_string()) != std::string::npos ||
+                public_entries.find("fc_gguf_transcode_" + weight_type.to_string()) != std::string::npos)
+            << public_entries;
+        }
         if (GetParam().post_activation == activation_func::relu || GetParam().post_activation == activation_func::swish)
             EXPECT_EQ(public_fusions.rfind("1:", 0), 0u) << public_fusions;
-        if (GetParam().post_eltwise) {
+        if (GetParam().post_eltwise && !GetParam().rank4_batch) {
             EXPECT_NE(public_fusions.rfind("0:", 0), 0u) << public_fusions;
             EXPECT_NE(public_fusions.find("binary_post"), std::string::npos) << public_fusions;
         }
@@ -516,10 +577,15 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
         }
         bool detects_missing_fc = false;
         bool detects_missing_binary = false;
+        bool detects_missing_bias = false;
+        bool detects_bias_order = false;
         for (size_t row = 0; row < rows; ++row) {
-            const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
+            const float batch_factor = GetParam().rank4_batch
+                ? 1.f + static_cast<float>(row / row_counts[iteration]) / 4.f : 1.f;
+            const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1)) * batch_factor;
             for (size_t channel = 0; channel < channels; ++channel) {
-                float expected = reference[channel % reference.size()] * input_scale * factor * block_factor;
+            const float fc_value = reference[channel % reference.size()] * input_scale * factor * block_factor;
+            float expected = fc_value;
                 if (GetParam().post_activation == activation_func::relu)
                     expected = std::max(expected, 0.f);
                 else if (GetParam().post_activation == activation_func::swish)
@@ -544,13 +610,44 @@ TEST_P(gguf_fc_dynamic_reference, matches_reference) {
                     : public_output.data<const float>()[row * channels + channel];
                 EXPECT_NEAR(actual[row * channels + channel], expected, 0.1f)
                     << "iteration=" << iteration << " row=" << row << " channel=" << channel;
+                if (has_bias) {
+                    float biased = half_precision ? static_cast<float>(ov::float16(fc_value)) : fc_value;
+                    biased += current_bias[channel];
+                    if (half_precision)
+                        biased = static_cast<float>(ov::float16(biased));
+                    if (GetParam().post_activation == activation_func::relu)
+                        biased = std::max(biased, 0.f);
+                    else if (GetParam().post_activation == activation_func::swish)
+                        biased = biased / (1.f + std::exp(-biased));
+                    else if (GetParam().post_activation == activation_func::negative)
+                        biased = -biased;
+                    if (half_precision)
+                        biased = static_cast<float>(ov::float16(biased));
+                    if (GetParam().post_eltwise) {
+                        const auto peer = peer_values[(broadcast_peer ? 0 : row) * channels + channel];
+                        biased = *GetParam().post_eltwise == eltwise_mode::sum ? biased + peer : biased * peer;
+                        if (half_precision)
+                            biased = static_cast<float>(ov::float16(biased));
+                        biased = std::max(biased, 0.f);
+                        detects_bias_order |= std::abs(biased - (expected + current_bias[channel])) > 0.2f;
+                    }
+                    detects_missing_bias |= std::abs(biased - expected) > 0.2f;
+                    ASSERT_NEAR(public_actual, biased, 0.1f)
+                        << "public bias iteration=" << iteration << " row=" << row << " channel=" << channel;
+                    continue;
+                }
                 EXPECT_NEAR(public_actual, expected, 0.1f)
                     << "public pipeline iteration=" << iteration << " row=" << row << " channel=" << channel;
             }
         }
-        if (signed_binary_weights) {
+        if (signed_binary_weights && GetParam().post_eltwise) {
             EXPECT_TRUE(detects_missing_fc) << "iteration=" << iteration;
             EXPECT_TRUE(detects_missing_binary) << "iteration=" << iteration;
+        }
+        if (has_bias) {
+            EXPECT_TRUE(detects_missing_bias) << "iteration=" << iteration;
+            if (GetParam().post_eltwise == eltwise_mode::prod)
+                EXPECT_TRUE(detects_bias_order) << "iteration=" << iteration;
         }
     }
 #endif
@@ -869,6 +966,102 @@ INSTANTIATE_TEST_SUITE_P(gguf,
                                           gguf_fc_mode{"cm_q80_prod_broadcast_f16", true, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod, true},
                                           gguf_fc_mode{"raw_q80_sum", false, nullptr, true, 64, 512, ov::element::gguf_q8_0, true, ov::element::f32, true, activation_func::none, 0, eltwise_mode::sum},
                                           gguf_fc_mode{"raw_q80_prod_f16", false, nullptr, false, 64, 512, ov::element::gguf_q8_0, true, ov::element::f16, true, activation_func::none, 0, eltwise_mode::prod}),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_rank4_swish,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const auto& weight_type : {ov::element::gguf_q4_k, ov::element::gguf_q5_k,
+                                                          ov::element::gguf_q6_k, ov::element::gguf_q8_0,
+                                                          ov::element::gguf_q4_0, ov::element::gguf_q4_1}) {
+                                for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+                                    for (size_t profile = 0; profile < 3; ++profile) {
+                                        gguf_fc_mode mode{"", profile != 0, profile < 2 ? "128" : nullptr};
+                                        mode.name = weight_type.to_string() + "_" + precision.to_string() + "_" + std::to_string(profile);
+                                        mode.channels = 64;
+                                        mode.columns = 512;
+                                        mode.weight_type = weight_type;
+                                        mode.precision = precision;
+                                        mode.rank4_batch = 2;
+                                        mode.cm = profile == 2;
+                                        mode.post_activation = activation_func::swish;
+                                        modes.push_back(mode);
+                                    }
+                                }
+                            }
+                            return modes;
+                        }()),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_bias,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const auto& weight_type : {ov::element::gguf_q4_k, ov::element::gguf_q5_k,
+                                                          ov::element::gguf_q6_k, ov::element::gguf_q8_0,
+                                                          ov::element::gguf_q4_0, ov::element::gguf_q4_1}) {
+                                for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+                                    for (const auto& bias : {std::make_pair(gguf_bias_mode::constant, "constant"),
+                                                            std::make_pair(gguf_bias_mode::parameter, "parameter"),
+                                                            std::make_pair(gguf_bias_mode::add, "add")}) {
+                                        for (size_t profile = 0; profile < 5; ++profile) {
+                                            gguf_fc_mode mode{"", profile != 0, profile < 2 ? "128" : nullptr};
+                                            mode.name = weight_type.to_string() + "_" + precision.to_string() + "_" +
+                                                bias.second + "_" + std::to_string(profile);
+                                            mode.channels = 64;
+                                            mode.columns = 512;
+                                            mode.weight_type = weight_type;
+                                            mode.precision = precision;
+                                            mode.bias_mode = bias.first;
+                                            mode.cm = profile >= 3;
+                                            mode.rank3 = profile == 2;
+                                            mode.static_rows = profile == 1 || profile == 4 ? 33 : 0;
+                                            modes.push_back(mode);
+                                        }
+                                    }
+                                }
+                            }
+                            return modes;
+                        }()),
+                        [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
+
+INSTANTIATE_TEST_SUITE_P(gguf_rank4_bias,
+                        gguf_fc_dynamic_reference,
+                        ::testing::ValuesIn([] {
+                            std::vector<gguf_fc_mode> modes;
+                            for (const auto& weight_type : {ov::element::gguf_q4_k, ov::element::gguf_q5_k,
+                                                          ov::element::gguf_q6_k, ov::element::gguf_q8_0,
+                                                          ov::element::gguf_q4_0, ov::element::gguf_q4_1}) {
+                                for (const auto& precision : {ov::element::f32, ov::element::f16}) {
+                                    for (const auto& bias : {std::make_pair(gguf_bias_mode::constant, "constant"),
+                                                            std::make_pair(gguf_bias_mode::parameter, "parameter")}) {
+                                        for (size_t post = 0; post < 3; ++post) {
+                                            for (size_t profile = 0; profile < 2; ++profile) {
+                                                gguf_fc_mode mode{"", profile != 0 || post == 2,
+                                                                  profile == 0 && post != 2 ? "128" : nullptr};
+                                                const std::string post_name = post == 0 ? "plain" : post == 1 ? "sum" : "prod";
+                                                mode.name = weight_type.to_string() + "_" + precision.to_string() + "_" +
+                                                    bias.second + "_" + post_name + "_" + std::to_string(profile);
+                                                mode.channels = 64;
+                                                mode.columns = 512;
+                                                mode.weight_type = weight_type;
+                                                mode.precision = precision;
+                                                mode.bias_mode = bias.first;
+                                                mode.rank4_batch = (profile == 0 && post == 0) ||
+                                                                   (profile == 1 && post == 1) ? 1 : 2;
+                                                mode.cm = profile == 1;
+                                                mode.static_rows = profile == 1 ? 33 : 0;
+                                                if (post)
+                                                    mode.post_eltwise = post == 1 ? eltwise_mode::sum : eltwise_mode::prod;
+                                                modes.push_back(mode);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            return modes;
+                        }()),
                         [](const ::testing::TestParamInfo<gguf_fc_mode>& info) { return info.param.name; });
 
 TEST(fully_connected_gpu, dynamic_byxf) {

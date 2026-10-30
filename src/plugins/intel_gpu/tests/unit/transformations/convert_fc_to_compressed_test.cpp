@@ -11,9 +11,12 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/add.hpp"
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
@@ -165,14 +168,126 @@ TEST_F(TransformationTestsF, ConvertGGUFFCToCompressedPreservesBiasAndPrecision)
     manager.register_pass<ConvertGGUFFullyConnectedCompressed>();
 
     auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.0f});
+    auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
     auto no_zero_point = std::make_shared<ov::intel_gpu::op::Placeholder>();
     auto gpu_fc = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(activation,
                                                                              weight,
-                                                                             bias,
+                                                                             no_bias,
                                                                              scale,
                                                                              no_zero_point,
                                                                              ov::element::f16);
-    model_ref = std::make_shared<ov::Model>(ov::OutputVector{gpu_fc}, ov::ParameterVector{activation});
+    auto prefix = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1});
+    auto bias_shape = std::make_shared<ov::op::v3::ShapeOf>(bias, ov::element::i64);
+    auto aligned_shape = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{prefix, bias_shape}, 0);
+    auto aligned_bias = std::make_shared<ov::op::v1::Reshape>(bias, aligned_shape, false);
+    auto biased = std::make_shared<ov::op::v1::Add>(gpu_fc, aligned_bias);
+    model_ref = std::make_shared<ov::Model>(ov::OutputVector{biased}, ov::ParameterVector{activation});
+}
+
+TEST(GGUFConversion, BiasIsAnAddOutsideShapeRestoreAndZeroBiasIsRemoved) {
+    for (const auto& precision : {ov::element::f16, ov::element::f32}) {
+        for (const size_t rank : {2, 3, 4}) {
+            for (const bool parameter_bias : {false, true}) {
+                for (const bool zero : {false, true}) {
+                    if (parameter_bias && zero)
+                        continue;
+                    SCOPED_TRACE(precision.to_string() + ":" + std::to_string(rank) + ":" +
+                                 std::to_string(parameter_bias) + ":" + std::to_string(zero));
+                    auto shape = ov::PartialShape::dynamic(rank);
+                    shape[rank - 1] = 256;
+                    auto activation = std::make_shared<ov::op::v0::Parameter>(precision, shape);
+                    auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, ov::Shape{32, 256});
+                    ov::ParameterVector parameters{activation};
+                    ov::Output<ov::Node> bias;
+                    if (parameter_bias) {
+                        auto parameter = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{32});
+                        bias = parameter;
+                        parameters.push_back(parameter);
+                    } else {
+                        bias = ov::op::v0::Constant::create(precision, ov::Shape{32}, {zero ? 0.f : 0.5f});
+                    }
+                    auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+                    auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(activation, weight, bias,
+                                                                                        absent, absent, precision);
+                    auto graph = std::make_shared<ov::Model>(ov::OutputVector{fc}, parameters);
+                    const auto output_shape = graph->get_output_partial_shape(0);
+                    ov::pass::Manager conversion;
+                    conversion.register_pass<ConvertGGUFFullyConnectedCompressed>();
+                    conversion.run_passes(graph);
+                    EXPECT_EQ(graph->get_output_partial_shape(0), output_shape);
+                    EXPECT_EQ(graph->get_output_element_type(0), precision);
+                    const auto result = graph->get_results()[0]->input_value(0).get_node_shared_ptr();
+                    EXPECT_EQ(ov::is_type<ov::op::v1::Add>(result), !zero);
+                    if (!zero) {
+                        const auto aligned_bias = result->get_input_node_shared_ptr(1);
+                        ASSERT_TRUE(ov::is_type<ov::op::v1::Reshape>(aligned_bias));
+                        EXPECT_EQ(aligned_bias->input_value(0), bias);
+                        auto bias_shape = ov::Shape(rank, 1);
+                        bias_shape.back() = 32;
+                        EXPECT_EQ(aligned_bias->get_output_shape(0), bias_shape);
+                        if (rank == 4)
+                            EXPECT_TRUE(ov::is_type<ov::op::v1::Reshape>(result->get_input_node_shared_ptr(0)));
+                    }
+                    size_t gpu_count = 0;
+                    for (const auto& node : graph->get_ordered_ops()) {
+                        if (const auto gpu_fc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(node)) {
+                            ++gpu_count;
+                            EXPECT_TRUE(ov::is_type<ov::intel_gpu::op::Placeholder>(gpu_fc->get_input_node_shared_ptr(2)));
+                        }
+                    }
+                    EXPECT_EQ(gpu_count, 1u);
+                }
+            }
+        }
+    }
+}
+
+TEST(GGUFConversion, RankFourSwishMovesBeforeRestoreWithDynamicBatch) {
+    for (const auto& precision : {ov::element::f16, ov::element::f32}) {
+        for (size_t scenario = 0; scenario < 5; ++scenario) {
+            SCOPED_TRACE(precision.to_string() + ":" + std::to_string(scenario));
+            auto input = std::make_shared<ov::op::v0::Parameter>(precision, ov::PartialShape{-1, 1, -1, 256});
+            auto weight = std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_k, ov::Shape{64, 256});
+            auto absent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+            const auto bias = scenario == 1 ? ov::op::v0::Constant::create(precision, ov::Shape{64}, {0.5f}) : absent;
+            auto fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+                input, weight, bias, absent, absent, precision);
+            ov::ParameterVector parameters{input};
+            auto swish = std::make_shared<ov::op::v4::Swish>(fc);
+            if (scenario == 3) {
+                swish = std::make_shared<ov::op::v4::Swish>(
+                    fc, ov::op::v0::Constant::create(precision, ov::Shape{}, {2.f}));
+            } else if (scenario == 4) {
+                auto beta = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{});
+                parameters.push_back(beta);
+                swish = std::make_shared<ov::op::v4::Swish>(fc, beta);
+            }
+            swish->set_friendly_name("rank_four_swish");
+            ov::OutputVector outputs{swish};
+            if (scenario == 2)
+                outputs.push_back(fc);
+            auto graph = std::make_shared<ov::Model>(outputs, parameters);
+            const auto expected_shape = graph->get_output_partial_shape(0);
+            ov::pass::Manager conversion;
+            conversion.register_pass<ConvertGGUFFullyConnectedCompressed>();
+            conversion.run_passes(graph);
+            const auto restored = graph->get_results()[0]->get_input_node_shared_ptr(0);
+            EXPECT_EQ(restored->get_output_partial_shape(0), expected_shape);
+            EXPECT_EQ(restored->get_output_element_type(0), precision);
+            if (scenario != 0) {
+                EXPECT_EQ(restored, swish);
+                EXPECT_EQ(swish->get_input_partial_shape(0).rank(), ov::Rank(4));
+                continue;
+            }
+            ASSERT_TRUE(ov::is_type<ov::op::v1::Reshape>(restored));
+            const auto flat_swish = restored->get_input_node_shared_ptr(0);
+            ASSERT_TRUE(ov::is_type<ov::op::v4::Swish>(flat_swish));
+            EXPECT_EQ(flat_swish->get_friendly_name(), "rank_four_swish");
+            const auto gpu_fc = flat_swish->get_input_node_shared_ptr(0);
+            ASSERT_TRUE(ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(gpu_fc));
+            EXPECT_EQ(gpu_fc->get_output_partial_shape(0).rank(), ov::Rank(2));
+        }
+    }
 }
 
 TEST(GGUFConversion, RankFourBinaryPreservesBroadcastAndRejectsUnsafeShapes) {
