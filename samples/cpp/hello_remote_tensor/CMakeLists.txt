@@ -2,9 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# In the OpenVINO tree the sample is built only together with the Level Zero GPU plugin.
-# The in-tree ze_loader is not shipped in the package, so the sample relies on the system
-# Level Zero loader at runtime, the same as the GPU plugin does.
 if(OpenVINO_SOURCE_DIR AND NOT (ENABLE_INTEL_GPU AND (GPU_RT_TYPE STREQUAL "ZE" OR GPU_RT_TYPE STREQUAL "COMBINED")))
     message(STATUS "hello_remote_tensor SKIPPED: GPU plugin is not built with the Level Zero runtime")
     return()
