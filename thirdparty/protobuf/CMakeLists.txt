@@ -77,6 +77,8 @@ endif()
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../patches.cmake")
+
 # Protobuf 6.30 unconditionally sets ABSL_MSVC_STATIC_RUNTIME=ON for static
 # builds (protobuf_BUILD_SHARED_LIBS=OFF), ignoring protobuf_MSVC_STATIC_RUNTIME.
 # This causes abseil to compile with /MT while protobuf uses /MD, resulting in

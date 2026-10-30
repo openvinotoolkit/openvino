@@ -272,7 +272,6 @@ include(faster_build)
 include(whole_archive)
 include(linux_name)
 include(models)
-include(patches)
 include(api_validator/api_validator)
 
 include(vs_version/vs_version)
