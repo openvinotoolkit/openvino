@@ -160,6 +160,13 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     if (!desc.has_outer_dep()) {
         return add_fusing_type::not_supported;
     }
+    // prepare_primitive_fusing only fuses a two-input eltwise with p_node as one input, so exactly one
+    // dependency arrives here and the single index below is enough.
+    OPENVINO_ASSERT(desc.deps.size() == 1,
+                    "[GPU] A fused eltwise sum must bring exactly one dependency, got ",
+                    desc.deps.size(),
+                    " on node ",
+                    p_node.id());
     auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
     auto p_layout = p_node.get_output_layout();
     auto d_layout = dep_node.get_output_layout();
@@ -167,6 +174,18 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     if (p_node.is_dynamic() || dep_node.is_dynamic()) {
         return add_fusing_type::not_supported;
     }
+
+    // onednn accumulates a sum post-op into dep_node's buffer, so p_node must not also read it;
+    // is_direct_ancestor answers yes for an own input too
+    auto p_node_consumes_dep_node = [&]() {
+        // has_outer_dep() above rejects a negative index.
+        const auto outer_dep_start_idx = static_cast<size_t>(desc.outer_dep_start_idx);
+        for (size_t i = 0; i < outer_dep_start_idx; i++) {
+            if (&p_node.get_dependency(i) == &dep_node)
+                return true;
+        }
+        return false;
+    };
 
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
         if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
@@ -176,7 +195,8 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
             && !dep_node.is_constant()
             && !p_node.is_type<pooling>()
             && !p_node.is_output()
-            && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)) {
+            && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)
+            && !p_node_consumes_dep_node()) {
             return add_fusing_type::sum;
         }
         if (p_layout.get_tensor() == d_layout.get_tensor()) {

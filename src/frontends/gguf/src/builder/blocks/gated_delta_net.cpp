@@ -265,8 +265,11 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     graph.recurrent_states.emplace_back(cs, cs_out);
 
     e.add_named_weight(conv_w);
-    auto conv = e.add_op("GGML_OP_SSM_CONV", p + "conv_out", {conv_in, conv_w}, 0, {{"batch_major", true}});
-    conv = e.add_op("GGML_UNARY_OP_SILU", p + "conv_silu", {conv});
+    auto conv = e.add_op("GGML_OP_SSM_CONV",
+                         p + "conv_silu",
+                         {conv_in, conv_w},
+                         0,
+                         {{"batch_major", true}, {"fuse_silu", true}});
 
     // ---- split the conv output into q | k | v; the fused op L2-normalizes q/k ----
     auto slice_heads = [&](const std::string& name, int64_t off, int64_t width, int64_t heads, int64_t dim) {

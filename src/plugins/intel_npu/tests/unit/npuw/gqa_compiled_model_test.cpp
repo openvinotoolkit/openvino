@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "gqa_compiled_model.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "llm_test_helpers.hpp"
 #include "npuw_transformations/reshape_to_static_gqa.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -745,6 +746,9 @@ TEST_F(GQACompiledModelTest, DisablesOnlinePipelineForCaseV1Models) {
 
     const auto& call = recorder.only_call();
     EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
+    // V1 doesn't use online partitioning at all, so parallelizing its compilation
+    // wouldn't do anything.
+    EXPECT_EQ(call.props.count(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())), 0u);
 }
 
 TEST_F(GQACompiledModelTest, DisablesOnlinePipelineForCaseV0Models) {
@@ -759,9 +763,12 @@ TEST_F(GQACompiledModelTest, DisablesOnlinePipelineForCaseV0Models) {
 
     const auto& call = recorder.only_call();
     EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
+    // V0 doesn't use online partitioning at all, so parallelizing its compilation
+    // wouldn't do anything.
+    EXPECT_EQ(call.props.count(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())), 0u);
 }
 
-TEST_F(GQACompiledModelTest, KeepsDefaultOnlinePipelineForCaseV2Models) {
+TEST_F(GQACompiledModelTest, UsesRepOnlinePipelineForCaseV2PrefillModels) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
 
@@ -775,10 +782,34 @@ TEST_F(GQACompiledModelTest, KeepsDefaultOnlinePipelineForCaseV2Models) {
                         recorder));
     ASSERT_NE(compiled, nullptr);
 
-    // Unlike V0/V1, a 2-bit group-quantized (V2) model isn't forced to NONE -- it's left
-    // unset so the plugin-wide default (REG) applies.
+    // Unlike V0/V1, a 2-bit group-quantized (V2) model isn't forced to NONE -- its prefill
+    // stage still benefits from online partitioning, so it switches to the REP
+    // (repeated-block) pipeline, and compiles the resulting blocks in parallel.
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())).as<std::string>(), "YES");
+}
+
+TEST_F(GQACompiledModelTest, UsesParallelCompileWithDefaultPipelineForCaseV2GenerateModels) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    // num_heads == kv_num_heads == 1 so input_hidden_states' token dim is 1 -> generate stage.
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        build_full_gqa_transformer_model(1,
+                                                        1,
+                                                        true,
+                                                        PositionSignal::SeqLenPair,
+                                                        /*with_2bit_weights=*/true),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    // REP is a prefill-only optimization -- the generate stage keeps the plugin-wide
+    // default pipeline (REG), but still compiles in parallel like the prefill stage.
     const auto& call = recorder.only_call();
     EXPECT_EQ(call.props.count("NPUW_ONLINE_PIPELINE"), 0u);
+    EXPECT_EQ(call.props.at(std::string(::intel_npu::NPUW_PARALLEL_COMPILE::key())).as<std::string>(), "YES");
 }
 
 TEST_F(GQACompiledModelTest, AppliesFoldOnlyAttnForGenerateStyleModels) {

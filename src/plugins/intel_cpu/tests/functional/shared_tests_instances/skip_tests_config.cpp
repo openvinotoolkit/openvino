@@ -624,7 +624,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.emplace_back(std::regex(R"(smoke_ExportImportTest/ExportOptimalNumStreams.OptimalNumStreams/.*)"));
             // by calc abs_threshold with expected value
             patterns.emplace_back(std::regex(R"(.*smoke_GatherCompressedWeights_basic/GatherWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)"));
-            patterns.emplace_back(std::regex(R"(.*smoke_Interaction/IntertactionCPUTest.CompareWithRefs.*Prc=i32.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_MatMulCompressedWeights_(amx|sym_amx|corner_cases_amx)/MatmulWeightsDecompression.CompareWithRefs.*INFERENCE_PRECISION_HINT.*bf16.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_EnforcePrecision_bf16/EnforcePrecisionTest.*)"));
             patterns.emplace_back(std::regex(R"(.*smoke_Snippets_MHABF16_4D/MHA.CompareWithRefImpl/.*\[1.58.16.34\]_IS\[1\]=\[1.58.16.34\]_IS\[2\]=\[1.1.1.58\]_IS\[3\]=\[1.58.16.34\].*)"));
