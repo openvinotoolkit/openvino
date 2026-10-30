@@ -259,9 +259,11 @@ void IStreamsExecutor::Config::update_executor_config() {
                 for (size_t i = start; i < proc_type_table.size(); i++) {
                     if (proc_type_table[i][j] > 0 && cur_threads > 0) {
                         if (_threads_per_stream > proc_type_table[i][j]) {
+                            stream_info[NUMBER_OF_STREAMS] = _streams > 1 ? 1 : 0;
                             stream_info[THREADS_PER_STREAM] = std::min(proc_type_table[i][j], cur_threads);
                             cur_threads -= stream_info[THREADS_PER_STREAM];
                         } else {
+                            stream_info[THREADS_PER_STREAM] = _threads_per_stream;
                             stream_info[NUMBER_OF_STREAMS] =
                                 std::min(proc_type_table[i][j], cur_threads) / _threads_per_stream;
                             cur_threads -= stream_info[NUMBER_OF_STREAMS] * _threads_per_stream;
