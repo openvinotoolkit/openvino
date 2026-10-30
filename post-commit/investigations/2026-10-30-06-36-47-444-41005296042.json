@@ -1,0 +1,42 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-30-06-36-47-444-41005296042",
+    "timestamp": "2026-10-30T06:36:47Z",
+    "run_id": "41005296042",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41005296042",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "8214ba7ea594a9bd4be77dfca2d9a7504b76f4a2",
+    "pr_number": "39035",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39035",
+    "author": "not_found",
+    "category": "Network",
+    "title": "ONNX Models test job fails downloading OpenVINO artifacts after ArtifactService ListArtifacts request timeouts",
+    "signature": "Attempt N of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts|Network",
+    "signature_hash": "77303b969eadbc6a",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "ONNX Models Tests / ONNX Models tests",
+            "conclusion": "failure",
+            "symptom": "'Download OpenVINO artifacts (tests)' step failed after 5 retry attempts against GitHub's ArtifactService ListArtifacts endpoint all timed out"
+        }
+    ],
+    "key_errors": [
+        "2026-10-30T05:32:56.2051043Z Attempt 1 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 3000 ms...",
+        "2026-10-30T05:33:04.2149493Z Attempt 2 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 5306 ms...",
+        "2026-10-30T05:33:14.5291825Z Attempt 3 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 8763 ms...",
+        "2026-10-30T05:33:29.0712132Z Attempt 4 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 13278 ms...",
+        "2026-10-30T05:33:46.5780817Z ##[error]Action failed with error: Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
+        "2026-10-30T05:33:46.5824008Z ##[error]Unable to download artifact(s): Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts"
+    ],
+    "root_cause": "The 'ONNX Models tests' job uses the 'akashchi/download-artifact' action to fetch the 'openvino_tests' build artifact produced earlier in the same workflow run via the 'Download OpenVINO artifacts (tests)' step. That action calls GitHub's internal ArtifactService ListArtifacts Twirp RPC to resolve the artifact before downloading it; in this run every one of the 5 retry attempts (over roughly 50 seconds, with exponential backoff up to ~13s) returned 'Request timeout' from that endpoint, so the action gave up and failed the step outright. This is the second time this exact signature has been recorded within the same hour (previously on the TensorFlow Layer/Models test jobs in run 41003290355 at 05:58 UTC, for an unrelated PR #36006), which strengthens the assessment that this is a transient GitHub Actions-hosted-service (ArtifactService) degradation/outage rather than anything related to the merged commit (PR #39035, adding SparseAttention/SparseAttentionIndexer/QSAPrepare Core operator classes, unrelated to artifact storage or ONNX test infra).",
+    "reproduction_steps": "Not reproducible locally - this depends entirely on the availability/latency of GitHub's hosted ArtifactService backend for the run's artifact store at the time of execution. To observe the failure mode, inspect the 'Download OpenVINO artifacts (tests)' step logs for job 123909201375 in run 41005296042; no local repro exists since it is a GitHub-side service timeout, not a client configuration or code issue.",
+    "recommended_actions": [
+        "Re-run (or allow the merge queue to automatically re-queue) the failed ONNX Models tests job; this is almost certainly a transient GitHub ArtifactService outage/latency spike unrelated to PR #39035's operator-class changes.",
+        "Check the GitHub status page (githubstatus.com) for Actions/Artifacts incidents around 2026-10-30 05:13-05:34 UTC - two independent runs hit the same ArtifactService ListArtifacts timeout in that window, suggesting a broader platform-side degradation rather than an isolated blip.",
+        "Consider increasing the retry count/backoff ceiling (or adding a wrapping retry-on-failure step) around the 'Download OpenVINO artifacts (tests)' step across ONNX, TensorFlow, and other test jobs so a short ArtifactService degradation does not fail the whole job after only ~50-90 seconds of retries.",
+        "No code changes are needed in src/frontends/onnx or the SparseAttention operator implementation; this is purely a CI artifact-retrieval infrastructure issue."
+    ],
+    "prevention_strategies": "Wrap artifact-download steps in ONNX (and other) test jobs with an outer retry-on-failure wrapper (e.g., nick-fields/retry or a custom shell retry loop) that re-invokes the whole download step a couple of times with longer spacing, since the download-artifact action's internal retries are capped at 5 attempts within under 2 minutes, which is sometimes too short to ride out a multi-minute service degradation. Monitor recurrence of ArtifactService ListArtifacts timeouts across jobs/workflows; this is now the second occurrence within the same hour, so if it continues to recur, consider caching/re-uploading artifacts via a different action or mirroring to a secondary blob store, and flag to GitHub support if correlated with a platform incident.",
+    "historical_context": "This is the second occurrence of this exact ArtifactService ListArtifacts timeout signature (pattern 77303b969eadbc6a), the first being the TensorFlow Layer/Models test jobs in run 41003290355 roughly 40 minutes earlier (05:58 UTC) for unrelated PR #36006. Other previously recorded Network-category patterns involve different failure points in the artifact lifecycle: CreateArtifact ENOTFOUND during upload (pattern 4e9cf236bf92d555), CreateArtifact ECONNREFUSED during upload (pattern b6957c2b9e09de1c), and getaddrinfo EAI_AGAIN during upload (pattern d877f2bb57b833d0) - all on the upload side. Two occurrences of the ListArtifacts/download-side timeout within the same hour suggest a genuine, time-localized GitHub ArtifactService backend degradation on 2026-10-30."
+}

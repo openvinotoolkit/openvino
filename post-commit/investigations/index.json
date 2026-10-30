@@ -1,6 +1,6 @@
 {
     "schema_version": "1.0",
-    "total": 53,
+    "total": 54,
     "entries": [
         {
             "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -542,6 +542,15 @@
             "category": "Network",
             "signature_hash": "85b215ebb71d16fe",
             "commit_sha": "e51a8dcb6d3406583b3add7a9d0c2b63d91ed35d"
+        },
+        {
+            "investigation_id": "2026-10-30-06-36-47-444-41005296042",
+            "run_id": "41005296042",
+            "timestamp": "2026-10-30T06:36:47Z",
+            "title": "ONNX Models test job fails downloading OpenVINO artifacts after ArtifactService ListArtifacts request timeouts",
+            "category": "Network",
+            "signature_hash": "77303b969eadbc6a",
+            "commit_sha": "8214ba7ea594a9bd4be77dfca2d9a7504b76f4a2"
         }
     ]
 }
