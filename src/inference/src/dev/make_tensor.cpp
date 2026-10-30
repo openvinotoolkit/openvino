@@ -710,12 +710,17 @@ void set_tensor_source_id(ov::Tensor& tensor, uint64_t id) {
     }
 }
 
-std::shared_ptr<util::IMemoryHints> get_memory_hints(const ov::Tensor& tensor) {
-    auto itensor = get_tensor_impl(tensor)._ptr;
-    while (auto roi = std::dynamic_pointer_cast<BaseRoiTensor>(itensor)) {
-        itensor = roi->get_owner();
+namespace {
+std::shared_ptr<BufferReadOnlyViewTensor> get_buffer_owner(const std::shared_ptr<ITensor>& itensor) {
+    if (auto roi = std::dynamic_pointer_cast<BaseRoiTensor>(itensor)) {
+        return get_buffer_owner(roi->get_owner());
     }
-    const auto owner = std::dynamic_pointer_cast<BufferReadOnlyViewTensor>(itensor);
+    return std::dynamic_pointer_cast<BufferReadOnlyViewTensor>(itensor);
+}
+}  // namespace
+
+std::shared_ptr<util::IMemoryHints> get_memory_hints(const ov::Tensor& tensor) {
+    const auto owner = get_buffer_owner(get_tensor_impl(tensor)._ptr);
     if (!owner || !tensor.is_continuous()) {
         return nullptr;
     }
