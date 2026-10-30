@@ -944,12 +944,26 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             kv_cache_config.keyCachePrecision = kv_cache_precision;
             kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
+            const auto& kernel_selections = config.get_kernel_selection();
+            const bool pa_kernel_auto_requested =
+                std::find(kernel_selections.begin(), kernel_selections.end(), ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO) != kernel_selections.end();
+            const bool use_pa_cm_layout = cldnn::paged_attention::should_use_cm_kernel(config);
+            if (pa_kernel_auto_requested && !use_pa_cm_layout) {
+                GPU_DEBUG_INFO << "[GPU] PA_KERNEL_AUTO: CM PagedAttention is unavailable for this configuration; using OCL PagedAttention."
+                               << std::endl;
+            }
             if (use_xattention) {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
             } else {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
-                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+                // When AUTO selects CM, the CM legacy branch expects the same [N, K, B, H] dim
+                // ordering it uses in the xattn branch, only with the legacy block
+                // size (16) instead of xattn (256). Under AUTO the OCL/micro-SDPA
+                // kernels expect the channel-major [N, K, H, B] layout.
+                kv_cache_config.keyCacheDimOrder = use_pa_cm_layout
+                                                       ? std::vector<size_t>{0, 1, 2, 3}
+                                                       : std::vector<size_t>{0, 1, 3, 2};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;

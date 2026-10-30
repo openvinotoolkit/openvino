@@ -36,6 +36,10 @@
 #include "openvino/op/gated_delta_net.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace cldnn {
+bool check_cm_jit_support(engine& e, const ExecutionConfig& config);
+}  // namespace cldnn
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl.hpp>
 #endif
@@ -148,6 +152,7 @@ ExecutionConfig::ExecutionConfig() = default;
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
     m_user_properties = other.m_user_properties;
     m_is_finalized = other.m_is_finalized;
+    m_cm_available = other.m_cm_available;
     for (const auto& kv : other.m_options_map) {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }
@@ -156,6 +161,7 @@ ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig
 ExecutionConfig& ExecutionConfig::operator=(const ExecutionConfig& other) {
     m_user_properties = other.m_user_properties;
     m_is_finalized = other.m_is_finalized;
+    m_cm_available = other.m_cm_available;
     for (const auto& kv : other.m_options_map) {
         m_options_map.at(kv.first)->set_any(kv.second->get_any());
     }
@@ -165,6 +171,7 @@ ExecutionConfig& ExecutionConfig::operator=(const ExecutionConfig& other) {
 ExecutionConfig ExecutionConfig::clone() const {
     ExecutionConfig new_config = *this;
     new_config.m_is_finalized = false;
+    new_config.m_cm_available = false;
     return new_config;
 }
 
@@ -187,7 +194,6 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 
     apply_rt_info_property(ov::hint::dynamic_quantization_group_size, rt_info);
     apply_rt_info_property(ov::intel_gpu::hint::dynamic_quantization_group_size_max, rt_info);
-
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
     // using that mechanism.  OTD (MoE offload) also requires the .bin path.
@@ -297,11 +303,13 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         auto prec_it = rt.find("auxiliary_kv_cache_precision");
         return prec_it == rt.end() ? ov::element::dynamic : prec_it->second.as<ov::element::Type>();
     };
+    const auto& kernel_selections = get_kernel_selection();
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
         const auto auxiliary_kv_prec = get_auxiliary_kv_cache_precision(model);
         if (auxiliary_kv_prec != ov::element::dynamic) {
             m_kv_cache_precision = auxiliary_kv_prec;
-        } else if (is_paged_attention_model && has_4bit_weights && m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
+        } else if (is_paged_attention_model && has_4bit_weights && m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN &&
+                   std::find(kernel_selections.begin(), kernel_selections.end(), ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO) == kernel_selections.end()) {
             // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
             m_kv_cache_precision = ov::element::u4;
             GPU_DEBUG_INFO << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
@@ -400,6 +408,11 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_enable_profiling = true;
     }
 #endif // ENABLE_DEBUG_CAPS
+
+    const auto* remote_context = dynamic_cast<const RemoteContextImpl*>(context);
+    OPENVINO_ASSERT(remote_context != nullptr, "Expected GPU RemoteContextImpl in ExecutionConfig::finalize_impl");
+    auto& engine = const_cast<RemoteContextImpl*>(remote_context)->get_engine();
+    m_cm_available = info.supports_immad && get_use_cm() && cldnn::check_cm_jit_support(engine, *this);
 }
 
 void ExecutionConfig::apply_hints(const cldnn::device_info& info) {

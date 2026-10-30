@@ -20,6 +20,7 @@
 #include "openvino/frontend/decoder.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -54,6 +55,8 @@ PY_TYPE check_container_element_type(const T& container) {
             check_type(PY_TYPE::PARTIAL_SHAPE);
         } else if (py::isinstance<ov::hint::ModelDistributionPolicy>(it)) {
             check_type(PY_TYPE::MODEL_DISTRIBUTION_POLICY);
+        } else if (py::isinstance<ov::intel_gpu::KernelSelection>(it)) {
+            check_type(PY_TYPE::KERNEL_SELECTION);
         }
     }
 
@@ -164,6 +167,10 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::vector<double>>()) {
         return py::cast(any.as<std::vector<double>>());
     }
+    // Check for std::vector<ov::intel_gpu::KernelSelection>
+    else if (any.is<std::vector<ov::intel_gpu::KernelSelection>>()) {
+        return py::cast(any.as<std::vector<ov::intel_gpu::KernelSelection>>());
+    }
     // Check for std::vector<ov::Any>
     else if (any.is<std::vector<ov::Any>>()) {
         const auto& values = any.as<std::vector<ov::Any>>();
@@ -247,6 +254,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::Priority>());
     } else if (any.is<ov::hint::PerformanceMode>()) {
         return py::cast(any.as<ov::hint::PerformanceMode>());
+    } else if (any.is<ov::intel_gpu::KernelSelection>()) {
+        return py::cast(any.as<ov::intel_gpu::KernelSelection>());
     } else if (any.is<ov::intel_auto::SchedulePolicy>()) {
         return py::cast(any.as<ov::intel_auto::SchedulePolicy>());
     } else if (any.is<ov::hint::SchedulingCoreType>()) {
@@ -339,6 +348,9 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
             };
             ov::EncryptionCallbacks encryption_callbacks{encrypt_func, decrypt_func};
             properties_to_cpp[property.first] = encryption_callbacks;
+        } else if (property.first == ov::intel_gpu::kernel_selection.name() &&
+                   py::isinstance<py::list>(property.second) && property.second.cast<py::list>().empty()) {
+            properties_to_cpp[property.first] = std::vector<ov::intel_gpu::KernelSelection>{};
         } else if (property.first == ov::hint::model.name()) {
             auto model = Common::utils::convert_to_model(property.second);
             properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);
@@ -519,6 +531,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             return _list.cast<std::vector<bool>>();
         case PY_TYPE::PARTIAL_SHAPE:
             return _list.cast<std::vector<ov::PartialShape>>();
+        case PY_TYPE::KERNEL_SELECTION:
+            return _list.cast<std::vector<ov::intel_gpu::KernelSelection>>();
         default:
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
@@ -544,6 +558,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::hint::Priority>(py_obj);
     } else if (py::isinstance<ov::hint::PerformanceMode>(py_obj)) {
         return py::cast<ov::hint::PerformanceMode>(py_obj);
+    } else if (py::isinstance<ov::intel_gpu::KernelSelection>(py_obj)) {
+        return py::cast<ov::intel_gpu::KernelSelection>(py_obj);
     } else if (py::isinstance<ov::intel_auto::SchedulePolicy>(py_obj)) {
         return py::cast<ov::intel_auto::SchedulePolicy>(py_obj);
     } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {

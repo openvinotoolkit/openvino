@@ -65,6 +65,13 @@ struct PagedAttentionOpt : public ImplementationManager {
             return false;
         }
 
+        // When kernel_selection contains PA_KERNEL_AUTO and CM is selected, bow out of
+        // OCL so the CM paged attention implementation is selected instead.
+        if (desc->use_cm_kernel) {
+            GPU_DEBUG_TRACE_DETAIL << "validate_impl() - false because kernel_selection selected CM. " << std::endl;
+            return false;
+        }
+
         // OCL PA kernel requires head_size >= 16 (SUBGROUPS_PER_WG = head_size / SUBGROUP_SIZE)
         OPENVINO_ASSERT(desc->k_head_size >= 16 && desc->v_head_size >= 16,
                         "[GPU] OCL PagedAttention kernel does not support head_size < 16."

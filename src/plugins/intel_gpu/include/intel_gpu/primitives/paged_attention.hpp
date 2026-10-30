@@ -6,6 +6,7 @@
 #include "primitive.hpp"
 #include "intel_gpu/graph/program.hpp"
 
+#include <algorithm>
 #include <vector>
 
 namespace cldnn {
@@ -47,6 +48,14 @@ struct paged_attention : public primitive_base<paged_attention> {
     static constexpr size_t block_size = 16;
     static constexpr size_t block_size_xattn = 256;
 
+    static bool should_use_cm_kernel(const ExecutionConfig& config) {
+        const auto& kernel_selections = config.get_kernel_selection();
+        const auto kv_cache_precision = config.get_kv_cache_precision();
+        return config.is_cm_available() &&
+               std::find(kernel_selections.begin(), kernel_selections.end(), ov::intel_gpu::KernelSelection::PA_KERNEL_AUTO) != kernel_selections.end() &&
+               (kv_cache_precision == ov::element::f16 || kv_cache_precision == ov::element::i8);
+    }
+
     paged_attention() : primitive_base("", {}) {}
 
     paged_attention(const primitive_id& id,
@@ -81,7 +90,7 @@ struct paged_attention : public primitive_base<paged_attention> {
             seed = hash_combine(seed, scale_val.value());
         }
         seed = hash_combine(seed, is_key_by_channel);
-
+        seed = hash_combine(seed, use_cm_kernel);
         return seed;
     }
 
@@ -107,7 +116,8 @@ struct paged_attention : public primitive_base<paged_attention> {
                has_qq_bias == rhs_casted.has_qq_bias &&
                write_kv_cache == rhs_casted.write_kv_cache &&
                scale_val.value_or(1.0f) == rhs_casted.scale_val.value_or(1.0f) &&
-               is_key_by_channel == rhs_casted.is_key_by_channel;
+               is_key_by_channel == rhs_casted.is_key_by_channel &&
+               use_cm_kernel == rhs_casted.use_cm_kernel;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -134,6 +144,7 @@ struct paged_attention : public primitive_base<paged_attention> {
             ob << false;
         }
         ob << is_key_by_channel;
+        ob << use_cm_kernel;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -163,6 +174,7 @@ struct paged_attention : public primitive_base<paged_attention> {
             scale_val = std::optional<float>();
         }
         ib >> is_key_by_channel;
+        ib >> use_cm_kernel;
     }
 
     std::optional<float> scale_val;
@@ -181,5 +193,6 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool is_key_by_channel = false;
     bool has_qq_bias = false;
     bool write_kv_cache = true;
+    bool use_cm_kernel = false;  // set when PA_KERNEL_AUTO selects the CM implementation
 };
 }  // namespace cldnn

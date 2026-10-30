@@ -41,6 +41,19 @@ def test_properties_rw_base():
     assert "incompatible function arguments" in str(e.value)
 
 
+@pytest.mark.parametrize("property_key", [intel_gpu.kernel_selection, "KERNEL_SELECTION"])
+def test_gpu_kernel_selection_dictionary_reset(property_key):
+    core = Core()
+    if not any(device_name.startswith("GPU") for device_name in core.available_devices):
+        pytest.skip("GPU device is required")
+
+    selections = [intel_gpu.KernelSelection.PA_KERNEL_AUTO]
+    core.set_property("GPU", {property_key: selections})
+    assert core.get_property("GPU", intel_gpu.kernel_selection) == selections
+    core.set_property("GPU", {property_key: []})
+    assert core.get_property("GPU", intel_gpu.kernel_selection) == []
+
+
 ###
 # Enum-like values
 ###
@@ -84,6 +97,12 @@ def test_properties_rw_base():
                 (hints.PerformanceMode.LATENCY, "PerformanceMode.LATENCY", 1),
                 (hints.PerformanceMode.THROUGHPUT, "PerformanceMode.THROUGHPUT", 2),
                 (hints.PerformanceMode.CUMULATIVE_THROUGHPUT, "PerformanceMode.CUMULATIVE_THROUGHPUT", 3),
+            ),
+        ),
+        (
+            intel_gpu.KernelSelection,
+            (
+                (intel_gpu.KernelSelection.PA_KERNEL_AUTO, "KernelSelection.PA_KERNEL_AUTO", 0),
             ),
         ),
         (
@@ -302,6 +321,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             hints.performance_mode,
             "PERFORMANCE_HINT",
             ((hints.PerformanceMode.LATENCY, hints.PerformanceMode.LATENCY),),
+        ),
+        (
+            intel_gpu.kernel_selection,
+            "KERNEL_SELECTION",
+            (([intel_gpu.KernelSelection.PA_KERNEL_AUTO], [intel_gpu.KernelSelection.PA_KERNEL_AUTO]),),
         ),
         (
             hints.enable_cpu_pinning,
