@@ -452,12 +452,11 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             tensor_meta_info.m_is_raw = true;
         } else {
             const auto assign_numeric_data = [&](const auto& container) {
+                // Non-null even when empty: a non-null payload is what marks a tensor as an initializer.
+                static const uint8_t empty_payload{};
                 tensor_meta_info.m_tensor_data_size = static_cast<size_t>(container.size());
-                // Empty protobuf repeated fields may return a non-null data() pointer; keep "no
-                // inline data" as nullptr so empty initializers become empty constants instead of
-                // scalar failsafe constants.
                 tensor_meta_info.m_tensor_data =
-                    container.size() == 0 ? nullptr : reinterpret_cast<const uint8_t*>(container.data());
+                    container.size() == 0 ? &empty_payload : reinterpret_cast<const uint8_t*>(container.data());
             };
             switch (tensor_info->data_type()) {
             case TensorProto_DataType::TensorProto_DataType_FLOAT:

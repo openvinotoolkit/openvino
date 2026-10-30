@@ -697,6 +697,82 @@ TEST(FrontEndGraphIteratorTest, multidimensional_empty_initializer_is_not_parame
     }
 }
 
+TEST(FrontEndGraphIteratorTest, empty_initializer_as_graph_output_is_empty_constant) {
+    const std::vector<std::pair<ONNX_NAMESPACE::TensorProto_DataType, ov::Shape>> cases{
+        {ONNX_NAMESPACE::TensorProto_DataType_INT64, ov::Shape{0}},
+        {ONNX_NAMESPACE::TensorProto_DataType_FLOAT, ov::Shape{2, 0}},
+    };
+    for (const auto& [data_type, empty_shape] : cases) {
+        for (bool materialize_places : {false, true}) {
+            SCOPED_TRACE(testing::Message() << "data_type=" << data_type << " shape=" << empty_shape
+                                            << " materialize_places=" << materialize_places);
+            auto model_proto = std::make_shared<ModelProto>();
+            model_proto->set_ir_version(8);
+            model_proto->add_opset_import()->set_version(13);
+            auto* graph = model_proto->mutable_graph();
+            graph->set_name("empty_initializer_output");
+
+            // No node consumes "empty"; it is only reachable as a declared graph output.
+            auto* initializer = graph->add_initializer();
+            initializer->set_name("empty");
+            initializer->set_data_type(data_type);
+            for (const auto dimension : empty_shape) {
+                initializer->add_dims(static_cast<int64_t>(dimension));
+            }
+
+            auto* input = graph->add_input();
+            input->set_name("input");
+            auto* input_type = input->mutable_type()->mutable_tensor_type();
+            input_type->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+            input_type->mutable_shape()->add_dim()->set_dim_value(3);
+
+            auto* identity = graph->add_node();
+            identity->set_op_type("Identity");
+            identity->add_input("input");
+            identity->add_output("output");
+
+            auto* output = graph->add_output();
+            output->set_name("output");
+            *output->mutable_type() = input->type();
+
+            auto* empty_output = graph->add_output();
+            empty_output->set_name("empty");
+            auto* empty_output_type = empty_output->mutable_type()->mutable_tensor_type();
+            empty_output_type->set_elem_type(data_type);
+            for (const auto dimension : empty_shape) {
+                empty_output_type->mutable_shape()->add_dim()->set_dim_value(static_cast<int64_t>(dimension));
+            }
+
+            auto iterator = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+                ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_Stream);
+            iterator->initialize(model_proto);
+            iterator->reset();
+            ov::frontend::onnx::GraphIterator::Ptr graph_iterator = iterator;
+            auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+            ASSERT_NE(frontend, nullptr);
+            auto input_model = frontend->load(graph_iterator);
+            ASSERT_NE(input_model, nullptr);
+            if (materialize_places) {
+                // Force the Place-graph conversion path; otherwise convert directly from the iterator.
+                ASSERT_EQ(input_model->get_inputs().size(), 1);
+            }
+
+            std::shared_ptr<ov::Model> model;
+            ASSERT_NO_THROW(model = frontend->convert(input_model));
+            ASSERT_NE(model, nullptr);
+            ASSERT_EQ(model->get_parameters().size(), 1);
+            ASSERT_EQ(model->get_results().size(), 2);
+
+            const auto empty_result = model->output("empty");
+            const auto constant =
+                ov::as_type_ptr<ov::op::v0::Constant>(empty_result.get_node()->get_input_node_shared_ptr(0));
+            ASSERT_NE(constant, nullptr);
+            EXPECT_EQ(constant->get_shape(), empty_shape);
+            EXPECT_EQ(constant->get_byte_size(), 0);
+        }
+    }
+}
+
 // =====================================================================================================
 // Accuracy / structural equivalence of the deferred-InputModel single-pass converter (translate
 // straight from the GraphIterator decoders, skipping load_model()) against the InputModel-backed
