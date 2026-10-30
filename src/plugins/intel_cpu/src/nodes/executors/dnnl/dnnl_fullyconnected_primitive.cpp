@@ -450,10 +450,10 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
         useWeightsDecompression &&
         useDynamicQuantizationImpl(attrs.dynamicQuantizationGroupSize, srcDesc, weiDesc, memory);
 
-    const auto postOpData = createPrimitiveAttrs(attrs, memory, context, useDynamicQuantization);
+    auto postOpData = createPrimitiveAttrs(attrs, memory, context, useDynamicQuantization);
 
     if (!cacheWeights) {
-        return std::make_shared<DnnlShapeAgnosticData>(postOpData);
+        return std::make_shared<DnnlShapeAgnosticData>(std::move(postOpData));
     }
 
     if (srcDesc->getShape().isDynamic()) {
@@ -496,7 +496,7 @@ DnnlShapeAgnosticDataPtr DnnlFCPrimitive::createShapeAgnosticData(const FCAttrs&
 
     const auto defaultImpType = parse_impl_name(primDesc.impl_info_str());
 
-    return std::make_shared<DnnlShapeAgnosticData>(postOpData, defaultImpType);
+    return std::make_shared<DnnlShapeAgnosticData>(std::move(postOpData), defaultImpType);
 }
 
 static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc) {

@@ -429,7 +429,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
     }
 #endif
-    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), conf, false);
+    return std::make_shared<CompiledModel>(cloned_model, shared_from_this(), std::move(conf), false);
 }
 
 void Plugin::set_property(const ov::AnyMap& config) {
@@ -901,7 +901,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer&
 
     // import config props from caching model
     calculate_streams(conf, model, true);
-    auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), conf, loaded_from_cache);
+    auto compiled_model =
+        std::make_shared<CompiledModel>(model, shared_from_this(), std::move(conf), loaded_from_cache);
     return compiled_model;
 }
 }  // namespace ov::intel_cpu

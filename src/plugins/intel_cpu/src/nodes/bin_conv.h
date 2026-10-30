@@ -71,8 +71,8 @@ struct jit_uni_bin_conv_kernel {
         ker_(args);
     }
 
-    explicit jit_uni_bin_conv_kernel(jit_bin_conv_params jcp,
-                                     jit_dw_conv_params jcp_dw_conv,
+    explicit jit_uni_bin_conv_kernel(const jit_bin_conv_params& jcp,
+                                     const jit_dw_conv_params& jcp_dw_conv,
                                      const dnnl_primitive_attr& attr)
         : jcp_(jcp),
           jcp_dw_conv_(jcp_dw_conv),

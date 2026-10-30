@@ -740,7 +740,7 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
     const dnnl::memory::desc dstDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
     const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
 
-    const auto primitiveAttributes = createPrimitiveAttrs(attrs, memory, context);
+    auto primitiveAttributes = createPrimitiveAttrs(attrs, memory, context);
 
     std::vector<dnnl::primitive_attr> dnnlAttrVariants;
     dnnlAttrVariants.reserve(primitiveAttributes.size());
@@ -770,7 +770,7 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
 
     const auto defaultImpType = primitiveDesc ? parse_impl_name(primitiveDesc.impl_info_str()) : impl_desc_type::undef;
 
-    return std::make_shared<DnnlShapeAgnosticData>(primitiveAttributes.at(attrId), defaultImpType);
+    return std::make_shared<DnnlShapeAgnosticData>(std::move(primitiveAttributes.at(attrId)), defaultImpType);
 }
 
 DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const FCAttrs& fcAttrs,
@@ -798,10 +798,10 @@ DnnlShapeAgnosticDataPtr DnnlConvolutionPrimitive::createShapeAgnosticData(const
                     {},
                     fcAttrs.postOps};
 
-    const auto postOpData = createPrimitiveAttrs(attrs, memory, context);
+    auto postOpData = createPrimitiveAttrs(attrs, memory, context);
     OPENVINO_ASSERT(postOpData.size() == 1, "Single attribute variant is expected when used as FC executor");
 
-    return std::make_shared<DnnlShapeAgnosticData>(postOpData.front());
+    return std::make_shared<DnnlShapeAgnosticData>(std::move(postOpData.front()));
 }
 
 void DnnlConvolutionPrimitive::execute(dnnl_primitive_args& primArgs) {
