@@ -1911,6 +1911,8 @@ INSTANTIATE_TEST_SUITE_P(smoke,
 // that keeps gate/up at INT2_SYM and gives down INT4_ASYM. Gate/up and down each stage their own
 // SLM copy of the activations, and the u4 GEMV wants that copy interleaved where u2 wants it plain,
 // so this is the case where a layout chosen from the gate dtype would mis-feed down.
+// `gate_u4` / `up_u4` do the same for gate / up, which makes the prefill pick the native u2 GEMM
+// per GEMM (the u2 ones natively, the u4 ones on oneDNN).
 // ============================================================================
 
 struct MoeU2ZpParams {
@@ -1923,6 +1925,8 @@ struct MoeU2ZpParams {
     bool down_zp_scalar;
     bool down_u4;
     const char* name;
+    bool gate_u4 = false;
+    bool up_u4 = false;
 };
 
 class moe_3gemm_compressed_gpu_u2 : public ::testing::TestWithParam<MoeU2ZpParams> {
@@ -1942,6 +1946,8 @@ TEST_P(moe_3gemm_compressed_gpu_u2, mixed_zp_form_accuracy) {
     }
     // A non-zero scalar zp exists only for u2 weights (the fusion pass declines it for anything else).
     ASSERT_FALSE(param.down_u4 && param.down_zp_scalar) << "a u4 down projection takes a per-group zp";
+    ASSERT_FALSE(param.gate_u4 && param.gate_zp_scalar) << "a u4 gate projection takes a per-group zp";
+    ASSERT_FALSE(param.up_u4 && param.up_zp_scalar) << "a u4 up projection takes a per-group zp";
 
     tests::random_generator rg(GET_SUITE_NAME);
     Moe3GemmConfig config;
@@ -1985,13 +1991,15 @@ TEST_P(moe_3gemm_compressed_gpu_u2, mixed_zp_form_accuracy) {
                                              config.hidden_size,
                                              config.inter_size,
                                              config.group_size,
-                                             param.gate_zp_scalar ? kScalarZp : -1);
+                                             param.gate_zp_scalar ? kScalarZp : -1,
+                                             param.gate_u4 ? 4 : 2);
     auto q1 = Moe3GemmReference::quantize_u2(w1_data,
                                              config.num_experts,
                                              config.hidden_size,
                                              config.inter_size,
                                              config.group_size,
-                                             param.up_zp_scalar ? kScalarZp : -1);
+                                             param.up_zp_scalar ? kScalarZp : -1,
+                                             param.up_u4 ? 4 : 2);
     auto q2 = Moe3GemmReference::quantize_u2(w2_data,
                                              config.num_experts,
                                              config.inter_size,
@@ -2065,12 +2073,18 @@ TEST_P(moe_3gemm_compressed_gpu_u2, mixed_zp_form_accuracy) {
     topology topology;
     topology.add(input_layout("hidden_states", hidden_states_mem->get_layout()));
     topology.add(input_layout("routing_weights", routing_weights_mem->get_layout()));
-    topology.add(data("w0_weight", make_u2_weight(q0.q, inter, group_num)));
+    topology.add(data("w0_weight", param.gate_u4 ? make_u4_weight(q0.q, inter, group_num) : make_u2_weight(q0.q, inter, group_num)));
     topology.add(data("w0_scale", make_scale(q0.scale, inter, group_num)));
-    topology.add(data("w0_zp", param.gate_zp_scalar ? make_scalar_zp() : make_u2_zp(q0.zp, inter, group_num)));
-    topology.add(data("w1_weight", make_u2_weight(q1.q, inter, group_num)));
+    topology.add(data("w0_zp",
+                      param.gate_zp_scalar ? make_scalar_zp()
+                      : param.gate_u4      ? make_u4_zp(q0.zp, inter, group_num)
+                                           : make_u2_zp(q0.zp, inter, group_num)));
+    topology.add(data("w1_weight", param.up_u4 ? make_u4_weight(q1.q, inter, group_num) : make_u2_weight(q1.q, inter, group_num)));
     topology.add(data("w1_scale", make_scale(q1.scale, inter, group_num)));
-    topology.add(data("w1_zp", param.up_zp_scalar ? make_scalar_zp() : make_u2_zp(q1.zp, inter, group_num)));
+    topology.add(data("w1_zp",
+                      param.up_zp_scalar ? make_scalar_zp()
+                      : param.up_u4      ? make_u4_zp(q1.zp, inter, group_num)
+                                         : make_u2_zp(q1.zp, inter, group_num)));
     topology.add(data("w2_weight",
                       param.down_u4 ? make_u4_weight(q2.q, hidden, group_num2) : make_u2_weight(q2.q, hidden, group_num2)));
     topology.add(data("w2_scale", make_scale(q2.scale, hidden, group_num2)));
@@ -2174,10 +2188,20 @@ INSTANTIATE_TEST_SUITE_P(
         // Batched GEMV (MTP-style token counts).
         MoeU2ZpParams{4, 128, 256, 64, true, true, false, true, "down_u4_rest_scalar"},
         MoeU2ZpParams{16, 128, 256, 64, false, false, false, true, "down_u4_rest_per_group"},
-        // Prefill: not all-u2, so the native u2 GEMM declines and the u2 GEMMs are unpacked to u4
-        // scratch next to the native u4 down -- after which all three reach the grouped GEMM as u4.
+        // Prefill, mixed layer: each u2 GEMM takes the native u2 GEMM (gate/up here) and each u4 GEMM
+        // the oneDNN grouped GEMM (down here); nothing is unpacked.
         MoeU2ZpParams{64, 128, 256, 64, true, true, false, true, "prefill_down_u4_rest_scalar"},
-        MoeU2ZpParams{64, 256, 256, 64, false, false, false, true, "prefill_down_u4_rest_per_group"}),
+        MoeU2ZpParams{64, 256, 256, 64, false, false, false, true, "prefill_down_u4_rest_per_group"},
+        // down native, gate/up oneDNN.
+        MoeU2ZpParams{64, 128, 256, 64, false, false, false, false, "prefill_down_u2_gate_up_u4", true, true},
+        // gate native only; up and down oneDNN.
+        MoeU2ZpParams{64, 128, 256, 64, false, false, false, true, "prefill_gate_u2_only", false, true},
+        // up native only: the SiLU*mul kernel combines the native up output with the oneDNN gate output.
+        MoeU2ZpParams{64, 128, 256, 64, false, false, false, true, "prefill_up_u2_only", true, false},
+        // up and down native, gate oneDNN.
+        MoeU2ZpParams{64, 128, 256, 64, false, true, true, false, "prefill_gate_u4_up_down_u2", true, false},
+        // Same handoff on the DPAS variant.
+        MoeU2ZpParams{64, 256, 256, 64, false, false, false, true, "prefill_dpas_up_u2_only", true, false}),
     moe_3gemm_compressed_gpu_u2::GetTestCaseName);
 
 // ============================================================================
@@ -2190,7 +2214,7 @@ INSTANTIATE_TEST_SUITE_P(
 // unpack a u8 projection (reading it at a quarter of its true stride) or leave a u2 one packed.
 //
 // The routed experts are all u2 here so the native u2 GEMM owns them, which makes the prefill
-// cases below also cover the skip_routed argument of the unpack: the routed weights must NOT be
+// cases below also cover the routed-GEMM skip in the unpack: the routed weights must NOT be
 // unpacked while the shared ones must.
 // ============================================================================
 
@@ -2498,8 +2522,8 @@ INSTANTIATE_TEST_SUITE_P(
         MoeU2SharedParams{true, true, true, 1, 64, "all_u2"},
         // Above the 32-token batched-GEMV threshold the shared expert goes through the oneDNN
         // primitives, which do resolve its dtype per projection. The routed experts take the native
-        // u2 GEMM here, so these are also the cases where skip_routed has to unpack the shared
-        // weights only. down has the transposed shape of gate/up, so it is covered on its own.
+        // u2 GEMM here, so these are also the cases where only the shared
+        // weights are unpacked. down has the transposed shape of gate/up, so it is covered on its own.
         MoeU2SharedParams{true, true, true, 64, 64, "all_u2_prefill"},
         MoeU2SharedParams{false, false, false, 64, 64, "none_u2_prefill"},
         MoeU2SharedParams{true, false, false, 64, 64, "gate_u2_prefill"},
