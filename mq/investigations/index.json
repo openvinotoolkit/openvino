@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 307,
+  "total": 308,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2999,6 +2999,15 @@
       "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
       "timestamp": "2026-10-30T17:21:15Z",
       "title": "RISC-V build fails: MockMappedMemory::hint_prefetch_async conflicting return type",
+      "category": "Code Issue",
+      "signature_hash": "4178da568a100f35",
+      "pr_number": "38993"
+    },
+    {
+      "investigation_id": "2026-10-30-17-37-50-000-41095713937",
+      "run_id": "41095713937",
+      "timestamp": "2026-10-30T17:37:50Z",
+      "title": "Windows Debug build fails: MockMappedMemory::hint_prefetch_async conflicting return type",
       "category": "Code Issue",
       "signature_hash": "4178da568a100f35",
       "pr_number": "38993"

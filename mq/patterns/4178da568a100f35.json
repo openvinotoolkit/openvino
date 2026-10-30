@@ -2,18 +2,20 @@
     "schema_version": "1.0",
     "signature": "conflicting return type specified for virtual hint_prefetch_async override|Code Issue",
     "signature_hash": "4178da568a100f35",
-    "title": "RISC-V build fails: MockMappedMemory::hint_prefetch_async conflicting return type",
+    "title": "Windows Debug build fails: MockMappedMemory::hint_prefetch_async conflicting return type",
     "category": "Code Issue",
-    "count": 1,
+    "count": 2,
     "first_seen": "2026-10-30T17:21:15Z",
-    "last_seen": "2026-10-30T17:21:15Z",
+    "last_seen": "2026-10-30T17:37:50Z",
     "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41095713937",
         "https://github.com/openvinotoolkit/openvino/actions/runs/41095713725"
     ],
     "affected_prs": [
         "https://github.com/openvinotoolkit/openvino/pull/38993"
     ],
     "recent_timestamps": [
+        "2026-10-30T17:37:50Z",
         "2026-10-30T17:21:15Z"
     ],
     "rerun_search_string": null
