@@ -1119,18 +1119,35 @@ bool is_dynamic_batch_byxf_shape_whitelisted(const convolution_node& node) {
 }  // namespace
 
 // Layout policy for dynamic oneDNN convolutions:
-// - Default (code below): blocked formats by data type and channel count, e.g. b_fs_yx_fsv16 for f16.
-//   With these formats, oneDNN jit:ir rejects runtime batches of 16 or more and the reference implementation runs.
-// - byxf (bzyxf for rank 5) runs jit:ir at all batches. A convolution gets byxf in two cases:
-//   1. Network-wide: program::set_layout_optimizer_attributes() sets byxf_onednn_convolution. The model has
-//      dynamic-batch oneDNN convolutions and rank <= 4 data flow, and all data-flow primitives pass
-//      is_byxf_onednn_conv_compatible() (or the model has SDPA and at most 5 such convolutions).
-//   2. Per node: a rank-4 f16 convolution with a dynamic batch. Its non-constant inputs and its users pass
-//      is_byxf_onednn_conv_compatible(), so byxf adds no reorders or slower neighbor kernels. Its static parameters
-//      are in dynamic_batch_byxf_conv_shapes (shapes of a dynamic-batch customer video model). With a byxf source,
-//      jit:ir is slower than with b_fs_yx_fsv16 for some convolutions at batches below 16, so the list stays until
-//      the oneDNN fix (CVS-196865).
-// - A static batch with dynamic height / width keeps the default (node.is_dynamic() is true, but the batch is fixed).
+//
+// Default:
+// - The default layout uses blocked formats based on the data type and channel count.
+//   For example, f16 uses b_fs_yx_fsv16.
+// - With these formats, oneDNN jit:ir rejects runtime batch sizes of 16 or more.
+//   The reference implementation runs instead.
+//
+// byxf selection:
+// - byxf (bzyxf for rank 5) supports jit:ir at all tested batch sizes.
+// - The optimizer selects byxf in the following cases:
+//
+// 1. Network-wide selection:
+//    program::set_layout_optimizer_attributes() sets byxf_onednn_convolution.
+//    The model has dynamic-batch oneDNN convolutions and data flow with rank <= 4.
+//    All data-flow primitives pass is_byxf_onednn_conv_compatible().
+//    An exception applies when the model has SDPA and at most 5 such convolutions.
+//
+// 2. Per-node selection:
+//    The convolution has rank 4, uses f16, and has a dynamic batch.
+//    Its non-constant inputs and users pass is_byxf_onednn_conv_compatible().
+//    This check limits the risk of extra reorders and slower kernels in adjacent nodes.
+//    Its static parameters match an entry in dynamic_batch_byxf_conv_shapes.
+//    This list contains shapes from a customer video model with a dynamic batch.
+//    For some convolutions with batch sizes below 16, jit:ir is slower with byxf than with b_fs_yx_fsv16.
+//    The list restricts byxf selection because of this performance issue (CVS-196865).
+//
+// Static batch:
+// - A convolution with a static batch and dynamic height or width keeps the default layout.
+//   node.is_dynamic() is true, but the batch is fixed.
 void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
     OPENVINO_ASSERT(node.is_dynamic());
 
