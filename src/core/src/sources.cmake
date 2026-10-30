@@ -196,6 +196,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/prior_box_clustered.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/proposal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/psroi_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/qsa_prepare.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/range.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/rdft.cpp
@@ -248,6 +249,8 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/softsign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/space_to_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/space_to_depth.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/sparse_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/sparse_attention_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/sparse_fill_empty_rows.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/sqrt.cpp

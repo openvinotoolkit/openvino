@@ -428,10 +428,17 @@ All parameters must be set before calling ``ov::Core::compile_model()`` in order
 - ``ov::hint::performance_mode``
 - ``ov::intel_gpu::disable_winograd_convolution``
 - ``ov::intel_gpu::enable_loop_unrolling``
+- ``ov::intel_gpu::offload_ratio``
 - ``ov::intel_gpu::hint::enable_sdpa_optimization``
 - ``ov::intel_gpu::hint::host_task_priority``
 - ``ov::intel_gpu::hint::queue_priority``
 - ``ov::intel_gpu::hint::queue_throttle``
+
+Setting ``ov::intel_gpu::offload_ratio`` above zero automatically enables weightless
+caching and selects ``ov::CacheMode::OPTIMIZE_SIZE``. Explicitly disabling weightless
+caching or selecting ``ov::CacheMode::OPTIMIZE_SPEED`` is not supported with offloading,
+including when importing a compiled model or loading it from cache.
+MoE offloading requires a valid weights file and the corresponding constant offsets.
 
 
 Read-only Properties
