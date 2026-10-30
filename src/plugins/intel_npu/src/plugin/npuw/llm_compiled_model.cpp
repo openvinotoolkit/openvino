@@ -117,9 +117,6 @@ bool is_4d_float_attention_mask(const std::shared_ptr<const ov::Model>& model) {
                    ".");
 }
 
-}  // namespace
-
-namespace {
 std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
