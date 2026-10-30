@@ -16,7 +16,10 @@ context to its Level Zero context. Requirements:
 
 - An Intel GPU with a driver that supports LEO.
 - OpenVINO with the GPU plugin, built with any runtime (``GPU_RT_TYPE=OCL``,
-  ``ZE`` or ``COMBINED``).
+  ``ZE`` or ``COMBINED``). With the OpenCL runtime (``GPU_RT_TYPE=OCL``) LEO is
+  a hard requirement: without it the sample always fails, because the plugin
+  has no Level Zero context to offer. The Level Zero runtime (``ZE`` or
+  ``COMBINED``) falls back to a native Level Zero context on a driver without LEO.
 - Level Zero and OpenCL development files. CMake skips this sample if either
   is missing. At runtime, the Level Zero loader library must be installed in
   the system (for example, the ``libze1`` package on Ubuntu).

@@ -31,6 +31,8 @@ For more detailed information on how this sample works, check the dedicated [art
   reports an error.
 - OpenVINO with the GPU plugin, built with any runtime. The default remote context is an
   OpenCL context (`ov::intel_gpu::ContextType::OCL`), which the sample converts through LEO.
+  With the OpenCL runtime (`GPU_RT_TYPE=OCL`) LEO is a hard requirement: without it the
+  sample always fails, because the plugin has no Level Zero context to offer.
   Only in the edge case of the Level Zero plugin (`GPU_RT_TYPE=ZE` or `COMBINED`) running on
   a driver without LEO, the default context is already a Level Zero context
   (`ov::intel_gpu::ContextType::ZE`) and its handle is used directly.
