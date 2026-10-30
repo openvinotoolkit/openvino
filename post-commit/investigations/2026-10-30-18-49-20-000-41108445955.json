@@ -1,0 +1,38 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-30-18-49-20-000-41108445955",
+    "timestamp": "2026-10-30T18:49:20Z",
+    "run_id": "41108445955",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41108445955",
+    "workflow_name": "Linux RISC-V (Ubuntu 22.04, Python 3.10)",
+    "commit_sha": "5d07300df3eef0a596910940e14c175aeaf6715a",
+    "pr_number": "39227",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39227",
+    "author": null,
+    "category": "Network",
+    "title": "Docker job fails to download pinned checkout action from codeload.github.com",
+    "signature": "resource temporarily unavailable codeload.github.com failed to download action archive after 3 attempts|Network",
+    "signature_hash": "85b215ebb71d16fe",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Docker",
+            "conclusion": "failure",
+            "symptom": "Failed to download pinned checkout action archive from codeload.github.com after 3 retries with backoff"
+        }
+    ],
+    "key_errors": [
+        "2026-10-30T18:42:22.9566655Z ##[warning]Failed to download action 'https://codeload.github.com/ababushk/checkout/tar.gz/9bec46a94a83db82acd4303e7627d88db71402a5'. Error: Resource temporarily unavailable (codeload.github.com:443)",
+        "2026-10-30T18:43:35.7605919Z ##[error]Resource temporarily unavailable (codeload.github.com:443)",
+        "2026-10-30T18:43:35.7628030Z ##[error]Failed to download archive 'https://codeload.github.com/ababushk/checkout/tar.gz/9bec46a94a83db82acd4303e7627d88db71402a5' after 3 attempts."
+    ],
+    "root_cause": "The 'Docker' job in the Linux RISC-V workflow needs to download a second pinned action reference (ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5) mid-job via codeload.github.com. codeload.github.com returned transient 'Resource temporarily unavailable' errors on all 3 built-in download attempts (with backoff), exhausting the retry budget before the GitHub-side transient outage/throttling cleared. This is identical in signature to a prior occurrence on 2026-10-30 (run 41011833528), indicating this specific action-archive download path is susceptible to recurring codeload.github.com transient unavailability, independent of the commit or PR content.",
+    "reproduction_steps": "N/A - this is an upstream GitHub Actions infrastructure (codeload.github.com) transient-availability issue unrelated to repository source code; re-running the job after the outage clears typically succeeds.",
+    "recommended_actions": [
+        "Re-run the failed 'Docker' job/workflow; codeload.github.com outages are typically transient and clear within minutes.",
+        "Consider mirroring or vendoring the 'ababushk/checkout' action (or pinning via a local composite action) to avoid a second external codeload.github.com fetch mid-job.",
+        "Monitor GitHub status page for codeload.github.com during correlated failures; if recurrence increases, consider adding a repository-level retry/backoff wrapper around action downloads or caching the action in a self-hosted runner image."
+    ],
+    "prevention_strategies": "Reduce dependency on secondary just-in-time action downloads during job execution by pre-baking frequently used actions into the custom Docker runner image, or by vendoring the pinned action's code directly into the repository/workflow. This removes the runtime dependency on codeload.github.com succeeding mid-job.",
+    "historical_context": "Identical signature observed on 2026-10-30 in run 41011833528 (same 'Docker' job, same pinned 'ababushk/checkout' action, same codeload.github.com 'Resource temporarily unavailable' error after 3 attempts). This is now a confirmed recurring pattern (2nd occurrence) rather than an isolated incident, though still consistent with transient upstream GitHub infrastructure issues rather than a code or configuration defect."
+}
