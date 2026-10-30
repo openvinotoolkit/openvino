@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "getaddrinfo eai again blob core windows net during artifact upload|Network",
+  "signature_hash": "8a9dfcece16ecc76",
+  "title": "ARM64 cross-compile Build job fails uploading openvino_package artifact due to Azure blob storage DNS resolution failure",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-10-30T12:12:48Z",
+  "last_seen": "2026-10-30T12:12:48Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41050129111"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39290"
+  ],
+  "recent_timestamps": [
+    "2026-10-30T12:12:48Z"
+  ],
+  "rerun_search_string": "getaddrinfo EAI_AGAIN"
+}

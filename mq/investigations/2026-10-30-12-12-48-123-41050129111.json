@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-30-12-12-48-123-41050129111",
+  "timestamp": "2026-10-30T12:12:48Z",
+  "run_id": "41050129111",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41050129111",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "39290",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39290",
+  "author": "jkoniusz",
+  "category": "Network",
+  "title": "ARM64 cross-compile Build job fails uploading openvino_package artifact due to Azure blob storage DNS resolution failure",
+  "signature": "getaddrinfo eai again blob core windows net during artifact upload|Network",
+  "signature_hash": "8a9dfcece16ecc76",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Step 'Upload OpenVINO package' (ababushk/upload-artifact) failed mid-upload with getaddrinfo EAI_AGAIN against productionresultssa31.blob.core.windows.net after successfully uploading 16MB of the artifact"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Aggregated status-check job failed because the Build job's artifact upload step failed"
+    }
+  ],
+  "key_errors": [
+    "2026-10-30T12:05:05.7811131Z Uploading artifact: openvino_package.zip\n2026-10-30T12:05:05.8044197Z Beginning upload of artifact content to blob storage\n2026-10-30T12:05:15.3672534Z Uploaded bytes 8388608\n2026-10-30T12:05:19.3413081Z Uploaded bytes 16777216\n2026-10-30T12:05:22.4108764Z ##[error]getaddrinfo EAI_AGAIN productionresultssa31.blob.core.windows.net\n2026-10-30T12:05:23.1303627Z Uploaded bytes 25165824"
+  ],
+  "root_cause": "The build itself (CMake configure/build/install, packaging) completed successfully; the failure occurred purely in the 'Upload OpenVINO package' step while streaming the openvino_package.tar.gz artifact to GitHub Actions' Azure Blob Storage backend (productionresultssa31.blob.core.windows.net). A DNS lookup for that storage host transiently failed (getaddrinfo EAI_AGAIN) partway through the upload (after 16MB had already been sent), causing the upload-artifact action to error out even though bytes continued to be reported as uploaded afterward. This is unrelated to the PR's actual change (a one-line logic fix in .github/scripts/npu_cip_detect_bump.py, unrelated to the build/upload pipeline) and is consistent with a brief runner-side or GitHub-infrastructure DNS/network blip rather than a code or configuration defect.",
+  "reproduction_steps": "N/A - not reliably reproducible locally; depends on transient DNS/network conditions between the GitHub Actions runner and Azure Blob Storage during artifact upload.",
+  "recommended_actions": [
+    "Re-run the failed merge-queue Build job; this is a transient network failure unrelated to the PR's code changes.",
+    "No code changes needed in .github/scripts/npu_cip_detect_bump.py or the build workflow.",
+    "If this recurs frequently for large artifact uploads, consider enabling retry-with-backoff wrapping around the ababushk/upload-artifact step, or monitor for a broader GitHub Actions/Azure infrastructure incident."
+  ],
+  "prevention_strategies": "Track recurrence of this 'getaddrinfo EAI_AGAIN ... blob.core.windows.net' signature (already covered by the workflow rerunner's approved 'getaddrinfo EAI_AGAIN' search string, ticket 182238) across merge-queue runs; if it crosses the 3-in-12h threshold, escalate for GitHub/Azure infrastructure investigation rather than treating it as a code regression.",
+  "historical_context": "Related but distinct DNS-resolution failures against the same productionresultssa*.blob.core.windows.net hosts have been recorded before: pattern 688d70acdbdfc8ce ('urlopen error errno 11001 getaddrinfo failed', NPU model download, PR #38400) and pattern dfd265b1c0ea3af5 (EasyOCR model download, PR #38219), and investigation 2026-10-30-04-34-49-065-40999556324 recorded an npm actions-cache restore failure against productionresultssa0.blob.core.windows.net on the same day. This is the first recorded occurrence specifically during an upload-artifact (ababushk/upload-artifact) blob upload of a build package rather than a cache restore or external model download, but it is part of the same broader family of intermittent Azure Blob Storage DNS reachability issues."
+}
