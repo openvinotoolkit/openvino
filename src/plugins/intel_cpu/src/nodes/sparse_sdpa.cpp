@@ -8,8 +8,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <numeric>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "config.h"
@@ -34,7 +37,9 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/sparse_attention.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "shape_inference/shape_inference.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 #include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
@@ -61,6 +66,53 @@ struct InputIdx {
     static constexpr size_t COUNT_MIN = 5;
 };
 
+// Shape inference of SparseAttentionWithKVCache from the input shapes only: the state inputs may be stubs without data
+// (a state without an initial value), so the generic fallback that reads the data of every input cannot be used.
+//   attention [N, H, L, Ev]; present_key / present_value [beam_idx, Hkv, L0 + L, E / Ev]
+class SparseSDPAKVShapeInfer : public ShapeInferEmptyPads {
+public:
+    IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                              [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        const auto inputs_size = input_shapes.size();
+        OPENVINO_ASSERT(inputs_size >= SparseAttentionKVOp::InputIdx::COUNT_MIN,
+                        "SparseSDPAKVShapeInfer: unexpected number of inputs: ",
+                        inputs_size);
+        const auto& cur_k = input_shapes[SparseAttentionKVOp::InputIdx::CUR_KEY].get();
+        const auto& cur_v = input_shapes[SparseAttentionKVOp::InputIdx::CUR_VALUE].get();
+        const auto& beam_idx = input_shapes[inputs_size - 3].get();
+        auto present_k = input_shapes[inputs_size - 2].get();
+        auto present_v = input_shapes[inputs_size - 1].get();
+        for (auto* present : {&present_k, &present_v}) {
+            (*present)[0] = beam_idx[0];
+        }
+        present_k[2] += cur_k[2];
+        present_v[2] += cur_v[2];
+
+        VectorDims out = input_shapes[SparseAttentionKVOp::InputIdx::QUERY].get();
+        out[3] = cur_v[3];
+        return {{std::move(out), std::move(present_k), std::move(present_v)}, ShapeInferStatus::success};
+    }
+
+    [[nodiscard]] port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+};
+
+class SparseSDPAShapeInferFactory : public ShapeInferFactory {
+public:
+    explicit SparseSDPAShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+
+    [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
+        if (ov::is_type<SparseAttentionKVOp>(m_op)) {
+            return std::make_shared<SparseSDPAKVShapeInfer>();
+        }
+        return make_shape_inference(m_op);
+    }
+
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
+
 // BHLS KV cache descriptor with the logical length L; the capacity cap_L >= L along L is carried by the strides.
 std::shared_ptr<CpuBlockedMemoryDesc> make_bhls_cache_desc(ov::element::Type prec,
                                                            size_t B,
@@ -81,7 +133,7 @@ std::shared_ptr<CpuBlockedMemoryDesc> make_bhls_cache_desc(ov::element::Type pre
 }  // namespace
 
 SparseSDPA::SparseSDPA(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgraphShapeInferFactory(op)) {
+    : Node(op, context, SparseSDPAShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -180,11 +232,11 @@ void SparseSDPA::createPrimitive() {
         m_amx_unit_blocks = 16 / std::gcd(static_cast<size_t>(16), Bk);
         const auto unit_rows = m_amx_unit_blocks * Bk;
         m_gemv_qk1 = std::make_shared<ov::Extensions::Cpu::JitMatMulVecAMX>(static_cast<int>(Dh),
-                                                                             static_cast<int>(unit_rows),
-                                                                             m_amx_prec);
+                                                                            static_cast<int>(unit_rows),
+                                                                            m_amx_prec);
         m_gemv_qk4 = std::make_shared<ov::Extensions::Cpu::JitMatMulVecAMX>(static_cast<int>(Dh),
-                                                                             static_cast<int>(4 * unit_rows),
-                                                                             m_amx_prec);
+                                                                            static_cast<int>(4 * unit_rows),
+                                                                            m_amx_prec);
     }
     // Prefill over packs of query heads (brgemm products, whose M is the pack): independent of the limits of the JIT
     // kernel above, it needs the AMX type, a causal op and static head counts.

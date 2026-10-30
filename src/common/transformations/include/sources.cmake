@@ -297,6 +297,7 @@ set(PAGED_ATTENTION_HEADERS
 
 set(PATTERN_BLOCKS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/compressed_weights_block.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/pattern_blocks/qsa_index_query_block.hpp
 )
 
 set(RT_INFO_HEADERS
