@@ -25,13 +25,67 @@
 #include "openvino/util/container_util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/paged_causal_conv1d.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 
 namespace ov {
 namespace tp {
 
 namespace {
+void expect_one_stream(const ov::AnyMap& config) {
+    const auto it = config.find(ov::num_streams.name());
+    if (it == config.end()) {
+        return;
+    }
+    const auto value = it->second.as<std::string>();
+    OPENVINO_ASSERT(ov::Any(value).as<ov::streams::Num>() == 1,
+                    "TP supports one stream per device (ov::num_streams = 1), got ",
+                    value,
+                    ".");
+}
+
+/// A collective call is matched across the ranks by the channel of the rank
+/// model's stream, and the stream that runs a request is picked per request:
+/// with more than one, the ranks of one TP request could meet on different
+/// channels.
+void force_one_stream(ov::AnyMap& forwarded) {
+    expect_one_stream(forwarded);
+    if (const auto it = forwarded.find(ov::device::properties.name()); it != forwarded.end()) {
+        for (const auto& device : it->second.as<ov::AnyMap>()) {
+            expect_one_stream(device.second.as<ov::AnyMap>());
+        }
+    }
+    forwarded[ov::num_streams.name()] = ov::streams::Num{1};
+}
+
+void reject_linear_attention(const ov::Model& model) {
+    constexpr const char* unsupported = "TP does not support models with linear-attention state yet.";
+    for (const auto& op : model.get_ops()) {
+        const bool linear_attention = ov::is_type_any_of<ov::op::internal::PagedGatedDeltaNet,
+                                                         ov::op::internal::PagedCausalConv1D,
+                                                         ov::op::internal::PagedSelectiveSSM>(op);
+        OPENVINO_ASSERT(!linear_attention,
+                        unsupported,
+                        " Found ",
+                        op->get_type_name(),
+                        " '",
+                        op->get_friendly_name(),
+                        "'.");
+    }
+    for (const auto& input : model.inputs()) {
+        for (const auto& name : input.get_names()) {
+            OPENVINO_ASSERT(name.find("_state_table.") == std::string::npos,
+                            unsupported,
+                            " Found the state input '",
+                            name,
+                            "'.");
+        }
+    }
+}
+
 /// Diagnostic (TP_SHARD_ONLY=1): strip every collective from a shard so it can
-/// run alone on one GPU -- the upper bound tensor parallelism is chasing, with
+/// run alone on one device -- the upper bound tensor parallelism is chasing, with
 /// no collectives, no cross-rank dispatch and no coordinator.
 ///
 /// AllReduce preserves its shape, so it is dropped by reconnecting consumers to
@@ -234,7 +288,7 @@ std::vector<ov::SoPtr<ov::IRemoteContext>> Plugin::create_rank_contexts(const st
         ov::AnyMap params;
         params[ov::tp::internal::device_group.name()] = device_names;
         params[ov::tp::internal::groups.name()] =
-            std::map<int, CollectiveGroup>{{0, CollectiveGroup{endpoints[static_cast<size_t>(rank)], auto_backend}}};
+            std::map<int, CollectiveGroup>{{0, CollectiveGroup{endpoints[static_cast<size_t>(rank)], config.get_collective_backend()}}};
         params[ov::tp::internal::communication_timeout_ms.name()] = timeout_ms;
         if (const auto comm_buffer_size = config.get_comm_buffer_size(); comm_buffer_size != 0) {
             params[ov::tp::internal::comm_buffer_size.name()] = comm_buffer_size;
@@ -252,7 +306,7 @@ void Plugin::build_call_config(const ov::AnyMap& properties, TPConfig& config, o
     // and silently kept the older value.
     config.set_user_property(m_config.user_properties(), ov::OptionVisibility::RELEASE);
 
-    forwarded = m_gpu_config;
+    forwarded = m_device_config;
     ov::AnyMap own;
     for (const auto& entry : properties) {
         if (config.owns(entry.first)) {
@@ -266,21 +320,29 @@ void Plugin::build_call_config(const ov::AnyMap& properties, TPConfig& config, o
     // The TP blob contains the rank blobs, and the core caches it as a whole;
     // a rank compilation must not add a cache entry of its own.
     forwarded[ov::cache_dir.name()] = std::string{};
+    force_one_stream(forwarded);
 
     // Reads the environment and the config file, then locks the values down.
     config.finalize(nullptr, nullptr);
 }
 
-std::vector<std::string> Plugin::resolve_rank_devices(const TPConfig& config) const {
-    auto names = config.resolve_device_names();
-    // Transitional: replaced by asking the device plugin (ov::tp::internal::collective_support).
-    const auto type = TPConfig::device_type(names);
-    OPENVINO_ASSERT(type == "GPU",
+void Plugin::check_collective_support(const std::vector<std::string>& device_names, const TPConfig& config) const {
+    const auto type = TPConfig::device_type(device_names);
+    const auto internal = get_core()->get_property(type, ov::internal::supported_properties);
+    OPENVINO_ASSERT(ov::util::contains(internal, ov::tp::internal::collective_support.name()),
                     get_device_name(),
-                    ": rank devices of type ",
+                    ": the ",
                     type,
-                    " are not supported; ranks run on GPU devices only");
-    return names;
+                    " plugin does not support tensor-parallel collectives");
+
+    // The device plugin decides what it can serve, distinct devices included.
+    const auto reason = get_core()
+                            ->get_property(type,
+                                           ov::tp::internal::collective_support.name(),
+                                           {{ov::tp::internal::device_group.name(), device_names},
+                                            {ov::tp::internal::collective_backend.name(), config.get_collective_backend()}})
+                            .as<std::string>();
+    OPENVINO_ASSERT(reason.empty(), get_device_name(), ": ", reason);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -289,12 +351,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ov::AnyMap config;
     build_call_config(properties, cfg, config);
 
-    auto device_names = resolve_rank_devices(cfg);
+    auto device_names = cfg.resolve_device_names();
+    reject_linear_attention(*model);
+    const bool shard_only = cfg.shard_only();
+    if (!shard_only) {
+        check_collective_support(device_names, cfg);
+    }
     // Weights are always divided by however many devices were asked for.
     // Under shard_only only the first rank is built and run, so the number of
     // ranks drops to one while the sharding degree does not.
     const auto shard_degree = static_cast<uint32_t>(device_names.size());
-    const bool shard_only = cfg.shard_only();
     if (shard_only) {
         device_names.resize(1);
     }
@@ -348,7 +414,7 @@ void Plugin::set_property(const ov::AnyMap& properties) {
         if (m_config.owns(entry.first)) {
             own.insert(entry);
         } else {
-            m_gpu_config[entry.first] = entry.second;
+            m_device_config[entry.first] = entry.second;
         }
     }
     // Validated here rather than at the next compile, and overwriting rather
@@ -361,23 +427,22 @@ std::vector<std::string> Plugin::query_devices(const ov::AnyMap& arguments) cons
     ov::AnyMap forwarded;
     build_call_config(arguments, cfg, forwarded);
 
-    auto names = cfg.requested_device_names();
-    if (!names.empty()) {
-        return names;
-    }
-    // Nothing to go on yet -- the caller is asking about the plugin, not about
-    // a particular run. The GPU plugin's own default device answers for it.
-    return {"GPU"};
+    return cfg.requested_device_names();
 }
 
-std::vector<ov::PropertyName> Plugin::gpu_caching_properties(const ov::AnyMap& arguments) const {
-    return get_core()->get_property(query_devices(arguments).front(), ov::internal::caching_properties);
+std::vector<ov::PropertyName> Plugin::rank_caching_properties(const ov::AnyMap& arguments) const {
+    // Without rank devices there is no device plugin to ask.
+    const auto devices = query_devices(arguments);
+    if (devices.empty()) {
+        return {};
+    }
+    return get_core()->get_property(devices.front(), ov::internal::caching_properties);
 }
 
 ov::Any Plugin::aggregate_rank_property(const std::string& name, const ov::AnyMap& arguments) const {
-    // A TP blob is a container of one intel_gpu blob per rank, so anything
+    // A TP blob is a container of one device-plugin blob per rank, so anything
     // that makes a single rank's blob unique makes the whole thing unique.
-    // Values are joined across ranks so a heterogeneous set of GPUs cannot
+    // Values are joined across ranks so a heterogeneous set of devices cannot
     // collide with a homogeneous one in the cache hash.
     const auto devices = query_devices(arguments);
     std::string joined;
@@ -410,8 +475,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
         };
     } else if (name == ov::internal::caching_properties.name()) {
-        auto properties = gpu_caching_properties(arguments);
+        auto properties = rank_caching_properties(arguments);
         properties.emplace_back(ov::device::priorities.name(), ov::PropertyMutability::RW);
+        properties.emplace_back(ov::tp::tp_strategy.name(), ov::PropertyMutability::RW);
         return properties;
     } else if (m_config.owns(name)) {
         // Unset options answer with their default rather than refusing: the
@@ -420,9 +486,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         return m_config.get_property(name, ov::OptionVisibility::RELEASE);
     }
 
-    // Everything the GPU plugin folds into its cache hash has to be answerable
+    // Everything the device plugin folds into its cache hash has to be answerable
     // here too, otherwise Core cannot build a compile config for TP.
-    if (ov::util::contains(gpu_caching_properties(arguments), name)) {
+    if (ov::util::contains(rank_caching_properties(arguments), name)) {
         return aggregate_rank_property(name, arguments);
     }
     OPENVINO_THROW("[TP] Unsupported property: ", name);
@@ -444,9 +510,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     ov::AnyMap config;
     build_call_config(properties, cfg, config);
 
-    const auto device_names = resolve_rank_devices(cfg);
+    const auto device_names = cfg.resolve_device_names();
 
-    // Every rank compiles the same op set, so whatever the GPU plugin supports
+    // Every rank compiles the same op set, so whatever the device plugin supports
     // on one rank is what TP supports as a whole. The collectives inserted
     // later are invisible at query time -- they do not exist in the user model.
     auto supported = get_core()->query_model(model, device_names.front(), config);
@@ -462,7 +528,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
     build_call_config(properties, cfg, config);
 
     // The TP container is what we are reading right now. Forwarding it would
-    // make the GPU plugin try to import the outer blob instead of its own.
+    // make the device plugin try to import the outer blob instead of its own.
     config.erase(ov::hint::compiled_blob.name());
 
     auto header = read_blob_header(blob);
@@ -476,6 +542,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
                     "[TP] compiled blob was produced for ",
                     ov::Any(header.device_names).as<std::string>(), " but ",
                     ov::Any(requested_devices).as<std::string>(), " was requested");
+    check_collective_support(header.device_names, cfg);
 
     const auto rank_contexts = create_rank_contexts(header.device_names, cfg);
 
@@ -490,10 +557,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
 
         rank_compiled[rank] = get_core()->import_model(blob, rank_contexts[rank], config);
         OPENVINO_ASSERT(rank_compiled[rank],
-                        "[TP] the GPU plugin refused the cached blob of rank ", rank,
+                        "[TP] the device plugin refused the cached blob of rank ", rank,
                         " on ", header.device_names[rank], "; it was compiled with a different cache mode");
 
-        // The GPU reader stops wherever its own format ends, which need not be
+        // The rank reader stops wherever its own format ends, which need not be
         // the byte we recorded. Realign so the next rank starts in the right
         // place instead of parsing the tail of its predecessor.
         blob.clear();

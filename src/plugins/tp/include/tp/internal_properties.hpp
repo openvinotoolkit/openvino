@@ -12,9 +12,15 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tp/collective_contract.hpp"
+#include "tp/properties.hpp"
 
 namespace ov {
 namespace tp {
+
+namespace internal {
+/// Number of ranks of a TP compiled model.
+static constexpr Property<int, PropertyMutability::RO> world_size{"ov_internal_tp_world_size"};
+}  // namespace internal
 
 enum class ProfilingMode : uint8_t {
     NONE = 0,    //!< No measurement at all.

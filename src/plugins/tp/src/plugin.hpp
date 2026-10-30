@@ -64,34 +64,34 @@ private:
     /// `import_model` overloads.
     std::shared_ptr<ov::ICompiledModel> import_blob(std::istream& blob, const ov::AnyMap& properties) const;
 
-    /// Best-effort rank device list for property queries, which arrive without
-    /// a compile config. Falls back to the GPU plugin's own default device.
+    /// The rank device list for property queries, which arrive without a
+    /// compile config. Empty when the arguments name no devices.
     std::vector<std::string> query_devices(const ov::AnyMap& arguments) const;
 
-    /// The GPU plugin's cache-defining properties, which are also supported:
-    /// a TP blob is a container of intel_gpu blobs.
-    std::vector<ov::PropertyName> gpu_caching_properties(const ov::AnyMap& arguments) const;
+    /// The rank device plugin's cache-defining properties, which are also
+    /// supported: a TP blob is a container of rank blobs.
+    std::vector<ov::PropertyName> rank_caching_properties(const ov::AnyMap& arguments) const;
 
-    /// Answers a GPU-owned property on behalf of the whole rank set.
+    /// Answers a device-plugin property on behalf of the whole rank set.
     ov::Any aggregate_rank_property(const std::string& name, const ov::AnyMap& arguments) const;
 
     /// Builds the configuration of one call: what the plugin was configured
     /// with, overridden by what the call passed, finalized so the environment
     /// and the config file get their say. Everything that is not supported by TP lands
-    /// in `forwarded`, ready for the per-rank GPU compilations.
+    /// in `forwarded`, ready for the rank compilations.
     void build_call_config(const ov::AnyMap& properties, TPConfig& config, ov::AnyMap& forwarded) const;
 
-    /// The rank devices a model is compiled for, checked against what this
-    /// plugin can run ranks on.
-    std::vector<std::string> resolve_rank_devices(const TPConfig& config) const;
+    /// Asks the rank devices' plugin whether it can run the collectives of
+    /// `device_names` with the configured backend; throws its reason if not.
+    void check_collective_support(const std::vector<std::string>& device_names, const TPConfig& config) const;
 
     /// Only ever holds what was explicitly set -- defaults, environment and
     /// config file are resolved per call.
     TPConfig m_config;
 
-    /// Everything else set on the plugin, forwarded verbatim to the per-rank
-    /// GPU compilations.
-    ov::AnyMap m_gpu_config;
+    /// Everything else set on the plugin, forwarded verbatim to the rank
+    /// compilations.
+    ov::AnyMap m_device_config;
 };
 
 }  // namespace tp

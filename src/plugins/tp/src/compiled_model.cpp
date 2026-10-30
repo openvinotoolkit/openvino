@@ -5,6 +5,7 @@
 #include "compiled_model.hpp"
 
 #include "infer_request.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tp_gpu/paged_attention_cache_controller.hpp"
 #include "tp_blob.hpp"
@@ -131,6 +132,15 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
 
     if (name == ov::execution_devices.name()) {
         return m_device_names;
+    }
+
+    if (name == ov::tp::internal::world_size.name()) {
+        return static_cast<int>(m_rank_compiled.size());
+    }
+
+    if (name == ov::internal::supported_properties.name()) {
+        return std::vector<ov::PropertyName>{
+            ov::PropertyName{ov::tp::internal::world_size.name(), ov::PropertyMutability::RO}};
     }
 
     if (name == ov::tp_gpu::paged_attention_cache_controller.name()) {
