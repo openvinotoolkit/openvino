@@ -205,6 +205,17 @@ public:
     }
 
 protected:
+    // A cached static impl taking over for an unchanged shape (IMPL_CHANGED without SHAPE_CHANGED) has never run its
+    // dispatch data function, so its scalars (M, K, N, epi_mode) are empty.
+    void update_rt_params(const cldnn::primitive_inst& instance) override {
+        PrimitiveImplCM::update_rt_params(instance);
+        if (instance.get_impl_params()->flags.test(cldnn::ExecutionFlags::IMPL_CHANGED)) {
+            for (auto* stage : _stages) {
+                stage->kd.need_dispatch_data_update = true;
+            }
+        }
+    }
+
     // The generic base only exposes the FC's activation input; weights, scales and zero points are the
     // node's remaining dependencies. Bind all of them in dependency order so INPUT i == dependency i.
     [[nodiscard]] cldnn::kernel_arguments_data get_arguments(const cldnn::primitive_inst& instance) const override {
