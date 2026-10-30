@@ -464,7 +464,7 @@ private:
 bool QSAIndexerImplementationManager::validate_impl(const cldnn::program_node& node) const {
     assert(node.is_type<cldnn::qsa_indexer>());
 
-    if (!qsa::ocl_impl_allowed() || node.has_fused_primitives()) {
+    if (node.has_fused_primitives()) {
         return false;
     }
 

@@ -55,7 +55,6 @@
 #include <tuple>
 #include <vector>
 
-#include "impls/ocl/kernel_selector_helper.h"
 #include "openvino/runtime/core.hpp"
 #include "primitive_inst.h"
 #include "random_generator.hpp"
@@ -71,27 +70,11 @@ using DenseIdxIn = ov::intel_gpu::op::QSAIndexer::InputIdx;
 using SparsePAIn = cldnn::sparse_pa::InputIdx;
 using SparseSDPAIn = ov::intel_gpu::op::SparseSDPA::InputIdx;
 
-/// OV_GPU_QSA_IMPL selects the back end under test: OpenCL by default, `cm` for the CM implementation.
-bool ocl_qsa_ops_available() {
+/// The QSA ops run on the OpenCL implementation, which needs the Intel subgroup extensions.
+bool qsa_ops_available() {
     auto& engine = get_test_engine();
     const auto& info = engine.get_device_info();
     return info.supports_intel_subgroups && info.supports_intel_subgroups_short;
-}
-
-bool qsa_uses_ocl() {
-    const char* v = std::getenv("OV_GPU_QSA_IMPL");
-    const bool cm_requested = v != nullptr && std::string(v) == "cm";
-    return !cm_requested && ocl_qsa_ops_available();
-}
-
-bool cm_qsa_ops_available() {
-    auto& engine = get_test_engine();
-    ExecutionConfig config = get_test_default_config(engine);
-    const char* v = std::getenv("OV_GPU_QSA_IMPL");
-    if (v != nullptr && std::string(v) == "cm") {
-        return cldnn::check_cm_jit_support(engine, config) && engine.get_device_info().supports_immad;
-    }
-    return ocl_qsa_ops_available();
 }
 
 int64_t I(size_t v) {
@@ -1074,15 +1057,13 @@ struct pair_outputs {
     std::vector<std::string> indexer_kernels, attention_kernels;
 };
 
-/// Kernels the primitive's last execute() enqueued, in order, without the `_cm_<hash>` / `_ocl_<hash>` suffix.
+/// Kernels the primitive's last execute() enqueued, in order, without the `_ocl_<hash>` suffix.
 std::vector<std::string> executed_kernels(network& net, const primitive_id& id) {
     auto inst = net.get_primitive(id);
     std::istringstream entries(inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries());
     std::vector<std::string> names;
     for (std::string entry; entries >> entry;) {
-        const auto cm = entry.rfind("_cm_");
-        const auto ocl = entry.rfind("_ocl_");
-        names.push_back(entry.substr(0, cm != std::string::npos ? cm : ocl));
+        names.push_back(entry.substr(0, entry.rfind("_ocl_")));
     }
     return names;
 }
@@ -1120,12 +1101,8 @@ std::vector<std::string> expected_indexer_kernels(bool paged, const route& r) {
         k.insert(k.end(), {"qsa_indexer_score_dpas", "qsa_indexer_topk"});
         break;
     case IndexerPath::Fused:
-        if (qsa_uses_ocl()) {
-            // The OpenCL implementation has no single-thread fused kernel: partition scorer + prefill top-k.
-            k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk"});
-        } else {
-            k.push_back("qsa_indexer_score_topk_fused");
-        }
+        // There is no single-thread fused kernel: partition scorer + prefill top-k.
+        k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk"});
         break;
     }
     return k;
@@ -1218,8 +1195,8 @@ void print_error_stats(const char* label, const error_stats& s) {
               << " max_rel=" << s.max_rel << std::endl;
 }
 
-/// With QSA_DUMP_DIR set, writes the GPU attention output and selection plan of every validated pair so that two backends
-/// (OV_GPU_QSA_IMPL=cm|ocl) can be diffed directly.
+/// With QSA_DUMP_DIR set, writes the GPU attention output and selection plan of every validated pair so that two runs
+/// can be diffed directly.
 void dump_pair_outputs(const pair_outputs& gpu) {
     const char* dir = std::getenv("QSA_DUMP_DIR");
     if (dir == nullptr) {
@@ -1419,8 +1396,8 @@ void run_pair_test(bool paged,
                    float rtol,
                    float atol = 2e-3f,
                    float scale = 1.0f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     ASSERT_GT((past_len + q_len) / d.r, d.block_topk) << "the selection must drop some complete blocks to be meaningful";
     run_pair_case(paged, d, past_len, q_len, kind, r, rtol, atol, scale);
@@ -1428,8 +1405,8 @@ void run_pair_test(bool paged,
 
 /// Short context: every query sees at most block_topk complete blocks, so top-k selects all of them.
 void run_full_selection_pair_test(bool paged, const split_dims& d, size_t past_len, size_t q_len, const route& r, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     ASSERT_LE((past_len + q_len) / d.r, d.block_topk);
     run_pair_case(paged, d, past_len, q_len, Positions::Sequential, r, rtol, atol, 1.0f);
@@ -1504,8 +1481,8 @@ void validate_slices(bool paged, const std::vector<split_reference>& refs, const
 
 /// Multi-sequence paged batch: all decode (q_len == 1 each) or mixed decode/prefill.
 void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& seqs, const route& r, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     auto& engine = get_test_engine();
     const auto refs = make_batch_references(d, seqs);
@@ -1521,8 +1498,8 @@ void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_
 /// are left-padded to the longest row); a row with q_len below the longest q_len must have
 /// past_len == 0 and is left-padded.
 void run_dense_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& rows, const route& r, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     run_dense_rows(get_test_engine(), make_batch_references(d, rows), r, atol, rtol);
 }
@@ -1557,8 +1534,8 @@ split_reference slice_reference(const split_reference& full, size_t past_len, si
 /// and every call after the first consumes the state outputs (block_index_keys_cache, staged raw keys,
 /// RoPE row) the previous call returned, as ReadValue/Assign would carry them.
 void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
     auto& engine = get_test_engine();
@@ -1896,8 +1873,8 @@ TEST(qsa_ops_gpu_test, paged_pair_dominant_outlier_component_stays_accurate) {
     // One channel 40x the scale of the rest in both the first query token's index head
     // and the earliest historical index key: stresses RMSNorm's sum-of-squares reduction
     // (a single term dominating the accumulation) rather than merely scaling everything.
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     const auto d = qwen38_dims();
     auto& engine = get_test_engine();
@@ -1910,8 +1887,8 @@ TEST(qsa_ops_gpu_test, paged_pair_dominant_outlier_component_stays_accurate) {
 }
 
 TEST(qsa_ops_gpu_test, dense_pair_dominant_outlier_component_stays_accurate) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     const auto d = qwen38_dims();
     auto& engine = get_test_engine();
@@ -1946,8 +1923,8 @@ struct dynamic_step {
 };
 
 void run_dynamic_pair_test(bool paged, const split_dims& d, const std::vector<dynamic_step>& steps, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
@@ -2063,8 +2040,8 @@ void run_padded_kv_attention_test(const split_dims& d,
                                   AttnPath path,
                                   float rtol,
                                   float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
@@ -2158,8 +2135,8 @@ TEST(qsa_ops_gpu_test, qwen38_dense_attention_gqa_split_reads_padded_kv) {
 // ---------------------------------------------------------------------------
 
 void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     ov::Core core;
     const auto f16 = ov::element::f16;
@@ -2618,7 +2595,7 @@ TEST(qsa_ops_gpu_test, sparse_sdpa_output_shape_and_optional_inputs) {
 // ---------------------------------------------------------------------------
 // Plugin-level rejection of configurations outside the v1 GPU scope
 // (H_ik == 1, num_selection_heads == 1, f16 data). Goes through ov::Core so the ProgramBuilder
-// factories are exercised; no CM support is needed since lowering fails first.
+// factories are exercised; no device support is needed since lowering fails first.
 // ---------------------------------------------------------------------------
 
 bool gpu_in_core(ov::Core& core) {
@@ -2699,8 +2676,8 @@ TEST(qsa_ops_gpu_test, plugin_lowers_sparse_pa_scale_input_and_rejects_sinks) {
     expect_compile_error(core, std::make_shared<ov::op::internal::PagedSparseAttention>(args, key_block_size), {}, "scale input must be a Constant");
 
     // Constant scale + empty sinks lowers (scale and sinks are not primitive inputs).
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     args[paged_sparse_attention_scale_idx] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.0625f});
     auto op = std::make_shared<ov::op::internal::PagedSparseAttention>(args, key_block_size);
@@ -2786,8 +2763,8 @@ void print_perf(const char* op, const perf_case& c, const perf_timing& t, double
 class qsa_ops_perf : public ::testing::TestWithParam<perf_case> {};
 
 TEST_P(qsa_ops_perf, qwen38) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     const auto c = GetParam();
     auto d = qwen38_dims();
@@ -2860,8 +2837,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_qsa_ops_perf,
 // (prompt length / history length), QSA_PERF_ITERS, QSA_PERF_WARMUP, QSA_PERF_FLUSH_MB (writes
 // that many MiB between iterations to evict L2), QSA_PERF_STAGES (comma list of pair|indexer|attention, default pair).
 TEST(qsa_ops_perf_sweep, DISABLED_pair) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     auto env_size = [](const char* name, size_t fallback) {
         const char* v = std::getenv(name);

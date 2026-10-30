@@ -41,12 +41,6 @@ inline void force_stages_refresh(PrimitiveImplOCL& impl) {
     }
 }
 
-/// The OpenCL implementation is the default; OV_GPU_QSA_IMPL selecting another back end takes it out of the selection.
-inline bool ocl_impl_allowed() {
-    const char* v = std::getenv("OV_GPU_QSA_IMPL");
-    return v == nullptr || std::string_view(v) != "cm";
-}
-
 /// OV_GPU_QSA_OCL_DISABLE_XMX=1 routes every stage to the scalar kernels (for testing them on XMX hardware).
 inline bool xmx_allowed(const cldnn::device_info& info) {
     const char* v = std::getenv("OV_GPU_QSA_OCL_DISABLE_XMX");

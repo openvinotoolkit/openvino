@@ -9,9 +9,6 @@
 #if OV_GPU_WITH_OCL
 #    include "impls/ocl_v2/qsa_indexer/qsa_indexer.hpp"
 #endif
-#if OV_GPU_WITH_CM
-#    include "impls/cm/qsa_indexer/qsa_indexer.hpp"
-#endif
 
 namespace ov::intel_gpu {
 
@@ -21,9 +18,6 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<qsa_i
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
 #if OV_GPU_WITH_OCL
         OV_GPU_CREATE_INSTANCE_OCL(ocl::QSAIndexerImplementationManager, shape_types::any)
-#endif
-#if OV_GPU_WITH_CM
-            OV_GPU_CREATE_INSTANCE_CM(cm::QSAIndexerCMImplementationManager, shape_types::any)
 #endif
     };
 

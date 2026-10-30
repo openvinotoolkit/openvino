@@ -1648,7 +1648,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // The index query's RMSNorm and RoPE are fused into QSAIndexer, so this runs once RoPEFusion
         // has turned the rotation into a RoPE op.
         // Public QSAPrepare/SparseAttentionIndexer/SparseAttention/PagedQSAIndexer/PagedSparseAttention
-        // -> QSAIndexer/SparseSDPA/PagedQSAIndexer/SparsePA (CM-only primitives).
+        // -> QSAIndexer/SparseSDPA/PagedQSAIndexer/SparsePA (GPU primitives).
         manager.register_pass<ov::intel_gpu::SparseAttentionFusion>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();

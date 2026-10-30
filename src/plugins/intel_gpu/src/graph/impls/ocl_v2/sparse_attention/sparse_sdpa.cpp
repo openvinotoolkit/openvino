@@ -206,7 +206,7 @@ public:
 bool SparseSDPAImplementationManager::validate_impl(const cldnn::program_node& node) const {
     assert(node.is_type<cldnn::sparse_sdpa>());
 
-    if (!qsa::ocl_impl_allowed() || node.has_fused_primitives()) {
+    if (node.has_fused_primitives()) {
         return false;
     }
 
