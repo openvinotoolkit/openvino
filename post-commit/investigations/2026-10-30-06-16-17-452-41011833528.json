@@ -1,0 +1,41 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-30-06-16-17-452-41011833528",
+    "timestamp": "2026-10-30T06:16:17Z",
+    "run_id": "41011833528",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41011833528",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "e51a8dcb6d3406583b3add7a9d0c2b63d91ed35d",
+    "pr_number": null,
+    "pr_url": null,
+    "author": null,
+    "category": "Network",
+    "title": "Docker job fails to download pinned checkout action from codeload.github.com",
+    "signature": "resource temporarily unavailable codeload.github.com failed to download action archive after 3 attempts|Network",
+    "signature_hash": "85b215ebb71d16fe",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Docker",
+            "conclusion": "failure",
+            "symptom": "Step 'Run ./.github/actions/handle_docker' failed because the runner could not download the pinned 'ababushk/checkout' action archive from codeload.github.com after 3 retries"
+        }
+    ],
+    "key_errors": [
+        "##[warning]Failed to download action 'https://codeload.github.com/ababushk/checkout/tar.gz/9bec46a94a83db82acd4303e7627d88db71402a5'. Error: Resource temporarily unavailable (codeload.github.com:443)",
+        "##[warning]Back off 19.087 seconds before retry.",
+        "##[warning]Failed to download action 'https://codeload.github.com/ababushk/checkout/tar.gz/9bec46a94a83db82acd4303e7627d88db71402a5'. Error: Resource temporarily unavailable (codeload.github.com:443)",
+        "##[warning]Back off 11.797 seconds before retry.",
+        "##[error]Resource temporarily unavailable (codeload.github.com:443)",
+        "##[error]Failed to download archive 'https://codeload.github.com/ababushk/checkout/tar.gz/9bec46a94a83db82acd4303e7627d88db71402a5' after 3 attempts."
+    ],
+    "root_cause": "The 'Docker' job's 'Run ./.github/actions/handle_docker' step references the pinned action 'ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5'. The GitHub Actions runner needed to download this action's archive from codeload.github.com before executing the step, but all 3 download attempts (with exponential backoff of ~19s and ~12s between retries) failed with 'Resource temporarily unavailable (codeload.github.com:443)'. This is a transient network/connectivity error on GitHub's codeload CDN endpoint, unrelated to the triggering commit (e51a8dc, a GPU paged-attention kernel-selection performance change) which never touches workflow or action code.",
+    "reproduction_steps": "N/A - not reliably reproducible locally since it depends on transient connectivity between the GitHub Actions runner and codeload.github.com at action-download time. To observe the failure mode, attempt to fetch https://codeload.github.com/ababushk/checkout/tar.gz/9bec46a94a83db82acd4303e7627d88db71402a5 during a codeload outage or from a network path with connectivity issues to GitHub's CDN.",
+    "recommended_actions": [
+        "Re-run the 'Docker' job/workflow; this is a transient codeload.github.com availability issue, not a code regression from commit e51a8dc.",
+        "If this action-download failure recurs frequently, consider increasing the runner's action-download retry count/backoff via GITHUB_ACTIONS_RUNNER settings, or self-hosting/mirroring frequently used third-party actions (like the pinned 'ababushk/checkout' fork) in an internal registry to reduce dependence on codeload.github.com.",
+        "Monitor GitHub's status page (githubstatus.com) around 2026-10-30T06:07-06:08Z for any reported codeload/Actions incidents correlating with this failure."
+    ],
+    "prevention_strategies": "Reduce blast radius of codeload outages by minimizing reliance on third-party forked actions pinned by commit SHA where possible, or by caching/vendoring critical custom actions (such as the 'handle_docker' composite action's dependencies) within the repository itself so they do not require a live download from codeload.github.com on every job run.",
+    "historical_context": "A related but distinct Network-category pattern (signature_hash eeae3ce3f5218e80, 'Post-commit jobs fail checkout/fetch with DNS resolution failure (Could not resolve host: github.com)') was previously recorded on 2026-10-13, also a transient GitHub-side connectivity issue but manifesting as a DNS resolution failure during git fetch rather than an action-archive download timeout from codeload.github.com. No prior occurrence of this exact codeload.github.com action-download signature was found in the pattern database; this is the first recorded instance."
+}

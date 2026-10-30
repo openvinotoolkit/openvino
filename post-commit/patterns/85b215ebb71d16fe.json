@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "resource temporarily unavailable codeload.github.com failed to download action archive after 3 attempts|Network",
+    "signature_hash": "85b215ebb71d16fe",
+    "title": "Docker job fails to download pinned checkout action from codeload.github.com",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-10-30T06:16:17Z",
+    "last_seen": "2026-10-30T06:16:17Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41011833528"
+    ],
+    "affected_commits": [
+        "e51a8dcb6d3406583b3add7a9d0c2b63d91ed35d"
+    ],
+    "recent_timestamps": [
+        "2026-10-30T06:16:17Z"
+    ]
+}
