@@ -5,6 +5,8 @@
 #include "gated_residual.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <utility>
@@ -32,6 +34,19 @@ constexpr size_t gr_decode_rows = 32;  // up to here both GEMMs use decode tilin
 
 constexpr auto get_gr_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
+}
+
+/// The CM implementation is opt-in: only OV_GPU_GR_IMPL=cm selects it, otherwise the OpenCL implementation is used.
+bool cm_impl_allowed() {
+    const char* v = std::getenv("OV_GPU_GR_IMPL");
+    if (v == nullptr) {
+        return false;
+    }
+    std::string s(v);
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return s == "cm";
 }
 
 /// Per-CM-kernel GPU events recorded by the most recent GatedResidualCMImpl::execute()
@@ -708,7 +723,7 @@ std::vector<std::pair<std::string, event::ptr>> take_stage_events() {
 bool GatedResidualCMImplementationManager::validate_impl(const cldnn::program_node& node) const {
     assert(node.is_type<cldnn::gated_residual>());
 
-    if (node.has_fused_primitives()) {
+    if (node.has_fused_primitives() || !cm_impl_allowed()) {
         return false;
     }
 
@@ -749,5 +764,4 @@ std::unique_ptr<cldnn::primitive_impl> GatedResidualCMImplementationManager::cre
 
 }  // namespace ov::intel_gpu::cm
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gated_residual)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::GatedResidualCMImpl)

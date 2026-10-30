@@ -74,3 +74,5 @@ std::string gated_residual_inst::to_string(const gated_residual_node& node) {
 gated_residual_inst::typed_primitive_inst(network& network, const gated_residual_node& node) : parent(network, node) {}
 
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::gated_residual)

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <deque>
 #include <limits>
 #include <memory>
@@ -1653,11 +1654,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseAtan2Decomposed>();
         manager.register_pass<ov::intel_gpu::SwooshFusion>();
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
-        // GatedResidual only has a CM implementation: without it the fused node has no impl and
-        // compile_model fails, so keep the generic graph on devices/builds lacking CM.
-        // Keeps the original generic graph whenever the pattern cannot be proven safe to replace.
-        if (device_info.supports_immad && config.get_use_cm() && cldnn::check_cm_jit_support(m_context->get_engine(), config)) {
-            manager.register_pass<ov::intel_gpu::GatedResidualFusion>();
+        // GatedResidual is implemented in OpenCL (default) and CM (only with OV_GPU_GR_IMPL=cm); without an implementation of
+        // the selected backend the fused node would fail compile_model, so keep the generic graph.
+        {
+            const bool ocl_ok = device_info.supports_immad && device_info.supports_intel_subgroups && device_info.supports_intel_subgroups_short;
+            const bool cm_ok = device_info.supports_immad && config.get_use_cm() && cldnn::check_cm_jit_support(m_context->get_engine(), config);
+            std::string gr_impl = std::getenv("OV_GPU_GR_IMPL") != nullptr ? std::getenv("OV_GPU_GR_IMPL") : "";
+            std::transform(gr_impl.begin(), gr_impl.end(), gr_impl.begin(), [](unsigned char ch) {
+                return static_cast<char>(std::tolower(ch));
+            });
+            if (gr_impl == "cm" ? cm_ok : ocl_ok) {
+                manager.register_pass<ov::intel_gpu::GatedResidualFusion>();
+            }
         }
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();

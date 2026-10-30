@@ -31,7 +31,10 @@
 #ifndef QSA_DPAS_COMMON_HPP
 #    define QSA_DPAS_COMMON_HPP
 
-#    include "qsa_common.hpp"
+// The codegen only inlines `#include "..."` written without space after '#'.
+// clang-format off
+#include "qsa_common.hpp"
+// clang-format on
 
 namespace qsa_dpas {
 
