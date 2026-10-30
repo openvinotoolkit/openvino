@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "../util.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/convert.hpp"
@@ -331,10 +332,25 @@ ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize(bool v_tensors_tran
         set_friendly_name(clamped_max, "clamp_max");
 
         // --- Compute range and scale ---
-        auto range = std::make_shared<ov::op::v1::Subtract>(clamped_max, clamped_min);  // max - min
-        auto scale = std::make_shared<ov::op::v1::Multiply>(range, cst_0);              // scale = range / quant_max
-
-        set_friendly_name(range, "subtract_range");
+        // Asymmetric: scale = (max - min) / quant_max, the zero-point shifts the range.
+        // Symmetric: no zero-point, values map to [-quant_max, quant_max] around 0, so the scale has to
+        // cover the largest magnitude: scale = max(|min|, |max|) / quant_max. With (max - min) a token
+        // with values of one sign would clip, e.g. [1, 2] would dequantize to [1, 1].
+        // The symmetric scale uses the unclamped min / max: clamping the data statistics to the integer
+        // range would clip every value beyond +-quant_max (e.g. +-7 for i4).
+        std::shared_ptr<ov::Node> range;
+        if (has_zp) {
+            range = std::make_shared<ov::op::v1::Subtract>(clamped_max, clamped_min);  // max - min
+            set_friendly_name(range, "subtract_range");
+        } else {
+            auto abs_min = std::make_shared<ov::op::v0::Abs>(reduce_min);
+            auto abs_max = std::make_shared<ov::op::v0::Abs>(reduce_max);
+            set_friendly_name(abs_min, "abs_min");
+            set_friendly_name(abs_max, "abs_max");
+            range = std::make_shared<ov::op::v1::Maximum>(abs_min, abs_max);  // max(|min|, |max|)
+            set_friendly_name(range, "max_abs");
+        }
+        auto scale = std::make_shared<ov::op::v1::Multiply>(range, cst_0);  // scale = range / quant_max
         set_friendly_name(scale, "scale");
 
         auto scale_converted = std::make_shared<ov::op::v0::Convert>(scale, ov::element::f32);

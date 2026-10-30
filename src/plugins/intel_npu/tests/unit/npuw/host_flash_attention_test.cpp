@@ -15,9 +15,11 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 
@@ -818,4 +820,376 @@ TEST(HostFlashAttentionPositionIdsFindTest, RejectsNonUnitBatchDim) {
 TEST(HostFlashAttentionPositionIdsFindTest, RejectsNonUnitBatchDimIn3D) {
     auto rq = make_position_ids_request(ov::Shape{3, 2, 16});
     EXPECT_EQ(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
+}
+
+// ============================================================================
+// int8-compressed past KV cache
+// ============================================================================
+// The KV cache compression leaves this in an attention function: the past key / value Parameters are int8
+// and are dequantized in front of the KV Concat,
+//   key  asymmetric: Multiply(Subtract(Convert(data), Convert(zero_point)), scale)
+//   key  symmetric : Multiply(Convert(data), scale)
+//   value          : Multiply(Convert(data), scale)         (pre-transposed layout)
+// where scale / zero_point are Parameters of the function, with the sequence dimension of the data.
+
+namespace {
+
+std::shared_ptr<ov::Model> build_sdpa_model_int8_kv(bool key_asymmetric,
+                                                    bool swap_multiply_operands = false,
+                                                    bool compress_value = true,
+                                                    size_t query_size = QUERY_SIZE,
+                                                    size_t past_len = PAST_LEN,
+                                                    size_t num_heads = NUM_HEADS,
+                                                    size_t head_dim = HEAD_DIM) {
+    using namespace ov;
+    const Shape past_k_shape = {BATCH, num_heads, past_len, head_dim};
+    const Shape new_k_shape = {BATCH, num_heads, query_size, head_dim};
+    const Shape past_v_shape = {BATCH, num_heads, head_dim, past_len};
+    const Shape new_v_shape = {BATCH, num_heads, head_dim, query_size};
+    const Shape q_shape = {BATCH, num_heads, query_size, head_dim};
+    const Shape mask_shape = {BATCH, 1, query_size, past_len + query_size};
+
+    auto make_param = [](element::Type dtype, const Shape& shape, const std::string& name) {
+        auto p = std::make_shared<op::v0::Parameter>(dtype, shape);
+        p->set_friendly_name(name);
+        p->output(0).get_tensor().set_names({name});
+        return p;
+    };
+
+    auto query = make_param(element::f32, q_shape, "query.0");
+    auto past_key = make_param(element::i8, past_k_shape, "past_key_values.0.key");
+    auto key_scale =
+        make_param(element::f32, {BATCH, num_heads, past_len, 1}, "DynamicQuantize/0/past_key_values/key/scale");
+    auto key_zp = make_param(element::i8, {BATCH, num_heads, past_len, 1}, "DynamicQuantize/0/past_key_values/key/zp");
+    auto past_val = make_param(compress_value ? element::i8 : element::f32, past_v_shape, "past_key_values.0.value");
+    auto value_scale =
+        make_param(element::f32, {BATCH, num_heads, 1, past_len}, "DynamicQuantize/0/past_key_values/value/scale");
+    auto new_key = make_param(element::f32, new_k_shape, "new_key.0");
+    auto new_val = make_param(element::f32, new_v_shape, "new_value.0");
+    auto mask = make_param(element::f32, mask_shape, "mask.0");
+
+    ParameterVector params = {query, past_key, key_scale};
+    if (key_asymmetric) {
+        params.push_back(key_zp);
+    }
+    params.push_back(past_val);
+    if (compress_value) {
+        params.push_back(value_scale);
+    }
+    params.insert(params.end(), {new_key, new_val, mask});
+
+    auto dequantize = [&](const std::shared_ptr<Node>& data,
+                          const std::shared_ptr<Node>& scale,
+                          const std::shared_ptr<Node>& zero_point) {
+        std::shared_ptr<Node> x = std::make_shared<op::v0::Convert>(data, element::f32);
+        if (zero_point) {
+            x = std::make_shared<op::v1::Subtract>(x, std::make_shared<op::v0::Convert>(zero_point, element::f32));
+        }
+        std::shared_ptr<Node> result = swap_multiply_operands ? std::make_shared<op::v1::Multiply>(scale, x)
+                                                              : std::make_shared<op::v1::Multiply>(x, scale);
+        return result;
+    };
+
+    auto dequantized_key = dequantize(past_key, key_scale, key_asymmetric ? key_zp : nullptr);
+    std::shared_ptr<Node> past_value_input = past_val;
+    if (compress_value) {
+        past_value_input = dequantize(past_val, value_scale, nullptr);
+    }
+
+    auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{dequantized_key, new_key}, 2);
+    key_concat->set_friendly_name("concat_key.0");
+    auto val_concat = std::make_shared<op::v0::Concat>(OutputVector{past_value_input, new_val}, 3);
+    val_concat->set_friendly_name("concat_value.0");
+
+    auto qk = std::make_shared<op::v0::MatMul>(query, key_concat, false, true);
+    qk->set_friendly_name("matmul1.0");
+    auto add = std::make_shared<op::v1::Add>(qk->output(0), mask->output(0));
+    add->set_friendly_name("add.0");
+    auto softmax = std::make_shared<op::v8::Softmax>(add->output(0), 3);
+    softmax->set_friendly_name("softmax.0");
+    auto matmul2 = std::make_shared<op::v0::MatMul>(softmax->output(0), val_concat->output(0), false, true);
+    matmul2->set_friendly_name("matmul2.0");
+
+    ResultVector results;
+    auto make_result = [&](const Output<Node>& out, const std::string& name) {
+        results.push_back(std::make_shared<op::v0::Result>(out));
+        results.back()->set_friendly_name(name);
+    };
+    make_result(key_concat->output(0), "present.0.key");
+    make_result(val_concat->output(0), "present.0.value");
+    make_result(matmul2->output(0), "attn_out.0");
+
+    auto model = std::make_shared<Model>(results, params, "sdpa_model_int8_kv");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// Two past blocks per KV Concat (block-based KV cache), of which only one is int8-compressed: this function
+// cannot be handled by HFA.
+std::shared_ptr<ov::Model> build_sdpa_model_mixed_kv_blocks(bool compressed_first) {
+    using namespace ov;
+    const size_t block_len = QUERY_SIZE;
+    const Shape block_k_shape = {BATCH, NUM_HEADS, block_len, HEAD_DIM};
+    const Shape block_v_shape = {BATCH, NUM_HEADS, HEAD_DIM, block_len};
+
+    auto make_param = [](element::Type dtype, const Shape& shape, const std::string& name) {
+        auto p = std::make_shared<op::v0::Parameter>(dtype, shape);
+        p->set_friendly_name(name);
+        p->output(0).get_tensor().set_names({name});
+        return p;
+    };
+
+    auto query = make_param(element::f32, {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM}, "query.0");
+    auto key_i8 = make_param(element::i8, block_k_shape, "past_key_values.0.key.block0");
+    auto key_scale =
+        make_param(element::f32, {BATCH, NUM_HEADS, block_len, 1}, "DynamicQuantize/0/past_key_values/key/scale");
+    auto key_f32 = make_param(element::f32, block_k_shape, "past_key_values.0.key.block1");
+    auto val_i8 = make_param(element::i8, block_v_shape, "past_key_values.0.value.block0");
+    auto val_scale =
+        make_param(element::f32, {BATCH, NUM_HEADS, 1, block_len}, "DynamicQuantize/0/past_key_values/value/scale");
+    auto val_f32 = make_param(element::f32, block_v_shape, "past_key_values.0.value.block1");
+    auto new_key = make_param(element::f32, {BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM}, "new_key.0");
+    auto new_val = make_param(element::f32, {BATCH, NUM_HEADS, HEAD_DIM, QUERY_SIZE}, "new_value.0");
+    auto mask = make_param(element::f32, {BATCH, 1, QUERY_SIZE, 2 * block_len + QUERY_SIZE}, "mask.0");
+
+    auto dequantize = [](const std::shared_ptr<Node>& data, const std::shared_ptr<Node>& scale) {
+        return std::make_shared<op::v1::Multiply>(std::make_shared<op::v0::Convert>(data, element::f32), scale);
+    };
+    Output<Node> key_compressed = dequantize(key_i8, key_scale);
+    Output<Node> val_compressed = dequantize(val_i8, val_scale);
+    OutputVector key_inputs = compressed_first ? OutputVector{key_compressed, key_f32, new_key}
+                                               : OutputVector{key_f32, key_compressed, new_key};
+    OutputVector val_inputs = compressed_first ? OutputVector{val_compressed, val_f32, new_val}
+                                               : OutputVector{val_f32, val_compressed, new_val};
+
+    auto key_concat = std::make_shared<op::v0::Concat>(key_inputs, 2);
+    key_concat->set_friendly_name("concat_key.0");
+    auto val_concat = std::make_shared<op::v0::Concat>(val_inputs, 3);
+    val_concat->set_friendly_name("concat_value.0");
+
+    auto qk = std::make_shared<op::v0::MatMul>(query, key_concat, false, true);
+    qk->set_friendly_name("matmul1.0");
+    auto add = std::make_shared<op::v1::Add>(qk->output(0), mask->output(0));
+    add->set_friendly_name("add.0");
+    auto softmax = std::make_shared<op::v8::Softmax>(add->output(0), 3);
+    softmax->set_friendly_name("softmax.0");
+    auto matmul2 = std::make_shared<op::v0::MatMul>(softmax->output(0), val_concat->output(0), false, true);
+    matmul2->set_friendly_name("matmul2.0");
+
+    ResultVector results;
+    auto make_result = [&](const Output<Node>& out, const std::string& name) {
+        results.push_back(std::make_shared<op::v0::Result>(out));
+        results.back()->set_friendly_name(name);
+    };
+    make_result(key_concat->output(0), "present.0.key");
+    make_result(val_concat->output(0), "present.0.value");
+    make_result(matmul2->output(0), "attn_out.0");
+
+    ParameterVector params = {query, key_i8, key_scale, key_f32, val_i8, val_scale, val_f32, new_key, new_val, mask};
+    auto model = std::make_shared<Model>(results, params, "sdpa_model_mixed_kv_blocks");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// Index of the input with this tensor name, or -1
+int input_index_by_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    for (size_t i = 0; i < model->inputs().size(); ++i) {
+        if (model->inputs()[i].get_names().count(name) > 0) {
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+using ov::npuw::HFATileQuantInputId;
+
+}  // namespace
+
+TEST(HostFlashAttentionInt8KVTest, SymmetricKeyAndValueAreDetected) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_int8_kv(false), false);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_past_key_block_indices.size(), 1u);
+    EXPECT_EQ(result->_past_key_scale_indices.size(), 1u);
+    EXPECT_TRUE(result->_past_key_zp_indices.empty());
+    EXPECT_EQ(result->_past_value_block_indices.size(), 1u);
+    EXPECT_EQ(result->_past_value_scale_indices.size(), 1u);
+    EXPECT_TRUE(result->_past_value_zp_indices.empty());
+    EXPECT_EQ(result->_regular_tile_quant_index_map.count(HFATileQuantInputId::K_SCALE_TILE), 1u);
+    EXPECT_EQ(result->_regular_tile_quant_index_map.count(HFATileQuantInputId::K_ZP_TILE), 0u);
+    EXPECT_EQ(result->_regular_tile_quant_index_map.count(HFATileQuantInputId::V_SCALE_TILE), 1u);
+    EXPECT_EQ(result->_regular_tile_quant_index_map.count(HFATileQuantInputId::V_ZP_TILE), 0u);
+}
+
+TEST(HostFlashAttentionInt8KVTest, AsymmetricKeyIsDetected) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_int8_kv(true), false);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_past_key_scale_indices.size(), 1u);
+    EXPECT_EQ(result->_past_key_zp_indices.size(), 1u);
+    EXPECT_TRUE(result->_past_value_zp_indices.empty());
+    EXPECT_EQ(result->_regular_tile_quant_index_map.count(HFATileQuantInputId::K_ZP_TILE), 1u);
+    EXPECT_EQ(result->_regular_tile_quant_index_map.count(HFATileQuantInputId::V_ZP_TILE), 0u);
+}
+
+TEST(HostFlashAttentionInt8KVTest, MultiplyOperandOrderDoesNotMatter) {
+    for (bool asymmetric : {false, true}) {
+        auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_int8_kv(asymmetric, true), false);
+        ASSERT_TRUE(result.has_value()) << "asymmetric=" << asymmetric;
+        EXPECT_EQ(result->_past_key_scale_indices.size(), 1u);
+        EXPECT_EQ(result->_past_key_zp_indices.size(), asymmetric ? 1u : 0u);
+        EXPECT_EQ(result->_past_value_scale_indices.size(), 1u);
+    }
+}
+
+TEST(HostFlashAttentionInt8KVTest, BlockIndicesPointAtTheQuantizedParameters) {
+    auto model = build_sdpa_model_int8_kv(true);
+    auto result = ov::npuw::function::HostFlashAttention::from(model, false);
+    ASSERT_TRUE(result.has_value());
+    auto index_of = [&](const std::string& name) {
+        for (size_t i = 0; i < model->get_parameters().size(); ++i) {
+            if (model->get_parameters()[i]->get_friendly_name() == name) {
+                return i;
+            }
+        }
+        return std::numeric_limits<size_t>::max();
+    };
+    EXPECT_EQ(result->_past_key_block_indices.at(0), index_of("past_key_values.0.key"));
+    EXPECT_EQ(result->_past_key_scale_indices.at(0), index_of("DynamicQuantize/0/past_key_values/key/scale"));
+    EXPECT_EQ(result->_past_key_zp_indices.at(0), index_of("DynamicQuantize/0/past_key_values/key/zp"));
+    EXPECT_EQ(result->_past_value_block_indices.at(0), index_of("past_key_values.0.value"));
+    EXPECT_EQ(result->_past_value_scale_indices.at(0), index_of("DynamicQuantize/0/past_key_values/value/scale"));
+}
+
+TEST(HostFlashAttentionInt8KVTest, RegularTileHasDequantizationInputsAfterTheLeadingOnes) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_int8_kv(true), false);
+    ASSERT_TRUE(result.has_value());
+    const auto& regular = result->_tile_model;
+    const auto& final_tile = result->_final_tile_model;
+
+    // The leading inputs stay identical in both tile models; the dequantization inputs are appended to the
+    // regular one and found by name.
+    ASSERT_EQ(final_tile->inputs().size(), 7u);
+    ASSERT_EQ(regular->inputs().size(), 7u + 3u);
+    for (size_t i = 0; i < 7; ++i) {
+        EXPECT_EQ(regular->inputs()[i].get_names(), final_tile->inputs()[i].get_names()) << "input " << i;
+    }
+    EXPECT_EQ(input_index_by_name(final_tile, "K_SCALE_TILE"), -1);
+
+    const int k_scale = input_index_by_name(regular, "K_SCALE_TILE");
+    const int k_zp = input_index_by_name(regular, "K_ZP_TILE");
+    const int v_scale = input_index_by_name(regular, "V_SCALE_TILE");
+    ASSERT_GE(k_scale, 7);
+    ASSERT_GE(k_zp, 7);
+    ASSERT_GE(v_scale, 7);
+    EXPECT_EQ(input_index_by_name(regular, "V_ZP_TILE"), -1);
+    EXPECT_EQ(result->_regular_tile_quant_index_map.at(HFATileQuantInputId::K_SCALE_TILE),
+              static_cast<size_t>(k_scale));
+
+    // One past tile (QUERY_SIZE positions): scale / zero-point have the sequence dimension of the data
+    EXPECT_EQ(regular->inputs()[k_scale].get_shape(), (ov::Shape{BATCH, NUM_HEADS, QUERY_SIZE, 1}));
+    EXPECT_EQ(regular->inputs()[k_zp].get_shape(), (ov::Shape{BATCH, NUM_HEADS, QUERY_SIZE, 1}));
+    EXPECT_EQ(regular->inputs()[v_scale].get_shape(), (ov::Shape{BATCH, NUM_HEADS, 1, QUERY_SIZE}));
+    EXPECT_EQ(regular->inputs()[k_scale].get_element_type(), ov::element::f32);
+    EXPECT_EQ(regular->inputs()[k_zp].get_element_type(), ov::element::i8);
+}
+
+TEST(HostFlashAttentionInt8KVTest, RegularTileKVTilesAreInt8WhileStateAndFinalTileAreNot) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_int8_kv(false), false);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(get_input_dtype(result->_tile_model, "K_TILE"), ov::element::i8);
+    EXPECT_EQ(get_input_dtype(result->_tile_model, "V_TILE"), ov::element::i8);
+    // The accumulation state cannot be int8
+    EXPECT_NE(get_input_dtype(result->_tile_model, "PAST_ACC"), ov::element::i8);
+    EXPECT_EQ(get_input_dtype(result->_tile_model, "PAST_ACC"), get_input_dtype(result->_final_tile_model, "PAST_ACC"));
+    // The final tile receives the freshly computed (not quantized) present KV
+    EXPECT_EQ(get_input_dtype(result->_final_tile_model, "K_TILE"), ov::element::f32);
+    EXPECT_EQ(get_input_dtype(result->_final_tile_model, "V_TILE"), ov::element::f32);
+}
+
+TEST(HostFlashAttentionInt8KVTest, FusedAttentionStillGetsDequantizedTiles) {
+    // The fused FlashAttentionTile op is not touched: it only ever sees the dequantized f32 tiles.
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_int8_kv(true), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_GE(input_index_by_name(result->_tile_model, "K_SCALE_TILE"), 0);
+    EXPECT_EQ(input_index_by_name(result->_final_tile_model, "K_SCALE_TILE"), -1);
+}
+
+TEST(HostFlashAttentionInt8KVTest, KeyCompressedButValuePlainIsRejected) {
+    auto model = build_sdpa_model_int8_kv(false, false, /*compress_value=*/false);
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, false).has_value());
+}
+
+TEST(HostFlashAttentionInt8KVTest, UncompressedModelHasNoDequantizationInputs) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), false);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_TRUE(result->_past_key_scale_indices.empty());
+    EXPECT_TRUE(result->_past_key_zp_indices.empty());
+    EXPECT_TRUE(result->_past_value_scale_indices.empty());
+    EXPECT_TRUE(result->_past_value_zp_indices.empty());
+    EXPECT_TRUE(result->_regular_tile_quant_index_map.empty());
+    EXPECT_EQ(result->_tile_model->inputs().size(), result->_final_tile_model->inputs().size());
+}
+
+TEST(HostFlashAttentionInt8KVTest, CompiledInfoCarriesTheDequantizationIndices) {
+    auto func = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_int8_kv(true), false);
+    ASSERT_TRUE(func.has_value());
+    ov::npuw::compiled::HostFlashAttention compiled(*func);
+    const auto& sdpa = compiled._sdpa_attention_info._sdpa_indices;
+    const auto& tile = compiled._sdpa_attention_info._tile_input_indices;
+    EXPECT_EQ(sdpa.past_key_scale_blocks, func->_past_key_scale_indices);
+    EXPECT_EQ(sdpa.past_key_zp_blocks, func->_past_key_zp_indices);
+    EXPECT_EQ(sdpa.past_value_scale_blocks, func->_past_value_scale_indices);
+    EXPECT_TRUE(sdpa.past_value_zp_blocks.empty());
+    constexpr auto none = ov::npuw::compiled::HostFlashAttentionInfo::kNoInput;
+    EXPECT_NE(tile.k_scale, none);
+    EXPECT_NE(tile.k_zp, none);
+    EXPECT_NE(tile.v_scale, none);
+    EXPECT_EQ(tile.v_zp, none);
+    EXPECT_EQ(compiled._sdpa_attention_info.quant_input_count(), 3u);
+}
+
+TEST(HostFlashAttentionInt8KVTest, CompiledInfoOfAnUncompressedModelHasNoDequantizationInputs) {
+    auto func = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), false);
+    ASSERT_TRUE(func.has_value());
+    ov::npuw::compiled::HostFlashAttention compiled(*func);
+    EXPECT_EQ(compiled._sdpa_attention_info.quant_input_count(), 0u);
+    EXPECT_TRUE(compiled._sdpa_attention_info._sdpa_indices.past_key_scale_blocks.empty());
+}
+
+// SWA-shrunk past (past_len < query_size): the K/V tile has the past length, and so must the scale /
+// zero-point tiles that are cut at the same positions.
+TEST(HostFlashAttentionInt8KVTest, ShortPastDequantizationTilesHaveThePastLength) {
+    constexpr size_t short_past_len = QUERY_SIZE / 2;
+    auto model = build_sdpa_model_int8_kv(true, false, true, QUERY_SIZE, short_past_len);
+    auto result = ov::npuw::function::HostFlashAttention::from(model, false);
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->_past_tile_size, static_cast<int64_t>(short_past_len));
+    const auto& regular = result->_tile_model;
+
+    const int k_tile = input_index_by_name(regular, "K_TILE");
+    const int v_tile = input_index_by_name(regular, "V_TILE");
+    const int k_scale = input_index_by_name(regular, "K_SCALE_TILE");
+    const int k_zp = input_index_by_name(regular, "K_ZP_TILE");
+    const int v_scale = input_index_by_name(regular, "V_SCALE_TILE");
+    ASSERT_GE(k_tile, 0);
+    ASSERT_GE(v_tile, 0);
+    ASSERT_GE(k_scale, 0);
+    ASSERT_GE(k_zp, 0);
+    ASSERT_GE(v_scale, 0);
+
+    EXPECT_EQ(regular->inputs()[k_tile].get_shape()[2], short_past_len);
+    EXPECT_EQ(regular->inputs()[v_tile].get_shape()[3], short_past_len);
+    EXPECT_EQ(regular->inputs()[k_scale].get_shape(), (ov::Shape{BATCH, NUM_HEADS, short_past_len, 1}));
+    EXPECT_EQ(regular->inputs()[k_zp].get_shape(), (ov::Shape{BATCH, NUM_HEADS, short_past_len, 1}));
+    EXPECT_EQ(regular->inputs()[v_scale].get_shape(), (ov::Shape{BATCH, NUM_HEADS, 1, short_past_len}));
+}
+
+// One compressed and one plain past block in the same Concat: HFA would end up with no past blocks, so it
+// must not be created at all and the function keeps the regular attention path.
+TEST(HostFlashAttentionInt8KVTest, MixedCompressedAndPlainPastBlocksAreRejected) {
+    for (bool compressed_first : {true, false}) {
+        EXPECT_FALSE(
+            ov::npuw::function::HostFlashAttention::from(build_sdpa_model_mixed_kv_blocks(compressed_first), false)
+                .has_value())
+            << "compressed_first=" << compressed_first;
+    }
 }

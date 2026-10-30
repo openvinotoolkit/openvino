@@ -79,6 +79,7 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_MAX_CONTEXT_LEN, uint32_t, 8192, ov::intel_np
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_SWA_LEN, uint32_t, 0, ov::intel_npu::npuw::llm, swa_len, "NPUW_LLM_SWA_LEN", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, bool, false, ov::intel_npu::npuw::llm, enable_block_based_kv_cache, "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK, bool, false, ov::intel_npu::npuw::llm, enable_swa_kv_cache_shrink, "NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", LLM, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_LLM_KV_CACHE_COMPRESSION, std::string, "KEY:SYM:BY_TOKEN,VALUE:SYM:BY_TOKEN", ov::intel_npu::npuw::llm, kv_cache_compression, "NPUW_LLM_KV_CACHE_COMPRESSION", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_PREFILL_MOE_HINT, ::intel_npu::npuw::llm::MoEHint, MoEHintOptionTraits, ov::intel_npu::npuw::llm, prefill_moe_hint, "NPUW_LLM_PREFILL_MOE_HINT", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_GENERATE_MOE_HINT, ::intel_npu::npuw::llm::MoEHint, MoEHintOptionTraits, ov::intel_npu::npuw::llm, generate_moe_hint, "NPUW_LLM_GENERATE_MOE_HINT", LLM, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_STRING_ENUM_OPT(NPUW_LLM_PREFILL_HINT, ::intel_npu::npuw::llm::PrefillHint, PrefillHintOptionTraits, ov::intel_npu::npuw::llm, prefill_hint, "NPUW_LLM_PREFILL_HINT", LLM, EXPOSED, CACHED, ALL)

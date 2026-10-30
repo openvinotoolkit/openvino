@@ -732,6 +732,15 @@ static DQTestParams make_sym_i4_uniform(Shape shape,
     return p;
 }
 
+// Symmetric i8 factory: decompose mode V1, is_symmetric=true (2 DQ outputs, no ZP).
+static DQTestParams make_sym_i8_uniform(Shape shape,
+                                        float lo, float hi, unsigned seed) {
+    DQTestParams p = make_uniform(DQMode::HandcraftedSymmetricI8, shape, lo, hi, seed);
+    p.quant_dt     = element::i8;
+    p.is_symmetric = true;
+    return p;
+}
+
 static DQTestParams make_sym_i4_ggd(Shape shape,
                                     float mu, float alpha, float beta, unsigned seed) {
     DQTestParams p = make_ggd(DQMode::HandcraftedSymmetricI8, shape, mu, alpha, beta, seed);
@@ -767,6 +776,17 @@ static std::vector<DQTestParams> make_sym_i4_uniform_cases() {
         make_sym_i4_uniform({1, 8, 64, 128}, -10.0f, 10.0f, 77),
         make_sym_i4_uniform({1, 8, 64, 128}, 0.0f, 5.0f, 999),
         make_sym_i4_uniform({1, 8, 1024, 128}, -3.0f, 3.0f, 314),
+    };
+}
+
+// Symmetric quantization has no zero-point, so the scale must cover max(|x|), not the range: with
+// (max - min) / 127 a token whose values all have one sign (the shifted ranges below) clips.
+static std::vector<DQTestParams> make_sym_i8_uniform_cases() {
+    return {
+        make_sym_i8_uniform({1, 8, 64, 128}, -1.0f, 1.0f, 42),
+        make_sym_i8_uniform({1, 8, 64, 128}, 0.0f, 5.0f, 999),
+        make_sym_i8_uniform({1, 8, 64, 128}, 1.0f, 2.0f, 7),
+        make_sym_i8_uniform({1, 8, 64, 128}, -10.0f, -5.0f, 13),
     };
 }
 
@@ -815,6 +835,14 @@ INSTANTIATE_TEST_SUITE_P(V3_Uniform,
 INSTANTIATE_TEST_SUITE_P(V3_GenGaussian,
                          DynamicQuantizeAccuracyTest,
                          ::testing::ValuesIn(make_ggd_cases(DQMode::CompilerPatternI8)),
+                         get_test_case_name);
+
+// ============================================================================
+// Test instantiation -- V1 symmetric i8: handcrafted symmetric i8 [-127, 127]
+// ============================================================================
+INSTANTIATE_TEST_SUITE_P(V1_Symmetric_i8_Uniform,
+                         DynamicQuantizeAccuracyTest,
+                         ::testing::ValuesIn(make_sym_i8_uniform_cases()),
                          get_test_case_name);
 
 // ============================================================================
