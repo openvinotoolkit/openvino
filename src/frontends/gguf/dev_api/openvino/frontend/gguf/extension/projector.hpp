@@ -5,15 +5,24 @@
 #pragma once
 
 #include <map>
+#include <optional>
 
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/extension/architecture.hpp"
+#include "openvino/frontend/gguf/model_adapter.hpp"
 
 namespace ov::frontend::gguf {
+
+// Recipes use resolved vision.patch_size/window_size/merge and clip.* dimensions in config.
+enum class ProjectorLayout { Unsupported, Image, PaddedPatches, WindowedPatches, SplitMerger, PackedPatches };
 
 struct GGUF_FRONTEND_API ProjectorResult {
     GgufValue output;
     std::map<std::string, std::string> config;
+    // Overrides the definition; Image keeps the inputs supplied by build().
+    std::optional<ProjectorLayout> genai_layout;
+    // Overrides the definition; an explicit empty callback selects the serializable recipe.
+    std::optional<ModelAdapterFn> genai_adapter;
 };
 
 struct GGUF_FRONTEND_API ProjectorDefinition {
@@ -25,6 +34,8 @@ struct GGUF_FRONTEND_API ProjectorDefinition {
     std::string projector_type;
     BuildFn build;
     ArchitectureDefinition::MatchFn match;
+    std::optional<ProjectorLayout> genai_layout;
+    ModelAdapterFn genai_adapter;
 };
 
 class GGUF_FRONTEND_API ProjectorExtension : public ArchitectureExtension {

@@ -4,6 +4,7 @@
 
 #include "builder/blocks/attention.hpp"
 
+#include <algorithm>
 #include <map>
 #include <vector>
 
@@ -49,21 +50,22 @@ std::string attention(GraphEmitter& e,
     const bool is_swa_layer = cfg.layer_is_swa(il);
     const int head_size_l = cfg.layer_head_size(il);
     const int n_head_kv_l = cfg.layer_n_head_kv(il);
+    const int n_head_l = cfg.layer_n_head(il);
     const float kq_scale = cfg.layer_kq_scale(il);
     const RopeConfig rope_config_l = cfg.layer_rope_config(il);
     // Widen before multiplying the reshape dimensions.
-    const int64_t q_width = static_cast<int64_t>(head_size_l) * cfg.n_head;
+    const int64_t q_width = static_cast<int64_t>(head_size_l) * n_head_l;
     // Gemma4 shared-KV layers have no K/V of their own; newer GGUF files omit those weights.
     const bool has_own_kv = (cfg.shared_kv_layers == 0) || (il < kv.n_own_kv);
 
     // Q/K/V projections: MUL_MAT(w, attn_norm), then conceptual reshape to heads.
     // Fused-QKV archs (phi-3, minicpm) carry a single attn_qkv weight; split it into
     // separate q/k/v weights so the rest of the layer is architecture-agnostic.
-    if (cfg.is_qwen35) {
-        register_qwen35_q_gate(e, cfg, il);
+    if (cfg.interleaved_q_gate) {
+        register_interleaved_q_gate(e, cfg, il);
         e.add_weight(p + "attn_k.weight");
         e.add_weight(p + "attn_v.weight");
-    } else if (e.has_weight(p + "attn_qkv.weight")) {
+    } else if (cfg.fused_qkv_override.value_or(e.has_weight(p + "attn_qkv.weight"))) {
         register_fused_qkv(e, cfg, il);
     } else if (!has_own_kv) {
         e.add_weight(p + "attn_q.weight");
@@ -80,7 +82,16 @@ std::string attention(GraphEmitter& e,
             e.add_weight_from(p + "attn_v.weight", p + "attn_k");
         }
     }
-    auto q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm});
+    std::string q, gate;
+    if (e.weight_emitted(p + "attn_q_gate.weight")) {
+        const auto joint = e.add_op("GGML_OP_MUL_MAT", p + "q_gate", {p + "attn_q_gate.weight", attn_norm});
+        const auto projections =
+            split_interleaved_projection(e, joint, {p + "Qcur", p + "attn_gate_joint"}, n_head_l, head_size_l);
+        q = projections[0];
+        gate = projections[1];
+    } else {
+        q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm});
+    }
     std::string k, v;
     if (has_own_kv) {
         k = e.add_op("GGML_OP_MUL_MAT", p + "Kcur", {p + "attn_k.weight", attn_norm});
@@ -91,7 +102,7 @@ std::string attention(GraphEmitter& e,
     // fused-QKV archs: attn_qkv.bias, already split into attn_{q,k,v}.bias by
     // register_fused_qkv above).
     // Qwen35 repacks a joint Q/gate projection; retain its separate bias policy.
-    if (cfg.is_qwen35 ? cfg.has_qkv_bias : e.has_weight(p + "attn_q.bias")) {
+    if (cfg.qkv_bias_override.value_or(cfg.interleaved_q_gate ? cfg.has_qkv_bias : e.has_weight(p + "attn_q.bias"))) {
         q = add_bias(e, q, p + "attn_q.bias", p + "Qcur_b");
         if (has_own_kv) {
             k = add_bias(e, k, p + "attn_k.bias", p + "Kcur_b");
@@ -111,7 +122,7 @@ std::string attention(GraphEmitter& e,
                  p + "Qcur_r",
                  {q},
                  6,
-                 {{"reshape_target", std::vector<int64_t>{0, -1, cfg.n_head, head_size_l}}, {"special_zero", true}});
+                 {{"reshape_target", std::vector<int64_t>{0, -1, n_head_l, head_size_l}}, {"special_zero", true}});
     if (has_own_kv) {
         k = e.add_op(
             "GGML_OP_RESHAPE",
@@ -275,20 +286,54 @@ std::string attention(GraphEmitter& e,
                             6,
                             {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
 
-    // muse-glimmer: sigmoid output gate. The gate is a projection of the PRE-attention
-    // normed hidden (the same `attn_norm` tensor Q/K/V come from), squashed by sigmoid and
-    // multiplied elementwise into the merged attention output before the wo projection.
     if (cfg.has_attn_gate) {
-        e.add_weight(p + "attn_gate.weight");
-        auto gate = e.add_op("GGML_OP_MUL_MAT", p + "attn_gate", {p + "attn_gate.weight", attn_norm});
+        bool rank3_gate;
+        if (!gate.empty()) {
+            rank3_gate = e.weight_tensor(p + "attn_q.weight").get_element_type() != ov::element::u2;
+            gate =
+                e.add_op("GGML_OP_RESHAPE",
+                         p + "attn_gate",
+                         {gate},
+                         6,
+                         {{"reshape_target",
+                           rank3_gate ? std::vector<int64_t>{0, -1, q_width} : std::vector<int64_t>{0, 1, -1, q_width}},
+                          {"special_zero", true}});
+        } else {
+            e.add_weight(p + "attn_gate.weight");
+            const auto gate_weight = std::find_if(graph.nodes.begin(), graph.nodes.end(), [&](const auto& node) {
+                return node.name == p + "attn_gate.weight";
+            });
+            rank3_gate = gate_weight->attributes.at("gguf.blob.weight").template as<ov::Tensor>().get_element_type() !=
+                         ov::element::u2;
+            gate = e.add_op("GGML_OP_MUL_MAT",
+                            p + "attn_gate",
+                            {p + "attn_gate.weight", attn_norm},
+                            0,
+                            {{"activation_rank", rank3_gate ? 3 : 4}});
+        }
         gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate});
-        attn_2d = e.add_op("GGML_OP_MUL", p + "kqv_gated", {attn_2d, gate});
+        const auto gate_attention =
+            rank3_gate ? e.add_op("GGML_OP_RESHAPE",
+                                  p + "kqv_gate_input",
+                                  {attn_2d},
+                                  6,
+                                  {{"reshape_target", std::vector<int64_t>{0, -1, q_width}}, {"special_zero", true}})
+                       : attn_2d;
+        const auto gated = e.add_op("GGML_OP_MUL", p + "kqv_gated", {gate_attention, gate});
+        attn_2d = rank3_gate
+                      ? e.add_op("GGML_OP_RESHAPE",
+                                 p + "kqv_gated_4d",
+                                 {gated},
+                                 6,
+                                 {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}})
+                      : gated;
     }
 
     // output projection (+ optional bias)
     e.add_weight(p + "attn_output.weight");
     auto attn_out = e.add_op("GGML_OP_MUL_MAT", p + "attn_out", {p + "attn_output.weight", attn_2d});
-    if (cfg.is_qwen35 ? cfg.has_attn_out_bias : e.has_weight(p + "attn_output.bias")) {
+    if (cfg.output_bias_override.value_or(cfg.interleaved_q_gate ? cfg.has_attn_out_bias
+                                                                 : e.has_weight(p + "attn_output.bias"))) {
         attn_out = add_bias(e, attn_out, p + "attn_output.bias", p + "attn_out_b");
     }
     return attn_out;

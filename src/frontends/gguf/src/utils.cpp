@@ -11,7 +11,9 @@
 #include <numeric>
 #include <string>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
@@ -21,6 +23,7 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -34,11 +37,118 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/topk_base.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov::frontend::gguf {
 
-ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input) {
+bool has_nonnegative_indices(const ov::Output<ov::Node>& output) {
+    auto current = output;
+    while (true) {
+        const auto node = current.get_node_shared_ptr();
+        if (ov::is_type<ov::op::util::TopKBase>(node))
+            return current.get_index() == 1;
+        if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+            const auto source_type = convert->get_input_element_type(0);
+            const auto target_type = convert->get_output_element_type(0);
+            if (source_type != target_type && !(source_type == ov::element::i32 && target_type == ov::element::i64))
+                return false;
+        } else if (!ov::is_type<ov::op::v1::Reshape>(node) && !ov::is_type<ov::op::v1::Transpose>(node) &&
+                   !ov::is_type<ov::op::v0::Squeeze>(node) && !ov::is_type<ov::op::v0::Unsqueeze>(node) &&
+                   !ov::is_type<ov::op::v8::Slice>(node)) {
+            return false;
+        }
+        current = node->input_value(0);
+    }
+}
+
+namespace {
+constexpr char hadamard_marker[] = "gguf_hadamard_block";
+
+Output<Node> hadamard_butterfly(Output<Node> input,
+                                int64_t block,
+                                const NodeContext* context = nullptr,
+                                bool keep_fp32 = false) {
+    using namespace ov::op;
+    const auto original_type = input.get_element_type();
+    if (keep_fp32 && original_type != ov::element::f32)
+        input = std::make_shared<v0::Convert>(input, ov::element::f32);
+    const auto constant = [&](ov::element::Type type, const ov::Shape& shape, const std::vector<int64_t>& values) {
+        return context ? context->get_constant(type, shape, values) : v0::Constant::create(type, shape, values);
+    };
+    const auto axis = constant(ov::element::i64, {}, {1});
+    for (int64_t stride = 1; stride < block; stride *= 2) {
+        std::vector<int64_t> indices(block), stage_signs(block);
+        for (int64_t i = 0; i < block; ++i) {
+            indices[i] = i ^ stride;
+            stage_signs[i] = (i & stride) == 0 ? 1 : -1;
+        }
+        const auto permuted =
+            std::make_shared<v8::Gather>(input,
+                                         constant(ov::element::i64, {static_cast<size_t>(block)}, indices),
+                                         axis);
+        const auto signed_input = std::make_shared<v1::Multiply>(
+            input,
+            constant(input.get_element_type(), {static_cast<size_t>(block)}, stage_signs));
+        input = std::make_shared<v1::Add>(signed_input, permuted);
+        if (keep_fp32) {
+            for (const auto& node : ov::NodeVector{permuted, signed_input, input.get_node_shared_ptr()})
+                ov::disable_conversion(node, ov::element::f16);
+        }
+    }
+    const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
+    input = std::make_shared<v1::Multiply>(input, scale);
+    if (keep_fp32) {
+        ov::disable_conversion(input.get_node_shared_ptr(), ov::element::f16);
+        if (original_type != ov::element::f32)
+            input = std::make_shared<v0::Convert>(input, original_type);
+    }
+    return input;
+}
+}  // namespace
+
+Output<Node>* NodeContext::get_hadamard_cache_entry(const Output<Node>& input,
+                                                    int64_t block,
+                                                    bool inverse,
+                                                    bool matrix_form,
+                                                    const std::vector<int64_t>& heads,
+                                                    const ov::Tensor& signs) const {
+    if (signs && !signs.is_continuous())
+        return nullptr;
+    auto type = ov::element::Type_t::dynamic;
+    ov::Shape shape;
+    std::vector<uint8_t> values;
+    if (signs) {
+        type = static_cast<ov::element::Type_t>(signs.get_element_type());
+        shape = signs.get_shape();
+        const auto* bytes = static_cast<const uint8_t*>(signs.data());
+        values.assign(bytes, bytes + signs.get_byte_size());
+    }
+    return &m_constant_cache->hadamard_outputs[{input, block, inverse, matrix_form, heads, type, shape, values}];
+}
+
+Output<Node> NodeContext::get_f32_activation(const Output<Node>& input) const {
+    if (input.get_element_type() == ov::element::f32)
+        return input;
+    auto& output = m_constant_cache->f32_activations[input];
+    if (!output.get_node())
+        output = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+    return output;
+}
+
+Output<Node> NodeContext::get_rank3_activation(const Output<Node>& input) const {
+    auto& output = m_constant_cache->rank3_activations[input];
+    if (!output.get_node()) {
+        const auto width = input.get_partial_shape()[3].get_length();
+        output =
+            std::make_shared<ov::op::v1::Reshape>(input, get_constant(ov::element::i64, {3}, {0, -1, width}), true);
+    }
+    return output;
+}
+
+ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input, bool matrix_form) {
     const auto block = context.get_attribute<int64_t>("hadamard_block", 0);
     if (block == 0)
         return input;
@@ -50,10 +160,18 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
     FRONT_END_OP_CONVERSION_CHECK(block > 0 && block <= 4096 && (block & (block - 1)) == 0 && width % block == 0,
                                   "Invalid Hadamard block size/width");
     const auto pattern = [&](const std::vector<int64_t>& dims) {
-        return v0::Constant::create(ov::element::i64, {dims.size()}, dims);
+        return context.get_constant(ov::element::i64, {dims.size()}, dims);
     };
-    const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
     const auto heads = context.get_attribute<std::vector<int64_t>>("hadamard_gdn_heads", {});
+    const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
+    const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
+    const bool use_matrix =
+        (matrix_form || inverse) && block >= 256 &&
+        (input.get_element_type() == ov::element::f32 || input.get_element_type() == ov::element::f16);
+    auto* cached = context.get_hadamard_cache_entry(input, block, inverse, use_matrix, heads, signs);
+    if (cached && cached->get_node())
+        return *cached;
+    const auto original = std::make_shared<v3::ShapeOf>(input, ov::element::i64);
     if (!heads.empty()) {
         FRONT_END_OP_CONVERSION_CHECK(heads.size() == 3 && heads[0] * heads[1] * heads[2] == width,
                                       "Invalid Hadamard GDN feature order");
@@ -61,30 +179,53 @@ ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::N
         input = std::make_shared<v1::Transpose>(input, pattern({0, 2, 1, 3}));
         input = std::make_shared<v1::Reshape>(input, original, false);
     }
-    const auto signs = context.get_attribute<ov::Tensor>("hadamard_signs", ov::Tensor{});
-    const bool inverse = context.get_attribute<bool>("hadamard_inverse", false);
     ov::Output<ov::Node> sign_node;
     if (signs) {
         sign_node = std::make_shared<v0::Constant>(signs);
         if (sign_node.get_element_type() != input.get_element_type())
             sign_node = std::make_shared<v1::ConvertLike>(sign_node, input);
     }
-    if (signs && !inverse)
+    if (signs && !inverse) {
         input = std::make_shared<v1::Multiply>(input, sign_node);
-    const auto axis = v0::Constant::create(ov::element::i64, {}, {2});
-    for (int64_t stride = 1; stride < block; stride *= 2) {
-        auto grouped = std::make_shared<v1::Reshape>(input, pattern({-1, block / (2 * stride), 2, stride}), false);
-        auto halves = std::make_shared<v1::Split>(grouped, axis, 2);
-        auto sum = std::make_shared<v1::Add>(halves->output(0), halves->output(1));
-        auto difference = std::make_shared<v1::Subtract>(halves->output(0), halves->output(1));
-        input = std::make_shared<v0::Concat>(ov::OutputVector{sum, difference}, 2);
+        input.get_node_shared_ptr()->get_rt_info()["gguf_hadamard_input_sign"] = true;
     }
-    const auto scale = v0::Constant::create(input.get_element_type(), {}, {1.f / std::sqrt(static_cast<float>(block))});
-    input = std::make_shared<v1::Multiply>(input, scale);
+    input = std::make_shared<v1::Reshape>(input, pattern({-1, block}), false);
+    if (use_matrix) {
+        input = std::make_shared<v0::MatMul>(input,
+                                             context.get_hadamard_matrix(input.get_element_type(), block),
+                                             false,
+                                             false);
+        input.get_node_shared_ptr()->get_rt_info()[hadamard_marker] = block;
+    } else {
+        input = hadamard_butterfly(input, block, &context, block == 1024);
+    }
     input = std::make_shared<v1::Reshape>(input, original, false);
     if (signs && inverse)
         input = std::make_shared<v1::Multiply>(input, sign_node);
+    if (cached)
+        *cached = input;
     return input;
+}
+
+void decompose_hadamard(Output<Node> input) {
+    while (ov::is_type<ov::op::v0::Convert>(input.get_node_shared_ptr()) ||
+           ov::is_type<ov::op::v1::Reshape>(input.get_node_shared_ptr()) ||
+           ov::is_type<ov::op::v0::Squeeze>(input.get_node_shared_ptr()) ||
+           ov::is_type<ov::op::v0::Unsqueeze>(input.get_node_shared_ptr())) {
+        input = input.get_node()->input_value(0);
+    }
+    const auto rotation = ov::as_type_ptr<ov::op::v0::MatMul>(input.get_node_shared_ptr());
+    if (!rotation)
+        return;
+    const auto marker = rotation->get_rt_info().find(hadamard_marker);
+    if (marker == rotation->get_rt_info().end() || rotation->output(0).get_target_inputs().empty())
+        return;
+    const auto replacement = hadamard_butterfly(rotation->input_value(0), marker->second.as<int64_t>(), nullptr, true);
+    rotation->get_rt_info().erase(marker);
+    ov::copy_runtime_info(rotation, replacement.get_node_shared_ptr());
+    ov::copy_output_runtime_info({rotation->output(0)}, {replacement});
+    replacement.get_node_shared_ptr()->set_friendly_name(rotation->get_friendly_name());
+    ov::replace_node(rotation, replacement.get_node_shared_ptr());
 }
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
@@ -142,6 +283,29 @@ std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::
         }
     }
     return nullptr;
+}
+
+int64_t mmproj_int_metadata(const std::shared_ptr<ov::Model>& model, const std::string& key, int64_t minimum) {
+    OPENVINO_ASSERT(model->has_rt_info({"gguf_mmproj", key}), "[GGUF] missing mmproj metadata ", key);
+    const auto& attribute = model->get_rt_info<ov::Any>({"gguf_mmproj", key});
+    OPENVINO_ASSERT(attribute.is<std::string>(), "[GGUF] mmproj metadata must be a string: ", key);
+    const auto& text = attribute.as<std::string>();
+    int64_t value;
+    size_t end;
+    try {
+        value = std::stoll(text, &end);
+    } catch (const std::invalid_argument&) {
+        OPENVINO_THROW("[GGUF] invalid integer mmproj metadata ", key, ": '", text, "'");
+    } catch (const std::out_of_range&) {
+        OPENVINO_THROW("[GGUF] out-of-range integer mmproj metadata ", key, ": '", text, "'");
+    }
+    OPENVINO_ASSERT(end == text.size() && value >= minimum,
+                    "[GGUF] invalid integer mmproj metadata ",
+                    key,
+                    ": '",
+                    text,
+                    "'");
+    return value;
 }
 
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
