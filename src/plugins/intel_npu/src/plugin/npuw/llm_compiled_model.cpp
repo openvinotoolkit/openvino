@@ -947,14 +947,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_attention_mask_is_4d_float = is_4d_float_attention_mask(model);
     if (m_attention_mask_is_4d_float) {
         LOG_INFO("Detected 4D float attention_mask contract [B, 1, Q, K] for NPUW LLM path.");
-        OPENVINO_ASSERT(!m_use_chunk_prefill,
-                        "4D float attention_mask mode does not support chunked prefill yet. "
-                        "Please disable chunked prefill by setting NPUW_LLM_PREFILL_CHUNK_SIZE >= "
-                        "NPUW_LLM_MAX_PROMPT_LEN or by using NPUW_LLM_PREFILL_HINT=STATIC.");
-        OPENVINO_ASSERT(!m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>(),
-                        "4D float attention_mask mode does not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
-        OPENVINO_ASSERT(!m_enable_continuous_prefill,
-                        "4D float attention_mask mode does not support NPUW_LLM_ENABLE_CONTINUOUS_PREFILL yet.");
+        if (m_use_chunk_prefill) {
+            OPENVINO_THROW_NOT_IMPLEMENTED("4D float attention_mask mode does not support chunked prefill yet. "
+                                           "Please disable chunked prefill by setting NPUW_LLM_PREFILL_CHUNK_SIZE >= "
+                                           "NPUW_LLM_MAX_PROMPT_LEN or by using NPUW_LLM_PREFILL_HINT=STATIC.");
+        }
+        if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>()) {
+            OPENVINO_THROW_NOT_IMPLEMENTED(
+                "4D float attention_mask mode does not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
+        }
     }
 
     std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
@@ -986,6 +987,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     pop_option(other_props, std::string("NPUW_TEXT_RERANK"));
 
     if (m_is_embedding) {
+        if (m_attention_mask_is_4d_float) {
+            OPENVINO_THROW_NOT_IMPLEMENTED("4D float attention_mask mode does not support text-embedding models yet.");
+        }
         // Both embedding flavours only ever prefill; what differs is how they attend. An
         // autoregressive embedder (Qwen3-Embedding-style) has a causal mask and a KV cache to
         // reconstruct, which is what lets it prefill in chunks. A bidirectional encoder (BERT:
@@ -1544,9 +1548,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             kv_kache_storage_type == ov::element::i8 || kv_kache_storage_type == ov::element::u8;
         OPENVINO_ASSERT(!integer_kv_cache,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE cannot be combined with integer KV-cache precision.");
-        OPENVINO_ASSERT(!m_attention_mask_is_4d_float,
-                        "4D float attention_mask mode does not support "
-                        "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE yet.");
+        if (m_attention_mask_is_4d_float) {
+            OPENVINO_THROW_NOT_IMPLEMENTED("4D float attention_mask mode does not support "
+                                           "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE yet.");
+        }
         OPENVINO_ASSERT(!m_enable_prefix_caching,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
                         "cannot be enabled simultaneously — this combination is not yet supported. "
@@ -2132,6 +2137,9 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
     }
     if (m_is_whisper || m_is_embedding || m_is_eagle) {
         return false;  // out of scope pipelines
+    }
+    if (m_attention_mask_is_4d_float) {
+        return false;  // a continued prefill stages only the 2D int64 attention_mask
     }
     if (m_longrope_context_limit > 0u) {
         return false;  // LongRoPE threshold can be crossed mid-generation
