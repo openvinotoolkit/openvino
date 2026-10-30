@@ -154,3 +154,24 @@ TEST(LoopReferenceSecurityTest, body_parameter_index_beyond_body_size_throws) {
         ov::Exception,
         "TensorIterator/Loop body has not parameter");
 }
+
+TEST(LoopReferenceSecurityTest, slice_input_zero_length_axis_throws) {
+    auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto body = std::make_shared<Model>(OutputVector{param}, ParameterVector{param});
+
+    // args[0] is trip_count and args[1] is execution_condition (hardcoded by
+    // reference::loop, not described by any InputDescription); the
+    // SliceInputDescription below points its m_input_index at args[2], which has
+    // zero length (Shape{0}) along the axis (0) it is sliced on.
+    op::util::InputDescriptionVector input_descs{
+        std::make_shared<MultiSubGraphOp::SliceInputDescription>(2, 0, 0, 1, 1, -1, 0)};
+    op::util::OutputDescriptionVector output_descs{std::make_shared<MultiSubGraphOp::BodyOutputDescription>(0, 0)};
+
+    ov::TensorVector args{make_trip_count_tensor(1), make_bool_tensor(true), ov::Tensor(element::f32, Shape{0})};
+    ov::TensorVector out{ov::Tensor(element::f32, Shape{1})};
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::reference::loop(body, output_descs, input_descs, op::v5::Loop::SpecialBodyPorts{-1, 0}, out, args, {}),
+        ov::Exception,
+        "zero length along the slice axis");
+}
