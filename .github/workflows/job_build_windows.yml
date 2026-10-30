@@ -262,8 +262,12 @@ jobs:
             $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
             New-Item -ItemType Directory -Path "$pyBuildDir" -Force
 
-            $pythonCommand = "py -$pyVersion -c `"import sys; print(f'{sys.executable}')`""
-            $pythonExecutablePath = & cmd /c $pythonCommand
+            if ($pyVersion -eq '3.15') {
+              $pythonExecutablePath = $env:PYTHON315_EXECUTABLE
+            } else {
+              $pythonCommand = "py -$pyVersion -c `"import sys; print(f'{sys.executable}')`""
+              $pythonExecutablePath = & cmd /c $pythonCommand
+            }
 
             Write-Host "Building Python wheels for Python $pyVersion located at $pythonExecutablePath"
 
@@ -316,8 +320,12 @@ jobs:
             $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
             New-Item -ItemType Directory -Path "$pyBuildDir" -Force
 
-            $pythonCommand = "py -$pyVersion -c `"import sys; print(f'{sys.executable}')`""
-            $pythonExecutablePath = & cmd /c $pythonCommand
+            if ($pyVersion -eq '3.15t') {
+              $pythonExecutablePath = $env:PYTHON315T_EXECUTABLE
+            } else {
+              $pythonCommand = "py -$pyVersion -c `"import sys; print(f'{sys.executable}')`""
+              $pythonExecutablePath = & cmd /c $pythonCommand
+            }
 
             Write-Host "Building Python wheels for Python $pyVersion located at $pythonExecutablePath"
 
