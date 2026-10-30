@@ -1,0 +1,73 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-30-19-24-34-000-41099803771",
+    "timestamp": "2026-10-30T19:24:34Z",
+    "run_id": "41099803771",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41099803771",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "commit_sha": "5c6917ed75a720f6c81d3b52dbaac998b39d1fe9",
+    "pr_number": null,
+    "pr_url": null,
+    "author": null,
+    "category": "Infrastructure",
+    "title": "GitHub Actions artifact downloads fail across jobs with 503 Egress is over the account limit from blob storage",
+    "signature": "GitHub Actions artifact download fails with 503 Egress is over the account limit from blob storage|Infrastructure",
+    "signature_hash": "f5704cadfe9e6f2a",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "JS API (24)",
+            "conclusion": "failure",
+            "symptom": "Download OpenVINO artifacts (JS) step failed: artifact 'openvino_js_package' download failed after 5 retries due to 503 Egress is over the account limit"
+        },
+        {
+            "name": "CPU functional tests",
+            "conclusion": "failure",
+            "symptom": "Download OpenVINO tests package step failed with 503 Egress is over the account limit; Upload Test Results also failed"
+        },
+        {
+            "name": "JAX Layer Tests / JAX Layer Tests",
+            "conclusion": "failure",
+            "symptom": "Download OpenVINO artifacts (tests) step failed with 503 Egress is over the account limit"
+        },
+        {
+            "name": "NPU Models Tests / 6010",
+            "conclusion": "failure",
+            "symptom": "Download OpenVINO artifacts (tests) failed, cascading into all dependent test steps failing with exit code 1 and missing result files"
+        },
+        {
+            "name": "NPU Models Tests / 4000",
+            "conclusion": "failure",
+            "symptom": "Download OpenVINO artifacts (tests) failed, cascading into all dependent test steps failing with exit code 1 and missing result files"
+        },
+        {
+            "name": "NPU Models Tests / 3720",
+            "conclusion": "failure",
+            "symptom": "Download OpenVINO artifacts (tests) failed, cascading into all dependent test steps failing with exit code 1 and missing result files"
+        },
+        {
+            "name": "Samples",
+            "conclusion": "failure",
+            "symptom": "Download OpenVINO package step failed with 503 Egress is over the account limit"
+        },
+        {
+            "name": "ci/gha_overall_status_windows",
+            "conclusion": "failure",
+            "symptom": "Overall status check failed (exit 1) because upstream jobs failed"
+        }
+    ],
+    "key_errors": [
+        "2026-10-30T18:40:40.6035989Z HTTP response received with status: 503\n2026-10-30T18:40:40.6038150Z ##[error]Unexpected HTTP response from blob storage: 503 Egress is over the account limit.\n2026-10-30T18:41:06.1766918Z ##[error]Unable to download and extract artifact: Artifact download failed after 5 retries.",
+        "2026-10-30T18:42:42.1664551Z ##[error]No files were found with the provided path: C:\\actions-runner\\_work\\openvino\\openvino\\install\\tests\\TEST*.html"
+    ],
+    "root_cause": "GitHub-hosted Actions blob storage backend returned HTTP 503 'Egress is over the account limit' repeatedly (5 retries each) when multiple jobs in this run attempted to download large build/test artifacts (openvino_js_package, openvino_tests, openvino package) concurrently. This is a GitHub-side infrastructure egress throttling condition, not a code or configuration defect in the repository. All affected jobs failed at the artifact-download step before any OpenVINO-specific code ran, and the overall Windows status job failed solely because of these cascading upstream failures.",
+    "reproduction_steps": "N/A - this is a transient GitHub Actions infrastructure egress-throttling condition on blob storage that cannot be reproduced locally. It typically clears after retrying the run once GitHub's account-level egress quota resets.",
+    "recommended_actions": [
+        "Re-run the failed jobs later (outside this doctor's scope - report only); egress throttling is usually transient and resolves once account egress quota resets.",
+        "If this recurs frequently, consider reducing total artifact egress per run (e.g., trimming artifact sizes, enabling compression, or staggering/parallelism limits for jobs that download large artifacts simultaneously).",
+        "Monitor GitHub Actions status page and the organization's Actions artifact egress usage/quota dashboard for recurring account-level throttling.",
+        "Consider raising a support ticket with GitHub if this pattern recurs across many runs in a short window, since it indicates the org may be near its artifact egress cap."
+    ],
+    "prevention_strategies": "Reduce simultaneous large-artifact downloads across parallel jobs in post-commit pipelines, keep artifact sizes minimal (prune unnecessary files before upload), and consider caching/download backoff tuning. Since this is an account-level GitHub infrastructure limit, the most durable mitigation is monitoring artifact egress volume per run/day and spreading heavy jobs across time where possible.",
+        "historical_context": "No prior post-commit investigation in this knowledge base recorded this exact 'Egress is over the account limit' blob-storage 503 signature. Related but distinct network/infrastructure patterns exist in the database (e.g., ENOTFOUND/ECONNREFUSED artifact upload failures, codeload.github.com resource-unavailable errors, DNS resolution failures), all categorized as Network/Infrastructure, confirming that GitHub Actions infra-level transient failures are a recurring theme though this specific egress-cap signature is new."
+}

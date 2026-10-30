@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "GitHub Actions artifact download fails with 503 Egress is over the account limit from blob storage|Infrastructure",
+    "signature_hash": "f5704cadfe9e6f2a",
+    "title": "GitHub Actions artifact downloads fail across jobs with 503 Egress is over the account limit from blob storage",
+    "category": "Infrastructure",
+    "count": 1,
+    "first_seen": "2026-10-30T19:24:34Z",
+    "last_seen": "2026-10-30T19:24:34Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41099803771"
+    ],
+    "affected_commits": [
+        "5c6917ed75a720f6c81d3b52dbaac998b39d1fe9"
+    ],
+    "recent_timestamps": [
+        "2026-10-30T19:24:34Z"
+    ]
+}
