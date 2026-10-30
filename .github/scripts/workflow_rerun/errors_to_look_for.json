@@ -508,5 +508,10 @@
         "error_text": "Server returned status code 503",
         "ticket": 9999999,
         "category": "External Service"
+    },
+    {
+        "error_text": "Failed to download the model",
+        "ticket": 9999999,
+        "category": "Network"
     }
 ]
