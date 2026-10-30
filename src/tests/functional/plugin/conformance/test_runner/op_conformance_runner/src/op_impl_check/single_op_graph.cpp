@@ -588,6 +588,55 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::GroupedMa
     return std::make_shared<ov::Model>(results, ov::ParameterVector{mat_a, mat_b}, "GroupedMatMulGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::QSAPrepare> &node) {
+    const auto raw_index_keys = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 16});
+    const auto past_block_index_keys = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 0, 16});
+    const auto key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
+    const auto rope_cos = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 8});
+    const auto rope_sin = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 8});
+    const auto k_norm_weight = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{16});
+    const auto past_incomplete_raw_keys = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 16});
+    const auto past_incomplete_rope = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 16});
+    const auto qsaPrepareNode = std::make_shared<ov::op::v17::QSAPrepare>(raw_index_keys, past_block_index_keys, key_length,
+                                                                          rope_cos, rope_sin, k_norm_weight,
+                                                                          past_incomplete_raw_keys, past_incomplete_rope, 4);
+    ov::ResultVector results{
+        std::make_shared<ov::op::v0::Result>(qsaPrepareNode->output(0)),
+        std::make_shared<ov::op::v0::Result>(qsaPrepareNode->output(1)),
+        std::make_shared<ov::op::v0::Result>(qsaPrepareNode->output(2))
+    };
+    return std::make_shared<ov::Model>(results,
+                                       ov::ParameterVector{raw_index_keys, past_block_index_keys, key_length, rope_cos,
+                                                           rope_sin, k_norm_weight, past_incomplete_raw_keys,
+                                                           past_incomplete_rope},
+                                       "QSAPrepareGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::SparseAttentionIndexer> &node) {
+    const auto index_query = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 8, 16});
+    const auto block_index_keys = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 16});
+    const auto key_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
+    const auto indexerNode = std::make_shared<ov::op::v17::SparseAttentionIndexer>(index_query, block_index_keys, key_length, 4, 8);
+    ov::ResultVector results{
+        std::make_shared<ov::op::v0::Result>(indexerNode->output(0)),
+        std::make_shared<ov::op::v0::Result>(indexerNode->output(1))
+    };
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{index_query, block_index_keys, key_length},
+                                       "SparseAttentionIndexerGraph");
+}
+
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v17::SparseAttention> &node) {
+    const auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 4, 8, 16});
+    const auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 16});
+    const auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 2, 8, 16});
+    const auto block_indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 8, 2});
+    const auto block_count = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 8});
+    const auto sparseAttentionNode = std::make_shared<ov::op::v17::SparseAttention>(query, key, value, block_indices, block_count, 4);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(sparseAttentionNode)};
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{query, key, value, block_indices, block_count},
+                                       "SparseAttentionGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::Interpolate> &node) {
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;

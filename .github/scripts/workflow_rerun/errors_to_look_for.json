@@ -513,5 +513,10 @@
         "error_text": "Failed to download the model: Request was timed out",
         "ticket": 9999999,
         "category": "Network"
+    },
+    {
+        "error_text": "Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
+        "ticket": 9999999,
+        "category": "Infrastructure"
     }
 ]
