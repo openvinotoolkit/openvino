@@ -1642,7 +1642,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 
         compiled->m_compiled_submodels.emplace_back();
         auto& submodel = compiled->m_compiled_submodels.back();
-        auto child_stream = ov::npuw::s11n::Stream::reader(child_source);
+        auto child_stream = ov::npuw::s11n::Stream::bounded_reader(child_source, child.remaining());
         ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(
             plugin,
             submodel.compiled_model,
