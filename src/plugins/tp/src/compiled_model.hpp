@@ -13,25 +13,30 @@
 #include "cache_controller.hpp"
 #include "rank_workers.hpp"
 #include "tp/tp_config.hpp"
+#include "tp_blob.hpp"
 
 namespace ov {
 namespace tp {
 
+/// The model-level ports of a compiled model restored from a blob.
+struct ImportedPorts {
+    std::vector<tp_blob::Port> inputs;
+    std::vector<tp_blob::Port> outputs;
+};
+
 class CompiledModel : public ov::ICompiledModel {
 public:
     /// \param model The user model. Null when the compiled model was
-    ///        restored from a blob: there is no IR at that point, and
-    ///        `inputs()`/`outputs()` fall back to rank 0 instead.
-    /// \param num_collectives Collectives of each rank model, recorded in an
-    ///        exported blob.
+    ///        restored from a blob: there is no IR at that point, and the
+    ///        ports come from `imported_ports` instead.
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   std::vector<ov::SoPtr<ov::ICompiledModel>>&& rank_compiled,
                   std::vector<std::string>&& device_names,
-                  uint32_t num_collectives = 0,
                   std::vector<std::string>&& sharded_state_ids = {},
                   bool loaded_from_cache = false,
-                  const TPConfig& config = TPConfig{});
+                  const TPConfig& config = TPConfig{},
+                  const ImportedPorts& imported_ports = {});
 
     /// The resolved configuration of this compiled model.
     const TPConfig& config() const {
@@ -92,8 +97,9 @@ private:
     // collectives; the collectives' shared state lives as long as any of them.
     std::vector<ov::SoPtr<ov::ICompiledModel>> m_rank_compiled;
     std::vector<std::string> m_device_names;
-    uint32_t m_num_collectives{0};
     std::vector<std::string> m_sharded_state_ids;
+    std::vector<ov::Output<const ov::Node>> m_imported_inputs;
+    std::vector<ov::Output<const ov::Node>> m_imported_outputs;
     CacheControllerPtr m_cache_controller;
     bool m_loaded_from_cache{false};
     TPConfig m_config;

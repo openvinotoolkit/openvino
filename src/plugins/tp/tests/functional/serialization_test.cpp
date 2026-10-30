@@ -149,30 +149,33 @@ TEST_F(TPSerializationTest, ImportedModelWithAGatherMatchesExportedOne) {
     expect_identical(exported, infer_to_host(imported, input));
 }
 
-// The imported model has no IR behind it, so its ports come from rank 0.  They
-// still have to describe the user model: a caller that binds tensors by name or
-// by index against the exported model must keep working against the imported
-// one.
+// The imported model has no IR behind it; the blob records the model-level
+// ports, so a caller that binds tensors by name or by index against the
+// exported model keeps working against the imported one. With paged attention
+// rank 0's cache ports hold only its share of the KV heads, so they cannot
+// stand in for the model's.
 TEST_F(TPSerializationTest, ImportedModelKeepsPorts) {
-    BlockConfig config;
-    auto model = make_transformer_block(config);
+    for (const auto& model : {make_transformer_block(BlockConfig{}), make_paged_attention_block(BlockConfig{})}) {
+        std::stringstream blob;
+        auto compiled = core.compile_model(model, tp_device(world_size), tp_config());
+        compiled.export_model(blob);
 
-    std::stringstream blob;
-    auto compiled = core.compile_model(model, tp_device(world_size), tp_config());
-    compiled.export_model(blob);
+        auto imported = core.import_model(blob, tp_device(world_size), tp_config());
 
-    auto imported = core.import_model(blob, tp_device(world_size), tp_config());
-
-    ASSERT_EQ(imported.inputs().size(), compiled.inputs().size());
-    ASSERT_EQ(imported.outputs().size(), compiled.outputs().size());
-    for (size_t i = 0; i < compiled.inputs().size(); ++i) {
-        EXPECT_EQ(imported.input(i).get_element_type(), compiled.input(i).get_element_type());
-        EXPECT_EQ(imported.input(i).get_partial_shape(), compiled.input(i).get_partial_shape());
-        EXPECT_EQ(imported.input(i).get_names(), compiled.input(i).get_names());
-    }
-    for (size_t i = 0; i < compiled.outputs().size(); ++i) {
-        EXPECT_EQ(imported.output(i).get_element_type(), compiled.output(i).get_element_type());
-        EXPECT_EQ(imported.output(i).get_partial_shape(), compiled.output(i).get_partial_shape());
+        ASSERT_EQ(imported.inputs().size(), compiled.inputs().size());
+        ASSERT_EQ(imported.outputs().size(), compiled.outputs().size());
+        for (size_t i = 0; i < compiled.inputs().size(); ++i) {
+            EXPECT_EQ(imported.input(i).get_element_type(), compiled.input(i).get_element_type());
+            EXPECT_EQ(imported.input(i).get_partial_shape(), compiled.input(i).get_partial_shape());
+            EXPECT_EQ(imported.input(i).get_names(), compiled.input(i).get_names());
+            EXPECT_EQ(imported.input(i).get_node()->get_friendly_name(),
+                      compiled.input(i).get_node()->get_friendly_name());
+        }
+        for (size_t i = 0; i < compiled.outputs().size(); ++i) {
+            EXPECT_EQ(imported.output(i).get_element_type(), compiled.output(i).get_element_type());
+            EXPECT_EQ(imported.output(i).get_partial_shape(), compiled.output(i).get_partial_shape());
+            EXPECT_EQ(imported.output(i).get_names(), compiled.output(i).get_names());
+        }
     }
 }
 

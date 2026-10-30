@@ -604,30 +604,35 @@ silently degrading.
 
 ## Compiled Blob
 
-`CompiledModel::export_model` writes a container around one intel_gpu
-blob per rank:
+`CompiledModel::export_model` writes a container around one device-plugin
+blob per rank (version 2):
 
 ```
-char[8]              "OVTPGPU" string
+char[8]              "OVTPBLOB"
 uint32               version
 uint32               world_size
-uint32               num_collectives
+uint32               strategy         (TP_STRATEGY)
 uint32               num_sharded_states
-[world_size]         device name      : uint32 length + bytes
-[num_sharded_states] variable id      : uint32 length + bytes
+[world_size]         device name      : string
+[num_sharded_states] variable id      : string
+uint32 + [..]        input ports      : node name, element type, partial shape, tensor names
+uint32 + [..]        output ports     : same
 [world_size]         rank blob        : uint64 length + bytes
 ```
 
-The weight shards are already baked into each rank's blob, so no shard
-metadata is stored. `num_collectives` is informational: the GPU plugin counts
-the collectives of each imported rank model when it binds it.
-The sharded state ids are there because the infer request has to know
-which states are per-rank slices rather than replicas.
+A string is a uint32 length + bytes. The weight shards are already baked
+into each rank's blob, so no shard metadata is stored, and the device plugin
+counts the collectives of each imported rank model when it binds it. The
+sharded state ids are there because the infer request has to know which
+states are per-rank slices rather than replicas. The ports are the
+model-level ports the compiled model reported, so an imported model reports
+the same ones (rank 0's would carry its sharded cache shapes).
 
-`Plugin::import_model` validates the header, creates the rank contexts over
-the recorded devices and hands each rank blob to intel_gpu with that rank's
-context, which binds it exactly as after `compile_model`. The resulting
-`CompiledModel` has no `ov::Model` and derives its ports from rank 0.
+`Plugin::import_model` validates the header, asks the device plugin whether
+it can serve the recorded devices, creates the rank contexts over them and
+hands each rank blob to the device plugin with that rank's context, which
+binds it exactly as after `compile_model`. The resulting `CompiledModel` has
+no `ov::Model`; its ports are built from the recorded descriptions.
 
 Everything read back is untrusted input (a stale, truncated or corrupt
 cache entry), so each length is bounds-checked before it is used to size
@@ -636,8 +641,9 @@ importing it against a different device set is rejected.
 
 `ov::cache_dir` works because the plugin advertises
 `ov::device::capability::EXPORT_IMPORT` and answers
-`ov::internal::caching_properties` — the GPU list plus the device list
-(`ov::device::priorities`), so two topologies cannot collide on one hash. Values of GPU
+`ov::internal::caching_properties` — the rank device plugin's list plus the
+device list (`ov::device::priorities`) and `TP_STRATEGY`, so two topologies
+cannot collide on one hash. Values of the device plugin's
 caching properties are aggregated across the rank devices and joined with `;`.
 
 ## Lifetime and Threading

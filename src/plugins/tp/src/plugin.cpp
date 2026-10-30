@@ -223,10 +223,24 @@ constexpr const char* kNoRemoteContextImport =
 /// Everything a TP blob declares before the first rank payload.
 struct BlobHeader {
     uint32_t world_size = 0;
-    uint32_t num_collectives = 0;
+    TPStrategy strategy = TPStrategy::COLUMN_ROW;
     std::vector<std::string> device_names;
     std::vector<std::string> sharded_state_ids;
+    ImportedPorts ports;
 };
+
+std::vector<tp_blob::Port> read_ports(std::istream& blob) {
+    const auto count = tp_blob::read_trivial<uint32_t>(blob);
+    OPENVINO_ASSERT(count <= tp_blob::max_ports,
+                    "[TP] compiled blob declares ", count,
+                    " ports, which is not plausible; the cache entry is corrupted");
+    std::vector<tp_blob::Port> ports;
+    ports.reserve(count);
+    for (uint32_t i = 0; i < count; ++i) {
+        ports.push_back(tp_blob::read_port(blob));
+    }
+    return ports;
+}
 
 /// Leaves the stream positioned at the first rank payload.
 BlobHeader read_blob_header(std::istream& blob) {
@@ -247,10 +261,10 @@ BlobHeader read_blob_header(std::istream& blob) {
                     "[TP] compiled blob declares ", header.world_size,
                     " ranks, which is outside the supported range [2, ", tp_blob::max_world_size, "]");
 
-    header.num_collectives = tp_blob::read_trivial<uint32_t>(blob);
-    OPENVINO_ASSERT(header.num_collectives <= tp_blob::max_collectives,
-                    "[TP] compiled blob declares ", header.num_collectives,
-                    " collectives, which is not plausible; the cache entry is corrupted");
+    header.strategy = static_cast<TPStrategy>(tp_blob::read_trivial<uint32_t>(blob));
+    OPENVINO_ASSERT(header.strategy == TPStrategy::COLUMN_ROW,
+                    "[TP] compiled blob declares an unknown partitioning strategy ",
+                    static_cast<uint32_t>(header.strategy));
 
     const auto num_sharded_states = tp_blob::read_trivial<uint32_t>(blob);
     OPENVINO_ASSERT(num_sharded_states <= tp_blob::max_sharded_states,
@@ -266,6 +280,9 @@ BlobHeader read_blob_header(std::istream& blob) {
     for (auto& id : header.sharded_state_ids) {
         id = tp_blob::read_string(blob, tp_blob::max_variable_id_length);
     }
+
+    header.ports.inputs = read_ports(blob);
+    header.ports.outputs = read_ports(blob);
     return header;
 }
 }  // namespace
@@ -396,7 +413,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     return std::make_shared<CompiledModel>(model, shared_from_this(),
                                            std::move(rank_compiled),
                                            std::move(device_names),
-                                           static_cast<uint32_t>(num_collectives),
                                            GraphRewriter::sharded_state_ids(model, sharding_plan),
                                            /*loaded_from_cache=*/false,
                                            cfg);
@@ -569,14 +585,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
     }
 
     // No IR here: the user model was consumed at compile time and is not part
-    // of the blob. CompiledModel derives its ports from rank 0 instead.
+    // of the blob, only its ports are.
     return std::make_shared<CompiledModel>(nullptr, shared_from_this(),
                                            std::move(rank_compiled),
                                            std::move(header.device_names),
-                                           header.num_collectives,
                                            std::move(header.sharded_state_ids),
                                            /*loaded_from_cache=*/true,
-                                           cfg);
+                                           cfg,
+                                           header.ports);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {
