@@ -208,7 +208,10 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             }
         }
         ov::wsh::Extension::hint_evict(*op);
-        auto data_prim = cldnn::data(initialconstPrimID, mem, partial_upload.enabled);
+        const uint32_t resident_expert_num = partial_upload.enabled && !partial_upload.upload_shape.empty()
+                            ? static_cast<uint32_t>(partial_upload.upload_shape[0])
+                            : 0;
+        auto data_prim = cldnn::data(initialconstPrimID, mem, partial_upload.enabled, resident_expert_num);
         p.add_primitive(*op, data_prim);
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;

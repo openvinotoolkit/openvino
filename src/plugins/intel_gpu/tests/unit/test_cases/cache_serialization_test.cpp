@@ -13,6 +13,10 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/gemm.hpp"
+#include "data_inst.h"
+#include "moe_3gemm_fused_inst.h"
+#include "program_wrapper.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -381,17 +385,19 @@ TEST(cache_serialization, load_weights_rejects_data_size_exceeding_layout) {
 
 TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
     auto& engine = get_test_engine();
-    const layout full_layout({1, 1, 1, 64}, data_types::u8, format::bfyx);
+    const layout full_layout({4, 1, 1, 16}, data_types::u8, format::bfyx);
     const layout resident_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
     auto resident_memory = engine.allocate_memory(resident_layout, true);
     auto partial_memory = engine.reinterpret_buffer(*resident_memory, full_layout);
 
-    data partial_data("partial", partial_memory, true);
+    const uint32_t resident_expert_num = static_cast<uint32_t>(resident_layout.get_shape()[0]);
+    data partial_data("partial", partial_memory, true, resident_expert_num);
     partial_data.cache_info->set_constant_info(0,
                                                 full_layout.bytes_count(),
                                                 ov::element::u8,
                                                 ov::element::u8,
                                                 full_layout.get_shape());
+    partial_data.cache_info->set_partial_upload(resident_expert_num);
 
     auto full_memory = engine.allocate_memory(full_layout, true);
     data plain_data("plain", full_memory);
@@ -408,4 +414,167 @@ TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
     // OTD exposes the full Constant layout while allocating only resident slots.
     // Weightless caching must serialize metadata instead of reading that full layout.
     EXPECT_LT(serialized_size(partial_data), serialized_size(plain_data));
+
+    membuf mem_buf;
+    std::ostream out_mem(&mem_buf);
+    BinaryOutputBuffer ob(out_mem);
+    ob.set_stream(get_test_stream_ptr().get());
+    partial_data.save(ob);
+
+    std::istream in_mem(&mem_buf);
+    BinaryInputBuffer ib(in_mem, engine);
+    data loaded_data;
+    loaded_data.load(ib);
+    loaded_data.load_weights(ib, nullptr, nullptr);
+
+    EXPECT_TRUE(loaded_data.skip_device_transfer());
+    EXPECT_EQ(loaded_data.mem->get_layout(), full_layout);
+    EXPECT_EQ(loaded_data.get_resident_expert_num(), resident_expert_num);
+    ASSERT_NE(loaded_data.mem->get_mem_tracker(), nullptr);
+    EXPECT_EQ(loaded_data.mem->get_mem_tracker()->size(), resident_memory->size());
+}
+
+TEST(cache_serialization, otd_partial_allocation_without_backing_source_is_rejected) {
+    auto& engine = get_test_engine();
+    const layout full_layout({4, 1, 1, 16}, data_types::u8, format::bfyx);
+    const layout resident_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto resident_memory = engine.allocate_memory(resident_layout, true);
+    auto partial_memory = engine.reinterpret_buffer(*resident_memory, full_layout);
+
+    data partial_data("partial_no_backing_source", partial_memory, true, 1);
+    membuf mem_buf;
+    std::ostream out_mem(&mem_buf);
+    BinaryOutputBuffer ob(out_mem);
+    ob.set_stream(get_test_stream_ptr().get());
+
+    EXPECT_THROW(partial_data.save(ob), ov::AssertFailure);
+}
+
+namespace {
+std::shared_ptr<data> load_partial_otd_data(engine& engine) {
+    const layout full_layout({4, 1, 1, 16}, data_types::u8, format::bfyx);
+    const layout resident_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto resident_memory = engine.allocate_memory(resident_layout, true);
+    data original("partial", engine.reinterpret_buffer(*resident_memory, full_layout), true, 1);
+    original.cache_info->set_constant_info(0, full_layout.bytes_count(), ov::element::u8, ov::element::u8, full_layout.get_shape());
+    original.cache_info->set_partial_upload(1);
+
+    membuf mem_buf;
+    std::ostream out_mem(&mem_buf);
+    BinaryOutputBuffer ob(out_mem);
+    ob.set_stream(get_test_stream_ptr().get());
+    original.save(ob);
+
+    std::istream in_mem(&mem_buf);
+    BinaryInputBuffer ib(in_mem, engine);
+    auto loaded = std::make_shared<data>();
+    loaded->load(ib);
+    loaded->load_weights(ib, nullptr, nullptr);
+    return loaded;
+}
+
+program_node& add_partial_otd_consumer(program& prog, program_node& partial, size_t input_idx, size_t capacity = 1,
+                                     size_t num_experts = 4) {
+    auto& other = prog.get_or_create(std::make_shared<input_layout>("other", layout({1, 1, 1, 16}, data_types::f32, format::bfyx)));
+    MOECompressed::Config config{};
+    config.num_expert = num_experts;
+    std::vector<input_info> inputs(22, input_info("other"));
+    inputs[input_idx] = input_info(partial.id());
+    auto moe = std::make_shared<moe_3gemm_fused_compressed>("moe", inputs, config, std::vector<size_t>(9, 0), "weights.bin", capacity);
+    auto& consumer = prog.get_or_create(moe);
+    for (size_t dep_idx = 0; dep_idx < inputs.size(); ++dep_idx) {
+        program_wrapper::add_connection(prog, dep_idx == input_idx ? partial : other, consumer);
+    }
+    return consumer;
+}
+
+}  // namespace
+
+TEST(cache_serialization, partial_buffer_rejects_batched_matmul_consumer) {
+    auto& engine = get_test_engine();
+    program prog(engine);
+    auto& partial = prog.get_or_create(load_partial_otd_data(engine));
+    auto& input = prog.get_or_create(std::make_shared<input_layout>("input", layout({4, 1, 16, 1}, data_types::f32, format::bfyx)));
+    auto& matmul = prog.get_or_create(std::make_shared<gemm>("matmul", std::vector<input_info>{input_info("input"), input_info("partial")},
+                                                          data_types::f32, false, false));
+    program_wrapper::add_connection(prog, input, matmul);
+    program_wrapper::add_connection(prog, partial, matmul);
+
+    EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
+}
+
+TEST(cache_serialization, partial_buffer_only_accepts_routed_otd_inputs) {
+    auto& engine = get_test_engine();
+    for (size_t input_idx = 0; input_idx < 22; ++input_idx) {
+        SCOPED_TRACE(input_idx);
+        program prog(engine);
+        auto& partial = prog.get_or_create(load_partial_otd_data(engine));
+        add_partial_otd_consumer(prog, partial, input_idx);
+        if (input_idx >= 3 && input_idx <= 11) {
+            EXPECT_NO_THROW(program_wrapper::validate_partial_buffers(prog));
+        } else {
+            EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
+        }
+    }
+}
+
+TEST(cache_serialization, partial_buffer_rejects_incompatible_otd_capacity) {
+    auto& engine = get_test_engine();
+    for (size_t capacity : {size_t{0}, size_t{2}}) {
+        SCOPED_TRACE(capacity);
+        program prog(engine);
+        auto& partial = prog.get_or_create(load_partial_otd_data(engine));
+        add_partial_otd_consumer(prog, partial, 3, capacity);
+        EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
+    }
+}
+
+TEST(cache_serialization, partial_buffer_rejects_incompatible_expert_count) {
+    auto& engine = get_test_engine();
+    program prog(engine);
+    auto& partial = prog.get_or_create(load_partial_otd_data(engine));
+    add_partial_otd_consumer(prog, partial, 3, 1, 8);
+    EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
+}
+
+TEST(cache_serialization, partial_buffer_rejects_mixed_consumers) {
+    auto& engine = get_test_engine();
+    program prog(engine);
+    auto& partial = prog.get_or_create(load_partial_otd_data(engine));
+    add_partial_otd_consumer(prog, partial, 3);
+    auto& ordinary = prog.get_or_create(std::make_shared<reorder>("ordinary", input_info("partial"), partial.get_output_layout()));
+    program_wrapper::add_connection(prog, partial, ordinary);
+    const_cast<std::list<program_node*>&>(partial.get_users()).remove(&ordinary);
+    EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
+}
+
+TEST(cache_serialization, partial_buffer_rejects_non_routed_alias) {
+    auto& engine = get_test_engine();
+    program prog(engine);
+    auto& partial = prog.get_or_create(load_partial_otd_data(engine));
+    auto& consumer = add_partial_otd_consumer(prog, partial, 3);
+    program_wrapper::add_connection(prog, partial, consumer);
+    EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
+}
+
+TEST(cache_serialization, partial_buffer_rejects_graph_output) {
+    auto& engine = get_test_engine();
+    program prog(engine);
+    auto& partial = prog.get_or_create(load_partial_otd_data(engine));
+    add_partial_otd_consumer(prog, partial, 3);
+    partial.set_output(true);
+    EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
+}
+
+TEST(cache_serialization, partial_buffer_validation_accepts_full_batched_matmul_constant) {
+    auto& engine = get_test_engine();
+    program prog(engine);
+    auto weights_memory = engine.allocate_memory(layout({4, 1, 1, 16}, data_types::f32, format::bfyx), true);
+    auto& weights = prog.get_or_create(std::make_shared<data>("weights", weights_memory));
+    auto& input = prog.get_or_create(std::make_shared<input_layout>("input", layout({4, 1, 16, 1}, data_types::f32, format::bfyx)));
+    auto& matmul = prog.get_or_create(std::make_shared<gemm>("matmul", std::vector<input_info>{input_info("input"), input_info("weights")},
+                                                          data_types::f32, false, false));
+    program_wrapper::add_connection(prog, input, matmul);
+    program_wrapper::add_connection(prog, weights, matmul);
+    EXPECT_NO_THROW(program_wrapper::validate_partial_buffers(prog));
 }

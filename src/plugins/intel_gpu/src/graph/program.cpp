@@ -87,6 +87,7 @@
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 
 #include "intel_gpu/primitives/rnn.hpp"
+#include "intel_gpu/primitives/moe_3gemm_fused_compressed.hpp"
 
 // TODO: Remove once we have interface for kernels cache
 #include "impls/ocl/kernels_cache.hpp"
@@ -2023,6 +2024,27 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 }
 
+void program::validate_partial_buffers() const {
+    std::map<const program_node*, std::vector<std::pair<const program_node*, size_t>>> partial_buffer_consumers;
+    for (const auto& entry : nodes_map) {
+        const auto& consumer = *entry.second;
+        const auto& dependencies = consumer.get_dependencies();
+        for (size_t input_idx = 0; input_idx < dependencies.size(); ++input_idx) {
+            const auto* dependency = dependencies[input_idx].first;
+            if (dependency->is_type<data>() && dependency->as<data>().get_primitive()->skip_device_transfer()) {
+                partial_buffer_consumers[dependency].emplace_back(&consumer, input_idx);
+            }
+        }
+    }
+    for (const auto& entry : nodes_map) {
+        if (entry.second->is_type<data>() && entry.second->as<data>().get_primitive()->skip_device_transfer()) {
+            OPENVINO_ASSERT(std::find(outputs.begin(), outputs.end(), entry.second.get()) == outputs.end(),
+                            "Partial OTD buffer cannot be a graph output: ", entry.first);
+            entry.second->as<data>().validate_partial_buffer(partial_buffer_consumers[entry.second.get()]);
+        }
+    }
+}
+
 void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<const ov::Model> model_ptr,
                    std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
@@ -2083,6 +2105,10 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         ib >> prim;
         if (auto* data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             data_prim->load_weights(ib, weights_memory, host_buffer_base_ptr);
+        } else if (auto* moe_prim = dynamic_cast<cldnn::moe_3gemm_fused_compressed*>(prim.get())) {
+            if (!weights_path.empty()) {
+                moe_prim->_otd.weights_path = weights_path;
+            }
         }
         get_or_create(prim);
     }
@@ -2146,6 +2172,8 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
     ib >> _is_body_program;
     ib >> _can_be_optimized;
+
+    validate_partial_buffers();
 
     _layout_optimizer->load(ib);
     _layout_optimizer->set_implementation_forcing(_config.get_force_implementations());

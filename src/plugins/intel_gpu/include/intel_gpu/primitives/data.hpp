@@ -142,6 +142,19 @@ struct weightless_cache_manager {
         reorder_rep = {input_layout, reorder};
     }
 
+    void set_partial_upload(uint32_t resident_expert_num) {
+        is_partial_upload = resident_expert_num > 0;
+        this->resident_expert_num = resident_expert_num;
+    }
+
+    bool is_partial_upload_enabled() const {
+        return is_partial_upload;
+    }
+
+    uint32_t get_resident_expert_num() const {
+        return resident_expert_num;
+    }
+
     bool save(BinaryOutputBuffer& ob, size_t data_size) const {
         if (!do_weightless_caching) {
             ob << false;
@@ -169,10 +182,19 @@ struct weightless_cache_manager {
         } else {
             ob << false;
         }
+        ob << is_partial_upload;
+        if (is_partial_upload) {
+            ob << resident_expert_num;
+        }
         return true;
     }
 
-    bool load(BinaryInputBuffer& ib, memory::ptr dst_mem, std::shared_ptr<WeightsMemory> weights_memory, bool weightless_caching) {
+    bool load(BinaryInputBuffer& ib,
+              memory::ptr& dst_mem,
+              std::shared_ptr<WeightsMemory> weights_memory,
+              bool weightless_caching,
+              const layout& output_layout,
+              allocation_type allocation_type) {
         do_weightless_caching = weightless_caching;
         if (!do_weightless_caching) {
             return false;
@@ -190,7 +212,7 @@ struct weightless_cache_manager {
             shape.resize(num_dims);
             ib >> make_data(shape.data(), num_dims * sizeof(ov::Shape::value_type));
         } else {
-            original_size = dst_mem->size();
+            original_size = output_layout.bytes_count();
         }
         bool do_reorder = false;
         ib >> do_reorder;
@@ -199,6 +221,30 @@ struct weightless_cache_manager {
             ib >> *reorder_rep.input_layout;
             reorder_rep.reorder = std::make_shared<reorder>();
             ib >> *reorder_rep.reorder;
+        }
+
+        ib >> is_partial_upload;
+        if (is_partial_upload) {
+            ib >> resident_expert_num;
+            auto upload_shape = output_layout.get_shape();
+            OPENVINO_ASSERT(!upload_shape.empty() && resident_expert_num > 0 &&
+                                resident_expert_num <= static_cast<size_t>(upload_shape[0]),
+                            "Invalid resident expert count in weightless cache");
+            upload_shape[0] = resident_expert_num;
+            auto upload_layout = layout(upload_shape, output_layout.data_type, output_layout.format);
+            auto upload_mem = ib.get_engine().allocate_memory(upload_layout,
+                                                              ib.get_engine().get_preferred_memory_allocation_type(),
+                                                              false);
+            dst_mem = ib.get_engine().reinterpret_buffer(*upload_mem, output_layout);
+            return true;
+        }
+
+        if (output_layout.bytes_count() > 0) {
+            dst_mem = ib.get_engine().allocate_memory(output_layout, allocation_type, false);
+        } else {
+            auto one_dim_layout = layout(ov::PartialShape({1}), output_layout.data_type, output_layout.format);
+            auto one_dim_mem = ib.get_engine().allocate_memory(one_dim_layout, false);
+            dst_mem = ib.get_engine().reinterpret_buffer(*one_dim_mem, output_layout);
         }
 
         OPENVINO_ASSERT(weights_memory != nullptr, "weights_memory is nullptr!!!");
@@ -222,6 +268,8 @@ struct weightless_cache_manager {
 private:
     bool do_weightless_caching = false;
     bool do_precision_conversion = false;
+    bool is_partial_upload = false;
+    uint32_t resident_expert_num = 0;
     reorder_replication reorder_rep{};
 
     size_t bin_offset = SIZE_MAX;
@@ -348,14 +396,23 @@ struct data : public primitive_base<data> {
     /// @param id This primitive id.
     /// @param mem @ref memory object which contains data.
     /// @note If memory is attached by memory::attach(), the attached buffer should be valid till network build.
-    data(const primitive_id& id, memory::ptr mem, bool skip_device_transfer = false)
-        : primitive_base(id, {}), mem(std::move(mem)), _skip_device_transfer(skip_device_transfer) {
+    data(const primitive_id& id, memory::ptr mem, bool skip_device_transfer = false, uint32_t resident_expert_num = 0)
+        : primitive_base(id, {}),
+          mem(std::move(mem)),
+          _skip_device_transfer(skip_device_transfer),
+          _resident_expert_num(resident_expert_num) {
         cache_info = std::make_shared<weightless_cache_manager>();
     }
 
-    data(const primitive_id& id, memory::ptr mem, std::shared_ptr<weightless_cache_manager> cache_info)
+        data(const primitive_id& id,
+                 memory::ptr mem,
+                 std::shared_ptr<weightless_cache_manager> cache_info,
+                 bool skip_device_transfer = false,
+                 uint32_t resident_expert_num = 0)
         : primitive_base(id, {}),
           mem(std::move(mem)),
+                    _skip_device_transfer(skip_device_transfer),
+                    _resident_expert_num(resident_expert_num),
           cache_info(cache_info) {
         if (!cache_info) {
             this->cache_info = std::make_shared<weightless_cache_manager>();
@@ -368,9 +425,11 @@ struct data : public primitive_base<data> {
 
     /// @brief Whether transfer_memory_to_device skips this node (e.g. OTD partial upload).
     bool skip_device_transfer() const { return _skip_device_transfer; }
+    uint32_t get_resident_expert_num() const { return _resident_expert_num; }
 
 private:
     bool _skip_device_transfer = false;
+    uint32_t _resident_expert_num = 0;
 
 public:
 
@@ -397,6 +456,8 @@ public:
         const auto& engine = mem->get_engine();
         const auto& dev_info = engine->get_device_info();
         if (!do_weightless_caching) {
+            OPENVINO_ASSERT(!_skip_device_transfer,
+                            "Cannot serialize a partial OTD allocation without a backing source");
             if (engine->can_use_host_usm_zero_copy() && !ob.is_encrypted()) {
                 if (const auto pad = ov::util::align_padding_size(dev_info.sub_buffer_base_alignment.value_or(0), ob.get_offset()); pad > 0) {
                     std::vector<uint8_t> zeros(pad, 0);
@@ -438,13 +499,23 @@ public:
         const auto& dev_info = ib.get_engine().get_device_info();
         const bool can_use_zero_copy_mode = ib.get_engine().can_use_host_usm_zero_copy() && ib.is_tensor_aligned(ov::util::min_page_alignment) &&
                                             host_buffer_base_ptr != nullptr && !weightless_caching;
-        if (!can_use_zero_copy_mode) {
+        if (!can_use_zero_copy_mode && !weightless_caching) {
             mem = ib.get_engine().allocate_memory(output_layout, _allocation_type, false);
         }
 
-        bool is_weightless_caching = cache_info->load(ib, mem, weights_memory, weightless_caching);
+        bool is_weightless_caching = cache_info->load(ib,
+                                                    mem,
+                                                    weights_memory,
+                                                    weightless_caching,
+                                                    output_layout,
+                                                    _allocation_type);
 
-        if (!is_weightless_caching) {
+        if (is_weightless_caching) {
+            if (cache_info->is_partial_upload_enabled()) {
+                _skip_device_transfer = true;
+                _resident_expert_num = cache_info->get_resident_expert_num();
+            }
+        } else {
             if (ib.get_engine().can_use_host_usm_zero_copy() && !ib.is_encrypted()) {
                 // Advance input stream past padding so subbuffer base offset meets use_host_ptr() alignment requirements.
                 if (const auto pad = ov::util::align_padding_size(dev_info.sub_buffer_base_alignment.value_or(0), ib.get_offset()); pad > 0) {

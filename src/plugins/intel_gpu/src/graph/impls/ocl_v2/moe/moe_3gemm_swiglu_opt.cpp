@@ -731,6 +731,7 @@ public:
     int _gate_up_group_size;
     int _down_group_size;
     std::shared_ptr<IExpertWeightProvider> _weight_provider;
+    memory::ptr _expert_index_buffer;
 
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
 
@@ -829,15 +830,16 @@ public:
         // Write remapped slot IDs to GPU buffer
         auto& engine = instance.get_network().get_engine();
         const size_t topk_bytes = topk_count * sizeof(uint32_t);
-        if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
+        if (!_expert_index_buffer || _expert_index_buffer->size() < topk_bytes) {
             auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
-            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
+            _expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
         }
         std::vector<uint32_t> slots_u32(lease->size());
         for (size_t i = 0; i < lease->size(); i++) {
             slots_u32[i] = static_cast<uint32_t>((*lease)[i]);
         }
-        scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
+        _expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
+        scratch._expert_index_buffer = _expert_index_buffer;
 
         set_otd_weight_pointers(instance, scratch);
         needs_fallback = false;
@@ -869,16 +871,16 @@ public:
         // Write remapped slot IDs to GPU buffer
         auto& engine = instance.get_network().get_engine();
         const size_t topk_bytes = topk_count * sizeof(uint32_t);
-        if (!scratch._expert_index_buffer || scratch._expert_index_buffer->size() < topk_bytes) {
+        if (!_expert_index_buffer || _expert_index_buffer->size() < topk_bytes) {
             auto layout = cldnn::layout({1, 1, 1, static_cast<ov::Dimension::value_type>(topk_bytes)}, ov::element::i8, cldnn::format::bfyx);
-            scratch._expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
+            _expert_index_buffer = engine.allocate_memory(layout, allocation_type::usm_host, false);
         }
         std::vector<uint32_t> slots_u32(lease->size());
         for (size_t i = 0; i < lease->size(); i++) {
             slots_u32[i] = static_cast<uint32_t>((*lease)[i]);
         }
-        scratch._expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
-        batch_mem_ptr = scratch._expert_index_buffer;
+        _expert_index_buffer->copy_from(stream, slots_u32.data(), 0, 0, topk_bytes, true);
+        batch_mem_ptr = _expert_index_buffer;
         needs_fallback = false;
     }
 
@@ -1396,6 +1398,7 @@ public:
         ob << force_gpu_mask_gen_prefill;
         ob << make_data(&prefill_impl, sizeof(prefill_impl));
         ob << make_data(&decode_impl, sizeof(decode_impl));
+        ob << batched_gemv_threshold;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -1405,6 +1408,7 @@ public:
         ib >> force_gpu_mask_gen_prefill;
         ib >> make_data(&prefill_impl, sizeof(prefill_impl));
         ib >> make_data(&decode_impl, sizeof(decode_impl));
+        ib >> batched_gemv_threshold;
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto cur_moe = impl_params->typed_desc<moe_3gemm_fused_compressed>();
         init(cur_moe);
@@ -1791,6 +1795,7 @@ public:
                                 {token_num, hidden_size},
                                 {1, reduce_lws},
                                 instance.needs_completion_event());
+            on_after_exec_sync(stream);
         }
         return ret;
     }

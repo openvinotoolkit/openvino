@@ -4,6 +4,7 @@
 
 #include "expert_weight_providers.hpp"
 
+#include <array>
 #include <unordered_map>
 #include <utility>
 
@@ -14,6 +15,32 @@
 #include "moe_otd_runtime.hpp"
 
 namespace ov::intel_gpu::ocl::moe {
+namespace {
+
+void validate_resident_buffer_capacity(const cldnn::memory::ptr& memory, size_t capacity, size_t total_experts, const char* tensor_name) {
+    if (!memory) {
+        return;
+    }
+
+    OPENVINO_ASSERT(total_experts > 0, "Invalid expert count while binding OTD buffer ", tensor_name);
+    const auto expert_bytes = memory->get_layout().bytes_count() / total_experts;
+    if (expert_bytes == 0) {
+        return;
+    }
+
+    const auto mem_tracker = memory->get_mem_tracker();
+    OPENVINO_ASSERT(mem_tracker != nullptr, "Missing allocation metadata for OTD buffer ", tensor_name);
+    const auto physical_capacity = mem_tracker->size() / expert_bytes;
+    OPENVINO_ASSERT(physical_capacity >= capacity,
+                    "OTD buffer ",
+                    tensor_name,
+                    " has physical capacity for ",
+                    physical_capacity,
+                    " experts, but provider requires ",
+                    capacity);
+}
+
+}  // namespace
 
 std::optional<ExpertSlotLease> ResidentExpertWeightProvider::try_acquire_simultaneous(const std::vector<uint32_t>& experts, cldnn::stream& /*stream*/) {
     // Resident: identity mapping, always succeeds.
@@ -36,6 +63,19 @@ OffloadExpertWeightProvider::OffloadExpertWeightProvider(size_t capacity,
       _weight_reader(_weights_path) {}
 
 void OffloadExpertWeightProvider::bind(cldnn::moe_weights& resident) {
+    const std::array<std::pair<const char*, cldnn::memory::ptr>, 9> routed_buffers = {{{"gate_w", resident.gate_w},
+                                                                                       {"up_w", resident.up_w},
+                                                                                       {"down_w", resident.down_w},
+                                                                                       {"gate_s", resident.gate_s},
+                                                                                       {"up_s", resident.up_s},
+                                                                                       {"down_s", resident.down_s},
+                                                                                       {"gate_z", resident.gate_z},
+                                                                                       {"up_z", resident.up_z},
+                                                                                       {"down_z", resident.down_z}}};
+    for (const auto& [name, memory] : routed_buffers) {
+        validate_resident_buffer_capacity(memory, _capacity, static_cast<size_t>(_config.num_expert), name);
+    }
+
     _resident = &resident;
     _cache->set_initialized();
     _bound = true;
