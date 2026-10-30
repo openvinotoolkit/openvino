@@ -535,6 +535,30 @@ Other accepted parameters: `ov_internal_tp_comm_buffer_size`,
 `ov_internal_tp_channels` other than 1 is refused until it is implemented;
 any other parameter is an error.
 
+### Collective backends
+
+A backend is a name the GPU plugin owns; today there is one, `L0_P2P` (peer
+copies between the devices of one Level Zero context). It serves a device
+group if every device appears once, all share a Level Zero driver, and
+`zeDeviceCanAccessPeer` holds for every ordered pair. Two queries answer for a
+device group (argument `ov_internal_tp_device_group`) without throwing:
+
+- `ov_internal_tp_collective_backends`: the names that serve the group, in the
+  order `AUTO` prefers them; empty if none does.
+- `ov_internal_tp_collective_support` (optional argument
+  `ov_internal_tp_collective_backend`, default `AUTO`): empty if the backend
+  serves the group, otherwise why not -- a device pair without peer access, a
+  device listed twice, an unknown device, or for an unknown name the names
+  that would work (`Unknown collective backend "L0"; supported for GPU.0,GPU.1:
+  L0_P2P`).
+
+`create_context()` runs the same check to resolve the group's backend (`AUTO`
+becomes the first supported name) and fails with that reason. The resolved
+name goes into the setup payload, and every rank checks at the first bind that
+all resolved the same. It is also put into the configuration of every model
+compiled or imported with the context (`GPU_TP_COLLECTIVE_BACKEND`), where the
+collective implementations accept only their own backend.
+
 ### Binding
 
 `compile_model()` and `import_model()` with a TP context bind every stream

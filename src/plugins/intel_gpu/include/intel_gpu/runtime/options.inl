@@ -150,6 +150,7 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_names, std::vector<std::s
 // configuration, the context parameters and the environment, e.g. OV_GPU_TP_ENABLE_HALVING.
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, tp_enable_halving, true, "Use recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, tp_halving_max_bytes, uint64_t{256 * 1024}, "Payload ceiling in bytes above which halving falls back to the ring")
+OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, tp_collective_backend, std::string{}, "Resolved collective backend of the TP context a model is compiled for; set by the plugin, empty without a TP context")
 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_verbose, ov::log::Level::NO, "Verbosity of the collectives' diagnostics. Values: LOG_NONE, LOG_ERROR, LOG_WARNING, LOG_INFO, LOG_DEBUG, LOG_TRACE")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, tp_profiling, ov::intel_gpu::TPProfilingMode::NONE, "Measurement of the collectives. Values: NONE, HOST, DEVICE, ALL")

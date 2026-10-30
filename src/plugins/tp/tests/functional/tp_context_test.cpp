@@ -174,6 +174,53 @@ TEST_F(TPContextTest, RejectsAContextOnAnotherDeviceThanItsRank) {
                     HasSubstr("rank 0 runs on GPU.0 by the group"));
 }
 
+// The queries a TP plugin runs before it creates any context: they answer for
+// a device group without throwing, whatever is wrong with it.
+TEST_F(TPContextTest, ListsTheCollectiveBackendsOfAGroup) {
+    ov::Core core;
+    auto backends = [&](const std::vector<std::string>& devices) {
+        return core
+            .get_property("GPU",
+                          ov::tp::internal::collective_backends.name(),
+                          {{ov::tp::internal::device_group.name(), devices}})
+            .as<std::vector<std::string>>();
+    };
+    EXPECT_EQ(backends({"GPU.0", "GPU.1"}), std::vector<std::string>{"L0_P2P"});
+    EXPECT_TRUE(backends({"GPU.0", "GPU.0"}).empty());
+    EXPECT_TRUE(backends({"GPU.0", "GPU.99"}).empty());
+}
+
+TEST_F(TPContextTest, ReportsCollectiveSupportWithoutThrowing) {
+    ov::Core core;
+    auto support = [&](const std::vector<std::string>& devices, const std::string& backend) {
+        return core
+            .get_property("GPU",
+                          ov::tp::internal::collective_support.name(),
+                          {{ov::tp::internal::device_group.name(), devices},
+                           {ov::tp::internal::collective_backend.name(), backend}})
+            .as<std::string>();
+    };
+    EXPECT_EQ(support({"GPU.0", "GPU.1"}, auto_backend), "");
+    EXPECT_EQ(support({"GPU.0", "GPU.1"}, "L0_P2P"), "");
+    EXPECT_THAT(support({"GPU.0", "GPU.1"}, "NO_SUCH_BACKEND"),
+                HasSubstr("Unknown collective backend \"NO_SUCH_BACKEND\"; supported for GPU.0,GPU.1: L0_P2P"));
+    EXPECT_THAT(support({"GPU.0", "GPU.0"}, auto_backend), HasSubstr("appears in the group more than once"));
+    EXPECT_THAT(support({"GPU.0", "GPU.99"}, auto_backend), HasSubstr("does not exist"));
+}
+
+TEST_F(TPContextTest, TwoRanksReduceThroughTheNamedBackend) {
+    ov::Core core;
+    auto group = InProcessExchange::create_group(2, std::chrono::milliseconds{5000});
+    std::vector<ov::RemoteContext> contexts;
+    for (int rank = 0; rank < 2; ++rank) {
+        auto params = rank_params(group, rank);
+        params[ov::tp::internal::groups.name()] =
+            std::map<int, CollectiveGroup>{{0, CollectiveGroup{group[static_cast<size_t>(rank)], "L0_P2P"}}};
+        contexts.push_back(core.create_context(rank == 0 ? "GPU.0" : "GPU.1", params));
+    }
+    expect_two_ranks_reduce(core, contexts);
+}
+
 TEST_F(TPContextTest, RejectsWhatItDoesNotSupport) {
     ov::Core core;
     auto group = InProcessExchange::create_group(2, std::chrono::milliseconds{5000});
@@ -195,7 +242,13 @@ TEST_F(TPContextTest, RejectsWhatItDoesNotSupport) {
     params = rank_params(group, 0);
     params[ov::tp::internal::groups.name()] =
         std::map<int, CollectiveGroup>{{0, CollectiveGroup{group[0], "NO_SUCH_BACKEND"}}};
-    OV_EXPECT_THROW(core.create_context("GPU.0", params), ov::Exception, HasSubstr("NO_SUCH_BACKEND"));
+    OV_EXPECT_THROW(core.create_context("GPU.0", params),
+                    ov::Exception,
+                    HasSubstr("Unknown collective backend \"NO_SUCH_BACKEND\"; supported for GPU.0,GPU.1: L0_P2P"));
+
+    params = rank_params(group, 0);
+    params[ov::tp::internal::device_group.name()] = std::vector<std::string>{"GPU.0", "GPU.0"};
+    OV_EXPECT_THROW(core.create_context("GPU.0", params), ov::Exception, HasSubstr("more than once"));
 }
 
 }  // namespace

@@ -288,6 +288,7 @@ inline std::istream& operator>>(std::istream& is, TPProfilingMode& val) {
 
 static constexpr Property<bool, ov::PropertyMutability::RW> tp_enable_halving{"GPU_TP_ENABLE_HALVING"};
 static constexpr Property<uint64_t, ov::PropertyMutability::RW> tp_halving_max_bytes{"GPU_TP_HALVING_MAX_BYTES"};
+static constexpr Property<std::string, ov::PropertyMutability::RW> tp_collective_backend{"GPU_TP_COLLECTIVE_BACKEND"};
 static constexpr Property<ov::log::Level, ov::PropertyMutability::RW> tp_verbose{"GPU_TP_VERBOSE"};
 static constexpr Property<TPProfilingMode, ov::PropertyMutability::RW> tp_profiling{"GPU_TP_PROFILING"};
 static constexpr Property<uint64_t, ov::PropertyMutability::RW> tp_dump_period{"GPU_TP_DUMP_PERIOD"};

@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "collective_backend.hpp"
 #include "collective_options.hpp"
 #include "group_state.hpp"
 #include "openvino/runtime/tp/collective_contract.hpp"
@@ -19,9 +20,6 @@
 namespace cldnn {
 namespace ze {
 namespace tp {
-
-/// Backend name this communicator resolves "AUTO" to and publishes in its payload header.
-inline constexpr const char* l0_p2p_backend = "L0_P2P";
 
 /// One rank's end of its group's collective resources on one channel. A network
 /// bound to a TP context holds one; its collective implementations run over it.
@@ -75,6 +73,8 @@ struct CollectiveUse {
 /// One channel (one stream of one model) at a time.
 class RankCommunicator {
 public:
+    /// \param backend  The resolved collective backend (resolve_backend()),
+    ///        published in the payload header; every rank must have the same.
     /// \param comm_buffer_size  Bytes of this rank's staging, fixed for the
     ///        context's lifetime; larger messages are chunked. Zero lets the
     ///        staging grow with the largest message. Equal on every rank.
@@ -93,6 +93,9 @@ public:
     }
     int world_size() const {
         return m_world_size;
+    }
+    const std::string& backend() const {
+        return m_backend;
     }
     const TPL0SharedContextPtr& shared_context() const {
         return m_shared;
@@ -113,6 +116,7 @@ private:
     void connect(int num_collectives);
 
     std::shared_ptr<ov::tp::IExchange> m_exchange;
+    std::string m_backend;
     TPL0SharedContextPtr m_shared;
     std::chrono::milliseconds m_timeout;
     CollectiveOptions m_options;

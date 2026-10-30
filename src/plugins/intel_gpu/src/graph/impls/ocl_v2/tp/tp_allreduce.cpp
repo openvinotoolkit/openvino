@@ -136,6 +136,11 @@ private:
 
 }  // namespace
 
+bool runs_on_l0_p2p(const program_node& node) {
+    const auto& backend = node.get_program().get_config().get_tp_collective_backend();
+    return backend.empty() || backend == cldnn::ze::tp::l0_p2p_backend;
+}
+
 std::unique_ptr<primitive_impl> TPAllReduce::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<tp_allreduce>());
     return std::make_unique<TPAllReduceImpl>(node, params);

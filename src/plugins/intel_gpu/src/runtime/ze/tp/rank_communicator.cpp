@@ -46,16 +46,9 @@ uint64_t next_communicator_id() {
     return next.fetch_add(1, std::memory_order_relaxed);
 }
 
-std::string resolve_backend(const std::string& requested) {
-    OPENVINO_ASSERT(requested == ov::tp::auto_backend || requested == l0_p2p_backend,
-                    "[GPU][TP] collective backend \"", requested, "\" is not supported; supported: \"",
-                    ov::tp::auto_backend, "\", \"", l0_p2p_backend, "\"");
-    return l0_p2p_backend;
-}
-
-ov::tp::Blob make_payload(const PayloadBody& body) {
+ov::tp::Blob make_payload(const std::string& backend, const PayloadBody& body) {
     ov::tp::PayloadHeader header;
-    std::strncpy(header.backend, l0_p2p_backend, sizeof(header.backend) - 1);
+    std::strncpy(header.backend, backend.c_str(), sizeof(header.backend) - 1);
     header.version = payload_version;
 
     ov::tp::Blob blob(sizeof(header) + sizeof(body));
@@ -64,7 +57,7 @@ ov::tp::Blob make_payload(const PayloadBody& body) {
     return blob;
 }
 
-PayloadBody parse_payload(const ov::tp::Blob& blob, int from_rank) {
+PayloadBody parse_payload(const ov::tp::Blob& blob, int from_rank, const std::string& own_backend) {
     OPENVINO_ASSERT(blob.size() == sizeof(ov::tp::PayloadHeader) + sizeof(PayloadBody),
                     "[GPU][TP] rank ", from_rank, " published a payload of ", blob.size(), " bytes, expected ",
                     sizeof(ov::tp::PayloadHeader) + sizeof(PayloadBody));
@@ -74,9 +67,9 @@ PayloadBody parse_payload(const ov::tp::Blob& blob, int from_rank) {
     const ov::tp::PayloadHeader expected;
     OPENVINO_ASSERT(header.magic == expected.magic, "[GPU][TP] rank ", from_rank, " published a foreign payload");
     const std::string backend(header.backend, strnlen(header.backend, sizeof(header.backend)));
-    OPENVINO_ASSERT(backend == l0_p2p_backend,
-                    "[GPU][TP] rank ", from_rank, " uses collective backend \"", backend, "\", this rank \"",
-                    l0_p2p_backend, "\"");
+    OPENVINO_ASSERT(backend == own_backend,
+                    "[GPU][TP] rank ", from_rank, " resolved collective backend \"", backend, "\", this rank \"",
+                    own_backend, "\"");
     OPENVINO_ASSERT(header.version == payload_version,
                     "[GPU][TP] rank ", from_rank, " published payload version ", header.version, ", this rank ",
                     payload_version);
@@ -101,6 +94,7 @@ RankCommunicator::RankCommunicator(std::shared_ptr<ov::tp::IExchange> exchange,
                                    const CollectiveOptions& options,
                                    std::size_t comm_buffer_size)
     : m_exchange(std::move(exchange)),
+      m_backend(backend),
       m_shared(std::move(shared)),
       m_timeout(timeout),
       m_options(options),
@@ -118,7 +112,9 @@ RankCommunicator::RankCommunicator(std::shared_ptr<ov::tp::IExchange> exchange,
     OPENVINO_ASSERT(m_shared->devices.size() == static_cast<size_t>(m_world_size),
                     "[GPU][TP] the device group has ", m_shared->devices.size(), " devices for ", m_world_size,
                     " ranks");
-    resolve_backend(backend);
+    OPENVINO_ASSERT(m_backend == l0_p2p_backend,
+                    "[GPU][TP] the communicator runs collective backend ", l0_p2p_backend, ", got \"", m_backend,
+                    "\"");
     OPENVINO_ASSERT(comm_buffer_size == 0 || m_staging_bytes != 0,
                     "[GPU][TP] ", ov::tp::internal::comm_buffer_size.name(), " of ", comm_buffer_size,
                     " bytes is too small");
@@ -132,7 +128,7 @@ RankCommunicator::RankCommunicator(std::shared_ptr<ov::tp::IExchange> exchange,
     body.rank = static_cast<uint32_t>(m_rank);
     body.world_size = static_cast<uint32_t>(m_world_size);
     body.staging_bytes = m_staging_bytes;
-    m_exchange->publish(make_payload(body));
+    m_exchange->publish(make_payload(m_backend, body));
 }
 
 void RankCommunicator::connect(int num_collectives) {
@@ -143,7 +139,7 @@ void RankCommunicator::connect(int num_collectives) {
     const auto pid = current_pid();
     std::vector<PayloadBody> bodies;
     for (int r = 0; r < m_world_size; ++r) {
-        const auto body = parse_payload(blobs[static_cast<size_t>(r)], r);
+        const auto body = parse_payload(blobs[static_cast<size_t>(r)], r, m_backend);
         OPENVINO_ASSERT(body.rank == static_cast<uint32_t>(r) && body.world_size == static_cast<uint32_t>(m_world_size),
                         "[GPU][TP] payload ", r, " claims rank ", body.rank, " of ", body.world_size);
         OPENVINO_ASSERT(body.pid == pid,

@@ -34,6 +34,7 @@ namespace ov {
     symbol_statement(zeCommandQueueSynchronize)               \
     symbol_statement(zeContextCreate)                         \
     symbol_statement(zeContextDestroy)                        \
+    symbol_statement(zeDeviceCanAccessPeer)                   \
     symbol_statement(zeDeviceGet)                             \
     symbol_statement(zeDeviceGetCommandQueueGroupProperties)  \
     symbol_statement(zeDeviceGetProperties)                   \

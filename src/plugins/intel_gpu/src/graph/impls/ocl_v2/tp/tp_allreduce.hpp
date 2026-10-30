@@ -14,6 +14,11 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
+/// Whether `node`'s program is compiled for a TP context that resolved to the
+/// backend these impls implement. Without a TP context it is, so that binding
+/// reports the missing context instead of a missing implementation.
+bool runs_on_l0_p2p(const program_node& node);
+
 struct TPAllReduce : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::tp_allreduce")
     explicit TPAllReduce(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
@@ -24,7 +29,7 @@ struct TPAllReduce : public ImplementationManager {
         static constexpr std::array supported_types = {data_types::f16, data_types::bf16, data_types::f32};
         static constexpr std::array supported_fmts = {format::bfyx, format::bfzyx, format::bfwzyx};
 
-        if (node.has_fused_primitives()) {
+        if (node.has_fused_primitives() || !runs_on_l0_p2p(node)) {
             return false;
         }
 
