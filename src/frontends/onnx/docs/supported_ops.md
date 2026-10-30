@@ -51,7 +51,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Crop                                                    |1                       |                                |                                |
 |                        |CumSum                                                  |11                      |14, 11                          |                                |
 |                        |DFT                                                     |17                      |20, 17                          |                                |
-|                        |DeformConv                                              |                        |22, 19                          |                                |
+|                        |DeformConv                                              |19, 1                   |22, 19                          |Only 2D convolution (rank-4 inputs)|
 |                        |DepthToSpace                                            |1                       |13, 11, 1                       |                                |
 |                        |DequantizeLinear                                        |21, 19, 13, 10          |21, 19, 13, 10                  |                                |
 |                        |Det                                                     |                        |22, 11                          |                                |
