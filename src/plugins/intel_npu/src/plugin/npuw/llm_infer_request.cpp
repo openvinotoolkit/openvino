@@ -1487,10 +1487,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
             m_lm_head_request->infer();
             m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
         } else if (m_is_guard) {
-            collect_guard_logits(
-                m_prefill_request,
-                m_prefill_out_ports,
-                static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]));
+            collect_guard_logits(m_prefill_request,
+                                 m_prefill_out_ports,
+                                 static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]));
         } else {
             m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
         }
