@@ -139,45 +139,118 @@ void stage_additive_attention_mask_for_prefill(const ov::SoPtr<ov::ITensor>& src
     copy_additive_attention_block(src, dst, 0, 0, dst_shape[2] - query_len, dst_shape[3] - key_len, query_len, key_len);
 }
 
-void stage_additive_attention_mask_for_generate(const ov::SoPtr<ov::ITensor>& src,
-                                                const ov::SoPtr<ov::ITensor>& dst,
-                                                uint32_t input_tokens_len) {
-    const auto& src_shape = src->get_shape();
-    const auto& dst_shape = dst->get_shape();
-    OPENVINO_ASSERT(src_shape.size() == 4u && dst_shape.size() == 4u,
+// Stages the additive attention mask of shape [1, 1, current, past + current] into the generate request.
+void stage_additive_attention_mask_for_generate(const ov::SoPtr<ov::ITensor>& attention_mask,
+                                                const ov::SoPtr<ov::ITensor>& kv_attn_mask,
+                                                size_t past_len,
+                                                size_t input_tokens_len,
+                                                size_t max_generation_token_len) {
+    const auto& attention_mask_shape = attention_mask->get_shape();
+    const auto& kv_attn_mask_shape = kv_attn_mask->get_shape();
+    OPENVINO_ASSERT(attention_mask_shape.size() == 4u && kv_attn_mask_shape.size() == 4u,
                     "Additive attention_mask tensors must be rank 4.");
-    OPENVINO_ASSERT(src_shape[2] == input_tokens_len,
+    OPENVINO_ASSERT(attention_mask_shape[2] == input_tokens_len,
                     "Additive generate attention_mask query dimension must match input length. Got Q=",
-                    src_shape[2],
+                    attention_mask_shape[2],
                     ", input length=",
                     input_tokens_len,
                     ".");
-    OPENVINO_ASSERT(src_shape[3] >= src_shape[2],
-                    "Additive generate attention_mask key dimension must be at least the query dimension.");
-
-    const size_t query_len = src_shape[2];
-    const size_t key_len = src_shape[3];
-    const size_t past_len = key_len - query_len;
-    OPENVINO_ASSERT(query_len <= dst_shape[2] && past_len + query_len <= dst_shape[3],
-                    "Additive generate attention_mask shape ",
-                    src_shape,
-                    " does not fit static destination shape ",
-                    dst_shape,
+    // NB: Past length comes from the tracked KV-cache; the caller mask has to be consistent with it.
+    OPENVINO_ASSERT(attention_mask_shape[3] == past_len + input_tokens_len,
+                    "Additive generate attention_mask key dimension must be the stored past plus the current "
+                    "tokens: expected ",
+                    past_len + input_tokens_len,
+                    ", got ",
+                    attention_mask_shape[3],
+                    ".");
+    OPENVINO_ASSERT(kv_attn_mask_shape[3] >= max_generation_token_len,
+                    "Generate attention mask is smaller than the configured generation window.");
+    const size_t dest_past_capacity = kv_attn_mask_shape[3] - max_generation_token_len;
+    OPENVINO_ASSERT(past_len <= dest_past_capacity,
+                    "Selected generate variant cannot hold the stored attention context: ",
+                    past_len,
+                    " past tokens exceed capacity ",
+                    dest_past_capacity,
                     ".");
 
-    fill_additive_attention_mask(dst);
-    const size_t dst_query_offset = dst_shape[2] - query_len;
+    const size_t query_len = attention_mask_shape[2];
+    OPENVINO_ASSERT(query_len <= kv_attn_mask_shape[2] && past_len + query_len <= kv_attn_mask_shape[3],
+                    "Additive generate attention_mask shape ",
+                    attention_mask_shape,
+                    " does not fit static destination shape ",
+                    kv_attn_mask_shape,
+                    ".");
+
+    fill_additive_attention_mask(kv_attn_mask);
+    const size_t dest_query_offset = kv_attn_mask_shape[2] - query_len;
     if (past_len > 0) {
-        copy_additive_attention_block(src, dst, 0, 0, dst_query_offset, 0, query_len, past_len);
+        copy_additive_attention_block(attention_mask, kv_attn_mask, 0, 0, dest_query_offset, 0, query_len, past_len);
     }
-    copy_additive_attention_block(src,
-                                  dst,
+    copy_additive_attention_block(attention_mask,
+                                  kv_attn_mask,
                                   0,
                                   past_len,
-                                  dst_query_offset,
-                                  dst_shape[3] - query_len,
+                                  dest_query_offset,
+                                  kv_attn_mask_shape[3] - query_len,
                                   query_len,
                                   query_len);
+}
+
+// Stages the binary (0/1, int64) attention mask of shape [1, >= past + current] into the generate request.
+// NB: Past length comes from the tracked KV-cache, not the caller mask size: the caller mask
+//     may be a static max-length buffer (e.g. WebNN) rather than past_len + input_tokens_len.
+void stage_binary_attention_mask_for_generate(const ov::SoPtr<ov::ITensor>& attention_mask,
+                                              const ov::SoPtr<ov::ITensor>& kv_attn_mask,
+                                              size_t past_len,
+                                              size_t input_tokens_len,
+                                              size_t max_generation_token_len) {
+    OPENVINO_ASSERT(kv_attn_mask->get_size() >= max_generation_token_len,
+                    "Generate attention mask is smaller than the configured generation window.");
+    const size_t dest_past_capacity = kv_attn_mask->get_size() - max_generation_token_len;
+    OPENVINO_ASSERT(past_len <= dest_past_capacity,
+                    "Selected generate variant cannot hold the stored attention context: ",
+                    past_len,
+                    " past tokens exceed capacity ",
+                    dest_past_capacity,
+                    ".");
+    OPENVINO_ASSERT(attention_mask->get_size() >= past_len,
+                    "Attention mask does not cover the stored past: expected at least ",
+                    past_len,
+                    " entries, got ",
+                    attention_mask->get_size(),
+                    ".");
+    const size_t used_mask_len = past_len + input_tokens_len;
+    if (attention_mask->get_size() > used_mask_len) {
+        // Static max-length caller mask (e.g. WebNN): layout is [past][current][padding],
+        // so the ignored tail must not carry any valid context.
+        const auto* mask_data = attention_mask->data<int64_t>();
+        const auto tail_begin = mask_data + used_mask_len;
+        const auto tail_end = mask_data + attention_mask->get_size();
+        const auto valid_it = std::find_if(tail_begin, tail_end, [](int64_t v) {
+            return v != 0;
+        });
+        OPENVINO_ASSERT(valid_it == tail_end,
+                        "Static attention mask has a valid entry at position ",
+                        static_cast<size_t>(valid_it - mask_data),
+                        " beyond the tracked context of ",
+                        used_mask_len,
+                        " tokens (",
+                        past_len,
+                        " past + ",
+                        input_tokens_len,
+                        " current); truncating it would drop context.");
+    }
+    std::copy_n(attention_mask->data<int64_t>(), past_len, kv_attn_mask->data<int64_t>());
+    // Clear stale entries left by a larger past (e.g. after speculative-decoding trim).
+    if (past_len < dest_past_capacity) {
+        std::fill_n(kv_attn_mask->data<int64_t>() + past_len, dest_past_capacity - past_len, 0);
+    }
+    if (input_tokens_len < max_generation_token_len) {
+        std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - max_generation_token_len,
+                    max_generation_token_len - input_tokens_len,
+                    0);
+    }
+    std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 }
 
 void check_tensor_shape_compatibility(const ov::Shape& state_tensor_shape,
@@ -1812,61 +1885,17 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         //       tokens on the left (for past kv layers).
         auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
         if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
-            stage_additive_attention_mask_for_generate(attention_mask, kv_attn_mask, input_tokens_len);
+            stage_additive_attention_mask_for_generate(attention_mask,
+                                                       kv_attn_mask,
+                                                       kvcache_desc.num_stored_tokens,
+                                                       input_tokens_len,
+                                                       kvcache_desc.max_generation_token_len);
         } else {
-            // NB: Past length comes from the tracked KV-cache, not the caller mask size: the caller mask
-            //     may be a static max-length buffer (e.g. WebNN) rather than past_len + input_tokens_len.
-            OPENVINO_ASSERT(kv_attn_mask->get_size() >= kvcache_desc.max_generation_token_len,
-                            "Generate attention mask is smaller than the configured generation window.");
-            const size_t past_len = kvcache_desc.num_stored_tokens;
-            const size_t dest_past_capacity = kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len;
-            OPENVINO_ASSERT(past_len <= dest_past_capacity,
-                            "Selected generate variant cannot hold the stored attention context: ",
-                            past_len,
-                            " past tokens exceed capacity ",
-                            dest_past_capacity,
-                            ".");
-            OPENVINO_ASSERT(attention_mask->get_size() >= past_len,
-                            "Attention mask does not cover the stored past: expected at least ",
-                            past_len,
-                            " entries, got ",
-                            attention_mask->get_size(),
-                            ".");
-            const size_t used_mask_len = past_len + input_tokens_len;
-            if (attention_mask->get_size() > used_mask_len) {
-                // Static max-length caller mask (e.g. WebNN): layout is [past][current][padding],
-                // so the ignored tail must not carry any valid context.
-                const auto* mask_data = attention_mask->data<int64_t>();
-                const auto tail_begin = mask_data + used_mask_len;
-                const auto tail_end = mask_data + attention_mask->get_size();
-                const auto valid_it = std::find_if(tail_begin, tail_end, [](int64_t v) {
-                    return v != 0;
-                });
-                OPENVINO_ASSERT(valid_it == tail_end,
-                                "Static attention mask has a valid entry at position ",
-                                static_cast<size_t>(valid_it - mask_data),
-                                " beyond the tracked context of ",
-                                used_mask_len,
-                                " tokens (",
-                                past_len,
-                                " past + ",
-                                input_tokens_len,
-                                " current); truncating it would drop context.");
-            }
-            std::copy_n(attention_mask->data<int64_t>(), past_len, kv_attn_mask->data<int64_t>());
-            // Clear stale entries left by a larger past (e.g. after speculative-decoding trim).
-            if (past_len < dest_past_capacity) {
-                std::fill_n(kv_attn_mask->data<int64_t>() + past_len, dest_past_capacity - past_len, 0);
-            }
-            if (input_tokens_len < kvcache_desc.max_generation_token_len) {
-                std::fill_n(
-                    kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len,
-                    kvcache_desc.max_generation_token_len - input_tokens_len,
-                    0);
-            }
-            std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len,
-                        input_tokens_len,
-                        1);
+            stage_binary_attention_mask_for_generate(attention_mask,
+                                                     kv_attn_mask,
+                                                     kvcache_desc.num_stored_tokens,
+                                                     input_tokens_len,
+                                                     kvcache_desc.max_generation_token_len);
         }
 
         auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
@@ -1998,8 +2027,7 @@ void ov::npuw::LLMInferRequest::infer() {
     if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
         OPENVINO_ASSERT(attention_mask->get_element_type().is_real(),
                         "4D additive attention_mask must use a floating-point element type.");
-        OPENVINO_ASSERT(attention_mask->get_shape().size() == 4u,
-                        "4D additive attention_mask must be rank 4.");
+        OPENVINO_ASSERT(attention_mask->get_shape().size() == 4u, "4D additive attention_mask must be rank 4.");
     } else {
         OPENVINO_ASSERT(ov::element::i64 == attention_mask->get_element_type());
     }
