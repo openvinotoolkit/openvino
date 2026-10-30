@@ -18,6 +18,26 @@ namespace pass {
  */
 class OPENVINO_API ConstantFolding : public ModelPass {
 public:
+    class OPENVINO_API Observer {
+    public:
+        virtual ~Observer();
+
+        /// \brief Called once when the pass starts, before any folding happens.
+        virtual void on_pass_begin(const std::shared_ptr<ov::Model>& model) noexcept = 0;
+
+        /// \brief Return true to skip pre-calculated value folding for @p node so it is folded in
+        ///        the ordered loop instead, where the observer can react to it in order.
+        virtual bool defer_pre_calculated_values(const std::shared_ptr<ov::Model>& model,
+                                                 const std::shared_ptr<const ov::Node>& node) noexcept = 0;
+
+        /// \brief Called before each node is processed in the ordered folding loop.
+        virtual void before_ordered_node(const std::shared_ptr<ov::Model>& model,
+                                         const std::shared_ptr<const ov::Node>& node) noexcept = 0;
+
+        /// \brief Called once when the pass ends (also on early return).
+        virtual void on_pass_end(const std::shared_ptr<ov::Model>& model) noexcept = 0;
+    };
+
     OPENVINO_MODEL_PASS_RTTI("ConstantFolding");
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
