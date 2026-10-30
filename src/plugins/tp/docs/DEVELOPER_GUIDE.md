@@ -94,7 +94,7 @@ taken with one of them set does not describe a stock run.
 |--------------------------------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `OV_GPU_TP_ENABLE_HALVING`     | `true`   | Recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes. Turn off to compare the two schedules on the same payload.              |
 | `OV_GPU_TP_HALVING_MAX_BYTES`  | `262144` | Payload ceiling above which halving falls back to the ring. The `schedule of N recordings` line in the report says whether the current ceiling is anywhere near right. |
-| `OV_TP_INPUT_STAGE_MAX_BYTES`  | `4096`   | Size ceiling for staging a user input through plugin-owned host memory. `0` always stages on the device.                                                               |
+| `OV_TP_INPUT_STAGE_MAX_BYTES`  | `4096`   | Size ceiling for copying a user input into a host tensor of every rank's context (`create_host_tensor`), which the rank then reads directly. `0` hands every input over as it is. |
 
 ### Diagnostics
 

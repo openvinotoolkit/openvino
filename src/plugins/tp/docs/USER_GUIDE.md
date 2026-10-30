@@ -96,11 +96,15 @@ output = request.get_output_tensor().data
 The rank devices are part of the device name, as for `HETERO`:
 `"TP:GPU.0,GPU.1,GPU.2,GPU.3"` runs one rank per listed device, in rank order
 (the list is `ov::device::priorities`). At least two devices of one device type
-are required; `compile_model` throws otherwise. Only GPU devices can host ranks
-today.
+are required; `compile_model` throws otherwise. Whether the devices can run
+the collectives is the device plugin's answer, asked before anything is
+compiled (GPU: Level Zero devices of one driver with peer access between every
+pair, each listed once). Only GPU devices can host ranks today.
 
 | Property                   | Type       | Default | Description                                                                              |
 |----------------------------|------------|---------|------------------------------------------------------------------------------------------|
+| `TP_STRATEGY`              | string     | `COLUMN_ROW` | Partitioning strategy (Megatron-style column/row parallelism; the only value). |
+| `COLLECTIVE_BACKEND`       | string     | `AUTO`  | Collective implementation of the rank devices' plugin, passed to it unchanged. GPU: `L0_P2P`; an unknown name is rejected with the valid ones. |
 | `COMMUNICATION_TIMEOUT_MS` | `uint32_t` | `5000`  | Longest a rank waits inside a collective before the group is aborted. `0` waits forever. |
 | `ov_internal_tp_comm_buffer_size` | `size_t` | `0` | Bytes of collective staging per rank, allocated once when the model is compiled. Larger messages are split into chunks. `0` lets the staging grow with the largest message. |
 
@@ -126,10 +130,17 @@ messages are small and never split. On more than two ranks a chunked prompt
 is summed in a different order, so the outputs may differ from the unchunked
 run in the last bits, the same way on every run.
 
-Any additional properties are passed through to the underlying
-`intel_gpu` plugin used to compile each per-rank submodel. Properties for one
+Any additional properties are passed through to the device plugin that
+compiles each rank model. Properties for one
 device or device type go through `ov::device::properties`, e.g.
-`ov::device::properties("GPU.1", ...)` reaches rank 1 only.
+`ov::device::properties("GPU.1", ...)` reaches rank 1 only. Every rank runs
+one stream: `ov::num_streams` other than 1, here or in `ov::device::properties`,
+is rejected.
+
+The compiled model's context (`compiled.get_context()`) gives out host tensors
+(`create_host_tensor()`, readable by every rank device); `create_tensor()` is
+rejected, because a TP model has no single device. The compiled model reports
+the rank count as `ov_internal_tp_world_size`.
 
 ## Profiling
 
@@ -186,6 +197,10 @@ Things to know:
   split is rejected rather than silently mis-sliced.
 - **Single-process.** All ranks execute in the same process on plugin-owned
   threads. Multi-process / multi-host configurations are out of scope.
+- **One TP request at a time per device.** TP requests of every TP model in
+  the process that shares a device with another run one after another.
+- **No linear-attention models.** Models with linear-attention state
+  (hybrid models) are rejected at compile time.
 - **No user-supplied remote context.** The plugin always creates the rank
   contexts of its device group itself, so importing into a caller-provided
   context is rejected.

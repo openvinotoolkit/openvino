@@ -24,8 +24,11 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 │                         TP Plugin                            │
 │                                                              │
 │  compile_model():                                            │
-│    1. Parse config (device list from "TP:<devices>").        │
-│    2. Create one GPU remote context per rank with the TP     │
+│    1. Parse config (device list from "TP:<devices>"); reject │
+│       ov::num_streams other than 1; ask the device plugin    │
+│       (collective_support) whether it can serve the group;   │
+│       reject models with linear-attention state.             │
+│    2. Create one remote context per rank with the TP         │
 │       parameters of the collective contract: device group +  │
 │       the rank's endpoint of an InProcessExchange. Each      │
 │       context publishes its setup payload and returns.       │
@@ -53,7 +56,9 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 │                           the rank's communicator            │
 │    - RankWorkers          a thread per rank                  │
 │    - CacheController      paged-attention cache              │
-│    - inference mutex      one outer inference at a time      │
+│    - device locks         one TP request at a time on these  │
+│                           devices, process-wide              │
+│    - TP RemoteContext     get_context(): host tensors only   │
 │                                                              │
 │  Built by the plugin, then moved in and kept alive here.     │
 │                                                              │
@@ -170,8 +175,11 @@ CompiledModel (ICompiledModel)
   │                                    shared by every infer request
   ├── sharded_state_ids[]              which variables hold a KV-cache slice
   │                                    rather than a replica
-  ├── inference mutex                  one outer inference at a time; rank
-  │                                    execution inside it stays parallel
+  ├── device locks                     process-wide, one per device (by UUID),
+  │                                    taken in one order for a TP request;
+  │                                    rank execution inside it stays parallel
+  ├── RemoteContext                    get_context(): host tensors through rank
+  │                                    0's context; device tensors rejected
   └── RankWorkers                      one thread per rank, created on
                                        first use and kept for the life of the
                                        model. Declared last, joined first.
@@ -183,7 +191,9 @@ InferRequest (ISyncInferRequest)       one per create_infer_request()
   ├── m_fanout_states[]                FanOutVariableState: one user-visible
   │                                    state over N per-rank states, gathering
   │                                    and scattering the sharded ones
-  └── m_input_stage[][]                host staging for small user inputs
+  └── m_input_stage[][]                small user inputs copied into host
+                                       tensors of each rank's own context
+                                       (create_host_tensor), read directly
 
 intel_gpu, per rank (src/plugins/intel_gpu/src/runtime/ze/tp/)
 RemoteContextImpl (TP context)
@@ -665,15 +675,19 @@ caching properties are aggregated across the rank devices and joined with `;`.
 - `infer_request.cpp` dispatches every rank, rank 0 included, to those
   workers and waits for all of them. The TP plugin owns the rank threads
   (option B of the design's rank execution): FIFO per rank and concurrent
-  ranks follow from one worker per rank under the inference mutex, and the
+  ranks follow from one worker per rank under the device locks, and the
   GPU plugin's async machinery (task executor, `EXCLUSIVE_ASYNC_REQUESTS`,
   external queues) is not on the path. Running rank 0 on the calling thread
   instead measured about 2.5 ms (4-6 %) slower to first token on short
   prompts; a rank request on the GPU plugin's `start_async()` measured the
   same as a worker.
-- `CompiledModel::lock_inference()` serializes outer inferences: the
-  rendezvous slots, the recorded command lists and the staging support
-  one at a time. Rank execution inside that inference stays parallel.
+- `CompiledModel::lock_inference()` takes a process-wide lock of every
+  device of the model, in one order (by device UUID), for the whole TP
+  request: the rendezvous slots, the recorded command lists and the staging
+  serve one request at a time, and TP models whose devices overlap (a main
+  and a draft model) must not run their collectives concurrently, or a
+  device queue waiting for a peer could hold the other model back. Rank
+  execution inside the request stays parallel.
 - Inside `GroupState::begin_allreduce` and `begin_gather`, ranks meet at
   a call rendezvous (a mailbox over a `std::condition_variable`, slots
   alternating by call parity). There is no record gate and no exit barrier.
@@ -721,10 +735,15 @@ Dev properties: [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables)
   over constant-derived weights. Architectures that fuse QKV differently,
   or feed a weight from a live parameter, are not recognized.
 - Remote contexts supplied by the user are not supported: the plugin
-  always creates the rank contexts itself.
+  always creates the rank contexts itself. The compiled model's own context
+  gives out host tensors only; a device tensor would be one model-level
+  tensor on one rank.
 - Weightless caching is not wired up, so a cache entry carries the full weights.
-- `ov::num_streams` is not honoured: a TP context has one channel, so a rank
-  model with more than one stream fails to compile.
+- `ov::num_streams` must be 1: a collective call is matched across the ranks
+  by the channel of the rank model's stream, and the stream that runs a
+  request is picked per request. Anything else is rejected.
+- Models with linear-attention state (PagedGatedDeltaNet, PagedCausalConv1D,
+  PagedSelectiveSSM, `*_state_table.*` inputs) are rejected.
 - All ranks of a group run in one process.
 - A failed collective is terminal. The device queues may still hold
   unfinished work, so the group refuses every later call rather than
