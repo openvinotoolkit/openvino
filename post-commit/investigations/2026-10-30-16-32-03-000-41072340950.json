@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-30-16-32-03-000-41072340950",
+  "timestamp": "2026-10-30T16:32:03Z",
+  "run_id": "41072340950",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41072340950",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "commit_sha": "4964038cf75b6b4273b2bc57a60e95f5f2995b26",
+  "pr_number": "39357",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39357",
+  "author": "dependabot[bot]",
+  "category": "Infrastructure",
+  "title": "iGPU unit tests job exceeds 80-minute timeout and is cancelled mid-run",
+  "signature": "openvino gpu unit tests job exceeds 80 minute workflow timeout and is cancelled mid-run (context canceled; operation was canceled)|Infrastructure",
+  "signature_hash": "a9c74b1ea2c2e7f5",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "iGPU Tests (unit) / GPU",
+      "conclusion": "cancelled",
+      "symptom": "OpenVINO GPU unit Tests step ran from 15:05:17Z to 16:24:42Z (~80 min) and was cancelled by GitHub Actions' job timeout while still executing test 27378/28804"
+    },
+    {
+      "name": "OpenVINO JS API (22) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "tests/setup.js failed to download test_model_fp32.xml from raw.githubusercontent.com, causing an unhandled promise rejection and exit code 1 (same signature as a prior investigation, hash 6519f63a719d4f66)"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Gating job correctly fails because upstream jobs reported 'failure' and 'cancelled'; not an independent root cause"
+    }
+  ],
+  "key_errors": [
+    "2026-10-30T16:24:42.5413349Z context canceled",
+    "2026-10-30T16:24:42.5486818Z ##[error]The operation was canceled.",
+    "job_gpu_tests.yml:42:    timeout-minutes: 80",
+    "Step 'OpenVINO GPU unit Tests' started 2026-10-30T15:05:17Z, completed (cancelled) 2026-10-30T16:24:42Z = 79m25s runtime",
+    "2026-10-30T15:06:11.2246689Z Failed to download the model: Request was timed out after 30000 ms..",
+    "2026-10-30T15:06:11.2255491Z UnhandledPromiseRejection: ... reason \"Request was timed out after 30000 ms.\""
+  ],
+  "root_cause": "The 'iGPU Tests (unit) / GPU' job runs the full OpenVINO GPU unit test suite (28804 tests) inside the job-level 80-minute timeout defined in .github/workflows/job_gpu_tests.yml (timeout-minutes: 80). In this run the suite was still on test 27378/28804 (softmax_gpu_formats_test_f32_3d) at the 80-minute mark, so GitHub Actions force-cancelled the step with 'context canceled' / 'The operation was canceled.' rather than the suite completing or crashing on a specific assertion. This is consistent with the suite running close to its time budget rather than a deterministic test regression, and the triggering commit (a Dependabot typescript-eslint bump for the JS bindings, PR #39357) does not touch any GPU plugin or test code, so the slow run is unrelated to the commit's content. The separate 'OpenVINO JS API' job failure is an already-tracked, independent transient network timeout (pattern 6519f63a719d4f66) downloading a test model from raw.githubusercontent.com, and 'ci/gha_overall_status' simply reflects the two upstream failures.",
+  "reproduction_steps": "N/A - not independently reproducible locally; requires running the full GPU unit test suite (`ov_gpu_unit_tests` target, ~28804 tests) on the self-hosted igpu runner end-to-end and comparing wall-clock duration against the 80-minute job timeout in .github/workflows/job_gpu_tests.yml. Historical run durations can be compared via the Actions UI to see if the suite is trending toward the timeout.",
+  "recommended_actions": [
+    "Check recent run durations for 'iGPU Tests (unit) / GPU' to see whether the suite's run time is trending upward (test count growth, slower runner, etc.) and is now regularly close to the 80-minute timeout-minutes budget in .github/workflows/job_gpu_tests.yml.",
+    "If the suite is structurally close to the limit, consider sharding the GPU unit test suite (e.g., via --gtest_filter shards or a test-splitting strategy) or raising timeout-minutes for this specific job.",
+    "No action needed on the JS API failure beyond what was already recommended in the prior investigation (hash 6519f63a719d4f66): add retry/catch handling around the raw.githubusercontent.com download in src/bindings/js/node/tests/setup.js.",
+    "Re-run both the iGPU and JS API jobs; neither failure appears related to the triggering commit's content."
+  ],
+  "prevention_strategies": "Monitor GPU unit test suite duration trends over time and alert before it approaches the configured job timeout, rather than discovering the problem via an abrupt mid-suite cancellation. Consider splitting large, slow-growing test suites into parallel shards to keep comfortable headroom below any timeout-minutes budget.",
+  "historical_context": "No prior pattern record exists for a GPU unit test job-timeout cancellation (hash a9c74b1ea2c2e7f5) - this is the first recorded occurrence. A related, distinct Infrastructure-category pattern (a5c3320815892838, count 5) covers iGPU *functional* tests failing early with 'no supported GPU devices found', which is a different symptom (device-detection failure) from this run's mid-suite timeout cancellation. The JS API timeout matches an existing Network-category pattern (6519f63a719d4f66) from run 41065640766 about 2 hours earlier, now recurring."
+}

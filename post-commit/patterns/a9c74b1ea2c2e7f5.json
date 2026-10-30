@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "openvino gpu unit tests job exceeds 80 minute workflow timeout and is cancelled mid-run (context canceled; operation was canceled)|Infrastructure",
+  "signature_hash": "a9c74b1ea2c2e7f5",
+  "title": "iGPU unit tests job exceeds 80-minute timeout and is cancelled mid-run",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-10-30T16:32:03Z",
+  "last_seen": "2026-10-30T16:32:03Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41072340950"
+  ],
+  "affected_commits": [
+    "4964038cf75b6b4273b2bc57a60e95f5f2995b26"
+  ],
+  "recent_timestamps": [
+    "2026-10-30T16:32:03Z"
+  ]
+}

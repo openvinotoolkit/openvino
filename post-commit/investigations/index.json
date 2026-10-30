@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 57,
+  "total": 58,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -582,6 +582,17 @@
       "category": "Network",
       "signature_hash": "6519f63a719d4f66",
       "commit_sha": "b21f60cdc1a77a9628e2cf3a23f386df3edaf85a"
+    },
+    {
+      "investigation_id": "2026-10-30-16-32-03-000-41072340950",
+      "run_id": "41072340950",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41072340950",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-30T16:32:03Z",
+      "title": "iGPU unit tests job exceeds 80-minute timeout and is cancelled mid-run",
+      "category": "Infrastructure",
+      "signature_hash": "a9c74b1ea2c2e7f5",
+      "commit_sha": "4964038cf75b6b4273b2bc57a60e95f5f2995b26"
     }
   ]
 }

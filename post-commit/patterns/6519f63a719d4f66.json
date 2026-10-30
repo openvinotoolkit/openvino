@@ -4,10 +4,10 @@
   "signature_hash": "6519f63a719d4f66",
   "title": "OpenVINO JS API tests fail downloading test model from raw.githubusercontent.com (30s timeout)",
   "category": "Network",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-10-30T14:31:57Z",
-  "last_seen": "2026-10-30T14:31:57Z",
-  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/41065640766"],
-  "affected_commits": ["b21f60cdc1a77a9628e2cf3a23f386df3edaf85a"],
-  "recent_timestamps": ["2026-10-30T14:31:57Z"]
+  "last_seen": "2026-10-30T16:32:03Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/41072340950", "https://github.com/openvinotoolkit/openvino/actions/runs/41065640766"],
+  "affected_commits": ["4964038cf75b6b4273b2bc57a60e95f5f2995b26", "b21f60cdc1a77a9628e2cf3a23f386df3edaf85a"],
+  "recent_timestamps": ["2026-10-30T16:32:03Z", "2026-10-30T14:31:57Z"]
 }
