@@ -460,7 +460,10 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!get_node().is_type<kv_cache>() && !get_node().is_type<strided_slice>() && !input_shape_changed && _impl_params->get_output_layout().is_static()) {
+    // An assign always goes on to set the layout of its variable: a state reset gives the variable its initial layout
+    // again, while the assign input may keep the shape of the previous inference.
+    if (!get_node().is_type<kv_cache>() && !get_node().is_type<strided_slice>() && !get_node().is_type<assign>() && !input_shape_changed &&
+        _impl_params->get_output_layout().is_static()) {
         return;
     }
 

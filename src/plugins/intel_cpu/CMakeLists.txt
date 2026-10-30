@@ -281,6 +281,20 @@ cross_compiled_file(${TARGET_NAME}
         NAME        turboq_quantize_head turboq_quantize
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/sparse_sdpa_kernel.cpp
+        API         src/nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp
+        NAME        sparse_sdpa_compute sparse_kv_dequantize_rows
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
+cross_compiled_file(${TARGET_NAME}
+        ARCH AVX512F AVX2 ANY
+                    src/nodes/kernels/scaled_attn/sparse_pa_kernel.cpp
+        API         src/nodes/kernels/scaled_attn/sparse_pa_kernel.hpp
+        NAME        sparse_pa_compute
+        NAMESPACE   ov::Extensions::Cpu::XARCH
+)
 ## turboq_rotation.cpp holds scalar setup only (sign cache, env parsing);
 ## SIMD WHT butterfly is inline in turboq_rotation.hpp and gets ISA-specialized
 ## when included by cross-compiled translation units.

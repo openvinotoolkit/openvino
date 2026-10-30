@@ -614,6 +614,10 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // on platforms which do not support AMX, we are disabling I8 input tests
             patterns.emplace_back(std::regex(R"(smoke_LPT/FakeQuantizeWithNotOptimalTransformation.CompareWithRefImpl.*CPU.*i8.*)"));
         }
+        if (!ov::with_cpu_x86_avx512_core_amx_bf16()) {
+            // the AMX QK^T fast path of SparseSDPA requires AMX bf16
+            patterns.emplace_back(std::regex(R"(.*smoke_SparseSDPA_CPU_AMX.*)"));
+        }
         // RNN/LSTM/GRU/AUGRU BF16 tests on avx512 core ISA
         if (ov::with_cpu_x86_avx512_core() && !ov::with_cpu_x86_avx512_core_amx_bf16()) {
             patterns.emplace_back(std::regex(R"(smoke.*(AUGRUCellCPUTest|GRUCellCPUTest|RNNCellCPUTest|LSTMCellLayerCPUTest).CompareWithRefs.*INFERENCE_PRECISION_HINT=bf16.*)"));

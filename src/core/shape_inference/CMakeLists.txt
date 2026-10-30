@@ -98,15 +98,18 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/pa_kv_reorder_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/pad_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_attention_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/paged_sparse_attention_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_causal_conv1d_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_gated_delta_net_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_selective_ssm_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/paged_sparse_attention_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/pooling_shape_inference_util.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_clustered_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_shape_inference_util.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/proposal_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/psroi_pooling_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/qsa_prepare_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/random_uniform_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/range_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/rdft_shape_inference.hpp
@@ -142,6 +145,8 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/slice_shape_inference_utils.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/space_to_batch_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/space_to_depth_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/sparse_attention_indexer_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/sparse_attention_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/sparse_fill_empty_rows_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/split_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/squeeze_shape_inference.hpp

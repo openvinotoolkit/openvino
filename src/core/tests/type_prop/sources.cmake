@@ -138,9 +138,11 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pad.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/parameter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/power.cpp
     ${CMAKE_CURRENT_LIST_DIR}/prelu.cpp
@@ -148,6 +150,7 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/prior_box_clustered.cpp
     ${CMAKE_CURRENT_LIST_DIR}/proposal.cpp
     ${CMAKE_CURRENT_LIST_DIR}/psroi_pooling.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_prepare.cpp
     ${CMAKE_CURRENT_LIST_DIR}/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/range.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rdft.cpp
@@ -199,6 +202,8 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/softsign.cpp
     ${CMAKE_CURRENT_LIST_DIR}/space_to_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/space_to_depth.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_attention_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sparse_fill_empty_rows.cpp
     ${CMAKE_CURRENT_LIST_DIR}/split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sqrt.cpp

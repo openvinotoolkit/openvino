@@ -28,11 +28,16 @@
 #include "lora_inst.h"
 #include "mvn_inst.h"
 #include "scaled_dot_product_attention_inst.h"
+#include "qsa_indexer_inst.h"
+#include "paged_qsa_indexer_inst.h"
+#include "sparse_sdpa_inst.h"
+#include "sparse_pa_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
 
 #include <algorithm>
+#include <functional>
 #include <utility>
 #include <list>
 #include <vector>
@@ -519,8 +524,19 @@ bool crop_in_place_optimization::match(const program_node& node,
                            (!is_runtime && !node.get_dependencies().empty() &&
                             node.get_dependency(0).is_dynamic());
 
+    // The CM Qwen Sparse Attention kernels read their activations as dense tensors: no padded sub-view may reach
+    // them, directly or through reshapes propagating the padding.
+    std::function<bool(const program_node*)> reads_dense_input = [&](const program_node* user) {
+        if (user->is_type<qsa_indexer>() || user->is_type<paged_qsa_indexer>() || user->is_type<sparse_sdpa>() ||
+            user->is_type<sparse_pa>())
+            return true;
+        return user->is_type<reshape>() &&
+               std::any_of(user->get_users().begin(), user->get_users().end(), reads_dense_input);
+    };
     const auto& crop_layout = crop_params.get_output_layout();
     for (const auto* user : node.get_users()) {
+        if (reads_dense_input(user))
+            return false;
         // If the user node's output shape is already static, the padding
         // w/ dyn pad mask will not be propagated properly at runtime
         if (dyn_aware && !user->get_output_pshape().is_dynamic())

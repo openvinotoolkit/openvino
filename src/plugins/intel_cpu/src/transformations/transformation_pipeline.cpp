@@ -220,6 +220,8 @@
 #    include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #    include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
 #    include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
+#    include "transformations/cpu_opset/x64/pass/qsa_indexer_fusion.hpp"
+#    include "transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.hpp"
 #    include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/reduce_l1_decomposition.hpp"
@@ -594,6 +596,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
+    CPU_REGISTER_PASS_X64(manager, SparseAttentionKVCacheFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
@@ -1197,6 +1200,8 @@ void Transformations::PostLpt() {
                           ov::pass::RMSFusion,
                           false /* force_tail_convert */,
                           enable_without_gamma);
+    // The query RMSNorm + RoPE of the QSA index selection are matched as the internal RMS / RoPE ops.
+    CPU_REGISTER_PASS_X64(postLPTPassManager, QSAIndexerFusion);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,
