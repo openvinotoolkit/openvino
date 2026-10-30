@@ -445,10 +445,14 @@ TEST(JitKernel, f32_to_bf16_generic_avx2_rounding_nan_and_overflow) {
     // emitter uses native conversion only when AVX-512 BF16 or AVX2 VNNI-2 is
     // available. Cap oneDNN with ONEDNN_MAX_CPU_ISA=AVX2 to reach its generic
     // SIMD conversion branch on newer machines.
-    if (internal::get_current_isa() != cpu_isa_t::avx2 || mayiuse(cpu_isa_t::avx512_core_bf16) ||
-        mayiuse(cpu_isa_t::avx2_vnni_2)) {
-        GTEST_SKIP()
-            << "Run with ONEDNN_MAX_CPU_ISA=AVX2 on an AVX2-capable x86 CPU to test the generic BF16 SIMD fallback";
+    const bool selected_isa_is_avx2 = internal::get_current_isa() == cpu_isa_t::avx2;
+    const bool has_avx512_bf16 = mayiuse(cpu_isa_t::avx512_core_bf16);
+    const bool has_avx2_vnni_2 = mayiuse(cpu_isa_t::avx2_vnni_2);
+    if (!selected_isa_is_avx2 || has_avx512_bf16 || has_avx2_vnni_2) {
+        GTEST_SKIP() << "Generic BF16 AVX2 fallback unavailable: selected ISA is "
+                     << (selected_isa_is_avx2 ? "AVX2" : "not AVX2") << "; AVX-512 BF16 available=" << has_avx512_bf16
+                     << "; AVX2 VNNI-2 available=" << has_avx2_vnni_2
+                     << ". Set ONEDNN_MAX_CPU_ISA=AVX2 before starting the test process on an AVX2-capable x86 CPU.";
     }
 
     constexpr size_t vector_size = jit_bf16_conversion_test_kernel::vector_size;

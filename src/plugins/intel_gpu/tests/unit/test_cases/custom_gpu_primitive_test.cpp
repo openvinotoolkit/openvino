@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
 #include <intel_gpu/primitives/crop.hpp>
@@ -101,23 +102,23 @@ TEST(custom_gpu_primitive_bf16, software_conversion_rounding_nan_and_overflow) {
     auto& engine = get_test_engine();
 
     constexpr size_t value_count = 28;
-    auto input = engine.allocate_memory({data_types::u32, format::bfyx, {1, 1, 1, value_count}});
+    auto input = engine.allocate_memory({data_types::i32, format::bfyx, {1, 1, 1, value_count}});
 
     const std::string kernel_code = R"__krnl(
         #ifndef OPENVINO_TEST_BF16_SOFTWARE_FALLBACK_SELECTED
         #error The production BF16 software fallback was not selected
         #endif
 
-        __kernel void convert_bf16_software(const __global uint* input_bits, __global ushort* output_bits) {
+        __kernel void convert_bf16_software(const __global uint* input_bits, __global uint* output_bits) {
             const uint idx = get_global_id(0);
-            output_bits[idx] = _convert_bfloat16_as_ushort(as_float(input_bits[idx]));
+            output_bits[idx] = ((uint)_convert_bfloat16_as_ushort(as_float(input_bits[idx]))) << 16;
         }
     )__krnl";
     const std::vector<custom_gpu_primitive::arg_desc> parameters = {
         {custom_gpu_primitive::arg_input, 0},
         {custom_gpu_primitive::arg_output, 0},
     };
-    const layout output_layout = {data_types::u16, format::bfyx, {1, 1, 1, value_count}};
+    const layout output_layout = {data_types::i32, format::bfyx, {1, 1, 1, value_count}};
 
     topology topology;
     topology.add(input_layout("input_bits", input->get_layout()));
@@ -130,35 +131,40 @@ TEST(custom_gpu_primitive_bf16, software_conversion_rounding_nan_and_overflow) {
                                       {output_layout},
                                       {value_count}));
 
-    set_values(input,
-               {0x3f807fffU,    // positive below halfway
-                0x3f808000U,    // positive tie, even mantissa stays
-                0x3f808001U,    // positive above halfway
-                0x3f818000U,    // positive tie, odd mantissa rounds up
-                0xbf807fffU,    // negative below halfway
-                0xbf808000U,    // negative tie, even mantissa stays
-                0xbf808001U,    // negative above halfway
-                0xbf818000U,    // negative tie, odd mantissa rounds up
-                0x7f800000U,    // positive infinity
-                0xff800000U,    // negative infinity
-                0x00000000U,    // positive zero
-                0x80000000U,    // negative zero
-                0x7f800001U,    // positive signaling NaN, payload in discarded bits
-                0xff800001U,    // negative signaling NaN, payload in discarded bits
-                0x7fc12345U,    // positive quiet NaN with retained payload
-                0xffc12345U,    // negative quiet NaN with retained payload
-                0x7fff8000U,    // positive NaN near sign boundary
-                0xffff8000U,    // negative NaN near sign boundary
-                0x7f7f7fffU,    // positive finite value below overflow tie
-                0x7f7f8000U,    // positive finite overflow tie
-                0xff7f7fffU,    // negative finite value below overflow tie
-                0xff7f8000U,    // negative finite overflow tie
-                0x00007fffU,    // positive subnormal below tie
-                0x00008000U,    // positive subnormal tie
-                0x00008001U,    // positive subnormal above tie
-                0x80007fffU,    // negative subnormal below tie
-                0x80008000U,    // negative subnormal tie
-                0x80008001U});  // negative subnormal above tie
+    const std::array<uint32_t, value_count> input_bits = {{0x3f807fffU,    // positive below halfway
+                                                           0x3f808000U,    // positive tie, even mantissa stays
+                                                           0x3f808001U,    // positive above halfway
+                                                           0x3f818000U,    // positive tie, odd mantissa rounds up
+                                                           0xbf807fffU,    // negative below halfway
+                                                           0xbf808000U,    // negative tie, even mantissa stays
+                                                           0xbf808001U,    // negative above halfway
+                                                           0xbf818000U,    // negative tie, odd mantissa rounds up
+                                                           0x7f800000U,    // positive infinity
+                                                           0xff800000U,    // negative infinity
+                                                           0x00000000U,    // positive zero
+                                                           0x80000000U,    // negative zero
+                                                           0x7f800001U,    // positive signaling NaN, payload in discarded bits
+                                                           0xff800001U,    // negative signaling NaN, payload in discarded bits
+                                                           0x7fc12345U,    // positive quiet NaN with retained payload
+                                                           0xffc12345U,    // negative quiet NaN with retained payload
+                                                           0x7fff8000U,    // positive NaN near sign boundary
+                                                           0xffff8000U,    // negative NaN near sign boundary
+                                                           0x7f7f7fffU,    // positive finite value below overflow tie
+                                                           0x7f7f8000U,    // positive finite overflow tie
+                                                           0xff7f7fffU,    // negative finite value below overflow tie
+                                                           0xff7f8000U,    // negative finite overflow tie
+                                                           0x00007fffU,    // positive subnormal below tie
+                                                           0x00008000U,    // positive subnormal tie
+                                                           0x00008001U,    // positive subnormal above tie
+                                                           0x80007fffU,    // negative subnormal below tie
+                                                           0x80008000U,    // negative subnormal tie
+                                                           0x80008001U}};  // negative subnormal above tie
+    {
+        auto input_ptr = mem_lock<int32_t, mem_lock_type::write>(input, get_test_stream());
+        for (size_t i = 0; i < value_count; ++i) {
+            std::memcpy(&input_ptr[i], &input_bits[i], sizeof(input_bits[i]));
+        }
+    }
 
     network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input_bits", input);
@@ -169,9 +175,11 @@ TEST(custom_gpu_primitive_bf16, software_conversion_rounding_nan_and_overflow) {
     const std::array<uint16_t, value_count> expected_bits = {0x3f80, 0x3f80, 0x3f81, 0x3f82, 0xbf80, 0xbf80, 0xbf81, 0xbf82, 0x7f80, 0xff80,
                                                              0x0000, 0x8000, 0x7fc0, 0xffc0, 0x7fc1, 0xffc1, 0x7fff, 0xffff, 0x7f7f, 0x7f80,
                                                              0xff7f, 0xff80, 0x0000, 0x0000, 0x0001, 0x8000, 0x8000, 0x8001};
-    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < value_count; ++i) {
-        EXPECT_EQ(output_ptr[i], expected_bits[i]) << "lane " << i;
+        uint32_t output_bits = 0;
+        std::memcpy(&output_bits, &output_ptr[i], sizeof(output_bits));
+        EXPECT_EQ(output_bits, static_cast<uint32_t>(expected_bits[i]) << 16) << "lane " << i;
     }
 }
 
