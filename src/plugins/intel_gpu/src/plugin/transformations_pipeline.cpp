@@ -1926,7 +1926,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                 if (root->get_input_element_type(1) == ov::element::u2) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                                                                    " no FC kernel takes i8 activations with u2 weights" << std::endl;
+                                                                    " no FC kernel takes compressed activations with u2 weights" << std::endl;
                     return true;
                 }
 
