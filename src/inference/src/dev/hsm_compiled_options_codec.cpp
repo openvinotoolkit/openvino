@@ -6,13 +6,11 @@
 
 #include <cstring>
 #include <exception>
-#include <ios>
-#include <new>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "openvino/core/except.hpp"
-#include "openvino/util/log.hpp"
 
 namespace ov::runtime::hsm {
 inline namespace v1 {
@@ -201,19 +199,16 @@ std::optional<ov::AnyMap> decode_compiled_options(ov::util::MemoryView payload) 
     return !payload.empty() && payload.size() <= max_compiled_options_size ? decode_map(payload, 1) : std::nullopt;
 }
 
+// Once CVS-198883 resolves noexcept assurance issue, coverity warning shall be unsilenced
+// coverity[UNCAUGHT_EXCEPT:FALSE]
 std::optional<ov::AnyMap> decode_compiled_options(const Section& section) noexcept {
-    try {
-        if (section.size() > max_compiled_options_size) {
-            return std::nullopt;
-        } else if (const auto view = section.view(); !view.empty()) {
-            return decode_map(view, 1);
-        } else {
-            std::vector<std::byte> bytes(section.size());
-            return section.read(bytes.data()) ? decode_map({bytes.data(), bytes.size()}, 1) : std::nullopt;
-        }
-    } catch (const std::exception& exc) {
-        OPENVINO_ERR("Failed to decode compile options: ", exc.what());
+    if (section.size() > max_compiled_options_size) {
         return std::nullopt;
+    } else if (const auto view = section.view(); !view.empty()) {
+        return decode_map(view, 1);
+    } else {
+        std::vector<std::byte> bytes(section.size());
+        return section.read(bytes.data()) ? decode_map({bytes.data(), bytes.size()}, 1) : std::nullopt;
     }
 }
 
