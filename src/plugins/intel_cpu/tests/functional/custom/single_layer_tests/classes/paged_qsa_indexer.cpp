@@ -21,32 +21,27 @@
 
 namespace {
 
-// Fixed small configuration exercised by this test: 2 independent sequences, each with its own
-// past_len (kPastLens[s]) and its own run of kSeqBlocks physical cache blocks, addressed through
+// Small configuration exercised by this test: up to 2 independent sequences of `new_tokens` tokens each (see
+// PagedQSAIndexerLayerTestParams), each with its own past_len (kPastLens[s]) and its own run of physical cache blocks
+// (enough for its tokens and a spare one), addressed through
 // a non-identity BLOCK_INDICES permutation (see generate_inputs) so a kernel bug that walked
 // physical blocks in logical/sequential order instead of resolving through BLOCK_INDICES would be
-// caught. kL tokens is not a multiple of compress_ratio, so every instantiation naturally
+// caught. An odd number of tokens is not a multiple of compress_ratio, so such an instantiation naturally
 // exercises the causal-tail-marker path on its final tokens and the empty-selection path on its
 // first token -- mirroring the dense QSAIndexer test (classes/qsa_indexer.cpp), whose per-token
 // math this test's oracle reuses verbatim: paged and dense kernels share identical per-token/
 // per-block math and process sequences independently, differing only in cache addressing.
-constexpr size_t kL = 7;
 constexpr size_t kDidx = 16;
 constexpr size_t kRotaryDim = 8;
 constexpr size_t kR = 2;
 constexpr size_t kBlockTopk = 2;
 constexpr std::array<int32_t, 2> kPastLens = {0, 2};
-constexpr size_t kSCap = kL + static_cast<size_t>(kPastLens.back());
-constexpr size_t kSummaryLen = kSCap / kR;
 constexpr float kEps = 1e-6F;
 constexpr float kScale = 0.25F;
 
-// Paged-cache layout: page_size must be a multiple of compress_ratio. kSeqBlocks physical blocks
-// per sequence give a raw-k token capacity of kSeqBlocks*kPageSize == 16 tokens and a summary/
-// position-cache slot capacity of kSeqBlocks*(kPageSize/kR) == 8 blocks, both comfortably above
-// this test's worst-case single-sequence requirement (kSCap == 9 tokens, kSummaryLen == 4 blocks).
+// Paged-cache layout: page_size must be a multiple of compress_ratio. The physical blocks of a sequence (m_seq_blocks)
+// hold its past and new tokens plus a spare page, so the last, incomplete block always has room.
 constexpr size_t kPageSize = 4;
-constexpr size_t kSeqBlocks = 4;
 constexpr size_t kSlotsPerPage = kPageSize / kR;
 
 void fill_pseudo_random(std::vector<float>& v, uint32_t seed_base) {
@@ -101,7 +96,8 @@ struct PagedQSAIndexerOracleOutput {
     std::vector<int64_t> sel_count;
 };
 
-PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t h_iq,
+PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t new_tokens,
+                                                            size_t h_iq,
                                                             size_t h_ik,
                                                             size_t h_sel,
                                                             const std::vector<float>& q_idx,
@@ -118,8 +114,10 @@ PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t h_iq,
         sel_of_head[h] = (kv_of_head[h] * h_sel) / h_ik;
     }
 
-    std::vector<float> raw_k_cache(h_ik * kSCap * kDidx, 0.0F);
-    std::vector<float> summary_cache(h_ik * kSummaryLen * kDidx, 0.0F);
+    const size_t s_cap = new_tokens + static_cast<size_t>(past_len);
+    const size_t summary_len = s_cap / kR;
+    std::vector<float> raw_k_cache(h_ik * s_cap * kDidx, 0.0F);
+    std::vector<float> summary_cache(h_ik * summary_len * kDidx, 0.0F);
 
     const auto interleave = [&](size_t local_idx, std::array<float, 2 * kRotaryDim>& buf) {
         for (size_t j = 0; j < kRotaryDim; j++) {
@@ -129,10 +127,10 @@ PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t h_iq,
     };
 
     PagedQSAIndexerOracleOutput out;
-    out.sel_indices.assign(h_sel * kL * kBlockTopk, -1);
-    out.sel_count.assign(h_sel * kL, 0);
+    out.sel_indices.assign(h_sel * new_tokens * kBlockTopk, -1);
+    out.sel_count.assign(h_sel * new_tokens, 0);
 
-    for (size_t l = 0; l < kL; l++) {
+    for (size_t l = 0; l < new_tokens; l++) {
         const int64_t abs_pos = past_len + static_cast<int64_t>(l);
 
         std::vector<float> q_normed(h_iq * kDidx);
@@ -146,7 +144,7 @@ PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t h_iq,
 
         for (size_t h = 0; h < h_ik; h++) {
             const float* src = &k_idx[(l * h_ik + h) * kDidx];
-            std::copy_n(src, kDidx, &raw_k_cache[(h * kSCap + static_cast<size_t>(abs_pos)) * kDidx]);
+            std::copy_n(src, kDidx, &raw_k_cache[(h * s_cap + static_cast<size_t>(abs_pos)) * kDidx]);
         }
 
         const int64_t n_complete = (abs_pos + 1) / static_cast<int64_t>(kR);
@@ -159,7 +157,7 @@ PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t h_iq,
             for (size_t h = 0; h < h_ik; h++) {
                 std::vector<float> pooled(kDidx, 0.0F);
                 for (int64_t p = block_start; p < block_start + static_cast<int64_t>(kR); p++) {
-                    const float* raw = &raw_k_cache[(h * kSCap + static_cast<size_t>(p)) * kDidx];
+                    const float* raw = &raw_k_cache[(h * s_cap + static_cast<size_t>(p)) * kDidx];
                     for (size_t d = 0; d < kDidx; d++) {
                         pooled[d] += raw[d];
                     }
@@ -177,7 +175,7 @@ PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t h_iq,
                                      block_cos_sin);
                 std::copy(summary.begin(),
                           summary.end(),
-                          &summary_cache[(h * kSummaryLen + static_cast<size_t>(block_idx)) * kDidx]);
+                          &summary_cache[(h * summary_len + static_cast<size_t>(block_idx)) * kDidx]);
             }
         }
 
@@ -193,7 +191,7 @@ PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t h_iq,
                             continue;
                         }
                         const float* summary =
-                            &summary_cache[(kv_of_head[h] * kSummaryLen + static_cast<size_t>(bidx)) * kDidx];
+                            &summary_cache[(kv_of_head[h] * summary_len + static_cast<size_t>(bidx)) * kDidx];
                         float dot = 0.0F;
                         for (size_t d = 0; d < kDidx; d++) {
                             dot += q_normed[h * kDidx + d] * summary[d];
@@ -219,11 +217,11 @@ PagedQSAIndexerOracleOutput run_paged_qsa_indexer_reference(size_t h_iq,
                 std::sort(chosen.begin(), chosen.end());
             }
 
-            auto* out_row = &out.sel_indices[(sh * kL + l) * kBlockTopk];
+            auto* out_row = &out.sel_indices[(sh * new_tokens + l) * kBlockTopk];
             for (size_t i = 0; i < k; i++) {
                 out_row[i] = chosen[i];
             }
-            out.sel_count[sh * kL + l] = static_cast<int64_t>(k);
+            out.sel_count[sh * new_tokens + l] = static_cast<int64_t>(k);
         }
     }
     return out;
@@ -236,20 +234,23 @@ namespace test {
 
 std::string PagedQSAIndexerLayerCPUTest::getTestCaseName(
     const testing::TestParamInfo<PagedQSAIndexerLayerTestParams>& obj) {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences] = obj.param;
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens] = obj.param;
     return "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() + "_Hiq=" + std::to_string(h_iq) +
            "_Hik=" + std::to_string(h_ik) + "_Hsel=" + std::to_string(h_sel) +
-           "_NumSeq=" + std::to_string(num_sequences);
+           "_NumSeq=" + std::to_string(num_sequences) + "_NewTokens=" + std::to_string(new_tokens);
 }
 
 void PagedQSAIndexerLayerCPUTest::SetUp() {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences] = GetParam();
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens] = GetParam();
     targetDevice = device;
     m_data_precision = data_precision;
     m_h_iq = h_iq;
     m_h_ik = h_ik;
     m_h_sel = h_sel;
     m_num_sequences = num_sequences;
+    m_l = new_tokens;
+    // the tokens of the longest sequence in whole pages, and one spare page
+    m_seq_blocks = (m_l + static_cast<size_t>(kPastLens.back()) + kPageSize - 1) / kPageSize + 1;
     rel_threshold = 1e-3F;
     abs_threshold = 1e-4F;
     if (data_precision == ov::element::bf16) {
@@ -262,8 +263,8 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
         configuration.insert(ov::hint::inference_precision(ov::element::f16));
     }
 
-    const size_t tokens_total = m_num_sequences * kL;
-    const size_t n_phys = m_num_sequences * kSeqBlocks;
+    const size_t tokens_total = m_num_sequences * m_l;
+    const size_t n_phys = m_num_sequences * m_seq_blocks;
 
     auto p_q_idx = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{tokens_total, m_h_iq * kDidx});
     auto p_k_idx = std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{tokens_total, m_h_ik * kDidx});
@@ -345,8 +346,8 @@ void PagedQSAIndexerLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& 
     // its physical cache blocks) would otherwise go undetected since all sequences would look
     // identical.
     const auto make_seq_data = [this](size_t h, uint32_t seed_base) {
-        ov::Tensor t(m_data_precision, ov::Shape{m_num_sequences * kL, h * kDidx});
-        const size_t per_seq = kL * h * kDidx;
+        ov::Tensor t(m_data_precision, ov::Shape{m_num_sequences * m_l, h * kDidx});
+        const size_t per_seq = m_l * h * kDidx;
         std::vector<float> data(t.get_size());
         for (size_t s = 0; s < m_num_sequences; s++) {
             std::vector<float> seq_data(per_seq);
@@ -395,7 +396,7 @@ void PagedQSAIndexerLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& 
         return t;
     };
 
-    const size_t n_phys = m_num_sequences * kSeqBlocks;
+    const size_t n_phys = m_num_sequences * m_seq_blocks;
 
     const auto& params = function->get_parameters();
     std::vector<ov::Tensor> tensors(params.size());
@@ -407,14 +408,14 @@ void PagedQSAIndexerLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& 
         // matching the per-token rope_cos/rope_sin ABI -- no shared position-indexed table.
         // Rows are indexer_rotary_dim wide, one coefficient per rotary channel. The two halves are
         // deliberately NOT duplicates, so a kernel assuming cos[j] == cos[j + rotary_dim/2] fails.
-        ov::Tensor t_cos(m_data_precision, ov::Shape{m_num_sequences * kL, kRotaryDim});
-        ov::Tensor t_sin(m_data_precision, ov::Shape{m_num_sequences * kL, kRotaryDim});
-        std::vector<float> cos_data(m_num_sequences * kL * kRotaryDim);
-        std::vector<float> sin_data(m_num_sequences * kL * kRotaryDim);
+        ov::Tensor t_cos(m_data_precision, ov::Shape{m_num_sequences * m_l, kRotaryDim});
+        ov::Tensor t_sin(m_data_precision, ov::Shape{m_num_sequences * m_l, kRotaryDim});
+        std::vector<float> cos_data(m_num_sequences * m_l * kRotaryDim);
+        std::vector<float> sin_data(m_num_sequences * m_l * kRotaryDim);
         for (size_t s = 0; s < m_num_sequences; s++) {
-            for (size_t l = 0; l < kL; l++) {
+            for (size_t l = 0; l < m_l; l++) {
                 const size_t abs_pos = static_cast<size_t>(kPastLens[s]) + l;
-                const size_t row = s * kL + l;
+                const size_t row = s * m_l + l;
                 for (size_t j = 0; j < kRotaryDim; j++) {
                     const float theta = static_cast<float>(abs_pos) * 0.1F + static_cast<float>(j) * 0.05F;
                     cos_data[row * kRotaryDim + j] = std::cos(theta);
@@ -442,14 +443,14 @@ void PagedQSAIndexerLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& 
     {
         std::vector<int32_t> block_indices_begins(m_num_sequences + 1);
         for (size_t s = 0; s <= m_num_sequences; s++) {
-            block_indices_begins[s] = static_cast<int32_t>(s * kSeqBlocks);
+            block_indices_begins[s] = static_cast<int32_t>(s * m_seq_blocks);
         }
         tensors[InputIdx::BLOCK_INDICES_BEGINS] = make_i32(block_indices_begins);
     }
     {
         std::vector<int32_t> subsequence_begins(m_num_sequences + 1);
         for (size_t s = 0; s <= m_num_sequences; s++) {
-            subsequence_begins[s] = static_cast<int32_t>(s * kL);
+            subsequence_begins[s] = static_cast<int32_t>(s * m_l);
         }
         tensors[InputIdx::SUBSEQUENCE_BEGINS] = make_i32(subsequence_begins);
     }
@@ -497,15 +498,15 @@ std::vector<ov::Tensor> PagedQSAIndexerLayerCPUTest::calculate_refs() {
     auto k_norm_weight = to_f32(params[InputIdx::K_NORM_WEIGHT]);
     const auto* past_lens_ptr = host_inputs.at(params[InputIdx::PAST_LENS]).data<const int32_t>();
 
-    const size_t tokens_total = m_num_sequences * kL;
+    const size_t tokens_total = m_num_sequences * m_l;
     ov::Tensor sel_indices(ov::element::i32, ov::Shape{tokens_total, m_h_sel, kBlockTopk});
     ov::Tensor sel_count(ov::element::i32, ov::Shape{tokens_total, m_h_sel});
     auto* sel_indices_data = sel_indices.data<int32_t>();
     auto* sel_count_data = sel_count.data<int32_t>();
 
-    const size_t q_idx_stride = kL * m_h_iq * kDidx;
-    const size_t k_idx_stride = kL * m_h_ik * kDidx;
-    const size_t rope_stride = kL * kRotaryDim;
+    const size_t q_idx_stride = m_l * m_h_iq * kDidx;
+    const size_t k_idx_stride = m_l * m_h_ik * kDidx;
+    const size_t rope_stride = m_l * kRotaryDim;
     for (size_t s = 0; s < m_num_sequences; s++) {
         std::vector<float> q_idx_s(q_idx.begin() + static_cast<ptrdiff_t>(s * q_idx_stride),
                                    q_idx.begin() + static_cast<ptrdiff_t>((s + 1) * q_idx_stride));
@@ -517,7 +518,8 @@ std::vector<ov::Tensor> PagedQSAIndexerLayerCPUTest::calculate_refs() {
                                       rope_sin.begin() + static_cast<ptrdiff_t>((s + 1) * rope_stride));
         const int64_t past_len = past_lens_ptr[s];
 
-        auto oracle = run_paged_qsa_indexer_reference(m_h_iq,
+        auto oracle = run_paged_qsa_indexer_reference(m_l,
+                                                      m_h_iq,
                                                       m_h_ik,
                                                       m_h_sel,
                                                       q_idx_s,
@@ -528,17 +530,17 @@ std::vector<ov::Tensor> PagedQSAIndexerLayerCPUTest::calculate_refs() {
                                                       k_norm_weight,
                                                       past_len);
 
-        // Oracle output is [h_sel, kL, kBlockTopk]/[h_sel, kL] (per-sequence, sh-major); the op's
+        // Oracle output is [h_sel, m_l, kBlockTopk]/[h_sel, m_l] (per-sequence, sh-major); the op's
         // real outputs are token-major ([tokens_total, h_sel, kBlockTopk]/[tokens_total, h_sel]),
         // so transpose while scattering into the global, token-offset tensor.
-        for (size_t l = 0; l < kL; l++) {
-            const size_t token = s * kL + l;
+        for (size_t l = 0; l < m_l; l++) {
+            const size_t token = s * m_l + l;
             for (size_t sh = 0; sh < m_h_sel; sh++) {
                 for (size_t i = 0; i < kBlockTopk; i++) {
                     sel_indices_data[(token * m_h_sel + sh) * kBlockTopk + i] =
-                        static_cast<int32_t>(oracle.sel_indices[(sh * kL + l) * kBlockTopk + i]);
+                        static_cast<int32_t>(oracle.sel_indices[(sh * m_l + l) * kBlockTopk + i]);
                 }
-                sel_count_data[token * m_h_sel + sh] = static_cast<int32_t>(oracle.sel_count[sh * kL + l]);
+                sel_count_data[token * m_h_sel + sh] = static_cast<int32_t>(oracle.sel_count[sh * m_l + l]);
             }
         }
     }

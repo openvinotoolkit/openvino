@@ -19,8 +19,9 @@ namespace test {
 // target device, data precision (q_idx/k_idx/rotary/caches/norm weights),
 // H_iq (index-query head count), H_ik (index-key head count), h_sel (selection-head count),
 // num_sequences (each sequence gets its own past_len and its own run of physical cache blocks,
-// see classes/paged_qsa_indexer.cpp)
-using PagedQSAIndexerLayerTestParams = std::tuple<std::string, ov::element::Type, size_t, size_t, size_t, size_t>;
+// see classes/paged_qsa_indexer.cpp), new_tokens (the tokens every sequence adds in the call: 1 is a decode step)
+using PagedQSAIndexerLayerTestParams =
+    std::tuple<std::string, ov::element::Type, size_t, size_t, size_t, size_t, size_t>;
 
 class PagedQSAIndexerLayerCPUTest : public testing::WithParamInterface<PagedQSAIndexerLayerTestParams>,
                                      virtual public SubgraphBaseTest {
@@ -40,6 +41,8 @@ private:
     size_t m_h_ik = 2;
     size_t m_h_sel = 1;
     size_t m_num_sequences = 1;
+    size_t m_l = 7;           // new tokens of every sequence
+    size_t m_seq_blocks = 4;  // physical cache blocks of every sequence, enough for its tokens and a spare one
 };
 
 }  // namespace test

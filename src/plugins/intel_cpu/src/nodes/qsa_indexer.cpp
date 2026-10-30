@@ -30,6 +30,7 @@
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "qsa_indexer_common.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 #include "utils/general_utils.h"
@@ -42,39 +43,7 @@ namespace {
 using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
 using OutputIdx = ov::intel_cpu::QSAIndexer::OutputIdx;
 
-float rms_inv_scale(const float* x, size_t n, float eps) {
-    float sumsq = 0.0F;
-    for (size_t i = 0; i < n; i++) {
-        sumsq += x[i] * x[i];
-    }
-    return 1.0F / std::sqrt(sumsq / static_cast<float>(n) + eps);
-}
-
-// RMSNorm(src) * weight, followed by the split-half (rotate-half) RoPE of HF Transformers over
-// the first `rotary_dim` channels: x * cos + rotate_half(x) * sin, with
-// rotate_half(x) = concat(-x[half:], x[:half]). `cos_row`/`sin_row` each hold `rotary_dim`
-// values (not halved -- the caller's cos/sin are already duplicated across the two halves, per
-// new_spec/qsa-prepare-17.rst). Writes `dim` channels to `dst` (may alias `src`).
-void rmsnorm_partial_rope(const float* src,
-                          float* dst,
-                          const float* weight,
-                          size_t dim,
-                          size_t rotary_dim,
-                          float eps,
-                          const float* cos_row,
-                          const float* sin_row) {
-    const float inv_rms = rms_inv_scale(src, dim, eps);
-    for (size_t d = 0; d < dim; d++) {
-        dst[d] = src[d] * inv_rms * weight[d];
-    }
-    const size_t half = rotary_dim / 2;
-    for (size_t j = 0; j < half; j++) {
-        const float x0 = dst[j];
-        const float x1 = dst[j + half];
-        dst[j] = x0 * cos_row[j] - x1 * sin_row[j];
-        dst[j + half] = x1 * cos_row[j + half] + x0 * sin_row[j + half];
-    }
-}
+using qsa::rmsnorm_partial_rope;
 
 // All floating-point ports share the precision T (the node declares them that way), so only the rows
 // actually touched are converted to / from the f32 compute buffers, never a whole tensor.
