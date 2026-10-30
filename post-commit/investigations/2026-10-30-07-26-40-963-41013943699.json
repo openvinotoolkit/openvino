@@ -1,0 +1,46 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-30-07-26-40-963-41013943699",
+    "timestamp": "2026-10-30T07:26:40Z",
+    "run_id": "41013943699",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41013943699",
+    "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+    "commit_sha": "7f11989fd2760901f7f189dafa24673ba689e927",
+    "pr_number": "38731",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38731",
+    "author": "xuchen-intel",
+    "category": "Network",
+    "title": "Samples job fails downloading OpenVINO artifacts after ArtifactService ListArtifacts request timeouts",
+    "signature": "Attempt N of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts|Network",
+    "signature_hash": "77303b969eadbc6a",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Samples / Samples",
+            "conclusion": "failure",
+            "symptom": "Download OpenVINO artifacts (package) step failed after 5 retries hitting GitHub Actions ArtifactService ListArtifacts request timeouts"
+        },
+        {
+            "name": "ci/gha_overall_status_ubuntu_24",
+            "conclusion": "failure",
+            "symptom": "Aggregate status-check job reported failure because the Samples job failed (exit 1 on 'Check status of all jobs')"
+        }
+    ],
+    "key_errors": [
+        "2026-10-30T06:57:50.8168390Z Attempt 1 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 3000 ms...",
+        "2026-10-30T06:58:42.8292043Z ##[error]Action failed with error: Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
+        "2026-10-30T06:58:42.8341693Z ##[error]Unable to download artifact(s): Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
+        "2026-10-30T06:59:22.3518350Z fatal: unable to access 'https://github.com/openvinotoolkit/openvino/': Could not resolve host: github.com",
+        "2026-10-30T06:59:22.4048198Z fatal: could not fetch 2f78919d66fc5f27ec7fe43478456b0158059a3c from promisor remote"
+    ],
+    "root_cause": "The Samples job's 'Download OpenVINO artifacts (package)' step (akashchi/download-artifact) repeatedly hit GitHub Actions' internal ArtifactService ListArtifacts twirp endpoint, timing out on all 5 retry attempts over roughly a minute. This is a transient GitHub Actions infrastructure/service-side issue, not caused by the PR under test (#38731, CPU u3 weight precision support), which only touches CPU plugin source and test files unrelated to CI artifact handling. The subsequent DNS resolution failure ('Could not resolve host: github.com') during post-job git submodule cleanup on the same runner is a secondary symptom of the same underlying runner/network connectivity degradation, not an independent root cause. This is the third occurrence of the identical ArtifactService timeout signature within about an hour on this repository's post-commit pipeline, indicating an ongoing GitHub-side availability or networking issue affecting hosted runners rather than a one-off blip.",
+    "reproduction_steps": "N/A - not reproducible locally; this is a transient GitHub Actions service-side (ArtifactService) timeout and hosted-runner DNS resolution issue, not a code or test defect.",
+    "recommended_actions": [
+        "No code changes needed for PR #38731 - the failure is unrelated to the merged change.",
+        "Re-run the failed 'Samples / Samples' job; ArtifactService timeouts are typically transient and succeed on retry.",
+        "If this signature recurs frequently (this is the 3rd time within ~1 hour), consider filing a GitHub Support ticket referencing elevated ArtifactService latency for openvinotoolkit/openvino, and/or increasing the download-artifact action's retry count/backoff as a mitigation.",
+        "Monitor the actions/upload-artifact and akashchi/download-artifact action versions in use for known reliability issues with large artifacts on Azure westus3 hosted runners."
+    ],
+    "prevention_strategies": "Add resilience by wrapping the artifact download step with an explicit workflow-level retry (e.g., a composite action or nick-fields/retry wrapper) so transient ArtifactService timeouts do not fail the whole job immediately. Consider adding step-level `continue-on-error` plus a conditional re-download step, or splitting large package artifacts into smaller chunks to reduce the chance of ListArtifacts timing out under service load. AI Team Self-Improvement: when a post-commit CI failure log shows 'Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts' or 'Could not resolve host: github.com' with no code/test changes implicated, immediately classify as Network/Infrastructure (GitHub-side transient issue) and do not scan the PR diff for a code root cause - recommend a job re-run instead of a code fix.",
+    "historical_context": "This exact ArtifactService ListArtifacts timeout signature (pattern 77303b969eadbc6a) has now been recorded 3 times within roughly 1 hour on 2026-10-30 (runs 41003290355 at 05:58, 41005296042 at 06:36, and this run 41013943699 at 06:58), all post-commit, all on different jobs downloading the openvino_package artifact. A separate but related DNS resolution failure signature (pattern eeae3ce3f5218e80, 'Could not resolve host: github.com') was previously seen once on 2026-10-13. The clustering of 3 ArtifactService timeouts in under an hour strongly suggests an ongoing GitHub Actions service degradation window rather than independent flakiness."
+}

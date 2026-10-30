@@ -2,20 +2,23 @@
     "schema_version": "1.0",
     "signature": "Attempt N of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts|Network",
     "signature_hash": "77303b969eadbc6a",
-    "title": "ONNX Models test job fails downloading OpenVINO artifacts after ArtifactService ListArtifacts request timeouts",
+    "title": "Post-commit job fails downloading OpenVINO artifacts after ArtifactService ListArtifacts request timeouts",
     "category": "Network",
-    "count": 2,
+    "count": 3,
     "first_seen": "2026-10-30T05:58:08Z",
-    "last_seen": "2026-10-30T06:36:47Z",
+    "last_seen": "2026-10-30T07:26:40Z",
     "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41013943699",
         "https://github.com/openvinotoolkit/openvino/actions/runs/41005296042",
         "https://github.com/openvinotoolkit/openvino/actions/runs/41003290355"
     ],
     "affected_commits": [
+        "7f11989fd2760901f7f189dafa24673ba689e927",
         "8214ba7ea594a9bd4be77dfca2d9a7504b76f4a2",
         "5cd585f0a456c4c4adeea3f626d5ec3d4395ec83"
     ],
     "recent_timestamps": [
+        "2026-10-30T07:26:40Z",
         "2026-10-30T06:36:47Z",
         "2026-10-30T05:58:08Z"
     ]
