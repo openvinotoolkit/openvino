@@ -85,8 +85,11 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(const ov::Shape& weigh
         transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
     }
 
-    auto up_to = weights_precision == ov::element::u2 ? 3 : weights_precision == ov::element::i4 ? 7 : 15;
-    auto start_from = weights_precision == ov::element::u2 ? 0 : 1;
+    auto up_to = weights_precision == ov::element::u2   ? 3
+                 : weights_precision == ov::element::u3 ? 7
+                 : weights_precision == ov::element::i4 ? 7
+                                                        : 15;
+    auto start_from = (weights_precision == ov::element::u2 || weights_precision == ov::element::u3) ? 0 : 1;
 
     std::shared_ptr<ov::Node> weights = nullptr;
     if (param_weights) {
