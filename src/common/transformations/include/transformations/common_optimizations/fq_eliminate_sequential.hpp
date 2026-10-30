@@ -25,9 +25,11 @@ class TRANSFORMATIONS_API FakeQuantizeEliminateSequential;
  * connected directly.
  *
  * FQ2 is removed (FQ1 kept) when it is identical to FQ1, i.e. it has the same levels, auto broadcast,
- * and range constants (input_low/input_high/output_low/output_high), and FQ1 output range equals its
- * ordered input range (input_low == output_low <= input_high == output_high). In that case FQ2 only re-applies
- * the quantization already produced by FQ1 and is redundant.
+ * and range constants (input_low/input_high/output_low/output_high), FQ1 output range equals its input
+ * range, and FQ1 maps every value it can produce back to itself. The last condition is checked by
+ * evaluating FQ1 on all of its possible outputs (output_low, output_high and the value of every level),
+ * so it holds in the precision the operation is computed in. In that case FQ2 only re-applies the
+ * quantization already produced by FQ1 and is redundant.
  *
  * Before:
  *      ┌─────────┐
