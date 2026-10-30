@@ -222,13 +222,11 @@ void run_fusion(const std::shared_ptr<Model>& model, const pass::FuseQSAIndexer:
     manager.run_passes(model);
 }
 
-// Kernel limits that the GPU plugin passes to FuseQSAIndexer.
+// Kernel limits of the GPU QSAIndexer kernels, as a plugin could pass them to FuseQSAIndexer.
 pass::FuseQSAIndexer::Config gpu_limits() {
     pass::FuseQSAIndexer::Config limits;
     limits.supported_num_selection_heads = {1};
     limits.max_epsilon_relative_difference = 1e-4f;
-    limits.require_static_head_dims = true;
-    limits.require_rope = true;
     return limits;
 }
 
@@ -388,17 +386,8 @@ std::vector<std::pair<std::string, GraphOptions>> device_specific_cases() {
         return options;
     };
     return {
-        {"dynamic_query_heads", with([](GraphOptions& o) {
-             o.dynamic_query_heads = true;
-         })},
-        {"dynamic_head_size", with([](GraphOptions& o) {
-             o.dynamic_head_size = true;
-         })},
         {"num_selection_heads", with([](GraphOptions& o) {
              o.num_selection_heads = 2;
-         })},
-        {"disabled_rope", with([](GraphOptions& o) {
-             o.disable_rope = true;
          })},
         {"mismatched_epsilons", with([](GraphOptions& o) {
              o.query_epsilon = 1e-6f;
@@ -425,17 +414,6 @@ TEST(FuseQSAIndexer, DefaultConfigFusesGraphsOutsideDeviceKernelLimits) {
     }
 }
 
-TEST(FuseQSAIndexer, DefaultConfigPreservesDisabledRoPEStateShape) {
-    GraphOptions options;
-    options.disable_rope = true;
-    auto graph = build_graph(options);
-    run_fusion(graph.model);
-    const auto fused = find_fused(graph.model);
-    ASSERT_NE(fused, nullptr);
-    EXPECT_EQ(fused->get_output_partial_shape(4), (PartialShape{2, 0}));
-    EXPECT_EQ(graph.model->get_results()[3]->input_value(0), fused->output(4));
-}
-
 TEST(FuseQSAIndexer, RejectsGraphsOutsideConfiguredKernelLimits) {
     for (const auto& [name, options] : device_specific_cases()) {
         SCOPED_TRACE(name);
@@ -454,7 +432,25 @@ TEST(FuseQSAIndexer, ConfiguredKernelLimitsAcceptSupportedGraph) {
 }
 
 TEST(FuseQSAIndexer, RejectsInvalidConfigurationAndProvenance) {
-    const std::vector<std::pair<std::string, GraphOptions>> negative_cases{{"disabled_key_norm",
+    const std::vector<std::pair<std::string, GraphOptions>> negative_cases{{"dynamic_query_heads",
+                                                                            [] {
+                                                                                GraphOptions options;
+                                                                                options.dynamic_query_heads = true;
+                                                                                return options;
+                                                                            }()},
+                                                                           {"dynamic_head_size",
+                                                                            [] {
+                                                                                GraphOptions options;
+                                                                                options.dynamic_head_size = true;
+                                                                                return options;
+                                                                            }()},
+                                                                           {"disabled_rope",
+                                                                            [] {
+                                                                                GraphOptions options;
+                                                                                options.disable_rope = true;
+                                                                                return options;
+                                                                            }()},
+                                                                           {"disabled_key_norm",
                                                                             [] {
                                                                                 GraphOptions options;
                                                                                 options.disable_key_norm = true;
