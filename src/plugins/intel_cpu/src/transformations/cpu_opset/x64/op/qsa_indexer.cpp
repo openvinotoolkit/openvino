@@ -55,6 +55,30 @@ void check_shape(const ov::Node* node, size_t idx, const char* name, const ov::P
                           ps);
 }
 
+// [batch | 1, length, rot]: a single table is shared by all the batches.
+void check_rope_table_shape(const ov::Node* node,
+                            size_t idx,
+                            const char* name,
+                            const ov::Dimension& batch,
+                            const ov::Dimension& length,
+                            const ov::Dimension& rot) {
+    const auto& ps = node->get_input_partial_shape(idx);
+    NODE_VALIDATION_CHECK(
+        node,
+        ps.compatible(ov::PartialShape{batch, length, rot}) || ps.compatible(ov::PartialShape{1, length, rot}),
+        node->get_type_name(),
+        " expects ",
+        name,
+        " shaped [",
+        batch,
+        " or 1, ",
+        length,
+        ", ",
+        rot,
+        "], got ",
+        ps);
+}
+
 // All floating-point inputs share one element type: the CPU kernel is instantiated for that precision, so
 // converting the other ports is the job of whoever builds the op (see QSAIndexerFusion).
 void check_float_inputs(const ov::Node* node, std::initializer_list<size_t> indices) {
@@ -189,13 +213,23 @@ void QSAIndexer::validate_and_infer_types() {
 
     check_shape(this, InputIdx::Q_IDX, "q_idx", ov::PartialShape{batch, length, -1, di});
     check_shape(this, InputIdx::K_IDX, "k_idx", ov::PartialShape{batch, length, h_ik, di});
-    check_shape(this, InputIdx::ROPE_COS, "rope_cos", ov::PartialShape{batch, length, rot});
-    check_shape(this, InputIdx::ROPE_SIN, "rope_sin", ov::PartialShape{batch, length, rot});
+    // The RoPE tables are shared by all the batches when their batch is 1.
+    check_rope_table_shape(this, InputIdx::ROPE_COS, "rope_cos", batch, length, rot);
+    check_rope_table_shape(this, InputIdx::ROPE_SIN, "rope_sin", batch, length, rot);
     check_shape(this, InputIdx::Q_NORM_WEIGHT, "q_norm_weight", ov::PartialShape{di});
     check_shape(this, InputIdx::K_NORM_WEIGHT, "k_norm_weight", ov::PartialShape{di});
 
     check_i32_input(this, InputIdx::KEY_LENGTH, "key_length", 1);
-    check_shape(this, InputIdx::KEY_LENGTH, "key_length", ov::PartialShape{batch});
+    // [batch] or [1]: a single length is shared by all the rows.
+    const auto& key_length_ps = get_input_partial_shape(InputIdx::KEY_LENGTH);
+    NODE_VALIDATION_CHECK(
+        this,
+        key_length_ps.compatible(ov::PartialShape{batch}) || key_length_ps.compatible(ov::PartialShape{1}),
+        get_type_name(),
+        " expects key_length shaped [",
+        batch,
+        " or 1], got ",
+        key_length_ps);
 
     // summary_cache holds only the blocks of the earlier calls (Bp is free); the output carries all the blocks.
     check_shape(this, InputIdx::SUMMARY_CACHE, "summary_cache", ov::PartialShape{batch, h_ik, -1, di});

@@ -22,14 +22,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/core/validation_util.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
@@ -70,42 +66,12 @@ std::shared_ptr<v0::Constant> i64_const(const std::vector<int64_t>& values) {
     return v0::Constant::create(ov::element::i64, ov::Shape{values.size()}, values);
 }
 
-std::shared_ptr<v0::Constant> i64_scalar(int64_t value) {
-    return v0::Constant::create(ov::element::i64, ov::Shape{}, {value});
-}
-
-bool has_batch_of(const ov::PartialShape& shape, const ov::PartialShape& raw_index_keys_shape) {
-    return shape[0].is_static() && raw_index_keys_shape[0].is_static() && shape[0] == raw_index_keys_shape[0];
-}
-
-// QSAIndexer does not broadcast over the batch: a RoPE table [1 | N, L, Dr] is made [N, L, Dr].
-ov::Output<ov::Node> broadcast_rope_table(const ov::Output<ov::Node>& table,
-                                          const ov::Output<ov::Node>& raw_index_keys,
-                                          size_t rotary_dim) {
-    if (has_batch_of(table.get_partial_shape(), raw_index_keys.get_partial_shape())) {
-        return table;
+// key_length is [N] or [1] and i32 / i64, the fused op takes [N | 1] and i32.
+ov::Output<ov::Node> make_key_length(const ov::Output<ov::Node>& key_length) {
+    if (key_length.get_element_type() == ov::element::i32) {
+        return key_length;
     }
-    const auto keys_shape = std::make_shared<v3::ShapeOf>(raw_index_keys, ov::element::i64);
-    const auto batch_and_length = std::make_shared<v8::Gather>(keys_shape, i64_const({0, 1}), i64_scalar(0));
-    const auto target =
-        std::make_shared<v0::Concat>(ov::OutputVector{batch_and_length, i64_const({static_cast<int64_t>(rotary_dim)})},
-                                     0);
-    return std::make_shared<v3::Broadcast>(table, target);
-}
-
-// key_length is [N] or [1] and i32 / i64, the fused op takes [N] and i32.
-ov::Output<ov::Node> make_key_length(const ov::Output<ov::Node>& key_length,
-                                     const ov::Output<ov::Node>& raw_index_keys) {
-    ov::Output<ov::Node> result = key_length;
-    if (result.get_element_type() != ov::element::i32) {
-        result = std::make_shared<v0::Convert>(result, ov::element::i32);
-    }
-    if (!has_batch_of(key_length.get_partial_shape(), raw_index_keys.get_partial_shape())) {
-        const auto keys_shape = std::make_shared<v3::ShapeOf>(raw_index_keys, ov::element::i64);
-        const auto batch = std::make_shared<v8::Gather>(keys_shape, i64_const({0}), i64_scalar(0));
-        result = std::make_shared<v3::Broadcast>(result, batch);
-    }
-    return result;
+    return std::make_shared<v0::Convert>(key_length, ov::element::i32);
 }
 
 }  // namespace
@@ -223,11 +189,10 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
             using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
             args[InputIdx::Q_IDX] = to_type(raw_query, data_type);
             args[InputIdx::K_IDX] = k_idx;
-            args[InputIdx::ROPE_COS] =
-                broadcast_rope_table(to_type(prepare_node->input_value(ROPE_COS), data_type), raw_keys, rotary_dim);
-            args[InputIdx::ROPE_SIN] =
-                broadcast_rope_table(to_type(prepare_node->input_value(ROPE_SIN), data_type), raw_keys, rotary_dim);
-            args[InputIdx::KEY_LENGTH] = make_key_length(key_length_value, raw_keys);
+            // the RoPE tables [1 | N, L, Dr] are shared by the batches, QSAIndexer takes them as they are
+            args[InputIdx::ROPE_COS] = to_type(prepare_node->input_value(ROPE_COS), data_type);
+            args[InputIdx::ROPE_SIN] = to_type(prepare_node->input_value(ROPE_SIN), data_type);
+            args[InputIdx::KEY_LENGTH] = make_key_length(key_length_value);
             args[InputIdx::Q_NORM_WEIGHT] = q_norm_weight;
             args[InputIdx::K_NORM_WEIGHT] = to_type(prepare_node->input_value(K_NORM_WEIGHT), data_type);
             args[InputIdx::SUMMARY_CACHE] = past_blocks;

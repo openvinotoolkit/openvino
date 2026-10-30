@@ -353,6 +353,10 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.cpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_brgemm.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_brgemm_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_pa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_pa_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_sdpa_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose.hpp

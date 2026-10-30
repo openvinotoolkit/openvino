@@ -20,9 +20,9 @@
 #include "cpu_memory.h"
 #include "cpu_parallel.hpp"
 #include "graph_context.h"
-#include "kernels/scaled_attn/common.hpp"
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "node.h"
+#include "nodes/common/cpu_convert.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -78,14 +78,16 @@ void rmsnorm_partial_rope(const float* src,
 
 // All floating-point ports share the precision T (the node declares them that way), so only the rows
 // actually touched are converted to / from the f32 compute buffers, never a whole tensor.
+// Read-only f32 view of a row: the tensor row itself when T is f32 (nothing to convert, so no copy), otherwise the
+// row converted into `scratch`. Rows that have to be copied anyway call cpu_convert directly.
 template <typename T, typename... Idx>
-void load_row_f32(const PlainTensor& t, size_t len, float* dst, Idx... idx) {
-    ov::Extensions::Cpu::XARCH::cvt_copy(dst, t.ptr<T>(idx...), 1, len, 0, 0);
-}
-
-template <typename T, typename... Idx>
-void store_row_f32(const PlainTensor& t, size_t len, const float* src, Idx... idx) {
-    ov::Extensions::Cpu::XARCH::cvt_copy(t.ptr<T>(idx...), src, 1, len, 0, 0);
+const float* row_f32(const PlainTensor& t, size_t len, float* scratch, Idx... idx) {
+    if constexpr (std::is_same_v<T, float>) {
+        return t.ptr<float>(idx...);
+    } else {
+        cpu_convert(t.ptr<T>(idx...), scratch, ov::element::from<T>(), ov::element::f32, len);
+        return scratch;
+    }
 }
 
 // Output shapes of QSAIndexer: everything follows the input shapes, but the summary_cache block count of the longest
@@ -101,8 +103,10 @@ public:
         const size_t batch = q_dims[0];
         const auto key_length = data_dependency.at(InputIdx::KEY_LENGTH);
         const auto* key_length_p = key_length->getDataAs<const int32_t>();
+        // key_length is [batch] or [1] (the same length for all the rows)
+        const size_t key_length_count = input_shapes[InputIdx::KEY_LENGTH].get()[0];
         int64_t longest = 0;
-        for (size_t b = 0; b < batch; b++) {
+        for (size_t b = 0; b < key_length_count; b++) {
             longest = std::max<int64_t>(longest, key_length_p[b]);
         }
         const auto num_blocks = static_cast<size_t>(longest / static_cast<int64_t>(m_config.compress_ratio));
@@ -219,6 +223,13 @@ void QSAIndexer::execute_typed() {
     PlainTensor sel_count(getDstMemoryAtPort(OutputIdx::SEL_COUNT));
 
     const size_t B = q_idx.size(0);
+    // The RoPE tables may be shared by all the batches ([1, L, Dr]) -- batch 0 is read for every row then.
+    const auto rope_cos_batch = [&rope_cos](size_t b) {
+        return rope_cos.size(0) == 1 ? 0 : b;
+    };
+    const auto rope_sin_batch = [&rope_sin](size_t b) {
+        return rope_sin.size(0) == 1 ? 0 : b;
+    };
     const int64_t L = static_cast<int64_t>(q_idx.size(1));
     const size_t H_iq = q_idx.size(2);
     const size_t D_idx = q_idx.size(3);
@@ -226,6 +237,8 @@ void QSAIndexer::execute_typed() {
     const size_t G = H_iq / H_ik;
 
     const auto* key_length_p = key_length.ptr<int32_t>();
+    // key_length is [B] or [1]: one value shared by all the rows
+    const size_t key_length_stride = key_length.size(0) == 1 ? 0 : 1;
 
     // summary_cache is the only state that grows: its output starts as a copy of the blocks of the earlier calls
     // (the input), followed by zeros, and the blocks completed by this call are written over them below.
@@ -250,7 +263,7 @@ void QSAIndexer::execute_typed() {
         int64_t new_blocks;   // blocks this call completes
     };
     const auto plan_row = [&](size_t b) {
-        const int64_t key_len = key_length_p[b];
+        const int64_t key_len = key_length_p[b * key_length_stride];
         const int64_t past_n = std::max<int64_t>(0, key_len - L);
         RowPlan plan{};
         plan.current = key_len - past_n;  // == min(L, key_len)
@@ -269,8 +282,9 @@ void QSAIndexer::execute_typed() {
     const size_t head_maps_offset = B * sizeof(RowPlan);
     const size_t shared_floats_offset = head_maps_offset + 2 * H_iq * sizeof(size_t);
     const size_t shared_header_bytes = rnd_up(shared_floats_offset + 3 * D_idx * sizeof(float), kAlign);
-    // An f32 summary_cache is scored in place; otherwise Stage C reads the f32 mirror of [B, H_ik, blocks, D_idx].
+    // An f32 summary_cache is scored in place; otherwise phase 2b reads the f32 mirror of [B, H_ik, blocks, D_idx].
     constexpr bool summary_is_f32 = std::is_same_v<T, float>;
+    const auto data_prec = ov::element::from<T>();
     const size_t summary_mirror_floats = summary_is_f32 ? 0 : B * H_ik * summary_blocks_out * D_idx;
     const size_t shared_bytes = shared_header_bytes + rnd_up(summary_mirror_floats * sizeof(float), kAlign);
     // Float buffers (offsets in floats) of a thread slice. The phases run one after the other, so they share it:
@@ -297,8 +311,8 @@ void QSAIndexer::execute_typed() {
     auto* const q_norm_weight_f32 = reinterpret_cast<float*>(scratch_base + shared_floats_offset);
     auto* const k_norm_weight_f32 = q_norm_weight_f32 + D_idx;
     auto* const zero_row = k_norm_weight_f32 + D_idx;
-    load_row_f32<T>(q_norm_weight, D_idx, q_norm_weight_f32);
-    load_row_f32<T>(k_norm_weight, D_idx, k_norm_weight_f32);
+    const float* const q_norm_w = row_f32<T>(q_norm_weight, D_idx, q_norm_weight_f32);
+    const float* const k_norm_w = row_f32<T>(k_norm_weight, D_idx, k_norm_weight_f32);
     std::fill_n(zero_row, D_idx, 0.0F);
     for (size_t h = 0; h < H_iq; h++) {
         kv_of_head[h] = h / G;
@@ -325,22 +339,26 @@ void QSAIndexer::execute_typed() {
 
     // The pending window of a row is [the `tail` rows of the incomplete-block state | the real tokens of this call].
     // Raw K row at pending position `pos`:
-    const auto load_pending_row = [&](size_t b, const RowPlan& plan, size_t h, int64_t pos, float* dst) {
+    // (a view of the tensor when it is f32, `scratch` otherwise)
+    const auto load_pending_row = [&](size_t b, const RowPlan& plan, size_t h, int64_t pos, float* scratch) {
         if (pos < plan.tail) {
-            load_row_f32<T>(past_incomplete_raw_k_in, D_idx, dst, b, h, pos);
-        } else {
-            load_row_f32<T>(k_idx, D_idx, dst, b, plan.num_padding + pos - plan.tail, h);
+            return row_f32<T>(past_incomplete_raw_k_in, D_idx, scratch, b, h, pos);
         }
+        return row_f32<T>(k_idx, D_idx, scratch, b, plan.num_padding + pos - plan.tail, h);
     };
     // [rope_cos, rope_sin] of the first token of the block starting at pending position `pos`, in
     // past_incomplete_rope's layout:
     const auto load_block_ref = [&](size_t b, const RowPlan& plan, int64_t pos, float* dst) {
         if (pos < plan.tail) {
-            load_row_f32<T>(past_incomplete_rope_in, 2 * rotary_dim, dst, b);
+            cpu_convert(past_incomplete_rope_in.ptr<T>(b), dst, data_prec, ov::element::f32, 2 * rotary_dim);
         } else {
             const int64_t l = plan.num_padding + pos - plan.tail;
-            load_row_f32<T>(rope_cos, rotary_dim, dst, b, l);
-            load_row_f32<T>(rope_sin, rotary_dim, dst + rotary_dim, b, l);
+            cpu_convert(rope_cos.ptr<T>(rope_cos_batch(b), l), dst, data_prec, ov::element::f32, rotary_dim);
+            cpu_convert(rope_sin.ptr<T>(rope_sin_batch(b), l),
+                        dst + rotary_dim,
+                        data_prec,
+                        ov::element::f32,
+                        rotary_dim);
         }
     };
     // This worker thread's slice of the scratch (see the layout comment above).
@@ -365,7 +383,11 @@ void QSAIndexer::execute_typed() {
         }
         if constexpr (!summary_is_f32) {
             for (size_t blk = 0; blk < static_cast<size_t>(plans[b].past_blocks); blk++) {
-                load_row_f32<T>(summary_cache, D_idx, summary_f32_row(b, h, blk), b, h, blk);
+                cpu_convert(summary_cache.ptr<T>(b, h, blk),
+                            summary_f32_row(b, h, blk),
+                            data_prec,
+                            ov::element::f32,
+                            D_idx);
             }
         }
     });
@@ -384,9 +406,9 @@ void QSAIndexer::execute_typed() {
         const int64_t block_start = static_cast<int64_t>(j) * r;
         std::fill_n(pooled, D_idx, 0.0F);
         for (int64_t p = 0; p < r; p++) {
-            load_pending_row(b, plan, h, block_start + p, row_buf);
+            const float* const row = load_pending_row(b, plan, h, block_start + p, row_buf);
             for (size_t d = 0; d < D_idx; d++) {
-                pooled[d] += row_buf[d];
+                pooled[d] += row[d];
             }
         }
         const float inv_r = 1.0F / static_cast<float>(r);
@@ -396,17 +418,21 @@ void QSAIndexer::execute_typed() {
         load_block_ref(b, plan, block_start, block_ref_cos_sin);
         rmsnorm_partial_rope(pooled,
                              pooled,
-                             k_norm_weight_f32,
+                             k_norm_w,
                              D_idx,
                              rotary_dim,
                              eps,
                              block_ref_cos_sin,
                              block_ref_cos_sin + rotary_dim);
         const auto blk = static_cast<size_t>(plan.past_blocks) + j;
-        store_row_f32<T>(summary_cache, D_idx, pooled, b, h, blk);
+        cpu_convert(pooled, summary_cache.ptr<T>(b, h, blk), ov::element::f32, data_prec, D_idx);
         if constexpr (!summary_is_f32) {
             // Phase 2 scores the value as stored (rounded to the cache precision).
-            load_row_f32<T>(summary_cache, D_idx, summary_f32_row(b, h, blk), b, h, blk);
+            cpu_convert(summary_cache.ptr<T>(b, h, blk),
+                        summary_f32_row(b, h, blk),
+                        data_prec,
+                        ov::element::f32,
+                        D_idx);
         }
     });
 
@@ -423,10 +449,9 @@ void QSAIndexer::execute_typed() {
             for (size_t h = 0; h < H_ik; h++) {
                 const float* src = zero_row;
                 if (p < rest) {
-                    load_pending_row(b, plan, h, rest_start + p, row_buf);
-                    src = row_buf;
+                    src = load_pending_row(b, plan, h, rest_start + p, row_buf);
                 }
-                store_row_f32<T>(past_incomplete_raw_k, D_idx, src, b, h, p);
+                cpu_convert(src, past_incomplete_raw_k.ptr<T>(b, h, p), ov::element::f32, data_prec, D_idx);
             }
         }
         if (rest > 0) {
@@ -434,7 +459,7 @@ void QSAIndexer::execute_typed() {
         } else {
             std::fill_n(block_ref_cos_sin, 2 * rotary_dim, 0.0F);
         }
-        store_row_f32<T>(past_incomplete_rope, 2 * rotary_dim, block_ref_cos_sin, b);
+        cpu_convert(block_ref_cos_sin, past_incomplete_rope.ptr<T>(b), ov::element::f32, data_prec, 2 * rotary_dim);
     });
 
     // ---- Phase 2: per real token, query RMSNorm + RoPE, then per-selection-head scoring of the complete blocks ----
@@ -453,22 +478,15 @@ void QSAIndexer::execute_typed() {
         auto* const scores = reinterpret_cast<ScoreT*>(thread_base + thread_scores_offset);
         auto* const chosen = reinterpret_cast<int32_t*>(thread_base + thread_chosen_offset);
 
-        // ---- Stage A: query RMSNorm + partial RoPE (per index-query head) ----
-        load_row_f32<T>(rope_cos, rotary_dim, rope_cos_buf, b, l);
-        load_row_f32<T>(rope_sin, rotary_dim, rope_sin_buf, b, l);
+        // ---- Phase 2a: query RMSNorm + partial RoPE (per index-query head) ----
+        const float* const cos_row = row_f32<T>(rope_cos, rotary_dim, rope_cos_buf, rope_cos_batch(b), l);
+        const float* const sin_row = row_f32<T>(rope_sin, rotary_dim, rope_sin_buf, rope_sin_batch(b), l);
         for (size_t h = 0; h < H_iq; h++) {
-            load_row_f32<T>(q_idx, D_idx, row_buf, b, l, h);
-            rmsnorm_partial_rope(row_buf,
-                                 q_normed + h * D_idx,
-                                 q_norm_weight_f32,
-                                 D_idx,
-                                 rotary_dim,
-                                 eps,
-                                 rope_cos_buf,
-                                 rope_sin_buf);
+            const float* const q_row = row_f32<T>(q_idx, D_idx, row_buf, b, l, h);
+            rmsnorm_partial_rope(q_row, q_normed + h * D_idx, q_norm_w, D_idx, rotary_dim, eps, cos_row, sin_row);
         }
 
-        // ---- Stage C: per-selection-head complete-block scoring + top-k ----
+        // ---- Phase 2b: per-selection-head complete-block scoring + top-k ----
         // The complete blocks visible to this token: the earlier calls' plus those finished up to this token.
         const int64_t v = l - plan.num_padding;
         const int64_t n_complete = plan.past_blocks + (plan.tail + v + 1) / r;
