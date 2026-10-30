@@ -49,6 +49,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/api/metadata.cpp"
     "${FE_SRC_DIR}/builder/api/tensor_table.cpp"
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/lfm_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/lfm2_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/lfm3_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/lfm3_mmproj_builder.cpp"

@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-#include "lfm2_builder.hpp"
+#include "lfm_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {

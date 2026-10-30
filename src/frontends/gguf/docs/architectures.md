@@ -188,8 +188,12 @@ for a custom attention fragment. The Qwen3 builder in
 [`test_architecture_extension.cpp`](../tests/test_architecture_extension.cpp) owns its layer order
 this way; `VisionEncoderBuilder` in the same file is a larger non-decoder family.
 
-The [`lfm3` builder](../src/builder/arch/lfm3_builder.cpp) is a custom topology
-using typed decoder parameters and shared attention/FFN blocks. Zero per-layer KV
+The [`lfm2`](../src/builder/arch/lfm2_builder.cpp) and
+[`lfm3`](../src/builder/arch/lfm3_builder.cpp) builders configure a
+[shared LFM decoder loop](../src/builder/arch/lfm_builder.cpp). Family-specific
+metadata and tensor validation select each layer, normalization and output head;
+the common loop builds residual connections, short convolution, attention and FFN blocks.
+For `lfm3`, zero per-layer KV
 heads select short convolution; other layers use sliding or full attention. Its
 dense SwiGLU layers require both post-attention and post-FFN norms or neither.
 Sliding layers rotate the full head, while full-attention layers retain the

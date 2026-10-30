@@ -8,6 +8,7 @@
 #include <limits>
 
 #include "builder/decoder_metadata.hpp"
+#include "lfm_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {
@@ -28,55 +29,24 @@ public:
         const auto dims = g.configure_decoder(parameters);
         OPENVINO_ASSERT(dims.layers > 0 && dims.embedding > 0,
                         "[GGUF] LFM2 requires positive layer and embedding counts");
-        g.build_inp_pos();
-        g.build_attn_inp_kv();
         auto weights = g.tensors();
-        auto cur = g.build_inp_embd(weights.require("token_embd.weight"));
+        LfmDecoderConfig config;
+        config.layers.resize(dims.layers);
+        for (int layer = 0; layer < dims.layers; ++layer)
+            config.layers[layer].recurrent = weights.has("blk." + std::to_string(layer) + ".shortconv.in_proj.weight");
+        config.output_norm = weights.require("token_embd_norm.weight");
         const bool detokenizer = weights.has("dense_2.weight");
-        if (detokenizer)
-            OPENVINO_ASSERT(weights.require("dense_2.weight").ne(0) == dims.embedding &&
-                                weights.require("dense_2.weight").ne(1) == 1282,
-                            "[GGUF] LFM2 audio detokenizer requires a 1282-channel spectral head");
-        const auto out_ids = detokenizer ? GgufValue{} : g.build_inp_out_ids();
-        for (int layer = 0; layer < dims.layers; ++layer) {
-            const auto prefix = "blk." + std::to_string(layer) + ".";
-            const auto w = [&](const std::string& name) {
-                return weights.require(prefix + name);
-            };
-            auto residual = cur;
-            cur = g.build_norm(cur, w("attn_norm.weight"), dims.norm_epsilon);
-            if (weights.has(prefix + "shortconv.in_proj.weight")) {
-                const auto projected = g.node("GGML_OP_MUL_MAT", {w("shortconv.in_proj.weight"), cur});
-                const auto gated = build_lfm_short_conv(g,
-                                                        projected,
-                                                        w("shortconv.conv.weight"),
-                                                        dims.embedding,
-                                                        "conv_state_l" + std::to_string(layer));
-                cur = g.node("GGML_OP_MUL_MAT", {w("shortconv.out_proj.weight"), gated});
-            } else {
-                cur = g.decoder_attention(layer, cur);
-            }
-            if (layer == dims.layers - 1 && out_ids) {
-                cur = g.node("GGML_OP_GET_ROWS", {cur, out_ids});
-                residual = g.node("GGML_OP_GET_ROWS", {residual, out_ids});
-            }
-            cur = g.node("GGML_OP_ADD", {cur, residual});
-            residual = cur;
-            cur = g.build_norm(cur, w("ffn_norm.weight"), dims.norm_epsilon);
-            cur = g.node("GGML_OP_ADD", {residual, g.decoder_ffn(layer, cur)});
-        }
-        cur = g.build_norm(cur, weights.require("token_embd_norm.weight"), dims.norm_epsilon);
         if (detokenizer) {
-            auto output = g.node("GGML_OP_MUL_MAT", {weights.require("dense_2.weight"), cur});
-            if (auto bias = weights("dense_2.bias"))
-                output = g.node("GGML_OP_ADD", {output, bias});
-            g.set_primary_output(output);
+            config.output_weight = weights.require("dense_2.weight");
+            OPENVINO_ASSERT(config.output_weight.ne(0) == dims.embedding && config.output_weight.ne(1) == 1282,
+                            "[GGUF] LFM2 audio detokenizer requires a 1282-channel spectral head");
+            config.output_bias = weights("dense_2.bias");
+            config.select_output_rows = false;
         } else {
-            const auto output =
+            config.output_weight =
                 weights.has("output.weight") ? weights.require("output.weight") : weights.require("token_embd.weight");
-            g.set_primary_output(g.node("GGML_OP_MUL_MAT", {output, cur}));
         }
-        return g.finish();
+        return build_lfm_decoder(g, dims, config);
     }
 
 private:
@@ -208,26 +178,6 @@ private:
     GgufGraphContext g;
 };
 }  // namespace
-
-GgufValue build_lfm_short_conv(GgufGraphContext& g,
-                               const GgufValue& projected,
-                               const GgufValue& conv_weight,
-                               int64_t channels,
-                               const std::string& state_name,
-                               bool batch_major) {
-    const auto slice = [&](const GgufValue& value, int64_t start, int64_t length) {
-        return g.node("GGML_OP_VIEW", {value}, 3, {{"view_slice", std::vector<int64_t>{3, start, length}}});
-    };
-    const auto taps = conv_weight.ne(0) - 1;
-    const auto bx =
-        g.node("GGML_OP_TRANSPOSE",
-               {g.node("GGML_OP_MUL", {slice(projected, 0, channels), slice(projected, 2 * channels, channels)})});
-    const auto state = g.add_input(state_name, ov::element::f32, {1, 1, channels, taps});
-    const auto window = g.node("GGML_OP_CONCAT", {state, bx}, 0, {{"concat_axis", 0}});
-    g.add_recurrent_state(state, slice(window, -taps, taps));
-    const auto conv = g.node("GGML_OP_SSM_CONV", {window, conv_weight}, 0, {{"batch_major", batch_major}});
-    return g.node("GGML_OP_MUL", {slice(projected, channels, channels), conv});
-}
 
 std::shared_ptr<ModelBuilder> make_lfm2_builder(const BuildContext& context) {
     return std::make_shared<Lfm2Builder>(context);

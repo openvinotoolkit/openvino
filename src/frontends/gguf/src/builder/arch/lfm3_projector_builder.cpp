@@ -7,7 +7,7 @@
 #include <cmath>
 
 #include "builder/metadata_checks.hpp"
-#include "lfm2_builder.hpp"
+#include "lfm_builder.hpp"
 
 namespace ov::frontend::gguf {
 namespace {

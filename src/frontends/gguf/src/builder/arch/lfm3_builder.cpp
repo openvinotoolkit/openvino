@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <limits>
 
-#include "lfm2_builder.hpp"
+#include "lfm_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {
@@ -55,11 +55,9 @@ public:
             parameters.layers[layer].recurrent = kv_heads[layer] == 0;
         }
         const auto dims = g.configure_decoder(parameters);
-        g.build_inp_pos();
-        g.build_attn_inp_kv();
         auto weights = g.tensors();
-        auto cur = g.build_inp_embd(weights.require("token_embd.weight"));
-        const auto out_ids = g.build_inp_out_ids();
+        LfmDecoderConfig config;
+        config.layers.resize(layers);
         for (int layer = 0; layer < dims.layers; ++layer) {
             const auto prefix = "blk." + std::to_string(layer) + ".";
             const auto weight = [&](const std::string& name) {
@@ -69,8 +67,7 @@ public:
             OPENVINO_ASSERT(post_attention == weights.has(prefix + "post_ffw_norm.weight"),
                             "[GGUF] LFM3 requires both post norms or neither in layer ",
                             layer);
-            auto residual = cur;
-            cur = g.build_norm(cur, weight("attn_norm.weight"), dims.norm_epsilon);
+            config.layers[layer] = {kv_heads[layer] == 0, post_attention};
             if (kv_heads[layer] == 0) {
                 const auto in = weight("shortconv.in_proj.weight");
                 const auto convolution_weight = weight("shortconv.conv.weight");
@@ -80,12 +77,6 @@ public:
                                     out.ne(0) == dims.embedding && out.ne(1) == dims.embedding,
                                 "[GGUF] invalid LFM3 short-convolution weights in layer ",
                                 layer);
-                const auto gated = build_lfm_short_conv(g,
-                                                        g.node("GGML_OP_MUL_MAT", {in, cur}),
-                                                        convolution_weight,
-                                                        dims.embedding,
-                                                        "conv_state_l" + std::to_string(layer));
-                cur = g.node("GGML_OP_MUL_MAT", {out, gated});
             } else {
                 OPENVINO_ASSERT(!weights.has(prefix + "shortconv.in_proj.weight"),
                                 "[GGUF] LFM3 convolution tensor conflicts with attention-layer metadata");
@@ -94,27 +85,13 @@ public:
                                 "[GGUF] LFM3 requires a sigmoid gate per attention head");
                 if (!sliding[layer])
                     weights.require("rope_freqs.weight");
-                cur = g.decoder_attention(layer, cur);
             }
-            if (post_attention)
-                cur = g.build_norm(cur, weight("post_attention_norm.weight"), dims.norm_epsilon);
-            if (layer == dims.layers - 1) {
-                cur = g.node("GGML_OP_GET_ROWS", {cur, out_ids});
-                residual = g.node("GGML_OP_GET_ROWS", {residual, out_ids});
-            }
-            cur = g.node("GGML_OP_ADD", {residual, cur});
-            residual = cur;
-            cur = g.decoder_ffn(layer, g.build_norm(cur, weight("ffn_norm.weight"), dims.norm_epsilon));
-            if (post_attention)
-                cur = g.build_norm(cur, weight("post_ffw_norm.weight"), dims.norm_epsilon);
-            cur = g.node("GGML_OP_ADD", {residual, cur});
         }
-        cur = g.build_norm(cur, weights.require("output_norm.weight"), dims.norm_epsilon);
-        g.set_output(cur, "audio_hidden_states");
-        const auto output =
+        config.output_norm = weights.require("output_norm.weight");
+        config.hidden_output = "audio_hidden_states";
+        config.output_weight =
             weights.has("output.weight") ? weights.require("output.weight") : weights.require("token_embd.weight");
-        g.set_primary_output(g.node("GGML_OP_MUL_MAT", {output, cur}));
-        return g.finish();
+        return build_lfm_decoder(g, dims, config);
     }
 
 private:
