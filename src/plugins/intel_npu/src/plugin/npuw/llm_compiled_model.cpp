@@ -76,23 +76,17 @@ bool is_aligned_to(T value, T alignment) {
     return value % alignment == 0;
 }
 
-bool is_4d_float_attention_mask(const std::shared_ptr<ov::Model>& model) {
-    std::shared_ptr<ov::op::v0::Parameter> attention_mask_param;
-    for (const auto& input : model->inputs()) {
-        const auto& names = input.get_names();
-        if (names.count("attention_mask") || input.get_any_name() == "attention_mask") {
-            attention_mask_param = ov::as_type_ptr<ov::op::v0::Parameter>(input.get_node_shared_ptr());
-            break;
-        }
-    }
+bool is_4d_float_attention_mask(const std::shared_ptr<const ov::Model>& model) {
+    const auto attention_mask =
+        ov::npuw::util::find_port_by_name(model->inputs(), ov::npuw::LLMInferRequest::layer_names::attention_mask);
 
     // Models without an attention_mask input (e.g. the Whisper decoder) keep the binary-mask flow.
-    if (!attention_mask_param) {
+    if (!attention_mask) {
         return false;
     }
 
-    const auto elem_type = attention_mask_param->get_element_type();
-    const auto pshape = attention_mask_param->get_partial_shape();
+    const auto elem_type = attention_mask->get_element_type();
+    const auto pshape = attention_mask->get_partial_shape();
     const bool is_int_or_bool = elem_type == ov::element::i64 || elem_type == ov::element::i32 ||
                                 elem_type == ov::element::u64 || elem_type == ov::element::u32 ||
                                 elem_type == ov::element::boolean;
