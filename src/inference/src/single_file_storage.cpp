@@ -234,6 +234,7 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream, BlobIdType blob_i
         write_tlv_string(s, model_name);
     };
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::BlobMap), blob_map_writer);
+    OPENVINO_ASSERT(stream.flush().good(), "Failed to write blob id ", blob_id, " to cache file");
 
     m_blob_index[blob_id] = {static_cast<uint64_t>(blob_pos), static_cast<uint64_t>(blob_size), std::move(model_name)};
 }
@@ -242,7 +243,17 @@ void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWrit
     ScopedLocale plocal_C(LC_ALL, "C");
     std::fstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::ate);
     OPENVINO_ASSERT(stream.good(), "Failed to open cache file ", m_file_path, " for writing blob id ", blob_id);
-    write_blob_entry(stream, convert_blob_id(blob_id), writer);
+    const auto entry_pos = stream.tellp();
+    OPENVINO_ASSERT(entry_pos >= 0, "Invalid cache file end position ", entry_pos, " for blob id ", blob_id);
+    try {
+        write_blob_entry(stream, convert_blob_id(blob_id), writer);
+    } catch (...) {
+        // Drop partially written records, otherwise the cache file can't be parsed on next initialize
+        stream.close();
+        std::error_code ec;
+        std::filesystem::resize_file(m_file_path, static_cast<std::uintmax_t>(entry_pos), ec);
+        throw;
+    }
 }
 
 void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable_mmap, StreamReader reader) {
