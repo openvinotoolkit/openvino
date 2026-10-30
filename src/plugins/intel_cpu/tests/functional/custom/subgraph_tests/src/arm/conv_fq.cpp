@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
 #include "common_test_utils/node_builders/activation.hpp"
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/node_builders/group_convolution.hpp"
@@ -207,8 +211,11 @@ protected:
         const auto& funcInput = funcInputs[0];
         ov::Tensor tensor;
         ov::test::utils::InputGenerateData in_data;
-        in_data.start_from = -1;
-        in_data.range = 2;
+        const auto& intervals = std::get<2>(this->GetParam()).inputIntervals;
+        const float low = *std::min_element(intervals[0].begin(), intervals[0].end());
+        const float high = *std::max_element(intervals[1].begin(), intervals[1].end());
+        in_data.start_from = low;
+        in_data.range = static_cast<uint32_t>(std::ceil(high - low));
         in_data.resolution = 256;
         tensor =
             ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
