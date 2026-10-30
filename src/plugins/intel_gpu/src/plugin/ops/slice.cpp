@@ -3,11 +3,9 @@
 //
 
 #include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
 
 #include "openvino/op/constant.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/util/op_types.hpp"
 
 #include "intel_gpu/primitives/slice.hpp"
 
