@@ -55,6 +55,11 @@ if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)
 endif()
 
+# Not ENABLE_ONEDNN_FOR_GPU: intel_gpu/runtime headers would then include oneDNN headers, which this target does not have.
+if(ENABLE_ONEDNN_FOR_GPU)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ONEDNN=1)
+endif()
+
 # try to find VA libraries
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)

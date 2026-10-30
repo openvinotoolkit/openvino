@@ -328,6 +328,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/broadcast_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/concat_in_place_dynamic_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/convert_bf16_fp32_fp16.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_batch_convolution_byxf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_fc_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_model_static_split_layer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_smoke_test_conv_reshape_fully_connected.cpp
@@ -379,21 +380,10 @@ set(GPU_FUNCTIONAL_TEST_MLIR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/mlir_op/unary_eltwise.cpp
 )
 
-# Only compiled when ENABLE_ONEDNN_FOR_GPU is ON: the tests check layouts chosen for oneDNN convolutions.
-set(GPU_FUNCTIONAL_TEST_ONEDNN_SOURCES
-    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_batch_convolution_byxf.cpp
-)
-
 set(GPU_FUNC_TEST_CHECK_SOURCES_EXCLUDE_FILES)
 
 if(ENABLE_MLIR_FOR_GPU)
     list(APPEND GPU_FUNCTIONAL_TEST_SOURCES ${GPU_FUNCTIONAL_TEST_MLIR_SOURCES})
 else()
     list(APPEND GPU_FUNC_TEST_CHECK_SOURCES_EXCLUDE_FILES ${GPU_FUNCTIONAL_TEST_MLIR_SOURCES})
-endif()
-
-if(ENABLE_ONEDNN_FOR_GPU)
-    list(APPEND GPU_FUNCTIONAL_TEST_SOURCES ${GPU_FUNCTIONAL_TEST_ONEDNN_SOURCES})
-else()
-    list(APPEND GPU_FUNC_TEST_CHECK_SOURCES_EXCLUDE_FILES ${GPU_FUNCTIONAL_TEST_ONEDNN_SOURCES})
 endif()

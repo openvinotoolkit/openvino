@@ -12,6 +12,8 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
+// The test checks layouts chosen for oneDNN convolutions.
+#ifdef OV_GPU_WITH_ONEDNN
 namespace {
 using ov::test::InputShape;
 
@@ -108,3 +110,4 @@ INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchConvolutionByxf,
                          ::testing::ValuesIn(params),
                          DynamicBatchConvolutionByxf::getTestCaseName);
 }  // namespace
+#endif  // OV_GPU_WITH_ONEDNN
