@@ -67,12 +67,9 @@ FuseQSAIndexer::FuseQSAIndexer(const Config& limits) {
     const auto enabled_norm_weight = [](const ov::Output<ov::Node>& output) {
         return !ov::util::is_empty_constant_tensor(output);
     };
+    // QSAIndexer kernels are specialized for the query head count and the head size, so both must be static.
     // Query and key head sizes are kept compatible by SparseAttentionIndexer and QSAPrepare validation.
-    auto query_predicate = rank_equals(op_internal::QSAIndexer::query_rank);
-    if (limits.require_static_head_dims) {
-        query_predicate = query_predicate && has_static_dims({1, 3});
-    }
-    const auto query_m = any_input(query_predicate);
+    const auto query_m = any_input(rank_equals(op_internal::QSAIndexer::query_rank) && has_static_dims({1, 3}));
     const auto query_weight_m = any_input(enabled_norm_weight);
     const auto last_axis = value_matches("-1") || value_matches("3");
 
@@ -93,32 +90,17 @@ FuseQSAIndexer::FuseQSAIndexer(const Config& limits) {
 
     const auto normalized_query_m = rms_norm_m | scale_m;
 
-    // QSAPrepare state inputs. RoPE is disabled by rank-1 empty Constants on all three RoPE inputs together
-    // (enforced by QSAPrepare), which the RoPE ranks below exclude unless the config allows disabled RoPE.
-    auto raw_keys_predicate = rank_equals(op_internal::QSAIndexer::keys_rank);
-    auto rope_cos_predicate = rank_equals(op_internal::QSAIndexer::rope_rank);
-    auto rope_sin_predicate = rank_equals(op_internal::QSAIndexer::rope_rank);
-    auto incomplete_rope_predicate = rank_equals(op_internal::QSAIndexer::incomplete_rope_rank);
-    if (limits.require_static_head_dims) {
-        raw_keys_predicate = raw_keys_predicate && has_static_dim(2);
-        rope_cos_predicate = rope_cos_predicate && has_static_dim(2);
-    }
-    if (!limits.require_rope) {
-        const auto disabled_rope = [](const ov::Output<ov::Node>& output) {
-            return ov::util::is_empty_constant_tensor(output);
-        };
-        rope_cos_predicate = rope_cos_predicate || disabled_rope;
-        rope_sin_predicate = rope_sin_predicate || disabled_rope;
-        incomplete_rope_predicate = incomplete_rope_predicate || disabled_rope;
-    }
-    const auto raw_keys_m = any_input(raw_keys_predicate);
+    // QSAPrepare state inputs. QSAIndexer kernels always apply RoPE, so the RoPE inputs must be present:
+    // the RoPE ranks below exclude the rank-1 empty Constants that disable RoPE.
+    // The head size of the raw keys and the rotary dimension must be static as well.
+    const auto raw_keys_m = any_input(rank_equals(op_internal::QSAIndexer::keys_rank) && has_static_dim(2));
     const auto cache_m = any_input(rank_equals(op_internal::QSAIndexer::keys_rank));
     const auto key_length_m = any_input();
-    const auto rope_cos_m = any_input(rope_cos_predicate);
-    const auto rope_sin_m = any_input(rope_sin_predicate);
+    const auto rope_cos_m = any_input(rank_equals(op_internal::QSAIndexer::rope_rank) && has_static_dim(2));
+    const auto rope_sin_m = any_input(rank_equals(op_internal::QSAIndexer::rope_rank));
     const auto key_weight_m = any_input(enabled_norm_weight);
     const auto incomplete_keys_m = any_input(rank_equals(op_internal::QSAIndexer::keys_rank));
-    const auto incomplete_rope_m = any_input(incomplete_rope_predicate);
+    const auto incomplete_rope_m = any_input(rank_equals(op_internal::QSAIndexer::incomplete_rope_rank));
     const auto prepare_m = wrap_type_strict_index<v17::QSAPrepare>(
         {raw_keys_m, cache_m, key_length_m, rope_cos_m, rope_sin_m, key_weight_m, incomplete_keys_m, incomplete_rope_m},
         op::Predicate(all_outputs_have_single_consumer));
