@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-30-12-57-17-715-41045325507",
+  "timestamp": "2026-10-30T12:57:17Z",
+  "run_id": "41045325507",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41045325507",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "39348",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39348",
+  "author": "akashchi",
+  "category": "Infrastructure",
+  "title": "C++ unit tests job fails to download openvino_package artifact after 5 retries",
+  "signature": "artifact download failed after 5 retries|Infrastructure",
+  "signature_hash": "f976d98a24b8000d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "C++ unit tests / C++ unit tests",
+      "conclusion": "failure",
+      "symptom": "GitHub Actions artifact download of 'openvino_package' timed out after 5 retries (Request timeout from productionresultssa19.blob.core.windows.net), aborting the job before any tests ran."
+    }
+  ],
+  "key_errors": [
+    "2026-10-30T11:31:09.3289149Z Making HTTP GET request to blob storage",
+    "2026-10-30T11:31:14.3331261Z ##[warning]Failed to download artifact after 1 retries due to Request timeout: /actions-results/.../artifacts/....zip ... Retrying in 5 seconds...",
+    "2026-10-30T11:31:54.3553092Z ##[warning]Failed to download artifact after 5 retries due to Request timeout: ...",
+    "2026-10-30T11:31:59.3564965Z ##[error]Artifact download failed after 5 retries.",
+    "2026-10-30T11:31:59.3572267Z ##[error]Action failed with error: Unable to download and extract artifact: Artifact download failed after 5 retries."
+  ],
+  "root_cause": "The 'C++ unit tests' job attempted to download the 'openvino_package' build artifact via actions/download-artifact; each of the 5 HTTP GET attempts against GitHub's Actions blob storage backend (productionresultssa19.blob.core.windows.net) timed out with 'Request timeout', a known transient GitHub Actions ArtifactService/blob-storage backend issue unrelated to the PR's diff (the PR only edits .github/scripts/workflow_rerun/errors_to_look_for.json). This is the same recurring infrastructure signature already tracked under pattern f976d98a24b8000d ('artifact download failed after 5 retries|Infrastructure'), previously seen on run 34212848766 for PR #37290, and whose rerun_search_string is already approved and live in errors_to_look_for.json on master, so the workflow rerunner should pick this run up automatically on its next sweep.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a transient GitHub Actions backend (blob storage) timeout during artifact download, not a code or test issue.",
+  "recommended_actions": [
+    "Re-run the failed 'C++ unit tests' job only (requested via remediate_transient_failure); the PR's diff is unrelated to the failure.",
+    "No source code change is needed; monitor whether this signature recurs across many PRs, which would indicate a broader GitHub Actions ArtifactService outage worth reporting to GitHub support.",
+    "Confirm the already-approved rerun_search_string 'Artifact download failed after 5 retries' (ticket 9999999) continues to auto-remediate this signature via the workflow rerunner."
+  ],
+  "prevention_strategies": "This is an upstream GitHub Actions infrastructure issue (ArtifactService/blob storage backend) and cannot be prevented from the repository side. Continued reliance on the approved workflow-rerunner pattern and automated remediation (rerun failed jobs / re-add to merge queue) is the practical mitigation.",
+  "historical_context": "Same signature previously recorded once before (run 34212848766, PR #37290, first_seen 2026-09-08). This is the 2nd occurrence in the pattern database. A related but distinct ArtifactService timeout signature ('Request timeout: /twirp/.../ListArtifacts') was investigated separately and is the subject of the currently-open PR #39348 (which this very run is validating in the merge queue)."
+}
