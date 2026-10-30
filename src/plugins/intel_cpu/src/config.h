@@ -92,6 +92,10 @@ struct Config {
     // For TURBO: bits derived from cachePrecision (u3→3, u4→4).
     ov::internal::CacheQuantAlgorithm keyCacheQuantAlg = ov::internal::CacheQuantAlgorithm::SCALAR;
     ov::internal::CacheQuantAlgorithm valueCacheQuantAlg = ov::internal::CacheQuantAlgorithm::SCALAR;
+    // Per-SDPA-layer overrides (experimental). Position i applies to the i-th SDPA in topological order.
+    // Each entry holds a subset of the global KV cache properties; missing keys inherit from the globals
+    // above. Empty vector disables per-layer overrides.
+    std::vector<ov::AnyMap> kvCachePerLayerConfig;
     bool enableSageAttn = false;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
