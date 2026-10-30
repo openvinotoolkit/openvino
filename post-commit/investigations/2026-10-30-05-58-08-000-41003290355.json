@@ -1,0 +1,52 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-30-05-58-08-000-41003290355",
+    "timestamp": "2026-10-30T05:58:08Z",
+    "run_id": "41003290355",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41003290355",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "5cd585f0a456c4c4adeea3f626d5ec3d4395ec83",
+    "pr_number": "36006",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36006",
+    "author": "ahnyoung-paul",
+    "category": "Network",
+    "title": "TensorFlow Layer/Models test jobs fail downloading OpenVINO artifacts after ArtifactService ListArtifacts request timeouts",
+    "signature": "Attempt N of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts|Network",
+    "signature_hash": "77303b969eadbc6a",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+            "conclusion": "failure",
+            "symptom": "'Download OpenVINO artifacts (tests)' step failed after 5 retry attempts against GitHub's ArtifactService ListArtifacts endpoint all timed out"
+        },
+        {
+            "name": "TensorFlow Models tests / TensorFlow Models tests",
+            "conclusion": "failure",
+            "symptom": "'Download OpenVINO artifacts (tests)' step failed identically (5 timed-out ListArtifacts attempts), then 'Upload Test Results' also failed/warned since no test files existed to upload"
+        },
+        {
+            "name": "ci/gha_overall_status",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check failed because the TensorFlow Layer Tests and TensorFlow Models tests jobs failed"
+        }
+    ],
+    "key_errors": [
+        "2026-10-30T05:13:06.5497353Z Attempt 1 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 3000 ms...",
+        "2026-10-30T05:13:38.2945260Z Attempt 4 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 10401 ms...",
+        "2026-10-30T05:13:53.7078436Z ##[error]Action failed with error: Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
+        "2026-10-30T05:13:53.7139084Z ##[error]Unable to download artifact(s): Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
+        "2026-10-30T05:15:15.6643262Z Attempt 1 of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts. Retrying request in 3000 ms... (second job, same endpoint)",
+        "2026-10-30T05:16:02.2379850Z ##[error]Action failed with error: Failed to ListArtifacts: Failed to make request after 5 attempts: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts"
+    ],
+    "root_cause": "Both the 'TensorFlow Layer Tests' and 'TensorFlow Models tests' jobs use the 'akashchi/download-artifact' action to fetch the 'openvino_tests' build artifact produced earlier in the same workflow run via the 'Download OpenVINO artifacts (tests)' step. That action calls GitHub's internal ArtifactService ListArtifacts Twirp RPC to resolve the artifact before downloading it; in this run every one of the 5 retry attempts (over roughly 50-90 seconds, with exponential backoff up to ~10s) returned 'Request timeout' from that endpoint, so the action gave up and failed the step outright. Both jobs hit the identical failure within a ~2-minute window (05:13 and 05:15 UTC) and exhausted the same fixed retry budget, which is the signature of a transient GitHub Actions-hosted-service (ArtifactService) degradation/outage rather than anything related to the merged commit (PR #36006, a GPU-only debug transformation pass unrelated to artifact storage, test infra, or the TensorFlow test workflows). The merge-queue 'ci/gha_overall_status' job then failed as expected because its dependency jobs failed.",
+    "reproduction_steps": "Not reproducible locally - this depends entirely on the availability/latency of GitHub's hosted ArtifactService backend for the run's artifact store at the time of execution. To observe the failure mode, inspect the 'Download OpenVINO artifacts (tests)' step logs for job 123903756978 or 123903757129 in run 41003290355; no local repro exists since it is a GitHub-side service timeout, not a client configuration or code issue.",
+    "recommended_actions": [
+        "Re-run (or allow the merge queue to automatically re-queue) the failed TensorFlow Layer Tests and TensorFlow Models tests jobs; this is almost certainly a transient GitHub ArtifactService outage/latency spike unrelated to PR #36006's GPU-only changes.",
+        "Check the GitHub status page (githubstatus.com) for Actions/Artifacts incidents around 2026-10-30 05:13-05:16 UTC to confirm this was a platform-wide blip rather than something specific to this repository's runners.",
+        "Consider increasing the retry count/backoff ceiling (or adding a wrapping retry-on-failure step) around the 'Download OpenVINO artifacts (tests)' step in the TensorFlow layer/models test job definitions so a short ArtifactService degradation does not fail the whole job after only ~90 seconds of retries.",
+        "No code changes are needed in src/frontends or the TensorFlow test suites themselves; this is purely a CI artifact-retrieval infrastructure issue."
+    ],
+    "prevention_strategies": "Wrap artifact-download steps in TensorFlow (and other) test jobs with an outer retry-on-failure wrapper (e.g., nick-fields/retry or a custom shell retry loop) that re-invokes the whole download step a couple of times with longer spacing, since the download-artifact action's internal retries are capped at 5 attempts within ~90 seconds, which is sometimes too short to ride out a multi-minute service degradation. Monitor recurrence of ArtifactService ListArtifacts timeouts across jobs/workflows; if this becomes frequent, consider caching/re-uploading artifacts via a different action or mirroring to a secondary blob store.",
+    "historical_context": "This is the first occurrence of this specific ArtifactService ListArtifacts timeout signature in the post-commit knowledge base. Other previously recorded Network-category patterns involve different failure points in the artifact lifecycle: CreateArtifact ENOTFOUND during upload (pattern 4e9cf236bf92d555), CreateArtifact ECONNREFUSED during upload (pattern b6957c2b9e09de1c), and getaddrinfo EAI_AGAIN during upload (pattern d877f2bb57b833d0) - all on the upload side. This investigation is the first to show the failure on the download/ListArtifacts side, indicating GitHub's hosted Artifacts backend intermittently degrades on both the upload and lookup/download code paths."
+}

@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "Attempt N of 5 failed with error: Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts|Network",
+    "signature_hash": "77303b969eadbc6a",
+    "title": "TensorFlow Layer/Models test jobs fail downloading OpenVINO artifacts after ArtifactService ListArtifacts request timeouts",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-10-30T05:58:08Z",
+    "last_seen": "2026-10-30T05:58:08Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41003290355"
+    ],
+    "affected_commits": [
+        "5cd585f0a456c4c4adeea3f626d5ec3d4395ec83"
+    ],
+    "recent_timestamps": [
+        "2026-10-30T05:58:08Z"
+    ]
+}
