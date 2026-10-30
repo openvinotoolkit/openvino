@@ -117,6 +117,16 @@ jobs:
           # tensorflow test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_tensorflow
 
+      # Diagnostics for "Fatal Python error: Bus error" (CVS-192737)
+      - name: Check TensorFlow installation (macOS)
+        if: ${{ runner.os == 'macOS' && fromJSON(inputs.affected-components).TF_FE.test }}
+        continue-on-error: true
+        run: |
+          python3 -m pip check
+          tf_dir=$(python3 -c "import importlib.util as u; print(u.find_spec('tensorflow').submodule_search_locations[0])")
+          find "$tf_dir" -maxdepth 3 \( -name '_pywrap_cpu_feature_guard*.so' -o -name 'libtensorflow_framework*' \) -exec ls -l {} +
+          python3 -c "import tensorflow as tf; print(tf.__version__)"
+
       - name: TensorFlow 1 Layer Tests - TF FE
         if: ${{ fromJSON(inputs.affected-components).TF_FE.test }}
         run: |
@@ -132,6 +142,20 @@ jobs:
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION:
+
+      # Diagnostics for "Fatal Python error: Bus error" (CVS-192737)
+      - name: Print macOS crash reports
+        if: ${{ failure() && runner.os == 'macOS' }}
+        continue-on-error: true
+        run: |
+          # ReportCrash writes reports asynchronously
+          sleep 5
+          find ~/Library/Logs/DiagnosticReports /Library/Logs/DiagnosticReports \( -name '*.ips' -o -name '*.crash' \) -mmin -30 2>/dev/null | xargs ls -t 2>/dev/null | sed -n '1,3p' | while read -r report; do
+            echo "::group::$report"
+            cat "$report"
+            echo "::endgroup::"
+          done
+
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: ${{ !cancelled() }}
