@@ -51,7 +51,7 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 │    - rank_compiled[N]     per-rank intel_gpu model; each     │
 │                           holds its rank context, which owns │
 │                           the rank's communicator            │
-│    - RankWorkers          a thread per non-zero rank         │
+│    - RankWorkers          a thread per rank                  │
 │    - CacheController      paged-attention cache              │
 │    - inference mutex      one outer inference at a time      │
 │                                                              │
@@ -68,8 +68,8 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 │                                                              │
 │  infer():                                                    │
 │    1. Replicate user inputs across ranks.                    │
-│    2. Hand ranks 1..N-1 to persistent worker threads; rank 0 │
-│       runs on the calling thread.                            │
+│    2. Hand every rank to its persistent worker thread; the   │
+│       calling thread waits for all of them.                  │
 │    3. Each rank's graph executes locally; whenever it hits a │
 │       TPAllReduce or TPGather node, the OCL impl in          │
 │       intel_gpu calls the network's TP channel, which hands  │
@@ -172,7 +172,7 @@ CompiledModel (ICompiledModel)
   │                                    rather than a replica
   ├── inference mutex                  one outer inference at a time; rank
   │                                    execution inside it stays parallel
-  └── RankWorkers                      one thread per non-zero rank, created on
+  └── RankWorkers                      one thread per rank, created on
                                        first use and kept for the life of the
                                        model. Declared last, joined first.
         ▲
@@ -209,7 +209,7 @@ RemoteContextImpl (TP context)
 During `infer()`:
 
 ```
-rank 0 runs on the calling thread, ranks 1..N-1 on RankWorkers
+every rank runs on its RankWorker; the calling thread dispatches and waits
     ↓ a rank's graph reaches a TPAllReduce or TPGather node
 intel_gpu impl → its recorder, over that network's TP Channel
     ↓ GroupState::begin_allreduce / begin_gather (call rendezvous)
@@ -651,13 +651,20 @@ caching properties are aggregated across the rank devices and joined with `;`.
   engine, because each of them holds it. The TP `CompiledModel` holds no Level
   Zero state of its own.
 - `RankWorkers` belongs to the `CompiledModel`, not to a request: one thread
-  per non-zero rank, created on first use and reused by every infer request of
+  per rank, created on first use and reused by every infer request of
   that model. Starting them per inference costs tens of microseconds of
   start-up skew, and that skew would be paid again at every collective.
   It is declared last so its threads are joined before anything they touch
   goes away.
-- `infer_request.cpp` dispatches ranks 1..N-1 to those workers and runs rank 0
-  on the calling thread.
+- `infer_request.cpp` dispatches every rank, rank 0 included, to those
+  workers and waits for all of them. The TP plugin owns the rank threads
+  (option B of the design's rank execution): FIFO per rank and concurrent
+  ranks follow from one worker per rank under the inference mutex, and the
+  GPU plugin's async machinery (task executor, `EXCLUSIVE_ASYNC_REQUESTS`,
+  external queues) is not on the path. Running rank 0 on the calling thread
+  instead measured about 2.5 ms (4-6 %) slower to first token on short
+  prompts; a rank request on the GPU plugin's `start_async()` measured the
+  same as a worker.
 - `CompiledModel::lock_inference()` serializes outer inferences: the
   rendezvous slots, the recorded command lists and the staging support
   one at a time. Rank execution inside that inference stays parallel.

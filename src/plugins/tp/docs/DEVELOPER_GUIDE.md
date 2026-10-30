@@ -56,7 +56,7 @@ for the current file layout. Key entry points:
 | `src/plugin.cpp`                | `Plugin::compile_model` — config parse, rank context creation, per-rank `GraphRewriter::rewrite` and per-rank intel_gpu compilation; `import_blob` for the cached path.         |
 | `src/graph_rewriter.cpp`        | `analyze` (finds shardable MatMuls structurally and reads the model dimensions off them) and `rewrite` (per-rank weight slicing, KV-cache shape patching, collective insertion). |
 | `src/infer_request.cpp`         | Rank fan-out, input replication, output collection from rank 0.                                                                                                                  |
-| `src/rank_workers.hpp`          | The persistent worker thread per non-zero rank.                                                                                                                                  |
+| `src/rank_workers.hpp`          | The persistent worker thread per rank.                                                                                                                                      |
 | `src/cache_controller.cpp`      | Per-rank KV-cache control inputs.                                                                                                                                                |
 | `src/compiled_model.cpp`        | `export_model` / state plumbing / port derivation.                                                                                                                               |
 | `src/tp_blob.hpp`               | The container format shared by export and import.                                                                                                                                |

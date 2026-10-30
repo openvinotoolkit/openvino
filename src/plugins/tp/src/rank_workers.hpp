@@ -17,17 +17,17 @@ namespace ov {
 namespace tp {
 
 /// Runs one function per rank on threads that live as long as the compiled model.
-/// Rank 0 runs on the calling thread: it needs no handoff, and the caller has
-/// nothing else to do while the others work.
+/// Every rank has its own thread, rank 0 included, and the caller only hands the
+/// work out and waits: rank 0 on the caller's thread measured about 2.5 ms
+/// slower to first token on short prompts.
 class RankWorkers {
 public:
     explicit RankWorkers(std::size_t num_ranks) {
-        const std::size_t helpers = num_ranks > 0 ? num_ranks - 1 : 0;
-        m_workers.reserve(helpers);
-        for (std::size_t i = 0; i < helpers; ++i) {
+        m_workers.reserve(num_ranks);
+        for (std::size_t i = 0; i < num_ranks; ++i) {
             m_workers.push_back(std::make_unique<Worker>());
         }
-        for (std::size_t i = 0; i < helpers; ++i) {
+        for (std::size_t i = 0; i < num_ranks; ++i) {
             m_workers[i]->thread = std::thread([this, i] { worker_loop(i); });
         }
     }
@@ -51,9 +51,8 @@ public:
     }
 
     /// Calls `body(rank)` for every rank and returns once all of them have
-    /// finished. If several ranks throw, the first failure encountered is
-    /// rethrown and the rest are dropped -- the group is torn down either way,
-    /// and the first failure is the one that explains the others.
+    /// finished. If several ranks throw, the lowest rank's failure is rethrown
+    /// and the rest are dropped -- the group is torn down either way.
     void run(const std::function<void(std::size_t)>& body) {
         m_body = &body;
 
@@ -67,12 +66,6 @@ public:
         }
 
         std::exception_ptr first_error;
-        try {
-            body(0);
-        } catch (...) {
-            first_error = std::current_exception();
-        }
-
         for (auto& w : m_workers) {
             std::unique_lock<std::mutex> lock(w->mtx);
             w->cv.wait(lock, [&] { return !w->busy; });
@@ -110,7 +103,7 @@ private:
             try {
                 // m_body was published before busy was set under this same
                 // mutex, so acquiring it above is what makes it visible here.
-                (*m_body)(index + 1);
+                (*m_body)(index);
             } catch (...) {
                 w.error = std::current_exception();
             }
