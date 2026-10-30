@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "wget: unable to resolve host address 'apt.repos.intel.com': Name or service not known|Network",
+    "signature_hash": "874f21b28172b3ad",
+    "title": "Debian Packages job fails to resolve apt.repos.intel.com when fetching Intel GPG key",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-10-30T10:36:45Z",
+    "last_seen": "2026-10-30T10:36:45Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41032501501"
+    ],
+    "affected_commits": [
+        "eeeaa0d6e82862f2f78f14da55f436c24b4851e8"
+    ],
+    "recent_timestamps": [
+        "2026-10-30T10:36:45Z"
+    ]
+}

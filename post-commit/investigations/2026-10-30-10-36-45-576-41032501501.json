@@ -1,0 +1,42 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-30-10-36-45-576-41032501501",
+    "timestamp": "2026-10-30T10:36:45Z",
+    "run_id": "41032501501",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41032501501",
+    "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+    "commit_sha": "eeeaa0d6e82862f2f78f14da55f436c24b4851e8",
+    "pr_number": "39150",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39150",
+    "author": "byungilm",
+    "category": "Network",
+    "title": "Debian Packages job fails to resolve apt.repos.intel.com when fetching Intel GPG key",
+    "signature": "wget: unable to resolve host address 'apt.repos.intel.com': Name or service not known|Network",
+    "signature_hash": "874f21b28172b3ad",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Debian Packages / Debian Packages",
+            "conclusion": "failure",
+            "symptom": "wget fails to resolve apt.repos.intel.com while downloading the Intel GPU GPG key, aborting apt repo setup with exit code 4"
+        },
+        {
+            "name": "ci/gha_overall_status_ubuntu_24",
+            "conclusion": "failure",
+            "symptom": "Overall status job fails because the Debian Packages job it depends on failed"
+        }
+    ],
+    "key_errors": [
+        "2026-10-30T09:47:58.1106226Z --2026-10-30 09:47:58--  https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB\n2026-10-30T09:48:22.1617899Z Resolving apt.repos.intel.com (apt.repos.intel.com)... failed: Name or service not known.\n2026-10-30T09:48:22.1618754Z wget: unable to resolve host address 'apt.repos.intel.com'\n2026-10-30T09:48:22.1668779Z ##[error]Process completed with exit code 4."
+    ],
+    "root_cause": "The Debian Packages job runs inside a container that fetches the Intel GPU driver APT repository GPG key from apt.repos.intel.com via wget as part of setting up the Intel compute-runtime/level-zero package sources. DNS resolution for apt.repos.intel.com failed inside the build container (took ~24s before failing, consistent with a transient DNS/network outage or egress-proxy hiccup rather than a persistent block), causing wget to exit with code 4 and aborting the whole job. The re-run attempt (run_attempt 2) shows the same job back in progress, consistent with a transient external network blip rather than a code or configuration regression; the merged PR #39150 only touches GPU convolution kernel code and is unrelated to this failure.",
+    "reproduction_steps": "N/A - not reliably reproducible locally; requires the same containerized CI network path hitting apt.repos.intel.com at the time of the outage. To approximate: run the Debian Packages job container and execute `wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB` during a simulated DNS outage.",
+    "recommended_actions": [
+        "Re-run the failed Debian Packages job (already automatically retried as run_attempt 2 per GitHub Actions' native retry behavior)",
+        "Add retry/backoff logic (e.g. wget --tries=3 --waitretry=5 or curl --retry) around the apt.repos.intel.com GPG key fetch step instead of a single attempt",
+        "Consider mirroring/caching the Intel GPG key as a repository secret or artifact to remove the runtime dependency on apt.repos.intel.com availability",
+        "If this recurs frequently, add apt.repos.intel.com to the CI network/proxy allowlist audit, alongside the already-tracked archive.ubuntu.com and github.com DNS patterns"
+    ],
+    "prevention_strategies": "Wrap external package/key download steps in CI with retry-with-backoff wrappers (wget --tries / curl --retry) rather than failing fast on first DNS hiccup. Where feasible, vendor or cache small static artifacts (like GPG keys) in-repo or as a build cache to eliminate the external network dependency entirely.",
+    "historical_context": "This is a new, distinct DNS-resolution signature for apt.repos.intel.com (Intel GPU driver repo), not previously recorded. Related but separate Network patterns already tracked in this knowledge base include DNS failures resolving archive.ubuntu.com (pattern 23eeaa0c051f425e, 'File has unexpected size') and github.com (pattern eeae3ce3f5218e80, 'Could not resolve host: github.com'), both external-DNS/network transients unrelated to code changes."
+}
