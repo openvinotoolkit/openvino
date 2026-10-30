@@ -589,22 +589,10 @@ TEST(GGUFAdaptToGenAI, FixesEmbdAxisStructurally) {
 
     ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
 
-    // The original Unsqueeze(axis=0) node was replaced; find its successor by name (the
-    // replacement copies it) and confirm the new axis is 1, fed by the same Gather.
-    std::shared_ptr<ov::Node> fixed_embd;
-    for (const auto& op : m.model->get_ordered_ops()) {
-        if (op->get_friendly_name() == "Unsqueeze_test_embd") {
-            fixed_embd = op;
-            break;
-        }
-    }
-    ASSERT_NE(fixed_embd, nullptr);
-    ASSERT_EQ(fixed_embd->get_type_name(), std::string("Unsqueeze"));
-    EXPECT_EQ(fixed_embd->input_value(0), embd_gather_input);  // still the same Gather, unchanged
-
-    auto axis_const = ov::as_type_ptr<v0::Constant>(fixed_embd->input_value(1).get_node_shared_ptr());
-    ASSERT_NE(axis_const, nullptr);
-    EXPECT_EQ(axis_const->cast_vector<int64_t>(), std::vector<int64_t>({1}));
+    const auto logits = ov::as_type_ptr<v1::ReduceSum>(m.model->get_results()[0]->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(logits, nullptr);
+    EXPECT_EQ(logits->input_value(0), embd_gather_input);
+    EXPECT_EQ(embd_gather_input.get_partial_shape(), ov::PartialShape({-1, -1, 2}));
 }
 
 // Regression test for the BLOCKER FixEmbdAxis's name-only matcher used to miss: Gemma4 has a

@@ -52,6 +52,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "pass/simplify_activation_shapes.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::pass {
@@ -775,6 +776,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (!uses_ids)
             model->remove_parameter(input_ids);
     }
+    ov::pass::Manager activation_shapes_manager;
+    activation_shapes_manager.register_pass<SimplifyActivationShapes>();
+    activation_shapes_manager.run_passes(model);
     return true;
 }
 

@@ -118,6 +118,9 @@ public:
     bool has_hadamard() const {
         return m_hadamard_block != 0;
     }
+    bool has_grouped_hadamard_gdn() const {
+        return m_hadamard_v_heads > 0;
+    }
     void inherit_hadamard(const std::string& name, const std::string& source);
 
 private:

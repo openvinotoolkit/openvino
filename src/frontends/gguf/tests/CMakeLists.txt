@@ -27,8 +27,10 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/pass/adapt_to_genai.cpp"
     "${FE_SRC_DIR}/pass/adapt_mmproj_to_genai.cpp"
     "${FE_SRC_DIR}/pass/lower_set_rows_stateless.cpp"
+    "${FE_SRC_DIR}/pass/isolate_precision_sensitive_outputs.cpp"
     "${FE_SRC_DIR}/pass/make_stateful.cpp"
     "${FE_SRC_DIR}/pass/prune_orphaned_parameters.cpp"
+    "${FE_SRC_DIR}/pass/simplify_activation_shapes.cpp"
     "${FE_SRC_DIR}/tokenizer_metadata.cpp"
     "${FE_SRC_DIR}/quant/gguf.cpp"
     "${FE_SRC_DIR}/quant/gguf_quants.cpp"
@@ -118,9 +120,12 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_ops.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_gdn_normalization.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_isolate_precision_sensitive_outputs.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_parser.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_shared_linear_inputs.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_simplify_activation_shapes.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_hadamard_sign_folding.cpp"
 )
 
