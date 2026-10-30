@@ -9,6 +9,7 @@ namespace auto_plugin {
 thread_local WorkerInferRequest* Schedule::m_this_worker_infer_request = nullptr;
 // TODO: revert to the plain variable (see header file), when we moved to the next CentOS 8.x in our support matrix
 thread_local const char* Schedule::m_this_preferred_device_name = "";
+thread_local std::exception_ptr Schedule::m_this_scheduling_exception = nullptr;
 
 void Schedule::launch(const ScheduleContext::Ptr& context) {
     m_context = context;
@@ -89,7 +90,14 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
         (m_context->m_device_priorities.end() == it_numrequests || it_numrequests->num_requests_per_devices == -1)
             ? optimal_num
             : it_numrequests->num_requests_per_devices;
-    num_requests = (num_requests == 1) ? 2 : num_requests;
+    if (m_context->m_dynamic_device_selection) {
+        // inference is serialized per compiled model in this mode, so a single worker per device is enough and it
+        // guarantees the device carries no other inference when the next target device is re-selected
+        num_requests = 1;
+        LOG_DEBUG_TAG("device:%s, worker infer request number:%d", device.c_str(), static_cast<int>(num_requests));
+    } else {
+        num_requests = (num_requests == 1) ? 2 : num_requests;
+    }
     auto& worker_requests = m_worker_requests[device];
     auto& idle_worker_requests = m_idle_worker_requests[device];
     worker_requests.resize(num_requests);
@@ -132,7 +140,12 @@ void Schedule::generate_workers(const std::string& device, const SoCompiledModel
                         stop_retry_and_continue();
                     }
                     // try to return the request to the idle list (fails if the overall object destruction has began)
-                    if (idleGuard.release()->try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr))) {
+                    bool returned_to_idle =
+                        idleGuard.release()->try_push(std::make_pair(worker_request_ptr->m_index, worker_request_ptr));
+                    if (m_context->m_dynamic_device_selection) {
+                        // released unconditionally, otherwise queued requests would hang once destruction has began
+                        release_execution_slot();
+                    } else if (returned_to_idle) {
                         // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
                         // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
                         ov::threading::Task t;
@@ -206,26 +219,48 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     // by default, no preferred device:
                     m_this_preferred_device_name = "";
                     auto compiled_model = m_context->m_compiled_model.lock();
-                    // if any input is remote (e.g. was set with set_tensor), let' use the corresponding device
+                    auto find_remote_device = [this](const ov::SoPtr<ov::ITensor>& tensor) -> const char* {
+                        auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr);
+                        if (!remote_tensor) {
+                            return nullptr;
+                        }
+                        const auto name = remote_tensor->get_device_name();
+                        auto matches = [&name](const DeviceInformation& d) {
+                            return (d.default_device_id.empty() ? d.device_name
+                                                                : (d.device_name + "." + d.default_device_id)) == name;
+                        };
+                        const auto res = std::find_if(m_context->m_device_priorities_initial.cbegin(),
+                                                      m_context->m_device_priorities_initial.cend(),
+                                                      matches);
+                        if (res != m_context->m_device_priorities_initial.cend()) {
+                            // it is ok to take the c_str() here (as pointed in the schedule.hpp we need to use
+                            // const char*) as the original strings are from the "persistent" vector (with the right
+                            // lifetime)
+                            return res->device_name.c_str();
+                        }
+                        // the low power device can sit outside the candidates, it is only used when a tensor pins it
+                        const auto& low_power = m_context->m_low_power_device;
+                        if (low_power && !m_context->m_low_power_device_unavailable && matches(*low_power)) {
+                            return low_power->device_name.c_str();
+                        }
+                        OPENVINO_THROW("None of the devices supports a remote tensor created on the device named ",
+                                       name);
+                    };
+                    // if any input is remote (e.g. was set with set_tensor), let's use the corresponding device
                     for (const auto& it : compiled_model->inputs()) {
-                        auto tensor = infer_request->get_tensor(it);
-                        if (auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr)) {
-                            const auto name = remote_tensor->get_device_name();
-                            const auto res = std::find_if(
-                                m_context->m_device_priorities_initial.cbegin(),
-                                m_context->m_device_priorities_initial.cend(),
-                            [&name](const DeviceInformation & d) {
-                                return (d.default_device_id.empty() ? d.device_name : (d.device_name + "." +
-                                        d.default_device_id)) == name;
-                            });
-                            if (m_context->m_device_priorities_initial.cend() == res) {
-                                OPENVINO_THROW(
-                                    "None of the devices supports a remote tensor created on the device named ", name);
-                            } else {
-                                // it is ok to take the c_str() here (as pointed in the schedule.hpp we need to use const char*)
-                                // as the original strings are from the "persistent" vector (with the right lifetime)
-                                m_this_preferred_device_name = res->device_name.c_str();
-                                break;
+                        if (const char* device = find_remote_device(infer_request->get_tensor(it))) {
+                            m_this_preferred_device_name = device;
+                            break;
+                        }
+                    }
+                    if (m_context->m_dynamic_device_selection) {
+                        // the target device is re-selected per inference, so a remote output pins the request as well
+                        for (const auto& it : compiled_model->outputs()) {
+                            if (const char* device = find_remote_device(infer_request->get_tensor(it))) {
+                                OPENVINO_ASSERT(m_this_preferred_device_name[0] == '\0' ||
+                                                    std::string(m_this_preferred_device_name) == device,
+                                                "Remote tensors of the inputs and outputs are created on different devices");
+                                m_this_preferred_device_name = device;
                             }
                         }
                     }
@@ -234,9 +269,19 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
             // then sets the device-agnostic tensors to the actual (device-specific) request
             Stage {
                 /*TaskExecutor*/std::dynamic_pointer_cast<ov::threading::ITaskExecutor>(shared_from_this()), /*task*/ [&infer_request, worker_infer_request]() {
+                    if (m_this_scheduling_exception) {
+                        auto scheduling_exception = m_this_scheduling_exception;
+                        m_this_scheduling_exception = nullptr;
+                        std::rethrow_exception(scheduling_exception);
+                    }
                     *worker_infer_request = m_this_worker_infer_request;
                     auto auto_request = std::dynamic_pointer_cast<InferRequest>(infer_request);
-                    auto_request->set_tensors_to_another_request(m_this_worker_infer_request->m_inferrequest);
+                    try {
+                        auto_request->set_tensors_to_another_request(m_this_worker_infer_request->m_inferrequest);
+                    } catch (...) {
+                        m_this_worker_infer_request->m_dispatch_failed = true;
+                        throw;
+                    }
                     INFO_RUN([worker_infer_request]() {
                         (*worker_infer_request)->m_start_times.push_back(std::chrono::steady_clock::now());
                         });
@@ -299,7 +344,7 @@ Schedule::~Schedule() {
                     LOG_INFO_TAG("%s: first inference time:%lf ms",
                                  worker_request.first.c_str(),
                                  first_infer_duration.count());
-                    LOG_INFO_TAG("%s:infer:%ld", worker_request.first.c_str(), count);
+                    LOG_INFO_TAG("%s:infer:%zu", worker_request.first.c_str(), count);
                     std::chrono::duration<double, std::milli> durtation =
                         req_all_end_times.back() - time;
                     LOG_INFO_TAG("%s:fps:%lf", worker_request.first.c_str(),
