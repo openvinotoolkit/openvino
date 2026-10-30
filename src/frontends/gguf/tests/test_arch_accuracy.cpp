@@ -34,6 +34,7 @@
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -562,6 +563,15 @@ TEST(GGUFHadamardTypes, ConstantsAreSharedWithinEachConversion) {
     auto input_model = frontend.load(temporary.path);
     const auto first = frontend.convert(input_model);
     const auto second = frontend.convert(input_model);
+    for (const auto& model : {first, second}) {
+        for (const auto& node : model->get_ops()) {
+            if (const auto gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(node)) {
+                EXPECT_EQ(gdn->get_input_partial_shape(0)[2], 2);
+                EXPECT_EQ(gdn->get_input_partial_shape(1)[2], 2);
+                EXPECT_EQ(gdn->get_input_partial_shape(2)[2], 4);
+            }
+        }
+    }
     const auto rotation_constants = [](const std::shared_ptr<ov::Model>& model) {
         std::set<ov::Node*> constants;
         size_t stages = 0;
