@@ -5,13 +5,16 @@ OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. Wh
 ## Remote tensor sample
 
 The [Hello Remote Tensor C++ sample](../../../../samples/cpp/hello_remote_tensor/README.md)
-demonstrates image classification with GPU input and output buffers shared with
-Level Zero and explicit Level Zero memory transfers. It is also listed in the
+demonstrates how to integrate OpenVINO into an existing Level Zero application: GPU input and
+output buffers are shared with Level Zero and data transfers are done with Level Zero. It is
+also listed in the
 [OpenVINO samples](../../../../docs/articles_en/get-started/learn-openvino/openvino-samples/hello-remote-tensor.rst).
-On drivers with Level Zero - OpenCL
-interoperability (LEO), the default GPU context is an OpenCL context; the sample then gets
+The plugin does not expose a dedicated Level Zero remote context, so the sample relies on
+Level Zero - OpenCL interoperability (LEO): it converts the plugin's default OpenCL context to
 the underlying Level Zero context with a single `clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)`
-query.
+query. This works with any plugin runtime (`OCL`, `ZE`, `COMBINED`). The `ZE` context type is
+an edge case for the Level Zero plugin running on a driver without LEO; the sample then uses its
+native handle directly.
 
 ## How to build with Level Zero support
 

@@ -128,8 +128,9 @@ ze_context_handle_t get_level_zero_context(const ov::AnyMap& context_params) {
     }
     OPENVINO_ASSERT(type == ov::intel_gpu::ContextType::OCL, "Unsupported GPU context type: ", type);
 
-    // With LEO the GPU plugin runs on Level Zero but its default context is an OpenCL context created
-    // on top of the plugin's Level Zero context. This is the only OpenCL call in the sample.
+    // Without a dedicated Level Zero remote context in OpenVINO, the plugin's default context is an OpenCL
+    // context. Level Zero - OpenCL interoperability (LEO) of the driver converts it to the underlying Level Zero
+    // context. This is the only OpenCL call in the sample.
     ze_context_handle_t ze_context = nullptr;
     const cl_int result = clGetContextInfo(static_cast<cl_context>(handle),
                                            cl_l0_context_handle,
@@ -137,9 +138,9 @@ ze_context_handle_t get_level_zero_context(const ov::AnyMap& context_params) {
                                            &ze_context,
                                            nullptr);
     OPENVINO_ASSERT(result == CL_SUCCESS && ze_context != nullptr,
-                    "Cannot get a Level Zero context from the GPU plugin's OpenCL context (OpenCL error ",
+                    "Cannot convert the GPU plugin's OpenCL context to a Level Zero context (OpenCL error ",
                     result,
-                    "). The driver does not support Level Zero - OpenCL interoperability (LEO).");
+                    "). The GPU driver does not support Level Zero - OpenCL interoperability (LEO).");
     return ze_context;
 }
 
@@ -177,7 +178,8 @@ int tmain(int argc, tchar* argv[]) {
         ov::Core core;
 
         // -------- Step 2. Get the Level Zero context of the GPU plugin --------
-        // The default context is ZE, or OCL on drivers with Level Zero - OpenCL interoperability (LEO).
+        // The default context is an OpenCL context converted through LEO; a ZE context is the edge case of the
+        // Level Zero plugin on a driver without LEO.
         auto context = core.get_default_context(device_name);
         const auto ze_context = get_level_zero_context(context.get_params());
 

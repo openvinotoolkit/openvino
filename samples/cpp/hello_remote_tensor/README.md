@@ -1,9 +1,14 @@
 # Hello Remote Tensor C++ Sample
 
-This sample demonstrates image classification on an Intel GPU using the GPU plugin's
-Level Zero (ZE) runtime and Level Zero device memory. All GPU memory operations of the
-application use the Level Zero API. OpenCL is used for a single query only, on drivers with
-Level Zero - OpenCL interoperability (LEO), to get the Level Zero context of the plugin.
+This sample demonstrates how to integrate OpenVINO into an existing Level Zero application.
+It runs image classification on an Intel GPU with input and output tensors allocated in
+Level Zero device memory, and all GPU memory operations of the application use the
+Level Zero API. OpenVINO does not provide a dedicated Level Zero remote context; the sample
+relies on Level Zero - OpenCL interoperability (LEO) of the GPU driver: it takes the GPU
+plugin's default OpenCL context and converts it to the underlying Level Zero context with a
+single `clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)` query. USM device pointers of the
+remote tensors are valid in both APIs, so no further conversion is needed. The sample works
+with any GPU plugin runtime (`GPU_RT_TYPE=OCL`, `ZE` or `COMBINED`).
 It follows the structure of the
 [Hello Classification C++ sample](../hello_classification/README.md), but the input
 and output of the infer request are remote tensors allocated in GPU device memory.
@@ -18,19 +23,21 @@ For more detailed information on how this sample works, check the dedicated [art
 | Options                     | Values                                                                                           |
 | ----------------------------| -------------------------------------------------------------------------------------------------|
 | Model Format                | OpenVINO™ toolkit Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)                  |
-| Supported devices           | GPU with the Level Zero runtime (`GPU`, `GPU.0`, ...)                                            |
+| Supported devices           | GPU (`GPU`, `GPU.0`, ...)                                                                        |
 
-- An Intel GPU and a compatible Level Zero GPU driver.
-- OpenVINO with the experimental Level Zero GPU plugin (`GPU_RT_TYPE=ZE`, or
-  `GPU_RT_TYPE=COMBINED` when Level Zero is selected for the device).
-- On drivers without LEO, the default GPU context is a Level Zero context
-  (`ov::intel_gpu::ContextType::ZE`) and the sample uses its handle directly.
-  On drivers with LEO, the plugin still runs on Level Zero, but its default context is an
-  OpenCL context created on top of the plugin's Level Zero context. The sample gets that
-  Level Zero context with `clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)`. If the query
-  fails, for example because the device is served by the OpenCL runtime on a driver
-  without LEO, the sample reports an error.
+- An Intel GPU with a driver that provides Level Zero - OpenCL interoperability (LEO), that
+  is, a driver where an OpenCL context can be queried for its Level Zero context with
+  `clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)`. If the query fails, the sample
+  reports an error.
+- OpenVINO with the GPU plugin, built with any runtime. The default remote context is an
+  OpenCL context (`ov::intel_gpu::ContextType::OCL`), which the sample converts through LEO.
+  Only in the edge case of the Level Zero plugin (`GPU_RT_TYPE=ZE` or `COMBINED`) running on
+  a driver without LEO, the default context is already a Level Zero context
+  (`ov::intel_gpu::ContextType::ZE`) and its handle is used directly.
 - OpenCL headers and the OpenCL ICD loader library.
+- Level Zero headers to build, and the Level Zero loader library in the system at runtime
+  (for example the `libze1` package on Ubuntu, or the loader shipped with the GPU driver
+  on Windows).
 
 The following C++ API is used in the application:
 
@@ -51,7 +58,7 @@ The following C++ API is used in the application:
 |                           | ``zeCommandListCreateImmediate``,                              | between host staging memory and device memory                       |
 |                           | ``zeCommandListAppendMemoryCopy``,                             |                                                                     |
 |                           | ``zeCommandListHostSynchronize``, ``zeMemAllocHost``           |                                                                     |
-| OpenCL (LEO only)         | ``clGetContextInfo`` with ``CL_L0_CONTEXT_HANDLE``             | Get the Level Zero context underlying the plugin's OpenCL context   |
+| OpenCL (LEO)              | ``clGetContextInfo`` with ``CL_L0_CONTEXT_HANDLE``             | Convert the plugin's OpenCL context to its Level Zero context       |
 
 ## Build and run
 
@@ -76,11 +83,12 @@ top 10 classification results and returns a nonzero exit code on failure.
 ## What the sample demonstrates
 
 1. Initialize Level Zero with `zeInitDrivers` and create `ov::Core`.
-2. Obtain the plugin's default remote context and its Level Zero context. For a `ZE`
-   context, the current API exposes the native `ze_context_handle_t` under the legacy
-   `ov::intel_gpu::ocl_context` property. For an `OCL` context (LEO), the same property
-   holds a `cl_context`, and the sample queries its Level Zero context with
-   `clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)`.
+2. Obtain the plugin's default remote context and convert it to a Level Zero context. The
+   default context is an `OCL` context whose `cl_context` is exposed under the
+   `ov::intel_gpu::ocl_context` property; the sample converts it with the LEO query
+   `clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)`. In the edge case of a `ZE` context
+   (Level Zero plugin on a driver without LEO), the same property already holds the native
+   `ze_context_handle_t`.
 3. Read the model and the image, and configure preprocessing as in Hello Classification.
 4. Compile the model in the Level Zero context.
 5. Allocate input and output remote tensors using `USM_DEVICE_BUFFER` and obtain
@@ -97,8 +105,7 @@ top 10 classification results and returns a nonzero exit code on failure.
 
 The sample tests check invalid arguments without requiring a GPU. Set
 `IE_APP_PATH` to the directory containing the executable. Enable the
-classification tests explicitly on a machine where the GPU is served by the Level Zero
-runtime:
+classification tests explicitly on a machine with an Intel GPU and a LEO-capable driver:
 
 ```sh
 cd tests/samples_tests/smoke_tests

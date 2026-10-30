@@ -7,14 +7,19 @@ Hello Remote Tensor Sample
                  using Level Zero remote tensors (C++).
 
 
-This sample demonstrates image classification on an Intel GPU with input and
-output tensors allocated in Level Zero device memory. Requirements:
+This sample demonstrates how to integrate OpenVINO into an existing Level Zero
+application. It runs image classification on an Intel GPU with input and output
+tensors allocated in Level Zero device memory. OpenVINO does not provide a
+dedicated Level Zero remote context, so the sample uses Level Zero - OpenCL
+interoperability (LEO) of the GPU driver to convert the GPU plugin's OpenCL
+context to its Level Zero context. Requirements:
 
-- An Intel GPU with a driver that provides the Level Zero runtime.
-- OpenVINO built with the experimental Level Zero GPU plugin
-  (``GPU_RT_TYPE=ZE`` or ``GPU_RT_TYPE=COMBINED``).
+- An Intel GPU with a driver that supports LEO.
+- OpenVINO with the GPU plugin, built with any runtime (``GPU_RT_TYPE=OCL``,
+  ``ZE`` or ``COMBINED``).
 - Level Zero and OpenCL development files. CMake skips this sample if either
-  is missing.
+  is missing. At runtime, the Level Zero loader library must be installed in
+  the system (for example, the ``libze1`` package on Ubuntu).
 - A model with one input and one output, in any format supported by
   ``ov::Core::read_model``.
 - A directly selected GPU device, for example ``GPU`` or ``GPU.0``.
@@ -26,11 +31,15 @@ How It Works
 ####################
 
 The sample is a Level Zero variant of :doc:`Hello Classification <hello-classification>`.
-It compiles the model in the GPU plugin's default remote context, creates
-``USM_DEVICE_BUFFER`` remote tensors for the input and output, and moves data
-between host and device memory with a Level Zero command list. On drivers with
-Level Zero - OpenCL interoperability (LEO), the default context is an OpenCL
-context, so the underlying Level Zero context is queried with ``clGetContextInfo``.
+It takes the GPU plugin's default remote context, which is an OpenCL context,
+and converts it to the underlying Level Zero context with the LEO query
+``clGetContextInfo(..., CL_L0_CONTEXT_HANDLE, ...)``. Then it compiles the model
+in that context, creates ``USM_DEVICE_BUFFER`` remote tensors for the input and
+output, and moves data between host and device memory with a Level Zero command
+list. USM device pointers of the remote tensors are shared by OpenCL and Level
+Zero, so they need no conversion. Only when the Level Zero GPU plugin runs on a
+driver without LEO, the default context is already a Level Zero context
+(``ov::intel_gpu::ContextType::ZE``) and is used directly.
 
 .. tab-set::
 
