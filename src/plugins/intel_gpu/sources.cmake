@@ -172,6 +172,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fc_per_layer_scaling.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fold_activation_transpose.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fold_rms_transposes.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/force_fp32_selective.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_atan2_decomposed.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_avg_down.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/fuse_grouped_depth_to_space.cpp

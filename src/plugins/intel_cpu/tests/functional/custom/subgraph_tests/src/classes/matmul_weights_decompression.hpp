@@ -78,5 +78,10 @@ protected:
     void check_results();
 };
 
+class MatmulWeightsDecompressionU3SymmetricZp : public MatmulWeightsDecompression {
+protected:
+    void SetUp() override;
+};
+
 }  // namespace test
 }  // namespace ov

@@ -6,6 +6,7 @@
 
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "u3_symmetric_zero_point.hpp"
 
 using namespace CPUTestUtils;
 
@@ -159,6 +160,17 @@ void MatmulWeightsDecompression::check_results() {
 }
 
 TEST_P(MatmulWeightsDecompression, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    run();
+    check_results();
+}
+
+void MatmulWeightsDecompressionU3SymmetricZp::SetUp() {
+    MatmulWeightsDecompression::SetUp();
+    make_u3_symmetric_zero_points(function);
+}
+
+TEST_P(MatmulWeightsDecompressionU3SymmetricZp, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
     check_results();
