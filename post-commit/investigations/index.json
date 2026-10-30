@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 56,
+  "total": 57,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -571,6 +571,17 @@
       "category": "Network",
       "signature_hash": "874f21b28172b3ad",
       "commit_sha": "eeeaa0d6e82862f2f78f14da55f436c24b4851e8"
+    },
+    {
+      "investigation_id": "2026-10-30-14-31-57-409-41065640766",
+      "run_id": "41065640766",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41065640766",
+      "workflow_name": "OpenVINO JS API (24) / OpenVINO JS API",
+      "timestamp": "2026-10-30T14:31:57Z",
+      "title": "OpenVINO JS API tests fail downloading test model from raw.githubusercontent.com (30s timeout)",
+      "category": "Network",
+      "signature_hash": "6519f63a719d4f66",
+      "commit_sha": "b21f60cdc1a77a9628e2cf3a23f386df3edaf85a"
     }
   ]
 }

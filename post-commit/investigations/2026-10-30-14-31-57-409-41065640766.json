@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-30-14-31-57-409-41065640766",
+  "timestamp": "2026-10-30T14:31:57Z",
+  "run_id": "41065640766",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41065640766",
+  "workflow_name": "OpenVINO JS API (24) / OpenVINO JS API",
+  "commit_sha": "b21f60cdc1a77a9628e2cf3a23f386df3edaf85a",
+  "pr_number": "39290",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39290",
+  "author": "jkoniusz",
+  "category": "Network",
+  "title": "OpenVINO JS API tests fail downloading test model from raw.githubusercontent.com (30s timeout)",
+  "signature": "openvino js api test setup fails downloading test model from raw.githubusercontent.com: request timed out after 30000 ms|Network",
+  "signature_hash": "6519f63a719d4f66",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (24) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "tests/setup.js failed to download test_model_fp32.xml from raw.githubusercontent.com, causing an unhandled promise rejection and exit code 1"
+    }
+  ],
+  "key_errors": [
+    "Downloading file by link: https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml to /__w/openvino/openvino/src/bindings/js/node/tests/unit/test_models with filename: test_model_fp32.xml",
+    "Failed to download the model: Request was timed out after 30000 ms..",
+    "UnhandledPromiseRejection: This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason \"Request was timed out after 30000 ms.\".",
+    "code: 'ERR_UNHANDLED_REJECTION'"
+  ],
+  "root_cause": "The JS API test setup script (src/bindings/js/node/tests/setup.js) downloads test model files from raw.githubusercontent.com at test time. This request exceeded the hardcoded 30-second timeout, most likely due to transient GitHub raw-content CDN latency/throttling rather than any change in this commit (which only touches an unrelated notification script). Because the download promise's rejection is not wrapped in a try/catch (or .catch handler), Node.js treats it as an unhandled promise rejection and crashes the whole test run with exit code 1 instead of retrying or failing just the affected test.",
+  "reproduction_steps": "cd src/bindings/js/node && npm run test_setup (repeatedly, or with a throttled/blocked network route to raw.githubusercontent.com) to reproduce the timeout; the crash itself can be reproduced with any rejected download promise since tests/setup.js has no retry/catch logic.",
+  "recommended_actions": [
+    "Wrap the model download call in tests/setup.js in a try/catch (or add a .catch handler) so a failed download produces a clear test failure instead of an unhandled promise rejection crash.",
+    "Add retry logic (e.g., 2-3 attempts with backoff) around the raw.githubusercontent.com download in tests/setup.js, since CDN timeouts are expected to be transient.",
+    "Consider increasing the 30000 ms timeout or caching the test model artifact (e.g., via actions/cache) to avoid depending on live network access to GitHub's raw content CDN on every run.",
+    "Re-run the OpenVINO JS API workflow; no code fix is required to unblock master given this is an unrelated-commit transient network failure."
+  ],
+  "prevention_strategies": "Add network-call resiliency (timeout + retry + explicit error handling) to any CI step that downloads external resources at test time, and prefer committing/caching small fixed test assets instead of fetching them from a remote CDN on every run.",
+  "historical_context": "This is the first recorded occurrence of this specific signature (raw.githubusercontent.com testdata download timeout in the JS API test setup). Other Network-category patterns in the database cover different external dependencies (apt mirrors, HuggingFace Hub, artifact upload, DNS resolution), confirming this is a distinct, isolated external-service timeout rather than a recurring known issue."
+}
