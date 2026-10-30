@@ -212,7 +212,8 @@ inline LegacyEmbeddingBoundaries resolve_legacy_embedding_boundaries(const std::
 
 inline bool resolve_legacy_genai_adaptation(const std::shared_ptr<ov::Model>& model) {
     for (const auto& parameter : model->get_parameters()) {
-        if (parameter->get_friendly_name() == "dspark_ctx_feat")
+        if (parameter->get_friendly_name() == "dspark_ctx_feat" ||
+            parameter->output(0).get_names().count("dspark_ctx_feat"))
             return false;
     }
     return true;

@@ -1559,6 +1559,13 @@ TEST(GGUFAdaptToGenAI, UnsupportedAdaptationUsesDeclaredCapabilityBeforeAndAfter
     auto legacy = build_minimal_gguf_model().model;
     legacy->add_parameters({ov::test::utils::make_param(ov::element::f32, {1}, "dspark_ctx_feat")});
     EXPECT_FALSE(AdaptToGenAI().run_on_model(ov_gguf_test::reload_ir_model(legacy)));
+
+    auto aliased = build_minimal_gguf_model().model;
+    auto context = ov::test::utils::make_param(ov::element::f32, {1}, "renamed_context");
+    context->output(0).set_names({"dspark_ctx_feat"});
+    aliased->add_parameters({context});
+    EXPECT_FALSE(ov::frontend::gguf::read_model_contract(aliased).supports_genai_adaptation.value());
+    EXPECT_FALSE(AdaptToGenAI().run_on_model(ov_gguf_test::reload_ir_model(aliased)));
 }
 
 TEST(GGUFAdaptToGenAI, ModelContractSurvivesIRReloadBeforeAdaptation) {
