@@ -4,6 +4,12 @@
 
 #include "openvino/reference/fake_convert.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
+#include "openvino/core/type/float8_e4m3.hpp"
+
 namespace ov {
 namespace reference {
 namespace func {
@@ -65,82 +71,20 @@ void emulate_f8e5m2_on_fp16(const float16* const arg_f, float16* out_f, size_t c
  * @param count       Number of elements in the data input.
  * @param use_clamp   If use clamp.
  *
- * Exponent denormal values 0 -7
- * Exponent normal values 1..15 -6..8 (7 - exponent)
- * Exponent NaN values 15 8
- *
+ * Rounds to nearest even via ov::float8_e4m3. With use_clamp, finite values and infinities saturate to +-448,
+ * otherwise they overflow to NaN (f8e4m3 has no infinity). NaN stays NaN.
  */
 void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count, bool use_clamp) {
-    const auto arg_u = reinterpret_cast<const uint16_t*>(arg_f);
-    auto out_u = reinterpret_cast<uint16_t*>(out_f);
-    uint16_t val_bit_repr;
-
-    constexpr auto exp_bits = 5;
-    constexpr auto mbits = 9;
-    constexpr auto non_mant_bits = exp_bits + 1;  /// exponent + sign
-    constexpr auto lshift = 10 - (mbits - non_mant_bits);
-    constexpr auto fp16_exp_bias = 15;
-    constexpr auto f8e4m3_min_val = 0.001953125f;  /// 2**-9
-
-    constexpr uint16_t mask_mant = static_cast<uint16_t>(0xFFFF << lshift);  /// 1111111111111111 -> 1 11111 1111000000
-    constexpr uint16_t grs_bitmask = 0x007F;  /// 0 00000 0001111111, grs denotes guard, round, sticky bits
-    constexpr uint16_t rne_tie = 0x00C0;      /// 0 00000 0011000000, rne denotes round to nearest even
-    constexpr uint16_t rne_mask = 1;
-    constexpr uint16_t fp16_inf = 0x7C00;
+    const auto f8e4m3_max = static_cast<float>(std::numeric_limits<float8_e4m3>::max());
 
     for (size_t i = 0; i < count; ++i) {
-        val_bit_repr = arg_u[i];
-        /* flush values below 1-4-3 (offset=4) subnormal range to zero */
-        if (std::abs(static_cast<float>(arg_f[i])) < f8e4m3_min_val) {
-            val_bit_repr = 0;
+        // f16 -> f32 is exact, so float8_e4m3 rounds the f16 value itself (nearest even, subnormals and sign kept).
+        auto value = static_cast<float>(arg_f[i]);
+        if (use_clamp && !std::isnan(value)) {
+            value = std::clamp(value, -f8e4m3_max, f8e4m3_max);
         }
-
-        short exp_h = static_cast<short>((val_bit_repr & fp16_inf) >> 10) -
-                      fp16_exp_bias;  /// 0111110000000000 -> 0000000000011111 - 15, biased exponent for fp16
-        const short sign_h = (val_bit_repr & 0x8000);  /// & 1 00000 0000000000
-        short mantissa_h = (val_bit_repr & 0x03FF);    /// & 0 00000 1111111111
-        ///(val_bit_repr && 0111111111111111) < 0 10010 1110000000 (19326)
-        const bool can_round = ((val_bit_repr & 0x7FFF) < 0b101111110000000) ? true : false;
-        bool is_naninf = ((val_bit_repr & fp16_inf) == fp16_inf) ? true : false;
-
-        int dshift = 0;
-        if (exp_h > 8) {  // too large, set it to NaN or inf
-            is_naninf = true;
-            if (use_clamp) {
-                exp_h = 8;
-                mantissa_h = 0b0000001100000000;
-            } else {
-                mantissa_h = 0;
-                exp_h = 16;
-            }
-        } else if (exp_h < -9) {  /// -13, -12, -11 for rounding
-            /* flush values below 1-4-3 (offset=4) subnormal range to zero */
-            exp_h = -15;
-            mantissa_h = 0;
-        }
-
-        if (exp_h == 8 && mantissa_h >= 0b0000001100000000) {
-            mantissa_h = 0b0000001100000000;
-        }
-        /* nearest rounding masks, & 0 00000 000 111 1111 - mantissa bits below f8e4m3 (grs) */
-        const uint16_t rnmask = (mantissa_h & grs_bitmask);
-        /* & 0 00000 0011000000 - edge between f8e4m3 and fp16 mantissa */
-        const uint16_t rnmask_tie = (mantissa_h & rne_tie);
-        if (!is_naninf && can_round && rne_mask) {
-            /* round to nearest even, if rne_mask is enabled */
-            /// rnmask > 0 00000 0001000000(64) or 0 00000 0011000000 - edge bits is 1
-            /// += 0 00000 0010000000
-            mantissa_h += (((rnmask > 0x0040) || (rnmask_tie == rne_tie)) << lshift);
-        }
-        if (exp_h < -6) { /* handle denormals -11, -10, -9, dshift 1, 2, 3 */
-            dshift = (-6 - exp_h);
-            mantissa_h = mantissa_h >> dshift;
-        }
-        mantissa_h &= mask_mant; /* truncation */
-        mantissa_h <<= dshift;
-        mantissa_h += ((exp_h + 15) << 10);
-        val_bit_repr = mantissa_h | sign_h;
-        out_u[i] = val_bit_repr;
+        // Every f8e4m3 value is exactly representable in f16.
+        out_f[i] = static_cast<float16>(static_cast<float>(float8_e4m3(value)));
     }
 }
 }  // namespace func
