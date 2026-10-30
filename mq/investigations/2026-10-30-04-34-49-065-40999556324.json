@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-30-04-34-49-065-40999556324",
+  "timestamp": "2026-10-30T04:34:49Z",
+  "run_id": "40999556324",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/40999556324",
+  "workflow_name": "NodeJS API tests / OpenVINO JS API",
+  "pr_number": "39318",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39318",
+  "author": "songbell",
+  "category": "Network",
+  "title": "OpenVINO JS API tests fail to download test model from raw.githubusercontent.com (request timed out)",
+  "signature": "request was timed out downloading test model from raw githubusercontent com|Network",
+  "signature_hash": "197368415f8ae13d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NodeJS API tests (26) / OpenVINO JS API",
+      "conclusion": "cancelled",
+      "symptom": "npm cache restore failed with getaddrinfo EAI_AGAIN against productionresultssa0.blob.core.windows.net, then the job was cancelled after a ~9 minute stall / overall workflow timeout"
+    },
+    {
+      "name": "NodeJS API tests (24) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "test_setup.js download of test_model_fp32.xml from raw.githubusercontent.com timed out after 30000 ms, causing an UnhandledPromiseRejection and process exit 1"
+    },
+    {
+      "name": "ci/gha_overall_status_manylinux_2_28",
+      "conclusion": "failure",
+      "symptom": "Aggregated status-check job failed because the two NodeJS API test jobs above failed/were cancelled"
+    }
+  ],
+  "key_errors": [
+    "2026-10-30T04:15:11.2113012Z Downloading file by link: https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml ...\n2026-10-30T04:15:16.3345255Z Failed to download the model: Request was timed out after 30000 ms..\n2026-10-30T04:15:17.3354093Z UnhandledPromiseRejection: ... The promise rejected with the reason \"Request was timed out after 30000 ms.\".",
+    "2026-10-30T04:15:40.9854165Z ##[warning]Failed to restore: getaddrinfo EAI_AGAIN productionresultssa0.blob.core.windows.net\n2026-10-30T04:15:40.9860893Z npm cache is not found\n2026-10-30T04:24:21.0768190Z ##[error]The operation was canceled."
+  ],
+  "root_cause": "Both NodeJS API test jobs failed due to transient outbound network connectivity problems in the CI runner environment, unrelated to the PR's actual code changes (src/plugins/intel_gpu GPU paged-attention kernel selection). Job 24 timed out fetching a test model fixture from raw.githubusercontent.com (DNS/network reachability or GitHub raw-content CDN slowness causing a 30s client-side timeout in tests/setup.js), and job 26 failed a slow/stalled npm actions-cache restore (getaddrinfo EAI_AGAIN against productionresultssa0.blob.core.windows.net, Azure Blob Storage used by the actions/cache backend) which then stalled until the step was cancelled after roughly 9 minutes. Neither failure touches the PR's changed files (paged_attention_opt.cpp / paged_attention_gpu_test.cpp), confirming this is infrastructure/network noise rather than a regression introduced by the PR.",
+  "reproduction_steps": "Not reliably reproducible locally; it depends on transient runner network conditions. To approximate: run `node ./tests/setup.js` in src/bindings/js/node with a throttled/blocked connection to raw.githubusercontent.com, or run `npm run test --loglevel=silly` on a runner with degraded connectivity to *.blob.core.windows.net (actions/setup-node's npm cache restore).",
+  "recommended_actions": [
+    "Re-run the failed merge-queue jobs; this is a transient network failure.",
+    "Consider raising the test_setup.js download timeout (currently 30000 ms) or adding a retry-with-backoff around the raw.githubusercontent.com fetch to reduce single-timeout flakiness (src/bindings/js/node/tests/setup.js).",
+    "Consider mirroring frequently-used test fixtures (test_model_fp32.xml) to an OpenVINO-controlled/faster artifact store instead of raw.githubusercontent.com to reduce dependency on GitHub raw CDN availability.",
+    "Monitor recurrence of the actions/cache 'getaddrinfo EAI_AGAIN productionresultssa0.blob.core.windows.net' failure across other workflows; if it recurs broadly it may indicate a GitHub Actions infrastructure incident rather than an OpenVINO-side issue."
+  ],
+  "prevention_strategies": "Add retry/backoff logic around external downloads performed during JS test setup, and treat actions/cache restore failures as non-fatal (cache miss) rather than letting them stall the job for minutes. Track recurrence of this signature in the pattern database; if it crosses the 3-in-12h threshold, escalate for infra investigation.",
+  "historical_context": "A similar but distinct JS API model-download failure (HTTP 503 from raw.githubusercontent.com, pattern ffd22b8ddfd9b602) was recorded once on 2026-09-17 (PR #38121, run 35243871525). This is the first recorded occurrence of a client-side 30s timeout (rather than a 503) for the same download step; both point to intermittent reliability issues with raw.githubusercontent.com as a test-fixture source."
+}
