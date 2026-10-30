@@ -224,11 +224,10 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
         _logger.debug("Update tensor property for input desc index: %u", desc.indexUsedByDriver);
         const auto& tensor = input_tensors.at(io_index).at(SINGLE_TENSOR);
-        size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
         dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                tensor->data(),
                                                tensor->get_shape(),
-                                               get_strides(tensor->get_strides(), elementSize));
+                                               MemRefType::getElementStrides(*tensor));
         ++io_index;
     }
 
@@ -236,11 +235,10 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     for (const auto& desc : _graph->get_metadata().outputs) {
         _logger.debug("Update tensor property for output desc index: %u", desc.indexUsedByDriver);
         const auto& tensor = output_tensors.at(io_index);
-        size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
         dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                tensor->data(),
                                                tensor->get_shape(),
-                                               get_strides(tensor->get_strides(), elementSize));
+                                               MemRefType::getElementStrides(*tensor));
         ++io_index;
     }
     _logger.debug("Initialization completed");
@@ -645,10 +643,9 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // This is the tensor with right shape and strides
     // The required check is already done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
-    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
     _command_list_group->updateMutableCommandList(index,
                                                   zeroTensor->data(),
-                                                  get_strides(tensor->get_strides(), elementSize),
+                                                  MemRefType::getElementStrides(*tensor),
                                                   tensor->get_shape());
     _logger.debug("update_graph_arguments - completed");
 }
@@ -665,12 +662,11 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // This is the tensor with right shape and strides
     // The required check is already done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
-    size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
     OPENVINO_ASSERT(batch_index == 0, "DynamicPipeline owns only one command-list group");
 
     _command_list_group->updateMutableCommandList(index,
                                                   zeroTensor->data(),
-                                                  get_strides(tensor->get_strides(), elementSize),
+                                                  MemRefType::getElementStrides(*tensor),
                                                   tensor->get_shape());
 }
 
