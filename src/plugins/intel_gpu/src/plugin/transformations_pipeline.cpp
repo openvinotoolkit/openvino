@@ -1977,6 +1977,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::ConstantsReduce>();
         manager.register_pass<ov::pass::MultiScaleDeformableAttnGridSampleFusion>();
+        manager.register_pass<ov::pass::SingleScaleDeformableAttnGridSampleFusion>();
 
         manager.register_pass<ov::intel_gpu::PreserveSingleSelectiveSSMOutput>();
 
