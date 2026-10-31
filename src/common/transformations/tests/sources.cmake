@@ -97,6 +97,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mvn_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nearest_neighbor_upsampling_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/ngraph_fq_transpose_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/ngram_hash_function_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nonzero_horizontal_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nop_elimination.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/normalize_l2_fusion_test.cpp

@@ -390,6 +390,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/mvn.h
     ${CPU_SRC_DIR}/nodes/ngram.cpp
     ${CPU_SRC_DIR}/nodes/ngram.h
+    ${CPU_SRC_DIR}/nodes/ngram_hash.cpp
+    ${CPU_SRC_DIR}/nodes/ngram_hash.h
     ${CPU_SRC_DIR}/nodes/node_config.h
     ${CPU_SRC_DIR}/nodes/non_max_suppression.cpp
     ${CPU_SRC_DIR}/nodes/non_max_suppression.h
@@ -536,6 +538,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/shape_inference/custom/matmul.hpp
     ${CPU_SRC_DIR}/shape_inference/custom/ngram.cpp
     ${CPU_SRC_DIR}/shape_inference/custom/ngram.hpp
+    ${CPU_SRC_DIR}/shape_inference/custom/ngram_hash.cpp
+    ${CPU_SRC_DIR}/shape_inference/custom/ngram_hash.hpp
     ${CPU_SRC_DIR}/shape_inference/custom/one_hot.cpp
     ${CPU_SRC_DIR}/shape_inference/custom/one_hot.hpp
     ${CPU_SRC_DIR}/shape_inference/custom/priorbox.cpp

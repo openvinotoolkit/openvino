@@ -62,6 +62,7 @@
 #include "nodes/multinomial.hpp"
 #include "nodes/mvn.h"
 #include "nodes/ngram.h"
+#include "nodes/ngram_hash.h"
 #include "nodes/non_max_suppression.h"
 #include "nodes/non_zero.h"
 #include "nodes/normalize.h"
@@ -221,6 +222,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(Eye, Type::Eye);
     INTEL_CPU_NODE(Unique, Type::Unique);
     INTEL_CPU_NODE(Ngram, Type::Ngram);
+    INTEL_CPU_NODE(NgramHash, Type::NgramHash);
     INTEL_CPU_NODE(RoPE, Type::RoPE);
     INTEL_CPU_NODE(CausalMaskPreprocess, Type::CausalMaskPreprocess);
     INTEL_CPU_NODE(Identity, Type::Identity);

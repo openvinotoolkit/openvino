@@ -175,6 +175,7 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/op/multiply.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/mvn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/negative.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/ngram_hash_function.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/nms_rotated.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/non_max_suppression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/non_zero.cpp
