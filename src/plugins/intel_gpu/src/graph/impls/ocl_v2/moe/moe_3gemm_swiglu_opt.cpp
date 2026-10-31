@@ -17,7 +17,7 @@ using ov::intel_gpu::ocl::moe::ResidentExpertWeightProvider;
 
 #define DEBUG_MOE_LOG 0
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #    include <algorithm>
 #    include <array>
 #    include <chrono>

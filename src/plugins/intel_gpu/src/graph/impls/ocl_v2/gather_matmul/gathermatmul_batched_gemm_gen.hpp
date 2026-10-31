@@ -13,7 +13,7 @@
 
 namespace ov::intel_gpu::ocl {
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 // Prefill batched GEMM: same gemmstone micro-kernel as GatherMatmulMicroGenerator with grouped dispatch.
 class GatherMatmulBatchedGemmGenerator : public KernelGenerator {
 public:

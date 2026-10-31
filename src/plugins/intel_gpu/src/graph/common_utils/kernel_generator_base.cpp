@@ -4,7 +4,7 @@
 
 #include "kernel_generator_base.hpp"
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
 #    include "micro_utils.hpp"
 #endif
 
@@ -23,7 +23,7 @@ void KernelData::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << make_data(&scalar.t, sizeof(cldnn::scalar_desc::Types)) << make_data(&scalar.v, sizeof(cldnn::scalar_desc::ValueT));
     }
     ob << params.layerID;
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     ob << micro_kernels.size();
     for (const auto& microkernel : micro_kernels) {
         microkernel->save(ob);
@@ -51,7 +51,7 @@ void KernelData::load(cldnn::BinaryInputBuffer& ib) {
 
     ib >> params.layerID;
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+#ifdef OV_GPU_WITH_ONEDNN_MICROKERNELS
     size_t n_microkernels = 0;
     ib >> n_microkernels;
     micro_kernels.clear();

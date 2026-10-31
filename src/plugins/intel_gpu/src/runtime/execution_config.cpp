@@ -366,8 +366,15 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_enable_lp_transformations = info.supports_imad || info.supports_immad;
     }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    if (!is_set_by_user(ov::intel_gpu::use_onednn) && info.supports_immad) {
+    if (!is_set_by_user(ov::intel_gpu::use_onednn)) {
+#if defined(OV_GPU_VENDOR_NVIDIA)
+        // oneDNN is the main backend on NVIDIA GPUs
         m_use_onednn = true;
+#else
+        if (info.supports_immad) {
+            m_use_onednn = true;
+        }
+#endif
     }
     if (m_use_onednn) {
         m_queue_type = QueueTypes::in_order;

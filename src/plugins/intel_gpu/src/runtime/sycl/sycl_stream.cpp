@@ -57,7 +57,11 @@ sycl_stream::sycl_stream(const sycl_engine &engine, const ExecutionConfig& confi
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::stream& sycl_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
+#if defined(OV_GPU_VENDOR_INTEL)
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
+#elif defined(OV_GPU_VENDOR_NVIDIA)
+    OPENVINO_ASSERT(_engine.get_device_info().vendor_id == NVIDIA_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-NVIDIA devices");
+#endif
     if (!_onednn_stream) {
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::sycl_interop::make_stream(_engine.get_onednn_engine(), _command_queue));
     }

@@ -69,12 +69,18 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endif()
 
         # pass common variables
-        foreach(cmake_var IN ITEMS CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION
-                                   CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE
-                                   CMAKE_SYSROOT
-                                   CMAKE_VERBOSE_MAKEFILE CMAKE_GENERATOR
-                                   CMAKE_CXX_COMPILER CMAKE_C_COMPILER
-                                   CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
+        # CMAKE_TOOLCHAIN_FILE is always passed: a toolchain such as conan_toolchain.cmake carries
+        # Conan's prefix paths and CMakeDeps lookups (e.g. OpenCL) that the oneDNN build needs
+        set(cmake_vars_to_pass CMAKE_TOOLCHAIN_FILE CMAKE_SYSROOT
+                               CMAKE_VERBOSE_MAKEFILE CMAKE_GENERATOR
+                               CMAKE_CXX_COMPILER CMAKE_C_COMPILER
+                               CMAKE_CXX_COMPILER_LAUNCHER CMAKE_C_COMPILER_LAUNCHER)
+        # pass the target system variables only when cross-compiling:
+        # passing CMAKE_SYSTEM_NAME forces CMAKE_CROSSCOMPILING=TRUE in the oneDNN build
+        if(CMAKE_CROSSCOMPILING)
+            list(APPEND cmake_vars_to_pass CMAKE_SYSTEM_NAME CMAKE_SYSTEM_VERSION CMAKE_SYSTEM_PROCESSOR)
+        endif()
+        foreach(cmake_var IN LISTS cmake_vars_to_pass)
             if(${cmake_var})
                 list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
             endif()
@@ -139,6 +145,20 @@ if(ENABLE_ONEDNN_FOR_GPU)
             endif()
         endif()
 
+        # set target GPU
+        set(GPU_DEP_LIBS "")
+        if(GPU_VENDOR STREQUAL "NVIDIA")
+            # Link dependencies of the static oneDNN library: resolve them with oneDNN's own Find
+            # modules, so that they match what the oneDNN build itself links against
+            set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu/cmake)
+            find_package(cuBLAS REQUIRED)
+            find_package(cublasLt REQUIRED)
+            find_package(cuDNN REQUIRED)
+            set(GPU_DEP_LIBS cuBLAS::cuBLAS cublasLt::cublasLt cuDNN::cuDNN)
+            # onednn_gpu_tgt is consumed from sibling directories, so the imported targets must be global
+            set_target_properties(${GPU_DEP_LIBS} PROPERTIES IMPORTED_GLOBAL TRUE)
+        endif()
+
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${onednn_lib_name}${CMAKE_STATIC_LIBRARY_SUFFIX}")
         # This twin's own library: everything below builds, links and installs THIS path, so it
         # must stay local - sharing it across twins would link one runtime against the other's.
@@ -178,8 +198,10 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_TARGET_ARCH=${ONEDNN_TARGET_ARCH}"
                 "-DDNNL_CPU_RUNTIME=NONE"
                 "-DDNNL_GPU_RUNTIME=${ONEDNN_GPU_RT}"
+                "-DDNNL_GPU_VENDOR=${GPU_VENDOR}"
                 "-DDNNL_LIBRARY_NAME=${onednn_lib_name}"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
+                "-DCMAKE_INSTALL_LIBDIR=lib"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
                 "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
                 "-DDNNL_ENABLE_WORKLOAD=INFERENCE"
@@ -236,9 +258,14 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND LIB_DEFINITIONS NGEN_LINK_OPENCL)
         endif()
 
+        # gemmstone microkernels are built into oneDNN for Intel GPUs only
+        if(GPU_VENDOR STREQUAL "INTEL")
+            list(APPEND LIB_DEFINITIONS OV_GPU_WITH_ONEDNN_MICROKERNELS)
+        endif()
+
         add_library(onednn_gpu_tgt${SUFFIX} INTERFACE)
         set_target_properties(onednn_gpu_tgt${SUFFIX} PROPERTIES
-            INTERFACE_LINK_LIBRARIES $<BUILD_INTERFACE:${onednn_lib_path}>
+            INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:${onednn_lib_path};$<LINK_ONLY:${GPU_DEP_LIBS}>>"
             INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${LIB_INCLUDE_DIRS}>"
             INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${LIB_INCLUDE_DIRS}>"
             INTERFACE_COMPILE_DEFINITIONS "${LIB_DEFINITIONS}"
