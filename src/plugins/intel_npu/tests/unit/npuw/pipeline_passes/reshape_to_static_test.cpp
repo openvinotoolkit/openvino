@@ -383,4 +383,21 @@ TEST(ReshapeToStaticVLMTest, AttentionMaskIsAffectedByWhisperPath) {
     EXPECT_TRUE(found) << "attention_mask input not found in model";
 }
 
+TEST(ReshapeToStaticVLMTest, FourDimensionalFloatAttentionMaskHasStaticQueryAndKeyDimensions) {
+    auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, -1});
+    attention_mask->output(0).set_names({"attention_mask"});
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attention_mask)},
+                                             ov::ParameterVector{attention_mask});
+    auto generate_model = model->clone();
+    KVAxesPosition kv_axes{0, 1};
+
+    ReshapeToStatic prefill(128, 128, kv_axes, 0, 0, true, true);
+    ASSERT_TRUE(prefill.run_on_model(model));
+    EXPECT_EQ(model->input("attention_mask").get_shape(), (ov::Shape{1, 1, 128, 128}));
+
+    ReshapeToStatic generate(1, 192, kv_axes, 0, 0, false, true);
+    ASSERT_TRUE(generate.run_on_model(generate_model));
+    EXPECT_EQ(generate_model->input("attention_mask").get_shape(), (ov::Shape{1, 1, 1, 192}));
+}
+
 }  // namespace
