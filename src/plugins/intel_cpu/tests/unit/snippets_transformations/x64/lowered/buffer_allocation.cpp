@@ -2,54 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "../../common/lowered/buffer_allocation_cpu.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "openvino/core/visibility.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/mark_loops.hpp"
-#include "snippets/lowered/pass/init_loops.hpp"
-#include "snippets/lowered/pass/insert_load_store.hpp"
-#include "snippets/lowered/pass/insert_loops.hpp"
-#include "snippets/lowered/pass/allocate_buffers.hpp"
-#include "snippets/lowered/pass/fuse_loops.hpp"
 #include "snippets/lowered/pass/split_loops.hpp"
-#include "snippets/lowered/pass/insert_buffers.hpp"
-#include "snippets/lowered/pass/reduce_decomposition.hpp"
-#include "snippets/op/load.hpp"
-#include "snippets/op/store.hpp"
 #include "snippets/op/buffer.hpp"
 #include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/load.hpp"
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/reduce.hpp"
 #include "snippets/op/result.hpp"
-
-#include "transformations/snippets/common/shape_inference.hpp"
+#include "snippets/op/store.hpp"
+#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-
-#include "common_test_utils/ov_test_utils.hpp"
-#include "common_test_utils/common_utils.hpp"
-#include "lowered/pass/buffer_allocation.hpp"
-
 
 namespace ov {
 namespace test {
 namespace snippets {
-
-class BufferAllocationCPUTest : public BufferAllocationTest {
-protected:
-    std::shared_ptr<ov::snippets::IShapeInferSnippetsFactory> GetShapeInferFactory() const override {
-        return std::make_shared<ov::snippets::CPUShapeInferSnippetsFactory>();
-    }
-
-    static void MarkOp(const std::shared_ptr<ov::Node>& node,
-                       const std::vector<std::vector<size_t>>& in_subtensors,
-                       const std::vector<std::vector<size_t>>& out_subtensors) {
-        BufferAllocationTest::MarkOp(node, in_subtensors, out_subtensors);
-    }
-};
 
 using BrgemmConfig = intel_cpu::brgemm_utils::BrgemmConfig;
 
@@ -210,9 +183,9 @@ TEST_P(MHAFP32BufferAllocationTest, BufferAllocationCPU) {
 }
 
 TEST_P(MHABF16AMXBufferAllocationTest, BufferAllocationCPU) {
-    // Scratchpad memory for AMX with CopyA (dynamic case) has allocation size which depends on element count in vector register.
-    // So the current expected_allocation_size in the test is targeted on real AVX512 platforms with vector registers with 512 bits.
-    // If the test infrastructure has AVX2, the allocation size will not be matched.
+    // Scratchpad memory for AMX with CopyA (dynamic case) has allocation size which depends on element count in vector
+    // register. So the current expected_allocation_size in the test is targeted on real AVX512 platforms with vector
+    // registers with 512 bits. If the test infrastructure has AVX2, the allocation size will not be matched.
     if (!with_cpu_x86_avx512_core())
         GTEST_SKIP();
     Validate();
@@ -220,126 +193,105 @@ TEST_P(MHABF16AMXBufferAllocationTest, BufferAllocationCPU) {
 
 namespace BufferAllocationCPUTest_Instances {
 
-std::vector<ov::PartialShape> static_shapes = {
-    {1, 12, 1024, 1024},
-    {1, 128, 12, 1024},
-    {1, 12, 128, 256},
-};
-
-std::vector<ov::PartialShape> dynamic_shapes = {
-    {-1, -1, -1, -1},
-    {-1, -1, -1, -1},
-    {-1, -1, -1, -1},
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWSplit,
                          MHAFP32BufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(static_shapes),
-                             ::testing::Values(false),
-                             ::testing::Values(true),
-                             ::testing::Values(566784),
-                             ::testing::Values(7),
-                             ::testing::Values(7)),
+                         ::testing::Combine(::testing::Values(static_shapes),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(566784),  // Each Buffer has own allocated memory
+                                            ::testing::Values(7),       // Each Buffer has unique ID
+                                            ::testing::Values(7)),      // Each Buffer has unique cluster ID
                          BufferAllocationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit,
                          MHAFP32BufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(static_shapes),
-                             ::testing::Values(true),
-                             ::testing::Values(true),
-                             ::testing::Values(548864),
-                             ::testing::Values(2),
-                             ::testing::Values(3)),
+                         ::testing::Combine(::testing::Values(static_shapes),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(548864),  // Buffer before, between, and after the Brgemms
+                                            ::testing::Values(2),       // Before both Brgemms and between them
+                                            ::testing::Values(3)),      // Before, between, and after the Brgemms
                          BufferAllocationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHANotOptimizedWOSplit,
                          MHAFP32BufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(static_shapes),
-                             ::testing::Values(false),
-                             ::testing::Values(false),
-                             ::testing::Values(2622976),
-                             ::testing::Values(7),
-                             ::testing::Values(7)),
+                         ::testing::Combine(::testing::Values(static_shapes),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(2622976),  // Each Buffer has own allocated memory
+                                            ::testing::Values(7),        // Each Buffer has unique ID
+                                            ::testing::Values(7)),       // Each Buffer has unique cluster ID
                          BufferAllocationTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWOSplit,
-                         MHAFP32BufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(static_shapes),
-                             ::testing::Values(true),
-                             ::testing::Values(false),
-                             ::testing::Values(1572864),
-                             ::testing::Values(2),
-                             ::testing::Values(3)),
-                         BufferAllocationTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Snippets_BufferAllocation_MHAOptimizedWOSplit,
+    MHAFP32BufferAllocationTest,
+    ::testing::Combine(::testing::Values(static_shapes),
+                       ::testing::Values(true),
+                       ::testing::Values(false),
+                       ::testing::Values(1572864),  // Between Brgemms and before the first and after the last
+                       ::testing::Values(2),        // Before both Brgemms and between them
+                       ::testing::Values(3)),       // Before, between, and after the Brgemms
+    BufferAllocationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedWSplit,
                          MHABF16AMXBufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(static_shapes),
-                             ::testing::Values(false),
-                             ::testing::Values(true),
-                             ::testing::Values(713984),
-                             ::testing::Values(11),
-                             ::testing::Values(11)),
+                         ::testing::Combine(::testing::Values(static_shapes),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(713984),
+                                            ::testing::Values(11),
+                                            ::testing::Values(11)),
                          BufferAllocationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSplit,
                          MHABF16AMXBufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(static_shapes),
-                             ::testing::Values(true),
-                             ::testing::Values(true),
-                             ::testing::Values(524288),
-                             ::testing::Values(3),
-                             ::testing::Values(7)),
+                         ::testing::Combine(::testing::Values(static_shapes),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(524288),
+                                            ::testing::Values(3),
+                                            ::testing::Values(7)),
                          BufferAllocationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXNotOptimizedWOSplit,
                          MHABF16AMXBufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(static_shapes),
-                             ::testing::Values(false),
-                             ::testing::Values(false),
-                             ::testing::Values(2491648),
-                             ::testing::Values(11),
-                             ::testing::Values(11)),
+                         ::testing::Combine(::testing::Values(static_shapes),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(2491648),
+                                            ::testing::Values(11),
+                                            ::testing::Values(11)),
                          BufferAllocationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWOSplit,
                          MHABF16AMXBufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(static_shapes),
-                             ::testing::Values(true),
-                             ::testing::Values(false),
-                             ::testing::Values(1671168),
-                             ::testing::Values(3),
-                             ::testing::Values(7)),
+                         ::testing::Combine(::testing::Values(static_shapes),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(1671168),
+                                            ::testing::Values(3),
+                                            ::testing::Values(7)),
                          BufferAllocationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHAOptimizedWSplit_Dynamic,
                          MHAFP32BufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(dynamic_shapes),
-                             ::testing::Values(true),
-                             ::testing::Values(true),
-                             ::testing::Values(0),
-                             ::testing::Values(2),
-                             ::testing::Values(3)),
+                         ::testing::Combine(::testing::Values(dynamic_shapes),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(0),   // No static clusters
+                                            ::testing::Values(2),   // Before both Brgemms and between them
+                                            ::testing::Values(3)),  // Before, between, and after the Brgemms
                          BufferAllocationTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_BufferAllocation_MHABF16AMXOptimizedWSplit_Dynamic,
                          MHABF16AMXBufferAllocationTest,
-                         ::testing::Combine(
-                             ::testing::Values(dynamic_shapes),
-                             ::testing::Values(true),
-                             ::testing::Values(true),
-                             ::testing::Values(34816),
-                             ::testing::Values(3),
-                             ::testing::Values(7)),
+                         ::testing::Combine(::testing::Values(dynamic_shapes),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(34816),
+                                            ::testing::Values(3),
+                                            ::testing::Values(7)),
                          BufferAllocationTest::getTestCaseName);
 
 }  // namespace BufferAllocationCPUTest_Instances
