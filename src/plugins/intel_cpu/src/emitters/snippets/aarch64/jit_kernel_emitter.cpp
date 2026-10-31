@@ -12,14 +12,11 @@
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <iterator>
-#include <memory>
 #include <set>
-#include <tuple>
-#include <utility>
 #include <vector>
 
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "emitters/snippets/common/jit_kernel_emitter_utils.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
@@ -27,8 +24,6 @@
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/kernel.hpp"
-#include "snippets/op/loop.hpp"
-#include "snippets/op/reg_spill.hpp"
 #include "snippets/utils/reg_utils.hpp"
 
 using namespace Xbyak_aarch64;
@@ -166,80 +161,12 @@ void jit_kernel_emitter::validate_arguments(const std::vector<size_t>& in, const
 void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
                                    [[maybe_unused]] const std::vector<size_t>& out) const {
     h->preamble();
-
-    std::set<snippets::Reg> available_gpr;
-    std::set<snippets::Reg> available_vec;
-    auto reg_type = snippets::RegType::gpr;
-    auto convert = [&reg_type](size_t i) -> snippets::Reg {
-        return {reg_type, i};
-    };
-    std::transform(aux_gpr_idxs.begin(),
-                   aux_gpr_idxs.end(),
-                   std::inserter(available_gpr, available_gpr.begin()),
-                   convert);
-    // Note: data_ptr regs are globally live, so it makes no sense to keep them in the pool
-    for (auto idx : data_ptr_regs_idx) {
-        available_gpr.erase({snippets::RegType::gpr, idx});
-    }
-    reg_type = snippets::RegType::vec;
-    std::transform(aux_vec_idxs.begin(),
-                   aux_vec_idxs.end(),
-                   std::inserter(available_vec, available_vec.begin()),
-                   convert);
-
+    const auto register_pools =
+        kernel_emitter_utils::make_register_pools(aux_gpr_idxs, aux_vec_idxs, data_ptr_regs_idx);
     auto data_ptr_regs = transform_idxs_to_regs(data_ptr_regs_idx);
-
-    auto get_expected_reg_types =
-        [](const std::shared_ptr<jit_emitter>& emitter) -> std::pair<snippets::RegType, snippets::RegType> {
-        switch (emitter->get_in_out_type()) {
-        case emitter_in_out_map::gpr_to_vec:
-            return {snippets::RegType::gpr, snippets::RegType::vec};
-        case emitter_in_out_map::gpr_to_gpr:
-            return {snippets::RegType::gpr, snippets::RegType::gpr};
-        case emitter_in_out_map::vec_to_gpr:
-            return {snippets::RegType::vec, snippets::RegType::gpr};
-        case emitter_in_out_map::vec_to_vec:
-            return {snippets::RegType::vec, snippets::RegType::vec};
-        default:
-            OV_CPU_JIT_EMITTER_THROW("Unsupported emitter_in_ou_map instance");
-        }
-    };
     init_data_pointers(transform_idxs_to_regs(in), data_ptr_regs);
-    for (const auto& expression : *body) {
-        const auto reg_info = expression->get_reg_info();
-        const auto& emitter = std::dynamic_pointer_cast<jit_emitter>(expression->get_emitter());
-        OV_CPU_JIT_EMITTER_ASSERT(emitter, "Unexpected emitter type");
-        auto expected_in_type = snippets::RegType::undefined;
-        auto expected_out_type = snippets::RegType::undefined;
-        const auto& node = expression->get_node();
-        // Note: currently only a few operations are allowed to have mixed in/out register types => skip validation here
-        if (!ov::is_type_any_of<snippets::op::LoopEnd, snippets::op::RegSpillBase>(node) &&
-            !std::dynamic_pointer_cast<jit_nop_emitter>(emitter)) {
-            std::tie(expected_in_type, expected_out_type) = get_expected_reg_types(emitter);
-        }
-        // Note: live regs = regs live on input of the expression. We also need to exclude output regs from the pool
-        auto live_regs = expression->get_live_regs();
-        for (auto r : reg_info.second) {
-            live_regs.insert(r);
-        }
-        std::vector<snippets::Reg> pool_gp_reg;
-        std::vector<snippets::Reg> pool_vec_reg;
-        std::set_difference(available_gpr.begin(),
-                            available_gpr.end(),
-                            live_regs.begin(),
-                            live_regs.end(),
-                            std::back_inserter(pool_gp_reg));
-        std::set_difference(available_vec.begin(),
-                            available_vec.end(),
-                            live_regs.begin(),
-                            live_regs.end(),
-                            std::back_inserter(pool_vec_reg));
-        auto in_regs = snippets::utils::transform_snippets_regs_to_idxs(reg_info.first, expected_in_type);
-        auto out_regs = snippets::utils::transform_snippets_regs_to_idxs(reg_info.second, expected_out_type);
-        auto gpr_pool = snippets::utils::transform_snippets_regs_to_idxs(pool_gp_reg);
-        auto vec_pool = snippets::utils::transform_snippets_regs_to_idxs(pool_vec_reg);
-        emitter->emit_code(in_regs, out_regs, vec_pool, gpr_pool);
-    }
+
+    kernel_emitter_utils::emit_kernel_body<jit_emitter, jit_nop_emitter>(*body, register_pools);
 
     h->postamble();
 }
