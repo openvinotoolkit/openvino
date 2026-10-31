@@ -7,8 +7,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/frontend/node_context.hpp"
+#include "openvino/frontend/pytorch/decoder.hpp"
 
 namespace py = pybind11;
 
@@ -124,11 +124,11 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
         PYBIND11_OVERRIDE_PURE(std::shared_ptr<TorchDecoder>, TorchDecoder, get_inlined_input_decoder, index);
     }
 
-    ov::Any get_attribute(const std::string &name) const override{
+    ov::Any get_attribute(const std::string& name) const override {
         PYBIND11_OVERRIDE_PURE(ov::Any, TorchDecoder, get_attribute, name);
     }
 
-    size_t get_named_input(const std::string &name) const override{
+    size_t get_named_input(const std::string& name) const override {
         PYBIND11_OVERRIDE_PURE(size_t, TorchDecoder, get_named_input, name);
     }
 
@@ -147,6 +147,7 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
     ov::OutputVector convert(const ov::frontend::NodeContext* context) const override {
         PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, convert, context);
     }
+
     InputSequences get_input_sequences() const override {
         PYBIND11_OVERRIDE(InputSequences, TorchDecoder, get_input_sequences);
     }
