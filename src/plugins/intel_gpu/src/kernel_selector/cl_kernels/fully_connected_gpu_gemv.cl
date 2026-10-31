@@ -26,6 +26,10 @@
 #    error "fully_connected_gpu_gemv.cl - SIMD must be 16"
 #endif
 
+#if !defined(WEI_UINT4) && !defined(WEI_INT4) && !defined(WEI_U2)
+#    error "fully_connected_gpu_gemv.cl - unsupported weights type"
+#endif
+
 #ifdef DECOMPRESSION_SCALE_TERM
 #    if DECOMPRESSION_GROUP_SIZE_SRC < 32
 #        error "fully_connected_gpu_gemv.cl - DECOMPRESSION_GROUP_SIZE_SRC must be >= 32"
@@ -35,8 +39,13 @@
 #        define SINGLE_GROUP_NUM
 #    endif
 #    ifdef SINGLE_GROUP_NUM
-#        define SCALE_GROUP_NUM          (WEIGHTS_K / 128)
-#        define DECOMPRESSION_GROUP_SIZE 128
+#        if defined(WEI_U2) && WEIGHTS_K % 128 != 0
+// u2 accepts K % 64 == 0; a 128 split would drop the last 64 values.
+#            define DECOMPRESSION_GROUP_SIZE 64
+#        else
+#            define DECOMPRESSION_GROUP_SIZE 128
+#        endif
+#        define SCALE_GROUP_NUM (WEIGHTS_K / DECOMPRESSION_GROUP_SIZE)
 #    else
 #        define SCALE_GROUP_NUM          (WEIGHTS_K / DECOMPRESSION_GROUP_SIZE_SRC)
 #        define DECOMPRESSION_GROUP_SIZE DECOMPRESSION_GROUP_SIZE_SRC
@@ -46,12 +55,25 @@
 #    define DECOMPRESSION_GROUP_SIZE 128
 #endif
 
-#if KERNEL_LAYOUT_OS_IS_YX_OSV16 && WEIGHTS_K % 32 != 0
+// u2: 4 values per byte, so a 16-byte per-lane block read spans 64 K values (K alignment and input
+// tile double). OSV16 only; the kernel selector rejects the other layouts.
+#if defined(WEI_U2) && !KERNEL_LAYOUT_OS_IS_YX_OSV16
+#    error "fully_connected_gpu_gemv.cl - u2 weights are only supported in the OSV16 layout"
+#endif
+
+#if KERNEL_LAYOUT_OS_IS_YX_OSV16 && !defined(WEI_U2) && WEIGHTS_K % 32 != 0
 #    error "fully_connected_gpu_gemv.cl - KERNEL_LAYOUT_OS_IS_YX_OSV16 must be WEIGHTS_K % 32 != 0"
+#endif
+#if KERNEL_LAYOUT_OS_IS_YX_OSV16 && defined(WEI_U2) && WEIGHTS_K % 64 != 0
+#    error "fully_connected_gpu_gemv.cl - u2 OSV16 requires WEIGHTS_K % 64 == 0"
 #endif
 
 #if KERNEL_LAYOUT_OS_IS_YX_OSV16
-#    define INPUT_TILE_SIZE 2
+#    ifdef WEI_U2
+#        define INPUT_TILE_SIZE 4
+#    else
+#        define INPUT_TILE_SIZE 2
+#    endif
 #elif KERNEL_LAYOUT_OS_IS_YX_OSV32_ISV2
 #    define INPUT_TILE_SIZE 1
 #elif KERNEL_LAYOUT_OS_IS_YX_OSV64_ISV2
@@ -79,6 +101,11 @@ inline int FUNC(get_4bit_weight_index)(int k, int n, int K, int N, int OSV) {
 
 inline int FUNC(get_4bit_weight_index_no_isv)(int k, int n, int K, int N, int OSV) {
     return (n / OSV) * (OSV * K / 2) + (k / 2) * OSV;
+}
+
+// A byte holds K values k..k+3 of a single output feature.
+inline int FUNC(get_2bit_weight_index_no_isv)(int k, int n, int K, int N, int OSV) {
+    return (n / OSV) * (OSV * K / 4) + (k / 4) * OSV;
 }
 
 inline void FUNC(thread_task_splitter)(const int group_num, const int thr_num, const int thr_id, int* n_start, int* n_end) {
@@ -126,7 +153,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     FUNC_CALL(thread_task_splitter)(SCALE_GROUP_NUM, thr_num, thr_id, &gk0, &gk1);
 
 #    if DECOMPRESSION_ZP_SCALAR
-    char zp_scalar_value = (char)(DECOMPRESSION_ZP_VALUE);
+    // half, not char: a scalar zero point may be fractional (1.5 for the symmetric 4-level grid).
+    half zp_scalar_value = (half)(DECOMPRESSION_ZP_VALUE);
 #    endif
 
     __local float all_sum_even[16][16];  // [wi_id, thr_id]
@@ -141,8 +169,13 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     float sum_all = 0;
     for (int gk = gk0; gk < gk1; gk++) {
         __global INPUT0_TYPE* A = input + gk * DECOMPRESSION_GROUP_SIZE;
+#    ifdef WEI_U2
+        const __global FILTER_TYPE* B =
+            weights + FUNC_CALL(get_2bit_weight_index_no_isv)(gk * DECOMPRESSION_GROUP_SIZE, n, WEIGHTS_K, WEIGHTS_N, 16);
+#    else
         const __global FILTER_TYPE* B =
             weights + FUNC_CALL(get_4bit_weight_index_no_isv)(gk * DECOMPRESSION_GROUP_SIZE, n, WEIGHTS_K, WEIGHTS_N, 16);
+#    endif
 
         GEMV_ACCUMULATOR_VEC_TYPE sum = 0;
 #    ifdef SINGLE_GROUP_NUM
@@ -163,20 +196,51 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
         GEMV_FILTER_VEC_TYPE zpx16 = (GEMV_FILTER_VEC_TYPE)0;
 #    endif
 
+#    ifdef WEI_U2
+        // The 4-bit path's 256-byte block read spans 64 K values here, so the input tile is 4 wide.
+        __attribute__((opencl_unroll_hint(2))) for (int g = 0; g < DECOMPRESSION_GROUP_SIZE; g += 64, B += 16 * 16) {
+            GEMV_INPUT_VEC_TYPE input_value = GEMV_INPUT_BLOCK_READ(A, g);
+            uchar16 bx16 = as_uchar16(TO_GEMV_FILTER_PACKED_VEC_TYPE(GEMV_FILTER_BLOCK_READ(B, 0)));
+
+            // LSB-first, as in cvt_uint2x4_to_uint8x4. Lane L holds byte L + 16*J: feature L, K 4J..4J+3.
+            GEMV_FILTER_VEC_TYPE q0 = TO_GEMV_FILTER_VEC_TYPE(bx16 & (uchar16)0x3) - zpx16;
+            GEMV_FILTER_VEC_TYPE q1 = TO_GEMV_FILTER_VEC_TYPE((bx16 >> (uchar16)2) & (uchar16)0x3) - zpx16;
+            GEMV_FILTER_VEC_TYPE q2 = TO_GEMV_FILTER_VEC_TYPE((bx16 >> (uchar16)4) & (uchar16)0x3) - zpx16;
+            GEMV_FILTER_VEC_TYPE q3 = TO_GEMV_FILTER_VEC_TYPE(bx16 >> (uchar16)6) - zpx16;
+
+            // Byte J = 4*C + j covers K values 16*C + 4*j + {0,1,2,3}. The block read leaves
+            // A[g + 16*C + lane] in component C of lane `lane`, so the broadcast lane is 4*j+M.
+#        define GEMV_U2_ACC(C, j)                                                                \
+            sum[2 * (C) + 0] +=                                                                  \
+                as_half(sub_group_broadcast(input_value.s##C, 4 * (j) + 0)) * q0[4 * (C) + (j)] + \
+                as_half(sub_group_broadcast(input_value.s##C, 4 * (j) + 1)) * q1[4 * (C) + (j)];  \
+            sum[2 * (C) + 1] +=                                                                  \
+                as_half(sub_group_broadcast(input_value.s##C, 4 * (j) + 2)) * q2[4 * (C) + (j)] + \
+                as_half(sub_group_broadcast(input_value.s##C, 4 * (j) + 3)) * q3[4 * (C) + (j)];
+
+            GEMV_U2_ACC(0, 0) GEMV_U2_ACC(0, 1) GEMV_U2_ACC(0, 2) GEMV_U2_ACC(0, 3)
+            GEMV_U2_ACC(1, 0) GEMV_U2_ACC(1, 1) GEMV_U2_ACC(1, 2) GEMV_U2_ACC(1, 3)
+            GEMV_U2_ACC(2, 0) GEMV_U2_ACC(2, 1) GEMV_U2_ACC(2, 2) GEMV_U2_ACC(2, 3)
+            GEMV_U2_ACC(3, 0) GEMV_U2_ACC(3, 1) GEMV_U2_ACC(3, 2) GEMV_U2_ACC(3, 3)
+#        undef GEMV_U2_ACC
+        }
+#    else
         __attribute__((opencl_unroll_hint(4))) for (int g = 0; g < DECOMPRESSION_GROUP_SIZE; g += 32, B += 16 * 16) {
             GEMV_INPUT_VEC_TYPE input_value = GEMV_INPUT_BLOCK_READ(A, g);
             GEMV_FILTER_PACKED_VEC_TYPE bx16 = TO_GEMV_FILTER_PACKED_VEC_TYPE(GEMV_FILTER_BLOCK_READ(B, 0));
 
-#    if WEI_UINT4
+#    if defined(WEI_UINT4)
             GEMV_FILTER_VEC_TYPE i4x16_even = TO_GEMV_FILTER_VEC_TYPE((bx16 & (char16)0xF)) - zpx16;
             GEMV_FILTER_VEC_TYPE i4x16_odd = TO_GEMV_FILTER_VEC_TYPE(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
-#    else
+#    elif defined(WEI_INT4)
             char16 i4x16_even_c16 = (bx16 & (char16)0xF);
             char16 i4x16_odd_c16 = (as_char16(as_uchar16(bx16) >> 4));
             i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7);
             i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7);
             GEMV_FILTER_VEC_TYPE i4x16_even = TO_GEMV_FILTER_VEC_TYPE(i4x16_even_c16) - zpx16;
             GEMV_FILTER_VEC_TYPE i4x16_odd = TO_GEMV_FILTER_VEC_TYPE(i4x16_odd_c16) - zpx16;
+#    else
+#        error "fully_connected_gpu_gemv.cl - unsupported weights type"
 #    endif
 
             sum[0] += as_half(sub_group_broadcast(input_value.s0, 0)) * i4x16_even.s0 +
@@ -215,6 +279,7 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
                       as_half(sub_group_broadcast(input_value.s1, 11)) * i4x16_odd.sd +
                       as_half(sub_group_broadcast(input_value.s1, 15)) * i4x16_odd.sf;
         }
+#    endif
 
         sum_all += (sum[0] + sum[1] + sum[2] + sum[3] + sum[4] + sum[5] + sum[6] + sum[7]) * scale_1;
     }
@@ -255,7 +320,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
     FUNC_CALL(thread_task_splitter)(SCALE_GROUP_NUM, thr_num, thr_id, &gk0, &gk1);
 
 #    if DECOMPRESSION_ZP_SCALAR
-    char zp_scalar_value = (char)(DECOMPRESSION_ZP_VALUE);
+    // half, not char: a scalar zero point may be fractional (1.5 for the symmetric 4-level grid).
+    half zp_scalar_value = (half)(DECOMPRESSION_ZP_VALUE);
 #    endif
 
     __local float all_sum_even[16][16];  // [wi_id, thr_id]
@@ -305,16 +371,18 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
 
             GEMV_FILTER_PACKED_VEC_TYPE bx16 = TO_GEMV_FILTER_PACKED_VEC_TYPE(GEMV_FILTER_BLOCK_READ(B, 0));
 
-#    if WEI_UINT4
+#    if defined(WEI_UINT4)
             GEMV_FILTER_VEC_TYPE i4x16_even = TO_GEMV_FILTER_VEC_TYPE(bx16 & (char16)0xF) - zpx16;
             GEMV_FILTER_VEC_TYPE i4x16_odd = TO_GEMV_FILTER_VEC_TYPE(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
-#    else
+#    elif defined(WEI_INT4)
             char16 i4x16_even_c16 = (bx16 & (char16)0xF);
             char16 i4x16_odd_c16 = (as_char16(as_uchar16(bx16) >> 4));
             i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7);
             i4x16_odd_c16 = select(i4x16_odd_c16, i4x16_odd_c16 - (char16)16, i4x16_odd_c16 > (char16)7);
             GEMV_FILTER_VEC_TYPE i4x16_even = TO_GEMV_FILTER_VEC_TYPE(i4x16_even_c16) - zpx16;
             GEMV_FILTER_VEC_TYPE i4x16_odd = TO_GEMV_FILTER_VEC_TYPE(i4x16_odd_c16) - zpx16;
+#    else
+#        error "fully_connected_gpu_gemv.cl - unsupported weights type"
 #    endif
 
             sum[0] += as_half(sub_group_broadcast(input_value, 0)) * i4x16_even.s0 +
@@ -460,12 +528,12 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
             GEMV_FILTER_PACKED_VEC_TYPE bx16_second =
                 TO_GEMV_FILTER_PACKED_VEC_TYPE(GEMV_FILTER_BLOCK_READ(B, 16 * 16));
 
-#    if WEI_UINT4
+#    if defined(WEI_UINT4)
             GEMV_FILTER_VEC_TYPE i4x16_even = convert_half16((bx16 & (char16)0xF)) - zpx16;
             GEMV_FILTER_VEC_TYPE i4x16_odd = convert_half16(as_char16(as_uchar16(bx16) >> 4)) - zpx16;
             GEMV_FILTER_VEC_TYPE i4x16_even_second = convert_half16((bx16_second & (char16)0xF)) - zpx16;
             GEMV_FILTER_VEC_TYPE i4x16_odd_second = convert_half16(as_char16(as_uchar16(bx16_second) >> 4)) - zpx16;
-#    else
+#    elif defined(WEI_INT4)
             char16 i4x16_even_c16 = (bx16 & (char16)0xF);
             char16 i4x16_odd_c16 = (as_char16(as_uchar16(bx16) >> 4));
             i4x16_even_c16 = select(i4x16_even_c16, i4x16_even_c16 - (char16)16, i4x16_even_c16 > (char16)7);
@@ -482,6 +550,8 @@ __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE))) KERNEL(fully_connected
             GEMV_FILTER_VEC_TYPE i4x16_odd = convert_half16(i4x16_odd_c16) - zpx16;
             GEMV_FILTER_VEC_TYPE i4x16_even_second = convert_half16(i4x16_even_c16_second) - zpx16;
             GEMV_FILTER_VEC_TYPE i4x16_odd_second = convert_half16(i4x16_odd_c16_second) - zpx16;
+#    else
+#        error "fully_connected_gpu_gemv.cl - unsupported weights type"
 #    endif
 
             sum[0] += as_half(sub_group_broadcast(input_value, 0)) * i4x16_even.s0 +

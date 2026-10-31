@@ -720,6 +720,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                                                     ov::element::i8,
                                                                                     ov::element::u8,
                                                                                     ov::element::u3};
+            // u2 is offered only to the TiledMoeBlock -> GatherMatmul passes, and only when the fused MoE
+            // path runs. GroupedMatMulCompressed executes on oneDNN, which has no u2, and GatherMatmulCompressed
+            // has no u2 kernel of its own: with fusion disabled a u2 GatherMatmul would have nothing to run on.
+            std::vector<ov::element::Type> gather_matmul_weights_types = supported_compressed_weights_types;
+            if (!config.get_moe_disable_fusion()) {
+                gather_matmul_weights_types.push_back(ov::element::u2);
+            }
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
 
@@ -729,10 +736,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (infer_precision == ov::element::f16) {
                 supported_activation_types.insert(supported_activation_types.end(), {ov::element::f32, ov::element::bf16});
             }
-            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types,
+            manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(gather_matmul_weights_types,
                                                                                  supported_activation_types);
             manager.register_pass<ov::pass::ConvertGatherMatmulToGatherMatmulCompressed>(supported_activation_types,
-                                                                                         supported_compressed_weights_types);
+                                                                                         gather_matmul_weights_types);
             manager.register_pass<ov::intel_gpu::FuseMoERouter>(supported_activation_types);
 
             if (!config.get_moe_disable_fusion()) {
@@ -1933,6 +1940,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 GPU_DEBUG_IF(asymmetric_dyn_quant && (adj_group_size != UINT64_MAX)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: asym quantization does not support grouped quantization" <<
                                                                    " ('DynamicQuantizeAsym' is enabled with grouped size dyn-quan)" << std::endl;
+                    return true;
+                }
+
+                if (root->get_input_element_type(1) == ov::element::u2) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                    " no FC kernel takes compressed activations with u2 weights" << std::endl;
                     return true;
                 }
 
