@@ -20,6 +20,7 @@
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/detail/batch_size_estimation.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
@@ -1055,9 +1056,11 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
         if (device_memory_usage.first == static_cast<int64_t>(-1L) && device_memory_usage.second == static_cast<int64_t>(-1L)) {
             return static_cast<uint32_t>(max_batch_size);
         }
-        int64_t mem_for_general = std::max<int64_t>(1, available_device_mem - device_memory_usage.first);
-        int64_t mem_per_batch = std::max<int64_t>(1, device_memory_usage.second / static_cast<int64_t>(base_batch_size));
-        max_batch_size = mem_for_general / (mem_per_batch * static_cast<int64_t>(n_streams));
+        max_batch_size = detail::estimate_max_batch_size(available_device_mem,
+                                                         device_memory_usage.first,
+                                                         device_memory_usage.second,
+                                                         static_cast<uint32_t>(base_batch_size),
+                                                         n_streams);
         GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Base batch size: " << base_batch_size  << std::endl;
         GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] Const mem usage: " << device_memory_usage.first  << std::endl;
         GPU_DEBUG_INFO << "[GPU_MAX_BATCH_SIZE] General mem usage: " << device_memory_usage.second  << std::endl;
