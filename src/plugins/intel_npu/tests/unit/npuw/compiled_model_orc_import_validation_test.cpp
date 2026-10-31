@@ -15,6 +15,7 @@
 #include "compiled_model.hpp"
 #undef private
 
+#include "moe/moe_subgraph.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
@@ -293,6 +294,28 @@ TEST(CompiledModelOrcImportValidationTest, RejectsPrevOutputConsumerPortOutOfRan
     compiled->m_submodels_input_to_prev_output = {{{0u, 5u}, {0u, 0u}}};
 
     expect_validation_throw_contains(compiled, "m_submodels_input_to_prev_output[0] input port index 5");
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsMoeParamMappingPortOutOfRange) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    auto moe = std::make_shared<ov::npuw::compiled::MoEExperts>();
+    moe->num_active_experts = 1;
+    moe->_param_mapping = {{0u, {1u}}};  // the fake submodel has exactly one input
+    ov::npuw::moe::put_compiled_experts(compiled->m_compiled_submodels[0].pipeline.context, moe);
+
+    expect_validation_throw_contains(compiled, "Invalid MoE param mapping port out of range");
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsValidMoeParamMappingPort) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    auto moe = std::make_shared<ov::npuw::compiled::MoEExperts>();
+    moe->num_active_experts = 1;
+    moe->_param_mapping = {{0u, {0u}}};
+    ov::npuw::moe::put_compiled_experts(compiled->m_compiled_submodels[0].pipeline.context, moe);
+
+    EXPECT_NO_THROW(ov::npuw::CompiledModel::validate_import_routing_tables(compiled));
 }
 
 TEST(CompiledModelOrcImportValidationTest, RejectsPrevOutputProducerSubmodelOutOfRange) {

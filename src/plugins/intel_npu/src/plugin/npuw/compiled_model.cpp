@@ -1819,6 +1819,31 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
         }
     }
 
+    // Every unrolled MoE port is later used as a raw index into the compiled model's inputs.
+    for (std::size_t idx = 0u; idx < compiled->m_compiled_submodels.size(); ++idx) {
+        const auto& submodel_desc = compiled->m_compiled_submodels[idx];
+        const auto* moe_experts = ov::npuw::moe::get_compiled_experts(submodel_desc.pipeline.context);
+        if (moe_experts == nullptr || submodel_desc.compiled_model == nullptr) {
+            continue;
+        }
+        const auto n_inputs = submodel_desc.compiled_model->inputs().size();
+        for (const auto& mapping : moe_experts->_param_mapping) {
+            for (const auto port : mapping.second) {
+                if (port >= n_inputs) {
+                    OPENVINO_THROW("Invalid MoE param mapping port out of range in m_compiled_submodels[",
+                                   idx,
+                                   "]: original param ",
+                                   mapping.first,
+                                   " maps to input ",
+                                   port,
+                                   " (inputs: ",
+                                   n_inputs,
+                                   ")");
+                }
+            }
+        }
+    }
+
     if (compiled->m_inputs_to_submodels_inputs.size() != compiled->inputs().size()) {
         OPENVINO_THROW("Invalid m_inputs_to_submodels_inputs size ",
                        compiled->m_inputs_to_submodels_inputs.size(),
