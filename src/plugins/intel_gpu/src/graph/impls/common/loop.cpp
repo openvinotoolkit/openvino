@@ -116,6 +116,9 @@ struct loop_impl : typed_primitive_impl<loop> {
         auto& outer_network = instance.get_network();
         auto& stream = outer_network.get_stream();
 
+        // Control tensors are read on the host before the body is scheduled.
+        stream.wait_for_events(events);
+
         auto body_network = instance.get_body_network();
         int64_t current_iteration_idx = 0;
         auto ev = stream.create_user_event(false);
