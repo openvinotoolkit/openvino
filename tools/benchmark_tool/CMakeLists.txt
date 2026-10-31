@@ -36,6 +36,17 @@ install(DIRECTORY ${OpenVINOBenchmarkTool_SOURCE_DIR}/openvino
         USE_SOURCE_PERMISSIONS)
 
 #
+# Tests
+#
+
+if(ENABLE_TESTS)
+    install(DIRECTORY unit_tests
+            DESTINATION tests/benchmark_tool
+            COMPONENT tests
+            EXCLUDE_FROM_ALL)
+endif()
+
+#
 # Cpack
 #
 
