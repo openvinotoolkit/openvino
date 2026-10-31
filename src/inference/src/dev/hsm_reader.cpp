@@ -79,6 +79,11 @@ bool read_manifest(std::istream& stream,
     }
 }
 
+constexpr bool is_valid_offset(std::streamoff start, uint64_t container_size) noexcept {
+    constexpr auto max_offset = static_cast<uint64_t>(std::numeric_limits<std::streamoff>::max());
+    return container_size <= max_offset - static_cast<uint64_t>(start);
+}
+
 bool has_container_size_bytes(std::istream& stream, std::streampos start, const Header& header) {
     stream.seekg(start + static_cast<std::streamoff>(header.container_size - 1));
     return stream.peek() != std::istream::traits_type::eof();
@@ -100,8 +105,9 @@ std::optional<Reader> Reader::open(std::istream& stream) {
     std::vector<ManifestEntry> manifest;
 
     if (start == std::streampos(-1) || !stream.read(reinterpret_cast<char*>(&header), sizeof(header)) ||
-        !is_valid_header_fields(header) || !read_manifest(stream, start, header, manifest) ||
-        !has_container_size_bytes(stream, start, header) ||
+        !is_valid_header_fields(header) ||
+        !is_valid_offset(static_cast<std::streamoff>(start), header.container_size) ||
+        !read_manifest(stream, start, header, manifest) || !has_container_size_bytes(stream, start, header) ||
         !std::all_of(manifest.begin(), manifest.end(), [&header](const ManifestEntry& entry) {
             return is_valid_section_bounds(entry, header) && section_size_fits_size_t(entry);
         })) {
