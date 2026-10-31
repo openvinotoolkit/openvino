@@ -235,6 +235,7 @@ TEST_F(HsmFormatLayoutCompatibilityTest, device_tags_cannot_collide_with_core_ta
                   "device tag ids must never fall below core_tag_id_range_end");
     static_assert(hsm::model_id < hsm::core_tag_id_range_end, "model_id must stay below core_tag_id_range_end");
     static_assert(hsm::model < hsm::core_tag_id_range_end, "model must stay below core_tag_id_range_end");
+    static_assert(hsm::weights < hsm::core_tag_id_range_end, "weights must stay below core_tag_id_range_end");
 
     SUCCEED();
 }
