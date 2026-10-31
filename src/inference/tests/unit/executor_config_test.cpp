@@ -1420,6 +1420,52 @@ ExecutorConfigTestCase _streams_info_table_cores_limit_false_2 = {
     {},
 };
 
+ExecutorConfigTestCase _partial_core_pool_streams_3 = {
+    {{6, 5, 1, 0, 0, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, EFFICIENT_CORE_PROC, 5, -1},
+    },
+    3,
+    2,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    true,
+    true,
+    true,
+    {},
+    {{2, MAIN_CORE_PROC, 2, 0, 0}, {1, EFFICIENT_CORE_PROC, 1, 0, 0}},
+    {{0, 1}, {2, 3}, {5}},
+};
+
+ExecutorConfigTestCase _partial_core_pool_then_full_pool_streams_5 = {
+    {{10, 5, 1, 0, 4, 0, 0}},
+    {
+        {0, 0, 0, 0, MAIN_CORE_PROC, 0, -1},
+        {1, 0, 0, 1, MAIN_CORE_PROC, 1, -1},
+        {2, 0, 0, 2, MAIN_CORE_PROC, 2, -1},
+        {3, 0, 0, 3, MAIN_CORE_PROC, 3, -1},
+        {4, 0, 0, 4, MAIN_CORE_PROC, 4, -1},
+        {5, 0, 0, 5, EFFICIENT_CORE_PROC, 5, -1},
+        {6, 0, 0, 0, HYPER_THREADING_PROC, 0, -1},
+        {7, 0, 0, 1, HYPER_THREADING_PROC, 1, -1},
+        {8, 0, 0, 2, HYPER_THREADING_PROC, 2, -1},
+        {9, 0, 0, 3, HYPER_THREADING_PROC, 3, -1},
+    },
+    5,
+    2,
+    ov::hint::SchedulingCoreType::ANY_CORE,
+    true,
+    true,
+    true,
+    {},
+    {{2, MAIN_CORE_PROC, 2, 0, 0}, {1, EFFICIENT_CORE_PROC, 1, 0, 0}, {2, HYPER_THREADING_PROC, 2, 0, 0}},
+    {{0, 1}, {2, 3}, {5}, {6, 7}, {8, 9}},
+};
+
 TEST_P(ExecutorConfigTest, ExecutorConfig) {}
 
 INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
@@ -1460,6 +1506,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_ExecutorConfig,
                                          _pecore_streams_info_table_1,
                                          _pecore_streams_info_table_2,
                                          _streams_info_table_cores_limit_false_1,
-                                         _streams_info_table_cores_limit_false_2));
+                                         _streams_info_table_cores_limit_false_2,
+                                         _partial_core_pool_streams_3,
+                                         _partial_core_pool_then_full_pool_streams_5));
 #endif
 }  // namespace
