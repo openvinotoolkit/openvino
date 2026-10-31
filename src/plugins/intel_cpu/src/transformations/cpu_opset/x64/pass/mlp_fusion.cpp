@@ -4,7 +4,10 @@
 
 #include "mlp_fusion.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <memory>
+#include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -31,6 +34,7 @@
 #include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::pass;
 using namespace ov::pass::pattern;
@@ -106,7 +110,12 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
 
     auto mlp_gate_proj = wrap_type<MatMul>({input, gate_proj_weight | gate_proj_weight_deq},
                                            {{"transpose_a", false}, {"transpose_b", true}});
-    auto mlp_gate_act = wrap_type<Swish, Gelu>({mlp_gate_proj | gate_up_proj_split});
+    // scale-up left by ActivationsScaling
+    auto gate_scale = wrap_type<Constant>([](const Output<Node>& output) {
+        return ov::shape_size(output.get_shape()) == 1;
+    });
+    auto mlp_gate_scaled = optional<Multiply>({mlp_gate_proj | gate_up_proj_split, gate_scale});
+    auto mlp_gate_act = wrap_type<Swish, Gelu>({mlp_gate_scaled});
     auto mlp_up_proj = wrap_type<MatMul>({input, up_proj_weight | up_proj_weight_deq},
                                          {{"transpose_a", false}, {"transpose_b", true}});
 
@@ -124,6 +133,10 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
         if (pattern_map.count(gate_up_proj_split)) {
             // The gate half feeds the activation: gate at split output(0) is the normal layout, otherwise swapped.
             auto gate_src = pattern_map.at(mlp_gate_act).get_node_shared_ptr()->input_value(0);
+            if (pattern_map.count(gate_scale)) {
+                const auto gate_mul = gate_src.get_node_shared_ptr();
+                gate_src = gate_mul->input_value(gate_mul->input_value(0) == pattern_map.at(gate_scale) ? 1 : 0);
+            }
             gate_up_type = (gate_src.get_index() == 0) ? LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP
                                                        : LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE;
         }
@@ -246,6 +259,30 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
         }
         if (is_down_proj_int8) {
             new_args.push_back(pattern_map.at(down_proj_weight_scales_per_OC));
+        }
+        if (pattern_map.count(gate_scale)) {
+            // safe to fold into the gate rows: the kernel accumulates the gate in f32
+            const size_t gate_idx = is_gate_up_quantized_int8 ? 4 : 1;
+            const auto& gate_w = new_args[gate_idx];
+            const auto scale_const = ov::as_type_ptr<Constant>(pattern_map.at(gate_scale).get_node_shared_ptr());
+            const auto rows = gate_w.get_shape()[0];
+            std::vector<float> row_scales(rows, scale_const->cast_vector<float>()[0]);
+            if (gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
+                // combined weights hold the gate and up rows in two halves; only the gate half is scaled
+                const size_t up_begin = (gate_up_type == LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP) ? rows / 2 : 0;
+                std::fill_n(row_scales.begin() + static_cast<std::ptrdiff_t>(up_begin), rows / 2, 1.0F);
+            }
+            auto folded = ov::op::util::make_try_fold<Multiply>(
+                gate_w,
+                Constant::create(gate_w.get_element_type(), Shape{rows, 1}, row_scales));
+            if (!ov::is_type<Constant>(folded)) {
+                return false;
+            }
+            new_args[gate_idx] = folded;
+            if (gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
+                // the combined tensor is passed as both the gate and the up input
+                new_args[gate_idx + 1] = folded;
+            }
         }
 
         const auto& old_node = root;
