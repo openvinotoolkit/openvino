@@ -20,20 +20,20 @@ RUN apt-get update && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     apt-get update && \
     apt-get install \
-        curl \
-        git \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # System Python (Ubuntu 26.04 ships Python 3.14)
-        python3-dev \
-        python3-venv \
-        python3-pip \
-        python3-full \
-        # For Java API
-        default-jdk \
-        && \
+    curl \
+    git \
+    gpg-agent \
+    tzdata \
+    # parallel gzip
+    pigz \
+    # System Python (Ubuntu 26.04 ships Python 3.14)
+    python3-dev \
+    python3-venv \
+    python3-pip \
+    python3-full \
+    # For Java API
+    default-jdk \
+    && \
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
@@ -43,7 +43,7 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Install sccache
-ARG SCCACHE_VERSION="v0.7.5"
+ARG SCCACHE_VERSION="v0.18.0"
 ENV SCCACHE_HOME="/opt/sccache" \
     SCCACHE_PATH="/opt/sccache/sccache"
 
