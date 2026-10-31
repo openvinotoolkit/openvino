@@ -4,6 +4,7 @@
 
 set(OV_AUTO_UNIT_TESTS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/auto_unit_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/cache_compile_for_all_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/compile_model_metric_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/compile_model_property_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ctput_test.cpp
@@ -35,6 +36,8 @@ set(OV_AUTO_UNIT_TESTS_SRC
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_compiled_model.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_schedule.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/auto_schedule.hpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_warmup.cpp
+    ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/cache_warmup.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/common.hpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.cpp
     ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/compiled_model.hpp
