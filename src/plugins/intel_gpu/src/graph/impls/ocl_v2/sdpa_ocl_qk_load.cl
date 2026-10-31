@@ -303,7 +303,7 @@ SDPA_OCL_INLINE void FUNC(k_tile_i8_b2d)(__private ushort8 *k_raw, __private uin
 }
 #endif
 
-#if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA
+#if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA && !PA_K_WIDE_READS
 // Token-major f16 K page: a [PAGED_ATTENTION_BLOCK_SIZE keys, K_HEAD_SIZE] row-major tile, the [key,
 // head] geometry of k_tile_b2d16 with the page as the surface and K_HEAD_SIZE as the pitch. One read
 // covers one 16-key page, so loop per key group and take its page from k_page[] (indexed per
@@ -335,6 +335,53 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_b2d16)(__private ushort8 *k_raw, const __glo
             for (int mb = 0; mb < SUBGROUP_SIZE / DPAS_ROWS; ++mb)
                 k_raw[kg_mb + mb] = (ushort8)0;
         }
+    }
+}
+#endif
+
+#if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA && PA_K_WIDE_READS
+// pa_k_tile_b2d16 with two depth tiles per 16b_16r16x2c read and PA_K_WIDE_TILES / 2 reads in flight: on
+// db % PA_K_WIDE_TILES == 0 each key group reads tiles db..db + PA_K_WIDE_TILES - 1 into its entries of the caller's
+// k_wide (per read block-major: the first tile's 16 key rows, then the second's), and the following depth tiles take their
+// rows from there. With one read at a time IGC serialised the reads behind the DPAS that consumed the previous pair
+// (small GQA MIXED steps, few workgroups: 1.11-1.14x the d-major page's 32-row transpose, which keeps two reads in flight
+// the same way; docs "Token-major f16 page"). Same height clamp and zero fill; columns past d come back zero from the
+// surface width, so a head size that ends inside a group needs no special case.
+SDPA_OCL_INLINE void FUNC(pa_k_tile_b2d16_pair)(__private ushort8 *k_raw, __private ushort8 *k_wide,
+                                                const __global KEY_DATA_T *K, const __private uint *k_page,
+                                                const size_t b0_kv, const int key_base, const int k, const int d,
+                                                const int db) {
+    // k_wide entries per key group: PA_K_WIDE_TILES depth tiles x two row-blocks.
+    const int kw_kg = PA_K_WIDE_TILES * (SUBGROUP_SIZE / DPAS_ROWS);
+    #pragma unroll
+    for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
+        const int kg_mb = kg * (SUBGROUP_SIZE / DPAS_ROWS);
+        if ((db % PA_K_WIDE_TILES) == 0) {
+            const int kg_key0 = key_base + kg * SUBGROUP_SIZE;
+            const int kp_rows = PA_PAGE_ROWS(k, kg_key0);
+            if (kp_rows > 0) {
+                // Spelled as in pa_k_tile_b2d16 (the measured form at non-power-of-two heads).
+                const global half *Kp =
+                    (const global half *)(K + (((size_t)k_page[kg_mb] * KV_HEADS_NUM + b0_kv) *
+                                               PAGED_ATTENTION_BLOCK_SIZE * K_HEAD_SIZE));
+                const int KP_w = d * (int)sizeof(half);
+                const int KP_p = K_HEAD_SIZE * (int)sizeof(half);
+                #pragma unroll
+                for (int r = 0; r < PA_K_WIDE_TILES / 2; ++r) {
+                    if (db + 2 * r < DKS_ACTIVE)
+                        intel_sub_group_2d_block_read_16b_16r16x2c(
+                            (global void *)Kp, KP_w, kp_rows, KP_p, (int2)((db + 2 * r) * DPAS_K, 0),
+                            (private ushort *)&k_wide[kg * kw_kg + 4 * r]);
+                }
+            } else {
+                #pragma unroll
+                for (int mb = 0; mb < kw_kg; ++mb)
+                    k_wide[kg * kw_kg + mb] = (ushort8)0;
+            }
+        }
+        #pragma unroll
+        for (int mb = 0; mb < SUBGROUP_SIZE / DPAS_ROWS; ++mb)
+            k_raw[kg_mb + mb] = k_wide[kg * kw_kg + (db % PA_K_WIDE_TILES) * (SUBGROUP_SIZE / DPAS_ROWS) + mb];
     }
 }
 #endif

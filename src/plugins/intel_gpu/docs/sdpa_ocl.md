@@ -922,6 +922,33 @@ Still slower than `sdpa_micro` per call: the small sliding-window layers, gpt-os
 every cache (f16 52 against 44 us, i8 61 against 55, u4 69 against 57) and gemma-4-e2b's 512-key window at `d_max` 256
 with f16 (63 against 61).
 
+### Token-major f16 page (`OV_GPU_PA_K_TOKEN_MAJOR=1`)
+
+The token-major f16 page is the `[key, head]` geometry of the K input, read by `pa_k_tile_b2d16` one 16-key x 16-channel
+block per depth tile. Against the d-major page's 32-row transpose that is twice the messages, and the reads of a key
+group were serialised: IGC put them all in one register range, so each waited for the DPAS of the previous one. On a
+small GQA MIXED step (4-16 new tokens, 32/8 heads, head 128; few workgroups, so the load latency is exposed) `sdpa_ocl`
+took 1.08-1.19x the d-major page's time. `PA_K_WIDE_READS` (`pa_k_tile_b2d16_pair`) reads two depth tiles per
+`16b_16r16x2c` message and issues the reads of `PA_K_WIDE_TILES` (4) depth tiles together, two messages in flight per key
+group as the 32-row transpose has, into 32 GRF of `k_wide_pa`. Per call (B70 pinned at 1800 MHz, `test/ktm/run_smallq.py`,
+16 new tokens at 1K / 4K / 8K): d-major 45.3 / 145 / 440 us, token-major before 52.2 / 172 / 475, one wide read in flight
+50.3 / 166 / 462, two 47.0 / 154 / 440, four (`PA_K_WIDE_TILES` 8, 64 GRF at head 128) 46.6 / 153 / 436. On a 256-token
+chunk at 8K (`test/ktm/arms_f16w.list`, us per call, d-major / before / after): llama-3.1-8b 566 / 556 / 544, qwen3-8b
+565 / 558 / 545, llama-3.2-1b 392 / 379 / 367, phi-3.5-mini 588 / 569 / 567, gpt-oss-20b 687 / 649 / 633 and 128-key
+window 52.9 / 48.5 / 52.1, gemma-4-26b `d_max` 512 813 / 832 / 726 and 1024-key window 120 / 115 / 113; no kernel spills.
+Swapping the two reads of a group on purpose fails the f16 MIXED rows (`basic/37`, `38`, `180`-`185`) and the feature-pad
+and runtime-scale suites only with the token-major page.
+
+`paged_attention_opt.cl` reads the uncompressed token-major page (its GQA multi-token fallback, which small GQA MIXED steps
+take below `prefer_gqa_multi_tokens_fallback_kernel()`'s threshold, and the single- and multi-token kernels) with a per-lane
+`vload16`, a 16-address gather per 16 channels, repeated for every query of a GQA multi-token work-item: the fallback took
+1.09-1.66x its d-major time. On Xe2 a 32-bit transpose of the page (`transpose_32b_16r8x1c` at dword column `qk_idx * 8`)
+lands the same operand, lane = token, from one block message (`USE_2D_BLOCK_IO_K_TM`, set by the host for a 16-bit cache
+whose row passes `block2d_page_ok()`; earlier parts keep the gather). The fallback now matches its d-major time (16 new
+tokens at 1K / 4K / 8K: 78.6 / 240 / 535 against d-major 78.8 / 245 / 540 us, before 112 / 307 / 653). Moving the read
+one row down on purpose fails the GQA multi-token rows and the scores rows with the token-major page and none with the
+d-major one.
+
 ## Paged-attention cache layouts
 
 A K cache page is either d-major (`[head_size, block_size]`, the upstream layout) or token-major
@@ -1396,6 +1423,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
 | `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
 | `SDPA_OCL_K_PA_DT` | MIXED f16 d-major K page transpose read: `16` / `32` rows per read (default 32 with 256 GRF, 16 with 128), `0` = per-key gather |
+| `SDPA_OCL_PA_K_WIDE`, `SDPA_OCL_PA_K_WIDE_TILES` | MIXED f16 token-major K page: `0` reads one depth tile per message (default 1, two per message); depth tiles issued together, an even number (default 4) |
 | `SDPA_OCL_PA_CUR_F16` | MIXED current tokens from Kc/Vc (default for compressed caches only; `0` = from the cache) |
 | `SDPA_OCL_MIXED_PREFETCH_V`, `_K` | u4 / i8 MIXED page prefetches ("Paged-attention MIXED tiling", "... i8 and f16 caches"): `0`/`1` forces each off/on where the 8-bit page read is on |
 | `SDPA_OCL_CAUSAL_SKIP` | PA PREFILL causal tile skip ("Paged-attention PREFILL: short prompts"): `0`/`1` forces it off/on (default on at `d_max` 128 / 256 / 512) |
