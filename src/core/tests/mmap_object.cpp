@@ -20,6 +20,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace ov::test {
 

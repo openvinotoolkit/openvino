@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <future>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -140,6 +141,9 @@ void vm_release(void* ptr, size_t size) noexcept;
 struct MemoryProperties {
     size_t offset = 0;  //!< Offset of this buffer within the allocation identified by IBuffer::get_id().
 };
+
+/** @brief Handle to wait for a background prefetch; an invalid handle means there is nothing to wait for. */
+using PrefetchToken = std::shared_future<void>;
 
 /** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
 class MemoryView {
