@@ -10,6 +10,7 @@
 #include <fstream>
 #include <stack>
 
+#include "core/graph_iterator_proto.hpp"
 #include "detail/subgraph_extraction.hpp"
 #include "edge_mapper.hpp"
 #include "onnx_common/parser.hpp"
@@ -314,7 +315,10 @@ struct ONNXModelEditor::Impl {
         graph_topological_sort(m_model_proto->mutable_graph());
     }
 
-    Impl(const std::filesystem::path& model_path) : Impl(std::make_shared<ModelProto>(parse_from_file(model_path))) {}
+    Impl(const std::filesystem::path& model_path) : Impl(std::make_shared<ModelProto>(parse_from_file(model_path))) {
+        // A model read from a file cannot point to ONNX Runtime in-process memory
+        ov::frontend::onnx::validate_no_ort_mem_addr(*m_model_proto);
+    }
 
     Impl(std::istream& model_stream) : Impl(std::make_shared<ModelProto>(parse_from_istream(model_stream))) {}
 };
