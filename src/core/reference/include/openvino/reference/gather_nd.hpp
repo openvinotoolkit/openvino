@@ -79,7 +79,8 @@ void gather_nd(const T* const params,
 
     const auto k_1_indices = span(next(begin(indices_shape), batch_dims), prev(end(indices_shape)));
 
-    const auto k_1_params = span(next(begin(params_shape), batch_dims), prev(end(params_shape)));
+    const auto k_1_params =
+        span(next(begin(params_shape), batch_dims), next(begin(params_shape), first_slice_index_in_params));
 
     const auto number_of_slices_to_copy_in_one_batch = shape_size(k_1_indices);
 
@@ -95,7 +96,7 @@ void gather_nd(const T* const params,
             size_t input_slice_offset = input_batch_offset;
             for (size_t c = 0; c != coordinates_size; ++c) {
                 const auto i_c = slice_coordinates[c];
-                const auto index = ov::util::normalize_shape_index(static_cast<std::ptrdiff_t>(i_c), k_1_params[c]);
+                const auto index = ov::util::normalize_shape_index(static_cast<std::ptrdiff_t>(i_c), k_1_params.at(c));
                 input_slice_offset += static_cast<size_t>(index) * indices_offsets[c];
             }
             const auto output_slice_offset = output_batch_offset + slice * slice_size;
