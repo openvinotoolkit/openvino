@@ -6,11 +6,13 @@
 
 #include <assert.h>
 
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <tuple>
 #include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/abs.hpp"
@@ -53,9 +55,80 @@ namespace v3 = ov::op::v3;
 namespace v6 = ov::op::v6;
 namespace v8 = ov::op::v8;
 namespace op_util = ov::op::util;
+
+namespace {
+#define ACCESSOR(type)                                                                    \
+    void on_adapter(const std::string& name, ov::ValueAccessor<type>& adapter) override { \
+        m_attributes_map[name] = adapter.get();                                           \
+    };
+#define ACCESSOR_V(type) ACCESSOR(type) ACCESSOR(std::vector<type>)
+
+// Attributes without equality operators throw ov::NotImplemented
+class NodeComparingVisitor : public ov::AttributeVisitor {
+public:
+    ACCESSOR(bool)
+    ACCESSOR_V(std::string)
+    ACCESSOR_V(int8_t)
+    ACCESSOR_V(int16_t)
+    ACCESSOR_V(int32_t)
+    ACCESSOR_V(int64_t)
+    ACCESSOR_V(uint8_t)
+    ACCESSOR_V(uint16_t)
+    ACCESSOR_V(uint32_t)
+    ACCESSOR_V(uint64_t)
+    ACCESSOR_V(float)
+    ACCESSOR_V(double)
+
+    void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
+        if (auto a = ov::as_type<ov::AttributeAdapter<std::vector<ov::element::Type>>>(&adapter)) {
+            m_attributes_map.insert({name, a->get()});
+        } else {
+            OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
+        }
+    };
+    void on_adapter(const std::string& name, ov::ValueAccessor<void*>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void*");
+    };
+    void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
+    };
+
+    ov::AnyMap visit_attributes(const std::shared_ptr<ov::Node>& node) {
+        m_attributes_map.clear();
+        node->visit_attributes(*this);
+        return m_attributes_map;
+    }
+
+private:
+    ov::AnyMap m_attributes_map;
+};
+#undef ACCESSOR_V
+#undef ACCESSOR
+}  // namespace
+
 namespace ov {
 namespace op {
 namespace util {
+
+ov::AnyMap get_comparable_attributes(const std::shared_ptr<ov::Node>& node) {
+    return NodeComparingVisitor().visit_attributes(node);
+}
+
+bool node_attributes_are_equal(const std::shared_ptr<ov::Node>& lhs, const std::shared_ptr<ov::Node>& rhs) {
+    if (lhs->get_type_info() != rhs->get_type_info())
+        return false;
+    try {
+        return get_comparable_attributes(lhs) == get_comparable_attributes(rhs);
+    } catch (...) {
+        // Attributes that can't be compared are treated as different
+        return false;
+    }
+}
+
+bool constants_are_equal(const v0::Constant& lhs, const v0::Constant& rhs) {
+    return lhs.get_element_type() == rhs.get_element_type() && lhs.get_shape() == rhs.get_shape() &&
+           std::memcmp(lhs.get_data_ptr(), rhs.get_data_ptr(), lhs.get_byte_size()) == 0;
+}
 
 void visit_path(ov::Node* node,
                 std::unordered_set<ov::Node*>& visited,

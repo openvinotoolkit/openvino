@@ -94,6 +94,7 @@
 #include "transformations/op_conversions/convert_grouped_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/fuse_moe_shared_expert.hpp"
+#include "plugin/transformations/batch_replicated_branches.hpp"
 #include "plugin/transformations/fuse_rope_input_deinterleave.hpp"
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
@@ -873,6 +874,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
+        // After CommonOptimizations: ShapeOf consumers of static branches are folded and do not block batching
+        manager.register_pass<ov::intel_gpu::BatchReplicatedBranches>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
