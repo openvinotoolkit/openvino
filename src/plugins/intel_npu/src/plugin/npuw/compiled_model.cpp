@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <set>
 #include <string>
@@ -2472,6 +2473,13 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
+    const auto& dump_sub_opt = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS>();
+    if (!dump_sub_opt.empty() && dump_sub_opt != "NO") {
+        dump_compile_options(submodel->get_friendly_name(),
+                             device,
+                             device_config,
+                             m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>());
+    }
     return core->compile_model(submodel, device, device_config);
 }
 
