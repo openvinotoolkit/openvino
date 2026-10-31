@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <numeric>
 #include <optional>
 #include <vector>
@@ -426,12 +427,25 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 preserve_initializer_name(casted_zp_org, zero_points_const);
                 converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
                 if (pack_dim != num_elements_aligned) {
-                    // if not aligned, e.g. pack_dim is 13, bits is 2, num_per_byte is 4: packed into 4
-                    // bytes, so make a constant {outer_dim, 16} then slice to {outer_dim, 13}
-                    const auto num_elements =
-                        std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(pack_dim));
-                    converted_zero_points =
-                        std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
+                    // The ONNX buffer byte-aligns each row. Unpack only the valid values and let Constant
+                    // repack them contiguously, so the graph does not need a padding-trimming Slice.
+                    const auto packed_data = static_cast<const uint8_t*>(zero_points_const->get_data_ptr());
+                    const auto value_mask = (1u << bits) - 1;
+                    std::vector<uint8_t> zero_point_values(static_cast<size_t>(outer_dim * pack_dim));
+                    for (uint64_t outer = 0; outer < outer_dim; ++outer) {
+                        for (uint64_t i = 0; i < pack_dim; ++i) {
+                            const auto byte_index = outer * num_byte + i / num_per_byte;
+                            const auto bit_shift = (i % num_per_byte) * bits;
+                            zero_point_values[static_cast<size_t>(outer * pack_dim + i)] =
+                                static_cast<uint8_t>((packed_data[byte_index] >> bit_shift) & value_mask);
+                        }
+                    }
+                    auto unpacked_zp = std::make_shared<v0::Constant>(
+                        zp_element_type,
+                        ov::Shape{static_cast<size_t>(outer_dim), static_cast<size_t>(pack_dim), 1},
+                        zero_point_values);
+                    preserve_initializer_name(unpacked_zp, zero_points_const);
+                    converted_zero_points = std::make_shared<v0::Convert>(unpacked_zp, a.get_element_type());
                 }
             } else {
                 FRONT_END_THROW("Unexpected zero point type");
