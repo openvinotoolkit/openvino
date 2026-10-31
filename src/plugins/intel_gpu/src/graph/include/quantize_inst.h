@@ -122,6 +122,41 @@ public:
         return count;
     }
 
+    size_t onednn_ops_count(bool has_following_fused_op) const {
+        size_t count = 0;
+        if (_per_tensor_input_scale && _per_tensor_input_shift) {
+            count++;
+        } else {
+            count++;
+            if (_need_pre_shift)
+                count++;
+        }
+
+        if (_need_post_scale && _need_post_shift && _per_tensor_output_scale && _per_tensor_output_shift) {
+            count++;
+        } else {
+            if (_need_post_scale)
+                count++;
+            if (_need_post_shift)
+                count++;
+        }
+
+        const bool output_range_usage = _per_tensor_output_range && _out_lo < _out_hi;
+        const bool output_type_is_int8 = _out_layout.data_type == data_types::u8 || _out_layout.data_type == data_types::i8;
+        if (output_range_usage) {
+            if (!output_type_is_int8)
+                count++;
+            if (_need_clamp || has_following_fused_op)
+                count++;
+        } else {
+            if (_need_clamp)
+                count += 2;
+            count++;
+        }
+
+        return count;
+    }
+
     layout _out_layout;
 
     bool _scale_shift_opt;
