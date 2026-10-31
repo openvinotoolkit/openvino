@@ -16,11 +16,13 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/batch_to_space.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
@@ -30,6 +32,7 @@
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/op/util/gather_base.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/symbolic_transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
@@ -422,5 +425,75 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
     };
 
     auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMovFusableProducer(
+    std::vector<DiscreteTypeInfo> fusable_producer_types) {
+    MATCHER_SCOPE(MoveEltwiseUpThroughDataMovFusableProducer);
+
+    const auto fusable_op = std::make_shared<ov::pass::pattern::op::WrapType>(fusable_producer_types);
+    const auto fusable_producer = ov::pass::pattern::optional<v1::Add>({fusable_op, ov::pass::pattern::any_input()});
+
+    const auto rank_increase_by_one = [](const ov::Output<ov::Node>& output) {
+        const auto& in_rank = output.get_node()->get_input_partial_shape(0).rank();
+        const auto& out_rank = output.get_partial_shape().rank();
+        return in_rank.is_static() && out_rank.is_static() && out_rank.get_length() == in_rank.get_length() + 1;
+    };
+    const auto data_mov =
+        wrap_type<v1::Reshape, v0::Unsqueeze>({fusable_producer, ov::pass::pattern::any_input()},
+                                              rank_increase_by_one && ov::pass::pattern::consumers_count(1));
+
+    const auto other_input = ov::pass::pattern::any_input();
+    const auto eltwise_pattern =
+        wrap_type<op_util::BinaryElementwiseArithmetic>({data_mov, other_input}, ov::pass::pattern::has_static_rank());
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+
+        const auto eltwise = m.get_match_root();
+        if (transformation_callback(eltwise))
+            return false;
+
+        const auto rn = pattern_map.at(data_mov).get_node_shared_ptr();
+        const auto other = pattern_map.at(other_input);
+
+        const auto& in_ps = rn->get_input_partial_shape(0);
+        const auto& out_ps = rn->get_output_partial_shape(0);
+        const auto axes = op_util::get_unsqueeze_axes(in_ps, out_ps);
+        if (axes.size() != 1)
+            return false;
+        const auto axis = axes.front();
+        // The data movement output has to be the producer's shape with a unit dimension inserted at `axis`
+        auto expected = in_ps;
+        expected.insert(expected.begin() + axis, ov::Dimension(1));
+        if (!expected.same_scheme(out_ps))
+            return false;
+        // Reshape keeps the element count, so it can't reinterpret a single dynamic dimension, but may reorder several
+        if (ov::is_type<v1::Reshape>(rn)) {
+            const auto dynamic_dims = std::count_if(in_ps.begin(), in_ps.end(), [](const ov::Dimension& dim) {
+                return dim.is_dynamic();
+            });
+            if (dynamic_dims > 1)
+                return false;
+        }
+
+        // The other input has to have the same rank and a unit dimension at `axis` to be squeezed
+        const auto& other_ps = other.get_partial_shape();
+        if (other_ps.rank() != out_ps.rank() || other_ps[axis] != 1)
+            return false;
+
+        // Eltwise(Reshape(P, axis), other) => Unsqueeze(Eltwise(P, Squeeze(other, axis)), axis)
+        const auto axis_const = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        const auto squeezed = std::make_shared<v0::Squeeze>(other, axis_const);
+        const auto eltwise_low = eltwise->clone_with_new_inputs({rn->input_value(0), squeezed});
+        const auto unsqueezed =
+            std::make_shared<v0::Unsqueeze>(eltwise_low, v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis}));
+
+        ov::copy_runtime_info({eltwise, rn}, {squeezed, eltwise_low, unsqueezed});
+        return ov::replace_output_update_name(eltwise->output(0), unsqueezed->output(0));
+    };
+
+    const auto m = std::make_shared<Matcher>(eltwise_pattern, matcher_name);
     register_matcher(m, callback);
 }

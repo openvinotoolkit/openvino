@@ -1854,6 +1854,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovPerChannel>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovFusableProducer>(std::vector<ov::DiscreteTypeInfo>{
+            ov::intel_gpu::op::FullyConnected::get_type_info_static(),
+            ov::op::v0::MatMul::get_type_info_static(),
+            ov::op::v1::Transpose::get_type_info_static(),
+        });
 
         manager.register_pass<ov::intel_gpu::ConvertStridedSlicesToVariadicSplit>();
 
