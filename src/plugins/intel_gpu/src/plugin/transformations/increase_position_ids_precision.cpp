@@ -80,7 +80,10 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
     auto rope_sin_input = std::make_shared<Or>(OutputVector{sin_reshape, sin_squeeze, sin_unsqueeze, sin_unsqueeze2, sin_multiply_reshape, sin});
     auto rope_cos_input = std::make_shared<Or>(OutputVector{cos_reshape, cos_squeeze, cos_unsqueeze, cos_unsqueeze2, cos_multiply_reshape, cos});
 
-    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), rope_cos_input, rope_sin_input});
+    // Gemma 4 fuses RoPE with a 4th (constant) input; accept both forms.
+    auto rope3 = wrap_type<ov::op::internal::RoPE>({any_input(), rope_cos_input, rope_sin_input});
+    auto rope4 = wrap_type<ov::op::internal::RoPE>({any_input(), rope_cos_input, rope_sin_input, any_input()});
+    auto rope = std::make_shared<Or>(OutputVector{rope3, rope4});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -647,6 +650,33 @@ DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "DisableFP16ComForGPTOSSROPEPattern");
+    this->register_matcher(m, callback);
+}
+
+DisableFP16ComForRoPEFreqConst::DisableFP16ComForRoPEFreqConst() {
+    using namespace ov::pass::pattern;
+    using ov::pass::pattern::op::Or;
+
+    // inv_freq [1, D/2, 1] (f32 Constant) x position_ids [B, 1, S] -> [Transpose] -> Concat(freqs, freqs) -> Sin/Cos
+    auto freq_const = wrap_type<ov::op::v0::Constant>(type_matches(element::f32));
+    auto matmul = wrap_type<ov::op::v0::MatMul>({freq_const, any_input()});
+    auto transpose = wrap_type<ov::op::v1::Transpose>({matmul, any_input()});
+    auto concat_input = std::make_shared<Or>(OutputVector{matmul, transpose});
+    auto concat = wrap_type<ov::op::v0::Concat>({concat_input, concat_input});
+    auto sin = wrap_type<ov::op::v0::Sin>({concat});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto sin_node = pattern_map.at(sin).get_node_shared_ptr();
+        if (transformation_callback(sin_node)) {
+            return false;
+        }
+        auto freq_const_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(freq_const).get_node_shared_ptr());
+        ov::disable_conversion(freq_const_node, element::f16);
+        return true;
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "DisableFP16ComForRoPEFreqConst");
     this->register_matcher(m, callback);
 }
 }  // namespace ov::intel_gpu
