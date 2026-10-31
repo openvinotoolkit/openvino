@@ -288,6 +288,7 @@ OP_CONVERTER(translate_tuple_unpack);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_unique2);
+OP_CONVERTER(translate_unique2_fx);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
 OP_CONVERTER(translate_upsample_bicubic2d_aa);
@@ -969,6 +970,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.to.dtype_layout", op::translate_to_fx},
         {"aten.unbind.int", op::translate_list_view_fx},
         {"aten.unsafe_chunk.default", op::translate_list_view_fx},
+        {"aten._unique2.default", op::translate_unique2_fx},
         {"aten.unsqueeze_copy.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
         {"aten.var.correction", op::translate_var_fx},
         {"aten.var_mean.correction", op::translate_var_mean_fx},
