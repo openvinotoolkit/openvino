@@ -804,6 +804,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     split_llm_properties(properties, npuw_llm_props, other_props);
     const auto npudesc = extract_npu_descriptor(plugin, other_props);
     auto use_eagle_key = pop_option(other_props, std::string("NPUW_EAGLE"));
+    m_is_text_rerank = pop_option(other_props, std::string("NPUW_TEXT_RERANK")).value_or(false).as<bool>();
 
     // Remove map-valued section configs before m_cfg.update(any_copy(...)), since Config expects string options.
     auto prefill_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_PREFILL_CONFIG"));
@@ -834,6 +835,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
+    }
+
+    if (m_is_text_rerank) {
+        // A reranker never generates, so the KV cache needs no room for a response.
+        m_cfg.update({{"NPUW_LLM_MIN_RESPONSE_LEN", "0"}});
     }
 
     m_is_eagle = use_eagle_key.value_or(false).as<bool>() == true;
@@ -913,10 +919,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
-
-    // The rerank tag only gates the batched wrapper at the entry point. Pop it here
-    // so it stays out of the submodel configs, like the embed tag above.
-    pop_option(other_props, std::string("NPUW_TEXT_RERANK"));
 
     if (m_is_embedding) {
         // Both embedding flavours only ever prefill; what differs is how they attend. An
@@ -1127,12 +1129,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Create generate model variants with different sizes.
     // A bidirectional encoder embedding model has no autoregressive generate step (no KV cache,
     // no single-token decode), so the seq_len=1 generate graph is invalid for it and must not be
-    // built/compiled. Only the (whole-sequence) prefill model is used at inference time.
+    // built/compiled. A reranker only reads the logits of its prefill. Both use only the prefill
+    // model at inference time.
     std::vector<std::shared_ptr<ov::Model>> generate_model_variants;
-    if (!m_is_encoder_embedding) {
+    if (!m_is_encoder_embedding && !m_is_text_rerank) {
         generate_model_variants = create_generate_model_variants(kvcache_model, axes, whisper_lhs_seq_size);
     } else {
-        LOG_DEBUG("Encoder embedding model: skipping generate model variants (prefill-only).");
+        LOG_DEBUG("Prefill-only model: skipping generate model variants.");
     }
 
     if (lm_head_model) {
@@ -1679,7 +1682,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
             m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
-            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding & m_swa_window_size;
+            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding & m_swa_window_size & m_is_text_rerank;
 
         // LongRoPE cos/sin tables: the transformed graphs have npuw_lr_cos/npuw_lr_sin
         // inputs the host must fill every call, but deserialization imports already-
@@ -1883,7 +1886,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
             compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
-            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size;
+            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size &
+            compiled->m_is_text_rerank;
 
         // LongRoPE cos/sin tables - see the matching comment in serialize()
         stream & compiled->m_longrope_tables;
@@ -2048,7 +2052,7 @@ bool ov::npuw::LLMCompiledModel::can_continue_prefill() const {
     if (m_enable_prefix_caching) {
         return false;  // the hash prefix cache restores full prompts, not deltas
     }
-    if (m_is_whisper || m_is_embedding || m_is_eagle) {
+    if (m_is_whisper || m_is_embedding || m_is_text_rerank || m_is_eagle) {
         return false;  // out of scope pipelines
     }
     if (m_longrope_context_limit > 0u) {

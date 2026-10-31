@@ -90,6 +90,11 @@ public:
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name) const override;
 
+    // False for a model compiled prefill-only, which has no generate variants.
+    bool has_generate() const {
+        return !m_generate_compiled_variants.empty();
+    }
+
 protected:
     friend class LLMInferBaseRequest;
     friend class LLMInferRequest;
@@ -190,6 +195,9 @@ protected:
     // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
     // routed to the dedicated KV/RoPE-free encoder embedding path.
     bool m_is_encoder_embedding = false;
+    // True for a text reranker (NPUW_TEXT_RERANK): an LLM that only reads the logits of its
+    // prefill and never generates, so it is compiled prefill-only.
+    bool m_is_text_rerank = false;
 
     // SWA (sliding-window attention) window size, 0 if none.
     uint32_t m_swa_window_size = 0;
