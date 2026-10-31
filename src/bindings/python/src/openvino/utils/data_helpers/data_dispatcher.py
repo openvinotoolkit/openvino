@@ -51,6 +51,37 @@ def _to_bf16_view(value: np.ndarray) -> np.ndarray:
     return bits.astype(np.uint16).view(np.float16)
 
 
+def _list_to_input_array(value: list, tensor_type: Type) -> Optional[np.ndarray]:
+    """Return a numpy array of a list of numbers for an input, or None if the values do not survive the cast.
+
+    Integer and boolean inputs must hold every value exactly. The array is built directly in the input's dtype,
+    so out-of-range values raise instead of wrapping, and it is compared exactly with the original values,
+    which catches truncation of floats and bool coercion.
+    Floating-point inputs may round, as numpy does, but must not overflow to infinity.
+    """
+    array = np.array(value)
+    if array.dtype.kind not in "biuf":
+        return None
+    with np.errstate(all="ignore"):
+        if tensor_type == Type.bf16:
+            # Returned as float32, which the bf16 path converts by value.
+            as_float32 = array.astype(np.float32)
+            bits = _to_bf16_view(as_float32).view(np.uint16)
+            overflow = (bits & 0x7F80) == 0x7F80
+            return as_float32 if np.all(~overflow | ~np.isfinite(array)) else None
+        target_dtype = tensor_type.to_dtype()
+        if np.dtype(target_dtype).kind == "f":
+            cast = array.astype(target_dtype)
+            return array if np.all(np.isfinite(cast) | ~np.isfinite(array)) else None
+        try:
+            cast = np.array(value, dtype=target_dtype)
+            # Object arrays compare Python ints exactly and work for lists of tuples or arrays.
+            exact = np.array_equal(cast.astype(object), np.array(value, dtype=object))
+        except (OverflowError, ValueError, TypeError):
+            return None
+        return cast if exact else None
+
+
 @singledispatch
 def value_to_tensor(
     value: Union[Tensor, np.ndarray, ScalarTypes, str],
@@ -130,7 +161,16 @@ def _(
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:
-    return Tensor(value)
+    tensor_type = get_request_tensor(request, key).get_element_type()
+    # String edge-case -- Tensor class converts the list itself.
+    if tensor_type == Type.string:
+        return Tensor(value)
+    # Only lists of numbers whose values survive the cast are converted to the input's type.
+    # Others (None, str, lossy casts) keep failing on type mismatch.
+    array = _list_to_input_array(value, tensor_type)
+    if array is None:
+        return Tensor(value)
+    return value_to_tensor(array, request, is_shared=False, key=key)
 
 
 @value_to_tensor.register(np.number)
@@ -388,7 +428,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
 
     It creates copy of Tensors or copy data to already allocated Tensors on device
     if the item is of type `np.ndarray`, `np.number`, `int`, `float`, `str`, `bytes` or has numpy __array__ attribute.
-    If value is of type `list`, create a Tensor based on it, copy will occur in the Tensor constructor.
+    If value is of type `list`, create a new Tensor based on it, converted to the input's type unless it is a string.
     """
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
@@ -402,7 +442,7 @@ def update_inputs(inputs: dict, request: _InferRequestWrapper) -> dict:
         if isinstance(value, (np.ndarray, np.number, int, float, str, bytes)) or hasattr(value, "__array__"):
             update_tensor(value, request, key)
         elif isinstance(value, list):
-            new_inputs[key] = Tensor(value)
+            new_inputs[key] = value_to_tensor(value, request, is_shared=False, key=key)
         # If value is of Tensor type, put it into temporary dictionary.
         elif isinstance(value, Tensor):
             new_inputs[key] = value
