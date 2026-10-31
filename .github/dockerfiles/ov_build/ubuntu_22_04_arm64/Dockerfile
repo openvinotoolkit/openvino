@@ -23,46 +23,49 @@ RUN apt-get update && \
     wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/llvm.asc && \
     apt-get update && \
     apt-get install \
-        curl \
-        git \
-        ca-certificates \
-        gpg-agent \
-        tzdata \
-        # parallel gzip
-        pigz \
-        # Pythons
-        python3.9-dev \
-        python3.9-venv \
-        python3.9-distutils \
-        python3.10-dev \
-        python3.10-venv \
-        python3.10-distutils \
-        python3.11-dev \
-        python3.11-venv \
-        python3.11-distutils \
-        python3.12-dev \
-        python3.12-venv \
-        python3.13-dev \
-        python3.13-venv \
-        python3.14-nogil \
-        python3.14-venv \
-        python3.14-dev \
-        libhdf5-dev \
-        # For Java API
-        default-jdk \
-        # Compiler, required for multi-isa build
-        gcc-11 \
-        g++-11 \
-        # JS API
-        xvfb \
-        libgtk-3-0 \
-        libgbm1 \
-        # ONNX Runtime
-        language-pack-en \
-        # For clang-tidy validation
-        clang-format-18 \
-        clang-tidy-18 \
-        && \
+    curl \
+    git \
+    ca-certificates \
+    gpg-agent \
+    tzdata \
+    # parallel gzip
+    pigz \
+    # Pythons
+    python3.9-dev \
+    python3.9-venv \
+    python3.9-distutils \
+    python3.10-dev \
+    python3.10-venv \
+    python3.10-distutils \
+    python3.11-dev \
+    python3.11-venv \
+    python3.11-distutils \
+    python3.12-dev \
+    python3.12-venv \
+    python3.13-dev \
+    python3.13-venv \
+    python3.14-nogil \
+    python3.14-venv \
+    python3.14-dev \
+    python3.15-nogil \
+    python3.15-venv \
+    python3.15-dev \
+    libhdf5-dev \
+    # For Java API
+    default-jdk \
+    # Compiler, required for multi-isa build
+    gcc-11 \
+    g++-11 \
+    # JS API
+    xvfb \
+    libgtk-3-0 \
+    libgbm1 \
+    # ONNX Runtime
+    language-pack-en \
+    # For clang-tidy validation
+    clang-format-18 \
+    clang-tidy-18 \
+    && \
     # Remove apt cache
     rm -rf /var/lib/apt/lists/*
 
@@ -88,6 +91,8 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 # Setup pip
 ENV PIP_VERSION="24.0"
+# pip 24.0 is incompatible with Python 3.15 (abstract importlib.metadata Distribution.locate_file)
+ENV PIP_VERSION_PY315="26.2.1"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3-8.py && \
     curl https://bootstrap.pypa.io/pip/3.9/get-pip.py -o get-pip-3-9.py && \
@@ -99,6 +104,8 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.14 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.14t get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    python3.15 get-pip.py --no-cache-dir pip==${PIP_VERSION_PY315} && \
+    python3.15t get-pip.py --no-cache-dir pip==${PIP_VERSION_PY315} && \
     rm -f get-pip.py
 
 # Use Python 3.11 as default instead of Python 3.10
