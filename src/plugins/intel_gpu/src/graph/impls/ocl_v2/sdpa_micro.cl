@@ -640,13 +640,20 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     float scale = native_recip(iscale);
 #endif
 #endif
+    // Upper bound for a folded additive attention mask. exp2(scale * log2(e) * -MICRO_MASK_SAT) must still
+    // flush to exactly 0 for small custom scales (holds for scale >= ~2e-35), while 2 * MICRO_MASK_SAT plus
+    // any score stays far below FLT_MAX, so a fully masked row stays finite instead of becoming NaN.
+#define MICRO_MASK_SAT 1.0e37f
     const float log2_e = 1.442695f;
 #if !defined(HAS_SINK_INPUT)
 #define LOG_2_E_MUL_SCALE 1
     scale *= log2_e;
 #endif
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
-    float masked_scale = iscale * STATIC_SCALAR_ATTN_MASK_VALUE;
+    float masked_scale_raw = iscale * STATIC_SCALAR_ATTN_MASK_VALUE;
+    float masked_scale = masked_scale_raw != masked_scale_raw ? masked_scale_raw
+                         : (masked_scale_raw < -MICRO_MASK_SAT ? -MICRO_MASK_SAT :
+                            (masked_scale_raw > MICRO_MASK_SAT ? MICRO_MASK_SAT : masked_scale_raw));
 #endif
 #ifdef HAS_SINK_INPUT
     #if IS_GQA_SINGLE_TOKEN
@@ -1155,6 +1162,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef LOG_2_E_MUL_SCALE
 #define unscale(x) ((x)*iscale)
         tile_elementwise(mask_tile_float, unscale);
+#define sat_mask(x) ((x) != (x) ? (x) : ((x) < -MICRO_MASK_SAT ? -MICRO_MASK_SAT : \
+                       ((x) > MICRO_MASK_SAT ? MICRO_MASK_SAT : (x))))
+        tile_elementwise(mask_tile_float, sat_mask);
 #else
 #define scale(x) ((x)* scale)
         tile_elementwise(S_tile, scale);
