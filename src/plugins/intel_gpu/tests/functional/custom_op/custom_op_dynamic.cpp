@@ -330,11 +330,51 @@ public:
     }
 };
 
+class CustomOpDynamicCache : public CustomOpDynamic {
+public:
+    void run() {
+        std::vector<ov::Shape> input_shapes;
+        std::vector<std::vector<float>> input_datas;
+        std::tie(input_shapes, input_datas) = GetParam();
+        ASSERT_EQ(input_shapes.size(), input_datas.size());
+
+        const std::string cache_dir = ov::test::utils::generateTestFilePrefix() + "_custom_op_cache";
+        float alpha = 1.0, beta = 0.1;
+        const size_t output_num = 2;  // dynamic model has 2 outputs.
+        ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}, ov::cache_dir(cache_dir)};
+
+        // The 1st compile writes the cache. The 2nd loads the model from it: the custom ops' shape inference must then
+        // work without the original ov::Node, which is not part of the cache blob.
+        for (bool from_cache : {false, true}) {
+            ov::Core core;
+            auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1}, "dynamic");
+            auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
+            ASSERT_EQ(from_cache, compiled_model.get_property(ov::loaded_from_cache));
+
+            auto ireq = compiled_model.create_infer_request();
+            for (size_t i = 0; i < input_datas.size(); i++) {
+                auto input = ov::Tensor({ov::element::f32}, input_shapes[i], input_datas[i].data());
+                ireq.set_input_tensor(0, input);
+                ireq.infer();
+                check_output(ireq, input, alpha, beta, output_num);
+            }
+        }
+
+        ov::test::utils::removeFilesWithExt(cache_dir, "blob");
+        ov::test::utils::removeFilesWithExt(cache_dir, "cl_cache");
+        ov::test::utils::removeDir(cache_dir);
+    }
+};
+
 TEST_P(CustomOpDynamic, Accuracy) {
     run();
 }
 
 TEST_P(CustomOpStatic, Accuracy) {
+    run();
+}
+
+TEST_P(CustomOpDynamicCache, AccuracyAfterCacheLoad) {
     run();
 }
 
@@ -345,6 +385,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_GPU_Accuracy,
                          CustomOpDynamic,
                          ::testing::Combine(::testing::Values(input_shapes), ::testing::Values(input_datas)),
                          CustomOpDynamic::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_Accuracy,
+                         CustomOpDynamicCache,
+                         ::testing::Combine(::testing::Values(input_shapes), ::testing::Values(input_datas)),
+                         CustomOpDynamicCache::getTestCaseName);
 
 const std::vector<ov::Shape> input_static_shapes{{2, 2, 3}};
 const std::vector<std::vector<float>> input_static_datas{{0.2, 0.4, 0.3, 0.5, 0.7, 0.9, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6}};
