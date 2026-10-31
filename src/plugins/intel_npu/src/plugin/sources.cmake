@@ -171,6 +171,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/sliding_window_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/canonicalize_lm_head_dq_layout.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/canonicalize_lm_head_dq_layout.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untangle_dq_scale.cpp

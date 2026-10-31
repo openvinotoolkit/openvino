@@ -87,6 +87,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/split_kvcache_into_blocks.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/insert_vocab_sub128.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/duplicate_shared_kv_concat.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/npuw_transformations/canonicalize_lm_head_dq_layout.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/kv_cache_block_manager.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/kv_cache_sliding_window_manager.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/attention.cpp
@@ -213,6 +214,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/subgraph_behavior_infer_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/preserve_const_matmul_pattern_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/compress_dict_matmul_f32_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/canonicalize_lm_head_dq_layout_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/add_position_ids_param_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/mask_linear_attention_padding_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pipeline_passes/right_align_mask_slice_for_conv_test.cpp

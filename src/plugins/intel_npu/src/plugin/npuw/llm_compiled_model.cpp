@@ -26,6 +26,7 @@
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/mask_linear_attention_padding.hpp"
 #include "npuw_transformations/optimize_lincache_layout.hpp"
+#include "npuw_transformations/canonicalize_lm_head_dq_layout.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/propagate_slice.hpp"
@@ -1146,6 +1147,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
             .run_on_model(lm_head_model);
+        // WebNN/ORT exports wrap the LM-head dequantize chain in extra Reshape/Transpose ops that
+        // keep the tail-vocab matchers from firing; bring it to the canonical [OC,IC] layout so the
+        // weight can stay Const.
+        {
+            ov::pass::GraphRewrite rewr;
+            rewr.add_matcher<ov::npuw::CanonicalizeLMHeadDQLayout>();
+            if (rewr.run_on_model(lm_head_model)) {
+                LOG_INFO("CanonicalizeLMHeadDQLayout applied to the LM head model");
+            }
+        }
     }
 
     const auto prefill_attn_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
