@@ -66,7 +66,8 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      op->get_input_partial_shape(1).size(),
                                      op->get_transpose_b(),
                                      op->get_transpose_b_scale(),
-                                     op->get_transpose_b_zp());
+                                     op->get_transpose_b_zp(),
+                                     op->get_weights_layout());
 
     if (has_scalar_zp) {
         fc.decompression_zero_point_scalar = zp_value;
@@ -133,7 +134,8 @@ static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                          rank_a,
                                          rank_b,
-                                         op->get_transpose_b());
+                                         op->get_transpose_b(),
+                                         op->get_weights_layout());
     p.add_primitive(*op, fcPrim);
 
     if (shape_a.size() > 3 && !p.use_new_shape_infer()) {
