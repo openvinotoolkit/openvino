@@ -18,8 +18,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const ov::npuw::KVAxesPosition& kv_axes_position,
                        const uint32_t lora_rank,
                        const uint32_t lhs_seq_size = 0,
-                       const bool is_prefill = false,
-                       const bool attention_mask_is_4d_float = false) {
+                       const bool is_prefill = false) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
@@ -57,8 +56,9 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(num_layers.is_static());  // num_deepstack_layers must be resolved
             new_shape = ov::PartialShape({num_layers, input_size, partial_shape[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
-            if (attention_mask_is_4d_float) {
-                // Additive mask layout: [B, 1, Q, K].
+            const auto& mask_shape = input.get_partial_shape();
+            if (mask_shape.rank().is_static() && mask_shape.size() == 4u && input.get_element_type().is_real()) {
+                // 4D float additive mask layout: [B, 1, Q, K].
                 new_shape = ov::PartialShape({1, 1, input_size, kvcache_size});
             } else {
                 new_shape = ov::PartialShape({1, kvcache_size});
@@ -171,15 +171,13 @@ ReshapeToStatic::ReshapeToStatic(const uint32_t input_size,
                                  const KVAxesPosition& kv_axes_position,
                                  const uint32_t lora_rank,
                                  const uint32_t lhs_seq_size,
-                                 const bool is_prefill,
-                                 const bool attention_mask_is_4d_float)
+                                 const bool is_prefill)
     : m_input_size(input_size),
       m_kvcache_size(kvcache_size),
       m_kv_axes_position(kv_axes_position),
       m_lora_rank(lora_rank),
       m_lhs_seq_size(lhs_seq_size),
-      m_is_prefill(is_prefill),
-      m_attention_mask_is_4d_float(attention_mask_is_4d_float) {}
+      m_is_prefill(is_prefill) {}
 
 bool ReshapeToStatic::run_on_model(const std::shared_ptr<ov::Model>& model) {
     reshape_to_static(model,
@@ -188,8 +186,7 @@ bool ReshapeToStatic::run_on_model(const std::shared_ptr<ov::Model>& model) {
                       m_kv_axes_position,
                       m_lora_rank,
                       m_lhs_seq_size,
-                      m_is_prefill,
-                      m_attention_mask_is_4d_float);
+                      m_is_prefill);
 
     return true;
 }

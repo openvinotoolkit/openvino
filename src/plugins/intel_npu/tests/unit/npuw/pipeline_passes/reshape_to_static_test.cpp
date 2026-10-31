@@ -391,11 +391,11 @@ TEST(ReshapeToStaticVLMTest, FourDimensionalFloatAttentionMaskHasStaticQueryAndK
     auto generate_model = model->clone();
     KVAxesPosition kv_axes{0, 1};
 
-    ReshapeToStatic prefill(128, 128, kv_axes, 0, 0, true, true);
+    ReshapeToStatic prefill(128, 128, kv_axes, 0, 0, true);
     ASSERT_TRUE(prefill.run_on_model(model));
     EXPECT_EQ(model->input("attention_mask").get_shape(), (ov::Shape{1, 1, 128, 128}));
 
-    ReshapeToStatic generate(1, 192, kv_axes, 0, 0, false, true);
+    ReshapeToStatic generate(1, 192, kv_axes, 0, 0, false);
     ASSERT_TRUE(generate.run_on_model(generate_model));
     EXPECT_EQ(generate_model->input("attention_mask").get_shape(), (ov::Shape{1, 1, 1, 192}));
 }

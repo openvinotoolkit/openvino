@@ -763,13 +763,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
                              << "): reshaping to static");
 
         // Reshape to target size
-        ov::npuw::ReshapeToStatic(max_generation_token_len,
-                                  kv_size,
-                                  axes,
-                                  m_max_lora_rank,
-                                  whisper_lhs_seq_size,
-                                  false,
-                                  m_attention_mask_is_4d_float)
+        ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
 
         ov::npuw::RewriteGQAAttentionMask().run_on_model(generate_variant);
@@ -1162,8 +1156,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   axes,
                                   m_max_lora_rank,
                                   0,
-                                  true,
-                                  m_attention_mask_is_4d_float)
+                                  true)
             .run_on_model(prefill_model);
 
         // A partial chunk is left-padded. Keep the conv/ssm state of linear-attention layers
@@ -1175,8 +1168,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   axes,
                                   m_max_lora_rank,
                                   whisper_lhs_seq_size,
-                                  true,
-                                  m_attention_mask_is_4d_float)
+                                  true)
             .run_on_model(prefill_model);
     }
     ov::npuw::RewriteGQAAttentionMask().run_on_model(prefill_model);
