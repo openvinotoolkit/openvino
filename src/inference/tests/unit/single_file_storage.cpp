@@ -391,6 +391,46 @@ TEST_F(SingleFileStorageTest, WriterMisposition) {
                                                  }),
                     AssertFailure,
                     ::testing::HasSubstr("Invalid blob size"));
+    m_storage.reset();
+    EXPECT_NO_THROW(SingleFileStorage{m_file_path}.initialize());
+}
+
+TEST_F(SingleFileStorageTest, FailedWriteKeepsCacheUsable) {
+    const std::string stored_data{"stored blob"};
+    m_storage->write_cache_entry("1", [&](std::ostream& s) {
+        s << stored_data;
+    });
+    const auto file_size = std::filesystem::file_size(m_file_path);
+
+    OV_EXPECT_THROW(m_storage->write_cache_entry("2",
+                                                 [&](std::ostream& s) {
+                                                     s << "partial export";
+                                                     OPENVINO_THROW("Export failed");
+                                                 }),
+                    Exception,
+                    ::testing::HasSubstr("Export failed"));
+    EXPECT_EQ(std::filesystem::file_size(m_file_path), file_size);
+
+    // Failed entry is not registered and can be written again
+    EXPECT_NO_THROW(m_storage->read_cache_entry("2", false, [](const ICacheManager::CompiledBlobVariant&) {
+        throw "Unexpected read for failed blob id";
+    }));
+    EXPECT_NO_THROW(m_storage->write_cache_entry("2", [&](std::ostream& s) {
+        s << stored_data;
+    }));
+    m_storage.reset();
+
+    SingleFileStorage reopened_storage(m_file_path);
+    ASSERT_NO_THROW(reopened_storage.initialize());
+    for (const auto& blob_id : {"1", "2"}) {
+        std::string read_data;
+        reopened_storage.read_cache_entry(blob_id, false, [&](const ICacheManager::CompiledBlobVariant& blob) {
+            auto& stream = std::get<std::reference_wrapper<std::istream>>(blob).get();
+            read_data.resize(stored_data.size());
+            stream.read(read_data.data(), read_data.size());
+        });
+        EXPECT_EQ(read_data, stored_data) << "blob id " << blob_id;
+    }
 }
 
 TEST_P(SingleFileStorageTest, WrongSizeWritten) {
