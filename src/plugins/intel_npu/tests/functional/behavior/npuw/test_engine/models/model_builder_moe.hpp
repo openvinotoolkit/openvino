@@ -89,8 +89,8 @@ struct GPTOSSMoEFFN : BatchedMoEFFN {
 
 private:
     // GPT-OSS-specific constants: fused gate_up slicing, Clamp/Minimum, router Slice
-    std::shared_ptr<ov::Node> slice_step, slice_axis2, slice_start_0, slice_stop_is, slice_start_is, slice_stop_2is;
-    std::shared_ptr<ov::Node> min_const, swish_beta, clamp_add_zero;
+    std::shared_ptr<ov::Node> slice_step, slice_axis2, slice_start_0, slice_start_1, slice_stop;
+    std::shared_ptr<ov::Node> min_const, swish_beta, clamp_add_one;
     std::shared_ptr<ov::Node> sl_start, sl_step_r, sl_axes;
 };
 
