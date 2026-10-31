@@ -11,7 +11,7 @@ build OpenVINO, but are not covered by the current CI matrix.
 
 - [CMake](https://cmake.org/download/) 3.26 or higher
 - GCC 7.5 or higher to build OpenVINO Runtime
-- Python 3.11 - 3.14 for OpenVINO Runtime Python API
+- Python 3.11 - 3.15 for OpenVINO Runtime Python API
 - (Optional) Install Intel® Graphics Compute Runtime for OpenCL™ Driver package to enable inference on Intel integrated GPUs.
 
 ## How to build
