@@ -86,6 +86,31 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 
+  # Non-blocking C++20 compile check (CVS-189849): promote to a required check when done.
+  Build_CPP20:
+    name: Build (C++20)
+    needs: [ Smart_CI ]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    continue-on-error: true
+    uses: ./.github/workflows/job_build_windows_cpp20.yml
+    with:
+      runner: 'aks-win-16-cores-32gb-build'
+      cmake-build-parallel-level: '15'
+      build-type: 'Release'
+      target-branch: ${{ needs.smart_ci.outputs.target_branch }}
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_PYTHON=ON
+            -DENABLE_WHEEL=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config_cpp20"
+            -DCMAKE_CXX_STANDARD=20
+
   Samples:
     needs: [ Build, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).samples

@@ -124,6 +124,29 @@ jobs:
             -DCPACK_GENERATOR=TGZ
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
 
+  # Non-blocking C++20 compile check (CVS-189849): promote to a required check when done.
+  Build_CPP20:
+    name: Build (C++20)
+    needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    continue-on-error: true
+    uses: ./.github/workflows/job_build_linux_cpp20.yml
+    with:
+      runner: 'aks-linux-16-cores-32gb'
+      cmake-build-parallel-level: '15'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+      os: 'ubuntu_24_04'
+      cmake-options: >-
+            -G 'Ninja Multi-Config'
+            -DENABLE_NCC_STYLE=OFF
+            -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
+            -DENABLE_STRICT_DEPENDENCIES=OFF
+            -DENABLE_SYSTEM_OPENCL=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+            -DCMAKE_CXX_STANDARD=20
+
   CXX_Unit_Tests:
     name: C++ unit tests
     needs: [ Docker, Build, Smart_CI ]
