@@ -321,6 +321,30 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffWithShrunkSl
     EXPECT_FALSE(shrunk->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
 }
 
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillFollowsTheLongRopeLimit) {
+    // The KV cache holds 128 prompt + 64 response positions. A continued prefill
+    // must stay below the LongRoPE limit, while a crossing during generate is
+    // handled at run time.
+    const auto compile_longrope_model = [this](int64_t context_limit) {
+        RecordingFactory recorder;
+        auto props = base_props();
+        merge_props(props, {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}});
+        return std::make_unique<ov::npuw::LLMCompiledModel>(
+            ov::test::npuw::build_longrope_llm_test_model(context_limit),
+            m_plugin,
+            props,
+            recorder.make_factory());
+    };
+    const auto continuous_prefill = [&](int64_t context_limit) {
+        return compile_longrope_model(context_limit)->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>();
+    };
+
+    EXPECT_TRUE(continuous_prefill(4096));
+    EXPECT_TRUE(continuous_prefill(192));
+    EXPECT_TRUE(continuous_prefill(128));
+    EXPECT_FALSE(continuous_prefill(127));
+}
+
 TEST(HybridModelBuilderTest, HybridLinearAttnModelBuilds) {
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = ov::test::npuw::build_hybrid_llm_test_model());
