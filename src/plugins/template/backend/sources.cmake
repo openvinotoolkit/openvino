@@ -65,6 +65,7 @@ set(OPS_SRC
     ${CMAKE_CURRENT_LIST_DIR}/ops/grouped_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/hard_sigmoid.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/ops/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/identity.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/if.cpp
     ${CMAKE_CURRENT_LIST_DIR}/ops/interpolate.cpp

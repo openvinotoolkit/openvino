@@ -89,6 +89,7 @@
 #include "openvino/op/gru_cell.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/hard_sigmoid.hpp"
+#include "openvino/op/histc.hpp"
 #include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
 #include "openvino/op/i420_to_bgr.hpp"
