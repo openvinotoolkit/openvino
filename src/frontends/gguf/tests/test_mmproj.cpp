@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
+#include <sstream>
 
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch_registry.hpp"
@@ -15,10 +17,12 @@
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
 #include "model_adapter_attribute.hpp"
+#include "model_contract.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/extension/projector.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
+#include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
@@ -900,6 +904,33 @@ INSTANTIATE_TEST_SUITE_P(VisionEncoders,
                                            std::make_pair("qwen3vl_merger", "clip.vision.embedding_length"),
                                            std::make_pair("qwen3vl_merger", "clip.vision.attention.head_count")));
 
+TEST(GGUFMMProjLayout, DeclaredAuxiliaryOutputsSurviveSplitMergerAndIR) {
+    using namespace ov::frontend::gguf;
+    using Adapter = pass::AdaptMmprojToGenAI;
+    for (const bool deepstack : {false, true}) {
+        SCOPED_TRACE(deepstack);
+        auto model = vision_fixture("qwen3vl_merger");
+        auto lengths = ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
+        lengths->output(0).set_names({"vision.lengths"});
+        model->add_results({std::make_shared<ov::op::v0::Result>(lengths)});
+        auto contract = read_model_contract(model);
+        contract.component_groups["vision"] = {"encoder", {{"encoder", {{"vision.embeddings", "vision.lengths"}, ""}}}};
+        write_model_contract(model, contract);
+        model->set_rt_info(std::string(deepstack ? "1" : "0"), {"gguf_mmproj", "vision.auxiliary_count"});
+        Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        ASSERT_TRUE(adapter.run_on_model(model));
+        ASSERT_EQ(model->get_results().size(), deepstack ? 3 : 2);
+        EXPECT_NO_THROW(model->output("vision.lengths"));
+        if (deepstack) {
+            EXPECT_NO_THROW(model->output("deepstack_feature_lists"));
+        }
+        auto restored = ov_gguf_test::reload_ir_model(model);
+        EXPECT_NO_THROW(restored->output("vision.lengths"));
+        auto compiled = ov::Core{}.compile_model(restored, "CPU");
+        EXPECT_NO_THROW(compiled.output("vision.lengths"));
+    }
+}
+
 TEST(GGUFMMProjLayout, RejectsMissingQwenWeightsWithoutChangingModel) {
     auto source = vision_fixture("qwen3vl_merger");
     for (const std::string tensor :
@@ -995,6 +1026,16 @@ TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
     encoder("vision", "unused_modality_key");
     writer.kv_str("clip.projector_type", "gemma3");
     EXPECT_NO_THROW(convert());
+}
+
+TEST_F(GGUFMMProj, LegacyEncoderIgnoresUnrelatedGenerationMetadata) {
+    encoder("vision", "gemma3");
+    writer.kv_bool("clip.has_gen_audio_encoder", true);
+    writer.kv_str("clip.gen.audio.projector_type", "lfm2a_gen");
+    const auto model = convert();
+    ASSERT_EQ(model->outputs().size(), 1);
+    EXPECT_EQ(model->output().get_any_name(), "vision.embeddings");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "gemma3");
 }
 
 // Legacy Qwen2.5 Omni files name one global projector for both encoders.
@@ -1479,4 +1520,266 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "qwen3vl_merger",
                                            "lfm2",
                                            "lfm2_no_norm"));
+
+std::pair<std::shared_ptr<ov::Model>, ov::frontend::gguf::ModelContract> component_contract_model() {
+    const auto parameter = [](const std::string& name, const ov::Shape& shape) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        input->set_friendly_name(name);
+        input->output(0).set_names({name});
+        return input;
+    };
+    auto samples = parameter("audio.samples", {1, 1, 2, 2});
+    auto score = parameter("score_input", {1, 1, 2, 2});
+    auto lookup = parameter("lookup_input", {1, 1, 2, 2});
+    auto render = parameter("render_input", {1, 1, 2, 2});
+    auto encoder_state = parameter("audio.cache.counter", {1, 1, 1, 1});
+    auto speech_state = parameter("speech.cache.counter", {1, 1, 1, 1});
+    auto one = ov::op::v0::Constant::create(ov::element::f32, {}, {1.f});
+    auto audio = std::make_shared<ov::op::v1::Add>(samples, encoder_state);
+    auto rendered = std::make_shared<ov::op::v1::Add>(render, speech_state);
+    auto encoder_update = std::make_shared<ov::op::v1::Add>(encoder_state, one);
+    auto speech_update = std::make_shared<ov::op::v1::Add>(speech_state, one);
+    auto window = ov::op::v0::Constant::create(ov::element::f32, {1}, {2.f});
+    audio->output(0).set_names({"audio.embeddings"});
+    score->output(0).set_names({"scores"});
+    lookup->output(0).set_names({"lookup"});
+    rendered->output(0).set_names({"rendered"});
+    window->output(0).set_names({"window"});
+    encoder_update->output(0).set_names({"encoder_update"});
+    speech_update->output(0).set_names({"speech_update"});
+    auto model = std::make_shared<ov::Model>(
+        ov::OutputVector{audio, score, lookup, rendered, window, encoder_update, speech_update},
+        ov::ParameterVector{samples, score, lookup, render, encoder_state, speech_state});
+    model->get_results()[5]->set_friendly_name("encoder_update");
+    model->get_results()[6]->set_friendly_name("speech_update");
+    model->get_rt_info()["gguf_architecture"] = std::string("custom-mmproj");
+    model->get_rt_info()["gguf_mmproj"] = ov::AnyMap{{"audio.projector", std::string("custom-audio")}};
+    model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()] =
+        std::vector<std::string>{"audio.cache.counter", "encoder_update", "speech.cache.counter", "speech_update"};
+    ov::frontend::gguf::ModelContract contract;
+    contract.component_groups = {{"audio", {"encoder", {{"encoder", {{"audio.embeddings"}, "audio.cache."}}}}},
+                                 {"audio_generation",
+                                  {"lookup",
+                                   {{"score", {{"scores"}, ""}},
+                                    {"lookup", {{"lookup"}, ""}},
+                                    {"renderer", {{"rendered", "window"}, "speech.cache."}}}}}};
+    ov::frontend::gguf::write_model_contract(model, contract);
+    return {model, contract};
+}
+
+TEST(GGUFMMProjContract, DeclaredComponentsPreservePrimaryNamesStateAndIR) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    using ov::frontend::gguf::pass::GGUFMakeStateful;
+    const auto native = component_contract_model().first;
+    ov::Core core;
+    for (const bool stateful : {false, true}) {
+        for (const bool reload : {false, true}) {
+            auto source = native->clone();
+            if (stateful) {
+                ASSERT_TRUE(GGUFMakeStateful().run_on_model(source));
+            }
+            if (reload)
+                source = ov_gguf_test::reload_ir_model(source);
+            const auto run_stream = [&](const std::shared_ptr<ov::Model>& model,
+                                        const std::string& input,
+                                        const std::string& output,
+                                        const std::string& state_name,
+                                        const ov::Shape& expected_shape) {
+                GGUFMakeStateful().run_on_model(model);
+                ASSERT_EQ(model->get_variables().size(), 1);
+                auto request = core.compile_model(model, "CPU").create_infer_request();
+                const auto states = request.query_state();
+                ASSERT_EQ(states.size(), 1);
+                EXPECT_EQ(states[0].get_name(), state_name);
+                ov::Tensor data(ov::element::f32, {1, 1, 2, 2});
+                std::fill_n(data.data<float>(), 4, 4.f);
+                request.set_tensor(input, data);
+                for (const float expected : {4.f, 5.f}) {
+                    request.infer();
+                    auto actual = request.get_tensor(output);
+                    ASSERT_EQ(actual.get_shape(), expected_shape);
+                    for (size_t i = 0; i < actual.get_size(); ++i)
+                        EXPECT_EQ(actual.data<float>()[i], expected);
+                }
+                request.reset_state();
+                request.infer();
+                EXPECT_EQ(request.get_tensor(output).data<float>()[0], 4.f);
+            };
+            auto audio = source->clone();
+            ASSERT_TRUE(Adapter(Adapter::Modality::AUDIO).run_on_model(audio));
+            if (!stateful) {
+                EXPECT_EQ(audio->input("audio.cache.counter").get_any_name(), "audio.cache.counter");
+            }
+            run_stream(audio, "samples", "audio_features", "audio.cache.counter", {1, 2, 2});
+            Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
+            ASSERT_TRUE(adapter.run_on_model(source));
+            const auto& models = adapter.get_audio_generation_models();
+            ASSERT_EQ(models.size(), 3);
+            EXPECT_EQ(models.at("lookup"), source);
+            EXPECT_EQ(models.at("score")->get_parameters().size(), 1);
+            EXPECT_EQ(models.at("lookup")->get_parameters().size(), 1);
+            EXPECT_TRUE(models.at("score")->get_sinks().empty());
+            EXPECT_TRUE(models.at("lookup")->get_sinks().empty());
+            auto renderer = ov_gguf_test::reload_ir_model(models.at("renderer"));
+            EXPECT_EQ(renderer->output("window").get_shape(), (ov::Shape{1}));
+            run_stream(renderer, "render_input", "rendered", "speech.cache.counter", {1, 1, 2, 2});
+        }
+    }
+}
+
+TEST(GGUFMMProjContract, StatefulPrimaryDoesNotDuplicateVariableRegistration) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto [model, contract] = component_contract_model();
+    contract.component_groups.at("audio_generation").primary = "renderer";
+    ov::frontend::gguf::write_model_contract(model, contract);
+    ASSERT_TRUE(ov::frontend::gguf::pass::GGUFMakeStateful().run_on_model(model));
+    ASSERT_EQ(model->get_variables().size(), 2);
+    Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
+    ASSERT_TRUE(adapter.run_on_model(model));
+    EXPECT_EQ(adapter.get_audio_generation_models().at("renderer"), model);
+    ASSERT_EQ(model->get_variables().size(), 1);
+    EXPECT_EQ(model->get_variables().front()->get_info().variable_id, "speech.cache.counter");
+    auto restored = ov_gguf_test::reload_ir_model(model);
+    EXPECT_EQ(restored->get_variables().size(), 1);
+}
+
+TEST(GGUFMMProjContract, FriendlyNameOnlyComponentOutputIsExposedByTensorName) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    input->output(0).set_names({"render_input"});
+    auto output = std::make_shared<ov::op::v1::Add>(input, ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input});
+    model->get_results().front()->set_friendly_name("friendly_only");
+    ASSERT_TRUE(model->get_results().front()->output(0).get_names().empty());
+    model->get_rt_info()["gguf_architecture"] = std::string("custom-mmproj");
+    ov::frontend::gguf::ModelContract contract;
+    contract.component_groups["audio_generation"] = {"renderer", {{"renderer", {{"friendly_only"}, ""}}}};
+    ov::frontend::gguf::write_model_contract(model, contract);
+    for (const bool reload : {false, true}) {
+        auto source = model->clone();
+        if (reload)
+            source = ov_gguf_test::reload_ir_model(source);
+        Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
+        ASSERT_TRUE(adapter.run_on_model(source));
+        auto component = adapter.get_audio_generation_models().at("renderer");
+        EXPECT_NO_THROW(component->output("friendly_only"));
+        auto restored = ov_gguf_test::reload_ir_model(component);
+        EXPECT_NO_THROW(restored->output("friendly_only"));
+        auto request = ov::Core{}.compile_model(restored, "CPU").create_infer_request();
+        ov::Tensor data(ov::element::f32, {1, 2});
+        std::fill_n(data.data<float>(), 2, 1.f);
+        request.set_tensor("render_input", data);
+        request.infer();
+        EXPECT_EQ(request.get_tensor("friendly_only").data<float>()[0], 2.f);
+    }
+}
+
+TEST(GGUFMMProjContract, DeclaredAuxiliaryOutputsSurviveExtractionCallbacksAndIR) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    using namespace ov::frontend::gguf;
+    for (const std::string modality : {"vision", "audio"}) {
+        for (const int mode : {0, 1, 2, 3, 4, 5}) {
+            SCOPED_TRACE(modality + " mode=" + std::to_string(mode));
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2, 2});
+            input->set_friendly_name(modality + ".samples");
+            input->output(0).set_names({modality + ".samples"});
+            auto embeddings =
+                std::make_shared<ov::op::v1::Add>(input, ov::op::v0::Constant::create(ov::element::f32, {}, {1.f}));
+            embeddings->output(0).set_names({modality + ".embeddings"});
+            const bool passthrough = mode >= 3;
+            auto length_input = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+            length_input->set_friendly_name(modality + ".lengths");
+            std::shared_ptr<ov::Node> lengths = passthrough ? std::static_pointer_cast<ov::Node>(length_input)
+                                                            : ov::op::v0::Constant::create(ov::element::i32, {1}, {2});
+            lengths->output(0).set_names({modality + ".lengths"});
+            auto discarded = ov::op::v0::Constant::create(ov::element::f32, {1}, {9.f});
+            discarded->output(0).set_names({"discarded_output"});
+            ov::ParameterVector inputs{input};
+            if (passthrough)
+                inputs.push_back(length_input);
+            auto model = std::make_shared<ov::Model>(ov::OutputVector{embeddings, lengths, discarded}, inputs);
+            ModelContract contract;
+            contract.component_groups[modality] = {
+                "encoder",
+                {{"encoder", {{modality + ".embeddings", modality + ".lengths"}, ""}}}};
+            write_model_contract(model, contract);
+            bool called = false;
+            const std::string features = modality == "vision" ? "image_features" : "audio_features";
+            if (mode % 3 == 2) {
+                auto adapter = std::make_shared<ModelAdapter>();
+                adapter->transform = [&](const std::shared_ptr<ov::Model>& selected) {
+                    called = true;
+                    EXPECT_EQ(selected->get_results().size(), 2);
+                    EXPECT_EQ(selected->output(0).get_any_name(), features);
+                    EXPECT_NO_THROW(selected->output(modality + ".lengths"));
+                    return ModelAdapterResult{selected, {}};
+                };
+                model->get_results().front()->get_rt_info()[ModelAdapterAttribute::get_type_info_static()] =
+                    ModelAdapterAttribute(adapter);
+            } else if (mode % 3 == 1) {
+                model = ov_gguf_test::reload_ir_model(model);
+            }
+            ASSERT_TRUE(Adapter(modality == "vision" ? Adapter::Modality::VISION : Adapter::Modality::AUDIO)
+                            .run_on_model(model));
+            EXPECT_EQ(called, mode % 3 == 2);
+            ASSERT_EQ(model->get_results().size(), 2);
+            EXPECT_EQ(model->output(0).get_any_name(), features);
+            if (passthrough) {
+                ASSERT_NO_THROW(model->input("lengths"));
+            }
+            auto restored = ov_gguf_test::reload_ir_model(model);
+            if (passthrough) {
+                ASSERT_NO_THROW(restored->input("lengths"));
+            }
+            if (passthrough) {
+                auto cloned = restored->clone();
+                ASSERT_NO_THROW(cloned->input("lengths"));
+            }
+            auto compiled = ov::Core{}.compile_model(restored, "CPU");
+            if (passthrough) {
+                ASSERT_NO_THROW(compiled.input("lengths"));
+            }
+            auto request = compiled.create_infer_request();
+            ov::Tensor data(ov::element::f32, {1, 1, 2, 2});
+            std::fill_n(data.data<float>(), data.get_size(), 4.f);
+            request.set_tensor("samples", data);
+            if (passthrough) {
+                ov::Tensor length(ov::element::i32, {1});
+                length.data<int32_t>()[0] = 2;
+                request.set_tensor("lengths", length);
+            }
+            request.infer();
+            EXPECT_EQ(request.get_tensor(modality + ".lengths").data<int32_t>()[0], 2);
+            auto actual = request.get_tensor(features);
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 2, 2}));
+            for (size_t i = 0; i < actual.get_size(); ++i)
+                EXPECT_EQ(actual.data<float>()[i], 5.f);
+        }
+    }
+}
+
+TEST(GGUFMMProjContract, InvalidComponentsLeaveSourceUnchanged) {
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    auto [model, contract] = component_contract_model();
+    contract.component_groups.at("audio_generation").models.at("renderer").outputs.push_back("missing_output");
+    ov::frontend::gguf::write_model_contract(model, contract);
+    const auto parameters = model->get_parameters();
+    const auto results = model->get_results();
+    const auto states = model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()];
+    Adapter adapter(Adapter::Modality::AUDIO_GENERATION);
+    EXPECT_THROW(adapter.run_on_model(model), ov::Exception);
+    EXPECT_EQ(model->get_parameters(), parameters);
+    EXPECT_EQ(model->get_results(), results);
+    EXPECT_EQ(
+        model->get_rt_info()[ov::frontend::gguf::pass::gguf_recurrent_states_key()].as<std::vector<std::string>>(),
+        states.as<std::vector<std::string>>());
+    EXPECT_TRUE(adapter.get_audio_generation_models().empty());
+    contract.component_groups.at("audio_generation").primary = "missing_component";
+    EXPECT_THROW(ov::frontend::gguf::write_model_contract(model, contract), ov::Exception);
+    auto& groups = model->get_rt_info()["gguf_model_contract"].as<ov::AnyMap>().at("component_groups").as<ov::AnyMap>();
+    groups.at("audio_generation").as<ov::AnyMap>().at("primary") = std::string("missing_component");
+    EXPECT_THROW(adapter.run_on_model(model), ov::Exception);
+    EXPECT_EQ(model->get_parameters(), parameters);
+    EXPECT_EQ(model->get_results(), results);
+}
 }  // namespace
