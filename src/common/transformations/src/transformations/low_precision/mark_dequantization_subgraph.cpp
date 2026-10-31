@@ -9,6 +9,8 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
@@ -209,6 +211,27 @@ bool swap_nodes(const pattern::PatternValueMap& pt_map,
     return false;
 }
 
+// Packed sub-byte zero points (e.g. MatMulNBits u2/u4 with a padded last axis) are trimmed by a Slice placed
+// after the Convert, because Slice cannot evaluate sub-byte types. SliceToStridedSlice may later turn it into
+// a StridedSlice, so accept both.
+std::shared_ptr<Node> make_zp_slice_pattern(const std::shared_ptr<Node>& zp_convert_pattern) {
+    auto slice = pattern::optional<ov::op::v8::Slice>(
+        {zp_convert_pattern, pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    return pattern::optional<ov::op::v1::StridedSlice>(
+        {slice, pattern::any_input(), pattern::any_input(), pattern::any_input()});
+}
+
+// Convert and Reshape can only be swapped when the Reshape consumes the Convert directly
+// (i.e. no Slice/StridedSlice between them).
+bool is_direct_input(const pattern::PatternValueMap& pt_map,
+                     const std::shared_ptr<Node>& producer_pattern,
+                     const std::shared_ptr<Node>& consumer_pattern) {
+    if (!pt_map.count(producer_pattern) || !pt_map.count(consumer_pattern)) {
+        return false;
+    }
+    return pt_map.at(consumer_pattern).get_node()->input_value(0) == pt_map.at(producer_pattern);
+}
+
 }  // namespace
 
 MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
@@ -223,7 +246,8 @@ MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
     // zero points:
     auto zp_pattern = pattern::any_input();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
+    auto zp_slice_pattern = make_zp_slice_pattern(zp_convert_pattern);
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_slice_pattern, pattern::any_input()});
     auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
@@ -267,7 +291,8 @@ MarkDequantization::MarkDequantization(const element::TypeVector& precisions,
         set_rt_info(pt_map, enable_constant_folding, converts_to_unmark, precisions);
 
         // Move Reshape/Unsqueeze ops up to fold them in ConstantFolding.
-        auto changed = swap_nodes(pt_map, zp_convert_pattern, zp_reshape_pattern);
+        auto changed = is_direct_input(pt_map, zp_convert_pattern, zp_reshape_pattern) &&
+                       swap_nodes(pt_map, zp_convert_pattern, zp_reshape_pattern);
         changed = swap_nodes(pt_map, scale_convert_pattern, scale_reshape_pattern) || changed;
         return changed;
     };
@@ -288,7 +313,8 @@ KeepConstPrecision::KeepConstPrecision(const element::TypeVector& precisions,
     // zero points:
     auto zp_pattern = pattern::any_input();
     auto zp_convert_pattern = pattern::optional<v0::Convert>(zp_pattern);
-    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_convert_pattern, pattern::any_input()});
+    auto zp_slice_pattern = make_zp_slice_pattern(zp_convert_pattern);
+    auto zp_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({zp_slice_pattern, pattern::any_input()});
     auto subtract_pattern = pattern::optional<v1::Subtract>({convert_pattern, zp_reshape_pattern});
 
     // scale:
