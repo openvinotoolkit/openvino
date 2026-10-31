@@ -34,6 +34,9 @@ class ResamplePrimitiveFusingTest : public ::BaseFusingTest<resample_test_params
 public:
 
     void execute(resample_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
+        if (p.input_format == format::byxf) {
+            cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"resample_prim", {format::byxf, "resample_opt"}}}));
+        }
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);
@@ -95,6 +98,21 @@ public:
 #define CASE_RESAMPLE_U8_1 { 1, 16, 4, 5 }, { 1, 16, 2, 3 }, data_types::u8, format::b_fs_yx_fsv16, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f32, format::bfyx
 #define CASE_RESAMPLE_U8_2 { 2, 32, 4, 5 }, { 2, 32, 2, 3 }, data_types::u8, format::b_fs_yx_fsv16, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f32, format::bfyx
 
+// byxf resample_opt: F selects VEC 8 (FP16_1), 1 (FP16_2), 2 (FP16_3, FP16_4, I8_1) and 4 (FP32_1).
+// Nearest cases are integral upsampling except FP16_4 (generic nearest path).
+#define CASE_RESAMPLE_FP16_BYXF_1 \
+    {1, 128, 13, 13}, {1, 128, 26, 26}, data_types::f16, format::byxf, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FP16_BYXF_2 \
+    {2, 48, 7, 9}, {2, 48, 14, 18}, data_types::f16, format::byxf, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FP16_BYXF_3 \
+    {2, 96, 8, 8}, {2, 96, 16, 16}, data_types::f16, format::byxf, resample::InterpolateOp::InterpolateMode::LINEAR_ONNX, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FP16_BYXF_4 \
+    {1, 32, 4, 5}, {1, 32, 7, 8}, data_types::f16, format::byxf, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f16, format::bfyx
+#define CASE_RESAMPLE_FP32_BYXF_1 \
+    {1, 64, 4, 5}, {1, 64, 8, 10}, data_types::f32, format::byxf, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_I8_BYXF_1 \
+    {1, 32, 4, 5}, {1, 32, 8, 10}, data_types::i8, format::byxf, resample::InterpolateOp::InterpolateMode::NEAREST, data_types::f32, format::bfyx
+
 class resample_quantize : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_quantize, basic) {
     auto p = GetParam();
@@ -141,6 +159,12 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_quantize, ::testing::ValuesIn(std
     // resample_test_params{ CASE_RESAMPLE_FP16_8, RESAMPLE_QUANTIZE_CNT },
     // resample_test_params{ CASE_RESAMPLE_FP16_9, RESAMPLE_QUANTIZE_CNT },
 }));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu_byxf,
+                         resample_quantize,
+                         ::testing::ValuesIn(std::vector<resample_test_params>{
+                             resample_test_params{CASE_RESAMPLE_FP32_BYXF_1, RESAMPLE_QUANTIZE_CNT},
+                         }));
 
 class resample_scale_activation_eltwise : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_scale_activation_eltwise, basic) {
@@ -201,6 +225,17 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_scale_activation_eltwise, ::testi
     resample_test_params{ CASE_RESAMPLE_U8_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
     resample_test_params{ CASE_RESAMPLE_U8_2, RESAMPLE_SCALE_ACTIVATION_ELTWISE },
 }));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu_byxf,
+                         resample_scale_activation_eltwise,
+                         ::testing::ValuesIn(std::vector<resample_test_params>{
+                             resample_test_params{CASE_RESAMPLE_FP16_BYXF_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE},
+                             resample_test_params{CASE_RESAMPLE_FP16_BYXF_2, RESAMPLE_SCALE_ACTIVATION_ELTWISE},
+                             resample_test_params{CASE_RESAMPLE_FP16_BYXF_3, RESAMPLE_SCALE_ACTIVATION_ELTWISE},
+                             resample_test_params{CASE_RESAMPLE_FP32_BYXF_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE},
+                             resample_test_params{CASE_RESAMPLE_I8_BYXF_1, RESAMPLE_SCALE_ACTIVATION_ELTWISE},
+                             resample_test_params{CASE_RESAMPLE_FP16_BYXF_4, RESAMPLE_SCALE_ACTIVATION_ELTWISE},
+                         }));
 
 class resample_quantize_concat : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_quantize_concat, along_f) {
@@ -444,6 +479,49 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise, ::testing::ValuesIn(std:
     resample_test_params{ CASE_RESAMPLE_BF16_7, RESAMPLE_QUANTIZE_CNT },
     resample_test_params{ CASE_RESAMPLE_BF16_11, RESAMPLE_QUANTIZE_CNT },
 }));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu_byxf,
+                         resample_eltwise,
+                         ::testing::ValuesIn(std::vector<resample_test_params>{
+                             resample_test_params{CASE_RESAMPLE_FP16_BYXF_1, RESAMPLE_QUANTIZE_CNT},
+                             resample_test_params{CASE_RESAMPLE_FP16_BYXF_2, RESAMPLE_QUANTIZE_CNT},
+                             resample_test_params{CASE_RESAMPLE_FP16_BYXF_3, RESAMPLE_QUANTIZE_CNT},
+                         }));
+
+// A feature-broadcast eltwise input ([B, 1, Y, X], reordered to byxf) cannot use the aligned byxf loads of
+// resample_opt (lanes would read 16 x positions), so the byxf resample must fall back to resample_ref.
+class resample_eltwise_feature_broadcast_byxf : public ResamplePrimitiveFusingTest {};
+TEST_P(resample_eltwise_feature_broadcast_byxf, ref_fallback) {
+    auto p = GetParam();
+    auto addend_shape = p.out_shape;
+    addend_shape.feature[0] = 1;
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      data("addend", get_mem(layout{p.data_type, format::bfyx, addend_shape}, -10, 10)),
+                      resample("resample_prim", input_info("input"), p.out_shape, p.in_shape.feature[0], p.type),
+                      eltwise("eltwise", {input_info("resample_prim"), input_info("addend")}, eltwise_mode::sum, p.data_type),
+                      reorder("out", input_info("eltwise"), format::bfyx, data_types::f32));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"resample_prim", {format::byxf, ""}}}));
+
+    auto input_prim = get_mem(get_input_layout(p));
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
+    network_fused.set_input_data("input", input_prim);
+    network_not_fused.set_input_data("input", input_prim);
+
+    tolerance = 1e-2f;
+    compare(network_not_fused, network_fused, p);
+    check_fusions_correctness(network_fused, {{"resample_prim", {"eltwise"}}});
+    ASSERT_EQ(network_fused.get_output_layout("resample_prim").format, format::byxf);
+    const auto impl_info = network_fused.get_implementation_info("resample_prim");
+    ASSERT_EQ(impl_info.rfind("resample_ref", 0), 0) << impl_info;
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu_byxf,
+                         resample_eltwise_feature_broadcast_byxf,
+                         ::testing::ValuesIn(std::vector<resample_test_params>{
+                             resample_test_params{CASE_RESAMPLE_FP16_BYXF_1, 2, 3},
+                             resample_test_params{CASE_RESAMPLE_FP16_BYXF_2, 2, 3},
+                         }));
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* -------------------------------- Resample BICUBIC_PILLOW with axes ----------------------------------- */

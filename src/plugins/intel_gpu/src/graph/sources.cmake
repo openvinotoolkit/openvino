@@ -336,6 +336,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/registry/reduce_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/registry.hpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/reorder_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/resample_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/reshape_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/rope_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/scatter_elements_update_impls.cpp
