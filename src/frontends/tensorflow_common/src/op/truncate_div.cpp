@@ -10,6 +10,7 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/select.hpp"
+#include "transformations/rt_info/nonconvertible_divide.hpp"
 
 using namespace std;
 using namespace ov::op;
@@ -21,6 +22,9 @@ OutputVector translate_truncate_div_op(const NodeContext& node) {
     auto y = node.get_input(1);
 
     auto res = make_shared<v1::Divide>(x, y, false);
+    // Multiplying by the reciprocal can land just short of a whole quotient, which Floor or Ceiling then
+    // rounds toward zero.
+    disable_divide_conversion(res);
     auto is_res_negative = make_shared<v1::Less>(res, create_same_type_const_scalar(x, 0));
     auto final_res =
         make_shared<v1::Select>(is_res_negative, make_shared<v0::Ceiling>(res), make_shared<v0::Floor>(res));
