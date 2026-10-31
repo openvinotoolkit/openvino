@@ -1,0 +1,6 @@
+{
+  "component": "batch",
+  "files": [
+    "runtime/bin/intel64/Release/openvino_auto_batch_plugin.dll"
+  ]
+}

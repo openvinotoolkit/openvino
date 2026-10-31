@@ -1,0 +1,6 @@
+{
+  "component": "onnx",
+  "files": [
+    "runtime/bin/intel64/Debug/openvino_onnx_frontendd.dll"
+  ]
+}

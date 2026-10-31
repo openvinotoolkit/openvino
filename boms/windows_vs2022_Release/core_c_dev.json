@@ -1,0 +1,26 @@
+{
+  "component": "core_c_dev",
+  "files": [
+    "runtime/include/openvino/c/auto/properties.h",
+    "runtime/include/openvino/c/deprecated.h",
+    "runtime/include/openvino/c/gpu/gpu_plugin_properties.h",
+    "runtime/include/openvino/c/openvino.h",
+    "runtime/include/openvino/c/ov_common.h",
+    "runtime/include/openvino/c/ov_compiled_model.h",
+    "runtime/include/openvino/c/ov_core.h",
+    "runtime/include/openvino/c/ov_dimension.h",
+    "runtime/include/openvino/c/ov_infer_request.h",
+    "runtime/include/openvino/c/ov_layout.h",
+    "runtime/include/openvino/c/ov_model.h",
+    "runtime/include/openvino/c/ov_node.h",
+    "runtime/include/openvino/c/ov_partial_shape.h",
+    "runtime/include/openvino/c/ov_prepostprocess.h",
+    "runtime/include/openvino/c/ov_property.h",
+    "runtime/include/openvino/c/ov_rank.h",
+    "runtime/include/openvino/c/ov_remote_context.h",
+    "runtime/include/openvino/c/ov_shape.h",
+    "runtime/include/openvino/c/ov_tensor.h",
+    "runtime/include/openvino/c/ov_util.h",
+    "runtime/lib/intel64/Release/openvino_c.lib"
+  ]
+}

@@ -327,6 +327,14 @@ jobs:
       # Upload build artifacts
       #
 
+      - name: Upload CPack component BOM
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: bom_macos_arm64
+          path: ${{ env.BUILD_DIR }}/bom
+          if-no-files-found: 'error'
+
       - name: Upload OpenVINO package
         if: ${{ always() }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
@@ -381,6 +389,14 @@ jobs:
           name: openvino_package_manifest
           path: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
           if-no-files-found: 'error'
+
+  BOM_Tests:
+    name: BOM tests
+    needs: [Build, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    uses: ./.github/workflows/job_bom_tests.yml
+    with:
+      artifact-name: bom_macos_arm64
 
   Samples:
     needs: [ Build, Smart_CI ]
