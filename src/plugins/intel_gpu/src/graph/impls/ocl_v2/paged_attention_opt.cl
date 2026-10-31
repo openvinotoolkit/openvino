@@ -76,19 +76,24 @@ inline uint FUNC(pa_bidir_group_begin)(const __global int* token_type_ids, const
     #error pa_sdpa_opt.cl
 #endif
 
+// The host sends one flag, IS_KEY_TOKEN_MAJOR, for every token-major K page (paged_attention.hpp). This kernel reads
+// the uncompressed and BY_TOKEN ones. It has no reader for the BY_CHANNEL one -- the host never dispatches it there
+// (PagedAttentionOptImpl::update_rt_params() asserts) -- but every stage of the impl is compiled, so on that page it
+// compiles the d-major read, as it always has.
+#if IS_KEY_TOKEN_MAJOR && !defined(IS_KEY_BY_CHANNEL)
+    #define KEY_BY_TOKEN_TM 1
+#else
+    #define KEY_BY_TOKEN_TM 0
+#endif
+
 // The token-major K load is a fixed-width vload16 of one token's row (KEY_VEC_SIZE head dims),
 // so a subgroup size other than 16 would silently read the wrong number of head dims per step.
-#if IS_KEY_TOKEN_MAJOR && SUBGROUP_SIZE != 16
+#if KEY_BY_TOKEN_TM && SUBGROUP_SIZE != 16
     #error pa_sdpa_opt.cl: token-major K load assumes SUBGROUP_SIZE == 16
-#endif
-// BY_CHANNEL stores a scale/zp pair at the end of every COLUMN, so its page is inherently d-major;
-// the host predicate (paged_attention::k_token_major_for) must never combine the two.
-#if IS_KEY_TOKEN_MAJOR && defined(IS_KEY_BY_CHANNEL)
-    #error pa_sdpa_opt.cl: BY_CHANNEL K cannot be token-major
 #endif
 // USE_2D_BLOCK_IO_K_TM: the uncompressed 16-bit token-major page read with a 2D block transpose (Xe2+, set by the host).
 #if USE_2D_BLOCK_IO_K_TM
-    #if !IS_KEY_TOKEN_MAJOR || IS_KV_COMPRESSED || SUBGROUP_SIZE != 16 || PAGED_ATTENTION_BLOCK_SIZE != 16
+    #if !KEY_BY_TOKEN_TM || IS_KV_COMPRESSED || SUBGROUP_SIZE != 16 || PAGED_ATTENTION_BLOCK_SIZE != 16
         #error pa_sdpa_opt.cl: USE_2D_BLOCK_IO_K_TM reads an uncompressed token-major page of 16 tokens with SG16
     #endif
     #pragma OPENCL EXTENSION cl_intel_subgroup_2d_block_io : enable
@@ -456,7 +461,7 @@ KERNEL(pa_sdpa_opt)(
                 INPUT0_TYPE comp_scale = comp_ptr[0];
                 INPUT0_TYPE comp_zp = comp_ptr[1];
         #endif
-        #if IS_KEY_TOKEN_MAJOR
+        #if KEY_BY_TOKEN_TM
                 // Token-major i8/u8 BY_TOKEN page: [PAGED_ATTENTION_BLOCK_SIZE tokens, K_HEAD_SIZE]
                 // bytes, so one token's KEY_VEC_SIZE head dims are contiguous and each lane can load
                 // its OWN token's row -- exactly the operand layout the mad below wants (k_vals[i] on
@@ -482,7 +487,7 @@ KERNEL(pa_sdpa_opt)(
     #endif  // IS_INT4_COMPRESSED
 #else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;
-    #if IS_KEY_TOKEN_MAJOR
+    #if KEY_BY_TOKEN_TM
                 // Token-major page: [PAGED_ATTENTION_BLOCK_SIZE tokens, K_HEAD_SIZE]. The consumer
                 // below needs k_vals[i] on lane L to be K[token = L][head dim = qk_idx*KEY_VEC_SIZE + i]
                 // (q_val is broadcast over head dims, and the score lands in lane == token). A block

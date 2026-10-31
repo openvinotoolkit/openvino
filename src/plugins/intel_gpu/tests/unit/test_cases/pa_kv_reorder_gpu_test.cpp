@@ -3,6 +3,7 @@
 //
 
 #include <cstring>
+#include <random>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/mutable_data.hpp>
 #include <intel_gpu/primitives/pa_kv_reorder.hpp>
@@ -39,15 +40,16 @@ size_t key_offset(size_t block,
     return page_base + (token_major ? token * k_head_size + k : k * block_size + token);
 }
 
-// The tests below share the PA cache-layout switch with the plugin.
+// The layout the plugin gives this test's cache on the test device (paged_attention::k_token_major_for()); the
+// reorder reads it back off the cache shape.
 bool k_token_major() {
-    return cldnn::paged_attention::k_token_major();
+    return cldnn::paged_attention::k_token_major_for(get_test_engine().get_device_info(), ov::element::f16, /*is_key_by_channel=*/false);
 }
 
-// i8 BY_TOKEN follows the same switch (its scale/zp trail the data region); INT4 and BY_CHANNEL
-// never do.
+// i8 BY_TOKEN follows the same rule (its scale/zp trail the data region). The token-major BY_CHANNEL
+// pages are covered by smoke_pa_kv_reorder_layout below.
 bool k_token_major_i8() {
-    return cldnn::paged_attention::k_token_major_for(ov::element::i8, /*is_key_by_channel=*/false);
+    return cldnn::paged_attention::k_token_major_for(get_test_engine().get_device_info(), ov::element::i8, /*is_key_by_channel=*/false);
 }
 
 size_t value_offset(size_t block, size_t head, size_t token, size_t v, size_t kv_heads, size_t v_head_size, size_t block_size) {
@@ -1627,3 +1629,372 @@ TEST(pa_kv_reorder_gpu, cm_key_by_channel_chained_moves_single_sequence) {
         ASSERT_EQ(value_out[cm_v_comp_off(0, second_dst, is_zp) + 1], value_ref[cm_v_comp_off(1, second_src_slot, is_zp) + 1]);
     }
 }
+
+namespace {
+
+// pa_kv_reorder on a token-major K page must give, value for value, what it gives on the d-major page (the upstream
+// kernel, covered above). The same logical cache -- random codes and (inv_scale, zp) pairs -- is laid out both ways,
+// both copies are reordered, and the results are read back into the logical form and compared bit for bit. Layouts:
+// paged_attention.hpp and pa_kv_cache_update_ref.cl. The reorder reads the layout off the cache shape.
+enum class lt_kind { f16, i8_by_token, i8_by_channel, u4_by_channel };
+
+struct lt_case {
+    lt_kind kind;
+    // Dynamic index inputs make the impl shape-agnostic: it compiles both kernels and picks one at dispatch.
+    bool dynamic_indices;
+};
+
+constexpr size_t lt_blocks = 4;
+constexpr size_t lt_heads = 2;
+constexpr size_t lt_k = 64;
+constexpr size_t lt_v = 64;
+constexpr size_t lt_bs = cldnn::paged_attention::block_size;
+constexpr size_t lt_pv = lt_v / 2;  // the u4 V row, already a multiple of 16
+
+struct lt_cache {
+    std::vector<uint16_t> k;       // [block][head][channel][token]: f16 bits, an i8 byte or a nibble
+    std::vector<uint16_t> k_comp;  // [block][head][n][2]: n = token (BY_TOKEN) or channel (BY_CHANNEL)
+    std::vector<uint16_t> v;       // [block][head][token][dim]
+    std::vector<uint16_t> v_comp;  // [block][head][token][2]
+};
+
+struct lt_loc {
+    size_t byte;
+    int shift;  // nibble shift, or -1 for a whole element
+};
+
+bool lt_compressed(lt_kind kind) {
+    return kind != lt_kind::f16;
+}
+bool lt_by_channel(lt_kind kind) {
+    return kind == lt_kind::i8_by_channel || kind == lt_kind::u4_by_channel;
+}
+bool lt_int4(lt_kind kind) {
+    return kind == lt_kind::u4_by_channel;
+}
+size_t lt_k_comp_n(lt_kind kind) {
+    return lt_by_channel(kind) ? lt_k : lt_bs;
+}
+// The K page's block and head dimensions as materialized (token-major: [block, head], d-major: [head, block]).
+int64_t lt_k_block_dim(lt_kind kind) {
+    return static_cast<int64_t>(lt_by_channel(kind) ? (lt_int4(kind) ? lt_bs / 2 : lt_bs) + 4 : lt_bs);
+}
+int64_t lt_k_head_dim(lt_kind kind) {
+    return static_cast<int64_t>(lt_compressed(kind) && !lt_by_channel(kind) ? lt_k + 4 : lt_k);
+}
+size_t lt_k_page(lt_kind kind) {
+    return static_cast<size_t>(lt_k_block_dim(kind) * lt_k_head_dim(kind)) * (kind == lt_kind::f16 ? 2 : 1);
+}
+int64_t lt_v_row(lt_kind kind) {
+    return static_cast<int64_t>(kind == lt_kind::f16 ? lt_v : (lt_int4(kind) ? lt_pv + 4 : lt_v + 4));
+}
+size_t lt_v_page(lt_kind kind) {
+    return lt_bs * static_cast<size_t>(lt_v_row(kind)) * (kind == lt_kind::f16 ? 2 : 1);
+}
+
+lt_loc lt_k_loc(lt_kind kind, bool tm, size_t b, size_t h, size_t c, size_t t) {
+    const size_t page = (b * lt_heads + h) * lt_k_page(kind);
+    switch (kind) {
+    case lt_kind::f16:
+        return {page + 2 * (tm ? t * lt_k + c : c * lt_bs + t), -1};
+    case lt_kind::i8_by_token:
+        return {page + (tm ? t * lt_k + c : c * lt_bs + t), -1};
+    case lt_kind::i8_by_channel:
+        return {page + (tm ? t * lt_k + c : c * (lt_bs + 4) + t), -1};
+    case lt_kind::u4_by_channel:
+        // token-major: two adjacent CHANNELS per byte; d-major: two adjacent TOKENS per byte.
+        return tm ? lt_loc{page + t * (lt_k / 2) + c / 2, static_cast<int>(4 * (c % 2))}
+                  : lt_loc{page + c * (lt_bs / 2 + 4) + t / 2, static_cast<int>(4 * (t % 2))};
+    }
+    return {0, -1};
+}
+
+// Byte offsets of the (inv_scale, zp) f16 pair of token / channel n.
+std::pair<size_t, size_t> lt_k_comp_loc(lt_kind kind, bool tm, size_t b, size_t h, size_t n) {
+    const size_t page = (b * lt_heads + h) * lt_k_page(kind);
+    switch (kind) {
+    case lt_kind::i8_by_token: {
+        const size_t scale = page + lt_bs * lt_k + 2 * n;  // two trailing per-token arrays in both layouts
+        return {scale, scale + 2 * lt_bs};
+    }
+    case lt_kind::i8_by_channel: {
+        const size_t scale = page + (tm ? lt_bs * lt_k + 4 * n : n * (lt_bs + 4) + lt_bs);
+        return {scale, scale + 2};
+    }
+    case lt_kind::u4_by_channel: {
+        const size_t scale = page + (tm ? lt_bs / 2 * lt_k + 4 * n : n * (lt_bs / 2 + 4) + lt_bs / 2);
+        return {scale, scale + 2};
+    }
+    default:
+        return {0, 0};
+    }
+}
+
+lt_loc lt_v_loc(lt_kind kind, bool tm, size_t b, size_t h, size_t t, size_t d) {
+    const size_t page = (b * lt_heads + h) * lt_v_page(kind);
+    if (kind == lt_kind::f16)
+        return {page + 2 * (t * lt_v + d), -1};
+    if (!lt_int4(kind))
+        return {page + t * lt_v + d, -1};
+    // The token-major u4 K page relays V: split nibbles (byte b = dims b and b + PV) and no inline comp.
+    if (tm)
+        return {page + t * lt_pv + d % lt_pv, static_cast<int>(4 * (d / lt_pv))};
+    return {page + t * (lt_pv + 4) + d / 2, static_cast<int>(4 * (d % 2))};
+}
+
+std::pair<size_t, size_t> lt_v_comp_loc(lt_kind kind, bool tm, size_t b, size_t h, size_t t) {
+    const size_t page = (b * lt_heads + h) * lt_v_page(kind);
+    if (lt_int4(kind) && !tm) {
+        const size_t scale = page + t * (lt_pv + 4) + lt_pv;
+        return {scale, scale + 2};
+    }
+    const size_t scale = page + lt_bs * (lt_int4(kind) ? lt_pv : lt_v) + 2 * t;
+    return {scale, scale + 2 * lt_bs};
+}
+
+void lt_put(std::vector<uint8_t>& buf, lt_loc loc, uint16_t code, bool f16) {
+    if (loc.shift >= 0) {
+        buf[loc.byte] = static_cast<uint8_t>((buf[loc.byte] & ~(0xF << loc.shift)) | ((code & 0xF) << loc.shift));
+    } else if (f16) {
+        buf[loc.byte] = static_cast<uint8_t>(code & 0xFF);
+        buf[loc.byte + 1] = static_cast<uint8_t>(code >> 8);
+    } else {
+        buf[loc.byte] = static_cast<uint8_t>(code & 0xFF);
+    }
+}
+
+uint16_t lt_get(const std::vector<uint8_t>& buf, lt_loc loc, bool f16) {
+    if (loc.shift >= 0)
+        return static_cast<uint16_t>((buf[loc.byte] >> loc.shift) & 0xF);
+    if (f16)
+        return static_cast<uint16_t>(buf[loc.byte] | (buf[loc.byte + 1] << 8));
+    return buf[loc.byte];
+}
+
+size_t lt_k_idx(size_t b, size_t h, size_t c, size_t t) {
+    return ((b * lt_heads + h) * lt_k + c) * lt_bs + t;
+}
+size_t lt_v_idx(size_t b, size_t h, size_t t, size_t d) {
+    return ((b * lt_heads + h) * lt_bs + t) * lt_v + d;
+}
+size_t lt_k_comp_idx(lt_kind kind, size_t b, size_t h, size_t n) {
+    return ((b * lt_heads + h) * lt_k_comp_n(kind) + n) * 2;
+}
+size_t lt_v_comp_idx(size_t b, size_t h, size_t t) {
+    return ((b * lt_heads + h) * lt_bs + t) * 2;
+}
+
+lt_cache lt_random(lt_kind kind, uint32_t seed) {
+    std::mt19937 rng(seed);
+    auto uniform = [&](float lo, float hi) {
+        return std::uniform_real_distribution<float>(lo, hi)(rng);
+    };
+    auto code = [&]() -> uint16_t {
+        if (kind == lt_kind::f16)
+            return ov::float16(uniform(-4.0f, 4.0f)).to_bits();
+        return static_cast<uint16_t>(rng() % (lt_int4(kind) ? 16 : 256));
+    };
+    auto pair = [&](uint16_t* dst) {
+        dst[0] = ov::float16(uniform(0.02f, 0.1f)).to_bits();
+        dst[1] = ov::float16(lt_int4(kind) ? static_cast<float>(rng() % 16) : uniform(-20.0f, 20.0f)).to_bits();
+    };
+    lt_cache c;
+    c.k.resize(lt_blocks * lt_heads * lt_k * lt_bs);
+    c.v.resize(lt_blocks * lt_heads * lt_bs * lt_v);
+    for (auto& x : c.k)
+        x = code();
+    for (auto& x : c.v)
+        x = code();
+    if (lt_compressed(kind)) {
+        c.k_comp.resize(lt_blocks * lt_heads * lt_k_comp_n(kind) * 2);
+        c.v_comp.resize(lt_blocks * lt_heads * lt_bs * 2);
+        for (size_t i = 0; i < c.k_comp.size(); i += 2)
+            pair(&c.k_comp[i]);
+        for (size_t i = 0; i < c.v_comp.size(); i += 2)
+            pair(&c.v_comp[i]);
+    }
+    return c;
+}
+
+// Moves between the logical cache and the page bytes of one layout (store = true: logical -> bytes).
+void lt_transfer(lt_kind kind, bool tm, bool store, lt_cache& c, std::vector<uint8_t>& kb, std::vector<uint8_t>& vb) {
+    const bool f16 = kind == lt_kind::f16;
+    if (store) {
+        kb.assign(lt_blocks * lt_heads * lt_k_page(kind), 0);
+        vb.assign(lt_blocks * lt_heads * lt_v_page(kind), 0);
+    } else {
+        c.k.assign(lt_blocks * lt_heads * lt_k * lt_bs, 0);
+        c.v.assign(lt_blocks * lt_heads * lt_bs * lt_v, 0);
+        c.k_comp.assign(lt_compressed(kind) ? lt_blocks * lt_heads * lt_k_comp_n(kind) * 2 : 0, 0);
+        c.v_comp.assign(lt_compressed(kind) ? lt_blocks * lt_heads * lt_bs * 2 : 0, 0);
+    }
+    auto move = [&](std::vector<uint8_t>& buf, lt_loc loc, uint16_t& x, bool wide) {
+        if (store)
+            lt_put(buf, loc, x, wide);
+        else
+            x = lt_get(buf, loc, wide);
+    };
+    for (size_t b = 0; b < lt_blocks; b++) {
+        for (size_t h = 0; h < lt_heads; h++) {
+            for (size_t c_ = 0; c_ < lt_k; c_++)
+                for (size_t t = 0; t < lt_bs; t++)
+                    move(kb, lt_k_loc(kind, tm, b, h, c_, t), c.k[lt_k_idx(b, h, c_, t)], f16);
+            for (size_t t = 0; t < lt_bs; t++)
+                for (size_t d = 0; d < lt_v; d++)
+                    move(vb, lt_v_loc(kind, tm, b, h, t, d), c.v[lt_v_idx(b, h, t, d)], f16);
+            if (!lt_compressed(kind))
+                continue;
+            for (size_t n = 0; n < lt_k_comp_n(kind); n++) {
+                const auto loc = lt_k_comp_loc(kind, tm, b, h, n);
+                const size_t i = lt_k_comp_idx(kind, b, h, n);
+                move(kb, {loc.first, -1}, c.k_comp[i], true);
+                move(kb, {loc.second, -1}, c.k_comp[i + 1], true);
+            }
+            for (size_t t = 0; t < lt_bs; t++) {
+                const auto loc = lt_v_comp_loc(kind, tm, b, h, t);
+                const size_t i = lt_v_comp_idx(b, h, t);
+                move(vb, {loc.first, -1}, c.v_comp[i], true);
+                move(vb, {loc.second, -1}, c.v_comp[i + 1], true);
+            }
+        }
+    }
+}
+
+void lt_copy_in(cldnn::memory::ptr mem, const std::vector<uint8_t>& bytes) {
+    ASSERT_EQ(mem->size(), bytes.size());
+    cldnn::mem_lock<uint8_t, mem_lock_type::write> lock(mem, get_test_stream());
+    std::memcpy(lock.data(), bytes.data(), bytes.size());
+}
+
+void lt_copy_out(cldnn::memory::ptr mem, cldnn::stream& stream, std::vector<uint8_t>& bytes) {
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> lock(mem, stream);
+    bytes.assign(lock.data(), lock.data() + mem->size());
+}
+
+// Two sequences on four pages: cross-page moves (requantizing the destination column of a BY_CHANNEL page), a move
+// inside one page, and one per KV head (two heads).
+void lt_run(lt_kind kind, bool tm, bool dynamic_indices, std::vector<uint8_t>& kb, std::vector<uint8_t>& vb) {
+    auto& engine = get_test_engine();
+    const bool compressed = lt_compressed(kind);
+    const bool by_channel = lt_by_channel(kind);
+    const auto mem_dt = kind == lt_kind::f16 ? data_types::f16 : (lt_int4(kind) ? data_types::u8 : data_types::i8);
+    const int64_t blocks = static_cast<int64_t>(lt_blocks);
+    const int64_t heads = static_cast<int64_t>(lt_heads);
+    const auto k_shape = tm ? ov::PartialShape{blocks, heads, lt_k_block_dim(kind), lt_k_head_dim(kind)}
+                            : ov::PartialShape{blocks, heads, lt_k_head_dim(kind), lt_k_block_dim(kind)};
+    const auto v_shape = ov::PartialShape{blocks, heads, static_cast<int64_t>(lt_bs), lt_v_row(kind)};
+    auto key_mem = engine.allocate_memory({k_shape, mem_dt, format::bfyx});
+    auto value_mem = engine.allocate_memory({v_shape, mem_dt, format::bfyx});
+    lt_copy_in(key_mem, kb);
+    lt_copy_in(value_mem, vb);
+
+    const std::vector<int32_t> block_indices{0, 2, 3, 1};
+    const std::vector<int32_t> block_indices_begins{0, 2, 4};
+    // seq 0 (pages 0, 2): 0 -> 17, 15 -> 16, 3 -> 5 (same page), 30 -> 6; seq 1 (pages 3, 1): 20 -> 2, 1 -> 30.
+    const std::vector<int32_t> updates{0, 17, 15, 16, 3, 5, 30, 6, 20, 2, 1, 30};
+    const std::vector<int32_t> update_begins{0, 4, 6};
+    auto index_layout = [&](size_t n) {
+        return dynamic_indices ? layout{ov::PartialShape::dynamic(1), data_types::i32, format::bfyx}
+                               : layout{ov::PartialShape{static_cast<int64_t>(n)}, data_types::i32, format::bfyx};
+    };
+    auto index_mem = [&](const std::vector<int32_t>& values) {
+        auto mem = engine.allocate_memory({ov::PartialShape{static_cast<int64_t>(values.size())}, data_types::i32, format::bfyx});
+        set_values<int32_t>(mem, values);
+        return mem;
+    };
+
+    topology topo;
+    topo.add(mutable_data("key_cache", key_mem));
+    topo.add(mutable_data("value_cache", value_mem));
+    topo.add(input_layout("block_indices", index_layout(block_indices.size())));
+    topo.add(input_layout("block_indices_begins", index_layout(block_indices_begins.size())));
+    topo.add(input_layout("block_update_indices", index_layout(updates.size())));
+    topo.add(input_layout("block_update_indices_begins", index_layout(update_begins.size())));
+
+    auto prim = pa_kv_reorder("pa_kv_reorder",
+                              {input_info("key_cache"),
+                               input_info("value_cache"),
+                               input_info("block_indices"),
+                               input_info("block_indices_begins"),
+                               input_info("block_update_indices"),
+                               input_info("block_update_indices_begins")});
+    // What ops/pa_kv_reorder.cpp sets for an f16 inference precision.
+    const size_t scales_zp_size = compressed ? 4 : 0;
+    prim.kv_heads_num = lt_heads;
+    prim.adjusted_k_head_size = static_cast<size_t>(lt_k_head_dim(kind));
+    prim.adjusted_paged_attention_block_size = lt_bs + (by_channel ? scales_zp_size : 0);
+    prim.adjusted_v_head_size = lt_v + scales_zp_size;
+    prim.cache_dt = kind == lt_kind::f16 ? data_types::f16 : (lt_int4(kind) ? data_types::u4 : data_types::i8);
+    prim.is_kv_compressed = compressed;
+    prim.is_key_by_channel = by_channel;
+    prim.scales_zp_size = scales_zp_size;
+    topo.add(prim);
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+    network->set_input_data("block_indices", index_mem(block_indices));
+    network->set_input_data("block_indices_begins", index_mem(block_indices_begins));
+    network->set_input_data("block_update_indices", index_mem(updates));
+    network->set_input_data("block_update_indices_begins", index_mem(update_begins));
+    network->execute();
+    network->get_stream().finish();
+
+    lt_copy_out(key_mem, network->get_stream(), kb);
+    lt_copy_out(value_mem, network->get_stream(), vb);
+}
+
+size_t lt_mismatches(const std::vector<uint16_t>& a, const std::vector<uint16_t>& b) {
+    size_t n = 0;
+    for (size_t i = 0; i < a.size(); i++)
+        n += a[i] != b[i];
+    return n + (a.size() != b.size());
+}
+
+class pa_kv_reorder_layout_test : public ::testing::TestWithParam<lt_case> {};
+
+}  // namespace
+
+TEST_P(pa_kv_reorder_layout_test, token_major_matches_d_major) {
+    const auto p = GetParam();
+    if (p.dynamic_indices) {
+        // A shape-agnostic impl compiles the token-major kernel only where such a page can exist.
+        using pa = cldnn::paged_attention;
+        const auto layout_switch = pa::k_token_major_switch();
+        if (layout_switch == pa::k_layout_switch::d_major ||
+            (layout_switch == pa::k_layout_switch::rule && !pa::k_token_major_device(get_test_engine().get_device_info())))
+            GTEST_SKIP() << "no token-major K page on this device";
+    }
+
+    auto in = lt_random(p.kind, 20261101);
+    std::vector<uint8_t> k_dm, v_dm, k_tm, v_tm;
+    lt_transfer(p.kind, false, true, in, k_dm, v_dm);
+    lt_transfer(p.kind, true, true, in, k_tm, v_tm);
+    lt_run(p.kind, false, p.dynamic_indices, k_dm, v_dm);
+    lt_run(p.kind, true, p.dynamic_indices, k_tm, v_tm);
+    lt_cache out_dm, out_tm;
+    lt_transfer(p.kind, false, false, out_dm, k_dm, v_dm);
+    lt_transfer(p.kind, true, false, out_tm, k_tm, v_tm);
+
+    // The reorder did run: seq 0's first move puts token 0 of page 0 at token 1 of page 2.
+    for (size_t h = 0; h < lt_heads; h++)
+        for (size_t d = 0; d < lt_v; d++)
+            ASSERT_EQ(out_dm.v[lt_v_idx(2, h, 1, d)], in.v[lt_v_idx(0, h, 0, d)]);
+    ASSERT_NE(lt_mismatches(out_dm.k, in.k), 0u);
+
+    EXPECT_EQ(lt_mismatches(out_tm.k, out_dm.k), 0u) << "K codes";
+    EXPECT_EQ(lt_mismatches(out_tm.k_comp, out_dm.k_comp), 0u) << "K (inv_scale, zp)";
+    EXPECT_EQ(lt_mismatches(out_tm.v, out_dm.v), 0u) << "V codes";
+    EXPECT_EQ(lt_mismatches(out_tm.v_comp, out_dm.v_comp), 0u) << "V (inv_scale, zp)";
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_pa_kv_reorder_layout,
+                         pa_kv_reorder_layout_test,
+                         ::testing::Values(lt_case{lt_kind::f16, false},
+                                           lt_case{lt_kind::i8_by_token, false},
+                                           lt_case{lt_kind::i8_by_channel, false},
+                                           lt_case{lt_kind::u4_by_channel, false},
+                                           lt_case{lt_kind::f16, true},
+                                           lt_case{lt_kind::i8_by_token, true},
+                                           lt_case{lt_kind::i8_by_channel, true},
+                                           lt_case{lt_kind::u4_by_channel, true}));

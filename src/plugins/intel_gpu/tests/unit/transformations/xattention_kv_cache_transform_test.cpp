@@ -575,7 +575,6 @@ TEST(PagedAttentionKCacheLayout, ByChannelTokenMajorReadable) {
     EXPECT_FALSE(with([](auto& o) { o.has_alibi = true; }));
     EXPECT_FALSE(with([](auto& o) { o.has_scores_output = true; }));
     EXPECT_FALSE(with([](auto& o) { o.has_adaptive_rkv = true; }));
-    EXPECT_FALSE(with([](auto& o) { o.has_qq_bias = true; }));
     EXPECT_FALSE(with([](auto& o) { o.k_head_size = o.v_head_size = 576; }));  // MIXED: head <= 512
     EXPECT_FALSE(with([](auto& o) { o.k_head_size = o.v_head_size = 72; }));   // GENERATE: head % 16
     EXPECT_FALSE(with([](auto& o) { o.v_head_size = 40; }));
@@ -593,17 +592,66 @@ TEST(PagedAttentionKCacheLayout, ByChannelTokenMajorReadable) {
     EXPECT_TRUE(pa::by_channel_token_major_readable(xe2, true, f16, {op, op}));
 }
 
+// The uncompressed and i8/u8 BY_TOKEN K page goes token-major on the device alone (every reader of it reads both
+// layouts): Xe2+ with XMX on the sdpa_ocl lane. Device-independent: the device facts are synthetic; the expectation
+// follows the process env (TEST_USE_SDPA_OCL*, OV_GPU_PA_K_TOKEN_MAJOR).
+TEST(PagedAttentionKCacheLayout, TokenMajorRule) {
+    using pa = cldnn::paged_attention;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    constexpr bool one_dnn = true;
+#else
+    constexpr bool one_dnn = false;
+#endif
+    const auto layout_switch = pa::k_token_major_switch();
+    for (const auto arch : {cldnn::gpu_arch::xe_lp, cldnn::gpu_arch::xe_hpg, cldnn::gpu_arch::xe_hpc, cldnn::gpu_arch::xe2, cldnn::gpu_arch::xe3}) {
+        for (const bool immad : {false, true}) {
+            cldnn::device_info info{};
+            info.arch = arch;
+            info.supports_immad = immad;
+            const bool lane = one_dnn && pa::sdpa_ocl_enabled() && pa::sdpa_ocl_decode_enabled() && immad && arch >= cldnn::gpu_arch::xe2;
+            SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(arch) << " immad=" << immad);
+            EXPECT_EQ(pa::k_token_major_device(info), lane);
+            const bool page = layout_switch == pa::k_layout_switch::token_major || (layout_switch == pa::k_layout_switch::rule && lane);
+            EXPECT_EQ(pa::k_token_major_for(info, ov::element::f16, false), page);
+            EXPECT_EQ(pa::k_token_major_for(info, ov::element::f16, true), page);  // the quant mode means nothing uncompressed
+            EXPECT_EQ(pa::k_token_major_for(info, ov::element::i8, false), page);
+            EXPECT_EQ(pa::k_token_major_for(info, ov::element::u8, false), page);
+            // BY_CHANNEL has its own rule (k_by_channel_token_major_for + by_channel_token_major_readable); INT4 is BY_CHANNEL.
+            EXPECT_FALSE(pa::k_token_major_for(info, ov::element::i8, true));
+            EXPECT_FALSE(pa::k_token_major_for(info, ov::element::u4, false));
+            EXPECT_FALSE(pa::k_token_major_for(info, ov::element::u4, true));
+            EXPECT_EQ(pa::k_by_channel_token_major_for(ov::element::i8, true), layout_switch != pa::k_layout_switch::d_major);
+            EXPECT_EQ(pa::k_by_channel_token_major_for(ov::element::u4, true), layout_switch != pa::k_layout_switch::d_major);
+            EXPECT_FALSE(pa::k_by_channel_token_major_for(ov::element::u8, true));
+            EXPECT_FALSE(pa::k_by_channel_token_major_for(ov::element::i8, false));
+
+            // Consumers read the layout off the physical shape; the rule only answers where the shape cannot.
+            const ov::Dimension any = ov::Dimension::dynamic();
+            EXPECT_TRUE(pa::k_cache_token_major(info, {any, 2, 16, 64}, 16, ov::element::f16, false));
+            EXPECT_FALSE(pa::k_cache_token_major(info, {any, 2, 64, 16}, 16, ov::element::f16, false));
+            EXPECT_TRUE(pa::k_cache_token_major(info, {any, 2, 20, 64}, 20, ov::element::i8, true));
+            EXPECT_FALSE(pa::k_cache_token_major(info, {any, 2, 64, 20}, 20, ov::element::i8, true));
+            EXPECT_TRUE(pa::k_cache_token_major(info, {any, 2, 12, 128}, 12, ov::element::u4, true));
+            EXPECT_FALSE(pa::k_cache_token_major(info, {any, 2, 128, 12}, 12, ov::element::u4, true));
+            EXPECT_EQ(pa::k_cache_token_major(info, {any, 2, 16, 16}, 16, ov::element::f16, false), page);  // square page
+            EXPECT_EQ(pa::k_cache_token_major(info, ov::PartialShape::dynamic(4), 16, ov::element::f16, false), page);
+            EXPECT_FALSE(pa::k_cache_token_major(info, {any, 2, 20, 20}, 20, ov::element::i8, true));  // square BY_CHANNEL
+        }
+    }
+}
+
 // The same decision through the real pipeline on the test device: the key_cache shape
 // ConvertPagedAttnInputs gives a synthetic PA model. Run with --device_suffix for each GPU.
 struct KCacheLayoutParams {
     ov::element::Type kv_cache_precision;
+    ov::internal::CacheQuantMode key_cache_quant_mode;
     bool with_alibi;
     bool with_qq_bias;
 };
 
 class PagedAttentionKCacheLayoutPipelineTest : public testing::TestWithParam<KCacheLayoutParams> {};
 
-TEST_P(PagedAttentionKCacheLayoutPipelineTest, ByChannelPageFollowsReaders) {
+TEST_P(PagedAttentionKCacheLayoutPipelineTest, PageFollowsReaders) {
     const auto& p = GetParam();
     auto& engine = get_test_engine();
     auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
@@ -612,8 +660,9 @@ TEST_P(PagedAttentionKCacheLayoutPipelineTest, ByChannelPageFollowsReaders) {
     auto config = get_test_default_config(engine);
     config.set_user_property(ov::hint::kv_cache_precision(p.kv_cache_precision));
     config.set_user_property(ov::hint::inference_precision(ov::element::f16));
+    config.set_user_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
     config.finalize(context.get(), model.get());
-    ASSERT_EQ(config.get_key_cache_quant_mode(), ov::internal::CacheQuantMode::BY_CHANNEL);
+    ASSERT_EQ(config.get_key_cache_quant_mode(), p.key_cache_quant_mode);
 
     ov::intel_gpu::TransformationsPipeline pipeline(config, context);
     pipeline.apply(model);
@@ -624,31 +673,45 @@ TEST_P(PagedAttentionKCacheLayoutPipelineTest, ByChannelPageFollowsReaders) {
     ASSERT_TRUE(key_shape.rank().is_static());
     ASSERT_EQ(key_shape.rank().get_length(), 4);
 
-    // The page has a token-major reader in both stages only on XMX Xe2+ with microkernel support, and
-    // only for a model without alibi or qq_bias.
+    using pa = cldnn::paged_attention;
     const auto& info = engine.get_device_info();
-    bool readers = cldnn::paged_attention::sdpa_ocl_selected(info) &&
-                   cldnn::paged_attention::sdpa_ocl_decode_reader_available(info) &&
-                   cldnn::query_microkernels_supported(engine, config) && cldnn::paged_attention::k_by_channel_token_major();
-#ifndef ENABLE_ONEDNN_FOR_GPU
-    readers = false;
-#endif
-    const bool token_major = readers && !p.with_alibi && !p.with_qq_bias;
+    const bool by_channel = p.kv_cache_precision != ov::element::f16 && p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+    bool token_major = false;
+    if (by_channel) {
+        // The page has a token-major reader in both stages only on XMX Xe2+ with microkernel support, and only for a
+        // model without alibi. qq_bias is fine: EAGLE3's pa_kv_reorder reads the page too.
+        token_major = pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::k_token_major_device(info) &&
+                      cldnn::query_microkernels_supported(engine, config) && !p.with_alibi;
+    } else {
+        // Every reader reads the uncompressed / BY_TOKEN page, so the device decides alone.
+        token_major = pa::k_token_major_for(info, p.kv_cache_precision, false);
+    }
 
-    // f16 comp: i8 keeps a (scale, zp) pair per channel after 16 tokens, u4 packs 16 tokens into 8 bytes.
-    const int64_t adjusted_block = p.kv_cache_precision == ov::element::u4 ? 12 : 20;
+    // f16 comp: i8 BY_CHANNEL keeps a (scale, zp) pair per channel after 16 tokens, u4 packs 16 tokens into 8 bytes,
+    // i8 BY_TOKEN appends per-token pairs along the head dim.
+    int64_t block = 16;
+    int64_t head = 64;
+    if (by_channel) {
+        block = p.kv_cache_precision == ov::element::u4 ? 12 : 20;
+    } else if (p.kv_cache_precision == ov::element::i8) {
+        head = 68;
+    }
     EXPECT_TRUE(key_shape[0].is_dynamic());
     EXPECT_EQ(key_shape[1].get_length(), 2);
-    EXPECT_EQ(key_shape[2].get_length(), token_major ? adjusted_block : 64) << "key_cache " << key_shape;
-    EXPECT_EQ(key_shape[3].get_length(), token_major ? 64 : adjusted_block) << "key_cache " << key_shape;
+    EXPECT_EQ(key_shape[2].get_length(), token_major ? block : head) << "key_cache " << key_shape;
+    EXPECT_EQ(key_shape[3].get_length(), token_major ? head : block) << "key_cache " << key_shape;
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_PagedAttentionKCacheLayout,
                          PagedAttentionKCacheLayoutPipelineTest,
-                         testing::Values(KCacheLayoutParams{ov::element::i8, false, false},
-                                         KCacheLayoutParams{ov::element::u4, false, false},
-                                         KCacheLayoutParams{ov::element::i8, true, false},
-                                         KCacheLayoutParams{ov::element::i8, false, true},
-                                         KCacheLayoutParams{ov::element::u4, true, false}));
+                         testing::Values(KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL, false, false},
+                                         KCacheLayoutParams{ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL, false, false},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL, true, false},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL, false, true},
+                                         KCacheLayoutParams{ov::element::u4, ov::internal::CacheQuantMode::BY_CHANNEL, true, false},
+                                         KCacheLayoutParams{ov::element::f16, ov::internal::CacheQuantMode::BY_CHANNEL, false, false},
+                                         KCacheLayoutParams{ov::element::f16, ov::internal::CacheQuantMode::BY_CHANNEL, true, true},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN, false, false},
+                                         KCacheLayoutParams{ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN, true, true}));
 
 }  // namespace ov::test::intel_gpu
