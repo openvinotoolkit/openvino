@@ -10,7 +10,6 @@
 #include <cstring>
 #include <functional>
 #include <memory>
-#include <numeric>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <unordered_map>
@@ -31,7 +30,6 @@
 #include "nodes/kernels/scaled_attn/attn_memcpy.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
-#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
 #include "nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp"
 #include "nodes/kernels/scaled_attn/sparse_sdpa_scratch.hpp"
@@ -52,6 +50,9 @@
 
 #ifdef OPENVINO_ARCH_X86_64
 #    include <cpu/x64/cpu_isa_traits.hpp>
+#    include <numeric>
+
+#    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #endif
 
 namespace ov::intel_cpu::node {

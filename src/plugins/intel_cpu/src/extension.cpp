@@ -111,13 +111,13 @@
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 #    include "transformations/snippets/common/op/load_convert.hpp"
 #    include "transformations/snippets/common/op/store_convert.hpp"
 #endif
 #if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
 #    include "transformations/cpu_opset/x64/op/interaction.hpp"
 #    include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #    include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
