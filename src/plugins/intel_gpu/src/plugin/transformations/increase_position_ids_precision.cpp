@@ -4,20 +4,27 @@
 
 #include "increase_position_ids_precision.hpp"
 
+#include <map>
 #include <set>
+#include <utility>
+#include <vector>
 
 #include "intel_gpu/op/gemm.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/moe.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
@@ -30,18 +37,92 @@
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/variable_extension.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/gather_matmul_compressed.hpp"
+#include "ov_ops/grouped_matmul_compressed.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov::intel_gpu {
+
+CollectSinCosConstantsForPrecisionPreservation::CollectSinCosConstantsForPrecisionPreservation(
+    const std::shared_ptr<ConstantSet>& constants)
+    : m_constants(constants) {
+    OPENVINO_ASSERT(m_constants, "CollectSinCosConstantsForPrecisionPreservation requires a shared Constant set");
+}
+
+bool CollectSinCosConstantsForPrecisionPreservation::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    m_constants->clear();
+    std::unordered_set<const ov::Node*> visited;
+    ov::OutputVector pending;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type_any_of<ov::op::v0::Sin, ov::op::v0::Cos>(node)) {
+            pending.push_back(node->input_value(0));
+        }
+    }
+
+    while (!pending.empty()) {
+        const auto output = pending.back();
+        pending.pop_back();
+        if (!output.get_element_type().is_real()) {
+            continue;
+        }
+        const auto node = output.get_node_shared_ptr();
+        if (!visited.insert(node.get()).second) {
+            continue;
+        }
+        if (ov::is_type<ov::op::v0::Constant>(node)) {
+            if (output.get_element_type() == ov::element::f32) {
+                m_constants->insert(node.get());
+            }
+            continue;
+        }
+
+        // Follow floating-point dependencies without an op allowlist, including through MatMul.
+        // Integer/bool inputs (e.g. shapes, axes and indices) end the path even if derived from floats.
+        // Only outer-graph input edges are followed; subgraph bodies are not traversed.
+        for (const auto& input : node->input_values()) {
+            if (input.get_element_type().is_real()) {
+                pending.push_back(input);
+            }
+        }
+    }
+
+    return false;
+}
+
+// Shared by the GPU pipeline and accuracy regression tests to avoid duplicating the preservation policy.
+bool skip_constant_precision_preservation(
+    const std::shared_ptr<const ov::Node>& node,
+    const CollectSinCosConstantsForPrecisionPreservation::ConstantSet& sincos_constants) {
+    const auto targets = node->get_output_target_inputs(0);
+    const ov::Node* next_node = node.get();
+    if (!targets.empty()) {
+        next_node = targets.begin()->get_node();
+    }
+    if (ov::is_type<ov::op::v0::Convert>(next_node)) {
+        const auto convert_targets = next_node->get_output_target_inputs(0);
+        if (!convert_targets.empty()) {
+            next_node = convert_targets.begin()->get_node();
+        }
+    }
+    if (ov::is_type_any_of<ov::op::v0::MatMul,
+                           ov::op::internal::MOE,
+                           ov::op::internal::GatherMatmulCompressed,
+                           ov::op::internal::GroupedMatMulCompressed>(next_node)) {
+        return false;
+    }
+    return sincos_constants.count(node.get()) == 0;
+}
 
 IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
     using namespace ov::pass::pattern;
@@ -116,7 +197,7 @@ IncreasePositionIdsPrecisionForRoPE::IncreasePositionIdsPrecisionForRoPE() {
                 insert_converts_after_if_needed(sin_node, rope_sin_et, output_idx);
             }
         }
-        return true;
+        return is_changed;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(rope, "IncreasePositionIdsPrecisionForRoPE");
@@ -323,96 +404,314 @@ IncreasePositionIdsPrecisionForQwen3VL::IncreasePositionIdsPrecisionForQwen3VL()
     this->register_matcher(m, callback);
 }
 
-IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo() {
-    using namespace ov::pass::pattern;
-    using ov::pass::pattern::op::Or;
+namespace {
 
-    // LTX-Video RoPE position encoding pattern (anchored on fused RoPE).
-    // Handles two topology variants sharing the same upstream path.
+bool increase_sincos_angle_precision(const std::shared_ptr<ov::Node>& sin, const std::shared_ptr<ov::Node>& cos) {
+    // Phase 1: inspect both upstream value paths before changing any live edge.
+    // Traverse upstream from the values feeding Sin/Cos.
+    const ov::OutputVector angle_inputs{sin->input_value(0), cos->input_value(0)};
+
+    // Map each visited input value to its producer's floating-point input indices for FP32 reconstruction.
+    // For example, Multiply records {0, 1}, while Reshape records {0}, leaving integer shape inputs unchanged.
+    // Output keys distinguish Split output ports and deduplicate shared Sin/Cos dependencies.
+    std::map<ov::Output<ov::Node>, std::vector<size_t>> floating_input_ports;
+    bool has_required_arithmetic = false;
+    bool has_fp16_in_angle_path = false;
+
+    // Stack entry: (input_value, dependencies_processed); false schedules dependencies, true records the value.
+    std::vector<std::pair<ov::Output<ov::Node>, bool>> traversal_stack;
+    ov::OutputVector dependency_order;
+
+    for (const auto& input_value : angle_inputs) {
+        traversal_stack.emplace_back(input_value, false);
+    }
+
+    // Use an explicit DFS stack to avoid recursion depth limits on long upstream paths.
+    // Unlike node-level traversal of all inputs, this walk follows only floating-point inputs and preserves output ports.
+    // floating_input_ports also tracks visited values, so shared dependencies are inspected only once.
     //
-    // model1 (original):
-    //   Multiply → Add(Constant) → Transpose → Reshape
-    //       → Sin → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat_sin
-    //       → Cos → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat_cos
-    //       → RoPE(x, Concat_cos, Concat_sin)
+    // Illustrative traversal: A -> B -> Sin, A -> C -> Cos; A is a leaf, all edges carry floating-point values.
+    // Distinct B/C illustrate stack behavior only; the current matcher requires a shared Sin/Cos input.
+    // Each entry is (value, dependencies_processed); the stack TOP is on the LEFT.
     //
-    // model2 (new topology):
-    //   Multiply → Add(Constant) → Transpose → Reshape
-    //       → Sin → Gather(Sin, Const, Const) → Concat(Broadcast, Gather)  [sin_concat]
-    //       → Cos → Gather(Cos, Const, Const) → Concat(Broadcast, Gather)  [cos_concat]
-    //       → RoPE(x, Concat_cos, Concat_sin)
+    // Action                            | Stack: TOP -> bottom       | dependency_order
+    // -----------------------------------------------------------------------------------
+    // Push initial B, then C            | (C,false), (B,false)       | []
+    // -----------------------------------------------------------------------------------
+    // Pop C; schedule return and A      | (A,false), (C,true),       | []
+    //                                   | (B,false)                  |
+    // -----------------------------------------------------------------------------------
+    // Pop leaf A; schedule recording    | (A,true), (C,true),        | []
+    //                                   | (B,false)                  |
+    // -----------------------------------------------------------------------------------
+    // Pop A; record it                  | (C,true), (B,false)        | [A]
+    // -----------------------------------------------------------------------------------
+    // Pop C; record it                  | (B,false)                  | [A, C]
+    // -----------------------------------------------------------------------------------
+    // Pop B; schedule return and A      | (A,false), (B,true)        | [A, C]
+    // -----------------------------------------------------------------------------------
+    // Pop A; skip the visited value     | (B,true)                   | [A, C]
+    // -----------------------------------------------------------------------------------
+    // Pop B; record it                  | []                         | [A, C, B]
+    // -----------------------------------------------------------------------------------
+    //
+    // Dependencies precede their consumers; leaves from separate branches need not all come first.
+    // Process each value in two stages: false inspects it and schedules dependencies; true records it afterward.
+    // This orders FP32 reconstruction so each input's FP32 counterpart is ready before rebuilding its consumer.
+    while (!traversal_stack.empty()) {
+        const auto [input_value, dependencies_processed] = traversal_stack.back();
+        traversal_stack.pop_back();
 
-    // Upstream: Multiply → Add(Constant) → Transpose → Reshape (same for both models)
-    auto mul = wrap_type<ov::op::v1::Multiply>({any_input(), any_input()});
-    auto add_constant = wrap_type<ov::op::v0::Constant>();
-    auto add = wrap_type<ov::op::v1::Add>({mul, add_constant});
-    auto transpose_up = wrap_type<ov::op::v1::Transpose>({add, any_input()});
-    auto reshape = wrap_type<ov::op::v1::Reshape>({transpose_up, any_input()});
+        if (dependencies_processed) {
+            dependency_order.push_back(input_value);
+            continue;
+        }
+        if (floating_input_ports.count(input_value)) {
+            continue;
+        }
 
-    // Sin and Cos nodes (shared between both model variants)
-    auto sin = wrap_type<ov::op::v0::Sin>({reshape});
-    auto cos = wrap_type<ov::op::v0::Cos>({reshape});
+        const auto node = input_value.get_node_shared_ptr();
 
-    // model1 sin path: Sin → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat
-    auto sin_transpose = wrap_type<ov::op::v1::Transpose>({sin, any_input()});
-    auto sin_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({sin_transpose, any_input()});
-    auto sin_broadcast = wrap_type<ov::op::v3::Broadcast>({sin_unsqueeze, any_input()});
-    auto sin_gathernd = wrap_type<ov::op::v8::GatherND>({sin_broadcast, any_input()});
-    auto sin_transpose2 = wrap_type<ov::op::v1::Transpose>({sin_gathernd, any_input()});
-    auto sin_concat_m1 = wrap_type<ov::op::v0::Concat>({any_input(), sin_transpose2});
+        // Require an upstream arithmetic operation; this does not prove that the path only computes angles.
+        // These operations occur in the position-id precision patterns examined so far; this is not a traversal allowlist.
+        // Extend this eligibility list only when a new model needs it (e.g. a Subtract/Divide-only angle path).
+        has_required_arithmetic |= ov::is_type_any_of<ov::op::v1::Add,
+                                                    ov::op::v1::Multiply,
+                                                    ov::op::v0::MatMul,
+                                                    ov::intel_gpu::op::Gemm>(node);
 
-    // model2 sin path: Sin → Gather → Concat
-    auto sin_gather_m2 = wrap_type<ov::op::v8::Gather>({sin, any_input(), any_input()});
-    auto sin_concat_m2 = wrap_type<ov::op::v0::Concat>({any_input(), sin_gather_m2});
+        const auto type = input_value.get_element_type();
+        has_fp16_in_angle_path |= type == ov::element::f16;
 
-    auto sin_concat = std::make_shared<Or>(OutputVector{sin_concat_m1, sin_concat_m2});
-
-    // model1 cos path: Cos → Transpose → Unsqueeze → Broadcast → GatherND → Transpose → Concat
-    auto cos_transpose = wrap_type<ov::op::v1::Transpose>({cos, any_input()});
-    auto cos_unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({cos_transpose, any_input()});
-    auto cos_broadcast = wrap_type<ov::op::v3::Broadcast>({cos_unsqueeze, any_input()});
-    auto cos_gathernd = wrap_type<ov::op::v8::GatherND>({cos_broadcast, any_input()});
-    auto cos_transpose2 = wrap_type<ov::op::v1::Transpose>({cos_gathernd, any_input()});
-    auto cos_concat_m1 = wrap_type<ov::op::v0::Concat>({any_input(), cos_transpose2});
-
-    // model2 cos path: Cos → Gather → Concat
-    auto cos_gather_m2 = wrap_type<ov::op::v8::Gather>({cos, any_input(), any_input()});
-    auto cos_concat_m2 = wrap_type<ov::op::v0::Concat>({any_input(), cos_gather_m2});
-
-    auto cos_concat = std::make_shared<Or>(OutputVector{cos_concat_m1, cos_concat_m2});
-
-    // RoPE: input 0 = x, input 1 = cos_concat, input 2 = sin_concat
-    auto rope = wrap_type<ov::op::internal::RoPE>({any_input(), cos_concat, sin_concat}, [](const ov::Output<ov::Node>& output) {
-        auto node = ov::as_type_ptr<ov::op::internal::RoPE>(output.get_node_shared_ptr());
-        return node && node->get_config().is_ltx_video;
-    });
-
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
-        const auto& pattern_map = m.get_pattern_value_map();
-
-        auto mul_node = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(mul).get_node_shared_ptr());
-        auto constant_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(add_constant).get_node_shared_ptr());
-        auto cos_node = ov::as_type_ptr<ov::op::v0::Cos>(pattern_map.at(cos).get_node_shared_ptr());
-        auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(pattern_map.at(sin).get_node_shared_ptr());
-
-        const auto desired_et = ov::element::f32;
-        const auto original_et = mul_node->get_output_element_type(0);
-        if (original_et == desired_et) {
+        // Changing outer inputs alone cannot safely rebuild bodies or state/control dependencies.
+        if ((type != ov::element::f16 && type != ov::element::f32) ||
+            ov::is_type<ov::op::util::MultiSubGraphOp>(node) ||
+            std::dynamic_pointer_cast<ov::op::util::VariableExtension>(node) ||
+            !node->get_control_dependencies().empty()) {
+            GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: unsupported angle output " << input_value
+                          << "; leaving Sin/Cos unchanged" << std::endl;
             return false;
         }
 
-        size_t input_idx = 0;
-        bool is_changed = insert_converts_before_if_needed(mul_node, desired_et, input_idx);
-        if (is_changed) {
-            insert_converts_after_if_needed(constant_node, desired_et, input_idx);
-            size_t output_idx = 0;
-            insert_converts_after_if_needed(cos_node, original_et, output_idx);
-            insert_converts_after_if_needed(sin_node, original_et, output_idx);
+        std::vector<size_t> ports;
+        // Input types select value dependencies without an op allowlist; integer/bool controls stay unchanged.
+        for (size_t i = 0; i < node->get_input_size(); ++i) {
+            if (node->get_input_element_type(i).is_real()) {
+                ports.push_back(i);
+            }
         }
-        return true;
+
+        const bool is_leaf = ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter>(node);
+        const bool is_convert = ov::is_type<ov::op::v0::Convert>(node);
+
+        // Only an existing integer-to-float Convert may enter from an integer value path.
+        if ((!is_leaf && !is_convert && ports.empty()) ||
+            (is_convert && ports.empty() && !node->get_input_element_type(0).is_integral_number())) {
+            GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: unsupported angle source " << input_value
+                          << "; leaving Sin/Cos unchanged" << std::endl;
+            return false;
+        }
+
+        floating_input_ports.emplace(input_value, ports);
+        traversal_stack.emplace_back(input_value, true);
+        for (const auto port : ports) {
+            traversal_stack.emplace_back(input_value.get_node()->input_value(port), false);
+        }
+    }
+
+    if (!has_required_arithmetic) {
+        GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: no angle arithmetic; leaving Sin/Cos unchanged"
+                      << std::endl;
+        return false;
+    }
+
+    if (!has_fp16_in_angle_path) {
+        return false;
+    }
+
+    // Phase 2: prepare the FP32 path in dependency-first order without changing live graph edges.
+    // - Reuse FP32 Constants/Parameters; upcast FP16 leaves and fold Constant upcasts (lost precision is not recovered).
+    // - Bypass floating Converts, except reusable FP16 Parameter-to-FP32 input boundaries.
+    // - Preserve integer sources and enter FP32 at existing integer-to-float Convert boundaries.
+    // - Replace floating inputs only; retain integer/bool inputs and reuse unchanged FP32 nodes.
+    // - Clone changed nodes, copy runtime info, and validate every output type before recording path mappings.
+    // - Preserve output indices and share the FP32 path across Sin/Cos; return unchanged if both angle inputs are reused.
+    const auto copy_info = [](const std::shared_ptr<ov::Node>& source, const std::shared_ptr<ov::Node>& replacement) {
+        ov::copy_runtime_info(source, replacement);
+        replacement->set_friendly_name(source->get_friendly_name() + "/fp32_" + replacement->get_name());
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(rope, "IncreasePositionIdsPrecisionForLtxVideo");
+    // Map each original value to its counterpart in the FP32 path, including reused values.
+    // Example: A -> B -> Sin.
+    // 1. Prepare A's FP32 counterpart and record A -> A_fp32.
+    // 2. Look up A_fp32 when rebuilding B and use it as B's input.
+    // 3. Record B -> B_fp32, then use B_fp32 as the new Sin input.
+    // Shared values are prepared once; existing FP32 values can map to themselves.
+    // This prepares the replacement path without rewiring the original graph.
+    std::map<ov::Output<ov::Node>, ov::Output<ov::Node>> fp32_path_map;
+
+    for (const auto& original_value : dependency_order) {
+        if (fp32_path_map.count(original_value)) {
+            continue;
+        }
+
+        const auto original_node = original_value.get_node_shared_ptr();
+        const auto& original_floating_input_ports = floating_input_ports.at(original_value);
+
+        // Choose the value to use in the FP32 path, then record original_value -> chosen value in fp32_path_map.
+        // Constant/Parameter and Convert need explicit handling rather than generic cloning:
+        //
+        // Producer          | Condition                         | Value used in the FP32 path
+        // ------------------|-----------------------------------|-----------------------------------------------
+        // Constant/Parameter| Already FP32                      | Reuse the original value.
+        // Constant          | FP16                              | Create an FP32 Constant by folding its upcast.
+        // Parameter         | FP16                              | Create a Convert(FP32) from the Parameter.
+        // Convert           | Parameter(FP16) -> FP32           | Reuse the existing Convert output.
+        // Convert           | Other floating-point input        | Bypass it; use the input's FP32 counterpart.
+        // Convert           | Integer input -> FP32             | Reuse the existing Convert output.
+        // Convert           | Integer input -> FP16             | Create a Convert(FP32) from the integer input.
+        //
+        // Later consumers only need the recorded counterpart, regardless of whether it was reused, created or bypassed.
+        if (ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter>(original_node)) {
+            if (original_value.get_element_type() == ov::element::f32) {
+                // Reuse Step01's preserved Constants and original FP32 Parameters directly.
+                fp32_path_map.emplace(original_value, original_value);
+            } else {
+                // Convert remaining FP16 Constants/Parameters to FP32 for subsequent computation.
+                // Phase 1 permits only FP16/FP32 values, so this non-FP32 value must be FP16.
+                std::shared_ptr<ov::Node> promoted = std::make_shared<ov::op::v0::Convert>(original_value, ov::element::f32);
+                if (ov::is_type<ov::op::v0::Constant>(original_node)) {
+                    promoted = ov::util::get_constant_from_source(promoted);
+                    OPENVINO_ASSERT(promoted, "Could not promote LTX angle Constant to FP32");
+                }
+
+                copy_info(original_node, promoted);
+                fp32_path_map.emplace(original_value, promoted->output(0));
+            }
+        } else if (ov::is_type<ov::op::v0::Convert>(original_node)) {
+            if (!original_floating_input_ports.empty()) {
+                const auto input = original_node->input_value(0);
+                // Reuse the existing Parameter(FP16) -> Convert(FP32) boundary.
+                if (original_value.get_element_type() == ov::element::f32 && input.get_element_type() == ov::element::f16 &&
+                    ov::is_type<ov::op::v0::Parameter>(input.get_node())) {
+                    // This is an irreducible input boundary, not recoverable FP16 arithmetic.
+                    fp32_path_map.emplace(original_value, original_value);
+                } else {
+                    fp32_path_map.emplace(original_value, fp32_path_map.at(input));
+                }
+            } else if (original_value.get_element_type() == ov::element::f32) {
+                fp32_path_map.emplace(original_value, original_value);
+            } else {
+                // Keep coordinate generation integer and enter FP32 at the existing Convert boundary.
+                auto converted = std::make_shared<ov::op::v0::Convert>(original_node->input_value(0), ov::element::f32);
+                copy_info(original_node, converted);
+                fp32_path_map.emplace(original_value, converted->output(0));
+            }
+        } else {
+            auto inputs = original_node->input_values();
+            // Replace only floating-point inputs; integer/bool inputs retain their original producers.
+            for (const auto port : original_floating_input_ports) {
+                inputs[port] = fp32_path_map.at(inputs[port]);
+            }
+
+            if (original_value.get_element_type() == ov::element::f32 && inputs == original_node->input_values()) {
+                for (size_t i = 0; i < original_node->get_output_size(); ++i) {
+                    fp32_path_map.emplace(original_node->output(i), original_node->output(i));
+                }
+            } else {
+                // Example: original A(FP32) -> Convert(FP16) -> C; new path A(FP32) -> C_fp32.
+                // original_node is C; original_value identifies one of C's output ports.
+                // Floating-point entries in inputs were replaced via fp32_path_map (Convert output -> A here).
+                // Cloning with these inputs bypasses the Convert in the new path.
+                // rebuilt is the new C using those inputs; the original C and its connections stay unchanged.
+                const auto rebuilt = original_node->clone_with_new_inputs(inputs);
+                copy_info(original_node, rebuilt);
+
+                // Verify every sibling before recording any output of this shared clone.
+                for (size_t i = 0; i < original_node->get_output_size(); ++i) {
+                    const auto expected = original_node->get_output_element_type(i).is_real()
+                                              ? ov::element::f32
+                                              : original_node->get_output_element_type(i);
+                    if (rebuilt->get_output_element_type(i) != expected) {
+                        GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: incompatible rebuilt output "
+                                      << rebuilt->output(i) << "; leaving Sin/Cos unchanged" << std::endl;
+                        return false;
+                    }
+                }
+
+                for (size_t i = 0; i < original_node->get_output_size(); ++i) {
+                    fp32_path_map.emplace(original_node->output(i), rebuilt->output(i));
+                }
+            }
+        }
+    }
+
+    if (fp32_path_map.at(angle_inputs[0]) == angle_inputs[0] &&
+        fp32_path_map.at(angle_inputs[1]) == angle_inputs[1]) {
+        return false;
+    }
+
+    // Phase 3: prepare both FP32 Sin/Cos branches before reconnecting either one.
+    // Only their outputs are replaced; unrelated users of the old angle region keep their original edges.
+    ov::NodeVector replacement_nodes;
+    for (const auto& node : {sin, cos}) {
+        auto rebuilt = node->clone_with_new_inputs({fp32_path_map.at(node->input_value(0))});
+        copy_info(node, rebuilt);
+
+        if (node->get_output_element_type(0) != ov::element::f32) {
+            // Restore precision after Sin/Cos so downstream table and Concat inputs keep matching types.
+            auto boundary = std::make_shared<ov::op::v0::Convert>(rebuilt, node->get_output_element_type(0));
+            ov::copy_runtime_info(node, boundary);
+            rebuilt = boundary;
+        }
+
+        rebuilt->set_friendly_name(node->get_friendly_name());
+        replacement_nodes.push_back(rebuilt);
+    }
+
+    ov::replace_node(sin, replacement_nodes[0]);
+    ov::replace_node(cos, replacement_nodes[1]);
+    return true;
+}
+
+}  // namespace
+
+IncreasePositionIdsPrecisionForLtxVideo::IncreasePositionIdsPrecisionForLtxVideo() {
+    using namespace ov::pass::pattern;
+    // Sin owns the rewrite; Cos is discovered from the exact same angle output.
+    auto sin = wrap_type<ov::op::v0::Sin>({any_input()});
+
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        const auto sin_node = ov::as_type_ptr<ov::op::v0::Sin>(m.get_match_root());
+        std::shared_ptr<ov::Node> cos_node;
+        size_t sin_count = 0;
+        size_t cos_count = 0;
+        // TODO: Consider Sin/Cos branches with intervening nodes when generalizing precision handling.
+        // In the models checked so far, Sin and Cos directly share the same input.
+        // However, future models may have nodes between the branch point and Sin/Cos.
+        // Consider these cases when generalizing precision handling.
+        for (const auto& input : sin_node->input_value(0).get_target_inputs()) {
+            const auto consumer = input.get_node()->shared_from_this();
+            if (ov::is_type<ov::op::v0::Sin>(consumer)) {
+                ++sin_count;
+            } else if (ov::is_type<ov::op::v0::Cos>(consumer)) {
+                ++cos_count;
+                cos_node = consumer;
+            }
+        }
+        if (sin_count != 1 || cos_count != 1) {
+            GPU_DEBUG_LOG << "IncreasePositionIdsPrecisionForLtxVideo: missing or ambiguous Sin/Cos pair at "
+                          << sin_node->input_value(0) << "; leaving graph unchanged" << std::endl;
+            return false;
+        }
+        // With no RoPE requirement, opt-out is evaluated on both actual trigonometric roots.
+        if (transformation_callback(sin_node) || transformation_callback(cos_node)) {
+            return false;
+        }
+        return increase_sincos_angle_precision(sin_node, cos_node);
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sin, "IncreasePositionIdsPrecisionForLtxVideo");
     this->register_matcher(m, callback);
 }
 
@@ -487,11 +786,11 @@ IncreasePositionIdsPrecisionForGPTOSS::IncreasePositionIdsPrecisionForGPTOSS() {
         }
 
         size_t idx = 0;
-        insert_converts_before_if_needed(matmul_node, desired_et, idx);
-        insert_converts_before_if_needed(mul_node1, desired_et, idx);
-        insert_converts_before_if_needed(mul_node2, desired_et, idx);
+        bool is_changed = insert_converts_before_if_needed(matmul_node, desired_et, idx);
+        is_changed = insert_converts_before_if_needed(mul_node1, desired_et, idx) || is_changed;
+        is_changed = insert_converts_before_if_needed(mul_node2, desired_et, idx) || is_changed;
 
-        return true;
+        return is_changed;
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(rope_qk, "IncreasePositionIdsPrecisionForGPTOSS");
@@ -607,15 +906,23 @@ IncreasePositionIdsPrecisionForDirectMatMulSinCos::IncreasePositionIdsPrecisionF
 IncreasePositionIdsPrecision::IncreasePositionIdsPrecision() = default;
 
 bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
-    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForRoPE>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForQwen25VL>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForQwen3VL>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForLtxVideo>();
-    symbolic_ctx_manager->register_pass<IncreasePositionIdsPrecisionForGPTOSS>();
-    return symbolic_optimizations.run_on_model(model);
+    ov::pass::Manager specialized_manager(*get_pass_config());
+    // The outer pipeline runs Validate, so disable validation after each internal pass.
+    specialized_manager.set_per_pass_validation(false);
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForDirectMatMulSinCos>();
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForRoPE>();
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForQwen25VL>();
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForQwen3VL>();
+    specialized_manager.register_pass<IncreasePositionIdsPrecisionForGPTOSS>();
+    if (specialized_manager.run_passes(model)) {
+        // A specialized pass already matched and increased precision; return to avoid duplicate processing.
+        return true;
+    }
+
+    ov::pass::Manager ltx_manager(*get_pass_config());
+    ltx_manager.set_per_pass_validation(false);
+    ltx_manager.register_pass<IncreasePositionIdsPrecisionForLtxVideo>();
+    return ltx_manager.run_passes(model);
 }
 
 DisableFP16ComForGPTOSSROPEPattern::DisableFP16ComForGPTOSSROPEPattern() {
