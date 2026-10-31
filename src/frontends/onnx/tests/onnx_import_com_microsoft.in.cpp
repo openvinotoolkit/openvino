@@ -3290,6 +3290,37 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_rotary_embedding) {
     test_case.run_with_tolerance_as_fp(0.01f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_rotary_embedding_start_offset) {
+    const std::vector<float> input = {-1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f, 0.6920f,  -0.3160f, -2.1152f,
+                                      0.3223f,  -1.2633f, 0.3500f,  0.3081f,  0.1198f, 1.2377f,  1.1168f,  -0.2473f,
+                                      -1.3527f, -1.6959f, 0.5667f,  0.7935f,  0.5988f, -1.5551f, -0.3414f, 1.8530f,
+                                      0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f, 1.5863f,  0.9463f,  -0.8437f};
+    const std::vector<float> cos_cache = {0.8437f, -0.7849f, -0.7829f, 0.4581f, -0.9870f, 0.6273f, -0.9483f, -0.9962f};
+    const std::vector<float> sin_cache = {0.5368f, 0.6196f, -0.6222f, 0.8889f, 0.1605f, -0.7788f, 0.3174f, -0.0872f};
+    const std::vector<float> expected_output = {
+        -1.4054f, 0.4758f,  -0.0004f, 1.6814f,  0.1117f,  -1.2572f, 0.4033f,  -1.3547f, 0.2076f,  0.2247f,  0.4209f,
+        0.361f,   0.2741f,  -1.7542f, -1.0921f, 0.1606f,  1.239f,   -2.275f,  -0.429f,  -0.6289f, -0.8081f, 0.3453f,
+        0.5036f,  -1.9152f, -0.9634f, 0.8681f,  -0.1359f, -0.2564f, -1.2509f, 1.4511f,  -0.9524f, 0.8245f};
+
+    const auto run_test = [&](const ov::PartialShape& position_ids_shape) {
+        ov::frontend::FrontEnd::Ptr front_end;
+        auto input_model = load_model("com.microsoft/rotary_embedding.onnx", &front_end);
+        input_model->set_partial_shape(input_model->get_place_by_tensor_name("position_ids"), position_ids_shape);
+        const auto model = front_end->convert(input_model);
+
+        auto test_case = ov::test::TestCase(model, s_device);
+        test_case.add_input<float>(Shape{1, 2, 16}, input);
+        test_case.add_input<int64_t>(Shape{1}, {0});
+        test_case.add_input<float>(Shape{2, 4}, cos_cache);
+        test_case.add_input<float>(Shape{2, 4}, sin_cache);
+        test_case.add_expected_output<float>(Shape{1, 2, 16}, expected_output);
+        test_case.run_with_tolerance_as_fp(0.01f);
+    };
+
+    run_test(ov::PartialShape{1});
+    run_test(ov::PartialShape{ov::Dimension::dynamic()});
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_rotary_embedding_fp16) {
     // Load the existing rotary_embedding model and change input types to float16
     // to verify that neg_one constant type matches input element type
