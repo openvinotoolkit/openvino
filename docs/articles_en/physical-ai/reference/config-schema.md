@@ -1,12 +1,9 @@
 # Config Schema Reference
 
-> **Preview:** The config system is a planned API. The schemas below document the target config design.
+## Config
 
-Config files use `class_path` and `init_args` to describe explicit component construction.
-
-## ComponentSpec
-
-Direct class mode:
+`physicalai.config.Config` uses the jsonargparse-compatible
+`class_path` + `init_args` shape.
 
 ```yaml
 class_path: package.module.ClassName
@@ -14,84 +11,62 @@ init_args:
   key: value
 ```
 
-Registry mode:
+| Field        | Required | Type   | Description                                |
+| ------------ | -------- | ------ | ------------------------------------------ |
+| `class_path` | yes      | string | Non-empty import path resolving to a class |
+| `init_args`  | no       | object | String-keyed constructor arguments         |
 
-```yaml
-type: registered_name
-key: value
-```
+Omitted `init_args` means an empty mapping. No other top-level keys are
+accepted.
 
-The `ComponentSpec` fields are listed below.
+Values may be `null`, booleans, integers, finite floats, strings, lists, or
+string-keyed mappings. Nested components use another `Config`.
+Every mapping containing `class_path` is reserved as a nested component and
+must contain only `class_path` and optional `init_args`. Nesting through
+components, lists, and mappings is limited to 10 levels.
 
-| Field        | Type   | Description                             |
-| ------------ | ------ | --------------------------------------- |
-| `class_path` | string | Fully qualified import path             |
-| `init_args`  | object | Constructor keyword arguments           |
-| `type`       | string | Registered short name                   |
-| extra fields | any    | Flat constructor args for registry mode |
+Export converts `Path` to its unchanged string form, `Enum` to its JSON-safe
+value, and tuples to lists. `instantiate()` accepts the JSON representation,
+not those original Python objects.
 
-The core rules are straightforward.
+## Runtime Documents
 
-- A component spec must include either `class_path` or `type`.
-- If both fields are present, `class_path` takes precedence.
-- Nested component specs are instantiated recursively.
-
-## RuntimeConfig
+A CLI runtime document places constructor arguments under `runtime:` and may
+include method arguments under `run:`.
 
 ```yaml
 runtime:
-  class_path: physicalai.runtime.PolicyRuntime
-  init_args:
-    fps: 30
-    robot:
-      class_path: physicalai.robot.so101.SO101
-      init_args:
-        port: /dev/ttyACM0
-    model:
-      class_path: physicalai.inference.InferenceModel
-      init_args:
-        export_dir: ./exports/act_policy
-    execution:
-      class_path: physicalai.runtime.SyncExecution
-      init_args:
-        mode: chunk
+  robot:
+    class_path: physicalai.robot.SO101
+    init_args:
+      port: /dev/ttyACM0
+      calibration: ./calibration.json
+  action_source:
+    class_path: physicalai.runtime.TeleopSource
+    init_args:
+      leader:
+        class_path: physicalai.robot.SharedRobot
+        init_args:
+          name: leader-arm
+  fps: 30
+run:
+  duration_s: 60
 ```
 
-The most common runtime fields are listed below.
+`physicalai run --config` and `RobotRuntime.from_config()` also accept a bare
+exported `RobotRuntime` Config whose top-level `class_path` is
+`physicalai.runtime.RobotRuntime`.
 
-| Field                         | Type            | Description                |
-| ----------------------------- | --------------- | -------------------------- |
-| `runtime`                     | `ComponentSpec` | Runtime orchestrator       |
-| `runtime.init_args.fps`       | number          | Control loop frequency     |
-| `runtime.init_args.robot`     | `ComponentSpec` | Robot implementation       |
-| `runtime.init_args.model`     | `ComponentSpec` | Inference model            |
-| `runtime.init_args.execution` | `ComponentSpec` | Execution strategy         |
-| `runtime.init_args.cameras`   | mapping         | Optional camera components |
-| `runtime.init_args.callbacks` | list            | Optional runtime callbacks |
+## Manifest ComponentSpec
 
-## InferenceConfig
+Inference manifests retain their separate `ComponentSpec` compatibility
+model. It supports registry `type` aliases, artifact resolution, and existing
+extra-field behavior. It is not the strict captured `Config` schema;
+manifest unification is a separate design decision.
 
-```yaml
-model:
-  class_path: physicalai.inference.InferenceModel
-  init_args:
-    export_dir: ./exports/act_policy
-    backend: openvino
-    device: CPU
-```
+## Security
 
-The most common inference fields are listed below.
-
-| Field                        | Type            | Description                |
-| ---------------------------- | --------------- | -------------------------- |
-| `model`                      | `ComponentSpec` | Inference model component  |
-| `model.init_args.export_dir` | string          | Exported package directory |
-| `model.init_args.backend`    | string          | Backend name or `auto`     |
-| `model.init_args.device`     | string          | Backend device or `auto`   |
-
-## Config vs Manifest
-
-| Schema          | Use                                                      |
-| --------------- | -------------------------------------------------------- |
-| Workflow config | A workflow config describes a workflow before execution. |
-| Manifest        | A manifest describes an exported package after export.   |
+`class_path` is executable local configuration. `instantiate()` is for
+trusted application and user-authored configs only, never metadata or control
+messages received from peers. See [Security Model](../getting-started/security.md)
+for the full set of deployment-time trust assumptions.

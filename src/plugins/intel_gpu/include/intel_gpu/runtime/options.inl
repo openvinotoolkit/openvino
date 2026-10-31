@@ -125,7 +125,6 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_buffer_fusing, false, "Dis
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_post_ops_fusions, 0, "Disable fusions of operations as post-ops/fused-ops. Detailed debugging is possible by entering specific numbers. 1 specifies to disable all fusions of post-ops. 2-8 specifies to enable only single fusion sub-module from fuse_reorder() to optimize_fused_opt(). 11-14 specifies to enable only single fusion sub-module in fuse_simple_primitives.")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_horizontal_fc_fusion, false, "Disable pass which merges QKV projections into single MatMul")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fc_swiglu_fusion, false, "Disable pass which merges FC and SwiGLU ops")
-OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_gated_mlp_fusion, true, "Disable pass which fuses FC+SwiGLU to GatedMLP")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, enable_hadamard_fc_fusion, true, "Enable/Disable the pass which folds a Hadamard input rotation into a ternary FullyConnected")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_fake_alignment, false, "Disable fake alignment feature which tries to keep gpu friendly memory alignment for arbitrary tensor shapes")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memory reuse for activation tensors")
@@ -142,3 +141,5 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, pa_integrity_check, false, "Enable in-kern
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_workgroup_config, std::vector<int>{}, "Override SDPA micro-kernel workgroup config: 4 ints [wg_m_kq wg_n_kq wg_m_vs wg_n_vs]")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, micro_sdpa_disable_prefetch, 0, "Disable SDPA micro-kernel prefetches (Xe-HPC+). Bitmask: 1 - attn mask, 2 - K, 4 - V, 7 - all")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, record_replay_dynamic, false, "Enable level-zero command list through record and replay for all (static and dynamic) models. Feature is work in progress and may produce incorrect results.")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_types, std::vector<std::string>{}, "Space separated list of layer types to force FP32 precision; PASSTHROUGH_OPS selects data movement types (no automatic propagation)")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, force_fp32_layer_names, std::vector<std::string>{}, "Space separated list of layer name substrings to force FP32 precision (AND with layer_types if both set)")

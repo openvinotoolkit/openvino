@@ -78,6 +78,29 @@ to import a backend specific graph later in the ``Plugin::import_model`` method:
    :language: cpp
    :fragment: [compiled_model:export_model]
 
+By default, the Template plugin exports an HSM blob: a container of sections. The export stream must be
+seekable. The blob has these sections:
+
+* model id and runtime requirements
+* compiled options: the values of the properties listed by ``ov::internal::caching_properties`` and
+  ``ov::weights_path``, if it is set
+* model structure (XML) and weights
+* blob info, which tells if the weights are stored in the blob
+
+The plugin adds the sections with a handler that implements ``ov::runtime::hsm::ISectionWriterHandler``.
+Small sections are kept in memory. The model structure and the weights are written to the stream
+while the model is serialized, so the plugin does not make a second copy of them.
+
+.. doxygensnippet:: src/plugins/template/src/hsm_writer_handler.cpp
+   :language: cpp
+   :fragment: [hsm_writer_handler:handle_section]
+
+When the model is compiled with ``ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)``, the weights section
+is not written. On import, the weights are restored from ``ov::weights_path``.
+
+To write the legacy layout instead, set ``ov::template_plugin::export_hsm_format`` to ``false``.
+This is a transition switch and is removed together with the legacy format.
+
 create_sync_infer_request()
 +++++++++++++++++++++++++++
 
@@ -151,4 +174,3 @@ The methods returns the runtime model with backend specific information.
    :fragment: [compiled_model:get_runtime_model]
 
 The next step in plugin library implementation is the :doc:`Synchronous Inference Request <synch-inference-request>` class.
-

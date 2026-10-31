@@ -24,6 +24,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -38,6 +39,7 @@
 #include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -371,6 +373,28 @@ inline void expect_nmse_below(const Nmse& metric, double limit, const std::strin
     ASSERT_TRUE(metric.all_finite()) << context;
     ASSERT_GT(metric.reference_norm(), 1e-12) << context;
     EXPECT_LT(metric.value(), limit) << context;
+}
+
+// Round-trips a model through in-memory IR serialization.
+inline std::shared_ptr<ov::Model> reload_ir_model(const std::shared_ptr<ov::Model>& model) {
+    std::stringstream xml, weights;
+    ov::pass::Serialize(xml, weights).run_on_model(model);
+    const auto bytes = weights.str();
+    ov::Tensor constants(ov::element::u8, {bytes.size()});
+    if (!bytes.empty())
+        std::memcpy(constants.data(), bytes.data(), bytes.size());
+    return ov::Core{}.read_model(xml.str(), constants);
+}
+
+// GGUFMakeStateful keeps extra leading convolution taps; returns the trailing `taps` per channel.
+inline ov::Tensor trailing_conv_taps(const ov::Tensor& state, size_t channels, size_t taps) {
+    const auto stride = state.get_size() / channels;
+    ov::Tensor logical(ov::element::f32, {channels, taps});
+    for (size_t channel = 0; channel < channels; ++channel)
+        std::copy_n(state.data<const float>() + channel * stride + stride - taps,
+                    taps,
+                    logical.data<float>() + channel * taps);
+    return logical;
 }
 
 // The GGUF bytes a reference npz stores as "model", written to a temporary file for its lifetime.
