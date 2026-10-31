@@ -78,6 +78,12 @@ std::shared_ptr<v0::Constant> get_dense_tensor_as_constant(const std::vector<int
     }
 }
 
+void validate_sparse_indices_type(const Tensor& indices_tensor) {
+    FRONT_END_GENERAL_CHECK(indices_tensor.get_ov_type() == ov::element::i64,
+                            "Sparse tensor indices must be of type INT64. Got: ",
+                            indices_tensor.get_ov_type());
+}
+
 std::vector<int64_t> get_absolute_indices(const Tensor& indices_tensor, const ov::Shape& shape, const size_t& nnz) {
     auto rank = shape.size();
     auto indices = indices_tensor.get_data<int64_t>();
@@ -137,6 +143,7 @@ ov::OutputVector constant_legacy(const ov::frontend::onnx::Node& node) {
         auto sparse_tensor = attribute.get_sparse_tensor();
         const Tensor& values_tensor = sparse_tensor.get_values();
         const Tensor& indices_tensor = sparse_tensor.get_indices();
+        validate_sparse_indices_type(indices_tensor);
         const ov::Shape& shape = sparse_tensor.get_shape();
         auto rank = shape.size();
         // NNZ - the number of non-zero values in the sparse-tensor
@@ -198,6 +205,7 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
         auto sparse_tensor = node.get_attribute_value<SparseTensor>("sparse_value");
         const Tensor& values_tensor = sparse_tensor.get_values();
         const Tensor& indices_tensor = sparse_tensor.get_indices();
+        validate_sparse_indices_type(indices_tensor);
         const ov::Shape& shape = sparse_tensor.get_shape();
         auto rank = shape.size();
         // NNZ - the number of non-zero values in the sparse-tensor

@@ -7,6 +7,7 @@
 #include <onnx/onnx_pb.h>
 
 #include <algorithm>
+#include <cstring>
 #include <filesystem>
 #include <utility>
 #include <vector>
@@ -66,8 +67,17 @@ inline std::vector<T> __get_data(const void* data, const size_t data_size) {
 
 template <typename T>
 inline std::vector<T> __get_raw_data(const std::string& raw_data, int onnx_data_type) {
-    auto it = reinterpret_cast<const T*>(raw_data.data());
-    return std::vector<T>(it, it + (raw_data.size() / get_onnx_data_size(onnx_data_type)));
+    FRONT_END_GENERAL_CHECK(get_onnx_data_size(onnx_data_type) == sizeof(T),
+                            "Raw data of type ",
+                            TensorProto_DataType_Name(static_cast<TensorProto_DataType>(onnx_data_type)),
+                            " cannot be read as ",
+                            sizeof(T),
+                            "-byte elements");
+    std::vector<T> values(raw_data.size() / sizeof(T));
+    if (!values.empty()) {
+        std::memcpy(static_cast<void*>(values.data()), raw_data.data(), values.size() * sizeof(T));
+    }
+    return values;
 }
 
 }  // namespace
