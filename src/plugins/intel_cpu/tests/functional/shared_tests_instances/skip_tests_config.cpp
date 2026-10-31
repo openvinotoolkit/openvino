@@ -488,9 +488,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_Snippets_MHA(INT8|Quant|FQ).*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),
             std::regex(R"(.*smoke_Snippets_GatedMLP.*)"),
-            std::regex(R"(.*smoke_Snippets_SoftmaxSum.*\?\..*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
-            std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
