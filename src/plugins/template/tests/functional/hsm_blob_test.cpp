@@ -400,7 +400,7 @@ TEST_F(TemplateHsmBlobTest, generated_blob_is_imported_from_file_via_tensor) {
     utils::compare(reference, infer(imported));
 }
 
-TEST_F(TemplateHsmBlobTest, import_restores_compiled_options) {
+TEST_F(TemplateHsmBlobTest, import_restores_compile_options) {
     std::stringstream stream(export_hsm({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}));
 
     auto imported = core.import_model(stream, device);
@@ -409,12 +409,12 @@ TEST_F(TemplateHsmBlobTest, import_restores_compiled_options) {
     utils::compare(reference, infer(imported));
 }
 
-TEST_F(TemplateHsmBlobTest, compiled_options_hold_the_cache_relevant_properties) {
+TEST_F(TemplateHsmBlobTest, compile_options_hold_the_cache_relevant_properties) {
     // A non-default value, so a persisted option can be told apart from the plugin default.
     std::stringstream stream(export_hsm({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)}));
     const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader);
-    const auto section = reader->section(template_device_id, hsm::compiled_options);
+    const auto section = reader->section(template_device_id, hsm::compile_options);
     ASSERT_TRUE(section);
     const auto bytes = section->to_bytes();
     ASSERT_TRUE(bytes);
@@ -454,7 +454,7 @@ TEST_F(TemplateHsmBlobTest, exported_blob_has_all_sections) {
     EXPECT_EQ(reader->count(hsm::any_device_id, hsm::runtime_requirements), 1u);
     EXPECT_EQ(reader->count(template_device_id, hsm::model), 1u);
     EXPECT_EQ(reader->count(template_device_id, hsm::weights), 1u);
-    EXPECT_EQ(reader->count(template_device_id, hsm::compiled_options), 1u);
+    EXPECT_EQ(reader->count(template_device_id, hsm::compile_options), 1u);
     EXPECT_EQ(reader->count(template_device_id, blob_info_tag.id()), 1u);
 }
 
@@ -490,7 +490,7 @@ TEST_F(TemplateHsmBlobTest, weightless_blob_is_imported_with_weights_path_hint) 
     utils::compare(reference, infer(imported));
 }
 
-TEST_F(TemplateHsmBlobTest, weightless_blob_restores_weights_path_from_compiled_options) {
+TEST_F(TemplateHsmBlobTest, weightless_blob_restores_weights_path_from_compile_options) {
     const auto weights_path = save_weights(export_hsm());
     std::stringstream stream(
         export_hsm({ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE), ov::weights_path(weights_path)}));

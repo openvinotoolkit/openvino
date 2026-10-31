@@ -140,7 +140,7 @@ std::pair<std::shared_ptr<ov::Model>, Configuration> read_hsm_blob(
                         *requirements);
     }
 
-    auto config = Configuration{properties, Configuration{handler.m_compiled_options, default_cfg, false}};
+    auto config = Configuration{properties, Configuration{handler.m_compile_options, default_cfg, false}};
 
     const bool weightless = handler.m_blob_info->flags & ov::template_plugin::hsm::BlobInfo::weightless;
     auto weights = handler.m_weights;
