@@ -663,6 +663,22 @@ dot_product_fp16(ov::float16* a, void* b, size_t n, float* scale, float* zp, flo
     ov::float16 sum = 0.0f;
     auto _a = reinterpret_cast<float16_t*>(a);
 
+    if constexpr (KEY_PREC == ov::element::u8) {
+        for (size_t group_id = 0; group_id < n / group_size; ++group_id) {
+            const float group_zp = zp[group_id * 2];
+            if (std::isfinite(group_zp) &&
+                !std::isfinite(static_cast<float>(static_cast<ov::float16>(group_zp)))) {
+                return static_cast<ov::float16>(dot_product(a,
+                                                           reinterpret_cast<const uint8_t*>(b),
+                                                           n,
+                                                           scale,
+                                                           zp,
+                                                           head_sum,
+                                                           group_size));
+            }
+        }
+    }
+
 #    if defined(HAVE_SVE)
     if constexpr (KEY_PREC == ov::element::u8) {
         size_t group_id = 0;

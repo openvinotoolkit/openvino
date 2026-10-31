@@ -213,6 +213,7 @@ set(CPU_UNIT_TESTS_ARM_SRCS
 )
 
 set(CPU_UNIT_TESTS_AARCH64_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/scaled_attn_mha_single_token_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/snipptes_mark_skipped.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/adjust_gemm_copy_b_loop_ports.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/aarch64/lowered/gemm_blocking.cpp
@@ -231,6 +232,11 @@ endif()
 
 if(AARCH64)
     list(APPEND CPU_UNIT_TESTS_SRCS ${CPU_UNIT_TESTS_AARCH64_SRCS})
+    if(NOT ENABLE_NEON_FP16)
+        list(REMOVE_ITEM CPU_UNIT_TESTS_SRCS ${CMAKE_CURRENT_LIST_DIR}/scaled_attn_mha_single_token_test.cpp)
+        list(APPEND CPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES
+             ${CMAKE_CURRENT_LIST_DIR}/scaled_attn_mha_single_token_test.cpp)
+    endif()
 else()
     list(APPEND CPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${CPU_UNIT_TESTS_AARCH64_SRCS})
 endif()
