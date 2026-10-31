@@ -273,8 +273,57 @@ bool Convolution::canBeExecutedInInt8() const {
         weightsDataType = memory::data_type::s8;
     }
 
-    return any_of(inputDataType, memory::data_type::u8, memory::data_type::s8) &&
-           weightsDataType == memory::data_type::s8;
+    // Check if INT8 execution is supported by precision types
+    bool supported_by_precision = any_of(inputDataType, memory::data_type::u8, memory::data_type::s8) &&
+                                  weightsDataType == memory::data_type::s8;
+
+    if (!supported_by_precision) {
+        return false;
+    }
+
+    // On AVX2 without VNNI, vpmaddubsw intermediate sums can saturate.
+    // Weights must be in [-64, 63] range to avoid saturation when multiplying
+    // u8 activations (0-255) and accumulating into 16-bit intermediates.
+    // If weights are outside this range, fall back to FP32.
+    const bool is_avx2_no_vnni = ov::with_cpu_x86_avx2() &&
+                                 !ov::with_cpu_x86_avx512_core() &&
+                                 !ov::with_cpu_x86_avx2_vnni() &&
+                                 !ov::with_cpu_x86_avx512_core_vnni() &&
+                                 !ov::with_cpu_x86_avx512_core_amx_int8();
+
+    if (is_avx2_no_vnni) {
+        // Get the weights constant node
+        auto weights_const = ov::as_type_ptr<const ov::op::v0::Constant>(
+            getOriginalInputNodeAtPort(1).get_node_shared_ptr());
+
+        if (weights_const) {
+            const auto& element_type = weights_const->get_element_type();
+            const size_t count = ov::shape_size(weights_const->get_shape());
+
+            if (element_type == ov::element::i8) {
+                const auto* data = weights_const->get_data_ptr<int8_t>();
+                for (size_t i = 0; i < count; ++i) {
+                    if (data[i] < -64 || data[i] > 63) {
+                        return false;  // Unsafe weights, fall back to FP32
+                    }
+                }
+            } else if (element_type == ov::element::u8) {
+                const auto* data = weights_const->get_data_ptr<uint8_t>();
+                for (size_t i = 0; i < count; ++i) {
+                    if (data[i] > 63) {
+                        return false;  // Unsafe weights, fall back to FP32
+                    }
+                }
+            }
+        } else {
+            // Weights cannot be resolved to a constant node.
+            // Per is_unsafe_avx2_conv(), unknown weight representations are
+            // assumed unsafe on pure AVX2 (vpmaddubsw saturation risk).
+            return false;
+        }
+    }
+
+    return true;
 }
 
 const std::vector<impl_desc_type>& Convolution::getDefaultImplPriority() {

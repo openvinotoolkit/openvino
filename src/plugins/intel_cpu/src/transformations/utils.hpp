@@ -138,4 +138,6 @@ bool match_conv_stride_oc_ic_limit(const std::shared_ptr<const ov::Node>& node,
                                    const ov::Shape& kernel_shape,
                                    size_t oc_ic_limit);
 
+bool is_unsafe_avx2_conv(const std::shared_ptr<const ov::Node>& node);
+
 }  // namespace ov::intel_cpu
