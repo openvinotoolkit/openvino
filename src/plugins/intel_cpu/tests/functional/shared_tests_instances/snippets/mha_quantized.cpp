@@ -40,6 +40,27 @@ std::vector<std::vector<InputShape>> inputShapesQuantized {
     }
 };
 
+// RISC-V keeps FakeQuantize in f32 with low-precision transformations disabled.
+#if defined(OPENVINO_ARCH_RISCV64)
+static constexpr size_t expected_nodes_mha_int8 = 6;
+static constexpr size_t expected_subgraphs_mha_int8 = 4;
+static constexpr size_t expected_nodes_mha_quant_matmul0 = 5;
+static constexpr size_t expected_subgraphs_mha_quant_matmul0 = 3;
+static constexpr size_t expected_nodes_mha_fq_after_matmul = 3;
+static constexpr size_t expected_subgraphs_mha_fq_after_matmul = 2;
+static constexpr size_t expected_nodes_mha_fq = 5;
+static constexpr size_t expected_subgraphs_mha_fq = 3;
+#else
+static constexpr size_t expected_nodes_mha_int8 = 7;
+static constexpr size_t expected_subgraphs_mha_int8 = 5;
+static constexpr size_t expected_nodes_mha_quant_matmul0 = 6;
+static constexpr size_t expected_subgraphs_mha_quant_matmul0 = 4;
+static constexpr size_t expected_nodes_mha_fq_after_matmul = 4;
+static constexpr size_t expected_subgraphs_mha_fq_after_matmul = 3;
+static constexpr size_t expected_nodes_mha_fq = 8;
+static constexpr size_t expected_subgraphs_mha_fq = 5;
+#endif
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_Snippets_MHAINT8MatMul,
     MHAINT8MatMul,
@@ -47,8 +68,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(std::vector<element::Type>{}),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // The graph doesn't contain Multiply
-                       ::testing::Values(7),  // FQx3, Transpose1 on inputs + MHA + Transpose on output + Deq Mul
-                       ::testing::Values(5),  // FQx3 on inputs + MHA + Deq Mul
+                       ::testing::Values(expected_nodes_mha_int8),
+                       ::testing::Values(expected_subgraphs_mha_int8),
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
@@ -61,8 +82,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(std::vector<element::Type>{}),
         ::testing::Values(ov::element::f32),
         ::testing::Values(false),  // The graph doesn't contain Multiply
-        ::testing::Values(6),  // FQx2, Transpose1 on inputs + MHA + Transpose on output + Deq Mul
-        ::testing::Values(4),  // FQx2 on inputs + MHA + Deq Mul
+        ::testing::Values(expected_nodes_mha_quant_matmul0),
+        ::testing::Values(expected_subgraphs_mha_quant_matmul0),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
         ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
@@ -74,8 +95,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(std::vector<element::Type>{}),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // The graph doesn't contain Multiply
-                       ::testing::Values(4),  // Transpose1 + MHA + Transpose on output + Deq Mul
-                       ::testing::Values(3),  // Transpose1 + MHA + Deq Mul
+                       ::testing::Values(expected_nodes_mha_fq_after_matmul),
+                       ::testing::Values(expected_subgraphs_mha_fq_after_matmul),
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
@@ -87,8 +108,8 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(std::vector<element::Type>{}),
                        ::testing::Values(ov::element::f32),
                        ::testing::Values(false),  // The graph doesn't contain Multiply
-                       ::testing::Values(8),  // Transposex3 + Subgraphsx5
-                       ::testing::Values(5),  // MHA + Deq Mul on output + Deqs on inputs + 2 xFQ on inputs
+                       ::testing::Values(expected_nodes_mha_fq),
+                       ::testing::Values(expected_subgraphs_mha_fq),
                        ::testing::Values(ov::test::utils::DEVICE_CPU),
                        ::testing::Values(CPUTestUtils::empty_plugin_config)),
     MHA::getTestCaseName);
