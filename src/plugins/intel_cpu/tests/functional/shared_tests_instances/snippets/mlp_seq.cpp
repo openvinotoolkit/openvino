@@ -28,6 +28,13 @@ std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExp
         {3, {1, 1}},
         {5, {1, 1}},
     };
+#elif defined(OPENVINO_ARCH_RISCV64)
+    // RISC-V uses FC tokenization with a different GPR budget.
+    return {
+        {1, {1, 1}},
+        {3, {2, 2}},
+        {5, {2, 2}},
+    };
 #else
     // Note: SplitLoops + non-fused postops lead to bigger amount of GPRs needed for kernel execution
     return {
@@ -54,6 +61,13 @@ std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExp
         {3, {1, 1}},
         {5, {1, 1}},
         {7, {1, 1}},
+    };
+#elif defined(OPENVINO_ARCH_RISCV64)
+    return {
+        {1, {1, 1}},
+        {3, {2, 2}},
+        {5, {2, 2}},
+        {7, {3, 3}},
     };
 #else
     return {
