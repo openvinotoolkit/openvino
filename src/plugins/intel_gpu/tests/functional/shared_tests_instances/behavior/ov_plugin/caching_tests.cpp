@@ -7,8 +7,12 @@
 #include <cstdlib>
 #include <filesystem>
 
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
+#include "openvino/util/parallel_io.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
@@ -106,16 +110,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                                             ::testing::ValuesIn(GPULoadFromFileConfigs)),
                          CompileModelLoadFromCacheTest::getTestCaseName);
 
-class CompileModelZeroCopySingleFileCacheLoadTest : public testing::WithParamInterface<CompileModelLoadFromCacheParams>,
+using ZeroCopySingleFileCacheLoadParams = std::tuple<std::string, ov::AnyMap, bool>;
+
+class CompileModelZeroCopySingleFileCacheLoadTest : public testing::WithParamInterface<ZeroCopySingleFileCacheLoadParams>,
                                                     virtual public ov::test::SubgraphBaseTest,
                                                     virtual public OVPluginTestBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<CompileModelLoadFromCacheParams> obj) {
-        return CompileModelLoadFromCacheTest::getTestCaseName(obj);
+    static std::string getTestCaseName(testing::TestParamInfo<ZeroCopySingleFileCacheLoadParams> obj) {
+        const auto& [device, config, large_model] = obj.param;
+        return CompileModelLoadFromCacheTest::getTestCaseName({{device, config}, obj.index}) +
+               "_LargeModel=" + (large_model ? "true" : "false");
     }
 
     void SetUp() override {
-        std::tie(targetDevice, configuration) = this->GetParam();
+        std::tie(targetDevice, configuration, m_largeModel) = this->GetParam();
         target_device = targetDevice;
         APIBaseTest::SetUp();
         set_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES");
@@ -131,7 +139,22 @@ public:
         core->set_property(ov::cache_dir());
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
-        manager.run_passes(ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32));
+        std::shared_ptr<ov::Model> model;
+        if (m_largeModel) {
+            // Even with FP16 weights, this matrix exceeds the 4 MiB parallel I/O threshold.
+            constexpr size_t channels = 2048;
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, channels});
+            std::vector<float> values(channels * channels);
+            for (size_t i = 0; i < values.size(); ++i) {
+                values[i] = static_cast<float>(i % 251) / 251.f;
+            }
+            auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{channels, channels}, values);
+            auto matmul = std::make_shared<ov::op::v0::MatMul>(input, weights, false, true);
+            model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input});
+        } else {
+            model = ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::f32);
+        }
+        manager.run_passes(model);
     }
 
     void TearDown() override {
@@ -155,6 +178,9 @@ public:
 
         std::stringstream strm;
         compiledModel.export_model(strm);
+        if (m_largeModel) {
+            ASSERT_GT(strm.tellp(), std::streampos(ov::util::default_parallel_io_threshold));
+        }
         ov::CompiledModel importedCompiledModel = core->import_model(strm, target_device, configuration);
         EXPECT_EQ(false, importedCompiledModel.get_property(ov::loaded_from_cache.name()).as<bool>());
 
@@ -163,6 +189,7 @@ public:
     }
 
 private:
+    bool m_largeModel = false;
     std::string m_modelName;
     std::string m_weightsName;
     std::string m_cacheFilePath;
@@ -175,7 +202,8 @@ TEST_P(CompileModelZeroCopySingleFileCacheLoadTest, CanLoadFromSingleFileCache) 
 INSTANTIATE_TEST_SUITE_P(smoke_ZeroCopySingleFileCacheLoad_GPU,
                          CompileModelZeroCopySingleFileCacheLoadTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(ov::AnyMap{})),
+                                            ::testing::Values(ov::AnyMap{}),
+                                            ::testing::Bool()),
                          CompileModelZeroCopySingleFileCacheLoadTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          CompileModelWithCacheEncryptionTest,
