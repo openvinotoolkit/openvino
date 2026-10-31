@@ -23,14 +23,15 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
+#include "moe_offload_constant.hpp"
 
 namespace ov::intel_gpu {
 using namespace cldnn;
 
 // Resolves OTD (offload-to-disk) parameters for a GEMM3_SWIGLU MOECompressed op.
 // OFFLOAD_RATIO specifies the percentage of experts offloaded to disk (0-100).
-// The number of GPU-resident LRU slots = num_expert * (100 - ratio) / 100.
-// ratio=0 means all resident (no OTD); ratio=100 means all on disk (invalid, disabled).
+// For ratios 1-100, GPU-resident LRU slots = max(1, num_expert * (100 - ratio) / 100).
+// ratio=0 means all resident (no OTD).
 // Returns true when OTD is enabled (lru_expert_num > 0).
 static bool prepare_moe_otd_params(ProgramBuilder& p,
                                    const std::shared_ptr<ov::op::internal::MOECompressed>& op,
@@ -40,11 +41,28 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
     const auto& config = op->get_config();
     const size_t otd_ratio = p.get_config().get_offload_ratio();
-    // ratio=0  → all resident, no offload
-    // ratio=100 → all on disk, cannot run → treat as disabled
-    // otherwise → GPU-resident slots = num_expert * (100 - ratio) / 100
-    if (otd_ratio > 0 && otd_ratio < 100) {
-        lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * (100 - otd_ratio) / 100);
+    // ratio=0: all resident, no offload
+    // ratios 1-100: GPU-resident slots = max(1, num_expert * (100 - ratio) / 100)
+    if (otd_ratio > 0 && otd_ratio <= 100) {
+        // Fall back to resident mode if any routed expert constant is not safely offloadable
+        // (e.g. shared with non-routed consumers: NotOffloadableRoutedExpert).
+        bool all_routed_inputs_offloadable = true;
+        for (size_t idx = static_cast<size_t>(input_idx::weight_0); idx <= static_cast<size_t>(input_idx::zp_2); ++idx) {
+            if (idx >= op->get_input_size()) {
+                all_routed_inputs_offloadable = false;
+                break;
+            }
+            auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(idx).get_node_shared_ptr());
+            if (!const_node || get_moe_constant_role(const_node) != MoEConstantRole::OffloadableRoutedExpert) {
+                all_routed_inputs_offloadable = false;
+                break;
+            }
+        }
+        if (all_routed_inputs_offloadable) {
+            lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * (100 - otd_ratio) / 100);
+        } else {
+            lru_expert_num = 0;
+        }
     } else {
         lru_expert_num = 0;
     }
