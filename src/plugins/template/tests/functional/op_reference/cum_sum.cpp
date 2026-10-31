@@ -6,7 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <limits>
+
 #include "base_reference_test.hpp"
+#include "openvino/op/constant.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -122,6 +126,35 @@ private:
 
 TEST_P(ReferenceCumSumLayerTest, CompareWithHardcodedRefs) {
     Exec();
+}
+
+class ReferenceCumSumInvalidAxisTest : public ReferenceCumSumLayerTest {};
+
+TEST_P(ReferenceCumSumInvalidAxisTest, InferThrows) {
+    EXPECT_THROW(Exec(), ov::Exception);
+}
+
+// Data and axis are Constants, so compile_model folds CumSum through CumSum::evaluate.
+class ReferenceCumSumConstantFoldingTest : public ReferenceCumSumLayerTest {
+public:
+    void SetUp() override {
+        const auto& params = GetParam();
+        const auto data = std::make_shared<op::v0::Constant>(params.inputData);
+        const auto axis = std::make_shared<op::v0::Constant>(params.axisData);
+        const auto cum_sum = std::make_shared<op::v0::CumSum>(data, axis, params.execlusive, params.reverse);
+        function = std::make_shared<Model>(OutputVector{cum_sum}, ParameterVector{});
+        refOutData = {params.refData};
+    }
+};
+
+TEST_P(ReferenceCumSumConstantFoldingTest, CompareWithHardcodedRefs) {
+    Exec();
+}
+
+class ReferenceCumSumConstantFoldingInvalidAxisTest : public ReferenceCumSumConstantFoldingTest {};
+
+TEST_P(ReferenceCumSumConstantFoldingInvalidAxisTest, CompileThrows) {
+    EXPECT_THROW(Exec(), ov::Exception);
 }
 
 template <element::Type_t IN_ET>
@@ -285,7 +318,149 @@ std::vector<CumSumParams> generateCumSumParams(const element::Type& type) {
             element::i32,
             int32_t(2),
             Shape{}),
+
+        // Scalar input
+        CumSumParams(Shape{},
+                     type,
+                     std::vector<T>{3},
+                     std::vector<T>{3},
+                     false,
+                     false,
+                     element::i64,
+                     int64_t(0),
+                     Shape{}),
+        CumSumParams(Shape{},
+                     type,
+                     std::vector<T>{3},
+                     std::vector<T>{3},
+                     false,
+                     true,
+                     element::i32,
+                     int32_t(-1),
+                     Shape{}),
+        CumSumParams(Shape{},
+                     type,
+                     std::vector<T>{3},
+                     std::vector<T>{0},
+                     true,
+                     false,
+                     element::i64,
+                     int64_t(0),
+                     Shape{}),
+
+        // Zero-length dimension: empty result
+        CumSumParams(Shape{2, 0, 3},
+                     type,
+                     std::vector<T>{},
+                     std::vector<T>{},
+                     false,
+                     false,
+                     element::i64,
+                     int64_t(1),
+                     Shape{}),
+        CumSumParams(Shape{2, 0, 3},
+                     type,
+                     std::vector<T>{},
+                     std::vector<T>{},
+                     false,
+                     true,
+                     element::i64,
+                     int64_t(1),
+                     Shape{}),
+        CumSumParams(Shape{2, 0, 3},
+                     type,
+                     std::vector<T>{},
+                     std::vector<T>{},
+                     true,
+                     false,
+                     element::i64,
+                     int64_t(-2),
+                     Shape{}),
+        CumSumParams(Shape{2, 0, 3},
+                     type,
+                     std::vector<T>{},
+                     std::vector<T>{},
+                     true,
+                     true,
+                     element::i32,
+                     int32_t(1),
+                     Shape{}),
+        CumSumParams(Shape{2, 0, 3},
+                     type,
+                     std::vector<T>{},
+                     std::vector<T>{},
+                     false,
+                     false,
+                     element::i32,
+                     int32_t(2),
+                     Shape{}),
     };
+    return opParams;
+}
+
+template <element::Type_t IN_ET>
+std::vector<CumSumParams> generateCumSumInvalidAxisParams(const element::Type& type) {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    const std::vector<T> values{1, 2, 3, 4, 5, 6};
+    const std::vector<T> unused(values.size());
+    std::vector<CumSumParams> opParams{
+        CumSumParams(Shape{2, 3}, type, values, unused, false, false, element::i64, int64_t(2), Shape{}),
+        CumSumParams(Shape{2, 3}, type, values, unused, false, false, element::i64, int64_t(-3), Shape{}),
+        CumSumParams(Shape{2, 3}, type, values, unused, false, false, element::i64, int64_t(64), Shape{}),
+        CumSumParams(Shape{2, 3},
+                     type,
+                     values,
+                     unused,
+                     false,
+                     false,
+                     element::i64,
+                     std::numeric_limits<int64_t>::max(),
+                     Shape{}),
+        CumSumParams(Shape{2, 3},
+                     type,
+                     values,
+                     unused,
+                     false,
+                     true,
+                     element::i64,
+                     std::numeric_limits<int64_t>::min(),
+                     Shape{}),
+        CumSumParams(Shape{2, 3}, type, values, unused, true, false, element::i32, int32_t(-3), Shape{}),
+        CumSumParams(Shape{},
+                     type,
+                     std::vector<T>{3},
+                     std::vector<T>{0},
+                     false,
+                     false,
+                     element::i64,
+                     int64_t(1),
+                     Shape{}),
+        CumSumParams(Shape{},
+                     type,
+                     std::vector<T>{3},
+                     std::vector<T>{0},
+                     false,
+                     false,
+                     element::i64,
+                     int64_t(-2),
+                     Shape{}),
+    };
+    // Empty axis tensor
+    auto empty_axis = CumSumParams(Shape{2, 3}, type, values, unused, false, false, element::i64, int64_t(0), Shape{0});
+    empty_axis.axisData = CreateTensor(Shape{0}, element::i64, std::vector<int64_t>{});
+    opParams.push_back(empty_axis);
+    return opParams;
+}
+
+std::vector<CumSumParams> generateCumSumConstantFoldingParams() {
+    // Constant folding evaluates CumSum for f32 data only
+    auto opParams = generateCumSumParams<element::Type_t::f32>(element::f32);
+    opParams.erase(std::remove_if(opParams.begin(),
+                                  opParams.end(),
+                                  [](const CumSumParams& params) {
+                                      return params.testDefaults;
+                                  }),
+                   opParams.end());
     return opParams;
 }
 
@@ -308,5 +483,25 @@ std::vector<CumSumParams> generateCumSumCombinedParams() {
 INSTANTIATE_TEST_SUITE_P(smoke_CumSum_With_Hardcoded_Refs,
                          ReferenceCumSumLayerTest,
                          ::testing::ValuesIn(generateCumSumCombinedParams()),
+                         ReferenceCumSumLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_Invalid_Axis,
+                         ReferenceCumSumInvalidAxisTest,
+                         ::testing::ValuesIn(generateCumSumInvalidAxisParams<element::Type_t::f32>(element::f32)),
+                         ReferenceCumSumLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_Invalid_Axis_i32,
+                         ReferenceCumSumInvalidAxisTest,
+                         ::testing::ValuesIn(generateCumSumInvalidAxisParams<element::Type_t::i32>(element::i32)),
+                         ReferenceCumSumLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_Constant_Folding,
+                         ReferenceCumSumConstantFoldingTest,
+                         ::testing::ValuesIn(generateCumSumConstantFoldingParams()),
+                         ReferenceCumSumLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_CumSum_Constant_Folding_Invalid_Axis,
+                         ReferenceCumSumConstantFoldingInvalidAxisTest,
+                         ::testing::ValuesIn(generateCumSumInvalidAxisParams<element::Type_t::f32>(element::f32)),
                          ReferenceCumSumLayerTest::getTestCaseName);
 }  // namespace
