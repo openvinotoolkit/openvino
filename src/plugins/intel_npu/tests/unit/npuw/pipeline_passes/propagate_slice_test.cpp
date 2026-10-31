@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "llm_compiled_model_utils.hpp"
 #include "openvino/op/ops.hpp"
 
 using namespace ov;
@@ -26,6 +27,25 @@ static size_t count_slice_nodes(const std::shared_ptr<ov::Model>& model) {
 static void apply_propagate_slice_up(const std::shared_ptr<ov::Model>& model) {
     ov::npuw::PropagateSliceUp pass;
     pass.run_on_model(model);
+}
+
+static void apply_propagate_logits_gather_up(const std::shared_ptr<ov::Model>& model) {
+    ov::npuw::PropagateLogitsGatherUp pass;
+    pass.run_on_model(model);
+}
+
+static std::shared_ptr<v0::Parameter> make_logits_selection_indices(size_t count) {
+    auto indices = std::make_shared<v0::Parameter>(element::i64, Shape{count});
+    indices->set_friendly_name(ov::npuw::util::kLogitsSelectionIndicesParamName);
+    indices->output(0).set_names({ov::npuw::util::kLogitsSelectionIndicesParamName});
+    return indices;
+}
+
+static std::shared_ptr<v8::Gather> make_logits_selector(const Output<Node>& data,
+                                                        const std::shared_ptr<v0::Parameter>& indices,
+                                                        int64_t axis) {
+    auto gather_axis = v0::Constant::create(element::i64, Shape{}, {axis});
+    return std::make_shared<v8::Gather>(data, indices, gather_axis);
 }
 
 // Helper to build a single-axis Slice with explicit start/stop/step (default step=1) —
@@ -1057,6 +1077,156 @@ TEST(PropagateSliceTest, PropagateSliceThroughGather) {
     // Slice's input should be Parameter
     auto slice_input = new_slice->input_value(0).get_node_shared_ptr();
     EXPECT_TRUE(is_type<v0::Parameter>(slice_input));
+}
+
+TEST(PropagateLogitsGatherTest, PropagatesThroughMatMulAndPointwiseTail) {
+    auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 8, 4});
+    auto weights = std::make_shared<v0::Parameter>(element::f32, Shape{4, 6});
+    auto bias = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 6});
+    auto matmul = std::make_shared<v0::MatMul>(input, weights);
+    auto add = std::make_shared<v1::Add>(matmul, bias);
+    auto indices = make_logits_selection_indices(2u);
+    auto selector = make_logits_selector(add, indices, 1);
+    auto result = std::make_shared<v0::Result>(selector);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input, weights, bias, indices});
+
+    apply_propagate_logits_gather_up(model);
+
+    const auto selected_add = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v1::Add>(selected_add));
+    const auto selected_matmul = selected_add->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v0::MatMul>(selected_matmul));
+    const auto selected_input = selected_matmul->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v8::Gather>(selected_input));
+    EXPECT_TRUE(is_type<v0::Parameter>(selected_input->input_value(0).get_node_shared_ptr()));
+    EXPECT_TRUE(is_type<v0::Parameter>(selected_add->input_value(1).get_node_shared_ptr()));
+    EXPECT_EQ(model->get_results()[0]->get_input_shape(0), (Shape{1, 2, 6}));
+}
+
+TEST(PropagateLogitsGatherTest, PreservesFullSequenceFanout) {
+    auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 8, 4});
+    auto weights = std::make_shared<v0::Parameter>(element::f32, Shape{4, 6});
+    auto matmul = std::make_shared<v0::MatMul>(input, weights);
+    auto indices = make_logits_selection_indices(2u);
+    auto selector = make_logits_selector(matmul, indices, 1);
+    auto selected_result = std::make_shared<v0::Result>(selector);
+    auto full_result = std::make_shared<v0::Result>(matmul);
+    auto model = std::make_shared<ov::Model>(ResultVector{selected_result, full_result},
+                                             ParameterVector{input, weights, indices});
+
+    apply_propagate_logits_gather_up(model);
+
+    const auto selected_matmul = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+    const auto full_matmul = model->get_results()[1]->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v0::MatMul>(selected_matmul));
+    ASSERT_TRUE(is_type<v0::MatMul>(full_matmul));
+    EXPECT_TRUE(is_type<v8::Gather>(selected_matmul->input_value(0).get_node_shared_ptr()));
+    EXPECT_TRUE(is_type<v0::Parameter>(full_matmul->input_value(0).get_node_shared_ptr()));
+    EXPECT_EQ(full_matmul->get_output_shape(0), (Shape{1, 8, 6}));
+}
+
+TEST(PropagateLogitsGatherTest, RejectsMatMulBatchAndBroadcastAxes) {
+    auto input = std::make_shared<v0::Parameter>(element::f32, Shape{8, 4});
+    auto weights = std::make_shared<v0::Parameter>(element::f32, Shape{1, 4, 6});
+    auto matmul = std::make_shared<v0::MatMul>(input, weights);
+    auto indices = make_logits_selection_indices(2u);
+    auto selector = make_logits_selector(matmul, indices, 1);
+    auto result = std::make_shared<v0::Result>(selector);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input, weights, indices});
+
+    apply_propagate_logits_gather_up(model);
+
+    EXPECT_TRUE(is_type<v8::Gather>(model->get_results()[0]->input_value(0).get_node_shared_ptr()));
+}
+
+TEST(PropagateLogitsGatherTest, PropagatesThroughFeatureReduction) {
+    auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 8, 4});
+    auto axes = v0::Constant::create(element::i64, Shape{1}, {2});
+    auto reduce = std::make_shared<v1::ReduceMean>(input, axes, true);
+    auto indices = make_logits_selection_indices(2u);
+    auto selector = make_logits_selector(reduce, indices, 1);
+    auto result = std::make_shared<v0::Result>(selector);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input, indices});
+
+    apply_propagate_logits_gather_up(model);
+
+    const auto selected_reduce = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v1::ReduceMean>(selected_reduce));
+    EXPECT_TRUE(is_type<v8::Gather>(selected_reduce->input_value(0).get_node_shared_ptr()));
+    EXPECT_EQ(model->get_results()[0]->get_input_shape(0), (Shape{1, 2, 1}));
+}
+
+TEST(PropagateLogitsGatherTest, PropagatesThroughTranspose) {
+    auto input = std::make_shared<v0::Parameter>(element::f32, Shape{1, 8, 4});
+    auto order = v0::Constant::create(element::i64, Shape{3}, {0, 2, 1});
+    auto transpose = std::make_shared<v1::Transpose>(input, order);
+    auto indices = make_logits_selection_indices(2u);
+    auto selector = make_logits_selector(transpose, indices, 2);
+    auto result = std::make_shared<v0::Result>(selector);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{input, indices});
+
+    apply_propagate_logits_gather_up(model);
+
+    const auto selected_transpose = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v1::Transpose>(selected_transpose));
+    const auto selected_input = selected_transpose->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v8::Gather>(selected_input));
+    EXPECT_EQ(model->get_results()[0]->get_input_shape(0), (Shape{1, 4, 2}));
+}
+
+TEST(PropagateLogitsGatherTest, PropagatesThroughFeatureConcat) {
+    auto left = std::make_shared<v0::Parameter>(element::f32, Shape{1, 8, 2});
+    auto right = std::make_shared<v0::Parameter>(element::f32, Shape{1, 8, 2});
+    auto concat = std::make_shared<v0::Concat>(OutputVector{left, right}, 2);
+    auto indices = make_logits_selection_indices(2u);
+    auto selector = make_logits_selector(concat, indices, 1);
+    auto result = std::make_shared<v0::Result>(selector);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{left, right, indices});
+
+    apply_propagate_logits_gather_up(model);
+
+    const auto selected_concat = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v0::Concat>(selected_concat));
+    EXPECT_TRUE(is_type<v8::Gather>(selected_concat->input_value(0).get_node_shared_ptr()));
+    EXPECT_TRUE(is_type<v8::Gather>(selected_concat->input_value(1).get_node_shared_ptr()));
+    EXPECT_EQ(model->get_results()[0]->get_input_shape(0), (Shape{1, 2, 4}));
+}
+
+TEST(PropagateLogitsGatherTest, PropagatesThroughSDPAQueryAndMaskOnly) {
+    auto q = std::make_shared<v0::Parameter>(element::f32, Shape{1, 2, 8, 4});
+    auto k = std::make_shared<v0::Parameter>(element::f32, Shape{1, 2, 8, 4});
+    auto v = std::make_shared<v0::Parameter>(element::f32, Shape{1, 2, 8, 4});
+    auto mask = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1, 8, 8});
+    auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, mask, false);
+    auto indices = make_logits_selection_indices(2u);
+    auto selector = make_logits_selector(sdpa, indices, 2);
+    auto result = std::make_shared<v0::Result>(selector);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{q, k, v, mask, indices});
+
+    apply_propagate_logits_gather_up(model);
+
+    const auto selected_sdpa = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v13::ScaledDotProductAttention>(selected_sdpa));
+    EXPECT_TRUE(is_type<v8::Gather>(selected_sdpa->input_value(0).get_node_shared_ptr()));
+    EXPECT_TRUE(is_type<v0::Parameter>(selected_sdpa->input_value(1).get_node_shared_ptr()));
+    EXPECT_TRUE(is_type<v0::Parameter>(selected_sdpa->input_value(2).get_node_shared_ptr()));
+    EXPECT_TRUE(is_type<v8::Gather>(selected_sdpa->input_value(3).get_node_shared_ptr()));
+    EXPECT_EQ(selected_sdpa->get_output_shape(0), (Shape{1, 2, 2, 4}));
+}
+
+TEST(PropagateLogitsGatherTest, RejectsCausalSDPA) {
+    auto q = std::make_shared<v0::Parameter>(element::f32, Shape{1, 2, 8, 4});
+    auto k = std::make_shared<v0::Parameter>(element::f32, Shape{1, 2, 8, 4});
+    auto v = std::make_shared<v0::Parameter>(element::f32, Shape{1, 2, 8, 4});
+    auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, true);
+    auto indices = make_logits_selection_indices(2u);
+    auto selector = make_logits_selector(sdpa, indices, 2);
+    auto result = std::make_shared<v0::Result>(selector);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{q, k, v, indices});
+
+    apply_propagate_logits_gather_up(model);
+
+    EXPECT_TRUE(is_type<v8::Gather>(model->get_results()[0]->input_value(0).get_node_shared_ptr()));
 }
 
 // Regression test: Gather with scalar (rank-0) indices - what aten::select lowers to - removes

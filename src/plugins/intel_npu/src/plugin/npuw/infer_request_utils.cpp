@@ -35,11 +35,9 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::make_tensor_slice(ov::SoPtr<ov::ITensor> 
     return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
 }
 
-void ov::npuw::util::copy_to_right(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
+void ov::npuw::util::copy_to_left(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
     OPENVINO_ASSERT(src->get_byte_size() <= dst->get_byte_size());
-    std::copy_n(reinterpret_cast<uint8_t*>(src->data()),
-                src->get_byte_size(),
-                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - src->get_byte_size());
+    std::copy_n(reinterpret_cast<uint8_t*>(src->data()), src->get_byte_size(), reinterpret_cast<uint8_t*>(dst->data()));
 }
 
 void ov::npuw::util::copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor) {
@@ -201,11 +199,10 @@ void ov::npuw::util::pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_posit
     OPENVINO_ASSERT(position_shape.size() <= 3);
 
     size_t diff_dim = position_shape.size() - 1;
+    OPENVINO_ASSERT(position_shape[diff_dim] <= padded_shape[diff_dim]);
     for (size_t i = 0; i < diff_dim; ++i) {
         OPENVINO_ASSERT(padded_shape[i] == position_shape[i]);
     }
-
-    size_t keep_elements = padded_shape[diff_dim] - position_shape[diff_dim];
 
     size_t batch_size = 1;
     for (size_t i = 0; i < padded_shape.size(); ++i) {
@@ -220,16 +217,14 @@ void ov::npuw::util::pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_posit
     for (size_t batch = 0; batch < batch_size; ++batch) {
         size_t padded_offset = batch * padded_shape[diff_dim];
         size_t position_offset = batch * position_shape[diff_dim];
-        std::copy_n(position_data + position_offset,
-                    position_shape[diff_dim],
-                    padded_data + padded_offset + keep_elements);
+        std::copy_n(position_data + position_offset, position_shape[diff_dim], padded_data + padded_offset);
     }
 }
 
-void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::ITensor>& src,
-                                                          const ov::SoPtr<ov::ITensor>& dst,
-                                                          uint32_t src_offset_tokens,
-                                                          uint32_t chunk_tokens) {
+void ov::npuw::util::copy_per_layer_inputs_chunk_to_left(const ov::SoPtr<ov::ITensor>& src,
+                                                         const ov::SoPtr<ov::ITensor>& dst,
+                                                         uint32_t src_offset_tokens,
+                                                         uint32_t chunk_tokens) {
     // Gemma4 26B A4B has dangling per_layer_inputs with zero-sized tensors.
     if (src->get_byte_size() == 0u || dst->get_byte_size() == 0u) {
         OPENVINO_ASSERT(src->get_byte_size() == 0u && dst->get_byte_size() == 0u,
@@ -299,5 +294,5 @@ void ov::npuw::util::copy_per_layer_inputs_chunk_to_right(const ov::SoPtr<ov::IT
 
     std::copy_n(reinterpret_cast<const uint8_t*>(src->data()) + offset_bytes,
                 chunk_bytes,
-                reinterpret_cast<uint8_t*>(dst->data()) + dst->get_byte_size() - chunk_bytes);
+                reinterpret_cast<uint8_t*>(dst->data()));
 }
