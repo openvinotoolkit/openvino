@@ -402,6 +402,7 @@ void WeightlessGraph::initialize_impl(const Config& config) {
     CommandQueueDesc commandQueueDesc{
         zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
         config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
+        config.has<QOS>() ? std::optional(zeroUtils::toZeQueueQos(config.get<QOS>())) : std::nullopt,
         commandQueueOptions,
         this,
         config.get<SHARED_COMMON_QUEUE>()};

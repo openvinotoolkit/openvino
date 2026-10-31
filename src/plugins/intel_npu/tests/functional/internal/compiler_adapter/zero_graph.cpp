@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <common_test_utils/test_assertions.hpp>
 #include <gtest/gtest.h>
 #include <stdlib.h>
+
+#include <common_test_utils/test_assertions.hpp>
 
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common/zero_init_mock.hpp"
 #include "common_test_utils/subgraph_builders/multi_single_conv.hpp"
 #include "driver_compiler_adapter.hpp"
+#include "graph.hpp"
+#include "intel_npu/config/options.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_mem.hpp"
 #include "intel_npu/utils/zero/zero_mem_pool.hpp"
@@ -424,6 +428,185 @@ TEST_P(EncryptionCallbacks, EncryptionCallbacksSetSecureCompileFlag) {
     }
 }
 
+// Exercises Graph::set_qos and Graph::get_qos_info directly, both before the graph is initialized (no command queue
+// yet, the queue is created from the given parameters) and after (the queue used for execution is queried).
+class ZeroGraphQosTest : public ZeroGraphTest {
+protected:
+    void SetUp() override {
+        ZeroGraphTest::SetUp();
+        if (IsSkipped()) {
+            return;
+        }
+        if (!zeroInitStruct->isCommandQueueQosSupported()) {
+            GTEST_SKIP() << "The QoS feature is not supported by the current driver.\n";
+        }
+        serializeIR();
+    }
+
+    // The Graph takes ownership of its descriptor and destroys it, so each graph gets its own one.
+    std::shared_ptr<Graph> createGraph() {
+        auto localGraphDescriptor = zeGraphExt->getGraphDescriptor(serializedIR, "", bypassUmdCache());
+        auto metadata = zeGraphExt->getNetworkMeta(localGraphDescriptor);
+        return std::make_shared<Graph>(zeGraphExt,
+                                       zeroInitStruct,
+                                       localGraphDescriptor,
+                                       std::move(metadata),
+                                       std::nullopt);
+    }
+
+    static Config createConfig(bool sharedCommonQueue, std::optional<ov::QoS> qos = std::nullopt) {
+        auto options = std::make_shared<OptionsDesc>();
+        options->add<MODEL_PRIORITY>();
+        options->add<WORKLOAD_TYPE>();
+        options->add<QOS>();
+        options->add<TURBO>();
+        options->add<RUN_INFERENCES_SEQUENTIALLY>();
+        options->add<SHARED_COMMON_QUEUE>();
+        options->add<PERF_COUNT>();
+
+        Config config(options);
+        config.update({{ov::intel_npu::shared_common_queue.name(), sharedCommonQueue ? "YES" : "NO"}});
+        if (qos.has_value()) {
+            config.update({{ov::qos.name(), ov::Any(qos.value()).as<std::string>()}});
+        }
+        return config;
+    }
+
+    static CommandQueueParams createParams(bool sharedCommonQueue, std::optional<ov::QoS> qos = std::nullopt) {
+        CommandQueueParams params;
+        params.sharedCommonQueue = sharedCommonQueue;
+        params.qos = qos;
+        return params;
+    }
+
+    static void expectRequestedQos(const ov::QoSInfo& qosInfo, ov::QoS expectedLevel) {
+        EXPECT_EQ(qosInfo.level, expectedLevel);
+        EXPECT_TRUE(qosInfo.is_overridden);
+    }
+
+    static void expectDriverDefaultQos(const ov::QoSInfo& qosInfo) {
+        EXPECT_NE(qosInfo.level, ov::QoS::DEFAULT) << "The effective level is never DEFAULT";
+        EXPECT_FALSE(qosInfo.is_overridden);
+    }
+};
+
+TEST_P(ZeroGraphQosTest, GetQosInfoBeforeInitializeUsesTheGivenParameters) {
+    for (bool sharedCommonQueue : {true, false}) {
+        auto graph = createGraph();
+        ASSERT_FALSE(graph->init_completed());
+
+        ov::QoSInfo qosInfo{};
+        OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue)));
+        expectDriverDefaultQos(qosInfo);
+
+        OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue, ov::QoS::DEFAULT)));
+        expectDriverDefaultQos(qosInfo);
+
+        for (auto level : {ov::QoS::HIGH, ov::QoS::MEDIUM, ov::QoS::LOW, ov::QoS::UTILITY, ov::QoS::ECO}) {
+            OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue, level)));
+            expectRequestedQos(qosInfo, level);
+        }
+
+        // Querying must not initialize the graph as a side effect.
+        ASSERT_FALSE(graph->init_completed());
+    }
+}
+
+TEST_P(ZeroGraphQosTest, SetQosBeforeInitializeUpdatesTheCommandQueueDescriptor) {
+    auto graph = createGraph();
+
+    OV_ASSERT_NO_THROW(graph->set_qos(ov::QoS::LOW));
+    auto desc = graph->get_command_queue_desc();
+    ASSERT_TRUE(desc.qos().has_value());
+    EXPECT_EQ(desc.qos().value(), ZE_COMMAND_QUEUE_QOS_EXT_LOW);
+
+    OV_ASSERT_NO_THROW(graph->set_qos(ov::QoS::DEFAULT));
+    desc = graph->get_command_queue_desc();
+    ASSERT_TRUE(desc.qos().has_value());
+    EXPECT_EQ(desc.qos().value(), ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT);
+
+    ASSERT_FALSE(graph->init_completed());
+}
+
+TEST_P(ZeroGraphQosTest, InitializeAppliesTheConfiguredQos) {
+    for (bool sharedCommonQueue : {true, false}) {
+        auto graph = createGraph();
+        OV_ASSERT_NO_THROW(graph->initialize(createConfig(sharedCommonQueue, ov::QoS::HIGH)));
+        ASSERT_TRUE(graph->init_completed());
+
+        auto desc = graph->get_command_queue_desc();
+        ASSERT_TRUE(desc.qos().has_value());
+        EXPECT_EQ(desc.qos().value(), ZE_COMMAND_QUEUE_QOS_EXT_HIGH);
+        EXPECT_EQ(desc.sharedCommonQueue(), sharedCommonQueue);
+
+        // Once initialized, the queue used for execution is queried and the given parameters are ignored.
+        ov::QoSInfo qosInfo{};
+        OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue, ov::QoS::ECO)));
+        expectRequestedQos(qosInfo, ov::QoS::HIGH);
+    }
+}
+
+TEST_P(ZeroGraphQosTest, InitializeWithoutQosUsesTheDriverDefault) {
+    for (bool sharedCommonQueue : {true, false}) {
+        auto graph = createGraph();
+        OV_ASSERT_NO_THROW(graph->initialize(createConfig(sharedCommonQueue)));
+
+        EXPECT_FALSE(graph->get_command_queue_desc().qos().has_value());
+
+        ov::QoSInfo qosInfo{};
+        OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue)));
+        expectDriverDefaultQos(qosInfo);
+    }
+}
+
+TEST_P(ZeroGraphQosTest, SetQosAfterInitializeIsReportedByGetQosInfo) {
+    for (bool sharedCommonQueue : {true, false}) {
+        auto graph = createGraph();
+        OV_ASSERT_NO_THROW(graph->initialize(createConfig(sharedCommonQueue)));
+
+        for (auto level : {ov::QoS::HIGH, ov::QoS::MEDIUM, ov::QoS::LOW, ov::QoS::UTILITY, ov::QoS::ECO}) {
+            OV_ASSERT_NO_THROW(graph->set_qos(level));
+
+            ov::QoSInfo qosInfo{};
+            OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue)));
+            expectRequestedQos(qosInfo, level);
+        }
+
+        OV_ASSERT_NO_THROW(graph->set_qos(ov::QoS::DEFAULT));
+        ov::QoSInfo qosInfo{};
+        OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue)));
+        expectDriverDefaultQos(qosInfo);
+    }
+}
+
+TEST_P(ZeroGraphQosTest, QosSetBeforeInitializeIsReplacedByTheInitializationConfig) {
+    for (bool sharedCommonQueue : {true, false}) {
+        auto graph = createGraph();
+        OV_ASSERT_NO_THROW(graph->set_qos(ov::QoS::LOW));
+
+        // The plugin keeps its configuration in sync with set_qos, so initialize always receives the latest level.
+        OV_ASSERT_NO_THROW(graph->initialize(createConfig(sharedCommonQueue, ov::QoS::UTILITY)));
+
+        ov::QoSInfo qosInfo{};
+        OV_ASSERT_NO_THROW(qosInfo = graph->get_qos_info(createParams(sharedCommonQueue)));
+        expectRequestedQos(qosInfo, ov::QoS::UTILITY);
+    }
+}
+
+TEST_P(ZeroGraphQosTest, QosOfOneGraphDoesNotAffectAnother) {
+    for (bool sharedCommonQueue : {true, false}) {
+        auto graph = createGraph();
+        auto otherGraph = createGraph();
+        OV_ASSERT_NO_THROW(graph->initialize(createConfig(sharedCommonQueue)));
+        OV_ASSERT_NO_THROW(otherGraph->initialize(createConfig(sharedCommonQueue)));
+
+        OV_ASSERT_NO_THROW(graph->set_qos(ov::QoS::ECO));
+
+        expectRequestedQos(graph->get_qos_info(createParams(sharedCommonQueue)), ov::QoS::ECO);
+        expectDriverDefaultQos(otherGraph->get_qos_info(createParams(sharedCommonQueue)));
+    }
+}
+
 }  // namespace ov::test::behavior
 
 namespace {
@@ -462,6 +645,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(emptyConfigsTests),
                                             graphExtVersions),
+                         ZeroGraphTest::getTestCaseName);
+
+// QoS handling does not depend on the graph extension version, so only the current one is used.
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         ZeroGraphQosTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(emptyConfigsTests),
+                                            ::testing::Values(ZE_GRAPH_EXT_VERSION_CURRENT)),
                          ZeroGraphTest::getTestCaseName);
 
 }  // namespace

@@ -270,6 +270,10 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::WorkloadType>());
     } else if (any.is<ov::CacheMode>()) {
         return py::cast(any.as<ov::CacheMode>());
+    } else if (any.is<ov::QoS>()) {
+        return py::cast(any.as<ov::QoS>());
+    } else if (any.is<ov::QoSInfo>()) {
+        return py::cast(any.as<ov::QoSInfo>());
     } else if (any.is<ov::device::UUID>()) {
         std::stringstream uuid_stream;
         uuid_stream << any.as<ov::device::UUID>();
@@ -582,6 +586,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::WorkloadType>(py_obj)) {
         return py::cast<ov::WorkloadType>(py_obj);
+    } else if (py::isinstance<ov::QoS>(py_obj)) {
+        return py::cast<ov::QoS>(py_obj);
     } else if (py::isinstance<ov::intel_npu::CompilerType>(py_obj)) {
         return py::cast<ov::intel_npu::CompilerType>(py_obj);
     } else if (py::isinstance<ov::Tensor>(py_obj)) {

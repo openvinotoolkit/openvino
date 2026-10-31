@@ -81,6 +81,44 @@ static inline std::optional<ze_command_queue_workload_type_t> toZeQueueWorkloadT
     }
 }
 
+static inline ze_command_queue_qos_ext_t toZeQueueQos(const ov::QoS val) {
+    switch (val) {
+    case ov::QoS::DEFAULT:
+        return ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT;
+    case ov::QoS::HIGH:
+        return ZE_COMMAND_QUEUE_QOS_EXT_HIGH;
+    case ov::QoS::MEDIUM:
+        return ZE_COMMAND_QUEUE_QOS_EXT_MEDIUM;
+    case ov::QoS::LOW:
+        return ZE_COMMAND_QUEUE_QOS_EXT_LOW;
+    case ov::QoS::UTILITY:
+        return ZE_COMMAND_QUEUE_QOS_EXT_UTILITY;
+    case ov::QoS::ECO:
+        return ZE_COMMAND_QUEUE_QOS_EXT_ECO;
+    default:
+        OPENVINO_THROW("Incorrect QoS level.");
+    }
+}
+
+static inline ov::QoS toOVQos(const ze_command_queue_qos_ext_t val) {
+    switch (val) {
+    case ZE_COMMAND_QUEUE_QOS_EXT_DEFAULT:
+        return ov::QoS::DEFAULT;
+    case ZE_COMMAND_QUEUE_QOS_EXT_HIGH:
+        return ov::QoS::HIGH;
+    case ZE_COMMAND_QUEUE_QOS_EXT_MEDIUM:
+        return ov::QoS::MEDIUM;
+    case ZE_COMMAND_QUEUE_QOS_EXT_LOW:
+        return ov::QoS::LOW;
+    case ZE_COMMAND_QUEUE_QOS_EXT_UTILITY:
+        return ov::QoS::UTILITY;
+    case ZE_COMMAND_QUEUE_QOS_EXT_ECO:
+        return ov::QoS::ECO;
+    default:
+        OPENVINO_THROW("Incorrect QoS level.");
+    }
+}
+
 static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precision_t zeElementType) {
     switch (zeElementType) {
     case ZE_GRAPH_ARGUMENT_PRECISION_UNKNOWN:

@@ -666,6 +666,17 @@ void PluginPropertyManager::registerProperties() {
             _config.update(ov::cache_encryption_callbacks.name(), value);
         }
     );
+    register_property(ov::qos.name(), true, ov::PropertyMutability::WO,
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::qos.name());
+        },
+        [](const ov::AnyMap&) {
+            return ov::Any{};
+        },
+        [this](const ov::Any& value) {
+            _config.update(ov::qos.name(), value);
+        }
+    );
 
     const auto hasRequiredCommandQueueVersion = [this] {
         return _backend && _backend->getInitStructs() &&

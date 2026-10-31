@@ -473,6 +473,24 @@ struct WORKLOAD_TYPE final : OptionBase<WORKLOAD_TYPE, ov::WorkloadType> {
     }
 };
 
+struct QOS final : OptionBase<QOS, ov::QoS> {
+    static std::string_view key() {
+        return ov::qos.name();
+    }
+
+    static ov::QoS defaultValue() {
+        return ov::QoS::DEFAULT;
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::QoS";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct TURBO final : OptionBase<TURBO, bool> {
     static std::string_view key() {
         return ov::intel_npu::turbo.name();
