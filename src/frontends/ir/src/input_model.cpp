@@ -203,6 +203,7 @@ namespace ov::frontend::ir {
 
 class InputModel::InputModelIRImpl {
     std::shared_ptr<ov::util::WeightsProvider> m_weights_provider;
+    std::filesystem::path m_weights_path;
     std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> m_extensions;
     std::unordered_map<std::string, ov::OpSet> m_opsets;
     pugi::xml_node m_root;
@@ -211,8 +212,10 @@ class InputModel::InputModelIRImpl {
 public:
     InputModelIRImpl(std::istream& model,
                      std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
+                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+                     std::filesystem::path weights_path)
         : m_weights_provider(std::move(weights_provider)),
+          m_weights_path(std::move(weights_path)),
           m_extensions(extensions) {
         pugi::xml_parse_result res = m_xml_doc.load(model);
         OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
@@ -221,8 +224,10 @@ public:
 
     InputModelIRImpl(const std::shared_ptr<ov::AlignedBuffer>& model,
                      std::shared_ptr<ov::util::WeightsProvider> weights_provider,
-                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions)
+                     const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
+                     std::filesystem::path weights_path)
         : m_weights_provider(std::move(weights_provider)),
+          m_weights_path(std::move(weights_path)),
           m_extensions(extensions) {
         auto res = m_xml_doc.load_buffer(model->get_ptr(), model->size(), pugi::parse_default, pugi::encoding_utf8);
         OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
@@ -243,15 +248,15 @@ private:
 InputModel::InputModel(std::istream& model,
                        std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::filesystem::path) {
-    _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
+                       std::filesystem::path weights_path) {
+    _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions, std::move(weights_path));
 }
 
 InputModel::InputModel(const std::shared_ptr<ov::AlignedBuffer>& model,
                        std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                        const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
-                       std::filesystem::path) {
-    _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions);
+                       std::filesystem::path weights_path) {
+    _impl = std::make_shared<InputModelIRImpl>(model, std::move(weights_provider), extensions, std::move(weights_path));
 }
 
 std::shared_ptr<ov::Model> InputModel::convert() {
@@ -268,7 +273,10 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     visitor.on_attribute("net", model);
     model->get_rt_info()["version"] = int64_t(version);
     if (m_weights_provider) {
-        const auto weights_path = m_weights_provider->path();
+        // Buffer (mmap) providers have no path; fall back to the path resolved by the frontend.
+        auto weights_path = m_weights_provider->path();
+        if (weights_path.empty())
+            weights_path = m_weights_path;
         if (!weights_path.empty())
             model->get_rt_info()["__weights_path"] = ov::util::path_to_string(weights_path);
     }
