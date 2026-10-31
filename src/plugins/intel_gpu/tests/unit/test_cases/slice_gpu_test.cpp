@@ -659,7 +659,7 @@ TEST(slice_gpu_i8, bfyx) {
     topology.add(data("stop", stop));
     topology.add(data("step", step));
     topology.add(data("axes", axes));
-    topology.add(slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}));
+    topology.add(slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}, 0, {1}, {1}, {2}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -700,7 +700,7 @@ TEST(slice_gpu_u8, bfyx) {
     topology.add(data("stop", stop));
     topology.add(data("step", step));
     topology.add(data("axes", axes));
-    topology.add(slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}));
+    topology.add(slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}, 0, {1}, {1}, {2}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -741,7 +741,7 @@ TEST(slice_gpu_f8e4m3, bfyx) {
     topology.add(data("stop", stop));
     topology.add(data("step", step));
     topology.add(data("axes", axes));
-    topology.add(slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}));
+    topology.add(slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}, 0, {1}, {1}, {2}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -788,8 +788,8 @@ TEST(slice_gpu_bf16, bfyx_positive_step) {
     topology.add(data("stop", stop));
     topology.add(data("step", step));
     topology.add(data("axes", axes));
-    topology.add(slice("slice", { input_info("input"), input_info("start"),
-                                  input_info("stop"), input_info("step"), input_info("axes") }));
+    topology.add(
+        slice("slice", {input_info("input"), input_info("start"), input_info("stop"), input_info("step"), input_info("axes")}, 0, {1, 2}, {1, 2}, {2, 3}));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
