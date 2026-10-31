@@ -8,7 +8,11 @@
 #include <limits.h>
 #include <ze_graph_ext.h>
 
+#include <cstring>
 #include <optional>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -252,6 +256,54 @@ static inline uint32_t findCommandQueueGroupOrdinal(
 
     // if still don't find compute flag, return 0
     return 0;
+}
+
+static inline bool isExtensionNameMatching(const char* propertyName, const char* extName) {
+    if (strcmp(propertyName, extName) == 0) {
+        return true;
+    }
+
+    // Older drivers use specific names for different graph ext versions, e.g.: ZE_extension_graph_1_1
+    if (strcmp(extName, ZE_GRAPH_EXT_NAME) != 0) {
+        return false;
+    }
+
+    const size_t extNameLen = strlen(extName);
+    return strncmp(propertyName, extName, extNameLen) == 0 && propertyName[extNameLen] == '_' &&
+           propertyName[extNameLen + 1] >= '0' && propertyName[extNameLen + 1] <= '9';
+}
+
+static inline std::tuple<uint32_t, std::string> queryDriverExtensionVersion(
+    const char* extName,
+    uint32_t extCurrentVersion,
+    const std::vector<ze_driver_extension_properties_t>& extProps,
+    uint32_t count) {
+    const char* functionExtName = nullptr;
+    uint32_t targetVersion = 0;
+
+    for (uint32_t i = 0; i < count; ++i) {
+        const auto& property = extProps[i];
+
+        if (!isExtensionNameMatching(property.name, extName)) {
+            continue;
+        }
+
+        if (property.version >= extCurrentVersion) {
+            functionExtName = property.name;
+            targetVersion = extCurrentVersion;
+            break;
+        }
+
+        // Use the latest version supported by the driver - We need to go through all the properties for older drivers
+        // that use specific names for different graph ext versions, e.g.: ZE_extension_graph_1_1,
+        // ZE_extension_graph_1_2
+        if (property.version > targetVersion) {
+            functionExtName = property.name;
+            targetVersion = property.version;
+        }
+    }
+
+    return std::make_tuple(targetVersion, functionExtName ? functionExtName : "");
 }
 
 }  // namespace zeroUtils

@@ -6,12 +6,14 @@
 
 #include <memory>
 #include <mutex>
+#include <utility>
 
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/util/mmap_object.hpp"
 #ifdef PROXY_PLUGIN_ENABLED
 #    include "openvino/proxy/plugin.hpp"
 #endif
@@ -39,6 +41,28 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
 
     return roi_shape;
 }
+
+// Hints for the [offset, offset + size) range of a file mapping.
+class MappedRangeHints final : public util::IMemoryHints {
+public:
+    MappedRangeHints(std::shared_ptr<MappedMemory> memory, size_t offset, size_t size)
+        : m_memory{std::move(memory)},
+          m_offset{offset},
+          m_size{size} {}
+
+    void hint_evict() noexcept override {
+        m_memory->hint_evict(m_offset, m_size);
+    }
+
+    void hint_prefetch() noexcept override {
+        m_memory->hint_prefetch(m_offset, m_size);
+    }
+
+private:
+    std::shared_ptr<MappedMemory> m_memory;
+    size_t m_offset;
+    size_t m_size;
+};
 }  // namespace
 
 /**
@@ -187,6 +211,35 @@ public:
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data(element_type)'");
     }
 };
+
+/**
+ * @brief Read-only view tensor on the beginning of a buffer which it keeps alive
+ */
+class BufferReadOnlyViewTensor : public ReadOnlyViewTensor {
+public:
+    BufferReadOnlyViewTensor(const element::Type element_type,
+                             const Shape& shape,
+                             std::shared_ptr<util::IBuffer> buffer)
+        : ReadOnlyViewTensor{element_type, shape, buffer->data()},
+          m_buffer{std::move(buffer)} {
+        OPENVINO_ASSERT(get_byte_size() <= m_buffer->size(), "Tensor does not fit into the buffer");
+        m_source_id = m_buffer->get_id();
+    }
+
+    const std::shared_ptr<util::IBuffer>& get_buffer() const {
+        return m_buffer;
+    }
+
+private:
+    std::shared_ptr<util::IBuffer> m_buffer;
+};
+
+std::shared_ptr<ITensor> make_tensor(const element::Type type,
+                                     const Shape& shape,
+                                     std::shared_ptr<util::IBuffer> buffer) {
+    OPENVINO_ASSERT(buffer, "Buffer is not set");
+    return std::make_shared<BufferReadOnlyViewTensor>(type, shape, std::move(buffer));
+}
 
 /**
  * @brief View tensor on external memory with strides
@@ -454,6 +507,10 @@ public:
         return m_offset;
     }
 
+    const std::shared_ptr<ITensor>& get_owner() const {
+        return m_owner;
+    }
+
 protected:
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
@@ -651,6 +708,33 @@ void set_tensor_source_id(ov::Tensor& tensor, uint64_t id) {
     if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
         itensor->set_source_id(id);
     }
+}
+
+namespace {
+std::shared_ptr<BufferReadOnlyViewTensor> get_buffer_owner(const std::shared_ptr<ITensor>& itensor) {
+    if (auto roi = std::dynamic_pointer_cast<BaseRoiTensor>(itensor)) {
+        return get_buffer_owner(roi->get_owner());
+    }
+    return std::dynamic_pointer_cast<BufferReadOnlyViewTensor>(itensor);
+}
+}  // namespace
+
+std::shared_ptr<util::IMemoryHints> get_memory_hints(const ov::Tensor& tensor) {
+    const auto owner = get_buffer_owner(get_tensor_impl(tensor)._ptr);
+    if (!owner || !tensor.is_continuous()) {
+        return nullptr;
+    }
+    const auto& buffer = owner->get_buffer();
+    const auto offset = static_cast<size_t>(static_cast<const std::byte*>(tensor.data()) - buffer->data());
+    const auto size = tensor.get_byte_size();
+    if (offset == 0 && size == buffer->size()) {
+        return buffer;
+    }
+    // shortcut: only file mappings give hints for a sub-range, add ranged hints to IMemoryHints if others need it.
+    if (auto mapping = std::dynamic_pointer_cast<MappedMemory>(buffer)) {
+        return std::make_shared<MappedRangeHints>(std::move(mapping), offset, size);
+    }
+    return nullptr;
 }
 
 }  // namespace ov
