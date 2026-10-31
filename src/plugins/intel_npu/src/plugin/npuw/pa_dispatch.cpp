@@ -5,6 +5,7 @@
 #include "pa_dispatch.hpp"
 
 #include <algorithm>
+#include <functional>
 
 #include "openvino/core/except.hpp"
 
@@ -57,29 +58,62 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
     }
 }
 
-bool ov::npuw::pa::variants_serve(const Dispatch& dispatch, const std::vector<std::size_t>& chunk_sizes) {
-    if (chunk_sizes.empty() || dispatch.tokens() == 0) {
-        return false;
-    }
+std::vector<ov::npuw::pa::Chunk> ov::npuw::pa::plan_chunks(const Dispatch& d,
+                                                           const std::vector<std::size_t>& chunk_sizes) {
+    OPENVINO_ASSERT(!chunk_sizes.empty(), "PA chunk plan: no chunk sizes");
+    std::vector<std::size_t> sizes(chunk_sizes);
+    std::sort(sizes.begin(), sizes.end(), std::greater<std::size_t>());
 
-    bool has_one_token_variant = false;
-    std::size_t min_multi_token = 0u;
-    for (const auto chunk_size : chunk_sizes) {
-        has_one_token_variant |= (chunk_size == 1u);
-        if (chunk_size > 1u && (min_multi_token == 0u || chunk_size < min_multi_token)) {
-            min_multi_token = chunk_size;
+    std::vector<Chunk> chunks;
+    for (int64_t begin = 0; begin < d.tokens();) {
+        const auto rows = d.tokens() - begin;
+        const auto fits = std::find_if(sizes.begin(), sizes.end(), [&](std::size_t s) {
+            return static_cast<int64_t>(s) <= rows && (s > 1u || rows == 1);
+        });
+        if (fits != sizes.end()) {
+            chunks.push_back(Chunk{begin, static_cast<int64_t>(*fits), *fits});
+        } else {
+            chunks.push_back(Chunk{begin, rows, 0u});
+        }
+        begin += chunks.back().tokens;
+    }
+    return chunks;
+}
+
+ov::npuw::pa::ChunkControls ov::npuw::pa::chunk_controls(const Dispatch& d, const Chunk& chunk) {
+    const auto begin = chunk.begin;
+    const auto end = chunk.begin + chunk.tokens;
+
+    ChunkControls c;
+    c.first_sequence = -1;
+    c.subsequence_begins.push_back(0);
+    c.block_indices_begins.push_back(0);
+    for (int64_t s = 0; s < d.sequences(); ++s) {
+        const int64_t lo = std::max<int64_t>(d.subsequence_begins[s], begin);
+        const int64_t hi = std::min<int64_t>(d.subsequence_begins[s + 1], end);
+        if (lo >= hi) {
+            continue;
+        }
+        if (c.first_sequence < 0) {
+            c.first_sequence = s;
+        }
+        c.past_lens.push_back(static_cast<int32_t>(d.past_lens[s] + (lo - d.subsequence_begins[s])));
+        c.subsequence_begins.push_back(static_cast<int32_t>(hi - begin));
+        if (d.has_block_table) {
+            const auto blocks_begin = d.block_indices.begin() + d.block_indices_begins[s];
+            const auto blocks_end = d.block_indices.begin() + d.block_indices_begins[s + 1];
+            c.block_indices.insert(c.block_indices.end(), blocks_begin, blocks_end);
+            c.block_indices_begins.push_back(static_cast<int32_t>(c.block_indices.size()));
         }
     }
+    OPENVINO_ASSERT(c.first_sequence >= 0, "PA chunk [", begin, ", ", end, ") holds no rows of the dispatch");
 
-    if (dispatch.sequences() == 1 && dispatch.tokens() == 1) {
-        return has_one_token_variant;
-    }
-
-    for (int64_t s = 0; min_multi_token > 0u && s < dispatch.sequences(); ++s) {
-        const auto seq_len = dispatch.subsequence_begins[s + 1] - dispatch.subsequence_begins[s];
-        if (seq_len >= static_cast<int64_t>(min_multi_token)) {
-            return true;
+    for (std::size_t i = 0; i < d.sampled_tokens_indices.size(); ++i) {
+        const auto row = d.sampled_tokens_indices[i];
+        if (row >= begin && row < end) {
+            c.sampled_tokens_indices.push_back(row - begin);
+            c.logits_rows.push_back(i);
         }
     }
-    return false;
+    return c;
 }
