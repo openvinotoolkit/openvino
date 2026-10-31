@@ -74,6 +74,17 @@ ov::intel_cpu::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
             new_ops.push_back(final_bias);
         }
 
+        // The FC may already carry a bias, fused from an earlier Add: add to it rather than replace it.
+        const auto& fc_bias = fc->input_value(2);
+        if (ov::shape_size(fc_bias.get_shape()) != 0) {
+            if (fc_bias.get_element_type() != final_bias->get_output_element_type(0) ||
+                fc_bias.get_shape() != final_bias->get_output_shape(0)) {
+                return false;
+            }
+            final_bias = ov::op::util::make_try_fold<ov::op::v1::Add>(fc_bias, final_bias);
+            new_ops.push_back(final_bias);
+        }
+
         std::shared_ptr<ov::Node> fc_with_bias;
 
         auto fc_node = ov::as_type_ptr<ov::op::internal::FullyConnected>(fc);
