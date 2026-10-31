@@ -58,6 +58,13 @@ The default decoder graph mirrors the llama.cpp backend interface:
 | `inp_kv_idx`, `token_len_per_seq` | KV write slots and per-sequence length, when the graph consumes them |
 | `cache_k_*`, `cache_v_*`, recurrent states | Previous cache/state, returned as matching outputs |
 
+`qwen4exp` declares all of its caches as recurrent states: head-major `qsa_cache_k_l*` /
+`qsa_cache_v_l*` `[1,kv_heads,keys,head]` grown by concatenation, the QSAPrepare states
+`qsa_block_keys_l*` (one pooled key per complete block), `qsa_pending_keys_l*` and
+`qsa_pending_rope_l*`, the n-gram convolution `ple_conv_state_l*` and `ngram_history`, the previous
+`ngram_size - 1` tokens stored relative to the n-gram EOS token so that zero starts a sequence. A
+state with a dynamic axis starts empty. Valid key counts come from the last row of `self_kq_mask`.
+
 The output is `logits`. [`run_gguf_model`](../../../../tests/model_hub_tests/gguf/utils.py) is a
 working Python driver for two steps. This is the only route available from Python: the GGUF passes
 below have no Python bindings, and `DecoderTransformationExtension` cannot be constructed from Python.
@@ -99,8 +106,14 @@ exposes GenAI's interface. Select the mode in the `GenAIExtension` constructor:
 - Sliding-window masks use the `gguf_swa_window_size` rt_info value when the file records a window length.
 - Gated-DeltaNet states (`qwen35`, `qwen35moe`) and LFM2 short-convolution states
   (`lfm2`, `lfm2moe`) get a dynamic batch, follow `beam_idx` and mask
-  left padding. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
+  left padding. `qwen4exp` states follow `beam_idx` as well, and left-padded positions read as the
+  n-gram EOS token in the n-gram hash. Mamba 2 and `nemotron_h` states stay at one sequence: greedy, batch-1 decoding only.
   A consumer must reset, not trim, the states listed in `gguf_recurrent_states`.
+- In `EMBEDS_TO_LOGITS` mode, hashed n-gram embeddings (`qwen4exp`) move to a separate lookup
+  model, `GenAIExtension::get_ngram_embedding_model()`, with the optimum-intel IO: `input_ids [B,T]`
+  and `ngram_history [B,n-1]` (absolute ids, EOS for a new sequence) produce
+  `ngram_embeddings [B,T,1,width]` and `new_ngram_history`. The language model takes
+  `ngram_embeddings`; the caller keeps the history, resets it per sequence and reorders it for beams.
 - The pass does not create a tokenizer, sampler or pipeline, and it does not adapt encoder models.
 
 `GGUFMakeStateful` remains independently available through `DecoderTransformationExtension`
@@ -131,6 +144,11 @@ These core `ov::op::internal` operations can remain in the converted model:
 
 See [`ssm_scan.cpp`](../src/op/ssm_scan.cpp), [`gated_delta_net.cpp`](../src/op/gated_delta_net.cpp)
 and [`mul_mat_id.cpp`](../src/op/mul_mat_id.cpp) for exact selection conditions.
+
+Block-sparse attention uses the public opset17 `QSAPrepare`, `SparseAttentionIndexer` and
+`SparseAttention` operations ([`sparse_attention.cpp`](../src/op/sparse_attention.cpp)). They are
+serializable, but compiling them needs plugin kernels, which the plugins provide by fusing the index
+query RMSNorm and RoPE with the first two operations; keep that form when changing the converters.
 
 Internal operations are outside the public IR opsets. Saving IR can succeed and still produce a file
 the IR frontend cannot read back, so test the save/read round trip. Compiled-model export, import

@@ -149,7 +149,11 @@ Per-layer variation goes through `DecoderConfig` accessors, not inline ternaries
 The generic block is `norm -> QKV -> RoPE -> attention -> norm -> FFN/MoE -> residual`. Past
 extensions include MoE routing (`blocks::moe_ffn()`), gpt-oss sinks and OAI SwiGLU, jais2 biased
 LayerNorm and ReLU² FFN, gemma2/3 post-norms and soft-caps, gemma4 per-layer embeddings and shared KV,
-and qwen35 Gated DeltaNet layers that return the same sublayer output as attention. To add one:
+qwen35 Gated DeltaNet layers that return the same sublayer output as attention, and qwen4exp
+block-sparse attention (`DecoderAttention::sparse`) with its Gated DeltaNet output-gate and q/k
+normalization variants (`DecoderHybrid`). The qwen4exp
+[builder](../src/builder/arch/qwen4exp_builder.cpp) owns its hyper-connection layer order and calls
+`decoder_attention` / `decoder_ffn` for the shared sublayers. To add one:
 
 1. Describe the feature in `DecoderParameters`. Select architecture-specific values in the owning
    family helper or extension factory; retain only unambiguous structural detection in `DecoderConfig`.

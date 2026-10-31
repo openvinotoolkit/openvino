@@ -65,6 +65,8 @@ std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, con
 
 // x / max(sqrt(sum(x^2, -1)), eps), matching ggml's l2_norm.
 ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps);
+// x / sqrt(sum(x^2) + eps) over the last axis.
+ov::Output<ov::Node> make_l2_norm_eps_under_sqrt(const ov::Output<ov::Node>& x, float eps);
 
 ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input, bool matrix_form = false);
 void decompose_hadamard(ov::Output<ov::Node> input);
