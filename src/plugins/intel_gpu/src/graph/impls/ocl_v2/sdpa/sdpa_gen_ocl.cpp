@@ -1071,6 +1071,14 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
         k_pa_2d = block2d_page_ok(p.k_head_size * ov::element::Type(in.k.data_type).size()) ? 1 : 0;
     }
     jit.make("USE_2D_BLOCK_IO_K_PA", block2d_env_int("SDPA_OCL_K_PA_2D", k_pa_2d, allowed));
+    // Depth tiles db and db + 1 of the token-major f16 page in one 16b_16r16x2c read per key group: half the K messages, as
+    // the d-major page's 32-row transpose read has. SDPA_OCL_PA_K_WIDE=0/1 forces it off/on where the page read is on.
+    const bool k_pa_2d_on = block2d_env_int("SDPA_OCL_K_PA_2D", k_pa_2d, allowed) != 0;
+    jit.make("PA_K_WIDE_READS", k_pa_2d_on ? env_int("SDPA_OCL_PA_K_WIDE", 1) : 0);
+    // Depth tiles issued together (two per read), i.e. reads in flight per key group. SDPA_OCL_PA_K_WIDE_TILES overrides
+    // (an even number of at least 2).
+    const int k_wide_tiles = env_int("SDPA_OCL_PA_K_WIDE_TILES", 4);
+    jit.make("PA_K_WIDE_TILES", (k_wide_tiles >= 2 && k_wide_tiles % 2 == 0) ? k_wide_tiles : 4);
     const int k_pa_dt = pa_k_dt_jit(in);
     jit.make("USE_2D_BLOCK_IO_K_PA_DT", k_pa_dt ? 1 : 0);
     jit.make("PA_K_DT_ROWS", k_pa_dt);
