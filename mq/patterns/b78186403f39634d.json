@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "self hosted windows build runner job marked failed with no error logged in job output last log line minutes before job completion time|Infrastructure",
+  "signature_hash": "b78186403f39634d",
+  "title": "Windows self-hosted Build job fails with no error logged after Build additional Python wheels step starts",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-10-31T01:54:47Z",
+  "last_seen": "2026-10-31T01:54:47Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41145194349"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38993"
+  ],
+  "recent_timestamps": [
+    "2026-10-31T01:54:47Z"
+  ],
+  "rerun_search_string": null
+}

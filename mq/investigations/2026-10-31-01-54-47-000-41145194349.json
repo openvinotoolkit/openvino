@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-31-01-54-47-000-41145194349",
+  "timestamp": "2026-10-31T01:54:47Z",
+  "run_id": "41145194349",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41145194349",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38993",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38993",
+  "author": "olpipi",
+  "category": "Infrastructure",
+  "title": "Windows self-hosted Build job fails with no error logged after Build additional Python wheels step starts",
+  "signature": "self hosted windows build runner job marked failed with no error logged in job output last log line minutes before job completion time|Infrastructure",
+  "signature_hash": "b78186403f39634d",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Job marked failure; last log line at 01:35:16Z is a routine CMake install message inside the 'Build additional Python wheels' step, but the job did not complete until 01:45:15Z (~10 min later) with no further log output, no ##[error] line, and no exit-code message captured in the downloaded logs."
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregator step 'Check status of all jobs' exits 1 because the upstream Build job failed; this is an expected downstream consequence, not an independent root cause."
+    }
+  ],
+  "key_errors": [
+    "2026-10-31T01:35:16.7951992Z   -- Installing: C:/actions-runner/_work/openvino/openvino/openvino/build_python3.11/libs.core.dev/runtime/include/openvino/op/util/squeeze_base.hpp",
+    "(no further lines in the downloaded log for job 124368716844; job API reports completed_at=2026-10-31T01:45:15Z, conclusion=failure, with step 22 'Build additional Python wheels' still shown as status=in_progress in job metadata)",
+    "2026-10-31T01:45:32.2440669Z ##[error]Process completed with exit code 1. (from the downstream ci/gha_overall_status_windows aggregator job only)"
+  ],
+  "root_cause": "The self-hosted Windows build runner (aks-win-16-cores-32gb-build) was executing the per-Python-version wheel build loop (cmake --build/--install for ie_wheel, step 'Build additional Python wheels') when log streaming stopped mid-step. The job's own log never shows a cmake/MSVC error, a ##[error] annotation, or an explicit non-zero $LASTEXITCODE message from the PowerShell loop; it simply stops producing output ~10 minutes before GitHub marks the job 'failure'. This points to the runner process being terminated or disconnected (e.g., OOM kill, network/agent hiccup, pod eviction on the AKS-hosted runner) rather than a deterministic build/compile error in the PR's changed code. No compiler errors (cl/LNK/MSB) were found anywhere in the 14k-line log.",
+  "reproduction_steps": "N/A - not reliably reproducible locally; requires the same self-hosted Windows AKS runner infrastructure. Re-running the job is the practical verification step.",
+  "recommended_actions": [
+    "Re-run the failed 'Build / Build' job; if it passes on retry this confirms a transient runner-level interruption.",
+    "If recurring, inspect the AKS runner pod's own infrastructure logs (not available via GitHub Actions log API) around 2026-10-31T01:35-01:45Z for OOM-kill or eviction events on runner 'aks-win-16-cores-32gb-build-xxdhs-runner-xc5ms'.",
+    "Consider adding an explicit heartbeat/log-flush or a step-level timeout to 'Build additional Python wheels' in job_build_windows.yml / windows_vs2022_release.yml so a silent stall produces a clear timeout error instead of an unexplained job failure."
+  ],
+  "prevention_strategies": "Add periodic progress output (or a shorter per-step timeout) to long, log-light loops such as the multi-Python-version wheel build so a stalled/killed runner surfaces as an explicit timeout rather than a silent gap before failure. Monitor AKS Windows build runner pool health (memory pressure, eviction rate) given this is the second silent self-hosted-runner failure pattern recorded for Windows builds.",
+  "historical_context": "A closely related but distinct pattern (89059626d1cbf7b3, count=1, 2026-07-01) recorded a Windows self-hosted runner silently failing during artifact upload with no error message before the blob upload step - same 'silent failure on self-hosted Windows runner' theme but a different pipeline stage (upload vs. wheel build). This is the first occurrence of a silent stall specifically during the 'Build additional Python wheels' step; recorded as a new signature (b78186403f39634d) rather than merged with 89059626d1cbf7b3 because the affected step and surrounding context differ."
+}
