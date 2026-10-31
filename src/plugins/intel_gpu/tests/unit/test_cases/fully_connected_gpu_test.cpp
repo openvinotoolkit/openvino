@@ -5251,6 +5251,97 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
     }
 }
 
+class fully_connected_onednn_expert_zero_points_test
+    : public testing::TestWithParam<std::tuple<int64_t, bool, bool, int64_t>> {};
+
+TEST_P(fully_connected_onednn_expert_zero_points_test, per_expert_per_channel) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "oneDNN compressed FC requires IMMAD support.";
+
+    const auto [experts, transpose_b_param, is_caching_test, group_per_channel] = GetParam();
+    constexpr int64_t tokens = 2;
+    constexpr int64_t ofm = 16;
+    constexpr int64_t ifm = 64;
+    const auto scale_groups = group_per_channel;
+    const auto scale_group_size = ifm / scale_groups;
+    const size_t weights_rank = experts == 1 ? 2 : 3;
+    const auto weights_shape = experts == 1 ? ov::PartialShape{ofm, ifm}
+                                           : ov::PartialShape{experts, ofm, ifm};
+    const auto zp_shape = experts == 1
+                                  ? (transpose_b_param ? ov::PartialShape{ofm, scale_groups}
+                                                      : ov::PartialShape{scale_groups, ofm})
+                                  : (transpose_b_param ? ov::PartialShape{experts, ofm, scale_groups}
+                                                       : ov::PartialShape{experts, scale_groups, ofm});
+    const auto scale_shape = experts == 1
+                                 ? (transpose_b_param ? ov::PartialShape{ofm, scale_groups}
+                                                      : ov::PartialShape{scale_groups, ofm})
+                                 : (transpose_b_param ? ov::PartialShape{experts, ofm, scale_groups}
+                                                      : ov::PartialShape{experts, scale_groups, ofm});
+
+    auto input = engine.allocate_memory({ov::PartialShape{experts, tokens, ifm}, data_types::f16, format::bfyx});
+    auto weights = engine.allocate_memory({weights_shape, data_types::u8, format::bfyx});
+    auto scale = engine.allocate_memory({scale_shape, data_types::f16, format::bfyx});
+    auto zero_points = engine.allocate_memory({zp_shape, data_types::u8, format::bfyx});
+    set_values<ov::float16>(input, std::vector<ov::float16>(experts * tokens * ifm, ov::float16(1.0f)));
+    set_values<uint8_t>(weights, std::vector<uint8_t>(experts * ofm * ifm, 9));
+    set_values<ov::float16>(scale, std::vector<ov::float16>(experts * ofm * scale_groups, ov::float16(1.0f)));
+    std::vector<uint8_t> zp_values(experts * ofm * scale_groups);
+    const bool transpose_zp_layout = transpose_b_param;
+    const auto zp_idx = [=](int64_t expert, int64_t group, int64_t oc) {
+        return transpose_zp_layout ? static_cast<size_t>(expert * ofm * scale_groups + oc * scale_groups + group)
+                                   : static_cast<size_t>(expert * scale_groups * ofm + group * ofm + oc);
+    };
+    for (int64_t expert = 0; expert < experts; ++expert) {
+        for (int64_t group = 0; group < scale_groups; ++group) {
+            for (int64_t oc = 0; oc < ofm; ++oc) {
+                zp_values[zp_idx(expert, group, oc)] = static_cast<uint8_t>((expert + group + oc) % 8);
+            }
+        }
+    }
+    set_values<uint8_t>(zero_points, zp_values);
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        data("scale", scale),
+        data("zero_points", zero_points),
+        fully_connected("fc", input_info("input"), "weights", "", "scale", "zero_points",
+                        data_types::f16, 3, weights_rank, true, transpose_b_param, transpose_b_param));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    const ov::intel_gpu::ImplementationDesc impl = {format::bfyx, "", impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc", impl}}));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    ASSERT_TRUE(network->get_primitive("fc")->get_impl()->is_onednn());
+    network->set_input_data("input", input);
+    auto output = network->execute().at("fc").get_memory();
+    ASSERT_EQ(output->get_layout().get_partial_shape(), (ov::PartialShape{experts, tokens, ofm}));
+    mem_lock<ov::float16, mem_lock_type::read> result(output, get_test_stream());
+    ASSERT_EQ(result.size(), static_cast<size_t>(experts * tokens * ofm));
+    for (int64_t expert = 0; expert < experts; ++expert) {
+        for (int64_t token = 0; token < tokens; ++token) {
+            for (int64_t oc = 0; oc < ofm; ++oc) {
+                const auto idx = (expert * tokens + token) * ofm + oc;
+                float expected = 0.0f;
+                for (int64_t group = 0; group < scale_groups; ++group) {
+                    expected += static_cast<float>(scale_group_size * (9 - zp_values[zp_idx(expert, group, oc)]));
+                }
+                EXPECT_FLOAT_EQ(static_cast<float>(result[idx]), expected)
+                    << "expert=" << expert << ", token=" << token << ", oc=" << oc;
+            }
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_onednn_expert_zero_points_test,
+                         testing::Combine(testing::Values(int64_t{1}, int64_t{64}),
+                                          testing::Bool(),
+                                          testing::Bool(),
+                                          testing::Values(int64_t{1}, int64_t{2})));
+
 TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
     tests::random_generator rg(GET_SUITE_NAME);
 
