@@ -10,8 +10,8 @@
 
 namespace ov::npuw::pa {
 
-// Host copies of one dispatch's control tensors, so the checks below are pure
-// functions.
+// Host copies of one dispatch's control tensors, so the checks and the chunk
+// planning below are pure functions.
 struct Dispatch {
     std::vector<int32_t> past_lens;
     std::vector<int32_t> subsequence_begins;
@@ -36,9 +36,36 @@ struct Dispatch {
 // 0 skips the block-table coverage check.
 void validate_dispatch(const Dispatch& dispatch, std::size_t block_size, std::size_t dispatch_idx);
 
-// True when the dispatch runs chunked over the variants: some subsequence fills
-// a multi-token variant, or it is a single-sequence decode. A decode batch or a
-// short prefill stays one 1:1 infer, which chunking would only serialize.
-bool variants_serve(const Dispatch& dispatch, const std::vector<std::size_t>& chunk_sizes);
+// One variant infer: rows [begin, begin + tokens) of the flat token axis, run
+// on the variant for chunk_size rows. The rows past tokens are padding.
+struct Chunk {
+    int64_t begin = 0;
+    int64_t tokens = 0;
+    std::size_t chunk_size = 0;
+};
+
+// Splits the flat token axis into chunks, regardless of subsequence
+// boundaries. A chunk holds at most max_sampled sampled rows. Within that it
+// takes the largest chunk size that fits the rows left, the 1-token one only
+// for a single row; otherwise the rows pad into the smallest chunk size that
+// holds them. No chunk of size n samples more than min(n, max_sampled) rows.
+std::vector<Chunk> plan_chunks(const Dispatch& dispatch,
+                               const std::vector<std::size_t>& chunk_sizes,
+                               std::size_t max_sampled);
+
+// The controls of one chunk. Every subsequence the chunk cuts becomes one
+// subsequence of the chunk, rebased past its rows sent before and with its
+// full block table. sampled_tokens_indices are local to the chunk, and
+// logits_rows gives the row of each in the caller's logits.
+struct ChunkControls {
+    std::vector<int32_t> past_lens;
+    std::vector<int32_t> subsequence_begins;
+    std::vector<int32_t> block_indices;
+    std::vector<int32_t> block_indices_begins;
+    std::vector<int64_t> sampled_tokens_indices;
+    std::vector<std::size_t> logits_rows;
+};
+
+ChunkControls chunk_controls(const Dispatch& dispatch, const Chunk& chunk);
 
 }  // namespace ov::npuw::pa
