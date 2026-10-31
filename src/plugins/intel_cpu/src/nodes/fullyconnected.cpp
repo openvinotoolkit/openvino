@@ -107,7 +107,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
     // f16 is accepted only for fp8 weights, see isSupportedCompressedOperation()
     return {Type_t::f32, Type_t::bf16, Type_t::f16};
 #elif defined(OV_CPU_WITH_KLEIDIAI)
-    return {Type_t::f32};
+    return {Type_t::f32, Type_t::f16};
 #else
     return {};
 #endif
@@ -500,6 +500,13 @@ void FullyConnected::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool FullyConnected::canFuse(const NodePtr& node) const {
+#if defined(OV_CPU_WITH_KLEIDIAI)
+    // Only Kleidiai kernels supports dynamic quantization for ARM and
+    // it doesn't support postOps fusion currently.
+    if (context->getConfig().fcDynamicQuantizationGroupSize == UINT64_MAX) {
+        return false;
+    }
+#endif
     if (node->getType() == Type::FakeQuantize) {
         auto* fq = dynamic_cast<FakeQuantize*>(node.get());
         if (!fq) {

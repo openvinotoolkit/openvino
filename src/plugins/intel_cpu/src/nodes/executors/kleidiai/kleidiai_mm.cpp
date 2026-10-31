@@ -52,7 +52,6 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
     if (!hasArmISASupport(ArmISA::DOTPROD) && !hasArmISASupport(ArmISA::I8MM)) {
         return false;
     }
-
     return weightDesc->getPrecision() == element::i8 || weightDesc->getPrecision() == element::i4 ||
            weightDesc->getPrecision() == element::u4;
 }
@@ -67,7 +66,15 @@ bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
     if (weiPrec == element::u4 && config.attrs.weightsNonTransposed) {
         return false;
     }
-
+    // TODO: Support FP16 dotProd kernel
+    if (config.descs.at(ARG_SRC)->getPrecision() == element::f16 && weiPrec == element::u4 &&
+        !hasArmISASupport(ArmISA::I8MM)) {
+        return false;
+    }
+    if (config.descs.at(ARG_WEI)->getPrecision() == element::f32 &&
+        config.descs.at(ARG_SRC)->getPrecision() == element::f16) {
+        return false;
+    }
     return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
            useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
@@ -89,6 +96,7 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context)
     : executorContext(context) {
+    useDynamicQuantizationImpl(attrs, memory.at(ARG_WEI)->getDescPtr());
     auto srcMem = memory.at(ARG_SRC);
     auto weiMem = memory.at(ARG_WEI);
     auto weiDims = weiMem->getDesc().getShape().getDims();
@@ -97,7 +105,16 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
 
     const bool hasBias = !memory.at(ARG_BIAS)->getDesc().empty();
     if (hasBias) {
-        biasMem = memory.at(ARG_BIAS);
+        if (memory.at(ARG_BIAS)->getDescPtr()->getPrecision() == element::f16) {
+            auto biasDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({N}));
+            auto* biasMem = std::make_shared<Memory>(context->getEngine(), biasDesc)->getDataAs<float>();
+            auto* biasf16ptr = static_cast<float16_t*>(memory.at(ARG_BIAS)->getData());
+            for (size_t i = 0; i < N; ++i) {
+                biasMem[i] = biasf16ptr[i];
+            }
+        } else {
+            biasMem = memory.at(ARG_BIAS);
+        }
     } else {
         auto biasDesc = std::make_shared<CpuBlockedMemoryDesc>(f32, Shape({N}));
         biasMem = std::make_shared<Memory>(context->getEngine(), biasDesc);
@@ -115,12 +132,14 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
     auto dnnlSrcDesc = MemoryDescUtils::convertToDnnlMemoryDesc(originalWeightsDesc);
 
     kernelLookupKey = 0;
-
     const bool useDynamicQuant = useDynamicQuantizationImpl(attrs, originalWeightsDesc);
     if (!useDynamicQuant) {
         kernelLookupKey = kernelLookup::WEIGHT_FP32;
     } else {
         const auto weightPrecision = memory.at(ARG_WEI)->getDescPtr()->getPrecision();
+        if (srcMem->getDescPtr()->getPrecision() == element::f16) {
+            kernelLookupKey |= kernelLookup::INFERENCE_FP16;
+        }
         if (weightPrecision == element::i4 || weightPrecision == element::u4) {
             kernelLookupKey |= kernelLookup::WEIGHT_INT4;
         } else if (weightPrecision == element::i8) {
@@ -149,7 +168,21 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
 
     const auto packQuantizedWeights = [&](bool isTransposed, const MemoryCPtr& weightsMemory) {
         createPackedMemory(_kernel->get_rhsPackedSize(), i8);
-        auto* rhsScales = static_cast<float*>(memory.at(ARG_WEI | ARG_ATTR_SCALES)->getData());
+        float* rhsScales = nullptr;
+        MemoryPtr scalesMemory = nullptr;
+        if (memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDescPtr()->getPrecision() == element::f16) {
+            auto desc =
+                std::make_shared<CpuBlockedMemoryDesc>(f32,
+                                                       memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDescPtr()->getShape());
+            scalesMemory = std::make_shared<Memory>(context->getEngine(), desc);
+            rhsScales = scalesMemory->getDataAs<float>();
+            auto* scalesF16Ptr = static_cast<float16_t*>(memory.at(ARG_WEI | ARG_ATTR_SCALES)->getData());
+            for (size_t i = 0; i < desc->getShape().getElementsCount(); ++i) {
+                rhsScales[i] = scalesF16Ptr[i];
+            }
+        } else {
+            rhsScales = static_cast<float*>(memory.at(ARG_WEI | ARG_ATTR_SCALES)->getData());
+        }
         std::vector<float> transposedScales;
         if (isTransposed && isGroupQuantizationEnabled(memory)) {
             const auto numGroups = memory.at(ARG_WEI | ARG_ATTR_SCALES)->getDesc().getShape().getStaticDims()[1];
@@ -181,6 +214,15 @@ MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
         _kernel->packData(false, packedWeights, biasMem, hasBias, nullptr, rhsPackedMem);
         break;
     }
+
+    case WEIGHT_INT4 | ISA_I8MM | QUANT_GROUP | QUANT_ASYMMETRIC | INFERENCE_FP16:
+        _kernel =
+            std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP_ASYM_F16>>(N,
+                                                                                                        K,
+                                                                                                        lhsPackedMem,
+                                                                                                        memory);
+        packQuantizedWeights(attrs.weightsNonTransposed, memory.at(ARG_WEI));
+        break;
 
     case WEIGHT_INT4 | ISA_I8MM | QUANT_GROUP | QUANT_SYMMETRIC:
         _kernel = std::make_shared<kai_common::uKernel<kai_common::KAIKernelTag::I4_NEON_IMM_GROUP>>(N,
