@@ -595,6 +595,8 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._sdpa_indices.present_key, rhs._sdpa_indices.present_key);
     EXPECT_EQ(lhs._sdpa_indices.present_value, rhs._sdpa_indices.present_value);
     EXPECT_EQ(lhs._sdpa_indices.attention_mask, rhs._sdpa_indices.attention_mask);
+    EXPECT_EQ(lhs._sdpa_indices.attention_scale, rhs._sdpa_indices.attention_scale);
+    EXPECT_EQ(lhs._sdpa_indices.attention_sink, rhs._sdpa_indices.attention_sink);
     EXPECT_EQ(lhs._tile_input_indices.q, rhs._tile_input_indices.q);
     EXPECT_EQ(lhs._tile_input_indices.k, rhs._tile_input_indices.k);
     EXPECT_EQ(lhs._tile_input_indices.v, rhs._tile_input_indices.v);
@@ -602,6 +604,15 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._tile_input_indices.acc, rhs._tile_input_indices.acc);
     EXPECT_EQ(lhs._tile_input_indices.max, rhs._tile_input_indices.max);
     EXPECT_EQ(lhs._tile_input_indices.d, rhs._tile_input_indices.d);
+    EXPECT_EQ(lhs._tile_input_indices.scale, rhs._tile_input_indices.scale);
+    EXPECT_EQ(lhs._final_tile_input_indices.q, rhs._final_tile_input_indices.q);
+    EXPECT_EQ(lhs._final_tile_input_indices.k, rhs._final_tile_input_indices.k);
+    EXPECT_EQ(lhs._final_tile_input_indices.v, rhs._final_tile_input_indices.v);
+    EXPECT_EQ(lhs._final_tile_input_indices.mask, rhs._final_tile_input_indices.mask);
+    EXPECT_EQ(lhs._final_tile_input_indices.acc, rhs._final_tile_input_indices.acc);
+    EXPECT_EQ(lhs._final_tile_input_indices.max, rhs._final_tile_input_indices.max);
+    EXPECT_EQ(lhs._final_tile_input_indices.d, rhs._final_tile_input_indices.d);
+    EXPECT_EQ(lhs._final_tile_input_indices.scale, rhs._final_tile_input_indices.scale);
     EXPECT_EQ(lhs._tile_output_indices.acc, rhs._tile_output_indices.acc);
     EXPECT_EQ(lhs._tile_output_indices.max, rhs._tile_output_indices.max);
     EXPECT_EQ(lhs._tile_output_indices.d, rhs._tile_output_indices.d);
@@ -1159,7 +1170,12 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     var._sdpa_attention_info._k_seq_dim = 1;
     var._sdpa_attention_info._v_seq_dim = 2;
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
+    var._sdpa_attention_info._sdpa_indices.attention_scale = 9;
+    var._sdpa_attention_info._sdpa_indices.attention_sink = 9;
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
+    var._sdpa_attention_info._tile_input_indices.scale = 16;
+    var._sdpa_attention_info._final_tile_input_indices = {17, 18, 19, 20, 21, 22, 23};
+    var._sdpa_attention_info._final_tile_input_indices.scale = 24;
     var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
     var._past_tile_size = 64;
     var._final_tile_size = 8;
@@ -1193,6 +1209,28 @@ TEST(SerializationTest, OVTypes_HostFlashAttention_OOBTileIndexRejected) {
     var._past_tile_size = 64;
     var._final_tile_size = 8;
     var._can_use_tensor_view = true;
+
+    ov::npuw::compiled::HostFlashAttention res;
+    std::stringstream ss;
+    write(ss, var);
+    EXPECT_THROW(read(ss, res), ov::Exception);
+}
+
+TEST(SerializationTest, OVTypes_HostFlashAttention_OOBFinalTileIndexRejected) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention var;
+    var._sdpa_attention_info._tile_input_indices = {0, 1, 2, 3, 4, 5, 6};
+    var._sdpa_attention_info._final_tile_input_indices = {
+        7,
+        8,
+        9,
+        10,
+        std::numeric_limits<std::size_t>::max(),
+        12,
+        13,
+    };
+    var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
 
     ov::npuw::compiled::HostFlashAttention res;
     std::stringstream ss;
@@ -1299,6 +1337,7 @@ ov::npuw::compiled::HostFlashAttention make_deserialized_hfa(std::size_t k_seq_d
     source._sdpa_attention_info._v_seq_dim = v_seq_dim;
     source._sdpa_attention_info._sdpa_indices = {0, {0}, {0}, 0, 0, 0};
     source._sdpa_attention_info._tile_input_indices = {0, 1, 2, 3, 0, 1, 2};
+    source._sdpa_attention_info._final_tile_input_indices = source._sdpa_attention_info._tile_input_indices;
     source._sdpa_attention_info._tile_output_indices = {0, 1, 2};
     source._past_tile_size = 8;
     source._final_tile_size = 8;
@@ -1330,6 +1369,7 @@ TEST(SerializationTest, HostFlashAttention_OutOfRangeTileIndexRejectedAfterDeser
     var._sdpa_attention_info._sdpa_indices = {0, {0}, {0}, 0, 0, 0};
     // Only 3 inputs will exist on the compiled tile models below, so index 999 is out of range.
     var._sdpa_attention_info._tile_input_indices = {999, 1, 2, 3, 0, 1, 2};
+    var._sdpa_attention_info._final_tile_input_indices = {0, 1, 2, 3, 0, 1, 2};
     var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
     var._past_tile_size = 8;
     var._final_tile_size = 8;
@@ -1388,12 +1428,77 @@ TEST(SerializationTest, HostFlashAttention_MaskSkippingConfigurationAccepted) {
                                                     /*acc=*/0,
                                                     /*max=*/1,
                                                     /*d=*/2};
+    hfa._sdpa_attention_info._final_tile_input_indices = hfa._sdpa_attention_info._tile_input_indices;
     hfa._compiled_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/6, /*num_outputs=*/3);
     hfa._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/7, /*num_outputs=*/3);
     EXPECT_TRUE(hfa.is_valid());
 
     hfa._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/6, /*num_outputs=*/3);
     EXPECT_FALSE(hfa.is_valid());
+}
+
+TEST(SerializationTest, HostFlashAttention_IndependentFinalTileIndicesValidated) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+    auto& final_indices = hfa._sdpa_attention_info._final_tile_input_indices;
+    const auto valid_indices = final_indices;
+    const std::size_t invalid_index = hfa._compiled_final_tile_model->inputs().size();
+
+    for (auto index : {&final_indices.q,
+                       &final_indices.k,
+                       &final_indices.v,
+                       &final_indices.mask,
+                       &final_indices.acc,
+                       &final_indices.max,
+                       &final_indices.d}) {
+        final_indices = valid_indices;
+        *index = invalid_index;
+        EXPECT_FALSE(hfa.is_valid());
+    }
+    final_indices = valid_indices;
+    EXPECT_TRUE(hfa.is_valid());
+}
+
+TEST(SerializationTest, HostFlashAttention_ScaleIndicesValidatedIndependently) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+    hfa._sdpa_attention_info._tile_input_indices.scale = 2;
+    hfa._sdpa_attention_info._final_tile_input_indices.scale = 3;
+    EXPECT_TRUE(hfa.is_valid());
+
+    hfa._sdpa_attention_info._tile_input_indices.scale = 3;
+    EXPECT_FALSE(hfa.is_valid());
+
+    hfa._sdpa_attention_info._tile_input_indices.scale = 2;
+    hfa._sdpa_attention_info._final_tile_input_indices.scale = 4;
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+TEST(SerializationTest, HostFlashAttention_MaskCacheUsesIndependentFinalTileIndex) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+    auto plugin = std::make_shared<HFAFakePlugin>();
+    auto regular_model = make_hfa_stub_model(7, 3);
+    auto final_model = make_hfa_stub_model(8, 3);
+    final_model->get_parameters()[6]->set_partial_shape(ov::Shape{1, 1, 8, 8});
+    final_model->validate_nodes_and_infer_types();
+    hfa._compiled_tile_model =
+        ov::SoPtr<ov::ICompiledModel>(std::make_shared<HFAFakeCompiledModel>(regular_model, plugin));
+    hfa._compiled_final_tile_model =
+        ov::SoPtr<ov::ICompiledModel>(std::make_shared<HFAFakeCompiledModel>(final_model, plugin));
+    hfa._sdpa_attention_info._tile_input_indices = {5, 3, 4, 0, 0, 1, 2};
+    hfa._sdpa_attention_info._tile_input_indices.scale = 6;
+    hfa._sdpa_attention_info._final_tile_input_indices = {5, 3, 4, 6, 0, 1, 2};
+    hfa._sdpa_attention_info._final_tile_input_indices.scale = 7;
+    ASSERT_TRUE(hfa.is_valid());
+
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext runtime_context;
+    std::vector<ov::Shape> allocated_shapes;
+    runtime_context.initialize_mask_cache(hfa,
+                                          "CPU",
+                                          [&](const ov::element::Type&, const ov::Shape& shape, const std::string&) {
+                                              allocated_shapes.push_back(shape);
+                                              return ov::SoPtr<ov::ITensor>{};
+                                          });
+    EXPECT_EQ(allocated_shapes, (std::vector<ov::Shape>{{1, 1, 8, 8}}));
+    EXPECT_TRUE(runtime_context.m_mask_tile_buffers.empty());
 }
 
 // _context_size feeds the mask tile buffer allocation loop in
