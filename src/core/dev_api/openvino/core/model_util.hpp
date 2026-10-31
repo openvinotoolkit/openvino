@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <string_view>
 #include <unordered_map>
 
 #include "openvino/core/core_visibility.hpp"
@@ -94,5 +95,19 @@ OPENVINO_API void set_tensors_names(const AutoTag&,
                                     Model& model,
                                     const TensorNamesMap& inputs_names = {},
                                     const TensorNamesMap& outputs_names = {});
+
+/** @brief Key of the rt_info entry a frontend may set with a human-readable model identifier
+ * (e.g. a Hugging Face repo id), read back by #get_model_source_id.
+ */
+inline constexpr std::string_view model_source_id_rt_info_key = "MODEL_SOURCE_ID";
+
+/** @brief Get a human-readable model identifier for diagnostics/telemetry (e.g. ITT task names).
+ *
+ * Returns rt_info[#model_source_id_rt_info_key] when a frontend has set one, otherwise falls
+ * back to Model::get_friendly_name().
+ *
+ * @param model Model to get the identifier for.
+ */
+OPENVINO_API std::string get_model_source_id(const Model& model);
 
 }  // namespace ov::util

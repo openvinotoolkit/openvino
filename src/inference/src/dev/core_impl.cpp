@@ -1161,7 +1161,8 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name, const s
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const std::string& device_name,
                                                           const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::model");
+    OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::LoadTime,
+                            "Core::compile_model::model::" + ov::util::get_model_source_id(*model_));
     auto patched_device_name = device_name;
     auto config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
@@ -1202,7 +1203,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<const ov::Model>& model_,
                                                           const ov::SoPtr<ov::IRemoteContext>& context,
                                                           const ov::AnyMap& config) const {
-    OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::LoadTime, "Core::compile_model::RemoteContext");
+    OV_ITT_SCOPED_TASK_BASE(ov::itt::domains::LoadTime,
+                            "Core::compile_model::RemoteContext::" + ov::util::get_model_source_id(*model_));
     if (!context)
         OPENVINO_THROW("Remote context is null");
     auto device_name = context->get_device_name();
