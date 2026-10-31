@@ -4,8 +4,8 @@
 
 add_subdirectory(logger)
 
+add_subdirectory(zero)
+add_subdirectory(vm)
 if(ENABLE_NPU_PLUGIN_ENGINE)
     add_subdirectory(vcl)
-    add_subdirectory(zero)
-    add_subdirectory(vm)
 endif()
