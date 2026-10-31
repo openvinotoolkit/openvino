@@ -43,6 +43,10 @@ TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
 
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
+    // sdpa_ocl reads only the token-major u4 page: on a d-major one (OV_GPU_PA_K_TOKEN_MAJOR=0) this lane has no DPAS MIXED
+    // kernel to pin.
+    if (backend == tests::dpas_backend::ocl && !pam.k_cache_token_major())
+        GTEST_SKIP() << "d-major K page (OV_GPU_PA_K_TOKEN_MAJOR=0): sdpa_ocl does not read it, the MIXED fallback runs";
 
     for (size_t sequence = 0; sequence < pam.subsequence_descs.size(); ++sequence) {
         std::fill(pam.query_data[sequence].begin(), pam.query_data[sequence].end(), ov::float16{8.0f});
@@ -582,6 +586,8 @@ TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
         GTEST_SKIP() << "sdpa_ocl is not this device's DPAS kernel (pre-Xe2 without TEST_USE_SDPA_OCL_HPG=1 or a ready tier, TEST_USE_SDPA_OCL=0, or no oneDNN)";
 
     ASSERT_TRUE(this->pam.has_value());
+    if (!this->pam->k_cache_token_major())
+        GTEST_SKIP() << "d-major K page (OV_GPU_PA_K_TOKEN_MAJOR=0): sdpa_ocl does not read it, the MIXED fallback runs";
 
     auto result = run_gpu_inference(*this->pam, p);
     auto pa_inst = result.network->get_primitive("paged_attention");
@@ -1503,44 +1509,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_qq_bias, qq_bias_test, ::testing::ValuesIn(std::v
     paged_attention_test_params{ {{4, 20}, {2, 32}, {4, 25}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, ENABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{{1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}, {1, 0, 1, 1}, {1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1}}}, {0, 16, 20, 36}} },
 
     // GENERATE (decode) with qq_bias, no scores output. GENERATE is one new token per sequence, so the
-    // tree mask is the 1x1 identity and the result is the plain causal one. qq_bias keeps the BY_CHANNEL
-    // K page d-major (paged_attention::by_channel_token_major_readable(): EAGLE3 reorders the cache with
-    // the d-major pa_kv_cache_reorder), so these run pa_single_token; smoke_qq_bias_token_major below
-    // runs the same cases on the token-major page, i.e. through sdpa_ocl_decode.
+    // tree mask is the 1x1 identity and the result is the plain causal one. Where the BY_CHANNEL K page is
+    // token-major (paged_attention::by_channel_token_major_readable(); EAGLE3's pa_kv_cache_reorder reads it too)
+    // these run sdpa_ocl_decode, elsewhere pa_single_token; smoke_qq_bias_d_major below runs the same cases on the
+    // d-major page everywhere.
     paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{1}}, {0, 1}} },
     paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{1}}, {0, 1}} },
 
     // MIXED with qq_bias, no scores output. The tree mask covers only the NEW tokens, so past_len
-    // contributes keys that are never masked by qq_bias. d-major here, so pa_multi_token; the
-    // sdpa_ocl MIXED qq_bias path is covered by smoke_qq_bias_token_major below.
+    // contributes keys that are never masked by qq_bias. sdpa_ocl on the token-major page, pa_multi_token on the
+    // d-major one (smoke_qq_bias_d_major below).
     paged_attention_test_params{ {{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8}) },
     paged_attention_test_params{ {{8, 34}, {64, 0}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8, 0}) },
 }));
 
-// The BY_CHANNEL qq_bias cases of smoke_qq_bias on the token-major K page the plugin currently withholds
-// from qq_bias models, so sdpa_ocl_decode (GENERATE) and sdpa_ocl (MIXED) keep their qq_bias coverage until
-// pa_kv_cache_reorder can read that page. The reader check in PagedAttentionOptImpl::update_rt_params()
-// throws if a d-major kernel were picked for it, so passing also proves the token-major readers ran.
-class qq_bias_token_major_test : public PagedAttentionTest<paged_attention_test_params> {};
-TEST_P(qq_bias_token_major_test, basic) {
+// The BY_CHANNEL qq_bias cases of smoke_qq_bias on a d-major K page, which the plugin now only creates off the sdpa_ocl
+// lane, so pa_single_token (GENERATE) and pa_multi_token (MIXED) keep their qq_bias coverage on every device. Every
+// consumer reads the layout off the cache shape, so the forced page needs nothing else.
+class qq_bias_d_major_test : public PagedAttentionTest<paged_attention_test_params> {};
+TEST_P(qq_bias_d_major_test, basic) {
     auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
-    if (!cldnn::paged_attention::k_by_channel_token_major())
-        GTEST_SKIP() << "OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR=0: no token-major BY_CHANNEL page";
-    cldnn::paged_attention::by_channel_tm_op_info op;
-    op.k_head_size = static_cast<size_t>(p.k_head_size);
-    op.v_head_size = static_cast<size_t>(p.v_head_size);
-    op.heads_num = static_cast<size_t>(p.num_heads);
-    op.kv_heads_num = static_cast<size_t>(p.num_kv_heads);
-    if (!PagedAttentionManager::by_channel_token_major_readable_on(engine, {op}))
-        GTEST_SKIP() << "sdpa_ocl / sdpa_ocl_decode do not serve this case on this device";
-
-    pam.force_k_cache_token_major = true;
+    pam.force_k_cache_token_major = false;
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_qq_bias_token_major, qq_bias_token_major_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+INSTANTIATE_TEST_SUITE_P(smoke_qq_bias_d_major, qq_bias_d_major_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{
     paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{1}}, {0, 1}} },
     paged_attention_test_params{ {{1, 515}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, QueryToQueryAttentionDescriptor{{{1}}, {0, 1}} },
     paged_attention_test_params{ {{8, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, DISABLE_DIVERSITY, 0, {}, false, std::nullopt, std::nullopt, ov::element::dynamic, true, make_tree_qq_bias({8}) },
@@ -1761,7 +1756,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_gqa_multi_tokens, paged_attention
     make_gqa_multi_tokens_params({{8, 300}}, 6, 2, 64),
 
     // Sharp softmax per cache layout: with the plain data a misread K or a permuted V head dim stays within tolerance.
-    // Token-major pages on Xe2: u4 / i8 BY_CHANNEL by default, f16 / i8 BY_TOKEN with OV_GPU_PA_K_TOKEN_MAJOR=1.
+    // Token-major pages on the Xe2+ sdpa_ocl lane, every cache precision (OV_GPU_PA_K_TOKEN_MAJOR=0 runs them d-major).
     sharp_softmax(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128)),
     sharp_softmax(make_gqa_multi_tokens_params({{8, 35}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_TOKEN)),
     sharp_softmax(make_gqa_multi_tokens_params({{8, 300}}, 8, 2, 128, ov::element::i8, ov::internal::CacheQuantMode::BY_CHANNEL)),
@@ -2381,8 +2376,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_rotation_content, kv_cache_rotation_cont
     paged_attention_test_params{ {{34, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
     paged_attention_test_params{ {{34, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 },
     paged_attention_test_params{ {{4, 96}}, 8, 2, 32, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
-    // BY_CHANNEL staging switch coverage. MIXED exercises sdpa_ocl when token-major is enabled;
-    // GENERATE exercises sdpa_ocl_decode. With the switch disabled, the same cases validate the
+    // BY_CHANNEL page coverage. On a token-major page MIXED exercises sdpa_ocl and GENERATE sdpa_ocl_decode.
+    // With OV_GPU_PA_K_TOKEN_MAJOR=0 (or off the sdpa_ocl lane), the same cases validate the
     // legacy d-major rotate path before the fallback attention kernels consume it.
     paged_attention_test_params{ {{4, 96}}, 2, 2, 32, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_TOKEN_ROTATION, DISABLE_FA_V2 },
     paged_attention_test_params{ {{1, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2 },

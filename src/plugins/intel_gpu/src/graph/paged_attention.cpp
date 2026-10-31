@@ -67,19 +67,18 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
 
     // Both INT4 and INT8 BY_CHANNEL use {0,1,3,2} dim order (block_size at dim[3]).
     // Token-major K uses {0,1,2,3}, so block_size moves to dim[2] as for XAttention.
-    // Feed the predicate the PHYSICAL cache type, except for INT4 -- that packs into u8, so only the
-    // config precision (key_cache_dt) can tell it apart from a real u8 BY_TOKEN cache.
     // A token-major BY_CHANNEL page keeps the SAME size (k_head_size * (block_size + 4)), so
     // expected_block_size above is still the adjusted 20 -- it just moves from dim 3 to dim 2 with the
-    // rest of the token-major dim order. The BY_CHANNEL half is read off the PHYSICAL cache shape
-    // (the block-size dim landing at dim[2] is what makes it token-major), matching the single
-    // layout decision made in transformations_pipeline.cpp.
+    // rest of the token-major dim order. The layout decided once in transformations_pipeline.cpp is read
+    // back off the PHYSICAL cache shape; the rule gets the config precision for INT4, which packs into u8.
     const auto k_cache_precision =
         is_int4 ? key_cache_dt : ov::element::Type(impl_param.get_input_layout(key_cache_idx).data_type);
-    const bool k_token_major =
-        cldnn::paged_attention::k_token_major_for(k_cache_precision, desc->is_key_by_channel) ||
-        (desc->is_key_by_channel &&
-         cldnn::paged_attention::k_by_channel_token_major_layout(key_cache_ps, expected_block_size));
+    const bool k_token_major = !desc->has_xattention &&
+                               cldnn::paged_attention::k_cache_token_major(impl_param.get_device_info(),
+                                                                           key_cache_ps,
+                                                                           expected_block_size,
+                                                                           k_cache_precision,
+                                                                           desc->is_key_by_channel);
     const auto block_size_idx = (desc->has_xattention || k_token_major) ? 2 : 3;
     bool valid_block_size = key_cache_ps.is_dynamic() ||
                             (key_cache_ps[block_size_idx].get_length() == static_cast<ov::Dimension::value_type>(expected_block_size));
