@@ -935,11 +935,6 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
         const auto can_reuse = is_rolling && layout_match;
         GPU_DEBUG_TRACE_DETAIL << id() << ": current_len=" << current_len << " last_len=" << last_len << ", layout " << (layout_match ? "match" : "changed")
                                << ", sdpa buffer:" << (can_reuse ? " reuse" : " release") << std::endl;
-        if (current_len == last_len) {
-            OPENVINO_ASSERT(_outputs[1]->get_layout().get_partial_shape() == target_layout.get_partial_shape(),
-                            "[GPU] Unexpected SDPA output shape change for stateless_kv node ",
-                            id());
-        }
         if (!can_reuse){
             memory_pool.release_memory(_outputs[1].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
             _outputs[1] = nullptr;
