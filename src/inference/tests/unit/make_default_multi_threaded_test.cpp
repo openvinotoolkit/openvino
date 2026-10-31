@@ -21,6 +21,7 @@ struct MakeDefaultMultiThreadsTestCase {
     std::vector<std::vector<int>> _proc_type_table;
     int _num_streams;
     std::vector<std::vector<int>> _streams_info_table;
+    bool _cores_limit = true;
 };
 
 class MakeDefaultMultiThreadsTest : public ov::test::TestsCommon,
@@ -35,10 +36,21 @@ public:
         cpu._numa_nodes =
             test_data._proc_type_table.size() > 1 ? static_cast<int>(test_data._proc_type_table.size()) - 1 : 1;
 
-        ov::threading::IStreamsExecutor::Config config{"make default multi threads test", test_data._num_streams};
+        ov::threading::IStreamsExecutor::Config config{"make default multi threads test",
+                                                       test_data._num_streams,
+                                                       0,
+                                                       ov::hint::SchedulingCoreType::ANY_CORE,
+                                                       false,
+                                                       false,
+                                                       test_data._cores_limit};
         auto streamsConfig = ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(config);
 
         ASSERT_EQ(streamsConfig.get_streams_info_table(), test_data._streams_info_table);
+        if (!test_data._cores_limit) {
+            ASSERT_EQ(streamsConfig.get_streams(), test_data._num_streams);
+            ASSERT_EQ(streamsConfig.get_threads(), test_data._num_streams);
+            ASSERT_EQ(streamsConfig.get_threads_per_stream(), 0);
+        }
     }
 };
 
@@ -149,6 +161,27 @@ MakeDefaultMultiThreadsTestCase _pecore32_streams_5 = {
     },
 };
 
+// Regression test for issue #39171: infinite loop when requested streams exceed available cores
+// with cores_limit=false. Synthetic topology: ALL=4, MAIN=2, EFFICIENT=2, requested streams=5.
+// With cores_limit=false, the requested stream count is preserved and stream allocation remains delegated.
+MakeDefaultMultiThreadsTestCase _infinite_loop_regression_39171 = {
+    {
+        {4, 2, 2, 0, 0, 0, 0},
+    },
+    5,
+    {},
+    false,
+};
+
+MakeDefaultMultiThreadsTestCase _feasible_no_core_limit_39171 = {
+    {
+        {4, 2, 2, 0, 0, 0, 0},
+    },
+    4,
+    {},
+    false,
+};
+
 TEST_P(MakeDefaultMultiThreadsTest, MakeDefaultMultiThreads) {}
 
 INSTANTIATE_TEST_SUITE_P(smoke_MakeDefaultMultiThreads,
@@ -160,6 +193,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MakeDefaultMultiThreads,
                                          _pecore24_streams_1,
                                          _pecore24_streams_3,
                                          _pecore32_streams_1,
-                                         _pecore32_streams_5));
+                                         _pecore32_streams_5,
+                                         _infinite_loop_regression_39171,
+                                         _feasible_no_core_limit_39171));
 #endif
 }  // namespace
