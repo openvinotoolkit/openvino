@@ -50,6 +50,10 @@ namespace pass {
 ///                     ┌────┴────┐
 ///                     │  Output │
 ///                     └─────────┘
+///
+/// A where-style mask Select(cond, scores, fill) is fused as the additive mask Select(cond, 0, fill) when
+/// fill is -inf or the lowest value of the score type. Exact for -inf and lowest f32/bf16. For lowest f16,
+/// fully masked rows differ. A masked-out score that is +inf/NaN is not handled.
 class TRANSFORMATIONS_API SDPAFusionMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("SDPAFusionMatcher", "0");

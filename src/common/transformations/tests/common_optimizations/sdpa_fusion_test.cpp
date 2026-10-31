@@ -4,13 +4,19 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/sdpa_fusion.hpp>
+#include <transformations/op_conversions/convert_convertlike.hpp>
+#include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
 #include <transformations/utils/utils.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -18,8 +24,10 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reduce_max.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
@@ -29,6 +37,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/constant_folding.hpp"
 
 using namespace std;
 using namespace testing;
@@ -39,6 +48,24 @@ using namespace ov::element;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+
+namespace {
+// Constant of `type` and `shape` filled with `value`. Built from the raw bytes because Constant::create
+// range-checks its input and rejects -inf for f16/bf16.
+std::shared_ptr<v0::Constant> make_fill_constant(const element::Type& type, const Shape& shape, float value) {
+    const size_t size = shape_size(shape);
+    if (type == element::f16) {
+        const std::vector<ov::float16> data(size, ov::float16(value));
+        return std::make_shared<v0::Constant>(type, shape, data.data());
+    }
+    if (type == element::bf16) {
+        const std::vector<ov::bfloat16> data(size, ov::bfloat16(value));
+        return std::make_shared<v0::Constant>(type, shape, data.data());
+    }
+    return v0::Constant::create(type, shape, std::vector<float>(size, value));
+}
+}  // namespace
+
 enum class InputType : int { Q, K, V, SDPA };
 enum class SinksSliceType : int { None, Slice, StridedSlice };
 
@@ -59,6 +86,27 @@ public:
         with_mask = true;
         m_mask = make_shared<v0::Parameter>(m_type, new_mask_pshape);
         params.push_back(m_mask);
+    }
+
+    // Where-style mask: Select(cond, scores, sentinel) instead of Add(scores, mask).
+    void set_select_mask(
+        const PartialShape& new_cond_pshape,
+        const Shape& sentinel_shape,
+        const std::vector<float>& sentinels,
+        const ov::op::AutoBroadcastSpec& auto_broadcast = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY)) {
+        with_mask = true;
+        with_select_mask = true;
+        m_select_auto_broadcast = auto_broadcast;
+        m_select_sentinel = sentinels.size() == 1 ? make_fill_constant(m_type, sentinel_shape, sentinels[0])
+                                                  : v0::Constant::create(m_type, sentinel_shape, sentinels);
+        m_cond = make_shared<v0::Parameter>(element::boolean, new_cond_pshape);
+        params.push_back(m_cond);
+    }
+
+    // Optional Reshape of the masked scores before the Softmax.
+    void set_mask_reshape(const Shape& shape) {
+        with_mask_reshape = true;
+        m_mask_reshape_shape = shape;
     }
 
     void set_scale(float new_scale) {
@@ -186,7 +234,17 @@ public:
         }
         shared_ptr<Node> attn_scores_with_mask = attn_scores_scaled;
         if (with_mask) {
-            attn_scores_with_mask = make_shared<op::v1::Add>(attn_scores_scaled, m_mask);
+            if (with_select_mask) {
+                attn_scores_with_mask =
+                    make_shared<op::v1::Select>(m_cond, attn_scores_scaled, m_select_sentinel, m_select_auto_broadcast);
+            } else {
+                attn_scores_with_mask = make_shared<op::v1::Add>(attn_scores_scaled, m_mask);
+            }
+            if (with_mask_reshape) {
+                auto shape_const =
+                    op::v0::Constant::create(element::i64, {m_mask_reshape_shape.size()}, m_mask_reshape_shape);
+                attn_scores_with_mask = make_shared<op::v1::Reshape>(attn_scores_with_mask, shape_const, false);
+            }
         }
         if (with_sinks) {
             attn_scores_with_mask = make_shared<v0::Concat>(OutputVector{attn_scores_with_mask, m_sinks}, -1);
@@ -238,6 +296,13 @@ public:
         if (!with_mask) {
             mask_input = v0::Constant::create(m_type, {}, {0.f});
         } else {
+            if (with_select_mask) {
+                // The fused SDPA masks the Select's excluded entries out with the additive mask
+                // Select(cond, 0, fill), reusing the matched fill value.
+                auto zero = v0::Constant::create(m_type, Shape{}, {0.f});
+                mask_input =
+                    std::make_shared<op::v1::Select>(m_cond, zero, m_select_sentinel, op::AutoBroadcastType::NUMPY);
+            }
             auto mask_input_ps = mask_input->get_output_partial_shape(0);
             auto mask_input_rank = mask_input_ps.size();
             if (mask_input_rank < 2) {
@@ -311,6 +376,12 @@ private:
     bool with_scale = false;
     bool with_sinks = false;
     SinksSliceType m_sinks_slice_type = SinksSliceType::None;
+    bool with_select_mask = false;
+    shared_ptr<v0::Parameter> m_cond;
+    shared_ptr<ov::Node> m_select_sentinel;
+    ov::op::AutoBroadcastSpec m_select_auto_broadcast = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY);
+    bool with_mask_reshape = false;
+    Shape m_mask_reshape_shape;
 
     element::Type m_type = f32;
 
@@ -1710,4 +1781,412 @@ TEST_F(TransformationTestsF, SDPAFusionTest_SplitAttention_WrongSoftmaxAxisNoFus
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+namespace {
+// Fill values the where-style mask arm accepts: -inf or the lowest finite value of the score type.
+// kSelectMaskSentinel (f16 lowest) is also what an f32 -FLT_MAX fill becomes once a plugin runs the model in f16.
+const float kSelectMaskSentinel = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+const float kSelectMaskF32Lowest = std::numeric_limits<float>::lowest();
+const float kSelectMaskBf16Lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+const float kSelectMaskMinusInf = -std::numeric_limits<float>::infinity();
+const ov::op::AutoBroadcastSpec kSelectMaskNumpy(ov::op::AutoBroadcastType::NUMPY);
+
+// Decomposed attention with a where-style mask:
+//   MatMul(Q, K^T) -> Select(cond, scores, sentinel) -> Softmax -> MatMul(probs, V)
+std::shared_ptr<ov::Model> build_select_mask_attention(
+    const element::Type& et,
+    const PartialShape& cond_shape,
+    const Shape& sentinel_shape,
+    const std::vector<float>& sentinels,
+    const ov::op::AutoBroadcastSpec& auto_broadcast = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
+    bool with_value_matmul = true,
+    bool with_select_consumer = false) {
+    auto q = std::make_shared<op::v0::Parameter>(et, Shape{1, 4, 8, 32});
+    auto k = std::make_shared<op::v0::Parameter>(et, Shape{1, 4, 8, 32});
+    auto v = std::make_shared<op::v0::Parameter>(et, Shape{1, 4, 8, 32});
+    auto cond = std::make_shared<op::v0::Parameter>(element::boolean, cond_shape);
+    ov::ParameterVector params{q, k, v, cond};
+
+    auto scores = std::make_shared<op::v0::MatMul>(q, k, false, true);
+    auto sentinel = sentinels.size() == 1 ? make_fill_constant(et, sentinel_shape, sentinels[0])
+                                          : v0::Constant::create(et, sentinel_shape, sentinels);
+    auto select = std::make_shared<op::v1::Select>(cond, scores, sentinel, auto_broadcast);
+    auto softmax = std::make_shared<op::v8::Softmax>(select, -1);
+
+    ov::OutputVector outputs;
+    if (with_value_matmul) {
+        outputs.push_back(std::make_shared<op::v0::MatMul>(softmax, v));
+    } else {
+        outputs.push_back(softmax);
+    }
+    if (with_select_consumer) {
+        outputs.push_back(std::make_shared<op::v0::Relu>(select));
+    }
+    return std::make_shared<ov::Model>(outputs, params);
+}
+}  // namespace
+
+class SDPASelectMaskNoFusion : public TransformationTestsF {
+protected:
+    // A graph the where-style mask arm must not touch: expect SDPAFusion to leave it unchanged.
+    void expect_unchanged(const std::function<std::shared_ptr<ov::Model>()>& build) {
+        model = build();
+        manager.register_pass<ov::pass::SDPAFusion>();
+        model_ref = build();
+        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+        comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    }
+};
+
+// Any fill other than -inf or the lowest value of the score type keeps the Select: the additive form would
+// change the result, e.g. Softmax([-20000, -10000]) = [0, 1] but Softmax([-20000, masked]) = [1, 0].
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskWeakSentinel) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f16, PartialShape{4, 8, 8}, Shape{}, {-10000.0f});
+    });
+}
+
+// -65504 is the floor of f16 only; in an f32 or bf16 graph it does not absorb the scores, so it is rejected.
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskF32WithF16Lowest) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f32, PartialShape{4, 8, 8}, Shape{}, {kSelectMaskSentinel});
+    });
+}
+
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskBf16WithF16Lowest) {
+    expect_unchanged([] {
+        return build_select_mask_attention(bf16, PartialShape{4, 8, 8}, Shape{}, {kSelectMaskSentinel});
+    });
+}
+
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskNaNSentinel) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f32,
+                                           PartialShape{4, 8, 8},
+                                           Shape{},
+                                           {std::numeric_limits<float>::quiet_NaN()});
+    });
+}
+
+// Only the score precisions this rewrite supports are folded; f64 keeps its Select.
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskF64) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f64, PartialShape{4, 8, 8}, Shape{}, {kSelectMaskSentinel});
+    });
+}
+
+// Only a scalar masked-out value can be folded into the additive mask constants.
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskNonScalarSentinel) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f16,
+                                           PartialShape{4, 8, 8},
+                                           Shape{8},
+                                           std::vector<float>(8, kSelectMaskSentinel));
+    });
+}
+
+// PDPD/NONE broadcasting cannot be reproduced by the scalar mask constants of the additive form.
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskPdpdBroadcast) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f16,
+                                           PartialShape{8, 8},
+                                           Shape{},
+                                           {kSelectMaskSentinel},
+                                           ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 2));
+    });
+}
+
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskNoneBroadcast) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f16,
+                                           PartialShape{1, 4, 8, 8},
+                                           Shape{1, 4, 8, 8},
+                                           std::vector<float>(4 * 8 * 8, kSelectMaskSentinel),
+                                           ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NONE));
+    });
+}
+
+// More than one consumer of the Select cannot be folded into the attention alone.
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskMultipleConsumers) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f16,
+                                           PartialShape{4, 8, 8},
+                                           Shape{},
+                                           {kSelectMaskSentinel},
+                                           kSelectMaskNumpy,
+                                           /*with_value_matmul=*/true,
+                                           /*with_select_consumer=*/true);
+    });
+}
+
+// Missing value MatMul: the complete attention is required.
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskWithoutValueMatMul) {
+    expect_unchanged([] {
+        return build_select_mask_attention(f16,
+                                           PartialShape{4, 8, 8},
+                                           Shape{},
+                                           {kSelectMaskSentinel},
+                                           kSelectMaskNumpy,
+                                           /*with_value_matmul=*/false);
+    });
+}
+
+// No Softmax consumer: the graph is unrelated to attention.
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskNoSoftmaxConsumer) {
+    expect_unchanged([] {
+        auto scores = std::make_shared<op::v0::Parameter>(f16, Shape{1, 4, 8, 8});
+        auto cond = std::make_shared<op::v0::Parameter>(element::boolean, Shape{1, 4, 8, 8});
+        auto sentinel = v0::Constant::create(f16, Shape{}, {kSelectMaskSentinel});
+        auto select = std::make_shared<op::v1::Select>(cond, scores, sentinel);
+        auto relu = std::make_shared<op::v0::Relu>(select);
+        return std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{scores, cond});
+    });
+}
+
+// A plain Select -> Softmax without the Q*K MatMuls keeps its Select.
+TEST_F(SDPASelectMaskNoFusion, SDPAFusionTest_SelectMaskNotAttention) {
+    expect_unchanged([] {
+        auto scores = std::make_shared<op::v0::Parameter>(f16, Shape{1, 4, 8, 8});
+        auto cond = std::make_shared<op::v0::Parameter>(element::boolean, Shape{1, 4, 8, 8});
+        auto sentinel = v0::Constant::create(f16, Shape{}, {kSelectMaskSentinel});
+        auto select = std::make_shared<op::v1::Select>(cond, scores, sentinel);
+        auto softmax = std::make_shared<op::v8::Softmax>(select, -1);
+        return std::make_shared<ov::Model>(ov::OutputVector{softmax}, ov::ParameterVector{scores, cond});
+    });
+}
+
+class SDPAFusionSelectMask : public TransformationTestsF,
+                             public ::testing::WithParamInterface<std::tuple<Type, float, bool, SDPAFusionParams>> {};
+
+// A where-style mask Select(cond, scores, fill) is folded into the attention mask of the fused
+// SDPA as the additive mask Select(cond, 0, fill).
+TEST_P(SDPAFusionSelectMask, SDPAFusionTest_select_mask) {
+    // Parametrization
+    const auto& [type, sentinel, with_scale, param] = GetParam();
+
+    // Init.
+    SDPA sdpa(type, param.q_shape, param.k_shape, param.v_shape);
+    SDPA sdpa_ref(type, param.q_shape, param.k_shape, param.v_shape);
+
+    // Attention mask processing.
+    sdpa.set_select_mask(param.mask_shape, Shape{}, {sentinel});
+    sdpa_ref.set_select_mask(param.mask_shape, Shape{}, {sentinel});
+
+    // Scale processing.
+    if (with_scale) {
+        sdpa.set_scale(param.scale);
+        sdpa_ref.set_scale(param.scale);
+    }
+
+    // SDPA model.
+    {
+        sdpa.create_pattern_sdpa(/*transpose_b=*/true);
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.create_reference_sdpa();
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+const auto select_mask_shapes = Values(explicit_transpose_4d(1, 4, 8, 8, 32, 32, {4, 8, 8}, 1.0f),
+                                       explicit_transpose_4d(1, 8, 16, 16, 32, 32, {1, 1, 16, 16}, 0.125f),
+                                       explicit_transpose_4d(1, 8, 16, 16, 32, 32, {16, 16}, 1.0f));
+
+// Each score type with its accepted fills: its own lowest finite value and -inf.
+INSTANTIATE_TEST_SUITE_P(SDPAFusionF32,
+                         SDPAFusionSelectMask,
+                         Combine(Values(f32),
+                                 Values(kSelectMaskF32Lowest, kSelectMaskMinusInf),
+                                 Values(false, true),  // Use scale
+                                 select_mask_shapes));
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusionF16,
+                         SDPAFusionSelectMask,
+                         Combine(Values(f16),
+                                 Values(kSelectMaskSentinel, kSelectMaskMinusInf),
+                                 Values(false, true),  // Use scale
+                                 select_mask_shapes));
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusionBF16,
+                         SDPAFusionSelectMask,
+                         Combine(Values(bf16),
+                                 Values(kSelectMaskBf16Lowest, kSelectMaskMinusInf),
+                                 Values(false, true),  // Use scale
+                                 select_mask_shapes));
+
+// The Select buffer may be reshaped before the Softmax.
+TEST_F(TransformationTestsF, SDPAFusionTest_SelectMaskThroughReshape) {
+    const auto param = explicit_transpose_4d(1, 8, 16, 16, 32, 32, {1, 1, 16, 16}, 1.0f);
+
+    SDPA sdpa(f16, param.q_shape, param.k_shape, param.v_shape);
+    SDPA sdpa_ref(f16, param.q_shape, param.k_shape, param.v_shape);
+
+    sdpa.set_select_mask(param.mask_shape, Shape{}, {kSelectMaskSentinel});
+    sdpa_ref.set_select_mask(param.mask_shape, Shape{}, {kSelectMaskSentinel});
+    sdpa.set_mask_reshape(Shape{1, 8, 16, 16});
+
+    sdpa.create_pattern_sdpa(/*transpose_b=*/true);
+    model = sdpa.build_model();
+    manager.register_pass<ov::pass::SDPAFusion>();
+
+    sdpa_ref.create_reference_sdpa();
+    model_ref = sdpa_ref.build_model();
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+// Numeric, device independent check of the where-style mask rewrite: the original graph and the fused SDPA
+// (lowered back by ScaledDotProductAttentionDecomposition) are both run with ov::Model::evaluate. With an f32
+// -FLT_MAX fill the additive mask absorbs every finite score, so both graphs feed Softmax the same tensor and
+// the outputs are equal, a fully masked row included.
+namespace {
+constexpr size_t kNumHeads = 2;
+constexpr size_t kSeqLen = 8;
+constexpr size_t kHeadDim = 16;
+
+size_t qkv_index(size_t h, size_t s, size_t d) {
+    return (h * kSeqLen + s) * kHeadDim + d;
+}
+
+size_t cond_index(size_t h, size_t row, size_t col) {
+    return (h * kSeqLen + row) * kSeqLen + col;
+}
+
+// Q, K, V of shape [1, kNumHeads, kSeqLen, kHeadDim] and cond of shape [1, kNumHeads, kSeqLen, kSeqLen]:
+// a causal mask, with row 2 of head 0 fully masked out.
+ov::TensorVector make_select_mask_inputs() {
+    const Shape qkv_shape{1, kNumHeads, kSeqLen, kHeadDim};
+    ov::TensorVector inputs;
+    for (size_t t = 0; t < 3; ++t) {
+        ov::Tensor tensor(f32, qkv_shape);
+        auto* data = tensor.data<float>();
+        for (size_t i = 0; i < tensor.get_size(); ++i)
+            data[i] = std::sin(0.37f * static_cast<float>(i) + static_cast<float>(t)) * 2.0f;
+        inputs.push_back(tensor);
+    }
+    ov::Tensor cond(element::boolean, Shape{1, kNumHeads, kSeqLen, kSeqLen});
+    auto* mask = cond.data<bool>();
+    for (size_t h = 0; h < kNumHeads; ++h)
+        for (size_t row = 0; row < kSeqLen; ++row)
+            for (size_t col = 0; col < kSeqLen; ++col)
+                mask[cond_index(h, row, col)] = col <= row && !(h == 0 && row == 2);
+    inputs.push_back(cond);
+    return inputs;
+}
+
+// The where-mask attention, and the same model fused by SDPAFusion and decomposed again.
+std::pair<std::shared_ptr<ov::Model>, std::shared_ptr<ov::Model>> make_select_mask_fused_pair() {
+    const Shape qkv_shape{1, kNumHeads, kSeqLen, kHeadDim};
+    auto q = std::make_shared<v0::Parameter>(f32, qkv_shape);
+    auto k = std::make_shared<v0::Parameter>(f32, qkv_shape);
+    auto v = std::make_shared<v0::Parameter>(f32, qkv_shape);
+    auto cond = std::make_shared<v0::Parameter>(element::boolean, Shape{1, kNumHeads, kSeqLen, kSeqLen});
+    auto scores = std::make_shared<op::v0::MatMul>(q, k, false, true);
+    auto fill = v0::Constant::create(f32, Shape{}, {std::numeric_limits<float>::lowest()});
+    auto select = std::make_shared<op::v1::Select>(cond, scores, fill);
+    auto softmax = std::make_shared<op::v8::Softmax>(select, -1);
+    auto output = std::make_shared<op::v0::MatMul>(softmax, v);
+    auto original = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{q, k, v, cond});
+
+    auto fused = original->clone();
+    {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::SDPAFusion>();
+        manager.run_passes(fused);
+    }
+    size_t num_sdpa = 0;
+    for (const auto& node : fused->get_ops())
+        num_sdpa += ov::is_type<op::v13::ScaledDotProductAttention>(node) ? 1 : 0;
+    EXPECT_EQ(num_sdpa, 1u);
+    {
+        // SDPA has no reference evaluate, so lower it back; ConvertLike has none either.
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+        manager.register_pass<ov::pass::ConvertConvertLike>();
+        manager.register_pass<ov::pass::ConstantFolding>();
+        manager.run_passes(fused);
+    }
+    return {original, fused};
+}
+
+std::vector<float> evaluate_select_mask_model(const std::shared_ptr<ov::Model>& model, const ov::TensorVector& inputs) {
+    ov::TensorVector outputs{ov::Tensor(f32, Shape{1, kNumHeads, kSeqLen, kHeadDim})};
+    EXPECT_TRUE(model->evaluate(outputs, inputs));
+    const auto* data = outputs[0].data<const float>();
+    return std::vector<float>(data, data + outputs[0].get_size());
+}
+
+bool is_row(size_t index, size_t head, size_t row) {
+    return index / kHeadDim == head * kSeqLen + row;
+}
+}  // namespace
+
+TEST(SDPAFusionSelectMaskNumeric, FusedMatchesOriginal) {
+    const auto [original, fused] = make_select_mask_fused_pair();
+    const auto inputs = make_select_mask_inputs();
+    const auto expected = evaluate_select_mask_model(original, inputs);
+    const auto actual = evaluate_select_mask_model(fused, inputs);
+
+    ASSERT_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_TRUE(std::isfinite(actual[i])) << "element " << i;
+        ASSERT_EQ(expected[i], actual[i]) << "element " << i;
+    }
+    // The fully masked row is the uniform average of V, as the Select graph defines it.
+    const auto* v = inputs[2].data<const float>();
+    for (size_t d = 0; d < kHeadDim; ++d) {
+        float mean = 0.0f;
+        for (size_t s = 0; s < kSeqLen; ++s)
+            mean += v[qkv_index(0, s, d)];
+        mean /= static_cast<float>(kSeqLen);
+        EXPECT_NEAR(actual[qkv_index(0, 2, d)], mean, 1e-5f) << "d " << d;
+    }
+}
+
+// A masked-out score of 1e30 is still absorbed by the -FLT_MAX mask: the outputs stay equal.
+TEST(SDPAFusionSelectMaskNumeric, LargeFiniteMaskedScore) {
+    const auto [original, fused] = make_select_mask_fused_pair();
+    auto inputs = make_select_mask_inputs();
+    // Head 1, row 3: column 6 is masked out (causal); its score becomes 1e15 * 1e15 = 1e30.
+    inputs[0].data<float>()[qkv_index(1, 3, 0)] = 1e15f;
+    inputs[1].data<float>()[qkv_index(1, 6, 0)] = 1e15f;
+    const auto expected = evaluate_select_mask_model(original, inputs);
+    const auto actual = evaluate_select_mask_model(fused, inputs);
+
+    ASSERT_EQ(expected.size(), actual.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+        ASSERT_EQ(expected[i], actual[i]) << "element " << i;
+}
+
+// Documented limit of the rewrite: a masked-out score that overflows to +inf is discarded by the Select but
+// propagated by the additive mask. Only that row differs; every other row stays equal.
+TEST(SDPAFusionSelectMaskNumeric, OverflowedMaskedScoreIsOutOfContract) {
+    const auto [original, fused] = make_select_mask_fused_pair();
+    auto inputs = make_select_mask_inputs();
+    // Head 1, row 3, masked-out column 6: 1e20 * 1e20 overflows f32 to +inf.
+    inputs[0].data<float>()[qkv_index(1, 3, 0)] = 1e20f;
+    inputs[1].data<float>()[qkv_index(1, 6, 0)] = 1e20f;
+    const auto expected = evaluate_select_mask_model(original, inputs);
+    const auto actual = evaluate_select_mask_model(fused, inputs);
+
+    ASSERT_EQ(expected.size(), actual.size());
+    bool row_differs = false;
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_TRUE(std::isfinite(expected[i])) << "element " << i;
+        if (is_row(i, 1, 3)) {
+            row_differs |= !(expected[i] == actual[i]);
+        } else {
+            ASSERT_EQ(expected[i], actual[i]) << "element " << i;
+        }
+    }
+    EXPECT_TRUE(row_differs);
 }
