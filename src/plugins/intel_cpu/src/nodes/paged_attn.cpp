@@ -284,9 +284,11 @@ size_t PagedAttention::getKeyCacheParamsSize(const Config& cpuConfig) {
     const auto precision = cpuConfig.keyCachePrecision;
     if (precision == ov::element::i8) {
         return sizeof(float);
-    } else if (precision == ov::element::u8) {
+    }
+    if (precision == ov::element::u8) {
         return 2 * sizeof(float);
-    } else if (precision == ov::element::u4) {
+    }
+    if (precision == ov::element::u4) {
         return 2 * sizeof(float) * 2;
     }
     return 0;
