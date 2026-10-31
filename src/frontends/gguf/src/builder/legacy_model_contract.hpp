@@ -210,9 +210,19 @@ inline LegacyEmbeddingBoundaries resolve_legacy_embedding_boundaries(const std::
     return boundaries;
 }
 
+inline bool resolve_legacy_genai_adaptation(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "dspark_ctx_feat" ||
+            parameter->output(0).get_names().count("dspark_ctx_feat"))
+            return false;
+    }
+    return true;
+}
+
 inline ModelContract resolve_legacy_model_contract(const std::shared_ptr<ov::Model>& model,
                                                    std::optional<int64_t> embedding_width) {
     ModelContract contract;
+    contract.supports_genai_adaptation = resolve_legacy_genai_adaptation(model);
     if (!model->has_rt_info({"gguf_architecture"}))
         return contract;
     const auto architecture = model->get_rt_info<std::string>({"gguf_architecture"});
