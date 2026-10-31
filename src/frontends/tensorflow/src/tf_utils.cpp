@@ -105,7 +105,11 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
                 val_i = tensor_proto.int64_val()[i];
                 break;
             case f16:
-                val_i = float16::from_bits(tensor_proto.half_val()[i]);
+                val_i = static_cast<SRC_T>(float16::from_bits(static_cast<uint16_t>(tensor_proto.half_val()[i])));
+                break;
+            case bf16:
+                // TensorFlow stores bfloat16 values as raw 16-bit patterns in half_val, the same field as DT_HALF
+                val_i = static_cast<SRC_T>(bfloat16::from_bits(static_cast<uint16_t>(tensor_proto.half_val()[i])));
                 break;
             case f32:
                 val_i = tensor_proto.float_val()[i];
@@ -328,6 +332,10 @@ Any unpack_tensor_proto(const ::tensorflow::TensorProto& tensor_proto,
         case f16:
             val_size = tensor_proto.half_val_size();
             extract_compressed_tensor_content<float16>(tensor_proto, val_size, &res);
+            break;
+        case bf16:
+            val_size = tensor_proto.half_val_size();
+            extract_compressed_tensor_content<bfloat16>(tensor_proto, val_size, &res);
             break;
         case element::string: {
             auto string_val_size = static_cast<size_t>(tensor_proto.string_val_size());

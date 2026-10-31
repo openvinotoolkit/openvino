@@ -61,6 +61,7 @@ set(TENSORFLOW_MODELS_PBTXT
     ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/forward_edge_model_unsorted.pbtxt
     ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/gather_tree_model.pbtxt
     ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/injected_body_and_if.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_bf16_const_half_val.pbtxt
     ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_ngram.pbtxt
     ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_savev2.pbtxt
     ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_switch_merge_several_cond_flows.pbtxt
