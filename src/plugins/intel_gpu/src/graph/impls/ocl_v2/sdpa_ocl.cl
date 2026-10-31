@@ -625,6 +625,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // pa_k_tile_dt()'s reads; the 32-row form's serve depth tiles db and db + 2.
         uint kt_dt[kq_sg_tile_keys / SUBGROUP_SIZE][PA_K_DT_ROWS / 16][PA_K_DT_ROWS / 2];
 #endif
+#if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA && PA_K_WIDE_READS
+        // pa_k_tile_b2d16_pair()'s reads, PA_K_WIDE_TILES / 2 per key group in flight.
+        ushort8 k_wide_pa[PA_K_WIDE_TILES * kq_key_blocks];
+#endif
 #if CAUSAL_TILE_SKIP
         // All of this subgroup's keys are masked for all of its queries: S_tile stays 0 and the mask below makes it
         // -INFINITY (key >= causal_k by k_mask, a later key than the query by the causal predicate, which runs on the
@@ -654,7 +658,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_PA_MIXED
             if (from_cache) {
     #if USE_2D_BLOCK_IO_K_PA
+        #if PA_K_WIDE_READS
+            FUNC_CALL(pa_k_tile_b2d16_pair)(k_raw, k_wide_pa, K, k_page, b0_kv, key_base, k, d, db);
+        #else
             FUNC_CALL(pa_k_tile_b2d16)(k_raw, K, k_page, b0_kv, key_base, k, d, db);
+        #endif
     #elif USE_2D_BLOCK_IO_K_PA_DT
             FUNC_CALL(pa_k_tile_dt)(k_raw, kt_dt, K, k_page, b0_kv, key_base, k, db, (int)lane);
     #elif USE_2D_BLOCK_IO_K_PA_I8
