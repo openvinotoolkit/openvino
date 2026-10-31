@@ -31,9 +31,14 @@ void AutoCompiledModel::set_property(const ov::AnyMap& properties) {
 }
 
 std::shared_ptr<const ov::Model> AutoCompiledModel::get_runtime_model() const {
-    OPENVINO_ASSERT(m_context->m_hw_compiled_model);
-    auto model = m_context->m_hw_compiled_model->get_runtime_model();
-    set_model_shared_object(const_cast<ov::Model&>(*model), m_context->m_hw_compiled_model._so);
+    SoCompiledModel hw_compiled_model;
+    {
+        std::lock_guard<std::mutex> lock(m_context->m_mutex);
+        hw_compiled_model = m_context->m_hw_compiled_model;
+    }
+    OPENVINO_ASSERT(hw_compiled_model);
+    auto model = hw_compiled_model->get_runtime_model();
+    set_model_shared_object(const_cast<ov::Model&>(*model), hw_compiled_model._so);
     return model;
 }
 
@@ -90,6 +95,10 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         auto value = m_context->m_model_priority;
         return value ? ((value > 1) ? ov::hint::Priority::LOW : ov::hint::Priority::MEDIUM) : ov::hint::Priority::HIGH;
     } else if (name == ov::optimal_number_of_infer_requests) {
+        if (m_context->m_dynamic_device_selection) {
+            // inference is serialized in dynamic mode, so more than one request cannot run at a time
+            return decltype(ov::optimal_number_of_infer_requests)::value_type{1u};
+        }
         const unsigned int default_num_for_tput = 4u;
         const unsigned int default_num_for_latency = 1u;
         unsigned int real = 0;
@@ -204,6 +213,12 @@ ov::Any AutoCompiledModel::get_property(const std::string& name) const {
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
     } else if (name == ov::execution_devices) {
+        if (m_context->m_dynamic_device_selection) {
+            const auto active_device = m_scheduler->get_dynamic_active_device();
+            if (!active_device.empty()) {
+                return decltype(ov::execution_devices)::value_type{active_device};
+            }
+        }
         ov::Any execution_devices;
         auto get_execution_devices = [&execution_devices](std::string exe_devices_string) {
             std::vector<std::string> exe_devices = {};

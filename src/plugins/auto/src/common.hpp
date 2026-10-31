@@ -5,8 +5,10 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
+#include <atomic>
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
 
 #include "openvino/runtime/auto/properties.hpp"
@@ -68,6 +70,8 @@ struct WorkerInferRequest {
     std::list<Time>               m_end_times;
     int                           m_index = 0;
     AutoImmediateExecutor::Ptr    m_fallback_exec;
+    // the request could not be started, so its completion callback will never hand this worker back
+    bool                          m_dispatch_failed = false;
 };
 
 struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
@@ -77,7 +81,12 @@ struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
     void run(ov::threading::Task task) override {
         (*m_workptrptr)->m_task = std::move(task);
         (*m_workptrptr)->m_fallback_exec = m_fallback_exec;
-        (*m_workptrptr)->m_inferrequest->start_async();
+        try {
+            (*m_workptrptr)->m_inferrequest->start_async();
+        } catch (...) {
+            (*m_workptrptr)->m_dispatch_failed = true;
+            throw;
+        }
     };
     WorkerInferRequest** m_workptrptr = nullptr;
     AutoImmediateExecutor::Ptr m_fallback_exec;
@@ -218,6 +227,7 @@ public:
     bool                                           m_startup_fallback = true;
     bool                                           m_runtime_fallback = true;
     bool                                           m_bind_buffer = false;
+    bool                                           m_compile_for_all = false;
     std::shared_ptr<ov::Model>                     m_model;
     std::filesystem::path                          m_model_path;
     std::shared_ptr<const ov::IPlugin>             m_plugin;
@@ -231,7 +241,10 @@ public:
     SoCompiledModel                                m_hw_compiled_model;
     std::string                                    m_model_precision;
     DeviceSelectionPolicy                          m_selection_policy;
-    std::string                                    m_low_power_device;
+    std::optional<DeviceInformation>               m_low_power_device;
+    std::atomic<bool>                              m_low_power_device_unavailable = false;
+    // re-select the target device for every incoming inference, turned on by the resource aware selection properties
+    bool                                           m_dynamic_device_selection = false;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
@@ -253,6 +266,8 @@ struct AutoCompileContext {
     std::string m_err_message;
     ov::threading::Task m_task;
     std::string m_worker_name = "";
+    // the priority registration of m_device_info has already been dropped by the caller
+    bool m_priority_released = false;
 };
 
 enum AutoCompileContextIndex {
