@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "grid_sample_kernel_opt_bilinear_zeros.hpp"
+#include "grid_sample_kernel_opt_bilinear.hpp"
 
 #include "kernel_selector_utils.h"
 
@@ -11,7 +11,7 @@ namespace kernel_selector {
 constexpr size_t THREADS_PER_BLOCK = 256;
 constexpr size_t GRID_ITEMS_PER_BLOCK = THREADS_PER_BLOCK;
 
-CommonDispatchData GridSampleKernelOpt_BilinearZeros::CalcDispatch(const grid_sample_params& kernel_params) const {
+CommonDispatchData GridSampleKernelOpt_Bilinear::CalcDispatch(const grid_sample_params& kernel_params) const {
     CommonDispatchData dispatch_data;
     const auto& output = kernel_params.outputs.front();
 
@@ -23,11 +23,15 @@ CommonDispatchData GridSampleKernelOpt_BilinearZeros::CalcDispatch(const grid_sa
     return dispatch_data;
 }
 
-KernelsPriority GridSampleKernelOpt_BilinearZeros::GetKernelsPriority(const Params& /*params*/) const {
+KernelsPriority GridSampleKernelOpt_Bilinear::GetKernelsPriority(const Params& params) const {
+    const auto& kernel_params = static_cast<const grid_sample_params&>(params);
+    const auto& input = kernel_params.inputs[0];
+    if (input.X().v == 1 && input.Y().v == 1)
+        return DONT_USE_IF_HAVE_SOMETHING_ELSE + 1.f;
     return FORCE_PRIORITY_8;
 }
 
-bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
+bool GridSampleKernelOpt_Bilinear::Validate(const Params& params) const {
     if (!TBase::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
@@ -46,7 +50,8 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    if (kernel_params.padding_mode != grid_sample_params::PaddingMode::ZEROS) {
+    if (kernel_params.padding_mode != grid_sample_params::PaddingMode::ZEROS &&
+        kernel_params.padding_mode != grid_sample_params::PaddingMode::BORDER) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
@@ -58,7 +63,7 @@ bool GridSampleKernelOpt_BilinearZeros::Validate(const Params& params) const {
     return true;
 }
 
-JitConstants GridSampleKernelOpt_BilinearZeros::GetJitConstants(const grid_sample_params& kernel_params) const {
+JitConstants GridSampleKernelOpt_Bilinear::GetJitConstants(const grid_sample_params& kernel_params) const {
     auto jit_constants = TBase::GetJitConstants(kernel_params);
 
     jit_constants.AddConstants({
@@ -68,7 +73,7 @@ JitConstants GridSampleKernelOpt_BilinearZeros::GetJitConstants(const grid_sampl
     return jit_constants;
 }
 
-ParamsKey GridSampleKernelOpt_BilinearZeros::GetSupportedKey() const {
+ParamsKey GridSampleKernelOpt_Bilinear::GetSupportedKey() const {
     ParamsKey key;
     key.EnableAllInputDataType();
     key.EnableAllOutputDataType();

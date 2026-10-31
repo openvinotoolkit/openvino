@@ -35,7 +35,10 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
     const int x_topleft = (int)floor(x_d);                             \
     const grid_et dy = y_d - y_topleft;                                \
     const grid_et dx = x_d - x_topleft;                                \
-                                                                        \
+    CALC_VALID_OFFSETS_FOR_INPUT_LOAD
+
+#if defined(PADDING_MODE_ZEROS)
+#define CALC_VALID_OFFSETS_FOR_INPUT_LOAD                              \
     const bool y0_valid = is_between(y_topleft, 0, INPUT0_SIZE_Y);     \
     const bool y1_valid = is_between(y_topleft + 1, 0, INPUT0_SIZE_Y); \
     const bool x0_valid = is_between(x_topleft, 0, INPUT0_SIZE_X);     \
@@ -50,6 +53,17 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
     const int y1c = y1_valid ? (y_topleft + 1) : 0;                    \
     const int x0c = x0_valid ? x_topleft : 0;                          \
     const int x1c = x1_valid ? (x_topleft + 1) : 0;
+#elif defined(PADDING_MODE_BORDER)
+#define CALC_VALID_OFFSETS_FOR_INPUT_LOAD                              \
+    const bool v00_valid = true;                                      \
+    const bool v01_valid = true;                                      \
+    const bool v10_valid = true;                                      \
+    const bool v11_valid = true;                                      \
+    const int y0c = clamp(y_topleft, 0, (int)INPUT0_SIZE_Y - 1);         \
+    const int y1c = clamp(y_topleft + 1, 0, (int)INPUT0_SIZE_Y - 1);     \
+    const int x0c = clamp(x_topleft, 0, (int)INPUT0_SIZE_X - 1);         \
+    const int x1c = clamp(x_topleft + 1, 0, (int)INPUT0_SIZE_X - 1);
+#endif
 
 // WARNING: This loads may read from 'wrong' location
 // (in sense that is has nothing to do with
@@ -84,15 +98,15 @@ inline const bool FUNC(is_between)(int val, int min, int max) {
 //
 // ====================================================================
 
-KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
+KERNEL(grid_sample_opt_bilinear)(const __global data_t* restrict data,
                                        const __global grid_t* restrict grid,
                                        __global output_t* restrict output) {
 #if !defined(INTERPOLATION_MODE_BILINEAR)
-#    error[clDNN grid_sample_opt_bilinear.cl]: This kernel only support bilinear interppolation mode.
+#    error[clDNN grid_sample_opt_bilinear.cl]: This kernel only support bilinear interpolation mode.
 #endif
 
-#if !defined(PADDING_MODE_ZEROS)
-#    error[clDNN grid_sample_opt_bilinear.cl]: This kernel only support zeros padding mode.
+#if !defined(PADDING_MODE_ZEROS) && !defined(PADDING_MODE_BORDER)
+#    error[clDNN grid_sample_opt_bilinear.cl]: This kernel only supports zeros and border padding modes.
 #endif
 
     const int n = get_global_id(0);
@@ -128,4 +142,5 @@ KERNEL(grid_sample_opt_bilinear_zeros)(const __global data_t* restrict data,
 #undef STORE
 #undef INTERPOLATE
 #undef LOAD_INPUT
+#undef CALC_VALID_OFFSETS_FOR_INPUT_LOAD
 #undef PRE_CALC_VALID_OFFSETS_FOR_INPUT_LOAD
