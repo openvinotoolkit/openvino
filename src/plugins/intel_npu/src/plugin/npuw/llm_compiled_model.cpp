@@ -1465,10 +1465,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             kv_kache_storage_type == ov::element::i8 || kv_kache_storage_type == ov::element::u8;
         OPENVINO_ASSERT(!integer_kv_cache,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE cannot be combined with integer KV-cache precision.");
-        OPENVINO_ASSERT(!m_enable_prefix_caching,
-                        "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
-                        "cannot be enabled simultaneously — this combination is not yet supported. "
-                        "Please disable one of the two options.");
         if (m_use_chunk_prefill && !m_is_embedding && (prefill_attn_hfa || prefill_attn_pyramid)) {
             const uint32_t block_size = static_cast<uint32_t>(m_prefill_chunk_size);
 
@@ -1502,6 +1498,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                "Ensure the model uses HFA or Pyramid attention pattern.");
             }
             m_is_block_kv_cache = true;
+            if (m_enable_prefix_caching && m_prefix_caching_block_size != m_prefill_chunk_size) {
+                // One cached block must map to exactly one KV pool block.
+                LOG_INFO("Prefix caching block size is adjusted to " << m_prefill_chunk_size
+                                                                     << " to match the KV cache block size");
+                m_prefix_caching_block_size = m_prefill_chunk_size;
+            }
         } else {
             LOG_WARN("NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE=YES was requested but could not be applied. "
                      "Block-based KV cache requires: chunk prefill enabled, "
