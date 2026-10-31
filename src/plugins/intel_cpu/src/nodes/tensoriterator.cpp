@@ -461,6 +461,11 @@ void DynamicBuffer::copy(const uint8_t* src,
     });
 }
 
+void DynamicBuffer::releaseMemory()
+{
+    mem_holder_buffer.reset();
+}
+
 bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
@@ -847,6 +852,13 @@ void TensorIterator::prepareDynamicBuffers() {
             buffers.emplace_back(
                 std::make_shared<DynamicBuffer>(from_mem, to_mems, map_rule, context->getCpuParallel()));
         }
+    }
+}
+
+void TensorIterator::releaseMemory()
+{
+    for (const auto& buffer : buffers) {
+        buffer->releaseMemory();
     }
 }
 

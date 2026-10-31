@@ -442,6 +442,11 @@ void CompiledModel::release_memory() {
         OPENVINO_ASSERT(lock.owns_lock(),
                         "Attempt to call release_memory() on a compiled model in a busy state. Please ensure that all "
                         "infer requests are completed before releasing memory.");
+        
+        for (const auto& node : graph.GetNodes()) {
+            node->releaseMemory();
+        }
+
         auto ctx = graph.getGraphContext();
         ctx->releaseMemory();
     }

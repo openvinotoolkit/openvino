@@ -84,6 +84,8 @@ public:
 
     void reset(int max_iter_count_);  // reset local
 
+    void releaseMemory();
+
 private:
     void init(const dnnl::engine& eng);
 
@@ -130,6 +132,7 @@ public:
     void getSupportedDescriptors() override {};
     void createPrimitive() override;
     int registerToAllocationContext(int offset, AllocationContext& context) override;
+    void releaseMemory() override;
     bool created() const override;
     void execute(const dnnl::stream& strm) override;
     bool neverExecute() const override {

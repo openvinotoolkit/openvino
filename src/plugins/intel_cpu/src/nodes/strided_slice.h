@@ -37,6 +37,8 @@ public:
     bool isExecutable() const override;
     bool needShapeInfer() const override;
 
+    void releaseMemory() override;
+
     struct StridedSliceAttributes {
         std::vector<int> begin;
         std::vector<int> end;
@@ -82,6 +84,7 @@ private:
                              const std::vector<MemoryCPtr>& dstMemory) {}
         virtual void exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) = 0;
         virtual ~StridedSliceExecutor() = default;
+        virtual void releaseMemory() {}
     };
 
     class StridedSliceCommonExecutor : public StridedSliceExecutor {
@@ -92,6 +95,7 @@ private:
         void exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) override;
         void execSliceScatter(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
         void execStridedSlice(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
+        void releaseMemory() override;
 
     private:
         struct StridedSliceParams {
@@ -117,6 +121,8 @@ private:
         StridedSliceParams params;
         VectorDims srcIndices;
         VectorDims dstIndices;
+        bool indicesNeedRecalculation = false;
+        
         size_t nThreads = 0LU;
         size_t workAmount = 0LU;
         size_t lastDstDim = 0LU;

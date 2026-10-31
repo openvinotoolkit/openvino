@@ -902,10 +902,26 @@ void StridedSlice::StridedSliceCommonExecutor::execSliceScatter(const std::vecto
 
 void StridedSlice::StridedSliceCommonExecutor::exec(const std::vector<MemoryCPtr>& srcMemory,
                                                     const std::vector<MemoryCPtr>& dstMemory) {
+    if (indicesNeedRecalculation) {
+        indicesCalculation();
+        indicesNeedRecalculation = false;
+    }
     if (params.attrs.isSliceScatterOp) {
         execSliceScatter(srcMemory, dstMemory);
     } else {
         execStridedSlice(srcMemory, dstMemory);
+    }
+}
+
+void StridedSlice::StridedSliceCommonExecutor::releaseMemory() {
+    VectorDims().swap(srcIndices);
+    VectorDims().swap(dstIndices);
+    indicesNeedRecalculation = true;
+}
+
+void StridedSlice::releaseMemory() {
+    if (execPtr) {
+        execPtr->releaseMemory();
     }
 }
 

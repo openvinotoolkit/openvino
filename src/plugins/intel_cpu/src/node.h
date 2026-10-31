@@ -229,6 +229,8 @@ public:
 
     virtual ~Node() = default;
 
+    virtual void releaseMemory() {}
+
     // @todo the method is used when graph is "preconstructed" before creation of the actual graph object
     // remove, as soon edges are added via Graph interface exclusively
     static void addEdge(const EdgePtr& edge);
