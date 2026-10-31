@@ -179,6 +179,9 @@ private:
     const npu_vm_runtime_config_desc_t* update_runtime_config(const CommandQueueDesc& previousCommandQueueDesc,
                                                               const CommandQueueDesc& currentCommandQueueDesc);
 
+    // Shared queues the VM runtime may still hold a fence on: a successful Execute2 rebinds to the passed queue, a
+    // failed one may fail before or after rebinding. Declared before _executionContext so these outlive it.
+    std::vector<std::shared_ptr<CommandQueue>> _vm_referenced_command_queues;
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
     npu_vm_runtime_version_t _apiVersion = NPU_VM_RUNTIME_VERSION_1_0;
