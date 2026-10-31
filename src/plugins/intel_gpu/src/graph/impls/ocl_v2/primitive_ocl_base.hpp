@@ -316,7 +316,9 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
-            _stages[sub_kernel_idx]->kernel = kernel;
+            // sub_kernel_idx is a LOCAL index into get_kernels_source() (which iterates `_order`), not a
+            // global `_stages` index; translate via `_order` like init_kernels()/init_by_cached_kernels() do.
+            _stages[_order[sub_kernel_idx]]->kernel = kernel;
         }
     }
 

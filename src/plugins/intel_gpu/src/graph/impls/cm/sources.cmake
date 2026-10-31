@@ -10,6 +10,8 @@ set(GPU_CM_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/cm_sdpa_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/estimate.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/find_block.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_gr_common.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/sort.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/xattn_subseq_meta.hpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder.cpp
@@ -50,4 +52,16 @@ set(GPU_CM_KERNEL_SOURCES
 set(GPU_CM_KERNEL_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/batch_headers/cm_xetla.h
     ${CMAKE_CURRENT_LIST_DIR}/include/xetla_lstm.h
+    # .hpp headers must be tracked too, otherwise kernels keep a stale inlined copy after a header edit.
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_attention_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe1.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_pa_xe2.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_qq_bias_mask.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/cm_sdpa_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/estimate.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/find_block.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_gr_common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/sort.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/xattn_subseq_meta.hpp
 )
