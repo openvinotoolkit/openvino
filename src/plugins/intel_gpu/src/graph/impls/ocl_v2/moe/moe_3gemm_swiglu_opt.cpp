@@ -2405,14 +2405,32 @@ public:
         expert_mask_cpu expert_mask;
         get_expert_mask_from_gpu(config, topk_id_mem, stream, expert_mask, token_num);
 
-        for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {
-            if (expert_no >= expert_mask.pred_flag.size()) {
-                OPENVINO_THROW("expert_no=", expert_no, " is out of bounds");
+        if (expert_mask.pred_flag.size() < config.num_expert) {
+            OPENVINO_THROW("expert_mask has ", expert_mask.pred_flag.size(), " entries for ", config.num_expert, " experts");
+        }
+        // Visit experts whose weights are already resident before the ones that must be
+        // streamed. With more used experts than offload slots, an ascending walk evicts
+        // resident experts before reaching them, so nearly every used expert misses.
+        // An expert's own computation does not depend on the order. The order decides the
+        // sequence in which the per-expert results are added into the output with index_add,
+        // a read-modify-write in the output element type. Floating-point addition is not
+        // associative, so output values can round differently from the ascending walk, and
+        // the later layers consume that output: the effect is not limited to rounding here.
+        std::vector<size_t> expert_order;
+        expert_order.reserve(config.num_expert);
+        for (int pass = 0; pass < 2; pass++) {
+            for (size_t expert_no = 0; expert_no < config.num_expert; expert_no++) {
+                if (expert_mask.pred_flag[expert_no] == 0) {
+                    continue;
+                }
+                const bool resident = _weight_provider->is_resident(static_cast<uint32_t>(expert_no));
+                if (resident == (pass == 0)) {
+                    expert_order.push_back(expert_no);
+                }
             }
-            auto can_skip_subgraph = expert_mask.pred_flag[expert_no] == 0;
-            if (can_skip_subgraph) {
-                continue;
-            }
+        }
+
+        for (const size_t expert_no : expert_order) {
 
             on_load_expert_weights(expert_no, instance, dnn_stream);
             auto& dnnl_weights = _dnnl_weights[expert_no];
