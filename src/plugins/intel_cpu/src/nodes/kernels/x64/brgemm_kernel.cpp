@@ -44,7 +44,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            size_t ldc,
                            bool b_transposed,
                            ov::element::Type inType,
-                           bool b_accumulate)
+                           bool b_accumulate,
+                           bool fuse_relu)
     : BrgemmKernel(M,
                    N,
                    K,
@@ -56,7 +57,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
                    inType,
                    ov::element::dynamic,
                    BrgemmKernel::ScaleType::NONE,
-                   b_accumulate) {}
+                   b_accumulate,
+                   fuse_relu) {}
 
 BrgemmKernel::BrgemmKernel(size_t M,
                            size_t N,
@@ -69,7 +71,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
                            ov::element::Type inType,
                            ov::element::Type DType,
                            BrgemmKernel::ScaleType bScaleType,
-                           bool b_accumulate)
+                           bool b_accumulate,
+                           bool fuse_relu)
     : M(M),
       M_blk(matmulOptimalM),
       M_tail(M % M_blk),
@@ -83,7 +86,8 @@ BrgemmKernel::BrgemmKernel(size_t M,
       inType(inType),
       DType(DType),
       bScaleType(bScaleType),
-      b_accumulate(b_accumulate) {
+      b_accumulate(b_accumulate),
+      post_relu(fuse_relu) {
     if (none_of(inType, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32)) {
         THROW_ERROR("brgemm kernel only supports i8, f16, bf16, f32");
     }
@@ -281,6 +285,14 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
 
         status = memory_desc_init_by_strides(Dmd, /* ndims = */ 2, dims, dnnl_data_type_t::dnnl_f32, strides);
         attr.scales_.set(DNNL_ARG_WEIGHTS, 2);
+        status = brgemm_desc_set_postops(&brgDesc, &attr, &Dmd, ldd, data_type::undef);
+    } else if (post_relu) {
+        dnnl::impl::primitive_attr_t attr;
+        memory_desc_t Dmd;
+        dims_t dims{static_cast<dnnl_dim_t>(ctx.M), static_cast<dnnl_dim_t>(ctx.N)};
+        dims_t strides{static_cast<dnnl_dim_t>(ldd), static_cast<dnnl_dim_t>(1)};
+        status = memory_desc_init_by_strides(Dmd, /* ndims = */ 2, dims, dnnl_data_type_t::dnnl_f32, strides);
+        attr.post_ops_.append_eltwise(1.0F, alg_kind::eltwise_relu, 0.0F, 0.0F);
         status = brgemm_desc_set_postops(&brgDesc, &attr, &Dmd, ldd, data_type::undef);
     }
 
@@ -527,15 +539,17 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail,
                 auto* weight_ptr = ptr_scartch_b + B_stride;
                 auto C_stride = n * count_N * ov::element::f32.size();
                 auto* out_ptr = ptr_C + C_stride;
+                // the ReLU post-op runs with the last K step of the result block (in place: C is also D)
+                const bool do_post = post_relu && ((k == 0 && K_tail == 0) || k == 1);
                 callBrgemm(brgemmCtx,
                            brgKernels[getBrgIdx(mIdx, k, n)],
                            local_a_ptr,
                            weight_ptr,
                            out_ptr,
-                           nullptr,
+                           do_post ? out_ptr : nullptr,
                            nullptr,
                            wsp,
-                           false,
+                           do_post,
                            tiles);
                 // stride K, N if body kernel is executed.
                 if (k == 0) {

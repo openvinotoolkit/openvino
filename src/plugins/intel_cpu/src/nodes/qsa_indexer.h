@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -12,9 +13,14 @@
 #include "graph_context.h"
 #include "node.h"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 
 namespace ov::intel_cpu::node {
+
+namespace qsa {
+class BrgemmBlockScorer;
+}  // namespace qsa
 
 /// @brief F32 reference implementation of ov::intel_cpu::QSAIndexer (padding-aware,
 /// non-paged, caller-owned-cache block-level indexer for Qwen Sparse Attention).
@@ -63,7 +69,7 @@ public:
     }
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    void createPrimitive() override {}
+    void createPrimitive() override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
@@ -71,6 +77,10 @@ private:
     void execute_typed();
 
     ov::intel_cpu::QSAIndexer::Config m_config{};
+    // The scorer of the block scoring on brgemm (see qsa_brgemm_scorer.hpp), taken from the params cache of the graph
+    // context in createPrimitive(): the layers of the same configuration share it, and nothing is built while the model
+    // runs. Null when this CPU or configuration has no brgemm scoring (the scalar scoring runs then).
+    std::shared_ptr<const qsa::BrgemmBlockScorer> m_scorer;
 };
 
 }  // namespace ov::intel_cpu::node

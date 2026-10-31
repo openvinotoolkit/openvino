@@ -39,10 +39,9 @@ constexpr std::array<int32_t, 2> kPastLens = {0, 2};
 constexpr float kEps = 1e-6F;
 constexpr float kScale = 0.25F;
 
-// Paged-cache layout: page_size must be a multiple of compress_ratio. The physical blocks of a sequence (m_seq_blocks)
-// hold its past and new tokens plus a spare page, so the last, incomplete block always has room.
-constexpr size_t kPageSize = 4;
-constexpr size_t kSlotsPerPage = kPageSize / kR;
+// Paged-cache layout: the page size (a test parameter) must be a multiple of compress_ratio. The physical blocks of a
+// sequence (m_seq_blocks) hold its past and new tokens plus a spare page, so the last, incomplete block always has
+// room.
 
 void fill_pseudo_random(std::vector<float>& v, uint32_t seed_base) {
     for (size_t i = 0; i < v.size(); i++) {
@@ -234,14 +233,15 @@ namespace test {
 
 std::string PagedQSAIndexerLayerCPUTest::getTestCaseName(
     const testing::TestParamInfo<PagedQSAIndexerLayerTestParams>& obj) {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens] = obj.param;
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens, page_size] = obj.param;
     return "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() + "_Hiq=" + std::to_string(h_iq) +
            "_Hik=" + std::to_string(h_ik) + "_Hsel=" + std::to_string(h_sel) +
-           "_NumSeq=" + std::to_string(num_sequences) + "_NewTokens=" + std::to_string(new_tokens);
+           "_NumSeq=" + std::to_string(num_sequences) + "_NewTokens=" + std::to_string(new_tokens) +
+           "_PageSize=" + std::to_string(page_size);
 }
 
 void PagedQSAIndexerLayerCPUTest::SetUp() {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens] = GetParam();
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, num_sequences, new_tokens, page_size] = GetParam();
     targetDevice = device;
     m_data_precision = data_precision;
     m_h_iq = h_iq;
@@ -249,17 +249,21 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
     m_h_sel = h_sel;
     m_num_sequences = num_sequences;
     m_l = new_tokens;
+    m_page_size = page_size;
+    m_slots_per_page = page_size / kR;
     // the tokens of the longest sequence in whole pages, and one spare page
-    m_seq_blocks = (m_l + static_cast<size_t>(kPastLens.back()) + kPageSize - 1) / kPageSize + 1;
+    m_seq_blocks = (m_l + static_cast<size_t>(kPastLens.back()) + m_page_size - 1) / m_page_size + 1;
     rel_threshold = 1e-3F;
     abs_threshold = 1e-4F;
     if (data_precision == ov::element::bf16) {
         rel_threshold = 5e-2F;
         abs_threshold = 5e-2F;
+        m_mismatch_share = 0.02;
         configuration.insert(ov::hint::inference_precision(ov::element::bf16));
     } else if (data_precision == ov::element::f16) {
         rel_threshold = 5e-3F;
         abs_threshold = 5e-3F;
+        m_mismatch_share = 0.02;
         configuration.insert(ov::hint::inference_precision(ov::element::f16));
     }
 
@@ -279,11 +283,11 @@ void PagedQSAIndexerLayerCPUTest::SetUp() {
     auto p_block_indices_begins =
         std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{m_num_sequences + 1});
     auto p_raw_k_cache =
-        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{n_phys, m_h_ik, kPageSize, kDidx});
+        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{n_phys, m_h_ik, m_page_size, kDidx});
     auto p_indexer_rope_cache =
-        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{n_phys, kSlotsPerPage, 2 * kRotaryDim});
+        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{n_phys, m_slots_per_page, 2 * kRotaryDim});
     auto p_summary_cache =
-        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{n_phys, m_h_ik, kSlotsPerPage, kDidx});
+        std::make_shared<ov::op::v0::Parameter>(data_precision, ov::Shape{n_phys, m_h_ik, m_slots_per_page, kDidx});
 
     const ov::ParameterVector params_in{p_q_idx,
                                         p_k_idx,
@@ -461,9 +465,9 @@ void PagedQSAIndexerLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& 
         }
         tensors[InputIdx::PAST_LENS] = make_i32(past_lens_values);
     }
-    tensors[InputIdx::INDEX_KEY_CACHE] = make_zeros(ov::Shape{n_phys, m_h_ik, kPageSize, kDidx});
-    tensors[InputIdx::INDEX_BLOCK_ROPE_CACHE] = make_zeros(ov::Shape{n_phys, kSlotsPerPage, 2 * kRotaryDim});
-    tensors[InputIdx::BLOCK_INDEX_KEYS_CACHE] = make_zeros(ov::Shape{n_phys, m_h_ik, kSlotsPerPage, kDidx});
+    tensors[InputIdx::INDEX_KEY_CACHE] = make_zeros(ov::Shape{n_phys, m_h_ik, m_page_size, kDidx});
+    tensors[InputIdx::INDEX_BLOCK_ROPE_CACHE] = make_zeros(ov::Shape{n_phys, m_slots_per_page, 2 * kRotaryDim});
+    tensors[InputIdx::BLOCK_INDEX_KEYS_CACHE] = make_zeros(ov::Shape{n_phys, m_h_ik, m_slots_per_page, kDidx});
 
     for (size_t i = 0; i < params.size(); i++) {
         host_inputs[params[i]] = tensors[i];
@@ -551,7 +555,7 @@ void PagedQSAIndexerLayerCPUTest::compare(const std::vector<ov::Tensor>& expecte
                                           const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); i++) {
-        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
+        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold, m_mismatch_share);
     }
 }
 

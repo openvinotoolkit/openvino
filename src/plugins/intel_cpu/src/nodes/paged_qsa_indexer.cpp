@@ -34,6 +34,10 @@
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
+#ifdef OPENVINO_ARCH_X86_64
+#    include "kernels/x64/qsa_brgemm_scorer.hpp"
+#endif
+
 namespace ov::intel_cpu::node {
 
 namespace {
@@ -180,6 +184,76 @@ struct IndexerArgs {
     }
 };
 
+#ifdef OPENVINO_ARCH_X86_64
+// The paged layout of a call as the brgemm scorer sees it (see BrgemmBlockScorer): the rows are the sequences, the
+// token v of a sequence is the flat token plan.token_begin + v, and the summary blocks of a sequence are addressed
+// through the page table: a page holds `slots_per_page` consecutive blocks of a K head, and the pages of a sequence
+// are anywhere in the cache. `T` is the precision of the summary cache.
+template <typename T>
+class PagedSource {
+public:
+    using Element = T;
+
+    explicit PagedSource(const IndexerArgs& args) : m_a(args) {}
+
+    [[nodiscard]] int64_t tokens(size_t seq) const {
+        return m_a.plans[seq].q_len;
+    }
+    // the complete blocks up to the one the token completes
+    [[nodiscard]] int64_t blocks_visible(size_t seq, int64_t v) const {
+        return (m_a.plans[seq].past_len + v + 1) / m_a.r;
+    }
+    [[nodiscard]] int64_t blocks(size_t seq) const {
+        return m_a.plans[seq].past_blocks + m_a.plans[seq].new_blocks;
+    }
+    [[nodiscard]] const float* query_row(size_t seq, int64_t v, size_t h, float* buf) const {
+        return row_view(m_a.q_idx, m_a.D_idx, buf, token(seq, v), h * m_a.D_idx);
+    }
+    [[nodiscard]] const float* rope_cos(size_t seq, int64_t v, float* buf) const {
+        return row_view(m_a.rope_cos, m_a.rotary_dim, buf, token(seq, v));
+    }
+    [[nodiscard]] const float* rope_sin(size_t seq, int64_t v, float* buf) const {
+        return row_view(m_a.rope_sin, m_a.rotary_dim, buf, token(seq, v));
+    }
+    [[nodiscard]] const float* q_norm_weight() const {
+        return m_a.q_norm_w;
+    }
+    // 32 blocks that lie in one page are used in place; blocks of several pages (a small page, or the end of the
+    // sequence) are gathered, run by run, into the zero-padded stage.
+    [[nodiscard]] const T* block_rows(size_t seq, size_t hk, size_t first, size_t count, T* stage) const {
+        const auto& plan = m_a.plans[seq];
+        const auto slots = static_cast<size_t>(m_a.slots_per_page);
+        const auto [first_page, first_slot] = m_a.block_phys(plan, static_cast<int64_t>(first));
+        if (count == qsa::kScoreBlockRows && first_slot + count <= slots) {
+            return m_a.summary_cache.template ptr<T>(first_page, hk, first_slot);
+        }
+        const size_t dim = m_a.D_idx;
+        size_t done = 0;
+        while (done < count) {
+            const auto [page, slot] = m_a.block_phys(plan, static_cast<int64_t>(first + done));
+            const size_t run = std::min(count - done, slots - slot);
+            std::copy_n(m_a.summary_cache.template ptr<T>(page, hk, slot), run * dim, stage + done * dim);
+            done += run;
+        }
+        std::fill_n(stage + count * dim, (qsa::kScoreBlockRows - count) * dim, T{});
+        return stage;
+    }
+    [[nodiscard]] int32_t* selection_indices(size_t seq, int64_t v, size_t sh) const {
+        return m_a.sel_indices.template ptr<int32_t>(token(seq, v), sh, 0);
+    }
+    [[nodiscard]] int32_t* selection_count(size_t seq, int64_t v, size_t sh) const {
+        return m_a.sel_count.template ptr<int32_t>(token(seq, v), sh);
+    }
+
+private:
+    [[nodiscard]] size_t token(size_t seq, int64_t v) const {
+        return static_cast<size_t>(m_a.plans[seq].token_begin + v);
+    }
+
+    const IndexerArgs& m_a;
+};
+#endif
+
 // Phase 1, per token: append the token's raw index keys to the paged cache, and when it starts a block record the
 // interleaved cos/sin row of that first token, so the block's summary (finalized once the block completes, possibly in
 // a later call) can be RoPE'ed with the exact coefficients of its first token, regardless of KV-cache slot vs logical
@@ -316,6 +390,23 @@ void select_blocks(const IndexerArgs& a, size_t token) {
 
 }  // namespace
 
+#ifdef OPENVINO_ARCH_X86_64
+// Query heads per K head if the scoring of this node runs on brgemm, 0 if not. The query is rounded to the precision of
+// the summary blocks for the brgemm products, which is only done when it is that precision already.
+static size_t brgemm_group_size(const Node& node,
+                                const ov::element::Type& query_precision,
+                                const ov::element::Type& summary_precision,
+                                size_t selection_heads,
+                                size_t dim) {
+    const auto q_width = node.getInputShapeAtPort(InputIdx::INDEX_QUERY).getDims()[1];
+    const auto k_width = node.getInputShapeAtPort(InputIdx::RAW_INDEX_KEYS).getDims()[1];
+    if (query_precision != summary_precision || q_width == Shape::UNDEFINED_DIM || k_width == Shape::UNDEFINED_DIM) {
+        return 0;
+    }
+    return qsa::brgemm_score_group_size(summary_precision, q_width / dim, k_width / dim, selection_heads, dim);
+}
+#endif
+
 PagedQSAIndexer::PagedQSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
@@ -348,13 +439,68 @@ void PagedQSAIndexer::initSupportedPrimitiveDescriptors() {
     std::vector<PortConfigurator> outPortConfigs = {
         PortConfigurator{LayoutType::ncsp, ov::element::i32, getOutputShapeAtPort(OutputIdx::SEL_INDICES), false, -1},
         PortConfigurator{LayoutType::ncsp, ov::element::i32, getOutputShapeAtPort(OutputIdx::SEL_COUNT), false, -1}};
-    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref);
+    // The scoring runs on brgemm where the CPU, the precisions and the head counts allow it (see createPrimitive()).
+    impl_desc_type impl = impl_desc_type::ref;
+#ifdef OPENVINO_ARCH_X86_64
+    const auto summary_precision = getOriginalInputPrecisionAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE);
+    if (brgemm_group_size(*this,
+                          getOriginalInputPrecisionAtPort(InputIdx::INDEX_QUERY),
+                          summary_precision,
+                          m_config.num_selection_heads,
+                          m_config.indexer_head_dim) != 0) {
+        impl = qsa::score_impl_type(summary_precision);
+    }
+#endif
+    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl);
+}
+
+void PagedQSAIndexer::createPrimitive() {
+#ifdef OPENVINO_ARCH_X86_64
+    // The scorer depends on the configuration, the static head counts and the precision only: like the executor of the
+    // ScaledDotProductAttention it comes from the params cache once here, never while the model runs.
+    // initSupportedPrimitiveDescriptors() registered the brgemm implementation type for the nodes that can have it.
+    const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
+    const auto precision = config.inConfs[InputIdx::BLOCK_INDEX_KEYS_CACHE].getMemDesc()->getPrecision();
+    const size_t dim = m_config.indexer_head_dim;
+    const auto q_width = getInputShapeAtPort(InputIdx::INDEX_QUERY).getDims()[1];
+    const auto k_width = getInputShapeAtPort(InputIdx::RAW_INDEX_KEYS).getDims()[1];
+    // the query is rounded to the precision of the summary blocks for the brgemm products: only done when it is that
+    // precision already
+    if (config.inConfs[InputIdx::INDEX_QUERY].getMemDesc()->getPrecision() == precision &&
+        q_width != Shape::UNDEFINED_DIM && k_width != Shape::UNDEFINED_DIM) {
+        const qsa::BrgemmBlockScorer::Config scorer_config{
+            q_width / dim,
+            k_width / dim,
+            m_config.num_selection_heads,
+            dim,
+            m_config.indexer_rotary_dim,
+            m_config.block_topk,
+            static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()),
+            m_config.epsilon,
+            ov::op::internal::PagedQSAIndexer::effective_scale(m_config),
+            precision};
+        m_scorer = qsa::BrgemmBlockScorer::get(context->getParamsCache(), scorer_config);
+    }
+    if (!m_scorer) {
+        // nothing to score with on brgemm: the scalar scoring runs, so the node is a reference implementation
+        getSelectedPrimitiveDescriptor()->setImplementationType(impl_desc_type::ref);
+    }
+#endif
 }
 
 void PagedQSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
-    execute_typed();
+    // The precision of the summary blocks: the one the block scoring on brgemm works in.
+    const auto summary_precision = getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE)->getDesc().getPrecision();
+    if (summary_precision == ov::element::f32) {
+        execute_typed<float>();
+    } else if (summary_precision == ov::element::f16) {
+        execute_typed<ov::float16>();
+    } else {
+        execute_typed<ov::bfloat16>();
+    }
 }
 
+template <typename T>
 void PagedQSAIndexer::execute_typed() {
     const auto& c = m_config;
     const auto r = static_cast<int64_t>(c.key_block_size);
@@ -400,6 +546,7 @@ void PagedQSAIndexer::execute_typed() {
     std::vector<SeqPlan> plans(num_sequences);
     int64_t max_blocks = 0;
     int64_t max_new_blocks = 0;
+    int64_t max_q_len = 0;
     for (size_t seq = 0; seq < num_sequences; seq++) {
         const int64_t block_begin = block_indices_begins_p[seq];
         const int64_t seq_blocks = std::max<int64_t>(block_indices_begins_p[seq + 1] - block_begin, 0);
@@ -416,21 +563,42 @@ void PagedQSAIndexer::execute_typed() {
                         "[CPU] paged_qsa_indexer: the completed blocks do not fit the sequence's cache blocks");
         max_blocks = std::max(max_blocks, plan.past_blocks + plan.new_blocks);
         max_new_blocks = std::max(max_new_blocks, plan.new_blocks);
+        max_q_len = std::max(max_q_len, plan.q_len);
         plans[seq] = plan;
     }
 
+    // Scoring on brgemm (see qsa_brgemm_scorer.hpp; the scorer was taken from the params cache in createPrimitive(),
+    // the call only plans its sizes, which have to be known for the allocation below).
+    const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
+#ifdef OPENVINO_ARCH_X86_64
+    const bool use_scorer = m_scorer && max_blocks > 0;
+    qsa::BrgemmBlockScorer::Plan scorer_plan;
+    if (use_scorer) {
+        scorer_plan = m_scorer->plan(num_sequences, max_q_len, max_blocks);
+    }
+    const size_t scorer_shared_bytes = scorer_plan.shared_bytes;
+    const size_t scorer_thread_bytes = scorer_plan.thread_bytes;
+#else
+    constexpr size_t scorer_shared_bytes = 0;
+    constexpr size_t scorer_thread_bytes = 0;
+#endif
+
     // One scratch allocation (a second createScratchPadMem() could free the first's memory): a header (token ->
-    // sequence array, the head maps and the f32 norm weights), then one slice per worker thread, see ThreadLayout.
+    // sequence array, the head maps and the f32 norm weights), what the brgemm scorer shares between the threads, then
+    // one slice per worker thread, see ThreadLayout (the scorer lays out its own slices over the same space, after
+    // phases 1 and 2 have used theirs).
     constexpr size_t kAlign = 64;
     const size_t token_seq_off = 0;
     const size_t sel_of_kv_off = rnd_up(token_seq_off + tokens * sizeof(int32_t), kAlign);
     const size_t weights_off = rnd_up(sel_of_kv_off + H_ik * sizeof(size_t), kAlign);
     const size_t header_bytes = rnd_up(weights_off + 2 * D_idx * sizeof(float), kAlign);
     const ThreadLayout thread_layout(H_iq, D_idx, rotary_dim, static_cast<size_t>(max_blocks), block_topk);
-    const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
-    const MemoryPtr scratch = context->getScratchPad()->createScratchPadMem(
-        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8,
-                                               ov::intel_cpu::Shape{header_bytes + num_threads * thread_layout.bytes}));
+    const size_t scorer_shared_offset = header_bytes;
+    const size_t threads_offset = rnd_up(scorer_shared_offset + scorer_shared_bytes, kAlign);
+    const size_t thread_slice_bytes = std::max(thread_layout.bytes, scorer_thread_bytes);
+    const MemoryPtr scratch = context->getScratchPad()->createScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(
+        ov::element::u8,
+        ov::intel_cpu::Shape{threads_offset + num_threads * thread_slice_bytes}));
     auto* const scratch_base = scratch->getDataAs<uint8_t>();
 
     auto* const token_seq = reinterpret_cast<int32_t*>(scratch_base + token_seq_off);
@@ -481,7 +649,7 @@ void PagedQSAIndexer::execute_typed() {
                            q_norm_w,
                            k_norm_w,
                            thread_layout,
-                           scratch_base + header_bytes};
+                           scratch_base + threads_offset};
 
     const auto& cpu_parallel = context->getCpuParallel();
     // Phase 1: the raw keys of the tokens (and the rope rows of the blocks they start) go to the caches; disjoint
@@ -504,6 +672,17 @@ void PagedQSAIndexer::execute_typed() {
                                      });
     }
     // Phase 3: a token scores the complete blocks up to the one it completes, all written by now.
+#ifdef OPENVINO_ARCH_X86_64
+    if (use_scorer) {
+        const PagedSource<T> source(args);
+        m_scorer->run(scorer_plan,
+                      source,
+                      scratch_base + scorer_shared_offset,
+                      scratch_base + threads_offset,
+                      *cpu_parallel);
+        return;
+    }
+#endif
     cpu_parallel->parallel_for(tokens, [&](size_t token) {
         if (token_seq[token] >= 0) {
             select_blocks(args, token);

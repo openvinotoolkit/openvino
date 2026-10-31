@@ -45,6 +45,7 @@ public:
     // ldb is the leading dimension for B matrix
     // ldc is the leading dimension for C matrix
     // b_transpose indicates wheter B matrix is transposed.
+    // fuse_relu applies ReLU to the result as a brgemm post-op: C = max(0, A * B)
     BrgemmKernel(size_t M,
                  size_t N,
                  size_t K,
@@ -53,7 +54,8 @@ public:
                  size_t ldc,
                  bool b_transposed = false,
                  ov::element::Type inType = ov::element::bf16,
-                 bool b_accumulate = false);
+                 bool b_accumulate = false,
+                 bool fuse_relu = false);
 
     virtual ~BrgemmKernel() = default;
 
@@ -115,7 +117,8 @@ protected:
                  ov::element::Type inType,
                  ov::element::Type DType,
                  ScaleType bScaleType,
-                 bool b_accumulate);
+                 bool b_accumulate,
+                 bool fuse_relu = false);
     size_t M = 0, M_blk = 0, M_tail = 0;
     size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
     size_t lda = 0, ldb = 0, ldc = 0, ldd = 0;
@@ -130,6 +133,7 @@ protected:
     ScaleType bScaleType = ScaleType::NONE;
     bool is_avx_f16_only = false;
     bool b_accumulate = false;
+    bool post_relu = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
     struct brgemmCtx {

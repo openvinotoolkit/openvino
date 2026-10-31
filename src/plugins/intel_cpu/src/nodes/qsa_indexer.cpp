@@ -41,6 +41,10 @@
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
+#ifdef OPENVINO_ARCH_X86_64
+#    include "kernels/x64/qsa_brgemm_scorer.hpp"
+#endif
+
 namespace ov::intel_cpu::node {
 
 namespace {
@@ -48,21 +52,99 @@ namespace {
 using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
 using OutputIdx = ov::intel_cpu::QSAIndexer::OutputIdx;
 
+using qsa::make_row_plan;
 using qsa::rmsnorm_partial_rope;
+using qsa::row_f32;
+using qsa::RowPlan;
 
-// All floating-point ports share the precision T (the node declares them that way), so only the rows
-// actually touched are converted to / from the f32 compute buffers, never a whole tensor.
-// Read-only f32 view of a row: the tensor row itself when T is f32 (nothing to convert, so no copy), otherwise the
-// row converted into `scratch`. Rows that have to be copied anyway call cpu_convert directly.
-template <typename T, typename... Idx>
-const float* row_f32(const PlainTensor& t, size_t len, float* scratch, Idx... idx) {
-    if constexpr (std::is_same_v<T, float>) {
-        return t.ptr<float>(idx...);
-    } else {
-        cpu_convert(t.ptr<T>(idx...), scratch, ov::element::from<T>(), ov::element::f32, len);
-        return scratch;
+#ifdef OPENVINO_ARCH_X86_64
+// The dense layout of a call as the brgemm scorer sees it (see BrgemmBlockScorer): the rows are the rows of the batch,
+//   q_idx [B, L, H_iq, D], RoPE tables [1 | B, L, Dr], summary_cache [B, H_ik, NB, D] (with the blocks this call
+//   completes), selection [B, H_sel, L, block_topk] / [B, H_sel, L].
+// The window of a row is left-padded: the token v of the call is at the position num_padding + v of the window.
+template <typename T>
+class DenseSource {
+public:
+    using Element = T;
+
+    DenseSource(const PlainTensor& q_idx,
+                const PlainTensor& rope_cos,
+                const PlainTensor& rope_sin,
+                const PlainTensor& summary_cache,
+                const PlainTensor& sel_indices,
+                const PlainTensor& sel_count,
+                const RowPlan* plans,
+                const float* q_norm_weight,
+                int64_t ratio)
+        : m_q_idx(q_idx),
+          m_rope_cos(rope_cos),
+          m_rope_sin(rope_sin),
+          m_summary_cache(summary_cache),
+          m_sel_indices(sel_indices),
+          m_sel_count(sel_count),
+          m_plans(plans),
+          m_q_norm_weight(q_norm_weight),
+          m_ratio(ratio),
+          m_dim(q_idx.size(3)),
+          m_rotary_dim(rope_cos.size(2)) {}
+
+    [[nodiscard]] int64_t tokens(size_t b) const {
+        return m_plans[b].current;
     }
-}
+    [[nodiscard]] int64_t blocks_visible(size_t b, int64_t v) const {
+        return m_plans[b].blocks_visible(v, m_ratio);
+    }
+    [[nodiscard]] int64_t blocks(size_t b) const {
+        return m_plans[b].past_blocks + m_plans[b].new_blocks;
+    }
+    [[nodiscard]] const float* query_row(size_t b, int64_t v, size_t h, float* buf) const {
+        return row_f32<T>(m_q_idx, m_dim, buf, b, position(b, v), h);
+    }
+    [[nodiscard]] const float* rope_cos(size_t b, int64_t v, float* buf) const {
+        return row_f32<T>(m_rope_cos, m_rotary_dim, buf, m_rope_cos.size(0) == 1 ? 0 : b, position(b, v));
+    }
+    [[nodiscard]] const float* rope_sin(size_t b, int64_t v, float* buf) const {
+        return row_f32<T>(m_rope_sin, m_rotary_dim, buf, m_rope_sin.size(0) == 1 ? 0 : b, position(b, v));
+    }
+    [[nodiscard]] const float* q_norm_weight() const {
+        return m_q_norm_weight;
+    }
+    // The blocks of a K head are contiguous in the cache: 32 of them are used in place, fewer (the end of the row) are
+    // copied into the zero-padded stage.
+    [[nodiscard]] const T* block_rows(size_t b, size_t hk, size_t first, size_t count, T* stage) const {
+        const T* rows = m_summary_cache.template ptr<T>(b, hk, first);
+        if (count == qsa::kScoreBlockRows) {
+            return rows;
+        }
+        std::copy_n(rows, count * m_dim, stage);
+        std::fill_n(stage + count * m_dim, (qsa::kScoreBlockRows - count) * m_dim, T{});
+        return stage;
+    }
+    [[nodiscard]] int32_t* selection_indices(size_t b, int64_t v, size_t sh) const {
+        return m_sel_indices.template ptr<int32_t>(b, sh, position(b, v), 0);
+    }
+    [[nodiscard]] int32_t* selection_count(size_t b, int64_t v, size_t sh) const {
+        return m_sel_count.template ptr<int32_t>(b, sh, position(b, v));
+    }
+
+private:
+    [[nodiscard]] size_t position(size_t b, int64_t v) const {
+        return static_cast<size_t>(m_plans[b].num_padding + v);
+    }
+
+    const PlainTensor& m_q_idx;
+    const PlainTensor& m_rope_cos;
+    const PlainTensor& m_rope_sin;
+    const PlainTensor& m_summary_cache;
+    const PlainTensor& m_sel_indices;
+    const PlainTensor& m_sel_count;
+    const RowPlan* m_plans;
+    const float* m_q_norm_weight;
+    int64_t m_ratio;
+    size_t m_dim;
+    size_t m_rotary_dim;
+};
+#endif
 
 // Output shapes of QSAIndexer: everything follows the input shapes, but the summary_cache block count of the longest
 // row, which is read from the key_length values.
@@ -129,6 +211,52 @@ QSAIndexer::QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::
     m_config = qsa_indexer->get_config();
 }
 
+#ifdef OPENVINO_ARCH_X86_64
+// Query heads per K head if the scoring of this node (precision of the data ports `precision`) runs on brgemm, 0 if
+// not.
+static size_t brgemm_group_size(const Node& node,
+                                const ov::element::Type& precision,
+                                size_t selection_heads,
+                                size_t dim) {
+    const auto q_heads = node.getInputShapeAtPort(InputIdx::Q_IDX).getDims()[2];
+    const auto k_heads = node.getInputShapeAtPort(InputIdx::K_IDX).getDims()[2];
+    if (q_heads == Shape::UNDEFINED_DIM || k_heads == Shape::UNDEFINED_DIM) {
+        return 0;
+    }
+    return qsa::brgemm_score_group_size(precision, q_heads, k_heads, selection_heads, dim);
+}
+#endif
+
+void QSAIndexer::createPrimitive() {
+#ifdef OPENVINO_ARCH_X86_64
+    // The scorer depends on the configuration, the static head counts and the precision only: like the executor of the
+    // ScaledDotProductAttention it comes from the params cache once here, never while the model runs.
+    // initSupportedPrimitiveDescriptors() registered the brgemm implementation type for the nodes that can have it.
+    const auto precision =
+        getSelectedPrimitiveDescriptor()->getConfig().inConfs[InputIdx::Q_IDX].getMemDesc()->getPrecision();
+    const auto q_heads = getInputShapeAtPort(InputIdx::Q_IDX).getDims()[2];
+    const auto k_heads = getInputShapeAtPort(InputIdx::K_IDX).getDims()[2];
+    if (q_heads != Shape::UNDEFINED_DIM && k_heads != Shape::UNDEFINED_DIM) {
+        const qsa::BrgemmBlockScorer::Config config{
+            q_heads,
+            k_heads,
+            m_config.h_sel,
+            m_config.indexer_head_dim,
+            m_config.indexer_rotary_dim,
+            m_config.block_topk,
+            static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()),
+            m_config.eps,
+            ov::intel_cpu::QSAIndexer::effective_scale(m_config),
+            precision};
+        m_scorer = qsa::BrgemmBlockScorer::get(context->getParamsCache(), config);
+    }
+    if (!m_scorer) {
+        // nothing to score with on brgemm: the scalar scoring runs, so the node is a reference implementation
+        getSelectedPrimitiveDescriptor()->setImplementationType(impl_desc_type::ref);
+    }
+#endif
+}
+
 void QSAIndexer::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty()) {
         return;
@@ -154,7 +282,14 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
     for (const auto& [in_port, out_port] : state_ports) {
         outPortConfigs.emplace_back(LayoutType::ncsp, data_precision, getOutputShapeAtPort(out_port), false, -1);
     }
-    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref);
+    // The scoring runs on brgemm where the CPU, the precision and the head counts allow it (see createPrimitive()).
+    impl_desc_type impl = impl_desc_type::ref;
+#ifdef OPENVINO_ARCH_X86_64
+    if (brgemm_group_size(*this, data_precision, m_config.h_sel, m_config.indexer_head_dim) != 0) {
+        impl = qsa::score_impl_type(data_precision);
+    }
+#endif
+    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl);
 }
 
 void QSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
@@ -223,44 +358,56 @@ void QSAIndexer::execute_typed() {
     const size_t summary_block_bytes = D_idx * sizeof(T);
     const size_t summary_head_in_bytes = summary_blocks_in * summary_block_bytes;
     const size_t summary_head_out_bytes = summary_blocks_out * summary_block_bytes;
-    const size_t summary_copy_bytes = std::min(summary_blocks_in, summary_blocks_out) * summary_block_bytes;
     const auto* summary_cache_src = summary_cache_in_mem->getDataAs<const uint8_t>();
     auto* summary_cache_dst = summary_cache_out_mem->getDataAs<uint8_t>();
 
-    // Every per-row quantity is derived from this call's own key_length/L alone -- no cross-call running counter
-    // is kept (see QSAIndexer's class comment).
-    struct RowPlan {
-        int64_t num_padding;  // left-padded positions of this call's window, skipped everywhere
-        int64_t current;      // real tokens of this call
-        int64_t tail;         // rows already sitting in the incomplete-block state
-        int64_t past_blocks;  // complete blocks of the earlier calls
-        int64_t new_blocks;   // blocks this call completes
-    };
     const auto plan_row = [&](size_t b) {
-        const int64_t key_len = key_length_p[b * key_length_stride];
-        const int64_t past_n = std::max<int64_t>(0, key_len - L);
-        RowPlan plan{};
-        plan.current = key_len - past_n;  // == min(L, key_len)
-        plan.num_padding = L - plan.current;
-        plan.tail = past_n % r;
-        plan.past_blocks = past_n / r;
-        plan.new_blocks = (plan.tail + plan.current) / r;
-        return plan;
+        return make_row_plan(key_length_p[b * key_length_stride], L, r);
     };
+
+    constexpr size_t kAlign = 64;
+    const auto data_prec = ov::element::from<T>();
+
+    // The longest window of a row and the most blocks a row has after this call.
+    int64_t max_current = 0;
+    int64_t max_row_blocks = 0;
+    for (size_t b = 0; b < B; b++) {
+        const auto plan = plan_row(b);
+        max_current = std::max(max_current, plan.current);
+        max_row_blocks = std::max(max_row_blocks, plan.past_blocks + plan.new_blocks);
+    }
+    const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
+
+    // Scoring on brgemm (x64 CPUs with the matching ISA, see qsa_brgemm_scorer.hpp; the scorer was taken from the
+    // params cache in createPrimitive(), the call only plans its sizes); the scalar scoring below otherwise.
+#ifdef OPENVINO_ARCH_X86_64
+    const bool use_scorer = m_scorer && summary_blocks_out > 0;
+    qsa::BrgemmBlockScorer::Plan scorer_plan;
+    if (use_scorer) {
+        scorer_plan = m_scorer->plan(B, max_current, max_row_blocks);
+    }
+    const size_t scorer_shared_bytes = scorer_plan.shared_bytes;
+    const size_t scorer_thread_bytes = scorer_plan.thread_bytes;
+#else
+    constexpr bool use_scorer = false;
+    constexpr size_t scorer_shared_bytes = 0;
+    constexpr size_t scorer_thread_bytes = 0;
+#endif
 
     // One scratch allocation (a second createScratchPadMem() could free the first's memory):
     // a shared header (row plans, head maps, f32 norm weights, a zero row), the f32 mirror of summary_cache when it
-    // isn't f32, then one slice per worker thread: floats | (score, block) pairs | chosen block ids.
-    constexpr size_t kAlign = 64;
+    // isn't f32 and the scalar scoring reads it, what the brgemm scorer shares between the threads, then one slice per
+    // worker thread: floats | (score, block) pairs | chosen block ids (scalar scoring; the brgemm scorer lays out its
+    // own slices over the same space, after phase 1 has used the floats).
     const size_t max_blocks = summary_blocks_out;  // upper bound of n_complete for every row
     const size_t head_maps_offset = B * sizeof(RowPlan);
     const size_t shared_floats_offset = head_maps_offset + 2 * H_iq * sizeof(size_t);
     const size_t shared_header_bytes = rnd_up(shared_floats_offset + 3 * D_idx * sizeof(float), kAlign);
     // An f32 summary_cache is scored in place; otherwise phase 2b reads the f32 mirror of [B, H_ik, blocks, D_idx].
     constexpr bool summary_is_f32 = std::is_same_v<T, float>;
-    const auto data_prec = ov::element::from<T>();
-    const size_t summary_mirror_floats = summary_is_f32 ? 0 : B * H_ik * summary_blocks_out * D_idx;
-    const size_t shared_bytes = shared_header_bytes + rnd_up(summary_mirror_floats * sizeof(float), kAlign);
+    const size_t summary_mirror_floats = (summary_is_f32 || use_scorer) ? 0 : B * H_ik * summary_blocks_out * D_idx;
+    const size_t scorer_shared_offset = shared_header_bytes + rnd_up(summary_mirror_floats * sizeof(float), kAlign);
+    const size_t shared_bytes = scorer_shared_offset + scorer_shared_bytes;
     // Float buffers (offsets in floats) of a thread slice. The phases run one after the other, so they share it:
     //   phase 1: pooled (= the first row of q_normed), row_buf, [rope_cos, rope_sin] of the block's reference token
     //   phase 2: q_normed [H_iq, D_idx], row_buf, [rope_cos, rope_sin] of the token
@@ -271,8 +418,8 @@ void QSAIndexer::execute_typed() {
     using ScoreT = std::pair<float, int32_t>;
     const size_t thread_scores_offset = rnd_up(thread_floats * sizeof(float), kAlign);
     const size_t thread_chosen_offset = rnd_up(thread_scores_offset + max_blocks * sizeof(ScoreT), kAlign);
-    const size_t thread_bytes = rnd_up(thread_chosen_offset + block_topk * sizeof(int32_t), kAlign);
-    const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
+    const size_t scalar_thread_bytes = rnd_up(thread_chosen_offset + block_topk * sizeof(int32_t), kAlign);
+    const size_t thread_bytes = use_scorer ? std::max(thread_scores_offset, scorer_thread_bytes) : scalar_thread_bytes;
     auto scratch_desc =
         std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8,
                                                ov::intel_cpu::Shape{shared_bytes + num_threads * thread_bytes});
@@ -345,18 +492,31 @@ void QSAIndexer::execute_typed() {
 
     const auto& cpu_parallel = context->getCpuParallel();
 
-    // ---- Phase 0: the summary_cache output starts as the blocks of the earlier calls (+ their f32 mirror) ----
-    cpu_parallel->parallel_for2d(B, H_ik, [&](size_t b, size_t h) {
+    // ---- Phase 0: the summary_cache output [B, H_ik, summary_blocks_out, D] starts as the blocks of the earlier calls
+    // (the input [B, H_ik, summary_blocks_in, D]), followed by zeros (+ their f32 mirror for the scalar scoring) ----
+    // The copy of a long cache is split in block ranges to use the threads (decode has a single row and head).
+    const size_t copy_blocks = std::min(summary_blocks_in, summary_blocks_out);
+    constexpr size_t kCopyPartBytes = 256UL << 10;
+    const size_t copy_parts = std::clamp<size_t>(div_up(summary_head_out_bytes, kCopyPartBytes), 1, num_threads);
+    const size_t blocks_per_part = div_up(summary_blocks_out, copy_parts);
+    cpu_parallel->parallel_for3d(B, H_ik, copy_parts, [&](size_t b, size_t h, size_t part) {
+        const size_t begin = std::min(summary_blocks_out, part * blocks_per_part);
+        const size_t end = std::min(summary_blocks_out, begin + blocks_per_part);
         auto* dst = summary_cache_dst + (b * H_ik + h) * summary_head_out_bytes;
         const auto* src = summary_cache_src + (b * H_ik + h) * summary_head_in_bytes;
-        if (summary_copy_bytes != 0) {
-            std::memcpy(dst, src, summary_copy_bytes);
+        const size_t copy_end = std::min(end, copy_blocks);
+        if (begin < copy_end) {
+            std::memcpy(dst + begin * summary_block_bytes,
+                        src + begin * summary_block_bytes,
+                        (copy_end - begin) * summary_block_bytes);
         }
-        if (summary_head_out_bytes != summary_copy_bytes) {
-            std::memset(dst + summary_copy_bytes, 0, summary_head_out_bytes - summary_copy_bytes);
+        const size_t zero_begin = std::max(begin, copy_blocks);
+        if (zero_begin < end) {
+            std::memset(dst + zero_begin * summary_block_bytes, 0, (end - zero_begin) * summary_block_bytes);
         }
-        if constexpr (!std::is_same_v<T, float>) {
-            for (size_t blk = 0; blk < static_cast<size_t>(plans[b].past_blocks); blk++) {
+        if (summary_mirror_floats != 0) {
+            const size_t mirror_end = std::min(end, static_cast<size_t>(plans[b].past_blocks));
+            for (size_t blk = begin; blk < mirror_end; blk++) {
                 cpu_convert(summary_cache.ptr<T>(b, h, blk),
                             summary_f32_row(b, h, blk),
                             data_prec,
@@ -366,7 +526,11 @@ void QSAIndexer::execute_typed() {
         }
     });
 
-    // ---- Phase 1: the blocks this call completes are independent of each other: pool + RMSNorm + RoPE ----
+    // ---- Phase 1: the blocks this call completes are independent of each other. Per block (B x H_ik x new_blocks):
+    //   pool   the mean of its `ratio` raw keys (rows [D] of the incomplete-block state or of k_idx [B, L, H_ik, D])
+    //   RMS    pooled / sqrt(mean(pooled^2) + eps) * k_norm_weight   [D]
+    //   RoPE   the first Dr channels rotated with the cos / sin of the FIRST token of the block ([Dr] each)
+    // and the result is the index key of the block: summary_cache[b, h, blk, :] ----
     cpu_parallel->parallel_for3d(B, H_ik, static_cast<size_t>(max_new_blocks), [&](size_t b, size_t h, size_t j) {
         const auto& plan = plans[b];
         if (static_cast<int64_t>(j) >= plan.new_blocks) {
@@ -400,7 +564,7 @@ void QSAIndexer::execute_typed() {
                              block_ref_cos_sin + rotary_dim);
         const auto blk = static_cast<size_t>(plan.past_blocks) + j;
         cpu_convert(pooled, summary_cache.ptr<T>(b, h, blk), ov::element::f32, data_prec, D_idx);
-        if constexpr (!std::is_same_v<T, float>) {
+        if (summary_mirror_floats != 0) {
             // Phase 2 scores the value as stored (rounded to the cache precision).
             cpu_convert(summary_cache.ptr<T>(b, h, blk),
                         summary_f32_row(b, h, blk),
@@ -410,7 +574,8 @@ void QSAIndexer::execute_typed() {
         }
     });
 
-    // ---- Phase 1b: fully overwrite the fixed-size incomplete-block state ----
+    // ---- Phase 1b: fully overwrite the fixed-size incomplete-block state: the raw keys [B, H_ik, ratio - 1, D] of the
+    // tokens after the last complete block (zero-padded) and the cos / sin [B, 2 * Dr] of the first of them ----
     cpu_parallel->parallel_for(B, [&](size_t b) {
         const auto& plan = plans[b];
         auto* const thread_floats_base = reinterpret_cast<float*>(thread_slice());
@@ -436,7 +601,22 @@ void QSAIndexer::execute_typed() {
         cpu_convert(block_ref_cos_sin, past_incomplete_rope.ptr<T>(b), ov::element::f32, data_prec, 2 * rotary_dim);
     });
 
-    // ---- Phase 2: per real token, query RMSNorm + RoPE, then per-selection-head scoring of the complete blocks ----
+#ifdef OPENVINO_ARCH_X86_64
+    if (use_scorer) {
+        // ---- Phase 2 on brgemm ----
+        const DenseSource<T>
+            source(q_idx, rope_cos, rope_sin, summary_cache, sel_indices, sel_count, plans, q_norm_w, r);
+        m_scorer->run(scorer_plan,
+                      source,
+                      scratch_base + scorer_shared_offset,
+                      scratch_base + shared_bytes,
+                      *cpu_parallel);
+        return;
+    }
+#endif
+
+    // ---- Phase 2 (scalar scoring, the fallback of the brgemm scorer; see qsa_brgemm_scorer.hpp for the steps): per
+    // real token, query RMSNorm + RoPE, then per-selection-head scoring of the complete blocks ----
     cpu_parallel->parallel_for2d(B, static_cast<size_t>(L), [&](size_t b, size_t l_u) {
         const auto& plan = plans[b];
         const auto l = static_cast<int64_t>(l_u);
@@ -452,7 +632,8 @@ void QSAIndexer::execute_typed() {
         auto* const scores = reinterpret_cast<ScoreT*>(thread_base + thread_scores_offset);
         auto* const chosen = reinterpret_cast<int32_t*>(thread_base + thread_chosen_offset);
 
-        // ---- Phase 2a: query RMSNorm + partial RoPE (per index-query head) ----
+        // ---- Phase 2a: per index-query head, q_idx[b, l, h, :] [D] -> RMSNorm * q_norm_weight -> RoPE of the first
+        // Dr channels with cos / sin[b, l, :] [Dr] -> q_normed[h] [D] ----
         const float* const cos_row = row_f32<T>(rope_cos, rotary_dim, rope_cos_buf, rope_cos_batch(b), l);
         const float* const sin_row = row_f32<T>(rope_sin, rotary_dim, rope_sin_buf, rope_sin_batch(b), l);
         for (size_t h = 0; h < H_iq; h++) {
@@ -460,7 +641,10 @@ void QSAIndexer::execute_typed() {
             rmsnorm_partial_rope(q_row, q_normed + h * D_idx, q_norm_w, D_idx, rotary_dim, eps, cos_row, sin_row);
         }
 
-        // ---- Phase 2b: per-selection-head complete-block scoring + top-k ----
+        // ---- Phase 2b: per selection head sh and complete block blk visible to the token:
+        //   score = scale * sum over the query heads h of sh of max(0, q_normed[h] . summary_cache[kv(h), blk])   (q .
+        //   k)
+        // then the top-k blocks by score (ties: the lower block first), in ascending block order ----
         // The complete blocks visible to this token: the earlier calls' plus those finished up to this token.
         const int64_t v = l - plan.num_padding;
         const int64_t n_complete = plan.past_blocks + (plan.tail + v + 1) / r;

@@ -304,7 +304,15 @@ protected:
 };
 
 TEST_P(StatefulSparseAttentionTest, CompareWithStatelessReference) {
-    const auto& [prec, cache_prec, key_by_channel, N, E, Bk, Hs] = GetParam();
+    // plain variables: the lambda below captures them, which clang rejects for structured bindings before C++20
+    const auto& param = GetParam();
+    const auto prec = std::get<0>(param);
+    const auto cache_prec = std::get<1>(param);
+    const auto key_by_channel = std::get<2>(param);
+    const auto N = std::get<3>(param);
+    const auto E = std::get<4>(param);
+    const auto Bk = std::get<5>(param);
+    const auto Hs = std::get<6>(param);
     if (prec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16()) {
         GTEST_SKIP() << "bf16 is not supported on this machine";
     }
