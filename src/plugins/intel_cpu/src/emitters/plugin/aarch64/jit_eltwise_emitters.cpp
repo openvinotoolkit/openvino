@@ -3609,7 +3609,7 @@ void jit_erfinv_emitter::register_table_entries() {
     push_arg_entry_of("e2_c5", 0xbb70bde7, true);
     push_arg_entry_of("e2_c4", 0x3bbc127b, true);
     push_arg_entry_of("e2_c3", 0xbbf9c5d7, true);
-    push_arg_entry_of("e2_c2", 0xbc1aa57e, true);
+    push_arg_entry_of("e2_c2", 0x3c1aa57e, true);
     push_arg_entry_of("e2_c1", 0x3f8036db, true);
     push_arg_entry_of("e2_c0", 0x40354f7e, true);
 }
