@@ -191,6 +191,15 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
     state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
     if (!state.hfa_selector) {
+        // No position_ids: a foreign host drives a plain CompiledModel and does its own chunked
+        // prefill. Read the KV length out of the model's attention mask instead.
+        LOG_VERB("No position_ids found for HFA - falling back to the mask-derived KV length");
+        state.hfa_selector = runtime::host_flash_attention::MaskLength::find(hfa->_past_tile_size,
+                                                                             original_query_length,
+                                                                             hfa->_sdpa_attention_info._context_size,
+                                                                             request);
+    }
+    if (!state.hfa_selector) {
         OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
     }
 }
@@ -989,24 +998,23 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                             "HFA: K sequence dimension is out of range for a past key tensor");
                         }
 
-                        // total_kv_length controls how many KV tiles HFA processes.
-                        // Use min(global_context_length, layer_bound_kv_length) to satisfy both constraints:
+                        // total_kv_length controls how many KV tiles HFA processes. The selector reports
+                        // the live KV length without tile alignment; plan_past_length() rounds its past up
+                        // to whole past tiles and caps it at the past KV bound to this layer:
                         // 1) Global layers: do not exceed real conversation length when block capacity is rounded up.
                         // 2) SWA layers: do not exceed KV that is actually bound in layer tensors (the sliding
                         //    window's past capacity may be smaller than the global/full-attention context).
-                        int64_t layer_bound_kv_length =
-                            static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
+                        int64_t past_capacity = 0;
                         for (const auto& k_block : past_key_blocks) {
-                            layer_bound_kv_length += static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+                            past_capacity += static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
                         }
-                        const int64_t global_context_length = state.hfa_selector->context_length();
-                        const int64_t total_kv_length = std::min(global_context_length, layer_bound_kv_length);
-
-                        const int64_t past_total_length = total_kv_length - present_tile_size;
-                        OPENVINO_ASSERT(
-                            past_tile_size > 0 ? (past_total_length % past_tile_size == 0) : (past_total_length == 0),
-                            "HFA: past length must be a multiple of the past tile size");
-                        const int64_t past_full_tiles = (past_tile_size > 0) ? (past_total_length / past_tile_size) : 0;
+                        const int64_t past_total_length =
+                            runtime::host_flash_attention::plan_past_length(state.hfa_selector->context_length(),
+                                                                            present_tile_size,
+                                                                            past_tile_size,
+                                                                            past_capacity);
+                        const int64_t total_kv_length = past_total_length + present_tile_size;
+                        const int64_t past_full_tiles = past_total_length / past_tile_size;
 
                         auto& regular_tile_request = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE];
                         auto& final_tile_request = state.hfa_requests.infer_requests[HFARequestSet::FINAL_TILE];
