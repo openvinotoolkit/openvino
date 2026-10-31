@@ -250,7 +250,9 @@ QSAIndexerOracle::Output QSAIndexerOracle::run_call(size_t batch,
                     for (size_t i = 0; i < k; i++) {
                         chosen[i] = scores[i].second;
                     }
-                    std::sort(chosen.begin(), chosen.end());
+                    if (!order_by_score) {
+                        std::sort(chosen.begin(), chosen.end());  // else: the order of partial_sort, by score
+                    }
                 }
                 auto* out_row = &out.sel_indices[((b * h_sel + sh) * L + lu) * block_topk];
                 for (size_t i = 0; i < k; i++) {
@@ -280,7 +282,7 @@ QSAIndexerOracle::Output QSAIndexerOracle::run_call(size_t batch,
 }
 
 std::string QSAIndexerLayerCPUTest::getTestCaseName(const testing::TestParamInfo<QSAIndexerLayerTestParams>& obj) {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario] = obj.param;
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, order_by_score] = obj.param;
     std::string scenario_name;
     switch (scenario) {
     case QSAIndexerScenario::kDensePrefill:
@@ -298,11 +300,11 @@ std::string QSAIndexerLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     }
     return "Target=" + device + "_DataPrecision=" + data_precision.get_type_name() + "_Hiq=" + std::to_string(h_iq) +
            "_Hik=" + std::to_string(h_ik) + "_Hsel=" + std::to_string(h_sel) + "_Batch=" + std::to_string(batch) +
-           "_Scenario=" + scenario_name;
+           "_Scenario=" + scenario_name + "_OrderByScore=" + std::to_string(order_by_score);
 }
 
 void QSAIndexerLayerCPUTest::SetUp() {
-    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario] = GetParam();
+    const auto& [device, data_precision, h_iq, h_ik, h_sel, batch, scenario, order_by_score] = GetParam();
     targetDevice = device;
     m_data_precision = data_precision;
     m_h_iq = h_iq;
@@ -310,6 +312,8 @@ void QSAIndexerLayerCPUTest::SetUp() {
     m_h_sel = h_sel;
     m_batch = batch;
     m_scenario = scenario;
+    m_order_by_score = order_by_score;
+    m_mismatch_share = order_by_score && data_precision != ov::element::f32 ? 0.1 : 0.0;
     rel_threshold = 1e-3F;
     abs_threshold = 1e-4F;
     if (data_precision == ov::element::bf16) {
@@ -400,6 +404,7 @@ void QSAIndexerLayerCPUTest::SetUp() {
     config.indexer_head_dim = m_didx;
     config.eps = 1e-6F;
     config.scale = 0.25F;
+    config.order_by_score = m_order_by_score;
 
     ov::OutputVector args = {p_q_idx,
                              p_k_idx,
@@ -435,7 +440,7 @@ void QSAIndexerLayerCPUTest::SetUp() {
 void QSAIndexerLayerCPUTest::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
     for (size_t i = 0; i < expected.size(); i++) {
-        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold);
+        ov::test::utils::compare(expected[i], actual[i], abs_threshold, rel_threshold, m_mismatch_share);
     }
 }
 
@@ -523,6 +528,7 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
     oracle.block_topk = m_block_topk;
     oracle.eps = 1e-6F;
     oracle.scale = 0.25F;
+    oracle.order_by_score = m_order_by_score;
     oracle.summary_cap = m_summary_cap;
     oracle.summary_cache = std::move(m_oracle_summary_cache);
     oracle.past_raw_k = std::move(m_oracle_past_raw_k);

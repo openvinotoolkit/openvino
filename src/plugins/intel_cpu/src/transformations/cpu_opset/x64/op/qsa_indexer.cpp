@@ -170,6 +170,7 @@ bool QSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("indexer_head_dim", m_config.indexer_head_dim);
     visitor.on_attribute("eps", m_config.eps);
     visitor.on_attribute("scale", m_config.scale);
+    visitor.on_attribute("order_by_score", m_config.order_by_score);
     return true;
 }
 

@@ -23,6 +23,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/quantization_utils.hpp"
 
 namespace {
@@ -46,6 +47,7 @@ uint32_t next_random(uint32_t& state) {
 // are complete at the token, so any of them may be selected -- including the one that ends exactly at the token, which
 // leaves the causal tail empty. Entries after the count are -1.
 void make_selection(ov::test::SparsePASelection mode,
+                    bool shuffle,
                     size_t max_blocks,
                     size_t num_complete,
                     uint32_t& rng,
@@ -72,6 +74,10 @@ void make_selection(ov::test::SparsePASelection mode,
         }
         std::sort(pool.begin(), pool.begin() + static_cast<ptrdiff_t>(n));
         std::copy_n(pool.begin(), n, indices);
+    }
+    // the order of the blocks of a row is up to the producer: ascending, like the CPU indexer returns them, or random
+    for (size_t k = shuffle ? n : 0; k > 1; k--) {
+        std::swap(indices[k - 1], indices[next_random(rng) % k]);
     }
     count = static_cast<int32_t>(n);
 }
@@ -250,7 +256,7 @@ std::string SparsePALayerCPUTest::getTestCaseName(const testing::TestParamInfo<S
     result << "B=" << first[1] << "_Hq=" << first[2] << "_Dh=" << first[3] << "_Hkv=" << cfg.num_kv_heads
            << "_Hsel=" << cfg.num_selection_heads << "_Dv=" << cfg.v_head_size << "_Bk=" << cfg.key_block_size
            << "_Page=" << cfg.page_size << "_Kmax=" << cfg.max_selected_blocks
-           << "_Sel=" << selection_name(cfg.selection)
+           << "_Sel=" << selection_name(cfg.selection) << (cfg.shuffle_blocks ? "_Shuffled" : "")
            << "_Cache=" << (cfg.cache_precision == ov::element::dynamic ? "plain" : cfg.cache_precision.get_type_name())
            << "_KeyByChannel=" << cfg.key_bychannel << "_Group=" << cfg.group_size << "_Mixed=" << cfg.mixed_lengths;
     return result.str();
@@ -540,7 +546,13 @@ void SparsePALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetI
             const size_t num_complete = (m_cur_past[s] + l + 1) / Bk;
             for (size_t sh = 0; sh < Hs; sh++) {
                 const size_t row = token * Hs + sh;
-                make_selection(m_cfg.selection, K, num_complete, rng, &sel_indices_flat[row * K], sel_count_flat[row]);
+                make_selection(m_cfg.selection,
+                               m_cfg.shuffle_blocks,
+                               K,
+                               num_complete,
+                               rng,
+                               &sel_indices_flat[row * K],
+                               sel_count_flat[row]);
             }
         }
     }
@@ -713,6 +725,13 @@ void SparsePALayerCPUTest::compare(const std::vector<ov::Tensor>& expected, cons
 }
 
 TEST_P(SparsePALayerCPUTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    // Without f16 instructions the plugin runs f16 models in f32 and converts their parameters, so the node writes the
+    // new keys and values into a converted copy of the caches this test feeds from step to step, not into the caches.
+    if (std::get<0>(GetParam()) == ov::element::f16 &&
+        !(ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx2_vnni_2())) {
+        GTEST_SKIP() << "f16 is not supported on this CPU";
+    }
     run();
 }
 

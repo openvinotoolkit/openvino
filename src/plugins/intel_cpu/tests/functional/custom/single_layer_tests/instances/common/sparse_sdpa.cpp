@@ -3,6 +3,7 @@
 //
 
 #include "custom/single_layer_tests/classes/sparse_sdpa.hpp"
+
 #include "utils/cpu_test_utils.hpp"
 
 namespace ov {
@@ -73,11 +74,9 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_Padded,
                                           testing::Values(SparseSDPAShape{})),
                          SparseSDPALayerCPUTest::getTestCaseName);
 
-// Same left-padded batches as smoke_SparseSDPA_CPU_Padded, but with the AMX-eligible shape
-// (k_head_size % 32 == 0, see createPrimitive()'s AMX gate in sparse_sdpa.cpp) so the padded
-// code path through run_amx_qk_chunks()/decompose_runs() (not just the scalar fallback) gets
-// exercised on AMX-capable hardware. Falls back to the scalar kernel transparently otherwise --
-// same pass/fail bar either way, same as smoke_SparseSDPA_CPU_AMX.
+// The left-padded batches of smoke_SparseSDPA_CPU_Padded with an AMX-eligible shape (k_head_size % 32 == 0, see the AMX
+// gate in sparse_sdpa.cpp), so the padded AMX path (attend_amx_chunks()) runs on AMX hardware; elsewhere the scalar
+// kernel runs, with the same pass bar.
 INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_AMX_Padded,
                          SparseSDPALayerCPUTest,
                          testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
@@ -156,6 +155,51 @@ std::vector<SparseSDPALayerTestParams> packed_cases() {
 INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_AMX_Packed,
                          SparseSDPALayerCPUTest,
                          testing::ValuesIn(packed_cases()),
+                         SparseSDPALayerCPUTest::getTestCaseName);
+
+// The selected blocks in random order instead of ascending (SparseAttention does not depend on the order): bf16 with
+// the AMX head sizes, where the adjacent runs of the ascending order are gone and the blocks of an AMX chunk are
+// gathered by id (the long shape selects 20 blocks, which a 4-unit chunk of 16 blocks gathers), the non-AMX precisions,
+// the non-adjacent step and padded batches.
+INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_Shuffled,
+                         SparseSDPALayerCPUTest,
+                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::Values(ov::element::bf16),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(true, false),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(32), static_cast<size_t>(256)),
+                                          testing::Values(static_cast<size_t>(4)),
+                                          testing::Values(std::vector<size_t>{}),
+                                          testing::Values(SparseSDPAShape{40, 10, 1, true},
+                                                          SparseSDPAShape{40, 10, 2, true},
+                                                          SparseSDPAShape{96, 20, 1, true})),
+                         SparseSDPALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_Shuffled_NoAMX,
+                         SparseSDPALayerCPUTest,
+                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::Values(ov::element::f32, ov::element::f16),
+                                          testing::Values(static_cast<size_t>(1)),
+                                          testing::Values(true, false),
+                                          testing::Values(static_cast<size_t>(1), static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(32)),
+                                          testing::Values(static_cast<size_t>(4)),
+                                          testing::Values(std::vector<size_t>{}),
+                                          testing::Values(SparseSDPAShape{96, 20, 1, true})),
+                         SparseSDPALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparseSDPA_CPU_Shuffled_Padded,
+                         SparseSDPALayerCPUTest,
+                         testing::Combine(testing::Values(ov::test::utils::DEVICE_CPU),
+                                          testing::Values(ov::element::bf16),
+                                          testing::Values(static_cast<size_t>(1)),
+                                          testing::Values(true, false),
+                                          testing::Values(static_cast<size_t>(2)),
+                                          testing::Values(static_cast<size_t>(32)),
+                                          testing::Values(static_cast<size_t>(4)),
+                                          testing::Values(std::vector<size_t>{96, 70}),
+                                          testing::Values(SparseSDPAShape{96, 20, 1, true})),
                          SparseSDPALayerCPUTest::getTestCaseName);
 
 }  // namespace test

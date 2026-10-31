@@ -4,6 +4,7 @@
 
 #include "qsa_indexer_fusion.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -13,6 +14,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -24,6 +26,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
@@ -33,6 +36,7 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 #include "transformations/pattern_blocks/qsa_index_query_block.hpp"
 
@@ -50,6 +54,22 @@ constexpr size_t ROPE_SIN = 4;
 constexpr size_t K_NORM_WEIGHT = 5;
 constexpr size_t PAST_INCOMPLETE_RAW_KEYS = 6;
 constexpr size_t PAST_INCOMPLETE_ROPE = 7;
+
+// Port of the selected blocks of SparseAttention and of SparseAttentionWithKVCache.
+constexpr size_t SPARSE_ATTENTION_BLOCK_INDICES = 3;
+
+// The result of SparseAttention does not depend on the order of the selected blocks of a row, and its CPU kernels
+// prefer ascending block ids. Anything else that reads the selection sees the order of SparseAttentionIndexer-17,
+// descending score: the fused op orders the blocks by score unless the selection only feeds SparseAttention.
+bool selection_feeds_only_attention(const ov::Output<ov::Node>& selection) {
+    const auto consumers = selection.get_target_inputs();
+    return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+        const auto* node = consumer.get_node();
+        const bool is_attention =
+            ov::is_type<v17::SparseAttention>(node) || ov::is_type<ov::intel_cpu::SparseAttentionWithKVCache>(node);
+        return is_attention && consumer.get_index() == SPARSE_ATTENTION_BLOCK_INDICES;
+    });
+}
 
 bool is_supported_data_type(const ov::element::Type& et) {
     return et == ov::element::f32 || et == ov::element::f16 || et == ov::element::bf16;
@@ -177,6 +197,7 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
             config.eps = match->epsilon;
             // SparseAttentionIndexer scores are not scaled; the scale does not change the selection anyway.
             config.scale = 1.0F;
+            config.order_by_score = !selection_feeds_only_attention(sai_node->output(0));
 
             ov::OutputVector args(ov::intel_cpu::QSAIndexer::InputIdx::COUNT);
             using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;

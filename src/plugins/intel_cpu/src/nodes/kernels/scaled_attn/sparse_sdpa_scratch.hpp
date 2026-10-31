@@ -15,7 +15,8 @@ namespace ov::Extensions::Cpu {
 //   q[pack, Dh] | acc[pack, Dv] | run_max[pack] | run_sum[pack] | scores[pack, score_stride] | dequantized rows
 // score_stride is the widest run of key rows one call handles: max_run_rows rows of adjacent selected blocks, or the
 // 4 merge units of an AMX chunk (amx_unit_blocks > 0). A quantized cache is dequantized into the last region
-// (rows of K, then of V, f32 -- or 16-bit for the AMX chunks, which needs less).
+// (rows of K, then of V, f32 -- or 16-bit for the AMX chunks, which needs less); the AMX chunks of blocks that are not
+// adjacent are gathered into it as well, with any cache.
 struct SdpaDecodeScratch {
     static constexpr size_t kMaxRunRows = 128;  // rows of adjacent selected blocks attended by one run (>= Bk)
 
@@ -44,7 +45,8 @@ struct SdpaDecodeScratch {
         run_max = take(max_pack);
         run_sum = take(max_pack);
         scores = take(max_pack * score_stride);
-        dequant = take(quantized ? score_stride * (Dh + Dv) : 0);
+        // also the gathered rows of an AMX chunk of blocks that are not adjacent (16-bit, which needs less than this)
+        dequant = take((quantized || amx_unit_blocks > 0) ? score_stride * (Dh + Dv) : 0);
         total = offset;
     }
 };

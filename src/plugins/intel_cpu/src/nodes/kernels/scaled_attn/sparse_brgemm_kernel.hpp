@@ -225,9 +225,9 @@ void gather_run(const RowSource& src,
     }
 }
 
-/// @brief The selection of an item: the selected blocks (ids of blocks of key_block_size rows, ascending runs of
-/// adjacent blocks in the same page merged into one gather of at most max_run_blocks blocks) and the causal tail (the
-/// incomplete last block of the query, `tail_rows` rows from `tail_start`).
+/// @brief The selection of an item: the selected blocks (ids of blocks of key_block_size rows, in any order; runs of
+/// consecutive adjacent blocks in the same page are merged into one gather of at most max_run_blocks blocks) and the
+/// causal tail (the incomplete last block of the query, `tail_rows` rows from `tail_start`).
 struct BrgemmSelection {
     const int32_t* block_ids;
     size_t nblocks;

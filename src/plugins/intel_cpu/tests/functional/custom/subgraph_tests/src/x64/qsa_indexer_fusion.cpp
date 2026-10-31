@@ -243,6 +243,8 @@ protected:
         oracle.block_topk = kBlockTopk;
         oracle.eps = kEpsilon;
         oracle.scale = 1.0F;
+        // the selection is an output of the model: the fused op returns it in the order of SparseAttentionIndexer-17
+        oracle.order_by_score = true;
         oracle.summary_cap = kOracleSummaryCap;
         oracle.summary_cache.assign(kBatch * kOracleSummaryCap * head_dim, 0.0F);
         oracle.past_raw_k.assign(kBatch * (m_key_block_size - 1) * head_dim, 0.0F);

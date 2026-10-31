@@ -78,6 +78,11 @@ public:
         size_t indexer_head_dim = 0;    ///< D_idx
         float eps = 1e-6F;              ///< RMSNorm epsilon
         float scale = 0.0F;             ///< positive score multiplier; 0 selects the default 1 / sqrt(indexer_head_dim)
+        /// Order of the selected blocks of a row in `sel_indices`. false: ascending block ids, the cheaper order that
+        /// the sparse attention kernels prefer (adjacent blocks are attended in one go); true: the order of
+        /// SparseAttentionIndexer-17, by descending score and, for equal scores, by ascending block id. It needs the
+        /// scores of every token, also of those that take all their blocks.
+        bool order_by_score = false;
     };
 
     QSAIndexer() = default;

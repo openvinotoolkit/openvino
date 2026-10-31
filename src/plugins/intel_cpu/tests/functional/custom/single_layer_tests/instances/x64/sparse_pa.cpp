@@ -335,6 +335,16 @@ std::vector<SparsePALayerTestParams> quantized_cases() {
                                        /*max_blocks=*/128))};
 }
 
+// The same cases with the selected blocks of a row in random order instead of ascending: SparseAttention does not
+// depend on the order, so the adjacent blocks of the ascending order are gone and the AMX chunks gather the blocks by
+// id.
+std::vector<SparsePALayerTestParams> shuffled(std::vector<SparsePALayerTestParams> cases) {
+    for (auto& test_case : cases) {
+        std::get<2>(test_case).shuffle_blocks = true;
+    }
+    return cases;
+}
+
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Plain,
@@ -350,6 +360,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX,
 INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_QuantizedCache,
                          SparsePALayerCPUTest,
                          testing::ValuesIn(quantized_cases()),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_Plain_Shuffled,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(shuffled(plain_cases())),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_AMX_Shuffled,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(shuffled(amx_cases())),
+                         SparsePALayerCPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_SparsePA_CPU_QuantizedCache_Shuffled,
+                         SparsePALayerCPUTest,
+                         testing::ValuesIn(shuffled(quantized_cases())),
                          SparsePALayerCPUTest::getTestCaseName);
 
 }  // namespace test

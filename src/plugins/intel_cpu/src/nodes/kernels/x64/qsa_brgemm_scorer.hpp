@@ -241,6 +241,14 @@ inline void select_top_blocks(const float* scores,
     std::copy_n(collected, k, chosen);
 }
 
+// Orders `count` chosen block ids by descending score, equal scores by ascending block id: the order of
+// SparseAttentionIndexer-17. `scores` is the [NB] row of the token and selection head.
+inline void order_blocks_by_score(const float* scores, int32_t* blocks, size_t count) {
+    std::sort(blocks, blocks + count, [scores](int32_t a, int32_t b) {
+        return scores[a] != scores[b] ? scores[a] > scores[b] : a < b;
+    });
+}
+
 // The scorer of the QSAIndexer and the PagedQSAIndexer. It holds what the layers with the same configuration share (the
 // head counts, the kernels, the fixed part of the scratch layout) and is built once, when a node is created: through
 // the params cache of the graph context like the SDPA executor, see get(). What depends on a call (its lengths, its
@@ -280,6 +288,10 @@ public:
         float eps = 0.0F;
         float scale = 0.0F;
         ov::element::Type precision;  // of the summary blocks
+        // The chosen blocks of a row by descending score, equal scores by ascending block id (the order of
+        // SparseAttentionIndexer-17), instead of ascending block ids. Needs the scores of every token, so the tokens
+        // that take all their blocks are scored too.
+        bool order_by_score = false;
 
         [[nodiscard]] size_t hash() const {
             size_t seed = 0;
@@ -289,13 +301,14 @@ public:
             }
             seed = dnnl::impl::hash_combine(seed, eps);
             seed = dnnl::impl::hash_combine(seed, scale);
+            seed = dnnl::impl::hash_combine(seed, order_by_score);
             return dnnl::impl::hash_combine(seed, precision.hash());
         }
         bool operator==(const Config& rhs) const {
             return index_query_heads == rhs.index_query_heads && index_key_heads == rhs.index_key_heads &&
                    selection_heads == rhs.selection_heads && dim == rhs.dim && rotary_dim == rhs.rotary_dim &&
                    block_topk == rhs.block_topk && num_threads == rhs.num_threads && eps == rhs.eps &&
-                   scale == rhs.scale && precision == rhs.precision;
+                   scale == rhs.scale && precision == rhs.precision && order_by_score == rhs.order_by_score;
         }
     };
 
@@ -463,8 +476,10 @@ private:
         BrgemmKernel* kernel;
     };
 
+    // Scores are only needed when a token has more blocks than it can choose, or, to order the blocks by score, when it
+    // has any.
     [[nodiscard]] bool needs_scoring(const Plan& plan) const {
-        return static_cast<size_t>(plan.max_row_blocks) > m_config.block_topk;
+        return static_cast<size_t>(plan.max_row_blocks) > (m_config.order_by_score ? 0 : m_config.block_topk);
     }
 
     template <typename Source>
@@ -544,6 +559,9 @@ private:
                                   s->select_histogram,
                                   out_row);
             }
+            if (m_config.order_by_score && k > 0) {
+                order_blocks_by_score(token_scores + sh * ctx.plan.score_stride, out_row, k);
+            }
             *ctx.source.selection_count(b, v, sh) = static_cast<int32_t>(k);
         }
     }
@@ -572,8 +590,8 @@ private:
                              &thread);
             }
         };
-        if (blocks <= static_cast<int64_t>(m_config.block_topk)) {
-            // every token of the tile takes all its blocks
+        if (!m_config.order_by_score && blocks <= static_cast<int64_t>(m_config.block_topk)) {
+            // every token of the tile takes all its blocks, and their order is the ascending one: no scores needed
             if (splits == 1) {
                 select_tokens();
             }

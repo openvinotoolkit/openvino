@@ -37,6 +37,8 @@ struct SparsePAConfig {
     bool key_bychannel = false;  // quantized key cache by channel, else by token (the value cache is always by token)
     size_t group_size = 0;       // by-token quantization group, 0: the whole row
     SparsePASelection selection = SparsePASelection::kRecent;
+    // the selected blocks of a row in random order instead of ascending: the order does not matter to SparseAttention
+    bool shuffle_blocks = false;
     // false: every sequence of a step has the step's L new tokens. true: a mixed batch of decode and (chunked) prefill
     // sequences in one call -- sequence s gets L tokens if s % 3 == 0, a single decode token if s % 3 == 1 and
     // (L + 1) / 2 tokens if s % 3 == 2, so the sequences also have different past lengths.

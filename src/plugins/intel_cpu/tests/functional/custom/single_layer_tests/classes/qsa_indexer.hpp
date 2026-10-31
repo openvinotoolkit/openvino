@@ -38,6 +38,9 @@ struct QSAIndexerOracle {
     float eps = 1e-6F;
     float scale = 0.25F;
     size_t summary_cap = 0;
+    // the chosen blocks of a row by descending score, equal scores by ascending block id (the order of
+    // SparseAttentionIndexer-17), instead of ascending block ids
+    bool order_by_score = false;
 
     std::vector<float> summary_cache;  // [B, h_ik, summary_cap, d_idx]
     std::vector<float> past_raw_k;     // [B, h_ik, r - 1, d_idx]
@@ -73,9 +76,10 @@ enum class QSAIndexerScenario { kDensePrefill, kWorkedExample, kFullyPaddedRow, 
 
 // target device, data precision (q_idx/k_idx/rotary/caches/norm weights),
 // H_iq (index-query head count), H_ik (index-key head count), h_sel (selection-head count),
-// batch (ignored by all scenarios but kDensePrefill, which force batch == 2), scenario
+// batch (ignored by all scenarios but kDensePrefill, which force batch == 2), scenario,
+// order_by_score (the chosen blocks of a row by descending score instead of ascending block ids)
 using QSAIndexerLayerTestParams =
-    std::tuple<std::string, ov::element::Type, size_t, size_t, size_t, size_t, QSAIndexerScenario>;
+    std::tuple<std::string, ov::element::Type, size_t, size_t, size_t, size_t, QSAIndexerScenario, bool>;
 
 class QSAIndexerLayerCPUTest : public testing::WithParamInterface<QSAIndexerLayerTestParams>,
                                virtual public SubgraphBaseTest {
@@ -100,6 +104,11 @@ private:
     size_t m_h_ik = 2;
     size_t m_h_sel = 1;
     size_t m_batch = 1;
+    bool m_order_by_score = false;
+    // Share of the elements of an output that may differ. The order of the chosen blocks by score flips for blocks
+    // whose scores are within the rounding of a 16-bit type (the f32 oracle does not round), so the 16-bit types allow
+    // a few such indices when the blocks are ordered by score; the share of a handful of elements rounds down to none.
+    double m_mismatch_share = 0.0;
     QSAIndexerScenario m_scenario = QSAIndexerScenario::kDensePrefill;
 
     size_t m_compress_ratio = 2;

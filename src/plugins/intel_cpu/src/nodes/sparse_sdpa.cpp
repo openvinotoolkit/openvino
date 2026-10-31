@@ -358,25 +358,18 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
         key_length_batch_stride = key_length.size(0) == 1 ? 0 : 1;
     }
 
-    // Per-worker-thread f32 scratch of the decode path (see SdpaDecodeScratch), then the per-worker-thread AMX
-    // run-decomposition scratch
-    // (i64): chunk_block_start[K_max] | chunk_n_units[K_max] | leftover_block_start[K_max], where
-    // K_max is SEL_INDICES' runtime last dimension -- the upper bound on nblocks for every
-    // (b, sh, l) in this call, only known once actual input shapes are resolved (not in
-    // createPrimitive()). Both regions are drawn from the plugin's DnnlScratchPad, which is a
-    // single shared, grow-only buffer per engine: a second createScratchPadMem() call that grows
-    // the pool frees the buffer backing any earlier call's pointer (see dnnl_scratch_pad.h /
-    // MemoryBlockWithReuse::resize()). So this issues exactly ONE combined request per execute()
-    // call -- sized for both regions together -- and slices it by byte offset, rather than
-    // requesting the two regions separately. This scratch allocation needs GraphContext, so it
-    // stays here rather than inside the cross-compiled sparse_sdpa_compute() kernel.
+    // Per-thread f32 scratch of the decode path (see SdpaDecodeScratch), then per-thread int64 KV-chunk scratch:
+    // block_starts[K_max] | chunk_units[K_max] | leftover_block_start[K_max], K_max being the last dimension of
+    // SEL_INDICES (known only at run time). The DnnlScratchPad is one shared, grow-only buffer: a second
+    // createScratchPadMem() that grows it frees the first one's memory, so ONE combined request is made and sliced by
+    // byte offset. It needs GraphContext, so it stays here, outside the cross-compiled sparse_sdpa_compute().
     size_t amx_unit_blocks = 0;
-    size_t runs_per_thread = 0;
+    size_t kv_chunk_scratch_per_thread = 0;
 #ifdef OPENVINO_ARCH_X86_64
     if (m_amx_prec != ov::element::dynamic) {
         amx_unit_blocks = m_amx_unit_blocks;
         const size_t K_max = sel_indices.size(3);
-        runs_per_thread = 3 * K_max;
+        kv_chunk_scratch_per_thread = 3 * K_max;
     }
 #endif
     const ov::Extensions::Cpu::SdpaDecodeScratch decode_scratch(
@@ -390,7 +383,7 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto num_threads = static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads());
     const size_t float_bytes = num_threads * per_thread_floats * sizeof(float);
     const size_t float_bytes_aligned = rnd_up(float_bytes, alignof(int64_t));
-    const size_t runs_bytes = num_threads * runs_per_thread * sizeof(int64_t);
+    const size_t kv_chunk_bytes = num_threads * kv_chunk_scratch_per_thread * sizeof(int64_t);
     // Third region: the per-thread buffers of the brgemm prefill (64-byte aligned parts): the state of the head pack,
     // then the gather tile and the brgemm scratch (see PackStateLayout, SparseBrgemmLayout).
     ov::Extensions::Cpu::PackStateLayout pack_layout;
@@ -411,7 +404,7 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
         brgemm_bytes_per_thread = brgemm_layout.total;
     }
 #endif
-    const size_t brgemm_offset = ov::Extensions::Cpu::aligned(float_bytes_aligned + runs_bytes);
+    const size_t brgemm_offset = ov::Extensions::Cpu::aligned(float_bytes_aligned + kv_chunk_bytes);
     auto scratch_desc = std::make_shared<CpuBlockedMemoryDesc>(
         ov::element::u8,
         ov::intel_cpu::Shape{brgemm_offset + num_threads * brgemm_bytes_per_thread});
@@ -419,7 +412,8 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto* const scratch_base_bytes = scratch->getDataAs<uint8_t>();
     auto* const scratch_base = reinterpret_cast<float*>(scratch_base_bytes);
     [[maybe_unused]] int64_t* const runs_base =
-        runs_per_thread > 0 ? reinterpret_cast<int64_t*>(scratch_base_bytes + float_bytes_aligned) : nullptr;
+        kv_chunk_scratch_per_thread > 0 ? reinterpret_cast<int64_t*>(scratch_base_bytes + float_bytes_aligned)
+                                        : nullptr;
     uint8_t* const brgemm_base = brgemm_bytes_per_thread > 0 ? scratch_base_bytes + brgemm_offset : nullptr;
 
     ov::Extensions::Cpu::XARCH::sparse_sdpa_compute(query,
@@ -444,7 +438,7 @@ void SparseSDPA::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                     m_gemv_qk4.get(),
                                                     m_amx_unit_blocks,
                                                     runs_base,
-                                                    runs_per_thread,
+                                                    kv_chunk_scratch_per_thread,
                                                     m_brgemm.handle,
 #else
                                                     ov::element::dynamic,

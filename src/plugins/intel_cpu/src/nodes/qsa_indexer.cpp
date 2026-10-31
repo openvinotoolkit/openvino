@@ -247,7 +247,8 @@ void QSAIndexer::createPrimitive() {
             static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()),
             m_config.eps,
             ov::intel_cpu::QSAIndexer::effective_scale(m_config),
-            precision};
+            precision,
+            m_config.order_by_score};
         m_scorer = qsa::BrgemmBlockScorer::get(context->getParamsCache(), config);
     }
     if (!m_scorer) {
@@ -676,7 +677,9 @@ void QSAIndexer::execute_typed() {
                 for (size_t i = 0; i < k; i++) {
                     chosen[i] = scores[i].second;
                 }
-                std::sort(chosen, chosen + k);
+                if (!c.order_by_score) {
+                    std::sort(chosen, chosen + k);  // else: the order of partial_sort, by descending score
+                }
             }
 
             auto* out_row = sel_indices.ptr<int32_t>(b, sh, l_u, 0);

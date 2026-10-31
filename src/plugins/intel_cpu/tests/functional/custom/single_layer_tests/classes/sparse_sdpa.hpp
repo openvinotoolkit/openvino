@@ -24,6 +24,8 @@ struct SparseSDPAShape {
     size_t seq_len = 40;     // L == S
     size_t max_blocks = 10;  // K_max: the width of block_indices
     size_t block_step = 1;   // distance between the selected blocks: 2 selects every second block (no adjacent runs)
+    bool shuffle =
+        false;  // the selected blocks of a row in random order instead of ascending (the order does not matter)
 };
 
 // target device, data precision (query/key/value), h_sel, causal, batch (B; plain batched dense
@@ -33,7 +35,8 @@ struct SparseSDPAShape {
 using SparseSDPALayerTestParams = std::
     tuple<std::string, ov::element::Type, size_t, bool, size_t, size_t, size_t, std::vector<size_t>, SparseSDPAShape>;
 
-class SparseSDPALayerCPUTest : public testing::WithParamInterface<SparseSDPALayerTestParams>, virtual public SubgraphBaseTest {
+class SparseSDPALayerCPUTest : public testing::WithParamInterface<SparseSDPALayerTestParams>,
+                               virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SparseSDPALayerTestParams>& obj);
 

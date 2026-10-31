@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <random>
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
@@ -26,10 +27,10 @@ namespace {
 // adjacent selected blocks up to a 16-row multiple when sel_block_size itself isn't one (see m_amx_unit_blocks in
 // sparse_sdpa.cpp)
 // -- can be exercised by dedicated instantiations. The synthetic selection below selects up to max_blocks complete
-// blocks before the query's own block, block_step apart (ascending, duplicate-free, matching the real producer
-// contract): with step 1 the query rows near the end of the sequence build up a long run of physically-adjacent
-// selected blocks (L = 40 and K_max = 10 give the sel_block_size == 4 AMX instantiation a run of up to 9 adjacent
-// blocks), with step 2 there are none.
+// blocks before the query's own block, block_step apart (ascending by default, duplicate-free, matching what the CPU
+// indexer returns; SparseAttention does not depend on the order: see SparseSDPAShape::shuffle): with step 1 the query
+// rows near the end of the sequence build up a long run of physically-adjacent selected blocks (L = 40 and K_max = 10
+// give the sel_block_size == 4 AMX instantiation a run of up to 9 adjacent blocks), with step 2 there are none.
 constexpr size_t kHq = 4;
 constexpr size_t kHkv = 2;
 constexpr size_t kDv = 16;
@@ -157,6 +158,9 @@ std::string SparseSDPALayerCPUTest::getTestCaseName(const testing::TestParamInfo
                        "_Batch=" + std::to_string(batch) + "_Dh=" + std::to_string(k_head_size) +
                        "_Bk=" + std::to_string(sel_block_size) + "_Len=" + std::to_string(shape.seq_len) +
                        "_Kmax=" + std::to_string(shape.max_blocks) + "_Step=" + std::to_string(shape.block_step);
+    if (shape.shuffle) {
+        name += "_Shuffled";
+    }
     if (!key_length.empty()) {
         name += "_KeyLength";
         for (auto len : key_length) {
@@ -288,17 +292,18 @@ void SparseSDPALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
     }
 
     // Synthetic selection: the up-to-m_shape.max_blocks *complete* blocks immediately strictly before the
-    // query's own block, in ascending order -- per the documented producer contract, the current
-    // (possibly incomplete) block must never appear in sel_indices/sel_count, and sel_indices must
-    // be strictly ascending and duplicate-free; the consumer derives and attends the current block
-    // automatically instead. Picking a run of consecutive preceding blocks (rather than just one)
-    // exercises the CPU node's AMX adjacent-block-merging path. Shared across batch items (only the
-    // underlying K/V differs), so a bug that mixed up batch indices for the K/V cache still gets
-    // caught via numerically different output.
-    // Block ids are counted from the start of each batch item's *real* (non-padded) history --
-    // physical row `pad + block_id * sel_block_size`, per the producer contract -- so with padding
-    // the query's own logical block is (l - pad) / sel_block_size rather than l / sel_block_size.
+    // query's own block, in ascending order (or shuffled, see below) -- per the documented producer contract, the
+    // current (possibly incomplete) block must never appear in sel_indices/sel_count, and the blocks of a row are
+    // duplicate-free; the consumer derives and attends the current block automatically instead. Picking a run of
+    // consecutive preceding blocks (rather than just one) exercises the CPU node's AMX adjacent-block-merging path.
+    // Shared across batch items (only the underlying K/V differs), so a bug that mixed up batch indices for the K/V
+    // cache still gets caught via numerically different output. Block ids are counted from the start of each batch
+    // item's *real* (non-padded) history -- physical row `pad + block_id * sel_block_size`, per the producer contract
+    // -- so with padding the query's own logical block is (l - pad) / sel_block_size rather than l / sel_block_size.
     // pad == 0 for every batch when m_key_length is empty, reducing to the original formula exactly.
+    // The order of the selected blocks of a row is up to the producer (SparseAttention does not depend on it):
+    // ascending like the CPU indexer returns them, or, with m_shape.shuffle, random.
+    std::mt19937 shuffle_gen(2026);
     std::vector<int32_t> sel_indices_flat(m_batch * m_h_sel * m_shape.seq_len * m_shape.max_blocks, -1);
     std::vector<int32_t> sel_count_flat(m_batch * m_h_sel * m_shape.seq_len, 0);
     for (size_t b = 0; b < m_batch; b++) {
@@ -315,6 +320,10 @@ void SparseSDPALayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
                 for (size_t k = 0; k < num_sel; k++) {
                     sel_indices_flat[base * m_shape.max_blocks + k] =
                         cur_block - static_cast<int32_t>(m_shape.block_step * (num_sel - k));
+                }
+                if (m_shape.shuffle) {
+                    auto* row = sel_indices_flat.data() + base * m_shape.max_blocks;
+                    std::shuffle(row, row + num_sel, shuffle_gen);
                 }
                 sel_count_flat[base] = static_cast<int32_t>(num_sel);
             }

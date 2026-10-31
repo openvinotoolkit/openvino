@@ -197,12 +197,9 @@ void acc_value_rows_by_token(const SparsePAQuant& quant,
 }
 
 // ---- the items of a call ----
-// The tokens are split by the algorithm that computes them. The tokens of sequences with several new tokens (prefill,
-// chunked prefill) go to the brgemm path when the node built the kernels: AMX matrix products over a head pack,
-// whatever the thread count. All the other tokens (decode, and every token without the brgemm kernels) go to the
-// fallback paths, the run-by-run SIMD / legacy GEMV code. `token_ids` holds the brgemm tokens first, then the fallback
-// tokens. For the fallback tokens a pack means fewer items, so with too little work to keep every thread busy (a decode
-// of a few sequences) every query head is its own item (`fallback_pack` 1), like PagedAttention's loop_hk choice.
+// Tokens are split by algorithm: multi-token sequences (prefill) take the brgemm path (AMX over a head pack) when the
+// node built the kernels; all others take the fallback SIMD / GEMV paths. `token_ids` lists brgemm tokens first.
+// With little fallback work, every query head is its own item (`fallback_pack` 1), like PagedAttention's loop_hk.
 struct WorkList {
     const int32_t* token_ids = nullptr;
     size_t brgemm_tokens = 0;
@@ -245,9 +242,8 @@ struct SparsePAArgs {
     WorkList work;
 };
 
-// State of one work item: one query token and a pack of `pack_size` consecutive query heads that read the same K/V rows
-// and use the same selected blocks. It holds where the sequence lives in the caches, the pack's scratch and, per query
-// head, the running online-softmax state that the attention_over_* functions below accumulate into.
+// State of one work item: a query token and a pack of `pack_size` consecutive query heads sharing K/V rows and selected
+// blocks. Holds the sequence's cache location, the pack's scratch and each head's running online-softmax state.
 struct PackWork {
     const PlainTensor& key_cache;
     const PlainTensor& value_cache;
@@ -289,11 +285,11 @@ std::pair<size_t, size_t> physical_address(const PackWork& w, int64_t logical_po
             static_cast<size_t>(logical_pos % w.page_size)};
 }
 
-// ---- The calculation phases of attention over a run of key rows, for one query head of the pack ----
+// ---- The phases of attention over a run of key rows, for one query head of the pack ----
 //   1. qk_scores_*:     scores   = query . keys^T
-//   2. online_softmax*: weights  = softmax(scale * scores), rescaling the head's running state (max, sum, accumulator)
+//   2. online_softmax*: weights  = softmax(scale * scores), rescaling the running (max, sum, acc)
 //   3. pv_accumulate_*: acc     += weights . values
-// attention_over_* run the phases for a run, the selected blocks or the causal tail.
+// attention_over_* run them for a run, the selected blocks or the causal tail.
 
 // Phase 2: online-softmax step of query head `head` over its scores[0, rows) of one run of key rows: rescales the
 // head's state to the new maximum and turns the scores into weights in place (vectorized exp).
@@ -351,10 +347,9 @@ void attention_over_run_plain(PackWork& w, int64_t kpos0, int64_t n) {
     }
 }
 
-// Quantized caches. A pack of one query head consumes by-token rows straight from the quantized cache with
-// PagedAttention's fused block kernels (by-channel key rows are dequantized first, since those kernels walk a whole
-// page from its head); a pack of several query heads dequantizes the run's K and V rows to f32 once for all of its
-// heads.
+// Quantized caches. A one-head pack reads by-token rows directly with PagedAttention's fused block kernels (by-channel
+// keys are dequantized first: those kernels walk a whole page). A multi-head pack dequantizes the run's K and V to f32
+// once for all its heads.
 
 // Phase 0: dequantize the rows a fused kernel cannot read in place.
 void dequantize_run(PackWork& w, size_t phys_block, size_t slot, size_t rows, bool fused_keys, bool fused_values) {
@@ -461,68 +456,82 @@ void attention_causal_tail_legacy(PackWork& w) {
 }
 
 #ifdef OPENVINO_ARCH_X86_64
-// Decomposition of one (seq, token, sh) row's selected blocks into AMX-mergeable chunks, backed
-// entirely by caller-owned scratch (see SparsePAScratchLayout) -- no heap vectors, no
-// thread_local. Capacity of each array must be >= nblocks (bounded by selected_block_indices' K_max
-// dimension), enough room for the worst case of every block becoming its own chunk/leftover.
-// Duplicated from sparse_sdpa_kernel.cpp's identical struct rather than shared, matching this
-// repo's convention for these small kernel-local helpers.
-struct DecomposedRuns {
-    int64_t* chunk_block_start = nullptr;
-    int64_t* chunk_n_units = nullptr;
+// A row's selected blocks (any order) split into KV chunks plus leftovers, in caller scratch (>= nblocks per array).
+// A chunk's K rows feed an AMX QK^T, its V rows P@V; blocks are adjacent in one page (in place) or gathered.
+// Duplicated from sparse_sdpa_kernel.cpp, as kernel-local helpers are in this repo.
+struct KvChunks {
+    int64_t* block_starts = nullptr;  // logical start (id * key_block_size) of each chunk block, chunk after chunk
+    size_t block_count = 0;
+    int64_t* chunk_units = nullptr;  // merge units (1 or 4) per chunk
     size_t chunk_count = 0;
-    int64_t* leftover_block_start = nullptr;
+    int64_t* leftover_block_start = nullptr;  // blocks that fill no whole unit: attended block by block
     size_t leftover_count = 0;
 };
 
-// Paged-cache counterpart of sparse_sdpa_kernel.cpp's decompose_runs(): identical ascending-run /
-// 4-unit / 1-unit / leftover greedy split, with one addition -- a run is also capped at a
-// physical-page boundary, since two logically-adjacent selected blocks are only guaranteed
-// memory-contiguous (and therefore safe to feed into one larger AMX call) when they land in the
-// same physical page. Because page_size % key_block_size == 0 is enforced by the PagedSparseAttention
-// shape inference (for the plain f32/f16/bf16 caches this node accepts), an absolute selected block id B
-// always belongs to physical page B / page_sel_blocks -- a pure arithmetic property of this sequence's own logical
-// block-id space, independent of the page-table permutation. The page-id comparison below MUST use sel_ids[...] (this
-// logical numbering), never the physical block number returned by token_phys() -- the two numberings are unrelated, and
-// mixing them would silently produce wrong merges.
-void decompose_runs_paged(const int32_t* sel_ids,
-                          size_t nblocks,
-                          size_t Bk,
-                          size_t unit_blocks,
-                          size_t page_sel_blocks,
-                          DecomposedRuns& result) {
+// Paged counterpart of split_into_kv_chunks(): adjacent blocks form an in-place chunk only within one physical page.
+// Compare pages by the logical ids in sel_ids (id / page_sel_blocks), never by the physical block numbers of the page
+// table: the two numberings are unrelated.
+void split_into_kv_chunks_paged(const int32_t* sel_ids,
+                                size_t nblocks,
+                                size_t Bk,
+                                size_t unit_blocks,
+                                size_t page_sel_blocks,
+                                KvChunks& result) {
     result.chunk_count = 0;
+    result.block_count = 0;
     result.leftover_count = 0;
+    const auto start_of = [&](size_t i) {
+        return static_cast<int64_t>(sel_ids[i]) * static_cast<int64_t>(Bk);
+    };
+    // Pass 1. Example with unit_blocks = 1, ids {5,6,7,8,9, 20, 30,31}: runs are {5..9}, {20}, {30,31}.
+    // Run {5..9} gives one 4-unit chunk {5..8}; block 9 and the short runs become pending leftovers.
     size_t i = 0;
     while (i < nblocks) {
+        // The run is the maximal stretch of consecutive ids from position i that stays inside one physical page.
         size_t run_len = 1;
         while (i + run_len < nblocks && sel_ids[i + run_len] == sel_ids[i] + static_cast<int32_t>(run_len) &&
                static_cast<size_t>(sel_ids[i + run_len]) / page_sel_blocks ==
                    static_cast<size_t>(sel_ids[i]) / page_sel_blocks) {
             run_len++;
         }
+        // Carve whole chunks off the run, biggest first (4 units, then 1); j counts the run blocks consumed.
         size_t j = 0;
-        while (run_len - j >= 4 * unit_blocks) {
-            result.chunk_block_start[result.chunk_count] =
-                static_cast<int64_t>(sel_ids[i + j]) * static_cast<int64_t>(Bk);
-            result.chunk_n_units[result.chunk_count] = 4;
-            result.chunk_count++;
-            j += 4 * unit_blocks;
+        for (const size_t units : {size_t{4}, size_t{1}}) {
+            const size_t blocks = units * unit_blocks;
+            while (run_len - j >= blocks) {
+                for (size_t k = 0; k < blocks; k++) {
+                    result.block_starts[result.block_count++] = start_of(i + j + k);
+                }
+                result.chunk_units[result.chunk_count++] = static_cast<int64_t>(units);
+                j += blocks;
+            }
         }
-        while (run_len - j >= unit_blocks) {
-            result.chunk_block_start[result.chunk_count] =
-                static_cast<int64_t>(sel_ids[i + j]) * static_cast<int64_t>(Bk);
-            result.chunk_n_units[result.chunk_count] = 1;
-            result.chunk_count++;
-            j += unit_blocks;
-        }
-        while (j < run_len) {
-            result.leftover_block_start[result.leftover_count++] =
-                static_cast<int64_t>(sel_ids[i + j]) * static_cast<int64_t>(Bk);
-            j += 1;
+        // What does not fill a unit is kept for pass 2.
+        for (; j < run_len; j++) {
+            result.leftover_block_start[result.leftover_count++] = start_of(i + j);  // pending, see below
         }
         i += run_len;
     }
+    // Pass 2. The pending blocks, in selection order, are not adjacent: form the same chunks from them; the K/V rows
+    // of such a chunk are gathered by id. `taken` counts the pending blocks consumed.
+    const size_t pending = result.leftover_count;
+    size_t taken = 0;
+    for (const size_t units : {size_t{4}, size_t{1}}) {
+        const size_t blocks = units * unit_blocks;
+        while (pending - taken >= blocks) {
+            std::copy_n(result.leftover_block_start + taken, blocks, result.block_starts + result.block_count);
+            result.block_count += blocks;
+            result.chunk_units[result.chunk_count++] = static_cast<int64_t>(units);
+            taken += blocks;
+        }
+    }
+    // Move the blocks that fit no chunk to the front of the leftover list.
+    if (taken > 0) {
+        std::copy(result.leftover_block_start + taken,
+                  result.leftover_block_start + pending,
+                  result.leftover_block_start);
+    }
+    result.leftover_count = pending - taken;
 }
 
 // What the AMX path of one work item needs besides PackWork.
@@ -549,12 +558,9 @@ void qk_scores_amx_chunk(const PackWork& w,
     kernel(amx.q + head * w.k_head_size, k_amx, raw);
 }
 
-// Phase 2 for an AMX chunk whose raw scores are computed: online-softmax step over the visible prefix of the chunk, the
-// rows after it get weight 0 so that phase 3 needs no per-row branch. Returns false for a fully masked chunk (only the
-// last chunk can be, under causal), which contributes nothing.
-bool online_softmax_chunk(PackWork& w, size_t head, float* raw, int64_t block_start, size_t chunk_len) {
-    const int64_t limit = w.causal ? std::min(w.valid_max, w.token_pos + 1) : w.valid_max;
-    const auto valid_rows = static_cast<size_t>(std::clamp<int64_t>(limit - block_start, 0, chunk_len));
+// Phase 2 for an AMX chunk with raw scores computed: online-softmax over its first `valid_rows` rows; later rows get
+// weight 0, so phase 3 needs no per-row branch. Returns false for a fully masked chunk (causal, last chunk only).
+bool online_softmax_rows(PackWork& w, size_t head, float* raw, size_t valid_rows, size_t chunk_len) {
     if (valid_rows == 0) {
         return false;
     }
@@ -573,6 +579,13 @@ bool online_softmax_chunk(PackWork& w, size_t head, float* raw, int64_t block_st
     return true;
 }
 
+// The same for the chunk of adjacent rows starting at block_start: the rows the query attends are a prefix of it.
+bool online_softmax_chunk(PackWork& w, size_t head, float* raw, int64_t block_start, size_t chunk_len) {
+    const int64_t limit = w.causal ? std::min(w.valid_max, w.token_pos + 1) : w.valid_max;
+    const auto valid_rows = static_cast<size_t>(std::clamp<int64_t>(limit - block_start, 0, chunk_len));
+    return online_softmax_rows(w, head, raw, valid_rows, chunk_len);
+}
+
 // Phase 3 for an AMX chunk: acc += weights . values with the vectorized batched FMA.
 template <typename AmxT>
 void pv_accumulate_amx_chunk(PackWork& w, size_t head, const float* weights, AmxT* v_amx, size_t chunk_len) {
@@ -584,85 +597,153 @@ void pv_accumulate_amx_chunk(PackWork& w, size_t head, const float* weights, Amx
     }
 }
 
-// Attention over the AMX-eligible selected-block chunks of one work item (block-wise online softmax), updating every
-// query head's running state so the causal tail can continue it afterwards. Plain caches are read in place; quantized
-// caches are dequantized once per chunk -- for the whole pack of query heads -- into AMX-typed scratch.
-// decompose_runs_paged() guarantees every row of a chunk lives in one physical page, so the page is resolved once per
-// chunk.
+// Copies (or dequantizes) the key rows of a gathered chunk's blocks, from any pages, into contiguous scratch. Quantized
+// values go to v_buf; plain values are read in place by the caller.
 template <typename AmxT>
-void attention_over_amx_chunks(PackWork& w, const AmxWork<AmxT>& amx, const DecomposedRuns& runs) {
-    if (runs.chunk_count == 0) {
-        return;
-    }
-    const size_t unit_rows = amx.unit_blocks * static_cast<size_t>(w.key_block_size);
-    const size_t raw_stride = 4 * unit_rows;
-    // Tile shape is derived from head_size only (identical for gemv1/gemv4), so one tile_config()/tile_release()
-    // bracket covers calls into either kernel below.
-    amx.gemv1->tile_config();
-    for (size_t idx = 0; idx < runs.chunk_count; idx++) {
-        const int64_t block_start = runs.chunk_block_start[idx];
-        const size_t n_units = static_cast<size_t>(runs.chunk_n_units[idx]);
-        const size_t chunk_len = n_units * unit_rows;
-        const auto [phys_block, slot_start] = physical_address(w, block_start);
-        const AmxT* k_amx = nullptr;
-        AmxT* v_amx = nullptr;
+void gather_chunk_rows(const PackWork& w, const int64_t* starts, size_t n_blocks, AmxT* k_buf, AmxT* v_buf) {
+    const auto rows = static_cast<size_t>(w.key_block_size);
+    for (size_t j = 0; j < n_blocks; j++) {
+        const auto [phys_block, slot] = physical_address(w, starts[j]);
+        AmxT* k_dst = k_buf + j * rows * w.k_head_size;
         if (w.quant.enabled()) {
-            dequant_k_rows<AmxT>(w.quant,
-                                 w.key_cache,
-                                 phys_block,
-                                 w.k_head,
-                                 slot_start,
-                                 chunk_len,
-                                 w.k_head_size,
-                                 amx.k_dq);
+            dequant_k_rows<AmxT>(w.quant, w.key_cache, phys_block, w.k_head, slot, rows, w.k_head_size, k_dst);
             dequant_v_rows<AmxT>(w.quant,
                                  w.value_cache,
                                  phys_block,
                                  w.k_head,
-                                 slot_start,
-                                 chunk_len,
+                                 slot,
+                                 rows,
                                  w.v_head_size,
-                                 amx.v_dq);
-            k_amx = amx.k_dq;
-            v_amx = amx.v_dq;
+                                 v_buf + j * rows * w.v_head_size);
         } else {
-            k_amx = w.key_cache.ptr<AmxT>(phys_block, w.k_head, slot_start);
-            v_amx = w.value_cache.ptr<AmxT>(phys_block, w.k_head, slot_start);
+            std::memcpy(k_dst, w.key_cache.ptr<AmxT>(phys_block, w.k_head, slot), rows * w.k_head_size * sizeof(AmxT));
         }
+    }
+}
+
+// Attends the KV chunks of one work item, updating each head's running softmax state. Adjacent chunks of one page read
+// plain caches in place; the others are gathered by id into AMX-typed scratch (plain values stay in place).
+template <typename AmxT>
+void attention_over_amx_chunks(PackWork& w, const AmxWork<AmxT>& amx, const KvChunks& chunks) {
+    if (chunks.chunk_count == 0) {
+        return;
+    }
+    const size_t unit_rows = amx.unit_blocks * static_cast<size_t>(w.key_block_size);
+    const size_t raw_stride = 4 * unit_rows;
+    const auto Bk = w.key_block_size;
+    // Tile shape is derived from head_size only (identical for gemv1/gemv4), so one tile_config()/tile_release()
+    // bracket covers calls into either kernel below.
+    amx.gemv1->tile_config();
+    size_t first_block = 0;  // of the chunk, in chunks.block_starts
+    for (size_t idx = 0; idx < chunks.chunk_count; idx++) {
+        const size_t n_units = static_cast<size_t>(chunks.chunk_units[idx]);
+        const size_t n_blocks = n_units * amx.unit_blocks;
+        const int64_t* starts = chunks.block_starts + first_block;
+        first_block += n_blocks;
+        const size_t chunk_len = n_units * unit_rows;
+        bool adjacent = true;  // consecutive blocks of one physical page
+        for (size_t j = 1; j < n_blocks; j++) {
+            adjacent = adjacent && starts[j] == starts[0] + static_cast<int64_t>(j) * Bk &&
+                       starts[j] / w.page_size == starts[0] / w.page_size;
+        }
+
+        if (adjacent) {
+            const int64_t block_start = starts[0];
+            const auto [phys_block, slot_start] = physical_address(w, block_start);
+            const AmxT* k_amx = nullptr;
+            AmxT* v_amx = nullptr;
+            if (w.quant.enabled()) {
+                dequant_k_rows<AmxT>(w.quant,
+                                     w.key_cache,
+                                     phys_block,
+                                     w.k_head,
+                                     slot_start,
+                                     chunk_len,
+                                     w.k_head_size,
+                                     amx.k_dq);
+                dequant_v_rows<AmxT>(w.quant,
+                                     w.value_cache,
+                                     phys_block,
+                                     w.k_head,
+                                     slot_start,
+                                     chunk_len,
+                                     w.v_head_size,
+                                     amx.v_dq);
+                k_amx = amx.k_dq;
+                v_amx = amx.v_dq;
+            } else {
+                k_amx = w.key_cache.ptr<AmxT>(phys_block, w.k_head, slot_start);
+                v_amx = w.value_cache.ptr<AmxT>(phys_block, w.k_head, slot_start);
+            }
+            for (size_t head = 0; head < w.pack_size; head++) {
+                float* raw = amx.raw + head * raw_stride;
+                qk_scores_amx_chunk<AmxT>(w, amx, head, k_amx, n_units, raw);
+                if (online_softmax_chunk(w, head, raw, block_start, chunk_len)) {
+                    pv_accumulate_amx_chunk<AmxT>(w, head, raw, v_amx, chunk_len);
+                }
+            }
+            continue;
+        }
+
+        // Selected blocks are complete and, under causal, before the query, so all their rows are attended; a block
+        // that is not (a producer outside the contract) takes the generic path, which clamps to the visible rows.
+        bool attended = true;
+        for (size_t j = 0; j < n_blocks; j++) {
+            attended = attended && visible_rows(w, starts[j], Bk) == Bk;
+        }
+        if (!attended) {
+            for (size_t j = 0; j < n_blocks; j++) {
+                attention_over_block<AmxT>(w, starts[j]);
+            }
+            continue;
+        }
+        gather_chunk_rows<AmxT>(w, starts, n_blocks, amx.k_dq, amx.v_dq);
         for (size_t head = 0; head < w.pack_size; head++) {
             float* raw = amx.raw + head * raw_stride;
-            qk_scores_amx_chunk<AmxT>(w, amx, head, k_amx, n_units, raw);
-            if (online_softmax_chunk(w, head, raw, block_start, chunk_len)) {
-                pv_accumulate_amx_chunk<AmxT>(w, head, raw, v_amx, chunk_len);
+            qk_scores_amx_chunk<AmxT>(w, amx, head, amx.k_dq, n_units, raw);
+            if (!online_softmax_rows(w, head, raw, chunk_len, chunk_len)) {
+                continue;
+            }
+            if (w.quant.enabled()) {
+                pv_accumulate_amx_chunk<AmxT>(w, head, raw, amx.v_dq, chunk_len);
+                continue;
+            }
+            for (size_t j = 0; j < n_blocks; j++) {
+                const auto [phys_block, slot] = physical_address(w, starts[j]);
+                pv_accumulate_amx_chunk<AmxT>(w,
+                                              head,
+                                              raw + j * static_cast<size_t>(Bk),
+                                              w.value_cache.ptr<AmxT>(phys_block, w.k_head, slot),
+                                              static_cast<size_t>(Bk));
             }
         }
     }
     amx.gemv1->tile_release();
 }
 
-// Selected blocks through AMX: merge adjacent blocks into chunks, then run the blocks that could not be merged (a too
-// short run, the remainder after merging whole units, or a run capped at a page boundary) one by one.
+// Selected blocks through AMX: chunks of adjacent blocks (used in place) and of gathered blocks (any order), then the
+// blocks that fill no whole merge unit one by one.
 template <typename AmxT>
 void attention_selected_blocks_gemv(PackWork& w,
                                     const AmxWork<AmxT>& amx,
-                                    int64_t* runs_scratch,
+                                    int64_t* kv_chunk_scratch,
                                     size_t max_blocks,
                                     const int32_t* block_ids,
                                     size_t nblocks) {
-    DecomposedRuns runs;
-    runs.chunk_block_start = runs_scratch;
-    runs.chunk_n_units = runs_scratch + max_blocks;
-    runs.leftover_block_start = runs_scratch + 2 * max_blocks;
+    KvChunks kv_chunks;
+    kv_chunks.block_starts = kv_chunk_scratch;
+    kv_chunks.chunk_units = kv_chunk_scratch + max_blocks;
+    kv_chunks.leftover_block_start = kv_chunk_scratch + 2 * max_blocks;
     const size_t page_sel_blocks = static_cast<size_t>(w.page_size / w.key_block_size);
-    decompose_runs_paged(block_ids,
-                         nblocks,
-                         static_cast<size_t>(w.key_block_size),
-                         amx.unit_blocks,
-                         page_sel_blocks,
-                         runs);
-    attention_over_amx_chunks<AmxT>(w, amx, runs);
-    for (size_t i = 0; i < runs.leftover_count; i++) {
-        attention_over_block<AmxT>(w, runs.leftover_block_start[i]);
+    split_into_kv_chunks_paged(block_ids,
+                               nblocks,
+                               static_cast<size_t>(w.key_block_size),
+                               amx.unit_blocks,
+                               page_sel_blocks,
+                               kv_chunks);
+    attention_over_amx_chunks<AmxT>(w, amx, kv_chunks);
+    for (size_t i = 0; i < kv_chunks.leftover_count; i++) {
+        attention_over_block<AmxT>(w, kv_chunks.leftover_block_start[i]);
     }
 }
 #endif  // OPENVINO_ARCH_X86_64
@@ -695,7 +776,7 @@ void attention_selected_blocks_legacy(const SparsePAArgs& a,
                                  reinterpret_cast<float*>(ws + layout.raw)};
             attention_selected_blocks_gemv<T>(w,
                                               amx,
-                                              reinterpret_cast<int64_t*>(ws + layout.runs),
+                                              reinterpret_cast<int64_t*>(ws + layout.kv_chunks),
                                               a.sel_indices.size(2),
                                               block_ids,
                                               nblocks);
@@ -731,10 +812,9 @@ struct PagedRowSource {
     }
 };
 
-// Attention of the pack's query heads over the item's whole selection (the selected blocks and the causal tail) with
-// matrix products on AMX (oneDNN brgemm, M = the pack's query heads), like PagedAttention's prefill but over gathered
-// rows (see attention_over_selection_tiles). It leaves the unnormalized attention in w.acc and the softmax denominators
-// in w.running_sum; the caller normalizes and stores the output.
+// Attention of the pack's heads over the whole selection (blocks and causal tail) with AMX brgemm, M = the pack's
+// heads, over gathered rows (see attention_over_selection_tiles). Leaves unnormalized attention in w.acc and the
+// softmax denominators in w.running_sum; the caller normalizes and stores.
 template <typename T>
 void attention_full_selection_brgemm(const SparsePAArgs& a,
                                      PackWork& w,
@@ -767,9 +847,8 @@ void attention_full_selection_brgemm(const SparsePAArgs& a,
 }
 #endif  // OPENVINO_ARCH_X86_64
 
-// One work item: sparse attention of one query token and the head pack `pack` of `pack_size` query heads, on the brgemm
-// path (full selection: the selected blocks and the causal tail) or on the legacy path (the selected blocks, then the
-// tail). In the legacy code a "chunk" is a group of 1 or 4 GEMV row units, not a brgemm row block.
+// One work item: attention of one query token and one head pack, on the brgemm path (whole selection at once) or the
+// legacy path (selected blocks, then the causal tail). A legacy "chunk" is 1 or 4 GEMV row units, not a brgemm block.
 template <typename T>
 void attention_work_item(const SparsePAArgs& a,
                          const SparsePAScratchLayout& layout,
