@@ -283,7 +283,7 @@ inline GQAMultiTokensKernel select_gqa_multi_tokens_kernel(const kernel_impl_par
         return fallback;
 
     if (forced != GQAMultiTokensKernel::SMALL_Q && prefer_gqa_multi_tokens_fallback_kernel(max_subsequence_len, get_max_context_len(params)))
-        return GQAMultiTokensKernel::FALLBACK;
+        return fallback;
 
     const auto subgroups_num = ceil_div(max_subsequence_len, get_gqa_multi_tokens_per_sg(params));
     if (subgroups_num * subgroup_size > params.get_device_info().max_work_group_size)
