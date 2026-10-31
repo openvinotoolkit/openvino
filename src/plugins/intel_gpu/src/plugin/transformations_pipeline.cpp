@@ -1936,6 +1936,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
+                if (root->get_input_element_type(1) == ov::element::u2) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                    " no FC kernel takes compressed activations with u2 weights" << std::endl;
+                    return true;
+                }
+
                 bool has_wzp = root->get_input_size() > 4;
 
                 if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})) {
