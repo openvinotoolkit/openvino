@@ -47,8 +47,10 @@ def _to_bf16_view(value: np.ndarray) -> np.ndarray:
     Rounds the same way as ov::bfloat16 (round_to_nearest_even in bfloat16.hpp).
     """
     bits = np.ascontiguousarray(value, dtype=np.float32).view(np.uint32)
-    bits = (bits + ((bits & np.uint32(0x10000)) >> 1)) >> 16
-    return bits.astype(np.uint16).view(np.float16)
+    is_nan = (bits & np.uint32(0x7FFFFFFF)) > np.uint32(0x7F800000)
+    rounded = (bits + np.uint32(0x7FFF) + ((bits >> np.uint32(16)) & np.uint32(1))) >> np.uint32(16)
+    bits = np.where(is_nan, (bits >> np.uint32(16)) | np.uint32(0x0040), rounded).astype(np.uint16)
+    return bits.view(np.float16)
 
 
 @singledispatch

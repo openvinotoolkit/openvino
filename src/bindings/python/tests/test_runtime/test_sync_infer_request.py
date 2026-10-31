@@ -337,16 +337,37 @@ def test_infer_bf16_input_from_float_array(device, numpy_dtype, share_inputs, as
 
 
 @pytest.mark.parametrize("share_inputs", [True, False])
-def test_infer_bf16_input_rounds_like_constant(device, share_inputs):
+@pytest.mark.parametrize(
+    ("input_bits", "expected_bits"),
+    [
+        ([0x3F818000, 0x3F80C000, 0x3F808000, 0x3F80FFFF], None),
+        ([0xBF808000], None),
+        ([0xBF80C000], None),
+        ([0x7F800000], np.array([0x7F80], dtype=np.uint16)),
+        ([0x7F800001], np.array([0x7FC0], dtype=np.uint16)),
+    ],
+)
+def test_infer_bf16_input_rounds_like_constant(device, share_inputs, input_bits, expected_bits):
     # Values that need rounding must get the same bf16 bits as OpenVINO's own f32 -> bf16 conversion
-    data = np.array([0x3F818000, 0x3F80C000, 0x3F808000, 0x3F80FFFF], dtype=np.uint32).view(np.float32)
+    data = np.array(input_bits, dtype=np.uint32).view(np.float32)
     param = ops.parameter(list(data.shape), Type.bf16)
     request = Core().compile_model(Model([param], [param]), device).create_infer_request()
 
     request.infer([data], share_inputs=share_inputs)
 
-    expected = ops.constant(data, dtype=Type.bf16).data.view(np.uint16)
-    assert np.array_equal(request.get_input_tensor(0).data.view(np.uint16), expected)
+    if expected_bits is None:
+        expected = ops.constant(data, dtype=Type.bf16).data.view(np.uint16)
+    else:
+        # OpenVINO Constant rejects inf and NaN values for bf16.
+        expected = expected_bits
+    actual = request.get_input_tensor(0).data.view(np.uint16)
+    nan_mask = np.isnan(data)
+    if np.any(nan_mask) and not np.array_equal(actual, expected):
+        assert np.array_equal(actual[~nan_mask], expected[~nan_mask])
+        assert np.all((actual[nan_mask] & 0x7F80) == 0x7F80)
+        assert np.all((actual[nan_mask] & 0x0040) != 0)
+    else:
+        assert np.array_equal(actual, expected)
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
