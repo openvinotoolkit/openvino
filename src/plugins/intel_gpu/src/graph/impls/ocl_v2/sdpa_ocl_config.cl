@@ -101,6 +101,14 @@
 #ifndef USE_2D_BLOCK_IO_K_PA_DT
 #  define USE_2D_BLOCK_IO_K_PA_DT 0
 #endif
+// PA_K_WIDE_READS: the token-major f16 K page (USE_2D_BLOCK_IO_K_PA) read two depth tiles per message, PA_K_WIDE_TILES
+// depth tiles (PA_K_WIDE_TILES / 2 messages per key group) issued together.
+#ifndef PA_K_WIDE_READS
+#  define PA_K_WIDE_READS 0
+#endif
+#ifndef PA_K_WIDE_TILES
+#  define PA_K_WIDE_TILES 4
+#endif
 #define PA_K_PERMUTED (IS_PA_K_U4 || USE_2D_BLOCK_IO_K_PA_DT)
 #if PA_K_PERMUTED
 // The u4 depth permutation pairs tiles (2g, 2g+1) over one 32-channel window, so an odd active
@@ -421,6 +429,19 @@
 #  endif
 #  if PA_K_DT_ROWS != 16 && PA_K_DT_ROWS != 32
 #    error "sdpa_ocl.cl: PA_K_DT_ROWS must be 16 or 32 (the transpose_32b_16r8x1c / 32r8x1c reads)"
+#  endif
+#endif
+
+#if PA_K_WIDE_READS
+#  if !IS_PA_MIXED || !USE_2D_BLOCK_IO_K_PA || PA_K_PERMUTED
+#    error "sdpa_ocl.cl: PA_K_WIDE_READS reads the MIXED token-major f16 K page only"
+#  endif
+#  if DPAS_K != 16 || SUBGROUP_SIZE != 16 || DPAS_ROWS != 8
+// One 16b_16r16x2c read per key group: 16 key rows (two DPAS row-blocks) of two 16-wide depth tiles.
+#    error "sdpa_ocl.cl: PA_K_WIDE_READS needs SG16 and DPAS 8x16"
+#  endif
+#  if PA_K_WIDE_TILES < 2 || (PA_K_WIDE_TILES % 2) != 0
+#    error "sdpa_ocl.cl: PA_K_WIDE_TILES must be a positive even number (two depth tiles per read)"
 #  endif
 #endif
 

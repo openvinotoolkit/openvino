@@ -32,6 +32,7 @@
 #include "sdpa_base.hpp"
 #include "sdpa_gen_ocl_decode.hpp"
 #include "sdpa_gen_opt.hpp"
+#include "sdpa_ocl_utils.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
@@ -112,6 +113,17 @@ inline bool get_k_token_major(const RuntimeParams& params, const char* consumer 
     }
 #endif
     return true;
+}
+
+// Whether paged_attention_opt.cl reads the uncompressed token-major K page with a 2D block transpose instead of a per-lane
+// vload16 (USE_2D_BLOCK_IO_K_TM). Xe2+ only: the token-major page itself is not tied to the device yet
+// (OV_GPU_PA_K_TOKEN_MAJOR), and earlier parts have no 2D block IO. The K row is the surface width and pitch; the page
+// base is a whole number of pages, which the pitch rule keeps 64 B aligned.
+inline bool use_2d_block_io_k_token_major(const RuntimeParams& params) {
+    if (!get_k_token_major(params, "decode") || get_kv_compressed(params) || params.get_device_info().arch < gpu_arch::xe2)
+        return false;
+    const size_t elem_size = ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type).size();
+    return elem_size == 2 && sdpa_ocl_utils::block2d_page_ok(params.typed_desc<paged_attention>()->k_head_size * elem_size);
 }
 
 inline bool is_v_head_aligned_for_dual_nibble(size_t v_head_size) {
@@ -536,6 +548,7 @@ public:
         }
 
         jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "decode") ? 1 : 0);
+        jit.make("USE_2D_BLOCK_IO_K_TM", use_2d_block_io_k_token_major(params) ? 1 : 0);
 
         if (desc->scale_val.has_value()) {
             jit.make("SCALE_VAL", desc->scale_val.value());

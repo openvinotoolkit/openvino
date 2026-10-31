@@ -86,6 +86,13 @@ inline uint FUNC(pa_bidir_group_begin)(const __global int* token_type_ids, const
 #if IS_KEY_TOKEN_MAJOR && defined(IS_KEY_BY_CHANNEL)
     #error pa_sdpa_opt.cl: BY_CHANNEL K cannot be token-major
 #endif
+// USE_2D_BLOCK_IO_K_TM: the uncompressed 16-bit token-major page read with a 2D block transpose (Xe2+, set by the host).
+#if USE_2D_BLOCK_IO_K_TM
+    #if !IS_KEY_TOKEN_MAJOR || IS_KV_COMPRESSED || SUBGROUP_SIZE != 16 || PAGED_ATTENTION_BLOCK_SIZE != 16
+        #error pa_sdpa_opt.cl: USE_2D_BLOCK_IO_K_TM reads an uncompressed token-major page of 16 tokens with SG16
+    #endif
+    #pragma OPENCL EXTENSION cl_intel_subgroup_2d_block_io : enable
+#endif
 
 #if HEADS_PER_WI > 1
     #define GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(multiple_heads_idx, fixed_val) multiple_heads_idx
@@ -490,7 +497,19 @@ KERNEL(pa_sdpa_opt)(
                 // KEY_VEC_SIZE == SUBGROUP_SIZE == PAGED_ATTENTION_BLOCK_SIZE == 16 is enforced by
                 // the #error guards at the top of this file, which is what makes vload16 the right
                 // width here.
+        #if USE_2D_BLOCK_IO_K_TM
+                // The same operand from one block message: a 32-bit transpose of the page (16 token rows, pitch
+                // K_HEAD_SIZE halves) gives lane L row L with dword i = head dims qk_idx*KEY_VEC_SIZE + 2i, 2i + 1.
+                // The per-lane vload16 is a 16-address gather, re-issued for every query a GQA multi-token
+                // work-item handles.
+                uint8 k_dw;
+                intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
+                    (__global void*)(key_cache + block_offset), K_HEAD_SIZE * (int)sizeof(INPUT1_TYPE), PAGED_ATTENTION_BLOCK_SIZE,
+                    K_HEAD_SIZE * (int)sizeof(INPUT1_TYPE), (int2)(qk_idx * KEY_VEC_SIZE / 2, 0), (__private uint*)&k_dw);
+                k_vals = AS_TYPE(KEY_BLOCK, k_dw);
+        #else
                 k_vals = vload16(0, key_cache + block_offset + sglid * K_HEAD_SIZE + qk_idx * KEY_VEC_SIZE);
+        #endif
     #else
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, block_offset + qk_idx * SUBGROUP_SIZE * KEY_VEC_SIZE + i * SUBGROUP_SIZE);
