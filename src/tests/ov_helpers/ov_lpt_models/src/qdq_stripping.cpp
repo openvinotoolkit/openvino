@@ -14,13 +14,16 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/identity.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 
 namespace ov {
@@ -669,6 +672,62 @@ std::shared_ptr<ov::Model> QDQStrippingFunction::build_mixed_precision_pattern_r
     auto conv_biased = std::make_shared<ov::op::v1::Add>(conv, bias_const);
 
     return std::make_shared<ov::Model>(ov::OutputVector{conv_biased}, params, "QDQStripping");
+}
+
+namespace {
+QuantizationParams get_fq_on_model_output_qp(const ov::element::Type& quantization_precision) {
+    if (quantization_precision == ov::element::u16)
+        return {0.f, 10.f, 0.f, 65535.f, 0};
+    return {-5.0000762939453125f, 4.9999237060546875f, -32768.f, 32767.f, 0};
+}
+}  // namespace
+
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_fq_on_model_output_pattern(
+    const ov::PartialShape& input_shape,
+    const ov::element::Type& quantization_precision) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    const auto qp = get_fq_on_model_output_qp(quantization_precision);
+    auto qdq = [&](const ov::Output<ov::Node>& input) {
+        auto fq = build_fq(input, qp);
+        auto convert1 = std::make_shared<ov::op::v0::Convert>(fq, quantization_precision);
+        auto convert2 = std::make_shared<ov::op::v0::Convert>(convert1, ov::element::f32);
+        return build_dq(convert2, quantization_precision, qp);
+    };
+
+    // Parameter -> QDQ -> output: FQ is replaced with Identity
+    auto param_qdq = qdq(param);
+
+    // Mul -> QDQ -> output: FQ is removed
+    auto half = ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f});
+    auto mul = std::make_shared<ov::op::v1::Multiply>(param, half);
+    auto mul_qdq = qdq(mul);
+
+    // output -> QDQ -> output: FQ is replaced with Identity, and Relu must use it as well
+    auto output_qdq = qdq(mul_qdq);
+    auto relu = std::make_shared<ov::op::v0::Relu>(output_qdq);
+
+    // Split (multi-output) -> QDQ -> output: FQ is replaced with Identity
+    auto split = std::make_shared<ov::op::v1::Split>(param, ov::op::v0::Constant::create(ov::element::i64, {}, {2}), 2);
+    auto split_qdq = qdq(split->output(0));
+
+    ov::OutputVector outputs{param_qdq, mul_qdq, output_qdq, relu, split_qdq, split->output(1)};
+    return std::make_shared<ov::Model>(outputs, ov::ParameterVector{param}, "QDQStripping");
+}
+
+std::shared_ptr<ov::Model> QDQStrippingFunction::build_fq_on_model_output_pattern_ref(
+    const ov::PartialShape& input_shape) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+
+    auto param_identity = std::make_shared<ov::op::v16::Identity>(param);
+    auto half = ov::op::v0::Constant::create(ov::element::f32, {}, {0.5f});
+    auto mul = std::make_shared<ov::op::v1::Multiply>(param, half);
+    auto output_identity = std::make_shared<ov::op::v16::Identity>(mul);
+    auto relu = std::make_shared<ov::op::v0::Relu>(output_identity);
+    auto split = std::make_shared<ov::op::v1::Split>(param, ov::op::v0::Constant::create(ov::element::i64, {}, {2}), 2);
+    auto split_identity = std::make_shared<ov::op::v16::Identity>(split->output(0));
+
+    ov::OutputVector outputs{param_identity, mul, output_identity, relu, split_identity, split->output(1)};
+    return std::make_shared<ov::Model>(outputs, ov::ParameterVector{param}, "QDQStripping");
 }
 
 }  // namespace subgraph
