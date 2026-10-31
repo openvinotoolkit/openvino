@@ -23,10 +23,13 @@ namespace v1 = ov::op::v1;
 namespace v3 = ov::op::v3;
 namespace {
 
-std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type, const bool exclude_pad = true) {
+std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type,
+                                             const bool exclude_pad = true,
+                                             const ov::Shape& pads_begin_in = {1, 1},
+                                             const ov::Shape& pads_end_in = {1, 1}) {
     const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
     const ov::Strides strides{1, 1}, dilations{1, 1};
-    const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
+    const ov::Shape pads_begin = pads_begin_in, pads_end = pads_end_in, kernel{2, 2};
 
     const auto avg_pool_v14 = std::make_shared<ov::op::v14::AvgPool>(input,
                                                                      strides,
@@ -61,7 +64,8 @@ std::shared_ptr<ov::Model> create_v1_model(const ov::op::RoundingType rounding_t
     return std::make_shared<ov::Model>(avg_pool_v1->outputs(), ov::ParameterVector{input});
 }
 
-std::shared_ptr<ov::Model> create_exclude_pad_workaround_model() {
+std::shared_ptr<ov::Model> create_exclude_pad_workaround_model(const ov::Shape& pads_begin_in = {1, 1},
+                                                                const ov::Shape& pads_end_in = {1, 1}) {
     using v0::Concat;
     using v0::Constant;
     using v1::ConvertLike;
@@ -72,7 +76,7 @@ std::shared_ptr<ov::Model> create_exclude_pad_workaround_model() {
 
     const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
     const ov::Strides strides{1, 1}, dilations{1, 1};
-    const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
+    const ov::Shape pads_begin = pads_begin_in, pads_end = pads_end_in, kernel{2, 2};
 
     const auto zero = Constant::create(ov::element::f32, ov::Shape{}, {0});
     const auto zero_node = std::make_shared<ConvertLike>(zero, input);
@@ -85,9 +89,9 @@ std::shared_ptr<ov::Model> create_exclude_pad_workaround_model() {
     const auto pads_diff = std::make_shared<Subtract>(rank, pads_len);
     const auto pads_remaining = std::make_shared<Broadcast>(zero_i64, pads_diff);
     const auto pads_begin_v1 =
-        std::make_shared<Concat>(ov::OutputVector{std::move(pads_remaining), std::move(pads_begin_node)}, 0);
+        std::make_shared<Concat>(ov::OutputVector{pads_remaining, std::move(pads_begin_node)}, 0);
     const auto pads_end_v1 =
-        std::make_shared<Concat>(ov::OutputVector{std::move(pads_remaining), std::move(pads_begin_node)}, 0);
+        std::make_shared<Concat>(ov::OutputVector{std::move(pads_remaining), std::move(pads_end_node)}, 0);
     const auto pad_node =
         std::make_shared<Pad>(input, pads_begin_v1, pads_end_v1, zero_node, ov::op::PadMode::CONSTANT);
     const auto pads_begin_zeros = ov::Shape{0, 0};
@@ -135,6 +139,16 @@ TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_to_ceil_no_ex
     manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
     model = create_v14_model(ov::op::RoundingType::CEIL_TORCH, false);
     model_ref = create_exclude_pad_workaround_model();
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, ConvertAvgPool14ToAvgPool1_ceil_torch_asymmetric_pads) {
+    // Regression test: pads_begin != pads_end must not be mixed up when building
+    // the workaround Pad node for CEIL_TORCH rounding with exclude_pad=false.
+    manager.register_pass<ov::pass::ConvertAvgPool14ToAvgPool1>();
+    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH, false, ov::Shape{1, 2}, ov::Shape{3, 4});
+    model_ref = create_exclude_pad_workaround_model(ov::Shape{1, 2}, ov::Shape{3, 4});
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
