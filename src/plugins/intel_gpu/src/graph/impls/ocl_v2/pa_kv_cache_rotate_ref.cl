@@ -13,12 +13,22 @@
 #define ACCUMULATOR_TYPE float
 #define UINT4_RANGE 15
 
+// The host sends one flag, IS_KEY_TOKEN_MAJOR, for every token-major K page (paged_attention.hpp); the
+// compressed BY_CHANNEL page is told apart here, because its scale/zp placement and, for u4, its packing
+// axis also change with the layout.
+#if IS_KV_COMPRESSED && IS_KEY_BY_CHANNEL
+    #define KEY_BY_TOKEN_TM   0
+    #define KEY_BY_CHANNEL_TM IS_KEY_TOKEN_MAJOR
+#else
+    #define KEY_BY_TOKEN_TM   IS_KEY_TOKEN_MAJOR
+    #define KEY_BY_CHANNEL_TM 0
+#endif
+
 // In-page K addressing: lane (sglid) walks tokens, the loop index walks head dims. The legacy
 // d-major page ([.., HEAD_SIZE, block_size]) makes tokens contiguous; token-major
 // ([.., block_size, HEAD_SIZE]) makes head dims contiguous. Only these two strides differ, so both
-// layouts share one code path. Compressed BY_CHANNEL uses the separate staging switch below because
-// its scale/zp placement and, for u4, its packing axis also change with the layout.
-#if IS_KEY_TOKEN_MAJOR
+// layouts share one code path. Compressed BY_CHANNEL uses KEY_BY_CHANNEL_TM below instead.
+#if KEY_BY_TOKEN_TM
     #define KEY_TOKEN_STRIDE  HEAD_SIZE
     #define KEY_HIDDEN_STRIDE 1
 #else
@@ -28,7 +38,7 @@
 
 #if IS_KV_COMPRESSED && IS_KEY_BY_CHANNEL
     #if IS_INT4_COMPRESSED
-        #if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+        #if KEY_BY_CHANNEL_TM
             // One byte holds two adjacent channels of one token; comp is a trailing per-channel array.
             #define BC_DATA_OFFSET(page, token, channel) \
                 ((page) + (token) * (HEAD_SIZE / U4_ELEMS_PER_BYTE) + (channel) / U4_ELEMS_PER_BYTE)
@@ -45,7 +55,7 @@
                 ((page) + (channel) * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + PACKED_K_BLOCK_SIZE)
         #endif
     #else
-        #if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+        #if KEY_BY_CHANNEL_TM
             #define BC_DATA_OFFSET(page, token, channel) ((page) + (token) * HEAD_SIZE + (channel))
             #define BC_COMP_OFFSET(page, channel) \
                 ((page) + PAGED_ATTENTION_BLOCK_SIZE * HEAD_SIZE + \
@@ -252,7 +262,7 @@ for (uint i = 0; i < HEAD_SIZE / 2; i++) {
             const char quantized_res =
                 (char)clamp(convert_int_rte((float)(rotated_res * scale_tmp + zp_tmp)), 0, UINT4_RANGE);
             const uint cache_offset = BC_DATA_OFFSET(block_base_offset, sglid, i);
-            #if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+            #if KEY_BY_CHANNEL_TM
                 const uchar packed = (uchar)key_cache[cache_offset];
                 char2 pair = {(char)(packed & 0x0F), (char)(packed >> 4)};
                 if ((i % U4_ELEMS_PER_BYTE) == 0) {

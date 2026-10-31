@@ -8,6 +8,17 @@
 
 #define UINT4_RANGE 15
 
+// The host sends one flag, IS_KEY_TOKEN_MAJOR, for every token-major K page (paged_attention.hpp). The
+// BY_CHANNEL page differs from the uncompressed / BY_TOKEN one in its comp region and its INT4 packing,
+// so this kernel splits the flag by the quant mode.
+#ifdef IS_KEY_BY_CHANNEL
+    #define KEY_BY_TOKEN_TM   0
+    #define KEY_BY_CHANNEL_TM IS_KEY_TOKEN_MAJOR
+#else
+    #define KEY_BY_TOKEN_TM   IS_KEY_TOKEN_MAJOR
+    #define KEY_BY_CHANNEL_TM 0
+#endif
+
 // K cache element addressing within one (block, kv_head) page. The legacy layout is d-major
 // ([.., k_head_size, block_size]) so consecutive tokens are contiguous; token-major is
 // ([.., block_size, k_head_size]) so consecutive head dims are contiguous, matching the V cache.
@@ -17,10 +28,10 @@
 // This covers the i8/u8 BY_TOKEN cache too: its scale/zp are two f16 arrays appended AFTER the data
 // region, so the data region is a plain [block_size, k_head_size] tile and the page size is
 // unchanged. KEY_HIDDEN_STRIDE is therefore also the out_data_pitch passed to
-// quantize_and_save_per_token for the key. BY_CHANNEL and INT4 stay d-major
-// (IS_KEY_TOKEN_MAJOR == 0), where these collapse to the literal constants the code used before --
-// which also keeps that helper's `out_data_pitch > 1` scale/zp placement test correct for INT4.
-#if IS_KEY_TOKEN_MAJOR
+// quantize_and_save_per_token for the key. BY_CHANNEL (KEY_BY_CHANNEL_TM, its own helpers below) and
+// INT4 keep these at the d-major values (KEY_BY_TOKEN_TM == 0), the literal constants the code used
+// before -- which also keeps that helper's `out_data_pitch > 1` scale/zp placement test correct for INT4.
+#if KEY_BY_TOKEN_TM
     #define KEY_TOKEN_STRIDE  K_HEAD_SIZE
     #define KEY_HIDDEN_STRIDE 1
 #else
@@ -35,7 +46,7 @@
 // unchanged (16*PV + 64 == 16*(PV+4)), so page bases and allocations are untouched, and the geometry
 // then coincides with the non-INT4 one, which is why both arms below use phys_v_head_size.
 // A u4 key cache is always BY_CHANNEL, so keying this off the K switch is unambiguous.
-#define IS_VALUE_U4_TOKEN_MAJOR (IS_INT4_COMPRESSED && IS_KEY_BY_CHANNEL_TOKEN_MAJOR)
+#define IS_VALUE_U4_TOKEN_MAJOR (IS_INT4_COMPRESSED && KEY_BY_CHANNEL_TM)
 #if IS_INT4_COMPRESSED && !IS_VALUE_U4_TOKEN_MAJOR
     #define V_ROW_STRIDE  phys_adjusted_v_head_size
     #define V_COMP_INLINE 1
@@ -235,12 +246,12 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
 //   token-major          [block_size + 4 rows][k_head_size]: rows 0..block_size-1 are the tokens with
 //                        a k_head_size pitch -- exactly the BY_TOKEN data geometry -- and the pairs
 //                        follow the data as one per-channel array. This kernel, kv_cache_rotate,
-//                        sdpa_ocl_decode and sdpa_ocl MIXED read it; every other reader takes the page
-//                        d-major, so the page is created only where
+//                        pa_kv_cache_reorder, sdpa_ocl_decode, pa_small_q and sdpa_ocl MIXED read it;
+//                        every other reader takes the page d-major, so the page is created only where
 //                        paged_attention::by_channel_token_major_readable() allows it.
 //
 // The page SIZE is k_head_size * (block_size + 4) either way, so page bases are untouched.
-#if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#if KEY_BY_CHANNEL_TM
     #if IS_INT4_COMPRESSED
         // INT4 flips its packing axis along with the layout: upstream d-major packs two TOKENS per byte
         // (the column is the contiguous axis), token-major packs two CHANNELS per byte, keeping the
@@ -305,7 +316,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
         // Read a hidden dim of the previously quantized cache => decompress
         // TODO : current block size is 16 (same as PA block size),
         //        but when the block size becomes different, this part should be updated as well
-        #if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+        #if KEY_BY_CHANNEL_TM
         // Token-major puts a channel's tokens K_HEAD_SIZE bytes apart, so the contiguous vload16 turns
         // into PAGED_ATTENTION_BLOCK_SIZE separate reads. They are not scattered, though: lane ==
         // channel, so each read is contiguous ACROSS the subgroup where the vload16 was contiguous
@@ -363,7 +374,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
                                     const uint new_tokens_num,
                                     const uint sglid,
                                     const uint is_prefill_stage) {
-#if IS_INT4_COMPRESSED && IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#if IS_INT4_COMPRESSED && KEY_BY_CHANNEL_TM
     // Token-major packs two ADJACENT CHANNELS per byte, so a BYTE -- not a channel -- is the largest
     // unit a lane can own without needing its neighbour's nibble. Give each lane one byte column and
     // one TOKEN PARITY: 16 lanes cover 8 byte columns x 2 token rows. Against the channel-per-lane
@@ -586,7 +597,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         const uint col_base = out_data_offset + hidden_idx * out_data_pitch;
 
         // Read original scale and zp
-#if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#if KEY_BY_CHANNEL_TM
         // Token-major moves the pair out of the column into a trailing per-channel array, and turns the
         // column into a stride-BC_TOKEN_STRIDE walk down the token rows.
         const uint data_off = BC_DATA_OFF(out_data_offset, (uint)hidden_idx);
@@ -607,7 +618,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         INPUT0_TYPE token_vals[PAGED_ATTENTION_BLOCK_SIZE];
         for (int j = 0; j < (int)(token_pos_in_block + new_tokens_num); ++j) {
             if (j < (int)token_pos_in_block) {
-#if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#if KEY_BY_CHANNEL_TM
                 // One byte per (token, channel pair). Both lanes of a pair read the same byte and take
                 // opposite nibbles; the shift must be UNSIGNED or the high nibble sign-extends.
                 const uchar packed_byte = (uchar)out_data[data_off + (uint)j * BC_TOKEN_STRIDE];
@@ -641,7 +652,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
             #undef ACCUMULATOR_TYPE
 
             uint total_tokens = token_pos_in_block + new_tokens_num;
-#if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#if KEY_BY_CHANNEL_TM
             // One byte per token holds THIS channel and its neighbour, which live in adjacent LANES --
             // so the pair is assembled with a subgroup shuffle and only the even lane stores. One
             // shuffle per (token, channel group); nothing is read back, so there is no RMW hazard.
@@ -670,7 +681,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
             comp_ptr[1] = (INPUT0_TYPE)zp_tmp;
         }
     }
-#endif  // IS_INT4_COMPRESSED && IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#endif  // IS_INT4_COMPRESSED && KEY_BY_CHANNEL_TM
 }
 
 inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYPE* in_data,
@@ -681,7 +692,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
                                     const uint tokens_num,
                                     //const uint token_start_pos_key,
                                     const uint sglid)  {
-#if IS_INT4_COMPRESSED && IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#if IS_INT4_COMPRESSED && KEY_BY_CHANNEL_TM
     // Same byte-column x token-parity lane mapping as
     // quantize_and_save_by_channel_block_with_requantize_int4; see the long comment there for why a
     // BYTE and not a channel is the unit a lane can own, why every loop bound must be subgroup-
@@ -826,7 +837,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
             comp_ptr[0] = 1.0 / scale;
             comp_ptr[1] = zp;
 
-            #if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+            #if KEY_BY_CHANNEL_TM
             // Channel-axis packing: one byte per (token, channel pair), the pair coming from adjacent
             // lanes. Same shuffle-and-store-from-the-even-lane as the requantize path above.
             const uint data_off = BC_DATA_OFF(out_data_offset, channel_idx);
@@ -862,7 +873,7 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
             out_offset += ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE * SUBGROUP_SIZE;
         #endif
     }
-#endif  // IS_INT4_COMPRESSED && IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#endif  // IS_INT4_COMPRESSED && KEY_BY_CHANNEL_TM
 }
 #endif  // IS_KEY_BY_CHANNEL
 

@@ -267,9 +267,7 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
         return false;
     }
     // qq_bias is accepted: one new token per sequence makes its tree mask the 1 x 1 identity, which plain
-    // causal masking already gives. A qq_bias model still gets the d-major BY_CHANNEL page
-    // (paged_attention::by_channel_token_major_readable(): EAGLE3's pa_kv_reorder reads it d-major), so
-    // here that page is only reached when a test forces it (smoke_qq_bias_token_major).
+    // causal masking already gives.
     if (desc->has_alibi || desc->has_xattention) {
         return false;
     }
@@ -292,13 +290,9 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     if (kv_u4 && !desc->is_key_by_channel) {
         return false;
     }
-    // The KQ B operand is 16 consecutive head dims of one key, so the K page must be token-major: f16/i8
-    // BY_TOKEN through k_token_major_for(), i8/u4 BY_CHANNEL through its own staging switch, which is read
-    // from the physical cache shape.
-    const auto key_cache_dt = kv_u4 ? ov::element::u4 : ov::element::Type(key_cache.data_type);
-    const bool by_channel_tm = desc->is_key_by_channel && pa_k_by_channel_tm_layout(key_cache, kv_u4, 4);
-    const bool k_token_major = paged_attention::k_token_major_for(key_cache_dt, desc->is_key_by_channel) || by_channel_tm;
-    if (!k_token_major) {
+    // The KQ B operand is 16 consecutive head dims of one key, so the K page must be token-major, which is read off the
+    // physical cache shape for every kind of page.
+    if (!pa_k_token_major(params)) {
         return false;
     }
 

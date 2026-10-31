@@ -412,14 +412,14 @@ struct PagedAttentionManager {
         return *k_cache_token_major_cached;
     }
 
-    // What transformations_pipeline.cpp decides for this case on the test device: the i8/u4 BY_CHANNEL
-    // page is token-major only where paged_attention::by_channel_token_major_readable() says both
+    // What transformations_pipeline.cpp decides for this case on the test device: the uncompressed / BY_TOKEN page on the
+    // device rule, the i8/u4 BY_CHANNEL page only where paged_attention::by_channel_token_major_readable() says both
     // token-major readers run (the harness has no alibi and always runs f16).
     bool decide_k_cache_token_major() const {
         const auto precision = is_int4_kv_cache() ? kv_cache_precision
                                                   : (kv_cache_compression ? ov::element::i8 : ov::element::f16);
         const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
-        if (cldnn::paged_attention::k_token_major_for(precision, is_by_channel))
+        if (cldnn::paged_attention::k_token_major_for(test_engine.get_device_info(), precision, is_by_channel))
             return true;
         if (!cldnn::paged_attention::k_by_channel_token_major_for(precision, is_by_channel))
             return false;
@@ -430,16 +430,15 @@ struct PagedAttentionManager {
         op.kv_heads_num = static_cast<size_t>(num_kv_heads);
         op.has_scores_output = has_scores_output;
         op.has_adaptive_rkv = has_adaptive_rkv;
-        op.has_qq_bias = has_qq_bias;
         return by_channel_token_major_readable_on(test_engine, {op});
     }
 
     // by_channel_token_major_readable() with the test device's facts, as transformations_pipeline.cpp
-    // gathers them (it queries microkernels only where a reader could run: the same predicate).
+    // gathers them (it queries microkernels only where a reader could run).
     static bool by_channel_token_major_readable_on(cldnn::engine& engine,
                                                    const std::vector<cldnn::paged_attention::by_channel_tm_op_info>& ops) {
         const auto& info = engine.get_device_info();
-        const bool microkernels_supported = cldnn::paged_attention::sdpa_ocl_decode_reader_available(info) &&
+        const bool microkernels_supported = cldnn::paged_attention::k_token_major_device(info) &&
                                             cldnn::query_microkernels_supported(engine, tests::get_test_default_config(engine));
         return cldnn::paged_attention::by_channel_token_major_readable(info, microkernels_supported, ov::element::f16, ops);
     }
@@ -811,7 +810,7 @@ struct PagedAttentionManager {
                                 (static_cast<size_t>(start_block_idx + block_idx) * static_cast<size_t>(num_kv_heads) + static_cast<size_t>(head_idx)) *
                                 block_stride;
 
-                            // Under the by-channel token-major staging switch the V page is relaid out
+                            // With the by-channel token-major K page the V page is relaid out
                             // too: the (scale, zp) pair moves out of every row into trailing per-token
                             // arrays, which drops the row pitch from packed+4 to packed (a multiple of
                             // 16, hence 2D-block-readable), and the nibbles switch to the SPLIT
