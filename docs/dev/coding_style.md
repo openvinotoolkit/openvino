@@ -26,6 +26,8 @@ Python (`.py`):
 # SPDX-License-Identifier: Apache-2.0
 ```
 
+In Python files the header may be preceded by a shebang and/or an encoding declaration.
+
 To check and fix headers automatically, the script at `.github/scripts/check_copyright.py` can be used. If it exits non-zero it writes `copyright_fixes.diff`, which can be applied with `patch -p1 < copyright_fixes.diff`.
 
 Note: automatically generated patch can occasionally produce incorrect changes — in some cases, the manual fix is required.
