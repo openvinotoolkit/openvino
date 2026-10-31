@@ -44,6 +44,7 @@
 #include "kv_cache_inst.h"
 #include "loop_inst.h"
 #include "lora_inst.h"
+#include "multiclass_nms_inst.h"
 #include "mutable_data_inst.h"
 #include "non_max_suppression_inst.h"
 #include "paged_attention_inst.h"
@@ -597,15 +598,6 @@ void primitive_inst::update_shape() {
         }
     }
 
-    // required to zero out the number of valid boxes (third output) when NMS is not executed
-    if (get_node().is_type<non_max_suppression>()) {
-        if (!_impl_params->output_layouts[0].count() && _outputs.size() == 3 && _outputs[2]) {
-            const bool out_of_order_queue = queue_type == QueueTypes::out_of_order;
-            auto dep_events =
-                out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)} : std::vector<event::ptr>{};
-            add_dep_event(_outputs[2]->fill(get_network().get_stream(), dep_events));
-        }
-    }
 }
 
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(const program_node& node, const kernel_impl_params& orig_impl_param) {
@@ -955,11 +947,15 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     const auto& actual_layouts = updated_output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
+    const bool is_nms = get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>();
+    bool output_0_bound_to_external_memory = false;
     if (try_bind_remote_permute_output(actual_layouts[0])) {
-        return;
+        if (!is_nms)
+            return;
+        output_0_bound_to_external_memory = true;
     }
 
-    if (_remote_permute_output_alias) {
+    if (_remote_permute_output_alias && !output_0_bound_to_external_memory) {
         if (_outputs[0] && get_network().get_engine().is_the_same_buffer(*_outputs[0], *_remote_permute_output_alias)) {
             clear_output_memory();
             _mem_allocated = false;
@@ -976,10 +972,16 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             if (actual_layouts[0].get_linear_size() <= reorder_inst->get_max_output_layout_count()) {
                 this->_outputs[0] = reorder_inst->_outputs[0];
                 GPU_DEBUG_TRACE_DETAIL << id() << ": use reorder user's remote tensor memory " << this->_outputs[0]->buffer_ptr() << std::endl;
-                return;
+                if (is_nms) {
+                    output_0_bound_to_external_memory = true;
+                } else {
+                    return;
+                }
             }
-            GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
-            reorder_inst->set_can_be_optimized(false);
+            if (!output_0_bound_to_external_memory) {
+                GPU_DEBUG_TRACE_DETAIL << reorder_inst->id() << " cannot be optimized for the mismatch between input layout and output layout" << std::endl;
+                reorder_inst->set_can_be_optimized(false);
+            }
         }
     }
 
@@ -1004,13 +1006,17 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             auto* next = cursor->get_user_insts().front();
             if (next->is_output()) {
                 auto* ext_block = get_network().get_output_memory_block(next->id());
-                if (ext_block) {
+                if (ext_block && (!is_nms || actual_layouts[0].count() != 0)) {
                     ext_block->resize(actual_layouts[0]);
                     _outputs[0] = ext_block->memory();
                     _max_output_layout_count[0] = _outputs[0]->get_mem_tracker()->size() / cldnn::data_type_traits::size_of(actual_layouts[0].data_type);
                     GPU_DEBUG_TRACE_DETAIL << id() << ": use ext output memory block via forward probe -> " << next->id() << " - "
                                            << actual_layouts[0].get_linear_size() << "/" << _max_output_layout_count[0] << std::endl;
                     GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("ext_output_block_via_forward_probe");
+                    if (get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>()) {
+                        output_0_bound_to_external_memory = true;
+                        break;
+                    }
                     return;
                 }
                 break;  // output node without ext_block — stop probing
@@ -1348,6 +1354,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     // allocate_output() params of the nodes that don't use fake_aligned_params, built on the first allocation
     std::optional<kernel_impl_params> alloc_params;
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
+        if (output_0_bound_to_external_memory && i == 0) {
+            continue;
+        }
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
         if (get_node().is_type<kv_cache>() && i != 1) {
@@ -1372,7 +1381,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         // GPU kernel writes into directly, avoiding an extra GPU->Host copy after execution.
         if (is_output()) {
             auto* ext_block = get_network().get_output_memory_block(id());
-            if (ext_block) {
+            const bool is_empty_nms_output =
+                i == 0 && actual_layouts[i].count() == 0 && is_nms;
+            if (ext_block && !is_empty_nms_output) {
                 ext_block->resize(updated_output_layouts[i]);
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*ext_block->memory(), actual_layouts[i]);
                 _max_output_layout_count[i] = ext_block->memory()->get_mem_tracker()->size() / cldnn::data_type_traits::size_of(actual_layouts[i].data_type);
@@ -2498,6 +2509,16 @@ void primitive_inst::prepare_primitive() {
         }
 
         if (get_flag(ExecutionFlags::SKIP)) {
+            if ((get_node().is_type<non_max_suppression>() || get_node().is_type<multiclass_nms>()) &&
+                !_impl_params->output_layouts[0].count() && _outputs.size() == 3) {
+                realloc_if_needed(prev_execution_skipped);
+                OPENVINO_ASSERT(_outputs[2], "[GPU] Selected count output was not allocated for empty NMS output");
+                const bool out_of_order_queue = get_network().get_stream().get_queue_type() == QueueTypes::out_of_order;
+                auto dep_events = out_of_order_queue
+                                      ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                      : std::vector<event::ptr>{};
+                add_dep_event(_outputs[2]->fill(get_network().get_stream(), dep_events));
+            }
             _update_shape_done_by_other = false;  // reset
             return;
         }

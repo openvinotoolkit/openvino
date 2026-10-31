@@ -307,14 +307,15 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
-    // v2 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
-    // The desc fields are the device properties that invalidate a compiled blob if changed:
-    //   rt (compile-time runtime - OCL/ZE store incompatible kernel binaries), driver (owns the
-    //   kernel binaries), ip (GFX IP hardware version), eus (execution units).
+    // GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<blob/device props>].
+    // The desc fields are the properties that invalidate a compiled blob if changed:
+    //   blob (serialized layout), rt (compile-time runtime - OCL/ZE store incompatible kernel
+    //   binaries), driver (owns the kernel binaries), ip (GFX IP hardware version), eus (execution units).
     std::ostringstream ss;
-    ss << "meta=1.0"
+    ss << "meta=1.1"
        << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
-       << ";desc=[rt=" << cldnn::get_runtime_cache_tag()
+       << ";desc=[blob=" << runtime_requirements_version
+       << ";rt=" << cldnn::get_runtime_cache_tag()
        << ";driver=" << info.driver_version
        << ";ip=" << info.gfx_ver.major << "." << static_cast<uint32_t>(info.gfx_ver.minor) << "."
        << static_cast<uint32_t>(info.gfx_ver.revision)

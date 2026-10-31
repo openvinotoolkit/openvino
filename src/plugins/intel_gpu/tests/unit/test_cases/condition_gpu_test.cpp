@@ -95,14 +95,14 @@ public:
         {
             cldnn::topology branch_true_topology   = generate_simple_branch(true,  cond_id, branch_input_id, dat_dt);
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-            branch_true.input_map.insert({input_id, branch_input_id});
+            branch_true.input_map.insert({1, {input_id, branch_input_id}});
             branch_true.output_map.insert({0, "condi_when_true"});
         }
         condition::branch branch_false;
         {
             cldnn::topology branch_false_topology  = generate_simple_branch(false, cond_id, branch_input_id, dat_dt);
             branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-            branch_false.input_map.insert({input_id, branch_input_id});
+            branch_false.input_map.insert({1, {input_id, branch_input_id}});
             branch_false.output_map.insert({0, "condi_when_false"});
         }
 
@@ -193,14 +193,14 @@ public:
         {
             cldnn::topology branch_true_topology  = generate_simple_branch(true,  condi_id, branch_input_id);
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-            branch_true.input_map.insert({concat_id, branch_input_id});
+            branch_true.input_map.insert({1, {concat_id, branch_input_id}});
             branch_true.output_map.insert({0, "condi_when_true"});
         }
         condition::branch branch_false;
         {
             cldnn::topology branch_false_topology = generate_simple_branch(false, condi_id, branch_input_id);
             branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-            branch_false.input_map.insert({concat_id, branch_input_id});
+            branch_false.input_map.insert({1, {concat_id, branch_input_id}});
             branch_false.output_map.insert({0, "condi_when_false"});
         }
 
@@ -295,7 +295,7 @@ public:
             );
             condition::branch branch;
             branch.inner_program = program::build_program(engine, branch_topology, config, false, false, true);
-            branch.input_map.insert({tranpose, branch_input_id});
+            branch.input_map.insert({1, {tranpose, branch_input_id}});
             branch.output_map.insert({0, id});
 
             return branch;
@@ -382,7 +382,7 @@ public:
             );
             condition::branch branch;
             branch.inner_program = program::build_program(engine, branch_topology, config, false, false, true);
-            branch.input_map.insert({tranpose, branch_input_id});
+            branch.input_map.insert({1, {tranpose, branch_input_id}});
             branch.output_map.insert({0, id});
 
             return branch;
@@ -458,22 +458,22 @@ public:
 
         condition::branch branch_condi_1_true;
         branch_condi_1_true.inner_program = program::build_program(engine, condi_1_true, config, false, false, true);
-        branch_condi_1_true.input_map.insert({input_id, branch_input_id});
+        branch_condi_1_true.input_map.insert({1, {input_id, branch_input_id}});
         branch_condi_1_true.output_map.insert({0, "condi_when_true"});
 
         condition::branch branch_condi_1_false;
         branch_condi_1_false.inner_program = program::build_program(engine, condi_1_false, config, false, false, true);
-        branch_condi_1_false.input_map.insert({input_id, branch_input_id});
+        branch_condi_1_false.input_map.insert({1, {input_id, branch_input_id}});
         branch_condi_1_false.output_map.insert({0, "condi_when_false"});
 
         condition::branch branch_condi_2_true;
         branch_condi_2_true.inner_program = program::build_program(engine, condi_2_true, config, false, false, true);
-        branch_condi_2_true.input_map.insert({cond_id, branch_input_id});
+        branch_condi_2_true.input_map.insert({1, {cond_id, branch_input_id}});
         branch_condi_2_true.output_map.insert({0, "activ_when_true"});
 
         condition::branch branch_condi_2_false;
         branch_condi_2_false.inner_program = program::build_program(engine, condi_2_false, config, false, false, true);
-        branch_condi_2_false.input_map.insert({cond_id, branch_input_id});
+        branch_condi_2_false.input_map.insert({1, {cond_id, branch_input_id}});
         branch_condi_2_false.output_map.insert({0, "activ_when_false"});
 
         topology topology;
@@ -551,7 +551,7 @@ public:
                 eltwise("scale_5", { input_info("branch_input1"), input_info("scale_5_data") }, eltwise_mode::prod)
             );
             nested_true.inner_program = program::build_program(engine, nested_true_topology, config, false, false, true);
-            nested_true.input_map.insert({"pooling_when_true", "branch_input1"});
+            nested_true.input_map.insert({1, {input_info("pooling_when_true"), "branch_input1"}});
             nested_true.output_map.insert({0, "scale_5"});
         }
         condition::branch nested_false;
@@ -563,7 +563,7 @@ public:
                 eltwise("scale_10", { input_info("branch_input2"), input_info("scale_10_data") }, eltwise_mode::prod)
             );
             nested_false.inner_program = program::build_program(engine, nested_false_topology, config, false, false, true);
-            nested_false.input_map.insert({"pooling_when_true", "branch_input2"});
+            nested_false.input_map.insert({1, {input_info("pooling_when_true"), "branch_input2"}});
             nested_false.output_map.insert({0, "scale_10"});
         }
 
@@ -577,8 +577,8 @@ public:
                 condition( "condi_nested", {input_info("predicate2"), input_info("pooling_when_true")}, nested_true, nested_false)
             );
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-            branch_true.input_map.insert({"input", "branch_input3"});
-            branch_true.input_map.insert({"predicate2", "predicate2"});
+            branch_true.input_map.insert({2, {input_info("input"), "branch_input3"}});
+            branch_true.input_map.insert({1, {input_info("predicate2"), "predicate2"}});
             branch_true.output_map.insert({0, "condi_nested"});
         }
 
@@ -590,7 +590,7 @@ public:
                 pooling("pooling_when_false", input_info("branch_input4"), cldnn::pooling_mode::average, { 1, 2 }, { 1, 2 })
             );
             branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-            branch_false.input_map.insert({"input", "branch_input4"});
+            branch_false.input_map.insert({2, {input_info("input"), "branch_input4"}});
             branch_false.output_map.insert({0, "pooling_when_false"});
         }
 
@@ -647,14 +647,14 @@ public:
         {
             cldnn::topology branch_true_topology   = generate_simple_branch(true,  cond_id, branch_input_id, data_types::f32);
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-            branch_true.input_map.insert({input_id, branch_input_id});
+            branch_true.input_map.insert({1, {input_id, branch_input_id}});
             branch_true.output_map.insert({0, "condi_when_true"});
         }
         condition::branch branch_false;
         {
             cldnn::topology branch_false_topology  = generate_simple_branch(false, cond_id, branch_input_id, data_types::f32);
             branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-            branch_false.input_map.insert({input_id, branch_input_id});
+            branch_false.input_map.insert({1, {input_id, branch_input_id}});
             branch_false.output_map.insert({0, "condi_when_false"});
         }
 
@@ -693,7 +693,7 @@ public:
                 pooling(pool_id, input_info(branch_input_id), cldnn::pooling_mode::max, { 1, 2 }, { 1, 2 })
             );
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-            branch_true.input_map.insert({input_id, branch_input_id});
+            branch_true.input_map.insert({1, {input_id, branch_input_id}});
             branch_true.output_map.insert({0, pool_id});
         }
 
@@ -706,7 +706,7 @@ public:
                 pooling(pool_id, input_info(branch_input_id), cldnn::pooling_mode::max, { 1, 4 }, { 1, 4 })
             );
             branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-            branch_false.input_map.insert({input_id, branch_input_id});
+            branch_false.input_map.insert({1, {input_id, branch_input_id}});
             branch_false.output_map.insert({0, pool_id});
         }
 
@@ -746,7 +746,7 @@ public:
                 pooling(duplicated_id, input_info(branch_input_id), cldnn::pooling_mode::max, { 2, 1 }, { 2, 1 })
             );
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-            branch_true.input_map.insert({input_id, branch_input_id});
+            branch_true.input_map.insert({1, {input_id, branch_input_id}});
             branch_true.output_map.insert({0, duplicated_id});
         }
 
@@ -758,7 +758,7 @@ public:
                 pooling("pooling_when_false", input_info(branch_input_id), cldnn::pooling_mode::max, { 2, 1 }, { 2, 1 })
             );
             branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-            branch_false.input_map.insert({input_id, branch_input_id});
+            branch_false.input_map.insert({1, {input_id, branch_input_id}});
             branch_false.output_map.insert({0, "pooling_when_false"});
         }
 
@@ -802,8 +802,8 @@ public:
                 eltwise("eltwise", { input_info(branch_input_id1), input_info(branch_input_id2) }, eltwise_mode::sum)
             );
             branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-            branch_true.input_map.insert({input_id1, branch_input_id1});
-            branch_true.input_map.insert({input_id2, branch_input_id2});
+            branch_true.input_map.insert({1, {input_id1, branch_input_id1}});
+            branch_true.input_map.insert({2, {input_id2, branch_input_id2}});
             branch_true.output_map.insert({0, "eltwise"});
         }
 
@@ -815,7 +815,7 @@ public:
                 reorder("result", input_info(branch_input_id2), {data_types::f32, format::bfyx, {1, 1, 4, 1}})
             );
             branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-            branch_false.input_map.insert({input_id2, branch_input_id2});
+            branch_false.input_map.insert({2, {input_id2, branch_input_id2}});
             branch_false.output_map.insert({0, "result"});
         }
 
@@ -829,6 +829,100 @@ public:
         network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
         ASSERT_TRUE(net->get_primitive(cond_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
         ASSERT_FALSE(net->get_primitive(cond_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
+    }
+
+    void test_skip_subgraph_nonzero_output_port(bool is_caching_test) {
+        auto& engine = get_test_engine();
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        const primitive_id producer_predicate_id = "producer_predicate";
+        const primitive_id consumer_predicate_id = "consumer_predicate";
+        const primitive_id f32_input_id = "f32_input";
+        const primitive_id f16_input_id = "f16_input";
+        const primitive_id producer_id = "producer_condition";
+        const primitive_id consumer_id = "consumer_condition";
+
+        auto producer_predicate = engine.allocate_memory({data_types::u8, format::bfyx, {1, 1, 1, 1}});
+        auto consumer_predicate = engine.allocate_memory({data_types::u8, format::bfyx, {1, 1, 1, 1}});
+        auto f32_input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 2, 1}});
+        auto f16_input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 2, 1}});
+
+        auto make_producer_branch = [&](const primitive_id& prefix) {
+            condition::branch branch;
+            const primitive_id f32_parameter = prefix + "_f32_parameter";
+            const primitive_id f16_parameter = prefix + "_f16_parameter";
+            const primitive_id f32_result = prefix + "_z_result_0";
+            const primitive_id f16_result = prefix + "_a_result_1";
+            topology branch_topology;
+            branch_topology.add(
+                input_layout(f32_parameter, f32_input->get_layout()),
+                input_layout(f16_parameter, f16_input->get_layout()),
+                reorder(f32_result, input_info(f32_parameter), format::bfyx, data_types::f32),
+                reorder(f16_result, input_info(f16_parameter), format::bfyx, data_types::f16));
+            branch.inner_program = program::build_program(engine, branch_topology, config, false, false, true);
+            branch.input_map.insert({1, {f32_input_id, f32_parameter}});
+            branch.input_map.insert({2, {f16_input_id, f16_parameter}});
+            branch.output_map.insert({0, f32_result});
+            branch.output_map.insert({1, f16_result});
+            return branch;
+        };
+
+        auto make_consumer_branch = [&](const primitive_id& prefix) {
+            condition::branch branch;
+            const primitive_id parameter = prefix + "_parameter";
+            const primitive_id result = prefix + "_result";
+            topology branch_topology;
+            branch_topology.add(
+                input_layout(parameter, f16_input->get_layout()),
+                reorder(result, input_info(parameter), format::bfyx, data_types::f16));
+            branch.inner_program = program::build_program(engine, branch_topology, config, false, false, true);
+            branch.input_map.insert({1, {input_info(producer_id, 1), parameter}});
+            branch.output_map.insert({0, result});
+            return branch;
+        };
+
+        topology topology;
+        topology.add(
+            input_layout(producer_predicate_id, producer_predicate->get_layout()),
+            input_layout(consumer_predicate_id, consumer_predicate->get_layout()),
+            input_layout(f32_input_id, f32_input->get_layout()),
+            input_layout(f16_input_id, f16_input->get_layout()),
+            condition(producer_id,
+                      {input_info(producer_predicate_id), input_info(f32_input_id), input_info(f16_input_id)},
+                      make_producer_branch("producer_true"),
+                      make_producer_branch("producer_false"),
+                      2),
+            condition(consumer_id,
+                      {input_info(consumer_predicate_id), input_info(producer_id, 1)},
+                      make_consumer_branch("consumer_true"),
+                      make_consumer_branch("consumer_false")));
+
+        auto net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        ASSERT_TRUE(net->get_primitive(producer_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
+        ASSERT_TRUE(net->get_primitive(producer_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+        ASSERT_TRUE(net->get_primitive(consumer_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
+        ASSERT_TRUE(net->get_primitive(consumer_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+
+        set_values<int8_t>(producer_predicate, {1});
+        set_values<int8_t>(consumer_predicate, {1});
+        set_values(f32_input, {42.0f, 43.0f});
+        set_values(f16_input, {ov::float16{1.5f}, ov::float16{2.5f}});
+        net->set_input_data(producer_predicate_id, producer_predicate);
+        net->set_input_data(consumer_predicate_id, consumer_predicate);
+        net->set_input_data(f32_input_id, f32_input);
+        net->set_input_data(f16_input_id, f16_input);
+
+        auto outputs = net->execute();
+        ASSERT_TRUE(is_output_equal(outputs.at(consumer_id).get_memory(), std::vector<ov::float16>{1.5f, 2.5f}));
+
+        set_values<int8_t>(producer_predicate, {0});
+        set_values<int8_t>(consumer_predicate, {1});
+        net->set_input_data(producer_predicate_id, producer_predicate);
+        net->set_input_data(consumer_predicate_id, consumer_predicate);
+        outputs = net->execute();
+        ASSERT_TRUE(is_output_equal(outputs.at(consumer_id).get_memory(), std::vector<ov::float16>{1.5f, 2.5f}));
     }
 };
 
@@ -854,6 +948,14 @@ TEST_F(condition_gpu_tests, dynamic_shapes_skip_condition) {
 
 TEST_F(condition_gpu_tests, dynamic_shapes_skip_condition_cached) {
     this->test_dynamic_shapes_skip_condition(true);
+}
+
+TEST_F(condition_gpu_tests, skip_subgraph_nonzero_output_port) {
+    this->test_skip_subgraph_nonzero_output_port(false);
+}
+
+TEST_F(condition_gpu_tests, skip_subgraph_nonzero_output_port_cached) {
+    this->test_skip_subgraph_nonzero_output_port(true);
 }
 
 TEST_F(condition_gpu_tests, basic_stacked_ifs) {
@@ -930,8 +1032,8 @@ TEST(condition_gpu, empty_body_with_different_shapes) {
             eltwise("eltwise", { input_info(branch_input_id1), input_info(branch_input_id2) }, eltwise_mode::sum)
         );
         branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-        branch_true.input_map.insert({input_id1, branch_input_id1});
-        branch_true.input_map.insert({input_id2, branch_input_id2});
+        branch_true.input_map.insert({1, {input_id1, branch_input_id1}});
+        branch_true.input_map.insert({2, {input_id2, branch_input_id2}});
         branch_true.output_map.insert({0, "eltwise"});
     }
 
@@ -943,7 +1045,7 @@ TEST(condition_gpu, empty_body_with_different_shapes) {
             reorder("result", input_info(branch_input_id3), format::bfyx, data_types::f32)
         );
         branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-        branch_false.input_map.insert({input_id3, branch_input_id3});
+        branch_false.input_map.insert({3, {input_id3, branch_input_id3}});
         branch_false.output_map.insert({0, "result"});
     }
 
@@ -974,6 +1076,45 @@ TEST(condition_gpu, empty_body_with_different_shapes) {
     auto output_layout = output->get_layout();
     auto out_pshape = output_layout.get_partial_shape();
     ASSERT_EQ(out_pshape, oned_pshape);
+}
+
+TEST(condition_gpu, update_primitive_map_renames_only_matching_input) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    const layout data_layout{data_types::f32, format::bfyx, {1, 1, 4, 1}};
+    const primitive_id input_id = "a";
+    const primitive_id lookalike_id = "a.outside_node";
+
+    auto make_branch = [&](const primitive_id& prefix) {
+        condition::branch branch;
+        topology branch_topology(
+            input_layout(prefix + "_p0", data_layout),
+            input_layout(prefix + "_p1", data_layout),
+            eltwise(prefix + "_sum", {input_info(prefix + "_p0"), input_info(prefix + "_p1")}, eltwise_mode::sum));
+        branch.inner_program = program::build_program(engine, branch_topology, config, false, false, true);
+        branch.input_map.insert({1, {input_info(input_id), prefix + "_p0"}});
+        branch.input_map.insert({2, {input_info(lookalike_id), prefix + "_p1"}});
+        branch.output_map.insert({0, prefix + "_sum"});
+        return branch;
+    };
+
+    topology topology(
+        input_layout("predicate", {data_types::u8, format::bfyx, {1, 1, 1, 1}}),
+        input_layout(input_id, data_layout),
+        input_layout(lookalike_id, data_layout),
+        condition("condi",
+                  {input_info("predicate"), input_info(input_id), input_info(lookalike_id)},
+                  make_branch("true"),
+                  make_branch("false")));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    auto& cond = prog->get_node("condi").as<condition>();
+
+    cond.update_primitive_map(input_id, "renamed");
+
+    for (const auto& branch : {cond.get_branch_true(), cond.get_branch_false()}) {
+        EXPECT_EQ(branch.input_map.at(1).external_id, input_info("renamed"));
+        EXPECT_EQ(branch.input_map.at(2).external_id, input_info(lookalike_id));
+    }
 }
 
 TEST(condition_gpu, set_empty_tensor) {
@@ -1008,7 +1149,7 @@ TEST(condition_gpu, set_empty_tensor) {
             concatenation(concat_id, { input_info(branch_input_id1), input_info(concat_data_id) }, 2)
         );
         branch_true.inner_program = program::build_program(engine, branch_true_topology, config, false, false, true);
-        branch_true.input_map.insert({reorder_id, branch_input_id1});
+        branch_true.input_map.insert({1, {reorder_id, branch_input_id1}});
         branch_true.output_map.insert({0, concat_id});
     }
 
@@ -1020,7 +1161,7 @@ TEST(condition_gpu, set_empty_tensor) {
             reorder("result", input_info(branch_input_id2), format::bfyx, data_types::f32)
         );
         branch_false.inner_program = program::build_program(engine, branch_false_topology, config, false, false, true);
-        branch_false.input_map.insert({input_id, branch_input_id2});
+        branch_false.input_map.insert({2, {input_id, branch_input_id2}});
         branch_false.output_map.insert({0, "result"});
     }
 
