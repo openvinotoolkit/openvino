@@ -21,6 +21,7 @@ omitting training-related parameter.
 	:force:
 
 	def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, sink=None, *, causal):
+	    key, value = ConvertLike(key, query), ConvertLike(value, query)
 	    L, S = Gather(ShapeOf(query), -2), Gather(ShapeOf(key), -2)
 	    if scale is None:
 	        scale = 1.0 / Sqrt(ConvertLike(Gather(ShapeOf(query), -1), query))
@@ -56,9 +57,9 @@ omitting training-related parameter.
 
 * **1**: ``query`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., L, E]``. **Required.**
 
-* **2**: ``key`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, E]``. **Required.**
+* **2**: ``key`` - at least 3 dimensional tensor of type *T* or *T_QUANT* and shape ``[N, ..., S, E]``. **Required.**
 
-* **3**: ``value`` - at least 3 dimensional tensor of type *T* and shape ``[N, ..., S, Ev]``. **Required.**
+* **3**: ``value`` - at least 3 dimensional tensor of type *T* or *T_QUANT* and shape ``[N, ..., S, Ev]``. **Required.**
 
 * **4**: ``attention_mask`` - two options available. ``attention_mask`` is ignored if ``causal`` is set to ``True``. **Optional.**
 
@@ -74,6 +75,14 @@ omitting training-related parameter.
 
     The sink input is available since 2025.4 OpenVINO release.
 
+.. note::
+
+    A *T_QUANT* ``key`` or ``value`` is available since 2026.4 OpenVINO release. Its elements are
+    integer values, converted to *T* by the first line of the pseudo-code above, which leaves a *T*
+    ``key`` or ``value`` unchanged. Quantization scales and zero points are not inputs of this
+    operation; a model applies them outside it, for example by folding a per-tensor key scale
+    into ``scale`` and multiplying the output by a per-tensor value scale.
+
 **Outputs**
 
 * **1**: - the result of scaled dot-product attention, a tensor of type *T* and shape ``[N, ..., L, Ev]``.
@@ -81,6 +90,9 @@ omitting training-related parameter.
 **Types**
 
 * *T*: any supported floating-point type.
+
+* *T_QUANT*: ``i8``, ``u8``, ``i4`` or ``u4``. Accepted for ``key`` and ``value`` only; it does not
+  affect the output type, which always follows ``query``.
 
 
 **Dimensions**

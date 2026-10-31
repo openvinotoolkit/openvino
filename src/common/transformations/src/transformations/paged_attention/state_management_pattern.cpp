@@ -15,6 +15,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/fake_convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -37,6 +38,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/sdpa_util.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -658,6 +660,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         reapply_quant(q, q_to_pa, q_seen);
         reapply_quant(k_to_sdpa, k_to_pa, k_seen);
         reapply_quant(v_to_sdpa, v_to_pa, v_seen);
+
+        // SDPA converts an integer key or value to the query's type; PagedAttentionExtension expects both in it.
+        for (const auto& [input_idx, kv_to_pa] : {std::pair{size_t{1}, &k_to_pa}, std::pair{size_t{2}, &v_to_pa}}) {
+            if (ov::op::util::is_sdpa_integer_kv_type(sdpa_node->get_input_element_type(input_idx))) {
+                *kv_to_pa = std::make_shared<v1::ConvertLike>(*kv_to_pa, q_to_pa);
+            }
+        }
 
         std::shared_ptr<ov::Node> scale;
         if (pattern_map.count(scale_input)) {
