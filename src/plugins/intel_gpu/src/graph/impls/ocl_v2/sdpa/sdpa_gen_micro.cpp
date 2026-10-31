@@ -723,6 +723,11 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
         if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h128 : &xehpc_h128_pa;
         }
+        // On an integrated part a multi-token call whose key count is only known at run time is a
+        // prefill over a long context; do not size it as if it had no keys.
+        if (seq <= 0 && !thin_q && is_integrated) {
+            seq = std::numeric_limits<int>::max();
+        }
         if (quantized) {
             if (thin_q) {
                 if (is_integrated) {
@@ -749,11 +754,8 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
             }
             return &xehpc_q_h128;
         }
-        if (is_integrated) {
-            return &xehpc_q_h128_2nd_integrated;
-        }
         if (thin_q) {
-            return &xehpc_h128_2nd;
+            return is_integrated ? &xehpc_q_h128_2nd_integrated : &xehpc_h128_2nd;
         }
         if (seq <= 32) {
             return &xehpc_h128_s32;
