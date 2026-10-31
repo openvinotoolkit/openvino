@@ -451,10 +451,11 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     // Smaller values have no kernel branch and would silently produce wrong results.
     {
         const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
-        const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
+        // Mirrors FAKE_GROUP_SIZE in moe_3gemm_swiglu_mlp.cl, which also depends on the down group size.
+        const size_t fake_gs = std::min({gate_up_group_size, down_group_size, size_t{128}});
         OPENVINO_ASSERT(fake_gs >= 2 * sg,
                         "MoE GEMV kernel does not support group_size=",
-                        gate_up_group_size,
+                        fake_gs,
                         " on this hardware (SUBGROUP_SIZE=",
                         sg,
                         "). Minimum supported group_size is ",
@@ -481,21 +482,34 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     // auto scale_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::SCALE_0)).data_type;
     // auto zp_dt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::ZP_0)).data_type;
     if (weight_dt == ov::element::u4 || weight_dt == ov::element::i4) {
-        jit.make("WEIGHT_COMPRESSEION_DT", 0);
         jit.make("MOE_WEI_DT", "uchar");
         jit.make("MOE_SCALE_DT", "half");
         jit.make("MOE_ZP_DT", "uchar");
     } else if (weight_dt == ov::element::u8 || weight_dt == ov::element::i8) {
-        jit.make("WEIGHT_COMPRESSEION_DT", 1);
         jit.make("MOE_WEI_DT", "uchar");
         jit.make("MOE_SCALE_DT", "half");
         jit.make("MOE_ZP_DT", "uchar");
     } else if (weight_dt == ov::element::f16) {
-        jit.make("WEIGHT_COMPRESSEION_DT", 2);
         jit.make("MOE_WEI_DT", "half");
         jit.make("MOE_SCALE_DT", "half");  // not use
         jit.make("MOE_ZP_DT", "half");     // not use
     }
+
+    // Per-GEMM weight dtype codes: gate, up and down may differ under NNCF mixed precision, and
+    // each is decoded with its own. Codes: 0=u4/i4, 1=u8/i8, 2=f16.
+    const auto moe_weight_code = [](ov::element::Type dt) -> int {
+        if (dt == ov::element::u4 || dt == ov::element::i4)
+            return 0;
+        if (dt == ov::element::f16)
+            return 2;
+        return 1;  // u8/i8 (byte) path
+    };
+    const auto gate_wdt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_0)).data_type;
+    const auto up_wdt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_1)).data_type;
+    const auto down_wdt = params.get_input_layout(static_cast<size_t>(MOE3GemmInputIndex::WEIGHT_2)).data_type;
+    jit.make("GATE_WEIGHT_DT", moe_weight_code(gate_wdt));
+    jit.make("UP_WEIGHT_DT", moe_weight_code(up_wdt));
+    jit.make("DOWN_WEIGHT_DT", moe_weight_code(down_wdt));
 }
 
 class MoE3GemmSwigluMLPGateUp : public KernelGenerator {
@@ -2251,12 +2265,17 @@ public:
 
         // Use the model config to determine ZP presence (symmetric vs asymmetric quantization)
         bool has_zp = config.has_zp;
-        // All the zero points share one dtype, which may differ from the weight dtype (u3 weights have u8 zp)
-        const auto zp_dt = has_zp ? convert_data_type(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::ZP_0))->get_layout().data_type)
-                                  : dnnl::memory::data_type::undef;
+        // The zero point dtype may differ from the weight dtype (u3 weights have u8 zp) and, in a mixed-dtype layer, from GEMM
+        // to GEMM (u4 gate/up with u8 down), so it is taken per GEMM.
+        const std::array<MOE3GemmInputIndex, 3> zp_inputs{MOE3GemmInputIndex::ZP_0, MOE3GemmInputIndex::ZP_1, MOE3GemmInputIndex::ZP_2};
+        std::array<dnnl::memory::data_type, 3> zp_dts{dnnl::memory::data_type::undef, dnnl::memory::data_type::undef, dnnl::memory::data_type::undef};
+        if (has_zp) {
+            for (size_t i = 0; i < zp_inputs.size(); i++) {
+                zp_dts[i] = convert_data_type(instance.input_memory_ptr(static_cast<size_t>(zp_inputs[i]))->get_layout().data_type);
+            }
+        }
         // The zero points are constants, so a shared one is read to the host only once
         if (has_zp) {
-            const std::array<MOE3GemmInputIndex, 3> zp_inputs{MOE3GemmInputIndex::ZP_0, MOE3GemmInputIndex::ZP_1, MOE3GemmInputIndex::ZP_2};
             for (size_t i = 0; i < zp_inputs.size(); i++) {
                 const auto& zp_mem = instance.input_memory_ptr(static_cast<size_t>(zp_inputs[i]));
                 if (!_grouped_zp_host_scalars[i] && zp_mem->get_layout().count() == 1) {
@@ -2283,17 +2302,17 @@ public:
                 // per-expert(0) x per-K-group(1) x per-N-channel(2)
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, dnnl::memory::data_type::f16);
                 if (has_zp && !zp_host_scalar) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, zp_dt);
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 1) | (1 << 2), {group_size, 1}, zp_dts[gemm_idx]);
                 }
             } else {
                 // per-expert(0) x per-N-channel(2), no K-grouping
                 attr.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, dnnl::memory::data_type::f16);
                 if (has_zp && !zp_host_scalar) {
-                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dt);
+                    attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) | (1 << 2), {}, zp_dts[gemm_idx]);
                 }
             }
             if (zp_host_scalar) {
-                attr.set_host_zero_point(DNNL_ARG_WEIGHTS, zp_dt);
+                attr.set_host_zero_point(DNNL_ARG_WEIGHTS, zp_dts[gemm_idx]);
             }
 
             // Grouped src/dst: tokens are grouped by expert along axis-0
@@ -2336,21 +2355,21 @@ public:
         }
         gk->gate_scale_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, dnnl::memory::data_type::f16);
         if (has_zp) {
-            gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, zp_dt);
+            gk->gate_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, zp_dts[0]);
         }
 
         gk->up_pd = make_pd(K_gu, N_gu, _gate_up_group_size, uw_dt, 1, dnnl::post_ops());
         gk->up_prim = dnnl::matmul(gk->up_pd);
         gk->up_scale_md = gk->gate_scale_md;
         if (has_zp) {
-            gk->up_zp_md = gk->gate_zp_md;
+            gk->up_zp_md = make_quant_md(num_experts, K_gu, _gate_up_group_size, N_gu, zp_dts[1]);
         }
 
         gk->down_pd = make_pd(K_d, N_d, _down_group_size, dw_dt, 2, dnnl::post_ops());
         gk->down_prim = dnnl::matmul(gk->down_pd);
         gk->down_scale_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, dnnl::memory::data_type::f16);
         if (has_zp) {
-            gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, zp_dt);
+            gk->down_zp_md = make_quant_md(num_experts, K_d, _down_group_size, N_d, zp_dts[2]);
         }
         gk->hint_mem = dnnl::memory(dnnl::memory::desc::host_scalar(dnnl::memory::data_type::s32), int32_t{0});
 
