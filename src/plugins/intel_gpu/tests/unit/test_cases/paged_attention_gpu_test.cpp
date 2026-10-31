@@ -1632,13 +1632,9 @@ private:
 };
 
 // Speculative decoding MIXED step with GQA: subsequences of at most 16 query tokens go to pa_small_q_opt.cl on DPAS
-<<<<<<< HEAD
 // platforms when the KV group size divides 8 and query tokens x context is large enough, otherwise to the GQA
-// multi-token path of paged_attention_opt.cl.
-=======
-// platforms when the KV group size divides 8, otherwise to the GQA multi-token path of paged_attention_opt.cl -- or to
-// sdpa_ocl for the token-major BY_CHANNEL K page, which that path cannot read.
->>>>>>> 3e77605067 (pa_small_q_opt: read the token-major K/V pages sdpa_ocl uses, so small GQA MIXED steps no longer leave them for sdpa_ocl)
+// multi-token path of paged_attention_opt.cl -- or to sdpa_ocl for the token-major BY_CHANNEL K page, which that path
+// cannot read.
 class paged_attention_gqa_multi_tokens_test : public paged_attention_gqa_multi_tokens_test_base {};
 TEST_P(paged_attention_gqa_multi_tokens_test, basic) {
     auto p = GetParam();
