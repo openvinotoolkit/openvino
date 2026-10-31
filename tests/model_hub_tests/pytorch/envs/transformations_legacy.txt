@@ -1,0 +1,10 @@
+# Stack for the transformation tests marked `transformations_legacy`: the lowest transformers on which these
+# models still run. optimum-intel caps their architectures below transformers 4.57.6, and the auto-gptq/autoawq
+# quantized models need optimum 1.x / older transformers.
+transformers==4.51.3
+optimum-intel==1.24.0
+optimum==1.26.1
+auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
+# auto-gptq 0.7.1 imports peft.peft_model.PEFT_TYPE_TO_MODEL_MAPPING, removed in newer peft
+peft==0.18.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
