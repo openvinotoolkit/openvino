@@ -220,6 +220,15 @@ void validate_closure_metadata_sizes(std::size_t closure_size,
     NPUW_ASSERT(is_remote_size == closure_size && "Malformed ORC blob: is_remote size does not match closure size");
     NPUW_ASSERT(closure_uid_size == closure_size && "Malformed ORC blob: closure_uid size does not match closure size");
 }
+
+std::shared_ptr<ov::weight_sharing::Context> extract_model_sharing_context(ov::AnyMap& config) {
+    if (auto it = config.find(ov::internal::model_sharing_context.name()); it != config.end()) {
+        if (auto shared_ctx_ptr = it->second.as<std::shared_ptr<ov::weight_sharing::Context>>(); shared_ctx_ptr != nullptr) {
+            return shared_ctx_ptr;
+        }
+    }
+    return nullptr;
+}
 }  // anonymous namespace
 
 namespace ov {
@@ -503,7 +512,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Initialize weights bank
     const std::string weights_bank_opt = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK>();
     const std::string wbank_alloc = m_cfg.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>();
-    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core(), wbank_alloc);
+    m_shared_ctx_ptr = extract_model_sharing_context(m_non_npuw_props);
+    m_weights_bank = ov::npuw::weights::bank(weights_bank_opt, plugin->get_core(), wbank_alloc, m_shared_ctx_ptr);
 
     LOG_VERB("*** Original model ***");
     const auto& orig_parameters = model->get_parameters();
@@ -1485,6 +1495,7 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
     const auto& bf16_cache = bf16_consts != nullptr ? *bf16_consts : m_bf16_consts;
 
     serializable_props.erase(ov::cache_encryption_callbacks.name());
+    serializable_props.erase(ov::internal::model_sharing_context.name());
     s11n::WeightsContext weights_ctx(is_weightless, m_const_to_offset);
 
     auto write_children = [&](std::ostream& body_stream) {
