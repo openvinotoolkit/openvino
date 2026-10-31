@@ -528,6 +528,19 @@ public:
     static Selector::Ptr find(std::size_t original_query_length, const ov::ISyncInferRequest& rq);
 };
 
+// Define execution selection based on the history size alone. For a plain compiled model with no
+// "position_ids" input, driven by a host that reports the number of tokens already in the KV cache
+// through the npuw_history_size variable state (e.g. LiteRT). Prefill only, like HFA itself.
+class HistorySize final : public Selector {
+    int64_t _past_length = 0;
+    std::size_t _original_query_length = 0u;  // original query length before PropagateSliceUp
+
+public:
+    explicit HistorySize(std::size_t original_query_length);
+    void prepare(int64_t past_len) override;
+    int64_t context_length() const override;
+};
+
 }  // namespace host_flash_attention
 }  // namespace runtime
 

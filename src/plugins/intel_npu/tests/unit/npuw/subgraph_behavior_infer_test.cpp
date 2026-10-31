@@ -884,6 +884,13 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
 
     auto request = compiled->create_infer_request();
     ASSERT_NE(request, nullptr);
+    for (const auto& state : request->query_state()) {
+        if (state->get_name() == ov::npuw::HistorySizeState::name) {
+            ov::Tensor history(ov::element::i64, ov::Shape{1});
+            history.data<int64_t>()[0] = 0;
+            state->set_state(ov::get_tensor_impl(history));
+        }
+    }
     for (const auto& input : compiled->inputs()) {
         ov::Tensor tensor(input.get_element_type(), input.get_shape());
         std::memset(tensor.data(), 0, tensor.get_byte_size());
@@ -894,6 +901,105 @@ TEST_F(SubgraphBehaviorInferTest, PyramidBehaviorBindsOnlyActiveVariantPorts) {
         request->set_tensor(input, ov::get_tensor_impl(tensor));
     }
     EXPECT_NO_THROW(request->infer());
+}
+
+// The history size reaches the base infer request only through the npuw_history_size variable
+// state, which a caller holding nothing but the public request can find via query_state().
+// Dynamic attention uses it to pick the pyramid variant for a prefill chunk, so driving that
+// state from the outside must change which variant executes.
+TEST_F(SubgraphBehaviorInferTest, PyramidSelectionFollowsHistorySizeStateSetThroughRequest) {
+    auto model = ov::test::npuw::build_dynamic_attention_llm_model();
+    ov::npuw::util::OptimizeValueTensors(true).run_on_model(model);
+    ov::npuw::RedirectNewKvToOutput().run_on_model(model);
+
+    auto evaluation = std::make_shared<EvaluationLog>();
+    auto plugin = std::make_shared<TestPlugin>();
+    auto core = make_core(plugin, /*own_ports_only=*/true, evaluation);
+    plugin->set_core(core);
+
+    auto props = base_props();
+    props["NPUW_ATTN"] = std::string("PYRAMID");
+    props["NPUW_FALLBACK_EXEC"] = std::string("NO");
+    auto compiled = std::make_shared<ov::npuw::CompiledModel>(model, plugin, props);
+
+    const ov::npuw::compiled::PyramidAttention* pyramid = nullptr;
+    for (const auto& desc : compiled->m_compiled_submodels) {
+        if (const auto* candidate = ov::npuw::attn::get_compiled_pyramid(desc.pipeline.context)) {
+            pyramid = candidate;
+            break;
+        }
+    }
+    ASSERT_NE(pyramid, nullptr);
+    ASSERT_GT(pyramid->_compiled_models.size(), 1u) << "Need more than one pyramid variant to tell them apart";
+    const ov::ICompiledModel* smallest = pyramid->_compiled_models.front()._ptr.get();
+    const ov::ICompiledModel* largest = pyramid->_compiled_models.back()._ptr.get();
+    ASSERT_NE(smallest, largest);
+
+    // Exactly what an external framework sees: the request's states, nothing else.
+    auto request = compiled->create_infer_request();
+    ASSERT_NE(request, nullptr);
+    const auto find_history_state = [&]() {
+        for (const auto& state : request->query_state()) {
+            if (state->get_name() == ov::npuw::HistorySizeState::name) {
+                return state;
+            }
+        }
+        ADD_FAILURE() << ov::npuw::HistorySizeState::name << " is not exposed by the request";
+        return ov::SoPtr<ov::IVariableState>{};
+    };
+    const auto set_history = [&](int64_t history) {
+        ov::Tensor tensor(ov::element::i64, ov::Shape{1});
+        tensor.data<int64_t>()[0] = history;
+        find_history_state()->set_state(ov::get_tensor_impl(tensor));
+    };
+
+    for (const auto& input : compiled->inputs()) {
+        ov::Tensor tensor(input.get_element_type(), input.get_shape());
+        std::memset(tensor.data(), 0, tensor.get_byte_size());
+        if (input.get_names().count("position_ids")) {
+            std::iota(tensor.data<int64_t>(), tensor.data<int64_t>() + tensor.get_size(), int64_t{0});
+        }
+        request->set_tensor(input, ov::get_tensor_impl(tensor));
+    }
+
+    const auto executed = [&](const ov::ICompiledModel* variant) {
+        std::lock_guard<std::mutex> lock(evaluation->mutex);
+        const auto it = evaluation->executions.find(variant);
+        return it != evaluation->executions.end() && !it->second.empty();
+    };
+    const auto run = [&]() {
+        {
+            std::lock_guard<std::mutex> lock(evaluation->mutex);
+            evaluation->executions.clear();  // Drop warmups and the previous run.
+        }
+        ASSERT_NO_THROW(request->infer());
+    };
+
+    EXPECT_EQ(find_history_state()->get_state()->data<int64_t>()[0], -1) << "No history until a caller provides it";
+    EXPECT_ANY_THROW(request->infer()) << "A prefill with unset history must fail instead of guessing";
+
+    set_history(0);
+    run();
+    EXPECT_TRUE(executed(smallest)) << "A first chunk without history runs the smallest variant";
+    EXPECT_FALSE(executed(largest));
+
+    // Enough history to need the largest context.
+    const auto history = static_cast<int64_t>(pyramid->_context_lengths.back());
+    set_history(history);
+    EXPECT_EQ(find_history_state()->get_state()->data<int64_t>()[0], history);
+    run();
+    EXPECT_TRUE(executed(largest)) << "History set through the request state must reach attention selection";
+    EXPECT_FALSE(executed(smallest));
+
+    // Resetting the request's states marks history unset; an empty cache must be stated explicitly.
+    for (const auto& state : request->query_state()) {
+        state->reset();
+    }
+    EXPECT_EQ(find_history_state()->get_state()->data<int64_t>()[0], -1);
+    set_history(0);
+    run();
+    EXPECT_TRUE(executed(smallest));
+    EXPECT_FALSE(executed(largest));
 }
 
 }  // namespace

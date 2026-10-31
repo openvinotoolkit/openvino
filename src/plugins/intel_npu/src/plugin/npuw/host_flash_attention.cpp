@@ -1450,6 +1450,8 @@ Selector::Ptr PositionIDs::find(std::size_t original_query_length, const ov::ISy
 }
 
 void PositionIDs::prepare(int64_t past_len) {
+    NPUW_ASSERT((_case != Case::PREFILL || past_len >= 0) &&
+                "Prefill history size is unset: set the npuw_history_size state before infer()");
     const auto& iport = _rq.get().get_compiled_model()->inputs()[_position_ids_idx];
     const auto in_tensor = _rq.get().get_tensor(iport);
     const auto in_dims = in_tensor->get_shape();
@@ -1483,6 +1485,22 @@ void PositionIDs::prepare(int64_t past_len) {
 
 int64_t PositionIDs::context_length() const {
     // Use original_query_length for context calculation (not query_size which may be sliced to 1)
+    return _original_query_length + _past_length;
+}
+
+// HistorySize constructor
+HistorySize::HistorySize(std::size_t original_query_length) : _original_query_length(original_query_length) {
+    _case = _original_query_length == 1 ? Case::GENERATE : Case::PREFILL;
+}
+
+void HistorySize::prepare(int64_t past_len) {
+    // Same chunk rounding as PositionIDs, which takes its prefill past from past_len too.
+    // HFA is prefill-only; for a query length of 1 (GENERATE, rejected by the HFA runtime) the
+    // rounding is the identity.
+    _past_length = ((past_len + _original_query_length - 1) / _original_query_length) * _original_query_length;
+}
+
+int64_t HistorySize::context_length() const {
     return _original_query_length + _past_length;
 }
 
