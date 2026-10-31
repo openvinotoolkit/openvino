@@ -12,7 +12,6 @@ namespace ov::intel_gpu::cm {
 using PrimitiveImplCM = ov::intel_gpu::ocl::PrimitiveImplOCL;
 using Stage = ov::intel_gpu::ocl::Stage;
 
-
 template <typename T>
 JitConstant make_jit_constant(const std::string& name, T value) {
     if constexpr (std::is_floating_point<T>::value) {

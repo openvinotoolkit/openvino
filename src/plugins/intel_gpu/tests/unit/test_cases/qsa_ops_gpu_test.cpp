@@ -1134,7 +1134,36 @@ std::vector<std::string> expected_attention_kernels(bool paged, const route& r) 
     return k;
 }
 
-void expect_route(bool paged, const pair_outputs& gpu, const route& r) {
+/// Mirrors qsa::xmx_allowed(): the systolic kernels are only routed on Xe2+ (so not on DG2) and can be switched off.
+bool xmx_routes_enabled() {
+    const char* v = std::getenv("OV_GPU_QSA_OCL_DISABLE_XMX");
+    if (v != nullptr && std::string(v) == "1") {
+        return false;
+    }
+    const auto& info = get_test_engine().get_device_info();
+    return info.arch >= gpu_arch::xe2 && info.supports_immad;
+}
+
+/// Route the plugin takes without XMX; `kv_len` is the dense key length (SparseSDPA splits decode from 2048 on).
+route resolve_route(const route& r, bool paged, size_t kv_len) {
+    if (xmx_routes_enabled()) {
+        return r;
+    }
+    constexpr size_t dense_split_min_kv = 2048;
+    route out = r;
+    if (out.indexer == IndexerPath::Dpas) {
+        out.indexer = IndexerPath::Fused;
+    }
+    if (out.attention == AttnPath::Dpas || out.attention == AttnPath::GqaDpas) {
+        out.attention = AttnPath::Scalar;
+    } else if (out.attention == AttnPath::GqaSplit) {
+        out.attention = (paged || kv_len >= dense_split_min_kv) ? AttnPath::Split : AttnPath::Scalar;
+    }
+    return out;
+}
+
+void expect_route(bool paged, const pair_outputs& gpu, const route& expected, size_t kv_len = 0) {
+    const auto r = resolve_route(expected, paged, kv_len);
     EXPECT_EQ(gpu.indexer_kernels, expected_indexer_kernels(paged, r));
     EXPECT_EQ(gpu.attention_kernels, expected_attention_kernels(paged, r));
 }
@@ -1324,7 +1353,7 @@ void validate_dense_outputs(network& net, const dense_inputs& in, const std::vec
     attn.resize(attn_inst->get_output_layout().count());
     read_pair_outputs(net, all);
     if (r != nullptr) {
-        expect_route(false, all, *r);
+        expect_route(false, all, *r, in.kv_len);
     }
     ASSERT_EQ(all.plan.count.size(), in.batch * L);
     ASSERT_EQ(attn.size(), in.batch * d.Hq * L * d.Dv);
@@ -2082,7 +2111,7 @@ void run_padded_kv_attention_test(const split_dims& d,
 
     const auto* const attn_params = net.get_primitive("attn")->get_impl_params();
     ASSERT_TRUE(static_cast<bool>(attn_params->get_input_layout(SparseSDPAIn::KEY).data_padding)) << "SparseSDPA must see the padded key buffer";
-    EXPECT_EQ(executed_kernels(net, "attn"), expected_attention_kernels(false, route{IndexerPath::Decode, path}));
+    EXPECT_EQ(executed_kernels(net, "attn"), expected_attention_kernels(false, resolve_route(route{IndexerPath::Decode, path}, false, total)));
     const auto gpu = bhld_to_token_major(read_f16(outputs.at("attn").get_memory()), d, q_len);
     const auto expected = ref.attention(plan_selections(plan, q_len, d.block_topk));
     const auto stats = compute_error_stats(gpu, expected);
