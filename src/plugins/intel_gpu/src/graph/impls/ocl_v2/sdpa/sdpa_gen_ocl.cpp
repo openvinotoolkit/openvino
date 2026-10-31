@@ -776,15 +776,13 @@ pa_cache_desc classify_pa_cache(const kernel_impl_params& params,
     c.key_by_channel = params.typed_desc<paged_attention>()->is_key_by_channel;
     const bool i8 = c.compressed && !int4;
     // Only MIXED reads the cache, so only MIXED has a page layout to recognise.
-    const bool tm_layout = mixed && c.compressed && c.key_by_channel &&
-                           pa_k_by_channel_tm_layout(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE],
-                                                     int4,
-                                                     2 * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY].data_type).size());
+    const bool page_tm = mixed && pa_k_token_major(params);
+    const bool tm_layout = page_tm && c.compressed && c.key_by_channel;
     // u4, not i4: the u4 quantizer's nibbles are unsigned, and a signed widen is not implemented.
     c.u4_by_channel_tm = tm_layout && precision == ov::element::u4;
     c.by_channel_tm = (i8 && tm_layout) || c.u4_by_channel_tm;
     c.dequant_ok = (i8 && !c.key_by_channel) || c.by_channel_tm;
-    c.k_token_major = (mixed && paged_attention::k_token_major_for(int4 ? precision : ov::element::Type(k.data_type), c.key_by_channel)) || c.by_channel_tm;
+    c.k_token_major = (page_tm && !(c.compressed && c.key_by_channel)) || c.by_channel_tm;
     if (c.u4_by_channel_tm) {
         c.k_row_elems = pa_u4_k_row_bytes(p.k_head_size);
         c.v_row_elems = pa_u4_v_row_bytes(p.v_head_size, static_cast<size_t>(p.tiling.subgroup_size));
