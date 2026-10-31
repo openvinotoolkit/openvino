@@ -328,8 +328,19 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource bu
                     "[GPU] Allocation is smaller than the size required by the layout");
 }
 
+// Same as the constructor above, with the allocation type detected from the buffer.
+// Intentionally not delegating to it: in gpu_usm(..., std::move(buffer), detect_allocation_type(engine, buffer), ...)
+// the order of parameter initialization is unspecified, so buffer may be moved from before it is inspected.
+// Bases are always initialized before members, so here detection is guaranteed to happen before the move.
 gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource buffer, std::shared_ptr<MemoryTracker> mem_tracker)
-    : gpu_usm(engine, new_layout, std::move(buffer), detect_allocation_type(engine, buffer), mem_tracker) {}
+    : lockable_gpu_mem(engine, new_layout, detect_allocation_type(engine, buffer), mem_tracker)
+    , _buffer(std::move(buffer)) {
+    auto ctx_handle = engine->get_context().handle();
+    auto ptr = _buffer.handle().ptr;
+    auto expected_size = new_layout.bytes_count();
+    OPENVINO_ASSERT(check_allocation_range(ctx_handle, ptr, expected_size),
+                    "[GPU] Allocation is smaller than the size required by the layout");
+}
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     : lockable_gpu_mem(engine, layout, type, nullptr) {
