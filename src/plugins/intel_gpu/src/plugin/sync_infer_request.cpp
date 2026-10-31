@@ -35,6 +35,7 @@
 #include "openvino/core/preprocess/input_tensor_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "plugin/transformations/sparse_attention_fusion.hpp"
 
 namespace {
 
@@ -1100,6 +1101,17 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_input(const std::string
 
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(element_type, device_tensor_et);
+
+    OPENVINO_ASSERT(!port.get_rt_info().count(ov::intel_gpu::in_place_cache_rt_key) ||
+                        ((is_remote_tensor_impl || is_usm_host_tensor) && !convert_needed && element_type == port.get_element_type()),
+                    "[GPU] Input '",
+                    internal_name,
+                    "' is a cache the device updates in place: bind a RemoteTensor or USM host tensor ",
+                    "from this context with element type ",
+                    port.get_element_type(),
+                    " (got ",
+                    element_type,
+                    "); a host-copied or converted tensor would silently lose the update");
 
     if (is_remote_tensor_impl) {
         if (convert_needed) {

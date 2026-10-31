@@ -179,6 +179,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/paged_attention_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/paged_causal_conv1d_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/paged_gated_delta_net_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/paged_qsa_indexer_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/paged_selective_ssm_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/pass_manager.h
     ${CMAKE_CURRENT_LIST_DIR}/include/permute_inst.h
@@ -191,6 +192,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/program_helpers.h
     ${CMAKE_CURRENT_LIST_DIR}/include/program_node.h
     ${CMAKE_CURRENT_LIST_DIR}/include/proposal_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/qsa_indexer_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/quantize_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/random_uniform_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/range_inst.h
@@ -225,6 +227,8 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/include/space_to_batch_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/space_to_depth_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/sparse_fill_empty_rows_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/sparse_pa_inst.h
+    ${CMAKE_CURRENT_LIST_DIR}/include/sparse_sdpa_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/stateless_kv_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/stft_inst.h
     ${CMAKE_CURRENT_LIST_DIR}/include/strided_slice_inst.h
@@ -268,6 +272,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/paged_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_causal_conv1d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/paged_qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/paged_selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pass_manager.cpp
     ${CMAKE_CURRENT_LIST_DIR}/permute.cpp
@@ -279,6 +284,7 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/program_helpers.cpp
     ${CMAKE_CURRENT_LIST_DIR}/program_node.cpp
     ${CMAKE_CURRENT_LIST_DIR}/proposal.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/qsa_indexer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/random_uniform.cpp
     ${CMAKE_CURRENT_LIST_DIR}/range.cpp
@@ -328,10 +334,12 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/registry/paged_attention_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/paged_causal_conv1d_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/paged_gated_delta_net_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/paged_qsa_indexer_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/paged_selective_ssm_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/pooling_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/predicates.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/predicates.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/qsa_indexer_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/range_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/reduce_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/registry.hpp
@@ -348,6 +356,8 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/registry/shape_of_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/slice_scatter_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/softmax_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/sparse_pa_impls.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/registry/sparse_sdpa_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/strided_slice_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/tile_impls.cpp
     ${CMAKE_CURRENT_LIST_DIR}/registry/vl_sdpa_impls.cpp
@@ -378,6 +388,8 @@ set(GPU_GRAPH_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/space_to_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/space_to_depth.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sparse_fill_empty_rows.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_pa.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparse_sdpa.cpp
     ${CMAKE_CURRENT_LIST_DIR}/stateless_kv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/stft.cpp
     ${CMAKE_CURRENT_LIST_DIR}/strided_slice.cpp
