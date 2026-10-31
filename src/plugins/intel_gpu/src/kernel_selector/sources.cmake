@@ -579,12 +579,12 @@ set(GPU_KERNEL_SELECTOR_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_kernel_to_yxfb_batched.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_to_winograd_2x3_kernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_to_winograd_2x3_kernel.h
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_compressed.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_compressed.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_image_fyx_b_kernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_image_fyx_b_kernel.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_image_winograd_6x3_kernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_image_winograd_6x3_kernel.h
-    ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_int4.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_int4.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_kernel.cpp
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_kernel.h
     ${CMAKE_CURRENT_LIST_DIR}/kernels/reorder/reorder_weights_kernel_selector.cpp
@@ -975,9 +975,9 @@ set(GPU_KERNEL_SELECTOR_CL_KERNELS
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_fs_b_yx_fsv32_to_bfyx.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_to_winograd_2x3_s1.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_weights.cl
+    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_weights_compressed.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_weights_image_2d_c4_fyx_b.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_weights_image_winograd_6x3_s1.cl
-    ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_weights_int4.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_weights_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_weights_winograd_2x3_s1.cl
     ${CMAKE_CURRENT_LIST_DIR}/cl_kernels/reorder_weights_winograd_6x3_s1.cl
