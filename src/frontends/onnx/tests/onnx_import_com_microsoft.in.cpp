@@ -2470,13 +2470,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x48_zp_unaligned)
     const auto model = convert_model("com.microsoft/matmulnbits_3x48_zp_unaligned.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
 
-    test_case.add_input<float>(
-        {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6,
-         7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2,
-         3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8,
-         3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8,
-         9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4,
-         5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+    test_case.add_input<float>({1, 2, 3, 4,  5, 6,  7, 8,  9, 10, 1, 2, 3, 4,  5, 6,  7, 8,  9, 10, 1, 2, 3, 4,
+                                5, 6, 7, 8,  9, 10, 1, 2,  3, 4,  5, 6, 7, 8,  9, 10, 1, 2,  3, 4,  5, 6, 7, 8,
+                                3, 4, 5, 6,  7, 8,  9, 10, 1, 2,  3, 4, 5, 6,  7, 8,  9, 10, 1, 2,  3, 4, 5, 6,
+                                7, 8, 9, 10, 1, 2,  3, 4,  5, 6,  7, 8, 9, 10, 1, 2,  3, 4,  5, 6,  7, 8, 9, 10});
     test_case.add_input<float>({1, 1, 1, 1, 1, 1, 1, 1, 1});
     test_case.add_expected_output<float>(Shape{2, 3}, {352, 24, -72, 344, 28, -100});
     test_case.run_with_tolerance_as_fp(0.01f);

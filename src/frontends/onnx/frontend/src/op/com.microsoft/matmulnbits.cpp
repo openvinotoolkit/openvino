@@ -440,12 +440,10 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                 static_cast<uint8_t>((packed_data[byte_index] >> bit_shift) & value_mask);
                         }
                     }
-                    auto unpacked_zp =
-                        std::make_shared<v0::Constant>(zp_element_type,
-                                                       ov::Shape{static_cast<size_t>(outer_dim),
-                                                                 static_cast<size_t>(pack_dim),
-                                                                 1},
-                                                       zero_point_values);
+                    auto unpacked_zp = std::make_shared<v0::Constant>(
+                        zp_element_type,
+                        ov::Shape{static_cast<size_t>(outer_dim), static_cast<size_t>(pack_dim), 1},
+                        zero_point_values);
                     preserve_initializer_name(unpacked_zp, zero_points_const);
                     converted_zero_points = std::make_shared<v0::Convert>(unpacked_zp, a.get_element_type());
                 }
