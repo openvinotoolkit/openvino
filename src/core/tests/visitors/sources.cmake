@@ -93,6 +93,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/group_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/group_query_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/grouped_matmul.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/paged_sparse_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/gru_sequence.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/hard_sigmoid.cpp
