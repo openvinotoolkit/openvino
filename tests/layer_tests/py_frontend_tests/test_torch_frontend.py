@@ -1614,6 +1614,27 @@ def test_pytorch_types_promotion(l_type, r_type, l_scalar, r_scalar):
     assert PartialShape(pt_out_shape) == om.get_output_partial_shape(0)
 
 
+@pytest.mark.parametrize("ov_type,corrected", [(None, False), (Type.f32, False), (Type.i32, True)])
+def test_floor_divide_correction_needs_static_signed_int(ov_type, corrected):
+    from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
+
+    class aten_floor_divide(torch.nn.Module):
+        def forward(self, x, y):
+            return torch.floor_divide(x, y)
+
+    decoder = TorchScriptPythonDecoder(get_scripted_model(aten_floor_divide()))
+    fe = FrontEndManager().load_by_framework("pytorch")
+    im = fe.load(decoder)
+    if ov_type is not None:
+        for name in ("x.1", "y.1"):
+            im.set_element_type(im.get_place_by_tensor_name(name), ov_type)
+    om = fe.convert(im)
+    op_types = {op.get_type_name() for op in om.get_ordered_ops()}
+    # The round-down correction is only built for a signed integer type known at conversion;
+    # floating point and dynamic types keep the plain Floor(Divide).
+    assert ("Mod" in op_types) == corrected, op_types
+
+
 class ModelTest1(torch.nn.Module):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
