@@ -254,6 +254,7 @@ set(samples_dirs
     hello_nv12_input_classification
     hello_query_device
     hello_reshape_ssd
+    hello_remote_tensor
     model_creation_sample
 )
 
