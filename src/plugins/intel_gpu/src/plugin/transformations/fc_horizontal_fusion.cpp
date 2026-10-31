@@ -189,7 +189,16 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 }
             }
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
-            auto folded = ov::util::get_constant_from_source(concat);
+            // Folding Constant inputs directly evaluates the concat once; get_constant_from_source evaluates it
+            // for both bounds and compares them, which is slow on large weights.
+            std::shared_ptr<ov::op::v0::Constant> folded;
+            ov::OutputVector folded_outputs(1);
+            if (concat->constant_fold(folded_outputs, concat->input_values())) {
+                folded = ov::as_type_ptr<ov::op::v0::Constant>(folded_outputs[0].get_node_shared_ptr());
+            }
+            if (!folded) {
+                folded = ov::util::get_constant_from_source(concat);
+            }
             if (!folded) {
                 GPU_DEBUG_TRACE_DETAIL << "FullyConnectedHorizontalFusion: failed to constant-fold the concat of " << name_suffix << std::endl;
                 return nullptr;

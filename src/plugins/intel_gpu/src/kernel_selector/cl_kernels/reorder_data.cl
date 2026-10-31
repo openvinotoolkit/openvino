@@ -17,6 +17,10 @@
 #include "include/reshape_dims.cl"
 #include "include/fetch_utils.cl"
 
+#if defined UINT3_INPUT
+#include "include/batch_headers/int3_utils.cl"
+#endif
+
 #include "include/image_data.cl"
 
 #define INPUT_TYPE4 MAKE_VECTOR_TYPE(INPUT_REORDER_TYPE, 4)
@@ -168,6 +172,8 @@ KERNEL (reorder_data)(
     #elif defined UINT2_INPUT
         const uint uint2_byte_idx = input_idx >> 2;
         OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(convert_as_uint2_float(input[uint2_byte_idx], input_idx));
+    #elif defined UINT3_INPUT
+        OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(get_uint3_weight((const __global uchar*)input, input_idx));
     #elif (F8E5M2_INPUT || F8E4M3_INPUT || F8E8M0_INPUT)
         OUTPUT_COMPUTE_TYPE res_tmp = TO_OUTPUT_REORDER_COMPUTE_TYPE(_convert_float(input[input_idx]));
     #elif F4E2M1_INPUT

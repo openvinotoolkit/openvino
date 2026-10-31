@@ -18,6 +18,10 @@
 #    define OV_GPU_CREATE_INSTANCE_TERNOCL(...)
 #endif
 
+#if OV_GPU_WITH_OCL
+    #include "impls/ocl_v2/fully_connected_int3_dpas.hpp"
+#endif
+
 namespace ov::intel_gpu {
 
 using namespace cldnn;
@@ -34,6 +38,8 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::dynamic_shape)
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::FullyConnectedInt3Dpas, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::FullyConnectedInt3Dpas, shape_types::dynamic_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::static_shape)
         OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::static_shape,
             [](const program_node& node) {

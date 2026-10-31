@@ -44,6 +44,9 @@ public:
 struct PrimitiveImplOCL : public cldnn::primitive_impl {
     std::vector<Stage*> _stages;
     std::vector<size_t> _order;
+    // Stages taken already compiled from another impl (see reuse_stage). They are not in _order, so they are neither
+    // compiled nor serialized, and an impl using them has to schedule them in get_stages_execution_order().
+    std::vector<size_t> _reused;
     std::unique_ptr<ImplRuntimeParams> m_rt_params = nullptr;
 
     // a pair of batch program hash and kernel entry hash of each ocl impl.
@@ -70,10 +73,27 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         }
     }
 
+    // Takes a compiled stage from another impl of the same type instead of compiling it again. The kernel data is
+    // copied rather than regenerated, as the source impl's codegen may already be released, and the kernel is cloned
+    // so that this impl sets its own arguments.
+    void reuse_stage(Stage::Ptr& stage, const PrimitiveImplOCL& from) {
+        const auto it = std::find(_stages.begin(), _stages.end(), stage.get());
+        OPENVINO_ASSERT(it != _stages.end() && _stages.size() == from._stages.size(), "[GPU] Stage to reuse is not registered");
+        const auto idx = static_cast<size_t>(std::distance(_stages.begin(), it));
+        const auto& src = *from._stages[idx];
+        OPENVINO_ASSERT(src.kernel != nullptr, "[GPU] Stage to reuse is not compiled");
+        stage->kd = src.kd;
+        stage->kd.need_args_update = true;
+        stage->kd.need_dispatch_data_update = true;
+        stage->kernel = src.kernel->clone();
+        _reused.push_back(idx);
+    }
+
     template <typename ImplType>
     static std::unique_ptr<ImplType> make_deep_copy(const ImplType* impl) {
         auto copy = std::make_unique<ImplType>();  // Use default c-tor to initialize stages
         copy->_order = impl->_order;
+        copy->_reused = impl->_reused;
         copy->m_rt_params = nullptr;  // don't copy RT params
         copy->m_manager = impl->m_manager;
         copy->can_reuse_memory = impl->can_reuse_memory;
@@ -208,9 +228,11 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         const auto current_flags = instance.get_impl_params()->flags.to_ulong();
         constexpr size_t mask_args = (1 << cldnn::ExecutionFlags::ARG_UPDATE_REQUIRED) | (1 << cldnn::ExecutionFlags::IMPL_CHANGED);
         constexpr size_t mask_dispatch = (1 << cldnn::ExecutionFlags::SHAPE_CHANGED);
+        // Pending updates are kept until the stage runs: a stage skipped by get_stages_execution_order, or an impl
+        // swapped in without a shape change (async compilation), must still refresh before its next execution.
         for (auto& stage : _stages) {
-            stage->kd.need_args_update = (current_flags & mask_args) != 0;
-            stage->kd.need_dispatch_data_update = (current_flags & mask_dispatch) != 0;
+            stage->kd.need_args_update |= (current_flags & mask_args) != 0;
+            stage->kd.need_dispatch_data_update |= (current_flags & mask_dispatch) != 0;
         }
     }
 
@@ -313,10 +335,15 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     }
 
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
+        // Nothing is compiled for an impl whose stages are all reused
+        if (_order.empty() && kernels.empty()) {
+            return;
+        }
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
+        // sub_kernel_idx indexes get_kernels_source(), i.e. the activated stages
         for (auto& [kernel, sub_kernel_idx] : kernel_vec) {
-            _stages[sub_kernel_idx]->kernel = kernel;
+            _stages[_order[sub_kernel_idx]]->kernel = kernel;
         }
     }
 

@@ -59,6 +59,9 @@ public:
     virtual bool validate_impl(const program_node& node) const { return true; }
     virtual bool support_shapes(const kernel_impl_params& param) const { return true; }
     virtual in_out_fmts_t query_formats(const program_node& node) const { OPENVINO_NOT_IMPLEMENTED; }
+    // Validation is skipped when the impl type is forced. An impl that covers only some configurations of its
+    // primitive returns true here, so that forcing its impl type doesn't select it for a node it can't run.
+    virtual bool validate_when_forced() const { return false; }
 
     ImplementationManager(impl_types impl_type, shape_types shape_type, ValidateFunc vf = nullptr)
         : m_impl_type(impl_type)
