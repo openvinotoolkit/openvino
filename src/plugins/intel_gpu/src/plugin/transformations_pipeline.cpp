@@ -1349,6 +1349,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // ReduceSum would causes fp16 out of range.
         // To avoid the out of range, use fp32 nodes for NormalizeL2Decomposition.
         bool use_fp32_internal_nodes = (infer_precision == ov::element::f16);
+        manager.register_pass<ov::intel_gpu::NormalizeL2LastAxisToFeature>();
         manager.register_pass<ov::intel_gpu::NormalizeL2Decomposition>(use_fp32_internal_nodes);
         pass_config->set_callback<ov::intel_gpu::NormalizeL2Decomposition>(
             [](const_node_ptr &node) -> bool {
