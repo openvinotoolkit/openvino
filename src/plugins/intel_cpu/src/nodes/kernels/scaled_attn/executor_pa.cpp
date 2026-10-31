@@ -421,6 +421,7 @@ struct MHAHelper {
     ov::Extensions::Cpu::PagedAttnQuantParams _params;
     size_t _new_score_stride = 0;
     bool AarchF16 = false;
+    bool _brgemm_f16_upconvert = false;
 
     PlainTensor _weight;        // [nthr, H, 32, rnd_up(kv_len, block_size)], shared by first and second loop along bh
     PlainTensor _output;        // [nthr, 32, H, S], shared by first and second loop along bh
@@ -672,6 +673,11 @@ struct MHAHelper {
         //   aka: M:1~block_size, N:S, K:block_size
         // Because K and V are from cache, can use M2'=rnd_up(M2, block_size) to simplify logic
         auto in_type = precision_of<DATA_TYPE>::value;
+#    if defined(OPENVINO_ARCH_X86_64)
+        // Without AMX-FP16, BrgemmKernel converts A to FP32 and expects an FP32 B buffer.
+        _brgemm_f16_upconvert =
+            in_type == ov::element::f16 && !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16);
+#    endif
         this->H = H;
         this->S = S;
         this->SV = SV;
@@ -688,13 +694,9 @@ struct MHAHelper {
         auto prev_score_stride = _new_score_stride;
         auto want_score_stride = rnd_up(kv_len, _block_size);
         _new_score_stride = std::max(prev_score_stride, want_score_stride);
-        // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
+        // Key dequantization needs S columns, including per-token quantization and FP16-to-FP32 fallback.
         constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
-        if (_params.quant_key_bychannel || _params.quant_value_bychannel) {
-            _output.resize<float>({_nthr, _block_size, H, std::max(S, SV)});
-        } else {
-            _output.resize<float>({_nthr, _block_size, H, SV});
-        }
+        _output.resize<float>({_nthr, _block_size, H, std::max(S, SV)});
 
         // to ensure qk s8s8 s32 has enough buffer
         if (_params.is_sage_attn && H * std::max(S, SV) < _block_size) {
@@ -813,10 +815,16 @@ struct MHAHelper {
         if (_params.is_sage_attn) {
             size_t padded_S = std::max((S + sizeof(float) / sizeof(int8_t)), rnd_up(S, 64));
             _qk_scratch_b.resize<int8_t>({batch, kv_len_in_blocks, Hk, _block_size * padded_S});
+        } else if (_brgemm_f16_upconvert) {
+            _qk_scratch_b.resize<float>(
+                {batch, kv_len_in_blocks, Hk, _qk_gemm.back()->get_scratch_b_size() / sizeof(float)});
         } else {
             _qk_scratch_b.resize<DATA_TYPE>({batch, kv_len_in_blocks, Hk, _block_size * S});
         }
-        if (AarchF16) {
+        if (_brgemm_f16_upconvert) {
+            _wv_scratch_b.resize<float>(
+                {batch, kv_len_in_blocks, Hk, _wv_gemm.back()->get_scratch_b_size() / sizeof(float)});
+        } else if (AarchF16) {
             // It is required to keep kv_cache continuous in mem, as kleidi do not support accumulation
             _wv_scratch_b.resize<DATA_TYPE>({batch, Hk, kv_len_in_blocks, _block_size * rnd_up(SV, _block_size)});
         } else {
@@ -965,7 +973,7 @@ struct MHAHelper {
                                                      _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
 #    endif
                 } else {
-                    auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
+                    auto* k_ptr = qk_scratch_b.ptr_v(k_blk, hk);
                     _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
                                                      q_ptr,
                                                      k_ptr,
@@ -1089,9 +1097,9 @@ struct MHAHelper {
                         continue;
                     }
                 }
-                DATA_TYPE* v_ptr = nullptr;
+                void* v_ptr = nullptr;
                 if (q_is_xf16 || !q_cache_is_same) {
-                    v_ptr = wv_scratch_b.ptr<DATA_TYPE>(v_blk, hk);
+                    v_ptr = wv_scratch_b.ptr_v(v_blk, hk);
                 } else {
                     v_ptr = present_value.ptr<DATA_TYPE>(block_table[v_blk], hk);
                 }
@@ -1423,7 +1431,7 @@ struct MHAHelper {
             }
         }
 
-        memset(_output.ptr<float>(ithr), 0, q_len * H * SV * sizeof(float));
+        memset(_output.ptr<float>(ithr), 0, q_len * _output.stride(1) * sizeof(float));
         for (size_t pv = 0, i = 0; pv < cur_kv_len; pv += _block_size, i++) {
             auto block_number = block_table[i];
             for (size_t pq = 0; pq < q_len; pq++) {
@@ -1766,17 +1774,24 @@ struct MHA {
             } else {
                 auto* k_ptr =
                     k_cache.ptr<typename ov::element_type_traits<KEY_PREC>::value_type, KEY_PREC>(block_number, hk);
-                transpose_16NxK<DATA_TYPE, KEY_PREC>(
-                    _helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
-                    k_ptr,
-                    _helper._output.template ptr<DATA_TYPE>(ithr),
-                    valid_len,  // N
-                    _helper.S,  // K
-                    _helper._block_size,
-                    _helper._block_size,                   // dst_stride
-                    _helper.S,                             // src_stride
-                    _helper._params.key_group_size,        // group_size
-                    _helper._params.quant_key_bychannel);  // quant_by_channel
+                auto transpose_key = [&](auto* dst) {
+                    using T = std::remove_pointer_t<decltype(dst)>;
+                    transpose_16NxK<T, KEY_PREC>(dst,
+                                                 k_ptr,
+                                                 _helper._output.template ptr<T>(ithr),
+                                                 valid_len,
+                                                 _helper.S,
+                                                 _helper._block_size,
+                                                 _helper._block_size,
+                                                 _helper.S,
+                                                 _helper._params.key_group_size,
+                                                 _helper._params.quant_key_bychannel);
+                };
+                if (_helper._brgemm_f16_upconvert) {
+                    transpose_key(_helper._qk_scratch_b.template ptr<float>(batch_in_reorder, kv_block, hk));
+                } else {
+                    transpose_key(_helper._qk_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk));
+                }
             }
 
             if (q_is_xf16) {
@@ -1792,6 +1807,37 @@ struct MHA {
                     _helper._params.value_group_size,
                     _helper._params.quant_value_bychannel);
 #    else
+                if constexpr (precision_of<DATA_TYPE>::value == ov::element::f16) {
+                    if (_helper._brgemm_f16_upconvert) {
+                        auto* unpacked = _helper._output.template ptr<float>(ithr);
+                        dequant<float, VALUE_PREC>(unpacked,
+                                                   v_ptr,
+                                                   valid_len,
+                                                   _helper.SV,
+                                                   _helper._block_size,
+                                                   _helper._params.value_group_size,
+                                                   _helper._params.quant_value_bychannel);
+                        auto* packed = _helper._wv_scratch_b.template ptr<float>(batch_in_reorder, kv_block, hk);
+                        // BrgemmKernel blocks the FP16 path's B columns in groups of 32.
+                        const auto stride = rnd_up(_helper.SV, 32);
+                        for (size_t row = 0; row < _helper._block_size; ++row) {
+                            std::copy_n(unpacked + row * _helper.SV, _helper.SV, packed + row * stride);
+                            std::fill(packed + row * stride + _helper.SV, packed + (row + 1) * stride, 0.f);
+                        }
+                    } else {
+                        pack_32NxK<DATA_TYPE, VALUE_PREC>(
+                            _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
+                            v_ptr,
+                            _helper._output.template ptr<DATA_TYPE>(ithr),
+                            valid_len,
+                            _helper.SV,
+                            _helper._block_size,
+                            rnd_up(_helper.SV, _helper._block_size),
+                            _helper.SV,
+                            _helper._params.value_group_size,
+                            _helper._params.quant_value_bychannel);
+                    }
+                } else {
                     pack_32NxK<DATA_TYPE, VALUE_PREC>(
                         _helper._wv_scratch_b.template ptr<DATA_TYPE>(batch_in_reorder, kv_block, hk),
                         v_ptr,                                          // quantized data
@@ -1803,6 +1849,7 @@ struct MHA {
                         _helper.SV,
                         _helper._params.value_group_size,
                         _helper._params.quant_value_bychannel);
+                }
 #    endif
             } else {
                 // need to decompress
