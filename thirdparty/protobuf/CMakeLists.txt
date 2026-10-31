@@ -6,6 +6,17 @@
 # Configure Google Protobuf ...
 #------------------------------------------------------------------------------
 
+set(OV_SAVED_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES}")
+set(OV_SAVED_C_STANDARD_LIBRARIES "${CMAKE_C_STANDARD_LIBRARIES}")
+
+if(OV_EXPLICIT_ATOMIC_LIB)
+  set(CMAKE_CXX_STANDARD_LIBRARIES
+      "${CMAKE_CXX_STANDARD_LIBRARIES} ${OV_EXPLICIT_ATOMIC_LIB}")
+
+  set(CMAKE_C_STANDARD_LIBRARIES
+      "${CMAKE_C_STANDARD_LIBRARIES} ${OV_EXPLICIT_ATOMIC_LIB}")
+endif()
+
 if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
     string(REPLACE "-ltsan" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
     string(REPLACE "-shared-libsan" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
@@ -76,6 +87,46 @@ else()
 endif()
 
 set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+
+include("${CMAKE_CURRENT_LIST_DIR}/../patches.cmake")
+
+# Protobuf 6.30 unconditionally sets ABSL_MSVC_STATIC_RUNTIME=ON for static
+# builds (protobuf_BUILD_SHARED_LIBS=OFF), ignoring protobuf_MSVC_STATIC_RUNTIME.
+# This causes abseil to compile with /MT while protobuf uses /MD, resulting in
+# LNK2038 "mismatch detected for RuntimeLibrary" on MSVC.  Patch protobuf's
+# CMakeLists.txt to propagate protobuf_MSVC_STATIC_RUNTIME to abseil.
+ov_apply_patch(
+    PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0001-fix-absl-msvc-runtime.patch"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
+
+# Abseil 20250127 (bundled with protobuf 6.31) fails to build with some GCC
+# versions (e.g. the aarch64 cross toolchain and RHEL8) because of two constexpr
+# issues: raw_hash_set::GetPolicyFunctions() compares a function-template address
+# against nullptr in a 'static constexpr', and ascii.cc's ValidateAsciiCasefold()
+# self-test hits an implementation-defined signed-char conversion. Patch
+# protobuf's abseil-cpp.cmake so the FetchContent'd Abseil gets the source fixes
+# applied at populate time. This covers both this build and the native
+# host_protoc build, which share the same protobuf source tree.
+ov_apply_patch(
+    PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0003-protobuf-absl-apply-openvino-patch.patch"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
+
+# Protobuf's JSON UntypedMessage stores a std::variant (which holds UntypedMessage
+# itself) in an absl::flat_hash_map member. Abseil's containers probe trivial-type
+# traits on the value_type at class instantiation, which requires the still-incomplete
+# UntypedMessage to be complete and breaks Clang + libstdc++ builds. Use a node-based
+# std::map, which accepts the incomplete mapped type.
+ov_apply_patch(
+    PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0004-protobuf-untyped-message-stdmap.patch"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
+
+# protoc's Java generator keeps absl::flat_hash_map members of FieldGeneratorInfo /
+# OneofGeneratorInfo while those structs are only forward-declared. Abseil probes
+# trivial-type traits on the value_type at class instantiation, which needs the type
+# complete and breaks Clang + libstdc++. Include field_common.h to complete them.
+ov_apply_patch(
+    PATCH "${CMAKE_CURRENT_SOURCE_DIR}/patches/0005-protobuf-java-context-complete-types.patch"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/protobuf")
 
 add_subdirectory(${protobuf_dir} EXCLUDE_FROM_ALL)
 get_directory_property(protobuf_VERSION DIRECTORY ${protobuf_dir} DEFINITION protobuf_VERSION)
@@ -149,10 +200,6 @@ if(NOT protobuf_BUILD_PROTOC_BINARIES)
                    "-Dprotobuf_WITH_ZLIB=${protobuf_WITH_ZLIB}"
         NATIVE_SOURCE_SUBDIR "${protobuf_dir}"
         NATIVE_TARGETS protoc libprotobuf-lite
-        # Declare the produced protoc binary as a byproduct so that Ninja knows
-        # the rule that generates it. Newer ONNX (>=1.22) adds the imported
-        # protobuf::protoc target to the DEPENDS of its proto-generation custom
-        # commands, which CMake lowers to a file-level dependency on this path.
         BUILD_BYPRODUCTS "${PROTOC_EXECUTABLE}")
 
     add_executable(protobuf::protoc IMPORTED GLOBAL)
@@ -171,3 +218,6 @@ else()
     set(PROTOC_EXECUTABLE $<TARGET_FILE:protoc> PARENT_SCOPE)
     set(PROTOC_DEPENDENCY protoc PARENT_SCOPE)
 endif()
+
+set(CMAKE_CXX_STANDARD_LIBRARIES "${OV_SAVED_CXX_STANDARD_LIBRARIES}")
+set(CMAKE_C_STANDARD_LIBRARIES "${OV_SAVED_C_STANDARD_LIBRARIES}")
