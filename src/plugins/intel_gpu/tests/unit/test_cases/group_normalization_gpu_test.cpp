@@ -14,16 +14,21 @@
 #include "intel_gpu/primitives/permute.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/data.hpp"
 #include "openvino/reference/group_normalization.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 
 #include <algorithm>
+#include <array>
+#include <sstream>
 
 
 using namespace cldnn;
 using namespace ::tests;
 
 namespace {
+
+constexpr auto byxf_impl_type = "ov::intel_gpu::ocl::GroupNormalizationByxfOptImpl";
 
 typedef std::tuple<
     std::vector<ov::Dimension::value_type>, // Input shape
@@ -116,6 +121,9 @@ public:
         network_->set_input_data(scale_primitive_, scale_gpu_mem);
         network_->set_input_data(bias_primitive_, bias_gpu_mem);
         auto outputs = network_->execute();
+        if (in_format_ == format::byxf) {
+            ASSERT_EQ(network_->get_primitive("group_normalization_output")->get_impl()->get_type_info(), byxf_impl_type);
+        }
         auto output = outputs.at("output").get_memory();
         cldnn::mem_lock<float, mem_lock_type::read> output_gpu_mem(output, get_test_stream());
 
@@ -208,6 +216,18 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(padding()),
         ::testing::ValuesIn(f_blocked_4d_formats),
         ::testing::Values(padding())));
+
+INSTANTIATE_TEST_SUITE_P(
+    GroupNormalizationGPUTest_byxf_layouts_support_4d, GroupNormalizationGPUTest,
+    ::testing::Combine(
+        ::testing::ValuesIn({std::vector<ov::Dimension::value_type>{3, 64, 32, 64}, std::vector<ov::Dimension::value_type>{3, 124, 97, 61},
+                             std::vector<ov::Dimension::value_type>{1, 1536, 151, 1}, std::vector<ov::Dimension::value_type>{1, 12, 2175, 1}}),
+        ::testing::ValuesIn(std::vector<size_t>{1, 4}),
+        ::testing::Values(0.0025),
+        ::testing::Values(format::byxf),
+        ::testing::Values(padding()),
+        ::testing::Values(format::byxf),
+        ::testing::ValuesIn({padding(), padding({0, 0, 1, 1})})));
 
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_planar_layouts_support_5d, GroupNormalizationGPUTest,
@@ -621,4 +641,256 @@ TEST(group_normalization, basic_b_fs_yx_fsv16_fused_eltwise_sum_relu) {
         float expected = std::max(0.0f, sum_val);
         ASSERT_NEAR(static_cast<float>(output_mem_lock[i]), expected, 0.05) << "at index " << i;
     }
+}
+
+namespace {
+
+enum class byxf_fused { none, swish, sum_byxf, sum_bfyx, mul_scalar };
+
+struct byxf_shape {
+    ov::Shape shape;
+    int64_t num_groups;
+};
+
+struct byxf_precision {
+    data_types dt;
+    bool is_dynamic;  // N, H, W dynamic; C static
+};
+
+struct byxf_case {
+    std::vector<ov::Shape> shapes;  // executed in this order on one network
+    int64_t num_groups;
+    byxf_precision precision;
+    byxf_fused fused = byxf_fused::none;
+    padding in_pad = padding();
+    float data_offset = 0.0f;
+};
+
+// Rounded to the network precision, so the host reference gets the values the GPU gets.
+std::vector<float> random_values(tests::random_generator& rg, size_t count, data_types dt, float offset = 0.0f) {
+    auto values = rg.generate_random_1d<float>(count, -1, 1);
+    for (auto& v : values) {
+        v += offset;
+        if (dt == data_types::f16) {
+            v = static_cast<float>(ov::float16(v));
+        }
+    }
+    return values;
+}
+
+memory::ptr make_memory(engine& engine, const layout& l, const std::vector<float>& values) {
+    auto mem = engine.allocate_memory(l);
+    if (l.data_type == data_types::f16) {
+        set_values(mem, std::vector<ov::float16>(values.begin(), values.end()));
+    } else {
+        set_values(mem, values);
+    }
+    return mem;
+}
+
+// input(bfyx, f32) -> reorder(byxf, dt, in_pad) -> GN [-> fused op] -> reorder(bfyx, f32), checked against
+// ov::reference::group_normalization for every shape of the case.
+void run_byxf_test(const byxf_case& c, bool is_caching_test = false) {
+    constexpr double epsilon = 1e-5;
+    constexpr float scale_down = 0.5f;
+    auto& engine = get_test_engine();
+    tests::random_generator rg{"GroupNormalizationByxfGPUTest"};
+    const auto dt = c.precision.dt;
+    const auto channels = static_cast<int64_t>(c.shapes.front()[1]);
+    const auto in_pshape = c.precision.is_dynamic ? ov::PartialShape{-1, channels, -1, -1} : ov::PartialShape(c.shapes.front());
+    const bool has_addend = c.fused == byxf_fused::sum_byxf || c.fused == byxf_fused::sum_bfyx;
+
+    const layout param_layout{ov::PartialShape{1, channels, 1, 1}, dt, format::bfyx};
+    const auto scale = random_values(rg, channels, dt);
+    const auto bias = random_values(rg, channels, dt);
+
+    topology topology(input_layout("input", layout{in_pshape, data_types::f32, format::bfyx}),
+                      data("scale", make_memory(engine, param_layout, scale)),
+                      data("bias", make_memory(engine, param_layout, bias)),
+                      reorder("input_byxf", input_info("input"), layout{in_pshape, dt, format::byxf, c.in_pad}),
+                      group_normalization("gn", input_info("input_byxf"), input_info("scale"), input_info("bias"), c.num_groups, epsilon));
+    switch (c.fused) {
+    case byxf_fused::none:
+        break;
+    case byxf_fused::swish:
+        topology.add(activation("fused", input_info("gn"), activation_func::swish, {1.0f, 0.0f}));
+        break;
+    case byxf_fused::sum_byxf:
+    case byxf_fused::sum_bfyx:
+        topology.add(input_layout("addend", layout{in_pshape, data_types::f32, format::bfyx}));
+        topology.add(reorder("addend_dt", input_info("addend"), c.fused == byxf_fused::sum_byxf ? format::byxf : format::bfyx, dt));
+        topology.add(eltwise("fused", {input_info("gn"), input_info("addend_dt")}, eltwise_mode::sum));
+        break;
+    case byxf_fused::mul_scalar:
+        topology.add(data("scale_down", make_memory(engine, layout{ov::PartialShape{1, 1, 1, 1}, dt, format::bfyx}, {scale_down})));
+        topology.add(eltwise("fused", {input_info("gn"), input_info("scale_down")}, eltwise_mode::prod));
+        break;
+    }
+    topology.add(reorder("output", input_info(c.fused == byxf_fused::none ? "gn" : "fused"), format::bfyx, data_types::f32));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    // impl_types::any keeps validate_impl in the selection; a forced impl type would take the first OCL impl unvalidated.
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"gn", {format::byxf, "", impl_types::any}}}));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+    for (const auto& shape : c.shapes) {
+        const auto count = ov::shape_size(shape);
+        const auto input = random_values(rg, count, dt, c.data_offset);
+        auto input_mem = engine.allocate_memory(layout{shape, data_types::f32, format::bfyx});
+        set_values(input_mem, input);
+        network->set_input_data("input", input_mem);
+        std::vector<float> addend;
+        if (has_addend) {
+            addend = random_values(rg, count, dt);
+            auto addend_mem = engine.allocate_memory(layout{shape, data_types::f32, format::bfyx});
+            set_values(addend_mem, addend);
+            network->set_input_data("addend", addend_mem);
+        }
+        auto outputs = network->execute();
+
+        const auto gn_inst = network->get_primitive("gn");
+        ASSERT_EQ(gn_inst->get_impl()->get_type_info(), byxf_impl_type);
+        ASSERT_EQ(gn_inst->get_impl()->is_dynamic(), c.precision.is_dynamic);
+        ASSERT_EQ(gn_inst->get_impl_params()->get_input_layout(0).data_padding, c.in_pad);
+        if (c.fused != byxf_fused::none) {
+            ASSERT_EQ(network->get_executed_primitives().count("fused"), 0);
+        }
+
+        std::vector<float> expected(count);
+        ov::reference::group_normalization(input.data(), scale.data(), bias.data(), expected.data(), shape, c.num_groups, epsilon);
+        for (size_t i = 0; i < count; ++i) {
+            switch (c.fused) {
+            case byxf_fused::none:
+                break;
+            case byxf_fused::swish:
+                expected[i] /= 1.0f + std::exp(-expected[i]);
+                break;
+            case byxf_fused::sum_byxf:
+            case byxf_fused::sum_bfyx:
+                expected[i] += addend[i];
+                break;
+            case byxf_fused::mul_scalar:
+                expected[i] *= scale_down;
+                break;
+            }
+        }
+
+        const float tolerance = dt == data_types::f32 ? 1e-4f : (has_addend ? 2e-2f : 1e-2f);
+        ASSERT_EQ(outputs.at("output").get_layout().get_shape(), shape);
+        // The output buffer may be larger than the current shape (preallocation for dynamic shapes).
+        cldnn::mem_lock<float, mem_lock_type::read> output_lock(outputs.at("output").get_memory(), get_test_stream());
+        for (size_t i = 0; i < count; ++i) {
+            ASSERT_NEAR(output_lock[i], expected[i], tolerance) << "shape " << shape << " index " << i;
+        }
+    }
+}
+
+using byxf_params = std::tuple<byxf_shape, byxf_precision, byxf_fused, padding>;
+
+class GroupNormalizationByxfGPUTest : public ::testing::TestWithParam<byxf_params> {};
+
+TEST_P(GroupNormalizationByxfGPUTest, random) {
+    const auto& [shape, precision, fused, in_pad] = GetParam();
+    run_byxf_test({{shape.shape}, shape.num_groups, precision, fused, in_pad});
+}
+
+std::string byxf_test_name(const ::testing::TestParamInfo<byxf_params>& info) {
+    static const std::array<const char*, 5> fused_names = {"none", "swish", "sum_byxf", "sum_bfyx", "mul_scalar"};
+    const auto& [shape, precision, fused, in_pad] = info.param;
+    std::ostringstream name;
+    name << shape.shape[0] << "x" << shape.shape[1] << "x" << shape.shape[2] << "x" << shape.shape[3] << "_g" << shape.num_groups << "_"
+         << ov::element::Type(precision.dt) << (precision.is_dynamic ? "_dynamic_" : "_static_") << fused_names[static_cast<size_t>(fused)];
+    if (in_pad) {
+        name << "_pad" << in_pad._lower_size[1] << "_" << in_pad._lower_size[2] << "_" << in_pad._lower_size[3];
+    }
+    return name.str();
+}
+
+const std::vector<byxf_precision> byxf_f16_dynamic_f32_static = {{data_types::f16, true}, {data_types::f32, false}};
+
+// SD UNet/VAE channel counts (group size 4..80) and odd C that select VEC 8 (FV 3), 4, 2 and 1.
+INSTANTIATE_TEST_SUITE_P(byxf_group_sizes,
+                         GroupNormalizationByxfGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(std::vector<byxf_shape>{{{2, 128, 7, 9}, 32},
+                                                                                        {{2, 256, 7, 9}, 32},
+                                                                                        {{2, 320, 7, 9}, 32},
+                                                                                        {{2, 512, 7, 9}, 32},
+                                                                                        {{2, 640, 7, 9}, 32},
+                                                                                        {{2, 960, 7, 9}, 32},
+                                                                                        {{2, 1280, 7, 9}, 32},
+                                                                                        {{2, 1920, 7, 9}, 32},
+                                                                                        {{2, 2560, 7, 9}, 32},
+                                                                                        {{2, 24, 7, 9}, 4},
+                                                                                        {{2, 36, 7, 9}, 6},
+                                                                                        {{2, 30, 7, 9}, 10},
+                                                                                        {{2, 15, 7, 9}, 5}}),
+                                            ::testing::ValuesIn(byxf_f16_dynamic_f32_static),
+                                            ::testing::Values(byxf_fused::none),
+                                            ::testing::Values(padding())),
+                         byxf_test_name);
+
+INSTANTIATE_TEST_SUITE_P(byxf_spatial_batch,
+                         GroupNormalizationByxfGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(std::vector<byxf_shape>{{{1, 320, 1, 1}, 32},
+                                                                                        {{2, 320, 7, 9}, 32},
+                                                                                        {{16, 320, 7, 9}, 32},
+                                                                                        {{3, 320, 64, 64}, 32},
+                                                                                        {{1, 320, 128, 128}, 32}}),
+                                            ::testing::ValuesIn(byxf_f16_dynamic_f32_static),
+                                            ::testing::Values(byxf_fused::none),
+                                            ::testing::Values(padding())),
+                         byxf_test_name);
+
+// Swish (SD GN + SiLU), eltwise sum with a byxf or a bfyx addend, and the SD2.1 VAE per-tensor ScaleDown multiply.
+INSTANTIATE_TEST_SUITE_P(byxf_fused_ops,
+                         GroupNormalizationByxfGPUTest,
+                         ::testing::Combine(::testing::Values(byxf_shape{{2, 320, 16, 16}, 32}),
+                                            ::testing::ValuesIn(std::vector<byxf_precision>{{data_types::f16, false}, {data_types::f16, true}}),
+                                            ::testing::Values(byxf_fused::swish, byxf_fused::sum_byxf, byxf_fused::sum_bfyx, byxf_fused::mul_scalar),
+                                            ::testing::Values(padding())),
+                         byxf_test_name);
+
+INSTANTIATE_TEST_SUITE_P(byxf_sd_shapes,
+                         GroupNormalizationByxfGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(std::vector<byxf_shape>{{{2, 320, 64, 64}, 32},
+                                                                                        {{2, 1280, 8, 8}, 32},
+                                                                                        {{2, 2560, 16, 16}, 32},
+                                                                                        {{1, 512, 64, 64}, 32},
+                                                                                        {{1, 128, 256, 256}, 32}}),
+                                            ::testing::Values(byxf_precision{data_types::f16, true}),
+                                            ::testing::Values(byxf_fused::swish),
+                                            ::testing::Values(padding())),
+                         byxf_test_name);
+
+INSTANTIATE_TEST_SUITE_P(byxf_padding,
+                         GroupNormalizationByxfGPUTest,
+                         ::testing::Combine(::testing::Values(byxf_shape{{2, 320, 7, 9}, 32}),
+                                            ::testing::Values(byxf_precision{data_types::f16, true}),
+                                            ::testing::Values(byxf_fused::none),
+                                            ::testing::Values(padding({0, 16, 0, 0}, {0, 0, 0, 0}), padding({0, 0, 1, 1}))),
+                         byxf_test_name);
+
+}  // namespace
+
+// Runtime shape changes on one network: dispatch update, internal buffer reallocation and reuse.
+TEST(group_normalization, byxf_dynamic_shape_change) {
+    run_byxf_test({{{2, 320, 16, 16}, {1, 320, 7, 9}, {16, 320, 8, 8}, {3, 320, 64, 64}, {2, 320, 16, 16}},
+                   32,
+                   {data_types::f16, true},
+                   byxf_fused::swish});
+}
+
+// |mean| >> std: the shifted sums keep the variance accurate (plain E[x^2] - E[x]^2 is off by ~4e-3 here).
+TEST(group_normalization, byxf_large_mean_offset) {
+    run_byxf_test({{{1, 64, 128, 128}}, 32, {data_types::f32, false}, byxf_fused::none, padding(), 100.0f});
+}
+
+TEST(group_normalization, byxf_cached_static) {
+    run_byxf_test({{{2, 320, 16, 16}}, 32, {data_types::f16, false}, byxf_fused::swish}, true);
+}
+
+TEST(group_normalization, byxf_cached_dynamic) {
+    run_byxf_test({{{2, 320, 16, 16}, {1, 320, 7, 9}}, 32, {data_types::f16, true}, byxf_fused::swish}, true);
 }
