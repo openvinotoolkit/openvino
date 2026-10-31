@@ -57,6 +57,22 @@ struct moe_otd_descriptor {
     }
 };
 
+/// @brief Whether u3 routed experts run on the moe_3gemm_int3 OCL kernels rather than OneDNN grouped matmul.
+/// @details Each projection's K must split into its weight quantization groups (`*_groups` per output
+/// channel), each a multiple of 64 values long, and its N must be a multiple of 16.
+/// The kernels quantize activations to int8, which is accurate enough for zero-centered weights only,
+/// so the weights need a zero point. ConvertMOE3GemmZpToU8 keeps a scalar zero point only for these
+/// kernels, so both call this.
+inline bool moe_3gemm_use_int3_gemm(bool has_zp, size_t hidden_size, size_t inter_size, size_t gate_up_groups, size_t down_groups) {
+    if (!has_zp) {
+        return false;
+    }
+    const auto projection_supported = [](size_t k, size_t n, size_t groups) {
+        return groups > 0 && k % groups == 0 && (k / groups) % 64 == 0 && n % 16 == 0;
+    };
+    return projection_supported(hidden_size, inter_size, gate_up_groups) && projection_supported(inter_size, hidden_size, down_groups);
+}
+
 /// @brief moe compressed primitive
 /// @details Performs moe compressed
 struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compressed> {
