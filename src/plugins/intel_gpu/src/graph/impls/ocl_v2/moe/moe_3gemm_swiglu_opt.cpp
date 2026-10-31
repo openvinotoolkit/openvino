@@ -1067,8 +1067,7 @@ public:
 
     // Resident single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
     bool needs_gather_scratch(size_t token_num) const {
-        return token_num > 1 || decode_impl == MoeGemmImpl::grouped_gemm ||
-               (token_num == 1 && _weight_provider->is_offloaded());
+        return token_num > 1 || decode_impl == MoeGemmImpl::grouped_gemm || (token_num == 1 && _weight_provider->is_offloaded());
     }
 
     static bool is_batched_gemv_supported(data_types weight_dt) {
@@ -2802,10 +2801,10 @@ public:
         // and does not require pre-zeroing — except in OTD mode where the
         // fallback to exec_per_expert_onednn_linear (when unique_experts > lru slots)
         // also accumulates via index_add.
-    if (batched_fallback || (impl != MoeGemmImpl::micro_gemm && should_pre_zero_output())) {
+        if (batched_fallback || (impl != MoeGemmImpl::micro_gemm && should_pre_zero_output())) {
             final_hidden_states_mem_ptr->fill(stream, 0u);
         }
-    const bool use_gpu_mask_gen = !batched_fallback && should_use_gpu_mask_gen(impl, token_num);
+        const bool use_gpu_mask_gen = !batched_fallback && should_use_gpu_mask_gen(impl, token_num);
         if (!use_gpu_mask_gen) {
             // Wait for input events (topk produced upstream by MoERouterFused)
             for (const auto& ev : events) {
@@ -2819,8 +2818,8 @@ public:
                                << ", impl=" << static_cast<int>(impl) << std::endl;
         update_rt_params(instance);
         if (batched_fallback) {
-        ret_env = exec_per_expert_onednn_linear(events, stream, instance, scratch);
-    } else if (impl == MoeGemmImpl::micro_gemm) {
+            ret_env = exec_per_expert_onednn_linear(events, stream, instance, scratch);
+        } else if (impl == MoeGemmImpl::micro_gemm) {
             ret_env = exec_prefill_micro_gemm(events, instance, scratch, use_gpu_mask_gen);
         } else if (impl == MoeGemmImpl::grouped_gemm) {
             ret_env = use_gpu_mask_gen ? exec_grouped_gemm_gpu_mask_gen(events, stream, instance, scratch)
