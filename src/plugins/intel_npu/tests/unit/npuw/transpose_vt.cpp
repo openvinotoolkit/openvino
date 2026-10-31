@@ -479,6 +479,91 @@ TEST(TransposeVTSharedConcatTest, smoke_SharedConcat_MHA_MultipleUsers) {
     ASSERT_TRUE(ov::as_type_ptr<ov::op::v0::MatMul>(matmul2)->get_transpose_b());
 }
 
+// Regression test for ShapeOf consumers outside the optimized attention path.
+// Restore the original dimension order after ShapeOf without transposing the data.
+//
+//   Test graph (before optimization):
+//   scores[B,H,1,S+1]       param[B,H,S,D]       new_token[B,1,H*D]
+//        |                       |                      |
+//     Softmax                    |                 Reshape[B,1,H,D]
+//        |                       |                      |
+//        |                       |                Transpose{0,2,1,3}
+//        |                       |                           |
+//        |                       +-----> concat(axis=2) <----+
+//        |                                   |
+//        +-- input 0 --> MatMul <-- input 1 -+
+//   Side outputs: ShapeOf observes the original layout; data Results are direct
+//
+//   After OptimizeValueTensors:
+//   scores[B,H,1,S+1]       param[B,H,D,S]       new_token[B,1,H*D]
+//        |                       |                      |
+//     Softmax                    |                Reshape[B,1,H,D]
+//        |                       |                      |
+//        |                       |               Transpose{0,2,3,1}
+//        |                       |                           |
+//        |                       +-----> concat(axis=3) <----+
+//        |                                  |
+//        +-- input 0 --> MatMul <-- input 1 -+ (transpose_b=true)
+//   Side outputs: ShapeOf -> Gather{0,1,3,2}; data Results remain direct
+TEST(TransposeVTSharedConcatTest, RestoresShapeOfDimensionsWithoutTransposingData) {
+    const size_t B = 1, H = 4, S = 8, D = 64;
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, S, D});
+    auto new_token = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, 1, H * D});
+    auto reshape_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<size_t>{0, 0, H, D});
+    auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3});
+    auto new_value =
+        std::make_shared<ov::op::v1::Transpose>(std::make_shared<ov::op::v1::Reshape>(new_token, reshape_shape, true),
+                                                transpose_order);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{param, new_value}, 2);
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{B, H, 1, S + 1});
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(std::make_shared<ov::op::v8::Softmax>(scores, -1), concat);
+
+    auto param_shape = std::make_shared<ov::op::v3::ShapeOf>(param, ov::element::i64);
+    auto concat_shape = std::make_shared<ov::op::v3::ShapeOf>(concat, ov::element::i64);
+    auto param_shape_result = std::make_shared<ov::op::v0::Result>(param_shape);
+    auto concat_shape_result = std::make_shared<ov::op::v0::Result>(concat_shape);
+    auto param_result = std::make_shared<ov::op::v0::Result>(param);
+    auto concat_result = std::make_shared<ov::op::v0::Result>(concat);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(matmul),
+                                                              param_shape_result,
+                                                              concat_shape_result,
+                                                              param_result,
+                                                              concat_result},
+                                             ov::ParameterVector{param, new_token, scores});
+
+    ASSERT_TRUE(ov::npuw::util::OptimizeValueTensors(false).run_on_model(model));
+
+    EXPECT_TRUE(matmul->get_transpose_b());
+    EXPECT_EQ(matmul->input_value(1).get_node_shared_ptr(), concat);
+
+    EXPECT_EQ(param_shape->input_value(0).get_node_shared_ptr(), param);
+    auto param_shape_gather =
+        ov::as_type_ptr<ov::op::v8::Gather>(param_shape_result->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(param_shape_gather, nullptr);
+    EXPECT_EQ(param_shape_gather->input_value(0).get_node_shared_ptr(), param_shape);
+    auto param_shape_order =
+        ov::as_type_ptr<ov::op::v0::Constant>(param_shape_gather->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(param_shape_order, nullptr);
+    EXPECT_EQ(param_shape_order->cast_vector<int64_t>(), (std::vector<int64_t>{0, 1, 3, 2}));
+    EXPECT_EQ(param_shape_result->get_output_partial_shape(0), ov::PartialShape({4}));
+    EXPECT_EQ(param_result->input_value(0).get_node_shared_ptr(), param);
+    EXPECT_EQ(param_result->get_output_partial_shape(0), ov::PartialShape({B, H, D, S}));
+
+    EXPECT_EQ(concat_shape->input_value(0).get_node_shared_ptr(), concat);
+    auto concat_shape_gather =
+        ov::as_type_ptr<ov::op::v8::Gather>(concat_shape_result->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(concat_shape_gather, nullptr);
+    EXPECT_EQ(concat_shape_gather->input_value(0).get_node_shared_ptr(), concat_shape);
+    auto concat_shape_order =
+        ov::as_type_ptr<ov::op::v0::Constant>(concat_shape_gather->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(concat_shape_order, nullptr);
+    EXPECT_EQ(concat_shape_order->cast_vector<int64_t>(), (std::vector<int64_t>{0, 1, 3, 2}));
+    EXPECT_EQ(concat_shape_result->get_output_partial_shape(0), ov::PartialShape({4}));
+    EXPECT_EQ(concat_result->input_value(0).get_node_shared_ptr(), concat);
+    EXPECT_EQ(concat_result->get_output_partial_shape(0), ov::PartialShape({B, H, D, S + 1}));
+}
+
 // Regression test for MQA (Multi-Query Attention, num_kv_heads=1).
 //
 // When num_kv_heads=1 the PyTorch frontend lowers aten::transpose(dim1, dim2) to a
