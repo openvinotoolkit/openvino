@@ -553,6 +553,12 @@ void ov::npuw::LLMInferRequest::bind_past_kv() {
             continue;
         }
 
+        // With continuous prefill the SWA past keeps its own buffer: it holds the window
+        // a continued prefill resumes from, which the generate ring would overwrite.
+        if (m_continuation.enabled() && ov::npuw::util::is_swa_kv_cache_name(input_name)) {
+            continue;
+        }
+
         const auto& kvcache_in_port = m_kvcache_in_ports.at(input_name);
         const auto& kvcache_past_kv_in_tensor = m_kvcache_request->get_tensor(kvcache_in_port);
         auto data = kvcache_past_kv_in_tensor->data();
@@ -1576,6 +1582,7 @@ void ov::npuw::LLMInferRequest::prepare_for_continued_prefill(uint32_t keep,
     // recovers with reset() and the full history, the same recovery every
     // failing inference requires.
     m_kvcache_strategy->continue_prefill(keep, delta_len);
+    m_swa_cache->continue_prefill(keep);
 
     // Zero only the prefill staging tensors. The KV state, the strategy and the
     // lincache are deliberately left alone, unlike prepare_for_new_conversation.
@@ -1947,10 +1954,12 @@ void ov::npuw::LLMInferRequest::infer() {
                       deepstack_visual_embeds);
         if (m_continuation.enabled()) {
             // Every committed prefill, fresh, reset or continued, publishes the new
-            // history so the next proposal negotiates against it. The coordinator
-            // answers get_state() while attached, so the legacy stored-tokens
-            // mirror needs no update here.
-            m_continuation.commit_prefill(m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens);
+            // history so the next proposal negotiates against it, along with the
+            // oldest keep the SWA window can resume from. The coordinator answers
+            // get_state() while attached, so the legacy stored-tokens mirror needs
+            // no update here.
+            m_continuation.commit_prefill(m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens,
+                                          m_swa_cache->min_keep());
         }
     } else {
         // FIXME: Need to make the solution smarter.
