@@ -45,6 +45,8 @@ else()
         target_link_libraries(${TARGET_NAME} INTERFACE "-Wl,-rpath-link,${OpenCV_INSTALL_PATH}/lib")
     endif()
     target_compile_definitions(${TARGET_NAME} PRIVATE USE_OPENCV)
+    # OpenCV headers do enum arithmetic that C++20 deprecates; treat them as system headers
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"

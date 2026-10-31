@@ -14,7 +14,7 @@ endif()
 
 # to allows to override CMAKE_CXX_STANDARD from command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD 20)
 endif()
 
 if(NOT DEFINED CMAKE_CXX_EXTENSIONS)
@@ -24,6 +24,9 @@ endif()
 if(NOT DEFINED CMAKE_CXX_STANDARD_REQUIRED)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
+
+# enforces a compiler-version floor for the C++20 default (or any higher override)
+include(compile_flags/cxx_standard)
 
 if(ENABLE_COVERAGE)
     ov_add_compiler_flags(--coverage)

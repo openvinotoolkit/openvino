@@ -53,12 +53,15 @@ ov_set_threading_interface_for(${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES
                       FOLDER intel_npu_tools
-                      CXX_STANDARD 17)
+                      CXX_STANDARD 20)
 
 # TODO: fix warnings and remove this exception
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wno-missing-declarations)
 endif()
+
+# OpenCV headers do enum arithmetic that C++20 deprecates; treat them as system headers
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 #
 # Install

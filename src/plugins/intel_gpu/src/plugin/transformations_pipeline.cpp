@@ -1880,9 +1880,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const bool use_gs128_for_linear_attention = is_hybrid_linear_attention_model(*func);
             const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2;
 
+            // Read outside the lambda: config is a member, and capturing this is unused in release builds
+            [[maybe_unused]] const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+            [[maybe_unused]] const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
+
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
-                const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
-                const int64_t dyn_quan_single = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_single(), 0);    // 0 will be ignored from GPU_DEBUG_IF
                 GPU_DEBUG_IF(dyn_quan_bisect != std::numeric_limits<int64_t>::max() ||
                                 dyn_quan_single >= 0) {
                     static int64_t fc_count = 0;
