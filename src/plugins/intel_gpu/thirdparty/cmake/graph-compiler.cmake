@@ -3,6 +3,7 @@
 #
 
 include_guard()
+include(CheckLinkerFlag)
 include("${CMAKE_CURRENT_LIST_DIR}/llvm.cmake")
 
 find_package(GraphCompiler QUIET CONFIG)
@@ -27,4 +28,20 @@ if (NOT GraphCompiler_FOUND)
   set(BUILD_SHARED_LIBS ${GRAPH_COMPILER_DYLINK})
   FetchContent_MakeAvailable(GraphCompiler)
   set(BUILD_SHARED_LIBS ${_ov_build_shared_libs})
+endif()
+
+check_linker_flag(CXX "LINKER:--icf=safe" OV_GPU_LINKER_HAS_ICF)
+if(OV_GPU_LINKER_HAS_ICF)
+  target_link_options(GraphCompiler INTERFACE $<$<CONFIG:Release>:LINKER:--icf=safe >)
+endif()
+
+check_linker_flag(CXX "LINKER:-z,pack-relative-relocs" OV_GPU_LINKER_HAS_PACK_RELATIVE_RELOCS)
+if(OV_GPU_LINKER_HAS_PACK_RELATIVE_RELOCS)
+  include(CheckCXXSourceCompiles)
+  check_cxx_source_compiles("#include <features.h>
+static_assert(__GLIBC_PREREQ(2, 36), \"\");
+int main() {}" OV_GPU_GLIBC_HAS_DT_RELR)
+  if(OV_GPU_GLIBC_HAS_DT_RELR)
+    target_link_options(GraphCompiler INTERFACE $<$<CONFIG:Release>:LINKER:-z,pack-relative-relocs>)
+  endif()
 endif()
