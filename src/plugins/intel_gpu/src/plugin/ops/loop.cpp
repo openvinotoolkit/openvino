@@ -270,11 +270,11 @@ static void CreateCommonLoopOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
         prec = current_iteration_input_op->get_element_type();
 
         auto increment_value_id = current_iteration_input_op->get_friendly_name() + "_inc";
-        auto increment_value_op = std::make_shared<op::v0::Constant>(prec, shape, 1);
+        auto increment_value_op = std::make_shared<ov::op::v0::Constant>(prec, shape, 1);
         increment_value_op->set_friendly_name(increment_value_id);
 
         auto update_current_iter_op_id = current_iteration_input_op->get_friendly_name() + "_update";
-        auto update_current_iter_op = std::make_shared<op::v1::Add>(current_iteration_input_op, increment_value_op);
+        auto update_current_iter_op = std::make_shared<ov::op::v1::Add>(current_iteration_input_op, increment_value_op);
         update_current_iter_op->set_friendly_name(update_current_iter_op_id);
         updated_current_iteration_id = layer_type_name_ID(update_current_iter_op);
 

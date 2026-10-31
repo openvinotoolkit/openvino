@@ -47,6 +47,9 @@ RUN apt-get update && \
         # For clang-tidy validation
         clang-format-18 \
         clang-tidy-18 \
+        # Fast linkers; the CI build uses mold (-fuse-ld=mold)
+        mold \
+        lld \
         && \
     rm -rf /var/lib/apt/lists/*
 

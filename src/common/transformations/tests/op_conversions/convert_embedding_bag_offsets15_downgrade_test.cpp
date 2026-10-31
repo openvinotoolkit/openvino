@@ -20,8 +20,9 @@ using namespace testing;
 
 namespace {
 
-std::shared_ptr<ov::Model> create_v15_model(const op::v15::EmbeddingBagOffsets::Reduction reduction_type,
-                                            const size_t num_inputs) {
+std::shared_ptr<ov::Model> create_embedding_bag_offsets_v15_model(
+    const op::v15::EmbeddingBagOffsets::Reduction reduction_type,
+    const size_t num_inputs) {
     const auto emb_table = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{5, 2});
     const auto indices = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{4});
     const auto offsets = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{3});
@@ -62,7 +63,7 @@ std::shared_ptr<ov::Model> create_v15_model(const op::v15::EmbeddingBagOffsets::
     return std::make_shared<ov::Model>(emb->outputs(), params);
 }
 
-std::shared_ptr<ov::Model> create_v3_model(const size_t num_inputs) {
+std::shared_ptr<ov::Model> create_embedding_bag_offsets_v3_model(const size_t num_inputs) {
     const auto emb_table = std::make_shared<ov::opset15::Parameter>(ov::element::f32, ov::Shape{5, 2});
     const auto indices = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{4});
     const auto offsets = std::make_shared<ov::opset15::Parameter>(ov::element::i32, ov::Shape{3});
@@ -102,47 +103,47 @@ std::shared_ptr<ov::Model> create_v3_model(const size_t num_inputs) {
 
 TEST_F(TransformationTestsF, ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3_sum_0) {
     manager.register_pass<ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3>();
-    model = create_v15_model(op::v15::EmbeddingBagOffsets::Reduction::SUM, 0);
-    model_ref = create_v3_model(0);
+    model = create_embedding_bag_offsets_v15_model(op::v15::EmbeddingBagOffsets::Reduction::SUM, 0);
+    model_ref = create_embedding_bag_offsets_v3_model(0);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3_sum_3) {
     manager.register_pass<ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3>();
-    model = create_v15_model(op::v15::EmbeddingBagOffsets::Reduction::SUM, 3);
-    model_ref = create_v3_model(3);
+    model = create_embedding_bag_offsets_v15_model(op::v15::EmbeddingBagOffsets::Reduction::SUM, 3);
+    model_ref = create_embedding_bag_offsets_v3_model(3);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3_sum_4) {
     manager.register_pass<ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3>();
-    model = create_v15_model(op::v15::EmbeddingBagOffsets::Reduction::SUM, 4);
-    model_ref = create_v3_model(4);
+    model = create_embedding_bag_offsets_v15_model(op::v15::EmbeddingBagOffsets::Reduction::SUM, 4);
+    model_ref = create_embedding_bag_offsets_v3_model(4);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3_sum_5) {
     manager.register_pass<ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3>();
-    model = create_v15_model(op::v15::EmbeddingBagOffsets::Reduction::SUM, 5);
-    model_ref = create_v3_model(5);
+    model = create_embedding_bag_offsets_v15_model(op::v15::EmbeddingBagOffsets::Reduction::SUM, 5);
+    model_ref = create_embedding_bag_offsets_v3_model(5);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3_mean_0) {
     manager.register_pass<ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3>();
-    model = create_v15_model(op::v15::EmbeddingBagOffsets::Reduction::MEAN, 0);
+    model = create_embedding_bag_offsets_v15_model(op::v15::EmbeddingBagOffsets::Reduction::MEAN, 0);
 }
 
 TEST_F(TransformationTestsF, ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3_mean_3) {
     manager.register_pass<ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3>();
-    model = create_v15_model(op::v15::EmbeddingBagOffsets::Reduction::MEAN, 3);
+    model = create_embedding_bag_offsets_v15_model(op::v15::EmbeddingBagOffsets::Reduction::MEAN, 3);
 }
 
 TEST_F(TransformationTestsF, ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3_mean_4) {
     manager.register_pass<ov::pass::ConvertEmbeddingBagOffsets15ToEmbeddingBagOffsetsSum3>();
-    model = create_v15_model(op::v15::EmbeddingBagOffsets::Reduction::MEAN, 4);
+    model = create_embedding_bag_offsets_v15_model(op::v15::EmbeddingBagOffsets::Reduction::MEAN, 4);
 }

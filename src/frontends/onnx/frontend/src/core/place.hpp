@@ -88,7 +88,7 @@ private:
 
 class OpPlace : public Place {
 public:
-    OpPlace(const ov::frontend::InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder);
+    OpPlace(const ov::frontend::InputModel& input_model, std::shared_ptr<ov::frontend::DecoderBase> op_decoder);
 
     void add_in_port(const std::shared_ptr<InPortPlace>& input, const std::string& name);
     void add_out_port(const std::shared_ptr<OutPortPlace>& output, int idx);
@@ -96,7 +96,7 @@ public:
     // Internal usage
     const std::vector<std::shared_ptr<OutPortPlace>>& get_output_ports() const;
     const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& get_input_ports() const;
-    std::shared_ptr<DecoderBase> get_decoder() const;
+    std::shared_ptr<ov::frontend::DecoderBase> get_decoder() const;
 
     // External API methods
     std::vector<ov::frontend::Place::Ptr> get_consuming_ports() const override;
@@ -133,7 +133,7 @@ public:
                                       size_t& next_iteration_producer_output_port_idx) const;
 
 private:
-    std::shared_ptr<DecoderBase> m_op_decoder;
+    std::shared_ptr<ov::frontend::DecoderBase> m_op_decoder;
     std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>> m_input_ports;
     std::vector<std::shared_ptr<OutPortPlace>> m_output_ports;
 

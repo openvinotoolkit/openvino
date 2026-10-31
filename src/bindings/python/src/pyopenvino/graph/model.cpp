@@ -29,8 +29,8 @@ namespace py = pybind11;
 
 using PyRTMap = ov::RTMap;
 
-PYBIND11_MAKE_OPAQUE(PyRTMap);
-PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+#include "pyopenvino/utils/opaque_rt_map.hpp"
+#include "pyopenvino/utils/opaque_tensor_vector.hpp"
 
 namespace {
 template <class... Args>

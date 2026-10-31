@@ -225,7 +225,7 @@ TEST_P(SequenceFusionTest, SequencePattern) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-static const std::vector<SequenceFusionParams> params = {
+static const std::vector<SequenceFusionParams> sequence_fusion_params = {
     SequenceFusionParams{RNN_TYPE::LSTM_v4, 2, 128, 32, 1},
     SequenceFusionParams{RNN_TYPE::LSTM_v4, 2, 128, 32, 10},
     SequenceFusionParams{RNN_TYPE::LSTM_v0, 2, 128, 32, 1},
@@ -238,4 +238,4 @@ static const std::vector<SequenceFusionParams> params = {
     SequenceFusionParams{RNN_TYPE::AUGRU, 2, 128, 32, 10},
 };
 
-INSTANTIATE_TEST_SUITE_P(SequenceFusionTest, SequenceFusionTest, ValuesIn(params));
+INSTANTIATE_TEST_SUITE_P(SequenceFusionTest, SequenceFusionTest, ValuesIn(sequence_fusion_params));

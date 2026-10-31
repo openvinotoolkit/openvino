@@ -134,7 +134,7 @@ ov::OutputVector qlinear_softmax(const ov::frontend::onnx::Node& node) {
     });
 }
 
-bool register_multiple_operators(void) {
+bool register_qlinear_activation_operators(void) {
     ONNX_OP_M("QLinearSigmoid", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_sigmoid, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearLeakyRelu", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_leaky_relu, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearAveragePool", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_avg_pool, MICROSOFT_DOMAIN);
@@ -144,6 +144,6 @@ bool register_multiple_operators(void) {
     return true;
 }
 
-static bool registered = register_multiple_operators();
+static bool qlinear_activation_registered = register_qlinear_activation_operators();
 
 }  // namespace ov::frontend::onnx::com_microsoft::opset_1

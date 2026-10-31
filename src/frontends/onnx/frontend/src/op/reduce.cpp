@@ -237,7 +237,7 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v1)};
 }
 
-static bool register_multiple_translators(void) {
+static bool register_reduce_translators(void) {
     ONNX_OP_M("ReduceLogSum", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_log_sum);
     ONNX_OP_M("ReduceLogSumExp", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_log_sum_exp);
     ONNX_OP_M("ReduceL1", OPSET_RANGE(1, 12), ai_onnx::opset_1::reduce_l1);
@@ -251,7 +251,7 @@ static bool register_multiple_translators(void) {
     return true;
 }
 
-static bool registered = register_multiple_translators();
+static bool reduce_registered = register_reduce_translators();
 }  // namespace opset_1
 
 /*
@@ -313,7 +313,7 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2)};
 }
 
-static bool register_multiple_translators(void) {
+static bool register_reduce_translators(void) {
     ONNX_OP_M("ReduceL1", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_l1);
     ONNX_OP_M("ReduceL2", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_l2);
     ONNX_OP_M("ReduceLogSum", OPSET_RANGE(13, 17), ai_onnx::opset_13::reduce_log_sum);
@@ -327,7 +327,7 @@ static bool register_multiple_translators(void) {
     return true;
 }
 
-static bool registered = register_multiple_translators();
+static bool reduce_registered = register_reduce_translators();
 }  // namespace opset_13
 
 namespace opset_18 {
@@ -378,7 +378,7 @@ ov::OutputVector reduce_sum_square(const ov::frontend::onnx::Node& node) {
     return {onnx_reduce_sum_square(node, supported_types_v2, false)};
 }
 
-static bool register_multiple_translators(void) {
+static bool register_reduce_translators(void) {
     ONNX_OP_M("ReduceLogSum", OPSET_SINCE(18), ai_onnx::opset_18::reduce_log_sum);
     ONNX_OP_M("ReduceL2", OPSET_SINCE(18), ai_onnx::opset_18::reduce_l2);
     ONNX_OP_M("ReduceL1", OPSET_SINCE(18), ai_onnx::opset_18::reduce_l1);
@@ -391,7 +391,7 @@ static bool register_multiple_translators(void) {
     return true;
 }
 
-static bool registered = register_multiple_translators();
+static bool reduce_registered = register_reduce_translators();
 }  // namespace opset_18
 
 namespace opset_20 {
@@ -425,12 +425,12 @@ ov::OutputVector reduce_min(const ov::frontend::onnx::Node& node) {
     }
 }
 
-static bool register_multiple_translators(void) {
+static bool register_reduce_translators(void) {
     ONNX_OP_M("ReduceMax", OPSET_SINCE(20), ai_onnx::opset_20::reduce_max);
     ONNX_OP_M("ReduceMin", OPSET_SINCE(20), ai_onnx::opset_20::reduce_min);
     return true;
 }
 
-static bool registered = register_multiple_translators();
+static bool reduce_registered = register_reduce_translators();
 }  // namespace opset_20
 }  // namespace ov::frontend::onnx::ai_onnx

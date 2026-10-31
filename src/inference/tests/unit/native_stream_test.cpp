@@ -27,7 +27,7 @@ namespace {
  * byte[i] = (i % 251) -- 251 is prime so the period never aligns with any
  * power-of-two chunk/page size.
  */
-void fill_pattern(std::vector<char>& buf, size_t start_index = 0) {
+void fill_stream_pattern(std::vector<char>& buf, size_t start_index = 0) {
     for (size_t i = 0; i < buf.size(); ++i) {
         buf[i] = static_cast<char>((start_index + i) % 251u);
     }
@@ -38,7 +38,7 @@ void fill_pattern(std::vector<char>& buf, size_t start_index = 0) {
  *        so that non-zero-offset tests can verify the header bytes are never
  *        surfaced through the streambuf.
  */
-void write_temp_file_impl(const std::filesystem::path& path, const std::vector<char>& data, size_t prefix_size) {
+void write_stream_temp_file(const std::filesystem::path& path, const std::vector<char>& data, size_t prefix_size) {
     std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
     ASSERT_TRUE(ofs.is_open()) << "Cannot create temp file: " << path;
     if (prefix_size > 0) {
@@ -88,8 +88,8 @@ protected:
 TEST_F(NativeStreamTest, ChunkedReads) {
     constexpr size_t k_size = 8 * 1024;
     std::vector<char> expected(k_size);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, 0);
+    fill_stream_pattern(expected);
+    write_stream_temp_file(m_tmp_path, expected, 0);
 
     HandleGuard hg{util::open_file(m_tmp_path)};
     ASSERT_NE(hg.handle, ov::invalid_handle);
@@ -116,8 +116,8 @@ class NativeStreamParallelTest : public NativeStreamTest, public ::testing::With
 TEST_P(NativeStreamParallelTest, ParallelReadsAllWorkers) {
     const size_t k_payload = GetParam();
     std::vector<char> expected(k_payload);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, 0);
+    fill_stream_pattern(expected);
+    write_stream_temp_file(m_tmp_path, expected, 0);
 
     HandleGuard hg{util::open_file(m_tmp_path)};
     ASSERT_NE(hg.handle, ov::invalid_handle);
@@ -147,8 +147,8 @@ class NativeStreamTestSizes
 TEST_P(NativeStreamTestSizes, FullFileReadTest) {
     const auto [k_payload, k_window, k_treshold, k_prefix] = GetParam();
     std::vector<char> expected(k_payload);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, k_prefix);
+    fill_stream_pattern(expected);
+    write_stream_temp_file(m_tmp_path, expected, k_prefix);
 
     HandleGuard hg{util::open_file(m_tmp_path, util::FileMode::READ)};  // CVS-192237
     ASSERT_NE(hg.handle, ov::invalid_handle);
@@ -168,8 +168,8 @@ TEST_P(NativeStreamTestSizes, FullFileReadTest) {
 TEST_P(NativeStreamTestSizes, AlignedDestBufferFullFileReadTest) {
     const auto [k_size, k_window, k_treshold, k_prefix] = GetParam();
     std::vector<char> expected(k_size);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, k_prefix);
+    fill_stream_pattern(expected);
+    write_stream_temp_file(m_tmp_path, expected, k_prefix);
 
     HandleGuard hg{util::open_file(m_tmp_path, util::FileMode::READ)};  // CVS-192237
     ASSERT_NE(hg.handle, ov::invalid_handle);
@@ -234,8 +234,8 @@ TEST_F(NativeIfstreamTest, NonExistentPathSetsFailbit) {
 TEST_F(NativeIfstreamTest, BorrowedHandleReadsSubrangeAndKeepsHandleOpen) {
     constexpr size_t k_prefix_size = 127;
     std::vector<char> payload(9000);
-    fill_pattern(payload);
-    write_temp_file_impl(m_tmp_path, payload, k_prefix_size);
+    fill_stream_pattern(payload);
+    write_stream_temp_file(m_tmp_path, payload, k_prefix_size);
 
     HandleGuard hg{util::open_file(m_tmp_path)};
     ASSERT_NE(hg.handle, ov::invalid_handle);
@@ -263,8 +263,8 @@ class NativeIfstreamTestPayload : public NativeStreamTest, public ::testing::Wit
 TEST_P(NativeIfstreamTestPayload, FullFileReadFromPathTest) {
     const size_t k_payload = GetParam();
     std::vector<char> expected(k_payload);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, 0);
+    fill_stream_pattern(expected);
+    write_stream_temp_file(m_tmp_path, expected, 0);
 
     util::NativeIfstream stream(m_tmp_path);
     ASSERT_TRUE(stream.good());
@@ -288,8 +288,8 @@ class NativeIfstreamTestPayloadOffset
 TEST_P(NativeIfstreamTestPayloadOffset, FullFileReadFromHandleTest) {
     const auto [k_payload, k_prefix] = GetParam();
     std::vector<char> expected(k_payload);
-    fill_pattern(expected);
-    write_temp_file_impl(m_tmp_path, expected, k_prefix);
+    fill_stream_pattern(expected);
+    write_stream_temp_file(m_tmp_path, expected, k_prefix);
 
     HandleGuard hg{util::open_file(m_tmp_path)};
     ASSERT_NE(hg.handle, ov::invalid_handle);

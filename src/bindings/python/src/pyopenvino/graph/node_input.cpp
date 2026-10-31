@@ -15,7 +15,7 @@ namespace py = pybind11;
 
 using PyRTMap = ov::Node::RTMap;
 
-PYBIND11_MAKE_OPAQUE(PyRTMap);
+#include "pyopenvino/utils/opaque_rt_map.hpp"
 
 void regclass_graph_Input(py::module m) {
     py::class_<ov::Input<ov::Node>, std::shared_ptr<ov::Input<ov::Node>>> input(m, "Input", py::dynamic_attr());

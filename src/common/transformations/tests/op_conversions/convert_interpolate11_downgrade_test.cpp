@@ -24,8 +24,8 @@ namespace {
 constexpr bool WITH_AXES = true;
 constexpr bool WITHOUT_AXES = false;
 
-std::shared_ptr<ov::Model> create_v11_model(const bool with_axes,
-                                            const ov::opset11::Interpolate::ShapeCalcMode shape_calc_mode) {
+std::shared_ptr<ov::Model> create_interpolate_v11_model(const bool with_axes,
+                                                        const ov::opset11::Interpolate::ShapeCalcMode shape_calc_mode) {
     auto attributes = ov::opset11::Interpolate::InterpolateAttrs{};
     attributes.shape_calculation_mode = shape_calc_mode;
     attributes.pads_begin = {0, 0};
@@ -57,8 +57,8 @@ std::shared_ptr<ov::Model> create_v11_model(const bool with_axes,
     return std::make_shared<ov::Model>(interpolate->outputs(), model_params);
 }
 
-std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
-                                           const ov::opset4::Interpolate::ShapeCalcMode shape_calc_mode) {
+std::shared_ptr<ov::Model> create_interpolate_v4_model(const bool with_axes,
+                                                       const ov::opset4::Interpolate::ShapeCalcMode shape_calc_mode) {
     auto attributes = ov::opset4::Interpolate::InterpolateAttrs{};
     attributes.shape_calculation_mode = shape_calc_mode;
     attributes.pads_begin = {0, 0};
@@ -116,32 +116,32 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_scales) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-    model = create_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
-    model_ref = create_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
+    model = create_interpolate_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
+    model_ref = create_interpolate_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_sizes) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-    model = create_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
-    model_ref = create_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
+    model = create_interpolate_v11_model(WITH_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
+    model_ref = create_interpolate_v4_model(WITH_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_scales_no_axes) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-    model = create_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
-    model_ref = create_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
+    model = create_interpolate_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SCALES);
+    model_ref = create_interpolate_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SCALES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_sizes_no_axes) {
     manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
-    model = create_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
-    model_ref = create_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
+    model = create_interpolate_v11_model(WITHOUT_AXES, ov::opset11::Interpolate::ShapeCalcMode::SIZES);
+    model_ref = create_interpolate_v4_model(WITHOUT_AXES, ov::opset4::Interpolate::ShapeCalcMode::SIZES);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

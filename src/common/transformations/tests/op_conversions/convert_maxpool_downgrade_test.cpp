@@ -28,8 +28,8 @@ namespace v1 = ov::op::v1;
 namespace v8 = ov::op::v8;
 namespace {
 
-std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_type,
-                                            const ov::PartialShape input_shape) {
+std::shared_ptr<ov::Model> create_maxpool_v14_model(const ov::op::RoundingType rounding_type,
+                                                    const ov::PartialShape input_shape) {
     const auto input = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
     const ov::Strides strides{2, 2}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
@@ -50,7 +50,7 @@ std::shared_ptr<ov::Model> create_v14_model(const ov::op::RoundingType rounding_
     return std::make_shared<ov::Model>(max_pool_v14->outputs(), ov::ParameterVector{input});
 }
 
-std::shared_ptr<ov::Model> create_v8_model(const ov::op::RoundingType rounding_type) {
+std::shared_ptr<ov::Model> create_maxpool_v8_model(const ov::op::RoundingType rounding_type) {
     const auto input = std::make_shared<v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 64, 64});
     const ov::Strides strides{2, 2}, dilations{1, 1};
     const ov::Shape pads_begin{1, 1}, pads_end{1, 1}, kernel{2, 2};
@@ -177,7 +177,7 @@ TEST_F(TransformationTestsF, ConvertMaxPool8ToMaxPool1) {
 }
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil) {
-    model = create_v14_model(ov::op::RoundingType::CEIL_TORCH, ov::PartialShape{1, 3, 64, 64});
+    model = create_maxpool_v14_model(ov::op::RoundingType::CEIL_TORCH, ov::PartialShape{1, 3, 64, 64});
     model_ref = create_ceil_torch_workaround_model(ov::op::RoundingType::CEIL);
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
     comparator.disable(FunctionsComparator::CmpValues::ACCURACY);
@@ -185,7 +185,7 @@ TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil) {
 }
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil_dynamic) {
-    model = create_v14_model(
+    model = create_maxpool_v14_model(
         ov::op::RoundingType::CEIL_TORCH,
         ov::PartialShape{ov::Dimension::dynamic(), 3, ov::Dimension::dynamic(), ov::Dimension::dynamic()});
     model_ref = create_ceil_torch_workaround_model(ov::op::RoundingType::CEIL, true);
@@ -196,21 +196,21 @@ TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_torch_to_ceil_dynam
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_ceil_to_ceil) {
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
-    model = create_v14_model(ov::op::RoundingType::CEIL, ov::PartialShape{1, 3, 64, 64});
-    model_ref = create_v8_model(ov::op::RoundingType::CEIL);
+    model = create_maxpool_v14_model(ov::op::RoundingType::CEIL, ov::PartialShape{1, 3, 64, 64});
+    model_ref = create_maxpool_v8_model(ov::op::RoundingType::CEIL);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_floor_to_floor) {
-    model = create_v14_model(ov::op::RoundingType::FLOOR, ov::PartialShape{1, 3, 64, 64});
+    model = create_maxpool_v14_model(ov::op::RoundingType::FLOOR, ov::PartialShape{1, 3, 64, 64});
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
-    model_ref = create_v8_model(ov::op::RoundingType::FLOOR);
+    model_ref = create_maxpool_v8_model(ov::op::RoundingType::FLOOR);
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertMaxPool14ToMaxPool8_incorrect_version) {
     manager.register_pass<ov::pass::ConvertMaxPool14ToMaxPool8>();
-    model = create_v8_model(ov::op::RoundingType::CEIL);
+    model = create_maxpool_v8_model(ov::op::RoundingType::CEIL);
 }

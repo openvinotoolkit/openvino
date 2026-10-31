@@ -12,7 +12,7 @@
 namespace cldnn {
 namespace ocl {
 namespace {
-kernel_selector::scatter_update_axis convert_axis(int64_t axis, size_t rank) {
+kernel_selector::scatter_update_axis convert_scatter_update_axis(int64_t axis, size_t rank) {
     if (axis < 0) {
         axis += rank;
     }
@@ -63,7 +63,7 @@ public:
         const auto& primitive = impl_param.typed_desc<scatter_update>();
         auto params = get_default_params<kernel_selector::scatter_update_params>(impl_param, is_shape_agnostic);
 
-        params.axis = convert_axis(primitive->axis, impl_param.get_input_layout(0).get_rank());
+        params.axis = convert_scatter_update_axis(primitive->axis, impl_param.get_input_layout(0).get_rank());
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(2)));

@@ -51,7 +51,6 @@
 #include "to_string_utils.h"
 
 namespace {
-using namespace cldnn;
 
 kernel_selector::dev_type get_device_type(cldnn::device_type type) {
     switch (type) {

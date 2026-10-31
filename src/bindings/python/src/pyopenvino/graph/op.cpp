@@ -17,7 +17,7 @@
 
 namespace py = pybind11;
 
-PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+#include "pyopenvino/utils/opaque_tensor_vector.hpp"
 
 void PyOp::validate_and_infer_types() {
     PYBIND11_OVERRIDE(void, ov::op::Op, validate_and_infer_types);

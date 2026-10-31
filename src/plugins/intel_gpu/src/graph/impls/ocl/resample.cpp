@@ -97,7 +97,7 @@ inline std::vector<int32_t> convert_pads(const std::vector<size_t>& pad, size_t 
     return new_pad;
 }
 
-inline kernel_selector::interpolate_axis convert_axis(int64_t axis, size_t rank) {
+inline kernel_selector::interpolate_axis convert_resample_axis(int64_t axis, size_t rank) {
     switch (axis) {
         case 0:
             return kernel_selector::interpolate_axis::BATCH;
@@ -172,7 +172,7 @@ struct resample_impl : typed_primitive_impl_ocl<resample> {
         std::vector<kernel_selector::InterpolateAxis> axes;
         std::transform(primitive->axes.begin(), primitive->axes.end(),
                        std::back_inserter(axes),
-                       [dimsNum](std::int64_t axis){ return convert_axis(axis, dimsNum); });
+                       [dimsNum](std::int64_t axis){ return convert_resample_axis(axis, dimsNum); });
         params.axes = std::move(axes);
 
         return params;

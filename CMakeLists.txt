@@ -189,7 +189,30 @@ if(ENABLE_TESTS)
     include(cmake/test_model_zoo.cmake)
 endif()
 
+# Unity (jumbo) builds (-DCMAKE_UNITY_BUILD=ON) reduce repeated header parsing. Third-party code
+# is batched more aggressively than OpenVINO sources, which are kept at a smaller batch size.
+# Validated on Linux x86_64 with GCC; exceptions are listed in cmake/unity_build.cmake.
+if(CMAKE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 24)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # In a unity source the merged .cpp files are not the main file, so GCC reports
+        # every anonymous-namespace type used as a base or member of another type.
+        add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-subobject-linkage>)
+        # Merged sources give GCC more inlining context, and its flow-sensitive diagnostics then
+        # report false positives in code that is clean when compiled file by file. Keep them as
+        # warnings, but do not fail -Werror builds on them.
+        add_compile_options(-Wno-error=free-nonheap-object
+                            -Wno-error=maybe-uninitialized
+                            -Wno-error=array-bounds
+                            -Wno-error=stringop-overflow
+                            -Wno-error=stringop-overread)
+    endif()
+endif()
 include(thirdparty/dependencies.cmake)
+
+if(CMAKE_UNITY_BUILD)
+    set(CMAKE_UNITY_BUILD_BATCH_SIZE 4)
+endif()
 add_subdirectory(src)
 
 if(ENABLE_SAMPLES OR ENABLE_TESTS)
@@ -211,6 +234,9 @@ if(ENABLE_TESTS)
     # layers and other more high-level / e2e tests
     add_subdirectory(tests)
 endif()
+
+# unity build exceptions; must be included after all targets are created
+include(cmake/unity_build.cmake)
 
 #
 # CPack

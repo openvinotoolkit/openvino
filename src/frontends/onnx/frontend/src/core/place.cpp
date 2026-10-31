@@ -25,7 +25,7 @@ bool Place::is_output() const {
     return std::find_if(model_outs.begin(), model_outs.end(), cmp) != model_outs.end();
 }
 
-OpPlace::OpPlace(const ov::frontend::InputModel& input_model, std::shared_ptr<DecoderBase> op_decoder)
+OpPlace::OpPlace(const ov::frontend::InputModel& input_model, std::shared_ptr<ov::frontend::DecoderBase> op_decoder)
     : Place(input_model, {op_decoder->get_op_name()}),
       m_op_decoder(op_decoder),
       m_back_edge_set(false) {}
@@ -52,7 +52,7 @@ const std::map<std::string, std::vector<std::shared_ptr<InPortPlace>>>& OpPlace:
     return m_input_ports;
 }
 
-std::shared_ptr<DecoderBase> OpPlace::get_decoder() const {
+std::shared_ptr<ov::frontend::DecoderBase> OpPlace::get_decoder() const {
     return m_op_decoder;
 }
 

@@ -45,6 +45,10 @@ extern bool register_translator(const std::string name,
 #define OPSET_SINCE(_since)         VersionRange::since(_since)
 #define OPSET_IN(_in)               VersionRange::in(_in)
 #define ONNX_OP_M(name, range, ...) register_translator(name, range, __VA_ARGS__)
-#define ONNX_OP(name, range, ...)   static bool onnx_op_reg = ONNX_OP_M(name, range, __VA_ARGS__)
+// A unique variable name per registration keeps translation units mergeable (unity builds).
+#define ONNX_OP_REG_CAT_(a, b) a##b
+#define ONNX_OP_REG_CAT(a, b)  ONNX_OP_REG_CAT_(a, b)
+#define ONNX_OP(name, range, ...) \
+    static bool ONNX_OP_REG_CAT(onnx_op_reg_, __COUNTER__) = ONNX_OP_M(name, range, __VA_ARGS__)
 
 }  // namespace ov::frontend::onnx
