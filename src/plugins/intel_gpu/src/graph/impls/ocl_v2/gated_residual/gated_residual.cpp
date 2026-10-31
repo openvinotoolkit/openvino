@@ -5,6 +5,8 @@
 #include "gated_residual.hpp"
 
 #include <algorithm>
+#include <cstdlib>
+#include <limits>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -121,29 +123,53 @@ struct GrGemmTiling {
     size_t lws_y;   // token tiles per work-group (ksplit == 1 only)
 };
 
-GrGemmTiling gr_down_tiling(const gated_residual& desc, const cldnn::device_info& info, GrTier tier) {
+GrGemmTiling gr_down_tiling(const gated_residual& desc, const cldnn::device_info& info, GrTier tier, bool compressed = false) {
     const size_t cd_steps = desc.hc_count * desc.hidden_size / gr_dpas_k_step;
+    // Dequantizing makes every K step longer, so compressed weights want more subgroups splitting K.
+    const size_t boost = compressed ? 2 : 1;
     switch (tier) {
     case GrTier::decode:
-        return {16, largest_divisor_up_to(cd_steps, 8), 1};
+        return {16, largest_divisor_up_to(cd_steps, 8 * boost), 1};
     case GrTier::mid:
-        return {32, largest_divisor_up_to(cd_steps, info.execution_units_count >= 128 ? 4 : 2), 1};
+        return {32, largest_divisor_up_to(cd_steps, (info.execution_units_count >= 128 ? 4 : 2) * boost), 1};
     default:
         return {32, 1, 1};
     }
 }
 
-GrGemmTiling gr_up_tiling(const gated_residual& desc, const cldnn::device_info& info, GrTier tier) {
+GrGemmTiling gr_up_tiling(const gated_residual& desc, const cldnn::device_info& info, GrTier tier, bool compressed = false) {
     if (tier != GrTier::decode) {
         return {16, 1, 8};
     }
-    // Narrow D leaves few column tiles; split L until there are ~2 subgroups per EU.
+    // Narrow D leaves few column tiles; split L until there are ~2 subgroups per EU. Compressed weights move fewer bytes per
+    // K step and split further, down to two K32 steps per subgroup (PTL decode UP_PROJ: u4 1.3-1.6x, u8 1.1-1.2x faster).
     const size_t col_tiles = desc.hidden_size / gr_dpas_n;
-    const size_t cap = std::max<size_t>(1, 2 * static_cast<size_t>(info.execution_units_count) / col_tiles);
-    return {8, largest_divisor_up_to(desc.lowrank / gr_dpas_k_step, cap), 1};
+    const size_t eu = info.execution_units_count;
+    const size_t cap = compressed ? std::min((8 * eu + col_tiles - 1) / col_tiles, desc.lowrank / (2 * gr_dpas_k_step)) : 2 * eu / col_tiles;
+    return {8, largest_divisor_up_to(desc.lowrank / gr_dpas_k_step, std::max<size_t>(1, cap)), 1};
 }
 
-const char* gr_tier_suffix(GrTier tier, bool down) {
+const char* gr_tier_suffix(GrTier tier, bool down, bool q = false, bool pd = false) {
+    if (pd) {
+        switch (tier) {
+        case GrTier::decode:
+            return down ? "down_pd_decode" : "up_pd_decode";
+        case GrTier::mid:
+            return "down_pd_mid";
+        default:
+            return down ? "down_pd" : "up_pd";
+        }
+    }
+    if (q) {
+        switch (tier) {
+        case GrTier::decode:
+            return down ? "down_q_decode" : "up_q_decode";
+        case GrTier::mid:
+            return "down_q_mid";
+        default:
+            return down ? "down_q" : "up_q";
+        }
+    }
     switch (tier) {
     case GrTier::decode:
         return down ? "down_decode" : "up_decode";
@@ -178,6 +204,83 @@ bool can_use_dpas_gr_read(const gated_residual& desc, const cldnn::device_info& 
     }
     // the write gate is one N16 column tile stored in half pairs
     return desc.hc_count != 0 && desc.hc_count % 2 == 0 && desc.hc_count <= gr_dpas_n;
+}
+
+/// Weight storage of the READ / FINAL_MIX kernels (GR_W_TYPE): f16, or the asymmetric u4 (group 32) / u8 (per-channel) forms
+/// that arrive as the 8-input compressed op (W_down, W_up, scale_down, scale_up, zp_down, zp_up).
+enum class GrWType : int { f16 = 0, u4 = 1, u8 = 2 };
+
+GrWType gr_weight_type(const RuntimeParams& params) {
+    const auto dt = params.get_input_layout(2).data_type;
+    return dt == ov::element::u4 ? GrWType::u4 : (dt == ov::element::u8 ? GrWType::u8 : GrWType::f16);
+}
+
+size_t gr_weight_bits(GrWType t) {
+    return t == GrWType::u4 ? 4 : 8;
+}
+
+/// K values one lane loads per step from its weight row (K32 slices are dequantized one by one out of the raw registers).
+/// Wider loads fill whole cache lines (u4 reads only 16 B per K32 otherwise) but cost registers, so `max_bytes` is chosen per
+/// kernel; the width must divide the K range a subgroup walks and keep every load inside one aligned block of the row.
+size_t gr_wq_kch(GrWType t, size_t segment, size_t row_k, size_t max_bytes) {
+    const size_t bits = gr_weight_bits(t);
+    for (size_t bytes : {size_t{64}, size_t{32}, size_t{16}}) {
+        const size_t kch = bytes * 8 / bits;
+        if (bytes <= max_bytes && kch >= 32 && segment % kch == 0 && row_k % kch == 0) {
+            return kch;
+        }
+    }
+    return 32;
+}
+
+constexpr size_t gr_wq_down_load_bytes = 32;  // DOWN: per-lane weight bytes per step (32 measured faster than 64 on PTL)
+constexpr size_t gr_wq_up_load_bytes = 64;    // UP: a lane loads up to one cache line of its row per step
+constexpr size_t gr_wq_dpas_load_bytes = 32;  // gr_read_dpas is register bound
+
+/// Compressed READ / FINAL_MIX above the decode regime: `st` token subgroups (and `ks` K subgroups) of one work-group dequantize
+/// every weight slice once into SLM and all of them run their dpas on it, instead of each token subgroup dequantizing the
+/// weights again. The decode tier keeps the per-subgroup dequantization (one or two token tiles, nothing to share).
+struct GrQShare {
+    size_t st;  // token subgroups per work-group
+    size_t ks;  // K subgroups per work-group
+};
+
+GrQShare gr_down_q_share(const gated_residual& desc, GrTier tier) {
+    const size_t cd_steps = desc.hc_count * desc.hidden_size / gr_dpas_k_step;
+    return tier == GrTier::mid ? GrQShare{4, largest_divisor_up_to(cd_steps, 4)} : GrQShare{8, 1};
+}
+
+constexpr size_t gr_up_q_st = 4;
+
+/// The 3-dispatch pipeline needs rows * C*D * 2 bytes of Rbar scratch; beyond this the compressed single kernel (which keeps
+/// Rbar in SLM, but dequantizes per token tile) is used instead.
+size_t gr_q_scratch_limit() {
+    static const size_t bytes = [] {
+        const char* env = std::getenv("OV_GPU_GR_Q_SCRATCH_LIMIT_MB");  // lets tests reach the single-kernel path with few rows
+        return (env != nullptr ? static_cast<size_t>(std::strtoull(env, nullptr, 10)) : size_t{256}) << 20;
+    }();
+    return bytes;
+}
+
+bool use_single_read(const gated_residual& desc, const cldnn::device_info& info, size_t rows, bool compressed);
+
+/// Compressed READ above this many rows dequantizes both matrices into f16 scratch buffers with a separate kernel and then runs
+/// the f16 kernels; below it the compute kernels dequantize on the fly. OV_GPU_GR_PD_MIN_ROWS overrides the threshold.
+size_t gr_pd_min_rows(const cldnn::device_info& info) {
+    static const long long env = [] {
+        const char* e = std::getenv("OV_GPU_GR_PD_MIN_ROWS");
+        return e != nullptr ? std::strtoll(e, nullptr, 10) : -1LL;
+    }();
+    // Measured on PTL (B390, 96 EU): the dequantizing GEMM kernels win up to ~4 rows per EU, the separate dequantization plus
+    // the f16 single kernel (no Rbar / T scratch traffic, weights hot in cache) wins above ~5 rows per EU.
+    return env >= 0 ? static_cast<size_t>(env) : 5 * static_cast<size_t>(info.execution_units_count);
+}
+
+/// GR_<prefix>_KCH / _NRAW / _RB of one weight matrix [N, K].
+void add_wq_matrix_constants(JitConstants& jit, const std::string& prefix, GrWType t, size_t kch, size_t row_k) {
+    jit.make(prefix + "_KCH", kch);
+    jit.make(prefix + "_NRAW", kch * gr_weight_bits(t) / 32);
+    jit.make(prefix + "_RB", row_k * gr_weight_bits(t) / 8);
 }
 
 /// Float as an OpenCL C literal with full single precision (an unsuffixed literal would be a double).
@@ -230,12 +333,23 @@ protected:
         jit.make("GR_NORM_GAIN_PLUS_ONE", desc.norm_gain_plus_one ? 1 : 0);
     }
 
-    [[nodiscard]] static Arguments read_arguments(const gated_residual& desc) {
+    [[nodiscard]] static Arguments read_arguments(const gated_residual& desc, GrWType wtype, bool pd = false) {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // residual
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // norm weight
-        args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // W_down
-        args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // W_up
+        if (pd) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<uint32_t>(GatedResidualInternalBufIdx::WD_F16)});
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<uint32_t>(GatedResidualInternalBufIdx::WU_F16)});
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // W_down
+            args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // W_up
+        }
+        if (wtype != GrWType::f16) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // scale_down [G, L]
+            args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // scale_up [G, C*D]
+            args.push_back({ArgumentDescriptor::Types::INPUT, 6});  // zp_down
+            args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // zp_up
+        }
         if (desc.produce_write_gate) {
             args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // W_inject
         }
@@ -274,7 +388,7 @@ protected:
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        return read_arguments(*params.typed_desc<gated_residual>());
+        return read_arguments(*params.typed_desc<gated_residual>(), GrWType::f16);
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -303,7 +417,10 @@ private:
 // ---------------------------------------------------------------------------
 class GrReadDpasGenerator : public GrGenerator {
 public:
-    GrReadDpasGenerator() : GrGenerator("gr_read_dpas", "") {}
+    explicit GrReadDpasGenerator(bool q = false, bool pd = false)
+        : GrGenerator(q ? "gr_read_dpas_q" : "gr_read_dpas", q ? "q" : (pd ? "pd" : "")),
+          m_q(q),
+          m_pd(pd) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -322,12 +439,17 @@ protected:
         const size_t slm_limit = std::min<size_t>(params.get_device_info().max_local_mem_size, 64 * 1024);
         const int slm_gain = slm_bytes + cd * 4 <= slm_limit ? 2 : (slm_bytes + (cd + 48) * 2 <= slm_limit ? 1 : 0);
         jit.make("GR_RD_SLM_GAIN", slm_gain);
-        jit.make("GR_RD_SLM_GAIN", slm_gain);
+        if (m_q) {
+            const auto wtype = gr_weight_type(params);
+            jit.make("GR_W_TYPE", static_cast<int>(wtype));
+            add_wq_matrix_constants(jit, "GR_WD", wtype, gr_wq_kch(wtype, desc->hidden_size, cd, gr_wq_dpas_load_bytes), cd);
+            add_wq_matrix_constants(jit, "GR_WU", wtype, gr_wq_kch(wtype, desc->lowrank, desc->lowrank, gr_wq_dpas_load_bytes), desc->lowrank);
+        }
         return jit;
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        return read_arguments(*params.typed_desc<gated_residual>());
+        return read_arguments(*params.typed_desc<gated_residual>(), m_q ? gr_weight_type(params) : GrWType::f16, m_pd);
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -343,6 +465,10 @@ protected:
             push_num_rows(kd, num_rows);
         }};
     }
+
+private:
+    bool m_q;
+    bool m_pd;
 };
 
 // ---------------------------------------------------------------------------
@@ -438,19 +564,35 @@ protected:
 
 class GrDownProjGenerator : public GrGenerator {
 public:
-    explicit GrDownProjGenerator(GrTier tier) : GrGenerator("gr_read_pipeline", gr_tier_suffix(tier, true)), m_tier(tier) {}
+    explicit GrDownProjGenerator(GrTier tier, bool q = false, bool pd = false)
+        : GrGenerator(q ? "gr_read_pipeline_q" : "gr_read_pipeline", gr_tier_suffix(tier, true, q, pd)),
+          m_tier(tier),
+          m_q(q),
+          m_pd(pd) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = GrGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<gated_residual>();
-        const auto tiling = gr_down_tiling(*desc, params.get_device_info(), m_tier);
+        const auto wtype = m_q ? gr_weight_type(params) : GrWType::f16;
+        const bool share = m_q && m_tier != GrTier::decode;
+        const auto qs = gr_down_q_share(*desc, m_tier);
+        const auto tiling = share ? GrGemmTiling{32, qs.ks, 1} : gr_down_tiling(*desc, params.get_device_info(), m_tier, wtype != GrWType::f16);
         jit.make("GR_PIPELINE_STAGE", 1);
         jit.make("GR_LOWRANK", desc->lowrank);
         jit.make("GR_DOWN_TM", tiling.tm);
         jit.make("GR_DOWN_TN", gr_down_tn);
         jit.make("GR_DOWN_KSPLIT", tiling.ksplit);
         jit.make("GR_PRODUCE_WRITE_GATE", desc->produce_write_gate ? 1 : 0);
+        if (m_q) {
+            const size_t cd = desc->hc_count * desc->hidden_size;
+            jit.make("GR_W_TYPE", static_cast<int>(wtype));
+            jit.make("GR_Q_SHARE", share ? 1 : 0);
+            if (share) {
+                jit.make("GR_Q_ST", qs.st);
+            }
+            add_wq_matrix_constants(jit, "GR_WD", wtype, share ? 32 : gr_wq_kch(wtype, cd / tiling.ksplit, cd, gr_wq_down_load_bytes), cd);
+        }
         return jit;
     }
 
@@ -458,7 +600,15 @@ protected:
         const auto desc = params.typed_desc<gated_residual>();
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::RBAR});
-        args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // W_down
+        if (m_pd) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<uint32_t>(GatedResidualInternalBufIdx::WD_F16)});
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // W_down
+        }
+        if (m_q) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // scale_down
+            args.push_back({ArgumentDescriptor::Types::INPUT, 6});  // zp_down
+        }
         if (desc->produce_write_gate) {
             args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // W_inject
         }
@@ -471,48 +621,85 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[tier = m_tier](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+        return DispatchDataFunc{[tier = m_tier, q = m_q](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             if (params.is_dynamic()) {
                 return;
             }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = rows_of(params, *desc);
-            const auto tiling = gr_down_tiling(*desc, params.get_device_info(), tier);
+            const bool share = q && tier != GrTier::decode;
+            const auto qs = gr_down_q_share(*desc, tier);
+            const auto tiling =
+                share ? GrGemmTiling{32, qs.ks, 1} : gr_down_tiling(*desc, params.get_device_info(), tier, q && gr_weight_type(params) != GrWType::f16);
             const size_t col_tiles = desc->lowrank / gr_down_tn + (desc->produce_write_gate ? 1 : 0);
             const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.tm - 1) / tiling.tm);
 
             auto& wgs = kd.params.workGroups;
-            // One work-group per (column tile, token tile); KSPLIT subgroups split the K reduction.
-            wgs.global = {col_tiles * tiling.ksplit * gr_sg, row_tiles, 1};
-            wgs.local = {tiling.ksplit * gr_sg, 1, 1};
+            if (share) {
+                // one work-group = st token subgroups x ks K subgroups on one column tile
+                wgs.global = {col_tiles * qs.st * qs.ks * gr_sg, (row_tiles + qs.st - 1) / qs.st, 1};
+                wgs.local = {qs.st * qs.ks * gr_sg, 1, 1};
+            } else {
+                // One work-group per (column tile, token tile); KSPLIT subgroups split the K reduction.
+                wgs.global = {col_tiles * tiling.ksplit * gr_sg, row_tiles, 1};
+                wgs.local = {tiling.ksplit * gr_sg, 1, 1};
+            }
             push_num_rows(kd, num_rows);
         }};
     }
 
 private:
     GrTier m_tier;
+    bool m_q;
+    bool m_pd;
 };
 
 class GrUpProjGenerator : public GrGenerator {
 public:
-    explicit GrUpProjGenerator(GrTier tier) : GrGenerator("gr_read_pipeline", gr_tier_suffix(tier, false)), m_tier(tier) {}
+    explicit GrUpProjGenerator(GrTier tier, bool q = false, bool pd = false)
+        : GrGenerator(q ? "gr_read_pipeline_q" : "gr_read_pipeline", gr_tier_suffix(tier, false, q, pd)),
+          m_tier(tier),
+          m_q(q),
+          m_pd(pd) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = GrGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<gated_residual>();
-        const auto tiling = gr_up_tiling(*desc, params.get_device_info(), m_tier);
+        const bool share = m_q && m_tier != GrTier::decode;
+        const auto tiling = share ? GrGemmTiling{16, 1, 1} : gr_up_tiling(*desc, params.get_device_info(), m_tier, m_q);
         jit.make("GR_PIPELINE_STAGE", 2);
         jit.make("GR_LOWRANK", desc->lowrank);
         jit.make("GR_UP_TM", tiling.tm);
         jit.make("GR_UP_KSPLIT", tiling.ksplit);
+        if (m_q) {
+            const auto wtype = gr_weight_type(params);
+            jit.make("GR_W_TYPE", static_cast<int>(wtype));
+            jit.make("GR_Q_SHARE", share ? 1 : 0);
+            if (share) {
+                jit.make("GR_Q_ST", gr_up_q_st);
+            }
+            add_wq_matrix_constants(jit,
+                                    "GR_WU",
+                                    wtype,
+                                    share ? 32 : gr_wq_kch(wtype, desc->lowrank / tiling.ksplit, desc->lowrank, gr_wq_up_load_bytes),
+                                    desc->lowrank);
+        }
         return jit;
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::T_SCRATCH});
-        args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // W_up
+        if (m_pd) {
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<uint32_t>(GatedResidualInternalBufIdx::WU_F16)});
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // W_up
+        }
+        if (m_q) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // scale_up
+            args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // zp_up
+        }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::RBAR});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // mixed
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // num_rows
@@ -520,18 +707,22 @@ protected:
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[tier = m_tier](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+        return DispatchDataFunc{[tier = m_tier, q = m_q](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
             if (params.is_dynamic()) {
                 return;
             }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = rows_of(params, *desc);
-            const auto tiling = gr_up_tiling(*desc, params.get_device_info(), tier);
+            const bool share = q && tier != GrTier::decode;
+            const auto tiling = share ? GrGemmTiling{16, 1, 1} : gr_up_tiling(*desc, params.get_device_info(), tier, q);
             const size_t col_tiles = desc->hidden_size / gr_dpas_n;
             const size_t row_tiles = std::max<size_t>(1, (num_rows + tiling.tm - 1) / tiling.tm);
 
             auto& wgs = kd.params.workGroups;
-            if (tiling.ksplit > 1) {
+            if (share) {
+                wgs.global = {col_tiles * gr_up_q_st * gr_sg, (row_tiles + gr_up_q_st - 1) / gr_up_q_st, 1};
+                wgs.local = {gr_up_q_st * gr_sg, 1, 1};
+            } else if (tiling.ksplit > 1) {
                 wgs.global = {col_tiles * tiling.ksplit * gr_sg, row_tiles, 1};
                 wgs.local = {tiling.ksplit * gr_sg, 1, 1};
             } else {
@@ -546,7 +737,73 @@ protected:
 
 private:
     GrTier m_tier;
+    bool m_q;
+    bool m_pd;
 };
+
+// ---------------------------------------------------------------------------
+// Weight dequantization into an f16 scratch matrix (experiment, see gr_pd_min_rows)
+// ---------------------------------------------------------------------------
+class GrDequantGenerator : public GrGenerator {
+public:
+    explicit GrDequantGenerator(bool down) : GrGenerator("gr_dequant_weights", down ? "down" : "up", /*large_grf=*/false), m_down(down) {}
+
+protected:
+    static size_t rows_n(const gated_residual& d, bool down) {
+        return down ? d.lowrank : d.hc_count * d.hidden_size;
+    }
+    static size_t cols_k(const gated_residual& d, bool down) {
+        return down ? d.hc_count * d.hidden_size : d.lowrank;
+    }
+
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = GrGenerator::get_jit_constants(params);
+        const auto desc = params.typed_desc<gated_residual>();
+        const auto wtype = gr_weight_type(params);
+        const size_t k = cols_k(*desc, m_down);
+        jit.make("GR_W_TYPE", static_cast<int>(wtype));
+        jit.make("GR_DQ_N", rows_n(*desc, m_down));
+        jit.make("GR_DQ_K", k);
+        add_wq_matrix_constants(jit, "GR_DQ", wtype, gr_wq_kch(wtype, k, k, 64), k);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+        Arguments args;
+        args.push_back({ArgumentDescriptor::Types::INPUT, m_down ? 2u : 3u});  // weights
+        args.push_back({ArgumentDescriptor::Types::INPUT, m_down ? 4u : 5u});  // scale
+        args.push_back({ArgumentDescriptor::Types::INPUT, m_down ? 6u : 7u});  // zp
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER,
+                        static_cast<uint32_t>(m_down ? GatedResidualInternalBufIdx::WD_F16 : GatedResidualInternalBufIdx::WU_F16)});
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[down = m_down](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
+            const auto desc = params.typed_desc<gated_residual>();
+            const size_t n = rows_n(*desc, down);
+            const size_t k = cols_k(*desc, down);
+            const size_t kch = gr_wq_kch(gr_weight_type(params), k, k, 64);
+            auto& wgs = kd.params.workGroups;
+            wgs.global = {n / 16 * gr_sg, k / kch, 1};
+            wgs.local = {gr_sg, 1, 1};
+        }};
+    }
+
+private:
+    bool m_down;
+};
+
+bool use_predequant(GrWType t, size_t num_rows, const cldnn::device_info& info) {
+    return t != GrWType::f16 && num_rows > gr_pd_min_rows(info);
+}
+
+bool use_single_read(const gated_residual& desc, const cldnn::device_info& info, size_t rows, bool compressed) {
+    if (!compressed) {
+        return use_single_dpas_read(desc, info, rows);
+    }
+    return desc.hidden_size % 32 == 0 && rows * desc.hc_count * desc.hidden_size * 2 > gr_q_scratch_limit();
+}
 
 class GatedResidualImpl : public PrimitiveImplOCL {
 public:
@@ -562,6 +819,22 @@ public:
     Stage::Ptr gr_up_proj = make_stage<GrUpProjGenerator>(GrTier::wide);
     Stage::Ptr gr_up_proj_decode = make_stage<GrUpProjGenerator>(GrTier::decode);
     Stage::Ptr gr_read_dpas = make_stage<GrReadDpasGenerator>();
+    // compressed weights (separate kernels, see gr_read_pipeline_q.cl / gr_read_dpas_q.cl)
+    Stage::Ptr gr_down_proj_q = make_stage<GrDownProjGenerator>(GrTier::wide, true);
+    Stage::Ptr gr_down_proj_q_mid = make_stage<GrDownProjGenerator>(GrTier::mid, true);
+    Stage::Ptr gr_down_proj_q_decode = make_stage<GrDownProjGenerator>(GrTier::decode, true);
+    Stage::Ptr gr_up_proj_q = make_stage<GrUpProjGenerator>(GrTier::wide, true);
+    Stage::Ptr gr_up_proj_q_decode = make_stage<GrUpProjGenerator>(GrTier::decode, true);
+    Stage::Ptr gr_read_dpas_q = make_stage<GrReadDpasGenerator>(true);
+    // compressed weights dequantized into f16 scratch by gr_dq_*, then the f16 kernels on the scratch (OV_GPU_GR_PD_MIN_ROWS)
+    Stage::Ptr gr_dq_down = make_stage<GrDequantGenerator>(true);
+    Stage::Ptr gr_dq_up = make_stage<GrDequantGenerator>(false);
+    Stage::Ptr gr_down_proj_pd = make_stage<GrDownProjGenerator>(GrTier::wide, false, true);
+    Stage::Ptr gr_down_proj_pd_mid = make_stage<GrDownProjGenerator>(GrTier::mid, false, true);
+    Stage::Ptr gr_down_proj_pd_decode = make_stage<GrDownProjGenerator>(GrTier::decode, false, true);
+    Stage::Ptr gr_up_proj_pd = make_stage<GrUpProjGenerator>(GrTier::wide, false, true);
+    Stage::Ptr gr_up_proj_pd_decode = make_stage<GrUpProjGenerator>(GrTier::decode, false, true);
+    Stage::Ptr gr_read_dpas_pd = make_stage<GrReadDpasGenerator>(false, true);
 
     GatedResidualImpl() : PrimitiveImplOCL(GatedResidualImplementationManager::get_type_info_static()) {}
     GatedResidualImpl(const program_node& /*node*/, const RuntimeParams& params) : GatedResidualImpl() {
@@ -573,21 +846,42 @@ public:
         } else if (can_use_dpas_gr_read(*desc, info)) {
             // Producer/consumer order through the RBAR/T scratch buffers is enforced by execute(); static shapes only build
             // what their row count needs.
+            const auto wtype = gr_weight_type(params);
+            const bool q = wtype != GrWType::f16;
             if (params.is_dynamic()) {
-                for (auto* stage : {&gr_rbar, &gr_down_proj_decode, &gr_down_proj_mid, &gr_down_proj, &gr_up_proj_decode, &gr_up_proj}) {
+                add_stage(gr_rbar, params);
+                for (auto* stage : {&down_stage(GrTier::decode, q),
+                                    &down_stage(GrTier::mid, q),
+                                    &down_stage(GrTier::wide, q),
+                                    &up_stage(GrTier::decode, q),
+                                    &up_stage(GrTier::wide, q)}) {
                     add_stage(*stage, params);
                 }
                 if (desc->hidden_size % 32 == 0) {
-                    add_stage(gr_read_dpas, params);
+                    add_stage(q ? gr_read_dpas_q : gr_read_dpas, params);
+                }
+                if (q) {
+                    for (auto* stage :
+                         {&gr_dq_down, &gr_dq_up, &gr_down_proj_pd_decode, &gr_down_proj_pd_mid, &gr_down_proj_pd, &gr_up_proj_pd_decode, &gr_up_proj_pd}) {
+                        add_stage(*stage, params);
+                    }
+                    if (desc->hidden_size % 32 == 0) {
+                        add_stage(gr_read_dpas_pd, params);
+                    }
                 }
             } else {
                 const size_t rows = rows_of(params, *desc);
-                if (use_single_dpas_read(*desc, info, rows)) {
-                    add_stage(gr_read_dpas, params);
+                const bool pd = use_predequant(wtype, rows, info);
+                if (pd) {
+                    add_stage(gr_dq_down, params);
+                    add_stage(gr_dq_up, params);
+                }
+                if (use_single_read(*desc, info, rows, q && !pd)) {
+                    add_stage(pd ? gr_read_dpas_pd : (q ? gr_read_dpas_q : gr_read_dpas), params);
                 } else {
                     add_stage(gr_rbar, params);
-                    add_stage(down_stage(gr_down_tier(rows, info)), params);
-                    add_stage(up_stage(gr_up_tier(rows)), params);
+                    add_stage(down_stage(gr_down_tier(rows, info), q, pd), params);
+                    add_stage(up_stage(gr_up_tier(rows), q, pd), params);
                 }
             }
         } else if (params.is_dynamic()) {
@@ -598,11 +892,23 @@ public:
         }
     }
 
-    Stage::Ptr& down_stage(GrTier tier) {
+    Stage::Ptr& down_stage(GrTier tier, bool q = false, bool pd = false) {
+        if (pd) {
+            return tier == GrTier::decode ? gr_down_proj_pd_decode : tier == GrTier::mid ? gr_down_proj_pd_mid : gr_down_proj_pd;
+        }
+        if (q) {
+            return tier == GrTier::decode ? gr_down_proj_q_decode : tier == GrTier::mid ? gr_down_proj_q_mid : gr_down_proj_q;
+        }
         return tier == GrTier::decode ? gr_down_proj_decode : tier == GrTier::mid ? gr_down_proj_mid : gr_down_proj;
     }
 
-    Stage::Ptr& up_stage(GrTier tier) {
+    Stage::Ptr& up_stage(GrTier tier, bool q = false, bool pd = false) {
+        if (pd) {
+            return tier == GrTier::decode ? gr_up_proj_pd_decode : gr_up_proj_pd;
+        }
+        if (q) {
+            return tier == GrTier::decode ? gr_up_proj_q_decode : gr_up_proj_q;
+        }
         return tier == GrTier::decode ? gr_up_proj_decode : gr_up_proj;
     }
 
@@ -628,23 +934,43 @@ public:
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<gated_residual>();
         const size_t rows = rows_of(params, *desc);
-        if (has_stage(gr_rbar) || has_stage(gr_read_dpas)) {
-            if (has_stage(gr_read_dpas) && use_single_dpas_read(*desc, params.get_device_info(), rows)) {
-                auto ev = execute_stage(events, instance, gr_read_dpas);
-                record_stage_event("READ_DPAS", ev);
-                return ev;
+        if (has_stage(gr_rbar) || has_stage(gr_read_dpas) || has_stage(gr_read_dpas_q) || has_stage(gr_read_dpas_pd)) {
+            const auto wtype = gr_weight_type(params);
+            const bool q = wtype != GrWType::f16;
+            const bool pd = use_predequant(wtype, rows, params.get_device_info());
+            std::vector<event::ptr> deps = events;
+            std::vector<event::ptr> all;
+            if (pd) {
+                OPENVINO_ASSERT(has_stage(gr_dq_down) && has_stage(gr_dq_up), "[GPU][OCL] gated_residual: dequantize stage for ", rows, " rows was not built");
+                auto ev_dq_down = execute_stage(events, instance, gr_dq_down);
+                record_stage_event("DEQUANT", ev_dq_down);
+                auto ev_dq_up = execute_stage({ev_dq_down}, instance, gr_dq_up);
+                record_stage_event("DEQUANT", ev_dq_up);
+                deps = {ev_dq_up};
+                all = {ev_dq_down, ev_dq_up};
             }
-            auto& down = down_stage(gr_down_tier(rows, params.get_device_info()));
-            auto& up = up_stage(gr_up_tier(rows));
+            auto& single = pd ? gr_read_dpas_pd : (q ? gr_read_dpas_q : gr_read_dpas);
+            if (has_stage(single) && use_single_read(*desc, params.get_device_info(), rows, q && !pd)) {
+                auto ev = execute_stage(deps, instance, single);
+                record_stage_event("READ_DPAS", ev);
+                if (!pd) {
+                    return ev;
+                }
+                all.push_back(ev);
+                return instance.get_network().get_stream().aggregate_events(all, true, instance.is_output());
+            }
+            auto& down = down_stage(gr_down_tier(rows, params.get_device_info()), q, pd);
+            auto& up = up_stage(gr_up_tier(rows), q, pd);
             OPENVINO_ASSERT(has_stage(gr_rbar) && has_stage(down) && has_stage(up), "[GPU][OCL] gated_residual: dpas stage for ", rows, " rows was not built");
 
-            auto ev_rbar = execute_stage(events, instance, gr_rbar);
+            auto ev_rbar = execute_stage(deps, instance, gr_rbar);
             record_stage_event("RBAR", ev_rbar);
             auto ev_down = execute_stage({ev_rbar}, instance, down);
             record_stage_event("DOWN_PROJ", ev_down);
             auto ev_up = execute_stage({ev_down}, instance, up);
             record_stage_event("UP_PROJ", ev_up);
-            return instance.get_network().get_stream().aggregate_events({ev_rbar, ev_down, ev_up}, true, instance.is_output());
+            all.insert(all.end(), {ev_rbar, ev_down, ev_up});
+            return instance.get_network().get_stream().aggregate_events(all, true, instance.is_output());
         }
         auto& read = rows <= gr_decode_rows ? gr_read_decode : gr_read;
         OPENVINO_ASSERT(has_stage(read), "[GPU][OCL] gated_residual: read stage for ", rows, " rows was not built");
@@ -664,12 +990,20 @@ public:
         }
         const size_t cd = desc->hc_count * desc->hidden_size;
         const size_t num_rows = std::max<size_t>(1, get_num_rows(params.get_input_layout(0), cd));
-        if (use_single_dpas_read(*desc, params.get_device_info(), num_rows)) {
+        const auto wtype = gr_weight_type(params);
+        const bool pd = use_predequant(wtype, num_rows, params.get_device_info());
+        const bool single = use_single_read(*desc, params.get_device_info(), num_rows, wtype != GrWType::f16 && !pd);
+        if (single && !pd) {
             return {};  // gr_read_dpas keeps its intermediates in SLM
         }
         std::vector<BufferDescriptor> bufs;
-        bufs.emplace_back(num_rows * cd, ov::element::f16);                                  // RBAR
-        bufs.emplace_back(num_rows * std::max<size_t>(1, desc->lowrank), ov::element::f16);  // T_SCRATCH
+        // the single kernel does not use RBAR / T_SCRATCH; they only keep the indices of the weight scratch buffers stable
+        bufs.emplace_back(single ? 1 : num_rows * cd, ov::element::f16);                                  // RBAR
+        bufs.emplace_back(single ? 1 : num_rows * std::max<size_t>(1, desc->lowrank), ov::element::f16);  // T_SCRATCH
+        if (pd) {
+            bufs.emplace_back(desc->lowrank * cd, ov::element::f16);  // WD_F16
+            bufs.emplace_back(cd * desc->lowrank, ov::element::f16);  // WU_F16
+        }
         return bufs;
     }
 };
@@ -703,10 +1037,51 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
         return false;
     }
 
-    for (size_t i = 0; i < node.get_dependencies().size(); i++) {
-        const auto& l = node.get_input_layout(i);
-        if (l.format != cldnn::format::bfyx || l.data_type != ov::element::f16) {
+    // Compressed READ / FINAL_MIX: u4 (group 32) / u8 (per-channel) W_down / W_up + f16 scale + u8 zp, dpas path only.
+    const bool compressed =
+        desc->mode != cldnn::gated_residual::Mode::WRITE && node.get_dependencies().size() == ov::intel_gpu::op::GatedResidual::compressed_input_count;
+    if (compressed) {
+        if (!ov::intel_gpu::op::GatedResidual::is_compression_arch_supported(info) || !can_use_dpas_gr_read(*desc, info)) {
             return false;
+        }
+        const auto wt = node.get_input_layout(2).data_type;
+        if ((wt != ov::element::u4 && wt != ov::element::u8) || node.get_input_layout(3).data_type != wt) {
+            return false;
+        }
+        for (size_t i = 0; i < node.get_dependencies().size(); i++) {
+            const auto& l = node.get_input_layout(i);
+            const ov::element::Type expected =
+                i < 2 ? ov::element::Type(ov::element::f16)
+                      : (i < 4 ? ov::element::Type(wt) : (i < 6 ? ov::element::Type(ov::element::f16) : ov::element::Type(ov::element::u8)));
+            if (l.format != cldnn::format::bfyx || l.data_type != expected) {
+                return false;
+            }
+        }
+        const auto& sd = node.get_input_layout(4);
+        const auto& su = node.get_input_layout(5);
+        if (sd.is_dynamic() || su.is_dynamic() || sd.get_partial_shape().size() != 2 || su.get_partial_shape().size() != 2) {
+            return false;
+        }
+        const size_t cd = desc->hc_count * desc->hidden_size;
+        const size_t gd = sd.get_shape()[0];
+        const size_t gu = su.get_shape()[0];
+        if (sd.get_shape()[1] != desc->lowrank || su.get_shape()[1] != cd ||
+            !ov::intel_gpu::op::GatedResidual::is_weight_compression_supported(gr_weight_bits(wt == ov::element::u4 ? GrWType::u4 : GrWType::u8),
+                                                                               desc->lowrank,
+                                                                               cd,
+                                                                               gd,
+                                                                               cd,
+                                                                               desc->lowrank,
+                                                                               gu,
+                                                                               desc->produce_write_gate)) {
+            return false;
+        }
+    } else {
+        for (size_t i = 0; i < node.get_dependencies().size(); i++) {
+            const auto& l = node.get_input_layout(i);
+            if (l.format != cldnn::format::bfyx || l.data_type != ov::element::f16) {
+                return false;
+            }
         }
     }
     for (size_t i = 0; i < node.get_outputs_count(); i++) {

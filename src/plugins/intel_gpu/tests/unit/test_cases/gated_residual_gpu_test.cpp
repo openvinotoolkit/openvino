@@ -21,6 +21,10 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/runtime/profiling.hpp>
 #include <iostream>
+#include <limits>
+#include <memory>
+#include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -185,12 +189,15 @@ std::vector<std::string> executed_stages() {
 
 /// With C = 4, C*D is always a multiple of 64, so only L decides the DPAS READ path. Above
 /// 4 rows per EU (and D % 32 == 0) the single-kernel gr_read_dpas.cl replaces the 3-kernel
-/// pipeline, whose DOWN_PROJ carries the write gate and UP_PROJ the branch mix.
+/// pipeline, whose DOWN_PROJ carries the write gate and UP_PROJ the branch mix. Devices without Xe2+ systolic
+/// arrays always run the scalar gr_read.cl.
 std::vector<std::string> expected_read_stages(size_t rows, size_t D, size_t L) {
-    if (L % 32 != 0) {
+    const auto& info = get_test_engine().get_device_info();
+    const bool xmx = info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad;
+    if (!xmx || L % 32 != 0) {
         return {"READ"};
     }
-    const size_t eu = get_test_engine().get_device_info().execution_units_count;
+    const size_t eu = info.execution_units_count;
     if (D % 32 == 0 && rows > 4 * eu) {
         return {"READ_DPAS"};
     }
@@ -391,6 +398,230 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{17, 64, 32, false},      // DPAS pipeline, decode tiling
                                            gr_read_case{250, 64, 32, false},     // DPAS pipeline, mid tiling
                                            gr_read_case{1100, 64, 32, false}));  // DPAS pipeline, wide tiling
+
+// --- compressed weights: u4 (group 32) / u8 (per-channel), asymmetric ------------------------------------------------------
+
+bool gr_compression_available() {
+    const auto& info = get_test_engine().get_device_info();
+    return ov::intel_gpu::op::GatedResidual::is_compression_arch_supported(info);
+}
+
+/// One quantized [N, K] weight matrix with its [G, N] scale / zp and the exact f16 tensor the decompression graph produces.
+struct quant_matrix {
+    size_t N = 0;
+    size_t K = 0;
+    size_t G = 0;
+    bool u4 = false;
+    std::vector<uint8_t> q;      // [N * K]
+    std::vector<uint8_t> zp;     // [G * N]
+    std::vector<float> scale;    // [G * N], f16 values
+    std::vector<float> dequant;  // [N * K] = half(half(q - zp) * scale)
+};
+
+quant_matrix make_quant_matrix(std::mt19937& gen, size_t N, size_t K, bool u4) {
+    quant_matrix m;
+    m.N = N;
+    m.K = K;
+    m.u4 = u4;
+    m.G = u4 ? K / 32 : 1;
+    const size_t gs = K / m.G;
+    m.q.resize(N * K);
+    m.zp.resize(m.G * N);
+    m.scale.resize(m.G * N);
+    m.dequant.resize(N * K);
+    for (size_t i = 0; i < m.G * N; i++) {
+        m.zp[i] = u4 ? static_cast<uint8_t>(gen() % 16) : static_cast<uint8_t>(100 + gen() % 60);
+        m.scale[i] = static_cast<float>(ov::float16(static_cast<float>(1 + gen() % 8) / (u4 ? 512.0f : 2048.0f)));
+    }
+    for (size_t n = 0; n < N; n++) {
+        for (size_t k = 0; k < K; k++) {
+            const size_t g = k / gs;
+            const uint8_t q = static_cast<uint8_t>(gen() % (u4 ? 16 : 256));
+            m.q[n * K + k] = q;
+            const float diff = static_cast<float>(ov::float16(static_cast<float>(static_cast<int>(q) - static_cast<int>(m.zp[g * N + n]))));
+            m.dequant[n * K + k] = static_cast<float>(ov::float16(diff * m.scale[g * N + n]));
+        }
+    }
+    return m;
+}
+
+memory::ptr make_quant_weights(engine& eng, const quant_matrix& m) {
+    auto mem = eng.allocate_memory(
+        layout{ov::PartialShape{static_cast<int64_t>(m.N), static_cast<int64_t>(m.K)}, m.u4 ? data_types::u4 : data_types::u8, format::bfyx});
+    cldnn::mem_lock<uint8_t> lock(mem, get_test_stream());
+    if (m.u4) {
+        for (size_t i = 0; i < m.q.size(); i += 2) {
+            lock[i / 2] = static_cast<uint8_t>(m.q[i] | (m.q[i + 1] << 4));  // low nibble = even k
+        }
+    } else {
+        std::copy(m.q.begin(), m.q.end(), lock.begin());
+    }
+    return mem;
+}
+
+memory::ptr make_quant_zp(engine& eng, const quant_matrix& m) {
+    auto mem = eng.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(m.G), static_cast<int64_t>(m.N)}, data_types::u8, format::bfyx});
+    cldnn::mem_lock<uint8_t> lock(mem, get_test_stream());
+    std::copy(m.zp.begin(), m.zp.end(), lock.begin());
+    return mem;
+}
+
+struct gr_run_result {
+    std::vector<ov::float16> mixed;
+    std::vector<std::string> stages;
+};
+
+/// Runs a READ / FINAL_MIX gated_residual whose weight inputs (from index 2 on) are the given memories.
+gr_run_result run_gr_read(const gr_ref_params& p,
+                          gated_residual::Mode mode,
+                          const std::vector<float>& residual,
+                          const std::vector<float>& gain,
+                          const std::vector<memory::ptr>& weights) {
+    auto& engine = get_test_engine();
+    const size_t CD = p.C * p.D;
+    auto residual_mem = make_f16(engine, {static_cast<int64_t>(p.rows), static_cast<int64_t>(CD)}, residual);
+    topology topology;
+    topology.add(input_layout("residual", residual_mem->get_layout()));
+    topology.add(data("gain", make_f16(engine, {static_cast<int64_t>(CD)}, gain)));
+    std::vector<input_info> inputs = {input_info("residual"), input_info("gain")};
+    for (size_t i = 0; i < weights.size(); i++) {
+        const std::string id = "w" + std::to_string(i);
+        topology.add(data(id, weights[i]));
+        inputs.emplace_back(id);
+    }
+    topology.add(gated_residual("gr", inputs, mode, p.C, p.D, p.L, p.eps, p.gain_plus_one, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("residual", residual_mem);
+    auto outputs = network.execute();
+    gr_run_result result;
+    cldnn::mem_lock<ov::float16> out(outputs.at("gr").get_memory(), get_test_stream());
+    result.mixed.assign(out.begin(), out.end());
+    result.stages = executed_stages();
+    return result;
+}
+
+struct gr_quant_case {
+    size_t rows;
+    size_t D;
+    size_t L;
+    bool u4;
+    bool final_mix = false;
+};
+
+size_t scratch_limit_bytes() {
+    const char* env = std::getenv("OV_GPU_GR_Q_SCRATCH_LIMIT_MB");
+    return (env != nullptr ? static_cast<size_t>(std::strtoull(env, nullptr, 10)) : size_t{256}) << 20;
+}
+
+size_t pd_min_rows() {
+    const char* env = std::getenv("OV_GPU_GR_PD_MIN_ROWS");
+    return env != nullptr ? static_cast<size_t>(std::strtoull(env, nullptr, 10))
+                          : 5 * static_cast<size_t>(get_test_engine().get_device_info().execution_units_count);
+}
+
+class gated_residual_quant_test : public ::testing::TestWithParam<gr_quant_case> {};
+
+// The kernels dequantize in registers with the arithmetic of the decompression graph, so the result must equal the f16 path
+// fed with the decompressed weights bit for bit (same tiling, same accumulation order), and match the fp32 reference.
+TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
+    if (!gr_compression_available()) {
+        GTEST_SKIP() << "compressed GatedResidual weights need an Xe2+ systolic GPU";
+    }
+    const auto tc = GetParam();
+    gr_ref_params p;
+    p.rows = tc.rows;
+    p.D = tc.D;
+    p.L = tc.L;
+    p.gain_plus_one = true;
+    const size_t CD = p.C * p.D;
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    std::mt19937 gen(1234 + static_cast<uint32_t>(tc.rows * 7 + tc.D + tc.L + (tc.u4 ? 1 : 0)));
+    const auto residual = random_vec(rg, p.rows * CD, 1.0f);
+    const auto gain = random_vec(rg, CD, 0.5f);
+    const auto wd = make_quant_matrix(gen, p.L, CD, tc.u4);
+    const auto wu = make_quant_matrix(gen, CD, p.L, tc.u4);
+
+    auto& engine = get_test_engine();
+    const auto mode = tc.final_mix ? gated_residual::Mode::FINAL_MIX : gated_residual::Mode::READ;
+    const auto f16_run = run_gr_read(p,
+                                     mode,
+                                     residual,
+                                     gain,
+                                     {make_f16(engine, {static_cast<int64_t>(p.L), static_cast<int64_t>(CD)}, wd.dequant),
+                                      make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(p.L)}, wu.dequant)});
+    const auto q_run = run_gr_read(p,
+                                   mode,
+                                   residual,
+                                   gain,
+                                   {make_quant_weights(engine, wd),
+                                    make_quant_weights(engine, wu),
+                                    make_f16(engine, {static_cast<int64_t>(wd.G), static_cast<int64_t>(p.L)}, wd.scale),
+                                    make_f16(engine, {static_cast<int64_t>(wu.G), static_cast<int64_t>(CD)}, wu.scale),
+                                    make_quant_zp(engine, wd),
+                                    make_quant_zp(engine, wu)});
+
+    // compressed weights always use the 3-dispatch pipeline unless its Rbar scratch exceeds the limit
+    const auto expected = expected_read_stages(p.rows, p.D, p.L);
+    EXPECT_EQ(f16_run.stages, expected);
+    const bool single_q = p.D % 32 == 0 && p.rows * p.C * p.D * 2 > scratch_limit_bytes();
+    std::vector<std::string> expected_q = single_q ? std::vector<std::string>{"READ_DPAS"} : std::vector<std::string>{"RBAR", "DOWN_PROJ", "UP_PROJ"};
+    if (p.rows > pd_min_rows()) {
+        // above the predequantization threshold: both matrices are dequantized into f16 scratch and the f16 kernels (f16 routing) run on them
+        expected_q = expected;
+        expected_q.insert(expected_q.begin(), {"DEQUANT", "DEQUANT"});
+    }
+    EXPECT_EQ(q_run.stages, expected_q);
+
+    std::vector<float> ref_mixed;
+    std::vector<float> unused;
+    reference_read(p, residual, gain, wd.dequant, wu.dequant, nullptr, ref_mixed, unused);
+    ASSERT_EQ(q_run.mixed.size(), ref_mixed.size());
+    ASSERT_EQ(f16_run.mixed.size(), ref_mixed.size());
+    // The compressed kernels share work differently (split-K factors, single kernel vs pipeline), so only the accumulation
+    // order differs from the f16 path fed with the decompressed weights: the results agree to a few f16 ulps.
+    size_t bit_diffs = 0;
+    float max_diff = 0.0f;
+    for (size_t i = 0; i < ref_mixed.size(); i++) {
+        ASSERT_NEAR(static_cast<float>(q_run.mixed[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at " << i;
+        bit_diffs += q_run.mixed[i].to_bits() != f16_run.mixed[i].to_bits() ? 1 : 0;
+        max_diff = std::max(max_diff, std::abs(static_cast<float>(q_run.mixed[i]) - static_cast<float>(f16_run.mixed[i])));
+    }
+    std::cout << "GR_QUANT_ACC rows=" << p.rows << " D=" << p.D << " L=" << p.L << " " << (tc.u4 ? "u4" : "u8") << " differing_elems=" << bit_diffs << "/"
+              << ref_mixed.size() << " max_abs_diff_vs_f16=" << max_diff << std::endl;
+    EXPECT_LE(max_diff, 4e-3f) << "compressed and decompressed-f16 outputs differ";
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gated_residual_quant_test,
+                         ::testing::Values(gr_quant_case{1, 64, 32, true},  // decode, one K32 group of W_up
+                                           gr_quant_case{1, 64, 32, false},
+                                           gr_quant_case{7, 128, 32, true},
+                                           gr_quant_case{7, 128, 32, false},
+                                           gr_quant_case{32, 96, 32, true},  // D % 64 != 0: narrow raw loads
+                                           gr_quant_case{37, 96, 64, false},
+                                           gr_quant_case{33, 128, 64, true},  // mid tiling
+                                           gr_quant_case{200, 64, 32, false},
+                                           gr_quant_case{17, 640, 320, true},  // production width, decode
+                                           gr_quant_case{17, 640, 320, false},
+                                           gr_quant_case{100, 640, 320, true},
+                                           gr_quant_case{257, 640, 320, false},     // mid tiling
+                                           gr_quant_case{250, 64, 32, true, true},  // FINAL_MIX
+                                           gr_quant_case{1000, 64, 32, true},       // single kernel
+                                           gr_quant_case{1000, 64, 32, false},
+                                           gr_quant_case{1111, 128, 64, true},  // partial 32-row tile
+                                           gr_quant_case{700, 640, 320, true},
+                                           gr_quant_case{700, 640, 320, false},
+                                           gr_quant_case{17, 2560, 320, true},  // real width
+                                           gr_quant_case{17, 2560, 320, false},
+                                           gr_quant_case{100, 2560, 320, true},
+                                           gr_quant_case{2000, 2560, 320, true},
+                                           gr_quant_case{2000, 2560, 320, false}));
 
 TEST(gated_residual_gpu_test, write_combines_branches) {
     if (!gr_available()) {
@@ -1025,6 +1256,214 @@ void run_point(const char* phase, size_t tokens) {
 }
 
 }  // namespace roofline
+
+// --- f16 vs u4 vs u8 weights: same-process interleaved A/B (DISABLED; run with --gtest_also_run_disabled_tests) -------------
+//
+// Every configuration owns NL independent layers (own weight buffers) that are used round-robin, so the weights stream from DRAM
+// like in a real model instead of staying resident in L2. Output: one GR_AB json line per (rows, D, weight type, stage).
+namespace quant_ab {
+
+struct ab_config {
+    const char* name;
+    int wtype;  // 0 f16, 1 u4, 2 u8
+    std::vector<std::unique_ptr<network>> layers;
+};
+
+/// Weights live in device memory like in a real model; the default lockable allocation is host / shared USM.
+memory::ptr to_device(engine& eng, const memory::ptr& host) {
+    auto dev = eng.allocate_memory(host->get_layout(), allocation_type::usm_device);
+    cldnn::mem_lock<uint8_t> lock(host, get_test_stream());
+    dev->copy_from(get_test_stream(), lock.data(), true);
+    return dev;
+}
+
+double measure_cycle(ab_config& cfg, int warmup, int iterations, std::vector<std::pair<std::string, double>>& per_stage) {
+    const size_t nl = cfg.layers.size();
+    for (int i = 0; i < warmup; i++) {
+        auto& net = *cfg.layers[static_cast<size_t>(i) % nl];
+        net.execute();
+        for (auto& e : take_stage_events()) {
+            if (e.second != nullptr) {
+                e.second->wait();
+            }
+        }
+    }
+    std::vector<std::vector<std::pair<std::string, event::ptr>>> events;
+    events.reserve(static_cast<size_t>(iterations));
+    for (int i = 0; i < iterations; i++) {
+        cfg.layers[static_cast<size_t>(i) % nl]->execute();
+        events.push_back(take_stage_events());
+    }
+    std::vector<std::pair<std::string, double>> sums;
+    size_t counted = 0;
+    for (const auto& stage_events : events) {
+        size_t idx = 0;
+        for (const auto& e : stage_events) {
+            if (e.second != nullptr) {
+                e.second->wait();
+            }
+            const double ms = roofline::executing_ms(e.second);
+            if (ms >= 0.0) {
+                if (sums.size() <= idx) {
+                    sums.emplace_back(e.first, 0.0);
+                }
+                sums[idx].second += ms;
+            }
+            idx++;
+        }
+        counted++;
+    }
+    per_stage.clear();
+    double total = 0.0;
+    for (auto& s : sums) {
+        per_stage.emplace_back(s.first, s.second / static_cast<double>(counted));
+        total += s.second / static_cast<double>(counted);
+    }
+    return total;
+}
+
+}  // namespace quant_ab
+
+TEST(gated_residual_quant_ab, DISABLED_weights) {
+    if (!gr_compression_available()) {
+        GTEST_SKIP() << "compressed GatedResidual weights need an Xe2+ systolic GPU";
+    }
+    auto& engine = get_test_engine();
+    const size_t eu = engine.get_device_info().execution_units_count;
+    std::vector<std::pair<size_t, size_t>> points = {{1, 640},
+                                                     {32, 640},
+                                                     {128, 640},
+                                                     {1024, 640},
+                                                     {4096, 640},
+                                                     {1, 2560},
+                                                     {8, 2560},
+                                                     {32, 2560},
+                                                     {33, 2560},
+                                                     {128, 2560},
+                                                     {512, 2560},
+                                                     {4 * eu, 2560},
+                                                     {4 * eu + 1, 2560},
+                                                     {1024, 2560},
+                                                     {4096, 2560}};
+    // GR_AB_ROWS=8192,16384 [GR_AB_D=2560,640] replaces the default points (long-context runs).
+    if (const char* rows_env = std::getenv("GR_AB_ROWS")) {
+        std::vector<size_t> row_list;
+        std::vector<size_t> d_list = {2560};
+        auto parse = [](const char* s, std::vector<size_t>& out) {
+            out.clear();
+            for (std::stringstream ss(s); ss.good();) {
+                std::string tok;
+                std::getline(ss, tok, ',');
+                if (!tok.empty()) {
+                    out.push_back(std::stoull(tok));
+                }
+            }
+        };
+        parse(rows_env, row_list);
+        if (const char* d_env = std::getenv("GR_AB_D")) {
+            parse(d_env, d_list);
+        }
+        points.clear();
+        for (const auto d : d_list) {
+            for (const auto r : row_list) {
+                points.emplace_back(r, d);
+            }
+        }
+    }
+    const size_t L = 320;
+    for (const auto& [rows, D] : points) {
+        const size_t CD = kBranches * D;
+        gr_ref_params p;
+        p.rows = rows;
+        p.D = D;
+        p.L = L;
+        tests::random_generator rg;
+        rg.set_seed(GET_SUITE_NAME);
+        std::mt19937 gen(99);
+        // Long runs tile a 4096-row random block instead of generating rows * CD values.
+        const size_t base_rows = std::min<size_t>(rows, 4096);
+        const auto residual = random_vec(rg, base_rows * CD, 1.0f);
+        const auto gain = random_vec(rg, CD, 0.5f);
+        const quant_matrix wd4 = make_quant_matrix(gen, L, CD, true);
+        const quant_matrix wu4 = make_quant_matrix(gen, CD, L, true);
+        const quant_matrix wd8 = make_quant_matrix(gen, L, CD, false);
+        const quant_matrix wu8 = make_quant_matrix(gen, CD, L, false);
+
+        auto residual_mem =
+            engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, data_types::f16, format::bfyx},
+                                   allocation_type::usm_device);
+        const auto residual_base_f16 = to_f16(residual);
+        std::vector<ov::float16> residual_f16(rows * CD);
+        for (size_t i = 0; i < residual_f16.size(); i++) {
+            residual_f16[i] = residual_base_f16[i % residual_base_f16.size()];
+        }
+        residual_mem->copy_from(get_test_stream(), residual_f16.data(), true);
+
+        const bool long_rows = rows >= 8192;
+        const size_t nl = long_rows ? 1 : (rows <= 4 * eu ? 16 : 4);
+        std::vector<quant_ab::ab_config> configs;
+        configs.push_back({"f16", 0, {}});
+        configs.push_back({"u4", 1, {}});
+        configs.push_back({"u8", 2, {}});
+        for (auto& cfg : configs) {
+            for (size_t layer = 0; layer < nl; layer++) {
+                const auto& wd = cfg.wtype == 1 ? wd4 : wd8;
+                const auto& wu = cfg.wtype == 1 ? wu4 : wu8;
+                std::vector<memory::ptr> w;
+                if (cfg.wtype == 0) {
+                    w = {make_f16(engine, {static_cast<int64_t>(L), static_cast<int64_t>(CD)}, wd4.dequant),
+                         make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(L)}, wu4.dequant)};
+                } else {
+                    w = {make_quant_weights(engine, wd),
+                         make_quant_weights(engine, wu),
+                         make_f16(engine, {static_cast<int64_t>(wd.G), static_cast<int64_t>(L)}, wd.scale),
+                         make_f16(engine, {static_cast<int64_t>(wu.G), static_cast<int64_t>(CD)}, wu.scale),
+                         make_quant_zp(engine, wd),
+                         make_quant_zp(engine, wu)};
+                }
+                topology topology;
+                topology.add(input_layout("residual", residual_mem->get_layout()));
+                topology.add(data("gain", quant_ab::to_device(engine, make_f16(engine, {static_cast<int64_t>(CD)}, gain))));
+                std::vector<input_info> inputs = {input_info("residual"), input_info("gain")};
+                for (size_t i = 0; i < w.size(); i++) {
+                    topology.add(data("w" + std::to_string(i), quant_ab::to_device(engine, w[i])));
+                    inputs.emplace_back("w" + std::to_string(i));
+                }
+                topology.add(gated_residual("gr", inputs, gated_residual::Mode::READ, p.C, D, L, p.eps, false, false));
+                ExecutionConfig config = get_test_default_config(engine);
+                config.set_property(ov::intel_gpu::optimize_data(true));
+                config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+                config.set_property(ov::enable_profiling(true));
+                auto net = std::make_unique<network>(engine, topology, config);
+                net->set_input_data("residual", residual_mem);
+                cfg.layers.push_back(std::move(net));
+            }
+        }
+
+        // keep the best round of every configuration; rounds alternate between the configurations
+        std::vector<double> best(configs.size(), 1e30);
+        std::vector<std::vector<std::pair<std::string, double>>> best_stages(configs.size());
+        const int rounds = long_rows ? 3 : 8;
+        for (int r = 0; r < rounds; r++) {
+            for (size_t c = 0; c < configs.size(); c++) {
+                std::vector<std::pair<std::string, double>> stages;
+                const double ms = quant_ab::measure_cycle(configs[c], long_rows ? 3 : 20, long_rows ? 8 : (rows >= 4096 ? 40 : 100), stages);
+                if (ms < best[c]) {
+                    best[c] = ms;
+                    best_stages[c] = stages;
+                }
+            }
+        }
+        for (size_t c = 0; c < configs.size(); c++) {
+            for (const auto& st : best_stages[c]) {
+                std::cout << "GR_AB {\"rows\":" << rows << ",\"D\":" << D << ",\"w\":\"" << configs[c].name << "\",\"stage\":\"" << st.first
+                          << "\",\"us\":" << st.second * 1000.0 << "}" << std::endl;
+            }
+            std::cout << "GR_AB {\"rows\":" << rows << ",\"D\":" << D << ",\"w\":\"" << configs[c].name << "\",\"stage\":\"TOTAL\",\"us\":" << best[c] * 1000.0
+                      << "}" << std::endl;
+        }
+    }
+}
 
 struct gr_roofline_case {
     size_t tokens;

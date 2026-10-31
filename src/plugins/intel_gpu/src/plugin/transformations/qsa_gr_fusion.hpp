@@ -31,7 +31,9 @@ namespace ov::intel_gpu {
 class GatedResidualReadFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("GatedResidualReadFusion");
-    GatedResidualReadFusion();
+    /// @param allow_compressed_weights fuse u4 (group 32) / u8 (per-channel) asymmetric decompression subgraphs of
+    ///        W_down / W_up into the 8-input compressed form; only valid where the impl accepts it.
+    explicit GatedResidualReadFusion(bool allow_compressed_weights = false);
 };
 
 /// @brief Recognizes the Gated Residual WRITE / COMBINE pattern.
@@ -53,8 +55,8 @@ public:
 class GatedResidualFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("GatedResidualFusion");
-    GatedResidualFusion() {
-        add_matcher<GatedResidualReadFusion>();
+    explicit GatedResidualFusion(bool allow_compressed_weights = false) {
+        add_matcher<GatedResidualReadFusion>(allow_compressed_weights);
         add_matcher<GatedResidualWriteFusion>();
     }
 };

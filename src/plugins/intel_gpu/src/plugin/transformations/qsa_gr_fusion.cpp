@@ -8,12 +8,15 @@
 #include <deque>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
+#include "compressed_weights_pattern.hpp"
 #include "intel_gpu/op/gated_residual.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -36,11 +39,13 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
@@ -166,12 +171,98 @@ bool get_branch_split(const ov::Output<ov::Node>& split, size_t& C, size_t& D) {
     return true;
 }
 
+/// A W_down / W_up decompression subgraph (NNCF INT4_ASYM / INT8_ASYM) split into its parts, laid out the way the
+/// GatedResidual kernels read them.
+struct CompressedWeight {
+    ov::Output<ov::Node> weights;  // Constant u4/u8 [N, K], K contiguous (a metadata-only reshape of the checkpoint constant)
+    ov::Output<ov::Node> scale;    // Constant f16 [G, N]
+    ov::Output<ov::Node> zp;       // Constant u8 [G, N]
+    size_t bits = 0;               // 4 (group 32) or 8 (per-channel)
+    size_t groups = 0;
+};
+
+/// Parses `w` as Constant(u4/u8) -> Convert -> Subtract(zp) -> Multiply(scale) [-> Reshape] of an [N, K] weight. Anything else
+/// returns nullopt and the caller keeps feeding the decompressed f16 tensor (then a plain f16 GatedResidual).
+/// Rejected, with the TODO that would lift it (see the design doc, section 13):
+///   transposed [K, N] weights (T11), an extra scale multiply, non-Constant weights / scale / zp (T11), a missing zero point
+///   (symmetric i4 / i8, T7), scalar scale / zp (T8), group sizes other than 32 for u4 / per-channel for u8 (T6).
+std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Node>& w, size_t N, size_t K) {
+    using namespace ov::pass::pattern;
+    FC_COMPRESSED_WEIGHT_PATTERN
+    ov::pass::pattern::Matcher matcher(compressed_weights_input_m);
+    if (!matcher.match(w)) {
+        return std::nullopt;
+    }
+    const auto& pm = matcher.get_pattern_value_map();
+    if (pm.count(transpose_m) != 0 || pm.count(mul2_m) != 0 || pm.count(weights_const_m) == 0 || pm.count(sub_const_m) == 0 || pm.count(mul_const_m) == 0) {
+        return std::nullopt;
+    }
+    auto weights = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(weights_const_m).get_node_shared_ptr());
+    auto zp = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(sub_const_m).get_node_shared_ptr());
+    auto scale = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(mul_const_m).get_node_shared_ptr());
+    if (!weights || !zp || !scale) {
+        return std::nullopt;
+    }
+    const auto wt = weights->get_element_type();
+    if (wt != ov::element::u4 && wt != ov::element::u8) {
+        return std::nullopt;
+    }
+    if (zp->get_element_type() != ov::element::u4 && zp->get_element_type() != ov::element::u8) {
+        return std::nullopt;
+    }
+    const size_t bits = wt == ov::element::u4 ? 4 : 8;
+    const auto& ws = weights->get_shape();
+    const auto& ss = scale->get_shape();
+    size_t G = 0;
+    if (ws.size() == 3) {
+        G = ws[1];
+        if (ws[0] != N || G == 0 || ws[2] * G != K || ss != ov::Shape{N, G, 1}) {
+            return std::nullopt;
+        }
+    } else if (ws.size() == 2) {
+        G = 1;
+        if (ws[0] != N || ws[1] != K || ss != ov::Shape{N, 1}) {
+            return std::nullopt;
+        }
+    } else {
+        return std::nullopt;
+    }
+    if (zp->get_shape() != ss || (bits == 4 ? K != op::GatedResidual::int4_group_size * G : G != 1)) {
+        return std::nullopt;
+    }
+
+    // scale / zp are [N, G] in the checkpoint; the kernels read [G, N] (n contiguous), see GatedResidual::ReadInputIdx.
+    const auto scale_ng = scale->cast_vector<float>();
+    const auto zp_ng = zp->cast_vector<int32_t>();
+    std::vector<ov::float16> scale_gn(G * N);
+    std::vector<uint8_t> zp_gn(G * N);
+    for (size_t n = 0; n < N; ++n) {
+        for (size_t g = 0; g < G; ++g) {
+            if (zp_ng[n * G + g] < 0 || zp_ng[n * G + g] > 255) {
+                return std::nullopt;
+            }
+            scale_gn[g * N + n] = ov::float16(scale_ng[n * G + g]);
+            zp_gn[g * N + n] = static_cast<uint8_t>(zp_ng[n * G + g]);
+        }
+    }
+
+    auto weights_2d = std::make_shared<ov::op::v0::Constant>(*weights, ov::Shape{N, K});
+    ov::copy_weightless_cache_attr(weights, weights_2d);
+    CompressedWeight result;
+    result.weights = weights_2d->output(0);
+    result.scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{G, N}, scale_gn)->output(0);
+    result.zp = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{G, N}, zp_gn)->output(0);
+    result.bits = bits;
+    result.groups = G;
+    return result;
+}
+
 }  // namespace
 
 // ===========================================================================
 // GR READ / MIX
 // ===========================================================================
-GatedResidualReadFusion::GatedResidualReadFusion() {
+GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) {
     using namespace ov::pass::pattern;
 
     auto residual = any_input();
@@ -348,6 +439,18 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
             return false;
         }
 
+        // u4 (group 32) / u8 (per-channel) asymmetric weights are fed to the kernels as they are; W_down and W_up must be
+        // compressed the same way, otherwise the decompressed f16 tensors are used.
+        ov::OutputVector weight_inputs = {w_down, w_up};
+        if (allow_compressed_weights) {
+            const auto cd = match_compressed_weight(w_down, L, C * D);
+            const auto cu = match_compressed_weight(w_up, C * D, L);
+            if (cd && cu && cd->bits == cu->bits &&
+                op::GatedResidual::is_weight_compression_supported(cd->bits, L, C * D, cd->groups, C * D, L, cu->groups, false)) {
+                weight_inputs = {cd->weights, cu->weights, cd->scale, cu->scale, cd->zp, cu->zp};
+            }
+        }
+
         ov::NodeVector new_ops;
         ov::Output<ov::Node> gain_flat;
         float epsilon = 0.0f;
@@ -409,7 +512,9 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
             gain_flat = flatten_to(gain, C * D, new_ops);
         }
 
-        auto gr = std::make_shared<op::GatedResidual>(ov::OutputVector{residual_out, gain_flat, w_down, w_up},
+        ov::OutputVector gr_inputs{residual_out, gain_flat};
+        gr_inputs.insert(gr_inputs.end(), weight_inputs.begin(), weight_inputs.end());
+        auto gr = std::make_shared<op::GatedResidual>(gr_inputs,
                                                       op::GatedResidual::Mode::READ,
                                                       C,
                                                       D,

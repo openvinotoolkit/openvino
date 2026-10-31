@@ -97,10 +97,12 @@ void GatedResidual::validate_and_infer_types() {
     }
 
     // READ / FINAL_MIX
+    const bool compressed = input_size == compressed_input_count;
     NODE_VALIDATION_CHECK(this,
-                          (m_produce_write_gate && input_size == 5) || (!m_produce_write_gate && input_size == 4),
-                          "GatedResidual (READ/FINAL_MIX) expects 4 inputs (5 with W_inject), got ",
+                          compressed || (m_produce_write_gate && input_size == 5) || (!m_produce_write_gate && input_size == 4),
+                          "GatedResidual (READ/FINAL_MIX) expects 4 inputs (5 with W_inject, 8 with compressed weights), got ",
                           input_size);
+    NODE_VALIDATION_CHECK(this, !compressed || !m_produce_write_gate, "GatedResidual compressed weights do not support W_inject / the write gate.");
     NODE_VALIDATION_CHECK(this, m_mode != Mode::FINAL_MIX || !m_produce_write_gate, "GatedResidual (FINAL_MIX) must not produce a write gate.");
     NODE_VALIDATION_CHECK(this, m_lowrank > 0, "GatedResidual (READ/FINAL_MIX) requires a positive low rank L.");
 
@@ -128,6 +130,61 @@ void GatedResidual::validate_and_infer_types() {
                           m_lowrank,
                           "], got ",
                           get_input_partial_shape(ReadInputIdx::W_UP));
+
+    const auto wd_et = get_input_element_type(ReadInputIdx::W_DOWN);
+    const auto wu_et = get_input_element_type(ReadInputIdx::W_UP);
+    NODE_VALIDATION_CHECK(this,
+                          wd_et.is_dynamic() || wu_et.is_dynamic() || wd_et == wu_et,
+                          "GatedResidual W_down and W_up must share one element type, got ",
+                          wd_et,
+                          " and ",
+                          wu_et);
+    const bool wd_quant = wd_et == ov::element::u4 || wd_et == ov::element::u8;
+    NODE_VALIDATION_CHECK(this, wd_et.is_dynamic() || (compressed == wd_quant), "GatedResidual takes u4/u8 weights exactly with the 8-input compressed form.");
+    if (compressed) {
+        // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]; G == K / 32 for u4 and 1 for u8 (per-channel).
+        const size_t bits = wd_et == ov::element::u4 ? 4 : 8;
+        auto check_group = [&](size_t scale_idx, size_t zp_idx, size_t n, size_t k, const char* name) {
+            const auto& sps = get_input_partial_shape(scale_idx);
+            const auto& zps = get_input_partial_shape(zp_idx);
+            NODE_VALIDATION_CHECK(this,
+                                  sps.rank().is_dynamic() || (sps.rank().get_length() == 2 && sps[1].compatible(static_cast<int64_t>(n))),
+                                  "GatedResidual ",
+                                  name,
+                                  " scale must have shape [G, ",
+                                  n,
+                                  "], got ",
+                                  sps);
+            NODE_VALIDATION_CHECK(this,
+                                  zps.rank().is_dynamic() || sps.rank().is_dynamic() || zps == sps,
+                                  "GatedResidual ",
+                                  name,
+                                  " zero point must match the scale shape, got ",
+                                  zps);
+            NODE_VALIDATION_CHECK(this,
+                                  get_input_element_type(scale_idx).is_dynamic() || get_input_element_type(scale_idx) == ov::element::f16,
+                                  "GatedResidual ",
+                                  name,
+                                  " scale must be f16.");
+            NODE_VALIDATION_CHECK(this,
+                                  get_input_element_type(zp_idx).is_dynamic() || get_input_element_type(zp_idx) == ov::element::u8,
+                                  "GatedResidual ",
+                                  name,
+                                  " zero point must be u8.");
+            if (sps.rank().is_static() && sps[0].is_static()) {
+                const auto g = static_cast<size_t>(sps[0].get_length());
+                NODE_VALIDATION_CHECK(this,
+                                      is_weight_compression_supported(bits, n, k, g, n, k, g, false),
+                                      "GatedResidual ",
+                                      name,
+                                      ": unsupported group count ",
+                                      g,
+                                      " (u4 needs K / 32 groups, u8 is per-channel).");
+            }
+        };
+        check_group(ReadInputIdx::SCALE_DOWN, ReadInputIdx::ZP_DOWN, m_lowrank, cd, "W_down");
+        check_group(ReadInputIdx::SCALE_UP, ReadInputIdx::ZP_UP, cd, m_lowrank, "W_up");
+    }
     if (m_produce_write_gate) {
         NODE_VALIDATION_CHECK(this,
                               matrix_matches(get_input_partial_shape(ReadInputIdx::W_INJECT), m_hc_count, cd),

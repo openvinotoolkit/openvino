@@ -29,6 +29,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
@@ -159,6 +160,78 @@ std::shared_ptr<ov::Node> build_gr_read_rank3(const std::shared_ptr<ov::op::v0::
     auto weighted4 = split(weighted, {C, D});
     auto reduced = std::make_shared<ov::op::v1::ReduceSum>(weighted4, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-2}), false);
     return std::make_shared<ov::op::v1::Multiply>(reduced, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f / C}));
+}
+
+constexpr int64_t LQ = 32;  // compressed weights need L % 32 == 0
+
+/// NNCF-style asymmetric decompression: u4 with `group` < K is Constant[N,G,group] -> Convert -> Subtract(Convert(zp[N,G,1]))
+/// -> Multiply(scale[N,G,1]) -> Reshape[N,K]; per-channel (group == K) has no Reshape and [N,1] scale / zp.
+ov::Output<ov::Node> make_decompressed(const ov::element::Type& wt, size_t N, size_t K, size_t group, bool scalar_scale = false) {
+    const size_t G = K / group;
+    const bool grouped = group != K;
+    const ov::Shape wshape = grouped ? ov::Shape{N, G, group} : ov::Shape{N, K};
+    const ov::Shape sshape = grouped ? ov::Shape{N, G, 1} : ov::Shape{N, 1};
+    auto w = ov::op::v0::Constant::create(wt, wshape, std::vector<int>(ov::shape_size(wshape), 3));
+    auto wf = std::make_shared<ov::op::v0::Convert>(w, ov::element::f16);
+    auto zp = ov::op::v0::Constant::create(wt, sshape, std::vector<int>(ov::shape_size(sshape), 1));
+    auto zpf = std::make_shared<ov::op::v0::Convert>(zp, ov::element::f16);
+    auto sub = std::make_shared<ov::op::v1::Subtract>(wf, zpf);
+    const ov::Shape scshape = scalar_scale ? ov::Shape{} : sshape;
+    auto sc = ov::op::v0::Constant::create(ov::element::f16, scshape, std::vector<float>(ov::shape_size(scshape), 0.01f));
+    auto mul = std::make_shared<ov::op::v1::Multiply>(sub, sc);
+    if (!grouped) {
+        return mul;
+    }
+    return reshape_to(mul, {static_cast<int64_t>(N), static_cast<int64_t>(K)});
+}
+
+/// The canonical GR READ sub-graph with caller-provided W_down [LQ, C*D] / W_up [C*D, LQ] producers.
+std::shared_ptr<ov::Node> build_gr_read_with_weights(const std::shared_ptr<ov::op::v0::Parameter>& residual,
+                                                     const ov::Output<ov::Node>& w_down,
+                                                     const ov::Output<ov::Node>& w_up) {
+    auto r3 = reshape_to(residual, {-1, C, D});
+    auto gamma = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{static_cast<size_t>(C), static_cast<size_t>(D)}, std::vector<float>(C * D, 1.0f));
+    auto rms = std::make_shared<ov::op::internal::RMS>(r3, gamma, EPS);
+    auto rbar = reshape_to(rms, {-1, C * D});
+    auto low = std::make_shared<ov::op::v0::MatMul>(rbar, w_down, false, true);
+    auto low_scaled = std::make_shared<ov::op::v1::Multiply>(low, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f / C}));
+    auto act = std::make_shared<ov::op::v4::Swish>(low_scaled);
+    auto up = std::make_shared<ov::op::v0::MatMul>(act, w_up, false, true);
+    auto gate = std::make_shared<ov::op::v0::Sigmoid>(up);
+    auto weighted = std::make_shared<ov::op::v1::Multiply>(gate, rbar);
+    auto weighted3 = reshape_to(weighted, {-1, C, D});
+    auto reduced = std::make_shared<ov::op::v1::ReduceSum>(weighted3, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}), false);
+    return std::make_shared<ov::op::v1::Multiply>(reduced, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f / C}));
+}
+
+std::shared_ptr<op::GatedResidual> run_read_fusion(const ov::Output<ov::Node>& w_down, const ov::Output<ov::Node>& w_up, bool allow_compressed) {
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
+    auto mixed = build_gr_read_with_weights(residual, w_down, w_up);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualReadFusion>(allow_compressed);
+    manager.run_passes(model);
+    std::shared_ptr<op::GatedResidual> found;
+    for (const auto& node : model->get_ops()) {
+        if (auto gr = ov::as_type_ptr<op::GatedResidual>(node)) {
+            found = gr;
+        }
+    }
+    return found;
+}
+
+void expect_compressed(const std::shared_ptr<op::GatedResidual>& gr, const ov::element::Type& wt, size_t groups_down, size_t groups_up) {
+    ASSERT_NE(gr, nullptr);
+    ASSERT_EQ(gr->get_input_size(), 8u);
+    EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::W_DOWN), wt);
+    EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::W_UP), wt);
+    EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::W_DOWN), (ov::Shape{static_cast<size_t>(LQ), static_cast<size_t>(C * D)}));
+    EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::W_UP), (ov::Shape{static_cast<size_t>(C * D), static_cast<size_t>(LQ)}));
+    EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::SCALE_DOWN), ov::element::f16);
+    EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::SCALE_DOWN), (ov::Shape{groups_down, static_cast<size_t>(LQ)}));
+    EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::SCALE_UP), (ov::Shape{groups_up, static_cast<size_t>(C * D)}));
+    EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::ZP_DOWN), ov::element::u8);
+    EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::ZP_UP), (ov::Shape{groups_up, static_cast<size_t>(C * D)}));
 }
 
 }  // namespace
@@ -430,4 +503,71 @@ TEST(qsa_gr_fusion, gated_residual_write_rejects_f32) {
     manager.run_passes(model);
 
     ASSERT_EQ(count_gated_residual(model), 0u);
+}
+
+TEST(qsa_gr_fusion, compressed_u4_group32_weights_are_fused) {
+    const size_t cd = C * D;
+    auto gr = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), true);
+    expect_compressed(gr, ov::element::u4, cd / 32, LQ / 32);
+}
+
+TEST(qsa_gr_fusion, compressed_u8_per_channel_weights_are_fused) {
+    const size_t cd = C * D;
+    auto gr = run_read_fusion(make_decompressed(ov::element::u8, LQ, cd, cd), make_decompressed(ov::element::u8, cd, LQ, LQ), true);
+    expect_compressed(gr, ov::element::u8, 1, 1);
+}
+
+TEST(qsa_gr_fusion, compressed_scale_is_transposed_to_group_major) {
+    const size_t cd = C * D;
+    const size_t g = cd / 32;
+    // scale[n, g] = n * 10 + g, so [G, N] holds element (g, n) at g * N + n
+    std::vector<float> scale_ng(LQ * g);
+    for (size_t n = 0; n < static_cast<size_t>(LQ); n++) {
+        for (size_t i = 0; i < g; i++) {
+            scale_ng[n * g + i] = static_cast<float>(n * 10 + i);
+        }
+    }
+    auto w = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{static_cast<size_t>(LQ), g, 32}, std::vector<int>(LQ * cd, 3));
+    auto wf = std::make_shared<ov::op::v0::Convert>(w, ov::element::f16);
+    auto zp = ov::op::v0::Constant::create(ov::element::u4, ov::Shape{static_cast<size_t>(LQ), g, 1}, std::vector<int>(LQ * g, 1));
+    auto sub = std::make_shared<ov::op::v1::Subtract>(wf, std::make_shared<ov::op::v0::Convert>(zp, ov::element::f16));
+    auto sc = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{static_cast<size_t>(LQ), g, 1}, scale_ng);
+    auto w_down = reshape_to(std::make_shared<ov::op::v1::Multiply>(sub, sc), {LQ, static_cast<int64_t>(cd)});
+    auto gr = run_read_fusion(w_down, make_decompressed(ov::element::u4, cd, LQ, 32), true);
+    expect_compressed(gr, ov::element::u4, g, LQ / 32);
+    auto scale = ov::as_type_ptr<ov::op::v0::Constant>(gr->get_input_node_shared_ptr(op::GatedResidual::ReadInputIdx::SCALE_DOWN));
+    ASSERT_NE(scale, nullptr);
+    const auto v = scale->cast_vector<float>();
+    for (size_t i = 0; i < g; i++) {
+        for (size_t n = 0; n < static_cast<size_t>(LQ); n++) {
+            ASSERT_EQ(v[i * LQ + n], scale_ng[n * g + i]);
+        }
+    }
+}
+
+TEST(qsa_gr_fusion, compressed_weights_need_the_flag) {
+    const size_t cd = C * D;
+    auto gr = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), false);
+    ASSERT_NE(gr, nullptr);
+    EXPECT_EQ(gr->get_input_size(), 4u) << "the decompressed f16 tensors feed the op when compression is not allowed";
+}
+
+TEST(qsa_gr_fusion, compressed_rejects_unsupported_quantization) {
+    const size_t cd = C * D;
+    // group 64 is not a supported u4 group size
+    auto g64 = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 64), make_decompressed(ov::element::u4, cd, LQ, 32), true);
+    ASSERT_NE(g64, nullptr);
+    EXPECT_EQ(g64->get_input_size(), 4u);
+    // W_down and W_up must be compressed the same way
+    auto mixed = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u8, cd, LQ, LQ), true);
+    ASSERT_NE(mixed, nullptr);
+    EXPECT_EQ(mixed->get_input_size(), 4u);
+    // scalar scale is not a per-(group, channel) tensor
+    auto scalar = run_read_fusion(make_decompressed(ov::element::u8, LQ, cd, cd, true), make_decompressed(ov::element::u8, cd, LQ, LQ), true);
+    ASSERT_NE(scalar, nullptr);
+    EXPECT_EQ(scalar->get_input_size(), 4u);
+    // u4 per-channel (group == K) is not supported either
+    auto u4_pc = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, cd), make_decompressed(ov::element::u4, cd, LQ, LQ), true);
+    ASSERT_NE(u4_pc, nullptr);
+    EXPECT_EQ(u4_pc->get_input_size(), 4u);
 }

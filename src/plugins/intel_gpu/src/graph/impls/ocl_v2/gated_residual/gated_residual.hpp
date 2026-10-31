@@ -18,6 +18,8 @@ namespace ov::intel_gpu::ocl {
 struct GatedResidualInternalBufIdx {
     static constexpr size_t RBAR = 0;       ///< f16 [num_rows, C*D], branch-wise RMSNorm output
     static constexpr size_t T_SCRATCH = 1;  ///< f16 [num_rows, L], down-projection + SiLU output
+    static constexpr size_t WD_F16 = 2;     ///< f16 [L, C*D], dequantized W_down (OV_GPU_GR_PD_MIN_ROWS experiment)
+    static constexpr size_t WU_F16 = 3;     ///< f16 [C*D, L], dequantized W_up
 };
 
 /// @brief OpenCL implementation of the gated residual READ/WRITE/FINAL_MIX stages.

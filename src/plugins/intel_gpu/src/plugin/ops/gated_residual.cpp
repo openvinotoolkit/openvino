@@ -15,7 +15,7 @@ using GatedResidual = ov::intel_gpu::op::GatedResidual;
 namespace ov::intel_gpu {
 
 static void CreateGatedResidualOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::GatedResidual>& op) {
-    validate_inputs_count(op, {3, 4, 5});
+    validate_inputs_count(op, {3, 4, 5, 8});
     const auto inputs = p.GetInputInfo(op);
     const auto layer_name = layer_type_name_ID(op);
 

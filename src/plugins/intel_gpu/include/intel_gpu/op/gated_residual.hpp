@@ -6,6 +6,7 @@
 
 #include <cstddef>
 
+#include "intel_gpu/runtime/device_info.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/op.hpp"
 
@@ -48,7 +49,18 @@ public:
         static constexpr size_t W_DOWN = 2;       ///< [L, C*D]
         static constexpr size_t W_UP = 3;         ///< [C*D, L]
         static constexpr size_t W_INJECT = 4;     ///< [C, C*D], only when produce_write_gate
+
+        // Compressed weights (W_DOWN / W_UP are u4 or u8; exclusive with W_INJECT, so index 4 is unambiguous).
+        // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]: one sub-group block read gives every lane the
+        // scale of its own output channel.
+        static constexpr size_t SCALE_DOWN = 4;  ///< f16 [G_d, L]
+        static constexpr size_t SCALE_UP = 5;    ///< f16 [G_u, C*D]
+        static constexpr size_t ZP_DOWN = 6;     ///< u8 [G_d, L]
+        static constexpr size_t ZP_UP = 7;       ///< u8 [G_u, C*D]
     };
+
+    static constexpr size_t compressed_input_count = 8;
+    static constexpr size_t int4_group_size = 32;  ///< u4 weights: group along K; u8 weights are per-channel (G == 1)
 
     /// @brief Input indices for Mode::WRITE
     struct WriteInputIdx {
@@ -108,6 +120,30 @@ public:
             return false;
         }
         return mode == Mode::WRITE || (lowrank != 0 && lowrank % 16 == 0 && lowrank <= max_lowrank);
+    }
+
+    /// Compressed weights run on the systolic path only.
+    static bool is_compression_arch_supported(const cldnn::device_info& info) {
+        return info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad && info.supports_intel_subgroups && info.supports_intel_subgroups_short;
+    }
+
+    /// Shared by the fusion pass and the impl's validate_impl. N/K/G are the weight rows / columns / scale rows of W_down and
+    /// W_up; bits is 4 (u4, group 32) or 8 (u8, per-channel).
+    static bool
+    is_weight_compression_supported(size_t bits, size_t n_down, size_t k_down, size_t g_down, size_t n_up, size_t k_up, size_t g_up, bool produce_write_gate) {
+        if ((bits != 4 && bits != 8) || produce_write_gate) {
+            return false;
+        }
+        auto matrix_ok = [bits](size_t n, size_t k, size_t g) {
+            if (n == 0 || n % 16 != 0 || k == 0 || k % 32 != 0 || g == 0) {
+                return false;
+            }
+            if (bits == 4 ? k != int4_group_size * g : g != 1) {
+                return false;
+            }
+            return (k * bits / 8) % 16 == 0;
+        };
+        return matrix_ok(n_down, k_down, g_down) && matrix_ok(n_up, k_up, g_up);
     }
 
 private:
