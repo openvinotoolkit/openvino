@@ -62,6 +62,8 @@ public:
 
     std::optional<bool> is_profiling_blob() const override;
 
+    std::optional<bool> is_loaded_from_driver_cache() const override;
+
     void evict_memory() override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;

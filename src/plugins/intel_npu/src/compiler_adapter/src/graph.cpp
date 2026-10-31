@@ -300,6 +300,14 @@ std::optional<bool> Graph::is_profiling_blob() const {
     return profilingEnabled;
 }
 
+std::optional<bool> Graph::is_loaded_from_driver_cache() const {
+    if (_zeGraphExt == nullptr) {
+        return std::nullopt;
+    }
+
+    return _zeGraphExt->isLoadedFromDriverCache(_graphDesc);
+}
+
 std::optional<size_t> Graph::determine_batch_size() {
     if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");

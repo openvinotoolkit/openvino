@@ -491,6 +491,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                         "will be disabled.");
     }
 
+    if (!adapterDesc.bypassCache && graph->is_loaded_from_driver_cache().value_or(false)) {
+        _logger.debug("The compiled model was loaded from the driver cache");
+        localConfig.update(ov::loaded_from_cache.name(), true);
+    }
+
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
         compiledModel = std::make_shared<CompiledModel>(model,

@@ -96,6 +96,43 @@ TEST_P(TestCompiledModelNPU, samePlatformProduceTheSameBlobCacheEnabled) {
     }
 }
 
+TEST_P(TestCompiledModelNPU, secondCompilationIsLoadedFromUmdCache) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
+        const auto& ov_model = buildSingleLayerSoftMaxNetwork();
+
+        auto netConfiguration = configuration;
+        netConfiguration[ov::intel_npu::bypass_umd_caching.name()] = false;
+
+        // The first compilation populates the driver cache. It may already be a cache hit if a previous run cached
+        // the same model, so its loaded_from_cache value is not checked.
+        auto compiled_model1 = core->compile_model(ov_model, target_device, netConfiguration);
+        // Workaround: destroy graph to force driver to close file descriptor to cache file
+        compiled_model1 = {};
+
+        auto compiled_model2 = core->compile_model(ov_model, target_device, netConfiguration);
+        bool loadedFromCache = false;
+        OV_ASSERT_NO_THROW(loadedFromCache = compiled_model2.get_property(ov::loaded_from_cache));
+        ASSERT_TRUE(loadedFromCache);
+    }
+}
+
+TEST_P(TestCompiledModelNPU, compilationIsNotLoadedFromUmdCacheWhenBypassed) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED() {
+        const auto& ov_model = buildSingleLayerSoftMaxNetwork();
+
+        auto netConfiguration = configuration;
+        netConfiguration[ov::intel_npu::bypass_umd_caching.name()] = true;
+
+        auto compiled_model1 = core->compile_model(ov_model, target_device, netConfiguration);
+        compiled_model1 = {};
+
+        auto compiled_model2 = core->compile_model(ov_model, target_device, netConfiguration);
+        bool loadedFromCache = true;
+        OV_ASSERT_NO_THROW(loadedFromCache = compiled_model2.get_property(ov::loaded_from_cache));
+        ASSERT_FALSE(loadedFromCache);
+    }
+}
+
 class TestCompileModelWithoutDeviceNPU : public TestCompiledModelNPU {
 protected:
     void SetUp() override {
