@@ -1,6 +1,6 @@
 {
     "schema_version": "1.0",
-    "total": 60,
+    "total": 61,
     "entries": [
         {
             "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -615,6 +615,15 @@
             "category": "Infrastructure",
             "signature_hash": "f5704cadfe9e6f2a",
             "commit_sha": "5c6917ed75a720f6c81d3b52dbaac998b39d1fe9"
+        },
+        {
+            "investigation_id": "2026-10-31-14-59-06-123-41204888769",
+            "run_id": "41204888769",
+            "timestamp": "2026-10-31T14:59:06Z",
+            "title": "Keras 3 test_global_seed_generator fails on borderline RNG float32 tolerance assertion",
+            "category": "Flaky Test",
+            "signature_hash": "db252223813d9c7c",
+            "commit_sha": "14b84dc2bbc18de3385d72f68fd2ff77945a3f86"
         }
     ]
 }

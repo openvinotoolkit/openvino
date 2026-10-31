@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "AssertionError: Keras random_test.py test_global_seed_generator fails because two independently-sampled normal values differ by less than the 1e-4 tolerance threshold (borderline float32 RNG collision)|Flaky Test",
+    "signature_hash": "db252223813d9c7c",
+    "title": "Keras 3 test_global_seed_generator fails on borderline RNG float32 tolerance assertion",
+    "category": "Flaky Test",
+    "count": 1,
+    "first_seen": "2026-10-31T14:59:06Z",
+    "last_seen": "2026-10-31T14:59:06Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41204888769"
+    ],
+    "affected_commits": [
+        "14b84dc2bbc18de3385d72f68fd2ff77945a3f86"
+    ],
+    "recent_timestamps": [
+        "2026-10-31T14:59:06Z"
+    ]
+}

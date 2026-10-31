@@ -1,0 +1,46 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-31-14-59-06-123-41204888769",
+    "timestamp": "2026-10-31T14:59:06Z",
+    "run_id": "41204888769",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41204888769",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "14b84dc2bbc18de3385d72f68fd2ff77945a3f86",
+    "pr_number": "39120",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39120",
+    "author": "ZackyLake",
+    "category": "Flaky Test",
+    "title": "Keras 3 test_global_seed_generator fails on borderline RNG float32 tolerance assertion",
+    "signature": "AssertionError: Keras random_test.py test_global_seed_generator fails because two independently-sampled normal values differ by less than the 1e-4 tolerance threshold (borderline float32 RNG collision)|Flaky Test",
+    "signature_hash": "db252223813d9c7c",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Keras 3 OpenVINO Backend Tests / Keras 3 OpenVINO Backend",
+            "conclusion": "failure",
+            "symptom": "pytest test_global_seed_generator failed: AssertionError: np.float32(9.763241e-05) not greater than 0.0001"
+        },
+        {
+            "name": "ci/gha_overall_status",
+            "conclusion": "failure",
+            "symptom": "Overall status check failed because an upstream job failed"
+        }
+    ],
+    "key_errors": [
+        "keras/src/random/random_test.py::RandomCorrectnessTest::test_global_seed_generator FAILED [ 96%]",
+        ">       self.assertGreater(np.abs(x2 - y2), 1e-4)",
+        "E       AssertionError: np.float32(9.763241e-05) not greater than 0.0001",
+        "keras/src/random/random_test.py:157: AssertionError",
+        "FAILED keras/src/random/random_test.py::RandomCorrectnessTest::test_global_seed_generator - AssertionError: np.float32(9.763241e-05) not greater than 0.0001",
+        "= 1 failed, 4561 passed, 3200 skipped, 76 xfailed, 4 xpassed in 125.58s (0:02:05) ="
+    ],
+    "root_cause": "The upstream Keras test `RandomCorrectnessTest.test_global_seed_generator` asserts that two consecutive unseeded `random.normal()` draws differ by more than 1e-4 (a heuristic check that the global seed generator is actually advancing and not returning identical/near-identical values). With the OpenVINO backend's RNG implementation, the second pair of draws (x2, y2) happened to differ by 9.763241e-05, just under the 1e-4 threshold. This is a statistical false negative caused by an overly tight tolerance in the upstream test combined with the specific RNG stream produced by the OpenVINO backend for this seed sequence, not a defect introduced by the merged commit (#39120, an unrelated GPU Slice primitive hashing fix). The merged PR does not touch Keras, RNG, or random-number code paths.",
+    "reproduction_steps": "Run locally: `cd src/bindings/python` (or wherever the Keras 3 OpenVINO backend test harness lives) then `KERAS_BACKEND=openvino python -m pytest keras/src/random/random_test.py::RandomCorrectnessTest::test_global_seed_generator -v` repeatedly; the failure is probabilistic and may not reproduce every run since it depends on the RNG stream state.",
+    "recommended_actions": [
+        "Re-run the Keras 3 OpenVINO Backend Tests job; this is expected to pass on retry since it is a borderline statistical assertion, not a deterministic bug.",
+        "Consider reporting upstream to Keras that the 1e-4 tolerance in test_global_seed_generator is too tight and can produce false failures for some RNG streams/backends.",
+        "If this recurs frequently for the OpenVINO backend specifically, investigate whether the OpenVINO backend's random.normal implementation has lower entropy/precision than other backends for consecutive draws from the same state."
+    ],
+    "prevention_strategies": "Track recurrence count for this specific signature; if it becomes frequent, consider an OpenVINO-backend-specific xfail/skip or a local tolerance relaxation patch for this test, submitted upstream to keras-team/keras or applied as a local test-suite override.",
+    "historical_context": "No prior post-commit investigation matches this exact signature (test_global_seed_generator). Other Keras-related patterns in the database are unrelated: a DNS/network failure downloading ResNet50 weights (pattern 30a2eda292a88eb7) and a numeric-mismatch LSTM comparison flake (pattern da5b0923c1cd0777). This is a new, distinct flaky-test signature."
+}
