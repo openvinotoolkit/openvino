@@ -191,6 +191,7 @@ set(GPU_PLUGIN_TRANSFORMATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/keep_xattention_threshold_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/kv_cache_compression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/kv_cache_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/l2_norm_to_rms.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/lora_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/lora_subgraph_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/transformations/normalize_l2_decomposition.cpp
