@@ -818,6 +818,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"ov_ext::awq_gemm", op::translate_linear_awq},
         {"ov_ext::bit_linear", op::translate_linear_bitnet},
         {"ov_ext::ct_gemm", op::translate_linear_ct},
+        {"ov_ext::ct_gemm.default", op::translate_linear_ct},
         {"ov_ext::ct_embedding", op::translate_embedding_ct},
         {"ov_ext::gptq_gemm", op::translate_linear_gptq},
         {"ov_ext::bmm", op::translate_bmm_ext},
