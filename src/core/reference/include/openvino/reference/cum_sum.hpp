@@ -13,13 +13,18 @@ namespace reference {
 
 template <typename T, typename P>
 void cumsum(const T* arg, const P axis, T* out, const Shape& tensor_shape, const bool exclusive, const bool reverse) {
-    const auto normalized_axis = [axis, rank = tensor_shape.size()] {
-        if constexpr (std::is_unsigned_v<decltype(axis)>) {
-            return axis;
-        } else {
-            return axis < 0 ? axis + rank : axis;
-        }
-    }();
+    const auto rank = tensor_shape.size();
+    OPENVINO_ASSERT(rank >= 1, "CumSum requires input tensor rank >= 1, but got rank 0.");
+
+    const auto s_axis = static_cast<int64_t>(axis);
+    const auto s_rank = static_cast<int64_t>(rank);
+    OPENVINO_ASSERT(s_axis >= -s_rank && s_axis < s_rank,
+                    "CumSum axis ",
+                    s_axis,
+                    " is out of bounds for tensor of rank ",
+                    rank);
+
+    const auto normalized_axis = static_cast<size_t>(s_axis < 0 ? s_axis + s_rank : s_axis);
     const auto axis_dim = tensor_shape[normalized_axis];
 
     const auto size_before_axis = shape_size(tensor_shape.begin(), tensor_shape.begin() + normalized_axis);

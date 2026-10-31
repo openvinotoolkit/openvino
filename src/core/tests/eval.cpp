@@ -4155,6 +4155,65 @@ TEST(eval, evaluate_cum_sum_v0_exclusive_reversed) {
     EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
 }
 
+TEST(eval, evaluate_cum_sum_v0_negative_axis) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+    auto axis = ov::op::v0::Constant::create<int32_t>(element::i32, Shape{1}, {-1});
+    auto cs = make_shared<op::v0::CumSum>(data, axis);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data});
+
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    float out_expected[6] = {1.f, 3.f, 6.f, 4.f, 9.f, 15.f};
+
+    auto outputs = ov::TensorVector(1);
+    ASSERT_TRUE(m->evaluate(outputs, {{ov::element::f32, {2, 3}, input_values}}));
+    EXPECT_EQ(outputs[0].get_element_type(), data->get_element_type());
+    EXPECT_EQ(outputs[0].get_shape(), data->get_shape());
+    EXPECT_EQ(memcmp(outputs[0].data(), out_expected, sizeof(out_expected)), 0);
+}
+
+TEST(eval, evaluate_cum_sum_out_of_bounds_axis) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+    auto axis = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
+    auto cs = make_shared<op::v0::CumSum>(data, axis);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data, axis});
+
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    auto outputs = ov::TensorVector(1);
+
+    for (int32_t invalid_axis : {5, -3}) {
+        auto in_vector = ov::TensorVector{ov::Tensor(ov::element::f32, {2, 3}, input_values),
+                                          ov::Tensor(ov::element::i32, {}, &invalid_axis)};
+        OV_EXPECT_THROW(m->evaluate(outputs, in_vector), ov::AssertFailure, HasSubstr("out of bounds"));
+    }
+}
+
+TEST(eval, evaluate_cum_sum_rank_0_unsupported) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    auto axis = make_shared<ov::op::v0::Parameter>(element::i32, Shape{});
+    auto cs = make_shared<op::v0::CumSum>(data, axis);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data, axis});
+
+    float scalar_val = 42.0f;
+    int32_t axis_val = 0;
+    auto in_vector = ov::TensorVector{ov::Tensor(ov::element::f32, {}, &scalar_val),
+                                      ov::Tensor(ov::element::i32, {}, &axis_val)};
+    auto outputs = ov::TensorVector(1);
+    OV_EXPECT_THROW(m->evaluate(outputs, in_vector), ov::AssertFailure, HasSubstr("rank >= 1"));
+}
+
+TEST(eval, evaluate_cum_sum_empty_axis) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 3});
+    auto axis = make_shared<ov::op::v0::Parameter>(element::i32, Shape{0});
+    auto cs = make_shared<op::v0::CumSum>(data, axis);
+    auto m = make_shared<ov::Model>(OutputVector{cs}, ParameterVector{data, axis});
+
+    float input_values[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+    auto in_vector = ov::TensorVector{ov::Tensor(ov::element::f32, {2, 3}, input_values),
+                                      ov::Tensor(ov::element::i32, {0})};
+    auto outputs = ov::TensorVector(1);
+    OV_EXPECT_THROW(m->evaluate(outputs, in_vector), ov::AssertFailure, HasSubstr("must not be empty"));
+}
+
 TEST(eval, invalid_shape) {
     auto p1 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2});
     auto p2 = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{1, 2});

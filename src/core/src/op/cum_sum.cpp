@@ -7,6 +7,7 @@
 #include "element_visitor.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/cum_sum.hpp"
 #include "utils.hpp"
@@ -31,6 +32,7 @@ struct Evaluate : ov::element::NoAction<bool> {
 
 namespace {
 bool evaluate(TensorVector& outputs, const TensorVector& inputs, const bool exclusive, const bool reverse) {
+    OPENVINO_ASSERT(inputs[1].get_size() > 0, "CumSum axis input must not be empty.");
     outputs[0].set_shape(inputs[0].get_shape());
     const auto axis = ov::get_tensor_data_as<int64_t>(inputs[1]).front();
 
@@ -82,6 +84,16 @@ void CumSum::validate_and_infer_types() {
                           ").");
 
     // No axis input shape check for backward compatibility
+    const auto data_rank = get_input_partial_shape(0).rank();
+    if (const auto axis_constant = ov::util::get_constant_from_source(input_value(1))) {
+        const auto axis_vec = axis_constant->cast_vector<int64_t>();
+        NODE_VALIDATION_CHECK(this,
+                              !axis_vec.empty(),
+                              "Axis input must have at least one element, but got empty tensor.");
+        if (data_rank.is_static()) {
+            ov::util::validate_axis(axis_vec[0], data_rank, *this);
+        }
+    }
 }
 
 std::shared_ptr<Node> CumSum::clone_with_new_inputs(const OutputVector& new_args) const {
