@@ -38,10 +38,9 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     m_cached_ptr = m_node->get_data_ptr();
     m_byte_size = m_node->get_byte_size();
 
-    auto rt_info = m_node->get_rt_info();
-    auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-    if (weightless_cache_attr != rt_info.end()) {
-        m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+    std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata = ov::weight_sharing::Extension::get_constant_origin(*m_node);
+    if (origin_metadata) {
+        m_offset = origin_metadata->m_offset;
     } else {
         // See the comment in serialize() for more details
         LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. We need to "
@@ -128,7 +127,7 @@ LazyTensor::Meta Const::eval_meta() const {
     return {m_read_from_bin.get_shape(), m_read_from_bin.get_element_type()};
 }
 
-void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+void Const::read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx) {
     NPUW_ASSERT(!m_node &&
                 "LazyTensor can only read weight when it's being deserialized and not created from a Constant!");
     if (m_read_from_bin) {
@@ -136,7 +135,7 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         return;
     }
     if (ctx.weights) {
-        // ctx.weights maps the very same file eval() maps lazily later on, so a malformed
+        // The context maps the same file eval() maps lazily later on, so a malformed
         // weight description is rejected already at import time - for both branches below.
         validate_weight_range(ctx.weights->size());
         if (ctx.bf16_consts.find({m_offset, m_byte_size}) != ctx.bf16_consts.end()) {
@@ -240,7 +239,7 @@ LazyTensor::Meta Concat::eval_meta() const {
     return {shape, meta.type};
 }
 
-void Concat::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+void Concat::read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx) {
     for (auto& lt : tensors) {
         lt.read_weight(ctx);
     }
@@ -288,7 +287,7 @@ LazyTensor::Meta Unpack::eval_meta() const {
     return {shape, type};
 }
 
-void Unpack::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+void Unpack::read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx) {
     w.read_weight(ctx);
     if (z) {  // could be empty
         z.read_weight(ctx);
@@ -328,7 +327,7 @@ LazyTensor::Meta Permute::eval_meta() const {
     return {new_shape, meta.type};
 }
 
-void Permute::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+void Permute::read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx) {
     tensor.read_weight(ctx);
 }
 
@@ -355,7 +354,7 @@ LazyTensor::Meta Convert::eval_meta() const {
     return {tensor.eval_meta().shape, type};
 }
 
-void Convert::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+void Convert::read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx) {
     tensor.read_weight(ctx);
 }
 
@@ -386,7 +385,7 @@ LazyTensor::Meta Subtract128::eval_meta() const {
     return {meta.shape, ov::element::i8};
 }
 
-void Subtract128::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+void Subtract128::read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx) {
     tensor.read_weight(ctx);
 }
 
@@ -445,7 +444,7 @@ LazyTensor::Meta Gather::eval_meta() const {
     return {dst_shape, dst_type};
 }
 
-void Gather::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+void Gather::read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx) {
     w.read_weight(ctx);
 }
 
@@ -480,7 +479,7 @@ struct LazyTensorImpl {
 
     void detach();
 
-    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx);
     void serialize(ov::npuw::orc::Stream& stream);
 
     LazyTensor::Transform m_transform;
@@ -715,7 +714,7 @@ LazyTensor::Meta LazyTensorImpl::eval_meta() const {
                       m_transform);
 }
 
-void LazyTensorImpl::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+void LazyTensorImpl::read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx) {
     std::visit(overloaded{[&ctx](auto& op) {
                    return op.read_weight(ctx);
                }},
@@ -835,7 +834,7 @@ LazyTensor::Meta LazyTensor::eval_meta() const {
     return m_impl->eval_meta();
 }
 
-void LazyTensor::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+void LazyTensor::read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx) {
     NPUW_ASSERT(m_impl && "Trying to read weights into uninitialized tensor!");
     m_impl->read_weight(ctx);
 }
