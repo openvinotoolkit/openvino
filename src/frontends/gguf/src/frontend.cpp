@@ -131,6 +131,7 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
                                 "GenAIExtension requires a GGUF decoder with adaptable inputs");
         m_impl->genai_extension->m_embedding_model = adapter.get_embedding_model();
         m_impl->genai_extension->m_per_layer_embedding_model = adapter.get_per_layer_embedding_model();
+        m_impl->genai_extension->m_ngram_embedding_model = adapter.get_ngram_embedding_model();
     }
     return converted_model;
 }

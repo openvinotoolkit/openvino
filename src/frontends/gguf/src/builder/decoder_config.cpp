@@ -88,6 +88,8 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
     ssm_group_count = p.hybrid.group_count;
     ssm_dt_rank = p.hybrid.time_step_rank;
     ssm_inner_size = p.hybrid.inner_size;
+    ssm_sigmoid_gate = p.hybrid.sigmoid_output_gate;
+    ssm_l2_eps_under_sqrt = p.hybrid.l2_norm_eps_under_sqrt;
     n_expert = p.experts.count;
     n_expert_used = p.experts.used;
     const int dense_lead = p.experts.dense_lead;
@@ -169,6 +171,14 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
                   (o && o->sliding_window ? *o->sliding_window
                                           : !p.attention.sliding_on_attention_layers && periodic_or_listed_swa(il));
     }
+    sparse = p.attention.sparse;
+    if (sparse.key_block_size > 0) {
+        OPENVINO_ASSERT(sparse.key_block_size > 1 && sparse.token_budget > 0 &&
+                            sparse.token_budget % sparse.key_block_size == 0 && sparse.index_heads > 0 &&
+                            sparse.index_head_size > 0 && valid_layer_count(sparse.layers.size()) &&
+                            !sparse.layers.empty(),
+                        "[GGUF] invalid block-sparse attention configuration");
+    }
     m_layers.resize(n_layer);
     for (int il = 0; il < n_layer; ++il) {
         const auto* o = layer_overrides(il);
@@ -193,6 +203,7 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_ma
                           : !p.hybrid.recurrent_layers.empty() ? p.hybrid.recurrent_layers.at(il) != 0
                                                                : p.hybrid.full_attention_interval > 0 &&
                                                                      (il + 1) % p.hybrid.full_attention_interval != 0;
+        layer.sparse = !layer.recurrent && sparse.key_block_size > 0 && sparse.layers.at(il) != 0;
     }
     std::string attention_probe = "blk.0.";
     int attention_layer = 0;

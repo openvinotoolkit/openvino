@@ -124,4 +124,32 @@ std::optional<WeightTensors> concat_rows(const WeightTensors& a,
     return out;
 }
 
+std::optional<WeightTensors> slice_rows(const WeightTensors& t, size_t first, size_t count) {
+    if (!t.weight || count == 0) {
+        return std::nullopt;
+    }
+    const size_t rows = t.weight.get_shape().empty() ? 0 : t.weight.get_shape()[0];
+    if (first + count > rows) {
+        return std::nullopt;
+    }
+    WeightTensors out;
+    const std::vector<std::pair<const ov::Tensor*, ov::Tensor*>> parts{{&t.weight, &out.weight},
+                                                                       {&t.scales, &out.scales},
+                                                                       {&t.zero_point, &out.zero_point}};
+    for (const auto& [src, dst] : parts) {
+        if (!*src) {
+            continue;
+        }
+        auto shape = src->get_shape();
+        if (shape.empty() || shape[0] != rows || src->get_byte_size() % rows != 0) {
+            return std::nullopt;
+        }
+        const size_t row_bytes = src->get_byte_size() / rows;
+        shape[0] = count;
+        *dst = ov::Tensor(src->get_element_type(), shape);
+        std::memcpy(dst->data(), static_cast<const uint8_t*>(src->data()) + first * row_bytes, count * row_bytes);
+    }
+    return out;
+}
+
 }  // namespace ov::frontend::gguf::blocks

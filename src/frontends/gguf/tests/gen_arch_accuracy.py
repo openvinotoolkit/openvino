@@ -32,6 +32,9 @@ CASES = {
     "lfm3-attention-first": {"architecture": "lfm3", "attention_first": True, "fused": True, "post": True},
     "lfm3-wide-query": {"architecture": "lfm3", "heads": 6, "post": True},
     "qwen35": {}, "qwen35moe": {},
+    # Two-token QSA blocks with a two-token budget make the six-token schedule select blocks.
+    "qwen4exp": {},
+    "qwen4exp-tied": {"architecture": "qwen4exp", "tied": True},
     "qwen35-zero-scales": {"architecture": "qwen35", "zero_scales": True},
     "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
     # Real checkpoints quantize attn_gate apart from ssm_beta/ssm_alpha: F16 here selects the
@@ -234,6 +237,114 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, 
     finish(w)
 
 
+def write_qwen4exp_model(path, tied=False):
+    arch = "qwen4exp"
+    w = gguf.GGUFWriter(path, arch)
+    d, head, heads, kv, ff, vocab, hc, rank = 16, 16, 4, 2, 16, 32, 4, 4
+    state, groups, vheads, kernel = 8, 2, 4, 4
+    inner, conv = state * vheads, state * (2 * groups + vheads)
+    index_heads, index_dim, ngram, per_ngram, ple_kernel, ple_dim = 2, 12, 3, 2, 4, 4
+    vocab_sizes = [7, 11, 13, 17]
+    offsets = [int(x) for x in np.cumsum([0] + vocab_sizes[:-1])]
+    recurrent = [True, True, False, True]
+    w.add_context_length(128)
+    w.add_embedding_length(d)
+    w.add_block_count(4)
+    w.add_head_count(heads)
+    w.add_head_count_kv(kv)
+    w.add_key_length(head)
+    w.add_value_length(head)
+    w.add_rope_dimension_count(8)
+    w.add_rope_freq_base(10000.)
+    w.add_rope_dimension_sections([2, 1, 1, 0])
+    w.add_layer_norm_rms_eps(1e-5)
+    w.add_vocab_size(vocab)
+    w.add_tokenizer_model("none")
+    for key, value in {"inner_size": inner, "time_step_rank": vheads, "group_count": groups,
+                       "state_size": state, "conv_kernel": kernel}.items():
+        w.add_uint32(arch + ".ssm." + key, value)
+    w.add_full_attention_interval(4)
+    w.add_recurrent_layers(recurrent)
+    w.add_expert_count(4)
+    w.add_expert_used_count(2)
+    w.add_expert_feed_forward_length(ff)
+    w.add_expert_shared_feed_forward_length(ff)
+    w.add_hyper_connection_count(hc)
+    w.add_hyper_connection_low_rank(rank)
+    w.add_indexer_head_count(index_heads)
+    w.add_indexer_key_length(index_dim)
+    w.add_indexer_top_k(2)
+    w.add_attention_compress_ratios([0 if r else 2 for r in recurrent])
+    w.add_ple_layers([1])
+    w.add_ple_ngram_size(ngram)
+    w.add_ple_heads_per_ngram(per_ngram)
+    w.add_ple_conv_kernel(ple_kernel)
+    w.add_ple_eos_token_id(31)
+    w.add_embedding_length_per_layer_input(ple_dim)
+    w.add_ple_layer_multipliers([23703573157769, 20109073645365, 8052911324071])
+    w.add_ple_head_offsets(offsets)
+    w.add_ple_head_vocab_sizes(vocab_sizes)
+    rng = np.random.default_rng(20261031)
+    tensor = tensor_writer(w, rng)
+
+    tensor("token_embd.weight", (vocab, d))
+    if not tied:
+        tensor("output.weight", (vocab, d))
+    tensor("per_layer_token_embd.weight", (sum(vocab_sizes), ple_dim))
+    tensor("output_hc_norm.weight", (hc * d,), True)
+    tensor("output_hc_down.weight", (rank, hc * d))
+    tensor("output_hc_up.weight", (hc * d, rank))
+    for layer in range(4):
+        p = f"blk.{layer}."
+        packed = layer != 1
+        for mixer in ("attn", "ffn"):
+            tensor(p + f"hc_{mixer}_norm.weight", (hc * d,), True)
+            tensor(p + f"hc_{mixer}_up.weight", (hc * d, rank))
+            if packed:
+                tensor(p + f"hc_{mixer}_down_inject.weight", (rank + hc, hc * d))
+            else:
+                tensor(p + f"hc_{mixer}_down.weight", (rank, hc * d))
+                tensor(p + f"hc_{mixer}_inject.weight", (hc, hc * d))
+        if recurrent[layer]:
+            if packed:
+                tensor(p + "attn_qkv_gate.weight", (conv + inner, d))
+                tensor(p + "ssm_beta_alpha.weight", (2 * vheads, d))
+            else:
+                tensor(p + "attn_qkv.weight", (conv, d))
+                tensor(p + "attn_gate.weight", (inner, d))
+                for name in ("beta", "alpha"):
+                    tensor(p + f"ssm_{name}.weight", (vheads, d))
+            tensor(p + "ssm_conv1d.weight", (conv, kernel))
+            tensor(p + "ssm_dt.bias", (vheads,))
+            w.add_tensor(p + "ssm_a", -rng.uniform(.5, 1.5, vheads).astype(np.float32))
+            tensor(p + "ssm_norm.weight", (state,), True)
+            tensor(p + "ssm_out.weight", (d, inner))
+        else:
+            for name, width in (("q", 2 * heads * head), ("k", kv * head), ("v", kv * head)):
+                tensor(p + f"attn_{name}.weight", (width, d))
+            for name in ("q", "k"):
+                tensor(p + f"attn_{name}_norm.weight", (head,), True)
+            tensor(p + "attn_output.weight", (d, heads * head))
+            tensor(p + "indexer.q_proj.weight", (index_heads * index_dim, d))
+            tensor(p + "indexer.k_proj.weight", (index_dim, d))
+            for name in ("q", "k"):
+                tensor(p + f"indexer.{name}_norm.weight", (index_dim,), True)
+        if layer == 1:
+            tensor(p + "ple_key.weight", (hc * d, d))
+            tensor(p + "ple_value.weight", (d, d))
+            for name in ("key", "query", "conv"):
+                tensor(p + f"ple_norm_{name}.weight", (hc * d,), True)
+            tensor(p + "ple_conv1d.weight", (hc * d, ple_kernel))
+        tensor(p + "ffn_gate_inp.weight", (4, d))
+        for name in ("gate", "up"):
+            tensor(p + f"ffn_{name}_exps.weight", (4, ff, d))
+        tensor(p + "ffn_down_exps.weight", (4, d, ff))
+        tensor(p + "ffn_gate_inp_shexp.weight", (d,))
+        for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
+            tensor(p + f"ffn_{name}_shexp.weight", shape)
+    finish(w)
+
+
 def write_gemma4_model(path, opts):
     """Layers alternate sliding/full attention; E2B/E4B-style options add per-layer
     embeddings (`per_layer`) and reuse earlier KV in the last `shared_kv` layers, which omit
@@ -388,6 +499,8 @@ def write_model(path, arch, opts):
         return write_lfm_model(path, arch, opts)
     if arch == "gemma4":
         return write_gemma4_model(path, opts)
+    if arch == "qwen4exp":
+        return write_qwen4exp_model(path, opts.get("tied", False))
     if arch in ("qwen35", "qwen35moe"):
         return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False), opts.get("zero_scales", False))
     if arch in ("mamba2", "nemotron_h"):

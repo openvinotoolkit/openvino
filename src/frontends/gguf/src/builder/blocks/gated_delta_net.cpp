@@ -125,6 +125,27 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     const int64_t value_dim = head_v * H_v;
     const int64_t conv_dim = 2 * key_dim + value_dim;
 
+    // Packed projections that read the same input ([qkv | z] and [beta | alpha]) are split back
+    // into the separate weights the rest of the block reorders and merges.
+    const auto unpack = [&](const std::string& packed, const std::array<std::pair<std::string, int64_t>, 2>& parts) {
+        if (!e.has_weight(packed + ".weight") || e.has_weight(parts[0].first + ".weight"))
+            return;
+        const auto whole = e.weight_parts(packed);
+        OPENVINO_ASSERT(whole.weight.get_shape().size() == 2 &&
+                            whole.weight.get_shape()[0] == static_cast<size_t>(parts[0].second + parts[1].second),
+                        "[GGUF] unexpected rows of packed Gated-DeltaNet weight ",
+                        packed);
+        size_t first = 0;
+        for (const auto& [base, rows] : parts) {
+            const auto sliced = slice_rows(whole, first, static_cast<size_t>(rows));
+            OPENVINO_ASSERT(sliced, "[GGUF] cannot split packed Gated-DeltaNet weight ", packed);
+            store_parts(e, base, *sliced, e.weight_qtype(packed));
+            first += static_cast<size_t>(rows);
+        }
+    };
+    unpack(p + "attn_qkv_gate", {{{p + "attn_qkv", conv_dim}, {p + "attn_gate", value_dim}}});
+    unpack(p + "ssm_beta_alpha", {{{p + "ssm_beta", H_v}, {p + "ssm_alpha", H_v}}});
+
     // ggml pairs V head j with K head j % H_k (tiled order); the fused OV op pairs it with
     // K head j / (H_v / H_k) (grouped order). Storing the V heads in grouped order in every
     // per-V-head weight lets the op run without a runtime Tile of q and k.
@@ -309,6 +330,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                          {{"gdn_state_slots", int64_t{1}},
                           {"fuse_qk_l2norm", true},
                           {"qk_l2_norm_eps", cfg.rms_eps},
+                          {"qk_l2_norm_eps_under_sqrt", cfg.ssm_l2_eps_under_sqrt},
                           {"gqa_grouped", gqa_grouped},
                           {"split_outputs", true}},
                          {new_state});
@@ -316,14 +338,14 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     graph.recurrent_states.emplace_back(ss, new_state);
 
     // ---- gated output norm + projection ----
-    // build_norm_gated: rms_norm(attn, ssm_norm) * silu(z), normalizing the head_v axis.
+    // build_norm_gated: rms_norm(attn, ssm_norm) * silu(z) (or sigmoid(z)), normalizing the head_v axis.
     auto out = rms_norm(e, attn, p + "ssm_norm.weight", p + "gdn_norm", cfg.rms_eps);
     auto z_4d = e.add_op("GGML_OP_RESHAPE",
                          p + "z_4d",
                          {z},
                          6,
                          {{"reshape_target", std::vector<int64_t>{0, -1, H_v, head_v}}, {"special_zero", true}});
-    auto z_silu = e.add_op("GGML_UNARY_OP_SILU", p + "z_silu", {z_4d});
+    auto z_silu = e.add_op(cfg.ssm_sigmoid_gate ? "GGML_UNARY_OP_SIGMOID" : "GGML_UNARY_OP_SILU", p + "z_silu", {z_4d});
     out = e.add_op("GGML_OP_MUL", p + "gdn_gated", {out, z_silu});
     out = e.add_op("GGML_OP_RESHAPE",
                    p + "gdn_merged",

@@ -83,11 +83,13 @@ public:
                     std::vector<TensorDesc> inputs,
                     std::vector<TensorDesc> extra_inputs,
                     TensorDesc output,
-                    std::map<std::string, ov::Any> attributes)
+                    std::map<std::string, ov::Any> attributes,
+                    std::vector<std::string> extra_outputs = {})
         : m_op_type(std::move(op_type)),
           m_inputs(std::move(inputs)),
           m_output(std::move(output)),
-          m_attributes(std::move(attributes)) {
+          m_attributes(std::move(attributes)),
+          m_extra_outputs(std::move(extra_outputs)) {
         converted_op_types().insert(m_op_type);
         for (const auto& in : m_inputs) {
             m_input_names.push_back(in.name);
@@ -131,7 +133,9 @@ public:
     }
 
     std::vector<std::string> get_output_names() const override {
-        return {m_output.name};
+        std::vector<std::string> names{m_output.name};
+        names.insert(names.end(), m_extra_outputs.begin(), m_extra_outputs.end());
+        return names;
     }
 
     const std::string& get_op_type() const override {
@@ -152,7 +156,7 @@ public:
         return m_model_extra_inputs;
     }
     std::vector<std::string> get_model_output_names() const override {
-        return {m_output.name};
+        return get_output_names();
     }
 
     // The optional model-scope accessors (get_model_extra_inputs, get_tokenizer_config) both
@@ -173,6 +177,7 @@ private:
     std::vector<TensorDesc> m_inputs;
     TensorDesc m_output;
     std::map<std::string, ov::Any> m_attributes;
+    std::vector<std::string> m_extra_outputs;
     std::vector<std::string> m_input_names;
     std::map<std::string, std::shared_ptr<ov::Node>> m_model_inputs;
     std::map<std::string, std::shared_ptr<ov::Node>> m_model_extra_inputs;
@@ -197,6 +202,11 @@ public:
         m_output = {name, type, shape};
         return *this;
     }
+    // Further outputs of a multi-output op, in order after `output`.
+    SingleOpBuilder& extra_output(const std::string& name) {
+        m_extra_outputs.push_back(name);
+        return *this;
+    }
     // Set a typed operation attribute (e.g. "scale", "eps", "swapped"), the way a real
     // decoder exposes ggml op_params to the translators.
     template <typename T>
@@ -215,7 +225,7 @@ public:
     std::shared_ptr<GgufDecoder> decoder() const {
         auto attrs = m_attributes;
         attrs.emplace("output_type", ov::Any(m_output.type));
-        return std::make_shared<SingleOpDecoder>(m_op_type, m_inputs, m_extra_inputs, m_output, attrs);
+        return std::make_shared<SingleOpDecoder>(m_op_type, m_inputs, m_extra_inputs, m_output, attrs, m_extra_outputs);
     }
 
     std::shared_ptr<ov::Model> build() const {
@@ -239,6 +249,7 @@ private:
     std::vector<TensorDesc> m_extra_inputs;
     TensorDesc m_output;
     std::map<std::string, ov::Any> m_attributes;
+    std::vector<std::string> m_extra_outputs;
 };
 
 // ── inference / comparison helpers ──────────────────────────────────────────────

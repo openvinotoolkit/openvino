@@ -60,6 +60,7 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `qwen35` | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA | — | |
 | `qwen35moe` | Hybrid GatedDeltaNet, separate or fused routed experts, shared expert | Qwen3.6-35B-A3B Q4_K_M / Q4_0 | 13/13 / 12/13 |
 | `qwen3moe` | NEOX RoPE, per-head QK-norm, normalized experts | Qwen3-0.9B-A0.6B Q4_K_M | 13/13 |
+| `qwen4exp` | Qwen3.8-Flash-Next text model: GatedDeltaNet + block-sparse attention (QSA), hyper-connection streams, hashed n-gram embeddings, shared-expert MoE; see [coverage](#qwen38-flash-next-coverage) | — ⁵ | |
 | `smollm3` | NORMAL RoPE, skipped on every fourth layer | SmolLM3-3B Q4_K_M | 12/13 |
 
 1. Below the acceptance threshold (same first prediction, differences at steps 4–5). Its F32
@@ -71,17 +72,20 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
    and 2.7B give 13/13; with OpenVINO dynamic quantization group size 32, both give 13/13 against Q8 CPU.
 4. Peaked at about 222 GiB RAM plus swap because u2 experts expand at CPU compilation; see
    [memory limits](quantization.md#memory-and-packaging-limits).
+5. No real checkpoint has been replayed: the smallest published GGUF (Q2_K) is 83 GB plus a
+   51B-parameter n-gram table. Validation uses an HF tiny-random checkpoint; see below.
 
 ### Numerical regression coverage
 
-[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) runs 40 small nonzero F32 decoder
+[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) runs 42 small nonzero F32 decoder
 fixtures (every decoder above except `gpt-oss`, plus Devstral YaRN/temperature, Gemma4 MQA/MoE/PLE,
 Qwen3.5 mixed and fused variants) and `GGUFEmbeddingAccuracy` five embedding fixtures. Each compares
 complete logits with llama.cpp CPU through prefill, decode and a two-token cache append. Fixtures
 cover sliding-window boundaries, SmolLM3's NoPE layer, ERNIE without `expert_shared_count` and
 Bailing grouped routing; see the [fixture README](../tests/test_data/arch_accuracy/README.md).
 `GGUFMultimodalBackboneAdaptation` checks padded batches, beam reordering and PagedAttention for
-`qwen35`, `qwen35moe` and `gemma4`. Zero-weight fingerprints add structural coverage.
+`qwen35`, `qwen35moe` and `gemma4`, and padded batches, beam reordering and the n-gram lookup model
+for `qwen4exp`. Zero-weight fingerprints add structural coverage.
 
 ### Runtime limitations
 
@@ -109,6 +113,9 @@ Manually validated with the backend's stateful execution:
 | `gemma4` | gemma-4-E4B-it Q4_K_M | Per-op RoPE, F16 KV cache |
 | `qwen35` | Qwen3.5-4B Q4_K_M | GatedDeltaNet, partial-rotary IMROPE, interleaved Q/gate; F16 KV cache |
 
+The cgraph converters for `LIGHTNING_INDEXER`, `TOP_K_MASK`, `DSV4_HC_PRE` (plain and gated) and
+`DSV4_HC_POST`, used by `qwen4exp`, are tested against ggml CPU only.
+
 These runs record no llama.cpp revision. [llama.cpp compatibility CI](../../../../.github/workflows/job_gguf_llamacpp_validation.yml)
 pins the backend revision and runs its operator tests plus state scenarios on generated
 `llama`, `qwen2` and `qwen3` models only. A run passes when the output is coherent and consistent
@@ -120,6 +127,44 @@ GGML_OPENVINO_DEVICE=CPU GGML_OPENVINO_STATEFUL_EXECUTION=1 \
 ```
 
 Checkpoints used `Q2_K`, `Q4_0`, `Q4_K_M`, `Q6_K` and `Q8_0`; other formats are covered by unit tests only.
+
+## Qwen3.8-Flash-Next coverage
+
+`qwen4exp` is the llama.cpp architecture of Qwen3.8-Flash-Next (`qwen4_exp` in Transformers), the
+preview of the Qwen4 architecture. The builder converts the text model:
+
+- Gated DeltaNet layers with a sigmoid output gate and q/k normalization `x / sqrt(sum(x^2) + eps)`;
+  packed (`attn_qkv_gate`, `ssm_beta_alpha`) and separate projections.
+- Qwen Sparse Attention layers as opset17 `QSAPrepare` -> `SparseAttentionIndexer` ->
+  `SparseAttention`: blocks of `attention.compress_ratios` tokens, a budget of
+  `attention.indexer.top_k` tokens and the query's incomplete block, with a partially rotated
+  RMS-normalized index query. The graph follows the form that the plugin fusions of
+  [openvinotoolkit/openvino#39309](https://github.com/openvinotoolkit/openvino/pull/39309) match.
+- Four hyper-connection residual streams (fused or separate `down`/`inject` projections) in place
+  of every norm, including the output mixer.
+- Hashed n-gram embeddings (PLE) before one layer, with a gated, dilated causal convolution.
+- Shared-expert MoE. NextN (MTP) blocks are ignored.
+
+Running the sparse operations requires plugin kernels; CPU support is in #39309 and GPU support in
+[#38902](https://github.com/openvinotoolkit/openvino/pull/38902). Without them the qwen4exp tests skip.
+Validation, all on CPU with the #39309 kernels:
+
+- The F32 `qwen4exp` fixture matches llama.cpp `0ec4027a2` logits exactly through prefill and
+  cached decode, with two-token QSA blocks that make block selection active, plus state reset; a
+  variant without `output.weight` covers the tied output head.
+- [`optimum-intel-internal-testing/tiny-random-qwen38-flash-next`](https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen38-flash-next)
+  converted to F32 GGUF: 13/13 greedy choices with NMSE at most `1e-6` for a 27-token prompt
+  (six complete blocks against a two-block budget), and identical 12-token greedy output through
+  GenAI `LLMPipeline` (`GGUF_READER="FRONTEND"`). Its layer types read `qwen_sparse_attention`,
+  which the pinned llama.cpp converter maps to dense layers; it was converted as `full_attention`,
+  the label of the real checkpoint.
+- Left-padded batches with any pad id equal single-sequence runs; beam search runs.
+- `EMBEDS_TO_LOGITS` moves the n-gram lookup into a separate model with the optimum-intel IO
+  (`input_ids`, `ngram_history` -> `ngram_embeddings`, `new_ngram_history`) and matches token input.
+
+Limitations: PagedAttention conversion is not supported yet; no real checkpoint has been run
+(memory); the vision projector is not covered; the llama.cpp cgraph path has converters for the new
+operations but no end-to-end backend run.
 
 ## LFM2 and LFM2.5 coverage
 

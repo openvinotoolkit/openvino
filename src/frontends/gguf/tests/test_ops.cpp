@@ -190,6 +190,19 @@ INSTANTIATE_TEST_SUITE_P(GGUFOps,
                                                          return std::cos(x);
                                                      },
                                                      1e-4f},
+                                           UnaryCase{"abs",
+                                                     "GGML_UNARY_OP_ABS",
+                                                     [](float x) {
+                                                         return std::abs(x);
+                                                     },
+                                                     1e-6f},
+                                           // ggml_vec_sgn_f32: (x > 0) ? 1 : ((x < 0) ? -1 : 0).
+                                           UnaryCase{"sgn",
+                                                     "GGML_UNARY_OP_SGN",
+                                                     [](float x) {
+                                                         return static_cast<float>((x > 0.0f) - (x < 0.0f));
+                                                     },
+                                                     1e-6f},
                                            UnaryCase{"softplus",
                                                      "GGML_UNARY_OP_SOFTPLUS",
                                                      [](float x) {

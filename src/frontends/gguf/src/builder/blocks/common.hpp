@@ -59,4 +59,7 @@ std::optional<WeightTensors> concat_rows(const WeightTensors& a,
                                          GgufTensorType qa,
                                          GgufTensorType qb);
 
+// Rows [first, first + count) of every part of a weight; empty if a part does not split by rows.
+std::optional<WeightTensors> slice_rows(const WeightTensors& t, size_t first, size_t count);
+
 }  // namespace ov::frontend::gguf::blocks

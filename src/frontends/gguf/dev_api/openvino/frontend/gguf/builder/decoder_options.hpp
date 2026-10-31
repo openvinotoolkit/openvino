@@ -61,6 +61,16 @@ struct GGUF_FRONTEND_API DecoderScales {
     float logits_soft_cap = 0.0f;
 };
 
+// Block-sparse attention (Qwen Sparse Attention): a multi-head indexer scores one pooled key per
+// complete block of `key_block_size` tokens and every query attends to the best `token_budget`
+// tokens' worth of blocks plus its incomplete block. Layers with a nonzero `layers` entry use it.
+struct GGUF_FRONTEND_API DecoderSparseAttention {
+    int key_block_size = 0;
+    int token_budget = 0;
+    int index_heads = 0;
+    int index_head_size = 0;
+    std::vector<int32_t> layers;
+};
 struct GGUF_FRONTEND_API DecoderAttention {
     RopeMode rope_mode = RopeMode::Normal;
     RopeConfig rope{};
@@ -80,6 +90,7 @@ struct GGUF_FRONTEND_API DecoderAttention {
     std::optional<bool> qkv_bias;
     std::optional<bool> output_bias;
     std::optional<bool> sinks;
+    DecoderSparseAttention sparse;
 };
 
 struct GGUF_FRONTEND_API DecoderExperts {
@@ -106,6 +117,10 @@ struct GGUF_FRONTEND_API DecoderHybrid {
     int inner_size = 0;
     int full_attention_interval = 4;
     int nextn_layers = 0;
+    // Gated DeltaNet output gate activation: SiLU (Qwen3.5) or sigmoid (Qwen3.8-Flash-Next).
+    bool sigmoid_output_gate = false;
+    // q/k L2 normalization: x / max(||x||, eps) (ggml_l2_norm) or x / sqrt(sum(x^2) + eps).
+    bool l2_norm_eps_under_sqrt = false;
     std::vector<int32_t> recurrent_layers;
 };
 

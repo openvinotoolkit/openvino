@@ -5,6 +5,7 @@
 #include "builder/blocks/attention.hpp"
 
 #include <algorithm>
+#include <array>
 #include <map>
 #include <vector>
 
@@ -18,6 +19,97 @@ using ov::element::f32;
 namespace {
 // Dynamic token length, used for model-input Parameters only.
 constexpr int64_t D = -1;
+
+// Block-sparse attention over head-major K/V states [1, kv_heads, keys, head_size] that grow by
+// concatenation. QSAPrepare keeps the pooled keys of the complete blocks and the incomplete block
+// as states, so no index state grows with every token. q/k/v are [1, T, heads, head_size].
+std::string sparse_attention(GraphEmitter& e,
+                             const DecoderConfig& cfg,
+                             int il,
+                             const std::string& attn_norm,
+                             const std::string& q,
+                             const std::string& k,
+                             const std::string& v,
+                             float kq_scale) {
+    const std::string p = "blk." + std::to_string(il) + ".";
+    const std::string l = "_l" + std::to_string(il);
+    auto& graph = *e.graph();
+    const auto& sparse = cfg.sparse;
+    const int64_t block = sparse.key_block_size;
+    const int64_t index_dim = sparse.index_head_size;
+    auto rope = cfg.layer_rope_config(il);
+    rope.is_imrope = rope.is_imrope || (cfg.rope_op_case >> 16) == 2;
+    const int64_t rotary = rope.n_dims;
+    OPENVINO_ASSERT(rotary > 0 && rotary % 2 == 0 && rotary <= index_dim,
+                    "[GGUF] sparse attention index heads must contain the rotary dimensions");
+
+    // Shared by every sparse layer: valid key counts and the RoPE tables of the current tokens.
+    if (!graph.values->count("qsa_key_length"))
+        e.add_op("GGUF_OP_ATTENTION_KEY_LENGTH", "qsa_key_length", {"self_kq_mask"});
+    if (!graph.values->count("qsa_rope_cos"))
+        e.add_op("GGUF_OP_ROPE_CACHE", "qsa_rope_cos", {"inp_pos"}, 0, {{"rope_config", rope}}, {"qsa_rope_sin"});
+
+    for (const auto* name :
+         {"indexer.q_proj.weight", "indexer.k_proj.weight", "indexer.q_norm.weight", "indexer.k_norm.weight"})
+        e.add_weight(p + name);
+    const auto index_query = e.add_op("GGML_OP_MUL_MAT", p + "index_q", {p + "indexer.q_proj.weight", attn_norm});
+    const auto index_key = e.add_op("GGML_OP_MUL_MAT", p + "index_k", {p + "indexer.k_proj.weight", attn_norm});
+    OPENVINO_ASSERT(e.value(index_key).get_partial_shape()[3] == index_dim &&
+                        e.value(index_query).get_partial_shape()[3] == index_dim * sparse.index_heads,
+                    "[GGUF] sparse attention indexer projections do not match the indexer heads in layer ",
+                    il);
+
+    const std::string block_keys = "qsa_block_keys" + l, pending_keys = "qsa_pending_keys" + l,
+                      pending_rope = "qsa_pending_rope" + l;
+    e.add_input(block_keys, f32, ps({1, D, index_dim}));
+    e.add_input(pending_keys, f32, ps({1, block - 1, index_dim}));
+    e.add_input(pending_rope, f32, ps({1, 2 * rotary}));
+    const auto prepared = e.add_op("GGUF_OP_QSA_PREPARE",
+                                   block_keys + "_out",
+                                   {index_key,
+                                    block_keys,
+                                    "qsa_key_length",
+                                    "qsa_rope_cos",
+                                    "qsa_rope_sin",
+                                    p + "indexer.k_norm.weight",
+                                    pending_keys,
+                                    pending_rope},
+                                   0,
+                                   {{"key_block_size", block}, {"eps", cfg.rms_eps}},
+                                   {pending_keys + "_out", pending_rope + "_out"});
+    for (const auto& state : {block_keys, pending_keys, pending_rope}) {
+        graph.model_output_names.push_back(state + "_out");
+        graph.recurrent_states.emplace_back(state, state + "_out");
+    }
+    const auto selected =
+        e.add_op("GGUF_OP_SPARSE_ATTENTION_INDEXER",
+                 p + "qsa_blocks",
+                 {index_query, p + "indexer.q_norm.weight", "qsa_rope_cos", "qsa_rope_sin", prepared, "qsa_key_length"},
+                 0,
+                 {{"heads", int64_t{sparse.index_heads}},
+                  {"key_block_size", block},
+                  {"token_budget", int64_t{sparse.token_budget}},
+                  {"eps", cfg.rms_eps}},
+                 {p + "qsa_block_count"});
+
+    const int64_t kv_heads = cfg.layer_n_head_kv(il), head_size = cfg.layer_head_size(il);
+    std::array<std::string, 2> caches;
+    const std::array<std::string, 2> current{k, v};
+    for (size_t i = 0; i < 2; ++i) {
+        const std::string cache = (i == 0 ? "qsa_cache_k" : "qsa_cache_v") + l;
+        e.add_input(cache, f32, ps({1, kv_heads, D, head_size}));
+        const auto head_major =
+            e.add_op("GGML_OP_PERMUTE", cache + "_cur", {current[i]}, 1, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
+        caches[i] = e.add_op("GGML_OP_CONCAT", cache + "_out", {cache, head_major}, 0, {{"concat_axis", int{1}}});
+        graph.model_output_names.push_back(caches[i]);
+        graph.recurrent_states.emplace_back(cache, caches[i]);
+    }
+    return e.add_op("GGUF_OP_SPARSE_ATTENTION",
+                    p + "kqv",
+                    {q, caches[0], caches[1], selected, p + "qsa_block_count", "qsa_key_length"},
+                    0,
+                    {{"key_block_size", block}, {"scale", kq_scale}});
+}
 }  // namespace
 
 KvCachePlan KvCachePlan::build(const DecoderConfig& cfg) {
@@ -199,85 +291,90 @@ std::string attention(GraphEmitter& e,
         q = e.add_op("GGML_OP_MUL", p + "Qcur_temp_scaled", {q, temp});
     }
 
-    // ---- KV cache store ----
-    // Gemma4: layers with shared_kv_layers have no K/V of their own; they reuse the KV
-    // from the last layer of the same SWA type that has its own KV cache. SWA layers
-    // reuse the last own-KV SWA layer; global layers reuse the last own-KV global layer.
-    int anchor_il = il;
-    if (!has_own_kv) {
-        anchor_il = is_swa_layer ? kv.anchor_swa : kv.anchor_global;
-        if (anchor_il < 0)
-            anchor_il = kv.n_own_kv - 1;  // fallback
-    }
-    const std::string kc = "cache_k_l" + std::to_string(anchor_il);
-    const std::string vc = "cache_v_l" + std::to_string(anchor_il);
+    std::string attn;
+    if (cfg.layer_is_sparse(il)) {
+        attn = sparse_attention(e, cfg, il, attn_norm, q, k, v, kq_scale);
+    } else {
+        // ---- KV cache store ----
+        // Gemma4: layers with shared_kv_layers have no K/V of their own; they reuse the KV
+        // from the last layer of the same SWA type that has its own KV cache. SWA layers
+        // reuse the last own-KV SWA layer; global layers reuse the last own-KV global layer.
+        int anchor_il = il;
+        if (!has_own_kv) {
+            anchor_il = is_swa_layer ? kv.anchor_swa : kv.anchor_global;
+            if (anchor_il < 0)
+                anchor_il = kv.n_own_kv - 1;  // fallback
+        }
+        const std::string kc = "cache_k_l" + std::to_string(anchor_il);
+        const std::string vc = "cache_v_l" + std::to_string(anchor_il);
 
-    if (!cfg.embedding_model && has_own_kv) {
-        // Per-layer f16 KV cache Parameters. The K/V read back out of a cache are f16, and so is
-        // Q after its convert in the translator, so the FLASH_ATTN inputs agree.
-        const ov::PartialShape cache_shape = ps({1, D, n_head_kv_l, head_size_l});
-        if (!e.has_model_input(kc)) {
-            e.add_input(kc, ov::element::f16, cache_shape);
-            e.add_input(vc, ov::element::f16, cache_shape);
+        if (!cfg.embedding_model && has_own_kv) {
+            // Per-layer f16 KV cache Parameters. The K/V read back out of a cache are f16, and so is
+            // Q after its convert in the translator, so the FLASH_ATTN inputs agree.
+            const ov::PartialShape cache_shape = ps({1, D, n_head_kv_l, head_size_l});
+            if (!e.has_model_input(kc)) {
+                e.add_input(kc, ov::element::f16, cache_shape);
+                e.add_input(vc, ov::element::f16, cache_shape);
+            }
+
+            // SET_ROWS(cur, idx, cache) -> the cache with this step's rows written in. Lowered by
+            // the frontend to a stateless ScatterUpdate, or by the caller-registered MakeStateful
+            // extension to a ReadValue/Concat/Assign OpenVINO state.
+            k = e.add_op("GGML_OP_SET_ROWS", kc, {k, "inp_kv_idx", kc});
+            v = e.add_op("GGML_OP_SET_ROWS", vc, {v, "inp_kv_idx", vc});
+            // The written-through caches are model outputs, so the stateless graph returns each
+            // updated cache as a Result (which MakeStateful, when registered, turns into an Assign
+            // sink paired with the cache's ReadValue).
+            graph.model_output_names.push_back(kc);
+            graph.model_output_names.push_back(vc);
+        } else if (!cfg.embedding_model) {
+            // Shared-KV layer: K/V have already been set in the anchor layer's SET_ROWS.
+            // Use the anchor's combined cache. If the current layer has a smaller head size
+            // (SWA shared layer vs a global anchor), slice K/V to the layer's head_size along
+            // the last dim, mirroring llama.cpp's ggml_view_4d with n_embd_head_k(il).
+            const ov::PartialShape& anchor_kc_shape = e.value(kc).get_partial_shape();  // [1, T, n_kv, anchor_head]
+            const int64_t anchor_hs = anchor_kc_shape[3].is_static() ? anchor_kc_shape[3].get_length() : cfg.head_size;
+            if (head_size_l < static_cast<int>(anchor_hs)) {
+                // Slice the shared cache to this layer's head width.
+                const std::vector<int64_t> hs_slice{3, 0, int64_t(head_size_l)};
+                k = e.add_op("GGML_OP_VIEW", p + "k_hslice", {kc}, 3, {{"view_slice", hs_slice}});
+                v = e.add_op("GGML_OP_VIEW", p + "v_hslice", {vc}, 3, {{"view_slice", hs_slice}});
+            } else {
+                k = kc;
+                v = vc;
+            }
         }
 
-        // SET_ROWS(cur, idx, cache) -> the cache with this step's rows written in. Lowered by
-        // the frontend to a stateless ScatterUpdate, or by the caller-registered MakeStateful
-        // extension to a ReadValue/Concat/Assign OpenVINO state.
-        k = e.add_op("GGML_OP_SET_ROWS", kc, {k, "inp_kv_idx", kc});
-        v = e.add_op("GGML_OP_SET_ROWS", vc, {v, "inp_kv_idx", vc});
-        // The written-through caches are model outputs, so the stateless graph returns each
-        // updated cache as a Result (which MakeStateful, when registered, turns into an Assign
-        // sink paired with the cache's ReadValue).
-        graph.model_output_names.push_back(kc);
-        graph.model_output_names.push_back(vc);
-    } else if (!cfg.embedding_model) {
-        // Shared-KV layer: K/V have already been set in the anchor layer's SET_ROWS.
-        // Use the anchor's combined cache. If the current layer has a smaller head size
-        // (SWA shared layer vs a global anchor), slice K/V to the layer's head_size along
-        // the last dim, mirroring llama.cpp's ggml_view_4d with n_embd_head_k(il).
-        const ov::PartialShape& anchor_kc_shape = e.value(kc).get_partial_shape();  // [1, T, n_kv, anchor_head]
-        const int64_t anchor_hs = anchor_kc_shape[3].is_static() ? anchor_kc_shape[3].get_length() : cfg.head_size;
-        if (head_size_l < static_cast<int>(anchor_hs)) {
-            // Slice the shared cache to this layer's head width.
-            const std::vector<int64_t> hs_slice{3, 0, int64_t(head_size_l)};
-            k = e.add_op("GGML_OP_VIEW", p + "k_hslice", {kc}, 3, {{"view_slice", hs_slice}});
-            v = e.add_op("GGML_OP_VIEW", p + "v_hslice", {vc}, 3, {{"view_slice", hs_slice}});
-        } else {
-            k = kc;
-            v = vc;
+        // NOTE: q/k/v stay in the ggml-natural [1, n_tokens, n_head(_kv), head_size] layout
+        // here. The PERMUTE to [1, n_head, n_tokens, head_size] is done INSIDE the FLASH_ATTN
+        // translator, AFTER the GQA broadcast of K/V. That ordering -- Concat -> GQA tile ->
+        // single Transpose -> SDPA -- is the exact shape the CPU plugin's stateful_sdpa_fusion
+        // matches (its multi-query-bcst sits on the concat output, before one transpose), so
+        // the attention fuses into ScaledDotProductAttentionWithKVCache. Permuting before the
+        // tile (the old order) put the transpose between concat and tile and blocked the fuse.
+
+        // FLASH_ATTN_EXT(q, k, v, mask[, sinks]) -> [1, n_tokens, n_head, head_size].
+        // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
+        const std::string mask_name = is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask";
+        std::vector<std::string> attn_in = {q, k, v};
+        if (!cfg.embedding_model || cfg.causal_attention)
+            attn_in.push_back(mask_name);
+        if (cfg.has_sinks) {
+            e.add_named_weight(p + "attn_sinks.weight");
+            attn_in.push_back(p + "attn_sinks.weight");
         }
+        std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
+        if (cfg.embedding_model)
+            attn_attrs["f32_attention"] = true;
+        if (cfg.attn_soft_cap != 0.0f) {
+            attn_attrs["kq_soft_cap"] = cfg.attn_soft_cap;
+        }
+        attn = e.add_op("GGML_OP_FLASH_ATTN_EXT",
+                        p + "kqv",
+                        attn_in,
+                        100,  // builder layout: q/k/v are ggml-natural [1, T, n_head, head_size]
+                        std::move(attn_attrs));
     }
-
-    // NOTE: q/k/v stay in the ggml-natural [1, n_tokens, n_head(_kv), head_size] layout
-    // here. The PERMUTE to [1, n_head, n_tokens, head_size] is done INSIDE the FLASH_ATTN
-    // translator, AFTER the GQA broadcast of K/V. That ordering -- Concat -> GQA tile ->
-    // single Transpose -> SDPA -- is the exact shape the CPU plugin's stateful_sdpa_fusion
-    // matches (its multi-query-bcst sits on the concat output, before one transpose), so
-    // the attention fuses into ScaledDotProductAttentionWithKVCache. Permuting before the
-    // tile (the old order) put the transpose between concat and tile and blocked the fuse.
-
-    // FLASH_ATTN_EXT(q, k, v, mask[, sinks]) -> [1, n_tokens, n_head, head_size].
-    // gpt-oss: SWA layers use the sliding-window mask; plus a per-head sink logit.
-    const std::string mask_name = is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask";
-    std::vector<std::string> attn_in = {q, k, v};
-    if (!cfg.embedding_model || cfg.causal_attention)
-        attn_in.push_back(mask_name);
-    if (cfg.has_sinks) {
-        e.add_named_weight(p + "attn_sinks.weight");
-        attn_in.push_back(p + "attn_sinks.weight");
-    }
-    std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
-    if (cfg.embedding_model)
-        attn_attrs["f32_attention"] = true;
-    if (cfg.attn_soft_cap != 0.0f) {
-        attn_attrs["kq_soft_cap"] = cfg.attn_soft_cap;
-    }
-    auto attn = e.add_op("GGML_OP_FLASH_ATTN_EXT",
-                         p + "kqv",
-                         attn_in,
-                         100,  // builder layout: q/k/v are ggml-natural [1, T, n_head, head_size]
-                         std::move(attn_attrs));
 
     // reshape back to [1, 1, n_tokens, n_head*head_size]
     auto attn_2d = e.add_op("GGML_OP_RESHAPE",

@@ -7,15 +7,16 @@ Embedding fixtures contain `embeddings` instead of `logits`, and cover causal/bi
 per-token output plus mean, first-token and last-token pooling.
 OpenVINO does not participate in reference generation.
 
-The 40 decoder fixtures and five embedding fixtures include Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
+The 42 decoder fixtures and five embedding fixtures include Muse Glimmer, Qwen3.8-Flash-Next, Qwen3.5 dense/MoE (separate and fused
 expert projections, and F16 Gated-DeltaNet gate/beta projections that disable the frontend's
 projection merges as mixed quantization does in real checkpoints), Gemma4 mixed-head MQA/MoE variants and an E2B/E4B-style Gemma4 with
 per-layer embeddings and shared KV layers that omit unused K/V weights (`gemma4-ple`). Reference revisions are:
 
 | Fixtures | llama.cpp CPU oracle |
 |---|---|
-| Decoder/embedding fixtures other than the Mamba and Prism cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
+| Decoder/embedding fixtures other than the Mamba, Prism and `qwen4exp` cases below | Upstream `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
 | `mamba2`, `mamba2-tied`, `nemotron_h` | `476c01efe88aad7880a8132d5d3a415f2ca75139`, recorded when these fixtures were added |
+| `qwen4exp`, `qwen4exp-tied` | Upstream `0ec4027a2a0183de87c007069adddc06e665f7de` |
 | `bonsai2-hadamard`, `dspark` | [PrismML-Eng/llama.cpp](https://github.com/PrismML-Eng/llama.cpp/tree/e8fd209c975c80aa7fb36a8423571ff3b1b7e955), `e8fd209c975c80aa7fb36a8423571ff3b1b7e955` |
 
 The cases use distinct nonzero weights and nonuniform norm scales, four query heads,
@@ -108,6 +109,15 @@ and random seed 20261014. They cover four hybrid layers, four query/two KV heads
 three/four-tap convolution caches, a two-token attention window, dense leading layers,
 selection bias and normalized softmax/sigmoid expert weights. The sigmoid case includes
 expert-scale metadata that llama.cpp's LFM2 MoE loader ignores.
+
+`qwen4exp.npz` (seed 20261031) covers three Gated DeltaNet layers and one block-sparse attention
+layer: packed and separate projections, four hyper-connection streams with fused and separate
+`down`/`inject` weights, n-gram embeddings with a dilated convolution on layer 1, partial index
+RoPE (8 of 12 dimensions) and a shared-expert MoE; `qwen4exp-tied.npz` omits `output.weight`. Two-token blocks with a two-token budget make
+the schedule select blocks. Build the oracle against the pinned revision, which includes `qwen4exp`, as
+above. `../sparse_ops.npz` holds ggml CPU outputs of the sparse-selection and
+hyper-connection operations from [`sparse_ops_oracle.cpp`](../../sparse_ops_oracle.cpp) at the same
+revision, packed by `gen_sparse_ops_accuracy.py`.
 
 `afmoe.npz` was extracted from OpenVINO donor `c4a023aeac0302c283295ba241ddee5af5ca4a0b`.
 It covers four layers (one dense, three routed/shared MoE), four query/two KV heads,

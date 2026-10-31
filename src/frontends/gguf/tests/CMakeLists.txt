@@ -57,6 +57,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/arch/lfm3_audio_generator.cpp"
     "${FE_SRC_DIR}/builder/arch/dspark_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/mamba_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/qwen4exp_builder.cpp"
     "${FE_SRC_DIR}/builder/arch/mmproj_builder.cpp"
     "${FE_SRC_DIR}/op/multimodal.cpp"
     "${FE_SRC_DIR}/builder/blocks/attention.cpp"
@@ -78,6 +79,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/flash_attn_ext.cpp"
     "${FE_SRC_DIR}/op/gated_delta_net.cpp"
     "${FE_SRC_DIR}/op/get_rows.cpp"
+    "${FE_SRC_DIR}/op/hyper_connection.cpp"
     "${FE_SRC_DIR}/op/glu_geglu.cpp"
     "${FE_SRC_DIR}/op/glu_swiglu.cpp"
     "${FE_SRC_DIR}/op/im2col.cpp"
@@ -99,6 +101,8 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/softmax.cpp"
     "${FE_SRC_DIR}/op/solve_tri.cpp"
     "${FE_SRC_DIR}/op/sqr.cpp"
+    "${FE_SRC_DIR}/op/sparse_attention.cpp"
+    "${FE_SRC_DIR}/op/sparse_selection.cpp"
     "${FE_SRC_DIR}/op/ssm_conv.cpp"
     "${FE_SRC_DIR}/op/ssm_scan.cpp"
     "${FE_SRC_DIR}/op/top_k.cpp"
@@ -131,6 +135,7 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_shared_linear_inputs.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_simplify_activation_shapes.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_sparse_attention_ops.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_hadamard_sign_folding.cpp"
 )
 

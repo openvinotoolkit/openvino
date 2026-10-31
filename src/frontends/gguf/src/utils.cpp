@@ -345,6 +345,21 @@ int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
     return 0;
 }
 
+ov::Output<ov::Node> make_l2_norm_eps_under_sqrt(const ov::Output<ov::Node>& x, float eps) {
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+    ov::Output<ov::Node> value = x;
+    if (value.get_element_type() != ov::element::f32)
+        value = std::make_shared<ov::op::v0::Convert>(value, ov::element::f32);
+    const auto squares =
+        std::make_shared<ov::op::v1::ReduceSum>(std::make_shared<ov::op::v1::Multiply>(value, value), axis, true);
+    const auto norm = std::make_shared<ov::op::v0::Sqrt>(
+        std::make_shared<ov::op::v1::Add>(squares, ov::op::v0::Constant::create(ov::element::f32, {}, {eps})));
+    ov::Output<ov::Node> result = std::make_shared<ov::op::v1::Divide>(value, norm);
+    if (x.get_element_type() != ov::element::f32)
+        result = std::make_shared<ov::op::v0::Convert>(result, x.get_element_type());
+    return result;
+}
+
 ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps) {
     const auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
     ov::Output<ov::Node> value = x;

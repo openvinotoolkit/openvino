@@ -73,10 +73,18 @@ public:
         return m_per_layer_embedding_model;
     }
 
+    /// Hashed n-gram lookup extracted by EMBEDS_TO_LOGITS (Qwen3.8-Flash-Next), or null.
+    /// Inputs input_ids [B,T] and ngram_history [B,n-1] (absolute token ids, EOS for a new
+    /// sequence); outputs ngram_embeddings [B,T,1,width] and new_ngram_history [B,n-1].
+    const std::shared_ptr<ov::Model>& get_ngram_embedding_model() const {
+        return m_ngram_embedding_model;
+    }
+
 private:
     InputMode m_mode;
     std::shared_ptr<ov::Model> m_embedding_model;
     std::shared_ptr<ov::Model> m_per_layer_embedding_model;
+    std::shared_ptr<ov::Model> m_ngram_embedding_model;
 };
 
 }  // namespace ov::frontend::gguf::pass

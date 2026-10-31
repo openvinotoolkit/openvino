@@ -49,6 +49,7 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/assign_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -294,6 +295,102 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     self_correcting_axis_manager.register_pass<FixEmbdAxis>();
     self_correcting_axis_manager.run_passes(model);
 
+    // Hashed n-gram embeddings (Qwen3.8-Flash-Next) read the token history from a state. In
+    // EMBEDS_TO_LOGITS mode they move to a lookup model with explicit history IO, as exported by
+    // optimum-intel: input_ids [B,T] and ngram_history [B,n-1] (absolute ids, EOS for a new
+    // sequence) -> ngram_embeddings [B,T,1,W] and new_ngram_history. The language model takes
+    // ngram_embeddings instead.
+    std::shared_ptr<v0::Parameter> ngram_embeddings;
+    if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
+        for (const auto& node : model->get_ops()) {
+            const auto gather = token_embedding_lookup(node);
+            if (!gather)
+                continue;
+            auto indices = gather->input_value(1).get_node_shared_ptr();
+            if (const auto squeeze = ov::as_type_ptr<v0::Squeeze>(indices))
+                indices = squeeze->input_value(0).get_node_shared_ptr();
+            const auto heads_it = indices->get_rt_info().find("gguf.token_indices");
+            if (heads_it == indices->get_rt_info().end())
+                continue;
+            OPENVINO_ASSERT(!m_ngram_embedding_model, "[GGUF] more than one hashed n-gram embedding lookup");
+            const auto heads = heads_it->second.as<int64_t>();
+            const auto row_width = node->get_output_partial_shape(0)[3];
+            OPENVINO_ASSERT(row_width.is_static(), "[GGUF] n-gram embedding rows require a static width");
+            const int64_t width = heads * row_width.get_length();
+            // The absolute history and the state that feeds it.
+            std::shared_ptr<ov::Node> history;
+            std::vector<std::shared_ptr<ov::Node>> pending{indices};
+            std::unordered_set<ov::Node*> visited;
+            while (!pending.empty() && !history) {
+                auto current = pending.back();
+                pending.pop_back();
+                if (!visited.insert(current.get()).second)
+                    continue;
+                if (current->get_rt_info().count("gguf.token_history_offset"))
+                    history = current;
+                for (const auto& input : current->input_values())
+                    pending.push_back(input.get_node_shared_ptr());
+            }
+            OPENVINO_ASSERT(history, "[GGUF] n-gram embedding lookup without a token history");
+            const auto offset = history->get_rt_info().at("gguf.token_history_offset").as<int64_t>();
+            std::shared_ptr<v6::ReadValue> read;
+            for (auto source = history->input_value(0).get_node_shared_ptr(); source && !read;) {
+                read = ov::as_type_ptr<v6::ReadValue>(source);
+                source = source->get_input_size() ? source->input_value(0).get_node_shared_ptr() : nullptr;
+            }
+            OPENVINO_ASSERT(read, "[GGUF] n-gram token history is not a state");
+            std::shared_ptr<ov::op::util::AssignBase> assign;
+            for (const auto& sink : model->get_sinks()) {
+                const auto candidate = ov::as_type_ptr<ov::op::util::AssignBase>(sink);
+                if (candidate && candidate->get_variable_id() == read->get_variable_id())
+                    assign = candidate;
+            }
+            OPENVINO_ASSERT(assign, "[GGUF] n-gram token history has no update");
+            const auto context = read->get_output_partial_shape(0)[1];
+
+            auto history_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, context});
+            name_output(history_ids, "ngram_history");
+            history->output(0).replace(make_shared<v0::Convert>(history_ids, ov::element::i32)->output(0));
+            auto new_history = make_shared<v1::Add>(make_shared<v0::Convert>(assign->input_value(0), ov::element::i64),
+                                                    v0::Constant::create(ov::element::i64, {}, {offset}));
+            auto rows = make_shared<v1::Reshape>(
+                node,
+                v0::Constant::create(ov::element::i64, {4}, {int64_t{0}, int64_t{-1}, int64_t{1}, width}),
+                true);
+            auto extracted = make_shared<ov::Model>(ov::OutputVector{rows, new_history},
+                                                    ov::ParameterVector{inp_tokens, history_ids})
+                                 ->clone();
+            auto ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+            name_output(ids, "input_ids");
+            auto old_ids = extracted->get_parameters().front();
+            old_ids->output(0).replace(make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(ids, ov::element::i32),
+                                                                  v0::Constant::create(ov::element::i64, {2}, {0, 1}))
+                                           ->output(0));
+            extracted->remove_parameter(old_ids);
+            extracted->add_parameters({ids});
+            extracted->output(0).get_tensor().set_names({"ngram_embeddings"});
+            extracted->output(1).get_tensor().set_names({"new_ngram_history"});
+            extracted->validate_nodes_and_infer_types();
+            m_ngram_embedding_model = extracted;
+
+            auto embeddings =
+                make_shared<v0::Parameter>(node->get_output_element_type(0), ov::PartialShape{-1, -1, 1, width});
+            ngram_embeddings = embeddings;
+            name_output(embeddings, "ngram_embeddings");
+            node->output(0).replace(
+                make_shared<v1::Reshape>(
+                    embeddings,
+                    v0::Constant::create(ov::element::i64,
+                                         {4},
+                                         {int64_t{0}, int64_t{1}, int64_t{-1}, row_width.get_length()}),
+                    true)
+                    ->output(0));
+            model->remove_sink(assign);
+            model->remove_variable(read->get_variable());
+            break;
+        }
+    }
+
     std::shared_ptr<v0::Parameter> inputs_embeds, per_layer_inputs;
     if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
         // rt_info can propagate to helper nodes, so rediscover the lookups by name.
@@ -390,14 +487,15 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // sets it via set_tensor("beam_idx"). Keep that Parameter so its wiring is preserved. Its absence
     // means the model is not stateful, which the genai contract requires.
     auto beam_idx = find_parameter(model, "beam_idx");
-    OPENVINO_ASSERT(beam_idx || (recurrent_only && !model->get_variables().empty()),
+    OPENVINO_ASSERT(beam_idx || ((recurrent_only || batchable_recurrent) && !model->get_variables().empty()),
                     "[gguf] AdaptToGenAI: model has no 'beam_idx' input, so it is not stateful. "
                     "Register a make-stateful transformation extension (e.g. "
                     "ov::frontend::gguf::pass::MakeStateful) before converting.");
     if (!beam_idx) {
-        // GenAI sets beam_idx even for greedy decoding. Pure recurrent models have
-        // one fixed state slot, so keep the single-element input as part of the API.
-        beam_idx = make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{1});
+        // GenAI sets beam_idx even for greedy decoding. Pure recurrent models have one fixed state
+        // slot; batchable states (all of them, when no KV cache is written through SetRows) follow it.
+        beam_idx = make_shared<v0::Parameter>(ov::element::i32,
+                                              batchable_recurrent ? ov::PartialShape{-1} : ov::PartialShape{1});
         name_output(beam_idx, "beam_idx");
         model->add_parameters({beam_idx});
     }
@@ -595,6 +693,23 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         }
     }
 
+    // Token consumers that require a specific id at left-padded positions (hashed n-grams).
+    if (!inputs_embeds) {
+        for (const auto& node : model->get_ops()) {
+            const auto it = node->get_rt_info().find("gguf.padding_token_id");
+            if (it == node->get_rt_info().end())
+                continue;
+            auto current = make_shared<v8::Slice>(attention_mask, past_len, kv_len, one_1, one_1);
+            auto ids = make_shared<v1::Select>(
+                make_shared<v1::Equal>(current, v0::Constant::create(ov::element::i64, {}, {0})),
+                v0::Constant::create(ov::element::i64, {}, {it->second.as<int64_t>()}),
+                input_ids);
+            auto ids_4d =
+                make_shared<v1::Reshape>(make_shared<v0::Convert>(ids, ov::element::i32), shape_1_1_batch_seq, false);
+            node->input(0).replace_source_output(ids_4d);
+        }
+    }
+
     if (batchable_recurrent) {
         const auto& states = model->get_rt_info().at(gguf_recurrent_states_key()).as<std::vector<std::string>>();
         // Left-padding must not seed the causal convolution with padding embeddings. The
@@ -614,8 +729,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             if (!read || std::find(states.begin(), states.end(), read->get_variable_id()) == states.end())
                 continue;
             auto info = read->get_variable()->get_info();
-            auto tail = info.data_shape.to_shape();
-            tail.erase(tail.begin());
+            std::vector<int64_t> tail;
+            for (size_t axis = 1; axis < info.data_shape.size(); ++axis)
+                tail.push_back(info.data_shape[axis].is_static() ? info.data_shape[axis].get_length() : 0);
             auto initializer_shape = make_shared<v0::Concat>(
                 ov::OutputVector{batch_len, v0::Constant::create(ov::element::i64, {tail.size()}, tail)},
                 0);
@@ -805,7 +921,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // gguf Parameter has had its output rewired (consumers now read the derived subgraph),
     // so removing it is safe.
     ov::ParameterVector kept{input_ids, attention_mask, position_ids};
-    for (const auto& p : {inputs_embeds, per_layer_inputs, token_type_ids})
+    for (const auto& p : {inputs_embeds, per_layer_inputs, ngram_embeddings, token_type_ids})
         if (p)
             kept.push_back(p);
     model->add_parameters(kept);

@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <numeric>
 #include <set>
 #include <tuple>
 
@@ -42,6 +43,7 @@
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
@@ -740,6 +742,106 @@ TEST(GGUFMultimodalBackboneAdaptation, Lfm2SupportsBatchesAndBeamReordering) {
     }
 }
 
+TEST(GGUFMultimodalBackboneAdaptation, Qwen4ExpSupportsLeftPaddingAndBeamReordering) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+    auto model = frontend.convert(frontend.load(temporary.path));
+    EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{-1, -1}));
+    EXPECT_EQ(model->input("beam_idx").get_partial_shape(), (ov::PartialShape{-1}));
+    const auto supported = ov::Core().query_model(model, "CPU");
+    for (const auto& node : model->get_ops()) {
+        if (ov::is_type<ov::op::v17::SparseAttention>(node) && !supported.count(node->get_friendly_name()))
+            GTEST_SKIP() << "The CPU plugin does not support SparseAttention";
+    }
+    // Pad id 0 differs from the n-gram EOS (31), so the padded row must not hash the padding.
+    check_batched_decode(model);
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Qwen4ExpNgramLookupModelMatchesTokenInputs) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen4exp.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    using Mode = ov::frontend::gguf::GenAIExtension::InputMode;
+    const auto convert = [&](Mode mode) {
+        ov::frontend::gguf::FrontEnd frontend;
+        auto extension = std::make_shared<ov::frontend::gguf::GenAIExtension>(mode);
+        frontend.add_extension(extension);
+        auto model = frontend.convert(frontend.load(temporary.path));
+        return std::make_pair(model, extension);
+    };
+    auto [ids_model, unused] = convert(Mode::IDS_TO_LOGITS);
+    auto [embeds_model, extension] = convert(Mode::EMBEDS_TO_LOGITS);
+    const auto ngram = extension->get_ngram_embedding_model();
+    ASSERT_TRUE(ngram);
+    EXPECT_EQ(ngram->input("ngram_history").get_partial_shape(), (ov::PartialShape{-1, 2}));
+    EXPECT_EQ(ngram->output("ngram_embeddings").get_partial_shape(), (ov::PartialShape{-1, -1, 1, 16}));
+    EXPECT_EQ(embeds_model->input("ngram_embeddings").get_partial_shape(), (ov::PartialShape{-1, -1, 1, 16}));
+    for (const auto& variable : embeds_model->get_variables())
+        EXPECT_NE(variable->get_info().variable_id, "ngram_history");
+    ov::Core core;
+    const auto supported = core.query_model(ids_model, "CPU");
+    for (const auto& node : ids_model->get_ops()) {
+        if (ov::is_type<ov::op::v17::SparseAttention>(node) && !supported.count(node->get_friendly_name()))
+            GTEST_SKIP() << "The CPU plugin does not support SparseAttention";
+    }
+    const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+        return core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    };
+    auto ids_request = compile(ids_model), embeds_request = compile(embeds_model);
+    auto lookup = compile(extension->get_embedding_model()), ngram_lookup = compile(ngram);
+    const auto i64_tensor = [](const ov::Shape& shape, const std::vector<int64_t>& values) {
+        ov::Tensor tensor(ov::element::i64, shape);
+        std::copy(values.begin(), values.end(), tensor.data<int64_t>());
+        return tensor;
+    };
+    // EOS starts the history of a new sequence.
+    ov::Tensor history = i64_tensor({1, 2}, {31, 31});
+    size_t past = 0;
+    for (const std::vector<int64_t>& tokens : {std::vector<int64_t>{1, 2, 3}, {4}, {5, 6}}) {
+        const auto count = tokens.size();
+        std::vector<int64_t> positions(count);
+        std::iota(positions.begin(), positions.end(), static_cast<int64_t>(past));
+        const auto ids = i64_tensor({1, count}, tokens);
+        const auto mask = i64_tensor({1, past + count}, std::vector<int64_t>(past + count, 1));
+        ov::Tensor beam(ov::element::i32, {1});
+        beam.data<int32_t>()[0] = 0;
+        ids_request.set_tensor("input_ids", ids);
+        ids_request.set_tensor("attention_mask", mask);
+        ids_request.set_tensor("position_ids", i64_tensor({1, count}, positions));
+        ids_request.set_tensor("beam_idx", beam);
+        ids_request.infer();
+
+        lookup.set_tensor("input_ids", ids);
+        lookup.infer();
+        ngram_lookup.set_tensor("input_ids", ids);
+        ngram_lookup.set_tensor("ngram_history", history);
+        ngram_lookup.infer();
+        const auto next_history = ngram_lookup.get_tensor("new_ngram_history");
+        history = ov::Tensor(next_history.get_element_type(), next_history.get_shape());
+        next_history.copy_to(history);
+        std::vector<int64_t> sections;
+        for (size_t s = 0; s < 4; ++s)
+            sections.insert(sections.end(), positions.begin(), positions.end());
+        embeds_request.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+        embeds_request.set_tensor("ngram_embeddings", ngram_lookup.get_tensor("ngram_embeddings"));
+        embeds_request.set_tensor("attention_mask", mask);
+        embeds_request.set_tensor("position_ids", i64_tensor({4, 1, count}, sections));
+        embeds_request.set_tensor("beam_idx", beam);
+        embeds_request.infer();
+
+        const auto expected = ids_request.get_tensor("logits"), actual = embeds_request.get_tensor("logits");
+        ASSERT_EQ(actual.get_shape(), expected.get_shape());
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual.data<const float>(), expected.data<const float>(), actual.get_size()),
+            1e-6,
+            "past=" + std::to_string(past));
+        past += count;
+    }
+    EXPECT_EQ(history.data<int64_t>()[0], 5);
+    EXPECT_EQ(history.data<int64_t>()[1], 6);
+}
+
 static size_t count_rank3_gates(const std::shared_ptr<ov::Model>& model, const std::string& prefix) {
     size_t gates = 0;
     for (const auto& node : model->get_ops()) {
@@ -1311,6 +1413,14 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         EXPECT_NO_THROW(model->input("beam_idx"));
     }
     ov::Core core;
+    // Block-sparse attention needs plugin kernels for the opset17 sparse attention operations.
+    const auto supported = core.query_model(model, "CPU");
+    for (const auto& node : model->get_ops()) {
+        const std::string type = node->get_type_name();
+        if ((type == "QSAPrepare" || type == "SparseAttentionIndexer" || type == "SparseAttention") &&
+            !supported.count(node->get_friendly_name()))
+            GTEST_SKIP() << "The CPU plugin does not support " << type;
+    }
     auto compiled = core.compile_model(model,
                                        "CPU",
                                        ov::hint::inference_precision(ov::element::f32),
@@ -1370,7 +1480,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         }
         past += tokens.size();
     }
-    if (mamba || std::string(GetParam()) == "afmoe") {
+    if (mamba || std::string(GetParam()) == "afmoe" || std::string(GetParam()).find("qwen4exp") == 0) {
         const auto states = request.query_state();
         ASSERT_FALSE(states.empty());
         for (auto state : states)
@@ -1395,6 +1505,8 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
                          ::testing::Values("afmoe",
                                            "qwen35",
+                                           "qwen4exp",
+                                           "qwen4exp-tied",
                                            "qwen35-zero-scales",
                                            "lfm2",
                                            "lfm2-tied",

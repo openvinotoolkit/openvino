@@ -4,6 +4,7 @@
 
 #include "op_table.hpp"
 
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/cos.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/op/negative.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/sign.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/subtract.hpp"
@@ -28,6 +30,12 @@ namespace ov::frontend::gguf {
 std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
     using namespace ov::op;
     return {
+        {"GGUF_OP_ATTENTION_KEY_LENGTH", op::translate_attention_key_length},
+        {"GGUF_OP_NGRAM_HASH", op::translate_ngram_hash},
+        {"GGUF_OP_QSA_PREPARE", op::translate_qsa_prepare},
+        {"GGUF_OP_ROPE_CACHE", op::translate_rope_cache},
+        {"GGUF_OP_SPARSE_ATTENTION", op::translate_sparse_attention},
+        {"GGUF_OP_SPARSE_ATTENTION_INDEXER", op::translate_sparse_attention_indexer},
         {"GGML_GLU_OP_GEGLU", op::translate_glu_geglu},
         {"GGML_GLU_OP_GEGLU_QUICK", op::translate_glu_geglu_quick},
         {"GGML_GLU_OP_SWIGLU", op::translate_glu_swiglu},
@@ -46,6 +54,8 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_CUMSUM", op::translate_cumsum},
         {"GGML_OP_DIAG", op::translate_diag},
         {"GGML_OP_DIV", op::translate_div},
+        {"GGML_OP_DSV4_HC_POST", op::translate_dsv4_hc_post},
+        {"GGML_OP_DSV4_HC_PRE", op::translate_dsv4_hc_pre},
         {"GGML_OP_FILL", op::translate_fill},
         {"GGML_OP_FLASH_ATTN_EXT", op::translate_flash_attn_ext},
         {"GGML_OP_GATED_DELTA_NET", op::translate_gated_delta_net},
@@ -53,6 +63,7 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_GET_ROWS", op::translate_get_rows},
         {"GGML_OP_IM2COL", op::translate_im2col},
         {"GGML_OP_L2_NORM", op::translate_l2_norm},
+        {"GGML_OP_LIGHTNING_INDEXER", op::translate_lightning_indexer},
         {"GGML_OP_LOG", op::translate_1to1_match_1_input<v0::Log>},
         {"GGML_OP_MUL", op::translate_1to1_match_2_inputs<v1::Multiply>},
         {"GGML_OP_MUL_MAT", op::translate_mulmat},
@@ -80,12 +91,14 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_SUB", op::translate_1to1_match_2_inputs<v1::Subtract>},
         {"GGML_OP_SUM_ROWS", op::translate_sum_rows},
         {"GGML_OP_TOP_K", op::translate_top_k},
+        {"GGML_OP_TOP_K_MASK", op::translate_top_k_mask},
         {"GGML_OP_TRANSPOSE", op::translate_transpose},
         {"GGML_OP_TRI", op::translate_tri},
         {"GGML_OP_UPSCALE", op::translate_upscale},
         {"GGML_OP_VIEW", op::translate_view},
         {"GGML_OP_WIN_PART", op::translate_win_part},
         {"GGML_OP_WIN_UNPART", op::translate_win_unpart},
+        {"GGML_UNARY_OP_ABS", op::translate_1to1_match_1_input<v0::Abs>},
         {"GGML_UNARY_OP_ELU", op::translate_unary_elu},
         {"GGML_UNARY_OP_EXP", op::translate_1to1_match_1_input<v0::Exp>},
         {"GGML_UNARY_OP_GELU", op::translate_unary_gelu},
@@ -93,6 +106,7 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_UNARY_OP_GELU_QUICK", op::translate_unary_gelu_quick},
         {"GGML_UNARY_OP_NEG", op::translate_1to1_match_1_input<v0::Negative>},
         {"GGML_UNARY_OP_RELU", op::translate_1to1_match_1_input<v0::Relu>},
+        {"GGML_UNARY_OP_SGN", op::translate_1to1_match_1_input<v0::Sign>},
         {"GGML_UNARY_OP_SIGMOID", op::translate_1to1_match_1_input<v0::Sigmoid>},
         {"GGML_UNARY_OP_SILU", op::translate_unary_silu},
         {"GGML_UNARY_OP_SOFTPLUS", op::translate_1to1_match_1_input<v4::SoftPlus>},
