@@ -56,6 +56,7 @@
 #include "eye_shape_inference.hpp"
 #include "fake_quantize.hpp"
 #include "fft_base_shape_inference.hpp"
+#include "gated_delta_net_shape_inference.hpp"
 #include "gather_elements_shape_inference.hpp"
 #include "gather_nd_shape_inference.hpp"
 #include "gather_shape_inference.hpp"
@@ -123,6 +124,7 @@
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/eye.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gather_nd.hpp"
@@ -760,6 +762,7 @@ const IStaticShapeInferFactory::TRegistry IStaticShapeInferFactory::registry{
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GLU, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::SelectiveSSM, ShapeInferTA, util::bit::mask()),
     OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::PagedSelectiveSSM, ShapeInferTA, util::bit::mask()),
+    OV_OP_SHAPE_INFER_MASK_REG(ov::op::internal::GatedDeltaNet, ShapeInferTA, util::bit::mask()),
 };
 // clang-format on
 

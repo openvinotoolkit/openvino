@@ -80,6 +80,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/extract_image_patches_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/eye_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/fft_base_shape_inference_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gated_delta_net_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gather_elements_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gather_nd_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/gather_shape_inference_test.cpp
