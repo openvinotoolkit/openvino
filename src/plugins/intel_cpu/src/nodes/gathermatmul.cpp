@@ -34,6 +34,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -148,14 +149,52 @@ bool GatherMatmul::isSupportedCompressedOperation([[maybe_unused]] const std::sh
         if (config.fcDynamicQuantizationGroupSize != std::numeric_limits<uint64_t>::max()) {
             return false;
         }
-        // supports only symmetric quantization, only scales should be present.
-        if (op->get_input_size() > WEIGHT_SCALES &&
+        // scales are mandatory.
+        if (op->get_input_size() <= WEIGHT_SCALES ||
             op->input(WEIGHT_SCALES).get_element_type() == ov::element::dynamic) {
             return false;
         }
-        if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic) {
+        const auto& weightsShape = op->input(WEIGHTS).get_shape();
+        const auto& scalesShape = op->input(WEIGHT_SCALES).get_shape();
+        // Mirror the executor: weights are [E, N, K] and scales must be [E, N, ...] to be split per expert.
+        if (weightsShape.size() != 3 || scalesShape.size() < 2 || scalesShape[0] != weightsShape[0] ||
+            scalesShape[1] != weightsShape[1]) {
             return false;
+        }
+        const size_t numGroups = shape_size(ov::Shape(scalesShape.begin() + 2, scalesShape.end()));
+        const bool isChannelWise = numGroups == 1;
+        // Same geometry the KleidiAI group kernels assert on (group size multiple of 32).
+        const bool hasValidGroupGeometry = IC % G == 0 && IC / G >= 4 && OC != 1 && (IC / G) % 32 == 0;
+        const bool isGroupWise = !isChannelWise && hasValidGroupGeometry;
+        if (!isChannelWise && !isGroupWise) {
+            return false;
+        }
+        const auto weightsType = op->input(WEIGHTS).get_element_type();
+        // KleidiAI implements INT8 only with channel-wise scales.
+        if (weightsType == ov::element::i8 && !isChannelWise) {
+            return false;
+        }
+        const bool hasWeightZeroPoints = op->get_input_size() > WEIGHT_ZERO_POINTS &&
+                                         op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic;
+        // Symmetric weights must be i4/i8; u4 is only produced by asymmetric exports.
+        if (weightsType == ov::element::u4 && !hasWeightZeroPoints) {
+            return false;
+        }
+        if (hasWeightZeroPoints) {
+            // KleidiAI supports asymmetric INT4 only as group-wise u4 weights with u4 zero-points
+            // (mirrors FullyConnected::isSupportedCompressedOperation on ARM).
+            const auto zeroPointsType = op->input(WEIGHT_ZERO_POINTS).get_element_type();
+            if (weightsType != ov::element::u4 || zeroPointsType != ov::element::u4 || !isGroupWise) {
+                return false;
+            }
+            if (op->input(WEIGHT_ZERO_POINTS).get_shape() != scalesShape) {
+                return false;
+            }
+            // Zero-points are split per expert at byte granularity, so each expert's u4 slice must be
+            // byte-aligned; otherwise experts after the first would read shifted nibbles.
+            if (weightsShape[0] > 1 && (weightsShape[1] * numGroups) % 2 != 0) {
+                return false;
+            }
         }
     } catch (...) {
         return false;
@@ -171,7 +210,7 @@ ov::element::TypeVector GatherMatmul::getSupportedCompressedWeightsTypes() {
 #ifdef OPENVINO_ARCH_X86_64
     return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::u3};
 #elif defined(OPENVINO_ARCH_ARM64)
-    return {Type_t::i8, Type_t::i4};
+    return {Type_t::i8, Type_t::i4, Type_t::u4};
 #else
     return {};
 #endif
