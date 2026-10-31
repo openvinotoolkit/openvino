@@ -14,8 +14,9 @@
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
 
+#include "primitive_inst.h"
+
 #include <cmath>
-#include <limits>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -100,19 +101,88 @@ struct conv_activation_onednn_test_params {
     size_t expected_not_fused_primitives;
 };
 
+class UnfusedConvolutionConfig : public ExecutionConfig {
+public:
+    explicit UnfusedConvolutionConfig(const ExecutionConfig& config) : ExecutionConfig(config.clone()) {}
+
+protected:
+    void finalize_impl(const ov::IRemoteContext* context) override {
+        ExecutionConfig::finalize_impl(context);
+        set_property(ov::intel_gpu::optimize_data(false));
+    }
+};
+
 class ConvFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
+    virtual impl_types convolution_impl_type() const { return impl_types::any; }
+
     void execute(convolution_test_params& p, int min=0, int max=0) {
-        if(engine.get_device_info().supports_immad)
+        const auto backend = convolution_impl_type();
+        if (backend == impl_types::onednn) {
+            const auto& device_info = engine.get_device_info();
+            if (!device_info.supports_immad || device_info.arch == gpu_arch::unknown)
+                GTEST_SKIP() << "oneDNN is not supported";
+        }
+        if (backend == impl_types::onednn ||
+            (backend == impl_types::any && engine.get_device_info().supports_immad))
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+        if (backend != impl_types::any) {
+            if (backend == impl_types::ocl) {
+                cfg_fused.set_user_property({ov::intel_gpu::use_onednn(false)});
+                cfg_not_fused.set_user_property({ov::intel_gpu::use_onednn(false)});
+            }
+            auto fused_forcing = cfg_fused.get_force_implementations();
+            auto reference_forcing = cfg_not_fused.get_force_implementations();
+            for (const auto& entry : topology_fused.get_primitives()) {
+                if (entry.second->type != convolution::type_id())
+                    continue;
+                if (backend == impl_types::onednn) {
+                    fused_forcing[entry.first] = {format::any, "", impl_types::onednn};
+                } else if (fused_forcing.count(entry.first) == 0) {
+                    fused_forcing[entry.first] = {format::any, "", impl_types::ocl};
+                } else {
+                    fused_forcing.at(entry.first).impl_type = impl_types::ocl;
+                }
+                const bool use_reference_kernel = backend == impl_types::onednn &&
+                    p.data_type == data_types::f32 && p.weights_format == format::gs_oiyx_gsv16;
+                reference_forcing[entry.first] = use_reference_kernel
+                    ? ov::intel_gpu::ImplementationDesc{format::bfyx, "convolution_gpu_ref", impl_types::ocl}
+                    : ov::intel_gpu::ImplementationDesc{format::any, "", impl_types::ocl};
+            }
+            cfg_fused.set_user_property({ov::intel_gpu::force_implementations(fused_forcing)});
+            cfg_not_fused.set_user_property({ov::intel_gpu::force_implementations(reference_forcing)});
+        }
         cldnn::memory::ptr input_prim;
         if (min == max) {
             input_prim = get_mem(get_input_layout(p));
         } else {
             input_prim = get_mem(get_input_layout(p), min, max);
         }
-        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        auto reference_config = cfg_not_fused;
+        if (backend != impl_types::any) {
+            UnfusedConvolutionConfig unfused_config(cfg_not_fused);
+            unfused_config.finalize(engine);
+            reference_config = unfused_config;
+        }
+        network network_not_fused(this->engine, this->topology_non_fused, reference_config);
+        if (backend == impl_types::onednn && !network_not_fused.get_config().get_use_onednn())
+            GTEST_SKIP() << "oneDNN is not available";
         network network_fused(this->engine, this->topology_fused, cfg_fused);
+        if (backend != impl_types::any) {
+            ASSERT_FALSE(network_not_fused.get_config().get_optimize_data());
+            const auto& finalized_forcing = network_fused.get_config().get_force_implementations();
+            const auto forced_conv = finalized_forcing.find("conv_prim");
+            ASSERT_NE(forced_conv, finalized_forcing.end()) << "Convolution forcing was lost during finalization";
+            ASSERT_EQ(forced_conv->second.impl_type, backend);
+            for (const auto& info : network_fused.get_primitives_info()) {
+                if (info.type_id != "convolution")
+                    continue;
+                const auto instance = network_fused.get_primitive(info.original_id);
+                ASSERT_NE(instance->get_impl(), nullptr);
+                ASSERT_EQ(instance->get_impl()->is_onednn(), backend == impl_types::onednn)
+                    << info.original_id << ": " << info.kernel_id;
+            }
+        }
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -172,6 +242,16 @@ public:
 class ConvReorderFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
+        auto forcing = cfg_fused.get_force_implementations();
+        for (const auto& entry : topology_fused.get_primitives()) {
+            if (entry.second->type != convolution::type_id())
+                continue;
+            if (forcing.count(entry.first) == 0)
+                forcing.emplace(entry.first, ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::ocl});
+            else
+                forcing.at(entry.first).impl_type = impl_types::ocl;
+        }
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(forcing));
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);
@@ -312,9 +392,9 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
 class WeightsPrimitiveFusingTestOneDNN : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p) {
-        // Onednn post operation has issue in a machine that does not support imad.
-        if (!engine.get_device_info().supports_immad)
-            return;
+        const auto& device_info = engine.get_device_info();
+        if (!device_info.supports_immad || device_info.arch == gpu_arch::unknown)
+            GTEST_SKIP() << "oneDNN is not supported";
         p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
@@ -327,6 +407,8 @@ public:
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg);
+        if (!network_not_fused.get_config().get_use_onednn())
+            GTEST_SKIP() << "oneDNN is not available";
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -545,6 +627,11 @@ public:
 class conv_fp32_reorder_fsv16_to_bfyx : public ConvFusingTest {};
 TEST_P(conv_fp32_reorder_fsv16_to_bfyx, basic) {
     auto p = GetParam();
+    if (p.data_type == data_types::f32 && p.weights_format == format::gs_oiyx_gsv16) {
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"conv_prim", {format::b_fs_yx_fsv16, "", impl_types::ocl}}
+        }));
+    }
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
@@ -575,6 +662,12 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_fsv16_to_bfyx, ::testing
 class conv_fp32_reorder_fsv16_to_bfyx_conv : public ConvFusingTest {};
 TEST_P(conv_fp32_reorder_fsv16_to_bfyx_conv, basic) {
     auto p = GetParam();
+    if (p.data_type == data_types::f32 && p.weights_format == format::gs_oiyx_gsv16) {
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"conv_prim", {format::b_fs_yx_fsv16, "", impl_types::ocl}},
+            {"conv_output", {format::bfyx, "", impl_types::ocl}}
+        }));
+    }
 
     auto dw_weights_layout = layout{ {p.out_shape[1].get_length(), 1, 1, 3, 3}, p.default_type, format::goiyx };
     ov::Strides dw_stride = { 1, 1 };
@@ -612,8 +705,32 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_fsv16_to_bfyx_conv, ::te
 }));
 
 
-class conv_fp32_activation : public ConvFusingTest {};
-TEST_P(conv_fp32_activation, basic) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#define CONV_BACKEND_TEST(test_suite, test_name) \
+    TEST_P(test_suite, test_name) { run_##test_name(); } \
+    TEST_P(test_suite##_onednn, test_name) { run_##test_name(); }
+#define CONV_ONEDNN_FIXTURE(test_suite) \
+    class test_suite##_onednn : public test_suite { \
+        impl_types convolution_impl_type() const override { return impl_types::onednn; } \
+    };
+#else
+#define CONV_BACKEND_TEST(test_suite, test_name) \
+    TEST_P(test_suite, test_name) { run_##test_name(); }
+#define CONV_ONEDNN_FIXTURE(test_suite)
+#endif
+
+class ConvOclFusingTest : public ConvFusingTest {
+public:
+    impl_types convolution_impl_type() const override { return impl_types::ocl; }
+};
+
+class conv_fp32_activation : public ConvOclFusingTest {
+public:
+    void run_basic();
+};
+CONV_ONEDNN_FIXTURE(conv_fp32_activation)
+CONV_BACKEND_TEST(conv_fp32_activation, basic)
+void conv_fp32_activation::run_basic() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -647,8 +764,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation, ::testing::ValuesIn(
 }));
 
 
-class conv_fp32_scale : public ConvFusingTest {};
-TEST_P(conv_fp32_scale, basic) {
+class conv_fp32_scale : public ConvOclFusingTest {
+public:
+    void run_basic();
+};
+CONV_ONEDNN_FIXTURE(conv_fp32_scale)
+CONV_BACKEND_TEST(conv_fp32_scale, basic)
+void conv_fp32_scale::run_basic() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -704,8 +826,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_duplicated_connection, ::testing::Val
     convolution_test_params{ CASE_CONV_FP32_2, 2, 3, 3 },
 }));
 
-class conv_fp32_bias : public ConvFusingTest {};
-TEST_P(conv_fp32_bias, basic) {
+class conv_fp32_bias : public ConvOclFusingTest {
+public:
+    void run_basic();
+};
+CONV_ONEDNN_FIXTURE(conv_fp32_bias)
+CONV_BACKEND_TEST(conv_fp32_bias, basic)
+void conv_fp32_bias::run_basic() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -784,6 +911,11 @@ TEST_P(conv_fp32_wrong_bias, basic) {
         reorder("reorder_bfyx", input_info("add"), p.default_format, data_types::f32)
     );
 
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::any, "", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        { "conv_prim", conv_impl }
+    }));
+
     tolerance = default_tolerance(p.default_type);
     execute(p);
 }
@@ -791,6 +923,96 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP32_15, 3, 3, 3 },
 }));
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+class conv_fp32_depthwise_padding_onednn : public ConvFusingTest {};
+TEST_P(conv_fp32_depthwise_padding_onednn, matches_opencl_reference) {
+    const auto& device_info = engine.get_device_info();
+    if (!device_info.supports_immad || device_info.arch == gpu_arch::unknown)
+        GTEST_SKIP() << "oneDNN not supported"
+
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_per_channel_layout(p))),
+        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation,
+                    p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        activation("activation", input_info("conv_prim"), activation_func::abs),
+        reorder("reorder_output", input_info("activation"), format::bfyx, data_types::f32)
+    );
+
+    auto ocl_config = cfg_not_fused;
+    ocl_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        { "conv_prim", { format::bfyx, "convolution_gpu_ref", impl_types::ocl } }
+    }));
+    network network_ocl(engine, topology_non_fused, ocl_config);
+    if (!network_ocl.get_config().get_use_onednn())
+        GTEST_SKIP() << "oneDNN is disabled in the finalized configuration";
+
+    auto onednn_config = cfg_fused;
+    onednn_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        { "conv_prim", { format::any, "", impl_types::onednn } }
+    }));
+    network network_onednn(engine, topology_fused, onednn_config);
+
+    auto input_memory = get_mem(get_input_layout(p));
+    network_ocl.set_input_data("input", input_memory);
+    network_onednn.set_input_data("input", input_memory);
+    const auto output_ocl = network_ocl.execute();
+    const auto output_onednn = network_onednn.execute();
+    ASSERT_EQ(output_ocl.size(), 1);
+    ASSERT_EQ(output_onednn.size(), 1);
+    const auto& ocl_values = output_ocl.begin()->second;
+    const auto& onednn_values = output_onednn.begin()->second;
+    ASSERT_EQ(ocl_values.get_layout(), onednn_values.get_layout());
+    ASSERT_EQ(ocl_values.get_layout().format, format::bfyx);
+    ASSERT_FALSE(static_cast<bool>(ocl_values.get_layout().data_padding));
+
+    const auto values_ocl = get_output_values_to_float(network_ocl, ocl_values);
+    const auto values_onednn = get_output_values_to_float(network_onednn, onednn_values);
+    ASSERT_EQ(values_ocl.size(), values_onednn.size());
+    for (size_t i = 0; i < values_ocl.size(); ++i)
+        ASSERT_NEAR(values_ocl[i], values_onednn[i], default_tolerance(data_types::f32)) << "index = " << i;
+
+    const auto primitives = network_onednn.get_primitives_info();
+    const auto conv_info = std::find_if(primitives.begin(), primitives.end(), [](const primitive_info& info) {
+        return info.original_id == "conv_prim";
+    });
+    ASSERT_NE(conv_info, primitives.end());
+    EXPECT_NE(conv_info->kernel_id.find("jit:ir"), std::string::npos) << conv_info->kernel_id;
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_depthwise_padding_onednn,
+    ::testing::Values(convolution_test_params{ CASE_CONV_FP32_4, 0, 0, 0 }));
+
+class conv_fp32_wrong_bias_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_fp32_wrong_bias_onednn, basic) {
+    auto p = GetParam();
+    ov::PartialShape eltw_data_shape = get_input_layout(p).get_partial_shape();
+    for (size_t i = 0; i < eltw_data_shape.size() - 2; i++)
+        eltw_data_shape[i] = 1;
+
+    auto eltw_data_layout = layout{eltw_data_shape, p.default_type, format::bfyx};
+    ASSERT_EQ(p.out_shape[1], eltw_data_layout.count());
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("non-bias", get_mem(eltw_data_layout)),
+        convolution("conv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        eltwise("add", { input_info("conv_prim"), input_info("non-bias") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("add"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_15, 3, 2, 3 },
+}));
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
 class conv_fp16_wrong_bias : public ConvFusingTest {};
 TEST_P(conv_fp16_wrong_bias, basic) {
@@ -847,8 +1069,35 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_add_per_element_planar_const, ::
     convolution_test_params{ CASE_CONV_FP32_3, 3, 3, 4 },
 }));
 
-class conv_fp32_prelu_eltwise : public ConvFusingTest {};
-TEST_P(conv_fp32_prelu_eltwise, basic_sum) {
+class conv_fp32_prelu_eltwise : public ConvOclFusingTest {
+public:
+    void run_basic_sum();
+    void run_basic_sum_slope_2();
+    void run_basic_prod();
+    void run_basic_prod_slope_2();
+    void run_eltw_broadcast_sum();
+    void run_eltw_broadcast_sum_slope_2();
+    void run_eltw_broadcast_prod();
+    void run_eltw_broadcast_prod_slope_2();
+    void run_vector_ops();
+    void run_vector_ops_slope_2();
+    void run_vector_ops_mixed_types();
+    void run_vector_ops_mixed_types_slope_2();
+};
+CONV_ONEDNN_FIXTURE(conv_fp32_prelu_eltwise)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, basic_sum)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, basic_sum_slope_2)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, basic_prod)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, basic_prod_slope_2)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, eltw_broadcast_sum)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, eltw_broadcast_sum_slope_2)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, eltw_broadcast_prod)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, eltw_broadcast_prod_slope_2)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, vector_ops)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, vector_ops_slope_2)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, vector_ops_mixed_types)
+CONV_BACKEND_TEST(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2)
+void conv_fp32_prelu_eltwise::run_basic_sum() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -872,7 +1121,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_sum) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, basic_sum_slope_2) {
+void conv_fp32_prelu_eltwise::run_basic_sum_slope_2() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -896,7 +1145,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_sum_slope_2) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, basic_prod) {
+void conv_fp32_prelu_eltwise::run_basic_prod() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -924,7 +1173,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_prod) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, basic_prod_slope_2) {
+void conv_fp32_prelu_eltwise::run_basic_prod_slope_2() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -948,7 +1197,7 @@ TEST_P(conv_fp32_prelu_eltwise, basic_prod_slope_2) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum) {
+void conv_fp32_prelu_eltwise::run_eltw_broadcast_sum() {
     auto p = GetParam();
     tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
     create_topologies(
@@ -973,7 +1222,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum_slope_2) {
+void conv_fp32_prelu_eltwise::run_eltw_broadcast_sum_slope_2() {
     auto p = GetParam();
     tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
     create_topologies(
@@ -998,7 +1247,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_sum_slope_2) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod) {
+void conv_fp32_prelu_eltwise::run_eltw_broadcast_prod() {
     auto p = GetParam();
     tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
     create_topologies(
@@ -1023,7 +1272,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod_slope_2) {
+void conv_fp32_prelu_eltwise::run_eltw_broadcast_prod_slope_2() {
     auto p = GetParam();
     tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{ 1, 1, 1, 1 } : tensor{ 1, 1, 1, 1, 1 };
     create_topologies(
@@ -1053,7 +1302,7 @@ TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast_prod_slope_2) {
 }
 
 
-TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
+void conv_fp32_prelu_eltwise::run_vector_ops() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1074,7 +1323,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, vector_ops_slope_2) {
+void conv_fp32_prelu_eltwise::run_vector_ops_slope_2() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1098,7 +1347,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_slope_2) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
+void conv_fp32_prelu_eltwise::run_vector_ops_mixed_types() {
     auto p = GetParam();
     auto slope_type = p.default_type == data_types::f32 ? data_types::f16 : data_types::f32;
     create_topologies(
@@ -1120,7 +1369,7 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
     execute(p);
 }
 
-TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2) {
+void conv_fp32_prelu_eltwise::run_vector_ops_mixed_types_slope_2() {
     auto p = GetParam();
     auto slope_type = p.default_type == data_types::f32 ? data_types::f16 : data_types::f32;
     create_topologies(
@@ -1141,18 +1390,6 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2) {
     tolerance = default_tolerance(p.data_type);
     execute(p);
 }
-
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_prelu_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
-
-    // convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
-    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
-}));
 
 // Fused PReLU must propagate NaN the same way the standalone activation kernel
 // does: a NaN reaching the activation input (carried here through the
@@ -1283,6 +1520,18 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_prelu_nan, ::testing::ValuesIn(std::v
     // so the fsv16 block has no padding.
     convolution_test_params{ CASE_CONV_FP32_2, 2, 2 },
     convolution_test_params{ CASE_CONV_FP16_2, 2, 2 },
+}));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_prelu_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    // convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
+
+    // convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
 }));
 
 class conv_fp32_multi_eltwise_2 : public ConvFusingTest {};
@@ -1576,8 +1825,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_3_fusing, ::testin
 
 
 
-class conv_fp32_multi_eltwise_quantization : public ConvFusingTest {};
-TEST_P(conv_fp32_multi_eltwise_quantization, basic) {
+class conv_fp32_multi_eltwise_quantization : public ConvOclFusingTest {
+public:
+    void run_basic();
+};
+CONV_ONEDNN_FIXTURE(conv_fp32_multi_eltwise_quantization)
+CONV_BACKEND_TEST(conv_fp32_multi_eltwise_quantization, basic)
+void conv_fp32_multi_eltwise_quantization::run_basic() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1923,8 +2177,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_activation_quantize_i8_elt
     convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 7 },
 }));
 
-class conv_fp32_activation_eltwise_in_u8_fp32 : public ConvFusingTest {};
-TEST_P(conv_fp32_activation_eltwise_in_u8_fp32, basic) {
+class conv_fp32_activation_eltwise_in_u8_fp32 : public ConvOclFusingTest {
+public:
+    void run_basic();
+};
+CONV_ONEDNN_FIXTURE(conv_fp32_activation_eltwise_in_u8_fp32)
+CONV_BACKEND_TEST(conv_fp32_activation_eltwise_in_u8_fp32, basic)
+void conv_fp32_activation_eltwise_in_u8_fp32::run_basic() {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1953,6 +2212,53 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_eltwise_in_u8_fp32, :
     convolution_test_params{ CASE_CONV_FP32_9, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP32_10, 2, 2, 4 },
 }));
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 3 },
+}));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_scale_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_10, 2, 2, 3 },
+}));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_bias_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 3 },
+    convolution_test_params{ CASE_CONV_FP32_10, 2, 2, 3 },
+}));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_prelu_eltwise_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
+}));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_multi_eltwise_quantization_onednn,
+    ::testing::Values(convolution_test_params{ CASE_CONV_FP32_4, 4, 4, 5 }));
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_activation_eltwise_in_u8_fp32_onednn,
+    ::testing::ValuesIn(std::vector<convolution_test_params>{
+        convolution_test_params{ CASE_CONV_FP32_2, 2, 2, 4 },
+        convolution_test_params{ CASE_CONV_FP32_3, 2, 2, 4 },
+        convolution_test_params{ CASE_CONV_FP32_4, 2, 2, 4 },
+        convolution_test_params{ CASE_CONV_FP32_6, 2, 2, 4 },
+        convolution_test_params{ CASE_CONV_FP32_7, 2, 2, 4 },
+        convolution_test_params{ CASE_CONV_FP32_9, 2, 2, 4 },
+        convolution_test_params{ CASE_CONV_FP32_10, 2, 2, 4 },
+    }));
+#endif
+
+#undef CONV_BACKEND_TEST
+#undef CONV_ONEDNN_FIXTURE
 
 class conv_fp32_activation_eltwise_diff_sizes : public ConvEltwTest {};
 TEST_P(conv_fp32_activation_eltwise_diff_sizes, basic) {
@@ -3236,7 +3542,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 5, 6 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 6, 6 }
 }));
 
 // activation will be fused through 'reorder_fsv32' and 'reorder_fsv32' will be fused as well
@@ -3262,7 +3568,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, have_fused
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 6 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 5, 6 }
 }));
 
 // 'reorder_fsv32' is being fused even if it has 'padding'
@@ -3286,7 +3592,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 5 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 6, 5 }
 }));
 
 class conv_gen9_common_conv_fwd_data_1stconv : public ConvFusingTest {};
@@ -3315,6 +3621,119 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_gen9_common_conv_fwd_data_1stconv, ::
 }));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+class ConvFp32ReorderOneDNN : public BaseFusingTest<int> {};
+
+TEST_P(ConvFp32ReorderOneDNN, matches_opencl) {
+    if (!engine.get_device_info().supports_immad || engine.get_device_info().arch == gpu_arch::unknown)
+        GTEST_SKIP() << "oneDNN is not supported";
+
+    const auto scenario = GetParam();
+    const bool depthwise = scenario < 2;
+    const bool chained = scenario == 1 || scenario >= 3;
+    const layout input_desc{ov::PartialShape{1, 32, 4, 5}, data_types::f32, format::bfyx};
+    const layout weights_desc = depthwise
+        ? layout{ov::PartialShape{32, 1, 1, 3, 3}, data_types::f32, format::gs_oiyx_gsv16}
+        : layout{ov::PartialShape{32, 32, 3, 3}, data_types::f32, format::oiyx};
+    const ov::CoordinateDiff conv_padding = depthwise ? ov::CoordinateDiff{1, 1} : ov::CoordinateDiff{0, 0};
+    const auto conv_shape = depthwise ? ov::PartialShape{1, 32, 4, 5} : ov::PartialShape{1, 32, 2, 3};
+
+    create_topologies(input_layout("input", input_desc), data("weights", get_mem(weights_desc)));
+    auto preprocess_layout = input_desc;
+    preprocess_layout.format = depthwise ? format::b_fs_yx_fsv16 : format::bfyx;
+    if (scenario == 2) {
+        const layout mean_desc{ov::PartialShape{1, 32, 4, 5}, data_types::f32, format::bfyx};
+        create_topologies(data("mean", get_mem(mean_desc)),
+                  reorder("preprocess", input_info("input"), preprocess_layout, "mean", reorder_mean_mode::mul));
+    } else {
+        create_topologies(reorder("preprocess", input_info("input"), preprocess_layout));
+    }
+    create_topologies(convolution("conv_prim", input_info("preprocess"), "weights", "", depthwise ? 32 : 1,
+                          {1, 1}, {1, 1}, conv_padding, conv_padding, depthwise));
+
+    primitive_id last = "conv_prim";
+    if (chained) {
+        auto intermediate_layout = layout{conv_shape, data_types::f32, format::b_fs_yx_fsv16};
+        if (scenario == 6)
+            intermediate_layout.data_padding = padding{{0, 0, 1, 1}, 0};
+        const auto subtract = scenario == 3 ? std::vector<float>(32, 0.1f) : std::vector<float>{};
+        create_topologies(reorder("intermediate", input_info(last), intermediate_layout.format, data_types::f32,
+                          subtract, reorder_mean_mode::subtract, intermediate_layout.data_padding));
+        last = "intermediate";
+        if (scenario == 4) {
+            create_topologies(data("slope", get_mem(layout{ov::PartialShape{1, 32, 1, 1}, data_types::f32, format::bfyx}, 0.1f)),
+                      activation("prelu", input_info(last), "slope", activation_func::relu_negative_slope));
+            last = "prelu";
+        } else if (scenario == 5) {
+            create_topologies(activation("relu", input_info(last), activation_func::relu));
+            last = "relu";
+        }
+        const auto kernel_size = scenario == 1 ? 3 : 2;
+        create_topologies(data("weights_dw", get_mem(layout{ov::PartialShape{32, 1, 1, kernel_size, kernel_size},
+                                                   data_types::f32, format::goiyx})),
+                  convolution("conv_output", input_info(last), "weights_dw", "", 32, {1, 1}, {1, 1},
+                              conv_padding, conv_padding, true));
+        last = "conv_output";
+    }
+    create_topologies(activation("activation", input_info(last), activation_func::abs),
+              reorder("output", input_info("activation"), format::bfyx, data_types::f32));
+
+    ov::intel_gpu::ImplForcingMap reference_forcing{
+        {"conv_prim", {format::bfyx, "convolution_gpu_ref", impl_types::ocl}},
+        {"preprocess", {preprocess_layout.format, "", impl_types::ocl}},
+        {"output", {format::bfyx, "", impl_types::ocl}}
+    };
+    auto onednn_forcing = reference_forcing;
+    onednn_forcing.at("conv_prim") = {format::b_fs_yx_fsv16, "", impl_types::onednn};
+    if (chained) {
+        reference_forcing.emplace("conv_output", ov::intel_gpu::ImplementationDesc{format::bfyx, "convolution_gpu_ref", impl_types::ocl});
+        onednn_forcing.emplace("conv_output", ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::onednn});
+        reference_forcing.emplace("intermediate", ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::ocl});
+        onednn_forcing.emplace("intermediate", ov::intel_gpu::ImplementationDesc{format::b_fs_yx_fsv16, "", impl_types::ocl});
+    }
+    cfg_not_fused.set_property(ov::intel_gpu::force_implementations(reference_forcing));
+    network reference(engine, topology_non_fused, cfg_not_fused);
+    if (!reference.get_config().get_use_onednn())
+        GTEST_SKIP() << "oneDNN is not available";
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(onednn_forcing));
+    network optimized(engine, topology_fused, cfg_fused);
+    auto input_memory = get_mem(input_desc);
+    reference.set_input_data("input", input_memory);
+    optimized.set_input_data("input", input_memory);
+    auto reference_outputs = reference.execute();
+    auto optimized_outputs = optimized.execute();
+    ASSERT_EQ(reference_outputs.size(), 1);
+    ASSERT_EQ(optimized_outputs.size(), 1);
+    const auto& reference_output = reference_outputs.at("output");
+    const auto& optimized_output = optimized_outputs.at("output");
+    ASSERT_EQ(reference_output.get_layout(), optimized_output.get_layout());
+    ASSERT_EQ(optimized_output.get_layout().format, format::bfyx);
+    ASSERT_FALSE(static_cast<bool>(optimized_output.get_layout().data_padding));
+    const auto reference_values = get_output_values_to_float(reference, reference_output);
+    const auto optimized_values = get_output_values_to_float(optimized, optimized_output);
+    ASSERT_EQ(reference_values.size(), optimized_values.size());
+    for (size_t index = 0; index < reference_values.size(); ++index)
+        ASSERT_NEAR(reference_values[index], optimized_values[index], 1e-4f) << "index = " << index;
+    const auto primitives = optimized.get_primitives_info();
+    for (const auto& entry : onednn_forcing) {
+        if (entry.second.impl_type != impl_types::onednn)
+            continue;
+        const auto selected = std::find_if(primitives.begin(), primitives.end(), [&](const primitive_info& info) {
+            return info.original_id == entry.first;
+        });
+        ASSERT_NE(selected, primitives.end()) << entry.first;
+        EXPECT_NE(selected->kernel_id.find("jit:ir"), std::string::npos) << entry.first << ": " << selected->kernel_id;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, ConvFp32ReorderOneDNN, ::testing::Range(0, 7),
+    ([](const ::testing::TestParamInfo<int>& info) {
+        static const std::vector<std::string> names{
+            "depthwise_blocked_weights", "depthwise_chain", "mean", "subtract",
+            "fused_activation", "fused_through_activation", "data_padding"
+        };
+        return names.at(info.param);
+    }));
+
 class conv_fp16_prelu_onednn : public WeightsPrimitiveFusingTestOneDNN {};
 TEST_P(conv_fp16_prelu_onednn, basic_activation_eltwise) {
     auto p = GetParam();
@@ -4581,6 +5000,31 @@ TEST_P(conv_elt_fp16_onednn, basic_activation_eltwise_div) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_elt_fp16_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
+}));
+
+
+class conv_elt_fp32_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_elt_fp32_onednn, basic_activation_eltwise_div) {
+    auto p = GetParam();
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_per_channel_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p), 1.0f)),
+        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        activation("activation", input_info("conv_prim"), "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", input_info("activation"), input_info("eltwise_data"), eltwise_mode::div),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_elt_fp32_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_1, 2, 2, 4 },
 }));
 
 #endif  // ENABLE_ONEDNN_FOR_GPU
