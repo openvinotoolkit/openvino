@@ -353,6 +353,12 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.cpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_brgemm.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_brgemm_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_pa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_pa_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_sdpa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/xattention.hpp
@@ -409,6 +415,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/paged_causal_conv1d.h
     ${CPU_SRC_DIR}/nodes/paged_gated_delta_net.cpp
     ${CPU_SRC_DIR}/nodes/paged_gated_delta_net.h
+    ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.cpp
+    ${CPU_SRC_DIR}/nodes/paged_qsa_indexer.h
     ${CPU_SRC_DIR}/nodes/paged_selective_ssm.cpp
     ${CPU_SRC_DIR}/nodes/paged_selective_ssm.h
     ${CPU_SRC_DIR}/nodes/pooling.cpp
@@ -425,6 +433,9 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/psroi_pooling.h
     ${CPU_SRC_DIR}/nodes/qkv_proj.cpp
     ${CPU_SRC_DIR}/nodes/qkv_proj.h
+    ${CPU_SRC_DIR}/nodes/qsa_indexer.cpp
+    ${CPU_SRC_DIR}/nodes/qsa_indexer.h
+    ${CPU_SRC_DIR}/nodes/qsa_indexer_common.hpp
     ${CPU_SRC_DIR}/nodes/random_uniform.cpp
     ${CPU_SRC_DIR}/nodes/random_uniform.hpp
     ${CPU_SRC_DIR}/nodes/range.cpp
@@ -481,6 +492,10 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/space_to_depth.h
     ${CPU_SRC_DIR}/nodes/sparse_fill_empty_rows.cpp
     ${CPU_SRC_DIR}/nodes/sparse_fill_empty_rows.h
+    ${CPU_SRC_DIR}/nodes/sparse_sdpa.cpp
+    ${CPU_SRC_DIR}/nodes/sparse_sdpa.h
+    ${CPU_SRC_DIR}/nodes/sparse_pa.cpp
+    ${CPU_SRC_DIR}/nodes/sparse_pa.h
     ${CPU_SRC_DIR}/nodes/split.cpp
     ${CPU_SRC_DIR}/nodes/split.h
     ${CPU_SRC_DIR}/nodes/stft.cpp
@@ -583,6 +598,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/read_value_with_subgraph.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sdpa.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sdpa.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/sparse_attention_with_kv_cache.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/submodel.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/submodel.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/common/op/swish_cpu.cpp
@@ -843,6 +860,8 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/interaction.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/llm_mlp.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/llm_mlp.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qsa_indexer.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/op/qkv_proj.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/convert_to_interaction.cpp
@@ -851,6 +870,10 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/mlp_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qkv_proj_fusion.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qsa_indexer_fusion.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/qsa_indexer_fusion.hpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.cpp
+    ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sparse_attention_kv_cache_fusion.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.cpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp
     ${CPU_SRC_DIR}/transformations/cpu_opset/x64/pass/simplify_fakequantize.hpp
