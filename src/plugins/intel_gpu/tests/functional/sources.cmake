@@ -19,6 +19,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_tests/gpu_dyn_output_aliasing_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_tests/gpu_dyn_output_deep_chain_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_tests/gpu_dyn_output_multiop_chain_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_tests/gpu_dyn_output_rebind_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/dx11_nthandle.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/dx11_remote_ctx_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/remote_tensor_tests/dx12_nthandle.cpp
@@ -315,6 +316,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/divide.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/fake_convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/recurrent_cache_update.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/gather_elements_padding_input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/gather_indices_input.cpp
     ${CMAKE_CURRENT_LIST_DIR}/single_layer_tests/group_convolution.cpp

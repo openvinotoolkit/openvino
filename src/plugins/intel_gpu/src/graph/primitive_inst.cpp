@@ -1348,6 +1348,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     // allocate_output() params of the nodes that don't use fake_aligned_params, built on the first allocation
     std::optional<kernel_impl_params> alloc_params;
     for (size_t i = 0; i < actual_layouts.size(); ++i) {
+        if (try_bind_output_memory(actual_layouts[i], i))
+            continue;
         bool can_reuse_buffer = (_outputs[i] && updated_layouts[i].get_linear_size() <= _max_output_layout_count[i]);
         std::pair<bool, ov::Shape> prealloc_info;
         if (get_node().is_type<kv_cache>() && i != 1) {
