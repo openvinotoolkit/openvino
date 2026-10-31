@@ -20,6 +20,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
@@ -334,5 +335,50 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(const std::sh
     };
 
     auto m = std::make_shared<Matcher>(p_slice, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::PositionIDsReplacerGranite::PositionIDsReplacerGranite(const Output<Node>& unsq_position_ids) {
+    MATCHER_SCOPE(PositionIDsReplacerGranite);
+
+    auto p_current_length = any_input();  // ShapeOf(hidden_states)[1]
+    // Current-token offsets: Range(0, current_length, 1).
+    auto p_range = wrap_type<ov::op::v0::Range, ov::op::v4::Range>({any_input(), p_current_length, any_input()});
+
+    // Past length comes from the 1) cache, or 2) from the replacement produced by PrevSequenceLengthPattern.
+    // 1) Generally, should not be observed as PrevSequenceLengthPattern has to cover it, but leaving just in case if
+    // something happens to PrevSequenceLengthPattern (i.e. order is changed or removed)
+    auto p_cache = wrap_type<ov::op::util::ReadValueBase>();
+    auto p_cache_gather = wrap_type<ov::op::util::GatherBase>({p_cache, any_input(), any_input()});
+    auto p_cache_shape = wrap_type<ov::op::util::ShapeOfBase>({p_cache_gather});
+    auto p_cache_length = wrap_type<ov::op::util::GatherBase>({p_cache_shape, any_input(), any_input()});
+
+    // 2)
+    auto p_max_context_length = wrap_type<v0::Parameter>([](const Output<Node>& output) {
+        return output.get_names().count("max_context_len") != 0;
+    });
+    auto p_replaced_length = wrap_type<v1::Subtract>({p_max_context_length, any_input()});
+    auto p_replaced_length_convert = wrap_type<v0::Convert>({p_replaced_length});
+
+    auto p_past_length = p_cache_length | p_replaced_length_convert;
+    auto p_positions = wrap_type<v1::Add>({p_range, p_past_length});
+
+    // Absolute positions -> [1, 1, tokens] -> inverse-frequency MatMul -> duplicated RoPE angles.
+    auto p_positions_batch = wrap_type<v0::Unsqueeze>({p_positions, wrap_type<v0::Constant>(value_matches("0"))});
+    auto p_positions_heads = wrap_type<v0::Unsqueeze>({p_positions_batch, wrap_type<v0::Constant>(value_matches("1"))});
+    auto p_positions_float = wrap_type<v0::Convert>({p_positions_heads});
+    auto p_inv_freq = any_input();
+    auto p_matmul = wrap_type<v0::MatMul>({p_inv_freq, p_positions_float});
+    auto p_transpose = wrap_type<v1::Transpose>({p_matmul, wrap_type<v0::Constant>(value_matches("0, 2, 1"))});
+    auto p_angles = wrap_type<v0::Concat>({p_transpose, p_transpose});
+    auto p_sin_cos = wrap_type<v0::Sin, v0::Cos>({p_angles});
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        const auto& pattern_map = m.get_pattern_map();
+        pattern_map.at(p_positions_heads)->input(0).replace_source_output(unsq_position_ids);
+        return true;
+    };
+
+    auto m = std::make_shared<Matcher>(p_sin_cos, matcher_name);
     register_matcher(m, callback);
 }
