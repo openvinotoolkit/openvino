@@ -206,6 +206,9 @@ protected:
                                          const ov::AnyMap& generate_config);
 
     bool m_is_eagle = false;
+    // True for multi-head classifier / "guard" models that must preserve full-sequence per-token
+    // logits for every output head instead of slicing to the last token's single logits.
+    bool m_is_guard = false;
 };
 
 }  // namespace npuw

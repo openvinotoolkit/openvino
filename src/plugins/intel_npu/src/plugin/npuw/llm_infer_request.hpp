@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 #include "base_sync_infer_request.hpp"
@@ -146,6 +148,13 @@ protected:
                             const ov::SoPtr<ov::ITensor>& position_ids,
                             uint32_t num_cached_tokens);
 
+    // Guard models: copy every per-token classifier head produced by `request` (keyed in
+    // `out_ports`) into the exposed outputs, keeping only the last `valid_len` positions
+    // (the real, right-aligned tokens of this prefill/generate step).
+    void collect_guard_logits(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                              const PortsMap& out_ports,
+                              uint32_t valid_len);
+
     // Continuation counterpart of prepare_for_new_conversation(), run by
     // infer_prefill() when a granted keep is armed. Validates the delta inputs,
     // repacks the preserved prefix through the strategy, restores the history
@@ -190,6 +199,11 @@ protected:
     std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_other_outputs;
     std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_outs_seqdims;
     std::unordered_map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> m_prefill_other_outs_accum;
+
+    // Guard models expose several per-token classifier heads instead of a single `logits` output.
+    // Each infer step fills this map (keyed by exposed output name) and get_tensor() serves from it.
+    bool m_is_guard = false;
+    std::map<std::string, ov::SoPtr<ov::ITensor>> m_guard_logits;
 
     PortsMap m_prefill_in_ports;
     PortsMap m_prefill_out_ports;
