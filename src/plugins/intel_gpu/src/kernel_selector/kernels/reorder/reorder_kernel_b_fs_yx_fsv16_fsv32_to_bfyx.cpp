@@ -19,6 +19,9 @@ ParamsKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::UINT32);
     k.EnableInputDataType(Datatype::INT32);
+    k.EnableInputDataType(Datatype::F8E4M3);
+    k.EnableInputDataType(Datatype::F8E5M2);
+    k.EnableInputDataType(Datatype::F8E8M0);
 
     k.EnableAllOutputDataType();
 

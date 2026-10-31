@@ -14,11 +14,17 @@ ParamsKey ReorderWeightsKernel::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::UINT8);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
+    k.EnableInputWeightsType(WeightsType::F8E4M3);
+    k.EnableInputWeightsType(WeightsType::F8E5M2);
+    k.EnableInputWeightsType(WeightsType::F8E8M0);
     k.EnableInputWeightsType(WeightsType::INT32);
     k.EnableOutputWeightsType(WeightsType::INT8);
     k.EnableOutputWeightsType(WeightsType::UINT8);
     k.EnableOutputWeightsType(WeightsType::F16);
     k.EnableOutputWeightsType(WeightsType::F32);
+    k.EnableOutputWeightsType(WeightsType::F8E4M3);
+    k.EnableOutputWeightsType(WeightsType::F8E5M2);
+    k.EnableOutputWeightsType(WeightsType::F8E8M0);
     k.EnableOutputWeightsType(WeightsType::INT32);
     k.EnableAllInputWeightsLayout();
     k.EnableAllOutputWeightsLayout();
@@ -42,8 +48,14 @@ bool ReorderWeightsKernel::NeedsImadIsv4Padding(const reorder_weights_params& pa
 
 JitConstants ReorderWeightsKernel::GetJitConstants(const reorder_weights_params& params) const {
     auto jit = ReorderKernelBase::GetJitConstants(params);
-    if ( params.input.GetDType() == WeightsType::BF16 ) {
+    if (params.input.GetDType() == WeightsType::BF16) {
         jit.AddConstant(MakeJitConstant("BF16_INPUT", true));
+    } else if (params.input.GetDType() == WeightsType::F8E4M3) {
+        jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", true));
+    } else if (params.input.GetDType() == WeightsType::F8E5M2) {
+        jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", true));
+    } else if (params.input.GetDType() == WeightsType::F8E8M0) {
+        jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", true));
     }
 
     jit.AddConstant(MakeJitConstant("IMAD_ISV4_PADDING", NeedsImadIsv4Padding(params)));
