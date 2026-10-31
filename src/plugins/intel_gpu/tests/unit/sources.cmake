@@ -521,6 +521,7 @@ list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS})
 
 # oneDNN-specific tests - only compiled when oneDNN is enabled for the GPU plugin.
 set(GPU_UNIT_TESTS_ONEDNN_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/conv_dynamic_batch_per_node_byxf_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/onednn/profiling_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/onednn/utils_test.cpp
 )

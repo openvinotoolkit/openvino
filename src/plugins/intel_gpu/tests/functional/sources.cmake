@@ -329,6 +329,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/broadcast_eltwise.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/concat_in_place_dynamic_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/convert_bf16_fp32_fp16.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_batch_convolution_byxf.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_fc_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_model_static_split_layer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_smoke_test_conv_reshape_fully_connected.cpp
