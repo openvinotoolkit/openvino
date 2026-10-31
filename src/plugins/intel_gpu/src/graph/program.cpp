@@ -1782,8 +1782,10 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool enable_onednn_for_tests = get_config().get_optimize_data() || is_internal_program();
     auto& engine = get_engine();
+    const bool queue_allows_onednn = get_config().get_queue_type() == QueueTypes::in_order ||
+                                     (engine.runtime_type() == runtime_types::ocl && get_config().get_use_onednn());
     if (engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
-        get_config().get_queue_type() == QueueTypes::in_order &&
+        queue_allows_onednn &&
         enable_onednn_for_tests) {
         if (engine.get_device_info().supports_immad) {
             lo.add_all_onednn_impls_optimization_attribute();

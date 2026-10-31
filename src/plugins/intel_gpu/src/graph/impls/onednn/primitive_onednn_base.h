@@ -569,7 +569,7 @@ protected:
         _args[instance.get_network().get_id()] = get_arguments(instance, args);
     }
 
-    event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
+    event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<PType>& instance) override {
 #ifdef OV_GPU_WITH_ZE_RT
         static std::mutex execute_mutex;
@@ -578,6 +578,13 @@ protected:
         auto& stream = network.get_stream();
         auto net_id = network.get_id();
         event::ptr event;
+
+        if (stream.get_queue_type() == QueueTypes::out_of_order) {
+            if (instance.can_be_optimized()) {
+                return stream.aggregate_events(events, events.size() > 1, instance.is_output());
+            }
+            return stream.enqueue_onednn(_prim, _args[net_id], events, instance.is_output());
+        }
 
         if (_enable_profiling) {
             if (instance.can_be_optimized()) {
