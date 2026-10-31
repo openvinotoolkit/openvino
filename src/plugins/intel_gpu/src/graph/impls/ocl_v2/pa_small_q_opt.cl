@@ -30,16 +30,21 @@
     #error "pa_small_q_opt.cl: SEQ_LEN_PARTITION_SIZE must be a multiple of PAGED_ATTENTION_BLOCK_SIZE"
 #endif
 
-// The token-major K pages sdpa_ocl reads (layouts in pa_kv_cache_update_ref.cl):
-//   IS_KEY_TOKEN_MAJOR             uncompressed and i8 BY_TOKEN: [BLOCK][HEAD_SIZE], the i8 per-token comp still follows the data.
-//   IS_KEY_BY_CHANNEL_TOKEN_MAJOR  i8 and u4 BY_CHANNEL: [BLOCK][HEAD_SIZE] bytes (u4: [BLOCK][HEAD_SIZE / 2], channels 2b and
-//                                  2b + 1 in byte b), then one (scale, zp) pair per channel. It relays the u4 V page too.
-#if IS_KEY_TOKEN_MAJOR && (defined(IS_KEY_BY_CHANNEL) || IS_INT4_COMPRESSED)
-    #error "pa_small_q_opt.cl: only uncompressed and i8 BY_TOKEN K pages use IS_KEY_TOKEN_MAJOR"
+// The token-major K pages sdpa_ocl reads (layouts in pa_kv_cache_update_ref.cl), all under one host flag,
+// IS_KEY_TOKEN_MAJOR, split here by the quant mode:
+//   KEY_BY_TOKEN_TM    uncompressed and i8 BY_TOKEN: [BLOCK][HEAD_SIZE], the i8 per-token comp still follows the data.
+//   KEY_BY_CHANNEL_TM  i8 and u4 BY_CHANNEL: [BLOCK][HEAD_SIZE] bytes (u4: [BLOCK][HEAD_SIZE / 2], channels 2b and
+//                      2b + 1 in byte b), then one (scale, zp) pair per channel. It relays the u4 V page too.
+#ifdef IS_KEY_BY_CHANNEL
+    #define KEY_BY_TOKEN_TM   0
+    #define KEY_BY_CHANNEL_TM IS_KEY_TOKEN_MAJOR
+#else
+    #define KEY_BY_TOKEN_TM   IS_KEY_TOKEN_MAJOR
+    #define KEY_BY_CHANNEL_TM 0
 #endif
 
-#if IS_KEY_BY_CHANNEL_TOKEN_MAJOR && !defined(IS_KEY_BY_CHANNEL)
-    #error "pa_small_q_opt.cl: IS_KEY_BY_CHANNEL_TOKEN_MAJOR needs a BY_CHANNEL K cache"
+#if KEY_BY_TOKEN_TM && IS_INT4_COMPRESSED
+    #error "pa_small_q_opt.cl: an INT4 K cache is token-major only BY_CHANNEL"
 #endif
 
 #define HEAD_SIZE K_HEAD_SIZE
@@ -58,7 +63,7 @@
 
 // Writes the K tile transposed to [token][head_dim] so each lane (key token) reads a contiguous DPAS B operand
 inline void FUNC(dequant_key)(const __global INPUT1_TYPE* key_block, __local half* dst, uint lid, uint local_size) {
-#if IS_KEY_TOKEN_MAJOR
+#if KEY_BY_TOKEN_TM
     // A token-major row already is a row of the tile, so a work-item converts 8 adjacent head dims of one token: one load,
     // one SLM store.
     for (uint i = lid; i < BLOCK * HEAD_SIZE / 8; i += local_size) {
@@ -79,7 +84,7 @@ inline void FUNC(dequant_key)(const __global INPUT1_TYPE* key_block, __local hal
         vstore8(out, 0, dst + t * HEAD_SIZE + d0);
     #endif
     }
-#elif IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#elif KEY_BY_CHANNEL_TM
     // A work-item owns 4 adjacent channels for all tokens, so their (scale, zp) pairs are read once and every token costs
     // one 4-channel load and one SLM store.
     #if IS_INT4_COMPRESSED
@@ -187,7 +192,7 @@ inline void FUNC(dequant_value)(const __global INPUT2_TYPE* value_block, __local
         unroll_for (uint j = 0; j < SUBGROUP_SIZE; j++) {
             dst[(dim_base + j) * BLOCK + token] = row[dim_base + j];
         }
-#elif IS_INT4_COMPRESSED && IS_KEY_BY_CHANNEL_TOKEN_MAJOR
+#elif IS_INT4_COMPRESSED && KEY_BY_CHANNEL_TM
         // Rows of PACKED_V_HEAD_SIZE bytes, byte b holding head dims b (low nibble) and b + PACKED_V_HEAD_SIZE, then the
         // per-token scale and zp arrays. PACKED_V_HEAD_SIZE is a multiple of 16, so a chunk lies within one nibble half.
         const __global uchar* value_bytes = (const __global uchar*)value_block;

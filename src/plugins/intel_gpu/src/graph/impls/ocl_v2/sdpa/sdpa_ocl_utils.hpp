@@ -180,12 +180,26 @@ inline size_t pa_u4_v_row_bytes(size_t v_head_size, size_t subgroup_size) {
     return align_up(v_head_size / 2, subgroup_size);
 }
 
-// Whether a BY_CHANNEL K cache was materialized token-major, read from the physical shape (the decision is
-// made once, in transformations_pipeline.cpp). The adjusted block size is the page's per-channel row
-// count: block_size (block_size / 2 for int4) plus the comp bytes.
-inline bool pa_k_by_channel_tm_layout(const cldnn::layout& key_cache, bool int4, size_t comp_bytes) {
-    const size_t block = cldnn::paged_attention::block_size;
-    return cldnn::paged_attention::k_by_channel_token_major_layout(key_cache.get_partial_shape(), (int4 ? block / 2 : block) + comp_bytes);
+// Whether the PagedAttention op's K cache holds token-major pages -- of any kind: uncompressed, i8 BY_TOKEN or i8/u4
+// BY_CHANNEL -- read off its physical shape by paged_attention::k_cache_token_major() (the decision is made once, in
+// transformations_pipeline.cpp). The page's block dimension is block_size, or for a compressed BY_CHANNEL page
+// block_size (halved for int4) plus one (scale, zp) pair per channel. Every PA kernel generator asks this one helper;
+// XAttention pages are not covered.
+inline bool pa_k_token_major(const cldnn::kernel_impl_params& params) {
+    using pa = cldnn::paged_attention;
+    const auto desc = params.typed_desc<pa>();
+    if (desc->has_xattention) {
+        return false;
+    }
+    const auto& key_cache = params.input_layouts[pa::PagedAttentionInputIdx::KEY_CACHE];
+    const auto configured = pa_kv_cache_precision(params);
+    const bool int4 = configured == ov::element::u4 || configured == ov::element::i4;
+    const auto precision = int4 ? configured : ov::element::Type(key_cache.data_type);
+    const bool compressed = int4 || precision == ov::element::i8 || precision == ov::element::u8;
+    const size_t comp_bytes = 2 * ov::element::Type(params.input_layouts[pa::PagedAttentionInputIdx::KEY].data_type).size();
+    const size_t block = pa::block_size;
+    const size_t page_block = (compressed && desc->is_key_by_channel) ? (int4 ? block / 2 : block) + comp_bytes : block;
+    return pa::k_cache_token_major(params.get_device_info(), key_cache.get_partial_shape(), page_block, precision, desc->is_key_by_channel);
 }
 
 // A K page is ADJUSTED_K_HEAD_SIZE x ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE and a V page block_size x

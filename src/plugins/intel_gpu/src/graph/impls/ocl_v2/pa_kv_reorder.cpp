@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/primitives/pa_kv_reorder.hpp"
@@ -19,9 +20,43 @@ namespace ov::intel_gpu::ocl {
 namespace {
 constexpr size_t subgroup_size = 16;
 constexpr size_t u4_elems_per_byte = 2;
+
+// The K page layout of the cache in front of this reorder, from its PHYSICAL shape: EAGLE3's kv-update model has no
+// PagedAttention op, so only the shape the main model created the cache with can tell (paged_attention.hpp,
+// k_cache_token_major()). cache_dt is the configured precision (u4/i4 for INT4).
+bool key_cache_token_major(const RuntimeParams& params) {
+    const auto desc = params.typed_desc<cldnn::pa_kv_reorder>();
+    if (desc->has_xattention) {
+        return false;
+    }
+    const size_t block = cldnn::paged_attention::block_size;
+    const bool int4 = data_type_traits::is_i4_u4(desc->cache_dt);
+    const size_t page_block =
+        (desc->is_kv_compressed && desc->is_key_by_channel) ? (int4 ? block / u4_elems_per_byte : block) + desc->scales_zp_size : block;
+    return cldnn::paged_attention::k_cache_token_major(params.get_device_info(),
+                                                       params.input_layouts[cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE].get_partial_shape(),
+                                                       page_block,
+                                                       ov::element::Type(desc->cache_dt),
+                                                       desc->is_key_by_channel);
+}
+
+// Whether a token-major K page can reach this device at all: the layout rule needs k_token_major_device(), unless the
+// switch makes the uncompressed / BY_TOKEN page token-major everywhere.
+bool token_major_page_possible(const RuntimeParams& params) {
+    using pa = cldnn::paged_attention;
+    const auto layout_switch = pa::k_token_major_switch();
+    if (layout_switch == pa::k_layout_switch::d_major) {
+        return false;
+    }
+    return layout_switch == pa::k_layout_switch::token_major || pa::k_token_major_device(params.get_device_info());
+}
+
 class PaKVReorderGenerator : public KernelGenerator {
 public:
-    PaKVReorderGenerator() : KernelGenerator("pa_kv_cache_reorder_ref") {}
+    // One kernel per K page layout; the impl picks it from the cache shape at dispatch.
+    explicit PaKVReorderGenerator(bool key_token_major)
+        : KernelGenerator("pa_kv_cache_reorder_ref", key_token_major ? "tm" : ""),
+          m_key_token_major(key_token_major) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
@@ -123,13 +158,10 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", adjusted_v_head_size);
         }
 
-        // Uncompressed and i8/u8 BY_TOKEN K may be stored token-major; BY_CHANNEL and INT4 are read
-        // d-major only (a token-major BY_CHANNEL page is refused at dispatch, see get_dispatch_data_func()).
-        // key_cache_dt is desc->cache_dt, which still reads i4/u4 for a packed INT4 cache
-        // (see is_int4_compressed above), so the predicate can tell it from a real u8 one.
-        // OV_GPU_PA_K_TM_BREAK=reorder forces just this kernel back to d-major, to test whether
-        // pa_kv_reorder_gpu actually observes it.
-        bool key_token_major = cldnn::paged_attention::k_token_major_for(key_cache_dt, is_key_by_channel);
+        // This variant's K page layout (IS_KEY_TOKEN_MAJOR covers every token-major page; the kernel splits it by the
+        // quant mode). OV_GPU_PA_K_TM_BREAK=reorder compiles the token-major variant with the d-major read, to test
+        // whether pa_kv_reorder_gpu actually observes it.
+        bool key_token_major = m_key_token_major;
 #ifndef SDPA_OCL_NO_GETENV  // TEMP(ttft32), see sdpa_ocl_utils.hpp
         if (const char* brk = std::getenv("OV_GPU_PA_K_TM_BREAK"))
             key_token_major = key_token_major && std::strcmp(brk, "reorder") != 0;
@@ -176,19 +208,6 @@ protected:
 
             const bool is_kv_compressed = desc->is_kv_compressed;
 
-            // This kernel addresses a BY_CHANNEL K page d-major. The token-major page of the main model
-            // (paged_attention::by_channel_token_major_readable()) is never created for qq_bias models,
-            // i.e. EAGLE3, the only user of this reorder, but it would corrupt the cache here, so refuse
-            // it. Only the runtime shape tells: the kv-update model has no PagedAttention op.
-            if (is_kv_compressed && desc->is_key_by_channel && !desc->has_xattention) {
-                const size_t block = cldnn::paged_attention::block_size;
-                const size_t adjusted_block = (data_type_traits::is_i4_u4(desc->cache_dt) ? block / u4_elems_per_byte : block) + desc->scales_zp_size;
-                OPENVINO_ASSERT(!cldnn::paged_attention::k_by_channel_token_major_layout(
-                                    params.input_layouts[cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE].get_partial_shape(),
-                                    adjusted_block),
-                                "[GPU] pa_kv_reorder: the i8/u4 BY_CHANNEL K cache is token-major, but this kernel reads it d-major");
-            }
-
             const auto max_wg_size = params.get_device_info().max_work_group_size;
             size_t max_heads_per_wg = static_cast<size_t>(max_wg_size / subgroup_size);
             if (max_heads_per_wg == 0) {
@@ -199,22 +218,67 @@ protected:
             wgs.local = {1, is_kv_compressed ? 1 : wg_heads_number, subgroup_size};
         }};
     }
+
+private:
+    bool m_key_token_major;
 };
 
 class PaKVReorderImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::PaKVReorderImpl)
 
-    Stage::Ptr kv_reorder = make_stage<PaKVReorderGenerator>();
+    Stage::Ptr kv_reorder = make_stage<PaKVReorderGenerator>(false);
+    Stage::Ptr kv_reorder_tm = make_stage<PaKVReorderGenerator>(true);
 
     PaKVReorderImpl() : PrimitiveImplOCL(PA_KV_reorder::get_type_info_static()) {}
     PaKVReorderImpl(const program_node& node, const RuntimeParams& params) : PaKVReorderImpl() {
+        // A static cache shape tells the layout now. A dynamic one is only known at dispatch, so compile the
+        // token-major variant too wherever such a page can exist.
+        if (!params.is_dynamic()) {
+            add_stage(key_cache_token_major(params) ? kv_reorder_tm : kv_reorder, params);
+            return;
+        }
         add_stage(kv_reorder, params);
+        if (token_major_page_possible(params)) {
+            add_stage(kv_reorder_tm, params);
+        }
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<PaKVReorderImpl>(this);
     }
+
+    // Every dispatch resolves the variant from the actual cache shape, so a page this impl has no kernel for (a dynamic
+    // impl built where token-major pages cannot be made, given one anyway) throws instead of being misread.
+    std::vector<size_t> get_stages_execution_order(const cldnn::kernel_impl_params& params) const override {
+        return {stage_for(params)};
+    }
+
+    void update_rt_params(const cldnn::primitive_inst& instance) override {
+        PrimitiveImplOCL::update_rt_params(instance);
+        // Kernel arguments and dispatch data are only set when a stage runs, and the flags above only say what changed
+        // since the last run, so a variant that runs for the first time (or again after the other one) gets both.
+        const size_t stage = stage_for(*instance.get_impl_params());
+        if (stage != m_last_stage) {
+            _stages[stage]->kd.need_args_update = true;
+            _stages[stage]->kd.need_dispatch_data_update = true;
+            m_last_stage = stage;
+        }
+    }
+
+private:
+    size_t stage_for(const cldnn::kernel_impl_params& params) const {
+        const bool token_major = key_cache_token_major(params);
+        const Stage* wanted = token_major ? kv_reorder_tm.get() : kv_reorder.get();
+        for (const auto i : _order) {
+            if (_stages[i] == wanted) {
+                return i;
+            }
+        }
+        OPENVINO_THROW("[GPU] pa_kv_reorder: no ", token_major ? "token-major" : "d-major", " kernel was compiled for this K cache");
+    }
+
+    size_t m_last_stage = std::numeric_limits<size_t>::max();
 };
 
 }  // namespace

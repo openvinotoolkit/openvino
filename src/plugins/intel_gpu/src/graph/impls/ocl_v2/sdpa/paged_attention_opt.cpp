@@ -72,37 +72,17 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
     return data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type);
 }
 
-// Whether the K cache holds the token-major i8/u4 BY_CHANNEL page, read off its PHYSICAL shape (the
-// adjusted block size at dim[2]) -- transformations_pipeline.cpp decided the layout once per model.
-// Only the writer, rotate, sdpa_ocl (MIXED) and sdpa_ocl_decode read that page; see
-// paged_attention::by_channel_token_major_readable().
-inline bool is_by_channel_tm_page(const RuntimeParams& params) {
-    const auto desc = params.typed_desc<paged_attention>();
-    if (desc->has_xattention || !desc->is_key_by_channel || !get_kv_compressed(params))
-        return false;
-    const bool int4 = data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision());
-    const auto scales_zp_size = 2 * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY].data_type).size();
-    return cldnn::paged_attention::k_by_channel_token_major_layout(
-        params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
-        int4 ? paged_attention_block_size / u4_elems_per_byte + scales_zp_size : paged_attention_block_size + scales_zp_size);
-}
-
-// True when the K cache holds [block_size, k_head_size] pages (head_size innermost) rather than the
-// legacy [k_head_size, block_size]. Mirrors exactly the condition the cache shape was built with in
-// transformations_pipeline.cpp -- uncompressed and i8/u8 BY_TOKEN are token-major. It is always false
-// for BY_CHANNEL and INT4: their token-major page is a different layout, see is_by_channel_tm_page().
+// The K cache page layout, read off its PHYSICAL shape (paged_attention::k_cache_token_major()); the decision was made once
+// per model, in transformations_pipeline.cpp. True for the token-major page of every kind -- uncompressed, i8 BY_TOKEN,
+// i8/u4 BY_CHANNEL -- which every kernel receives as one jit flag, IS_KEY_TOKEN_MAJOR, and tells apart by its quant mode.
 //
 // `consumer` names the kernel this value is being jitted for. OV_GPU_PA_K_TM_BREAK=<consumer> forces
 // that ONE kernel back to the d-major read while the cache stays token-major, which is how we test
 // whether a suite actually OBSERVES that kernel's output: rung 3 found a rotate kernel that silently
 // corrupted the cache while 39 rotation cases still passed, so "the suite is green" is not evidence
-// that a consumer is layout-correct. Diagnostic only; delete with the k_token_major() staging switch.
+// that a consumer is layout-correct. Diagnostic only.
 inline bool get_k_token_major(const RuntimeParams& params, const char* consumer = nullptr) {
-    const auto& key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
-    const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-    // INT4 packs into u8, so the layout dt alone cannot rule it out -- consult the config precision.
-    const auto& precision = data_type_traits::is_i4_u4(kv_cache_dt) ? kv_cache_dt : ov::element::Type(key_cache_layout.data_type);
-    if (!cldnn::paged_attention::k_token_major_for(precision, params.typed_desc<paged_attention>()->is_key_by_channel))
+    if (!sdpa_ocl_utils::pa_k_token_major(params))
         return false;
 #ifdef SDPA_OCL_NO_GETENV  // TEMP(ttft32), see sdpa_ocl_utils.hpp
     (void)consumer;
@@ -115,9 +95,15 @@ inline bool get_k_token_major(const RuntimeParams& params, const char* consumer 
     return true;
 }
 
+// Whether the K cache holds the token-major i8/u4 BY_CHANNEL page. Only the writer, rotate, pa_kv_reorder, sdpa_ocl
+// (MIXED), pa_small_q and sdpa_ocl_decode read that page; see paged_attention::by_channel_token_major_readable().
+inline bool is_by_channel_tm_page(const RuntimeParams& params) {
+    return params.typed_desc<paged_attention>()->is_key_by_channel && get_kv_compressed(params) && get_k_token_major(params);
+}
+
 // Whether paged_attention_opt.cl reads the uncompressed token-major K page with a 2D block transpose instead of a per-lane
-// vload16 (USE_2D_BLOCK_IO_K_TM). Xe2+ only: the token-major page itself is not tied to the device yet
-// (OV_GPU_PA_K_TOKEN_MAJOR), and earlier parts have no 2D block IO. The K row is the surface width and pitch; the page
+// vload16 (USE_2D_BLOCK_IO_K_TM). Xe2+ only: OV_GPU_PA_K_TOKEN_MAJOR=1 makes the page token-major on earlier parts too,
+// and they have no 2D block IO. The K row is the surface width and pitch; the page
 // base is a whole number of pages, which the pitch rule keeps 64 B aligned.
 inline bool use_2d_block_io_k_token_major(const RuntimeParams& params) {
     if (!get_k_token_major(params, "decode") || get_kv_compressed(params) || params.get_device_info().arch < gpu_arch::xe2)
@@ -927,10 +913,9 @@ public:
         auto jit = PagedAttentionGeneratorMultiTokens::get_jit_constants(params);
         jit.make("TOKENS_PER_SG", get_gqa_multi_tokens_per_sg(params));
         jit.make("SINGLE_KV_SLM", 1);
-        // This kernel reads both token-major K pages; the base jits IS_KEY_TOKEN_MAJOR under the paged_attention_opt.cl name.
+        // The base jits IS_KEY_TOKEN_MAJOR under the paged_attention_opt.cl consumer name; this kernel reads every token-major page.
         jit.remove("IS_KEY_TOKEN_MAJOR");
         jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "small_q") ? 1 : 0);
-        jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", is_by_channel_tm_page(params) ? 1 : 0);
         return jit;
     }
 
@@ -1353,27 +1338,12 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
         }
 
+        // Every token-major page (paged_attention.hpp). The page SIZE is identical either way, so none of the ADJUSTED_*
+        // values above change; only the in-page addressing does. The kernel tells the BY_CHANNEL page apart by
+        // IS_KEY_BY_CHANNEL: its comp moves out of the columns, and an INT4 one packs two CHANNELS per byte where the
+        // d-major page packs two TOKENS, which is why the writer needs a branch rather than just new strides. It also
+        // relays the INT4 V page.
         jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "writer") ? 1 : 0);
-
-        // Token-major i8 BY_CHANNEL. Separate from IS_KEY_TOKEN_MAJOR (which stays 0 for BY_CHANNEL) so
-        // that the pa_sdpa_opt readers keep their d-major load; only this writer, rotate, sdpa_ocl
-        // (MIXED) and sdpa_ocl_decode read the relaid-out page. The page SIZE is identical either way,
-        // so none of the ADJUSTED_* values above change; only the in-page addressing does.
-        // i8 and u4. An INT4 BY_CHANNEL page packs two TOKENS per byte upstream, along the axis this
-        // flips; the token-major arm re-packs it two CHANNELS per byte, which is why the writer needs a
-        // branch rather than just new strides. XAttention is excluded: its cache is built and read by
-        // the CM path, which does not know this layout.
-        // The layout is read off the PHYSICAL cache shape -- dim[2] holding the adjusted block size
-        // is exactly what transformations_pipeline.cpp materialized for the token-major BY_CHANNEL
-        // page (only where paged_attention::by_channel_token_major_readable() allows it). XAttention
-        // never qualifies.
-        const auto k_scales_zp_size = is_kv_compressed ? get_element_size(params.input_layouts[PagedAttentionInputIdx::KEY].data_type) * 2 : 0;
-        const bool k_by_channel_token_major = !desc->has_xattention && is_key_by_channel &&
-                                              cldnn::paged_attention::k_by_channel_token_major_layout(
-                                                  params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
-                                                  data_type_traits::is_i4_u4(kv_cache_dt) ? paged_attention_block_size / u4_elems_per_byte + k_scales_zp_size
-                                                                                          : paged_attention_block_size + k_scales_zp_size);
-        jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
 
         // Give the PREFILL stage one extra workgroup along gws[2] that only quantizes V. V is
         // BY_TOKEN over all of its head dims (a sub_group reduction), so a single workgroup has to own
@@ -1493,15 +1463,6 @@ protected:
         if (is_kv_compressed) {
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            // Token-major i8/u4 BY_CHANNEL is read off the PHYSICAL cache shape (adjusted block size
-            // at dim[2]), matching the single layout decision in transformations_pipeline.cpp. XAttention
-            // never qualifies.
-            const bool k_by_channel_token_major = !desc->has_xattention && is_key_by_channel &&
-                                                  cldnn::paged_attention::k_by_channel_token_major_layout(
-                                                      params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
-                                                      data_type_traits::is_i4_u4(kv_cache_dt) ? paged_attention_block_size / u4_elems_per_byte + scales_zp_size
-                                                                                              : paged_attention_block_size + scales_zp_size);
-            jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
                 jit.add(make_uint4_kv_cache_jit_constants(params));
                 jit.make("U4_ELEMS_PER_BYTE", u4_elems_per_byte);
@@ -1520,11 +1481,11 @@ protected:
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
             }
         } else {
-            jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", 0);
             jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
 
+        // Every token-major page; the kernel tells the BY_CHANNEL one apart by IS_KEY_BY_CHANNEL.
         jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "rotate") ? 1 : 0);
 
         return jit;
@@ -1824,19 +1785,19 @@ public:
         // cannot read a token-major cache. PREFILL is unaffected: it reads the contiguous KEY input,
         // not the cache. Fall back to pa_multi_token for MIXED, which shares the (already
         // token-major-aware) K load in paged_attention_opt.cl -- for the uncompressed / BY_TOKEN
-        // page of k_token_major() only. The token-major BY_CHANNEL page is rejected below.
+        // page only (OV_GPU_PA_K_TOKEN_MAJOR=1 makes it on the micro lane); the BY_CHANNEL one is never
+        // created there.
         if (stage == PagedAttentionStage::MIXED && backend == DpasBackend::micro && get_k_token_major(params))
             return false;
         // sdpa_ocl's MIXED cache dequant needs the data region to be a plain [block_size, row] tile
         // with its comp appended AFTER it. Three layouts satisfy that:
         //   i8 BY_TOKEN     comp is two trailing per-token f16 arrays.
-        //   i8 BY_CHANNEL   only under paged_attention::k_by_channel_token_major_for()'s staging switch
-        //                   and where by_channel_token_major_readable() allows the page; it relays the
+        //   i8 BY_CHANNEL   only token-major, which by_channel_token_major_readable() allows; it relays the
         //                   per-column comp to a trailing per-channel array. UPSTREAM
         //                   BY_CHANNEL keeps a (scale, zp) pair inline at the end of every column and
         //                   is d-major, so the reader would take both the data and the comp from the
         //                   wrong offsets.
-        //   u4 BY_CHANNEL   the same switch, which additionally re-packs K two CHANNELS per byte and
+        //   u4 BY_CHANNEL   the same, which additionally re-packs K two CHANNELS per byte and
         //                   moves V's inline per-row comp to a trailing per-token array. Upstream INT4
         //                   is d-major with two TOKENS per K byte and V's comp inside each row.
         // i4 and INT4 BY_TOKEN never do -- the predicate rejects both -- and neither exists in practice
@@ -2700,20 +2661,19 @@ bool paged_attention::by_channel_token_major_readable(const device_info& info,
                                                       const ov::element::Type& infer_precision,
                                                       const std::vector<by_channel_tm_op_info>& ops) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    // Two independent readers: MIXED = sdpa_ocl_selected() (the lane), GENERATE = sdpa_ocl_decode_reader_available().
-    // Neither implies the other (an xe_hpg sdpa_ocl lane has no GENERATE reader). MIXED also asks for microkernel
-    // support, and sdpa_ocl_decode for an f16 query and output.
-    if (!sdpa_ocl_selected(info) || !sdpa_ocl_decode_reader_available(info) || !microkernels_supported || infer_precision != ov::element::f16) {
+    // Two independent readers: MIXED = sdpa_ocl_selected() (the lane), GENERATE = sdpa_ocl_decode_reader_available(),
+    // both together k_token_major_device(). Neither implies the other (an xe_hpg sdpa_ocl lane has no GENERATE reader).
+    // MIXED also asks for microkernel support, and sdpa_ocl_decode for an f16 query and output.
+    if (!k_token_major_device(info) || !microkernels_supported || infer_precision != ov::element::f16) {
         return false;
     }
     // sdpa_ocl_decode tiles K by the DPAS depth and V by the subgroup size, both 16.
     constexpr size_t decode_head_size_align = 16;
     for (const auto& op : ops) {
         // Neither gate serves a scores output (adaptive R-KV has one too, and its diversity kernel reads
-        // the page d-major) or alibi. Both serve qq_bias, but its only user, EAGLE3, reorders the cache
-        // from a separate kv-update model through pa_kv_cache_reorder, which reads the page d-major (and
-        // has no PA op here to learn otherwise).
-        if (op.has_scores_output || op.has_adaptive_rkv || op.has_alibi || op.has_qq_bias) {
+        // the page d-major) or alibi. Both serve qq_bias, and EAGLE3's pa_kv_reorder, which moves the cache of a
+        // qq_bias model from a separate kv-update model, reads the token-major page too.
+        if (op.has_scores_output || op.has_adaptive_rkv || op.has_alibi) {
             return false;
         }
         const size_t k = op.k_head_size;
