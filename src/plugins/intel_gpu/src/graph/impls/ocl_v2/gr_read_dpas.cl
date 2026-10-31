@@ -15,7 +15,10 @@
 //
 // JIT: GR_BRANCHES, GR_HIDDEN (multiple of 32), GR_LOWRANK (multiple of 32), GR_EPS, GR_NORM_GAIN_PLUS_ONE,
 //      GR_PRODUCE_WRITE_GATE, GR_WG_SIZE (subgroups), GR_RD_TM (8/16/32), GR_RD_NT, GR_NV_KD (phase 1 chunk halves / 16),
-//      GR_RD_SLM_GAIN (0 = gain from global, 1 = padded SLM copy, 2 = duplicated SLM copy).
+//      GR_RD_SLM_GAIN (0 = gain from global, 1 = padded SLM copy, 2 = duplicated SLM copy), GR_P3_GB (optional: branches per
+//      phase-3 K loop).
+// Compressed weights (GR_W_TYPE u4 group 32 / u8 per-channel, gr_common.cl; no write gate): GR_WD_KCH / GR_WD_NRAW / GR_WD_RB and
+//      GR_WU_KCH / GR_WU_NRAW / GR_WU_RB give the k values per raw load, its dwords and the row bytes of W_down / W_up.
 // Dispatch: gws = [WG * 16, ceil(rows / TM), 1], lws = [WG * 16, 1, 1].
 
 #include "gr_common.cl"
@@ -33,6 +36,12 @@
 #if GR_BRANCHES % 2 != 0 || GR_BRANCHES > 16
     #error "gr_read_dpas.cl: the write gate is one N16 tile stored in half pairs"
 #endif
+#if GR_W_TYPE != GR_WT_F16 && GR_PRODUCE_WRITE_GATE
+    #error "gr_read_dpas.cl: compressed weights do not support the write gate"
+#endif
+#if GR_W_TYPE != GR_WT_F16 && (GR_HIDDEN % GR_WD_KCH != 0 || GR_LOWRANK % GR_WU_KCH != 0)
+    #error "gr_read_dpas.cl: D and L must be multiples of the weight load widths"
+#endif
 
 // The 1 of the (1 + w) gain is added in half precision
 #if GR_NORM_GAIN_PLUS_ONE
@@ -40,8 +49,6 @@
 #else
     #define GR_GADD(g) (g)
 #endif
-
-#define GR_P2_LDB(dst, j, KK) dst = vload16(0, (const __global uint*)(brow[j] + (KK)))
 
 // The gain of a K16 slice is one register half: A rows alternate between the low and high half of a GRF, and IGC realigns
 // (mov + mul + mov) whenever the gain sits at the other offset. The gain (+1) is therefore staged in SLM so that every gain
@@ -70,7 +77,11 @@
 #endif
 
 // One K32 step of phase 2: loads of the A tile (raw residual), the gain and the W rows of every column tile ...
+#if GR_W_TYPE == GR_WT_F16
+#define GR_P2_LDB(dst, j, KK) dst = vload16(0, (const __global uint*)(brow[j] + (KK)))
+
 #define GR_P2_LOAD(AT, GE, GS, B, KK) { GR_RD2D(GR_RD_TM, residual, GR_CD * 2, num_rows, GR_CD * 2, (KK), t0, AT); GR_P2_GAIN(GE, GS, KK); unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) { GR_P2_LDB(B[j_], j_, KK); } }
+#endif
 
 #define GR_P2_SCALE(v, ge, go) as_short8(as_half8(v) * (half8)(ge, go, ge, go, ge, go, ge, go))
 
@@ -98,8 +109,17 @@
 REQD_SUB_GROUP_SIZE(16)
 KERNEL(gr_read_dpas)(const __global ushort* residual,
                      const __global ushort* norm_weight,
+#if GR_W_TYPE == GR_WT_F16
                      const __global ushort* w_down,
                      const __global ushort* w_up,
+#else
+                     const __global uchar* w_down,
+                     const __global uchar* w_up,
+                     const __global ushort* scale_down,
+                     const __global ushort* scale_up,
+                     const __global uchar* zp_down,
+                     const __global uchar* zp_up,
+#endif
 #if GR_PRODUCE_WRITE_GATE
                      const __global ushort* w_inject,
 #endif
@@ -145,10 +165,10 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
                 CAT(vstore, GR_GNV)(g, 0, gq);
 #pragma unroll
                 for (uint q = 0; q < GR_GNV; q++) {
-                    BLOCK_WRITEN_SLM(ushort, 2, slm_g + 2 * (i + 16 * q), 0, (ushort2)(gq[q], gq[q]));
+                    GR_BLOCK_WRITEN_SLM(ushort, 2, slm_g + 2 * (i + 16 * q), 0, (ushort2)(gq[q], gq[q]));
                 }
 #else
-                BLOCK_WRITEN_SLM(ushort, GR_GNV, slm_g + 16 + i, 0, g);
+                GR_BLOCK_WRITEN_SLM(ushort, GR_GNV, slm_g + 16 + i, 0, g);
 #endif
             }
         }
@@ -205,13 +225,17 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
         const bool is_wgate = task == GR_TASKS - 1;
         const __global ushort* w = is_wgate ? w_inject : w_down;
         const uint n0 = is_wgate ? 0 : task * GR_RD_NT * 16;
-        const uint w_rows = is_wgate ? GR_BRANCHES : GR_LOWRANK;
 #else
+#if GR_W_TYPE == GR_WT_F16
         const __global ushort* w = w_down;
-        const uint n0 = task * GR_RD_NT * 16;
-        const uint w_rows = GR_LOWRANK;
 #endif
+        const uint n0 = task * GR_RD_NT * 16;
+#endif
+#if GR_W_TYPE == GR_WT_F16
         const __global ushort* brow[GR_RD_NT];
+#else
+        const __global uchar* brow[GR_RD_NT];
+#endif
 #pragma unroll
         for (uint j = 0; j < GR_RD_NT; j++) {
 #if GR_PRODUCE_WRITE_GATE
@@ -219,8 +243,21 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
 #else
             const uint row = n0 + 16 * j + lane;
 #endif
+#if GR_W_TYPE == GR_WT_F16
             brow[j] = w + (size_t)row * GR_CD;
+#else
+            brow[j] = w_down + (size_t)row * GR_WD_RB;
+#endif
         }
+#if GR_W_TYPE == GR_WT_U8
+        // per-channel: one scale / zp per output channel for the whole K
+        half2 scv[GR_RD_NT];
+        half2 zpv[GR_RD_NT];
+        unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) {
+            scv[j_] = GR_WQ_SCALE2(scale_down, 0, GR_LOWRANK, n0 + 16 * j_);
+            zpv[j_] = GR_WQ_ZP2(zp_down, 0, GR_LOWRANK, n0 + 16 * j_, lane);
+        }
+#endif
 
         float8 acc[GR_RD_NT * GR_MT];
 #pragma unroll
@@ -239,10 +276,33 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
             ushort2 ge0;
             ushort4 gs0;
             uint16 b0[GR_RD_NT];
+#if GR_W_TYPE == GR_WT_F16
             for (uint k = kbeg; k < kend; k += 32) {
                 GR_P2_LOAD(at0, ge0, gs0, b0, k);
                 GR_P2_MMA(at0, ge0, gs0, b0);
             }
+#else
+            for (uint k = kbeg; k < kend; k += GR_WD_KCH) {
+                uint rw[GR_RD_NT][GR_WD_NRAW];
+                unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) {
+                    GR_WQ_LOAD_RAW(rw[j_], GR_WD_NRAW, brow[j_], k);
+                }
+                unroll_for (uint s_ = 0; s_ < GR_WD_KCH / 32; s_++) {
+                    GR_RD2D(GR_RD_TM, residual, GR_CD * 2, num_rows, GR_CD * 2, k + 32 * s_, t0, at0);
+                    GR_P2_GAIN(ge0, gs0, k + 32 * s_);
+                    unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) {
+#if GR_W_TYPE == GR_WT_U4
+                        const half2 scv = GR_WQ_SCALE2(scale_down, (k >> 5) + s_, GR_LOWRANK, n0 + 16 * j_);
+                        const half2 zpv = GR_WQ_ZP2(zp_down, (k >> 5) + s_, GR_LOWRANK, n0 + 16 * j_, lane);
+                        b0[j_] = GR_WQ_DEQ32(rw[j_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
+#else
+                        b0[j_] = GR_WQ_DEQ32(rw[j_], s_ * GR_WQ_RAW_PER_K32, zpv[j_], scv[j_]);
+#endif
+                    }
+                    GR_P2_MMA(at0, ge0, gs0, b0);
+                }
+            }
+#endif
             float8 invv[GR_MT];
 #pragma unroll
             for (uint m = 0; m < GR_MT; m++) {
@@ -285,7 +345,7 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
             for (uint m = 0; m < GR_MT; m++) {
                 const float8 x = acc[j * GR_MT + m] * inv_c;
                 const ushort8 tu = as_ushort8(convert_half8_rte(x * GR_SIGMOID(x)));
-                BLOCK_WRITEN_SLM(ushort, 8, slm_t + (m * GR_KB + n0 / 16 + j) * 128, 0, tu);
+                GR_BLOCK_WRITEN_SLM(ushort, 8, slm_t + (m * GR_KB + n0 / 16 + j) * 128, 0, tu);
             }
         }
     }
@@ -293,7 +353,9 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
 
     // Phase 3: up projection + sigmoid read gate + branch mix, 16 channels per pass. Up to 4 branches run in one K loop so
     // each SLM read of t feeds several dpas; the mix still adds the branches in order 0..C-1.
+#ifndef GR_P3_GB
 #define GR_P3_GB (GR_BRANCHES % 4 == 0 ? 4 : 2)
+#endif
     for (uint dt = sg; dt < GR_HIDDEN / 16; dt += GR_WG_SIZE) {
         const uint d0 = dt * 16;
         float8 mix[GR_MT];
@@ -307,6 +369,7 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
             for (uint i = 0; i < GR_P3_GB * GR_MT; i++) {
                 acc[i] = (float8)(0.0f);
             }
+#if GR_W_TYPE == GR_WT_F16
             const __global ushort* wrow[GR_P3_GB];
 #pragma unroll
             for (uint g = 0; g < GR_P3_GB; g++) {
@@ -329,6 +392,49 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
                     }
                 }
             }
+#else
+            const __global uchar* wrow[GR_P3_GB];
+#pragma unroll
+            for (uint g = 0; g < GR_P3_GB; g++) {
+                wrow[g] = w_up + (size_t)((cg + g) * GR_HIDDEN + d0 + lane) * GR_WU_RB;
+            }
+#if GR_W_TYPE == GR_WT_U8
+            half2 scv[GR_P3_GB];
+            half2 zpv[GR_P3_GB];
+            unroll_for (uint g_ = 0; g_ < GR_P3_GB; g_++) {
+                scv[g_] = GR_WQ_SCALE2(scale_up, 0, GR_CD, (cg + g_) * GR_HIDDEN + d0);
+                zpv[g_] = GR_WQ_ZP2(zp_up, 0, GR_CD, (cg + g_) * GR_HIDDEN + d0, lane);
+            }
+#endif
+            for (uint kb = 0; kb < GR_KB; kb += GR_WU_KCH / 16) {
+                uint rw[GR_P3_GB][GR_WU_NRAW];
+                unroll_for (uint g_ = 0; g_ < GR_P3_GB; g_++) {
+                    GR_WQ_LOAD_RAW(rw[g_], GR_WU_NRAW, wrow[g_], kb * 16);
+                }
+                unroll_for (uint s_ = 0; s_ < GR_WU_KCH / 32; s_++) {
+                    uint16 b[GR_P3_GB];
+                    unroll_for (uint g_ = 0; g_ < GR_P3_GB; g_++) {
+#if GR_W_TYPE == GR_WT_U4
+                        const half2 scv = GR_WQ_SCALE2(scale_up, (kb >> 1) + s_, GR_CD, (cg + g_) * GR_HIDDEN + d0);
+                        const half2 zpv = GR_WQ_ZP2(zp_up, (kb >> 1) + s_, GR_CD, (cg + g_) * GR_HIDDEN + d0, lane);
+                        b[g_] = GR_WQ_DEQ32(rw[g_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
+#else
+                        b[g_] = GR_WQ_DEQ32(rw[g_], s_ * GR_WQ_RAW_PER_K32, zpv[g_], scv[g_]);
+#endif
+                    }
+#pragma unroll
+                    for (uint m = 0; m < GR_MT; m++) {
+                        const short8 a0 = as_short8(BLOCK_READN_SLM(ushort, 8, slm_t + (m * GR_KB + kb + 2 * s_) * 128, 0));
+                        const short8 a1 = as_short8(BLOCK_READN_SLM(ushort, 8, slm_t + (m * GR_KB + kb + 2 * s_ + 1) * 128, 0));
+#pragma unroll
+                        for (uint g = 0; g < GR_P3_GB; g++) {
+                            acc[g * GR_MT + m] = GR_MAD(a0, as_int8(b[g].lo), acc[g * GR_MT + m]);
+                            acc[g * GR_MT + m] = GR_MAD(a1, as_int8(b[g].hi), acc[g * GR_MT + m]);
+                        }
+                    }
+                }
+            }
+#endif
 #pragma unroll
             for (uint g = 0; g < GR_P3_GB; g++) {
                 const uint c = cg + g;

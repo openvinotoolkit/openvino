@@ -56,23 +56,8 @@
 #define BLOCK_WRITEN(type, vector_size, ptr, offset, val)                                                       \
     BLOCK_WRITEN_RAW(TYPE_SIZE(type), vector_size, __global, ptr, offset, val, type)
 
-// __local variants: intel_sub_group_block_write* only has __local overloads with cl_intel_subgroup_local_block_io, so the
-// _slm family falls back to a per-lane scatter on devices that do not advertise it (see the bottom of this file).
-#define BLOCK_WRITE_FUNC_SLM_size1       _sub_group_block_write_slm_uc
-#define BLOCK_WRITE_FUNC_SLM_size2       _sub_group_block_write_slm_us
-#define BLOCK_WRITE_FUNC_SLM_size4       _sub_group_block_write_slm
-#define BLOCK_WRITE_FUNC_SLM_size8       _sub_group_block_write_slm_ul
-#define BLOCK_WRITE_FUNC_SLM(type_size)  CAT(BLOCK_WRITE_FUNC_SLM_size, type_size)
-
-#define BLOCK_WRITEN_FUNC_SLM(type_size, vector_size)  MAKE_VECTOR_TYPE(BLOCK_WRITE_FUNC_SLM(type_size), vector_size)
-
-#define BLOCK_WRITEN_RAW_SLM(type_size, vector_size, ptr, offset, val, src_type)                                 \
-    BLOCK_WRITEN_FUNC_SLM(type_size, vector_size)(                                                              \
-        (__local BLOCK_WRITE_TYPE(type_size)*)(ptr) + (offset),                                                 \
-        AS_TYPE_EXT(MAKE_VECTOR_TYPE(BLOCK_WRITE_TYPE(type_size), vector_size), val, src_type))
-
 #define BLOCK_WRITEN_SLM(type, vector_size, ptr, offset, val)                                                   \
-    BLOCK_WRITEN_RAW_SLM(TYPE_SIZE(type), vector_size, ptr, offset, val, type)
+    BLOCK_WRITEN_RAW(TYPE_SIZE(type), vector_size, __local, ptr, offset, val, type)
 
 #define DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)     BLOCK_WRITEN(OUTPUT_TYPE, 1, ptr, offset, val)
 #define DT_OUTPUT_BLOCK_WRITE2(ptr, offset, val)    BLOCK_WRITEN(OUTPUT_TYPE, 2, ptr, offset, val)
@@ -113,34 +98,6 @@
     uint idx = get_sub_group_local_id(); \
     BLOCK_WRITE_IMPL(vec_size) \
 }
-
-#define BLOCK_WRITE_FUNC_NAME_SLM(type_size, vec_size) MAKE_VECTOR_TYPE(BLOCK_WRITE_FUNC_SLM(type_size), vec_size)
-#define DECLARE_BLOCK_WRITE_SLM_EMULATION(type_size, vec_size) \
-    inline void BLOCK_WRITE_FUNC_NAME_SLM(type_size, vec_size)(__local BLOCK_WRITE_TYPE(type_size)* out_ptr, \
-                                                               MAKE_VECTOR_TYPE(BLOCK_WRITE_TYPE(type_size), vec_size) v) { \
-    uint idx = get_sub_group_local_id(); \
-    BLOCK_WRITE_IMPL(vec_size) \
-}
-
-#if defined(cl_intel_subgroup_local_block_io)
-    #define _sub_group_block_write_slm(ptr, v) intel_sub_group_block_write(ptr, v)
-    #define _sub_group_block_write_slm2(ptr, v) intel_sub_group_block_write2(ptr, v)
-    #define _sub_group_block_write_slm4(ptr, v) intel_sub_group_block_write4(ptr, v)
-    #define _sub_group_block_write_slm8(ptr, v) intel_sub_group_block_write8(ptr, v)
-    #define _sub_group_block_write_slm_us(ptr, v) intel_sub_group_block_write_us(ptr, v)
-    #define _sub_group_block_write_slm_us2(ptr, v) intel_sub_group_block_write_us2(ptr, v)
-    #define _sub_group_block_write_slm_us4(ptr, v) intel_sub_group_block_write_us4(ptr, v)
-    #define _sub_group_block_write_slm_us8(ptr, v) intel_sub_group_block_write_us8(ptr, v)
-#elif (__OPENCL_C_VERSION__ >= 200)
-    DECLARE_BLOCK_WRITE_SLM_EMULATION(4, 1)
-    DECLARE_BLOCK_WRITE_SLM_EMULATION(4, 2)
-    DECLARE_BLOCK_WRITE_SLM_EMULATION(4, 4)
-    DECLARE_BLOCK_WRITE_SLM_EMULATION(4, 8)
-    DECLARE_BLOCK_WRITE_SLM_EMULATION(2, 1)
-    DECLARE_BLOCK_WRITE_SLM_EMULATION(2, 2)
-    DECLARE_BLOCK_WRITE_SLM_EMULATION(2, 4)
-    DECLARE_BLOCK_WRITE_SLM_EMULATION(2, 8)
-#endif
 
 #if defined(cl_intel_subgroups)
     #define _sub_group_block_write(ptr, v) intel_sub_group_block_write(ptr, v)

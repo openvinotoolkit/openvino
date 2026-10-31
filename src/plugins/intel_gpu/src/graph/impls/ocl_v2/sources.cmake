@@ -126,13 +126,9 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_fsv16.cl
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_ref.cl
     ${CMAKE_CURRENT_LIST_DIR}/gr_common.cl
-    ${CMAKE_CURRENT_LIST_DIR}/gr_dequant_weights.cl
     ${CMAKE_CURRENT_LIST_DIR}/gr_read.cl
     ${CMAKE_CURRENT_LIST_DIR}/gr_read_dpas.cl
-    ${CMAKE_CURRENT_LIST_DIR}/gr_read_dpas_q.cl
     ${CMAKE_CURRENT_LIST_DIR}/gr_read_pipeline.cl
-    ${CMAKE_CURRENT_LIST_DIR}/gr_read_pipeline_q.cl
-    ${CMAKE_CURRENT_LIST_DIR}/gr_wq.cl
     ${CMAKE_CURRENT_LIST_DIR}/gr_write.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_horizontal_fused.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_opt.cl

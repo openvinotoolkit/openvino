@@ -417,10 +417,7 @@ private:
 // ---------------------------------------------------------------------------
 class GrReadDpasGenerator : public GrGenerator {
 public:
-    explicit GrReadDpasGenerator(bool q = false, bool pd = false)
-        : GrGenerator(q ? "gr_read_dpas_q" : "gr_read_dpas", q ? "q" : (pd ? "pd" : "")),
-          m_q(q),
-          m_pd(pd) {}
+    explicit GrReadDpasGenerator(bool q = false, bool pd = false) : GrGenerator("gr_read_dpas", q ? "q" : (pd ? "pd" : "")), m_q(q), m_pd(pd) {}
 
 protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
@@ -565,7 +562,7 @@ protected:
 class GrDownProjGenerator : public GrGenerator {
 public:
     explicit GrDownProjGenerator(GrTier tier, bool q = false, bool pd = false)
-        : GrGenerator(q ? "gr_read_pipeline_q" : "gr_read_pipeline", gr_tier_suffix(tier, true, q, pd)),
+        : GrGenerator("gr_read_pipeline", gr_tier_suffix(tier, true, q, pd)),
           m_tier(tier),
           m_q(q),
           m_pd(pd) {}
@@ -657,7 +654,7 @@ private:
 class GrUpProjGenerator : public GrGenerator {
 public:
     explicit GrUpProjGenerator(GrTier tier, bool q = false, bool pd = false)
-        : GrGenerator(q ? "gr_read_pipeline_q" : "gr_read_pipeline", gr_tier_suffix(tier, false, q, pd)),
+        : GrGenerator("gr_read_pipeline", gr_tier_suffix(tier, false, q, pd)),
           m_tier(tier),
           m_q(q),
           m_pd(pd) {}
@@ -746,7 +743,7 @@ private:
 // ---------------------------------------------------------------------------
 class GrDequantGenerator : public GrGenerator {
 public:
-    explicit GrDequantGenerator(bool down) : GrGenerator("gr_dequant_weights", down ? "down" : "up", /*large_grf=*/false), m_down(down) {}
+    explicit GrDequantGenerator(bool down) : GrGenerator("gr_common", down ? "down" : "up", /*large_grf=*/false), m_down(down) {}
 
 protected:
     static size_t rows_n(const gated_residual& d, bool down) {
@@ -761,6 +758,7 @@ protected:
         const auto desc = params.typed_desc<gated_residual>();
         const auto wtype = gr_weight_type(params);
         const size_t k = cols_k(*desc, m_down);
+        jit.make("GR_DEQUANT_WEIGHTS", 1);
         jit.make("GR_W_TYPE", static_cast<int>(wtype));
         jit.make("GR_DQ_N", rows_n(*desc, m_down));
         jit.make("GR_DQ_K", k);
@@ -819,7 +817,7 @@ public:
     Stage::Ptr gr_up_proj = make_stage<GrUpProjGenerator>(GrTier::wide);
     Stage::Ptr gr_up_proj_decode = make_stage<GrUpProjGenerator>(GrTier::decode);
     Stage::Ptr gr_read_dpas = make_stage<GrReadDpasGenerator>();
-    // compressed weights (separate kernels, see gr_read_pipeline_q.cl / gr_read_dpas_q.cl)
+    // compressed weights (same kernel files as f16, selected by GR_W_TYPE)
     Stage::Ptr gr_down_proj_q = make_stage<GrDownProjGenerator>(GrTier::wide, true);
     Stage::Ptr gr_down_proj_q_mid = make_stage<GrDownProjGenerator>(GrTier::mid, true);
     Stage::Ptr gr_down_proj_q_decode = make_stage<GrDownProjGenerator>(GrTier::decode, true);
