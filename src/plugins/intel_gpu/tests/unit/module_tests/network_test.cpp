@@ -5,6 +5,8 @@
 #include "test_utils.h"
 
 #include "intel_gpu/graph/network.hpp"
+#include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/plugin/remote_tensor.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/activation.hpp"
@@ -51,6 +53,27 @@ TEST(network_test, model_with_empty_input_is_not_dynamic) {
     network net(engine, topology, {ov::intel_gpu::allow_new_shape_infer(true)});
 
     ASSERT_FALSE(net.is_dynamic());
+}
+
+// Remote tensor memory extends 0 dims to 1 for layout
+TEST(network_test, zero_size_remote_tensor_static_input) {
+    auto& engine = get_test_engine();
+    layout in_layout{ov::PartialShape{1, 0, 2}, data_types::f32, format::bfyx};
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto remote = std::make_shared<ov::intel_gpu::RemoteTensorImpl>(context, ov::Shape{1, 0, 2}, ov::element::f32);
+    auto input_mem = remote->get_memory();
+    auto const_mem = engine.allocate_memory({{1, 1, 2}, data_types::f32, format::bfyx});
+
+    topology topology;
+    topology.add(input_layout("input0", in_layout));
+    topology.add(data("input1", const_mem));
+    topology.add(concatenation("output", { input_info("input0"), input_info("input1") }, 1));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network net(engine, topology, config);
+
+    ASSERT_NO_THROW(net.set_input_data("input0", input_mem));
 }
 
 TEST(network_test, model_with_dynamic_input_is_dynamic) {

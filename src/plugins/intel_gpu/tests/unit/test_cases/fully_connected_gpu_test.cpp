@@ -5144,6 +5144,44 @@ INSTANTIATE_TEST_SUITE_P(
     fully_connected_u8_f32_test::PrintToStringParamName
 );
 
+// Runs FC on a zero-size batch with the given implementation forced; execution must not throw.
+static void run_fc_zero_size_input(impl_types impl, bool is_dynamic) {
+    constexpr int64_t input_f = 16, output_f = 8;
+    auto& engine = get_test_engine();
+
+    auto input_layout_desc = layout{ov::PartialShape{is_dynamic ? -1 : 0, input_f}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory({ov::PartialShape{0, input_f}, data_types::f32, format::bfyx});
+    auto weights_mem = engine.allocate_memory({ov::PartialShape{output_f, input_f}, data_types::f32, format::bfyx});
+    set_values(weights_mem, std::vector<float>(output_f * input_f, 1.0f));
+
+    topology topology(input_layout("input", input_layout_desc), data("weights", weights_mem), fully_connected("fc_prim", input_info("input"), "weights"));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "", impl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    std::map<primitive_id, network_output> outputs;
+    ASSERT_NO_THROW(outputs = network.execute());
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+    ASSERT_EQ(outputs.begin()->second.get_layout().count(), size_t(0));
+
+    auto fc_inst = network.get_primitive("fc_prim");
+    if (!is_dynamic) {
+        ASSERT_TRUE(fc_inst->can_be_optimized());
+    }
+
+    // zero-size primitives are skipped, so impl may not exist.
+    if (const auto* fc_impl = fc_inst->get_impl(); fc_impl != nullptr) {
+        ASSERT_EQ(fc_impl->is_onednn(), impl == impl_types::onednn);
+    }
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(fully_connected_onednn_gpu, no_biases_int8) {
     //  Input  : 3x1
@@ -5340,7 +5378,21 @@ TEST(fully_connected_3d_onednn_gpu, compressed_int4_scale_static) {
         ASSERT_NEAR(output_ptr_ref[i], output_ptr[i], 9.0) << "i = " << i << std::endl;
     }
 }
+
+TEST(fully_connected_onednn_gpu, zero_size_input) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    run_fc_zero_size_input(impl_types::onednn, true);
+    run_fc_zero_size_input(impl_types::onednn, false);
+}
 #endif
+
+TEST(fully_connected_gpu, zero_size_input_ocl) {
+    run_fc_zero_size_input(impl_types::ocl, true);
+    run_fc_zero_size_input(impl_types::ocl, false);
+}
 
 TEST_F(fully_connected_gpu_tests, compressed_scale_zp_bias) {
     this->test_compressed_scale_zp_bias(false);
