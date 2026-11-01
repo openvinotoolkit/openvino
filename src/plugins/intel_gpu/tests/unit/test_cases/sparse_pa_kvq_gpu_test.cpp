@@ -347,8 +347,8 @@ case_data make_case(const dims& d, const KVQuant& kq, const KVQuant& vq, const s
     c.query = make_values(c.tokens * d.Hq * d.Dh, seed + 1, 1.0f, d.Dh);
     for (size_t s = 0; s < seqs.size(); s++) {
         const size_t total = seqs[s].past + seqs[s].q_len;
-        c.key_hist.push_back(make_values(total * d.Hkv * d.Dh, seed + 10 + s, 1.0f, d.Dh));
-        c.value_hist.push_back(make_values(total * d.Hkv * d.Dv, seed + 20 + s, 1.0f, d.Dv));
+        c.key_hist.push_back(make_values(total * d.Hkv * d.Dh, seed + 10 + static_cast<uint32_t>(s), 1.0f, d.Dh));
+        c.value_hist.push_back(make_values(total * d.Hkv * d.Dv, seed + 20 + static_cast<uint32_t>(s), 1.0f, d.Dv));
     }
     c.sel.assign(c.tokens * d.topk, 0);
     c.count.assign(c.tokens, 0);
