@@ -3,16 +3,18 @@
 //
 
 // Tests for the 4D float (additive) attention_mask contract of the NPUW LLM pipeline: how the mask is detected,
-// which options reject it, how its shape is made static and how the infer request stages it for prefill and
-// generate.
+// which options reject it, how its shape is made static, how the infer request stages it for prefill and
+// generate, and that an exported and imported model keeps the contract.
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <functional>
 #include <limits>
 #include <memory>
 #include <numeric>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -22,6 +24,9 @@
 #include "llm_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "util.hpp"
 
 namespace {
@@ -370,6 +375,83 @@ TEST_F(LLM4DFloatAttentionMaskStagingTest, Bf16MaskIsRejectedAtInferBecauseSubmo
     EXPECT_EQ(prefill_mask.get_element_type(), ov::element::f16);
 
     EXPECT_THROW(run_prefill(5), ov::Exception);
+}
+
+// An additive causal mask [1, 1, rows, columns] for `rows` new tokens that follow `columns - rows` stored ones.
+ov::Tensor make_causal_mask(size_t rows, size_t columns) {
+    ov::Tensor mask(ov::element::f32, ov::Shape{1, 1, rows, columns});
+    const size_t past_len = columns - rows;
+    for (size_t row = 0; row < rows; ++row) {
+        for (size_t column = 0; column < columns; ++column) {
+            mask.data<float>()[row * columns + column] = column <= row + past_len ? 0.0f : lowest_of(ov::element::f32);
+        }
+    }
+    return mask;
+}
+
+// The blob does not store whether the mask is 4D float: the import derives it from the restored inputs. The imported
+// model must still take the caller's f32 mask for prefill and for generate and give the compiled model's logits. The
+// model goes through disk like a converted model, so the blob is weightless and the import gets only the weights path.
+// The prompt fills the static prompt window. With a shorter one, the CPU sub-models compute in bf16 by default and the
+// f32 lowest value that NPUW stages for the padding rows turns into -inf there, so the logits are NaN. Requesting f32
+// inference precision removes the NaN.
+TEST(LLM4DFloatAttentionMaskRoundTrip, ImportedModelRunsLikeTheCompiledOne) {
+    constexpr size_t kGenerateSteps = 2;
+
+    ov::Core core;
+    const auto dir = std::filesystem::temp_directory_path() / "npuw_4d_float_mask_round_trip";
+    std::filesystem::create_directories(dir);
+    const auto xml = dir / "model.xml";
+    const auto bin = dir / "model.bin";
+    ov::serialize(build_llm_test_model(make_4d_float_mask_config(ov::element::f32)), xml.string(), bin.string());
+    const auto model = core.read_model(xml.string(), bin.string());
+
+    // The online partitioner's repeated-block detection does not cope with the synthetic model, so the sub-models
+    // are compiled whole on CPU.
+    const auto props = make_props({{"NPU_USE_NPUW", "YES"}, {"NPUW_ONLINE_PIPELINE", "NONE"}});
+    const auto prompt_len = props.at("NPUW_LLM_MAX_PROMPT_LEN").as<size_t>();
+    auto compiled = core.compile_model(model, "NPU", props);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    auto import_props = props;
+    import_props[ov::weights_path.name()] = bin.string();
+    auto imported = core.import_model(blob, "NPU", import_props);
+
+    // The prompt in one prefill, then single-token generate steps; returns the logits of every step.
+    const auto run = [&](ov::CompiledModel& model_under_test) {
+        auto request = model_under_test.create_infer_request();
+        ov::Tensor beam_idx(ov::element::i32, ov::Shape{1});
+        beam_idx.data<int32_t>()[0] = 0;
+        std::vector<ov::Tensor> logits;
+        const auto step = [&](size_t past_len, size_t new_tokens) {
+            request.set_tensor("input_ids", make_i64_iota({1, new_tokens}, static_cast<int64_t>(1 + past_len)));
+            request.set_tensor("attention_mask", make_causal_mask(new_tokens, past_len + new_tokens));
+            request.set_tensor("position_ids", make_i64_iota({1, new_tokens}, static_cast<int64_t>(past_len)));
+            request.set_tensor("beam_idx", beam_idx);
+            request.infer();
+            auto output = request.get_output_tensor(0);
+            ov::Tensor copy(output.get_element_type(), output.get_shape());
+            output.copy_to(copy);
+            logits.push_back(make_tensor_with_precision_convert(copy, ov::element::f32));
+        };
+        step(0, prompt_len);
+        for (size_t i = 0; i < kGenerateSteps; ++i) {
+            step(prompt_len + i, 1);
+        }
+        return logits;
+    };
+
+    const auto expected = run(compiled);
+    const auto actual = run(imported);
+    ASSERT_EQ(actual.size(), expected.size());
+    for (size_t step = 0; step < expected.size(); ++step) {
+        SCOPED_TRACE("step " + std::to_string(step));
+        ASSERT_EQ(actual[step].get_shape(), expected[step].get_shape());
+        for (size_t i = 0; i < expected[step].get_size(); ++i) {
+            ASSERT_NEAR(actual[step].data<float>()[i], expected[step].data<float>()[i], 1e-5f) << "element " << i;
+        }
+    }
 }
 
 }  // namespace

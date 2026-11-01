@@ -1964,6 +1964,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
             compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size;
 
+        // Not serialized: derived from the restored inputs, the same way as at compile time.
+        compiled->m_attention_mask_is_4d_float = is_4d_float_attention_mask(ov_model);
+
         // LongRoPE cos/sin tables - see the matching comment in serialize()
         stream & compiled->m_longrope_tables;
 
