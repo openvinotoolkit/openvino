@@ -6,7 +6,6 @@
 // Put this file at first to avoid incorrect header files includes order.
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
 #include "sdpa_gen_ocl.hpp"
-#include "sdpa_gen_micro.hpp"
 // clang-format on
 #include "paged_attention_opt.hpp"
 
@@ -1030,50 +1029,6 @@ public:
     }
 };
 
-// Precomputes, for every token, the first/last index of its bidirectional (token_type_ids == 1) run,
-// so that sdpa_micro (USE_TT_BOUNDS) compares indices instead of scanning token_type_ids between q and k.
-class PagedAttentionGeneratorTTBounds : public PagedAttentionGeneratorBase {
-public:
-    PagedAttentionGeneratorTTBounds() : PagedAttentionGeneratorBase("_tt_bounds") {}
-    [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
-        auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
-        jit.make("TT_BOUNDS_STAGE", 1);
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override {
-        Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});
-        args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});  // tt_bounds
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 0});           // num_seqs
-        args.push_back({ArgumentDescriptor::Types::SCALAR, 1});           // token_type_ids element count (0 = empty input)
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
-            assert(!params.is_dynamic());
-            auto& wgs = kd.params.workGroups;
-            auto& scalars = kd.params.scalars;
-            scalars.resize(2);
-
-            constexpr size_t wg_size = 256;  // TT_BOUNDS_WG
-            const size_t num_seqs = params.input_layouts[PagedAttentionInputIdx::SUBSEQUENCE_BEGINS].get_partial_shape()[0].get_length() - 1;
-            const auto& tt_layout = params.input_layouts[PagedAttentionInputIdx::TOKEN_TYPE_IDS];
-            const size_t tt_count = tt_layout.is_static() ? ov::shape_size(tt_layout.get_shape()) : 0;
-
-            wgs.global = {num_seqs * wg_size, 1, 1};
-            wgs.local = {wg_size, 1, 1};
-
-            scalars[0].t = ScalarDescriptor::Types::UINT32;
-            scalars[0].v.u32 = static_cast<uint32_t>(num_seqs);
-            scalars[1].t = ScalarDescriptor::Types::UINT32;
-            scalars[1].v.u32 = static_cast<uint32_t>(tt_count);
-        }};
-    }
-};
-
 class PagedAttentionGeneratorScoresCalculation : public PagedAttentionGeneratorBase {
 public:
     PagedAttentionGeneratorScoresCalculation() : PagedAttentionGeneratorBase("_scores_calculation") {}
@@ -1677,15 +1632,12 @@ public:
     // pa_single_token_finalization. Only added when SDPAOclDecodeGenerator::supported().
     Stage::Ptr pa_sdpa_ocl_decode = make_stage<SDPAOclDecodeGenerator>();
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    // The DPAS PREFILL/MIXED kernels. Both types exist in every impl, because a loaded or cloned impl is
-    // default-constructed and only gets _order (indices into _stages) back; the params ctor adds one pair
+    // The DPAS PREFILL/MIXED kernel (sdpa_ocl). Its stages exist in every impl, because a loaded or cloned impl is
+    // default-constructed and only gets _order (indices into _stages) back; the params ctor adds the pair
     // (choose_dpas_backend) and everything after that reads has_stage() (dpas_backend), never the environment.
-    // The sdpa_ocl pair comes first so it keeps indices 13/14.
+    // Indices 13/14.
     Stage::Ptr pa_sdpa_ocl = make_stage<SDPAOclGenerator>(true);
     Stage::Ptr pa_sdpa_ocl_mixed = make_stage<SDPAOclGenerator>(false);
-    Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
-    Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
-    Stage::Ptr pa_tt_bounds = make_stage<PagedAttentionGeneratorTTBounds>();
 #endif
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
@@ -1700,13 +1652,6 @@ public:
         case DpasBackend::ocl:
             add_stage(pa_sdpa_ocl, params);
             add_stage(pa_sdpa_ocl_mixed, params);
-            break;
-        case DpasBackend::micro:
-            add_stage(pa_sdpa_micro, params);
-            add_stage(pa_sdpa_micro_mixed, params);
-            if (pa_micro_uses_tt_bounds(*desc)) {
-                add_stage(pa_tt_bounds, params);
-            }
             break;
         case DpasBackend::none:
             break;
@@ -1747,35 +1692,28 @@ public:
     }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    enum class DpasBackend{none, ocl, micro};
+    enum class DpasBackend{none, ocl};
 
     // The DPAS kernel staged for a PA stage. has_stage() rather than the gate, so a loaded or cloned impl (and one
     // whose add_stage() swallowed a codegen failure) dispatches only what was actually built.
     DpasBackend dpas_backend(const PagedAttentionStage& stage) const {
         if (stage == PagedAttentionStage::PREFILL)
-            return has_stage(pa_sdpa_ocl) ? DpasBackend::ocl : has_stage(pa_sdpa_micro) ? DpasBackend::micro : DpasBackend::none;
+            return has_stage(pa_sdpa_ocl) ? DpasBackend::ocl : DpasBackend::none;
         if (stage == PagedAttentionStage::MIXED)
-            return has_stage(pa_sdpa_ocl_mixed) ? DpasBackend::ocl : has_stage(pa_sdpa_micro_mixed) ? DpasBackend::micro : DpasBackend::none;
+            return has_stage(pa_sdpa_ocl_mixed) ? DpasBackend::ocl : DpasBackend::none;
         return DpasBackend::none;
     }
 
-    // token_type_ids does not change the choice: sdpa_ocl, sdpa_micro and paged_attention_opt.cl all implement the
+    // token_type_ids does not change the choice: sdpa_ocl and paged_attention_opt.cl both implement the
     // bidirectional mask in PREFILL and MIXED (pa_small_q_opt.cl does not, see supports_gqa_multi_tokens_dpas_kernel()).
     // GENERATE never has a DPAS stage (dpas_backend() above) and needs nothing: that stage is defined by one new token
     // per subsequence, so a query's image group is the query itself.
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
         const auto backend = dpas_backend(stage);
-        // Speculative decoding MIXED case is faster with the GQA multi-token kernel than with micro SDPA
+        // Speculative decoding MIXED case is faster with the GQA multi-token kernel than with the DPAS kernel
         if (backend == DpasBackend::none || can_use_gqa_multi_tokens_kernel(params, stage))
             return false;
         const auto desc = params.typed_desc<paged_attention>();
-        // sdpa_micro's MIXED variant reads the K cache d-major (problem_kq.A.layout = N, ldk =
-        // block_size, plus a K0 pointer pre-compensation for micro's Layout::N A-offset), so it
-        // cannot read a token-major cache. PREFILL is unaffected: it reads the contiguous KEY input,
-        // not the cache. No token-major page is created on this lane (k_token_major_readable() needs the
-        // sdpa_ocl lane); this keeps sdpa_micro off one all the same.
-        if (stage == PagedAttentionStage::MIXED && backend == DpasBackend::micro && get_k_token_major(params))
-            return false;
         // sdpa_ocl's MIXED cache dequant needs the data region to be a plain [block_size, row] tile
         // with its comp appended AFTER it. Three layouts satisfy that:
         //   i8 BY_TOKEN     comp is two trailing per-token f16 arrays.
@@ -1794,18 +1732,11 @@ public:
         // PagedAttentionOptImpl's ctor add_stage()s prefill AND mixed) -- it just must not dispatch.
         if (stage == PagedAttentionStage::MIXED && get_kv_compressed(params)) {
             const bool by_channel_tm = is_by_channel_tm_page(params);
-            if (backend == DpasBackend::micro) {
-                // The check is about the page, not the kernel: sdpa_micro reads K d-major (see above),
-                // so it must not see the token-major BY_CHANNEL page either.
-                if (by_channel_tm)
-                    return false;
-            } else {
-                const bool int4 = data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision());
-                // int4 has no d-major reader here at all, so it needs the switch unconditionally; i8 only
-                // needs it in BY_CHANNEL, since BY_TOKEN is already the layout this kernel reads.
-                if (int4 ? !by_channel_tm : (desc->is_key_by_channel && !by_channel_tm))
-                    return false;
-            }
+            const bool int4 = data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision());
+            // int4 has no d-major reader here at all, so it needs the switch unconditionally; i8 only
+            // needs it in BY_CHANNEL, since BY_TOKEN is already the layout this kernel reads.
+            if (int4 ? !by_channel_tm : (desc->is_key_by_channel && !by_channel_tm))
+                return false;
         }
         return true;
     }
@@ -1815,21 +1746,20 @@ public:
     // paged_attention::k_token_major_readable() replays the shared checks and the sdpa_ocl branch that do
     // not depend on the K page (the GENERATE half is SDPAOclDecodeGenerator::supported()); change them together.
     static DpasBackend choose_dpas_backend(const kernel_impl_params& params) {
-        auto& engine = params.get_program().get_engine();
         const auto& info = params.get_device_info();
         const auto desc = params.typed_desc<paged_attention>();
 
-        // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): every DPAS PagedAttention kernel off, sdpa_ocl as well as sdpa_micro (the
-        // name predates sdpa_ocl), so PagedAttention runs the OCL paged_attention/sdpa_opt path, for accuracy A/B
-        // without rebuilding.
+        // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): the DPAS PagedAttention kernel (sdpa_ocl) off (the name is from the removed
+        // sdpa_micro), so PagedAttention runs the OCL paged_attention/sdpa_opt path, for accuracy A/B without rebuilding.
         if (!params.get_program().get_config().get_enable_sdpa_micro()) {
-            GPU_DEBUG_TRACE_DETAIL << "[GPU] PA DPAS SDPA kernels (sdpa_ocl, sdpa_micro) DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
+            GPU_DEBUG_TRACE_DETAIL << "[GPU] PA DPAS SDPA kernel (sdpa_ocl) DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
                                       "falling back to OCL paged_attention/sdpa_opt kernel.\n";
             return DpasBackend::none;
         }
 
-        // Both DPAS kernels need XMX. Only sdpa_micro needs oneDNN microkernel support; it is queried on its lane below.
-        if (!info.supports_immad) {
+        // sdpa_ocl runs on its lane only (Xe2+ XMX; xe_hpg with TEST_USE_SDPA_OCL_HPG=1). Every other device runs the
+        // opt kernels; it needs no oneDNN microkernel support.
+        if (!cldnn::paged_attention::sdpa_ocl_selected(info)) {
             return DpasBackend::none;
         }
 
@@ -1853,72 +1783,32 @@ public:
             return DpasBackend::none;
         }
 
-        // Disable micro SDPA for INT4 BY_TOKEN due to accuracy issues
+        // No DPAS kernel for INT4 BY_TOKEN (accuracy issues, first seen with the removed sdpa_micro)
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
         if (data_type_traits::is_i4_u4(kv_cache_dt) && !desc->is_key_by_channel) {
             return DpasBackend::none;
         }
 
-        // TEMP(S9): xe_hpg only. An op sdpa_ocl refuses (SDPAOclGenerator::supported(), i.e. its tier is not ready) keeps
-        // the sdpa_micro lane below instead of the opt kernels, exactly as with TEST_USE_SDPA_OCL_HPG off. Remove at the
-        // default flip (docs "no cross-lane fallback"). The per-dispatch gate can_use_micro_sdpa_for() is not touched.
-        if (cldnn::paged_attention::sdpa_ocl_selected(info) && (info.arch != gpu_arch::xe_hpg || SDPAOclGenerator::supported(params))) {
-            if (!SDPAOclGenerator::supported(params)) {
-                return DpasBackend::none;
-            }
-            // sdpa_ocl takes the KQ contraction depth from k_head_size and the S*V value split from v_head_size
-            // independently, so it only needs a tiling to exist for the pair.
-            //
-            // This is not just an optimisation. The token-major BY_CHANNEL K page, which pa_multi_token (the
-            // MIXED fallback) reads d-major, is only created when paged_attention::k_token_major_readable()
-            // replays this check, so a pair rejected here costs the model that page (and its speed) --
-            // mismatching the two gave NaN, the k_head_size != v_head_size bug this gate used to cause.
-            if (desc->k_head_size != desc->v_head_size && !SDPAOclGenerator::supports_head_sizes(info.arch, desc->k_head_size, desc->v_head_size)) {
-                return DpasBackend::none;
-            }
-            return DpasBackend::ocl;
-        }
-
-        // The sdpa_micro lane: xe_hpg or later with oneDNN microkernel support.
-        if (info.arch < gpu_arch::xe_hpg || !cldnn::query_microkernels_supported(engine, params.get_program().get_config())) {
+        if (!SDPAOclGenerator::supported(params)) {
             return DpasBackend::none;
         }
-        // sdpa_micro derives both of its ugemm packages from one d_max, so it needs the two head sizes to be equal.
-        if (desc->k_head_size != desc->v_head_size) {
+        // sdpa_ocl takes the KQ contraction depth from k_head_size and the S*V value split from v_head_size
+        // independently, so it only needs a tiling to exist for the pair.
+        //
+        // This is not just an optimisation. The token-major BY_CHANNEL K page, which pa_multi_token (the
+        // MIXED fallback) reads d-major, is only created when paged_attention::k_token_major_readable()
+        // replays this check, so a pair rejected here costs the model that page (and its speed) --
+        // mismatching the two gave NaN, the k_head_size != v_head_size bug this gate used to cause.
+        if (desc->k_head_size != desc->v_head_size && !SDPAOclGenerator::supports_head_sizes(info.arch, desc->k_head_size, desc->v_head_size)) {
             return DpasBackend::none;
         }
-        // WA: Disable micro SDPA on xe3p due to oneDNN micro-kernel accuracy / determinism
-        // issues (inf/nan, run-to-run nondeterminism in the generated systolic ugemm).
-        if (info.arch == gpu_arch::xe3p) {
-            return DpasBackend::none;
-        }
-        // sdpa_micro.cl loads Q as packed halves and stores half output, so an f32 query (f32 inference precision)
-        // would be read wrong. Its codegen happens to reject f32 today ("No matching kernel", swallowed by
-        // add_stage), which is not a guarantee.
-        if (params.get_input_layout(PagedAttentionInputIdx::QUERY).data_type != ov::element::f16 || params.get_output_layout(0).data_type != ov::element::f16) {
-            return DpasBackend::none;
-        }
-        return DpasBackend::micro;
-    }
-
-    static size_t get_micro_tile_qsize(KernelData& kernel_data) {
-        OPENVINO_ASSERT(!kernel_data.micro_kernels.empty(), "[GPU] Invalid kernels passed to get_tile_qsize() function");
-
-        const auto& gemms = kernel_data.micro_kernels;
-        const auto wg_tile_q = gemms[0]->p.getSetting("wg_tile_n");
-        return wg_tile_q;
+        return DpasBackend::ocl;
     }
 
     size_t get_query_block_size(const kernel_impl_params& params, const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
-        if (use_micro_sdpa) {
-            // The sdpa_ocl value solves a tiling for the device, so it must not be asked for on the sdpa_micro lane.
-            const auto backend = dpas_backend(stage);
-            if (backend == DpasBackend::ocl)
-                return SDPAOclGenerator::get_query_block_size(params, stage == PagedAttentionStage::PREFILL);
-            if (backend == DpasBackend::micro)
-                return get_micro_tile_qsize(stage == PagedAttentionStage::PREFILL ? pa_sdpa_micro->kd : pa_sdpa_micro_mixed->kd);
-        }
+        if (use_micro_sdpa && dpas_backend(stage) == DpasBackend::ocl)
+            return SDPAOclGenerator::get_query_block_size(params, stage == PagedAttentionStage::PREFILL);
         return default_block_size;
     }
 #else
@@ -2116,12 +2006,7 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (rt_params->use_micro_sdpa) {
-                const bool prefill_uses_micro = dpas_backend(PagedAttentionStage::PREFILL) == DpasBackend::micro;
-                auto& prefill_stage = prefill_uses_micro ? pa_sdpa_micro : pa_sdpa_ocl;
-                if (prefill_uses_micro && pa_micro_uses_tt_bounds(*desc)) {
-                    res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
-                }
-                res_event = {execute_stage(res_event, instance, prefill_stage)};
+                res_event = {execute_stage(res_event, instance, pa_sdpa_ocl)};
             } else
 #endif
             {
@@ -2141,12 +2026,7 @@ public:
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa) {
-                    const bool mixed_uses_micro = dpas_backend(PagedAttentionStage::MIXED) == DpasBackend::micro;
-                    auto& mixed_stage = mixed_uses_micro ? pa_sdpa_micro_mixed : pa_sdpa_ocl_mixed;
-                    if (mixed_uses_micro && pa_micro_uses_tt_bounds(*desc)) {
-                        res_event = {execute_stage(res_event, instance, pa_tt_bounds)};
-                    }
-                    res_event = {execute_stage(res_event, instance, mixed_stage)};
+                    res_event = {execute_stage(res_event, instance, pa_sdpa_ocl_mixed)};
                 } else
 #endif
                 {
@@ -2357,12 +2237,6 @@ public:
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable, not_shareable);
-            // Only sdpa_micro reads the group bounds; sdpa_ocl consumes token_type_ids directly.
-            if (pa_micro_uses_tt_bounds(*desc) && dpas_backend(stage) == DpasBackend::micro) {
-                // 4: per-token [first, last] index of the token_type_ids == 1 run, filled by pa_tt_bounds.
-                // Not lockable: only kernels access it, so it stays in device memory.
-                internal_buffers.emplace_back(total_tokens * 2 * sizeof(int32_t), indexes_dt);
-            }
         }
 #endif
 

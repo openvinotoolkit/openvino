@@ -2513,11 +2513,10 @@ public:
         }
         pa_prim.has_alibi = false;
         // has_token_type_ids used to double as the "disable micro-SDPA" lever, which is how the FA_V2
-        // sink test was pinned to sdpa_opt.cl. It no longer is for sdpa_ocl -- can_use_micro_sdpa_for
-        // now only rejects non-PREFILL stages when sdpa_micro is the generator, because sdpa_ocl
-        // implements the bidirectional mask for MIXED too. The FA_V2 sink cases are all PREFILL, where
-        // the lever never applied anyway, so nothing there changes. Still tied to force_flashattn_v2
-        // rather than to has_sink_input alone, so a plain sink case reaches micro / sdpa_ocl in MIXED.
+        // sink test was pinned to sdpa_opt.cl. It no longer is -- can_use_micro_sdpa_for does not reject
+        // token_type_ids, because sdpa_ocl implements the bidirectional mask for MIXED too. The FA_V2 sink
+        // cases are all PREFILL, where the lever never applied anyway, so nothing there changes. Still tied
+        // to force_flashattn_v2 rather than to has_sink_input alone, so a plain sink case reaches sdpa_ocl in MIXED.
         pa_prim.has_token_type_ids =
             p.token_type_ids.has_value() || p.empty_token_type_ids || (p.has_sink_input && p.force_flashattn_v2);
         pa_prim.has_sink_input = p.has_sink_input;
@@ -3433,9 +3432,9 @@ struct paged_attention_test_params {
 
     // Sink input testing: enables has_sink_input on the primitive. Combined with force_flashattn_v2
     // it ALSO sets has_token_type_ids, which used to force the sdpa_opt.cl path by making
-    // can_use_micro_sdpa_for reject every non-PREFILL stage. That now only holds for sdpa_micro
-    // (sdpa_ocl implements the bidirectional mask for MIXED too), so leave force_flashattn_v2 off
-    // when a sink case should reach micro / sdpa_ocl in MIXED.
+    // can_use_micro_sdpa_for reject every non-PREFILL stage. That no longer holds (sdpa_ocl implements
+    // the bidirectional mask for MIXED too), so leave force_flashattn_v2 off when a sink case should
+    // reach sdpa_ocl in MIXED.
     bool has_sink_input = false;
     // When set, overrides the default sink values in PAM before memory allocation.
     std::optional<std::vector<ov::float16>> sink_values = std::nullopt;

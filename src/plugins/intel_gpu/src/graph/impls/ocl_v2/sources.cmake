@@ -87,8 +87,6 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/sdpa/paged_attention_opt.hpp
     ${CMAKE_CURRENT_LIST_DIR}/sdpa/sdpa_base.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sdpa/sdpa_base.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/sdpa/sdpa_gen_micro.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/sdpa/sdpa_gen_micro.hpp
     ${CMAKE_CURRENT_LIST_DIR}/sdpa/sdpa_gen_ocl.cpp
     ${CMAKE_CURRENT_LIST_DIR}/sdpa/sdpa_gen_ocl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/sdpa/sdpa_gen_ocl_decode.cpp
@@ -179,7 +177,6 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/scatter_nd_update_copy.cl
     ${CMAKE_CURRENT_LIST_DIR}/scatter_nd_update_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/scatter_nd_update_ref.cl
-    ${CMAKE_CURRENT_LIST_DIR}/sdpa_micro.cl
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl.cl
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl_config.cl
     ${CMAKE_CURRENT_LIST_DIR}/sdpa_ocl_decode.cl
