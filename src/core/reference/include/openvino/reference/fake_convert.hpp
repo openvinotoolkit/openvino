@@ -40,6 +40,10 @@ void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count, 
 namespace fake_convert_details {
 template <bool INVERT, typename T>
 inline T scale_shift(T val, T scale, T shift) {
+    // Adding or subtracting a zero shift would turn -0 into +0, so skip it like FakeConvertDecomposition does.
+    if (shift == T{0}) {
+        return INVERT ? static_cast<T>(val / scale) : static_cast<T>(val * scale);
+    }
     return INVERT ? static_cast<T>((val + shift) / scale) : static_cast<T>(val * scale - shift);
 }
 /**

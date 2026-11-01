@@ -3322,6 +3322,9 @@ void check_fake_convert_f8e4m3_rounding() {
         0.0009765625f,     // 0.5 * 2^-9, tie -> 0
         -0.001220703125f,  // -0.625 * 2^-9 -> -2^-9
         0.f,
+        -0.f,
+        -0.00048828125f,   // -2^-11 -> -0
+        -0.0009765625f,    // -0.5 * 2^-9, tie -> -0
         1.0625f,           // tie -> 1
         1.1875f,           // tie -> 1.25
         448.f,
@@ -3333,7 +3336,7 @@ void check_fake_convert_f8e4m3_rounding() {
         nan,
         -nan};
     const std::vector<float> expected{
-        0.001953125f, 0.00390625f, 0.00390625f, 0.0078125f, 0.015625f, 0.f, -0.001953125f, 0.f,
+        0.001953125f, 0.00390625f, 0.00390625f, 0.0078125f, 0.015625f, 0.f, -0.001953125f, 0.f, -0.f, -0.f, -0.f,
         1.f, 1.25f, 448.f, 448.f, 448.f, -448.f, 448.f, -448.f, nan, nan};
     // clang-format on
 
@@ -3350,6 +3353,12 @@ void check_fake_convert_f8e4m3_rounding() {
 
     const auto result = read_vector<T>(out_vector.at(0));
     EXPECT_THAT(std::vector<float>(result.begin(), result.end()), Pointwise(NanSensitiveFloatEq(), expected));
+    // FloatEq treats -0 and +0 as equal, so check the sign of zeros separately.
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (expected[i] == 0.f) {
+            EXPECT_EQ(std::signbit(static_cast<float>(result[i])), std::signbit(expected[i])) << "index " << i;
+        }
+    }
 }
 }  // namespace
 
@@ -3363,16 +3372,6 @@ TEST(eval, evaluate_fake_convert_f16_to_f8e4m3_rounding_edge_cases) {
 
 TEST(eval, evaluate_fake_convert_bf16_to_f8e4m3_rounding_edge_cases) {
     check_fake_convert_f8e4m3_rounding<element::bf16>();
-}
-
-// Checked on the emulation directly: in FakeConvert the following "+ shift" turns -0 into +0 for a zero shift.
-TEST(eval, emulate_f8e4m3_on_fp16_keeps_sign_of_zero) {
-    const std::vector<float16> input{-0.f, -0.00048828125f, -0.0009765625f};  // -0, -2^-11, -0.5 * 2^-9 (tie)
-    std::vector<float16> output(input.size());
-    ov::reference::func::emulate_f8e4m3_on_fp16(input.data(), output.data(), input.size());
-    for (const auto& value : output) {
-        EXPECT_EQ(value.to_bits(), uint16_t{0x8000});
-    }
 }
 
 TEST(eval, emulate_f8e4m3_on_fp16_without_clamp_overflows_to_nan) {
