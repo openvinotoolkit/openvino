@@ -520,51 +520,85 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          NormalizeMoEOutputReshapeTargetTypeTest,
                          testing::Values(ov::element::i8, ov::element::i16, ov::element::i32, ov::element::i64, ov::element::u8, ov::element::u32));
 
-// The i8/u4 BY_CHANNEL K cache may only be token-major where every PagedAttention op is served by the
-// two readers of that page, sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE); one refusing op or device
+// Every kind of K page (f16, i8 BY_TOKEN, i8/u4 BY_CHANNEL) may only be token-major where every PagedAttention op is
+// served by the two token-major readers, sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE); one refusing op or device
 // condition keeps the whole model d-major. Device-independent: the device facts are synthetic.
-TEST(PagedAttentionKCacheLayout, ByChannelTokenMajorReadable) {
+TEST(PagedAttentionKCacheLayout, TokenMajorReadable) {
     using pa = cldnn::paged_attention;
 #ifndef ENABLE_ONEDNN_FOR_GPU
     GTEST_SKIP() << "without oneDNN there is no sdpa_ocl MIXED stage, so the page is never token-major";
 #endif
     if (!pa::sdpa_ocl_enabled() || !pa::sdpa_ocl_decode_enabled())
         GTEST_SKIP() << "TEST_USE_SDPA_OCL / TEST_USE_SDPA_OCL_DECODE is off, so the page is never token-major";
+    if (pa::k_token_major_switch() == pa::k_layout_switch::d_major)
+        GTEST_SKIP() << "OV_GPU_PA_K_TOKEN_MAJOR=0 makes every page d-major";
 
     cldnn::device_info xe2{};
     xe2.supports_immad = true;
     xe2.arch = cldnn::gpu_arch::xe2;
     const auto f16 = ov::element::f16;
-    pa::by_channel_tm_op_info op;
+    const auto i8 = ov::element::i8;
+    pa::k_tm_op_info op;
     op.k_head_size = 64;
     op.v_head_size = 64;
     op.heads_num = 8;
     op.kv_heads_num = 2;
-    const auto readable = [&](const pa::by_channel_tm_op_info& o) {
-        return pa::by_channel_token_major_readable(xe2, true, f16, {o});
+    // i8 BY_CHANNEL unless stated otherwise.
+    const auto readable = [&](const pa::k_tm_op_info& o) {
+        return pa::k_token_major_readable(xe2, true, f16, i8, true, {o});
     };
 
     EXPECT_TRUE(readable(op));
     auto xe3 = xe2;
     xe3.arch = cldnn::gpu_arch::xe3;
-    EXPECT_TRUE(pa::by_channel_token_major_readable(xe3, true, f16, {op}));
+    EXPECT_TRUE(pa::k_token_major_readable(xe3, true, f16, i8, true, {op}));
 
     // Device, driver and precision.
     auto no_xmx = xe2;
     no_xmx.supports_immad = false;
-    EXPECT_FALSE(pa::by_channel_token_major_readable(no_xmx, true, f16, {op}));
+    EXPECT_FALSE(pa::k_token_major_readable(no_xmx, true, f16, i8, true, {op}));
     // With TEST_USE_SDPA_OCL_HPG=1 sdpa_ocl_selected(xe_hpg) is true, so only the decode predicate keeps this false; with
     // the default env selected is already false and this line alone would not catch a landmine.
     auto xe_hpg = xe2;
     xe_hpg.arch = cldnn::gpu_arch::xe_hpg;
-    EXPECT_FALSE(pa::by_channel_token_major_readable(xe_hpg, true, f16, {op}));
+    EXPECT_FALSE(pa::k_token_major_readable(xe_hpg, true, f16, i8, true, {op}));
     auto xe_lp = no_xmx;
     xe_lp.arch = cldnn::gpu_arch::xe_lp;
-    EXPECT_FALSE(pa::by_channel_token_major_readable(xe_lp, true, f16, {op}));
-    EXPECT_FALSE(pa::by_channel_token_major_readable(xe2, false, f16, {op}));  // no microkernels
-    EXPECT_FALSE(pa::by_channel_token_major_readable(xe2, true, ov::element::f32, {op}));
-    EXPECT_FALSE(pa::by_channel_token_major_readable(xe2, true, ov::element::bf16, {op}));
-    EXPECT_FALSE(pa::by_channel_token_major_readable(xe2, true, ov::element::dynamic, {op}));
+    EXPECT_FALSE(pa::k_token_major_readable(xe_lp, true, f16, i8, true, {op}));
+    EXPECT_FALSE(pa::k_token_major_readable(xe2, false, f16, i8, true, {op}));  // no microkernels
+    EXPECT_FALSE(pa::k_token_major_readable(xe2, true, ov::element::f32, i8, true, {op}));
+    EXPECT_FALSE(pa::k_token_major_readable(xe2, true, ov::element::bf16, i8, true, {op}));
+    EXPECT_FALSE(pa::k_token_major_readable(xe2, true, ov::element::dynamic, i8, true, {op}));
+
+    // Page kind (k_token_major_kind()): the same rule for every page both readers read.
+    const auto readable_page = [&](const ov::element::Type& cache, bool by_channel, const pa::k_tm_op_info& o) {
+        return pa::k_token_major_readable(xe2, true, f16, cache, by_channel, {o});
+    };
+    EXPECT_TRUE(readable_page(f16, false, op));
+    EXPECT_TRUE(readable_page(f16, true, op));  // the quant mode means nothing uncompressed
+    EXPECT_TRUE(readable_page(i8, false, op));  // BY_TOKEN
+    EXPECT_TRUE(readable_page(ov::element::u4, true, op));
+    EXPECT_FALSE(readable_page(ov::element::u8, false, op));  // sdpa_ocl_decode widens the byte as signed
+    EXPECT_FALSE(readable_page(ov::element::u8, true, op));
+    EXPECT_FALSE(readable_page(ov::element::u4, false, op));  // 4-bit BY_TOKEN keys do not exist
+    EXPECT_FALSE(readable_page(ov::element::i4, true, op));
+    EXPECT_FALSE(readable_page(ov::element::f32, false, op));  // sdpa_ocl_decode takes an f16 cache only
+    EXPECT_FALSE(readable_page(ov::element::bf16, false, op));
+    // An f16 k_head_size 16 page is square, so its shape could not tell the layout; the BY_CHANNEL one is not square.
+    auto head16 = op;
+    head16.k_head_size = head16.v_head_size = 16;
+    EXPECT_FALSE(readable_page(f16, false, head16));
+    EXPECT_FALSE(readable_page(f16, true, head16));
+    EXPECT_TRUE(readable_page(i8, false, head16));
+    EXPECT_TRUE(readable_page(i8, true, head16));
+    // The op checks hold for the f16 page as they do for BY_CHANNEL.
+    auto alibi_f16 = op;
+    alibi_f16.has_alibi = true;
+    EXPECT_FALSE(readable_page(f16, false, alibi_f16));
+    auto scores_f16 = op;
+    scores_f16.has_scores_output = true;
+    EXPECT_FALSE(readable_page(f16, false, scores_f16));
+    EXPECT_FALSE(readable_page(i8, false, scores_f16));
 
     // Per op.
     const auto with = [&](const auto& change) {
@@ -588,13 +622,15 @@ TEST(PagedAttentionKCacheLayout, ByChannelTokenMajorReadable) {
     // Model-wide: one refusing op keeps every op d-major.
     auto alibi_op = op;
     alibi_op.has_alibi = true;
-    EXPECT_FALSE(pa::by_channel_token_major_readable(xe2, true, f16, {op, alibi_op}));
-    EXPECT_TRUE(pa::by_channel_token_major_readable(xe2, true, f16, {op, op}));
+    EXPECT_FALSE(pa::k_token_major_readable(xe2, true, f16, i8, true, {op, alibi_op}));
+    EXPECT_TRUE(pa::k_token_major_readable(xe2, true, f16, i8, true, {op, op}));
+    EXPECT_FALSE(pa::k_token_major_readable(xe2, true, f16, f16, false, {op, alibi_op}));
+    EXPECT_TRUE(pa::k_token_major_readable(xe2, true, f16, f16, false, {op, op}));
 }
 
-// The uncompressed and i8/u8 BY_TOKEN K page goes token-major on the device alone (every reader of it reads both
-// layouts): Xe2+ with XMX on the sdpa_ocl lane. Device-independent: the device facts are synthetic; the expectation
-// follows the process env (TEST_USE_SDPA_OCL*, OV_GPU_PA_K_TOKEN_MAJOR).
+// The parts of the layout rule that do not look at the ops: the device (k_token_major_device()), the page kinds
+// (k_token_major_kind()), and reading the layout back off the cache shape (k_cache_token_major()). Device-independent:
+// the device facts are synthetic; the expectation follows the process env (TEST_USE_SDPA_OCL*).
 TEST(PagedAttentionKCacheLayout, TokenMajorRule) {
     using pa = cldnn::paged_attention;
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -602,7 +638,6 @@ TEST(PagedAttentionKCacheLayout, TokenMajorRule) {
 #else
     constexpr bool one_dnn = false;
 #endif
-    const auto layout_switch = pa::k_token_major_switch();
     for (const auto arch : {cldnn::gpu_arch::xe_lp, cldnn::gpu_arch::xe_hpg, cldnn::gpu_arch::xe_hpc, cldnn::gpu_arch::xe2, cldnn::gpu_arch::xe3}) {
         for (const bool immad : {false, true}) {
             cldnn::device_info info{};
@@ -611,33 +646,34 @@ TEST(PagedAttentionKCacheLayout, TokenMajorRule) {
             const bool lane = one_dnn && pa::sdpa_ocl_enabled() && pa::sdpa_ocl_decode_enabled() && immad && arch >= cldnn::gpu_arch::xe2;
             SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(arch) << " immad=" << immad);
             EXPECT_EQ(pa::k_token_major_device(info), lane);
-            const bool page = layout_switch == pa::k_layout_switch::token_major || (layout_switch == pa::k_layout_switch::rule && lane);
-            EXPECT_EQ(pa::k_token_major_for(info, ov::element::f16, false), page);
-            EXPECT_EQ(pa::k_token_major_for(info, ov::element::f16, true), page);  // the quant mode means nothing uncompressed
-            EXPECT_EQ(pa::k_token_major_for(info, ov::element::i8, false), page);
-            EXPECT_EQ(pa::k_token_major_for(info, ov::element::u8, false), page);
-            // BY_CHANNEL has its own rule (k_by_channel_token_major_for + by_channel_token_major_readable); INT4 is BY_CHANNEL.
-            EXPECT_FALSE(pa::k_token_major_for(info, ov::element::i8, true));
-            EXPECT_FALSE(pa::k_token_major_for(info, ov::element::u4, false));
-            EXPECT_FALSE(pa::k_token_major_for(info, ov::element::u4, true));
-            EXPECT_EQ(pa::k_by_channel_token_major_for(ov::element::i8, true), layout_switch != pa::k_layout_switch::d_major);
-            EXPECT_EQ(pa::k_by_channel_token_major_for(ov::element::u4, true), layout_switch != pa::k_layout_switch::d_major);
-            EXPECT_FALSE(pa::k_by_channel_token_major_for(ov::element::u8, true));
-            EXPECT_FALSE(pa::k_by_channel_token_major_for(ov::element::i8, false));
-
-            // Consumers read the layout off the physical shape; the rule only answers where the shape cannot.
-            const ov::Dimension any = ov::Dimension::dynamic();
-            EXPECT_TRUE(pa::k_cache_token_major(info, {any, 2, 16, 64}, 16, ov::element::f16, false));
-            EXPECT_FALSE(pa::k_cache_token_major(info, {any, 2, 64, 16}, 16, ov::element::f16, false));
-            EXPECT_TRUE(pa::k_cache_token_major(info, {any, 2, 20, 64}, 20, ov::element::i8, true));
-            EXPECT_FALSE(pa::k_cache_token_major(info, {any, 2, 64, 20}, 20, ov::element::i8, true));
-            EXPECT_TRUE(pa::k_cache_token_major(info, {any, 2, 12, 128}, 12, ov::element::u4, true));
-            EXPECT_FALSE(pa::k_cache_token_major(info, {any, 2, 128, 12}, 12, ov::element::u4, true));
-            EXPECT_EQ(pa::k_cache_token_major(info, {any, 2, 16, 16}, 16, ov::element::f16, false), page);  // square page
-            EXPECT_EQ(pa::k_cache_token_major(info, ov::PartialShape::dynamic(4), 16, ov::element::f16, false), page);
-            EXPECT_FALSE(pa::k_cache_token_major(info, {any, 2, 20, 20}, 20, ov::element::i8, true));  // square BY_CHANNEL
         }
     }
+
+    // The kinds of page both token-major readers read; INT4 is BY_CHANNEL only.
+    EXPECT_TRUE(pa::k_token_major_kind(ov::element::f16, false));
+    EXPECT_TRUE(pa::k_token_major_kind(ov::element::f16, true));  // the quant mode means nothing uncompressed
+    EXPECT_TRUE(pa::k_token_major_kind(ov::element::i8, false));
+    EXPECT_TRUE(pa::k_token_major_kind(ov::element::i8, true));
+    EXPECT_TRUE(pa::k_token_major_kind(ov::element::u4, true));
+    EXPECT_FALSE(pa::k_token_major_kind(ov::element::u8, false));
+    EXPECT_FALSE(pa::k_token_major_kind(ov::element::u8, true));
+    EXPECT_FALSE(pa::k_token_major_kind(ov::element::u4, false));
+    EXPECT_FALSE(pa::k_token_major_kind(ov::element::i4, true));
+    EXPECT_FALSE(pa::k_token_major_kind(ov::element::f32, false));
+    EXPECT_FALSE(pa::k_token_major_kind(ov::element::bf16, false));
+
+    // Consumers read the layout off the physical shape. Where the shape cannot tell, the page is d-major: the rule never
+    // makes a square page token-major.
+    const ov::Dimension any = ov::Dimension::dynamic();
+    EXPECT_TRUE(pa::k_cache_token_major({any, 2, 16, 64}, 16));
+    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 64, 16}, 16));
+    EXPECT_TRUE(pa::k_cache_token_major({any, 2, 20, 64}, 20));  // i8 BY_CHANNEL
+    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 64, 20}, 20));
+    EXPECT_TRUE(pa::k_cache_token_major({any, 2, 12, 128}, 12));  // u4 BY_CHANNEL
+    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 128, 12}, 12));
+    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 16, 16}, 16));  // square page
+    EXPECT_FALSE(pa::k_cache_token_major(ov::PartialShape::dynamic(4), 16));
+    EXPECT_FALSE(pa::k_cache_token_major({any, 2, 20, 20}, 20));  // square BY_CHANNEL
 }
 
 // The same decision through the real pipeline on the test device: the key_cache shape
@@ -676,16 +712,11 @@ TEST_P(PagedAttentionKCacheLayoutPipelineTest, PageFollowsReaders) {
     using pa = cldnn::paged_attention;
     const auto& info = engine.get_device_info();
     const bool by_channel = p.kv_cache_precision != ov::element::f16 && p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
-    bool token_major = false;
-    if (by_channel) {
-        // The page has a token-major reader in both stages only on XMX Xe2+ with microkernel support, and only for a
-        // model without alibi. qq_bias is fine: EAGLE3's pa_kv_reorder reads the page too.
-        token_major = pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::k_token_major_device(info) &&
-                      cldnn::query_microkernels_supported(engine, config) && !p.with_alibi;
-    } else {
-        // Every reader reads the uncompressed / BY_TOKEN page, so the device decides alone.
-        token_major = pa::k_token_major_for(info, p.kv_cache_precision, false);
-    }
+    // Every page kind of these cases has a token-major reader in both stages only on XMX Xe2+ with the DPAS MIXED kernel
+    // on (enable_sdpa_micro, i.e. not OV_GPU_ENABLE_SDPA_MICRO=0, and microkernel support), and only for a model without
+    // alibi. qq_bias is fine: EAGLE3's pa_kv_reorder reads the page too.
+    const bool token_major = pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::k_token_major_device(info) && config.get_enable_sdpa_micro() &&
+                             cldnn::query_microkernels_supported(engine, config) && !p.with_alibi;
 
     // f16 comp: i8 BY_CHANNEL keeps a (scale, zp) pair per channel after 16 tokens, u4 packs 16 tokens into 8 bytes,
     // i8 BY_TOKEN appends per-token pairs along the head dim.

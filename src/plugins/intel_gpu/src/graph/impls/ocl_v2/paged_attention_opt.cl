@@ -76,29 +76,6 @@ inline uint FUNC(pa_bidir_group_begin)(const __global int* token_type_ids, const
     #error pa_sdpa_opt.cl
 #endif
 
-// The host sends one flag, IS_KEY_TOKEN_MAJOR, for every token-major K page (paged_attention.hpp). This kernel reads
-// the uncompressed and BY_TOKEN ones. It has no reader for the BY_CHANNEL one -- the host never dispatches it there
-// (PagedAttentionOptImpl::update_rt_params() asserts) -- but every stage of the impl is compiled, so on that page it
-// compiles the d-major read, as it always has.
-#if IS_KEY_TOKEN_MAJOR && !defined(IS_KEY_BY_CHANNEL)
-    #define KEY_BY_TOKEN_TM 1
-#else
-    #define KEY_BY_TOKEN_TM 0
-#endif
-
-// The token-major K load is a fixed-width vload16 of one token's row (KEY_VEC_SIZE head dims),
-// so a subgroup size other than 16 would silently read the wrong number of head dims per step.
-#if KEY_BY_TOKEN_TM && SUBGROUP_SIZE != 16
-    #error pa_sdpa_opt.cl: token-major K load assumes SUBGROUP_SIZE == 16
-#endif
-// USE_2D_BLOCK_IO_K_TM: the uncompressed 16-bit token-major page read with a 2D block transpose (Xe2+, set by the host).
-#if USE_2D_BLOCK_IO_K_TM
-    #if !KEY_BY_TOKEN_TM || IS_KV_COMPRESSED || SUBGROUP_SIZE != 16 || PAGED_ATTENTION_BLOCK_SIZE != 16
-        #error pa_sdpa_opt.cl: USE_2D_BLOCK_IO_K_TM reads an uncompressed token-major page of 16 tokens with SG16
-    #endif
-    #pragma OPENCL EXTENSION cl_intel_subgroup_2d_block_io : enable
-#endif
-
 #if HEADS_PER_WI > 1
     #define GET_MULTIPLE_HEAD_IDX_OR_FIXED_VAL(multiple_heads_idx, fixed_val) multiple_heads_idx
 #else
@@ -461,20 +438,6 @@ KERNEL(pa_sdpa_opt)(
                 INPUT0_TYPE comp_scale = comp_ptr[0];
                 INPUT0_TYPE comp_zp = comp_ptr[1];
         #endif
-        #if KEY_BY_TOKEN_TM
-                // Token-major i8/u8 BY_TOKEN page: [PAGED_ATTENTION_BLOCK_SIZE tokens, K_HEAD_SIZE]
-                // bytes, so one token's KEY_VEC_SIZE head dims are contiguous and each lane can load
-                // its OWN token's row -- exactly the operand layout the mad below wants (k_vals[i] on
-                // lane L must be K[token = L][head dim = qk_idx*KEY_VEC_SIZE + i]). A BLOCK_READN
-                // would walk head dims across lanes, which is the wrong axis. Same idiom as the
-                // uncompressed token-major branch below. comp_scale/comp_zp were already loaded at
-                // lane == token, so the dequant is unchanged; only the data addressing moves.
-                const MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_VEC_SIZE) k_quant =
-                    vload16(0, key_cache + key_block_offset + sglid * K_HEAD_SIZE + qk_idx * KEY_VEC_SIZE);
-                unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
-                    k_vals[i] = ((INPUT0_TYPE)k_quant[i] - comp_zp) * comp_scale;
-                }
-        #else
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
                 #ifdef IS_KEY_BY_CHANNEL
@@ -483,43 +446,12 @@ KERNEL(pa_sdpa_opt)(
                     k_vals[i] = (k_vals[i] - comp_zp) * comp_scale;
                 #endif
                 }
-        #endif
     #endif  // IS_INT4_COMPRESSED
 #else  //  !IS_KV_COMPRESSED
                 KEY_BLOCK k_vals = 0;
-    #if KEY_BY_TOKEN_TM
-                // Token-major page: [PAGED_ATTENTION_BLOCK_SIZE tokens, K_HEAD_SIZE]. The consumer
-                // below needs k_vals[i] on lane L to be K[token = L][head dim = qk_idx*KEY_VEC_SIZE + i]
-                // (q_val is broadcast over head dims, and the score lands in lane == token). A block
-                // read would walk head dims across lanes -- the wrong axis -- so instead each lane
-                // loads its OWN token's row directly: the KEY_VEC_SIZE head dims a lane needs are
-                // contiguous there, so one per-lane vector load lands the operand already in the
-                // layout the mad below wants, with no transpose and no SLM staging. Same idiom the
-                // prefill Q load uses (sdpa_ocl.cl, vload16 at a lane-varying row).
-                // Reading the whole page unconditionally is safe for the same reason the d-major
-                // path relied on: rows past seq_len are inside the allocated page, and their scores
-                // are overwritten with SOFTMAX_ACCUMULATOR_VAL_MIN by the token_idx guard below.
-                // KEY_VEC_SIZE == SUBGROUP_SIZE == PAGED_ATTENTION_BLOCK_SIZE == 16 is enforced by
-                // the #error guards at the top of this file, which is what makes vload16 the right
-                // width here.
-        #if USE_2D_BLOCK_IO_K_TM
-                // The same operand from one block message: a 32-bit transpose of the page (16 token rows, pitch
-                // K_HEAD_SIZE halves) gives lane L row L with dword i = head dims qk_idx*KEY_VEC_SIZE + 2i, 2i + 1.
-                // The per-lane vload16 is a 16-address gather, re-issued for every query a GQA multi-token
-                // work-item handles.
-                uint8 k_dw;
-                intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
-                    (__global void*)(key_cache + block_offset), K_HEAD_SIZE * (int)sizeof(INPUT1_TYPE), PAGED_ATTENTION_BLOCK_SIZE,
-                    K_HEAD_SIZE * (int)sizeof(INPUT1_TYPE), (int2)(qk_idx * KEY_VEC_SIZE / 2, 0), (__private uint*)&k_dw);
-                k_vals = AS_TYPE(KEY_BLOCK, k_dw);
-        #else
-                k_vals = vload16(0, key_cache + block_offset + sglid * K_HEAD_SIZE + qk_idx * KEY_VEC_SIZE);
-        #endif
-    #else
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, block_offset + qk_idx * SUBGROUP_SIZE * KEY_VEC_SIZE + i * SUBGROUP_SIZE);
                 }
-    #endif
 #endif  // !IS_KV_COMPRESSED
 
 #if XE2_QK_MULTIPLICATION

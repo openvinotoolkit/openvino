@@ -41,8 +41,8 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
         prim.has_xattention = true;
     }
     // Token-major K puts head_size innermost, like the XAttention and value-cache layouts. The layout
-    // decided in transformations_pipeline.cpp is read back off the PHYSICAL cache shape. Feed the rule
-    // the configured precision for INT4 -- that packs into u8, so only the config can tell it apart from
+    // decided in transformations_pipeline.cpp is read back off the PHYSICAL cache shape, whose block dimension
+    // takes the configured precision for INT4 -- that packs into u8, so only the config can tell it apart from
     // a real u8 BY_TOKEN cache. A square page has the same head size either way.
     const auto& cfg_kv_precision = p.get_config().get_kv_cache_precision();
     const bool is_int4_cache = cfg_kv_precision == ov::element::u4 || cfg_kv_precision == ov::element::i4;
@@ -53,8 +53,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
                                     ? (is_int4_cache ? cldnn::paged_attention::block_size / 2 + 4
                                                      : cldnn::paged_attention::block_size + cldnn::paged_attention::block_size / 16 * 4)
                                     : cldnn::paged_attention::block_size;
-    const bool k_token_major =
-        cldnn::paged_attention::k_cache_token_major(p.get_engine().get_device_info(), key_cache_ps, k_page_block, k_cache_precision, is_by_channel);
+    const bool k_token_major = cldnn::paged_attention::k_cache_token_major(key_cache_ps, k_page_block);
     const auto k_head_size_idx = (prim.has_xattention || k_token_major) ? 3 : 2;
 
     auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();
