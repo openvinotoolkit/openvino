@@ -9,6 +9,10 @@
 #include "openvino/opsets/opset.hpp"
 #include "openvino/util/log.hpp"
 
+#if defined(OPENVINO_EXPERIMENTAL)
+#    include "openvino/opsets/experimental_opset1.hpp"
+#endif
+
 ov::OpSet::OpSet(const std::string& name) : m_name(name) {}
 
 ov::OpSet::OpSet(const ov::OpSet& opset) {
@@ -114,7 +118,12 @@ const std::map<std::string, std::function<const ov::OpSet&()>>& ov::get_availabl
                                                                                        _OPENVINO_REG_OPSET(opset14),
                                                                                        _OPENVINO_REG_OPSET(opset15),
                                                                                        _OPENVINO_REG_OPSET(opset16),
-                                                                                       _OPENVINO_REG_OPSET(opset17)};
+                                                                                       _OPENVINO_REG_OPSET(opset17)
+#if defined(OPENVINO_EXPERIMENTAL)
+                                                                                        ,
+                                                                                        {"experimental_opset1", ov::op::experimental::get_opset1}
+#endif
+};
 #undef _OPENVINO_REG_OPSET
     return opset_map;
 }

@@ -50,6 +50,10 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/utils/utils.hpp"
 
+#if defined(OPENVINO_EXPERIMENTAL)
+#    include "experimental/hooks.hpp"
+#endif
+
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
 #undef DEVICE_TYPE
@@ -266,6 +270,10 @@ std::map<std::string, RemoteContextImpl::Ptr> Plugin::get_default_contexts() con
 Plugin::Plugin() {
     set_device_name("GPU");
     register_primitives();
+
+#if defined(OPENVINO_EXPERIMENTAL)
+    ov::intel_gpu::experimental::register_primitives();
+#endif
 
     cldnn::device_query device_query;
     m_device_map = device_query.get_available_devices();

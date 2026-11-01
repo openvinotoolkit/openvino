@@ -122,6 +122,7 @@ ov_add_test_target(
     INCLUDES
         $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
         ${CMAKE_CURRENT_SOURCE_DIR}
+        $<$<BOOL:${ENABLE_OV_EXPERIMENTAL}>:${PROJECT_SOURCE_DIR}/src/core/experimental/reference/include>
     DEPENDENCIES
         ${UNIT_TESTS_DEPENDENCIES}
 

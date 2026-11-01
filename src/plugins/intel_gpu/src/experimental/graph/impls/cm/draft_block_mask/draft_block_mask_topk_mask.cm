@@ -1,0 +1,182 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Stage 3 of DraftBlockMask (FlashVSR's generate_draft_block_mask, wan_video_dit.py:116-153): a
+// GLOBAL top-k over the flattened (spatial_windows * num_k_windows) elements of one
+// (head, Q-temporal-group), not a per-row threshold.
+//
+// Finds the top-k threshold via an 8-pass, 4-bit-per-pass MSD radix-select on the fp32 raw bit
+// pattern (softmax outputs are always >= 0, so IEEE754 bit pattern order already matches value
+// order for the range actually produced here -- no float<->sortable-uint sign-flip transform
+// needed): each pass buckets the elements still consistent with the prefix decided so far into 16
+// histogram buckets, then narrows to the bucket containing the target rank -- converging on the
+// exact (topk+1)-th-largest value in 8 full-array passes, matching
+// generate_draft_block_mask's `torch.topk(...).values[:,-1]`.
+//
+// float, not half (this is an 8-pass/32-bit generalization of what used to be a 4-pass/16-bit
+// scheme over half-precision probs): normalized softmax probabilities routinely underflow to the
+// same half value (most severely 0.0) once Nk is large, clustering ties at the selection
+// threshold and making the number of kept elements unrelated to topk -- ties are astronomically
+// rarer at float precision, matching reference::draft_block_mask's own float-precision
+// nth_element. The per-pass bucket count (16) and per-workgroup SLM footprint are unchanged from
+// the half version; only the pass count doubled to cover the wider key.
+//
+// JIT constants: NUM_HEADS, TOPK_LOCAL_SIZE
+// GWS: [NUM_HEADS, num_groups, TOPK_LOCAL_SIZE], LWS: [1,1,TOPK_LOCAL_SIZE]. Each WORKGROUP owns
+// one contiguous spatial_windows*num_k_windows slice of probs (rows
+// [g*spatial_windows,(g+1)*spatial_windows) of head h) -- contiguous because probs is row-major
+// over (h, l, m) and a temporal group is a contiguous run of l. The TOPK_LOCAL_SIZE work items
+// within that workgroup split the slice's n elements (strided) and cooperatively find the top-k
+// threshold via the 8-pass MSD radix-select with an SLM histogram reduction each pass.
+//
+// Runtime args: probs [NUM_HEADS,num_q_windows,num_k_windows] float (num_q_windows ==
+// num_groups*spatial_windows), mask_out [batch_size,NUM_HEADS,num_q_windows,num_k_windows] uint8
+// (1=keep 0=skip). The mask itself is batch-independent (computed once from spatially-static Q/K
+// windows -- see reference::draft_block_mask's step 4), so it is tiled across mask_out's batch
+// dimension by this kernel's own final store loop rather than recomputed per batch.
+//
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    float* probs ATTR,
+    uchar* mask_out ATTR,
+    int num_q_windows,
+    int num_k_windows,
+    int spatial_windows,
+    int topk,
+    int batch_size) {
+    constexpr uint LOCAL_SIZE = TOPK_LOCAL_SIZE;
+    constexpr uint NUM_BUCKETS = 16;
+    uint h = cm_group_id(0);
+    uint g = cm_group_id(1);
+    uint lid = cm_local_id(2);
+
+    // SLM layout: NUM_BUCKETS*LOCAL_SIZE ints, bucket-major (bucket*LOCAL_SIZE+lane) so lane 0 can
+    // reduce each bucket's LOCAL_SIZE partial counts with one contiguous cm_sum -- each lane owns
+    // an exclusive column of this region, so no cross-lane races on the scatter-store below -- then
+    // 1 int for the shared `prefix` (bit pattern decided so far) and 1 int for the shared
+    // `remaining_rank`, both broadcast to every lane between passes.
+    const uint hist_bytes = NUM_BUCKETS * LOCAL_SIZE * (uint)sizeof(int);
+    const uint prefix_off = hist_bytes;
+    const uint rank_off = prefix_off + (uint)sizeof(int);
+    const uint slm_size = rank_off + (uint)sizeof(int);
+    cm_slm_init(slm_size);
+    auto slm = cm_slm_alloc(slm_size);
+
+    uint n = (uint)spatial_windows * (uint)num_k_windows;
+    uint base_off = (h * (uint)num_q_windows + g * (uint)spatial_windows) * (uint)num_k_windows;
+
+    int apply_topk = topk;
+    if (apply_topk > (int)n - 1) apply_topk = (int)n - 1;
+    if (apply_topk < 0) apply_topk = 0;
+
+    // Softmax outputs are always in [0,1] (non-negative finite float), so their raw bit pattern,
+    // compared as an unsigned integer, already preserves value order -- no float<->sortable-uint
+    // sign-flip transform needed (that's only required for values that can be negative).
+    uint* probs_bits = (uint*)probs;
+
+    vector<uint, NUM_BUCKETS> bucket_seq;
+    cmtl::cm_vector_assign(bucket_seq.select_all(), 0, 1);
+
+    if (lid == 0) {
+        vector<uint, 1> zero = 0;
+        cm_slm_block_write(slm, prefix_off, zero.format<uint>());
+        // 1-indexed order statistic to locate: the smallest threshold_bits with
+        // count(x > threshold_bits) <= apply_topk equals the (apply_topk+1)-th largest value.
+        vector<int, 1> rank0 = apply_topk + 1;
+        cm_slm_block_write(slm, rank_off, rank0.format<int>());
+    }
+    cm_barrier();
+
+    // 8 passes x 4 bits/pass covers the full 32-bit key space (top nibble is bounded by 0x7 for
+    // the values this kernel actually sees, since bit 31 -- the float sign bit -- is always 0; the
+    // unused bucket range there is simply always empty, not a correctness issue).
+    for (int pass = 0; pass < 8; pass++) {
+        int shift = 28 - pass * 4;
+
+        vector<uint, 1> prefix_v;
+        vector<int, 1> rank_v;
+        cm_slm_block_read(slm, prefix_off, prefix_v.format<uint>());
+        cm_slm_block_read(slm, rank_off, rank_v.format<int>());
+        uint prefix = prefix_v[0];
+        int remaining_rank = rank_v[0];
+        // Computed via a 64-bit intermediate so `1ULL << (shift + 4)` stays well-defined even at
+        // pass 0 (shift + 4 == 32, which would be a shift-by-full-width on a 32-bit uint):
+        // truncating the complement back to 32 bits after the shift is what makes pass 0 (nothing
+        // decided yet) naturally fall out to prefix_mask == 0, mirroring the previous 16-bit
+        // version's identical truncation trick (uint -> ushort there, uint64_t -> uint32_t here).
+        uint prefix_mask = (uint)~(((uint64_t)1 << (shift + 4)) - 1);
+        uint prefix_bits = prefix & prefix_mask;
+
+        vector<int, NUM_BUCKETS> local_hist = 0;
+        for (uint i = lid; i < n; i += LOCAL_SIZE) {
+            uint v = probs_bits[base_off + i];
+            if ((v & prefix_mask) == prefix_bits) {
+                uint b = (v >> shift) & 0xFu;
+                // Compile-time-unrolled bucket compare instead of a runtime-indexed vector
+                // write (`local_hist[b] += 1`) -- more comparisons per element, but the pass
+                // count (4 full-array scans instead of 16) is what dominates this kernel's cost,
+                // not per-element register arithmetic.
+                #pragma unroll
+                for (int bucket = 0; bucket < (int)NUM_BUCKETS; bucket++) {
+                    if ((uint)bucket == b) local_hist[bucket] += 1;
+                }
+            }
+        }
+        // cm_slm_write's address vector is in ELEMENT units (it multiplies by sizeof(T)
+        // internally) -- unlike cm_slm_block_write/_read below, which take a raw byte offset.
+        vector<uint, NUM_BUCKETS> addr = bucket_seq * LOCAL_SIZE + lid;
+        cm_slm_write(slm, addr, local_hist.format<int>());
+        cm_barrier();
+
+        if (lid == 0) {
+            vector<int, NUM_BUCKETS> total_hist;
+            for (int b = 0; b < (int)NUM_BUCKETS; b++) {
+                vector<int, LOCAL_SIZE> col;
+                cm_slm_block_read(slm, (uint)b * LOCAL_SIZE * (uint)sizeof(int), col);
+                vector<int, 1> s = cm_sum<int>(col);
+                total_hist[b] = s[0];
+            }
+            // Walk buckets from largest (15) to smallest (0): the bucket containing the sought
+            // rank is the first one whose cumulative count (including itself) reaches the rank.
+            int cum_greater = 0;
+            int chosen = 0;
+            for (int b = (int)NUM_BUCKETS - 1; b >= 0; b--) {
+                int cnt = total_hist[b];
+                if (remaining_rank <= cum_greater + cnt) {
+                    chosen = b;
+                    break;
+                }
+                cum_greater += cnt;
+            }
+            uint new_prefix = prefix | ((uint)chosen << shift);
+            int new_rank = remaining_rank - cum_greater;
+            vector<uint, 1> np = new_prefix;
+            cm_slm_block_write(slm, prefix_off, np.format<uint>());
+            vector<int, 1> nr = new_rank;
+            cm_slm_block_write(slm, rank_off, nr.format<int>());
+        }
+        cm_barrier();
+    }
+
+    vector<uint, 1> final_prefix_v;
+    cm_slm_block_read(slm, prefix_off, final_prefix_v.format<uint>());
+    uint threshold_bits = final_prefix_v[0];
+
+    // mask_out is [batch_size, NUM_HEADS, num_q_windows, num_k_windows]; the mask is
+    // batch-independent (see the file header comment), so every batch slice gets an identical
+    // copy of this (head, temporal-group) row instead of being recomputed.
+    uint per_batch = (uint)NUM_HEADS * (uint)num_q_windows * (uint)num_k_windows;
+    for (uint i = lid; i < n; i += LOCAL_SIZE) {
+        uchar keep = (probs_bits[base_off + i] > threshold_bits) ? 1 : 0;
+        for (uint b = 0; b < (uint)batch_size; b++) {
+            mask_out[b * per_batch + base_off + i] = keep;
+        }
+    }
+}

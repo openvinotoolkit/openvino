@@ -82,6 +82,16 @@ ov_add_test_target(
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_TESTS_RT})
 
+if(ENABLE_OV_EXPERIMENTAL)
+    target_include_directories(${TARGET_NAME} PRIVATE
+        ${MAIN_DIR}/src/experimental
+        ${MAIN_DIR}/src/experimental/graph
+        ${PROJECT_SOURCE_DIR}/src/core/experimental/include
+        ${PROJECT_SOURCE_DIR}/src/core/experimental/reference/include
+        ${PROJECT_SOURCE_DIR}/src/core/experimental/shape_inference/include)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_EXPERIMENTAL)
+endif()
+
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized -Wno-stringop-overflow")

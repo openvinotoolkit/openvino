@@ -1,0 +1,153 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+// Stage 2 of DraftBlockMask (FlashVSR's generate_draft_block_mask, wan_video_dit.py:116-153):
+// block-level QK^T on the pooled Q/K vectors produced by draft_block_mask_pool.cm, scaled by
+// 1/sqrt(HEAD_DIM), plus the tiled static local-spatial-window additive mask
+// (build_local_block_mask_shifted_vec_normal_slide's output), fused with the row-wise softmax.
+// The score-computing loop already visits every element of the row once while computing the dot
+// product, so it tracks a running row-max in that same pass for free -- eliminating a dedicated
+// max-scan pass entirely. Output is half probabilities (half chosen so the top-k step in
+// draft_block_mask_topk_mask.cm can treat each value's raw bit pattern as a monotonic sort key
+// directly).
+//
+// JIT constants: NUM_HEADS, HEAD_DIM
+// GWS: [num_q_windows, NUM_HEADS, 1], LWS: [1,1,1].
+//
+// Runtime args: pooled_q [num_q_windows,NUM_HEADS,HEAD_DIM] half, pooled_k
+// [num_k_windows,NUM_HEADS,HEAD_DIM] half, local_mask [spatial_windows,spatial_windows_k] uint8
+// (1=keep/0=masked, tiled here across every (Q-temporal-group,K-temporal-group) pair via
+// modulo-spatial-window addressing -- spatial_windows_k may differ from spatial_windows, e.g. a
+// streaming decoder's accumulated KV cache growing past the current query window), raw_scores
+// [NUM_HEADS,num_q_windows,num_k_windows] float scratch (this kernel's own inter-pass working
+// buffer, not read by any caller), probs [NUM_HEADS,num_q_windows,num_k_windows] float softmax
+// output (float, not half: see draft_block_mask_topk_mask.cm's file header comment on why the
+// top-k stage needs full float precision here).
+//
+#include <cm/cm.h>
+#include <cm/cmtl.h>
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    half* pooled_q ATTR,
+    half* pooled_k ATTR,
+    uchar* local_mask ATTR,
+    float* raw_scores ATTR,
+    float* probs ATTR,
+    int num_q_windows,
+    int num_k_windows,
+    int spatial_windows,
+    int spatial_windows_k,
+    float scale) {
+    constexpr float log2e = 1.4426950408889634f;
+    // row_max's untouched-init sentinel: real dot-product scores (bounded, half-precision inputs
+    // scaled by 1/sqrt(head_dim)) never approach this magnitude, so it safely means "no unmasked
+    // entry has been seen yet". masked_score is strictly below it, so cm_max() never lets a masked
+    // entry win over this init -- if every entry in a row is masked, row_max is left exactly at
+    // ROW_MAX_INIT, which the sum==0 guard below turns into an all-zero (not uniform, not NaN) row.
+    constexpr float row_max_init = -3.0e38f;
+    constexpr float masked_score = -3.3e38f;
+    uint l = cm_group_id(0);
+    uint h = cm_group_id(1);
+
+    vector<half, HEAD_DIM> qv;
+    qv.format<int>() = cm_ptr_load<int, HEAD_DIM / 2>((int*)pooled_q, (l * (uint)NUM_HEADS + h) * (uint)HEAD_DIM * (uint)sizeof(half));
+    vector<float, HEAD_DIM> qv_f = qv;
+
+    uint l_spatial = l % (uint)spatial_windows;
+    // local_mask is [spatial_windows, spatial_windows_k] row-major: row stride is spatial_windows_k.
+    uint mask_row_off = l_spatial * (uint)spatial_windows_k;
+
+    uint out_row_off = (h * (uint)num_q_windows + l) * (uint)num_k_windows;
+
+    // Pass 1: dot product + local mask, also tracking a running row_max for free in this same
+    // loop. At only ~0.5% of compute roofline, this loop is dominated by per-iteration scalar
+    // overhead (loop increment/compare, modulo, mask branch) rather than the dot product itself --
+    // 4x unrolled here so that overhead is amortized across 4 independent K-rows' worth of work
+    // instead of paid once per row.
+    constexpr int UNROLL = 4;
+    float row_max = row_max_init;
+    int m = 0;
+    for (; m + UNROLL <= num_k_windows; m += UNROLL) {
+        vector<half, HEAD_DIM> kv0, kv1, kv2, kv3;
+        kv0.format<int>() = cm_ptr_load<int, HEAD_DIM / 2>((int*)pooled_k, ((uint)(m + 0) * (uint)NUM_HEADS + h) * (uint)HEAD_DIM * (uint)sizeof(half));
+        kv1.format<int>() = cm_ptr_load<int, HEAD_DIM / 2>((int*)pooled_k, ((uint)(m + 1) * (uint)NUM_HEADS + h) * (uint)HEAD_DIM * (uint)sizeof(half));
+        kv2.format<int>() = cm_ptr_load<int, HEAD_DIM / 2>((int*)pooled_k, ((uint)(m + 2) * (uint)NUM_HEADS + h) * (uint)HEAD_DIM * (uint)sizeof(half));
+        kv3.format<int>() = cm_ptr_load<int, HEAD_DIM / 2>((int*)pooled_k, ((uint)(m + 3) * (uint)NUM_HEADS + h) * (uint)HEAD_DIM * (uint)sizeof(half));
+
+        float dot0 = cm_sum<float>(qv_f * vector<float, HEAD_DIM>(kv0));
+        float dot1 = cm_sum<float>(qv_f * vector<float, HEAD_DIM>(kv1));
+        float dot2 = cm_sum<float>(qv_f * vector<float, HEAD_DIM>(kv2));
+        float dot3 = cm_sum<float>(qv_f * vector<float, HEAD_DIM>(kv3));
+
+        float score0 = dot0 * scale;
+        float score1 = dot1 * scale;
+        float score2 = dot2 * scale;
+        float score3 = dot3 * scale;
+
+        uint m0_spatial = (uint)(m + 0) % (uint)spatial_windows_k;
+        uint m1_spatial = (uint)(m + 1) % (uint)spatial_windows_k;
+        uint m2_spatial = (uint)(m + 2) % (uint)spatial_windows_k;
+        uint m3_spatial = (uint)(m + 3) % (uint)spatial_windows_k;
+
+        if (!local_mask[mask_row_off + m0_spatial]) score0 = masked_score;
+        if (!local_mask[mask_row_off + m1_spatial]) score1 = masked_score;
+        if (!local_mask[mask_row_off + m2_spatial]) score2 = masked_score;
+        if (!local_mask[mask_row_off + m3_spatial]) score3 = masked_score;
+
+        raw_scores[out_row_off + (uint)(m + 0)] = score0;
+        raw_scores[out_row_off + (uint)(m + 1)] = score1;
+        raw_scores[out_row_off + (uint)(m + 2)] = score2;
+        raw_scores[out_row_off + (uint)(m + 3)] = score3;
+
+        row_max = cm_max<float>(row_max, score0);
+        row_max = cm_max<float>(row_max, score1);
+        row_max = cm_max<float>(row_max, score2);
+        row_max = cm_max<float>(row_max, score3);
+    }
+    for (; m < num_k_windows; m++) {
+        vector<half, HEAD_DIM> kv;
+        kv.format<int>() = cm_ptr_load<int, HEAD_DIM / 2>((int*)pooled_k, ((uint)m * (uint)NUM_HEADS + h) * (uint)HEAD_DIM * (uint)sizeof(half));
+        vector<float, HEAD_DIM> kv_f = kv;
+        vector<float, HEAD_DIM> prod = qv_f * kv_f;
+        float dot = cm_sum<float>(prod);
+        float score = dot * scale;
+
+        uint m_spatial = (uint)m % (uint)spatial_windows_k;
+        uchar keep = local_mask[mask_row_off + m_spatial];
+        if (!keep) score = masked_score;
+
+        raw_scores[out_row_off + (uint)m] = score;
+        row_max = cm_max<float>(row_max, score);
+    }
+
+    // An all-masked row leaves row_max untouched at row_max_init (masked_score never wins the
+    // max) -- write an all-zero row directly rather than let pass 2/3 compute exp(0)=1 for every
+    // masked entry (uniform 1/n instead of all-zero) or divide by a zero sum (NaN).
+    if (row_max <= row_max_init) {
+        for (int m0 = 0; m0 < num_k_windows; m0++) {
+            probs[out_row_off + (uint)m0] = 0.0f;
+        }
+        return;
+    }
+
+    // Pass 2: exp + accumulate sum.
+    float sum = 0.0f;
+    for (int m2 = 0; m2 < num_k_windows; m2++) {
+        float v = raw_scores[out_row_off + (uint)m2];
+        float e = cm_exp((v - row_max) * log2e);  // cm_exp == exp2, so this is exp(v - row_max)
+        sum += e;
+        raw_scores[out_row_off + (uint)m2] = e;
+    }
+
+    // Pass 3: normalize.
+    float inv_sum = sum > 0.0f ? 1.0f / sum : 0.0f;
+    for (int m3 = 0; m3 < num_k_windows; m3++) {
+        float e = raw_scores[out_row_off + (uint)m3];
+        probs[out_row_off + (uint)m3] = e * inv_sum;
+    }
+}
