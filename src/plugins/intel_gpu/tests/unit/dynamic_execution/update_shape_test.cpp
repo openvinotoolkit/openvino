@@ -368,7 +368,13 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     auto qkv_rnd = rg.generate_random_1d<ov::float16>(qkv_mem_layout.count(), 0, 10);
     set_values(qkv_mem, qkv_rnd);
 
-    auto key_cache_mem_layout = layout{ov::PartialShape{2, 2, 64, 16}, data_types::f16, format::bfyx};
+    // MIXED with token_type_ids stays on the DPAS kernel of the lane, which reads token_type_ids itself. token_type_ids
+    // makes it a PA_FEATURES op on xe_hpg. sdpa_ocl reads the token-major K page only, so the page is token-major where it
+    // serves MIXED and d-major (the opt kernels' page) elsewhere, as the plugin would make it.
+    const auto backend = tests::expected_dpas_backend(engine, true, tests::pa_hpg_tiers(true));
+    const bool k_token_major = backend == tests::dpas_backend::ocl;
+    const auto key_cache_page = k_token_major ? ov::PartialShape{2, 2, 16, 64} : ov::PartialShape{2, 2, 64, 16};
+    auto key_cache_mem_layout = layout{key_cache_page, data_types::f16, format::bfyx};
     auto value_cache_mem_layout = layout{ov::PartialShape{2, 2, 16, 64}, data_types::f16, format::bfyx};
     auto key_cache_mem = engine.allocate_memory(key_cache_mem_layout);
     auto value_cache_mem = engine.allocate_memory(value_cache_mem_layout);
@@ -455,7 +461,7 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     auto query_layout = layout{ov::PartialShape{-1, 128}, data_types::f16, format::bfyx};
     auto key_layout = query_layout;
     auto value_layout = query_layout;
-    auto key_cache_layout = layout{ov::PartialShape{-1, 2, 64, 16}, data_types::f16, format::bfyx};
+    auto key_cache_layout = layout{k_token_major ? ov::PartialShape{-1, 2, 16, 64} : ov::PartialShape{-1, 2, 64, 16}, data_types::f16, format::bfyx};
     auto value_cache_layout = layout{ov::PartialShape{-1, 2, 16, 64}, data_types::f16, format::bfyx};
     auto dynamic_i32_layout = layout{ov::PartialShape::dynamic(1), data_types::i32, format::bfyx};
     auto past_lens_layout = dynamic_i32_layout;
@@ -578,10 +584,8 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     const auto& intermediate_mems = pa_inst->get_intermediates_memories();
 
     // Allocation-time and execution-time DPAS / non-DPAS decisions must agree; a mismatch shows up
-    // as the wrong buffer count. MIXED with token_type_ids stays on the DPAS kernel of the lane, which reads
-    // token_type_ids itself. token_type_ids makes it a PA_FEATURES op on xe_hpg.
-    const auto backend = tests::expected_dpas_backend(engine, true, tests::pa_hpg_tiers(true));
-    ASSERT_EQ(intermediate_mems.size(), backend == tests::dpas_backend::ocl ? 4u : 7u);
+    // as the wrong buffer count.
+    ASSERT_EQ(intermediate_mems.size(), k_token_major ? 4u : 7u);
 }
 TEST(update_shape_test, fc_fused_eltwise_input_from_optimized_reshape) {
     auto& engine = get_test_engine();

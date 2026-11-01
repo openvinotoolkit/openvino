@@ -27,8 +27,8 @@ The unit of `coord.x` is **elements** (byte for 8b, half for 16b, dword for 32b)
 |---|---|---|---|
 | plain read | `read_16b_16r16x1c` | lane=column, element=row(16) | KQ A operand for f16 K input/page (`sdpa_ocl_qk_load.cl:256,330`) |
 | plain read 32b | `read_32b_8r16x1c` | lane=dword column, element=row(8) | u4 Kc as a DWORD surface (`sdpa_ocl_qk_load.cl:466`) |
-| transpose | `read_transpose_32b_16r8x1c` | lane=row, 8 dwords = the 16 halves of one row | Q B operand (`sdpa_ocl_qk_load.cl:24`), decode K B operand (`sdpa_ocl_decode.cl:547`), f16 d-major K page at 128 GRF (`pa_k_tile_dt`, §4.5) |
-| transpose 32-row | `read_transpose_32b_32r8x1c` | lane L = rows y+L **and** y+16+L, interleaved: element 2i = (y+L, x+i), 2i+1 = (y+16+L, x+i) (probed on the B70, `test/slower/probe/probe_t32.cpp`) | f16 d-major K page at 256 GRF: depth tiles db and db+2 in one read (§4.5) |
+| transpose | `read_transpose_32b_16r8x1c` | lane=row, 8 dwords = the 16 halves of one row | Q B operand (`sdpa_ocl_qk_load.cl:24`), decode K B operand (`sdpa_ocl_decode.cl:547`), f16 d-major K page at 128 GRF (`pa_k_tile_dt`, §4.5, removed 2026-11-02) |
+| transpose 32-row | `read_transpose_32b_32r8x1c` | lane L = rows y+L **and** y+16+L, interleaved: element 2i = (y+L, x+i), 2i+1 = (y+16+L, x+i) (probed on the B70, `test/slower/probe/probe_t32.cpp`) | f16 d-major K page at 256 GRF: depth tiles db and db+2 in one read (§4.5, removed 2026-11-02) |
 | transform(VNNI) 16b | `read_transform_16b_16r16x1c` | lane=column, dword = 2 rows | V B operand (`sdpa_ocl_v_load.cl:55`), decode V |
 | transform 8b | `read_transform_8b_32r16x1c` (`_32r16x2c`, `_32r16x4c`) | lane=column, uint = 4 rows as bytes | i8/u4 K·V (`sdpa_ocl_qk_load.cl:275`, `sdpa_ocl_v_load.cl:87-99`) |
 | write | `write_16b_8r16x1c` | lane=column | O output (`sdpa_ocl.cl:1033`) |
@@ -216,6 +216,9 @@ in BY_CHANNEL `[k_head_size cols][block_size+4]` (20 B per column), with width =
 The same idea for the f16 d-major page was implemented, probed and shipped on 2026-10-27 (§4.5).
 
 ### 4.5 Block-reading the d-major f16 K page in MIXED (`USE_2D_BLOCK_IO_K_PA_DT`, 2026-10-27, B70, MEASURED)
+
+**Removed 2026-11-02**: `sdpa_ocl` MIXED reads the token-major K page only and a d-major page runs `pa_multi_token`
+(`docs/sdpa_ocl.md`, "Paged-attention cache layouts"). The section stays as a record of the technique.
 
 The f16 K page `[head_size][16 tokens]` has a 32 B row, so MIXED gathered K one key per message (qwen3.5-9b 8K: 1,465 us per
 call, `sdpa_micro` 522). Instead of the layout change (§9, token-major: 441 us, but every page reader moves), the page is

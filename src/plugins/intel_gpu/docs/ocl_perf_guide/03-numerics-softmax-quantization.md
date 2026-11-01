@@ -498,7 +498,7 @@ the correct and the buggy configurations reach the same plateau → no informati
 | Class | Example | Meaning of "no change" |
 |---|---|---|
 | bit-preserving | `SDPA_OCL_KV_2D=0`, `_Q_2D=0`, `_A_2D=0`, `_BLOCK_SKIP=0`, `_DKS_ACTIVE=0`, `_256GRF=1` (the extra depth tiles of DKS are exactly +0.0 in f32), `_CAUSAL_SKIP` (skips work that adds exactly 0), `_MIXED_PREFETCH_V/_K` | the null result a correct kernel predicts. **Not evidence** |
-| order-changing | `SDPA_OCL_KQ_TILE_KEYS/QUERIES`, `_PER_WG_KEYS/QUERIES` (k0 split → accumulation order), the permuted depth of the f16 d-major page read (`SDPA_OCL_K_PA_DT`), `SDPA_OCL_PA_CUR_F16` (k_chunk split) | even if it moves the metric on a sensitive model, it is just **a re-roll of the dice** |
+| order-changing | `SDPA_OCL_KQ_TILE_KEYS/QUERIES`, `_PER_WG_KEYS/QUERIES` (k0 split → accumulation order), the permuted depth of the f16 d-major page read (`SDPA_OCL_K_PA_DT`, removed 2026-11-02), `SDPA_OCL_PA_CUR_F16` (k_chunk split) | even if it moves the metric on a sensitive model, it is just **a re-roll of the dice** |
 
 "Only the tiling knobs move the score" is not the signature of a defect but the signature of a correct kernel (7 runs wasted). Classify a toggle first, before believing it. (Some knobs were later removed in a refactor.)
 

@@ -621,10 +621,6 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if WIDE_K_READS
         ushort8 k_wide[2 * kq_key_blocks];
 #endif
-#if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA_DT
-        // pa_k_tile_dt()'s reads; the 32-row form's serve depth tiles db and db + 2.
-        uint kt_dt[kq_sg_tile_keys / SUBGROUP_SIZE][PA_K_DT_ROWS / 16][PA_K_DT_ROWS / 2];
-#endif
 #if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA && PA_K_WIDE_READS
         // pa_k_tile_b2d16_pair()'s reads, PA_K_WIDE_TILES / 2 per key group in flight.
         ushort8 k_wide_pa[PA_K_WIDE_TILES * kq_key_blocks];
@@ -663,8 +659,6 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #else
             FUNC_CALL(pa_k_tile_b2d16)(k_raw, K, k_page, b0_kv, key_base, k, d, db);
         #endif
-    #elif USE_2D_BLOCK_IO_K_PA_DT
-            FUNC_CALL(pa_k_tile_dt)(k_raw, kt_dt, K, k_page, b0_kv, key_base, k, db, (int)lane);
     #elif USE_2D_BLOCK_IO_K_PA_I8
             uint kt[8];
         #if IS_PA_K_BY_CHANNEL
@@ -697,7 +691,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     FUNC_CALL(kc_tile_u4_gather)(k_raw, Kc, ldk, key_base, past_len, k0, k_chunk, d, db, (int)lane);
                 }
         #else
-                // No depth permutation (f16 / i8 caches other than the transpose read), so this is the
+                // No depth permutation (f16 / i8 caches), so this is the
                 // plain-SDPA [key, head] read pointed at Kc with a (key - past_len) row origin. Rows past q read as zero, which is
                 // what the `key < k` masking already assumes.
                 FUNC_CALL(k_tile_b2d16)(k_raw, Kc_b2d, KcD_w_b2d, KcD_h, KcD_p, KcD_x0, db, key_base, past_len);

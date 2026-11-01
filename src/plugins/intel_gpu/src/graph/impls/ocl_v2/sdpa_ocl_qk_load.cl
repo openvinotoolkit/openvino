@@ -9,7 +9,7 @@
 // variant writes it element-wise, and a helper-local vector would drop the loop-carried value SROA
 // keeps for it, which moved register allocation on the spill-bound u4 head-512 kernel.
 #if PA_K_PERMUTED
-// u4 and the f16 d-major page read (PA_K_PERMUTED): Q adopts the K page's permuted depth labelling (see
+// u4 (PA_K_PERMUTED): Q adopts the K page's permuted depth labelling (see
 // PA_K_U4_CHANNEL), paid here once per workgroup instead of per k0 tile. A chunk spans its 32-channel
 // window, read as two halves w0/w1, and q_pack dword j takes half `par` of dwords 2j and 2j+1, i.e.
 // channels (win+4j+par, win+4j+2+par).
@@ -344,9 +344,9 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_b2d16)(__private ushort8 *k_raw, const __glo
 // db % PA_K_WIDE_TILES == 0 each key group reads tiles db..db + PA_K_WIDE_TILES - 1 into its entries of the caller's
 // k_wide (per read block-major: the first tile's 16 key rows, then the second's), and the following depth tiles take their
 // rows from there. With one read at a time IGC serialised the reads behind the DPAS that consumed the previous pair
-// (small GQA MIXED steps, few workgroups: 1.11-1.14x the d-major page's 32-row transpose, which keeps two reads in flight
-// the same way; docs "Token-major f16 page"). Same height clamp and zero fill; columns past d come back zero from the
-// surface width, so a head size that ends inside a group needs no special case.
+// (small GQA MIXED steps, few workgroups: 1.11-1.14x the 32-row transpose read of the d-major page, removed since, which
+// kept two reads in flight the same way; docs "Token-major f16 page"). Same height clamp and zero fill; columns past d
+// come back zero from the surface width, so a head size that ends inside a group needs no special case.
 SDPA_OCL_INLINE void FUNC(pa_k_tile_b2d16_pair)(__private ushort8 *k_raw, __private ushort8 *k_wide,
                                                 const __global KEY_DATA_T *K, const __private uint *k_page,
                                                 const size_t b0_kv, const int key_base, const int k, const int d,
@@ -382,53 +382,6 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_b2d16_pair)(__private ushort8 *k_raw, __priv
         #pragma unroll
         for (int mb = 0; mb < SUBGROUP_SIZE / DPAS_ROWS; ++mb)
             k_raw[kg_mb + mb] = k_wide[kg * kw_kg + (db % PA_K_WIDE_TILES) * (SUBGROUP_SIZE / DPAS_ROWS) + mb];
-    }
-}
-#endif
-
-#if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA_DT
-// d-major f16 K page ([K_HEAD_SIZE, PAGED_ATTENTION_BLOCK_SIZE]): its 32-byte row is under the block2d minimum, so the
-// page is read as a 64-byte-pitch surface whose row r holds channels 2r and 2r + 1, each as 8 dwords of key pairs. A
-// 32-bit transpose read gives lane L surface row y + L with element i = dword column x + i; at x = PA_K_U4_PAR(db) * 8,
-// y = PA_K_U4_WIN(db) / 2 that is channel PA_K_U4_CHANNEL(db, L), the permuted depth Q_slm is staged in, with dword j =
-// keys (2j, 2j + 1), and the word halves are the k_raw rows. The 32-row form (PA_K_DT_ROWS 32, probed on the B70)
-// interleaves rows y + L and y + 16 + L dword by dword, i.e. tiles db and db + 2: it is issued for db % 4 in {0, 1} and
-// serves db + 2 from the odd dwords, half the messages (qwen3.5-9b 8K: 460 against 508 us per call), but keeps 16
-// dwords per parity live across the depth loop, which spills at 128 GRF. Keys at/past k were never written and a NaN
-// would survive the masked-out score, so each row is ANDed with its key's lane of key_ok (all ones below the page's
-// valid rows) by the instruction that extracts it, with no branch; a group entirely at/past k reads page 0 (see
-// pa_k_pages()) and is masked whole.
-SDPA_OCL_INLINE void FUNC(pa_k_tile_dt)(__private ushort8 *k_raw,
-                                        __private uint (*kt_dt)[PA_K_DT_ROWS / 16][PA_K_DT_ROWS / 2],
-                                        const __global KEY_DATA_T *K, const __private uint *k_page, const size_t b0_kv,
-                                        const int key_base, const int k, const int db, const int lane_i) {
-    const int par = PA_K_U4_PAR(db);
-    #pragma unroll
-    for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
-        const int kg_key0 = key_base + kg * SUBGROUP_SIZE;
-        const int kg_mb = kg * (SUBGROUP_SIZE / DPAS_ROWS);
-        const ushort key_ok = (lane_i < PA_PAGE_ROWS(k, kg_key0)) ? (ushort)0xFFFF : (ushort)0;
-        const global void *page = (const global void *)(K + PA_K_PAGE_OFF(k_page[kg_mb], b0_kv));
-        const int KP_w = 2 * PAGED_ATTENTION_BLOCK_SIZE * (int)sizeof(half);
-        const int2 xy = (int2)(par * (PAGED_ATTENTION_BLOCK_SIZE / 2), PA_K_U4_WIN(db) / 2);
-        #if PA_K_DT_ROWS == 32
-        const int hi = (db >> 1) & 1;
-        if (hi == 0)
-            intel_sub_group_2d_block_read_transpose_32b_32r8x1c((global void *)page, KP_w, K_HEAD_SIZE / 2, KP_w, xy,
-                                                                (private uint *)&kt_dt[kg][par][0]);
-        #else
-        const int hi = 0;
-        intel_sub_group_2d_block_read_transpose_32b_16r8x1c((global void *)page, KP_w, K_HEAD_SIZE / 2, KP_w, xy,
-                                                            (private uint *)&kt_dt[kg][0][0]);
-        #endif
-        #pragma unroll
-        for (int j = 0; j < PAGED_ATTENTION_BLOCK_SIZE / 2; ++j) {
-            const int krel = 2 * j;
-            const uint w = kt_dt[kg][(PA_K_DT_ROWS == 32) ? par : 0][(PA_K_DT_ROWS / 16) * j + hi];
-            k_raw[kg_mb + krel / DPAS_ROWS][krel % DPAS_ROWS] = (ushort)w & sub_group_broadcast(key_ok, krel);
-            k_raw[kg_mb + krel / DPAS_ROWS][krel % DPAS_ROWS + 1] =
-                (ushort)(w >> 16) & sub_group_broadcast(key_ok, krel + 1);
-        }
     }
 }
 #endif
@@ -572,7 +525,7 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_u4_1d)(__private ushort8 *k_raw,
 #endif
 
 #if PA_K_PERMUTED && PA_CUR_KV_F16
-// u4 Kc (and the f16 d-major page read's, PA_K_PERMUTED): tile db needs lane L = channel PA_K_U4_WIN(db) + 2L +
+// u4 Kc (PA_K_PERMUTED): tile db needs lane L = channel PA_K_U4_WIN(db) + 2L +
 // PA_K_U4_PAR(db) (the permuted depth axis Q_slm is staged in), a stride-2 gather no 16b block read can do.
 // Channels (win + 2L, win + 2L + 1) are adjacent halves, i.e. one dword at dword column win/2 + L, so a 32b
 // read over Kc as a DWORD surface lands the pair in lane L and the parity is a half-select. Each window is read twice (once
@@ -742,9 +695,8 @@ SDPA_OCL_INLINE void FUNC(k_tile_gather)(__private ushort8 *k_raw, const __globa
 #endif
 
 #if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_I8 && !USE_1D_BLOCK_IO_K_PA_U4 && IS_PA_KV_COMPRESSED
-// i8/u4 K page: the d-major page (its 16-byte row is under the block2d minimum) and token-major pages
-// whose pitch misses the host's block2d rule. PA_K_TOKEN_STRIDE / PA_K_HIDDEN_STRIDE select the
-// addressing. The dequant is (q - zp) * scale in half, matching the reference; the plain-SDPA bias
+// i8/u4 token-major K page whose pitch misses the host's block2d rule, addressed through PA_K_TOKEN_STRIDE /
+// PA_K_HIDDEN_STRIDE. The dequant is (q - zp) * scale in half, matching the reference; the plain-SDPA bias
 // trick only pays off over a wide transform read.
 SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private ushort8 *k_raw, const __global KEY_DATA_T *K,
                                               const __private uint *k_page,
@@ -810,15 +762,13 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_q_gather)(__private ushort8 *k_raw, const __
 }
 #endif
 
-#if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_DT && !USE_2D_BLOCK_IO_K_PA_I8 && \
-    !USE_1D_BLOCK_IO_K_PA_U4 && !IS_PA_KV_COMPRESSED
-// f16 K page (d-major, or token-major with a pitch the block2d rule rejects).
+#if IS_PA_MIXED && !USE_2D_BLOCK_IO_K_PA && !USE_2D_BLOCK_IO_K_PA_I8 && !USE_1D_BLOCK_IO_K_PA_U4 && !IS_PA_KV_COMPRESSED
+// f16 token-major K page with a pitch the block2d rule rejects (and every SG8 one).
 #if SG8
 // SG8: the KQ A operand is an int8 (component = key row, lane = the dword of channels 2 lane, 2 lane + 1 of depth tile
 // db). Dword loads only: two 16-bit loads packed into a dword miscompiled under some jit constants on DG2 (the
-// plain-SDPA K fallback of plan S6b), so a d-major page is read as key pairs of each channel (keys 2r, 2r + 1 are
-// adjacent there, and a pair never straddles a page) and repacked with 16-bit shifts; a token-major page holds the two
-// channels side by side, one dword per key. A key at/past k reads as 0.
+// plain-SDPA K fallback of plan S6b); the token-major page holds the two channels side by side, one dword per key. A key
+// at/past k reads as 0.
 SDPA_OCL_INLINE void FUNC(pa_k_tile_gather)(__private int8 *k_raw, const __global KEY_DATA_T *K,
                                             const __private uint *k_page, const size_t b0_kv, const int key_base,
                                             const int k, const int d, const int db, const size_t lane) {
@@ -833,20 +783,11 @@ SDPA_OCL_INLINE void FUNC(pa_k_tile_gather)(__private int8 *k_raw, const __globa
             const uint keep0 = (head_ok && key < k) ? 0xFFFFFFFFu : 0u;
             const uint keep1 = (head_ok && key + 1 < k) ? 0xFFFFFFFFu : 0u;
             const size_t tok = (size_t)(key % PAGED_ATTENTION_BLOCK_SIZE);
-#if IS_PA_K_TOKEN_MAJOR
             const __global uint *row = (const __global uint *)(K + mb_page_base + tok * PA_K_TOKEN_STRIDE);
             const uint w0 = keep0 ? row[0] : 0u;
             const uint w1 = keep1 ? row[PA_K_TOKEN_STRIDE / 2] : 0u;
             k_raw[mb][key_offset] = as_int(w0);
             k_raw[mb][key_offset + 1] = as_int(w1);
-#else
-            // c0 = (key, key + 1) of channel head0, c1 = the same keys of head0 + 1.
-            const uint c0 = (keep0 | keep1) ? *(const __global uint *)(K + mb_page_base + tok) : 0u;
-            const uint c1 =
-                (keep0 | keep1) ? *(const __global uint *)(K + mb_page_base + PA_K_HIDDEN_STRIDE + tok) : 0u;
-            k_raw[mb][key_offset] = as_int(((c0 & 0xFFFFu) | (c1 << 16)) & keep0);
-            k_raw[mb][key_offset + 1] = as_int(((c0 >> 16) | (c1 & 0xFFFF0000u)) & keep1);
-#endif
         }
     }
 }
