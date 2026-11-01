@@ -135,8 +135,8 @@ struct PagedAttentionManager {
     std::vector<int> adaptive_rkv_diversity_block_set_indices_begins;
 
     // Whether this case carries a scores output (LAST_TOKEN / SNAPKV) and/or adaptive R-KV. Either one
-    // forbids the token-major BY_CHANNEL K layout (no token-major reader serves them), which
-    // k_cache_token_major() learns from paged_attention::by_channel_token_major_readable(), as
+    // forbids the token-major K layout (no token-major reader serves them), which
+    // k_cache_token_major() learns from paged_attention::k_token_major_readable(), as
     // transformations_pipeline.cpp does.
     bool has_scores_output;
     bool has_adaptive_rkv;
@@ -145,7 +145,7 @@ struct PagedAttentionManager {
     std::vector<std::vector<uint8_t>> qq_bias;
     std::vector<int> qq_bias_begins;
 
-    // Overrides the plugin's K layout decision, for tests that need the token-major BY_CHANNEL page
+    // Overrides the plugin's K layout decision, for tests that need a token-major (or d-major) page
     // where the plugin would not create it. Set before the first k_cache_token_major() call.
     std::optional<bool> force_k_cache_token_major;
 
@@ -403,7 +403,7 @@ struct PagedAttentionManager {
     // Must agree with the plugin, so it goes through the same predicates and feeds them the same thing
     // graph/paged_attention.cpp does: the PHYSICAL cache type, except for INT4, which packs into u8
     // and can only be recognised from the configured precision.
-    // Computed once: it is called inside the per-token loops, and the BY_CHANNEL half queries the device.
+    // Computed once: it is called inside the per-token loops, and the rule queries the device.
     bool k_cache_token_major() const {
         if (force_k_cache_token_major.has_value())
             return *force_k_cache_token_major;
@@ -412,35 +412,36 @@ struct PagedAttentionManager {
         return *k_cache_token_major_cached;
     }
 
-    // What transformations_pipeline.cpp decides for this case on the test device: the uncompressed / BY_TOKEN page on the
-    // device rule, the i8/u4 BY_CHANNEL page only where paged_attention::by_channel_token_major_readable() says both
-    // token-major readers run (the harness has no alibi and always runs f16).
+    // What transformations_pipeline.cpp decides for this case on the test device: token-major where
+    // paged_attention::k_token_major_readable() says both token-major readers serve the op (the harness has no alibi
+    // and always runs f16).
     bool decide_k_cache_token_major() const {
         const auto precision = is_int4_kv_cache() ? kv_cache_precision
                                                   : (kv_cache_compression ? ov::element::i8 : ov::element::f16);
         const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
-        if (cldnn::paged_attention::k_token_major_for(test_engine.get_device_info(), precision, is_by_channel))
-            return true;
-        if (!cldnn::paged_attention::k_by_channel_token_major_for(precision, is_by_channel))
-            return false;
-        cldnn::paged_attention::by_channel_tm_op_info op;
+        cldnn::paged_attention::k_tm_op_info op;
         op.k_head_size = static_cast<size_t>(k_head_size);
         op.v_head_size = static_cast<size_t>(v_head_size);
         op.heads_num = static_cast<size_t>(num_heads);
         op.kv_heads_num = static_cast<size_t>(num_kv_heads);
         op.has_scores_output = has_scores_output;
         op.has_adaptive_rkv = has_adaptive_rkv;
-        return by_channel_token_major_readable_on(test_engine, {op});
+        return k_token_major_readable_on(test_engine, precision, is_by_channel, {op});
     }
 
-    // by_channel_token_major_readable() with the test device's facts, as transformations_pipeline.cpp
+    // k_token_major_readable() with the test device's facts, as transformations_pipeline.cpp
     // gathers them (it queries microkernels only where a reader could run).
-    static bool by_channel_token_major_readable_on(cldnn::engine& engine,
-                                                   const std::vector<cldnn::paged_attention::by_channel_tm_op_info>& ops) {
+    static bool k_token_major_readable_on(cldnn::engine& engine,
+                                          const ov::element::Type& key_cache_precision,
+                                          bool is_key_by_channel,
+                                          const std::vector<cldnn::paged_attention::k_tm_op_info>& ops) {
         const auto& info = engine.get_device_info();
-        const bool microkernels_supported = cldnn::paged_attention::k_token_major_device(info) &&
-                                            cldnn::query_microkernels_supported(engine, tests::get_test_default_config(engine));
-        return cldnn::paged_attention::by_channel_token_major_readable(info, microkernels_supported, ov::element::f16, ops);
+        // Finalized as the program finalizes its config, so OV_GPU_ENABLE_SDPA_MICRO reaches enable_sdpa_micro.
+        auto config = tests::get_test_default_config(engine);
+        config.finalize(engine);
+        const bool mixed_dpas_enabled =
+            cldnn::paged_attention::k_token_major_device(info) && config.get_enable_sdpa_micro() && cldnn::query_microkernels_supported(engine, config);
+        return cldnn::paged_attention::k_token_major_readable(info, mixed_dpas_enabled, ov::element::f16, key_cache_precision, is_key_by_channel, ops);
     }
 
     mutable std::optional<bool> k_cache_token_major_cached;
@@ -504,7 +505,7 @@ struct PagedAttentionManager {
                             //                        pairs (channel 2b low nibble, 2b+1 high), then one
                             //                        (inv_scale, zp) pair per CHANNEL. Only the
                             //                        writer, rotate, sdpa_ocl and sdpa_ocl_decode know it;
-                            //                        see paged_attention::by_channel_token_major_readable().
+                            //                        see paged_attention::k_token_major_readable().
                             const bool k_tm = k_cache_token_major();
                             const int packed_head = k_head_size / 2;
                             for (int head_idx = 0; head_idx < num_kv_heads; head_idx++) {
@@ -594,7 +595,7 @@ struct PagedAttentionManager {
                             //   token-major [block_size rows][k_head_size] of data, exactly the BY_TOKEN
                             //               data geometry, followed by one (scale, zp) pair per CHANNEL.
                             //               This is what sdpa_ocl and sdpa_ocl_decode read; see
-                            //               paged_attention::by_channel_token_major_readable().
+                            //               paged_attention::k_token_major_readable().
                             const bool k_tm = k_cache_token_major();
                             for (int head_idx = 0; head_idx < num_kv_heads; head_idx++) {
                                 size_t output_block_offset = (start_block_idx + block_idx) * num_kv_heads * adjusted_head_size * adjusted_block_size +

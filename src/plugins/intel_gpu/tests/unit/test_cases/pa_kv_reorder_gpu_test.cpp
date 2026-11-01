@@ -40,16 +40,21 @@ size_t key_offset(size_t block,
     return page_base + (token_major ? token * k_head_size + k : k * block_size + token);
 }
 
-// The layout the plugin gives this test's cache on the test device (paged_attention::k_token_major_for()); the
-// reorder reads it back off the cache shape.
-bool k_token_major() {
-    return cldnn::paged_attention::k_token_major_for(get_test_engine().get_device_info(), ov::element::f16, /*is_key_by_channel=*/false);
-}
-
+// The layout the plugin gives this test's cache on the test device when every PagedAttention op of the model has a
+// token-major reader (paged_attention::k_token_major_readable()); the reorder reads it back off the cache shape.
 // i8 BY_TOKEN follows the same rule (its scale/zp trail the data region). The token-major BY_CHANNEL
 // pages are covered by smoke_pa_kv_reorder_layout below.
+bool k_token_major_page() {
+    using pa = cldnn::paged_attention;
+    return pa::k_token_major_switch() == pa::k_layout_switch::rule && pa::k_token_major_device(get_test_engine().get_device_info());
+}
+
+bool k_token_major() {
+    return k_token_major_page();
+}
+
 bool k_token_major_i8() {
-    return cldnn::paged_attention::k_token_major_for(get_test_engine().get_device_info(), ov::element::i8, /*is_key_by_channel=*/false);
+    return k_token_major_page();
 }
 
 size_t value_offset(size_t block, size_t head, size_t token, size_t v, size_t kv_heads, size_t v_head_size, size_t block_size) {

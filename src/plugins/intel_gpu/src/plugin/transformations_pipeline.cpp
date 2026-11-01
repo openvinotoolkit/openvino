@@ -1089,32 +1089,35 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             // KVCache layout with default attention -
             // k: [num_blocks, num_kv_heads, head_size, block_size(16)], or token-major
-            //    [num_blocks, num_kv_heads, block_size, head_size] (paged_attention::k_token_major_for() /
-            //    k_by_channel_token_major_for(): the sdpa_ocl lane of Xe2+ XMX devices)
+            //    [num_blocks, num_kv_heads, block_size, head_size] (paged_attention::k_token_major_readable(): the
+            //    sdpa_ocl lane of Xe2+ XMX devices, for a model whose every op it serves)
             // v: [num_blocks, num_kv_heads, block_size(16), head_size]
             // KVCache layout with XAttention -
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
-            // The uncompressed / BY_TOKEN K cache goes token-major on the device alone: every reader reads that page.
-            // The i8/u4 BY_CHANNEL K cache is materialized token-major only when every K-cache reader of
-            // the model understands that page. The layout is decided once for the whole model, while
-            // the reader is chosen per dispatch: only sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE)
-            // read the page, and every fallback reads it d-major. So every PagedAttention op must pass
-            // both gates on this device, which paged_attention::by_channel_token_major_readable() checks.
+            // The K cache, of every kind (f16, i8 BY_TOKEN, i8/u4 BY_CHANNEL), is materialized token-major only
+            // when the two token-major readers serve every op of the model. The layout is decided once for the whole
+            // model, while the reader is chosen per dispatch: sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE) read
+            // the token-major page, and the opt kernels that serve the ops they refuse are kept on the d-major one.
+            // So every PagedAttention op must pass both gates on this device, which
+            // paged_attention::k_token_major_readable() checks.
             // Rotation and EAGLE3's pa_kv_reorder are not a concern: both read the token-major page.
             // This runs while passes are registered, i.e. on the model as it came in: the PA op's Q
             // type is set by ConvertPrecision later (to infer_precision), and alibi may still be an
             // unfolded subgraph, so it is judged by its shape.
-            bool allow_by_channel_token_major = false;
+            const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
+            const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+            bool allow_token_major = false;
             if (cldnn::paged_attention::k_token_major_switch() != cldnn::paged_attention::k_layout_switch::d_major &&
-                cldnn::paged_attention::k_token_major_device(device_info)) {
-                std::vector<cldnn::paged_attention::by_channel_tm_op_info> pa_ops;
+                cldnn::paged_attention::k_token_major_device(device_info) &&
+                cldnn::paged_attention::k_token_major_kind(config.get_kv_cache_precision(), is_by_channel)) {
+                std::vector<cldnn::paged_attention::k_tm_op_info> pa_ops;
                 for (const auto& op : func->get_ops()) {
                     const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op);
                     if (!pa) {
                         continue;
                     }
-                    cldnn::paged_attention::by_channel_tm_op_info info;
+                    cldnn::paged_attention::k_tm_op_info info;
                     info.has_scores_output = pa->get_output_size() > 1 && !pa->get_output_target_inputs(1).empty();
                     info.has_adaptive_rkv = pa->get_output_size() > 2 && !pa->get_output_target_inputs(2).empty();
                     const auto& rt_info = pa->get_rt_info();
@@ -1138,13 +1141,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
                     pa_ops.push_back(info);
                 }
-                const bool microkernels_supported = cldnn::query_microkernels_supported(m_context->get_engine(), config);
-                allow_by_channel_token_major =
-                    cldnn::paged_attention::by_channel_token_major_readable(device_info, microkernels_supported, infer_precision, pa_ops);
+                // OV_GPU_ENABLE_SDPA_MICRO=0 turns the DPAS MIXED kernel off (choose_dpas_backend()), sdpa_ocl included.
+                const bool mixed_dpas_enabled = config.get_enable_sdpa_micro() && cldnn::query_microkernels_supported(m_context->get_engine(), config);
+                allow_token_major = cldnn::paged_attention::k_token_major_readable(device_info,
+                                                                                   mixed_dpas_enabled,
+                                                                                   infer_precision,
+                                                                                   config.get_kv_cache_precision(),
+                                                                                   is_by_channel,
+                                                                                   pa_ops);
             }
 
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
-            const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
             auto kv_cache_precision = config.get_kv_cache_precision();
             // Plain PA already falls back to compressed KV cache for BY_TOKEN on GPU.
             // XAttention builds its dedicated KV layout in this pass, so normalize the
@@ -1160,16 +1167,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
             } else {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
-                // Token-major K (same dim order as V and as XAttention): uncompressed and i8/u8 BY_TOKEN on the
-                // device rule alone, i8/u4 BY_CHANNEL only where every reader of the model can read that page
-                // (allow_by_channel_token_major above). Consumers read the result back off the cache shape
+                // Token-major K (same dim order as V and as XAttention): where the token-major readers serve every
+                // op of the model (allow_token_major above). Consumers read the result back off the cache shape
                 // (paged_attention::k_cache_token_major()).
-                const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
-                const bool k_token_major =
-                    cldnn::paged_attention::k_token_major_for(device_info, kv_cache_precision, is_by_channel) ||
-                    (allow_by_channel_token_major &&
-                     cldnn::paged_attention::k_by_channel_token_major_for(kv_cache_precision, is_by_channel));
-                kv_cache_config.keyCacheDimOrder = k_token_major ? std::vector<size_t>{0, 1, 2, 3} : std::vector<size_t>{0, 1, 3, 2};
+                kv_cache_config.keyCacheDimOrder = allow_token_major ? std::vector<size_t>{0, 1, 2, 3} : std::vector<size_t>{0, 1, 3, 2};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
