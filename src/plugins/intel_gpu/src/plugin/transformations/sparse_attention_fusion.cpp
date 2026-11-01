@@ -7,6 +7,7 @@
 #include <cmath>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -488,7 +489,7 @@ bool convert_paged_qsa_indexer(const std::shared_ptr<ov::op::internal::PagedQSAI
     return true;
 }
 
-bool convert_paged_sparse_attention(const std::shared_ptr<ov::op::internal::PagedSparseAttention>& attention) {
+bool convert_paged_sparse_attention(const std::shared_ptr<ov::op::internal::PagedSparseAttention>& attention, const KVCacheQuantConfig& quant) {
     using In = ov::intel_gpu::op::SparsePA::InputIdx;
     if (attention->get_input_size() != In::COUNT) {
         return false;
@@ -519,9 +520,41 @@ bool convert_paged_sparse_attention(const std::shared_ptr<ov::op::internal::Page
     config.key_block_size = static_cast<size_t>(attention->get_key_block_size());
     config.query_block_size = 1;
     config.causal = true;
+    size_t page_size = 0;
+    if (static_dim(key_cache_ps, 2, page_size)) {
+        config.page_size = page_size;
+    }
+    if (quant.enabled()) {
+        config.key_quant = quant.key;
+        config.value_quant = quant.value;
+    }
     std::string reason;
     if (!ov::intel_gpu::op::SparsePA::validate_config(config, reason)) {
+        // A quantization that was asked for must not silently fall back to an unsupported op.
+        OPENVINO_ASSERT(!quant.enabled(), "[GPU] Cannot quantize the QSA KV cache of '", attention->get_friendly_name(), "': ", reason);
         return false;
+    }
+
+    if (quant.enabled()) {
+        // The caches become u8 pages: data rows followed by the scale/zero-point rows of the page.
+        for (const auto& [idx, cache_quant, head_size] :
+             {std::tuple{In::KEY_CACHE, config.key_quant, config.k_head_size}, std::tuple{In::VALUE_CACHE, config.value_quant, config.v_head_size}}) {
+            if (!cache_quant.enabled()) {
+                continue;
+            }
+            auto cache = ov::as_type_ptr<ov::op::v0::Parameter>(attention->get_input_node_shared_ptr(idx));
+            OPENVINO_ASSERT(cache != nullptr,
+                            "[GPU] Cannot quantize the QSA KV cache of '",
+                            attention->get_friendly_name(),
+                            "': input ",
+                            idx,
+                            " is not a model Parameter");
+            const auto layout = ov::intel_gpu::op::kv_page_layout(cache_quant, config.page_size, head_size);
+            const auto& ps = cache->get_output_partial_shape(0);
+            cache->set_element_type(ov::element::u8);
+            cache->set_partial_shape(ov::PartialShape{ps[0], ps[1], static_cast<int64_t>(layout.total_rows), static_cast<int64_t>(layout.row_bytes)});
+            cache->validate_and_infer_types();
+        }
     }
 
     auto sparse_pa = std::make_shared<ov::intel_gpu::op::SparsePA>(attention->input_values(), config);
@@ -577,7 +610,7 @@ PagedQSAIndexerConversion::PagedQSAIndexerConversion() {
     register_matcher(std::make_shared<Matcher>(indexer_m, "PagedQSAIndexerConversion"), callback);
 }
 
-PagedSparseAttentionConversion::PagedSparseAttentionConversion() {
+PagedSparseAttentionConversion::PagedSparseAttentionConversion(const KVCacheQuantConfig& quant) {
     using namespace ov::pass::pattern;
 
     auto attention_m = wrap_type<ov::op::internal::PagedSparseAttention>();
@@ -588,16 +621,16 @@ PagedSparseAttentionConversion::PagedSparseAttentionConversion() {
         if (ov::is_type<ov::intel_gpu::op::SparsePA>(root) || transformation_callback(root)) {
             return false;
         }
-        return convert_paged_sparse_attention(ov::as_type_ptr<ov::op::internal::PagedSparseAttention>(root));
+        return convert_paged_sparse_attention(ov::as_type_ptr<ov::op::internal::PagedSparseAttention>(root), quant);
     };
     register_matcher(std::make_shared<Matcher>(attention_m, "PagedSparseAttentionConversion"), callback);
 }
 
-SparseAttentionFusion::SparseAttentionFusion() {
+SparseAttentionFusion::SparseAttentionFusion(const KVCacheQuantConfig& quant) {
     add_matcher<QSAIndexerFusion>();
     add_matcher<SparseSDPAFusion>();
     add_matcher<PagedQSAIndexerConversion>();
-    add_matcher<PagedSparseAttentionConversion>();
+    add_matcher<PagedSparseAttentionConversion>(quant);
 }
 
 }  // namespace ov::intel_gpu

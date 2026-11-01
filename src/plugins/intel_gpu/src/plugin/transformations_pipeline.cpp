@@ -487,6 +487,33 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
     return false;
 }
 
+// QSA main KV caches are quantized when kv_cache_precision asks for an 8/4-bit type. The key cache
+// follows key_cache_quant_mode (BY_CHANNEL in groups of GPU_QSA_KEY_CACHE_GROUP_SIZE tokens or
+// BY_TOKEN), the value cache is always BY_TOKEN. Only an explicit request counts: the default precision of
+// non-systolic devices is i8, which the dense SparseSDPA cannot follow (its compression needs immad).
+KVCacheQuantConfig make_qsa_kv_cache_quant(const ExecutionConfig& config) {
+    KVCacheQuantConfig quant;
+    if (config.get_user_properties().count(ov::hint::kv_cache_precision.name()) == 0) {
+        return quant;
+    }
+    const auto precision = config.get_kv_cache_precision();
+    if (!precision.is_static() || !precision.is_integral()) {
+        return quant;
+    }
+    const auto bits = static_cast<uint8_t>(precision.bitwidth());
+    if (bits != 8 && bits != 4) {
+        return quant;
+    }
+    const bool symmetric = config.get_qsa_kv_cache_symmetric();
+    quant.value = {op::KVQuant::Mode::BY_TOKEN, bits, symmetric, 0};
+    if (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_TOKEN) {
+        quant.key = {op::KVQuant::Mode::BY_TOKEN, bits, symmetric, 0};
+    } else {
+        quant.key = {op::KVQuant::Mode::BY_CHANNEL, bits, symmetric, static_cast<uint16_t>(config.get_qsa_key_cache_group_size())};
+    }
+    return quant;
+}
+
 // LPT's Split/VariadicSplitTransformation moves the dequantization from above the split to
 // below it, once per split output. That only pays off if the moved dequantization can be
 // absorbed by one of the consumers (a layer with quantized weights). If it cannot, the plugin
@@ -1666,7 +1693,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // has turned the rotation into a RoPE op.
         // Public QSAPrepare/SparseAttentionIndexer/SparseAttention/PagedQSAIndexer/PagedSparseAttention
         // -> QSAIndexer/SparseSDPA/PagedQSAIndexer/SparsePA (GPU primitives).
-        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>();
+        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>(make_qsa_kv_cache_quant(config));
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();

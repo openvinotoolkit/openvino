@@ -13,8 +13,10 @@
 
 #include "../primitive_ocl_base.hpp"
 #include "../qsa_host_common.hpp"
+#include "../qsa_stage_events.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/kv_cache.hpp"
 #include "intel_gpu/primitives/sparse_sdpa.hpp"
 #include "primitive_inst.h"
 #include "sparse_attention_common.hpp"
@@ -38,6 +40,10 @@ qsa::SparseAttentionSlots sdpa_slots() {
     s.selected_blocks = SparseSDPAIn::SELECTED_BLOCK_INDICES;
     s.selected_count = SparseSDPAIn::SELECTED_BLOCK_COUNT;
     s.key_length = SparseSDPAIn::KEY_LENGTH;
+    s.kv_params = {sparse_sdpa::CompressedIdx::KEY_SCALE,
+                   sparse_sdpa::CompressedIdx::VALUE_SCALE,
+                   sparse_sdpa::CompressedIdx::KEY_ZP,
+                   sparse_sdpa::CompressedIdx::VALUE_ZP};
     return s;
 }
 
@@ -102,7 +108,8 @@ public:
                 add_stage(attention_gqa_split, params);
                 add_stage(split_reduce, params);
             }
-        } else {
+        } else if (!params.typed_desc<sparse_sdpa>()->kv_compressed) {
+            // The plain systolic and split kernels only read f16 K/V; compressed K/V use the scalar kernel here.
             if (use_dpas_attention(params)) {
                 add_stage(attention_dpas, params);
             }
@@ -156,26 +163,30 @@ public:
         return bufs;
     }
 
+    event::ptr run_stage(const std::vector<event::ptr>& deps, primitive_inst& instance, Stage::Ptr& stage) {
+        return qsa::QsaStageEvents::record(execute_stage(deps, instance, stage));
+    }
+
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         kernel_dump_info.clear_entries();
         update_rt_params(instance);
         const auto& params = *instance.get_impl_params();
         if (use_gqa_dpas_attention(params)) {
             if (has_stage(attention_gqa_split) && rt().is_decode) {
-                auto split_event = execute_stage(events, instance, attention_gqa_split);
-                return execute_stage({split_event}, instance, split_reduce);
+                auto split_event = run_stage(events, instance, attention_gqa_split);
+                return run_stage({split_event}, instance, split_reduce);
             }
-            return execute_stage(events, instance, attention_gqa_dpas);
+            return run_stage(events, instance, attention_gqa_dpas);
         }
         if (use_split_attention()) {
-            auto split_event = execute_stage(events, instance, split);
-            return execute_stage({split_event}, instance, split_reduce);
+            auto split_event = run_stage(events, instance, split);
+            return run_stage({split_event}, instance, split_reduce);
         }
         // Plain dpas needs a multi-token query tile; decode keeps the scalar kernel.
         if (has_stage(attention_dpas) && !rt().is_decode) {
-            return execute_stage(events, instance, attention_dpas);
+            return run_stage(events, instance, attention_dpas);
         }
-        return execute_stage(events, instance, attention);
+        return run_stage(events, instance, attention);
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -196,6 +207,19 @@ public:
         rtp->num_tokens = rtp->batch * rtp->seq_len;
         rtp->k_seq_pitch = seq_pitch(params.get_input_layout(SparseSDPAIn::KEY), "key");
         rtp->v_seq_pitch = seq_pitch(params.get_input_layout(SparseSDPAIn::VALUE), "value");
+        if (params.typed_desc<sparse_sdpa>()->kv_compressed) {
+            using CI = sparse_sdpa::CompressedIdx;
+            // The compressed KVCache is indirect: with beam search it hands over data that is not gathered by its beam table.
+            if (instance.get_node().get_dependency(SparseSDPAIn::KEY).is_type<kv_cache>()) {
+                OPENVINO_ASSERT(rtp->batch == 1, "[GPU][OCL] sparse_sdpa: a compressed KVCache supports only batch 1, got ", rtp->batch);
+            }
+            // Data and parameter tensors of a KVCache are padded independently, so each keeps its own pitch.
+            rtp->k_param_pitch = seq_pitch(params.get_input_layout(CI::KEY_SCALE), "key_scale");
+            rtp->v_param_pitch = seq_pitch(params.get_input_layout(CI::VALUE_SCALE), "value_scale");
+            OPENVINO_ASSERT(seq_pitch(params.get_input_layout(CI::KEY_ZP), "key_zp") == rtp->k_param_pitch &&
+                                seq_pitch(params.get_input_layout(CI::VALUE_ZP), "value_zp") == rtp->v_param_pitch,
+                            "[GPU][OCL] sparse_sdpa: a zero-point tensor must share the sequence padding of its scale tensor");
+        }
         rtp->is_decode = rtp->seq_len == 1;
         rtp->tile_count = rtp->batch * ((rtp->seq_len + qsa::dpas_query_tile - 1) / qsa::dpas_query_tile);
     }
@@ -229,9 +253,17 @@ bool SparseSDPAImplementationManager::validate_impl(const cldnn::program_node& n
         return false;
     }
 
-    static constexpr std::array f16_inputs = {SparseSDPAIn::QUERY, SparseSDPAIn::KEY, SparseSDPAIn::VALUE};
-    for (auto idx : f16_inputs) {
-        if (node.get_input_layout(idx).data_type != ov::element::f16) {
+    if (node.get_input_layout(SparseSDPAIn::QUERY).data_type != ov::element::f16) {
+        return false;
+    }
+    const auto kv_type = desc->kv_compressed ? ov::element::i8 : ov::element::f16;
+    if (node.get_input_layout(SparseSDPAIn::KEY).data_type != kv_type || node.get_input_layout(SparseSDPAIn::VALUE).data_type != kv_type) {
+        return false;
+    }
+    if (desc->kv_compressed) {
+        using CI = sparse_sdpa::CompressedIdx;
+        if (node.get_input_layout(CI::KEY_SCALE).data_type != ov::element::f16 || node.get_input_layout(CI::VALUE_SCALE).data_type != ov::element::f16 ||
+            node.get_input_layout(CI::KEY_ZP).data_type != ov::element::i8 || node.get_input_layout(CI::VALUE_ZP).data_type != ov::element::i8) {
             return false;
         }
     }

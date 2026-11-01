@@ -250,6 +250,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/proposal_cpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/proposal_test_data.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/qsa_ops_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/sparse_pa_kvq_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/quantize_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/random_uniform_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/range_gpu_test.cpp

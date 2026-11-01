@@ -82,9 +82,9 @@ std::shared_ptr<T> find_exact(const std::shared_ptr<ov::Model>& model) {
     return nullptr;
 }
 
-void run_fusion(const std::shared_ptr<ov::Model>& model) {
+void run_fusion(const std::shared_ptr<ov::Model>& model, const KVCacheQuantConfig& quant = {}) {
     ov::pass::Manager manager;
-    manager.register_pass<SparseAttentionFusion>();
+    manager.register_pass<SparseAttentionFusion>(quant);
     manager.run_passes(model);
 }
 
@@ -590,6 +590,55 @@ TEST(sparse_attention_fusion, paged_sparse_attention_bails_out_on_unsupported_he
 
     EXPECT_EQ(count_exact<op::SparsePA>(m.model), 0u);
     EXPECT_EQ(count_exact<ov::op::internal::PagedSparseAttention>(m.model), 1u);
+}
+
+// A quantized cache becomes a u8 page tensor [blocks, Hkv, page + parameter rows, bytes per row].
+TEST(sparse_attention_fusion, paged_sparse_attention_quantizes_the_kv_caches) {
+    constexpr int64_t head = 32;
+    using K = op::KVQuant;
+    KVCacheQuantConfig quant;
+    quant.key = K{K::Mode::BY_CHANNEL, 8, false, 16};
+    quant.value = K{K::Mode::BY_TOKEN, 4, true, 0};
+    auto args = make_paged_attention_args(head);
+    auto attention = std::make_shared<ov::op::internal::PagedSparseAttention>(args, r);
+    auto m = make_model({attention->output(0)});
+    run_fusion(m.model, quant);
+
+    ASSERT_EQ(count_exact<op::SparsePA>(m.model), 1u);
+    auto sparse_pa = find_exact<op::SparsePA>(m.model);
+    const auto& cfg = sparse_pa->get_config();
+    EXPECT_EQ(cfg.page_size, static_cast<size_t>(page_size));
+    EXPECT_EQ(cfg.key_quant, quant.key);
+    EXPECT_EQ(cfg.value_quant, quant.value);
+
+    const auto key_layout = op::kv_page_layout(quant.key, page_size, head);
+    const auto value_layout = op::kv_page_layout(quant.value, page_size, head);
+    using In = op::SparsePA::InputIdx;
+    EXPECT_EQ(sparse_pa->get_input_element_type(In::KEY_CACHE), ov::element::u8);
+    EXPECT_EQ(sparse_pa->get_input_element_type(In::VALUE_CACHE), ov::element::u8);
+    EXPECT_EQ(sparse_pa->get_input_partial_shape(In::KEY_CACHE),
+              (ov::PartialShape{pages, Hkv, static_cast<int64_t>(key_layout.total_rows), static_cast<int64_t>(key_layout.row_bytes)}));
+    EXPECT_EQ(sparse_pa->get_input_partial_shape(In::VALUE_CACHE),
+              (ov::PartialShape{pages, Hkv, static_cast<int64_t>(value_layout.total_rows), static_cast<int64_t>(value_layout.row_bytes)}));
+    // 8-bit keys: row = head bytes, 16-token groups of (scale + zp) per channel = 4 parameter rows of 32 bytes... (head * 4 bytes / head).
+    EXPECT_EQ(key_layout.row_bytes, static_cast<size_t>(head));
+    EXPECT_EQ(key_layout.extra_rows, static_cast<size_t>(4));
+    // 4-bit values: row = head / 2 bytes, 4 bytes of parameters per token.
+    EXPECT_EQ(value_layout.row_bytes, static_cast<size_t>(head / 2));
+    EXPECT_EQ(value_layout.extra_rows, static_cast<size_t>(page_size * 4 / (head / 2)));
+
+    // The converted graph is stable under a second run.
+    run_fusion(m.model, quant);
+    EXPECT_EQ(count_exact<op::SparsePA>(m.model), 1u);
+}
+
+TEST(sparse_attention_fusion, paged_sparse_attention_rejects_an_unsupported_cache_quantization) {
+    using K = op::KVQuant;
+    KVCacheQuantConfig quant;
+    quant.key = K{K::Mode::BY_CHANNEL, 8, false, 24};  // group must be 16 or 32
+    auto attention = std::make_shared<ov::op::internal::PagedSparseAttention>(make_paged_attention_args(32), r);
+    auto m = make_model({attention->output(0)});
+    EXPECT_ANY_THROW(run_fusion(m.model, quant));
 }
 
 }  // namespace

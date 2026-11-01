@@ -13,6 +13,7 @@
 
 #include "../primitive_ocl_base.hpp"
 #include "../qsa_host_common.hpp"
+#include "../qsa_stage_events.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/sparse_pa.hpp"
@@ -47,8 +48,12 @@ size_t token_pitch(const layout& l) {
     return shape[1];
 }
 
-/// Tokens per physical page: dim 2 of key_cache (there is no block_size attribute).
+/// Tokens per physical page: the explicit attribute, else dim 2 of an f16 key_cache.
 size_t page_size_of(const kernel_impl_params& params) {
+    const auto desc = params.typed_desc<sparse_pa>();
+    if (desc->page_size != 0) {
+        return desc->page_size;
+    }
     const auto& ps = params.get_input_layout(SparsePAIn::KEY_CACHE).get_partial_shape();
     OPENVINO_ASSERT(ps.size() == 4 && ps[2].is_static(), "[GPU][OCL] sparse_pa: key_cache must have a static page_size dim");
     return static_cast<size_t>(ps[2].get_length());
@@ -85,6 +90,8 @@ protected:
         jit.make("QSA_V_HEAD_SIZE", desc->v_head_size);
         jit.make("QSA_PAGE_SIZE", page_size_of(params));
         jit.make("QSA_COMPRESS_RATIO", desc->key_block_size);
+        qsa::add_cache_jit(jit, "K", desc->key_quant, page_size_of(params), desc->k_head_size);
+        qsa::add_cache_jit(jit, "V", desc->value_quant, page_size_of(params), desc->v_head_size);
         return jit;
     }
 
@@ -132,11 +139,73 @@ protected:
 
 using Gen = qsa::AttentionGenerator<sparse_pa>;
 
+// ===========================================================================
+// Q0 - BY_CHANNEL key cache write (group re-quantization)
+// ===========================================================================
+class KvWriteKChannelGenerator : public qsa::QsaGenerator {
+public:
+    KvWriteKChannelGenerator() : QsaGenerator("sparse_attention_kv_write", "sparse_attention_kv_write_kchannel", true) {}
+
+protected:
+    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
+        auto jit = QsaGenerator::get_jit_constants(params);
+        const auto desc = params.typed_desc<sparse_pa>();
+        jit.make("QSA_KV_WRITE_KCHANNEL", 1);
+        jit.make("QSA_KV_HEADS", desc->num_kv_heads);
+        jit.make("QSA_K_HEAD_SIZE", desc->k_head_size);
+        jit.make("QSA_PAGE_SIZE", page_size_of(params));
+        jit.make("QSA_COMPRESS_RATIO", desc->key_block_size);
+        qsa::add_cache_jit(jit, "K", desc->key_quant, page_size_of(params), desc->k_head_size);
+        return jit;
+    }
+
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+        Arguments args;
+        for (auto idx : {SparsePAIn::KEY,
+                         SparsePAIn::PAST_LENS,
+                         SparsePAIn::BLOCK_INDICES,
+                         SparsePAIn::BLOCK_INDICES_BEGINS,
+                         SparsePAIn::SUBSEQUENCE_BEGINS,
+                         SparsePAIn::KEY_CACHE}) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(idx)});
+        }
+        for (uint32_t i = 0; i < 3; i++) {
+            args.push_back({ArgumentDescriptor::Types::SCALAR, i});
+        }
+        return args;
+    }
+
+    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
+        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt) {
+            if (params.is_dynamic()) {
+                return;
+            }
+            const auto desc = params.typed_desc<sparse_pa>();
+            auto* rtp = static_cast<qsa::SparseAttentionRuntimeParams*>(rt);
+            OPENVINO_ASSERT(rtp != nullptr, "[GPU][OCL] sparse_pa runtime params are not initialized");
+            const auto sg = qsa::subgroup_size(params.get_device_info());
+
+            // A sequence touches at most tokens / group + 2 groups (one partial group at each end).
+            const size_t group = desc->key_quant.group_size;
+            const size_t work_items = rtp->num_tokens / group + 2 * rtp->num_seqs;
+            auto& wgs = kd.params.workGroups;
+            wgs.global = {std::max<size_t>(1, work_items) * sg, desc->num_kv_heads, 1};
+            wgs.local = {sg, 1, 1};
+
+            kd.params.scalars.clear();
+            qsa::push_u32(kd, token_pitch(params.get_input_layout(SparsePAIn::KEY)));
+            qsa::push_u32(kd, params.get_input_layout(SparsePAIn::KEY).get_linear_offset());
+            qsa::push_u32(kd, rtp->num_seqs);
+        }};
+    }
+};
+
 class SparsePAImpl : public PrimitiveImplOCL {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SparsePAImpl)
 
     Stage::Ptr kv_write = make_stage<KvWriteGenerator>();
+    Stage::Ptr kv_write_kchannel = make_stage<KvWriteKChannelGenerator>();
     Stage::Ptr attention = make_stage<Gen>(qsa::AttKind::Scalar, pa_slots());
     Stage::Ptr attention_dpas = make_stage<Gen>(qsa::AttKind::Dpas, pa_slots());
     Stage::Ptr attention_gqa_dpas = make_stage<Gen>(qsa::AttKind::Gqa, pa_slots());
@@ -156,7 +225,11 @@ public:
     }
 
     explicit SparsePAImpl(const RuntimeParams& params) : SparsePAImpl() {
+        const auto desc = params.typed_desc<sparse_pa>();
         add_stage(kv_write, params);
+        if (desc->key_quant.mode == ov::intel_gpu::op::KVQuant::Mode::BY_CHANNEL) {
+            add_stage(kv_write_kchannel, params);
+        }
         add_stage(attention, params);
         if (use_gqa_dpas_attention(params)) {
             add_stage(attention_gqa_dpas, params);
@@ -164,7 +237,8 @@ public:
                 add_stage(attention_gqa_split, params);
                 add_stage(split_reduce, params);
             }
-        } else {
+        } else if (!desc->key_quant.enabled() && !desc->value_quant.enabled()) {
+            // The plain systolic and split kernels only read f16 caches; quantized pages use the scalar kernel here.
             if (use_dpas_attention(params)) {
                 add_stage(attention_dpas, params);
             }
@@ -211,33 +285,40 @@ public:
         return bufs;
     }
 
+    event::ptr run_stage(const std::vector<event::ptr>& deps, primitive_inst& instance, Stage::Ptr& stage) {
+        return qsa::QsaStageEvents::record(execute_stage(deps, instance, stage));
+    }
+
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         kernel_dump_info.clear_entries();
         update_rt_params(instance);
 
         // The attention stages read the cache the K/V write just produced, so they wait for both the input events and
-        // the write.
-        auto kv_event = execute_stage(events, instance, kv_write);
+        // the write(s).
+        auto kv_event = run_stage(events, instance, kv_write);
         std::vector<event::ptr> attn_deps = events;
         attn_deps.push_back(kv_event);
+        if (has_stage(kv_write_kchannel)) {
+            attn_deps.push_back(run_stage(events, instance, kv_write_kchannel));
+        }
 
         const auto& params = *instance.get_impl_params();
         if (use_gqa_dpas_attention(params)) {
             if (has_stage(attention_gqa_split) && rt().is_decode) {
-                auto split_event = execute_stage(attn_deps, instance, attention_gqa_split);
-                return execute_stage({split_event}, instance, split_reduce);
+                auto split_event = run_stage(attn_deps, instance, attention_gqa_split);
+                return run_stage({split_event}, instance, split_reduce);
             }
-            return execute_stage(attn_deps, instance, attention_gqa_dpas);
+            return run_stage(attn_deps, instance, attention_gqa_dpas);
         }
         if (use_split_attention()) {
-            auto split_event = execute_stage(attn_deps, instance, split);
-            return execute_stage({split_event}, instance, split_reduce);
+            auto split_event = run_stage(attn_deps, instance, split);
+            return run_stage({split_event}, instance, split_reduce);
         }
         // Plain dpas needs a multi-token query tile; decode keeps the scalar kernel.
         if (has_stage(attention_dpas) && !rt().is_decode) {
-            return execute_stage(attn_deps, instance, attention_dpas);
+            return run_stage(attn_deps, instance, attention_dpas);
         }
-        return execute_stage(attn_deps, instance, attention);
+        return run_stage(attn_deps, instance, attention);
     }
 
     void update_rt_params(const primitive_inst& instance) override {
@@ -284,15 +365,23 @@ bool SparsePAImplementationManager::validate_impl(const cldnn::program_node& nod
     }
 
     const auto& key_cache_ps = node.get_input_layout(SparsePAIn::KEY_CACHE).get_partial_shape();
-    if (key_cache_ps.size() != 4 || !key_cache_ps[2].is_static() || key_cache_ps[2].get_length() % static_cast<int64_t>(desc->key_block_size) != 0) {
+    const size_t page = desc->page_size != 0
+                            ? desc->page_size
+                            : (key_cache_ps.size() == 4 && key_cache_ps[2].is_static() ? static_cast<size_t>(key_cache_ps[2].get_length()) : 0);
+    if (key_cache_ps.size() != 4 || page == 0 || page % desc->key_block_size != 0) {
         return false;
     }
 
-    static constexpr std::array f16_inputs = {SparsePAIn::QUERY, SparsePAIn::KEY, SparsePAIn::VALUE, SparsePAIn::KEY_CACHE, SparsePAIn::VALUE_CACHE};
+    static constexpr std::array f16_inputs = {SparsePAIn::QUERY, SparsePAIn::KEY, SparsePAIn::VALUE};
     for (auto idx : f16_inputs) {
         if (node.get_input_layout(idx).data_type != ov::element::f16) {
             return false;
         }
+    }
+    // A quantized cache is a u8 page tensor, an f16 cache keeps the f16 layout.
+    if (node.get_input_layout(SparsePAIn::KEY_CACHE).data_type != (desc->key_quant.enabled() ? ov::element::u8 : ov::element::f16) ||
+        node.get_input_layout(SparsePAIn::VALUE_CACHE).data_type != (desc->value_quant.enabled() ? ov::element::u8 : ov::element::f16)) {
+        return false;
     }
     return node.get_input_layout(SparsePAIn::SELECTED_BLOCK_INDICES).data_type == ov::element::i32 &&
            node.get_input_layout(SparsePAIn::SELECTED_BLOCK_COUNT).data_type == ov::element::i32;

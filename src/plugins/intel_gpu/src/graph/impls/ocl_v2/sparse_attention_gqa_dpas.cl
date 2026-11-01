@@ -20,8 +20,12 @@
 // read one by one.
 // p stays below 2^8 in half thanks to a lazy rescale of the running max (scores are in log2 units).
 //
+// Quantized K/V (paged u8 pages or dense i8 + per-token scale / zero point, see qsa_common.cl) are read row by row and
+// dequantized to half in registers, so the dpas operands are identical to the f16 ones; the 2D block path is f16 only.
+//
 // JIT: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE, QSA_COMPRESS_RATIO, QSA_BLOCK_TOPK, QSA_SCALE,
-//      QSA_IS_CAUSAL, QSA_ADDRESS_MODE, SUBGROUP_SIZE, (split) QSA_GQA_SPLIT, QSA_SPLIT_PARTITIONS, (paged) QSA_PAGE_SIZE
+//      QSA_IS_CAUSAL, QSA_ADDRESS_MODE, SUBGROUP_SIZE, (split) QSA_GQA_SPLIT, QSA_SPLIT_PARTITIONS, (paged) QSA_PAGE_SIZE,
+//      QSA_{K,V}_{MODE,BITS,SYM,GROUP,ROW_BYTES,PAGE_BYTES,PARAM_OFFSET}, (dense) QSA_DENSE_QUANT
 // Dispatch: gws = [tokens * 4 * SG, QSA_KV_HEADS, P (split) | 1], lws = [4 * SG, 1, 1]
 
 #define QSA_XMX_WORKERS 4
@@ -71,15 +75,34 @@
 #define GQA_I8(t, o) as_int8((uint8)((t)[(o) + 0], (t)[(o) + 1], (t)[(o) + 2], (t)[(o) + 3], (t)[(o) + 4], (t)[(o) + 5], (t)[(o) + 6], (t)[(o) + 7]))
 
 // K of one step as A operands: ka[k][h] holds rows 8h..8h+7 (element) x columns worker * XDH + 16 k + lane.
-inline void FUNC(gqa_load_k)(const __global half* key_cache,
+// Quantized K: `koff` is the byte offset of this lane's row and `kpar` its parameter locator (see QSA_DEQ_K).
+inline void FUNC(gqa_load_k)(QSA_QP_DECL const __global QSA_KC_T* key_cache,
                              const uint koff,
+                             const uint kpar,
                              const uint valid_kv,
                              const bool contiguous,
                              const uint worker,
                              __private short8 (*ka)[2]) {
     const int row_bytes = QSA_K_HEAD_SIZE * 2;
     const uint x0 = worker * QSA_XDH;
-#if GQA_2D
+#if QSA_K_QUANT
+    {
+        unroll_for (uint i = 0; i < 16; i++) {
+            const uint ro = sub_group_broadcast(koff, i);
+            const uint po = sub_group_broadcast(kpar, i);
+            float x[QSA_XKT];
+            unroll_for (uint k = 0; k < QSA_XKT; k++) {
+                x[k] = 0.0f;
+            }
+            if (i < valid_kv) {
+                QSA_LOAD_K_COLS(ro, po, x0, x, QSA_XKT);
+            }
+            unroll_for (uint k = 0; k < QSA_XKT; k++) {
+                ka[k][i / 8][i % 8] = as_short(convert_half_rte(x[k]));
+            }
+        }
+    }
+#elif GQA_2D
     {
         if (contiguous) {
             const __global half* base = key_cache + sub_group_broadcast(koff, 0);
@@ -132,15 +155,39 @@ inline void FUNC(gqa_load_k)(const __global half* key_cache,
 }
 
 // V of one step as VNNI B operands: vb[t] element j packs rows 2j, 2j+1 of column worker * XDV + 16 t + lane.
-inline void FUNC(gqa_load_v)(const __global half* value_cache,
+inline void FUNC(gqa_load_v)(QSA_QP_DECL const __global QSA_VC_T* value_cache,
                              const uint voff,
+                             const uint vpar,
                              const uint valid_kv,
                              const bool contiguous,
                              const uint worker,
                              __private int8* vb) {
     const int row_bytes = QSA_V_HEAD_SIZE * 2;
     const uint x0 = worker * QSA_XDV;
-#if GQA_2D
+#if QSA_V_QUANT
+    {
+        unroll_for (uint i = 0; i < 16; i += 2) {
+            const uint ro0 = sub_group_broadcast(voff, i);
+            const uint ro1 = sub_group_broadcast(voff, i + 1);
+            const uint po0 = sub_group_broadcast(vpar, i);
+            const uint po1 = sub_group_broadcast(vpar, i + 1);
+            float v0[GQA_VT], v1[GQA_VT];
+            unroll_for (uint t = 0; t < GQA_VT; t++) {
+                v0[t] = 0.0f;
+                v1[t] = 0.0f;
+            }
+            if (i < valid_kv) {
+                QSA_LOAD_V_COLS(ro0, po0, x0, v0, GQA_VT);
+            }
+            if (i + 1 < valid_kv) {
+                QSA_LOAD_V_COLS(ro1, po1, x0, v1, GQA_VT);
+            }
+            unroll_for (uint t = 0; t < GQA_VT; t++) {
+                vb[t][i / 2] = (int)((uint)as_ushort(convert_half_rte(v0[t])) | ((uint)as_ushort(convert_half_rte(v1[t])) << 16));
+            }
+        }
+    }
+#elif GQA_2D
     {
         if (contiguous) {
             const __global half* base = value_cache + sub_group_broadcast(voff, 0);
@@ -198,12 +245,15 @@ inline void FUNC(gqa_load_v)(const __global half* value_cache,
 
 // One KV step of the online softmax for this worker: QK partials summed over the workers through `slm_st`, softmax
 // with a lazy rescale, P^T through the worker's `slm_p` tile, then PV into ro.
-inline void FUNC(gqa_step)(const __global half* key_cache,
-                           const __global half* value_cache,
+inline void FUNC(gqa_step)(QSA_QP_DECL const __global QSA_KC_T* key_cache,
+                           const __global QSA_VC_T* value_cache,
                            const uint koff,
                            const uint voff,
+                           const uint kpar,
+                           const uint vpar,
                            const uint valid_kv,
-                           const bool contiguous,
+                           const bool kcont,
+                           const bool vcont,
                            const uint worker,
                            __private const int8* rq,
                            __local float* slm_st,  // [W][2][8][SG] of the current slot
@@ -213,10 +263,10 @@ inline void FUNC(gqa_step)(const __global half* key_cache,
                            __private float8 (*ro)[GQA_VT]) {
     const uint lane = get_sub_group_local_id();
     short8 ka[QSA_XKT][2];
-    FUNC_CALL(gqa_load_k)(key_cache, koff, valid_kv, contiguous, worker, ka);
+    FUNC_CALL(gqa_load_k)(QSA_QP_ARGS key_cache, koff, kpar, valid_kv, kcont, worker, ka);
     // V is in flight during QK and the softmax.
     int8 vb[GQA_VT];
-    FUNC_CALL(gqa_load_v)(value_cache, voff, valid_kv, contiguous, worker, vb);
+    FUNC_CALL(gqa_load_v)(QSA_QP_ARGS value_cache, voff, vpar, valid_kv, vcont, worker, vb);
 
     // QK partial of this worker, summed over the workers in the fixed order 0..W-1 (bit-identical everywhere).
     float8 st0 = (float8)(0.0f);
@@ -313,6 +363,11 @@ KERNEL(sparse_attention_gqa_dpas)(QSA_ATT_INPUT_ARGS,
                                   const uint history_len,
                                   const uint k_pitch,
                                   const uint v_pitch
+#    if QSA_DENSE_QUANT
+                                  ,
+                                  const uint k_ppitch,
+                                  const uint v_ppitch
+#    endif
 #endif
 ) {
     const uint HQ = QSA_HEADS;
@@ -433,21 +488,39 @@ KERNEL(sparse_attention_gqa_dpas)(QSA_ATT_INPUT_ARGS,
 
         const bool lv = cur_lv;
         const uint pos = cur_pos;
-        uint koff = 0, voff = 0;
+        uint koff = 0, voff = 0, kpar = 0, vpar = 0;
         if (lv) {
 #if QSA_ADDRESS_MODE == 0
+#    if QSA_K_QUANT
+            QSA_K_LOC(cur_page, pos % QSA_PAGE_SIZE, &koff, &kpar);
+#    else
             koff = FUNC_CALL(qsa_kv_cache_offset)(cur_page, kv_head, pos % QSA_PAGE_SIZE, HKV, QSA_PAGE_SIZE, DH);
+#    endif
+#    if QSA_V_QUANT
+            QSA_V_LOC(cur_page, pos % QSA_PAGE_SIZE, &voff, &vpar);
+#    else
             voff = FUNC_CALL(qsa_kv_cache_offset)(cur_page, kv_head, pos % QSA_PAGE_SIZE, HKV, QSA_PAGE_SIZE, DV);
+#    endif
 #else
             koff = QSA_KROW(pos);
             voff = QSA_VROW(pos);
+#    if QSA_DENSE_QUANT
+            kpar = QSA_KPAR(pos);
+            vpar = QSA_VPAR(pos);
+#    endif
 #endif
         }
         const uint valid_kv = sub_group_reduce_add(lv ? 1u : 0u);
-        const bool contiguous = valid_kv == 16 && sub_group_all(koff == sub_group_broadcast(koff, 0) + lane * DH) &&
-                                sub_group_all(voff == sub_group_broadcast(voff, 0) + lane * DV);
+        // A step read with one 2D message per operand needs ascending contiguous f16 rows.
+        bool kcont = false, vcont = false;
+#if !QSA_K_QUANT
+        kcont = valid_kv == 16 && sub_group_all(koff == sub_group_broadcast(koff, 0) + lane * DH);
+#endif
+#if !QSA_V_QUANT
+        vcont = valid_kv == 16 && sub_group_all(voff == sub_group_broadcast(voff, 0) + lane * DV);
+#endif
 
-        FUNC_CALL(gqa_step)(key_cache, value_cache, koff, voff, valid_kv, contiguous, worker, rq, &slm_st[step & 1][0][0][0][0],
+        FUNC_CALL(gqa_step)(QSA_QP_ARGS key_cache, value_cache, koff, voff, kpar, vpar, valid_kv, kcont, vcont, worker, rq, &slm_st[step & 1][0][0][0][0],
                             &slm_p[step & 1][worker][0], &running_max, &running_sum, ro);
         cur_lv = nlv;
         cur_pos = npos;

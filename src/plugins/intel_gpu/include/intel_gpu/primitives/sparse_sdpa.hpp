@@ -20,6 +20,15 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
 
     using InputIdx = ov::intel_gpu::op::SparseSDPA::InputIdx;
 
+    /// Primitive input positions of the compressed-KV parameters (the scale input is folded, so they
+    /// directly follow key_length): key_scale, value_scale, key_zp, value_zp.
+    struct CompressedIdx {
+        static constexpr size_t KEY_SCALE = 6;
+        static constexpr size_t VALUE_SCALE = 7;
+        static constexpr size_t KEY_ZP = 8;
+        static constexpr size_t VALUE_ZP = 9;
+    };
+
     sparse_sdpa() : primitive_base("", {}) {}
 
     sparse_sdpa(const primitive_id& id, const std::vector<input_info>& inputs, const ov::intel_gpu::op::SparseSDPA::Config& config, float resolved_scale)
@@ -32,7 +41,8 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
           key_block_size(config.key_block_size),
           query_block_size(config.query_block_size),
           causal(config.causal),
-          scale(resolved_scale) {}
+          scale(resolved_scale),
+          kv_compressed(config.kv_compressed) {}
 
     size_t num_heads = 0;
     size_t num_kv_heads = 0;
@@ -45,6 +55,7 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
     /// Resolved at lowering time: either the op's default (1/sqrt(k_head_size)) or a
     /// constant-folded value of the optional SCALE input.
     float scale = 0.0f;
+    bool kv_compressed = false;
 
     ov::intel_gpu::op::SparseSDPA::Config get_config() const {
         ov::intel_gpu::op::SparseSDPA::Config config;
@@ -56,6 +67,7 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
         config.key_block_size = key_block_size;
         config.query_block_size = query_block_size;
         config.causal = causal;
+        config.kv_compressed = kv_compressed;
         return config;
     }
 
@@ -70,6 +82,7 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
         seed = hash_combine(seed, query_block_size);
         seed = hash_combine(seed, causal);
         seed = hash_combine(seed, scale);
+        seed = hash_combine(seed, kv_compressed);
         return seed;
     }
 
@@ -79,17 +92,19 @@ struct sparse_sdpa : public primitive_base<sparse_sdpa> {
         auto r = downcast<const sparse_sdpa>(rhs);
         return num_heads == r.num_heads && num_kv_heads == r.num_kv_heads && num_selection_heads == r.num_selection_heads && k_head_size == r.k_head_size &&
                v_head_size == r.v_head_size && key_block_size == r.key_block_size && query_block_size == r.query_block_size && causal == r.causal &&
-               scale == r.scale;
+               scale == r.scale && kv_compressed == r.kv_compressed;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<sparse_sdpa>::save(ob);
-        ob << num_heads << num_kv_heads << num_selection_heads << k_head_size << v_head_size << key_block_size << query_block_size << causal << scale;
+        ob << num_heads << num_kv_heads << num_selection_heads << k_head_size << v_head_size << key_block_size << query_block_size << causal << scale
+           << kv_compressed;
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<sparse_sdpa>::load(ib);
-        ib >> num_heads >> num_kv_heads >> num_selection_heads >> k_head_size >> v_head_size >> key_block_size >> query_block_size >> causal >> scale;
+        ib >> num_heads >> num_kv_heads >> num_selection_heads >> k_head_size >> v_head_size >> key_block_size >> query_block_size >> causal >> scale >>
+            kv_compressed;
     }
 };
 

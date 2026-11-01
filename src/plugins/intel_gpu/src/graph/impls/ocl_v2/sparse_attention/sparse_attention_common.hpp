@@ -12,6 +12,8 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 #include "../primitive_ocl_base.hpp"
@@ -38,6 +40,8 @@ struct SparseAttentionRuntimeParams : public ImplRuntimeParams {
     size_t history_len = 0;
     size_t k_seq_pitch = 0;
     size_t v_seq_pitch = 0;
+    size_t k_param_pitch = 0;  ///< dense compressed K/V: allocated S of the key scale / zero point
+    size_t v_param_pitch = 0;  ///< dense compressed K/V: allocated S of the value scale / zero point
     size_t q_base = 0;
     size_t q_pitch = 0;
 };
@@ -57,11 +61,26 @@ struct SparseAttentionSlots {
     size_t selected_blocks = 0;
     size_t selected_count = 0;
     size_t key_length = 0;
+    /// Dense compressed K/V parameter inputs (key scale, value scale, key zero point, value zero point), in that order.
+    std::array<size_t, 4> kv_params = {0, 0, 0, 0};
 };
 
-inline std::optional<size_t> page_size_of(const SparseAttentionSlots& slots, const RuntimeParams& params) {
+template <class Desc, class = void>
+struct has_page_size : std::false_type {};
+template <class Desc>
+struct has_page_size<Desc, std::void_t<decltype(std::declval<const Desc&>().page_size)>> : std::true_type {};
+
+/// Tokens per physical page: the explicit attribute (quantized caches change the dim 2 of the cache), else dim 2 of an
+/// f16 key cache. Dense (non paged) primitives have none.
+template <class Desc>
+inline std::optional<size_t> page_size_of(const SparseAttentionSlots& slots, const RuntimeParams& params, const Desc& desc) {
     if (!slots.paged) {
         return std::nullopt;
+    }
+    if constexpr (has_page_size<Desc>::value) {
+        if (desc.page_size != 0) {
+            return desc.page_size;
+        }
     }
     const auto& ps = params.get_input_layout(slots.key).get_partial_shape();
     OPENVINO_ASSERT(ps.size() == 4 && ps[2].is_static(), "[GPU][OCL] sparse attention: key_cache must have a static page_size dim");
@@ -120,7 +139,7 @@ protected:
         const auto& sel_ps = params.get_input_layout(m_slots.selected_blocks).get_partial_shape();
         OPENVINO_ASSERT(sel_ps.rank().is_static() && sel_ps.size() >= 2 && sel_ps[sel_ps.size() - 1].is_static(),
                         "[GPU][OCL] sparse attention expects a rank>=2 selected_block_indices input with a static K_max");
-        const auto page = page_size_of(m_slots, params);
+        const auto page = page_size_of(m_slots, params, *desc);
 
         jit.make("QSA_HEADS", desc->num_heads);
         jit.make("QSA_KV_HEADS", desc->num_kv_heads);
@@ -132,6 +151,12 @@ protected:
         jit.add(float_constant("QSA_SCALE", desc->scale));
         if (page) {
             jit.make("QSA_PAGE_SIZE", *page);
+        }
+        if constexpr (has_page_size<Desc>::value) {
+            add_cache_jit(jit, "K", desc->key_quant, *page, desc->k_head_size);
+            add_cache_jit(jit, "V", desc->value_quant, *page, desc->v_head_size);
+        } else {
+            jit.make("QSA_DENSE_QUANT", desc->kv_compressed ? 1 : 0);
         }
         switch (m_kind) {
         case AttKind::Dpas:
@@ -159,7 +184,7 @@ protected:
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
         const auto input = [&](size_t idx) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(idx)});
@@ -186,6 +211,11 @@ protected:
                 input(m_slots.selected_blocks);
                 input(m_slots.selected_count);
                 input(m_slots.key_length);
+                if (dense_compressed(params)) {
+                    for (size_t idx : m_slots.kv_params) {
+                        input(idx);
+                    }
+                }
             }
             if (m_kind == AttKind::GqaSplit || m_kind == AttKind::Split) {
                 internal(SparseAttentionInternalBufIdx::SPLIT_ACC);
@@ -194,7 +224,7 @@ protected:
                 args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
             }
         }
-        const uint32_t scalars = m_kind == AttKind::Reduce ? (m_slots.paged ? 1 : 2) : (m_slots.paged ? 4 : 5);
+        const uint32_t scalars = m_kind == AttKind::Reduce ? (m_slots.paged ? 1 : 2) : (m_slots.paged ? 4 : (dense_compressed(params) ? 7 : 5));
         for (uint32_t i = 0; i < scalars; i++) {
             args.push_back({ArgumentDescriptor::Types::SCALAR, i});
         }
@@ -268,11 +298,24 @@ protected:
                 }
                 push_u32(kd, rtp->k_seq_pitch);
                 push_u32(kd, rtp->v_seq_pitch);
+                if constexpr (!has_page_size<Desc>::value) {
+                    if (desc->kv_compressed) {
+                        push_u32(kd, rtp->k_param_pitch);
+                        push_u32(kd, rtp->v_param_pitch);
+                    }
+                }
             }
         }};
     }
 
 private:
+    static bool dense_compressed(const RuntimeParams& params) {
+        if constexpr (has_page_size<Desc>::value) {
+            return false;
+        } else {
+            return params.typed_desc<Desc>()->kv_compressed;
+        }
+    }
     AttKind m_kind;
     SparseAttentionSlots m_slots;
 };

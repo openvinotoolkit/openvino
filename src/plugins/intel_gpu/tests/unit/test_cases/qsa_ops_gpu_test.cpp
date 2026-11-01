@@ -2163,7 +2163,7 @@ TEST(qsa_ops_gpu_test, qwen38_dense_attention_gqa_split_reads_padded_kv) {
 // history. KVCache pre-allocates ahead on the sequence axis, i.e. hands over padded K/V.
 // ---------------------------------------------------------------------------
 
-void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f) {
+void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f, bool compressed = false) {
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
@@ -2200,8 +2200,15 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
     auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attn)},
                                              sinks,
                                              ov::ParameterVector{query, key_new, value_new, sel, count, key_length});
-    auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(f16));
+    auto compiled =
+        core.compile_model(model, "GPU", ov::hint::inference_precision(f16), ov::hint::kv_cache_precision(compressed ? ov::element::i8 : ov::element::f16));
     auto request = compiled.create_infer_request();
+    if (compressed) {
+        // A compressed state cannot be read back as f16, which tells that KVCacheCompression took the K/V caches.
+        for (auto& state : request.query_state()) {
+            EXPECT_ANY_THROW(state.get_state());
+        }
+    }
 
     tests::random_generator rg(GET_SUITE_NAME);
     split_reference ref;
@@ -2255,6 +2262,12 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
         const auto stats = compute_error_stats(gpu, expected);
         print_error_stats("kv_cache_model_attention", stats);
         ASSERT_EQ(stats.non_finite, 0u);
+        if (compressed) {
+            // Per-token i8 K/V with integer zero points: judge the mean error against one quantization step of the
+            // [-1, 1] inputs, since short histories average the outputs towards zero and inflate relative errors.
+            ASSERT_LT(stats.mean_abs, 2.0 / 255.0) << "compressed K/V deviates from the f16 reference";
+            continue;
+        }
         size_t mismatches = 0;
         for (size_t i = 0; i < expected.size(); i++) {
             if (std::fabs(gpu[i] - expected[i]) > atol + rtol * std::fabs(expected[i]) && mismatches++ < 8) {
@@ -2267,6 +2280,14 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
 
 TEST(qsa_ops_gpu_test, sparse_sdpa_reads_kv_cache_across_infer_calls) {
     run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1, 1}, 2e-3f);
+}
+
+TEST(qsa_ops_gpu_test, sparse_sdpa_reads_compressed_kv_cache_across_infer_calls) {
+    run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1, 1}, 0.0f, 0.0f, true);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_sparse_sdpa_reads_compressed_kv_cache_across_infer_calls) {
+    run_sparse_sdpa_kv_cache_model_test(qwen38_dims(), {37, 1, 1, 9, 1}, 0.0f, 0.0f, true);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_sparse_sdpa_reads_kv_cache_across_infer_calls) {

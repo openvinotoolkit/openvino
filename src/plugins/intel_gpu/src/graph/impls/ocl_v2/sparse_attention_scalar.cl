@@ -10,7 +10,9 @@
 // online softmax over all of them.
 //
 // JIT: QSA_HEADS, QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE, QSA_COMPRESS_RATIO, QSA_BLOCK_TOPK, QSA_SCALE,
-//      QSA_ADDRESS_MODE, SUBGROUP_SIZE and (paged) QSA_PAGE_SIZE
+//      QSA_ADDRESS_MODE, SUBGROUP_SIZE and (paged) QSA_PAGE_SIZE, QSA_{K,V}_{MODE,BITS,SYM,GROUP,ROW_BYTES,PAGE_BYTES,
+//      PARAM_OFFSET}; (dense) QSA_DENSE_QUANT for i8 K/V with per-token scale / zero point
+// Quantized rows are dequantized to f32 on load; f16 rows go through the subgroup block reads.
 // Dispatch: gws = [QSA_HEADS * SG, num_tokens (paged) | B*L (dense), 1], lws = [SG, 1, 1]
 
 #define QSA_ATTENTION_HELPERS
@@ -30,6 +32,11 @@ KERNEL(sparse_attention_scalar)(QSA_ATT_INPUT_ARGS,
                                 const uint num_rows,
                                 const uint k_pitch,
                                 const uint v_pitch
+#    if QSA_DENSE_QUANT
+                                ,
+                                const uint k_ppitch,
+                                const uint v_ppitch
+#    endif
 #endif
 ) {
     const uint HQ = QSA_HEADS;
@@ -96,17 +103,33 @@ KERNEL(sparse_attention_scalar)(QSA_ATT_INPUT_ARGS,
             continue;
         }
         const uint pos0 = (uint)b * R;
+#if QSA_ANY_QUANT
+        unroll_for (uint s = 0; s < R; s++) {
+            float kf[QSA_NEK], vf[QSA_NEV];
+            QSA_LOAD_K(kf, pos0 + s);
+            QSA_LOAD_V(vf, pos0 + s);
+            FUNC_CALL(qsa_scalar_attend_vals)(kf, vf, q, acc, &running_max, &running_sum);
+        }
+#else
         const uint kbase = QSA_KROW(pos0);
         const uint vbase = QSA_VROW(pos0);
         unroll_for (uint s = 0; s < R; s++) {
             FUNC_CALL(qsa_scalar_attend)(key_cache + kbase + s * DH, value_cache + vbase + s * DV, q, acc, &running_max, &running_sum);
         }
+#endif
     }
 
     if (has_tail) {
         const uint tail_begin = FUNC_CALL(qsa_num_complete_blocks)(abs_pos) * R;
         for (uint p = tail_begin; p <= abs_pos; p++) {
+#if QSA_ANY_QUANT
+            float kf[QSA_NEK], vf[QSA_NEV];
+            QSA_LOAD_K(kf, p);
+            QSA_LOAD_V(vf, p);
+            FUNC_CALL(qsa_scalar_attend_vals)(kf, vf, q, acc, &running_max, &running_sum);
+#else
             FUNC_CALL(qsa_scalar_attend)(key_cache + QSA_KROW(p), value_cache + QSA_VROW(p), q, acc, &running_max, &running_sum);
+#endif
         }
     }
 

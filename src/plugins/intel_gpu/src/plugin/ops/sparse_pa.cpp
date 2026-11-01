@@ -28,13 +28,25 @@ static void CreateSparsePAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::in
                     layer_name,
                     "': only num_selection_heads == 1 is supported, got ",
                     op->get_config().num_selection_heads);
-    for (size_t idx : {In::QUERY, In::KEY, In::VALUE, In::KEY_CACHE, In::VALUE_CACHE}) {
+    for (size_t idx : {In::QUERY, In::KEY, In::VALUE}) {
         OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,
                         "[GPU] SparsePA '",
                         layer_name,
                         "': input ",
                         idx,
                         " must be f16, got ",
+                        op->get_input_element_type(idx));
+    }
+    for (auto [idx, quant] : {std::pair{In::KEY_CACHE, op->get_config().key_quant}, std::pair{In::VALUE_CACHE, op->get_config().value_quant}}) {
+        const auto expected = quant.enabled() ? ov::element::u8 : ov::element::f16;
+        OPENVINO_ASSERT(op->get_input_element_type(idx) == expected,
+                        "[GPU] SparsePA '",
+                        layer_name,
+                        "': input ",
+                        idx,
+                        " must be ",
+                        expected,
+                        ", got ",
                         op->get_input_element_type(idx));
     }
 

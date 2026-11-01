@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <string>
 
+#include "intel_gpu/op/sparse_kv_quant.hpp"
 #include "openvino/op/paged_sparse_attention.hpp"
 
 namespace ov::intel_gpu::op {
@@ -25,8 +26,8 @@ public:
         static constexpr size_t QUERY = 0;                   ///< [tokens, num_heads*k_head_size]
         static constexpr size_t KEY = 1;                     ///< [tokens, num_kv_heads*k_head_size], current step
         static constexpr size_t VALUE = 2;                   ///< [tokens, num_kv_heads*v_head_size], current step
-        static constexpr size_t KEY_CACHE = 3;               ///< [num_blocks, num_kv_heads, page_size, k_head_size], writable
-        static constexpr size_t VALUE_CACHE = 4;             ///< [num_blocks, num_kv_heads, page_size, v_head_size], writable
+        static constexpr size_t KEY_CACHE = 3;               ///< [num_blocks, num_kv_heads, page_size, k_head_size], writable (u8 pages when quantized)
+        static constexpr size_t VALUE_CACHE = 4;             ///< [num_blocks, num_kv_heads, page_size, v_head_size], writable (u8 pages when quantized)
         static constexpr size_t PAST_LENS = 5;               ///< [num_sequences]
         static constexpr size_t SUBSEQUENCE_BEGINS = 6;      ///< [num_sequences+1]
         static constexpr size_t BLOCK_INDICES = 7;           ///< [total_logical_blocks]
@@ -48,6 +49,13 @@ public:
         size_t key_block_size = 0;    ///< must divide the page size
         size_t query_block_size = 1;  ///< only 1 is implemented
         bool causal = true;
+        size_t page_size = 0;   ///< tokens per page; 0 = taken from key_cache dim 2 (f16 caches only)
+        KVQuant key_quant{};    ///< quantization of the key cache
+        KVQuant value_quant{};  ///< quantization of the value cache
+
+        bool kv_quantized() const {
+            return key_quant.enabled() || value_quant.enabled();
+        }
     };
 
     SparsePA() = default;

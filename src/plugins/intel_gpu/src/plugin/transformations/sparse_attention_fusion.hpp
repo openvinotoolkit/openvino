@@ -4,9 +4,20 @@
 
 #pragma once
 
+#include "intel_gpu/op/sparse_kv_quant.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov::intel_gpu {
+
+/// Quantization requested for the QSA main KV caches of `PagedSparseAttention`.
+struct KVCacheQuantConfig {
+    op::KVQuant key{};
+    op::KVQuant value{};
+
+    bool enabled() const {
+        return key.enabled() || value.enabled();
+    }
+};
 
 /// rt_info key on a model input whose tensor the device mutates in place. Such inputs
 /// must be bound to a same-context RemoteTensor/USM host tensor of the port's exact
@@ -49,14 +60,14 @@ public:
 class PagedSparseAttentionConversion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PagedSparseAttentionConversion");
-    PagedSparseAttentionConversion();
+    explicit PagedSparseAttentionConversion(const KVCacheQuantConfig& quant = {});
 };
 
 /// @brief All Qwen Sparse Attention conversions of the public ops to GPU plugin ops.
 class SparseAttentionFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("SparseAttentionFusion");
-    SparseAttentionFusion();
+    explicit SparseAttentionFusion(const KVCacheQuantConfig& quant = {});
 };
 
 }  // namespace ov::intel_gpu

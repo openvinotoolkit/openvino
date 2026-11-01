@@ -32,13 +32,17 @@ static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::inte
                     layer_name,
                     "': only num_selection_heads == 1 is supported, got ",
                     op->get_config().num_selection_heads);
+    const bool compressed = op->get_config().kv_compressed;
     for (size_t idx : {In::QUERY, In::KEY, In::VALUE}) {
-        OPENVINO_ASSERT(op->get_input_element_type(idx) == ov::element::f16,
+        const auto expected = compressed && idx != In::QUERY ? ov::element::i8 : ov::element::f16;
+        OPENVINO_ASSERT(op->get_input_element_type(idx) == expected,
                         "[GPU] SparseSDPA '",
                         layer_name,
                         "': input ",
                         idx,
-                        " must be f16, got ",
+                        " must be ",
+                        expected,
+                        ", got ",
                         op->get_input_element_type(idx));
     }
 
@@ -50,7 +54,11 @@ static void CreateSparseSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::inte
     }
 
     auto full_inputs = p.GetInputInfo(op);
-    const std::vector<cldnn::input_info> inputs(full_inputs.begin(), full_inputs.begin() + In::KEY_LENGTH + 1);
+    std::vector<cldnn::input_info> inputs(full_inputs.begin(), full_inputs.begin() + In::KEY_LENGTH + 1);
+    if (compressed) {
+        // key_scale, value_scale, key_zp, value_zp follow key_length (the scale input is folded).
+        inputs.insert(inputs.end(), full_inputs.begin() + In::KEY_SCALE, full_inputs.begin() + In::COUNT_COMPRESSED);
+    }
 
     cldnn::sparse_sdpa prim(layer_name, inputs, op->get_config(), resolved_scale);
     prim.output_data_types = get_output_data_types(op);

@@ -26,19 +26,29 @@ bool SparseSDPA::validate_config(const Config& c, std::string& reason) {
 
 bool SparseSDPA::visit_attributes(ov::AttributeVisitor& visitor) {
     visit_sparse_attention_config(visitor, m_config);
+    visitor.on_attribute("kv_compressed", m_config.kv_compressed);
     visitor.on_attribute("output_type", m_output_type);
     return true;
 }
 
 void SparseSDPA::validate_and_infer_types() {
-    NODE_VALIDATION_CHECK(this,
-                          get_input_size() >= InputIdx::COUNT_MIN && get_input_size() <= InputIdx::COUNT_MAX,
-                          "SparseSDPA expects ",
-                          InputIdx::COUNT_MIN,
-                          "..",
-                          InputIdx::COUNT_MAX,
-                          " inputs, got ",
-                          get_input_size());
+    if (m_config.kv_compressed) {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_size() == InputIdx::COUNT_COMPRESSED,
+                              "A compressed SparseSDPA expects ",
+                              InputIdx::COUNT_COMPRESSED,
+                              " inputs, got ",
+                              get_input_size());
+    } else {
+        NODE_VALIDATION_CHECK(this,
+                              get_input_size() >= InputIdx::COUNT_MIN && get_input_size() <= InputIdx::COUNT_MAX,
+                              "SparseSDPA expects ",
+                              InputIdx::COUNT_MIN,
+                              "..",
+                              InputIdx::COUNT_MAX,
+                              " inputs, got ",
+                              get_input_size());
+    }
 
     std::string reason;
     NODE_VALIDATION_CHECK(this, validate_config(m_config, reason), "SparseSDPA configuration is invalid: ", reason);
@@ -74,7 +84,25 @@ void SparseSDPA::validate_and_infer_types() {
     const auto k_max = dim_at(get_input_partial_shape(InputIdx::SELECTED_BLOCK_INDICES), 3);
     check_shape(this, InputIdx::SELECTED_BLOCK_INDICES, "selected_block_indices", ov::PartialShape{batch, sel, q_len, k_max});
     check_shape(this, InputIdx::SELECTED_BLOCK_COUNT, "selected_block_count", ov::PartialShape{batch, sel, q_len});
-    check_float_inputs(this, {InputIdx::QUERY, InputIdx::KEY, InputIdx::VALUE});
+    check_float_inputs(this,
+                       m_config.kv_compressed ? std::initializer_list<size_t>{InputIdx::QUERY}
+                                              : std::initializer_list<size_t>{InputIdx::QUERY, InputIdx::KEY, InputIdx::VALUE});
+    if (m_config.kv_compressed) {
+        for (size_t idx : {InputIdx::KEY, InputIdx::VALUE}) {
+            const auto& et = get_input_element_type(idx);
+            NODE_VALIDATION_CHECK(this, et.is_dynamic() || et == element::i8, "A compressed SparseSDPA expects i8 key/value inputs, got ", et);
+        }
+        for (size_t idx : {InputIdx::KEY_SCALE, InputIdx::VALUE_SCALE}) {
+            const auto& et = get_input_element_type(idx);
+            NODE_VALIDATION_CHECK(this, et.is_dynamic() || et == element::f16, "A compressed SparseSDPA expects f16 scale inputs, got ", et);
+            check_shape(this, idx, "scale", ov::PartialShape{batch, hkv, seq, 1});
+        }
+        for (size_t idx : {InputIdx::KEY_ZP, InputIdx::VALUE_ZP}) {
+            const auto& et = get_input_element_type(idx);
+            NODE_VALIDATION_CHECK(this, et.is_dynamic() || et == element::i8, "A compressed SparseSDPA expects i8 zero-point inputs, got ", et);
+            check_shape(this, idx, "zero point", ov::PartialShape{batch, hkv, seq, 1});
+        }
+    }
     if (has_scale_input()) {
         const auto& scale_ps = get_input_partial_shape(InputIdx::SCALE);
         NODE_VALIDATION_CHECK(this,

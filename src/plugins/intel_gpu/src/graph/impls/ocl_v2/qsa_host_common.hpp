@@ -18,6 +18,7 @@
 
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/op/sparse_kv_quant.hpp"
 #include "intel_gpu/runtime/device_info.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 #include "openvino/core/except.hpp"
@@ -65,6 +66,20 @@ inline void push_u32(KernelData& kd, size_t value) {
     s.t = cldnn::scalar_desc::Types::UINT32;
     s.v.u32 = static_cast<uint32_t>(value);
     kd.params.scalars.push_back(s);
+}
+
+/// JIT description of one paged main-KV cache (`cache` is "K" or "V"): QSA_<cache>_{MODE,BITS,SYM,GROUP,ROW_BYTES,
+/// PAGE_BYTES,PARAM_OFFSET}. An f16 cache has MODE 0.
+inline void add_cache_jit(JitConstants& jit, const std::string& cache, const ov::intel_gpu::op::KVQuant& quant, size_t page_size, size_t head_size) {
+    const auto layout = ov::intel_gpu::op::kv_page_layout(quant, page_size, head_size);
+    const std::string prefix = "QSA_" + cache + "_";
+    jit.make(prefix + "MODE", static_cast<int>(quant.mode));
+    jit.make(prefix + "BITS", quant.enabled() ? static_cast<int>(quant.bits) : 16);
+    jit.make(prefix + "SYM", quant.symmetric ? 1 : 0);
+    jit.make(prefix + "GROUP", std::max<int>(1, static_cast<int>(quant.group_size)));
+    jit.make(prefix + "ROW_BYTES", layout.row_bytes);
+    jit.make(prefix + "PAGE_BYTES", layout.page_bytes);
+    jit.make(prefix + "PARAM_OFFSET", layout.param_offset);
 }
 
 /// Upper bound on the decode BLOCK_SCORES scratch. Debug builds can shrink it through OV_GPU_QSA_SCORE_BUDGET_BYTES

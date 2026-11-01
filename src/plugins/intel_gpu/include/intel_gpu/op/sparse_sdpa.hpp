@@ -35,9 +35,16 @@ public:
         static constexpr size_t KEY_LENGTH = 5;              ///< [B] i32, valid keys per batch row
         static constexpr size_t SCALE = 6;                   ///< optional scalar or 1-element tensor
         static constexpr size_t SINKS = 7;                   ///< optional [num_heads], requires SCALE
+        /// With `Config::kv_compressed` the node has exactly COUNT_COMPRESSED inputs: SCALE is mandatory, there are
+        /// no sinks, KEY/VALUE are i8 and the per-token parameters follow (KVCacheCompressed planar layout).
+        static constexpr size_t KEY_SCALE = 7;    ///< [B, Hkv, S, 1] f16
+        static constexpr size_t VALUE_SCALE = 8;  ///< [B, Hkv, S, 1] f16
+        static constexpr size_t KEY_ZP = 9;       ///< [B, Hkv, S, 1] i8
+        static constexpr size_t VALUE_ZP = 10;    ///< [B, Hkv, S, 1] i8
 
         static constexpr size_t COUNT_MIN = 6;
         static constexpr size_t COUNT_MAX = 8;
+        static constexpr size_t COUNT_COMPRESSED = 11;
     };
 
     struct Config {
@@ -49,6 +56,7 @@ public:
         size_t key_block_size = 0;    ///< matches producer's key_block_size
         size_t query_block_size = 1;  ///< v1 fixed at 1
         bool causal = true;
+        bool kv_compressed = false;  ///< KEY/VALUE are i8 with per-token scale/zero-point inputs (asymmetric: x = (q - zp) * scale)
     };
 
     SparseSDPA() = default;
@@ -69,7 +77,7 @@ public:
         return get_input_size() >= InputIdx::SCALE + 1;
     }
     bool has_sinks() const {
-        return get_input_size() >= InputIdx::SINKS + 1;
+        return !m_config.kv_compressed && get_input_size() >= InputIdx::SINKS + 1;
     }
 
     static bool validate_config(const Config& config, std::string& reason);
