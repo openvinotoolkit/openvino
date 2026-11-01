@@ -179,6 +179,7 @@ bool match_query_side(const ov::Output<ov::Node>& index_query,
     // Partial rotary: Concat(RoPE(x[..., :Dr]), x[..., Dr:]); full-width rotary: RoPE(x).
     ov::Output<ov::Node> x;
     std::shared_ptr<ov::op::internal::RoPE> rope;
+    bool partial = false;
     if (auto concat = ov::as_type_ptr<ov::op::v0::Concat>(cur.get_node_shared_ptr())) {
         if (concat->get_input_size() != 2 || !is_last_axis(concat->get_axis(), 4)) {
             return false;
@@ -192,6 +193,7 @@ bool match_query_side(const ov::Output<ov::Node>& index_query,
             return false;
         }
         x = rotated_src;
+        partial = true;
     } else {
         rope = ov::as_type_ptr<ov::op::internal::RoPE>(cur.get_node_shared_ptr());
         if (!rope) {
@@ -199,7 +201,16 @@ bool match_query_side(const ov::Output<ov::Node>& index_query,
         }
         x = rope->input_value(0);
     }
-    if (rope->get_input_size() != 3 || !ov::op::internal::is_plain_rotate_half(rope->get_config()) || rope->get_config().rotary_ndims != dr) {
+    auto rope_config = rope->get_config();
+    // RoPEFusion folds a leading [N, L, H, D] -> [N, H, L, D] Transpose into the RoPE, so the norm input is already [N, L, H, D].
+    if (rope_config.input_trans0213) {
+        if (partial || blhd) {
+            return false;
+        }
+        blhd = true;
+        rope_config.input_trans0213 = false;
+    }
+    if (rope->get_input_size() != 3 || !ov::op::internal::is_plain_rotate_half(rope_config) || rope_config.rotary_ndims != dr) {
         return false;
     }
     // The query rotates with the very cos/sin the block keys are rotated with.
@@ -214,6 +225,9 @@ bool match_query_side(const ov::Output<ov::Node>& index_query,
     if (auto fused = ov::as_type_ptr<ov::op::internal::RMS>(norm.get_node_shared_ptr()); fused && fused->get_input_size() == 2) {
         rms = fused;
         gain = fused->input_value(1);
+    } else if (auto bare = ov::as_type_ptr<ov::op::internal::RMS>(norm.get_node_shared_ptr()); bare && bare->get_input_size() == 1) {
+        // A gain of ones is folded away before this pass runs.
+        rms = bare;
     } else if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(norm.get_node_shared_ptr())) {
         for (size_t i = 0; i < 2 && !rms; i++) {
             auto candidate = ov::as_type_ptr<ov::op::internal::RMS>(strip_converts(mul->input_value(i)).get_node_shared_ptr());
@@ -226,7 +240,8 @@ bool match_query_side(const ov::Output<ov::Node>& index_query,
     if (!rms || !is_last_axis(rms->get_axis(), 4)) {
         return false;
     }
-    auto gain_const = ov::util::get_constant_from_source(gain);
+    auto gain_const = gain.get_node() ? ov::util::get_constant_from_source(gain)
+                                      : ov::op::v0::Constant::create(ov::element::f32, ov::Shape{di}, std::vector<float>(di, 1.0f));
     if (!gain_const || ov::shape_size(gain_const->get_shape()) != di) {
         return false;
     }

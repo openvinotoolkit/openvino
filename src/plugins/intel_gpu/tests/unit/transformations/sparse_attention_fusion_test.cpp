@@ -152,6 +152,8 @@ struct dense_options {
     query_form query = query_form::full_rope;
     bool query_blhd = true;       // RoPE output goes through the [N, L, H, D] -> [N, H, L, D] Transpose
     bool same_query_rope = true;  // the query rotates with the QSAPrepare cos/sin
+    bool rope_input_transpose = false;  // RoPEFusion folded the [N, L, H, D] -> [N, H, L, D] Transpose into the RoPE
+    bool gain_folded = false;           // the RMSNorm gain of ones was folded away
     double query_eps = eps;
 };
 
@@ -174,14 +176,15 @@ ov::Output<ov::Node> build_index_query(const dense_options& o,
         return raw;
     }
     auto gain = ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(Di)}, std::vector<float>(Di, query_gain));
-    auto norm = std::make_shared<ov::op::internal::RMS>(raw, gain, o.query_eps);
+    std::shared_ptr<ov::Node> norm =
+        o.gain_folded ? std::make_shared<ov::op::internal::RMS>(raw, o.query_eps) : std::make_shared<ov::op::internal::RMS>(raw, gain, o.query_eps);
 
     ov::Output<ov::Node> rope_cos = cos, rope_sin = sin;
     if (!o.same_query_rope) {
         rope_cos = param({1, -1, Dr}, et);
         rope_sin = param({1, -1, Dr}, et);
     }
-    const int64_t head_axis = o.query_blhd ? 2 : 1;
+    const int64_t head_axis = o.query_blhd && !o.rope_input_transpose ? 2 : 1;
     auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {head_axis});
     auto cos_u = std::make_shared<ov::op::v0::Unsqueeze>(rope_cos, axis);
     auto sin_u = std::make_shared<ov::op::v0::Unsqueeze>(rope_sin, axis);
@@ -191,6 +194,7 @@ ov::Output<ov::Node> build_index_query(const dense_options& o,
     rope_cfg.cos_sin_ndims = Dr;
     rope_cfg.head_cnt = Hi;
     rope_cfg.head_size = Di;
+    rope_cfg.input_trans0213 = o.rope_input_transpose;
 
     auto i64 = [](std::vector<int64_t> v) {
         return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
@@ -204,7 +208,7 @@ ov::Output<ov::Node> build_index_query(const dense_options& o,
     } else {
         rotated = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{norm, cos_u, sin_u}, rope_cfg);
     }
-    if (!o.query_blhd) {
+    if (!o.query_blhd || o.rope_input_transpose) {
         return rotated;
     }
     return std::make_shared<ov::op::v1::Transpose>(rotated, i64({0, 2, 1, 3}));
@@ -318,7 +322,41 @@ TEST(sparse_attention_fusion, qsa_indexer_fusion_transposes_heads_first_query) {
     EXPECT_EQ(fused->get_input_partial_shape(op::QSAIndexer::InputIdx::INDEX_QUERY), (ov::PartialShape{1, -1, Hi, Di}));
 }
 
+TEST(sparse_attention_fusion, qsa_indexer_fusion_folds_a_rope_input_transpose) {
+    dense_options o;
+    o.rope_input_transpose = true;
+    auto g = build_dense_indexer_graph(o);
+    run_fusion(g.built.model);
+
+    ASSERT_EQ(count_exact<op::QSAIndexer>(g.built.model), 1u);
+    auto fused = find_exact<op::QSAIndexer>(g.built.model);
+    EXPECT_EQ(fused->get_input_node_shared_ptr(op::QSAIndexer::InputIdx::INDEX_QUERY), g.raw_query);
+    EXPECT_EQ(count_exact<ov::op::internal::RoPE>(g.built.model), 0u);
+}
+
+TEST(sparse_attention_fusion, qsa_indexer_fusion_accepts_a_query_norm_without_gain) {
+    dense_options o;
+    o.gain_folded = true;
+    auto g = build_dense_indexer_graph(o);
+    run_fusion(g.built.model);
+
+    ASSERT_EQ(count_exact<op::QSAIndexer>(g.built.model), 1u);
+    auto q_norm =
+        ov::as_type_ptr<ov::op::v0::Constant>(find_exact<op::QSAIndexer>(g.built.model)->get_input_node_shared_ptr(op::QSAIndexer::InputIdx::Q_NORM_WEIGHT));
+    ASSERT_NE(q_norm, nullptr);
+    EXPECT_EQ(q_norm->cast_vector<float>(), std::vector<float>(Di, 1.0f));
+    EXPECT_EQ(count_exact<ov::op::internal::RMS>(g.built.model), 0u);
+}
+
 TEST(sparse_attention_fusion, qsa_indexer_fusion_bails_out_without_matching_query_side) {
+    {
+        dense_options o;
+        o.query = query_form::sliced_rope;
+        o.rope_input_transpose = true;  // the slices of a partial rotary are not laid out like the transposed RoPE input
+        auto g = build_dense_indexer_graph(o);
+        run_fusion(g.built.model);
+        EXPECT_EQ(count_exact<op::QSAIndexer>(g.built.model), 0u) << "partial rotary with a folded transpose";
+    }
     {
         dense_options o;
         o.query = query_form::bare;  // no RMSNorm/RoPE in front of the indexer
