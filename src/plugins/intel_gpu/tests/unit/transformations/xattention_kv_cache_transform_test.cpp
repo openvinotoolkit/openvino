@@ -528,8 +528,8 @@ TEST(PagedAttentionKCacheLayout, TokenMajorReadable) {
 #ifndef ENABLE_ONEDNN_FOR_GPU
     GTEST_SKIP() << "without oneDNN there is no sdpa_ocl MIXED stage, so the page is never token-major";
 #endif
-    if (!pa::sdpa_ocl_enabled() || !pa::sdpa_ocl_decode_enabled())
-        GTEST_SKIP() << "TEST_USE_SDPA_OCL / TEST_USE_SDPA_OCL_DECODE is off, so the page is never token-major";
+    if (!pa::sdpa_ocl_decode_enabled())
+        GTEST_SKIP() << "TEST_USE_SDPA_OCL_DECODE is off, so the page is never token-major";
     if (pa::k_token_major_switch() == pa::k_layout_switch::d_major)
         GTEST_SKIP() << "OV_GPU_PA_K_TOKEN_MAJOR=0 makes every page d-major";
 
@@ -630,7 +630,7 @@ TEST(PagedAttentionKCacheLayout, TokenMajorReadable) {
 
 // The parts of the layout rule that do not look at the ops: the device (k_token_major_device()), the page kinds
 // (k_token_major_kind()), and reading the layout back off the cache shape (k_cache_token_major()). Device-independent:
-// the device facts are synthetic; the expectation follows the process env (TEST_USE_SDPA_OCL*).
+// the device facts are synthetic; the expectation follows the process env (TEST_USE_SDPA_OCL_DECODE).
 TEST(PagedAttentionKCacheLayout, TokenMajorRule) {
     using pa = cldnn::paged_attention;
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -643,7 +643,7 @@ TEST(PagedAttentionKCacheLayout, TokenMajorRule) {
             cldnn::device_info info{};
             info.arch = arch;
             info.supports_immad = immad;
-            const bool lane = one_dnn && pa::sdpa_ocl_enabled() && pa::sdpa_ocl_decode_enabled() && immad && arch >= cldnn::gpu_arch::xe2;
+            const bool lane = one_dnn && pa::sdpa_ocl_decode_enabled() && immad && arch >= cldnn::gpu_arch::xe2;
             SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(arch) << " immad=" << immad);
             EXPECT_EQ(pa::k_token_major_device(info), lane);
         }

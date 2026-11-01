@@ -19,10 +19,10 @@ struct paged_attention_token_type_test_params : public paged_attention_test_para
 constexpr float token_type_tolerance = 1e-2f;
 
 // The kernel-name guard of the suites written for sdpa_ocl's MIXED bidirectional mask (the LOCAL/KEY coordinate shift,
-// the runtime emptiness gate); they skip where another kernel ran. sdpa_micro and paged_attention_opt.cl implement the
-// mask too, see the suites that pin lane_dpas_kernel(). Check what ACTUALLY ran instead of re-deriving the generator
-// choice -- that covers the sdpa_micro lane (pre-Xe2 XMX, TEST_USE_SDPA_OCL=0), non-immad devices and builds without
-// micro kernels in one place. Free function so both fixture instantiations can call it.
+// the runtime emptiness gate); they skip where another kernel ran. paged_attention_opt.cl implements the mask too, see
+// the suites that pin lane_dpas_kernel(). Check what ACTUALLY ran instead of re-deriving the generator choice -- that
+// covers devices off the sdpa_ocl lane, non-immad devices and builds without oneDNN in one place. Free function so both
+// fixture instantiations can call it.
 static bool ran_sdpa_ocl(const cldnn::network::ptr& network, std::string& entries_out) {
     auto pa_inst = network->get_primitive("paged_attention");
     EXPECT_NE(pa_inst, nullptr);
@@ -37,16 +37,9 @@ static bool ran_sdpa_ocl(const cldnn::network::ptr& network, std::string& entrie
 }
 
 // The DPAS kernel of the device's lane, which serves PREFILL and MIXED with token_type_ids like any other step: sdpa_ocl
-// on Xe2+ XMX (unless TEST_USE_SDPA_OCL=0), sdpa_micro on the other XMX parts. Empty where neither runs.
-static std::string lane_dpas_kernel(size_t k_head_size) {
-    switch (tests::expected_dpas_backend(tests::get_test_engine(), true, k_head_size, tests::pa_hpg_tiers(true))) {
-    case tests::dpas_backend::ocl:
-        return "sdpa_ocl";
-    case tests::dpas_backend::micro:
-        return "sdpa_micro";
-    default:
-        return "";
-    }
+// on its lane (Xe2+ XMX). Empty where it does not run.
+static std::string lane_dpas_kernel() {
+    return tests::expected_dpas_backend(tests::get_test_engine(), true, tests::pa_hpg_tiers(true)) == tests::dpas_backend::ocl ? "sdpa_ocl" : "";
 }
 
 class paged_attention_token_type_test : public PagedAttentionTest<paged_attention_token_type_test_params> {
@@ -273,37 +266,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_mixed,
                          get_token_type_mixed_test_name);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-// Verify that micro SDPA is used for PREFILL when token_type_ids is present,
+// Verify that the DPAS kernel (sdpa_ocl) is used for PREFILL when token_type_ids is present,
 // and produces correct results with bidirectional mask.
 class paged_attention_token_type_micro_sdpa_prefill_test : public paged_attention_token_type_test {};
 
 TEST_P(paged_attention_token_type_micro_sdpa_prefill_test, prefill_only) {
-    auto& engine = tests::get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+    if (lane_dpas_kernel().empty())
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     auto p = GetParam();
 
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
 
-    // Run micro SDPA path
     apply_token_type_test_data(pam, p, p.token_type_test_data);
     auto result = run_gpu_inference(pam, p);
 
-    // Verify micro SDPA kernel was actually executed
+    // Verify the DPAS kernel was actually executed
     auto pa_inst = result.network->get_primitive("paged_attention");
     ASSERT_NE(pa_inst, nullptr);
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    // Either DPAS prefill generator is acceptable: which one runs is the device's lane (sdpa_ocl on Xe2+ XMX
-    // unless TEST_USE_SDPA_OCL=0, sdpa_micro otherwise) and both implement the bidirectional mask.
     const auto entries = dump_info.get_entries();
-    EXPECT_TRUE(entries.find("sdpa_ocl") != std::string::npos || entries.find("sdpa_micro") != std::string::npos)
-        << "Expected a DPAS SDPA kernel for PREFILL with token_type_ids, got: " << entries;
+    EXPECT_TRUE(entries.find("sdpa_ocl") != std::string::npos) << "Expected a DPAS SDPA kernel for PREFILL with token_type_ids, got: " << entries;
 
-    // Compare micro SDPA output against golden data
+    // Compare the output against golden data
     cldnn::memory::ptr output_data_mem = result.outputs.at("output_data").get_memory();
     compare_token_type_output(output_data_mem, p.token_type_test_data.expectedOutput);
 }
@@ -346,9 +334,9 @@ class paged_attention_token_type_micro_sdpa_mixed_test : public paged_attention_
 
 TEST_P(paged_attention_token_type_micro_sdpa_mixed_test, mixed_stage) {
     auto p = GetParam();
-    const auto expected_kernel = lane_dpas_kernel(p.k_head_size);
+    const auto expected_kernel = lane_dpas_kernel();
     if (expected_kernel.empty())
-        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl / sdpa_micro) on this device";
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
@@ -454,9 +442,9 @@ class paged_attention_token_type_micro_sdpa_mixed_image_test : public paged_atte
 TEST_P(paged_attention_token_type_micro_sdpa_mixed_image_test, mixed_stage_with_image_in_chunk) {
     // Same as mixed_stage, but the chunk has image tokens.
     auto p = GetParam();
-    const auto expected_kernel = lane_dpas_kernel(p.k_head_size);
+    const auto expected_kernel = lane_dpas_kernel();
     if (expected_kernel.empty())
-        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl / sdpa_micro) on this device";
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
@@ -573,7 +561,7 @@ class paged_attention_token_type_mixed_multi_subsequence_test : public paged_att
 
 TEST_P(paged_attention_token_type_mixed_multi_subsequence_test, mixed_stage_two_subsequences) {
     auto p = GetParam();
-    const auto expected_kernel = lane_dpas_kernel(p.k_head_size);
+    const auto expected_kernel = lane_dpas_kernel();
 
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
@@ -665,7 +653,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_mixed_multi_subsequenc
                          get_mixed_multi_subsequence_test_name);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-// MIXED micro SDPA with token_type_ids at head size 64/128/256.
+// MIXED DPAS SDPA (sdpa_ocl) with token_type_ids at head size 64/128/256.
 //
 // The golden head size is 32. Repeating the head n times (q' = q / sqrt(n), k' = k, v' = v) keeps the scores,
 // and the output is the golden output repeated n times.
@@ -675,9 +663,9 @@ class paged_attention_token_type_micro_sdpa_mixed_head_test : public paged_atten
 
 TEST_P(paged_attention_token_type_micro_sdpa_mixed_head_test, mixed_stage_head_size) {
     auto p = GetParam();
-    const auto expected_kernel = lane_dpas_kernel(p.k_head_size);
+    const auto expected_kernel = lane_dpas_kernel();
     if (expected_kernel.empty())
-        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl / sdpa_micro) on this device";
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;

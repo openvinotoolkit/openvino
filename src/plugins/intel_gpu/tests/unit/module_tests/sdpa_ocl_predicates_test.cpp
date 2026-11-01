@@ -32,9 +32,6 @@ const std::vector<bool> kBools = {false, true};
 bool xe2_plus(gpu_arch a) {
     return a == gpu_arch::xe2 || a == gpu_arch::xe3 || a == gpu_arch::xe3p;  // spelled out, NOT '>='
 }
-bool xe_hpg_plus(gpu_arch a) {
-    return a == gpu_arch::xe_hpg || a == gpu_arch::xe_hpc || xe2_plus(a);
-}
 cldnn::device_info make_info(gpu_arch a, bool immad) {
     cldnn::device_info i{};
     i.arch = a;
@@ -53,7 +50,7 @@ std::string env_trace() {
         const char* v = std::getenv(n);
         return std::string(n) + "=" + (v ? v : "<unset>");
     };
-    return get("TEST_USE_SDPA_OCL") + " " + get("TEST_USE_SDPA_OCL_DECODE") + " " + get("TEST_USE_SDPA_OCL_HPG");
+    return get("TEST_USE_SDPA_OCL_DECODE") + " " + get("TEST_USE_SDPA_OCL_HPG");
 }
 }  // namespace
 
@@ -70,13 +67,10 @@ TEST(SdpaOclPredicates, ArchOkTruthTable) {
 TEST(SdpaOclPredicates, SelectedTruthTable) {
     for (auto a : kArchs) {
         for (bool immad : kBools) {
-            for (bool ocl : kBools) {
-                for (bool hpg : kBools) {
-                    SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " ocl=" << ocl
-                                                    << " hpg=" << hpg);
-                    const bool want = kOneDnn && ocl && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && hpg));
-                    EXPECT_EQ(pa::sdpa_ocl_selected(make_info(a, immad), ocl, hpg), want);
-                }
+            for (bool hpg : kBools) {
+                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " hpg=" << hpg);
+                const bool want = kOneDnn && immad && (xe2_plus(a) || (a == gpu_arch::xe_hpg && hpg));
+                EXPECT_EQ(pa::sdpa_ocl_selected(make_info(a, immad), hpg), want);
             }
         }
     }
@@ -101,8 +95,7 @@ TEST(SdpaOclPredicates, ProcessEnvOverloadsUseProcessEnv) {
             SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad);
             const auto info = make_info(a, immad);
             EXPECT_EQ(pa::sdpa_ocl_arch_ok(info), pa::sdpa_ocl_arch_ok(info, pa::sdpa_ocl_hpg_enabled()));
-            EXPECT_EQ(pa::sdpa_ocl_selected(info),
-                      pa::sdpa_ocl_selected(info, pa::sdpa_ocl_enabled(), pa::sdpa_ocl_hpg_enabled()));
+            EXPECT_EQ(pa::sdpa_ocl_selected(info), pa::sdpa_ocl_selected(info, pa::sdpa_ocl_hpg_enabled()));
             EXPECT_EQ(pa::sdpa_ocl_decode_reader_available(info),
                       pa::sdpa_ocl_decode_reader_available(info, pa::sdpa_ocl_decode_enabled()));
         }
@@ -113,7 +106,7 @@ TEST(SdpaOclPredicates, ProcessEnvOverloadsUseProcessEnv) {
 // token-major page there, so the page must stay d-major. The expectation does not look at the HPG switch.
 TEST(SdpaOclPredicates, TokenMajorReadableTruthTable) {
     SCOPED_TRACE(env_trace());
-    if (kOneDnn && pa::sdpa_ocl_enabled() && pa::sdpa_ocl_hpg_enabled()) {
+    if (kOneDnn && pa::sdpa_ocl_hpg_enabled()) {
         // Positive control: the landmine is armed (the old one-predicate check would have said yes here).
         ASSERT_TRUE(pa::sdpa_ocl_selected(make_info(gpu_arch::xe_hpg, true)));
     }
@@ -127,8 +120,8 @@ TEST(SdpaOclPredicates, TokenMajorReadableTruthTable) {
             // dpas = mixed_dpas_enabled, the config's enable_sdpa_micro (no microkernel query: sdpa_ocl does not need one).
             for (bool dpas : kBools) {
                 SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " dpas=" << dpas);
-                const bool want = kOneDnn && pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::sdpa_ocl_enabled() &&
-                                  pa::sdpa_ocl_decode_enabled() && immad && dpas && xe2_plus(a);
+                const bool want =
+                    kOneDnn && pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::sdpa_ocl_decode_enabled() && immad && dpas && xe2_plus(a);
                 // The same rule for every page kind both token-major readers read.
                 EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), dpas, ov::element::f16, ov::element::i8, true, {op}), want);
                 EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), dpas, ov::element::f16, ov::element::f16, false, {op}), want);
@@ -140,35 +133,23 @@ TEST(SdpaOclPredicates, TokenMajorReadableTruthTable) {
 
 TEST(SdpaOclPredicates, ExpectedDpasBackendTruthTable) {
     using tests::dpas_backend;
-    const auto oracle = [](gpu_arch a, bool immad, bool mk, bool ocl_enabled, bool hpg, bool paged, size_t head) {
+    // sdpa_ocl on its lane, the opt kernels everywhere else (no other DPAS kernel since sdpa_micro was removed).
+    const auto oracle = [](gpu_arch a, bool immad, bool hpg, bool tiers_ready) {
         if (!kOneDnn || !immad)
             return dpas_backend::none;
-        if (!xe_hpg_plus(a))
-            return dpas_backend::none;
-        // The sdpa_ocl lane needs no microkernel support; only sdpa_micro does.
-        if (ocl_enabled && (xe2_plus(a) || (a == gpu_arch::xe_hpg && hpg)))
+        if (xe2_plus(a))
             return dpas_backend::ocl;
-        if (!mk)
-            return dpas_backend::none;
-        if (a == gpu_arch::xe3p && (paged || head <= 64))
-            return dpas_backend::none;
-        return dpas_backend::micro;
+        if (a == gpu_arch::xe_hpg && hpg && tiers_ready)
+            return dpas_backend::ocl;
+        return dpas_backend::none;
     };
     for (auto a : kArchs) {
         for (bool immad : kBools) {
-            for (bool mk : kBools) {
-                for (bool ocl : kBools) {
-                    for (bool hpg : kBools) {
-                        for (bool paged : kBools) {
-                            for (size_t head : {size_t{64}, size_t{128}}) {
-                                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " mk=" << mk
-                                                                << " ocl=" << ocl << " hpg=" << hpg << " paged=" << paged
-                                                                << " head=" << head);
-                                EXPECT_EQ(tests::expected_dpas_backend_for(make_info(a, immad), mk, ocl, hpg, paged, head),
-                                          oracle(a, immad, mk, ocl, hpg, paged, head));
-                            }
-                        }
-                    }
+            for (bool hpg : kBools) {
+                for (bool tiers_ready : kBools) {
+                    SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " hpg=" << hpg
+                                                    << " tiers_ready=" << tiers_ready);
+                    EXPECT_EQ(tests::expected_dpas_backend_for(make_info(a, immad), hpg, tiers_ready), oracle(a, immad, hpg, tiers_ready));
                 }
             }
         }
@@ -176,41 +157,14 @@ TEST(SdpaOclPredicates, ExpectedDpasBackendTruthTable) {
     if (!kOneDnn)
         return;
     // Named rows, for readers.
-    const auto fn = [](gpu_arch a, bool mk, bool ocl, bool hpg, bool paged, size_t head) {
-        return tests::expected_dpas_backend_for(make_info(a, true), mk, ocl, hpg, paged, head);
+    const auto fn = [](gpu_arch a, bool hpg, bool tiers_ready = true) {
+        return tests::expected_dpas_backend_for(make_info(a, true), hpg, tiers_ready);
     };
-    EXPECT_EQ(fn(gpu_arch::xe_hpg, true, true, false, false, 128), dpas_backend::micro);   // DG2 default
-    EXPECT_EQ(fn(gpu_arch::xe_hpg, true, false, false, false, 128), dpas_backend::micro);  // DG2 TEST_USE_SDPA_OCL=0
-    EXPECT_EQ(fn(gpu_arch::xe_hpg, true, true, true, false, 128), dpas_backend::ocl);      // DG2 HPG=1
-    EXPECT_EQ(fn(gpu_arch::xe2, true, true, false, false, 128), dpas_backend::ocl);        // B70
-    EXPECT_EQ(fn(gpu_arch::xe2, true, false, false, false, 128), dpas_backend::micro);     // B70 TEST_USE_SDPA_OCL=0
-    EXPECT_EQ(fn(gpu_arch::xe3p, true, false, false, true, 128), dpas_backend::none);      // xe3p PA, =0
-    EXPECT_EQ(fn(gpu_arch::xe3p, true, false, false, false, 128), dpas_backend::micro);    // xe3p plain SDPA head 128, =0
-    EXPECT_EQ(fn(gpu_arch::xe2, false, true, false, false, 128), dpas_backend::ocl);       // B70, no microkernels
-    EXPECT_EQ(fn(gpu_arch::xe2, false, false, false, false, 128), dpas_backend::none);     // B70 =0, no microkernels
-    EXPECT_EQ(fn(gpu_arch::xe_hpg, false, true, false, false, 128), dpas_backend::none);   // DG2 default, no microkernels
-    EXPECT_EQ(fn(gpu_arch::xe_hpg, false, true, true, false, 128), dpas_backend::ocl);     // DG2 HPG=1, no microkernels
+    EXPECT_EQ(fn(gpu_arch::xe_hpg, false), dpas_backend::none);        // DG2 default
+    EXPECT_EQ(fn(gpu_arch::xe_hpg, true), dpas_backend::ocl);          // DG2 HPG=1, tier ready
+    EXPECT_EQ(fn(gpu_arch::xe_hpg, true, false), dpas_backend::none);  // DG2 HPG=1, no tier ready: sdpa_ocl refuses the op
+    EXPECT_EQ(fn(gpu_arch::xe_hpc, true), dpas_backend::none);         // PVC
+    EXPECT_EQ(fn(gpu_arch::xe2, false), dpas_backend::ocl);            // B70
+    EXPECT_EQ(fn(gpu_arch::xe2, true, false), dpas_backend::ocl);      // B70: no tier mask
+    EXPECT_EQ(fn(gpu_arch::xe3p, false), dpas_backend::ocl);           // xe3p
 }
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-TEST(SdpaOclPredicates, ExpectedBackendMirrorsTheTempRouting) {
-    using tests::dpas_backend;
-    cldnn::device_info hpg{};
-    hpg.arch = gpu_arch::xe_hpg;
-    hpg.supports_immad = true;
-    cldnn::device_info xe2 = hpg;
-    xe2.arch = gpu_arch::xe2;
-    for (const bool pa : {false, true}) {
-        // opt-in, no tier ready: every op is refused by sdpa_ocl and routed to sdpa_micro
-        EXPECT_EQ(tests::expected_dpas_backend_for(hpg, true, true, true, pa, 128, false), dpas_backend::micro);
-        // opt-in, a tier ready: the sdpa_ocl lane
-        EXPECT_EQ(tests::expected_dpas_backend_for(hpg, true, true, true, pa, 128, true), dpas_backend::ocl);
-        // not opted in: micro whatever the tiers say
-        EXPECT_EQ(tests::expected_dpas_backend_for(hpg, true, true, false, pa, 128, false), dpas_backend::micro);
-        EXPECT_EQ(tests::expected_dpas_backend_for(hpg, true, true, false, pa, 128, true), dpas_backend::micro);
-        // Xe2 has no tier mask
-        EXPECT_EQ(tests::expected_dpas_backend_for(xe2, true, true, false, pa, 128, false), dpas_backend::ocl);
-        EXPECT_EQ(tests::expected_dpas_backend_for(xe2, true, true, true, pa, 128, false), dpas_backend::ocl);
-    }
-}
-#endif  // ENABLE_ONEDNN_FOR_GPU

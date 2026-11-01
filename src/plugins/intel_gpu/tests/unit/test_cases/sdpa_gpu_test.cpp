@@ -146,13 +146,7 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
 
         if (use_optimized_sdpa) {
             if (!is_caching_test) {
-                if (engine.get_device_info().supports_immad) {
-                    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-                        {"sdpa", {format::type::bfyx, "sdpa_micro"}} }));
-                } else {
-                    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-                        {"sdpa", {format::type::bfyx, "sdpa_opt"}} }));
-                }
+                config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
             }
         } else {
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
@@ -491,7 +485,7 @@ TEST(sdpa_gpu_causal_mask, decode_32q_8kv_1024seq) {
 // Attention sink on the multi-token sdpa_opt kernel, with and without FlashAttention-v2 online softmax,
 // against a host reference. Sink logits dominate the softmax denominator, so a missing renormalization
 // shows up as an output scale error that is checked element-wise (cosine similarity is scale-invariant).
-// The scalar mask keeps micro SDPA out, so the regular multi-token sdpa_opt kernel is exercised.
+// The scalar mask kept the removed sdpa_micro out, so the regular multi-token sdpa_opt kernel is exercised.
 struct sdpa_gpu_sink_test : public ::testing::TestWithParam<std::tuple<bool, int>> {
     static std::string PrintToStringParamName(const testing::TestParamInfo<ParamType>& info) {
         const auto [use_flashattn_v2, seq_kv] = info.param;
@@ -627,16 +621,11 @@ public:
 
 TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
     auto& engine = get_test_engine();
-    const auto& device_info = engine.get_device_info();
     const auto p = GetParam();
 
-    if (!device_info.supports_immad)
-        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
-    if (device_info.arch < cldnn::gpu_arch::xe_hpc)
-        GTEST_SKIP() << "PREFETCH_K0/PREFETCH_K are only emitted for arch >= xe_hpc; this device "
-                        "runs sdpa_micro without the prefetch under test"; 
-    if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
-        GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
+    // Written for sdpa_micro's PREFETCH_K0/PREFETCH_K (removed with it); kept as multi-K-tile coverage of the DPAS kernel.
+    if (tests::expected_dpas_backend(engine, false) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     const ov::Shape q_shape{1, static_cast<size_t>(p.num_heads), static_cast<size_t>(p.seq_len_q),
                             static_cast<size_t>(p.head_size)};
@@ -685,9 +674,8 @@ TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         // Advisory only: kernel_name is read by the legacy impls/ocl selector, not by ocl_v2.
-        // The assertion below is what guarantees micro SDPA ran.
-        config.set_property(ov::intel_gpu::force_implementations(
-            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+        // The assertion below is what guarantees the DPAS kernel ran.
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
 
         auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
         network->set_input_data("q", q_mem);
@@ -711,9 +699,8 @@ TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
     auto [network, output] = run_network();
     const auto sdpa_info = selected_sdpa_kernel(network);
     ASSERT_FALSE(sdpa_info.empty()) << "no scaled_dot_product_attention node in the built program";
-    ASSERT_TRUE(sdpa_info.find("sdpa_micro") != std::string::npos || sdpa_info.find("sdpa_ocl") != std::string::npos)
-        << "Neither sdpa_micro nor sdpa_ocl was selected; the multi-K-tile prefetch path was not exercised. Node "
-           "description was:\n"
+    ASSERT_TRUE(sdpa_info.find("sdpa_ocl") != std::string::npos)
+        << "sdpa_ocl was not selected; the multi-K-tile path was not exercised. Node description was:\n"
         << sdpa_info;
 
     // No non-micro reference exists to compare against, and a prefetch cannot change results
@@ -1256,8 +1243,8 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
     constexpr int head_size = 64;
 
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        GTEST_SKIP() << "SDPA micro requires IMMAD support";
+    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
@@ -1313,8 +1300,7 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::force_implementations(
-            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
 
         auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
@@ -1325,8 +1311,7 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
                 break;
             }
         }
-        EXPECT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
-            << "sdpa_micro was not selected; node description was:\n" << sdpa_info;
+        EXPECT_NE(sdpa_info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was not selected; node description was:\n" << sdpa_info;
 
         network->set_input_data("q", q_mem);
         network->set_input_data("k", k_mem);
@@ -1356,8 +1341,8 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
     constexpr int head_size = 64;
 
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        GTEST_SKIP() << "SDPA micro requires IMMAD support";
+    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
@@ -1413,8 +1398,7 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::force_implementations(
-            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
 
         auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
@@ -1425,8 +1409,7 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
                 break;
             }
         }
-        EXPECT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
-            << "sdpa_micro was not selected; node description was:\n" << sdpa_info;
+        EXPECT_NE(sdpa_info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was not selected; node description was:\n" << sdpa_info;
 
         network->set_input_data("q", q_mem);
         network->set_input_data("k", k_mem);
@@ -1457,8 +1440,8 @@ TEST_P(sdpa_micro_key_broadcast_mask_test, matches_reference) {
     constexpr size_t head_size = 128;
 
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad)
-        GTEST_SKIP() << "SDPA micro requires IMMAD support";
+    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     const ov::Shape q_shape{1, heads, seq_q, head_size};
     const ov::Shape kv_shape{1, heads, seq_kv, head_size};
@@ -1496,8 +1479,7 @@ TEST_P(sdpa_micro_key_broadcast_mask_test, matches_reference) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config.set_property(ov::intel_gpu::force_implementations(
-        ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
     auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
     std::string sdpa_info;
@@ -1507,8 +1489,7 @@ TEST_P(sdpa_micro_key_broadcast_mask_test, matches_reference) {
             break;
         }
     }
-    ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
-        << "sdpa_micro was not selected; node description was:\n" << sdpa_info;
+    ASSERT_NE(sdpa_info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was not selected; node description was:\n" << sdpa_info;
 
     auto q_mem = engine.allocate_memory(q_layout);
     auto k_mem = engine.allocate_memory(kv_layout);
@@ -1944,7 +1925,7 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     if (granularity == kv_quant_granularity::per_channel) {
         const auto& device_info = engine.get_device_info();
         if (!device_info.supports_immad || device_info.arch < gpu_arch::xe_hpg) {
-            GTEST_SKIP() << "Per-channel compressed KV is supported by micro SDPA only";
+            GTEST_SKIP() << "Per-channel compressed KV was supported by the removed sdpa_micro only";
         }
     }
 
@@ -2159,9 +2140,14 @@ struct sdpa_gpu_compressed_kv_test_base : public ::testing::TestWithParam<sdpa_t
     }
 };
 
+// Per-channel compressed KV: only the removed sdpa_micro read per-channel scales (sdpa_ocl, sdpa_opt and sdpa_ref read one
+// scale per token), so SDPAOpt::validate_impl() refuses it and the GPU pipeline no longer fuses it into SDPA
+// (GroupQueryAttentionDecomposition fuse_compressed_kv = false). Kept disabled as the reproducer for a per-channel reader
+// (on B70 at the last micro build: wrong output or a GPU fault on sdpa_ocl / sdpa_opt). Run with
+// --gtest_also_run_disabled_tests.
 struct sdpa_gpu_compressed_kv_per_channel_test : public sdpa_gpu_compressed_kv_test_base {};
 
-TEST_P(sdpa_gpu_compressed_kv_per_channel_test, compare_with_gpu_dequantized_reference) {
+TEST_P(sdpa_gpu_compressed_kv_per_channel_test, DISABLED_compare_with_gpu_dequantized_reference) {
     run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_channel);
 }
 
@@ -2189,10 +2175,11 @@ TEST_P(sdpa_gpu_compressed_kv_bf16_int8_zp_test, compare_with_gpu_dequantized_re
     run_compressed_kv_sdpa_test<ov::bfloat16>(GetParam(), kv_quant_granularity::per_token, /*gqa_decomp=*/false, ov::element::i8);
 }
 
-// Verify the INT4 and INT8 cache encodings produced by the GQA decomposition.
+// Verify the INT4 and INT8 cache encodings produced by the GQA decomposition. Per-channel, so disabled like
+// sdpa_gpu_compressed_kv_per_channel_test above.
 struct sdpa_gpu_gqa_decomp_test : public sdpa_gpu_compressed_kv_test_base {};
 
-TEST_P(sdpa_gpu_gqa_decomp_test, compare_with_gpu_dequantized_reference) {
+TEST_P(sdpa_gpu_gqa_decomp_test, DISABLED_compare_with_gpu_dequantized_reference) {
     run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_channel, /*gqa_decomp=*/true);
 }
 
@@ -2286,11 +2273,9 @@ TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
     constexpr size_t head_size = 128;
 
     auto& engine = get_test_engine();
-    const auto& device_info = engine.get_device_info();
-    if (!device_info.supports_immad)
-        GTEST_SKIP() << "SDPA micro requires IMMAD support";
-    if (device_info.arch < cldnn::gpu_arch::xe_hpc)
-        GTEST_SKIP() << "PREFETCH_MASK is only emitted for arch >= xe_hpc";
+    // Written for sdpa_micro's PREFETCH_MASK (removed with it); kept as a broadcast-mask check of the DPAS kernel.
+    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
 
     const layout qkv_layout({1, heads, seq_len, head_size}, data_types::f16, format::bfyx);
     const layout mask_layout({1, 1, 1, seq_len}, data_types::f16, format::bfyx);
@@ -2313,8 +2298,7 @@ TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config.set_property(ov::intel_gpu::force_implementations(
-        ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
     auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
     std::string sdpa_info;
@@ -2324,8 +2308,7 @@ TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
             break;
         }
     }
-    ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
-        << "sdpa_micro was not selected; node description was:\n" << sdpa_info;
+    ASSERT_NE(sdpa_info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was not selected; node description was:\n" << sdpa_info;
 
     // The second half of the keys is masked out and has V = -1, so the exact output is 1 everywhere.
     const size_t qkv_count = heads * seq_len * head_size;
@@ -2362,8 +2345,7 @@ TEST(sdpa_gpu_micro, broadcast_mask_multi_tile_k) {
     }
 }
 
-// Which DPAS kernel plain SDPA dispatches: sdpa_ocl on Xe2+ XMX, sdpa_micro on the other XMX parts (as upstream),
-// the opt kernels elsewhere -- one choice per device, with no fallback from one DPAS kernel to the other. Dispatch
+// Which kernel plain SDPA dispatches: sdpa_ocl on its lane (Xe2+ XMX), the opt kernels elsewhere. Dispatch
 // only: this harness's "sdpa_ref" network also runs SDPAOptImpl (force_implementations keeps only the impl type), so
 // accuracy is left to the functional ScaledAttn tests. Static shapes; the second test rebuilds the impl through
 // program save/load (default ctor plus the saved stage order), so the dispatch must not depend on state only the
@@ -2373,22 +2355,15 @@ public:
     void check_dispatch(bool is_caching_test) {
         auto p = GetParam();
         auto& engine = get_test_engine();
-        const auto& info = engine.get_device_info();
         const bool prefill = p.sequence_length_q > 1;
         const bool unaligned = p.head_size % 16 != 0;
-        const bool is_ARL_H = info.gfx_ver.major == 12 && info.gfx_ver.minor == 74;
         // This harness always feeds a mask input, which is PLAIN_EXT on xe_hpg (SDPAOclGenerator::hpg_tier_required()).
-        const auto backend = tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size),
-                                                          ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT);
+        const auto backend = tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT);
         std::string expected;
         switch (backend) {
         case tests::dpas_backend::ocl:
             // The sdpa_ocl single-token kernel also takes unaligned heads.
             expected = prefill ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed";
-            break;
-        case tests::dpas_backend::micro:
-            // sdpa_micro single-token does not take unaligned heads, and ARL-H keeps the opt one for static decode.
-            expected = prefill ? "sdpa_micro__prefill" : unaligned ? "sdpa_opt__multi_reg" : is_ARL_H ? "sdpa_opt__single_reg" : "sdpa_micro__generate";
             break;
         case tests::dpas_backend::none:
             expected = (prefill || unaligned) ? "sdpa_opt__multi_reg" : "sdpa_opt__single_reg";
@@ -2422,9 +2397,6 @@ public:
         EXPECT_NE(entries.find(expected), std::string::npos) << "expected " << expected << ", dispatched: " << entries;
         if (backend != tests::dpas_backend::ocl) {
             EXPECT_EQ(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
-        }
-        if (backend != tests::dpas_backend::micro) {
-            EXPECT_EQ(entries.find("sdpa_micro"), std::string::npos) << "dispatched: " << entries;
         }
 
         cldnn::mem_lock<ov::float16, mem_lock_type::read> out_data(output, get_test_stream());
@@ -2487,7 +2459,7 @@ struct sdpa_hpg_sharp_test : public ::testing::TestWithParam<sdpa_hpg_sharp_para
 TEST_P(sdpa_hpg_sharp_test, f16_static_prefill) {
     const auto p = GetParam();
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size)) != tests::dpas_backend::ocl)
+    if (tests::expected_dpas_backend(engine, false) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "sdpa_ocl does not serve plain f16 static SDPA on this device (xe_hpg needs TEST_USE_SDPA_OCL_HPG=1 and TEST_USE_SDPA_OCL not 0)";
 
     const int d = p.head_size;
@@ -2670,8 +2642,7 @@ TEST_P(sdpa_hpg_ext_test, plain_sdpa) {
     using T = sdpa_hpg_sharp_test;
     const auto p = GetParam();
     auto& engine = get_test_engine();
-    if (tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size),
-                                     ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
         GTEST_SKIP() << "sdpa_ocl does not serve plain SDPA on this device (xe_hpg needs TEST_USE_SDPA_OCL_HPG=1 and TEST_USE_SDPA_OCL not 0)";
     ASSERT_TRUE(!p.sink || p.mask == 1 || p.mask == 2);
     ASSERT_TRUE(!(p.dynamic && p.k_pad)) << "the padded K cases are static";
@@ -2816,7 +2787,6 @@ TEST_P(sdpa_hpg_ext_test, plain_sdpa) {
     ASSERT_NE(sdpa_inst->get_impl(), nullptr);
     const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
     ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
-    EXPECT_EQ(entries.find("sdpa_micro"), std::string::npos) << "dispatched: " << entries;
     if (!p.dynamic) {
         ASSERT_NE(entries.find(nq > 1 ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed"), std::string::npos) << "dispatched: " << entries;
     }
@@ -2957,7 +2927,7 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
     const bool bf16 = p.dt == data_types::bf16;
     const uint32_t tiers =
         ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_I8 | (p.q_len <= 1 || bf16 ? ov::intel_gpu::ocl::PLAIN_EXT : 0u);
-    const auto backend = tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size), tiers);
+    const auto backend = tests::expected_dpas_backend(engine, false, tiers);
     if (backend == tests::dpas_backend::none)
         GTEST_SKIP() << "no DPAS backend on this device";
 
@@ -3089,7 +3059,6 @@ TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
     const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
     if (backend == tests::dpas_backend::ocl) {
         ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
-        EXPECT_EQ(entries.find("sdpa_micro"), std::string::npos) << "dispatched: " << entries;
         ASSERT_NE(entries.find(nq > 1 ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed"), std::string::npos) << "dispatched: " << entries;
     } else {
         EXPECT_EQ(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
@@ -3830,8 +3799,9 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
 
     void execute(const sdpa_sliding_window_test_params& p) {
         auto& engine = get_test_engine();
-        if (!engine.get_device_info().supports_immad) {
-            GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+        // The opt stage kernels ignore the window (opt_stage_kernels_apply_sliding_window below).
+        if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
+            GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
         }
 
         const auto head_size = p.head_size;
@@ -3912,7 +3882,7 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
             return net->execute().at("result").get_memory();
         };
 
-        // Optimized: causal + sliding_window attribute, sdpa_micro
+        // Optimized: causal + sliding_window attribute, the DPAS kernel (sdpa_ocl)
         auto run_opt = [&]() {
             topology topo;
             topo.add(input_layout("q", q_layout));
@@ -3928,8 +3898,7 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
             topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
 
             ExecutionConfig cfg = config_common;
-            cfg.set_property(ov::intel_gpu::force_implementations(
-                ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+            cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
 
             auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
             net->set_input_data("q", q_mem);
@@ -3996,15 +3965,15 @@ INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
     });
 
 // is_causal=true together with an explicit attention_mask input, for a SWA-style (causal +
-// window) mask: verifies sdpa_micro's WITH_ATTN_MASK path still produces the same result as the
-// is_causal=false + explicit-mask reference (see the #elif chain in sdpa_micro.cl, which doesn't
+// window) mask: verifies the DPAS kernel's mask path still produces the same result as the
+// is_causal=false + explicit-mask reference (written for the removed sdpa_micro.cl, which did not
 // gate WITH_ATTN_MASK on !IS_CAUSAL the way sdpa_opt.cl does).
 TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
-    if (!engine.get_device_info().supports_immad) {
-        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+    if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
     }
 
     const int head_size = 64, num_heads = 8, seq_q = 128, seq_kv = 128, batch = 1, window = 32;
@@ -4080,8 +4049,7 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
         topo.add(prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
         ExecutionConfig cfg = config_common;
-        cfg.set_property(ov::intel_gpu::force_implementations(
-            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
         auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
         net->set_input_data("k", k_mem);
@@ -4101,17 +4069,16 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
 }
 #endif
 
-// Reproducer: the sliding-window suite above only exercises sdpa_micro (it skips devices without
-// immad), but the non-micro stage kernels of SDPAOpt (sdpa_opt.cl) never apply the window:
+// Reproducer: the sliding-window suite above only exercises the DPAS kernel (it skips devices off
+// the sdpa_ocl lane), but the opt stage kernels of SDPAOpt (sdpa_opt.cl) never apply the window:
 // SLIDING_WINDOW_SIZE is only emitted under IS_PAGED_ATTENTION there. Whenever the GQA
 // decomposition elides the explicit mask and relies on the kernel-side window (causal +
 // sliding_window_cache), a model running on the opt stage kernels silently attends over the whole
 // causal range instead of the window.
 //
-// The scalar (count == 1) attention-mask input pins this test to the opt stage kernels on every
-// device: SDPAOpt::supports_micro_sdpa() rejects SDPA whose mask input is a non-const scalar
-// tensor, so the micro stage is never added even on micro-capable devices. The mask value itself
-// is irrelevant - sdpa_opt.cl ignores the mask input whenever IS_CAUSAL is set.
+// The scalar (count == 1) attention-mask input was meant to pin this test to the opt stage kernels
+// (the removed sdpa_micro rejected it); the check below verifies that the opt stage kernel ran. The
+// mask value itself is irrelevant - sdpa_opt.cl ignores the mask input whenever IS_CAUSAL is set.
 TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
@@ -4200,13 +4167,12 @@ TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
         net->set_input_data("scalar_mask", scalar_mask_mem);
 
         // The node description carries the selected OpenCL entry point; make sure the opt stage
-        // kernel (not sdpa_micro) is what actually ran, otherwise this test proves nothing.
+        // kernel (not sdpa_ocl) is what actually ran, otherwise this test proves nothing.
         bool saw_opt = false;
         for (const auto& info : net->get_primitives_info()) {
             if (info.type_id == "scaled_dot_product_attention") {
                 const auto sdpa_info = net->get_primitive_info(info.original_id);
-                EXPECT_EQ(sdpa_info.find("sdpa_micro"), std::string::npos)
-                    << "sdpa_micro was selected; the opt stage kernels were not exercised:\n" << sdpa_info;
+                EXPECT_EQ(sdpa_info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was selected; the opt stage kernels were not exercised:\n" << sdpa_info;
                 saw_opt = sdpa_info.find("sdpa_opt") != std::string::npos;
             }
         }
@@ -4450,7 +4416,7 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
         const auto executed_kernels = instance->get_impl()->get_kernels_dump_info(*instance->get_impl_params()).get_entries();
         const bool is_reference = impl == "sdpa_ref";
         EXPECT_EQ(executed_kernels.find("sdpa_ref") != std::string::npos, is_reference) << "Executed kernels: " << executed_kernels;
-        EXPECT_EQ(executed_kernels.find("sdpa_micro") != std::string::npos || executed_kernels.find("sdpa_opt") != std::string::npos, !is_reference)
+        EXPECT_EQ(executed_kernels.find("sdpa_ocl") != std::string::npos || executed_kernels.find("sdpa_opt") != std::string::npos, !is_reference)
             << "Executed kernels: " << executed_kernels;
         RecordProperty(is_reference ? "reference_kernels" : "optimized_kernels", executed_kernels);
         EXPECT_EQ(result->get_layout().data_type, q_layout.data_type);
@@ -4504,10 +4470,8 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
         auto k_mem = make_guarded(k_layout, k_data);
         auto v_mem = make_guarded(v_layout, v_data);
 
-        // sdpa_micro on systolic devices, sdpa_opt otherwise (micro is disabled on xe3p for head_size <= 64).
-        auto& device_info = engine.get_device_info();
-        const bool micro_eligible = device_info.supports_immad && !(device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64);
-        const std::string opt_impl = micro_eligible ? "sdpa_micro" : "sdpa_opt";
+        // SDPAOpt (sdpa_ocl stages on its lane, sdpa_opt ones elsewhere); force_implementations keeps only the impl type.
+        const std::string opt_impl = "sdpa_opt";
 
         // Static batches that are neither equal nor 1 cannot be broadcast: kernel generation must reject them.
         auto batches_conflict = [](int a, int b) { return a != 1 && b != 1 && a != b; };
@@ -4603,7 +4567,7 @@ INSTANTIATE_TEST_SUITE_P(
 // source length: they are past the end of the key buffer, and reading them can fault the GPU. Whether it faults
 // depends on what is mapped after the key, so this checks the result and that the kernel ran.
 //
-// A non-const scalar mask input keeps sdpa_micro out, so sdpa_opt runs on every device. sdpa_opt ignores the mask
+// A non-const scalar mask input kept the removed sdpa_micro out, so sdpa_opt ran on every device. sdpa_opt ignores the mask
 // when is_causal is set. With the lower-right causal mask and seq_q <= seq_kv, the last query sees every key, so the
 // partial key block is computed.
 struct sdpa_opt_key_leftover_params {
