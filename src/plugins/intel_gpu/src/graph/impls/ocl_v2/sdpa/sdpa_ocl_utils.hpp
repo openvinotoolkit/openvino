@@ -199,7 +199,7 @@ inline bool pa_k_token_major(const cldnn::kernel_impl_params& params) {
     const size_t comp_bytes = 2 * ov::element::Type(params.input_layouts[pa::PagedAttentionInputIdx::KEY].data_type).size();
     const size_t block = pa::block_size;
     const size_t page_block = (compressed && desc->is_key_by_channel) ? (int4 ? block / 2 : block) + comp_bytes : block;
-    return pa::k_cache_token_major(params.get_device_info(), key_cache.get_partial_shape(), page_block, precision, desc->is_key_by_channel);
+    return pa::k_cache_token_major(key_cache.get_partial_shape(), page_block);
 }
 
 // A K page is ADJUSTED_K_HEAD_SIZE x ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE and a V page block_size x

@@ -248,7 +248,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
 //                        follow the data as one per-channel array. This kernel, kv_cache_rotate,
 //                        pa_kv_cache_reorder, sdpa_ocl_decode, pa_small_q and sdpa_ocl MIXED read it;
 //                        every other reader takes the page d-major, so the page is created only where
-//                        paged_attention::by_channel_token_major_readable() allows it.
+//                        paged_attention::k_token_major_readable() allows it.
 //
 // The page SIZE is k_head_size * (block_size + 4) either way, so page bases are untouched.
 #if KEY_BY_CHANNEL_TM

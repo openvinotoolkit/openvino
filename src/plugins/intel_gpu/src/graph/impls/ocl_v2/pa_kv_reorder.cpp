@@ -33,22 +33,14 @@ bool key_cache_token_major(const RuntimeParams& params) {
     const bool int4 = data_type_traits::is_i4_u4(desc->cache_dt);
     const size_t page_block =
         (desc->is_kv_compressed && desc->is_key_by_channel) ? (int4 ? block / u4_elems_per_byte : block) + desc->scales_zp_size : block;
-    return cldnn::paged_attention::k_cache_token_major(params.get_device_info(),
-                                                       params.input_layouts[cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE].get_partial_shape(),
-                                                       page_block,
-                                                       ov::element::Type(desc->cache_dt),
-                                                       desc->is_key_by_channel);
+    return cldnn::paged_attention::k_cache_token_major(params.input_layouts[cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE].get_partial_shape(),
+                                                       page_block);
 }
 
-// Whether a token-major K page can reach this device at all: the layout rule needs k_token_major_device(), unless the
-// switch makes the uncompressed / BY_TOKEN page token-major everywhere.
+// Whether a token-major K page can reach this device at all: the layout rule needs k_token_major_device().
 bool token_major_page_possible(const RuntimeParams& params) {
     using pa = cldnn::paged_attention;
-    const auto layout_switch = pa::k_token_major_switch();
-    if (layout_switch == pa::k_layout_switch::d_major) {
-        return false;
-    }
-    return layout_switch == pa::k_layout_switch::token_major || pa::k_token_major_device(params.get_device_info());
+    return pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::k_token_major_device(params.get_device_info());
 }
 
 class PaKVReorderGenerator : public KernelGenerator {
