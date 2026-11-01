@@ -19,7 +19,7 @@ numerical fixture checked against the llama.cpp CPU encoder (see
 | Vision | `gemma3`, `idefics3`, `janus_pro` | SigLIP; fused QKV and legacy FFN names |
 | Vision | `mlp` | CLIP feature layers; normalized variant detected from tensors |
 | Vision | `internvl` | InternViT, class token, pixel-shuffle merge |
-| Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045 |
+| Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045; dimension-gated legacy FFN weight/bias names |
 | Vision | `minicpmv4_6` | window attention, two-stage merging |
 | Vision | `minicpmv4_7` | window-attention and direct 2x2 merging; packed-patch GenAI layout |
 | Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) |
@@ -126,6 +126,10 @@ Model rt_info `gguf_mmproj` keeps every source `clip.*` key and adds `<modality>
 arrays are comma-separated, and string arrays are `length:value` entries flagged by a
 `<key>.encoding` companion. The metadata survives IR serialization and adaptation; supplied
 cgraph decoders return an empty map.
+
+Learned `v.image_newline` and `v.view_seperator` weights are preserved as comma-separated
+values under their source tensor names in `gguf_mmproj`. Consumers can use them to assemble
+image features outside the graph; exporting this metadata leaves native encoder outputs unchanged.
 
 ## Preprocessing real media
 
