@@ -237,6 +237,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         self.input_shapes = input_shapes or []
 
         self._input_signature = []
+        self._input_names = None
         self._example_input = None
 
         if isinstance(pt_module, torch.fx.graph_module.GraphModule):
@@ -273,9 +274,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             if not input_types or len(input_types) == 0:
                 self.input_types = found_types
 
+            placeholder_names = list(self._input_signature)
             if hasattr(self.pt_module, "forward"):
                 input_params = inspect.signature(self.pt_module.forward).parameters
                 self._input_signature = list(input_params)
+                self._input_names = self._get_input_names_from_spec(placeholder_names)
 
         elif isinstance(pt_module, torch.fx.Node):
             self._nodes = nodes  # passed from outer context
@@ -480,6 +483,34 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             export_args_dict["dynamic_shapes"] = dynamic_shapes
 
         return torch.export.export(model, **export_args_dict)
+
+    def _get_input_names_from_spec(self, placeholder_names: list) -> "list | None":
+        """Name each flattened input after its forward parameter, or after its placeholder inside a container.
+
+        Container arguments (list, tuple, dict) are flattened into several inputs, so the forward parameter names
+        do not line up with the input indices. Returns None if the input spec of the module is not available.
+        """
+        def children(spec):
+            # children() replaces the deprecated children_specs in newer torch versions
+            return list(spec.children()) if hasattr(spec, "children") else list(spec.children_specs)
+
+        in_spec = getattr(self.pt_module, "_in_spec", None)
+        if in_spec is None or in_spec.num_leaves != len(placeholder_names) or len(children(in_spec)) != 2:
+            return None
+        args_spec, kwargs_spec = children(in_spec)
+        argument_specs = list(zip(self._input_signature, children(args_spec)))
+        if kwargs_spec.num_leaves:
+            argument_specs += list(zip(kwargs_spec.context, children(kwargs_spec)))
+        names = []
+        for name, spec in argument_specs:
+            start = len(names)
+            names += [name] if spec.is_leaf() else placeholder_names[start:start + spec.num_leaves]
+        return names if len(names) == len(placeholder_names) else None
+
+    def get_input_signature_name(self, index: int) -> str:
+        if self._input_names is not None and index < len(self._input_names):
+            return self._input_names[index]
+        return super().get_input_signature_name(index)
 
     @staticmethod
     def get_found_shape(value) -> str:
