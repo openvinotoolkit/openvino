@@ -99,26 +99,26 @@ void copy_additive_attention_block(const ov::SoPtr<ov::ITensor>& src,
     const auto& dst_shape = dst->get_shape();
     OPENVINO_ASSERT(src_shape.size() == 4u && dst_shape.size() == 4u,
                     "Additive attention_mask tensors must be rank 4.");
-    OPENVINO_ASSERT(src_shape[0] == 1u && src_shape[1] == 1u && dst_shape[0] == 1u && dst_shape[1] == 1u,
-                    "NPUW additive attention_mask mode currently supports batch/head dimensions of 1 only.");
-    OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type(),
-                    "Source and destination additive attention_mask tensors must have the same element type.");
+    OPENVINO_ASSERT(src_shape[0] == dst_shape[0],
+                    "Additive attention_mask batch dimension must match the destination: got ",
+                    src_shape[0],
+                    ", expected ",
+                    dst_shape[0],
+                    ".");
+    OPENVINO_ASSERT(src_shape[1] == dst_shape[1],
+                    "Additive attention_mask head dimension must match the destination: got ",
+                    src_shape[1],
+                    ", expected ",
+                    dst_shape[1],
+                    ".");
 
-    const auto elem_size = src->get_element_type().size();
-    const auto& src_strides = src->get_strides();
-    const auto& dst_strides = dst->get_strides();
-    OPENVINO_ASSERT(src_strides[3] == elem_size && dst_strides[3] == elem_size,
-                    "Additive attention_mask tensors must be contiguous in the last dimension.");
-
-    const auto* src_ptr = static_cast<const uint8_t*>(src->data());
-    auto* dst_ptr = static_cast<uint8_t*>(dst->data());
-    const size_t row_bytes = cols * elem_size;
-
-    for (size_t row = 0; row < rows; ++row) {
-        const size_t src_offset = (src_q_offset + row) * src_strides[2] + src_k_offset * src_strides[3];
-        const size_t dst_offset = (dst_q_offset + row) * dst_strides[2] + dst_k_offset * dst_strides[3];
-        std::copy_n(src_ptr + src_offset, row_bytes, dst_ptr + dst_offset);
-    }
+    const auto block = [rows, cols](const ov::SoPtr<ov::ITensor>& tensor, size_t q_offset, size_t k_offset) {
+        const auto& shape = tensor->get_shape();
+        return ov::npuw::util::view(tensor,
+                                    {0, 0, q_offset, k_offset},
+                                    {shape[0], shape[1], q_offset + rows, k_offset + cols});
+    };
+    block(src, src_q_offset, src_k_offset)->copy_to(block(dst, dst_q_offset, dst_k_offset)._ptr);
 }
 
 void stage_additive_attention_mask_for_prefill(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
