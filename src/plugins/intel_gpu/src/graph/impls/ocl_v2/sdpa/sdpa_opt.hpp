@@ -28,10 +28,14 @@ struct SDPAOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::sdpa::opt")
     explicit SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
-    // allow_scalar_mask enables a single-element runtime attention mask for the sdpa_ocl kernel
-    // (the ocl variant reads the one value and adds it to every logit). The sdpa_micro kernel does
-    // not support such a mask, so callers must pass true only when they intend to use sdpa_ocl.
-    [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params, bool allow_scalar_mask = false);
+    // The op checks both DPAS SDPA kernels share (Q/K/V orders, static head counts, equal K and V head sizes <= 512, the
+    // mask, a 4D output, no bf16 zero point). No device, driver or config check: the caller has already put the op on a
+    // DPAS lane of an XMX device (some checks read dims that are only static there). allow_scalar_mask enables a
+    // single-element runtime attention mask, which only the sdpa_ocl kernel reads (it adds the one value to every logit).
+    [[nodiscard]] static bool dpas_sdpa_op_supported(const kernel_impl_params& params, bool allow_scalar_mask);
+    // The sdpa_micro lane: enable_sdpa_micro on, XMX xe_hpg or later with oneDNN microkernel support, and
+    // dpas_sdpa_op_supported() without a single-element mask. sdpa_ocl does not use it: it needs no microkernel support.
+    [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
     [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
     // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout the oneDNN micro SDPA
     // stage cannot handle, so it has to run on the regular sdpa_opt stages instead.

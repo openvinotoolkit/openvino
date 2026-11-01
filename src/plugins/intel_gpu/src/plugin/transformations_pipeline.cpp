@@ -1142,7 +1142,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     pa_ops.push_back(info);
                 }
                 // OV_GPU_ENABLE_SDPA_MICRO=0 turns the DPAS MIXED kernel off (choose_dpas_backend()), sdpa_ocl included.
-                const bool mixed_dpas_enabled = config.get_enable_sdpa_micro() && cldnn::query_microkernels_supported(m_context->get_engine(), config);
+                // The sdpa_ocl lane needs no oneDNN microkernel support, so there is no driver query here.
+                const bool mixed_dpas_enabled = config.get_enable_sdpa_micro();
                 allow_token_major = cldnn::paged_attention::k_token_major_readable(device_info,
                                                                                    mixed_dpas_enabled,
                                                                                    infer_precision,
@@ -1276,7 +1277,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
              }
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
-            if (device_info.supports_immad && cldnn::query_microkernels_supported(m_context->get_engine(), config) && head_size <= 256)
+            // A DPAS SDPA kernel serves the op: sdpa_ocl on its lane (no oneDNN microkernel support needed), sdpa_micro where
+            // the driver supports microkernels. The 256 limit predates sdpa_ocl (which serves heads up to 512); raising it
+            // would change which models keep SDPA fused.
+            if (device_info.supports_immad &&
+                (cldnn::paged_attention::sdpa_ocl_selected(device_info) || cldnn::query_microkernels_supported(m_context->get_engine(), config)) &&
+                head_size <= 256)
                 return true;
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 512 for stateful LLMs because of performance
