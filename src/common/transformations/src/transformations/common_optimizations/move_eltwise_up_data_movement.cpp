@@ -471,10 +471,10 @@ ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMo
             return false;
         // Reshape keeps the element count, so it can't reinterpret a single dynamic dimension, but may reorder several
         if (ov::is_type<v1::Reshape>(rn)) {
-            const auto dynamic_dims = std::count_if(in_ps.begin(), in_ps.end(), [](const ov::Dimension& dim) {
+            const auto is_dynamic = [](const ov::Dimension& dim) {
                 return dim.is_dynamic();
-            });
-            if (dynamic_dims > 1)
+            };
+            if (std::count_if(in_ps.begin(), in_ps.end(), is_dynamic) > 1)
                 return false;
         }
 
