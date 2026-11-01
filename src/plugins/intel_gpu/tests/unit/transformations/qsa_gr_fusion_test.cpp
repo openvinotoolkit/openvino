@@ -56,11 +56,12 @@ std::shared_ptr<ov::Node> build_gr_read(const std::shared_ptr<ov::op::v0::Parame
                                         float low_scale,
                                         float mix_scale,
                                         int64_t branches,
-                                        const ov::element::Type& et = ov::element::f16) {
+                                        const ov::element::Type& et = ov::element::f16,
+                                        bool with_gain = true) {
     auto r3 = reshape_to(residual, {-1, branches, D});
     // The gain is per (branch, channel): shape [C, D], i.e. C independent groups of width D.
     auto gamma = ov::op::v0::Constant::create(et, ov::Shape{static_cast<size_t>(branches), static_cast<size_t>(D)}, std::vector<float>(branches * D, 1.0f));
-    auto rms = std::make_shared<ov::op::internal::RMS>(r3, gamma, EPS);
+    std::shared_ptr<ov::Node> rms = with_gain ? std::make_shared<ov::op::internal::RMS>(r3, gamma, EPS) : std::make_shared<ov::op::internal::RMS>(r3, EPS);
     auto rbar = reshape_to(rms, {-1, branches * D});
 
     auto w_down = ov::op::v0::Constant::create(et, ov::Shape{L, static_cast<size_t>(branches * D)}, std::vector<float>(L * branches * D, 0.01f));
@@ -82,7 +83,10 @@ std::shared_ptr<ov::Node> build_gr_read(const std::shared_ptr<ov::op::v0::Parame
 /// were exported before RMS-fusion ran: Power -> ReduceMean -> Add(eps) -> Sqrt ->
 /// Divide -> Multiply for the norm, an explicit `gain + 1` fold, and a ReduceMean
 /// (rather than ReduceSum + Multiply) for the branch mix.
-std::shared_ptr<ov::Node> build_gr_read_decomposed(const std::shared_ptr<ov::op::v0::Parameter>& residual, float low_scale, int64_t branches) {
+std::shared_ptr<ov::Node> build_gr_read_decomposed(const std::shared_ptr<ov::op::v0::Parameter>& residual,
+                                                   float low_scale,
+                                                   int64_t branches,
+                                                   bool with_gain = true) {
     auto r3 = reshape_to(residual, {-1, branches, D});
     auto sq = std::make_shared<ov::op::v1::Power>(r3, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {2.0f}));
     auto mean = std::make_shared<ov::op::v1::ReduceMean>(sq, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}), true);
@@ -93,7 +97,8 @@ std::shared_ptr<ov::Node> build_gr_read_decomposed(const std::shared_ptr<ov::op:
     auto normalized_flat = reshape_to(normalized, {-1, branches * D});
     auto gain_raw = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{static_cast<size_t>(branches * D)}, std::vector<float>(branches * D, 0.0f));
     auto gain_plus_one = std::make_shared<ov::op::v1::Add>(gain_raw, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f}));
-    auto rbar = std::make_shared<ov::op::v1::Multiply>(normalized_flat, gain_plus_one);
+    auto rbar = with_gain ? std::static_pointer_cast<ov::Node>(std::make_shared<ov::op::v1::Multiply>(normalized_flat, gain_plus_one))
+                          : std::static_pointer_cast<ov::Node>(normalized_flat);
 
     auto w_down = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{L, static_cast<size_t>(branches * D)}, std::vector<float>(L * branches * D, 0.01f));
     auto low = std::make_shared<ov::op::v0::MatMul>(rbar, w_down, false, true);
@@ -312,6 +317,36 @@ TEST(qsa_gr_fusion, gated_residual_read_decomposed_form_is_fused) {
         EXPECT_EQ(gr->get_output_partial_shape(0), (ov::PartialShape{T, D}));
     }
 }
+
+class qsa_gr_fusion_folded_gain : public ::testing::TestWithParam<bool> {};
+
+// An exporter folds a gain of ones away, leaving the bare (fused or decomposed) normalization in front of the GEMM.
+TEST_P(qsa_gr_fusion_folded_gain, gated_residual_read_gets_a_unit_gain) {
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
+    auto mixed = GetParam() ? build_gr_read_decomposed(residual, 1.0f / C, C, false) : build_gr_read(residual, 1.0f / C, 1.0f / C, C, ov::element::f16, false);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual});
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualReadFusion>();
+    manager.run_passes(model);
+
+    ASSERT_EQ(count_gated_residual(model), 1u);
+    for (const auto& node : model->get_ops()) {
+        auto gr = ov::as_type_ptr<op::GatedResidual>(node);
+        if (!gr) {
+            continue;
+        }
+        auto gain = ov::as_type_ptr<ov::op::v0::Constant>(gr->get_input_node_shared_ptr(op::GatedResidual::ReadInputIdx::NORM_WEIGHT));
+        ASSERT_NE(gain, nullptr);
+        EXPECT_EQ(gain->get_shape(), (ov::Shape{static_cast<size_t>(C * D)}));
+        EXPECT_EQ(gain->cast_vector<float>(), std::vector<float>(C * D, 1.0f));
+        EXPECT_FALSE(gr->get_norm_gain_plus_one());
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, qsa_gr_fusion_folded_gain, ::testing::Values(false, true), [](const ::testing::TestParamInfo<bool>& info) {
+    return info.param ? std::string("decomposed") : std::string("fused_rms");
+});
 
 TEST(qsa_gr_fusion, gated_residual_write_is_fused) {
     auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});

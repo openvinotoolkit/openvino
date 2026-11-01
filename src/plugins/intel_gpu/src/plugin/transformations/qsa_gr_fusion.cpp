@@ -123,6 +123,13 @@ ov::Output<ov::Node> flatten_to(const ov::Output<ov::Node>& src, size_t count, o
     return reshape->output(0);
 }
 
+/// The kernels always read a gain; a normalization whose gain of ones was folded away gets an explicit one.
+ov::Output<ov::Node> make_unit_gain(size_t count, ov::NodeVector& new_ops) {
+    auto gain = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{count}, std::vector<ov::float16>(count, ov::float16(1.0f)));
+    new_ops.push_back(gain);
+    return gain->output(0);
+}
+
 /// Total number of elements of a static shape, or 0 when unknown.
 size_t static_element_count(const ov::PartialShape& ps) {
     if (ps.is_dynamic()) {
@@ -302,7 +309,8 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
     auto rbar_nogamma_b = wrap_type<ov::op::v1::Multiply>({gain_nogamma, nogamma_flat});
     auto rbar_nogamma = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_nogamma_a, rbar_nogamma_b});
 
-    auto rbar = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_fused, rbar_decomposed, rbar_nogamma});
+    // A gain of ones is folded away by the exporter, so the flattened normalization feeds the GEMM directly.
+    auto rbar = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{rbar_fused, rbar_decomposed, rbar_nogamma, nogamma_flat, normalized_flat});
 
     auto low = wrap_type<ov::op::v0::MatMul>({rbar, any_input()});
     // The 1/C scale sits after the down projection as exported, or on W_down itself once an
@@ -347,7 +355,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
 
         const bool is_fused_norm = pm.count(norm_fused) > 0;
         const bool is_nogamma_norm = pm.count(norm_nogamma) > 0;
-        const bool is_decomposed_norm = pm.count(decomposed_gain) > 0;
+        const bool is_decomposed_norm = pm.count(normalized_flat) > 0;
         if (!is_fused_norm && !is_decomposed_norm && !is_nogamma_norm) {
             return false;
         }
@@ -471,11 +479,18 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
             epsilon = static_cast<float>(rms_node->get_epsilon());
         } else if (is_nogamma_norm) {
             auto rms_node = ov::as_type_ptr<ov::op::internal::RMS>(pm.at(norm_nogamma).get_node_shared_ptr());
-            const auto gain = pm.at(gain_nogamma);
-            if (!rms_node || static_element_count(gain.get_partial_shape()) != C * D) {
+            if (!rms_node) {
                 return false;
             }
-            gain_flat = flatten_to(gain, C * D, new_ops);
+            if (pm.count(gain_nogamma) > 0) {
+                const auto gain = pm.at(gain_nogamma);
+                if (static_element_count(gain.get_partial_shape()) != C * D) {
+                    return false;
+                }
+                gain_flat = flatten_to(gain, C * D, new_ops);
+            } else {
+                gain_flat = make_unit_gain(C * D, new_ops);
+            }
             epsilon = static_cast<float>(rms_node->get_epsilon());
         } else {
             // Decomposed RMSNorm: Power(2) -> ReduceMean -> Add(eps) -> Sqrt -> Divide(1,.) -> Multiply.
@@ -505,11 +520,15 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
             }
             // The gain operand already includes any `1 + w` fold, so GatedResidual must not
             // fold it again either.
-            const auto gain = pm.at(decomposed_gain);
-            if (static_element_count(gain.get_partial_shape()) != C * D) {
-                return false;
+            if (pm.count(decomposed_gain) > 0) {
+                const auto gain = pm.at(decomposed_gain);
+                if (static_element_count(gain.get_partial_shape()) != C * D) {
+                    return false;
+                }
+                gain_flat = flatten_to(gain, C * D, new_ops);
+            } else {
+                gain_flat = make_unit_gain(C * D, new_ops);
             }
-            gain_flat = flatten_to(gain, C * D, new_ops);
         }
 
         ov::OutputVector gr_inputs{residual_out, gain_flat};

@@ -41,14 +41,9 @@ constexpr size_t gr_read_dpas_nt = 2;
 thread_local std::vector<std::pair<std::string, event::ptr>> g_gr_stage_events;
 
 void record_stage_event(const char* name, const event::ptr& ev) {
-#ifdef GPU_DEBUG_CONFIG
     if (ev != nullptr) {
         g_gr_stage_events.emplace_back(name, ev);
     }
-#else
-    (void)name;
-    (void)ev;
-#endif
 }
 
 size_t get_num_rows(const layout& l, size_t last_dim) {
