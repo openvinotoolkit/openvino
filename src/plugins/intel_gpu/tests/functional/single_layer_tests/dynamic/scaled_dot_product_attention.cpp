@@ -952,7 +952,7 @@ const std::vector<std::vector<InputShape>> static_shapes{
         },
     },
     {
-        // one query, unaligned k head != v head: no sdpa_ocl/sdpa_micro stage, so the static
+        // one query, unaligned k head != v head: no sdpa_ocl stage, so the static
         // single-token SDPA must fall back to the sdpa_opt multi-tokens kernel, whose S*V tail
         // (100 keys) must keep all V dims when only K is unaligned
         // q shape

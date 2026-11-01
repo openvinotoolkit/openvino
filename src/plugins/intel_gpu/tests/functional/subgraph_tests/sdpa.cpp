@@ -124,7 +124,7 @@ INSTANTIATE_TEST_SUITE_P(
 // static shape here takes the same host-gate branch.
 //
 // sdpa_ocl is the default backend on Xe2+ XMX (paged_attention::sdpa_ocl_selected()), so this covers it
-// as written there; TEST_USE_SDPA_OCL=0, or a pre-Xe2 XMX device, runs the same case through sdpa_micro.
+// as written there; a pre-Xe2 XMX device runs the same case through the opt kernels.
 class SDPASplitHeadsPaddedView : virtual public ov::test::SubgraphBaseStaticTest {
 protected:
     static constexpr size_t batch = 1;
