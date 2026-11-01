@@ -96,11 +96,7 @@
 // add zero. Bounds the KQ depth loop and the Q staging. D_MAX itself must stay: the S*V split and
 // the alpha[] nesting are derived from it (see choose_config()).
 #define DKS_FULL ((K_HEAD_SIZE + DPAS_K - 1) / DPAS_K)
-// The KQ depth axis is permuted (PA_K_U4_CHANNEL below) for the u4 K page and for the f16 d-major K page that
-// USE_2D_BLOCK_IO_K_PA_DT reads with a 32-bit transpose.
-#ifndef USE_2D_BLOCK_IO_K_PA_DT
-#  define USE_2D_BLOCK_IO_K_PA_DT 0
-#endif
+// The KQ depth axis is permuted (PA_K_U4_CHANNEL below) for the u4 K page.
 // PA_K_WIDE_READS: the token-major f16 K page (USE_2D_BLOCK_IO_K_PA) read two depth tiles per message, PA_K_WIDE_TILES
 // depth tiles (PA_K_WIDE_TILES / 2 messages per key group) issued together.
 #ifndef PA_K_WIDE_READS
@@ -109,7 +105,7 @@
 #ifndef PA_K_WIDE_TILES
 #  define PA_K_WIDE_TILES 4
 #endif
-#define PA_K_PERMUTED (IS_PA_K_U4 || USE_2D_BLOCK_IO_K_PA_DT)
+#define PA_K_PERMUTED IS_PA_K_U4
 #if PA_K_PERMUTED
 // The u4 depth permutation pairs tiles (2g, 2g+1) over one 32-channel window, so an odd active
 // count would leave the last pair half-formed. Round up; DKS is even (D_MAX is a power of two
@@ -273,16 +269,11 @@
 #  define PA_V_ROW_ELEMS V_HEAD_SIZE
 #endif
 
-// In-page addressing of a K cache page, in K elements: d-major pages are [head, token], token-major
-// ones [token, head] like V. The scalar-gather fallbacks (used wherever the host's block2d page
-// rule fails) address through this pair, so one path serves both layouts.
-#if IS_PA_K_TOKEN_MAJOR
-#  define PA_K_TOKEN_STRIDE  PA_K_ROW_ELEMS
-#  define PA_K_HIDDEN_STRIDE 1
-#else
-#  define PA_K_TOKEN_STRIDE  1
-#  define PA_K_HIDDEN_STRIDE PAGED_ATTENTION_BLOCK_SIZE
-#endif
+// In-page addressing of a K cache page, in K elements: the token-major page, [token, head] like V. MIXED reads no other
+// (PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it off a d-major page, on which it is only compiled). The
+// scalar-gather fallbacks (used wherever the host's block2d page rule fails) address through this pair.
+#define PA_K_TOKEN_STRIDE  PA_K_ROW_ELEMS
+#define PA_K_HIDDEN_STRIDE 1
 
 // Distance in K elements between consecutive (block, kv_head) pages. The comp region grows
 // whichever factor it is indexed by, so every layout is the same product (table in
@@ -346,8 +337,7 @@
 // L a channel PAIR, never the contiguous (base + L) a DPAS tile wants. Depth is a contraction axis,
 // so K and Q both adopt this labelling instead; Q pays for it once, in the SLM staging:
 //     PA_K_U4_CHANNEL(db, L) = win + 2L + (db & 1),  win = (db >> 1) * 32,  byte = win/2 + L
-// Derivation and per-path consequences: docs/sdpa_ocl.md. The f16 d-major page read (USE_2D_BLOCK_IO_K_PA_DT) lands the
-// same labelling: its surface row r holds channels 2r and 2r + 1.
+// Derivation and per-path consequences: docs/sdpa_ocl.md.
 #if PA_K_PERMUTED
 #  define PA_K_U4_WIN(db)        (((db) >> 1) * (2 * DPAS_K))
 #  define PA_K_U4_PAR(db)        ((db) & 1)
@@ -370,11 +360,6 @@
 #if IS_PA_K_BY_CHANNEL
 #  if !IS_PA_KV_COMPRESSED
 #    error "sdpa_ocl.cl: IS_PA_K_BY_CHANNEL requires a compressed (i8 or u4) K cache"
-#  endif
-#  if !IS_PA_K_TOKEN_MAJOR
-// The data region must be [block_size tokens, PA_K_ROW_ELEMS]; upstream BY_CHANNEL is d-major and its
-// comp lives inline at the end of every column, which nothing below can address.
-#    error "sdpa_ocl.cl: IS_PA_K_BY_CHANNEL is only valid for the token-major BY_CHANNEL page"
 #  endif
 #  if ADJUSTED_K_HEAD_SIZE != K_HEAD_SIZE
 // BY_CHANNEL's comp is sized by CHANNEL, so it grows the page's row COUNT
@@ -412,23 +397,6 @@
 #    if DPAS_K != 16 || SUBGROUP_SIZE != 16
 #      error "sdpa_ocl.cl: the u4 Kc dword read is 16 dwords wide; DPAS_K and SUBGROUP_SIZE must be 16"
 #    endif
-#  endif
-#endif
-
-#if USE_2D_BLOCK_IO_K_PA_DT
-#  if !IS_PA_MIXED || IS_PA_KV_COMPRESSED || IS_PA_K_TOKEN_MAJOR || IS_PA_K_U4
-#    error "sdpa_ocl.cl: USE_2D_BLOCK_IO_K_PA_DT reads the MIXED f16 d-major K page only"
-#  endif
-#  if (K_HEAD_SIZE % (2 * DPAS_K)) != 0 || (DKS_ACTIVE % 2) != 0
-// The tile pairs (2g, 2g+1) share 16 surface rows; a head size that ends inside a window would leave half a pair.
-#    error "sdpa_ocl.cl: USE_2D_BLOCK_IO_K_PA_DT needs K_HEAD_SIZE to be a multiple of 2 * DPAS_K"
-#  endif
-#  if DPAS_K != 16 || SUBGROUP_SIZE != 16 || DPAS_ROWS != 8 || PAGED_ATTENTION_BLOCK_SIZE != 16
-// The transpose_32b_16r8x1c geometry: 16 surface rows = 16 lanes = 32 channels, 8 dwords = one page of 16 keys.
-#    error "sdpa_ocl.cl: USE_2D_BLOCK_IO_K_PA_DT needs SG16, DPAS 8x16 and 16-token pages"
-#  endif
-#  if PA_K_DT_ROWS != 16 && PA_K_DT_ROWS != 32
-#    error "sdpa_ocl.cl: PA_K_DT_ROWS must be 16 or 32 (the transpose_32b_16r8x1c / 32r8x1c reads)"
 #  endif
 #endif
 

@@ -875,7 +875,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_sink_v2_effect, paged_attention_s
 // DIFFERENT per head, so a kernel that reads the wrong head's sink cannot pass either.
 //
 // force_flashattn_v2 is deliberately left off. It also sets has_token_type_ids, which makes
-// can_use_micro_sdpa_for reject every stage but PREFILL -- these cases need to reach sdpa_ocl in
+// can_use_sdpa_ocl_for reject every stage but PREFILL -- these cases need to reach sdpa_ocl in
 // MIXED too.
 static paged_attention_test_params with_sinks(paged_attention_test_params p) {
     int kv_len = 0;
@@ -2411,10 +2411,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_rotation_content, kv_cache_rotation_cont
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // Which kernel PREFILL and MIXED dispatch: sdpa_ocl on its lane (Xe2+ XMX), the opt kernels elsewhere -- one choice
-// per device. On top of that, in MIXED sdpa_ocl refuses a d-major i8/u4 BY_CHANNEL page. The second test runs the same
-// case through program save/load, which rebuilds the impl from its default ctor plus the saved stage order, so the
-// dispatch must not depend on state only the params ctor had. (Both sides run in one process, so this does not cover
-// an environment change between export and import.)
+// per device. On top of that, in MIXED sdpa_ocl refuses every d-major K page (it reads the token-major page only). The
+// second test runs the same case through program save/load, which rebuilds the impl from its default ctor plus the
+// saved stage order, so the dispatch must not depend on state only the params ctor had. (Both sides run in one process,
+// so this does not cover an environment change between export and import.)
 class paged_attention_dpas_backend_test : public PagedAttentionTest<paged_attention_test_params> {
 public:
     void check_dispatch(bool is_caching_test) {
@@ -2426,9 +2426,7 @@ public:
             return s.past_len == 0;
         });
         auto backend = tests::expected_dpas_backend(engine, true, pa_hpg_tiers(p));
-        const bool int4 = p.kv_cache_precision == ov::element::u4 || p.kv_cache_precision == ov::element::i4;
-        const bool by_channel_page = p.kv_cache_compression && (int4 || p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
-        if (backend == tests::dpas_backend::ocl && !prefill && by_channel_page && !pam.k_cache_token_major()) {
+        if (backend == tests::dpas_backend::ocl && !prefill && !pam.k_cache_token_major()) {
             backend = tests::dpas_backend::none;
         }
         std::string expected;

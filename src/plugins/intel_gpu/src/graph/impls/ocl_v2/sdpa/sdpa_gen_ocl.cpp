@@ -746,15 +746,16 @@ sdpa_ocl_problem make_problem(const kernel_impl_params& params, bool is_prefill)
 }
 
 // How the stage reads a paged-attention KV cache; all false for plain SDPA and for PA PREFILL, whose K is
-// the f16 input. `compressed` is keyed on the data type so that MIXED always compiles; the dequant is only
-// correct where dequant_ok, and can_use_micro_sdpa_for() keeps the other layouts off dispatch.
+// the f16 input. MIXED reads the token-major K page only. `compressed` is keyed on the data type so that MIXED
+// always compiles: on a page it cannot read -- any d-major one (the BY_CHANNEL fields stay false there), or a
+// kind without a dequant (dequant_ok false) -- it compiles as the token-major reader, and
+// PagedAttentionOptImpl::can_use_sdpa_ocl_for() keeps it off dispatch.
 struct pa_cache_desc {
     bool compressed = false;        // IS_PA_KV_COMPRESSED: an i8/u8 cache (u4 is stored as u8)
     bool key_by_channel = false;    // the descriptor's K quantization
     bool u4_by_channel_tm = false;  // IS_PA_K_U4
     bool by_channel_tm = false;     // IS_PA_K_BY_CHANNEL: i8 or u4 BY_CHANNEL, relayed token-major
     bool dequant_ok = false;        // i8 BY_TOKEN or token-major BY_CHANNEL
-    bool k_token_major = false;     // IS_PA_K_TOKEN_MAJOR
     size_t k_row_elems = 0;         // page data-row pitch in cache elements (u4: bytes)
     size_t v_row_elems = 0;
 };
@@ -782,7 +783,6 @@ pa_cache_desc classify_pa_cache(const kernel_impl_params& params,
     c.u4_by_channel_tm = tm_layout && precision == ov::element::u4;
     c.by_channel_tm = (i8 && tm_layout) || c.u4_by_channel_tm;
     c.dequant_ok = (i8 && !c.key_by_channel) || c.by_channel_tm;
-    c.k_token_major = (page_tm && !(c.compressed && c.key_by_channel)) || c.by_channel_tm;
     if (c.u4_by_channel_tm) {
         c.k_row_elems = pa_u4_k_row_bytes(p.k_head_size);
         c.v_row_elems = pa_u4_v_row_bytes(p.v_head_size, static_cast<size_t>(p.tiling.subgroup_size));
@@ -997,8 +997,6 @@ void add_pa_cache_jit(JitConstants& jit, const jit_inputs& in) {
         jit.make("PA_K_ROW_ELEMS", c.k_row_elems);
         jit.make("PA_V_ROW_ELEMS", c.v_row_elems);
     }
-    // Also addresses the gather fallbacks, so it is set even when no page block read is.
-    jit.make("IS_PA_K_TOKEN_MAJOR", c.k_token_major ? 1 : 0);
     if (!in.is_pa) {
         return;
     }
@@ -1018,26 +1016,6 @@ bool pa_1d_page_ok(size_t row_elems, size_t sg, size_t block_size) {
         return false;
     const size_t cols = row_elems / sg;
     return cols <= 16 && (cols & (cols - 1)) == 0;
-}
-
-// The f16 d-major K page read with a 32-bit transpose as a 64-byte-pitch surface (pa_k_tile_dt): MIXED, an uncompressed
-// d-major page of 16 tokens, and a head size that fills whole 32-channel windows (the tile pairs of the permuted depth).
-// Shared by the page read and the Kc base fixup that its permuted Kc read needs.
-int pa_k_dt_jit(const jit_inputs& in) {
-    const auto& c = in.cache;
-    const auto sg = static_cast<size_t>(in.problem.tiling.subgroup_size);
-    const bool f16_page = !data_type_traits::is_i8_u8(in.k.data_type) && !data_type_traits::is_i4_u4(in.k.data_type) &&
-                          ov::element::Type(in.k.data_type).size() == 2;
-    const bool dt = in.is_pa && !in.is_prefill && f16_page && !c.k_token_major && in.config.paged_attention_block_size == 16 &&
-                    in.problem.k_head_size % 32 == 0;
-    if (!dt || !block2d_io_allowed(sg)) {
-        return 0;
-    }
-    // Rows per transpose read: 32 (one read for depth tiles db and db + 2) with 256 GRF; its 16 extra live dwords per parity
-    // spilled 4 KB at 128 GRF (d_max 64 table tiling, 497 against 413 us per call with 16). SDPA_OCL_K_PA_DT=16/32 forces
-    // the form, 0 falls back to the per-key gather (bisection); it cannot force the read on elsewhere.
-    const int rows = env_int("SDPA_OCL_K_PA_DT", in.problem.tiling.large_grf ? 32 : 16);
-    return (rows == 16 || rows == 32) ? rows : 0;
 }
 
 // MIXED page reads: f16 pages by the 16b block read, i8/u4 pages by the 8-bit VNNI-transform read, and the
@@ -1063,26 +1041,23 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
     v_pa_2d_i8 = block2d_env_int("SDPA_OCL_V_PA_I8_2D", v_pa_2d_i8, allowed);
     jit.make("USE_2D_BLOCK_IO_V_PA_I8", v_pa_2d_i8);
 
-    // A d-major K page's row is 32 B, below the block2d minimum, so K block reads need a token-major page.
     int k_pa_2d = 0;
-    if (c.k_token_major && !in.config.is_kv_compressed && !data_type_traits::is_i8_u8(in.k.data_type) && !data_type_traits::is_i4_u4(in.k.data_type)) {
+    if (in.is_pa && !in.is_prefill && !in.config.is_kv_compressed && !data_type_traits::is_i8_u8(in.k.data_type) &&
+        !data_type_traits::is_i4_u4(in.k.data_type)) {
         k_pa_2d = block2d_page_ok(p.k_head_size * ov::element::Type(in.k.data_type).size()) ? 1 : 0;
     }
     jit.make("USE_2D_BLOCK_IO_K_PA", block2d_env_int("SDPA_OCL_K_PA_2D", k_pa_2d, allowed));
-    // Depth tiles db and db + 1 of the token-major f16 page in one 16b_16r16x2c read per key group: half the K messages, as
-    // the d-major page's 32-row transpose read has. SDPA_OCL_PA_K_WIDE=0/1 forces it off/on where the page read is on.
+    // Depth tiles db and db + 1 of the token-major f16 page in one 16b_16r16x2c read per key group: half the K messages.
+    // SDPA_OCL_PA_K_WIDE=0/1 forces it off/on where the page read is on.
     const bool k_pa_2d_on = block2d_env_int("SDPA_OCL_K_PA_2D", k_pa_2d, allowed) != 0;
     jit.make("PA_K_WIDE_READS", k_pa_2d_on ? env_int("SDPA_OCL_PA_K_WIDE", 1) : 0);
     // Depth tiles issued together (two per read), i.e. reads in flight per key group. SDPA_OCL_PA_K_WIDE_TILES overrides
     // (an even number of at least 2).
     const int k_wide_tiles = env_int("SDPA_OCL_PA_K_WIDE_TILES", 4);
     jit.make("PA_K_WIDE_TILES", (k_wide_tiles >= 2 && k_wide_tiles % 2 == 0) ? k_wide_tiles : 4);
-    const int k_pa_dt = pa_k_dt_jit(in);
-    jit.make("USE_2D_BLOCK_IO_K_PA_DT", k_pa_dt ? 1 : 0);
-    jit.make("PA_K_DT_ROWS", k_pa_dt);
 
     int k_pa_2d_i8 = 0;
-    if (c.k_token_major && c.dequant_ok) {
+    if (c.dequant_ok && !in.is_prefill) {
         k_pa_2d_i8 = c.u4_by_channel_tm ? (block2d_surface_ok(c.k_row_elems) ? 1 : 0) : (block2d_page_ok(c.k_row_elems) ? 1 : 0);
     }
     k_pa_2d_i8 = block2d_env_int("SDPA_OCL_K_PA_I8_2D", k_pa_2d_i8, allowed);
@@ -1131,8 +1106,8 @@ void add_pa_current_token_jit(JitConstants& jit, const jit_inputs& in) {
         cur_f16 = env_int("SDPA_OCL_PA_CUR_F16", (f16_in && (cur_aligned || fixup_ok) && in.cache.compressed) ? 1 : 0);
     }
     jit.make("PA_CUR_KV_F16", cur_f16);
-    // The permuted-depth Kc read (u4, and the f16 d-major page read) addresses Kc as dwords from the fixed-up origin.
-    jit.make("BLOCK2D_KV_CUR_BASE_FIXUP", (cur_f16 && (!cur_aligned || in.cache.u4_by_channel_tm || pa_k_dt_jit(in))) ? 1 : 0);
+    // The permuted-depth Kc read (u4) addresses Kc as dwords from the fixed-up origin.
+    jit.make("BLOCK2D_KV_CUR_BASE_FIXUP", (cur_f16 && (!cur_aligned || in.cache.u4_by_channel_tm)) ? 1 : 0);
 }
 
 // Plain-SDPA i8 KV compression: the 8-bit VNNI-transform K and V reads (an override applied outside the gate

@@ -1708,36 +1708,21 @@ public:
     // bidirectional mask in PREFILL and MIXED (pa_small_q_opt.cl does not, see supports_gqa_multi_tokens_dpas_kernel()).
     // GENERATE never has a DPAS stage (dpas_backend() above) and needs nothing: that stage is defined by one new token
     // per subsequence, so a query's image group is the query itself.
-    bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
+    bool can_use_sdpa_ocl_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
         const auto backend = dpas_backend(stage);
         // Speculative decoding MIXED case is faster with the GQA multi-token kernel than with the DPAS kernel
         if (backend == DpasBackend::none || can_use_gqa_multi_tokens_kernel(params, stage))
             return false;
-        const auto desc = params.typed_desc<paged_attention>();
-        // sdpa_ocl's MIXED cache dequant needs the data region to be a plain [block_size, row] tile
-        // with its comp appended AFTER it. Three layouts satisfy that:
-        //   i8 BY_TOKEN     comp is two trailing per-token f16 arrays.
-        //   i8 BY_CHANNEL   only token-major, which k_token_major_readable() allows; it relays the
-        //                   per-column comp to a trailing per-channel array. UPSTREAM
-        //                   BY_CHANNEL keeps a (scale, zp) pair inline at the end of every column and
-        //                   is d-major, so the reader would take both the data and the comp from the
-        //                   wrong offsets.
-        //   u4 BY_CHANNEL   the same, which additionally re-packs K two CHANNELS per byte and
-        //                   moves V's inline per-row comp to a trailing per-token array. Upstream INT4
-        //                   is d-major with two TOKENS per K byte and V's comp inside each row.
-        // i4 and INT4 BY_TOKEN never do -- the predicate rejects both -- and neither exists in practice
-        // (execution_config.cpp asserts against 4-bit BY_TOKEN keys and auto-selects u4). Anything left
-        // goes to pa_multi_token, which handles every layout. The mixed kernel still COMPILES for the
-        // rejected cases (IS_PA_KV_COMPRESSED is keyed on the cache data type, because
-        // PagedAttentionOptImpl's ctor add_stage()s prefill AND mixed) -- it just must not dispatch.
-        if (stage == PagedAttentionStage::MIXED && get_kv_compressed(params)) {
-            const bool by_channel_tm = is_by_channel_tm_page(params);
-            const bool int4 = data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision());
-            // int4 has no d-major reader here at all, so it needs the switch unconditionally; i8 only
-            // needs it in BY_CHANNEL, since BY_TOKEN is already the layout this kernel reads.
-            if (int4 ? !by_channel_tm : (desc->is_key_by_channel && !by_channel_tm))
-                return false;
-        }
+        // sdpa_ocl's MIXED stage reads the token-major K page only: a plain [block_size, row] data tile with the comp
+        // appended after it, for the four kinds k_token_major_kind() names (f16, i8 BY_TOKEN, i8 BY_CHANNEL with the
+        // per-column comp relayed to a trailing per-channel array, u4 BY_CHANNEL with K two CHANNELS per byte and V's
+        // per-row comp moved to a trailing per-token array). Every other page is d-major -- the rule refused the model,
+        // OV_GPU_PA_K_TOKEN_MAJOR=0, or the shape cannot tell (k_cache_token_major()) -- and goes to pa_multi_token, which
+        // reads every d-major layout. The refusal is here and only here: PREFILL reads the K input, not the page, and the
+        // ctor add_stage()s PREFILL and MIXED together, so the MIXED kernel still COMPILES on a d-major page (as a
+        // token-major reader, see classify_pa_cache()) -- it just must not dispatch.
+        if (stage == PagedAttentionStage::MIXED && !get_k_token_major(params))
+            return false;
         return true;
     }
 
@@ -1904,7 +1889,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        rt_params->use_micro_sdpa = can_use_micro_sdpa_for(params, rt_params->stage);
+        rt_params->use_micro_sdpa = can_use_sdpa_ocl_for(params, rt_params->stage);
 #else
         rt_params->use_micro_sdpa = false;
 #endif
@@ -2145,7 +2130,7 @@ public:
         if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
             can_use_micro_sdpa = rt_params->use_micro_sdpa;
         } else {
-            can_use_micro_sdpa = can_use_micro_sdpa_for(params, stage);
+            can_use_micro_sdpa = can_use_sdpa_ocl_for(params, stage);
         }
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
@@ -2518,7 +2503,7 @@ std::unique_ptr<primitive_impl> PagedAttentionOpt::create_impl(const program_nod
 namespace cldnn {
 
 // Replays, per op, the parts of PagedAttentionOptImpl::choose_dpas_backend() (its sdpa_ocl branch) /
-// can_use_micro_sdpa_for() (MIXED reader = sdpa_ocl_selected) and SDPAOclDecodeGenerator::supported() (GENERATE
+// can_use_sdpa_ocl_for() (MIXED reader = sdpa_ocl_selected) and SDPAOclDecodeGenerator::supported() (GENERATE
 // reader = sdpa_ocl_decode_reader_available) that do not depend on the page itself. Change it together with those gates.
 bool paged_attention::k_token_major_readable(const device_info& info,
                                              bool mixed_dpas_enabled,
