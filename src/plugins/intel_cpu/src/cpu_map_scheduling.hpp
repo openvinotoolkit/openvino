@@ -50,6 +50,7 @@ std::vector<std::vector<int>> apply_hyper_threading(bool& input_ht_hint,
 bool check_cpu_pinning(bool cpu_pinning,
                        bool cpu_pinning_changed,
                        bool cpu_reservation,
-                       const std::vector<std::vector<int>>& streams_info_table);
+                       const std::vector<std::vector<int>>& streams_info_table,
+                       const std::vector<std::vector<int>>& proc_type_table);
 
 }  // namespace ov::intel_cpu

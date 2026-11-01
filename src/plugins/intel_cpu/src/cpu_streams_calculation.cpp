@@ -1482,7 +1482,8 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     config.enableCpuPinning = check_cpu_pinning(config.enableCpuPinning,
                                                 config.changedCpuPinning,
                                                 config.enableCpuReservation,
-                                                streams_info_table);
+                                                streams_info_table,
+                                                proc_type_table);
 
     config.streamExecutorConfig = IStreamsExecutor::Config{"CPUStreamsExecutor",
                                                            config.streams,
