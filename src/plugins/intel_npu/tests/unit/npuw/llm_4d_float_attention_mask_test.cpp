@@ -184,19 +184,24 @@ float marker(size_t row, size_t column) {
     return -static_cast<float>(1 + row * kMarkerSize + column);
 }
 
+// An f32 tensor [1, 1, rows, columns] with value(row, column) in every position.
+ov::Tensor make_tensor_values(size_t rows, size_t columns, const std::function<float(size_t, size_t)>& value) {
+    ov::Tensor values(ov::element::f32, ov::Shape{1, 1, rows, columns});
+    for (size_t row = 0; row < rows; ++row) {
+        for (size_t column = 0; column < columns; ++column) {
+            values.data<float>()[row * columns + column] = value(row, column);
+        }
+    }
+    return values;
+}
+
 ov::Tensor make_marker_mask(const ov::element::Type& type, size_t rows, size_t columns) {
     OPENVINO_ASSERT(rows <= kMarkerSize && columns <= kMarkerSize,
                     "marker() values are distinct and exact only for masks up to ",
                     kMarkerSize,
                     " x ",
                     kMarkerSize);
-    ov::Tensor mask(ov::element::f32, ov::Shape{1, 1, rows, columns});
-    for (size_t row = 0; row < rows; ++row) {
-        for (size_t column = 0; column < columns; ++column) {
-            mask.data<float>()[row * columns + column] = marker(row, column);
-        }
-    }
-    return make_tensor_with_precision_convert(mask, type);
+    return make_tensor_with_precision_convert(make_tensor_values(rows, columns, marker), type);
 }
 
 ov::Tensor make_i64(std::initializer_list<size_t> shape, int64_t fill_value) {
@@ -268,19 +273,18 @@ float lowest_of(const ov::element::Type& type) {
 void expect_cells(const ov::SoPtr<ov::ITensor>& staged, const std::function<float(size_t, size_t)>& expected) {
     const auto& shape = staged->get_shape();
     ASSERT_EQ(shape.size(), 4u);
-    ov::Tensor dense(staged->get_element_type(), shape);
-    staged->copy_to(ov::get_tensor_impl(dense)._ptr);  // make dense copy of staged tensor
-    const auto cells = make_tensor_with_precision_convert(dense, ov::element::f32);
-    for (size_t row = 0; row < shape[2]; ++row) {
-        for (size_t column = 0; column < shape[3]; ++column) {
-            const float actual = cells.data<float>()[row * shape[3] + column];
-            const float expected_value = expected(row, column);
-            if (actual != expected_value) {
-                ADD_FAILURE() << "first mismatch at [" << row << ", " << column << "]: got " << actual << ", expected "
-                              << expected_value;
-                return;
-            }
-        }
+    ASSERT_TRUE(staged->is_continuous());  // the conversion to f32 below reads the data linearly
+    const auto actual = make_tensor_with_precision_convert(ov::make_tensor(staged), ov::element::f32);
+    const auto wanted = make_tensor_values(shape[2], shape[3], expected);
+
+    const float* wanted_begin = wanted.data<float>();
+    const float* wanted_end = wanted_begin + wanted.get_size();
+    const float* actual_begin = actual.data<float>();
+    const auto [wanted_diff, actual_diff] = std::mismatch(wanted_begin, wanted_end, actual_begin);
+    if (wanted_diff != wanted_end) {
+        const size_t index = wanted_diff - wanted_begin;
+        ADD_FAILURE() << "first mismatch at [" << index / shape[3] << ", " << index % shape[3] << "]: got "
+                      << *actual_diff << ", expected " << *wanted_diff;
     }
 }
 
