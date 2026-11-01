@@ -532,7 +532,7 @@ INSTANTIATE_TEST_SUITE_P(
 // The MIXED stage is the load-bearing case: the token-major BY_CHANNEL K page is read by sdpa_ocl,
 // while the MIXED fallback (pa_multi_token in paged_attention_opt.cl) reads it d-major. The page is
 // only created when paged_attention::k_token_major_readable() says sdpa_ocl serves every op,
-// which replays supports_micro_sdpa()'s k != v check (SDPAOclGenerator::supports_head_sizes); when
+// which replays choose_dpas_backend()'s k != v check (SDPAOclGenerator::supports_head_sizes); when
 // the two disagreed, a rejected shape came back as NaN rather than as a slower result.
 //
 // PREFILL is covered for completeness (it runs sdpa_ocl_prefill, or pa_sdpa_opt off the raw KEY

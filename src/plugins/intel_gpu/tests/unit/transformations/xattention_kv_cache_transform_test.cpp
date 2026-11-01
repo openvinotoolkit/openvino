@@ -713,10 +713,10 @@ TEST_P(PagedAttentionKCacheLayoutPipelineTest, PageFollowsReaders) {
     const auto& info = engine.get_device_info();
     const bool by_channel = p.kv_cache_precision != ov::element::f16 && p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
     // Every page kind of these cases has a token-major reader in both stages only on XMX Xe2+ with the DPAS MIXED kernel
-    // on (enable_sdpa_micro, i.e. not OV_GPU_ENABLE_SDPA_MICRO=0, and microkernel support), and only for a model without
-    // alibi. qq_bias is fine: EAGLE3's pa_kv_reorder reads the page too.
-    const bool token_major = pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::k_token_major_device(info) && config.get_enable_sdpa_micro() &&
-                             cldnn::query_microkernels_supported(engine, config) && !p.with_alibi;
+    // on (enable_sdpa_micro, i.e. not OV_GPU_ENABLE_SDPA_MICRO=0; sdpa_ocl needs no microkernel support), and only for a
+    // model without alibi. qq_bias is fine: EAGLE3's pa_kv_reorder reads the page too.
+    const bool token_major =
+        pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::k_token_major_device(info) && config.get_enable_sdpa_micro() && !p.with_alibi;
 
     // f16 comp: i8 BY_CHANNEL keeps a (scale, zp) pair per channel after 16 tokens, u4 packs 16 tokens into 8 bytes,
     // i8 BY_TOKEN appends per-token pairs along the head dim.
