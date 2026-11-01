@@ -474,7 +474,6 @@ static bool should_decompose_sdpa_for_memory_size(size_t max_size,
 }
 
 namespace cldnn {
-extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 extern bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config);
 }  // namespace cldnn
 
@@ -1028,7 +1027,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
-        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad);
+        // No fused compressed K/V: no SDPA kernel reads the per-channel scales this pass would hand it (sdpa_ocl and
+        // sdpa_opt read one scale per token; only the removed sdpa_micro read them), so quantized GQA K/V are
+        // dequantized before SDPA on every device.
+        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad, false);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
@@ -1277,12 +1279,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
              }
 
             const auto head_size = static_cast<uint64_t>(query_ps[query_ps.size() - 1].get_length());
-            // A DPAS SDPA kernel serves the op: sdpa_ocl on its lane (no oneDNN microkernel support needed), sdpa_micro where
-            // the driver supports microkernels. The 256 limit predates sdpa_ocl (which serves heads up to 512); raising it
-            // would change which models keep SDPA fused.
-            if (device_info.supports_immad &&
-                (cldnn::paged_attention::sdpa_ocl_selected(device_info) || cldnn::query_microkernels_supported(m_context->get_engine(), config)) &&
-                head_size <= 256)
+            // The DPAS SDPA kernel serves the op: sdpa_ocl on its lane (no oneDNN microkernel support needed). Other XMX
+            // devices (xe_hpg by default, xe_hpc) take the rules below. The 256 limit predates sdpa_ocl (which serves heads
+            // up to 512); raising it would change which models keep SDPA fused.
+            if (device_info.supports_immad && cldnn::paged_attention::sdpa_ocl_selected(device_info) && head_size <= 256)
                 return true;
 
             // - Head size should be 128 for any model type; or should be in the range of 64 to 512 for stateful LLMs because of performance

@@ -9,6 +9,7 @@
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
@@ -21,7 +22,6 @@ struct SDPAStage {
     constexpr static size_t SINGLE_TOKEN = 0;
     constexpr static size_t MULTI_TOKENS = 1;
     constexpr static size_t FINALIZATION = 2;
-    constexpr static size_t MICRO = 3;
 };
 
 struct SDPAOpt : public ImplementationManager {
@@ -33,12 +33,12 @@ struct SDPAOpt : public ImplementationManager {
     // DPAS lane of an XMX device (some checks read dims that are only static there). allow_scalar_mask enables a
     // single-element runtime attention mask, which only the sdpa_ocl kernel reads (it adds the one value to every logit).
     [[nodiscard]] static bool dpas_sdpa_op_supported(const kernel_impl_params& params, bool allow_scalar_mask);
-    // The sdpa_micro lane: enable_sdpa_micro on, XMX xe_hpg or later with oneDNN microkernel support, and
-    // dpas_sdpa_op_supported() without a single-element mask. sdpa_ocl does not use it: it needs no microkernel support.
-    [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
+    // validate_impl()'s view of the DPAS kernel on the sdpa_ocl lane: the lane, enable_sdpa_micro on, and
+    // dpas_sdpa_op_supported() without a single-element mask. Not SDPAOclGenerator::supported(): see validate_impl().
+    [[nodiscard]] static bool dpas_lane_op_supported(const kernel_impl_params& params);
     [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
-    // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout the oneDNN micro SDPA
-    // stage cannot handle, so it has to run on the regular sdpa_opt stages instead.
+    // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout dpas_sdpa_op_supported() refuses
+    // (the oneDNN micro SDPA stage gave NaN on it), so it has to run on the regular sdpa_opt stages instead.
     [[nodiscard]] static bool has_bf16_compressed_kv_zero_point(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
@@ -83,18 +83,23 @@ struct SDPAOpt : public ImplementationManager {
             desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
         const bool combine_scales_and_zp = desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
-        // Lane independent: this looks only at supports_micro_sdpa(), never at SDPAOclGenerator::supported(). When the ocl lane
-        // refuses a compressed op, opt still gets it (planar asymmetric) and, if this is false, SDPARef does, so no impl
-        // disappears, but the op is silently demoted. A passing compressed test is therefore not proof of the ocl lane;
-        // check which kernel was dispatched.
+        // No kernel here reads per-channel scales: sdpa_ocl and sdpa_opt read one scale per token. Only sdpa_micro did, and it
+        // is gone, so the GQA decomposition no longer fuses per-channel compressed KV into SDPA (GPU plugin
+        // GroupQueryAttentionDecomposition, fuse_compressed_kv).
         auto p = node.get_kernel_impl_params();
-        if (has_per_channel_compressed_kv(*p) && !supports_micro_sdpa(*p)) {
+        if (has_per_channel_compressed_kv(*p)) {
             return false;
         }
-        // Asymmetric planar compressed KV is normally handled by the micro kernel. The one layout the micro
-        // kernel cannot handle (an asymmetric bf16 zero-point buffer) is taken over by the regular
-        // sdpa_opt multi-token/single-token stages, so keep the implementation selectable for it as well.
-        return !use_asymmetric_quantization || combine_scales_and_zp || supports_micro_sdpa(*p) || has_bf16_compressed_kv_zero_point(*p);
+        // Asymmetric planar compressed KV. On the sdpa_ocl lane this looks only at dpas_lane_op_supported(), never at
+        // SDPAOclGenerator::supported(): when sdpa_ocl refuses a compressed op, opt still gets it and, if this is false, SDPARef
+        // does, so no impl disappears, but the op is silently demoted. A passing compressed test is therefore not proof of the
+        // ocl lane; check which kernel was dispatched. The one layout the DPAS kernels refuse (an asymmetric bf16 zero-point
+        // buffer) is taken over by the regular sdpa_opt multi-token/single-token stages. An XMX device off the lane (xe_hpg
+        // without TEST_USE_SDPA_OCL_HPG=1, xe_hpc) has no DPAS SDPA kernel, so the sdpa_opt stages and their planar
+        // zero-point path take it, instead of SDPARef. Non-XMX devices get the interleaved layout (kv_cache_compression.cpp).
+        const auto& info = p->get_device_info();
+        const bool xmx_off_lane = info.supports_immad && !cldnn::paged_attention::sdpa_ocl_selected(info);
+        return !use_asymmetric_quantization || combine_scales_and_zp || xmx_off_lane || dpas_lane_op_supported(*p) || has_bf16_compressed_kv_zero_point(*p);
     }
 };
 

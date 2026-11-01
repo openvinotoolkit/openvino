@@ -20,31 +20,20 @@ The end-to-end performance investigation, including the B70 Xe2 gap closure and 
 | PA PREFILL / MIXED | `SDPAOclGenerator(prefill)` | `sdpa_ocl.cl` | `paged_attention_opt.cpp`: `choose_dpas_backend()` at construction, `can_use_micro_sdpa_for()` per dispatch |
 | PA GENERATE | `SDPAOclDecodeGenerator` | `sdpa_ocl_decode.cl` | `SDPAOclDecodeGenerator::supported()` |
 
-Which DPAS kernel plain SDPA and PA PREFILL/MIXED use is decided per device,
-`paged_attention::sdpa_ocl_selected()`: `sdpa_ocl` on Xe2+ XMX, `SDPAMicroGenerator` (`sdpa_micro`)
-on the other XMX parts (xe_hpg: DG2/Arc-A, ARL-H) as upstream, and everywhere with
-`TEST_USE_SDPA_OCL=0`. The `sdpa_ocl` lane needs XMX and a oneDNN build, but not the oneDNN microkernel support
-(`cldnn::query_microkernels_supported()`) that `sdpa_micro` asks for; `OV_GPU_ENABLE_SDPA_MICRO=0` (the config's
-`enable_sdpa_micro`, a name older than `sdpa_ocl`) turns both kernels off. There is no fallback from one to the other:
-where the device's kernel refuses an op, the opt kernels run. On Xe2 that keeps, for example, f32 PA and the d-major BY_CHANNEL page of an alibi
-model on the opt kernels even where `sdpa_micro` could serve them; switching kernels per op would change
-Xe2 behaviour and needs its own measurement. Both generator types are created in every impl's
-default constructor, the params constructor adds one of them, and every later decision reads
-`has_stage()`: a loaded or cloned impl is default-constructed and only gets `_order` (indices into
-`_stages`) back, so it must not re-derive the kernel from the device or the environment.
-
-The `sdpa_micro` lane keeps upstream's limits: k == v, no single-element runtime mask, no unaligned
-single-token (a static unaligned decode runs the opt multi-tokens kernel), ARL-H static decode on
-the opt kernel, and the xe3p workarounds (plain SDPA head <= 64, PA always) -- in the kernel choice
-only, `SDPAOpt::validate_impl()` does not apply them. It also refuses an f32 query or output,
-because `sdpa_micro.cl` loads Q as packed halves and stores half; its codegen happens to fail on
-f32 too ("No matching kernel", swallowed by `add_stage()`). The bidirectional token_type_ids mask
-is upstream's on that lane too: `sdpa_micro` serves PREFILL and MIXED with it (MIXED reads the group
-bounds of a `pa_tt_bounds` pre-pass), and small GQA MIXED steps go to the `paged_attention_opt.cl`
-fallback, which implements it as well.
+Whether the DPAS kernel serves plain SDPA and PA PREFILL/MIXED is decided per device,
+`paged_attention::sdpa_ocl_selected()`: `sdpa_ocl` on Xe2+ XMX (and xe_hpg with `TEST_USE_SDPA_OCL_HPG=1`, below), the
+opt kernels on every other device (xe_hpg by default, xe_hpc, non-XMX). `sdpa_micro`, the oneDNN-derived DPAS kernel
+that served the other XMX parts, was removed on 2026-11-02 together with `TEST_USE_SDPA_OCL`, which selected it; what
+that changed off Xe2 is listed in "Known issues". The `sdpa_ocl` lane needs XMX and a oneDNN build (the
+`ENABLE_ONEDNN_FOR_GPU` guards were kept, although the kernel no longer uses oneDNN), but not the oneDNN microkernel
+support (`cldnn::query_microkernels_supported()`); `OV_GPU_ENABLE_SDPA_MICRO=0` (the config's `enable_sdpa_micro`, a name
+from `sdpa_micro`) turns it off. Where `sdpa_ocl` refuses an op, the opt kernels run. The generator is created in every
+impl's default constructor, the params constructor adds its stages, and every later decision reads `has_stage()`: a
+loaded or cloned impl is default-constructed and only gets `_order` (indices into `_stages`) back, so it must not
+re-derive the kernel from the device or the environment.
 
 `TEST_USE_SDPA_OCL_DECODE=0` disables `SDPAOclDecodeGenerator`, so GENERATE falls back to the
-`paged_attention_opt` single-token kernels. Either switch also keeps the i8/u4 BY_CHANNEL K cache
+`paged_attention_opt` single-token kernels. It also keeps the i8/u4 BY_CHANNEL K cache
 d-major, the page those fallbacks read ("Paged-attention cache layouts").
 `SDPAOclGenerator::supported()` requires Xe2 or later (xe_hpg only during the bring-up, below) and
 f16/bf16 Q and output. Plain SDPA
@@ -71,8 +60,8 @@ op's `HpgTier` bits (`sdpa_ocl_hpg.hpp`, `hpg_tier_required()`) to be set in `kH
 has `PLAIN_F16_STATIC` (plain f16 SDPA, static shape, more than one query, no mask / causal / sink / runtime
 scale), `PLAIN_I8`, `PA_PREFILL`, `PA_MIXED_F16` and `PLAIN_EXT` (the rest of uncompressed plain SDPA: bf16, a mask, causal, a sink, a runtime scale, a dynamic
 shape, one query; the mask, causal, sink and softmax code is lane = query and shared with SG16, only the 16-key
-`mask_full` vector of a full 2D mask is wider than the subgroup). Every other op is refused and, while the bring-up lasts (`TEMP(S9)` in `sdpa_opt.cpp` and
-`choose_dpas_backend()`), goes to `sdpa_micro` as it does with the switch off. The SG8 arm (`SG8` in
+`mask_full` vector of a full 2D mask is wider than the subgroup). Every other op is refused and runs the opt kernels,
+as every op does with the switch off (until 2026-11-02 a temporary routing sent both to `sdpa_micro`). The SG8 arm (`SG8` in
 `sdpa_ocl_config.cl`, i.e. `SUBGROUP_SIZE == 8`) feeds the DPAS an `int8` A operand, two halves per lane
 (lane l = reduction elements 2l, 2l+1): the K tile is read by `k_tile_dword` (a dword block read per key row, a
 two-ushort fallback for an unaligned or tail tile) and the S*V A operand is one 8-row dword block read of
@@ -957,7 +946,7 @@ It needs
 - a page both read (`k_token_major_kind()`): f16, i8 BY_TOKEN, i8 or u4 BY_CHANNEL; not u8 (`sdpa_ocl_decode` widens
   the byte as signed), i4, f32 or bf16;
 - `k_token_major_device()` -- the `sdpa_ocl` lane with its GENERATE reader, i.e. Xe2+ with XMX, a oneDNN build and both
-  `TEST_USE_SDPA_OCL*` switches on; other devices (no XMX, xe_hpg, xe_hpc) keep the upstream d-major page and kernels;
+  `TEST_USE_SDPA_OCL_DECODE` on; other devices (no XMX, xe_hpg, xe_hpc) keep the upstream d-major page and kernels;
 - the DPAS MIXED kernel on (the config's `enable_sdpa_micro`, i.e. not `OV_GPU_ENABLE_SDPA_MICRO=0`; no microkernel
   support needed) and f16 inference;
 - per op no alibi, scores output or adaptive R-KV, head sizes that are multiples of 16 and at most 512, an `sdpa_ocl`
@@ -1270,8 +1259,9 @@ sliding-window region (`openvino/reference/paged_attention.hpp`).
 - The causal bound and the window start are extended to cover the groups that straddle them.
   Groups never leave the new-token region, and reading a future key from the cache relies on
   `pa_kv_cache_update` running before this stage, as the reference does.
-- The mask loop needs only per-query group bounds `[begin, end)`, computed once per workgroup;
-  `sdpa_micro` reads per-token bounds from a separate `pa_tt_bounds` stage instead.
+- The mask loop needs only per-query group bounds `[begin, end)`, computed once per workgroup
+  (the removed `sdpa_micro` read per-token bounds from a separate `pa_tt_bounds` stage; its kernel,
+  `TT_BOUNDS_STAGE` in the upstream `paged_attention_opt.cl`, is no longer compiled).
 - A small GQA MIXED step (at most 16 new tokens per subsequence, e.g. a speculative draft block)
   takes the GQA multi-token path as without token_type_ids. `pa_small_q_opt.cl` has no bidirectional
   mask, so that is the `paged_attention_opt.cl` fallback, which has one (on the token-major
@@ -1432,7 +1422,7 @@ All are read on the host when the kernel is compiled.
 
 | Variable | Effect |
 |---|---|
-| `TEST_USE_SDPA_OCL`, `TEST_USE_SDPA_OCL_DECODE` | `0` selects the micro / opt path instead, and keeps the i8/u4 BY_CHANNEL K cache d-major for it |
+| `TEST_USE_SDPA_OCL_DECODE` | `0` selects the opt GENERATE path instead, and keeps the i8/u4 BY_CHANNEL K cache d-major for it (`TEST_USE_SDPA_OCL`, which selected `sdpa_micro`, was retired with it; `OV_GPU_ENABLE_SDPA_MICRO=0` turns the DPAS kernel off) |
 | `SDPA_OCL_KQ_TILE_KEYS`, `_TILE_QUERIES`, `_PER_WG_KEYS`, `_PER_WG_QUERIES` | Override the KQ tiling (`kq_sg_tile_keys` must be 16 or 32) |
 | `SDPA_OCL_TRACE_CONFIG`, `SDPA_OCL_TRACE_STAGE` | Print the chosen tiling / PA stage |
 | `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile (`SDPAOclGenerator` always on xe_hpg; `SDPA_OCL_256GRF=0` turns it off for the PA PREFILL tiling) |
@@ -1468,6 +1458,58 @@ Found in the 2026-09 review of these files and deliberately left out of the refa
 fix changes behaviour or lies outside them. Everything here comes from code reading unless a test
 result is quoted.
 
+### sdpa_micro removal (2026-11-02)
+
+What deleting `sdpa_micro` (`sdpa_gen_micro.cpp`, `sdpa_micro.cl`, the PA `pa_tt_bounds` stage) changed. Xe2+ results
+are unchanged (it never ran there by default); everything below is about the other devices, none of which is available
+here, so none of it was measured on them.
+
+- xe_hpg by default (DG2/Arc-A, ARL-H) and xe_hpc (PVC) have no DPAS SDPA kernel any more: plain SDPA and PA
+  PREFILL/MIXED run the opt kernels, so attention there is slower by the old `sdpa_micro` margin (not measured).
+  xe_hpg with `TEST_USE_SDPA_OCL_HPG=1` runs `sdpa_ocl` where its tiers are ready and the opt kernels elsewhere (the
+  temporary routing of refused ops to `sdpa_micro` is gone). xe_hpc has no `sdpa_ocl` arm (`sdpa_ocl_arch_ok()`).
+- Asymmetric planar KV-cache compression (what `kv_cache_compression.cpp` builds on every XMX device): an XMX device
+  off the lane now runs it on the `sdpa_opt` stages and their planar zero-point path (`SDPAOpt::validate_impl()`),
+  instead of `sdpa_micro`; without that it would have dropped to `SDPARef`. On the lane `validate_impl()` keeps its
+  old decision (knob + `dpas_sdpa_op_supported()`). The opt planar path already ran on B70 for int4, a bf16 zero point
+  and beam search, but not on those devices.
+- The SDPA decomposition callback keeps SDPA fused for head sizes up to 256 on the `sdpa_ocl` lane only; other XMX
+  devices follow the generic rules (heads below 64, odd heads and unaligned compressed heads are decomposed).
+- Per-channel compressed KV (the GQA decomposition's quantized K/V, #37157) had only `sdpa_micro` as a reader:
+  `sdpa_ocl` (`k_comp_per_key`), `sdpa_opt` and `sdpa_ref` read one scale per token. It was already broken on Xe2 by
+  default: on B70 at 1d50b4272a all 24 per-channel cases of `smoke_sdpa_gpu_compressed_kv_per_channel` /
+  `smoke_sdpa_gpu_gqa_decomp` failed or faulted the GPU (`CL_OUT_OF_RESOURCES`), on `sdpa_ocl` and with
+  `OV_GPU_ENABLE_SDPA_MICRO=0` alike, while 18 passed with `TEST_USE_SDPA_OCL=0`. Now the GPU pipeline runs
+  `GroupQueryAttentionDecomposition` with `fuse_compressed_kv = false` on every device (K/V are dequantized before SDPA,
+  the path non-XMX devices always took), `SDPAOpt::validate_impl()` refuses per-channel compressed KV, and those two
+  suites are `DISABLED_` reproducers. A per-channel reader in `sdpa_ocl` would let the fusion come back.
+- Opt-kernel accuracy gaps that become the default path off the lane (reproduce on B70 with
+  `OV_GPU_ENABLE_SDPA_MICRO=0`): `pa_sdpa_opt` outputs zeros for Q/K/V with a 2 B feature padding
+  (`smoke_paged_attention_prefill_h128` /15 and /33; those cases skip off the lane), `feature_pad/46` misses its 0.002
+  tolerance (0.0034), and the `sdpa_opt.cl` stages ignore `sliding_window`
+  (`sdpa_sliding_window_test.opt_stage_kernels_apply_sliding_window`), which matters wherever the GQA decomposition drops
+  the explicit mask for the native window. Not fixed here.
+- Plain-SDPA cases only `sdpa_micro` got right, found when the removal widened the unit tests beyond the kit groups
+  (B70, results identical before and after the removal; "micro" = `TEST_USE_SDPA_OCL=0` on 1d50b4272a):
+  - transposed V (`input_v_transpose_order` ending `3, 2`, which `GroupQueryAttentionDecomposition` fuses on XMX
+    devices): `sdpa_gpu_micro.transposed_v_matches_non_transposed_v` / `_multi_tile` give cosine similarity -0.008 /
+    0.012 on `sdpa_ocl` and 0.084 / 0.028 on `sdpa_opt` (knob off), and passed on micro (#38309 added the layout to it);
+  - `sliding_window` on plain SDPA: 6 of the 9 `smoke/sdpa_sliding_window_test.basic` cases are below 0.95 (0.47 to
+    0.89) on `sdpa_ocl` and passed on micro; `sdpa_opt` ignores the window altogether (above);
+  - K/V batch broadcast (`sdpa_broadcast_test`, e.g. Q batch 2 over K/V batch 1, NaN-guarded buffers): 16 of 18 cases
+    fail on `sdpa_ocl` (`/0`: a non-finite output, as from a read past the K/V batch); `/0` passes on micro and on
+    `sdpa_opt`, the other cases were not run there.
+  On Xe2 these were wrong before the removal too; off the lane they move from micro to the opt kernels. Not fixed here.
+  Two suites also expect a kernel that no longer runs: `sdpa_opt_key_leftover_test` expects `sdpa_opt` but `sdpa_ocl`
+  takes its single-element mask, and the old micro-pinned suites (`sdpa_gpu_micro.*`, `sdpa_micro_key_broadcast_mask_test`,
+  `sdpa_micro_prefetch_k_test`, `sdpa_sliding_window_test`) now pin `sdpa_ocl` and skip off the lane.
+- Builds without oneDNN still have no DPAS SDPA: the `ENABLE_ONEDNN_FOR_GPU` guards around `sdpa_ocl` stay, although
+  nothing in it needs oneDNN now (only the include-order note in `sdpa_gen_ocl.hpp` mentions `micro_utils.hpp`).
+- `TT_BOUNDS_STAGE` in `paged_attention_opt.cl` is dead code, kept so the file stays upstream's.
+- Kept names: `enable_sdpa_micro` / `OV_GPU_ENABLE_SDPA_MICRO` (now the switch for `sdpa_ocl`), the runtime flag
+  `use_micro_sdpa` and `can_use_micro_sdpa_for()` (both mean "the DPAS kernel serves this stage"), and test suites
+  named after `sdpa_micro` that now cover `sdpa_ocl`.
+
 ### Correctness
 
 - Compressed BY_CHANNEL with f32 or ACCURACY (dynamic) inference precision:
@@ -1484,8 +1526,6 @@ result is quoted.
   `HAS_ATTN_MASK_INPUT`, which the paged-attention generator never sets, and INPUT3 is a 32-bit index
   input there), so `pa_sdpa_opt` PREFILL and MIXED read the 16-bit scale as an int32. Real models give a
   constant scale and never reach it. `paged_attention_runtime_scale_test` is skipped below Xe2 because of it.
-- `sdpa_micro` still jits `SCALE_DATA_T` as `half` (`sdpa_gen_micro.cpp`, `sdpa_micro.cl`), so a bf16 or
-  f32 runtime scale input would be misread there. `sdpa_ocl` types the scale from its layout.
 - `SDPA_OCL_KQ_TILE_KEYS=32` gave wrong results when `kq_sg_per_wg_keys >= 4` and a subgroup had
   two query blocks (`kq_sg_tile_queries = 32`): deterministically, the first query block was right
   and the second was not (last reproduced 2026-09-10 on `paged_attention_test.basic/31`). It no

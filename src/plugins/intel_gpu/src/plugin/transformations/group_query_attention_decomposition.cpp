@@ -83,7 +83,7 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     const auto value_quant_type = node->get_v_quant_type();
     // Without immad, per-channel KV quntize is not working so skip for now
     if ((kv_cache_bit_width != 8 && kv_cache_bit_width != 4) || key_type != value_type || !is_supported_compressed_kv_type(key_type) ||
-        key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR || !m_sdpa_support_immad)
+        key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR || !m_sdpa_support_immad || !m_fuse_compressed_kv)
         return false;
 
     auto& compressed_kv = metadata.compressed_kv.emplace();

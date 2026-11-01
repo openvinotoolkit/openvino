@@ -71,7 +71,7 @@ struct SDPABase : public KernelGenerator {
 
     static bool is_int4_kv_cache(const kernel_impl_params& params);
 
-    // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
+    // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAOcl
     // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
     // field; for SDPA it is derived from the K input layout (honoring the transpose order), with the
     // int4 KV-cache override (physical K layout is packed to half size; use the logical, un-halved
