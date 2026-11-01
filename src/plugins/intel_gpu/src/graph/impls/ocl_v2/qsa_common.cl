@@ -233,39 +233,6 @@ inline void FUNC(qsa_q_loc)(const uint page,
 #    define QSA_V_LOC(page, tok, ro, po) \
         FUNC_CALL(qsa_q_loc)(page, kv_head, tok, QSA_V_MODE, 1, QSA_V_PAGE_BYTES, QSA_V_ROW_BYTES, QSA_V_PARAM_OFFSET, QSA_V_HEAD_SIZE, QSA_V_SYM, QSA_KV_HEADS, ro, po)
 
-// Dequantized channel `c` of the packed row at `row_off`; `par_off` locates its parameters (see qsa_q_loc).
-inline float FUNC(qsa_q_deq)(const __global uchar* cache,
-                             const uint row_off,
-                             const uint par_off,
-                             const uint c,
-                             const uint mode,
-                             const uint bits,
-                             const uint sym,
-                             const uint head) {
-    float code;
-    if (bits == 8) {
-        code = convert_float(cache[row_off + c]);
-    } else {
-        const uchar b = cache[row_off + (c >> 1)];
-        code = convert_float((c & 1) ? (b >> 4) : (b & 0xF));
-    }
-    float scale, zp;
-    if (mode == 1) {
-        const uint pd = *(const __global uint*)(cache + par_off);
-        scale = convert_float(as_half((ushort)(pd & 0xFFFFu)));
-        zp = sym ? FUNC_CALL(qsa_q_zero_sym)(bits) : convert_float(as_half((ushort)(pd >> 16)));
-    } else {
-        scale = convert_float(*(const __global half*)(cache + par_off + c * 2));
-        zp = sym ? FUNC_CALL(qsa_q_zero_sym)(bits) : convert_float(*(const __global half*)(cache + par_off + head * 2 + c * 2));
-    }
-    return FUNC_CALL(qsa_q_dq)(code, zp, scale);
-}
-
-// Dense (KVCacheCompressed) element: i8 data with a per-token f16 scale and i8 zero point.
-inline float FUNC(qsa_q_deq_dense)(const __global uchar* data, const uint row_off, const uint c, const half scale, const char zp) {
-    return FUNC_CALL(qsa_q_dq)(convert_float((char)data[row_off + c]), convert_float(zp), convert_float(scale));
-}
-
 // Subgroup block read of bytes: out[j] is byte (lane + SG * j) of p.
 inline void FUNC(qsa_rd_uc)(const __global uchar* p, __private uchar* out, const uint n) {
     uint j = 0;
@@ -289,26 +256,25 @@ inline void FUNC(qsa_rd_uc)(const __global uchar* p, __private uchar* out, const
     }
 }
 
-// Codes of channels x0 + SG * j + lane (j < ne) of the packed row `row`. The row is read with block reads (8-bit: one
-// byte per channel; 4-bit: one byte per channel pair, redistributed over the lanes with shuffles).
+// Codes of channels x0 + SG * j + lane (j < ne) of the packed row `row`. 8-bit rows are read with block reads; 4-bit
+// rows with one byte load per lane and channel (a block read plus shuffles is slower).
 inline void FUNC(qsa_q_load_codes)(const __global uchar* row, const uint x0, __private float* code, const uint ne, const uint bits, const bool is_signed) {
-    uchar b[QSA_MAX_NE];
     if (bits == 8) {
+        uchar b[QSA_MAX_NE];
         FUNC_CALL(qsa_rd_uc)(row + x0, b, ne);
         unroll_for (uint j = 0; j < ne; j++) {
             code[j] = is_signed ? convert_float((char)b[j]) : convert_float(b[j]);
         }
     } else {
-        FUNC_CALL(qsa_rd_uc)(row + x0 / 2, b, ne / 2);
         const uint lane = get_sub_group_local_id();
         unroll_for (uint j = 0; j < ne; j++) {
-            const uint v = intel_sub_group_shuffle((uint)b[j >> 1], 8 * (j & 1) + (lane >> 1));
-            code[j] = convert_float((lane & 1) ? ((v >> 4) & 0xF) : (v & 0xF));
+            const uchar v = row[(x0 + QSA_SG * j + lane) >> 1];
+            code[j] = convert_float((lane & 1) ? (v >> 4) : (v & 0xF));
         }
     }
 }
 
-// Dequantized channels x0 + SG * j + lane (j < ne) of a quantized paged row (see qsa_q_deq), block-read.
+// Dequantized channels x0 + SG * j + lane (j < ne) of a quantized paged row, block-read.
 inline void FUNC(qsa_q_load_cols)(const __global uchar* cache,
                                   const uint row_off,
                                   const uint par_off,
@@ -522,16 +488,12 @@ inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __
 #    define QSA_NEK (QSA_K_HEAD_SIZE / QSA_SG)
 #    define QSA_NEV (QSA_V_HEAD_SIZE / QSA_SG)
 
-// Dequantized element `c` of the K / V row at byte offset `ro` with parameter locator `po` (paged: byte offset, dense:
-// token index in the parameter tensors).
+// Dequantized channels of the K / V row at byte offset `ro` with parameter locator `po` (paged: byte offset, dense:
+// token index in the parameter tensors): out[j] is channel x0 + SG * j + lane.
 #    if QSA_DENSE_QUANT
-#        define QSA_DEQ_K(ro, po, c) FUNC_CALL(qsa_q_deq_dense)((const __global uchar*)key_cache, ro, c, key_scale[po], key_zp[po])
-#        define QSA_DEQ_V(ro, po, c) FUNC_CALL(qsa_q_deq_dense)((const __global uchar*)value_cache, ro, c, value_scale[po], value_zp[po])
 #        define QSA_LOAD_K_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols_dense)((const __global uchar*)key_cache, ro, x0, out, ne, key_scale[po], key_zp[po])
 #        define QSA_LOAD_V_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols_dense)((const __global uchar*)value_cache, ro, x0, out, ne, value_scale[po], value_zp[po])
 #    else
-#        define QSA_DEQ_K(ro, po, c) FUNC_CALL(qsa_q_deq)((const __global uchar*)key_cache, ro, po, c, QSA_K_MODE, QSA_K_BITS, QSA_K_SYM, QSA_K_HEAD_SIZE)
-#        define QSA_DEQ_V(ro, po, c) FUNC_CALL(qsa_q_deq)((const __global uchar*)value_cache, ro, po, c, QSA_V_MODE, QSA_V_BITS, QSA_V_SYM, QSA_V_HEAD_SIZE)
 #        define QSA_LOAD_K_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols)((const __global uchar*)key_cache, ro, po, x0, out, ne, QSA_K_MODE, QSA_K_BITS, QSA_K_SYM, QSA_K_HEAD_SIZE)
 #        define QSA_LOAD_V_COLS(ro, po, x0, out, ne) FUNC_CALL(qsa_q_load_cols)((const __global uchar*)value_cache, ro, po, x0, out, ne, QSA_V_MODE, QSA_V_BITS, QSA_V_SYM, QSA_V_HEAD_SIZE)
 #    endif
@@ -567,9 +529,7 @@ inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __
             if (QSA_K_QUANT) {                                                                          \
                 uint ro_, po_;                                                                          \
                 QSA_K_ROWLOC(pos, ro_, po_);                                                            \
-                unroll_for (uint j = 0; j < QSA_NEK; j++) {                                             \
-                    x[j] = QSA_DEQ_K(ro_, po_, get_sub_group_local_id() + QSA_SG * j);                  \
-                }                                                                                       \
+                QSA_LOAD_K_COLS(ro_, po_, 0, x, QSA_NEK);                                               \
             } else {                                                                                    \
                 FUNC_CALL(qsa_rd_f32)((const __global half*)key_cache + QSA_KROW(pos), x, QSA_NEK);     \
             }                                                                                           \
@@ -579,9 +539,7 @@ inline void FUNC(qsa_rope)(__private float* v, const __global half* cp, const __
             if (QSA_V_QUANT) {                                                                          \
                 uint ro_, po_;                                                                          \
                 QSA_V_ROWLOC(pos, ro_, po_);                                                            \
-                unroll_for (uint j = 0; j < QSA_NEV; j++) {                                             \
-                    x[j] = QSA_DEQ_V(ro_, po_, get_sub_group_local_id() + QSA_SG * j);                  \
-                }                                                                                       \
+                QSA_LOAD_V_COLS(ro_, po_, 0, x, QSA_NEV);                                               \
             } else {                                                                                    \
                 FUNC_CALL(qsa_rd_f32)((const __global half*)value_cache + QSA_VROW(pos), x, QSA_NEV);   \
             }                                                                                           \

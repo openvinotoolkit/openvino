@@ -75,7 +75,7 @@
 #define GQA_I8(t, o) as_int8((uint8)((t)[(o) + 0], (t)[(o) + 1], (t)[(o) + 2], (t)[(o) + 3], (t)[(o) + 4], (t)[(o) + 5], (t)[(o) + 6], (t)[(o) + 7]))
 
 // K of one step as A operands: ka[k][h] holds rows 8h..8h+7 (element) x columns worker * XDH + 16 k + lane.
-// Quantized K: `koff` is the byte offset of this lane's row and `kpar` its parameter locator (see QSA_DEQ_K).
+// Quantized K: `koff` is the byte offset of this lane's row and `kpar` its parameter locator (see QSA_LOAD_K_COLS).
 inline void FUNC(gqa_load_k)(QSA_QP_DECL const __global QSA_KC_T* key_cache,
                              const uint koff,
                              const uint kpar,
