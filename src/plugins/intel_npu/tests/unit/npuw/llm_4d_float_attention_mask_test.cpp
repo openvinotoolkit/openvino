@@ -238,8 +238,12 @@ protected:
     }
 
     void run_prefill(size_t prompt_len) {
+        run_prefill(prompt_len, prompt_len, prompt_len);
+    }
+
+    void run_prefill(size_t prompt_len, size_t mask_queries, size_t mask_keys) {
         set_inputs(make_i64({1, prompt_len}, 1),  // just a filler
-                   make_marker_mask(m_type, prompt_len, prompt_len),
+                   make_marker_mask(m_type, mask_queries, mask_keys),
                    make_i64_iota({1, prompt_len}, 0));  // filled [0..prompt_len-1]
         request().infer();
     }
@@ -328,6 +332,22 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, PrefillPutsTheMaskIntoTheBottomRightCo
     expect_cells(staged, [&](size_t row, size_t column) {
         return (row >= offset && column >= offset) ? marker(row - offset, column - offset) : masked;
     });
+}
+
+// Staging puts the caller's [Q, K] block into a corner and does not expand or realign it, so a mask that is not
+// [prompt, prompt] would leave real tokens fully masked or shifted.
+TEST_P(LLM4DFloatAttentionMaskByTypeTest, PrefillRejectsMaskThatDoesNotCoverThePrompt) {
+    constexpr size_t kPromptLen = 5;
+    const std::vector<std::pair<size_t, size_t>> mask_shapes = {{1, kPromptLen},  // broadcast over the queries
+                                                                {kPromptLen, 1},  // broadcast over the keys
+                                                                {kPromptLen, kPromptLen - 1},
+                                                                {kPromptLen, kPromptLen + 1},
+                                                                {kPromptLen - 1, kPromptLen},
+                                                                {kPromptLen + 1, kPromptLen}};
+    for (const auto& [queries, keys] : mask_shapes) {
+        SCOPED_TRACE("mask [" + std::to_string(queries) + ", " + std::to_string(keys) + "]");
+        EXPECT_THROW(run_prefill(kPromptLen, queries, keys), ov::Exception);
+    }
 }
 
 // Generate puts the stored past on the left and the current token in the last column, whatever the static width.

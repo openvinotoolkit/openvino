@@ -121,13 +121,25 @@ void copy_additive_attention_block(const ov::SoPtr<ov::ITensor>& src,
     block(src, src_q_offset, src_k_offset)->copy_to(block(dst, dst_q_offset, dst_k_offset)._ptr);
 }
 
-void stage_additive_attention_mask_for_prefill(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst) {
+void stage_additive_attention_mask_for_prefill(const ov::SoPtr<ov::ITensor>& src,
+                                               const ov::SoPtr<ov::ITensor>& dst,
+                                               size_t prompt_len) {
     const auto& src_shape = src->get_shape();
     const auto& dst_shape = dst->get_shape();
     OPENVINO_ASSERT(src_shape.size() == 4u && dst_shape.size() == 4u,
                     "Additive attention_mask tensors must be rank 4.");
     const size_t query_len = src_shape[2];
     const size_t key_len = src_shape[3];
+    // Only a full [prompt, prompt] mask is staged. A broadcast or shifted mask would leave some of the
+    // prompt query rows fully masked.
+    OPENVINO_ASSERT(query_len == prompt_len && key_len == prompt_len,
+                    "Additive prefill attention_mask must cover exactly the prompt: expected Q=K=",
+                    prompt_len,
+                    ", got Q=",
+                    query_len,
+                    ", K=",
+                    key_len,
+                    ".");
     OPENVINO_ASSERT(query_len <= dst_shape[2] && key_len <= dst_shape[3],
                     "Additive prefill attention_mask shape ",
                     src_shape,
@@ -155,7 +167,7 @@ void stage_additive_attention_mask_for_generate(const ov::SoPtr<ov::ITensor>& at
                     ", input length=",
                     input_tokens_len,
                     ".");
-    // NB: Past length comes from the tracked KV-cache; the caller mask has to be consistent with it.
+    // Past length comes from the tracked KV-cache; the caller mask has to be consistent with it.
     OPENVINO_ASSERT(attention_mask_shape[3] == past_len + input_tokens_len,
                     "Additive generate attention_mask key dimension must be the stored past plus the current "
                     "tokens: expected ",
@@ -1553,7 +1565,9 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
 
         auto padded_attention_mask = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
         if (m_npuw_llm_compiled_model->m_attention_mask_is_4d_float) {
-            stage_additive_attention_mask_for_prefill(attention_mask, padded_attention_mask);
+            stage_additive_attention_mask_for_prefill(attention_mask,
+                                                      padded_attention_mask,
+                                                      input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
         } else {
             std::copy_n(attention_mask->data<int64_t>(),
                         attention_mask->get_size(),
