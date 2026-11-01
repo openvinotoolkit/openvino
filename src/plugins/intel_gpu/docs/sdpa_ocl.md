@@ -16,15 +16,17 @@ The end-to-end performance investigation, including the B70 Xe2 gap closure and 
 
 | Primitive / stage | Generator | Kernel | Gate |
 |---|---|---|---|
-| SDPA prefill and single-token | `SDPAOclGenerator` | `sdpa_ocl.cl` | `sdpa_opt.cpp`: `SDPAOpt::supports_micro_sdpa()` and `SDPAOclGenerator::supported()` |
+| SDPA prefill and single-token | `SDPAOclGenerator` | `sdpa_ocl.cl` | `sdpa_opt.cpp`: `SDPAOpt::dpas_sdpa_op_supported()` and `SDPAOclGenerator::supported()` |
 | PA PREFILL / MIXED | `SDPAOclGenerator(prefill)` | `sdpa_ocl.cl` | `paged_attention_opt.cpp`: `choose_dpas_backend()` at construction, `can_use_micro_sdpa_for()` per dispatch |
 | PA GENERATE | `SDPAOclDecodeGenerator` | `sdpa_ocl_decode.cl` | `SDPAOclDecodeGenerator::supported()` |
 
 Which DPAS kernel plain SDPA and PA PREFILL/MIXED use is decided per device,
 `paged_attention::sdpa_ocl_selected()`: `sdpa_ocl` on Xe2+ XMX, `SDPAMicroGenerator` (`sdpa_micro`)
 on the other XMX parts (xe_hpg: DG2/Arc-A, ARL-H) as upstream, and everywhere with
-`TEST_USE_SDPA_OCL=0`. There is no fallback from one to the other: where the device's kernel
-refuses an op, the opt kernels run. On Xe2 that keeps, for example, f32 PA and the d-major BY_CHANNEL page of an alibi
+`TEST_USE_SDPA_OCL=0`. The `sdpa_ocl` lane needs XMX and a oneDNN build, but not the oneDNN microkernel support
+(`cldnn::query_microkernels_supported()`) that `sdpa_micro` asks for; `OV_GPU_ENABLE_SDPA_MICRO=0` (the config's
+`enable_sdpa_micro`, a name older than `sdpa_ocl`) turns both kernels off. There is no fallback from one to the other:
+where the device's kernel refuses an op, the opt kernels run. On Xe2 that keeps, for example, f32 PA and the d-major BY_CHANNEL page of an alibi
 model on the opt kernels even where `sdpa_micro` could serve them; switching kernels per op would change
 Xe2 behaviour and needs its own measurement. Both generator types are created in every impl's
 default constructor, the params constructor adds one of them, and every later decision reads
@@ -46,7 +48,7 @@ fallback, which implements it as well.
 d-major, the page those fallbacks read ("Paged-attention cache layouts").
 `SDPAOclGenerator::supported()` requires Xe2 or later (xe_hpg only during the bring-up, below) and
 f16/bf16 Q and output. Plain SDPA
-additionally requires equal K and V head sizes (`SDPAOpt::supports_micro_sdpa()`), paged
+additionally requires equal K and V head sizes (`SDPAOpt::dpas_sdpa_op_supported()`), paged
 attention does not.
 
 Paged attention adds the PREFILL and MIXED stages together, so both variants are compiled even
@@ -956,8 +958,8 @@ It needs
   the byte as signed), i4, f32 or bf16;
 - `k_token_major_device()` -- the `sdpa_ocl` lane with its GENERATE reader, i.e. Xe2+ with XMX, a oneDNN build and both
   `TEST_USE_SDPA_OCL*` switches on; other devices (no XMX, xe_hpg, xe_hpc) keep the upstream d-major page and kernels;
-- the DPAS MIXED kernel on (the config's `enable_sdpa_micro`, i.e. not `OV_GPU_ENABLE_SDPA_MICRO=0`, and microkernel
-  support) and f16 inference;
+- the DPAS MIXED kernel on (the config's `enable_sdpa_micro`, i.e. not `OV_GPU_ENABLE_SDPA_MICRO=0`; no microkernel
+  support needed) and f16 inference;
 - per op no alibi, scores output or adaptive R-KV, head sizes that are multiples of 16 and at most 512, an `sdpa_ocl`
   tiling when k != v, and for f16 a head size other than 16 (that page is square, so its shape could not tell).
 
@@ -967,7 +969,7 @@ for BY_CHANNEL adaptive R-KV -- only ever see a d-major page. A small GQA MIXED 
 `pa_small_q_opt.cl` or `sdpa_ocl`, never to the GQA fallback. Below `prefer_gqa_multi_tokens_fallback_kernel()`'s
 threshold that is slower than the fallback was on the f16 / i8 BY_TOKEN token-major page (B70 at 1800 MHz, 32/8 heads, head
 128, 4 new tokens, 1K / 4K context: f16 47.0 / 154 against 25.3 / 75.3 us, i8 BY_TOKEN 96 / 339 against 37 / 95 us), the
-path the default BY_CHANNEL caches already took. The rules mirror `supports_micro_sdpa()` / `can_use_micro_sdpa_for()`
+path the default BY_CHANNEL caches already took. The rules mirror `choose_dpas_backend()` / `can_use_micro_sdpa_for()`
 and `SDPAOclDecodeGenerator::supported()` and must change with them. Saying no where a gate would say yes only costs
 speed; the other direction is caught: `PagedAttentionOptImpl::update_rt_params()` throws when a token-major page meets
 any other reader (`smoke_paged_attention_tm_guard_scores` forces one onto an op with a scores output on every device,
