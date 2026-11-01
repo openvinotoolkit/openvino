@@ -1819,20 +1819,17 @@ public:
         const auto& info = params.get_device_info();
         const auto desc = params.typed_desc<paged_attention>();
 
-        // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): force PagedAttention onto the OCL sdpa_opt path
-        // instead of the oneDNN-derived micro kernel, for accuracy A/B without rebuilding.
+        // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): every DPAS PagedAttention kernel off, sdpa_ocl as well as sdpa_micro (the
+        // name predates sdpa_ocl), so PagedAttention runs the OCL paged_attention/sdpa_opt path, for accuracy A/B
+        // without rebuilding.
         if (!params.get_program().get_config().get_enable_sdpa_micro()) {
-            GPU_DEBUG_TRACE_DETAIL << "[GPU] PA micro SDPA kernel DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
+            GPU_DEBUG_TRACE_DETAIL << "[GPU] PA DPAS SDPA kernels (sdpa_ocl, sdpa_micro) DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
                                       "falling back to OCL paged_attention/sdpa_opt kernel.\n";
             return DpasBackend::none;
         }
 
-        if (params.get_device_info().supports_immad) {
-            const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
-            if (info.arch < gpu_arch::xe_hpg || !supports_microkernels) {
-                return DpasBackend::none;
-            }
-        } else {
+        // Both DPAS kernels need XMX. Only sdpa_micro needs oneDNN microkernel support; it is queried on its lane below.
+        if (!info.supports_immad) {
             return DpasBackend::none;
         }
 
@@ -1882,6 +1879,10 @@ public:
             return DpasBackend::ocl;
         }
 
+        // The sdpa_micro lane: xe_hpg or later with oneDNN microkernel support.
+        if (info.arch < gpu_arch::xe_hpg || !cldnn::query_microkernels_supported(engine, params.get_program().get_config())) {
+            return DpasBackend::none;
+        }
         // sdpa_micro derives both of its ugemm packages from one d_max, so it needs the two head sizes to be equal.
         if (desc->k_head_size != desc->v_head_size) {
             return DpasBackend::none;
@@ -2657,7 +2658,8 @@ bool paged_attention::k_token_major_readable(const device_info& info,
     }
     // Two independent readers: MIXED = sdpa_ocl_selected() (the lane), GENERATE = sdpa_ocl_decode_reader_available(),
     // both together k_token_major_device(). Neither implies the other (an xe_hpg sdpa_ocl lane has no GENERATE reader).
-    // MIXED also asks for enable_sdpa_micro and microkernel support, and sdpa_ocl_decode for an f16 query and output.
+    // MIXED also asks for enable_sdpa_micro (no oneDNN microkernel support: sdpa_ocl does not use it), and
+    // sdpa_ocl_decode for an f16 query and output.
     if (!k_token_major_device(info) || !mixed_dpas_enabled || infer_precision != ov::element::f16) {
         return false;
     }

@@ -29,10 +29,6 @@
 #include "random_generator.hpp"
 #include "test_utils.h"
 
-namespace cldnn {
-extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
-}  // namespace cldnn
-
 // Enable detailed xattention debugging (dumps, extra comparison info)
 // Default: OFF (0). Set to 1 for investigation.
 #ifndef XATTENTION_DEBUG_VERBOSE
@@ -430,7 +426,7 @@ struct PagedAttentionManager {
     }
 
     // k_token_major_readable() with the test device's facts, as transformations_pipeline.cpp
-    // gathers them (it queries microkernels only where a reader could run).
+    // gathers them (no microkernel query: the sdpa_ocl lane does not need one).
     static bool k_token_major_readable_on(cldnn::engine& engine,
                                           const ov::element::Type& key_cache_precision,
                                           bool is_key_by_channel,
@@ -439,8 +435,7 @@ struct PagedAttentionManager {
         // Finalized as the program finalizes its config, so OV_GPU_ENABLE_SDPA_MICRO reaches enable_sdpa_micro.
         auto config = tests::get_test_default_config(engine);
         config.finalize(engine);
-        const bool mixed_dpas_enabled =
-            cldnn::paged_attention::k_token_major_device(info) && config.get_enable_sdpa_micro() && cldnn::query_microkernels_supported(engine, config);
+        const bool mixed_dpas_enabled = cldnn::paged_attention::k_token_major_device(info) && config.get_enable_sdpa_micro();
         return cldnn::paged_attention::k_token_major_readable(info, mixed_dpas_enabled, ov::element::f16, key_cache_precision, is_key_by_channel, ops);
     }
 

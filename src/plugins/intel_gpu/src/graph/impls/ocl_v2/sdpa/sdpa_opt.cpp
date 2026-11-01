@@ -44,6 +44,21 @@ bool SDPAOpt::has_per_channel_compressed_kv(const kernel_impl_params& params) {
     return is_per_channel_scale(data_inputs_num) || is_per_channel_scale(data_inputs_num + 1);
 }
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+namespace {
+// Knob (OV_GPU_ENABLE_SDPA_MICRO=0): every DPAS SDPA kernel off, sdpa_ocl as well as sdpa_micro (the name predates
+// sdpa_ocl), so the op runs the OCL sdpa_opt kernels, for accuracy A/B without rebuilding.
+bool dpas_sdpa_enabled(const RuntimeParams& params) {
+    if (!params.get_program().get_config().get_enable_sdpa_micro()) {
+        GPU_DEBUG_TRACE_DETAIL << "[GPU] DPAS SDPA kernels (sdpa_ocl, sdpa_micro) DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
+                                  "falling back to OCL sdpa_opt kernel.\n";
+        return false;
+    }
+    return true;
+}
+}  // namespace
+#endif
+
 class SDPAOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
@@ -99,10 +114,11 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
         Stage::Ptr& dpas_single_token = ocl_lane ? ocl_single_token : micro_single_token;
         Stage::Ptr& dpas_multi_tokens = ocl_lane ? ocl_multi_tokens : micro_multi_tokens;
-        // Lazy, so each branch below evaluates only its own gate. sdpa_ocl alone reads a single-element runtime mask.
+        // Lazy, so each branch below evaluates only its own gate. sdpa_ocl alone reads a single-element runtime mask, and
+        // it needs no oneDNN microkernel support (the lane already means XMX), so it does not ask supports_micro_sdpa().
         auto dpas_supported = [&]() {
-            return ocl_lane ? SDPAOpt::supports_micro_sdpa(params, true) && SDPAOclGenerator::supported(params)
-                            : SDPAOpt::supports_micro_sdpa(params, false) && micro_only_supported(params);
+            return ocl_lane ? dpas_sdpa_enabled(params) && SDPAOpt::dpas_sdpa_op_supported(params, true) && SDPAOclGenerator::supported(params)
+                            : SDPAOpt::supports_micro_sdpa(params) && micro_only_supported(params);
         };
 #endif
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << ", sdpa_ocl lane = " << ocl_lane << "\n";
@@ -315,19 +331,14 @@ bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params
 #endif
 }
 
-bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params, bool allow_scalar_mask) {
+bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): force the SDPA backend onto the OCL sdpa_opt kernel
-    // instead of the oneDNN-derived micro kernel, for accuracy A/B without rebuilding.
-    if (!params.get_program().get_config().get_enable_sdpa_micro()) {
-        GPU_DEBUG_TRACE_DETAIL << "[GPU] SDPA micro kernel DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
-                                  "falling back to OCL sdpa_opt kernel.\n";
+    if (!dpas_sdpa_enabled(params)) {
         return false;
     }
 
     auto& engine = params.get_program().get_engine();
     const auto& device_info = engine.get_device_info();
-    auto desc = params.typed_desc<scaled_dot_product_attention>();
 
     if (device_info.supports_immad) {
         const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
@@ -337,6 +348,17 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params, bool allow_scalar
     } else {
         return false;
     }
+
+    return dpas_sdpa_op_supported(params, false);
+#else
+    UNUSED(params);
+    return false;
+#endif
+}
+
+bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_scalar_mask) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    auto desc = params.typed_desc<scaled_dot_product_attention>();
 
     const auto& q_layout = params.get_input_layout(0);
     const auto& k_layout = params.get_input_layout(1);
@@ -397,6 +419,8 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params, bool allow_scalar
 
     return is_output_rank_4d;
 #else
+    UNUSED(params);
+    UNUSED(allow_scalar_mask);
     return false;
 #endif
 }

@@ -194,7 +194,7 @@ bool tiling_fits_device(gpu_arch arch, size_t d_max, const sdpa_ocl_config_t& t)
 // tables: a 128-key KQ workgroup tile with 16 subgroups, varying only the S*V split (and the query tile
 // for d_max <= 64). Every branch must satisfy solve_sv_split()'s invariants.
 sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
-    // The table stops at 512. SDPAOpt::supports_micro_sdpa rejects larger heads; this guards against that
+    // The table stops at 512. SDPAOpt::dpas_sdpa_op_supported() rejects larger heads; this guards against that
     // gate being relaxed without extending the table (the last branch would cover half the head).
     OPENVINO_ASSERT(d_max <= 512, "[GPU] sdpa_ocl: unsupported head size (d_max=", d_max, "); the tiling table covers d_max <= 512 only");
 

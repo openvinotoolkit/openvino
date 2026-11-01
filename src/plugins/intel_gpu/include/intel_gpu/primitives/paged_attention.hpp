@@ -171,6 +171,8 @@ struct paged_attention : public primitive_base<paged_attention> {
     // Which DPAS SDPA kernel plain SDPA and PA PREFILL/MIXED use on this device: sdpa_ocl on Xe2+ XMX (unless
     // TEST_USE_SDPA_OCL=0), sdpa_micro elsewhere, as upstream. One choice per device, never per op: where the chosen
     // kernel refuses an op, the opt kernels run, not the other DPAS kernel.
+    // The sdpa_ocl lane needs XMX only; the oneDNN microkernel support (cldnn::query_microkernels_supported()) is
+    // sdpa_micro's alone.
     // This is the lane, i.e. which kernel serves PREFILL/MIXED. It is NOT "a GENERATE reader exists": ask
     // sdpa_ocl_decode_reader_available() for that.
     static bool sdpa_ocl_selected(const device_info& info, bool ocl_enabled, bool hpg_opt_in) {
@@ -222,9 +224,9 @@ struct paged_attention : public primitive_base<paged_attention> {
     // speed: the d-major page has a correct reader in every stage. Keep it in step with those two
     // gates; PagedAttentionOptImpl::update_rt_params() throws if they disagree on the BY_CHANNEL page.
     // False under OV_GPU_PA_K_TOKEN_MAJOR=0.
-    // `mixed_dpas_enabled` is the config / driver part of the MIXED gate (PagedAttentionOptImpl::choose_dpas_backend()):
-    // the config's enable_sdpa_micro (OV_GPU_ENABLE_SDPA_MICRO) and cldnn::query_microkernels_supported(). Callers only
-    // need to query it when k_token_major_device(info).
+    // `mixed_dpas_enabled` is the config part of the MIXED gate (PagedAttentionOptImpl::choose_dpas_backend()): the
+    // config's enable_sdpa_micro, which OV_GPU_ENABLE_SDPA_MICRO=0 turns off for every DPAS kernel, sdpa_ocl included.
+    // The sdpa_ocl lane needs no oneDNN microkernel support, so nothing about the driver goes in.
     // `infer_precision` is the plugin's inference precision (the PA op's Q/output type).
     // `key_cache_precision` is the CONFIGURED kv-cache precision, as for k_token_major_kind().
     // Defined next to the gates, in graph/impls/ocl_v2/sdpa/paged_attention_opt.cpp.

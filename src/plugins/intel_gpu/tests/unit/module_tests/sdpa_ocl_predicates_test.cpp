@@ -124,14 +124,15 @@ TEST(SdpaOclPredicates, TokenMajorReadableTruthTable) {
     op.kv_heads_num = 2;
     for (auto a : kArchs) {
         for (bool immad : kBools) {
-            for (bool mk : kBools) {
-                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " mk=" << mk);
+            // dpas = mixed_dpas_enabled, the config's enable_sdpa_micro (no microkernel query: sdpa_ocl does not need one).
+            for (bool dpas : kBools) {
+                SCOPED_TRACE(testing::Message() << "arch=" << static_cast<int>(a) << " immad=" << immad << " dpas=" << dpas);
                 const bool want = kOneDnn && pa::k_token_major_switch() != pa::k_layout_switch::d_major && pa::sdpa_ocl_enabled() &&
-                                  pa::sdpa_ocl_decode_enabled() && immad && mk && xe2_plus(a);
+                                  pa::sdpa_ocl_decode_enabled() && immad && dpas && xe2_plus(a);
                 // The same rule for every page kind both token-major readers read.
-                EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), mk, ov::element::f16, ov::element::i8, true, {op}), want);
-                EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), mk, ov::element::f16, ov::element::f16, false, {op}), want);
-                EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), mk, ov::element::f16, ov::element::i8, false, {op}), want);
+                EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), dpas, ov::element::f16, ov::element::i8, true, {op}), want);
+                EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), dpas, ov::element::f16, ov::element::f16, false, {op}), want);
+                EXPECT_EQ(pa::k_token_major_readable(make_info(a, immad), dpas, ov::element::f16, ov::element::i8, false, {op}), want);
             }
         }
     }
@@ -140,12 +141,15 @@ TEST(SdpaOclPredicates, TokenMajorReadableTruthTable) {
 TEST(SdpaOclPredicates, ExpectedDpasBackendTruthTable) {
     using tests::dpas_backend;
     const auto oracle = [](gpu_arch a, bool immad, bool mk, bool ocl_enabled, bool hpg, bool paged, size_t head) {
-        if (!kOneDnn || !immad || !mk)
+        if (!kOneDnn || !immad)
             return dpas_backend::none;
         if (!xe_hpg_plus(a))
             return dpas_backend::none;
+        // The sdpa_ocl lane needs no microkernel support; only sdpa_micro does.
         if (ocl_enabled && (xe2_plus(a) || (a == gpu_arch::xe_hpg && hpg)))
             return dpas_backend::ocl;
+        if (!mk)
+            return dpas_backend::none;
         if (a == gpu_arch::xe3p && (paged || head <= 64))
             return dpas_backend::none;
         return dpas_backend::micro;
@@ -182,7 +186,10 @@ TEST(SdpaOclPredicates, ExpectedDpasBackendTruthTable) {
     EXPECT_EQ(fn(gpu_arch::xe2, true, false, false, false, 128), dpas_backend::micro);     // B70 TEST_USE_SDPA_OCL=0
     EXPECT_EQ(fn(gpu_arch::xe3p, true, false, false, true, 128), dpas_backend::none);      // xe3p PA, =0
     EXPECT_EQ(fn(gpu_arch::xe3p, true, false, false, false, 128), dpas_backend::micro);    // xe3p plain SDPA head 128, =0
-    EXPECT_EQ(fn(gpu_arch::xe2, false, true, false, false, 128), dpas_backend::none);      // no microkernels
+    EXPECT_EQ(fn(gpu_arch::xe2, false, true, false, false, 128), dpas_backend::ocl);       // B70, no microkernels
+    EXPECT_EQ(fn(gpu_arch::xe2, false, false, false, false, 128), dpas_backend::none);     // B70 =0, no microkernels
+    EXPECT_EQ(fn(gpu_arch::xe_hpg, false, true, false, false, 128), dpas_backend::none);   // DG2 default, no microkernels
+    EXPECT_EQ(fn(gpu_arch::xe_hpg, false, true, true, false, 128), dpas_backend::ocl);     // DG2 HPG=1, no microkernels
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
