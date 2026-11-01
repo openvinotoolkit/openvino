@@ -2167,6 +2167,9 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
     if (!qsa_ops_available()) {
         GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
+    if (compressed && !get_test_engine().get_device_info().supports_immad) {
+        GTEST_SKIP() << "KVCacheCompression of SparseSDPA needs immad (planar i8 zero points)";
+    }
     ov::Core core;
     const auto f16 = ov::element::f16;
     auto query = std::make_shared<ov::op::v0::Parameter>(f16, ov::PartialShape{1, I(d.Hq), -1, I(d.Dh)});
