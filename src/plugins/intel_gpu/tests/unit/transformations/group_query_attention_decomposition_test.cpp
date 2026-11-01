@@ -50,6 +50,7 @@ struct GQAConfig {
     bool static_past_cache = false;
     bool transpose_v = false;
     bool should_fuse_transpose_v = true;
+    bool fuse_compressed_kv = true;  // the pass's mode; the GPU pipeline runs it with false
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
     bool attention_bias = false;
@@ -146,7 +147,7 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
 std::shared_ptr<ov::Model> decompose_gqa_model(const GQAConfig& cfg) {
     auto model = make_gqa_model(cfg);
     ov::pass::Manager manager;
-    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.should_fuse_transpose_v);
+    manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(cfg.should_fuse_transpose_v, cfg.fuse_compressed_kv);
     manager.run_passes(model);
     return model;
 }
@@ -557,6 +558,26 @@ TEST(GQADecompositionTest, per_channel_kv_without_immad_uses_decompressed_sdpa) 
     cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.should_fuse_transpose_v = false;
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_FALSE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 3u) << "Q, dequantized K, dequantized V";
+    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::f32);
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::f32);
+}
+
+// The GPU pipeline's mode: no SDPA kernel reads per-channel scales, so even with immad the K/V are dequantized first.
+TEST(GQADecompositionTest, per_channel_kv_without_compressed_kv_fusion_uses_decompressed_sdpa) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 8;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.should_fuse_transpose_v = true;
+    cfg.fuse_compressed_kv = false;
 
     const auto sdpa = decompose_and_get_sdpa(cfg);
 

@@ -5,7 +5,6 @@
 // clang-format off
 // Put this file at first to avoid incorrect header files includes order.
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
-#include "sdpa_gen_micro.hpp"
 #include "sdpa_gen_ocl.hpp"
 #include "sdpa_gen_ocl_decode.hpp"
 // clang-format on
@@ -46,11 +45,11 @@ bool SDPAOpt::has_per_channel_compressed_kv(const kernel_impl_params& params) {
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 namespace {
-// Knob (OV_GPU_ENABLE_SDPA_MICRO=0): every DPAS SDPA kernel off, sdpa_ocl as well as sdpa_micro (the name predates
-// sdpa_ocl), so the op runs the OCL sdpa_opt kernels, for accuracy A/B without rebuilding.
+// Knob (OV_GPU_ENABLE_SDPA_MICRO=0): the DPAS SDPA kernel (sdpa_ocl) off (the name is from the removed sdpa_micro),
+// so the op runs the OCL sdpa_opt kernels, for accuracy A/B without rebuilding.
 bool dpas_sdpa_enabled(const RuntimeParams& params) {
     if (!params.get_program().get_config().get_enable_sdpa_micro()) {
-        GPU_DEBUG_TRACE_DETAIL << "[GPU] DPAS SDPA kernels (sdpa_ocl, sdpa_micro) DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
+        GPU_DEBUG_TRACE_DETAIL << "[GPU] DPAS SDPA kernel (sdpa_ocl) DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
                                   "falling back to OCL sdpa_opt kernel.\n";
         return false;
     }
@@ -63,7 +62,8 @@ class SDPAOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
 
-    // The micro-kernel stage (SDPAMicroGenerator) dispatches based on subsequence_begins/max_context_len contents
+    // Off as it was with the removed sdpa_micro stage, which dispatched on subsequence_begins/max_context_len contents;
+    // replay of the remaining stages has not been checked.
     bool supports_replay() const override {
         return false;
     }
@@ -80,45 +80,29 @@ public:
     Stage::Ptr indirect_finalization = make_stage<SDPAOptGeneratorFinalization>(indirect);
     Stage::Ptr regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
 
-    // The DPAS kernels. Both types exist in every impl, because a loaded or cloned impl is default-constructed and
-    // only gets _order (indices into _stages) back; the params ctor adds one lane's pair and everything after that
-    // reads has_stage(), never the environment. The sdpa_ocl pair comes first so it keeps indices 6/7.
+    // The DPAS kernel (sdpa_ocl). Its stages exist in every impl, because a loaded or cloned impl is default-constructed
+    // and only gets _order (indices into _stages) back; the params ctor adds them where sdpa_ocl serves the op and
+    // everything after that reads has_stage(), never the environment. Indices 6/7.
     // Created only with oneDNN; has_stage() of a null stage is false.
     Stage::Ptr ocl_single_token;
     Stage::Ptr ocl_multi_tokens;
-    Stage::Ptr micro_single_token;
-    Stage::Ptr micro_multi_tokens;
 
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
         ocl_single_token = make_stage<SDPAOclGenerator>(!prefill);
         ocl_multi_tokens = make_stage<SDPAOclGenerator>(prefill);
-        micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
-        micro_multi_tokens = make_stage<SDPAMicroGenerator>(prefill);
 #endif
     }
     explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
-        // sdpa_ocl on the lane sdpa_ocl_selected() picks (Xe2+ XMX today; xe_hpg only with TEST_USE_SDPA_OCL_HPG=1 once the
-        // kernels exist), sdpa_micro elsewhere. No fallback from one to the other: where the lane's kernel is
-        // refused, the opt kernels run.
-        bool ocl_lane = cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info());
+        // sdpa_ocl on the lane sdpa_ocl_selected() picks (Xe2+ XMX; xe_hpg only with TEST_USE_SDPA_OCL_HPG=1). Where it
+        // is refused, and on every other device, the opt kernels run.
+        const bool ocl_lane = cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info());
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        // TEMP(S9): xe_hpg only. While the SG8 kernels are being brought up, an op sdpa_ocl refuses (SDPAOclGenerator::supported(),
-        // i.e. its tier is not ready) keeps the sdpa_micro lane instead of the opt kernels, exactly as with TEST_USE_SDPA_OCL_HPG
-        // off. Remove at the default flip (docs "no cross-lane fallback").
-        if (ocl_lane && params.get_device_info().arch == gpu_arch::xe_hpg && !SDPAOclGenerator::supported(params)) {
-            ocl_lane = false;
-        }
-#endif
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        Stage::Ptr& dpas_single_token = ocl_lane ? ocl_single_token : micro_single_token;
-        Stage::Ptr& dpas_multi_tokens = ocl_lane ? ocl_multi_tokens : micro_multi_tokens;
-        // Lazy, so each branch below evaluates only its own gate. sdpa_ocl alone reads a single-element runtime mask, and
-        // it needs no oneDNN microkernel support (the lane already means XMX), so it does not ask supports_micro_sdpa().
+        // Lazy, so only the branches below that need it evaluate the gate. sdpa_ocl reads a single-element runtime mask
+        // too, and it needs no oneDNN microkernel support (the lane already means XMX).
         auto dpas_supported = [&]() {
-            return ocl_lane ? dpas_sdpa_enabled(params) && SDPAOpt::dpas_sdpa_op_supported(params, true) && SDPAOclGenerator::supported(params)
-                            : SDPAOpt::supports_micro_sdpa(params) && micro_only_supported(params);
+            return ocl_lane && dpas_sdpa_enabled(params) && SDPAOpt::dpas_sdpa_op_supported(params, true) && SDPAOclGenerator::supported(params);
         };
 #endif
         GPU_DEBUG_TRACE_DETAIL << "create stages for dynamic = " << params.is_dynamic() << ", sdpa_ocl lane = " << ocl_lane << "\n";
@@ -132,9 +116,9 @@ public:
             add_stage(indirect_finalization, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (dpas_supported()) {
-                GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa  dynamic ...\n";
-                add_stage(dpas_multi_tokens, params);
-                add_stage(dpas_single_token, params);
+                GPU_DEBUG_TRACE_DETAIL << "add stage for sdpa_ocl dynamic ...\n";
+                add_stage(ocl_multi_tokens, params);
+                add_stage(ocl_single_token, params);
             }
 #endif
             GPU_DEBUG_TRACE_DETAIL << "add stage for dynamic done \n";
@@ -144,8 +128,8 @@ public:
             // The sdpa_ocl single-token kernel handles unaligned head sizes (head < d / value < dv /
             // DKS_ACTIVE guards), so on the sdpa_ocl lane we let an unaligned decode fall through to the
             // single-token branch, which stages the multi-tokens kernel only if sdpa_ocl is not added.
-            // sdpa_micro and the opt single-token kernel do not support unaligned head sizes, and
-            // indirect keeps its opt fallback, so both are excluded.
+            // The opt single-token kernel does not support unaligned head sizes, and indirect keeps
+            // its opt fallback, so both are excluded.
             const bool is_prefill = is_prefill_stage(params);
             const bool ocl_single_token_unaligned = ocl_lane && !is_indirect;
             if (is_prefill || (unaligned_head_size(params) && !ocl_single_token_unaligned)) {
@@ -154,15 +138,12 @@ public:
                     add_stage(indirect_multi_tokens, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 } else if (is_prefill && dpas_supported()) {
-                    // Prefill only: execute() never dispatches the DPAS multi-tokens stage for one query, so an
-                    // unaligned decode (sdpa_micro lane) must stage regular_multi_tokens in the else branch.
-                    GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa non-dynamic with prefill_stage \n";
-                    add_stage(dpas_multi_tokens, params);
-                    // Sometimes micro kernel will fail due to "Insufficient registers in requested bundle",
-                    // In this case, fallback to opt kernel.
-                    if (!has_stage(dpas_multi_tokens)) {
-                        OPENVINO_ASSERT(!SDPAOpt::has_per_channel_compressed_kv(params), "Per-channel compressed KV requires the micro SDPA kernel");
-                        GPU_DEBUG_TRACE_DETAIL << "fail to create micro kernel, fallback to regular_multi_tokens for prefill \n";
+                    // Prefill only: execute() never dispatches the DPAS multi-tokens stage for one query.
+                    GPU_DEBUG_TRACE_DETAIL << "add stage for sdpa_ocl non-dynamic with prefill_stage \n";
+                    add_stage(ocl_multi_tokens, params);
+                    // add_stage() swallows a codegen failure; fall back to the opt kernel then.
+                    if (!has_stage(ocl_multi_tokens)) {
+                        GPU_DEBUG_TRACE_DETAIL << "fail to create sdpa_ocl kernel, fallback to regular_multi_tokens for prefill \n";
                         add_stage(regular_multi_tokens, params);
                     }
 #endif
@@ -175,9 +156,9 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-                bool can_use_micro_sdpa = dpas_supported() && !is_ARL_H && !is_indirect;
-                if (can_use_micro_sdpa) {
-                    add_stage(dpas_single_token, params);
+                bool use_sdpa_ocl = dpas_supported() && !is_ARL_H && !is_indirect;
+                if (use_sdpa_ocl) {
+                    add_stage(ocl_single_token, params);
                 }
 #endif
                 if (unaligned_head_size(params) && !has_stage(ocl_single_token)) {
@@ -195,31 +176,6 @@ public:
         }
     }
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    // sdpa_micro limits on top of SDPAOpt::supports_micro_sdpa(), which the sdpa_ocl lane and validate_impl share.
-    static bool micro_only_supported(const RuntimeParams& params) {
-        // sdpa_micro.cl loads Q as packed halves and stores half output, so f32 would be read wrong. Its codegen
-        // happens to reject f32 today ("No matching kernel", swallowed by add_stage), which is not a guarantee.
-        const auto is_16bit = [](const ov::element::Type& dt) {
-            return dt == ov::element::f16 || dt == ov::element::bf16;
-        };
-        if (!is_16bit(params.get_input_layout(0).data_type) || !is_16bit(params.get_output_layout(0).data_type) ||
-            params.get_input_layout(1).data_type == ov::element::f32 || params.get_input_layout(2).data_type == ov::element::f32) {
-            return false;
-        }
-        // WA: Disable micro SDPA on xe3p for head_size <= 64 due to oneDNN micro-kernel
-        // accuracy issues (produces inf/nan) after oneDNN main branch integration.
-        if (params.get_device_info().arch == gpu_arch::xe3p) {
-            const auto desc = params.typed_desc<scaled_dot_product_attention>();
-            const auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
-            if (get_head_size(params.get_input_layout(1), extended_input_k_transpose_order) <= 64) {
-                return false;
-            }
-        }
-        return true;
-    }
-#endif
-
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
@@ -235,18 +191,11 @@ public:
         const bool is_kv_compressed = data_type_traits::is_i8_u8(k_dt) || data_type_traits::is_i4_u4(k_dt);
         const auto kv_cache_dt = new_params.get_program().get_config().get_kv_cache_precision();
         const bool is_int4_kv = is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
-        const bool is_per_channel_kv = SDPAOpt::has_per_channel_compressed_kv(new_params);
 
-        // At most one lane's pair is staged, so the order of the two checks below does not matter.
-        if (is_prefill && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
-            if (has_stage(ocl_multi_tokens)) {
-                GPU_DEBUG_TRACE_DETAIL << "execute ocl_multi_tokens for prefill \n";
-                return execute_stage(events, instance, ocl_multi_tokens);
-            }
-            if (has_stage(micro_multi_tokens)) {
-                GPU_DEBUG_TRACE_DETAIL << "execute micro_multi_tokens for prefill \n";
-                return execute_stage(events, instance, micro_multi_tokens);
-            }
+        // Per-channel compressed KV never gets here (validate_impl()).
+        if (is_prefill && !is_indirect && !is_int4_kv && has_stage(ocl_multi_tokens)) {
+            GPU_DEBUG_TRACE_DETAIL << "execute ocl_multi_tokens for prefill \n";
+            return execute_stage(events, instance, ocl_multi_tokens);
         }
 #endif
         // TODO: Unaligned head size is currently supported by only multi tokens kernel.
@@ -261,13 +210,8 @@ public:
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (!is_indirect && !is_int4_kv) {
-            if (has_stage(ocl_single_token)) {
-                return execute_stage(events, instance, ocl_single_token);
-            }
-            if (has_stage(micro_single_token)) {
-                return execute_stage(events, instance, micro_single_token);
-            }
+        if (!is_indirect && !is_int4_kv && has_stage(ocl_single_token)) {
+            return execute_stage(events, instance, ocl_single_token);
         }
 #endif
         const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
@@ -317,8 +261,7 @@ bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params
         return false;
     }
 
-    // Per-channel compressed KV is only supported by the micro kernel, so it cannot be taken over by the
-    // regular stages and is not supposed to match here.
+    // Per-channel compressed KV is refused by validate_impl() altogether and is not supposed to match here.
     if (has_per_channel_compressed_kv(params)) {
         return false;
     }
@@ -331,25 +274,9 @@ bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params
 #endif
 }
 
-bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
+bool SDPAOpt::dpas_lane_op_supported(const RuntimeParams& params) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    if (!dpas_sdpa_enabled(params)) {
-        return false;
-    }
-
-    auto& engine = params.get_program().get_engine();
-    const auto& device_info = engine.get_device_info();
-
-    if (device_info.supports_immad) {
-        const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
-        if (device_info.arch < gpu_arch::xe_hpg || !supports_microkernels) {
-            return false;
-        }
-    } else {
-        return false;
-    }
-
-    return dpas_sdpa_op_supported(params, false);
+    return dpas_sdpa_enabled(params) && cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info()) && dpas_sdpa_op_supported(params, false);
 #else
     UNUSED(params);
     return false;
@@ -363,12 +290,6 @@ bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_sca
     const auto& q_layout = params.get_input_layout(0);
     const auto& k_layout = params.get_input_layout(1);
     const auto& v_layout = params.get_input_layout(2);
-
-    // Will check it later to decide whether support micro kernel
-    // if (desc->indirect_axis != -1) {
-    //     // Micro kernel does not support indirect axis
-    //     return false;
-    // }
 
     auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
     auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
@@ -395,9 +316,8 @@ bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_sca
     }
 
     auto data_inputs_num = get_data_inputs_num(*desc);
-    // A single-element runtime attention mask (rank-0 scalar or 1-element 1D placeholder) is
-    // supported only by the sdpa_ocl kernel, which reads the one value and adds it to every logit.
-    // sdpa_micro does not support it, so it is rejected unless the caller (ocl path) allows it.
+    // A single-element runtime attention mask (rank-0 scalar or 1-element 1D placeholder): the sdpa_ocl kernel reads
+    // the one value and adds it to every logit. Rejected unless the caller allows it (validate_impl() does not).
     const auto mask_idx = 3lu;
     if (!desc->attn_mask_val.has_value() && data_inputs_num > mask_idx && !params.get_input_layout(mask_idx).is_dynamic() &&
         params.get_input_layout(mask_idx).count() == 1 && !allow_scalar_mask) {
