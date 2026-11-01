@@ -10,6 +10,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -36,6 +37,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
@@ -450,6 +452,96 @@ void packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patch,
     squeeze_output(model);
 }
 
+void temporal_packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64_t patch, int64_t temporal) {
+    OPENVINO_ASSERT(temporal == 1 || temporal == 2,
+                    "[GGUF] temporal packed vision requires one or two temporal patches");
+    require_square_fits(patch, 3 * temporal, "vision.patch_size");
+    auto body = model->clone();
+    const auto parameters = body->get_parameters();
+    OPENVINO_ASSERT((parameters.size() == 2 || parameters.size() == 3) && body->get_results().size() == 1 &&
+                        body->get_sinks().empty() && body->get_variables().empty(),
+                    "[GGUF] temporal packed vision requires pixel inputs, positions and one embedding output");
+    const auto axes = [](std::initializer_list<int64_t> values) {
+        return v0::Constant::create(ov::element::i64, {values.size()}, values);
+    };
+    auto pixels =
+        std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1, 3 * temporal * patch * patch});
+    auto shape = std::make_shared<v3::ShapeOf>(pixels);
+    auto rows = std::make_shared<v8::Gather>(shape, axes({1}), axes({0}));
+    auto cols = std::make_shared<v8::Gather>(shape, axes({2}), axes({0}));
+    auto packed_shape =
+        std::make_shared<v0::Concat>(ov::OutputVector{axes({1}), rows, cols, axes({3, temporal, patch, patch})}, 0);
+    auto packed = std::make_shared<v1::Reshape>(pixels, packed_shape, false);
+    auto image_shape =
+        std::make_shared<v0::Concat>(ov::OutputVector{axes({1, 3}),
+                                                      std::make_shared<v1::Multiply>(rows, axes({patch})),
+                                                      std::make_shared<v1::Multiply>(cols, axes({patch}))},
+                                     0);
+    auto count = std::make_shared<v1::Multiply>(rows, cols);
+    auto indices = range(count);
+    auto row_positions = std::make_shared<v1::Divide>(indices, cols, true);
+    auto col_positions = std::make_shared<v1::FloorMod>(indices, cols);
+    auto zeros = std::make_shared<v3::Broadcast>(axes({0}), count);
+    auto positions = flat_index(std::make_shared<v0::Convert>(
+        std::make_shared<v0::Concat>(ov::OutputVector{row_positions, col_positions, zeros, zeros}, 0),
+        ov::element::i32));
+    bool first = false, has_positions = false;
+    for (const auto& input : parameters) {
+        const auto name = input->get_friendly_name();
+        Value replacement;
+        if (name == "positions") {
+            has_positions = true;
+            OPENVINO_ASSERT(input->get_element_type() == ov::element::i32,
+                            "[GGUF] temporal packed vision requires i32 spatial positions");
+            replacement = positions;
+        } else {
+            const bool second = name == "pixel_values_1";
+            const auto input_shape = input->get_partial_shape();
+            OPENVINO_ASSERT((name == "pixel_values" || (second && temporal == 2)) &&
+                                input->get_element_type() == ov::element::f32 && input_shape.rank() == 4 &&
+                                input_shape[0] == 1 && input_shape[1] == 3,
+                            "[GGUF] temporal packed vision requires singleton RGB NCHW pixel inputs");
+            first |= !second;
+            auto frame = std::make_shared<v0::Squeeze>(std::make_shared<v8::Slice>(packed,
+                                                                                   axes({second ? 1 : 0}),
+                                                                                   axes({second ? 2 : 1}),
+                                                                                   axes({1}),
+                                                                                   axes({4})),
+                                                       axes({4}));
+            replacement =
+                std::make_shared<v1::Reshape>(std::make_shared<v1::Transpose>(frame, axes({0, 3, 1, 4, 2, 5})),
+                                              image_shape,
+                                              false);
+        }
+        replace_input(body, name, replacement);
+    }
+    OPENVINO_ASSERT(first && has_positions, "[GGUF] temporal packed vision requires pixels and spatial positions");
+    add_inputs(body, {{"pixel_values", pixels}});
+    const auto features = body->get_results().front()->input_value(0);
+    const auto output_shape = features.get_partial_shape();
+    OPENVINO_ASSERT(features.get_element_type() == ov::element::f32 && output_shape.rank() == 3 && output_shape[0] == 1,
+                    "[GGUF] temporal packed vision requires f32 [1, tokens, width] embeddings");
+    auto input_shape = pixels->get_partial_shape();
+    input_shape[0] = ov::Dimension::dynamic();
+    auto input = std::make_shared<v0::Parameter>(ov::element::f32, input_shape);
+    name_output(input, "pixel_values");
+    auto iterator = std::make_shared<v0::TensorIterator>();
+    iterator->set_body(body);
+    iterator->set_sliced_input(pixels, input, 0, 1, 1, -1, 0);
+    auto output = iterator->get_concatenated_slices(features, 0, 1, 1, -1, 0);
+    output.set_names({"last_hidden_state"});
+    iterator->validate_and_infer_types();
+    const auto results = model->get_results();
+    const auto inputs = model->get_parameters();
+    for (const auto& result : results)
+        model->remove_result(result);
+    for (const auto& parameter : inputs)
+        model->remove_parameter(parameter);
+    model->add_parameters({input});
+    model->add_results({std::make_shared<v0::Result>(output)});
+    model->validate_nodes_and_infer_types();
+}
+
 constexpr std::pair<ProjectorLayout, const char*> layout_names[] = {
     {ProjectorLayout::Unsupported, "unsupported"},
     {ProjectorLayout::Image, "image"},
@@ -457,6 +549,7 @@ constexpr std::pair<ProjectorLayout, const char*> layout_names[] = {
     {ProjectorLayout::WindowedPatches, "windowed_patches"},
     {ProjectorLayout::SplitMerger, "split_merger"},
     {ProjectorLayout::PackedPatches, "packed_patches"},
+    {ProjectorLayout::TemporalPackedPatches, "temporal_packed_patches"},
 };
 
 ProjectorLayout read_projector_layout(const std::shared_ptr<ov::Model>& model) {
@@ -525,6 +618,11 @@ ProjectorModels adapt_projector_layout(const std::shared_ptr<ov::Model>& model) 
         packed_patch_layout(model,
                             mmproj_int_metadata(model, "vision.patch_size"),
                             mmproj_int_metadata(model, "vision.merge"));
+        break;
+    case ProjectorLayout::TemporalPackedPatches:
+        temporal_packed_patch_layout(model,
+                                     mmproj_int_metadata(model, "vision.patch_size"),
+                                     mmproj_int_metadata(model, "vision.temporal_patch_size"));
         break;
     case ProjectorLayout::Unsupported:
         OPENVINO_THROW("[GGUF] no GenAI vision layout contract");

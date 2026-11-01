@@ -127,6 +127,12 @@ arrays are comma-separated, and string arrays are `length:value` entries flagged
 `<key>.encoding` companion. The metadata survives IR serialization and adaptation; supplied
 cgraph decoders return an empty map.
 
+LFM3 vision declares `vision.genai_layout = temporal_packed_patches`, `vision.patch_size = 16`
+and `vision.temporal_patch_size = 2`. `ProjectorLayout::TemporalPackedPatches` is a serializable
+recipe available to built-in and extension projectors with singleton NCHW frame inputs and
+I32 raster positions. It supports one or two temporal patches, independently of the optional
+second native frame input.
+
 ## Preprocessing real media
 
 `GGUFMMProjAccuracy` and `GGUFMMProjDynamicAccuracy` run every projector offline from committed
@@ -206,11 +212,25 @@ preprocessing uses llama.cpp geometry and token limits:
 | `gemma4v`, `gemma4uv` | `vision_embeddings` | `pixel_values [1,P,patch*patch*3]` with patches in raster order, then padding; `image_position_ids [1,P,2]` as (x, y), -1 for padding |
 | `muse-glimmer` | `vision_embeddings` | `pixel_values [rows*cols,3*patch*patch]`, `image_grid_thw [1,3]`; window, merge and position indices are derived in the graph |
 | `minicpmv4_7` | `vision_embeddings` | packed `pixel_values [1,3,patch,N*patch]`, `position_ids [N]`, `patch_grid [2]`, `merge_index`; the two-stage merger also uses `window_index` |
+| `lfm3vl` | `vision_embeddings` | F32 `pixel_values [groups,rows,cols,3*temporal_patch_size*patch_size²]`; raster positions are derived in the graph |
 | `qwen3vl_merger` | `vision_embeddings`, `vision_embeddings_pos`, `vision_embeddings_merger` | flattened patches `hidden_states`; position-table indices `input [4,N]`; `hidden_states`, `attention_mask [1,N,N]`, `rotary_pos_emb [N,head/2]` |
 
 The adapted vision graphs preserve llama.cpp computation: Gemma4 retains GELU_QUICK unless the
 GGUF specifies GELU. Muse Glimmer GGUF files collapse HF's two-frame patch kernel,
 so the layout takes one frame per patch.
+
+The LFM3 packed axes are `[group,row,col,channel,temporal,patch_y,patch_x]` before flattening
+the last four axes. `rows` and `cols` count patches and may vary between calls; each group
+contains one frame pair and produces `last_hidden_state [groups,rows*cols/4,width]`.
+Groups are encoded independently. Repeat a still image in both temporal slots; if the
+native projector has only one patch kernel, the second slot is accepted and ignored.
+Spatial grids have even row and column counts for the 2x2 merger. The graph constructs
+I32 positions as four contiguous sections: row indices, column indices, zeros and zeros.
+The `EMBEDDINGS` layout preserves native NCHW `pixel_values`, optional `pixel_values_1`
+and `positions`, producing `image_features [1,tokens,width]`. Audio and speech component
+layouts remain independent of vision packing. Encoder fixtures compare packed features
+with the pinned llama.cpp CPU outputs at two rectangular sizes; distinct frame pairs and
+one/three groups also check packing and group isolation against the native graph.
 
 GenAI selects these settings from the GGUF metadata while keeping the existing exported-model
 processor defaults. GGUF video inputs keep all supplied frames unless the caller provides

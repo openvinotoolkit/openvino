@@ -74,8 +74,11 @@ public:
         x = linear(g.node("GGML_UNARY_OP_GELU_ERF", {linear(x, "mm.0")}), "mm.2");
         ProjectorResult result;
         result.output = x;
-        result.genai_layout = ProjectorLayout::Image;
-        result.config = {{"vision.merge", "2"}, {"vision.temporal_patch_size", "2"}, {"vision.streaming", "false"}};
+        result.genai_layout = ProjectorLayout::TemporalPackedPatches;
+        result.config = {{"vision.merge", "2"},
+                         {"vision.patch_size", std::to_string(patch)},
+                         {"vision.temporal_patch_size", "2"},
+                         {"vision.streaming", "false"}};
         return result;
     }
 
