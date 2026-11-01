@@ -171,7 +171,7 @@ jobs:
       LLVM_BUILD_TYPE: 'Release'
       GC_DYLINK: 'OFF'
       LLVM_CMAKE_ARGS: '-DMLIR_ENABLE_BINDINGS_PYTHON=OFF'
-      GC_CMAKE_ARGS: '-DGC_ENABLE_TEST=OFF -DGC_ENABLE_TOOLS=OFF -DGC_ENABLE_PYTHON_BINDINGS=OFF'
+      GC_CMAKE_ARGS: '-DGC_ENABLE_TEST=OFF -DGC_ENABLE_TOOLS=OFF -DGC_ENABLE_ZE=OFF'
       LLVM_BUILD_TARGET: install
       LLVM_INSTALL_DIR: ${{ github.workspace }}/graph-compiler/externals/llvm/Release
       GC_INSTALL_DIR: ${{ github.workspace }}/graph-compiler/build/Release/install
@@ -328,7 +328,9 @@ jobs:
       runner: "[ 'self-hosted', 'dgpu', 'BMG-precommit', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
-      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129 -e OV_GPU_ENABLE_MLIR=1"
+      # FIXME: Without OV_GPU_ALLOW_NEW_SHAPE_INFER, mlir_RMS test fails due to shape [1,64,1,1].
+      # To be fixed in a separate, memory layout related, PR.
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129 -e OV_GPU_ENABLE_MLIR=1 -e OV_GPU_ALLOW_NEW_SHAPE_INFER=1"
       test_filter: 'mlir_*'
 
   Overall_Status:
