@@ -155,7 +155,7 @@ TEST(type_prop, cum_sum_axis_out_of_range_positive) {
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v0::CumSum>(data, axis),
                     NodeValidationFailure,
-                    testing::HasSubstr("Axis"));
+                    testing::HasSubstr("Axis 4 out of the tensor rank range [-2, 1]"));
 }
 
 TEST(type_prop, cum_sum_axis_out_of_range_negative) {
@@ -164,7 +164,7 @@ TEST(type_prop, cum_sum_axis_out_of_range_negative) {
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v0::CumSum>(data, axis),
                     NodeValidationFailure,
-                    testing::HasSubstr("Axis"));
+                    testing::HasSubstr("Axis -3 out of the tensor rank range [-2, 1]"));
 }
 
 TEST(type_prop, cum_sum_valid_boundary_axes) {
@@ -179,7 +179,20 @@ TEST(type_prop, cum_sum_empty_constant_axis) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 4});
     auto axis = ov::op::v0::Constant::create(element::i64, Shape{0}, {});
 
+    const auto cum_sum = std::make_shared<op::v0::CumSum>(data, axis);
+    EXPECT_EQ(cum_sum->get_output_partial_shape(0), PartialShape({2, 4}));
+}
+
+TEST(type_prop, cum_sum_scalar_data_constant_axis) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
+    for (int64_t ax : {0, -1}) {
+        auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, {ax});
+        const auto cum_sum = std::make_shared<op::v0::CumSum>(data, axis);
+        EXPECT_EQ(cum_sum->get_output_partial_shape(0), PartialShape{});
+    }
+
+    auto axis = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::v0::CumSum>(data, axis),
                     NodeValidationFailure,
-                    testing::HasSubstr("Axis input must have at least one element"));
+                    testing::HasSubstr("Axis 1 out of the tensor rank range [-1, 0]"));
 }
