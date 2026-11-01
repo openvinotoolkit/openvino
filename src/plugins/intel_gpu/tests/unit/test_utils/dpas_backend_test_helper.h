@@ -37,11 +37,9 @@ inline dpas_backend expected_dpas_backend_for(const cldnn::device_info& info,
     // sends those to sdpa_micro. The caller states which tiers its op needs (expected_dpas_backend's hpg_tiers) and passes
     // whether they are all ready as any_hpg_tier_ready. Remove with the routing.
     const bool hpg_all_refused = info.arch == cldnn::gpu_arch::xe_hpg && hpg_opt_in && !any_hpg_tier_ready;
-    // The sdpa_ocl lane. It still needs the microkernel query today (choose_dpas_backend / supports_micro_sdpa);
-    // the default flip drops exactly this term. An ocl branch before the mk check WITHOUT this term would
-    // expect ocl on a driver where production returns none.
+    // The sdpa_ocl lane needs no microkernel support (choose_dpas_backend, the sdpa_opt ocl lane); only sdpa_micro does.
     if (cldnn::paged_attention::sdpa_ocl_selected(info, ocl_enabled, hpg_opt_in) && !hpg_all_refused)
-        return microkernels_supported ? dpas_backend::ocl : dpas_backend::none;
+        return dpas_backend::ocl;
     if (info.arch < cldnn::gpu_arch::xe_hpg || !microkernels_supported)
         return dpas_backend::none;
     // Upstream's xe3p workaround, kept for sdpa_micro only: PA never, plain SDPA not for head sizes <= 64.
