@@ -461,60 +461,76 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
     if (used_precisions.empty())
         return false;
 
-    type_to_fuse_map type_to_fuse{
-        {v0::Convert::get_type_info_static(), fuse_type_to_convert},
-        {v3::ShapeOf::get_type_info_static(), fuse_type_to_shapeof},
-        {v6::Assign::get_type_info_static(),
-         m_store_original_precision_as_rt_attribute ? store_original_type_as_attribute : wrap_into_original_type},
-        {v6::ReadValue::get_type_info_static(),
-         m_store_original_precision_as_rt_attribute ? store_original_type_as_attribute : wrap_into_original_type},
-        {v3::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms3},
-        {v4::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms4},
-        {v5::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms5},
-        {v9::NonMaxSuppression::get_type_info_static(), fuse_type_to_nms9},
-        {op::v13::NMSRotated::get_type_info_static(), fuse_type_to_nms_rotated},
-        {v8::MatrixNms::get_type_info_static(), fuse_type_to_matrix_nms},
-        {v8::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
-        {v9::MulticlassNms::get_type_info_static(), fuse_type_to_multiclass_nms},
-        {v9::GenerateProposals::get_type_info_static(), fuse_type_to_generate_proposals},
-        {v6::CTCGreedyDecoderSeqLen::get_type_info_static(), fuse_type_to_ctc_greedy_decoder_seq_len},
-        {v1::TopK::get_type_info_static(), fuse_type_to_topk},
-        {v3::TopK::get_type_info_static(), fuse_type_to_topk},
-        {ov::op::v11::TopK::get_type_info_static(), fuse_type_to_topk},
-        {v8::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
-        {v14::MaxPool::get_type_info_static(), fuse_type_to_maxpool},
-        {v3::NonZero::get_type_info_static(), fuse_type_to_nonzero},
-        {v3::Bucketize::get_type_info_static(), fuse_type_to_bucketize},
-        {v1::Equal::get_type_info_static(), fuse_type_to_binary_comparision<v1::Equal>},
-        {v1::NotEqual::get_type_info_static(), fuse_type_to_binary_comparision<v1::NotEqual>},
-        {v1::Greater::get_type_info_static(), fuse_type_to_binary_comparision<v1::Greater>},
-        {v1::GreaterEqual::get_type_info_static(), fuse_type_to_binary_comparision<v1::GreaterEqual>},
-        {v1::Less::get_type_info_static(), fuse_type_to_binary_comparision<v1::Less>},
-        {v1::LessEqual::get_type_info_static(), fuse_type_to_binary_comparision<v1::LessEqual>},
-        {v10::IsFinite::get_type_info_static(), fuse_type_to_binary_comparision<v10::IsFinite>},
-        {v10::IsNaN::get_type_info_static(), fuse_type_to_binary_comparision<v10::IsNaN>},
-        {v10::IsInf::get_type_info_static(), fuse_type_to_binary_comparision<v10::IsInf>},
-        {v1::LogicalAnd::get_type_info_static(), fuse_type_to_logical<v1::LogicalAnd>},
-        {v1::LogicalOr::get_type_info_static(), fuse_type_to_logical<v1::LogicalOr>},
-        {v1::LogicalXor::get_type_info_static(), fuse_type_to_logical<v1::LogicalXor>},
-        {v1::LogicalNot::get_type_info_static(), fuse_type_to_logical<v1::LogicalNot>},
-        {v0::Xor::get_type_info_static(), fuse_type_to_logical<v0::Xor>},
-        {v1::ReduceLogicalAnd::get_type_info_static(), fuse_type_to_reduce_logical<v1::ReduceLogicalAnd>},
-        {v1::ReduceLogicalOr::get_type_info_static(), fuse_type_to_reduce_logical<v1::ReduceLogicalOr>},
-        {v0::ShapeOf::get_type_info_static(), fuse_type_to_shapeof_v0},
-        {v4::Range::get_type_info_static(), fuse_type_to_range_v4},
-        {v9::Eye::get_type_info_static(), fuse_type_to_eye_v9},
-        {v10::Unique::get_type_info_static(), fuse_type_to_unique_v10},
-        {v8::RandomUniform::get_type_info_static(), fuse_type_to_random_uniform_v8},
-        {v13::Multinomial::get_type_info_static(), fuse_type_to_multinomial_v13},
-        {v0::PriorBox::get_type_info_static(), fuse_type_to_prior_box<v0::PriorBox>},
-        {v8::PriorBox::get_type_info_static(), fuse_type_to_prior_box<v8::PriorBox>},
-        {v0::PriorBoxClustered::get_type_info_static(), fuse_type_to_prior_box<v0::PriorBoxClustered>},
-        {v15::SearchSorted::get_type_info_static(), fuse_type_to_search_sorted_v15},
-        {ov::op::internal::RMS::get_type_info_static(), fuse_type_to_rms},
-        // This is operation representing inline_extension from
-        // src/bindings/python/src/openvino/frontend/pytorch/inlined_extension.py
-        {ov::DiscreteTypeInfo("InlinedCustomOp", "extension"), wrap_into_original_type}};
+    type_to_fuse_map type_to_fuse;
+    ADD_FUSE_ENTRY(type_to_fuse, Convert_v0, v0::Convert, fuse_type_to_convert);
+    ADD_FUSE_ENTRY(type_to_fuse, ShapeOf_v3, v3::ShapeOf, fuse_type_to_shapeof);
+    if (m_store_original_precision_as_rt_attribute) {
+        ADD_FUSE_ENTRY(type_to_fuse, Assign_v6, v6::Assign, store_original_type_as_attribute);
+        ADD_FUSE_ENTRY(type_to_fuse, ReadValue_v6, v6::ReadValue, store_original_type_as_attribute);
+    } else {
+        ADD_FUSE_ENTRY(type_to_fuse, Assign_v6, v6::Assign, wrap_into_original_type);
+        ADD_FUSE_ENTRY(type_to_fuse, ReadValue_v6, v6::ReadValue, wrap_into_original_type);
+    }
+    ADD_FUSE_ENTRY(type_to_fuse, NonMaxSuppression_v3, v3::NonMaxSuppression, fuse_type_to_nms3);
+    ADD_FUSE_ENTRY(type_to_fuse, NonMaxSuppression_v4, v4::NonMaxSuppression, fuse_type_to_nms4);
+    ADD_FUSE_ENTRY(type_to_fuse, NonMaxSuppression_v5, v5::NonMaxSuppression, fuse_type_to_nms5);
+    ADD_FUSE_ENTRY(type_to_fuse, NonMaxSuppression_v9, v9::NonMaxSuppression, fuse_type_to_nms9);
+    ADD_FUSE_ENTRY(type_to_fuse, NMSRotated_v13, op::v13::NMSRotated, fuse_type_to_nms_rotated);
+    ADD_FUSE_ENTRY(type_to_fuse, MatrixNms_v8, v8::MatrixNms, fuse_type_to_matrix_nms);
+    ADD_FUSE_ENTRY(type_to_fuse, MulticlassNms_v8, v8::MulticlassNms, fuse_type_to_multiclass_nms);
+    ADD_FUSE_ENTRY(type_to_fuse, MulticlassNms_v9, v9::MulticlassNms, fuse_type_to_multiclass_nms);
+    ADD_FUSE_ENTRY(type_to_fuse, GenerateProposals_v9, v9::GenerateProposals, fuse_type_to_generate_proposals);
+    ADD_FUSE_ENTRY(type_to_fuse,
+                   CTCGreedyDecoderSeqLen_v6,
+                   v6::CTCGreedyDecoderSeqLen,
+                   fuse_type_to_ctc_greedy_decoder_seq_len);
+    ADD_FUSE_ENTRY(type_to_fuse, TopK_v1, v1::TopK, fuse_type_to_topk);
+    ADD_FUSE_ENTRY(type_to_fuse, TopK_v3, v3::TopK, fuse_type_to_topk);
+    ADD_FUSE_ENTRY(type_to_fuse, TopK_v11, ov::op::v11::TopK, fuse_type_to_topk);
+    ADD_FUSE_ENTRY(type_to_fuse, MaxPool_v8, v8::MaxPool, fuse_type_to_maxpool);
+    ADD_FUSE_ENTRY(type_to_fuse, MaxPool_v14, v14::MaxPool, fuse_type_to_maxpool);
+    ADD_FUSE_ENTRY(type_to_fuse, NonZero_v3, v3::NonZero, fuse_type_to_nonzero);
+    ADD_FUSE_ENTRY(type_to_fuse, Bucketize_v3, v3::Bucketize, fuse_type_to_bucketize);
+    ADD_FUSE_ENTRY(type_to_fuse, Equal_v1, v1::Equal, fuse_type_to_binary_comparision<v1::Equal>);
+    ADD_FUSE_ENTRY(type_to_fuse, NotEqual_v1, v1::NotEqual, fuse_type_to_binary_comparision<v1::NotEqual>);
+    ADD_FUSE_ENTRY(type_to_fuse, Greater_v1, v1::Greater, fuse_type_to_binary_comparision<v1::Greater>);
+    ADD_FUSE_ENTRY(type_to_fuse, GreaterEqual_v1, v1::GreaterEqual, fuse_type_to_binary_comparision<v1::GreaterEqual>);
+    ADD_FUSE_ENTRY(type_to_fuse, Less_v1, v1::Less, fuse_type_to_binary_comparision<v1::Less>);
+    ADD_FUSE_ENTRY(type_to_fuse, LessEqual_v1, v1::LessEqual, fuse_type_to_binary_comparision<v1::LessEqual>);
+    ADD_FUSE_ENTRY(type_to_fuse, IsFinite_v10, v10::IsFinite, fuse_type_to_binary_comparision<v10::IsFinite>);
+    ADD_FUSE_ENTRY(type_to_fuse, IsNaN_v10, v10::IsNaN, fuse_type_to_binary_comparision<v10::IsNaN>);
+    ADD_FUSE_ENTRY(type_to_fuse, IsInf_v10, v10::IsInf, fuse_type_to_binary_comparision<v10::IsInf>);
+    ADD_FUSE_ENTRY(type_to_fuse, LogicalAnd_v1, v1::LogicalAnd, fuse_type_to_logical<v1::LogicalAnd>);
+    ADD_FUSE_ENTRY(type_to_fuse, LogicalOr_v1, v1::LogicalOr, fuse_type_to_logical<v1::LogicalOr>);
+    ADD_FUSE_ENTRY(type_to_fuse, LogicalXor_v1, v1::LogicalXor, fuse_type_to_logical<v1::LogicalXor>);
+    ADD_FUSE_ENTRY(type_to_fuse, LogicalNot_v1, v1::LogicalNot, fuse_type_to_logical<v1::LogicalNot>);
+    ADD_FUSE_ENTRY(type_to_fuse, Xor_v0, v0::Xor, fuse_type_to_logical<v0::Xor>);
+    ADD_FUSE_ENTRY(type_to_fuse,
+                   ReduceLogicalAnd_v1,
+                   v1::ReduceLogicalAnd,
+                   fuse_type_to_reduce_logical<v1::ReduceLogicalAnd>);
+    ADD_FUSE_ENTRY(type_to_fuse,
+                   ReduceLogicalOr_v1,
+                   v1::ReduceLogicalOr,
+                   fuse_type_to_reduce_logical<v1::ReduceLogicalOr>);
+    ADD_FUSE_ENTRY(type_to_fuse, ShapeOf_v0, v0::ShapeOf, fuse_type_to_shapeof_v0);
+    ADD_FUSE_ENTRY(type_to_fuse, Range_v4, v4::Range, fuse_type_to_range_v4);
+    ADD_FUSE_ENTRY(type_to_fuse, Eye_v9, v9::Eye, fuse_type_to_eye_v9);
+    ADD_FUSE_ENTRY(type_to_fuse, Unique_v10, v10::Unique, fuse_type_to_unique_v10);
+    ADD_FUSE_ENTRY(type_to_fuse, RandomUniform_v8, v8::RandomUniform, fuse_type_to_random_uniform_v8);
+    ADD_FUSE_ENTRY(type_to_fuse, Multinomial_v13, v13::Multinomial, fuse_type_to_multinomial_v13);
+    ADD_FUSE_ENTRY(type_to_fuse, PriorBox_v0, v0::PriorBox, fuse_type_to_prior_box<v0::PriorBox>);
+    ADD_FUSE_ENTRY(type_to_fuse, PriorBox_v8, v8::PriorBox, fuse_type_to_prior_box<v8::PriorBox>);
+    ADD_FUSE_ENTRY(type_to_fuse,
+                   PriorBoxClustered_v0,
+                   v0::PriorBoxClustered,
+                   fuse_type_to_prior_box<v0::PriorBoxClustered>);
+    ADD_FUSE_ENTRY(type_to_fuse, SearchSorted_v15, v15::SearchSorted, fuse_type_to_search_sorted_v15);
+    ADD_FUSE_ENTRY(type_to_fuse, RMS_internal, ov::op::internal::RMS, fuse_type_to_rms);
+    // This is operation representing inline_extension from
+    // src/bindings/python/src/openvino/frontend/pytorch/inlined_extension.py
+    const ov::DiscreteTypeInfo inlined_custom_op("InlinedCustomOp", "extension");
+    ADD_FUSE_ENTRY_FOR_TYPE_INFO(type_to_fuse, InlinedCustomOp, inlined_custom_op, wrap_into_original_type);
 
     for (const auto& it : m_additional_type_to_fuse_map) {
         type_to_fuse[it.first] = it.second;
