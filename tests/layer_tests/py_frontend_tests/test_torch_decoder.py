@@ -775,9 +775,93 @@ def test_pytorch_fx_decoder_extracts_signature():
     example = ({"x": torch.tensor(1), "y": torch.tensor(2)}, torch.tensor(3))
     em = torch.export.export(TestModel(), example)
     nc_decoder = TorchFXPythonDecoder(em.module())
-    assert nc_decoder.get_input_signature_name(0) == "a"
-    assert nc_decoder.get_input_signature_name(1) == "b"
+    # The dict is flattened into two inputs, so each input is named after its own placeholder
+    assert [nc_decoder.get_input_signature_name(i) for i in range(3)] == ["a_x", "a_y", "b"]
     assert nc_decoder._input_signature == ["a", "b"]
+
+
+def test_pytorch_fx_decoder_names_flattened_list_inputs():
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    class TestModel(torch.nn.Module):
+        def forward(self, pair, scale):
+            return (pair[0] + pair[1]).sum() * scale
+
+    example = ([torch.ones(2, 4), torch.ones(2, 4)], torch.tensor([10.0]))
+    em = torch.export.export(TestModel(), example)
+    decoder = TorchFXPythonDecoder(em.module())
+    assert [decoder.get_input_signature_name(i) for i in range(3)] == ["pair_0", "pair_1", "scale"]
+    assert decoder._input_signature == ["pair", "scale"]
+
+
+def test_pytorch_fx_decoder_names_mixed_and_empty_container_inputs():
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    class TestModel(torch.nn.Module):
+        # "input" is renamed to "input_1" by torch.export, but the input keeps the parameter name
+        def forward(self, input, empty, pair, scale):
+            return (input + pair[0] + pair[1]) * scale
+
+    example = (torch.ones(2), (), [torch.ones(2), torch.ones(2)], torch.ones(2))
+    em = torch.export.export(TestModel(), example)
+    decoder = TorchFXPythonDecoder(em.module())
+    assert [decoder.get_input_signature_name(i) for i in range(4)] == ["input", "pair_0", "pair_1", "scale"]
+
+
+@pytest.mark.precommit
+def test_pytorch_dynamo_convert_builtin_named_input_with_list_input():
+    import numpy as np
+    from openvino import Core, convert_model
+
+    class TestModel(torch.nn.Module):
+        def forward(self, input, pair):
+            return (input + pair[0] + pair[1] * 2) * 3
+
+    example = (torch.ones(2, 4), [torch.ones(2, 4) * 2, torch.ones(2, 4) * 3])
+    model = TestModel()
+    expected = model(*example).numpy()
+
+    ov_model = convert_model(model, example_input=example, dynamo=True)
+
+    assert [sorted(port.get_names()) for port in ov_model.inputs] == [["input"], ["pair_0"], ["pair_1"]]
+    compiled = Core().compile_model(ov_model, "CPU")
+    result = compiled([example[0].numpy(), example[1][0].numpy(), example[1][1].numpy()])[0]
+    np.testing.assert_allclose(result, expected)
+
+
+def test_pytorch_fx_decoder_flat_input_names_unchanged():
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    class TestModel(torch.nn.Module):
+        def forward(self, x, y):
+            return x + y
+
+    em = torch.export.export(TestModel(), (torch.ones(2), torch.ones(2)))
+    decoder = TorchFXPythonDecoder(em.module())
+    assert [decoder.get_input_signature_name(i) for i in range(2)] == ["x", "y"]
+
+
+@pytest.mark.precommit
+def test_pytorch_dynamo_convert_with_list_input_keeps_input_names():
+    import numpy as np
+    from openvino import Core, convert_model
+
+    class TestModel(torch.nn.Module):
+        def forward(self, pair, scale):
+            return (pair[0] + pair[1] * 2).sum() * scale
+
+    pair = [torch.ones(2, 4), torch.ones(2, 4) * 2]
+    scale = torch.tensor([10.0])
+    model = TestModel()
+    expected = model(pair, scale).numpy()
+
+    ov_model = convert_model(model, example_input=(pair, scale), dynamo=True)
+
+    assert [sorted(port.get_names()) for port in ov_model.inputs] == [["pair_0"], ["pair_1"], ["scale"]]
+    assert list(ov_model.input("scale").get_partial_shape()) == [1]
+    compiled = Core().compile_model(ov_model, "CPU")
+    result = compiled({"pair_0": pair[0].numpy(), "pair_1": pair[1].numpy(), "scale": scale.numpy()})[0]
+    np.testing.assert_allclose(result, expected)
 
 
 @pytest.mark.precommit
