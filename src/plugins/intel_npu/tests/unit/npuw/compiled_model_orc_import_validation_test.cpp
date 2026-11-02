@@ -11,6 +11,7 @@
 
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "serialization.hpp"
 
 #define private public
 #include "compiled_model.hpp"
@@ -216,7 +217,20 @@ std::string make_nested_npuw_orc_chain(std::size_t depth) {
     return blob;
 }
 
-std::shared_ptr<ov::npuw::CompiledModel> import_nested_npuw_orc_chain(const std::string& blob) {
+std::string make_nested_batched_wrapper_chain(std::size_t depth) {
+    auto blob = make_nested_npuw_orc_chain(1);
+    for (std::size_t level = 0; level < depth; ++level) {
+        std::stringstream stream(std::ios::in | std::ios::out | std::ios::binary);
+        ov::npuw::s11n::write_header(stream, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
+        ov::npuw::s11n::write(stream, true);
+        ov::npuw::s11n::write(stream, false);
+        stream.write(blob.data(), static_cast<std::streamsize>(blob.size()));
+        blob = stream.str();
+    }
+    return blob;
+}
+
+std::shared_ptr<ov::npuw::ICompiledModel> import_nested_npuw_blob(const std::string& blob) {
     auto [plugin, core] = make_test_plugin_with_core();
     ON_CALL(*core, import_model(testing::A<std::istream&>(), testing::A<const std::string&>(), testing::_))
         .WillByDefault(testing::Invoke([&](std::istream& nested_stream,
@@ -225,7 +239,7 @@ std::shared_ptr<ov::npuw::CompiledModel> import_nested_npuw_orc_chain(const std:
             if (nested_stream.peek() == std::char_traits<char>::eof()) {
                 return {};
             }
-            auto nested = ov::npuw::CompiledModel::import_model(nested_stream, plugin, properties);
+            auto nested = ov::npuw::ICompiledModel::import_model(nested_stream, plugin, properties);
             if (!nested) {
                 return {};
             }
@@ -235,7 +249,7 @@ std::shared_ptr<ov::npuw::CompiledModel> import_nested_npuw_orc_chain(const std:
         }));
 
     std::stringstream stream(blob, std::ios::in | std::ios::out | std::ios::binary);
-    auto imported = ov::npuw::CompiledModel::import_model(stream, plugin, {});
+    auto imported = ov::npuw::ICompiledModel::import_model(stream, plugin, {});
     return imported;
 }
 
@@ -406,15 +420,30 @@ TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkPrevOutputProducer) {
 }
 
 TEST(CompiledModelOrcImportValidationTest, AcceptsNestedNpuwOrcImportsBelowDepthLimit) {
-    auto imported = import_nested_npuw_orc_chain(make_nested_npuw_orc_chain(4));
+    auto imported = import_nested_npuw_blob(make_nested_npuw_orc_chain(4));
 
     EXPECT_NE(imported, nullptr);
 }
 
 TEST(CompiledModelOrcImportValidationTest, RejectsExcessiveNestedNpuwOrcImports) {
     try {
-        import_nested_npuw_orc_chain(make_nested_npuw_orc_chain(64));
+        import_nested_npuw_blob(make_nested_npuw_orc_chain(64));
         FAIL() << "Expected nested NPUW ORC imports to exceed the configured depth limit";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("maximum depth of 32"), std::string::npos) << ex.what();
+    }
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsNestedBatchedWrapperImportsBelowDepthLimit) {
+    auto imported = import_nested_npuw_blob(make_nested_batched_wrapper_chain(4));
+
+    EXPECT_NE(imported, nullptr);
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsExcessiveNestedBatchedWrapperImports) {
+    try {
+        import_nested_npuw_blob(make_nested_batched_wrapper_chain(40));
+        FAIL() << "Expected nested batched wrappers to exceed the configured import depth limit";
     } catch (const ov::Exception& ex) {
         EXPECT_NE(std::string(ex.what()).find("maximum depth of 32"), std::string::npos) << ex.what();
     }
