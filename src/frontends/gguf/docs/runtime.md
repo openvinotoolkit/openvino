@@ -153,8 +153,17 @@ copy-backed buffers with existing descriptors, not mx's zero-copy mmap. Its no-m
 Loaded payloads remain snapshots if the source is subsequently replaced; a fresh read observes the
 replacement. This is not a content-integrity check or a symlink-confinement guarantee.
 
-The frontend does not automatically annotate these references, and reading an external reference does
-not restore its metadata for another external export. During one GPU graph build, descriptor-backed
+Reading an external reference restores its three metadata fields and an internal resolved
+`gguf_ext_source_path`. Before another external export, the serializer checks that resolved file's
+identity, magic, range and complete payload against the loaded Constant snapshot. Missing, truncated
+or changed sources raise an error instead of silently exporting a stale reference. Explicitly remove
+all four fields to materialize the snapshot into an ordinary BIN. Manually supplied three-field
+metadata without a resolved path remains caller-explicit and does not receive this snapshot check.
+File regressions cover successive same-directory exports/read-backs, stale-source rejection and
+explicit BIN materialization. This does not guarantee relocation to another directory or atomic
+integrity if a source changes after validation; snapshot comparison also reads the complete payload.
+
+The frontend does not automatically annotate these references. During one GPU graph build, descriptor-backed
 raw GGUF Constants can reuse a previously uploaded primitive despite different CPU pointers. The
 source index includes descriptor identity/offset, byte size, shape, type and batch interpretation;
 candidate payloads must match byte-for-byte, so source-ID collisions or changed snapshots cannot

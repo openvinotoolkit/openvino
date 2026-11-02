@@ -1365,6 +1365,14 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(
     auto& rtInfo = ovNode->get_rt_info();
     pugi::xml_node dn = node.child("data");
     if (dn) {
+        if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(ovNode);
+            constant && constant->get_element_type().is_gguf_block() && dn.attribute("source")) {
+            const std::string source = dn.attribute("source").value();
+            rtInfo["gguf_ext_source"] = source;
+            rtInfo["gguf_ext_offset"] = static_cast<uint64_t>(pugixml::get_uint64_attr(dn, "offset"));
+            rtInfo["gguf_ext_size"] = static_cast<uint64_t>(pugixml::get_uint64_attr(dn, "size"));
+            rtInfo["gguf_ext_source_path"] = (m_external_weights_directory / source).string();
+        }
         const auto pr_data = dn.attribute("PrimitivesPriority");
         if (pr_data) {
             rtInfo.emplace(ov::PrimitivesPriority::get_type_info_static(), ov::PrimitivesPriority{pr_data.value()});
