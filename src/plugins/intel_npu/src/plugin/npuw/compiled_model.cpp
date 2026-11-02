@@ -19,6 +19,7 @@
 #include "logging.hpp"
 #include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
@@ -118,70 +119,77 @@ bool should_use_weightless_flow(const ov::AnyMap& non_npuw_props,
     return is_weightless;
 }
 
-ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& properties,
-                                                       bool is_weightless,
-                                                       const ov::npuw::s11n::BF16Cache& bf16_consts) {
+ov::npuw::s11n::ImportWeightsContext make_weightless_import_weights_ctx(
+    const ov::AnyMap& properties,
+    const ov::npuw::s11n::BF16Cache& bf16_consts) {
     using namespace ov::npuw::s11n;
 
     std::string weights_path;
-    WeightsContext::ConstsCache consts_cache;
+    ImportWeightsContext::ConstsCache consts_cache;
     ov::FileHandleProvider handle_provider = nullptr;
-    if (is_weightless) {
-        if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name());
-            handle_it != properties.end()) {
-            if (handle_it->second.is<ov::FileHandleProvider>()) {
-                handle_provider = handle_it->second.as<ov::FileHandleProvider>();
-            } else {
-                LOG_WARN("WEIGHTS_HANDLE_PROVIDER property is present but is not a FileHandleProvider; falling back to "
-                         "other weightless import sources");
-            }
+    if (const auto handle_it = properties.find(ov::intel_npu::npuw::weights_handle_provider.name());
+        handle_it != properties.end()) {
+        if (handle_it->second.is<ov::FileHandleProvider>()) {
+            handle_provider = handle_it->second.as<ov::FileHandleProvider>();
+        } else {
+            LOG_WARN("WEIGHTS_HANDLE_PROVIDER property is present but is not a FileHandleProvider; falling back to "
+                     "other weightless import sources");
         }
-        if (!handle_provider && properties.find(ov::weights_path.name()) != properties.end()) {
-            weights_path = properties.at(ov::weights_path.name()).as<std::string>();
-            NPUW_ASSERT(!weights_path.empty() &&
-                        "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
-        } else if (!handle_provider && properties.find(ov::hint::model.name()) != properties.end()) {
-            auto model_ptr = std::const_pointer_cast<ov::Model>(
-                                 properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>())
-                                 ->clone();
-            NPUW_ASSERT(
-                model_ptr &&
-                "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
-            pre_load_transform(model_ptr, {});
-            for (const auto& node : model_ptr->get_ordered_ops()) {
-                if (!ov::op::util::is_constant(node)) {
-                    continue;
-                }
-                const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
-                auto rt_info = c->get_rt_info();
-                auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-                if (weightless_cache_attr == rt_info.end()) {
-                    continue;
-                }
-                std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-                std::size_t size = c->get_byte_size();
-                consts_cache[{offset, size}] = node;
+    }
+    if (!handle_provider && properties.find(ov::weights_path.name()) != properties.end()) {
+        weights_path = properties.at(ov::weights_path.name()).as<std::string>();
+        NPUW_ASSERT(!weights_path.empty() &&
+                    "Empty weights_path. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
+    } else if (!handle_provider && properties.find(ov::hint::model.name()) != properties.end()) {
+        auto model_ptr = std::const_pointer_cast<ov::Model>(
+                             properties.at(ov::hint::model.name()).as<std::shared_ptr<const ov::Model>>())
+                             ->clone();
+        NPUW_ASSERT(
+            model_ptr &&
+            "Empty model passed in MODEL_PTR. Please provide WEIGHTS_PATH or MODEL_PTR in the configuration.");
+        pre_load_transform(model_ptr, {});
+        for (const auto& node : model_ptr->get_ordered_ops()) {
+            if (!ov::op::util::is_constant(node)) {
+                continue;
             }
-        } else if (!handle_provider) {
-            NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
+
+            const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node);
+            std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata =
+                ov::weight_sharing::Extension::get_constant_origin(c);
+            if (!origin_metadata) {
+                continue;
+            }
+            consts_cache[{origin_metadata->m_offset, origin_metadata->m_size}] = node;
         }
+    } else if (!handle_provider) {
+        NPUW_ASSERT(false && "Blob is weightless but no WEIGHTS_PATH nor MODEL_PTR property is provided!");
     }
 
     WeightsPtr weights = nullptr;
-    if (is_weightless) {
-        std::shared_ptr<ov::MappedMemory> mapped_memory;
-        if (handle_provider) {
-            ov::FileHandle handle = handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
-        } else if (!weights_path.empty()) {
-            mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
-        }
-        if (mapped_memory) {
-            weights = std::make_shared<Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
-        }
+    std::shared_ptr<ov::MappedMemory> mapped_memory;
+    if (handle_provider) {
+        ov::FileHandle handle = handle_provider();
+        mapped_memory = ov::load_mmap_object(handle);
+    } else if (!weights_path.empty()) {
+        mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
+    }
+    if (mapped_memory) {
+        weights = std::make_shared<Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
     }
 
-    return WeightsContext(weights, weights_path, consts_cache, bf16_consts, handle_provider);
+    return {true, weights, weights_path, consts_cache, bf16_consts, handle_provider};
+}
+
+ov::npuw::s11n::ImportWeightsContext make_import_weights_ctx(const ov::AnyMap& properties,
+                                                             bool is_weightless,
+                                                             const ov::npuw::s11n::BF16Cache& bf16_consts) {
+    if (is_weightless) {
+        return make_weightless_import_weights_ctx(properties, bf16_consts);
+    }
+    ov::npuw::s11n::ImportWeightsContext ctx;
+    ctx.is_weightless = false;
+    ctx.bf16_consts = bf16_consts;
+    return ctx;
 }
 
 std::function<std::string(const std::string&)> get_encrypt_callback(const ov::AnyMap& properties) {
@@ -1185,12 +1193,27 @@ void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModel
     }
 }
 
-void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Stream& stream,
-                                                           const ov::npuw::s11n::WeightsContext& ctx,
-                                                           std::optional<std::size_t> orc_device_index,
-                                                           const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
+// Design assessment: The unified method is less clear than separate serialize/deserialize implementations because direction is selected by
+// both IsImport and stream state. IsImport preserves the existing wire layout while keeping this refactor scoped;
+// a follow-up should split the control flows and factor only the genuinely shared encoding.
+template <typename WeightsCtx, bool IsImport>
+void ov::npuw::CompiledModel::CompiledModelDesc::serialize_impl(
+    ov::npuw::s11n::Stream& stream,
+    const WeightsCtx& ctx,
+    std::optional<std::size_t> orc_device_index,
+    const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
     using namespace ov::npuw::s11n;
 
+    auto serialize_weightless_tensors = [&](std::vector<ov::Tensor>& tensors) {
+        if constexpr (IsImport) {
+            deserialize_weightless(stream, tensors, ctx);
+        } else {
+            serialize_weightless(stream, tensors, ctx);
+        }
+    };
+
+    OPENVINO_ASSERT(stream.output() == !IsImport,
+                    "CompiledModelDesc stream direction does not match its import/export context");
     if (stream.output()) {
         LOG_DEBUG("Serializing CompiledModelDesc...");
     } else {
@@ -1296,8 +1319,8 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
     };
 
     if (ctx.is_weightless) {
-        serialize_weightless(stream, scales, ctx);
-        serialize_weightless(stream, zerops, ctx);
+        serialize_weightless_tensors(scales);
+        serialize_weightless_tensors(zerops);
 
         std::size_t closure_size = closure_desc.closure.size();
         stream & closure_size;
@@ -1323,13 +1346,13 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
                 }
             }
             stream & cpu_closure_ids;
-            serialize_weightless(stream, cpu_closures, ctx);
+            serialize_weightless_tensors(cpu_closures);
             stream & non_cpu_tensors_ids & non_cpu_tensors;
         } else {
             closure_desc.closure.resize(closure_size);
             lazy_closure.resize(closure_size);
             stream & cpu_closure_ids;
-            serialize_weightless(stream, cpu_closures, ctx);
+            serialize_weightless_tensors(cpu_closures);
             NPUW_ASSERT(cpu_closure_ids.size() == cpu_closures.size() &&
                         "Malformed ORC blob: CPU closure ids count does not match CPU closure tensor count");
             std::size_t tidx = 0;
@@ -1345,9 +1368,11 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
                 NPUW_ASSERT(idx < closure_size && "Malformed ORC blob: non-CPU closure index is out of range");
                 lazy_closure[idx] = std::move(non_cpu_tensors[ltidx++]);
             }
-            for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
-                if (closure_desc.closure_uid[cidx] != -1 && lazy_closure[cidx]) {
-                    lazy_closure[cidx].read_weight(ctx);
+            if constexpr (IsImport) {
+                for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
+                    if (closure_desc.closure_uid[cidx] != -1 && lazy_closure[cidx]) {
+                        lazy_closure[cidx].read_weight(ctx);
+                    }
                 }
             }
         }
@@ -1387,6 +1412,21 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
     }
 
     LOG_DEBUG("DONE.");
+}
+
+void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Stream& stream,
+                                                           const ov::npuw::s11n::ExportWeightsContext& ctx,
+                                                           std::optional<std::size_t> orc_device_index) {
+    OPENVINO_ASSERT(stream.output(), "CompiledModelDesc serialization requires an output stream");
+    serialize_impl<ov::npuw::s11n::ExportWeightsContext, false>(stream, ctx, orc_device_index, nullptr);
+}
+
+void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(
+    ov::npuw::s11n::Stream& stream,
+    const ov::npuw::s11n::ImportWeightsContext& ctx,
+    const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
+    OPENVINO_ASSERT(stream.input(), "CompiledModelDesc deserialization requires an input stream");
+    serialize_impl<ov::npuw::s11n::ImportWeightsContext, true>(stream, ctx, std::nullopt, submodel_ctx);
 }
 
 ov::npuw::CompiledModel::~CompiledModel() {
@@ -1485,7 +1525,7 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
     const auto& bf16_cache = bf16_consts != nullptr ? *bf16_consts : m_bf16_consts;
 
     serializable_props.erase(ov::cache_encryption_callbacks.name());
-    s11n::WeightsContext weights_ctx(is_weightless, m_const_to_offset);
+    s11n::ExportWeightsContext weights_ctx{is_weightless, m_const_to_offset};
 
     auto write_children = [&](std::ostream& body_stream) {
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
@@ -1652,7 +1692,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
             [&](const std::string& device) {
                 return make_submodel_import_config(device, compiled->m_cfg);
             });
-        submodel.serialize(child_stream, compiled->m_import_weights_ctx, std::nullopt, &submodel_ctx);
+        submodel.deserialize(child_stream, compiled->m_import_weights_ctx, &submodel_ctx);
         child.expect_end();
     };
 
@@ -2026,16 +2066,16 @@ void ov::npuw::CompiledModel::store_const_offsets(const std::shared_ptr<ov::Mode
     for (auto&& node_ptr : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node_ptr)) {
             const auto& c = std::static_pointer_cast<ov::op::v0::Constant>(node_ptr);
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
+            std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata = ov::weight_sharing::Extension::get_constant_origin(c);
+            if (!origin_metadata) {
                 continue;
             }
-            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+
+            NPUW_ASSERT(origin_metadata->m_offset != static_cast<std::size_t>(-1) && "Invalid offset!");
             auto data_ptr = c->get_data_ptr();
-            auto inserted = m_const_to_offset.insert({data_ptr, offset});
+            auto inserted = m_const_to_offset.insert({data_ptr, origin_metadata->m_offset});
             if (!inserted.second) {
-                NPUW_ASSERT(inserted.first->second == offset &&
+                NPUW_ASSERT(inserted.first->second == origin_metadata->m_offset &&
                             "Model contains two constants with same pointer and different offset!");
             }
         }

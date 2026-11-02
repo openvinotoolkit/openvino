@@ -26,6 +26,7 @@
 #include "orc.hpp"
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
+#include "weights_context.hpp"
 
 namespace ov {
 namespace npuw {
@@ -117,18 +118,6 @@ class Bank;
 // --------------------------------------------------------------------------
 namespace s11n {
 
-class PairHash {
-public:
-    template <typename T, typename U>
-    std::size_t operator()(const std::pair<T, U>& p) const {
-        return std::hash<T>()(p.first) ^ std::hash<U>()(p.second);
-    }
-};
-
-using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
-using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
-using WeightsPtr = std::shared_ptr<Weights>;
-
 struct CompiledContext {
     CompiledContext(bool _encrypted,
                     const std::function<std::string(const std::string&)>& _encrypt,
@@ -143,43 +132,6 @@ struct CompiledContext {
     std::function<std::string(const std::string&)> decrypt = nullptr;
     // FIXME: needed to pass original bf16 consts meta to CompiledModel
     BF16Cache bf16_consts;
-};
-
-struct WeightsContext {
-    struct CtxHash {
-        inline size_t operator()(const std::pair<std::size_t, std::size_t>& p) const {
-            return (std::hash<std::size_t>()(p.first) + 0x9e3779b9) ^ (std::hash<std::size_t>()(p.second) + 0x9e3779b9);
-        }
-    };
-    using ConstsCache = std::unordered_map<std::pair<std::size_t, std::size_t>, std::shared_ptr<ov::Node>, CtxHash>;
-
-    WeightsContext() = default;
-
-    // NOTE: This constructor should only be used when exporting blobs.
-    WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
-
-    // NOTE: This constructor is used on blob import to carry the resolved weight source
-    // (embedded weights, mmap'ed weights file, or model-backed constants cache).
-    WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
-                   const std::string& _weights_path,
-                   const ConstsCache& _consts_cache,
-                   const BF16Cache& _bf16_consts,
-                   const ov::FileHandleProvider& _handle_provider = nullptr);
-
-    WeightsContext& operator=(const WeightsContext& other) = default;
-
-    void reset() {
-        weights = nullptr;
-        consts_cache.clear();
-    }
-
-    bool is_weightless = true;
-    std::unordered_map<const void*, std::size_t> const_to_offset;
-    ov::npuw::s11n::WeightsPtr weights = nullptr;
-    std::string weights_path;
-    ConstsCache consts_cache;
-    BF16Cache bf16_consts;
-    ov::FileHandleProvider handle_provider = nullptr;
 };
 
 // Context for deserializing submodels with dynamic attention mechanisms
@@ -299,7 +251,8 @@ void serialize(Stream& stream, ov::npuw::weights::LazyTensor& var);
 void serialize(Stream& stream, ov::npuw::weights::Bank& var);
 
 // Weightless tensor utilities
-void serialize_weightless(Stream& stream, std::vector<ov::Tensor>& var, const s11n::WeightsContext& ctx);
+void serialize_weightless(Stream& stream, std::vector<ov::Tensor>& var, const s11n::ExportWeightsContext& ctx);
+void deserialize_weightless(Stream& stream, std::vector<ov::Tensor>& var, const s11n::ImportWeightsContext& ctx);
 void transfer_tensor(Stream& stream, ov::Tensor& var, const s11n::TensorAllocator& allocator = {});
 
 }  // namespace orc
@@ -307,15 +260,15 @@ void transfer_tensor(Stream& stream, ov::Tensor& var, const s11n::TensorAllocato
 // Reopen s11n for weightless helpers that need the orc declarations above.
 namespace s11n {
 
-inline void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const WeightsContext& ctx) {
+inline void write_weightless(std::ostream& stream, const std::vector<ov::Tensor>& var, const ExportWeightsContext& ctx) {
     auto stream_io = Stream::writer(stream);
     auto& mutable_var = const_cast<std::vector<ov::Tensor>&>(var);
     orc::serialize_weightless(stream_io, mutable_var, ctx);
 }
 
-inline void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const WeightsContext& ctx) {
+inline void read_weightless(std::istream& stream, std::vector<ov::Tensor>& var, const ImportWeightsContext& ctx) {
     auto stream_io = Stream::reader(stream);
-    orc::serialize_weightless(stream_io, var, ctx);
+    orc::deserialize_weightless(stream_io, var, ctx);
 }
 
 }  // namespace s11n

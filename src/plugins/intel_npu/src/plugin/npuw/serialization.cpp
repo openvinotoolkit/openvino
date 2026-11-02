@@ -22,26 +22,6 @@
 #include "spatial.hpp"
 #include "util.hpp"
 
-// NOTE: This constructor should only be used when exporting blobs.
-ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
-                                               const std::unordered_map<const void*, std::size_t>& _const_to_offset)
-    : is_weightless(_is_weightless),
-      const_to_offset(_const_to_offset) {}
-
-// NOTE: This constructor is used when importing blobs.
-ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
-                                               const std::string& _weights_path,
-                                               const s11n::WeightsContext::ConstsCache& _consts_cache,
-                                               const BF16Cache& _bf16_consts,
-                                               const ov::FileHandleProvider& _handle_provider)
-    : weights(_weights),
-      weights_path(_weights_path),
-      consts_cache(_consts_cache),
-      bf16_consts(_bf16_consts),
-      handle_provider(_handle_provider) {
-    is_weightless = _weights || !_consts_cache.empty();
-}
-
 ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<ov::Model>& model) {
     ov::npuw::s11n::BF16Cache bf16_cache;
     for (auto&& node_ptr : model->get_ordered_ops()) {
@@ -49,13 +29,11 @@ ov::npuw::s11n::BF16Cache ov::npuw::s11n::get_bf16_consts(const std::shared_ptr<
             if (c->get_element_type() != ov::element::bf16) {
                 continue;
             }
-            auto rt_info = c->get_rt_info();
-            auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-            if (weightless_cache_attr == rt_info.end()) {
+            std::optional<ov::weight_sharing::WeightOriginMetaData> origin_metadata = ov::weight_sharing::Extension::get_constant_origin(c);
+            if (!origin_metadata) {
                 continue;
             }
-            std::size_t offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-            bf16_cache.insert({offset, c->get_byte_size()});
+            bf16_cache.insert({origin_metadata->m_offset, c->get_byte_size()});
         }
     }
     return bf16_cache;
@@ -325,41 +303,44 @@ void ov::npuw::orc::serialize(Stream& stream, ov::AnyMap& var) {
 // FIXME: all serialization needs a good rewriting
 void ov::npuw::orc::serialize_weightless(Stream& stream,
                                          std::vector<ov::Tensor>& var,
-                                         const ov::npuw::s11n::WeightsContext& ctx) {
-    if (stream.output()) {
-        auto size = var.size();
-        serialize(stream, size);
-        for (auto& t : var) {
-            if (!t) {
-                bool is_initialized = false;
-                serialize(stream, is_initialized);
-                continue;
-            }
-            bool is_initialized = true;
+                                         const ov::npuw::s11n::ExportWeightsContext& ctx) {
+    OPENVINO_ASSERT(stream.output(), "Weight serialization requires an output stream");
+    auto size = var.size();
+    serialize(stream, size);
+    for (auto& t : var) {
+        if (!t) {
+            bool is_initialized = false;
             serialize(stream, is_initialized);
-            auto data = t.data();
-            auto iter = ctx.const_to_offset.find(data);
-            if (iter == ctx.const_to_offset.end()) {
-                bool is_weightless = false;
-                serialize(stream, is_weightless);
-                auto tensor = t;
-                serialize(stream, tensor);
-            } else {
-                bool is_weightless = true;
-                serialize(stream, is_weightless);
-                auto elem_type = t.get_element_type().to_string();
-                serialize(stream, elem_type);
-                auto shape = t.get_shape();
-                serialize(stream, shape);
-                auto byte_size = t.get_byte_size();
-                serialize(stream, byte_size);
-                auto offset = iter->second;
-                serialize(stream, offset);
-            }
+            continue;
         }
-        return;
+        bool is_initialized = true;
+        serialize(stream, is_initialized);
+        auto data = t.data();
+        const auto iter = ctx.const_to_offset.find(data);
+        if (iter == ctx.const_to_offset.end()) {
+            bool is_weightless = false;
+            serialize(stream, is_weightless);
+            auto tensor = t;
+            serialize(stream, tensor);
+        } else {
+            bool is_weightless = true;
+            serialize(stream, is_weightless);
+            auto elem_type = t.get_element_type().to_string();
+            serialize(stream, elem_type);
+            auto shape = t.get_shape();
+            serialize(stream, shape);
+            auto byte_size = t.get_byte_size();
+            serialize(stream, byte_size);
+            auto weight_offset = iter->second;
+            serialize(stream, weight_offset);
+        }
     }
+}
 
+void ov::npuw::orc::deserialize_weightless(Stream& stream,
+                                           std::vector<ov::Tensor>& var,
+                                           const ov::npuw::s11n::ImportWeightsContext& ctx) {
+    OPENVINO_ASSERT(stream.input(), "Weight deserialization requires an input stream");
     var.clear();
     std::size_t size;
     serialize(stream, size);

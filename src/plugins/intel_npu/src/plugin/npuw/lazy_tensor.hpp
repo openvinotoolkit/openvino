@@ -76,7 +76,7 @@ public:
     };
     Meta eval_meta() const;
 
-    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx);
     operator bool() const;
 
 private:
@@ -101,7 +101,7 @@ public:
     bool operator==(const Const& other) const;
     ov::Tensor eval() const;
     LazyTensor::Meta eval_meta() const;
-    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx);
     void detach();
     void serialize(ov::npuw::orc::Stream& stream);
 
@@ -139,7 +139,7 @@ public:
     bool operator==(const Concat& other) const;
     ov::Tensor eval() const;
     LazyTensor::Meta eval_meta() const;
-    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx);
     void detach();
     void serialize(ov::npuw::orc::Stream& stream);
 
@@ -166,7 +166,7 @@ public:
     bool operator==(const Unpack& other) const;
     ov::Tensor eval() const;
     LazyTensor::Meta eval_meta() const;
-    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx);
     void detach();
     void serialize(ov::npuw::orc::Stream& stream);
 
@@ -189,7 +189,7 @@ public:
     bool operator==(const Permute& other) const;
     ov::Tensor eval() const;
     LazyTensor::Meta eval_meta() const;
-    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx);
     void detach();
     void serialize(ov::npuw::orc::Stream& stream);
 
@@ -211,7 +211,7 @@ public:
     bool operator==(const Convert& other) const;
     ov::Tensor eval() const;
     LazyTensor::Meta eval_meta() const;
-    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx);
     void detach();
     void serialize(ov::npuw::orc::Stream& stream);
 
@@ -233,7 +233,7 @@ public:
     bool operator==(const Subtract128& other) const;
     ov::Tensor eval() const;
     LazyTensor::Meta eval_meta() const;
-    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx);
     void detach();
     void serialize(ov::npuw::orc::Stream& stream);
 
@@ -258,7 +258,7 @@ public:
     bool operator==(const Gather& other) const;
     ov::Tensor eval() const;
     LazyTensor::Meta eval_meta() const;
-    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void read_weight(const ov::npuw::s11n::ImportWeightsContext& ctx);
     void detach();
     void serialize(ov::npuw::orc::Stream& stream);
 
