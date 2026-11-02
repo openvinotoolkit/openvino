@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-02-10-23-47-000-41423319664",
+  "timestamp": "2026-11-02T10:23:47Z",
+  "run_id": "41423319664",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41423319664",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "39245",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39245",
+  "author": "AlexandruLorinti",
+  "category": "Flaky Test",
+  "title": "smoke_CompareWithRefs_Mvn3D/MvnLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
+  "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
+  "signature_hash": "eb0b94c864ee1a85",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_CompareWithRefs_Mvn3D MvnLayerCPUTest fails: primType undef_f32 instead of expected acl_f32 on ARM64"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32\n[  FAILED  ] smoke_CompareWithRefs_Mvn3D/MvnLayerCPUTest.CompareWithRefs/IS=[1..5.1..20.1..7]_TS=((1.1.1))_((2.16.6))_((4.16.2))_((2.16.6))_Precision=f32_AcrossChannels=TRUE_NormalizeVariance=TRUE_Epsilon=1e-09_CNNInpPrc=i8_CNNOutPrc=f32_PluginConf_INFERENCE_PRECISION_HINT=f32 (70 ms)"
+  ],
+  "root_cause": "The CPU plugin's MVN primitive selection on ARM64 non-deterministically falls back to a generic (undef_f32) implementation instead of picking the ACL (Arm Compute Library) acl_f32 kernel for this particular shape/config combination. This is the same known flaky ACL primitive-selection pattern seen 5 prior times on unrelated PRs (signature eb0b94c864ee1a85), confirming it is unrelated to the current PR's change (a null-check fix in the NPUW MoE topology code, unrelated to CPU/ACL kernel selection).",
+  "reproduction_steps": "Run on an ARM64 runner: ./ov_cpu_func_tests --gtest_filter=*smoke_CompareWithRefs_Mvn3D/MvnLayerCPUTest.CompareWithRefs*IS=[1..5.1..20.1..7]*AcrossChannels=TRUE_NormalizeVariance=TRUE* repeatedly; the primType selection in cpu_test_utils.cpp:248 is known to intermittently resolve to undef_f32 instead of acl_f32 on this platform.",
+  "recommended_actions": [
+    "Re-run the failed CPU functional tests job (it is a known flaky ARM64/ACL primitive-selection issue, not caused by this PR's change)",
+    "File/bump a tracking ticket for the underlying ACL primitive-selection flakiness in src/plugins/intel_cpu for MVN layer tests on ARM64",
+    "Investigate whether the ACL executor factory for MVN has a race or config-dependent fallback path causing non-deterministic primType selection"
+  ],
+  "prevention_strategies": "Add a retry/known-flaky marker for ARM64 ACL-backed CPU functional tests until the underlying primitive-selection non-determinism is fixed, and track recurrence via the rerun_search_string 'primType is unexpected' already approved in the workflow rerunner.",
+  "historical_context": "This exact signature has now occurred 6 times (first seen 2026-09-11, most recently in this run), across 6 different unrelated PRs (#37783, #37885, #38052, #38528, #38669, #39245), always with 'primType is unexpected' + 'undef_f32 Expected : acl_f32' on ARM64 CPU functional test jobs. The rerun_search_string 'primType is unexpected' is already approved in .github/scripts/workflow_rerun/errors_to_look_for.json, so the automated rerunner should already retry these when it matches the log."
+}

@@ -2,12 +2,13 @@
   "schema_version": "1.0",
   "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
   "signature_hash": "eb0b94c864ee1a85",
-  "title": "smoke_AvgPoolV14CeilTorch CPU test fails on ACL primitive type mismatch (undef_f32 vs acl_f32)",
+  "title": "smoke_CompareWithRefs_Mvn3D/MvnLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
   "category": "Flaky Test",
-  "count": 5,
+  "count": 6,
   "first_seen": "2026-09-11T10:27:48Z",
-  "last_seen": "2026-10-26T06:56:03Z",
+  "last_seen": "2026-11-02T10:23:47Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41423319664",
     "https://github.com/openvinotoolkit/openvino/actions/runs/40278519670",
     "https://github.com/openvinotoolkit/openvino/actions/runs/36963098158",
     "https://github.com/openvinotoolkit/openvino/actions/runs/35783641423",
@@ -15,6 +16,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/34586539583"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39245",
     "https://github.com/openvinotoolkit/openvino/pull/38669",
     "https://github.com/openvinotoolkit/openvino/pull/38528",
     "https://github.com/openvinotoolkit/openvino/pull/38052",
@@ -22,7 +24,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/37783"
   ],
   "recent_timestamps": [
-    "2026-10-26T06:56:03Z"
+    "2026-11-02T10:23:47Z"
   ],
   "rerun_search_string": "primType is unexpected"
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 312,
+  "total": 313,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3051,6 +3051,15 @@
       "category": "Infrastructure",
       "signature_hash": "b78186403f39634d",
       "pr_number": "38993"
+    },
+    {
+      "investigation_id": "2026-11-02-10-23-47-000-41423319664",
+      "run_id": "41423319664",
+      "timestamp": "2026-11-02T10:23:47Z",
+      "title": "smoke_CompareWithRefs_Mvn3D/MvnLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
+      "category": "Flaky Test",
+      "signature_hash": "eb0b94c864ee1a85",
+      "pr_number": "39245"
     }
   ]
 }
