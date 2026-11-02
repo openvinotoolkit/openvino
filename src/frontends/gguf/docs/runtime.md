@@ -230,8 +230,15 @@ independent request histories, resetting one request without resetting the other
 individual VariableState, and recreating a request with fresh initial state. Both FC outputs and
 state tensors use independent analytical references, with actual raw/SG and eligible CM execution
 checks. The stateful variant does not cancel requests; it does not establish cancellation rollback
-or complete-model KV/recurrent-state semantics. Other formats, arbitrary fused signatures,
-explicit multi-stream/cross-device execution, cross-version compatibility,
+or complete-model KV/recurrent-state semantics.
+
+The seven Q4_0 graph variants also run with explicitly requested one- and two-stream compiled
+models, querying the returned stream configuration after each cold compilation or cache import.
+They retain both requests' independent output/state checks, reset/recreation and actual execution
+checks, with distinct cache directories for each stream configuration. This establishes isolation
+under the tested two-stream configuration, not physical hardware overlap, blob interchange between
+stream configurations, other formats or complete-model multi-request support. Arbitrary fused
+signatures, cross-device execution, cross-version compatibility,
 weightless/encrypted caching and complete checkpoints remain separate acceptance work.
 
 A new internal-op path should keep a public-op reference path where practical, test both against

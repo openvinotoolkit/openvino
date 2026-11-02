@@ -55,6 +55,7 @@
 #include <filesystem>
 #include <iostream>
 #include <optional>
+#include <utility>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -386,13 +387,18 @@ TEST(fully_connected_gpu, gguf_constant_source_sharing) {
                 ov::element::gguf_q4_0, ov::Shape{64, 256}, fusion_payload.data());
             size_t fusion_hits = 0;
             size_t fusion_misses = 0;
-            for (const std::string route : {"raw", "sg", "cm"}) {
+            const std::array<std::pair<std::string, int>, 6> cache_modes{{
+                {"raw", 1}, {"sg", 1}, {"cm", 1}, {"raw", 2}, {"sg", 2}, {"cm", 2}}};
+            for (const auto& mode : cache_modes) {
+                const auto& route = mode.first;
+                const auto stream_count = mode.second;
+                const auto cache_mode = route + (stream_count == 1 ? "" : "_streams2");
                 if (route == "cm" && !cm_available)
                     continue;
                 gguf_scoped_env_var fusion_shuffle("OV_GPU_GGUF_SHUFFLE", route == "raw" ? "0" : "1");
                 gguf_scoped_env_var fusion_cm("OV_GPU_GGUF_GEMM_CM", route == "cm" ? "1" : "0");
                 gguf_scoped_env_var fusion_threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", route == "cm" ? "32" : "64");
-                const auto directory = cache.path / "fusion" / route;
+                const auto directory = cache.path / "fusion" / cache_mode;
                 for (const std::string signature : {"plain", "bias", "relu", "swish", "add", "multiply", "stateful"}) {
                     const bool binary_post = signature == "add" || signature == "multiply";
                     const bool stateful = signature == "stateful";
@@ -440,10 +446,13 @@ TEST(fully_connected_gpu, gguf_constant_source_sharing) {
                             node->output(output).set_names({name + "_" + std::to_string(output)});
                     }
                     for (const bool repeated : {false, true}) {
-                        SCOPED_TRACE("route=" + route + ", signature=" + signature + ", repeated=" + std::to_string(repeated));
+                        SCOPED_TRACE("route=" + cache_mode + ", signature=" + signature + ", repeated=" + std::to_string(repeated));
                         ov::Core fusion_core;
                         auto execution = fusion_core.compile_model(graph, "GPU", ov::cache_dir(directory.string()),
-                            ov::hint::inference_precision(ov::element::f32), ov::enable_profiling(true), ov::num_streams(1));
+                            ov::hint::inference_precision(ov::element::f32), ov::enable_profiling(true), ov::num_streams(stream_count));
+                        const int actual_streams = execution.get_property(ov::num_streams);
+                        EXPECT_EQ(actual_streams, stream_count);
+                        RecordProperty("request_streams_" + cache_mode, std::to_string(actual_streams));
                         const bool hit = execution.get_property(ov::loaded_from_cache);
                         EXPECT_EQ(hit, initial_hit || repeated);
                         hit ? ++fusion_hits : ++fusion_misses;
@@ -572,17 +581,17 @@ TEST(fully_connected_gpu, gguf_constant_source_sharing) {
                             EXPECT_EQ(executed_fcs, 1u);
                         }
                         if (stateful) {
-                            RecordProperty("request_state_" + route + (repeated ? "_repeat" : "_initial"),
+                            RecordProperty("request_state_" + cache_mode + (repeated ? "_repeat" : "_initial"),
                                            "request_reset=1,variable_reset=1,recreated=1,outputs=8,states=8");
                         } else {
                             EXPECT_EQ(cancelled_requests + completed_cancel_requests, 2u);
                             const auto lifecycle = "cancelled=" + std::to_string(cancelled_requests) +
                                 ",completed=" + std::to_string(completed_cancel_requests) + ",recovered=2,recreated=1";
-                            RecordProperty("request_lifecycle_" + route + "_" + signature + (repeated ? "_repeat" : "_initial"), lifecycle);
+                            RecordProperty("request_lifecycle_" + cache_mode + "_" + signature + (repeated ? "_repeat" : "_initial"), lifecycle);
                         }
-                        RecordProperty("fusion_cache_" + route + "_" + signature + (repeated ? "_repeat" : "_initial"), hit ? "hit" : "miss");
+                        RecordProperty("fusion_cache_" + cache_mode + "_" + signature + (repeated ? "_repeat" : "_initial"), hit ? "hit" : "miss");
                         if (external_cache)
-                            std::cout << "GGUF_FUSION_CACHE_CHECK route=" << route << " signature=" << signature
+                            std::cout << "GGUF_FUSION_CACHE_CHECK route=" << cache_mode << " signature=" << signature
                                       << " hit=" << hit << " repeated=" << repeated << std::endl;
                     }
                 }
