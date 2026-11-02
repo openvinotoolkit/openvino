@@ -42,7 +42,13 @@ void emulate_f8e4m3_on_fp16(const float16* arg_f, float16* out_f, size_t count, 
 namespace fake_convert_details {
 template <bool INVERT, typename T>
 inline T scale_shift(T val, T scale, T shift) {
-    return INVERT ? static_cast<T>((val + shift) / scale) : static_cast<T>(val * scale - shift);
+    if constexpr (INVERT) {
+        // adding zero shift would turn -0 into +0 (-0 + 0 == +0), so skip it to keep the sign of zero
+        const T shifted = shift == T(0) ? val : static_cast<T>(val + shift);
+        return static_cast<T>(shifted / scale);
+    } else {
+        return static_cast<T>(val * scale - shift);
+    }
 }
 /**
  * @brief Apply scale and shift for the data input.
