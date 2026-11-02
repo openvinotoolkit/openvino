@@ -12,6 +12,10 @@
 
 namespace {
 
+// We're using this hardcoded value instead of the OV provided one to make sure the OV value also doesn't change (breaks
+// compatibility)
+constexpr uint32_t CORE_TAG_ID_RANGE_END = 0x1000;
+
 constexpr std::string_view RUNTIME_REQUIREMENTS_SECTION_NAME = "RUNTIME_REQUIREMENTS";
 constexpr std::string_view ELF_MAIN_SCHEDULE_SECTION_NAME = "ELF_MAIN_SCHEDULE";
 constexpr std::string_view ELF_INIT_SCHEDULES_SECTION_NAME = "ELF_INIT_SCHEDULES";
@@ -36,6 +40,18 @@ using namespace intel_npu;
 
 using testing::_;
 using SectionTypeTest = ::testing::Test;
+
+TEST_F(SectionTypeTest, SectionTypeCodesRemainedUnchanged) {
+    ASSERT_EQ(SectionTypeCode::UNKNOWN, CORE_TAG_ID_RANGE_END);
+    ASSERT_EQ(SectionTypeCode::RUNTIME_REQUIREMENTS, CORE_TAG_ID_RANGE_END + 1);
+    ASSERT_EQ(SectionTypeCode::ELF_MAIN_SCHEDULE, CORE_TAG_ID_RANGE_END + 2);
+    ASSERT_EQ(SectionTypeCode::ELF_INIT_SCHEDULES, CORE_TAG_ID_RANGE_END + 3);
+    ASSERT_EQ(SectionTypeCode::DYNAMIC_SCHEDULE, CORE_TAG_ID_RANGE_END + 4);
+    ASSERT_EQ(SectionTypeCode::IO_LAYOUTS, CORE_TAG_ID_RANGE_END + 5);
+    ASSERT_EQ(SectionTypeCode::BATCH_SIZE, CORE_TAG_ID_RANGE_END + 6);
+    ASSERT_EQ(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, CORE_TAG_ID_RANGE_END + 7);
+    ASSERT_EQ(SectionTypeCode::COMPILER_VERSION, CORE_TAG_ID_RANGE_END + 8);
+}
 
 TEST_F(SectionTypeTest, CreateAllSectionTypeUsingCorrectCode) {
     ASSERT_EQ(SectionType(SectionTypeCode::UNKNOWN).get_code(), SectionTypeCode::UNKNOWN);

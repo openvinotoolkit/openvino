@@ -20,20 +20,21 @@ namespace intel_npu {
  * @note These values need to be unique across plugin versions as well. That is because this code is written inside the
  * manifest, and blob compatibility is involved. There, this list can be expanded, but the current entries can never be
  * modified.
- * @note The size needs to be fixed (2 bytes) since this value is written inside the blob manifest
+ * @note The size needs to be fixed (4 bytes) since this value is written inside the blob manifest
+ * @note Device specific sections should use a type ID `>= ov::runtime::hsm::core_tag_id_range_end`. The rest of the IDs
+ * are reserved for OV common sections. The common sections can be interpreted by the OV common code (and all other
+ * plugins). The device specific sections can only be interpreted by the corresponding plugin.
  */
-// TODO need to change value of RR since the content is NPU specific?
 enum class SectionTypeCode : uint32_t {
-    RUNTIME_REQUIREMENTS = static_cast<uint32_t>(
-        ov::runtime::hsm::Tags::runtime_requirements),  // Matches the tag ID used by the OV common code
     UNKNOWN = ov::runtime::hsm::core_tag_id_range_end,
-    ELF_MAIN_SCHEDULE = ov::runtime::hsm::core_tag_id_range_end + 1,
-    ELF_INIT_SCHEDULES = ov::runtime::hsm::core_tag_id_range_end + 2,
-    DYNAMIC_SCHEDULE = ov::runtime::hsm::core_tag_id_range_end + 3,
-    IO_LAYOUTS = ov::runtime::hsm::core_tag_id_range_end + 4,
-    BATCH_SIZE = ov::runtime::hsm::core_tag_id_range_end + 5,
-    ENCRYPTED_SCHEDULES_FLAG = ov::runtime::hsm::core_tag_id_range_end + 6,
-    COMPILER_VERSION = ov::runtime::hsm::core_tag_id_range_end + 7,
+    RUNTIME_REQUIREMENTS = ov::runtime::hsm::core_tag_id_range_end + 1,
+    ELF_MAIN_SCHEDULE = ov::runtime::hsm::core_tag_id_range_end + 2,
+    ELF_INIT_SCHEDULES = ov::runtime::hsm::core_tag_id_range_end + 3,
+    DYNAMIC_SCHEDULE = ov::runtime::hsm::core_tag_id_range_end + 4,
+    IO_LAYOUTS = ov::runtime::hsm::core_tag_id_range_end + 5,
+    BATCH_SIZE = ov::runtime::hsm::core_tag_id_range_end + 6,
+    ENCRYPTED_SCHEDULES_FLAG = ov::runtime::hsm::core_tag_id_range_end + 7,
+    COMPILER_VERSION = ov::runtime::hsm::core_tag_id_range_end + 8,
 };
 
 /**
