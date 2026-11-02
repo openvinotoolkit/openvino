@@ -18,7 +18,6 @@
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
-#include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
@@ -229,14 +228,8 @@ Tensor read_tensor_data_mmap_impl(std::shared_ptr<MappedMemory> mapped_memory,
                                   const element::Type& element_type,
                                   const PartialShape& partial_shape) {
     const auto static_shape = resolve_static_shape(mapped_memory->size(), element_type, partial_shape);
-    const auto shared_buffer = std::make_shared<SharedBuffer<std::shared_ptr<MappedMemory>>>(mapped_memory->data(),
-                                                                                             mapped_memory->size(),
-                                                                                             mapped_memory);
-    auto tensor = wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
-    if (const auto source_id = mapped_memory->get_id()) {
-        set_tensor_source_id(tensor, *source_id);
-    }
-    return tensor;
+    const auto tensor_impl = make_tensor(element_type, static_shape, std::move(mapped_memory));
+    return make_tensor(tensor_impl);
 }
 }  // namespace
 
