@@ -4,6 +4,7 @@ name: Linux GPU MLIR / Graph Compiler ( Ubuntu 24.04 )
 #   * one build with -DENABLE_MLIR_FOR_GPU=ON (LLVM + Graph Compiler are built from source,
 #     LLVM install tree is cached on /mount, the cache is saved on push only)
 #   * all MLIR functional tests with MLIR enabled (OV_GPU_ENABLE_MLIR=1)
+#   * MLIR-related unit tests (ov_gpu_unit_tests, mlir_* filter)
 #
 # `paths:` below narrows the trigger down to MLIR-related files.
 
@@ -37,6 +38,7 @@ on:
       - 'src/plugins/intel_gpu/include/intel_gpu/runtime/memory.hpp'
       - 'src/plugins/intel_gpu/include/intel_gpu/runtime/options.inl'
       - 'src/plugins/intel_gpu/include/intel_gpu/runtime/stream.hpp'
+      - 'src/plugins/intel_gpu/src/graph/graph_optimizer/reorder_inputs.cpp'
       - 'src/plugins/intel_gpu/src/graph/impls/common/mlir_primitive.*'
       - 'src/plugins/intel_gpu/src/graph/impls/common/register.*'
       - 'src/plugins/intel_gpu/src/graph/include/mlir_primitive_inst.h'
@@ -52,6 +54,7 @@ on:
       - 'src/plugins/intel_gpu/src/runtime/ocl/ocl_stream.*'
       - 'src/plugins/intel_gpu/tests/functional/CMakeLists.txt'
       - 'src/plugins/intel_gpu/tests/functional/mlir_op/**'
+      - 'src/plugins/intel_gpu/tests/unit/passes/mlir_primitive_layouts_test.cpp'
   push:
     branches:
       - master
@@ -277,7 +280,7 @@ jobs:
             -DENABLE_OV_ONNX_FRONTEND=OFF -DENABLE_OV_PADDLE_FRONTEND=OFF \
             -DENABLE_OV_TF_FRONTEND=OFF -DENABLE_OV_TF_LITE_FRONTEND=OFF \
             -DENABLE_OV_PYTORCH_FRONTEND=OFF -DENABLE_OV_JAX_FRONTEND=OFF \
-            -DENABLE_PYTHON=OFF -DENABLE_SAMPLES=OFF \
+            -DENABLE_PYTHON=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_SYSTEM_OPENCL=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
@@ -298,6 +301,8 @@ jobs:
         run: |
           cmake --install "${BUILD_DIR}" --prefix "${INSTALL_DIR}"
           cmake --install "${BUILD_DIR}" --prefix "${INSTALL_TEST_DIR}" --component tests
+          # job_gpu_tests.yml runs hello_query_device / benchmark_app before the unit tests
+          cmake --install "${BUILD_DIR}" --prefix "${INSTALL_DIR}" --component samples_bin
 
       - name: Pack openvino_package and openvino_tests
         run: |
@@ -333,9 +338,22 @@ jobs:
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129 -e OV_GPU_ENABLE_MLIR=1 -e OV_GPU_ALLOW_NEW_SHAPE_INFER=1"
       test_filter: 'mlir_*'
 
+  Unit_Test:
+    name: Arc BMG dGPU MLIR Unit Tests
+    needs: [ Build, Docker ]
+    uses: ./.github/workflows/job_gpu_tests.yml
+    with:
+      device: 'dgpu'
+      test_type: 'unit'
+      runner: "[ 'self-hosted', 'dgpu', 'BMG-precommit', 'Linux' ]"
+      runner-group: 'Intel-GPU'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
+      options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+      test_filter: 'mlir_*'
+
   Overall_Status:
     name: ci/gha_overall_status_dev_gpu_linux_mlir
-    needs: [ Smart_CI, Docker, Build, Test ]
+    needs: [ Smart_CI, Docker, Build, Test, Unit_Test ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
