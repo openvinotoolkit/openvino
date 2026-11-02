@@ -100,7 +100,9 @@ std::string GraphEmitter::add_op(const std::string& op_type,
             OPENVINO_ASSERT(m_hadamard_signs.count(width), "[GGUF] missing Hadamard signs for width ", width);
             attrs["hadamard_signs"] = m_hadamard_signs.at(width);
         }
-        if (op_type == "GGML_OP_MUL_MAT" && m_hadamard_v_heads && inputs[0].find(".ssm_out.") != std::string::npos) {
+        const bool gqa_grouped = attrs.count("gqa_grouped") && attrs.at("gqa_grouped").as<bool>();
+        if (op_type == "GGML_OP_MUL_MAT" && m_hadamard_v_heads && !gqa_grouped &&
+            inputs[0].find(".ssm_out.") != std::string::npos) {
             OPENVINO_ASSERT(width % m_hadamard_v_heads == 0, "[GGUF] invalid Hadamard GDN width");
             attrs["hadamard_gdn_heads"] = std::vector<int64_t>{m_hadamard_v_heads / m_hadamard_k_heads,
                                                                m_hadamard_k_heads,

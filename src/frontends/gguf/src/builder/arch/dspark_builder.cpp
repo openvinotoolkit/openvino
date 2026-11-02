@@ -41,6 +41,7 @@ public:
         OPENVINO_ASSERT(!captures.empty(), "[GGUF] missing DSpark target_layers");
         OPENVINO_ASSERT(!m_metadata.get_bool("dspark.dspark.hidden_correction").value_or(false),
                         "[GGUF] DSpark hidden correction is not supported");
+        m_config.model_contract.supports_genai_adaptation = false;
         auto& e = m_emitter;
         m_config.configure_graph(e, m_metadata);
         const auto kv = blocks::KvCachePlan::build(m_config);
