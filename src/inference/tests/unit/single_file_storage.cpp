@@ -7,6 +7,9 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <chrono>
+#include <future>
+#include <thread>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -431,6 +434,37 @@ TEST_F(SingleFileStorageTest, FailedWriteKeepsCacheUsable) {
         });
         EXPECT_EQ(read_data, stored_data) << "blob id " << blob_id;
     }
+}
+
+TEST_F(SingleFileStorageTest, FailedWriteKeepsConcurrentWrite) {
+    const std::string stored_data{"stored blob"};
+    std::promise<void> write_started;
+    auto failed_write = std::async(std::launch::async, [&] {
+        m_storage->write_cache_entry("1", [&](std::ostream& s) {
+            s << "partial export";
+            s.flush();
+            write_started.set_value();
+            // Give the concurrent write time to run, it must wait for the rollback
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            OPENVINO_THROW("Export failed");
+        });
+    });
+    write_started.get_future().wait();
+    m_storage->write_cache_entry("2", [&](std::ostream& s) {
+        s << stored_data;
+    });
+    OV_EXPECT_THROW(failed_write.get(), Exception, ::testing::HasSubstr("Export failed"));
+    m_storage.reset();
+
+    SingleFileStorage reopened_storage(m_file_path);
+    ASSERT_NO_THROW(reopened_storage.initialize());
+    std::string read_data;
+    reopened_storage.read_cache_entry("2", false, [&](const ICacheManager::CompiledBlobVariant& blob) {
+        auto& stream = std::get<std::reference_wrapper<std::istream>>(blob).get();
+        read_data.resize(stored_data.size());
+        stream.read(read_data.data(), read_data.size());
+    });
+    EXPECT_EQ(read_data, stored_data);
 }
 
 TEST_P(SingleFileStorageTest, WrongSizeWritten) {

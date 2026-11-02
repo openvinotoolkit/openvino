@@ -241,6 +241,7 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream, BlobIdType blob_i
 
 void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
     ScopedLocale plocal_C(LC_ALL, "C");
+    std::lock_guard lock(m_mutex);
     std::fstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::ate);
     OPENVINO_ASSERT(stream.good(), "Failed to open cache file ", m_file_path, " for writing blob id ", blob_id);
     const auto entry_pos = stream.tellp();
@@ -261,8 +262,11 @@ void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable
 
     const auto cid = convert_blob_id(blob_id);
 
+    std::unique_lock lock(m_mutex);
     if (std::filesystem::exists(m_file_path) && has_blob_id(cid)) {
-        const auto& [blob_pos, blob_size, model_name] = m_blob_index[cid];
+        // Copy, the index can change once unlocked. Rollback never truncates committed blobs
+        const auto [blob_pos, blob_size, model_name] = m_blob_index[cid];
+        lock.unlock();
         if (enable_mmap) {
             CompiledBlobVariant compiled_blob{std::in_place_index<0>,
                                               read_tensor_data(m_file_path,
@@ -283,11 +287,13 @@ void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable
 void SingleFileStorage::remove_cache_entry(const std::string& id) {}
 
 std::shared_ptr<wsh::Context> SingleFileStorage::get_context() const {
+    std::lock_guard lock(m_mutex);
     return m_shared_context;
 }
 
 void SingleFileStorage::write_context(const weight_sharing::Context& context) {
     ScopedLocale plocal_C(LC_ALL, "C");
+    std::lock_guard lock(m_mutex);
     std::ofstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::ate);
 
     weight_sharing::WeightRegistry delta_weight_registry;
@@ -346,6 +352,7 @@ void SingleFileStorage::write_context(const weight_sharing::Context& context) {
 }
 
 void SingleFileStorage::initialize(std::shared_ptr<ov::wsh::Context> weight_sharing_context) {
+    std::lock_guard lock(m_mutex);
     if (weight_sharing_context) {
         m_shared_context = std::move(weight_sharing_context);
     }

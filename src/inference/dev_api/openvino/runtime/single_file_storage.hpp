@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <mutex>
+
 #include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/runtime/icache_manager.hpp"
 #include "openvino/runtime/tlv_format.hpp"
@@ -77,6 +79,8 @@ private:
     };
     std::unordered_map<BlobIdType, BlobInfo> m_blob_index;
     std::shared_ptr<wsh::Context> m_shared_context;
+    // Serializes file appends, rollbacks and index updates, Core locks only per blob id
+    mutable std::mutex m_mutex;
     bool build_content_index(std::ifstream& stream);
 
     static BlobIdType convert_blob_id(const std::string& blob_id);
