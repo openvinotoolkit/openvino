@@ -201,18 +201,21 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
                                                                      const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
+
+namespace {
+// Removes ov::loaded_from_cache from the properties: it is not a device property.
+bool get_loaded_from_cache(ov::AnyMap& properties) {
+    const auto node = properties.extract(ov::loaded_from_cache.name());
+    return !node.empty() && node.mapped().as<bool>();
+}
+}  // namespace
+
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
 
-    // check ov::loaded_from_cache property and erase it due to not needed any more.
     auto _properties = properties;
-    const auto& it = _properties.find(ov::loaded_from_cache.name());
-    bool loaded_from_cache = false;
-    if (it != _properties.end()) {
-        loaded_from_cache = it->second.as<bool>();
-        _properties.erase(it);
-    }
+    const auto loaded_from_cache = get_loaded_from_cache(_properties);
 
     auto config = Configuration{_properties, m_cfg};
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, loaded_from_cache);
@@ -224,11 +227,7 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(const ov::T
     if (model.get_byte_size() >= sizeof(ov::runtime::hsm::Header) &&
         ov::runtime::hsm::Header::view(model.data()).magic == ov::runtime::hsm::BlobMagic::single) {
         auto _properties = properties;
-        bool loaded_from_cache = false;
-        if (const auto it = _properties.find(ov::loaded_from_cache.name()); it != _properties.end()) {
-            loaded_from_cache = it->second.as<bool>();
-            _properties.erase(it);
-        }
+        const auto loaded_from_cache = get_loaded_from_cache(_properties);
         return std::make_shared<CompiledModel>(model,
                                                shared_from_this(),
                                                Configuration{_properties, m_cfg},
