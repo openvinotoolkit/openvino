@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <optional>
 #include <string>
 #include <utility>
@@ -42,6 +43,12 @@ std::string bias_weight_name(const std::string& weight_name);
 
 // Elementwise add of a (broadcast) bias weight: GGML_OP_ADD(x, bias_weight).
 std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& bias_weight, const std::string& name);
+
+std::array<std::string, 2> split_interleaved_projection(GraphEmitter& e,
+                                                        const std::string& input,
+                                                        const std::array<std::string, 2>& names,
+                                                        int64_t groups,
+                                                        int64_t width);
 
 // Register the tensors of a derived weight `base` with quant type `qtype`.
 void store_parts(GraphEmitter& e, const std::string& base, const WeightTensors& t, GgufTensorType qtype);
