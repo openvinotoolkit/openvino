@@ -34,7 +34,7 @@ The operation is performed in the following steps:
    * Elements with ``x < lo``, ``x > hi``, and NaN elements are ignored.
    * Any other element goes to the bin with the index ``idx = floor((x - lo) * bins / (hi - lo))``, where the result of the division is truncated toward zero. Bins are half-open ``[lo + i * w, lo + (i + 1) * w)``, where ``w = (hi - lo) / bins``, except for the last bin, which is closed and includes ``hi``. This is enforced by ``idx = bins - 1`` whenever ``x == hi``.
 
-The output element ``output[i]`` is the number of elements assigned to the bin ``i``, converted to the output element type, which is selected by the *output_type* attribute. If the count is not representable in the output element type (for example, more than 255 elements in one bin for ``u8``), the result is backend dependent and is not defined by this specification. To avoid this for narrow integer input types, set *output_type* to ``"i32"``.
+The output element ``output[i]`` is the number of elements assigned to the bin ``i``. The counts are accumulated in and returned as the output element type, which is selected by the *preserve_input_type* attribute. If the count is not representable in the output element type (for example, more than 255 elements in one bin for ``u8``), the result is implementation defined. To avoid this for narrow integer input types, set *preserve_input_type* to ``false``.
 
 **Attributes**
 
@@ -62,15 +62,15 @@ The output element ``output[i]`` is the number of elements assigned to the bin `
   * **Default value**: ``0``
   * **Required**: *no*
 
-* *output_type*
+* *preserve_input_type*
 
-  * **Description**: the element type of the output tensor.
-  * **Range of values**: ``"same_as_input"`` or ``"i32"``
+  * **Description**: selects the element type in which the counts are accumulated and returned.
+  * **Range of values**:
 
-    * ``"same_as_input"`` - the output element type is *T*, as in ``torch.histc``.
-    * ``"i32"`` - the output element type is ``i32`` regardless of *T*.
-  * **Type**: string
-  * **Default value**: ``"same_as_input"``
+    * *true* - the output element type is *T*, as in ``torch.histc``.
+    * *false* - the output element type is ``i32`` regardless of *T*.
+  * **Type**: ``boolean``
+  * **Default value**: true
   * **Required**: *no*
 
 **Inputs**
@@ -79,7 +79,7 @@ The output element ``output[i]`` is the number of elements assigned to the bin `
 
 **Outputs**
 
-* **1**: A 1D tensor of shape ``[bins]``, containing the number of input elements in each bin. Its element type is *T* if *output_type* is ``"same_as_input"`` and ``i32`` if *output_type* is ``"i32"``.
+* **1**: A 1D tensor of shape ``[bins]``, containing the number of input elements in each bin. Its element type is *T* if *preserve_input_type* is ``true`` and ``i32`` otherwise.
 
 **Types**
 
