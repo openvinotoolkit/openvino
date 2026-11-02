@@ -15,6 +15,7 @@
 #include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
+using OutputType = ov::op::v17::Histc::OutputType;
 
 namespace {
 struct HistcParams {
@@ -24,6 +25,7 @@ struct HistcParams {
     double max;
     Tensor expected;
     std::string name;
+    OutputType output_type = OutputType::SAME_AS_INPUT;
 };
 
 class ReferenceHistcLayerTest : public testing::TestWithParam<HistcParams>, public CommonReferenceTest {
@@ -31,7 +33,7 @@ public:
     void SetUp() override {
         const auto& p = GetParam();
         const auto in = std::make_shared<ov::op::v0::Parameter>(p.data.type, p.data.shape);
-        const auto histc = std::make_shared<ov::op::v17::Histc>(in, p.bins, p.min, p.max);
+        const auto histc = std::make_shared<ov::op::v17::Histc>(in, p.bins, p.min, p.max, p.output_type);
         function = std::make_shared<ov::Model>(ov::OutputVector{histc}, ov::ParameterVector{in});
         inputData = {p.data.data};
         refOutData = {p.expected.data};
@@ -39,7 +41,8 @@ public:
 
     static std::string getTestCaseName(const testing::TestParamInfo<HistcParams>& obj) {
         const auto& p = obj.param;
-        return p.name + "_type=" + p.data.type.get_type_name() + "_shape=" + p.data.shape.to_string();
+        return p.name + "_type=" + p.data.type.get_type_name() + "_shape=" + p.data.shape.to_string() +
+               "_out=" + ov::as_string(p.output_type);
     }
 };
 
@@ -209,18 +212,113 @@ std::vector<HistcParams> generateCombinedParams() {
                     2.,
                     {Shape{1}, ov::element::f16, std::vector<ov::float16>{4000}},
                     "count_above_f16_step"},
+                   // Counts that do not fit into the output type saturate.
                    {{Shape{300}, ov::element::u8, std::vector<uint8_t>(300, 0)},
                     1,
                     0.,
                     1.,
-                    {Shape{1}, ov::element::u8, std::vector<uint8_t>{44}},
-                    "count_wraps"},
+                    {Shape{1}, ov::element::u8, std::vector<uint8_t>{255}},
+                    "count_saturates"},
+                   {{Shape{255}, ov::element::u8, std::vector<uint8_t>(255, 0)},
+                    1,
+                    0.,
+                    1.,
+                    {Shape{1}, ov::element::u8, std::vector<uint8_t>{255}},
+                    "count_at_type_max"},
+                   {{Shape{256}, ov::element::u8, std::vector<uint8_t>(256, 0)},
+                    1,
+                    0.,
+                    1.,
+                    {Shape{1}, ov::element::u8, std::vector<uint8_t>{255}},
+                    "count_above_type_max"},
                    {{Shape{200}, ov::element::i8, std::vector<int8_t>(200, 0)},
                     1,
                     0.,
                     1.,
-                    {Shape{1}, ov::element::i8, std::vector<int8_t>{-56}},
-                    "count_wraps"},
+                    {Shape{1}, ov::element::i8, std::vector<int8_t>{127}},
+                    "count_saturates"},
+                   {{Shape{40000}, ov::element::i16, std::vector<int16_t>(40000, 0)},
+                    1,
+                    0.,
+                    1.,
+                    {Shape{1}, ov::element::i16, std::vector<int16_t>{32767}},
+                    "count_saturates"},
+                   {{Shape{70000}, ov::element::u16, std::vector<uint16_t>(70000, 0)},
+                    1,
+                    0.,
+                    1.,
+                    {Shape{1}, ov::element::u16, std::vector<uint16_t>{65535}},
+                    "count_saturates"},
+                   // Saturates to the largest finite f16 instead of becoming inf.
+                   {{Shape{70000}, ov::element::f16, std::vector<ov::float16>(70000, 0)},
+                    1,
+                    0.,
+                    1.,
+                    {Shape{1}, ov::element::f16, std::vector<ov::float16>{std::numeric_limits<ov::float16>::max()}},
+                    "count_saturates"},
+                   // Only one bin saturates, the others keep exact counts.
+                   {{Shape{302},
+                     ov::element::u8,
+                     [] {
+                         std::vector<uint8_t> v(300, 0);
+                         v.insert(v.end(), {2, 2});
+                         return v;
+                     }()},
+                    2,
+                    0.,
+                    2.,
+                    {Shape{2}, ov::element::u8, std::vector<uint8_t>{255, 2}},
+                    "count_saturates_one_bin"},
+                   // output_type = i32 gives exact counts for narrow input types.
+                   {{Shape{300}, ov::element::u8, std::vector<uint8_t>(300, 0)},
+                    1,
+                    0.,
+                    1.,
+                    {Shape{1}, ov::element::i32, std::vector<int32_t>{300}},
+                    "count_exact",
+                    OutputType::I32},
+                   {{Shape{200}, ov::element::i8, std::vector<int8_t>(200, 0)},
+                    1,
+                    0.,
+                    1.,
+                    {Shape{1}, ov::element::i32, std::vector<int32_t>{200}},
+                    "count_exact",
+                    OutputType::I32},
+                   {{Shape{70000}, ov::element::f16, std::vector<ov::float16>(70000, 0)},
+                    1,
+                    0.,
+                    1.,
+                    {Shape{1}, ov::element::i32, std::vector<int32_t>{70000}},
+                    "count_exact",
+                    OutputType::I32},
+                   {{Shape{2, 2}, ov::element::f32, std::vector<float>{1, 2, 1, 4}},
+                    4,
+                    0.,
+                    0.,
+                    {Shape{4}, ov::element::i32, std::vector<int32_t>{2, 1, 0, 1}},
+                    "data_range",
+                    OutputType::I32},
+                   {{Shape{3}, ov::element::f64, std::vector<double>{1, 2, 1}},
+                    4,
+                    0.,
+                    3.,
+                    {Shape{4}, ov::element::i32, std::vector<int32_t>{0, 2, 1, 0}},
+                    "explicit_range",
+                    OutputType::I32},
+                   {{Shape{3}, ov::element::i32, std::vector<int32_t>{-5, 0, 5}},
+                    2,
+                    -5.,
+                    5.,
+                    {Shape{2}, ov::element::i32, std::vector<int32_t>{1, 2}},
+                    "signed_int",
+                    OutputType::I32},
+                   {{Shape{0}, ov::element::i64, std::vector<int64_t>{}},
+                    3,
+                    0.,
+                    0.,
+                    {Shape{3}, ov::element::i32, std::vector<int32_t>{0, 0, 0}},
+                    "empty",
+                    OutputType::I32},
                    {{Shape{4}, ov::element::u8, std::vector<uint8_t>{0, 5, 10, 200}},
                     2,
                     -10.,

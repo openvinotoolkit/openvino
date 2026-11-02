@@ -36,6 +36,7 @@ Histc::Histc(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     const auto histc = ov::as_type_ptr<const ov::op::v17::Histc>(op);
     m_min = histc->get_min();
     m_max = histc->get_max();
+    m_i32_output = histc->get_output_type() == ov::op::v17::Histc::OutputType::I32;
 }
 
 bool Histc::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -57,7 +58,9 @@ void Histc::initSupportedPrimitiveDescriptors() {
     } else if (none_of(prec, ov::element::i8, ov::element::u8)) {
         prec = ov::element::i32;
     }
-    addSupportedPrimDesc({{LayoutType::ncsp, prec}}, {{LayoutType::ncsp, prec}}, impl_desc_type::ref);
+    addSupportedPrimDesc({{LayoutType::ncsp, prec}},
+                         {{LayoutType::ncsp, m_i32_output ? ov::element::i32 : prec}},
+                         impl_desc_type::ref);
 }
 
 bool Histc::created() const {
@@ -67,12 +70,19 @@ bool Histc::created() const {
 template <class T>
 void Histc::executeImpl() {
     const auto& src = getSrcMemoryAtPort(0);
-    ov::reference::histc(src->getDataAs<const T>(),
-                         getDstDataAtPortAs<T>(0),
-                         ov::shape_size(src->getStaticDims()),
-                         ov::shape_size(getDstMemoryAtPort(0)->getStaticDims()),
-                         m_min,
-                         m_max);
+    const auto run = [&](auto* dst) {
+        ov::reference::histc(src->getDataAs<const T>(),
+                             dst,
+                             ov::shape_size(src->getStaticDims()),
+                             ov::shape_size(getDstMemoryAtPort(0)->getStaticDims()),
+                             m_min,
+                             m_max);
+    };
+    if (m_i32_output) {
+        run(getDstDataAtPortAs<int32_t>(0));
+    } else {
+        run(getDstDataAtPortAs<T>(0));
+    }
 }
 
 void Histc::execute([[maybe_unused]] const dnnl::stream& strm) {

@@ -43,6 +43,7 @@ private:
 
     double m_min = 0.0;
     double m_max = 0.0;
+    bool m_i32_output = false;
 };
 
 }  // namespace ov::intel_cpu::node

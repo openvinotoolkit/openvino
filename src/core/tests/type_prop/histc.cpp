@@ -25,6 +25,7 @@ TEST_F(TypePropHistcTest, default_ctor) {
     EXPECT_EQ(op->get_bins(), 100);
     EXPECT_EQ(op->get_min(), 0.0);
     EXPECT_EQ(op->get_max(), 0.0);
+    EXPECT_EQ(op->get_output_type(), op::v17::Histc::OutputType::SAME_AS_INPUT);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{100}));
 }
@@ -42,6 +43,16 @@ TEST_F(TypePropHistcTest, element_types) {
     for (const auto& et : {element::f32, element::f64, element::bf16, element::i32, element::u8, element::dynamic}) {
         const auto op = make_op(std::make_shared<Parameter>(et, PartialShape{5}), 3);
         EXPECT_EQ(op->get_output_element_type(0), et);
+    }
+}
+
+TEST_F(TypePropHistcTest, output_type_i32) {
+    for (const auto& et :
+         {element::f32, element::f16, element::bf16, element::i64, element::i32, element::u8, element::dynamic}) {
+        const auto op =
+            make_op(std::make_shared<Parameter>(et, PartialShape{5}), 3, 0.0, 0.0, op::v17::Histc::OutputType::I32);
+        EXPECT_EQ(op->get_output_element_type(0), element::i32) << et;
+        EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3}));
     }
 }
 
@@ -90,17 +101,27 @@ TEST_F(TypePropHistcTest, setters_are_validated) {
     op->set_min(0.0);
     op->set_bins(0);
     OV_EXPECT_THROW(op->validate_and_infer_types(), NodeValidationFailure, HasSubstr("'bins' must be positive"));
+
+    op->set_bins(4);
+    op->set_output_type(op::v17::Histc::OutputType::I32);
+    op->validate_and_infer_types();
+    EXPECT_EQ(op->get_output_element_type(0), element::i32);
 }
 
 TEST_F(TypePropHistcTest, clone_preserves_attributes) {
-    const auto op = make_op(std::make_shared<Parameter>(element::f32, PartialShape{5}), 7, -1.5, 2.5);
-    const auto new_data = std::make_shared<Parameter>(element::i32, PartialShape{-1, 3});
+    const auto op = make_op(std::make_shared<Parameter>(element::f32, PartialShape{5}),
+                            7,
+                            -1.5,
+                            2.5,
+                            op::v17::Histc::OutputType::I32);
+    const auto new_data = std::make_shared<Parameter>(element::u8, PartialShape{-1, 3});
     const auto clone = ov::as_type_ptr<op::v17::Histc>(op->clone_with_new_inputs({new_data}));
 
     ASSERT_NE(clone, nullptr);
     EXPECT_EQ(clone->get_bins(), 7);
     EXPECT_EQ(clone->get_min(), -1.5);
     EXPECT_EQ(clone->get_max(), 2.5);
+    EXPECT_EQ(clone->get_output_type(), op::v17::Histc::OutputType::I32);
     EXPECT_EQ(clone->get_output_element_type(0), element::i32);
     EXPECT_EQ(clone->get_output_partial_shape(0), (PartialShape{7}));
 }

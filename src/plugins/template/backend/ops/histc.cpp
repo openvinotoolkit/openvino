@@ -14,12 +14,19 @@ bool evaluate(const std::shared_ptr<ov::op::v17::Histc>& op,
               const ov::TensorVector& inputs) {
     using T = ov::fundamental_type_for<ET>;
     outputs[0].set_shape(op->get_output_shape(0));
-    ov::reference::histc(inputs[0].data<const T>(),
-                         outputs[0].data<T>(),
-                         inputs[0].get_size(),
-                         outputs[0].get_size(),
-                         op->get_min(),
-                         op->get_max());
+    const auto run = [&](auto* out) {
+        ov::reference::histc(inputs[0].data<const T>(),
+                             out,
+                             inputs[0].get_size(),
+                             outputs[0].get_size(),
+                             op->get_min(),
+                             op->get_max());
+    };
+    if (outputs[0].get_element_type() == ov::element::i32) {
+        run(outputs[0].data<int32_t>());
+    } else {
+        run(outputs[0].data<T>());
+    }
     return true;
 }
 

@@ -19,14 +19,14 @@ namespace ov::reference {
  * @brief Reference implementation of Histc operator (compatible with torch.histc).
  *
  * @param data   Pointer to input data.
- * @param out    Pointer to output data with `bins` elements.
+ * @param out    Pointer to output data with `bins` elements. Counts that do not fit into TOut saturate.
  * @param count  Number of input elements.
  * @param bins   Number of equal-width bins.
  * @param min    Lower end of the range. If equal to max, the range is taken from the data.
  * @param max    Upper end of the range. If equal to min, the range is taken from the data.
  */
-template <class T>
-void histc(const T* data, T* out, const size_t count, const size_t bins, double min, double max) {
+template <class T, class TOut = T>
+void histc(const T* data, TOut* out, const size_t count, const size_t bins, double min, double max) {
     // Like torch.histc, f32 is binned in f32; integers are widened to keep fractional range ends.
     using C = std::conditional_t<std::is_same_v<T, double> || std::is_integral_v<T>, double, float>;
 
@@ -73,12 +73,8 @@ void histc(const T* data, T* out, const size_t count, const size_t bins, double 
         ++hist[std::min(idx, bins - 1)];
     }
     std::transform(hist.begin(), hist.end(), out, [](size_t n) {
-        if constexpr (std::is_integral_v<T>) {
-            // Like torch.histc, the output keeps the input type and counts that do not fit into T wrap around.
-            return static_cast<T>(n);
-        } else {
-            return static_cast<T>(static_cast<C>(n));
-        }
+        return static_cast<TOut>(
+            std::min(static_cast<double>(n), static_cast<double>(std::numeric_limits<TOut>::max())));
     });
 }
 }  // namespace ov::reference
