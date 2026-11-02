@@ -48,7 +48,7 @@ MockSection::MockSection(const std::vector<std::shared_ptr<CREToken>>& cre_token
                          const std::optional<std::string>& individual_requirements,
                          const ov::runtime::hsm::SectionAlignment& alignment)
     : ISection(SectionTypeCode::IO_LAYOUTS, alignment, true),  // TODO comment
-      m_cre_tokens(m_cre_tokens),
+      m_cre_tokens(cre_tokens),
       m_individual_requirements(individual_requirements) {}
 
 void MockSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
@@ -57,7 +57,7 @@ void MockSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
 
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> MockSection::decode =
     [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
-    return std::make_shared<MockSection>({}, std::nullopt);
+    return std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>(), std::nullopt);
 };
 
 std::optional<std::string> MockSection::get_individual_compatibility_requirements() const {

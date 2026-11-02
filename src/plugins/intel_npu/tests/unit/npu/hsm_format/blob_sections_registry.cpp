@@ -15,7 +15,11 @@
 using namespace intel_npu;
 using testing::_;
 
-namespace {}
+namespace {
+
+const auto BATCH_SIZE_PTR = std::make_shared<SectionType>(SectionTypeCode::BATCH_SIZE);
+
+}
 
 using BlobSectionsRegistryTest = testing::Test;
 
@@ -154,8 +158,60 @@ TEST_F(BlobSectionsRegistryTest, NormalRegistryGetters) {
     ASSERT_EQ(summary.size(), 2);
     ASSERT_TRUE(summary.count(SectionTypeCode::BATCH_SIZE));
     ASSERT_TRUE(summary.count(SectionTypeCode::COMPILER_VERSION));
-    ASSERT_TRUE(summary.count(SectionTypeCode::IO_LAYOUTS));
+    ASSERT_FALSE(summary.count(SectionTypeCode::IO_LAYOUTS));
     ASSERT_EQ(summary.at(SectionTypeCode::BATCH_SIZE), 2);
     ASSERT_EQ(summary.at(SectionTypeCode::COMPILER_VERSION), 1);
-    ASSERT_EQ(summary.at(SectionTypeCode::IO_LAYOUTS), 0);
+}
+
+TEST_F(BlobSectionsRegistryTest, EmptyRegistryRuntimeRequirements) {
+    BlobSectionsRegistry registry;
+    const auto section = registry.build_runtime_requirements_section();
+    ASSERT_TRUE(section);
+    const auto casted_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(section);
+    ASSERT_TRUE(casted_section);
+    const RuntimeRequirements runtime_requirements = casted_section->get_runtime_requirements();
+    ASSERT_TRUE(runtime_requirements.get_sections_requirements().empty());
+    ASSERT_TRUE(runtime_requirements.get_section_id_to_type_mapping().empty());
+    ASSERT_EQ(runtime_requirements.get_cre().get_expression_length(), 0);
+}
+
+TEST_F(BlobSectionsRegistryTest, NormalRegistryRuntimeRequirements) {
+    BlobSectionsRegistry registry;
+    const std::vector<std::shared_ptr<CREToken>> mock_tokens{std::make_shared<SectionType>(SectionTypeCode::IO_LAYOUTS),
+                                                             CRE::AND_PTR,
+                                                             std::make_shared<SectionType>(SectionTypeCode::IO_LAYOUTS),
+                                                             std::make_shared<SectionID>(2)};
+
+    registry.register_section(std::make_shared<BatchSizeSection>(0));
+    registry.register_section(std::make_shared<CompilerVersionSection>(0));
+    registry.register_section(
+        std::make_shared<MockSection>(mock_tokens, std::string(STRING_THAT_EVALUATES_TO_SUPPORTED)));
+
+    const auto section = registry.build_runtime_requirements_section();
+    ASSERT_TRUE(section);
+    const auto casted_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(section);
+    ASSERT_TRUE(casted_section);
+    const RuntimeRequirements runtime_requirements = casted_section->get_runtime_requirements();
+
+    const std::map<SectionID, std::string> sections_requirements = runtime_requirements.get_sections_requirements();
+    ASSERT_EQ(sections_requirements.size(), 1);
+    ASSERT_TRUE(sections_requirements.count(2));
+    ASSERT_EQ(sections_requirements.at(2), STRING_THAT_EVALUATES_TO_SUPPORTED.data());
+
+    const std::unordered_map<SectionID, SectionType> id_to_type = runtime_requirements.get_section_id_to_type_mapping();
+    ASSERT_EQ(id_to_type.size(), 3);
+    ASSERT_TRUE(id_to_type.count(0));
+    ASSERT_TRUE(id_to_type.count(1));
+    ASSERT_TRUE(id_to_type.count(2));
+    ASSERT_EQ(id_to_type.at(0), SectionType(SectionTypeCode::BATCH_SIZE));
+    ASSERT_EQ(id_to_type.at(1), SectionType(SectionTypeCode::COMPILER_VERSION));
+    ASSERT_EQ(id_to_type.at(2), SectionType(SectionTypeCode::IO_LAYOUTS));
+
+    const CRE result_cre = runtime_requirements.get_cre();
+    CRE reference_cre_1{{BATCH_SIZE_PTR}};
+    reference_cre_1.append_to_expression(mock_tokens);
+    CRE reference_cre_2{mock_tokens};
+    reference_cre_2.append_to_expression(std::vector<std::shared_ptr<CREToken>>{BATCH_SIZE_PTR});
+    // The order may differ since the result depends on an unordered map
+    ASSERT_TRUE(result_cre == reference_cre_1 || result_cre == reference_cre_2);
 }
