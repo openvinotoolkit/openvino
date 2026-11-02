@@ -69,6 +69,10 @@ TEST(GGUFRepack, PreservesSharedRawAndIsIdempotent) {
             payload[index] = static_cast<uint8_t>((index * 37 + index / 97 + 19) % 256);
         }
         auto raw = std::make_shared<ov::op::v0::Constant>(type, shape, payload.data());
+        raw->get_rt_info()["gguf_ext_source"] = std::string("fixture.gguf");
+        raw->get_rt_info()["gguf_ext_source_path"] = std::string("fixture.gguf");
+        raw->get_rt_info()["gguf_ext_offset"] = uint64_t{32};
+        raw->get_rt_info()["gguf_ext_size"] = static_cast<uint64_t>(payload.size());
         auto fc = make_gguf_repack_fc(raw);
         auto second_fc = make_gguf_repack_fc(raw);
         auto activation = ov::as_type_ptr<ov::op::v0::Parameter>(fc->get_input_node_shared_ptr(0));
@@ -89,6 +93,11 @@ TEST(GGUFRepack, PreservesSharedRawAndIsIdempotent) {
         auto second_packed = ov::as_type_ptr<ov::op::v0::Constant>(second_fc->get_input_node_shared_ptr(1));
         ASSERT_NE(second_packed, nullptr);
         EXPECT_NE(second_packed, raw);
+        for (const auto* key : {"gguf_ext_source", "gguf_ext_offset", "gguf_ext_size", "gguf_ext_source_path"}) {
+            EXPECT_EQ(packed->get_rt_info().count(key), 0);
+            EXPECT_EQ(second_packed->get_rt_info().count(key), 0);
+            EXPECT_EQ(raw->get_rt_info().count(key), 1);
+        }
         EXPECT_EQ(std::memcmp(packed->get_data_ptr(), second_packed->get_data_ptr(), payload.size()), 0);
         std::vector<uint8_t> once(payload.size());
         std::memcpy(once.data(), packed->get_data_ptr(), once.size());

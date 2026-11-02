@@ -909,8 +909,8 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
                         "GGUF external weight type, shape and size are inconsistent");
         OPENVINO_ASSERT(!m_external_weights_directory.empty(),
                         "GGUF external weights require a model file directory");
-        const auto path = m_external_weights_directory / source;
-        const auto key = path.string();
+        const auto path = m_external_weights_directory / ov::util::make_path(source);
+        const auto key = ov::util::path_to_string(path);
         auto found = m_external_weights->find(key);
         if (found == m_external_weights->end()) {
             auto provider = std::make_shared<FileWeightsProvider>(path);
@@ -1371,7 +1371,8 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(
             rtInfo["gguf_ext_source"] = source;
             rtInfo["gguf_ext_offset"] = static_cast<uint64_t>(pugixml::get_uint64_attr(dn, "offset"));
             rtInfo["gguf_ext_size"] = static_cast<uint64_t>(pugixml::get_uint64_attr(dn, "size"));
-            rtInfo["gguf_ext_source_path"] = (m_external_weights_directory / source).string();
+            rtInfo["gguf_ext_source_path"] =
+                ov::util::path_to_string(m_external_weights_directory / ov::util::make_path(source));
         }
         const auto pr_data = dn.attribute("PrimitivesPriority");
         if (pr_data) {

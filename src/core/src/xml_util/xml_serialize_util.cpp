@@ -1149,9 +1149,9 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
                 const auto size = info.at("gguf_ext_size").as<uint64_t>();
                 OPENVINO_ASSERT(size == constant->get_byte_size(), "GGUF external weight size does not match Constant");
                 if (const auto found = info.find("gguf_ext_source_path"); found != info.end()) {
-                    const std::filesystem::path path(found->second.as<std::string>());
+                    const auto path = ov::util::make_path(found->second.as<std::string>());
                     const auto offset = info.at("gguf_ext_offset").as<uint64_t>();
-                    OPENVINO_ASSERT(path.filename().string() == info.at("gguf_ext_source").as<std::string>() &&
+                    OPENVINO_ASSERT(ov::util::path_to_string(path.filename()) == info.at("gguf_ext_source").as<std::string>() &&
                                         offset <= static_cast<uint64_t>(std::numeric_limits<std::streamoff>::max()),
                                     "GGUF external weight source identity changed");
                     ov::util::NativeIfstream source(path);

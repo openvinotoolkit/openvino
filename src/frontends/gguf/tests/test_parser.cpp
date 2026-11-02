@@ -94,6 +94,9 @@ protected:
         ov::test::utils::removeFile(m_path);
         ov::test::utils::removeFile(m_path + ".xml");
         ov::test::utils::removeFile(m_path + ".bin");
+        std::filesystem::remove(ov::util::make_path(m_path + u8"_\u6a21\u578b_\u017c\u00f3\u0142\u0107.gguf"));
+        ov::test::utils::removeFile(m_path + ".unicode.xml");
+        ov::test::utils::removeFile(m_path + ".unicode.bin");
     }
 
     // One tensor, no metadata. Dimensions use GGUF order (columns first).
@@ -493,6 +496,30 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                           format.type == GGUF_TYPE_Q3_K, format.type == GGUF_TYPE_IQ2_XS,
                           format.type == GGUF_TYPE_IQ2_S, format.type == GGUF_TYPE_IQ3_XXS,
                           format.type == GGUF_TYPE_IQ3_S};
+        if (format.type == GGUF_TYPE_Q4_K) {
+            const auto unicode_path = ov::util::make_path(m_path + u8"_\u6a21\u578b_\u017c\u00f3\u0142\u0107.gguf");
+            ASSERT_TRUE(std::filesystem::copy_file(m_path, unicode_path));
+            auto unicode_data = get_gguf_data(unicode_path, options);
+            GraphEmitter unicode_emitter(std::get<1>(unicode_data), std::get<2>(unicode_data), "test",
+                                         nullptr, &std::get<4>(unicode_data));
+            unicode_emitter.add_weight("projection.weight");
+            const auto unicode_raw = unicode_emitter.value("projection.weight").get_node_shared_ptr();
+            EXPECT_EQ(unicode_raw->get_rt_info().at("gguf_ext_source").as<std::string>(),
+                      ov::util::path_to_string(unicode_path.filename()));
+            auto unicode_model = std::make_shared<ov::Model>(
+                ov::OutputVector{unicode_raw, ov::op::v0::Constant::create(ov::element::f32, {1}, {1.f})},
+                ov::ParameterVector{});
+            ov::pass::Serialize(m_path + ".unicode.xml", m_path + ".unicode.bin").run_on_model(unicode_model);
+            const auto restored = core.read_model(m_path + ".unicode.xml");
+            const auto restored_raw = ov::as_type_ptr<ov::op::v0::Constant>(
+                restored->get_results().at(0)->get_input_node_shared_ptr(0));
+            ASSERT_TRUE(restored_raw);
+            EXPECT_EQ(std::memcmp(restored_raw->get_data_ptr(), payload.data(), payload.size()), 0);
+            std::stringstream unicode_xml, unicode_binary;
+            ov::pass::Serialize(unicode_xml, unicode_binary).run_on_model(restored);
+            EXPECT_LT(unicode_binary.str().size(), payload.size());
+            RecordProperty("unicode_automatic_reference_roundtrip", "1");
+        }
         auto loaded = get_gguf_data(m_path, options);
         auto& weights = std::get<1>(loaded);
         const auto& raw = weights.at("projection.weight");
@@ -501,7 +528,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         ASSERT_EQ(raw.get_byte_size(), payload.size());
         ASSERT_EQ(std::memcmp(raw.data(), payload.data(), payload.size()), 0);
         owner = std::get<3>(loaded).at(0);
-        GraphEmitter emitter(weights, std::get<2>(loaded), "test");
+        GraphEmitter emitter(weights, std::get<2>(loaded), "test", nullptr, &std::get<4>(loaded));
         emitter.add_input("activation", ov::element::f32, {1, 1, -1, columns});
         emitter.add_weight("projection.weight");
         emitter.add_op("GGML_OP_MUL_MAT", "output", {"projection.weight", "activation"});
@@ -521,6 +548,26 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         ASSERT_TRUE(constant);
         EXPECT_EQ(constant->get_data_ptr(), raw.data());
         EXPECT_EQ(std::memcmp(constant->get_data_ptr(), payload.data(), payload.size()), 0);
+        ASSERT_TRUE(constant->get_rt_info().count("gguf_ext_source"));
+        EXPECT_EQ(constant->get_rt_info().at("gguf_ext_source").as<std::string>(),
+                  std::filesystem::path(m_path).filename().string());
+        emitter.add_weight_from("alias.weight", "projection");
+        const auto alias = ov::as_type_ptr<ov::op::v0::Constant>(emitter.value("alias.weight").get_node_shared_ptr());
+        ASSERT_TRUE(alias);
+        EXPECT_EQ(alias->get_rt_info().at("gguf_ext_offset").as<uint64_t>(),
+              constant->get_rt_info().at("gguf_ext_offset").as<uint64_t>());
+        ov::Tensor copied(raw.get_element_type(), raw.get_shape());
+        std::memcpy(copied.data(), raw.data(), raw.get_byte_size());
+        emitter.emit_weight_op("copied.weight", {copied, {}, {}}, format.type, "projection.weight");
+        const auto copy = emitter.value("copied.weight").get_node_shared_ptr();
+        EXPECT_EQ(copy->get_rt_info().count("gguf_ext_source"), 0);
+        ov::Tensor sliced(raw.get_element_type(), {channels / 2, columns});
+        std::memcpy(sliced.data(), raw.data(), sliced.get_byte_size());
+        emitter.emit_weight_op("sliced.weight", {sliced, {}, {}}, format.type, "projection.weight");
+        const auto slice = emitter.value("sliced.weight").get_node_shared_ptr();
+        EXPECT_EQ(slice->get_rt_info().count("gguf_ext_source"), 0);
+        RecordProperty("automatic_external_source", "1");
+        RecordProperty("copied_sliced_sources_absent", "1");
     }
     EXPECT_FALSE(owner.expired());
     std::set<std::string> executed_stages;
@@ -741,10 +788,9 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         const auto raw = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
         ASSERT_TRUE(raw);
         auto& info = raw->get_rt_info();
-        info["gguf_ext_source"] = std::filesystem::path(m_path).filename().string();
-        info["gguf_ext_offset"] = static_cast<uint64_t>(
-            static_cast<const std::byte*>(raw->get_data_ptr()) - mapped->data());
-        info["gguf_ext_size"] = static_cast<uint64_t>(raw->get_byte_size());
+        EXPECT_EQ(info.at("gguf_ext_offset").as<uint64_t>(), static_cast<uint64_t>(
+            static_cast<const std::byte*>(raw->get_data_ptr()) - mapped->data()));
+        EXPECT_EQ(info.at("gguf_ext_size").as<uint64_t>(), raw->get_byte_size());
         std::stringstream external_xml, external_binary;
         ov::pass::Serialize(external_xml, external_binary).run_on_model(model);
         EXPECT_LT(external_binary.str().size(), payload.size());
@@ -865,6 +911,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         info.erase("gguf_ext_source");
         info.erase("gguf_ext_offset");
         info.erase("gguf_ext_size");
+        info.erase("gguf_ext_source_path");
     }
     std::stringstream xml, binary;
     ov::pass::Serialize(xml, binary).run_on_model(model);
@@ -1105,7 +1152,8 @@ protected:
                      uint16_t count = 2,
                      int32_t total = 2,
                      const std::string& name = {},
-                     const std::string& architecture = {}) {
+                     const std::string& architecture = {},
+                     bool raw = false) {
         GgufWriter writer;
         writer.kv_u16("split.no", number);
         writer.kv_u16("split.count", count);
@@ -1113,9 +1161,12 @@ protected:
         if (index == 0 || !architecture.empty()) {
             writer.kv_str("general.architecture", architecture.empty() ? "qwen3" : architecture);
         }
-        writer.tensor(name.empty() ? "weight" + std::to_string(index) + ".weight" : name,
-                      {2},
-                      {float(index + 1), float(index + 2)});
+        const auto tensor_name = name.empty() ? "weight" + std::to_string(index) + ".weight" : name;
+        if (raw) {
+            writer.raw_tensor(tensor_name, {256, 4}, GGUF_TYPE_Q4_K, load_npy<uint8_t>("q4_k_qbytes"));
+        } else {
+            writer.tensor(tensor_name, {2}, {float(index + 1), float(index + 2)});
+        }
         const auto file = path(index);
         m_paths.push_back(file);
         ASSERT_TRUE(writer.write(file));
@@ -1143,17 +1194,22 @@ TEST_F(GGUFShards, DiscoversSiblingsFromEitherShardAndKeepsMappingsAlive) {
 }
 
 TEST_F(GGUFShards, ExplicitListAllowsRenamedFilesInDifferentDirectoriesAndReversedOrder) {
-    ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
-    ASSERT_NO_FATAL_FAILURE(write_shard(1, 1));
-    const auto renamed =
-        (std::filesystem::temp_directory_path() / (std::filesystem::path(m_base).filename().string() + "_renamed.gguf"))
-            .string();
-    m_paths.push_back(renamed);
-    ASSERT_TRUE(std::filesystem::copy_file(path(1), renamed));
-    const auto loaded = get_gguf_data(std::vector<std::filesystem::path>{renamed, path(0)});
-    EXPECT_EQ(std::get<1>(loaded).size(), 2);
-    EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
-    OV_EXPECT_THROW(get_gguf_data(renamed), ov::Exception, testing::HasSubstr("explicit list"));
+    for (const bool raw : {false, true}) {
+        ASSERT_NO_FATAL_FAILURE(write_shard(0, 0, 2, 2, {}, {}, raw));
+        ASSERT_NO_FATAL_FAILURE(write_shard(1, 1, 2, 2, {}, {}, raw));
+        const auto filename = raw ? std::filesystem::path(path(0)).filename().string()
+                                  : std::filesystem::path(m_base).filename().string() + "_renamed.gguf";
+        const auto renamed = (std::filesystem::temp_directory_path() / filename).string();
+        m_paths.push_back(renamed);
+        ASSERT_TRUE(std::filesystem::copy_file(path(1), renamed));
+        const auto loaded = get_gguf_data(std::vector<std::filesystem::path>{renamed, path(0)}, GGUFLoadOptions{raw});
+        EXPECT_EQ(std::get<1>(loaded).size(), 2);
+        EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
+        EXPECT_TRUE(std::get<4>(loaded).empty());
+        EXPECT_EQ(std::get<1>(loaded).at("weight0.weight").get_element_type(),
+                  raw ? ov::element::gguf_q4_k : ov::element::f32);
+        OV_EXPECT_THROW(get_gguf_data(renamed), ov::Exception, testing::HasSubstr("explicit list"));
+    }
 }
 
 TEST_F(GGUFShards, LegacyGroup128PackingMatchesMergedFileAcrossShards) {

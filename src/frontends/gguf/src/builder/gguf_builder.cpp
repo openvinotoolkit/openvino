@@ -50,7 +50,7 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
 
 GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
     auto data = std::make_shared<GGUFLoad>(std::move(loaded));
-    auto& [metadata, weights, qtypes, mmap] = *data;
+    auto& [metadata, weights, qtypes, mmap, external_weights] = *data;
 
     const detail::MetadataStore meta_store{metadata};
     const GgufMetadata meta_view(meta_store);
@@ -75,12 +75,12 @@ GraphBuilder make_gguf_builder(GGUFLoad loaded, const ArchRegistry& registry) {
     }
     return [data, definition = *definition, projectors = registry.projectors()](
                const std::unordered_map<std::string, CreatorFunction>& translators) {
-        const auto& [metadata, source_weights, source_qtypes, mmap] = *data;
+        const auto& [metadata, source_weights, source_qtypes, mmap, external_weights] = *data;
         auto weights = source_weights;
         auto qtypes = source_qtypes;
         const detail::MetadataStore meta_store{metadata};
         const GgufMetadata meta_view(meta_store);
-        detail::WeightStore weight_store{weights, qtypes, &translators};
+        detail::WeightStore weight_store{weights, qtypes, &translators, &external_weights};
         BuildContext ctx{meta_view, meta_view.architecture(), &weight_store, &projectors};
         auto builder = definition.factory(ctx);
         OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition.id, "' returned no builder");

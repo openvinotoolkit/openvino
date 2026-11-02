@@ -446,6 +446,9 @@ RepackGGUFWeightsShuffle::RepackGGUFWeightsShuffle() {
         auto packed_const = std::make_shared<ov::op::v0::Constant>(wt, shape, dst_buf);
         packed_const->set_friendly_name(w_const->get_friendly_name());
         ov::copy_runtime_info(w_const, packed_const);
+        for (const auto* key : {"gguf_ext_source", "gguf_ext_offset", "gguf_ext_size", "gguf_ext_source_path"}) {
+            packed_const->get_rt_info().erase(key);
+        }
         packed_const->get_rt_info()[kShuffledWeights] = true;
         fc->input(1).replace_source_output(packed_const->output(0));
         return true;

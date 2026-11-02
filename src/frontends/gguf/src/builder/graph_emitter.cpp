@@ -51,9 +51,11 @@ std::string strip_weight_suffix(const std::string& name) {
 GraphEmitter::GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
                            std::unordered_map<std::string, GgufTensorType>& qtypes,
                            std::string arch,
-                           const std::unordered_map<std::string, CreatorFunction>* translators)
+                                                     const std::unordered_map<std::string, CreatorFunction>* translators,
+                                                     const GGUFExternalWeights* external_weights)
     : m_weights(weights),
       m_qtypes(qtypes),
+            m_external_weights(external_weights),
       m_arch(std::move(arch)),
       m_graph(std::make_shared<GgufGraph>()),
       m_translators(translators ? *translators : get_supported_ops()) {}
@@ -263,7 +265,8 @@ void GraphEmitter::add_extra_input_node(const std::string& name, const std::shar
     (*m_graph->values)[name] = node;
 }
 
-void GraphEmitter::emit_weight_op(const std::string& node_name, const WeightTensors& tensors, GgufTensorType qtype) {
+void GraphEmitter::emit_weight_op(const std::string& node_name, const WeightTensors& tensors, GgufTensorType qtype,
+                                 const std::string& source_name) {
     if (m_emitted_weights.count(node_name)) {
         return;
     }
@@ -277,6 +280,21 @@ void GraphEmitter::emit_weight_op(const std::string& node_name, const WeightTens
     }
     if (tensors.zero_point) {
         attrs["gguf.blob.zp"] = tensors.zero_point;
+    }
+    if (m_external_weights && tensors.weight.get_element_type().is_gguf_block()) {
+        const auto found = m_external_weights->find(source_name.empty() ? node_name : source_name);
+        if (found != m_external_weights->end()) {
+            const auto& original = found->second;
+            if (tensors.weight.data() == original.tensor.data() &&
+                tensors.weight.get_element_type() == original.tensor.get_element_type() &&
+                tensors.weight.get_shape() == original.shape &&
+                tensors.weight.get_byte_size() == original.size) {
+                attrs["gguf_ext_source"] = ov::util::path_to_string(original.source.filename());
+                attrs["gguf_ext_source_path"] = ov::util::path_to_string(original.source);
+                attrs["gguf_ext_offset"] = original.offset;
+                attrs["gguf_ext_size"] = original.size;
+            }
+        }
     }
     add_op("GGML_OP_NONE", node_name, {}, 0, std::move(attrs));
 }
@@ -301,7 +319,7 @@ void GraphEmitter::add_weight_from(const std::string& node_name, const std::stri
     if (m_emitted_weights.count(node_name)) {
         return;
     }
-    emit_weight_op(node_name, weight_parts(src_base), weight_qtype(src_base));
+    emit_weight_op(node_name, weight_parts(src_base), weight_qtype(src_base), src_base + ".weight");
 }
 
 void GraphEmitter::add_named_weight(const std::string& ggml_name) {

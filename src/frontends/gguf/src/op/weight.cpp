@@ -51,8 +51,16 @@ OutputVector translate_weight(const NodeContext& context) {
                                               shape[1] % tensors.weight.get_element_type().block_elem_count() == 0,
                                           "Unsupported raw GGUF weight contract: ",
                                           context.get_name());
-            return rename_outputs_with_suffix({std::make_shared<ov::op::v0::Constant>(tensors.weight)},
-                                              context.get_name());
+            const auto constant = std::make_shared<ov::op::v0::Constant>(tensors.weight);
+            const auto source = context.get_attribute<std::string>("gguf_ext_source", "");
+            if (!source.empty()) {
+                auto& info = constant->get_rt_info();
+                info["gguf_ext_source"] = source;
+                info["gguf_ext_source_path"] = context.get_attribute<std::string>("gguf_ext_source_path");
+                info["gguf_ext_offset"] = context.get_attribute<uint64_t>("gguf_ext_offset");
+                info["gguf_ext_size"] = context.get_attribute<uint64_t>("gguf_ext_size");
+            }
+            return rename_outputs_with_suffix({constant}, context.get_name());
         }
         auto node = make_weight_node(tensors, qtype, context.get_name());
         return rename_outputs_with_suffix({std::move(node)}, context.get_name());

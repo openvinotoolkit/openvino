@@ -137,7 +137,7 @@ and [`mul_mat_id.cpp`](../src/op/mul_mat_id.cpp) for exact selection conditions.
 Internal operations are outside the public IR opsets. Saving IR can succeed and still produce a file
 the IR frontend cannot read back, so test the save/read round trip. The IR reader explicitly restores
 `FullyConnectedCompressed` and `GatherCompressed` from `ie_internal_opset`, including their raw GGUF
-Constants, using block-aware byte counts. Ordinary XML and BIN retain the raw payload; this does not
+Constants, using block-aware byte counts. Without external-reference metadata, ordinary XML and BIN retain the raw payload; this does not
 automatically create external GGUF references or preserve the original file mapping. File regressions
 check payload identity, shared weights and GPU results after the original mapping is released.
 
@@ -163,14 +163,29 @@ File regressions cover successive same-directory exports/read-backs, stale-sourc
 explicit BIN materialization. This does not guarantee relocation to another directory or atomic
 integrity if a source changes after validation; snapshot comparison also reads the complete payload.
 
-The frontend does not automatically annotate these references. During one GPU graph build, descriptor-backed
+The native file loader records source information for explicitly preserved raw GGUF tensors. The
+shared weight converter automatically annotates a Constant only while its original Tensor pointer,
+type, shape and complete byte size still match. Unchanged tied aliases retain the source; copied
+or row-sliced allocations do not inherit it. Compatibility unpack/requantization and supplied
+decoders without parser source records remain unchanged. SG repacking clears all four source
+fields on its new Constant while leaving the original raw Constant intact. These checks are not a
+general provenance guarantee for arbitrary transforms or mutable aliases.
+
+Source paths use UTF-8 metadata and native filesystem paths, including external IR read-back.
+Shards with the same bare filename disable automatic references for those sources, so they can
+still be saved into ordinary BIN without ambiguous sibling references. Otherwise place the source
+GGUF files beside the exported BIN before loading it; arbitrary destination relocation is not
+automatically resolved. File regressions cover automatic sources in eleven raw formats, shared
+aliases, copied/sliced payloads, and a Unicode Q4_K source through external IR read-back/re-export.
+
+During one GPU graph build, descriptor-backed
 raw GGUF Constants can reuse a previously uploaded primitive despite different CPU pointers. The
 source index includes descriptor identity/offset, byte size, shape, type and batch interpretation;
 candidate payloads must match byte-for-byte, so source-ID collisions or changed snapshots cannot
 merge different data. Only full uploads enter this index; SG-marked Constants and builds using a
 cross-device weight-sharing context bypass it. Existing pointer caching and shared-buffer ownership
-remain in place. This is not a cache across compiled models or processes. Repack/slice provenance
-and automatic external-reference metadata remain separate pending work. Other internal
+remain in place. This is not a cache across compiled models or processes. Broader transformation
+provenance and complete-model external IR remain separate acceptance work. Other internal
 operations in the table do not gain IR support from this path. Compiled-model export, import and
 caching are plugin-specific; test them on the target device. In-process conversion needs no IR.
 

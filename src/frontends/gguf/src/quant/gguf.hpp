@@ -92,11 +92,22 @@ struct GgufTensor {
 using GGUFMetaData =
     std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>, std::vector<int32_t>>;
 
+struct GGUFExternalWeight {
+    ov::Tensor tensor;
+    ov::Shape shape;
+    uint64_t size;
+    std::filesystem::path source;
+    uint64_t offset;
+};
+
+using GGUFExternalWeights = std::unordered_map<std::string, GGUFExternalWeight>;
+
 // Parsed arrays own repacked buffers or retain mmap views according to the loading options.
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::unordered_map<std::string, ov::Tensor>,
                             std::unordered_map<std::string, GgufTensorType>,
-                            std::vector<std::shared_ptr<ov::MappedMemory>>>;
+                            std::vector<std::shared_ptr<ov::MappedMemory>>,
+                            GGUFExternalWeights>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
 // (Q8_0/Q8_1/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights; Q1_0: u1 weights).

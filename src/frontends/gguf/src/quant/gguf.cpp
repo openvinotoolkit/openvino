@@ -493,6 +493,7 @@ struct GgufFile {
     std::shared_ptr<ov::MappedMemory> mapped;
     uint64_t alignment;
     uint64_t data_off;
+    std::filesystem::path source;
 };
 
 GgufFile read_gguf_file(const std::filesystem::path& file) {
@@ -561,7 +562,8 @@ GgufFile read_gguf_file(const std::filesystem::path& file) {
     // Tensor data starts at the next `alignment`-aligned offset after the info section.
     uint64_t data_off = cur.offset() + ov::util::align_padding_size(alignment, cur.offset());
     OPENVINO_ASSERT(data_off <= fsize, "[load_gguf] tensor data section starts past EOF");
-    return {std::move(metadata), std::move(infos), std::move(mapped), alignment, data_off};
+        return {std::move(metadata), std::move(infos), std::move(mapped), alignment, data_off,
+            std::filesystem::absolute(file)};
 }
 
 void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
@@ -625,8 +627,9 @@ void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
 void load_gguf_tensors(GgufFile& file,
                        std::unordered_map<std::string, ov::Tensor>& arrays,
                        std::unordered_map<std::string, GgufTensorType>& qtype,
+                       GGUFExternalWeights& external_weights,
                        const GGUFLoadOptions& options) {
-    auto& [metadata, infos, mapped, alignment, data_off] = file;
+    auto& [metadata, infos, mapped, alignment, data_off, source] = file;
     const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
     const uint64_t fsize = mapped->size();
 
@@ -751,6 +754,7 @@ void load_gguf_tensors(GgufFile& file,
             ov::Tensor view(raw_type, shape, const_cast<uint8_t*>(tensor.weights_data));
             const bool inserted = arrays.emplace(name, ov::Tensor(view, mapped)).second;
             OPENVINO_ASSERT(inserted, "[load_gguf] duplicate tensor name '", name, "'");
+            external_weights.emplace(name, GGUFExternalWeight{arrays.at(name), shape, tensor.bsize, source, abs_off});
             qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
             continue;
         }
@@ -888,13 +892,30 @@ GGUFLoad load_gguf_files(std::vector<GgufFile> files, const GGUFLoadOptions& opt
     std::unordered_map<std::string, ov::Tensor> arrays;
     std::unordered_map<std::string, GgufTensorType> qtype;
     std::vector<std::shared_ptr<ov::MappedMemory>> mappings;
+    GGUFExternalWeights external_weights;
     mappings.reserve(files.size());
     detect_legacy_q2_layout(files);
     for (auto& file : files) {
-        load_gguf_tensors(file, arrays, qtype, options);
+        load_gguf_tensors(file, arrays, qtype, external_weights, options);
         mappings.push_back(std::move(file.mapped));
     }
-    return {std::move(files.front().metadata), std::move(arrays), std::move(qtype), std::move(mappings)};
+    std::unordered_set<std::string> basenames;
+    std::unordered_set<std::string> ambiguous_sources;
+    for (const auto& file : files) {
+        const auto basename = ov::util::path_to_string(file.source.filename());
+        if (!basenames.insert(basename).second) {
+            ambiguous_sources.insert(basename);
+        }
+    }
+    for (auto entry = external_weights.begin(); entry != external_weights.end();) {
+        if (ambiguous_sources.count(ov::util::path_to_string(entry->second.source.filename()))) {
+            entry = external_weights.erase(entry);
+        } else {
+            ++entry;
+        }
+    }
+    return {std::move(files.front().metadata), std::move(arrays), std::move(qtype), std::move(mappings),
+            std::move(external_weights)};
 }
 
 }  // namespace

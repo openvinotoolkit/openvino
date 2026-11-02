@@ -34,7 +34,8 @@ public:
     GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
                  std::unordered_map<std::string, GgufTensorType>& qtypes,
                  std::string arch,
-                 const std::unordered_map<std::string, CreatorFunction>* translators = nullptr);
+                 const std::unordered_map<std::string, CreatorFunction>* translators = nullptr,
+                 const GGUFExternalWeights* external_weights = nullptr);
 
     // ---- graph under construction ----
     const std::shared_ptr<GgufGraph>& graph() const {
@@ -93,7 +94,8 @@ public:
     void add_extra_input_node(const std::string& name, const std::shared_ptr<ov::Node>& node);
 
     // The shared weight converter constructs the compressed OpenVINO subgraph from parsed tensors.
-    void emit_weight_op(const std::string& node_name, const WeightTensors& tensors, GgufTensorType qtype);
+    void emit_weight_op(const std::string& node_name, const WeightTensors& tensors, GgufTensorType qtype,
+                        const std::string& source_name = "");
 
     // `ggml_name` is the full tensor name ending in ".weight" (the name translators reference).
     void add_weight(const std::string& ggml_name);
@@ -123,6 +125,7 @@ public:
 private:
     std::unordered_map<std::string, ov::Tensor>& m_weights;
     std::unordered_map<std::string, GgufTensorType>& m_qtypes;
+    const GGUFExternalWeights* m_external_weights;
     // Architecture name, used only to make a missing-tensor diagnostic actionable.
     std::string m_arch;
 
