@@ -8,6 +8,12 @@
 #include "primitive_inst.h"
 #include "program_helpers.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "activation_inst.h"
+#include "crop_inst.h"
+#include "input_layout_inst.h"
+#include "range_inst.h"
+#include "softmax_inst.h"
+#include "tile_inst.h"
 #include "data_inst.h"
 #include "reorder_inst.h"
 #include "resample_inst.h"
@@ -49,6 +55,7 @@
 #include "impls/ocl/kernel_selector_helper.h"
 #include <vector>
 #include <memory>
+#include <unordered_set>
 #include <utility>
 #include <openvino/op/constant.hpp>
 
@@ -1037,6 +1044,110 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
     return false;
 }
 
+// Primitive types allowed next to a byxf oneDNN convolution (CVS-176149). See set_onednn_dyn_conv_preferred_format().
+bool layout_optimizer::is_byxf_onednn_conv_compatible(primitive_type_id type) {
+    static const std::unordered_set<primitive_type_id> byxf_onednn_conv_whitelist = {cldnn::activation::type_id(),
+                                                                                     cldnn::arg_max_min::type_id(),
+                                                                                     cldnn::broadcast::type_id(),
+                                                                                     cldnn::concatenation::type_id(),
+                                                                                     cldnn::convolution::type_id(),
+                                                                                     cldnn::crop::type_id(),
+                                                                                     cldnn::deconvolution::type_id(),
+                                                                                     cldnn::eltwise::type_id(),
+                                                                                     cldnn::fully_connected::type_id(),
+                                                                                     cldnn::gather::type_id(),
+                                                                                     cldnn::input_layout::type_id(),
+                                                                                     cldnn::non_max_suppression::type_id(),
+                                                                                     cldnn::non_max_suppression_gather::type_id(),
+                                                                                     cldnn::permute::type_id(),
+                                                                                     cldnn::pooling::type_id(),
+                                                                                     cldnn::range::type_id(),
+                                                                                     cldnn::reduce::type_id(),
+                                                                                     cldnn::reorder::type_id(),
+                                                                                     cldnn::reshape::type_id(),
+                                                                                     cldnn::select::type_id(),
+                                                                                     cldnn::shape_of::type_id(),
+                                                                                     cldnn::softmax::type_id(),
+                                                                                     cldnn::strided_slice::type_id(),
+                                                                                     cldnn::tile::type_id()};
+    return byxf_onednn_conv_whitelist.count(type) > 0;
+}
+
+namespace {
+// IC, OC, kernel y / x, stride y / x, pad begin y / x, pad end y / x, dilation y / x, groups, input y / x.
+constexpr std::array<std::array<int64_t, 15>, 10> dynamic_batch_byxf_conv_shapes = {{
+    {64, 64, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 28, 28},
+    {64, 128, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 28, 28},
+    {64, 128, 1, 1, 2, 2, 0, 0, 0, 0, 1, 1, 1, 28, 28},
+    {128, 128, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 14, 14},
+    {128, 256, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 14, 14},
+    {128, 256, 1, 1, 2, 2, 0, 0, 0, 0, 1, 1, 1, 14, 14},
+    {256, 256, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 7, 7},
+    {256, 512, 3, 3, 2, 2, 1, 1, 1, 1, 1, 1, 1, 7, 7},
+    {256, 512, 1, 1, 2, 2, 0, 0, 0, 0, 1, 1, 1, 7, 7},
+    {512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4},
+}};
+
+bool is_dynamic_batch_byxf_shape_whitelisted(const convolution_node& node) {
+    const auto prim = node.get_primitive();
+    const auto& in_shape = node.get_input_layout(0).get_partial_shape();
+    const auto& weights_shape = node.weights().get_output_layout().get_partial_shape();
+    const auto ic = get_convolution_channel_count(node, node.get_input_layout(0), true);
+    const auto oc = get_convolution_channel_count(node, node.get_output_layout(), false);
+    if (ic < 0 || oc < 0 || weights_shape.is_dynamic() || in_shape[2].is_dynamic() || in_shape[3].is_dynamic())
+        return false;
+
+    const auto kernel_y = weights_shape[weights_shape.size() - 2].get_length();
+    const auto kernel_x = weights_shape[weights_shape.size() - 1].get_length();
+    const std::array<int64_t, 15> key = {ic,
+                                         oc,
+                                         kernel_y,
+                                         kernel_x,
+                                         static_cast<int64_t>(prim->stride[0]),
+                                         static_cast<int64_t>(prim->stride[1]),
+                                         prim->padding_begin[0],
+                                         prim->padding_begin[1],
+                                         prim->padding_end[0],
+                                         prim->padding_end[1],
+                                         static_cast<int64_t>(prim->dilation[0]),
+                                         static_cast<int64_t>(prim->dilation[1]),
+                                         node.get_groups(),
+                                         in_shape[2].get_length(),
+                                         in_shape[3].get_length()};
+    return std::find(dynamic_batch_byxf_conv_shapes.begin(), dynamic_batch_byxf_conv_shapes.end(), key) != dynamic_batch_byxf_conv_shapes.end();
+}
+}  // namespace
+
+// Layout policy for dynamic oneDNN convolutions:
+//
+// Default:
+// - The default layout uses blocked formats based on the data type and channel count.
+//   For example, f16 uses b_fs_yx_fsv16.
+// - With these formats, oneDNN jit:ir rejects runtime batch sizes of 16 or more.
+//   The reference implementation runs instead.
+//
+// byxf selection:
+// - byxf (bzyxf for rank 5) supports jit:ir at all tested batch sizes.
+// - The optimizer selects byxf in the following cases:
+//
+// 1. Network-wide selection:
+//    program::set_layout_optimizer_attributes() sets byxf_onednn_convolution.
+//    The model has dynamic-batch oneDNN convolutions and data flow with rank <= 4.
+//    All data-flow primitives pass is_byxf_onednn_conv_compatible().
+//    An exception applies when the model has SDPA and at most 5 such convolutions.
+//
+// 2. Per-node selection:
+//    The convolution has rank 4, uses f16, and has a dynamic batch.
+//    Its non-constant inputs and users pass is_byxf_onednn_conv_compatible().
+//    This check limits the risk of extra reorders and slower kernels in adjacent nodes.
+//    Its static parameters match an entry in dynamic_batch_byxf_conv_shapes.
+//    This list contains shapes from a customer video model with a dynamic batch.
+//    For some convolutions with batch sizes below 16, jit:ir is slower with byxf than with b_fs_yx_fsv16.
+//    The list restricts byxf selection because of this performance issue (CVS-196865).
+//
+// Static batch:
+// - A convolution with a static batch and dynamic height or width keeps the default layout.
+//   node.is_dynamic() is true, but the batch is fixed.
 void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
     OPENVINO_ASSERT(node.is_dynamic());
 
@@ -1047,7 +1158,21 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
     OPENVINO_ASSERT(rank == output_layout.get_partial_shape().size(), "Input and output ranks must match");
     OPENVINO_ASSERT(rank <= 5, "Not supported rank");
 
-    if (_optimization_attributes.byxf_onednn_convolution) {
+    auto byxf_compatible_neighbors = [&node]() {
+        for (const auto& dep : node.get_dependencies()) {
+            if (!dep.first->is_constant() && !is_byxf_onednn_conv_compatible(dep.first->type()))
+                return false;
+        }
+        for (const auto* user : node.get_users()) {
+            if (!is_byxf_onednn_conv_compatible(user->type()))
+                return false;
+        }
+        return true;
+    };
+    const bool dynamic_batch_byxf = rank == 4 && input_layout.data_type == data_types::f16 && output_layout.get_partial_shape()[0].is_dynamic() &&
+                                    byxf_compatible_neighbors() && is_dynamic_batch_byxf_shape_whitelisted(node);
+
+    if (_optimization_attributes.byxf_onednn_convolution || dynamic_batch_byxf) {
         if (rank <= 4) {
             node.set_preferred_input_fmt(0, cldnn::format::byxf);
             node.set_preferred_output_fmt(0, cldnn::format::byxf);
