@@ -260,6 +260,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_inplace.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_permute_conv_permute_reshape_act.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/sdpa_group_beam_search.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/rope_angles_f16.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/seq_native_order.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/shape_infer_subgraph.cpp
@@ -747,8 +748,8 @@ set(TMP_LIST_OF_ARM_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/paged_attn.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/pooling_fq.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/reorder_deconv_nhwc.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/stateful_sdpa_bool_mask.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/reduce_f16_layout.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/arm/stateful_sdpa_bool_mask.cpp
 )
 
 set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
@@ -803,6 +804,7 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/reshape_permute_conv_permute_reshape_act.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/sdpa_group_beam_search.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/selective_ssm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/rope_angles_f16.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/seq_native_order.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/shape_infer_subgraph.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/common/shapeof_any_layout.cpp
