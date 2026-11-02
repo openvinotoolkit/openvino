@@ -547,6 +547,50 @@ def _patch_kv_cache_default():
     CpuPlatform._ov_plugin_kv_default_patched = True
 
 
+def _patch_omp_wait_policy():
+    """Spawn OV workers with OMP_WAIT_POLICY=PASSIVE unless the user set it.
+
+    vLLM pins one libgomp thread per core, and the CPU plugin pins its TBB
+    workers to the same cores during infer. By default each libgomp worker
+    spins for about 1 ms after every torch parallel region, which steals those
+    cores from the next OV infer (TinyLlama decode 21.1 -> 18.3 ms/token,
+    Qwen3-8B 102 -> 98 ms/token). Inductor runs only OMP and needs the spin, so
+    this is limited to OV configs and to the worker spawn:
+    OMPProcessManager.configure_omp_envs scopes vLLM's own OMP variables the
+    same way, so the parent process and later non-OV engines are unaffected.
+    libgomp reads the variable at load, hence the spawn and not load_model.
+    """
+    try:
+        from vllm.utils.ompmultiprocessing import OMPProcessManager
+    except Exception as _e:
+        logger.debug("[OV plugin] OMP wait-policy patch skipped: %s", _e)
+        return
+    if getattr(OMPProcessManager, "_ov_plugin_omp_patched", False):
+        return
+    _orig_init = OMPProcessManager.__init__
+    _orig_configure = OMPProcessManager.configure_omp_envs
+
+    def _patched_init(self, config):
+        _orig_init(self, config)
+        self._ov_requested = _ov_requested(config)
+
+    @contextlib.contextmanager
+    def _patched_configure(self, rank, local_rank):
+        with _orig_configure(self, rank, local_rank):
+            if not getattr(self, "_ov_requested", False) or "OMP_WAIT_POLICY" in os.environ:
+                yield
+                return
+            os.environ["OMP_WAIT_POLICY"] = "PASSIVE"
+            try:
+                yield
+            finally:
+                os.environ.pop("OMP_WAIT_POLICY", None)
+
+    OMPProcessManager.__init__ = _patched_init
+    OMPProcessManager.configure_omp_envs = _patched_configure
+    OMPProcessManager._ov_plugin_omp_patched = True
+
+
 def _patch_lazy_kv_cache():
     """Allocate the KV pool lazily (OV_LAZY_KVCACHE=1).
 
@@ -628,6 +672,7 @@ def register():
     _apply_default_env()
     _register_quantization()
     _patch_kv_cache_default()
+    _patch_omp_wait_policy()
     _patch_cpu_model_runner()
     _patch_reload_weights()
     _patch_worker_update_weights()

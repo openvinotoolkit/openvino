@@ -66,6 +66,13 @@ def _worker_kv_update_flags(worker):
     return CPUAttentionBackend.forward_includes_kv_cache_update, sorted(layer_flags)
 
 
+def _worker_omp_wait_policy(worker):
+    """OMP_WAIT_POLICY as seen by the engine worker (see plugin._patch_omp_wait_policy)."""
+    import os
+
+    return os.environ.get("OMP_WAIT_POLICY")
+
+
 def _generate(llm, prompt, params):
     out = llm.generate([{"prompt": prompt}], params)
     return out[0].outputs[0]
@@ -97,6 +104,8 @@ def test_openvino_matches_eager_greedy(monkeypatch):
     # falls back to bf16 despite dtype="float32" (see module docstring).
     monkeypatch.setenv("OV_INFERENCE_PRECISION_HINT", "f32")
     monkeypatch.setenv("OV_KV_CACHE_PRECISION", "f32")
+    # The plugin only fills OMP_WAIT_POLICY in when it is unset.
+    monkeypatch.delenv("OMP_WAIT_POLICY", raising=False)
     from vllm import LLM
 
     eager_llm = LLM(
@@ -109,6 +118,7 @@ def test_openvino_matches_eager_greedy(monkeypatch):
     )
     try:
         eager_text = _run(eager_llm, PROMPT, MAX_NEW_TOKENS, SKIP_WARMUP_TOKENS)
+        eager_wait_policy = eager_llm.collective_rpc(_worker_omp_wait_policy)
     finally:
         del eager_llm
 
@@ -129,6 +139,7 @@ def test_openvino_matches_eager_greedy(monkeypatch):
     try:
         ov_text = _run(ov_llm, PROMPT, MAX_NEW_TOKENS, SKIP_WARMUP_TOKENS)
         kv_update_flags = ov_llm.collective_rpc(_worker_kv_update_flags)
+        ov_wait_policy = ov_llm.collective_rpc(_worker_omp_wait_policy)
     finally:
         del ov_llm
 
@@ -148,3 +159,8 @@ def test_openvino_matches_eager_greedy(monkeypatch):
         "process-wide in the engine worker")
     assert layer_flags == [True], (
         f"OV model's attention layers did not take over the KV-cache write: {layer_flags}")
+
+    # OV workers must not let libgomp spin on the cores the CPU plugin's TBB
+    # workers are pinned to; eager/inductor workers keep the default spin.
+    assert ov_wait_policy == ["PASSIVE"], f"OV worker OMP_WAIT_POLICY: {ov_wait_policy}"
+    assert eager_wait_policy == [None], f"eager worker OMP_WAIT_POLICY: {eager_wait_policy}"
