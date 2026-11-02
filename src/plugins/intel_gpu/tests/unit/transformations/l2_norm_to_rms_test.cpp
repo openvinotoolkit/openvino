@@ -113,3 +113,48 @@ TEST_F(TransformationTestsF, L2NormToRMSRowTooLong) {
     model = std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{x, gamma});
     manager.register_pass<L2NormToRMS>(4);
 }
+
+// gamma {1, 1, n} still scales the normalized axis only: fused.
+TEST_F(TransformationTestsF, L2NormToRMSGammaWithLeadingOnes) {
+    {
+        auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, hidden});
+        auto gamma = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, hidden});
+        auto norm = l2_norm(x, gamma);
+        model = std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{x, gamma});
+        manager.register_pass<L2NormToRMS>(1024);
+    }
+    {
+        auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, hidden});
+        auto gamma = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, hidden});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms(x, gamma, ov::element::f32)}, ov::ParameterVector{x, gamma});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+// gamma {n, 1} has n elements but scales each row, not the normalized axis: left alone.
+TEST_F(TransformationTestsF, L2NormToRMSGammaColumn) {
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, hidden, hidden});
+    auto gamma = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{hidden, 1});
+    auto norm = l2_norm(x, gamma);
+    model = std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{x, gamma});
+    manager.register_pass<L2NormToRMS>(1024);
+}
+
+// gamma with more dims than x would change the output rank: left alone.
+TEST_F(TransformationTestsF, L2NormToRMSGammaHigherRank) {
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, hidden});
+    auto gamma = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1, hidden});
+    auto norm = l2_norm(x, gamma);
+    model = std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{x, gamma});
+    manager.register_pass<L2NormToRMS>(1024);
+}
+
+// Rank 6 has no RMS implementation on GPU: left alone.
+TEST_F(TransformationTestsF, L2NormToRMSRankSix) {
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 1, 1, 4, hidden});
+    auto gamma = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{hidden});
+    auto norm = l2_norm(x, gamma);
+    model = std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{x, gamma});
+    manager.register_pass<L2NormToRMS>(1024);
+}

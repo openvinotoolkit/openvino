@@ -51,6 +51,10 @@ L2NormToRMS::L2NormToRMS(size_t max_work_group_size) {
             return false;
         }
         const auto rank = static_cast<int64_t>(in_shape.size());
+        // The GPU RMS kernel has bfyx and bfzyx implementations only.
+        if (rank > 5) {
+            return false;
+        }
         auto axes_values = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(axes).get_node_shared_ptr())->cast_vector<int64_t>();
         if (axes_values.size() != 1 || (axes_values[0] != -1 && axes_values[0] != rank - 1)) {
             return false;
@@ -63,9 +67,15 @@ L2NormToRMS::L2NormToRMS(size_t max_work_group_size) {
             return false;
         }
 
+        // RMS scales along the normalized axis, so gamma must be {..., 1, n} with no more dims than x. A gamma
+        // with n elements along another axis, e.g. {n, 1}, broadcasts per row instead.
         const auto& gamma_out = pm.at(gamma);
         const auto& gamma_shape = gamma_out.get_partial_shape();
-        if (gamma_shape.is_dynamic() || ov::shape_size(gamma_shape.to_shape()) != n) {
+        if (gamma_shape.is_dynamic()) {
+            return false;
+        }
+        const auto gamma_dims = gamma_shape.to_shape();
+        if (gamma_dims.empty() || gamma_dims.size() > static_cast<size_t>(rank) || gamma_dims.back() != n || ov::shape_size(gamma_dims) != n) {
             return false;
         }
 
