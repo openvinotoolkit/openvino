@@ -21,7 +21,7 @@ static constexpr Property<size_t, PropertyMutability::RO> number_of_submodels{"H
 /**
  * @brief Selects the export_model() blob format: true = HSM container, false = legacy framed layout (default).
  * @note Transition switch; removed together with the legacy format. Set it on the plugin (not only per compile call)
- * so that Core caching picks up the matching blob format.
+ * so that Core caching picks up the matching blob format. A per-compile false does not override a plugin-level true.
  */
 static constexpr Property<bool, PropertyMutability::RW> export_hsm_format{"HETERO_EXPORT_HSM_FORMAT"};
 }  // namespace hetero

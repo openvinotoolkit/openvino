@@ -126,6 +126,8 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
     }
 
     auto config = Configuration{properties, m_cfg};
+    // Core decides on its blob header from the plugin-level flag, so a per-compile false must not override a true.
+    config.export_hsm_format = config.export_hsm_format || m_cfg.export_hsm_format;
 
     if (perf_logging_enabled) {
         t_clone_start = clock::now();

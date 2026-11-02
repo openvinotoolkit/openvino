@@ -11,9 +11,12 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "hetero_tests.hpp"
 #include "hsm_common.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -101,6 +104,16 @@ std::string hsm_edit_payload(const std::string& blob,
     });
 }
 
+// output = input + weights, weights[i] = i: a wrong or missing weights section changes the result.
+std::shared_ptr<ov::Model> create_model_with_weights(size_t size) {
+    auto input = std::make_shared<ov::opset11::Parameter>(ov::element::f32, ov::Shape{1, size});
+    std::vector<float> values(size);
+    std::iota(values.begin(), values.end(), 0.0f);
+    auto weights = ov::opset11::Constant::create(ov::element::f32, ov::Shape{1, size}, values);
+    auto sum = std::make_shared<ov::opset11::Add>(input, weights);
+    return std::make_shared<ov::Model>(ov::OutputVector{sum}, ov::ParameterVector{input});
+}
+
 }  // namespace
 
 // IR frontend is needed for import
@@ -146,6 +159,20 @@ protected:
         auto output = request.get_output_tensor();
         EXPECT_EQ(compiled_model.output().get_shape(), output.get_shape());
         EXPECT_EQ(compiled_model.output().get_element_type(), output.get_element_type());
+    }
+
+    // Checks output[i] == 1 + weight_scale * i for the input filled with ones.
+    void expect_adds_weights(ov::CompiledModel compiled_model, size_t size, float weight_scale) {
+        auto request = compiled_model.create_infer_request();
+        ov::Tensor input(ov::element::f32, ov::Shape{1, size});
+        std::fill_n(input.data<float>(), size, 1.0f);
+        request.set_input_tensor(input);
+        ASSERT_NO_THROW(request.infer());
+        const auto output = request.get_output_tensor();
+        ASSERT_EQ(size, output.get_size());
+        for (size_t i = 0; i < size; ++i) {
+            ASSERT_EQ(1.0f + weight_scale * static_cast<float>(i), output.data<float>()[i]) << "element " << i;
+        }
     }
 
     void expect_import_rejected(const std::string& blob) {
@@ -260,6 +287,109 @@ TEST_F(HeteroHsmBlobTests, re_export_of_imported_model_round_trips) {
 
     EXPECT_TRUE(is_hsm_blob(re_exported));
     expect_runs(import_from_tensor(re_exported));
+}
+
+TEST_F(HeteroHsmBlobTests, ir_submodel_stores_xml_and_weights_sections) {
+    constexpr size_t size = 2048;
+    const auto blob = export_blob(compile(create_model_with_weights(size), "MOCKIR"));
+
+    const auto reader = runtime::hsm::Reader::open(as_bytes(blob), blob.size());
+    ASSERT_TRUE(reader.has_value());
+    EXPECT_EQ(0u, reader->count(hsm::submodel_blob.device, hsm::submodel_blob.tag.id()));
+    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_xml.device, hsm::submodel_ir_xml.tag.id()));
+    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_weights.device, hsm::submodel_ir_weights.tag.id()));
+    const auto weights = reader->section(hsm::submodel_ir_weights.device, hsm::submodel_ir_weights.tag.id());
+    ASSERT_TRUE(weights.has_value());
+    EXPECT_EQ(size * sizeof(float), weights->size());
+
+    expect_adds_weights(import_from_stream(blob), size, 1.0f);
+    expect_adds_weights(import_from_tensor(blob), size, 1.0f);
+}
+
+TEST_F(HeteroHsmBlobTests, ir_weights_are_taken_from_the_weights_section) {
+    constexpr size_t size = 2048;
+    const auto blob = export_blob(compile(create_model_with_weights(size), "MOCKIR"));
+    const auto zeroed = hsm_edit_payload(blob, hsm::submodel_ir_weights, [](const std::string& weights) {
+        return std::string(weights.size(), '\0');
+    });
+
+    expect_adds_weights(import_from_stream(zeroed), size, 0.0f);
+    expect_adds_weights(import_from_tensor(zeroed), size, 0.0f);
+}
+
+TEST_F(HeteroHsmBlobTests, import_rejects_ir_weights_shorter_than_the_model_needs) {
+    constexpr size_t size = 2048;
+    const auto blob = export_blob(compile(create_model_with_weights(size), "MOCKIR"));
+    for (const size_t length : {size_t{0}, size_t{8}, size * sizeof(float) - sizeof(float)}) {
+        SCOPED_TRACE(length);
+        expect_import_rejected(hsm_edit_payload(blob, hsm::submodel_ir_weights, [&](const std::string& weights) {
+            return weights.substr(0, length);
+        }));
+    }
+}
+
+TEST_F(HeteroHsmBlobTests, per_compile_false_does_not_override_plugin_level_hsm_flag) {
+    // Core omits its own blob header when the plugin-level flag is on, so the blob has to stay HSM.
+    EXPECT_NO_THROW(core.get_available_devices());
+    core.set_property(ov::test::utils::DEVICE_HETERO, ov::hetero::export_hsm_format(true));
+    const auto model = create_model_with_weights(64);
+
+    EXPECT_TRUE(is_hsm_blob(export_blob(compile(model, "MOCKIR", false))));
+
+    const auto cache_dir = ov::test::utils::generateTestFilePrefix() + "_hetero_hsm_cache";
+    const auto compile_cached = [&] {
+        return core.compile_model(model,
+                                  ov::test::utils::DEVICE_HETERO,
+                                  ov::device::priorities("MOCKIR"),
+                                  ov::cache_dir(cache_dir),
+                                  ov::hetero::export_hsm_format(false));
+    };
+    EXPECT_FALSE(compile_cached().get_property(ov::loaded_from_cache));
+    EXPECT_TRUE(compile_cached().get_property(ov::loaded_from_cache));
+    ov::test::utils::removeDir(cache_dir);
+}
+
+// MOCKHSM exports its own HSM container, so it ends up nested in the HETERO one.
+TEST_F(HeteroHsmBlobTests, nested_hsm_blob_of_a_sub_device_keeps_page_alignment) {
+    constexpr size_t size = 2048;
+    // Loads all mock plugins, which the mock engine hands out in the order of loading.
+    EXPECT_NO_THROW(core.get_available_devices());
+    const auto blob = export_blob(compile(create_model_with_weights(size), "MOCKHSM"));
+
+    const auto reader = runtime::hsm::Reader::open(as_bytes(blob), blob.size());
+    ASSERT_TRUE(reader.has_value());
+    EXPECT_EQ(1u, reader->count(hsm::submodel_blob.device, hsm::submodel_blob.tag.id()));
+    EXPECT_EQ(0u, reader->count(hsm::submodel_ir_xml.device, hsm::submodel_ir_xml.tag.id()));
+    const auto outer = std::find_if(reader->entries().begin(), reader->entries().end(), [](const auto& entry) {
+        return has_section_id(entry, hsm::submodel_blob);
+    });
+    ASSERT_NE(reader->entries().end(), outer);
+
+    mock_hsm_import() = {};
+    expect_adds_weights(import_from_tensor(blob), size, 1.0f);
+    EXPECT_EQ(MockHsmImport::Source::tensor, mock_hsm_import().source);
+    // The weights are page-aligned in the nested container and, as it starts on a page, in the whole blob.
+    EXPECT_NE(0u, mock_hsm_import().weights_offset);
+    EXPECT_EQ(0u, mock_hsm_import().weights_offset % ov::util::min_page_alignment);
+    EXPECT_EQ(0u, (outer->offset + mock_hsm_import().weights_offset) % ov::util::min_page_alignment);
+
+    mock_hsm_import() = {};
+    expect_adds_weights(import_from_stream(blob), size, 1.0f);
+    EXPECT_EQ(MockHsmImport::Source::stream, mock_hsm_import().source);
+}
+
+TEST_F(HeteroHsmBlobTests, nested_hsm_blob_of_a_sub_device_exported_to_non_seekable_stream) {
+    constexpr size_t size = 2048;
+    EXPECT_NO_THROW(core.get_available_devices());
+    auto compiled_model = compile(create_model_with_weights(size), "MOCKHSM");
+    NonSeekableOutputBuffer buffer;
+    std::ostream stream(&buffer);
+
+    compiled_model.export_model(stream);
+
+    ASSERT_TRUE(stream);
+    expect_adds_weights(import_from_tensor(buffer.str()), size, 1.0f);
+    expect_adds_weights(import_from_stream(buffer.str()), size, 1.0f);
 }
 
 TEST_P(HeteroHsmBlobVariantTests, unknown_sections_are_skipped) {
