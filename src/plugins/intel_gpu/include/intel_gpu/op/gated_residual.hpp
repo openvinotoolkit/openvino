@@ -60,7 +60,7 @@ public:
     };
 
     static constexpr size_t compressed_input_count = 8;
-    static constexpr size_t int4_group_size = 32;  ///< u4 weights: group along K; u8 weights are per-channel (G == 1)
+    static constexpr size_t int4_group_size = 32;  ///< the only group size along K the kernels support for u4 weights
 
     /// @brief Input indices for Mode::WRITE
     struct WriteInputIdx {
@@ -127,18 +127,28 @@ public:
         return info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad && info.supports_intel_subgroups && info.supports_intel_subgroups_short;
     }
 
+    /// Group size along K, derived from the weight columns K and the scale / zp rows G; 0 when K is not divisible by G.
+    static constexpr size_t derive_group_size(size_t k, size_t g) {
+        return (g == 0 || k % g != 0) ? 0 : k / g;
+    }
+
+    /// Group sizes the kernels support: 32 for u4, per-channel (group size == K) for u8.
+    static constexpr bool is_group_size_supported(size_t bits, size_t k, size_t group_size) {
+        return group_size != 0 && (bits == 4 ? group_size == int4_group_size : group_size == k);
+    }
+
     /// Shared by the fusion pass and the impl's validate_impl. N/K/G are the weight rows / columns / scale rows of W_down and
-    /// W_up; bits is 4 (u4, group 32) or 8 (u8, per-channel).
+    /// W_up; bits is 4 (u4) or 8 (u8). The group size is K / G.
     static bool
     is_weight_compression_supported(size_t bits, size_t n_down, size_t k_down, size_t g_down, size_t n_up, size_t k_up, size_t g_up, bool produce_write_gate) {
         if ((bits != 4 && bits != 8) || produce_write_gate) {
             return false;
         }
         auto matrix_ok = [bits](size_t n, size_t k, size_t g) {
-            if (n == 0 || n % 16 != 0 || k == 0 || k % 32 != 0 || g == 0) {
+            if (n == 0 || n % 16 != 0 || k == 0 || k % 32 != 0) {
                 return false;
             }
-            if (bits == 4 ? k != int4_group_size * g : g != 1) {
+            if (!is_group_size_supported(bits, k, derive_group_size(k, g))) {
                 return false;
             }
             return (k * bits / 8) % 16 == 0;

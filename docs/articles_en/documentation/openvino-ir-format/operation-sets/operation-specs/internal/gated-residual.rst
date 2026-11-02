@@ -93,9 +93,10 @@ to one value per element.
    import torch.nn.functional as F
 
    def dequantize_weight(q, scale, zp):
-       # q: [N, K] u4/u8 values, scale / zp: [G, N], group g covers K // G consecutive k
+       # q: [N, K] u4/u8 values, scale / zp: [G, N]; the group size K // G is derived from the shapes
        N, K = q.shape
        G = scale.shape[0]
+       assert K % G == 0
        s = scale.t().repeat_interleave(K // G, dim=1)   # [N, K]
        z = zp.t().repeat_interleave(K // G, dim=1)      # [N, K]
        return ((q.float() - z.float()) * s.float()).half()
@@ -226,9 +227,11 @@ last dimension is as specified below and the leading dimensions agree across the
   * input 6: ``zp_down``, same element type as ``w_down``, same shape as ``scale_down``
   * input 7: ``zp_up``, same element type as ``w_up``, same shape as ``scale_up``
 
-  Scales and zero points are laid out ``[G, N]`` with ``N`` (the output channel) contiguous. For
-  ``u4`` weights the group runs along ``K`` with size 32, so ``G = K / 32``. For ``u8`` weights
-  quantization is per-channel and ``G = 1``. ``w_down`` and ``w_up`` must share one element type;
+  Scales and zero points are laid out ``[G, N]`` with ``N`` (the output channel) contiguous. The
+  group size is not an attribute: it is derived as ``group_size = K / G``, where ``K`` is the
+  number of columns of the weight (``C*D`` for ``w_down``, ``L`` for ``w_up``) and ``G`` the number
+  of rows of the scale and zero point. ``K`` must be divisible by ``G``; ``G = 1`` means
+  per-channel quantization. ``w_down`` and ``w_up`` must share one element type;
   ``u4``/``u8`` weights are accepted only in the eight-input form. ``u4`` weights and zero points
   are packed two elements per byte in row-major order, the even element in the low nibble.
   Dequantization is ``w = (q - zp) * scale``, see ``dequantize_weight`` above.
@@ -270,8 +273,8 @@ last dimension is as specified below and the leading dimensions agree across the
   ``w_inject`` (if present) ``[C, C*D]``. ``w_down`` and ``w_up`` must share one element type.
 * For the compressed form, scale tensors must be rank 2 with last dimension equal to the weight's
   output channel count (``L`` for ``w_down``, ``C*D`` for ``w_up``), zero points must have the
-  same shape as their scales, scales must be ``f16``, zero points must have the weight element type (``u4`` or ``u8``), and the group count
-  must match the weight type (``K / 32`` for ``u4``, ``1`` for ``u8``).
+  same shape as their scales, scales must be ``f16``, zero points must have the weight element type (``u4`` or ``u8``), and ``K`` must be divisible by the group count ``G``
+  (the group size ``K / G`` is derived from the shapes, see the compressed inputs above).
 * WRITE requires exactly three inputs and returns the residual shape. ``sublayer_y`` must have
   last dimension ``D``, ``write_gate`` must have last dimension ``C``, and both must share the
   residual element type.
@@ -284,8 +287,8 @@ last dimension is as specified below and the leading dimensions agree across the
 **Implementation notes**
 
 The specification places no limit on ``hc_count``, ``hidden_size`` or ``lowrank`` beyond being
-positive. A plugin may support only a subset of geometries, element types, or the
-compressed-weight form, and is expected to reject or not fuse the operation otherwise.
+positive. A plugin may support only a subset of geometries, element types, quantization group
+sizes, or the compressed-weight form, and is expected to reject or not fuse the operation otherwise.
 
 
 **Example**
@@ -354,8 +357,9 @@ The matching WRITE that adds the sub-layer output back to every branch:
        </output>
    </layer>
 
-A FINAL_MIX with ``u4`` compressed weights (eight-input form). ``w_down`` has ``K = C*D = 256``,
-so ``G_d = 256 / 32 = 8``; ``w_up`` has ``K = L = 32``, so ``G_u = 1``:
+A FINAL_MIX with ``u4`` compressed weights (eight-input form). ``w_down`` has ``K = C*D = 256``
+and ``G_d = 8``, so its group size is ``256 / 8 = 32``; ``w_up`` has ``K = L = 32`` and ``G_u = 1``,
+so it is per-channel (group size 32 = K):
 
 .. code-block:: xml
    :force:

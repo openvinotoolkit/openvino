@@ -234,7 +234,7 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     } else {
         return std::nullopt;
     }
-    if (zp->get_shape() != ss || (bits == 4 ? K != op::GatedResidual::int4_group_size * G : G != 1)) {
+    if (zp->get_shape() != ss || !op::GatedResidual::is_group_size_supported(bits, K, op::GatedResidual::derive_group_size(K, G))) {
         return std::nullopt;
     }
 

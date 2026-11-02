@@ -142,7 +142,7 @@ void GatedResidual::validate_and_infer_types() {
     const bool wd_quant = wd_et == ov::element::u4 || wd_et == ov::element::u8;
     NODE_VALIDATION_CHECK(this, wd_et.is_dynamic() || (compressed == wd_quant), "GatedResidual takes u4/u8 weights exactly with the 8-input compressed form.");
     if (compressed) {
-        // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]; G == K / 32 for u4 and 1 for u8 (per-channel).
+        // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]; the group size along K is K / G (not an attribute).
         const size_t bits = wd_et == ov::element::u4 ? 4 : 8;
         auto check_group = [&](size_t scale_idx, size_t zp_idx, size_t n, size_t k, const char* name) {
             const auto& sps = get_input_partial_shape(scale_idx);
@@ -174,13 +174,30 @@ void GatedResidual::validate_and_infer_types() {
                                   wd_et);
             if (sps.rank().is_static() && sps[0].is_static()) {
                 const auto g = static_cast<size_t>(sps[0].get_length());
+                const size_t group_size = derive_group_size(k, g);
+                NODE_VALIDATION_CHECK(this, group_size != 0, "GatedResidual ", name, ": K = ", k, " is not divisible by the scale group count G = ", g);
+                NODE_VALIDATION_CHECK(this,
+                                      is_group_size_supported(bits, k, group_size),
+                                      "GatedResidual ",
+                                      name,
+                                      ": unsupported group size ",
+                                      group_size,
+                                      " (K / G with K = ",
+                                      k,
+                                      ", G = ",
+                                      g,
+                                      "); supported: ",
+                                      int4_group_size,
+                                      " for u4, K (per-channel) for u8.");
                 NODE_VALIDATION_CHECK(this,
                                       is_weight_compression_supported(bits, n, k, g, n, k, g, false),
                                       "GatedResidual ",
                                       name,
-                                      ": unsupported group count ",
-                                      g,
-                                      " (u4 needs K / 32 groups, u8 is per-channel).");
+                                      ": unsupported weight geometry N = ",
+                                      n,
+                                      ", K = ",
+                                      k,
+                                      " (N must be a multiple of 16, K a multiple of 32, and K * bits / 8 a multiple of 16).");
             }
         };
         check_group(ReadInputIdx::SCALE_DOWN, ReadInputIdx::ZP_DOWN, m_lowrank, cd, "W_down");

@@ -1043,9 +1043,8 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
         }
         for (size_t i = 0; i < node.get_dependencies().size(); i++) {
             const auto& l = node.get_input_layout(i);
-            const ov::element::Type expected =
-                i < 2 ? ov::element::Type(ov::element::f16)
-                      : (i < 4 ? ov::element::Type(wt) : (i < 6 ? ov::element::Type(ov::element::f16) : ov::element::Type(wt)));
+            const ov::element::Type expected = i < 2 ? ov::element::Type(ov::element::f16)
+                                                     : (i < 4 ? ov::element::Type(wt) : (i < 6 ? ov::element::Type(ov::element::f16) : ov::element::Type(wt)));
             if (l.format != cldnn::format::bfyx || l.data_type != expected) {
                 return false;
             }
