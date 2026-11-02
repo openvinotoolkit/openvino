@@ -299,9 +299,9 @@ bool SDPAOpt::dpas_sdpa_op_supported(const RuntimeParams& params, bool allow_sca
     ov::Dimension K_num_heads_dim = get_num_heads(k_layout, extended_input_k_transpose_order);
     ov::Dimension V_num_heads_dim = get_num_heads(v_layout, extended_input_v_transpose_order);
 
-    const bool supported_v_order =
-        extended_input_v_transpose_order[3] == 3 || (extended_input_v_transpose_order[2] == 3 && extended_input_v_transpose_order[3] == 2);
-    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 || !supported_v_order) {
+    // The head dim must stay innermost for V too: sdpa_ocl reads V rows with a unit head-dim stride (it never reads
+    // VAL_S3), so a transposed V (order {..,3,2}, which only the removed sdpa_micro read) gives wrong output.
+    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 || extended_input_v_transpose_order[3] != 3) {
         return false;
     }
 

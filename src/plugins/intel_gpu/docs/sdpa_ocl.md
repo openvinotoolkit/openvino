@@ -1498,15 +1498,17 @@ here, so none of it was measured on them.
   the explicit mask for the native window. Not fixed here.
 - Plain-SDPA cases only `sdpa_micro` got right, found when the removal widened the unit tests beyond the kit groups
   (B70, results identical before and after the removal; "micro" = `TEST_USE_SDPA_OCL=0` on 1d50b4272a):
-  - transposed V (`input_v_transpose_order` ending `3, 2`, which `GroupQueryAttentionDecomposition` fuses on XMX
-    devices): `sdpa_gpu_micro.transposed_v_matches_non_transposed_v` / `_multi_tile` give cosine similarity -0.008 /
-    0.012 on `sdpa_ocl` and 0.084 / 0.028 on `sdpa_opt` (knob off), and passed on micro (#38309 added the layout to it);
+  - transposed V (`input_v_transpose_order` ending `3, 2`, which `GroupQueryAttentionDecomposition` fused on XMX
+    devices): `sdpa_gpu_micro.transposed_v_matches_non_transposed_v` / `_multi_tile` gave cosine similarity -0.008 /
+    0.012 on `sdpa_ocl` and 0.084 / 0.028 on `sdpa_opt` (knob off), and passed on micro (#38309 added the layout to it).
+    Fixed on 2026-11-02, see "GQA with a transposed V cache";
   - `sliding_window` on plain SDPA: 6 of the 9 `smoke/sdpa_sliding_window_test.basic` cases are below 0.95 (0.47 to
     0.89) on `sdpa_ocl` and passed on micro; `sdpa_opt` ignores the window altogether (above);
   - K/V batch broadcast (`sdpa_broadcast_test`, e.g. Q batch 2 over K/V batch 1, NaN-guarded buffers): 16 of 18 cases
     fail on `sdpa_ocl` (`/0`: a non-finite output, as from a read past the K/V batch); `/0` passes on micro and on
     `sdpa_opt`, the other cases were not run there.
-  On Xe2 these were wrong before the removal too; off the lane they move from micro to the opt kernels. Not fixed here.
+  On Xe2 these were wrong before the removal too; off the lane they move from micro to the opt kernels. The last two
+  are not fixed here.
   Two suites also expect a kernel that no longer runs: `sdpa_opt_key_leftover_test` expects `sdpa_opt` but `sdpa_ocl`
   takes its single-element mask, and the old micro-pinned suites (`sdpa_gpu_micro.*`, `sdpa_micro_key_broadcast_mask_test`,
   `sdpa_micro_prefetch_k_test`, `sdpa_sliding_window_test`) now pin `sdpa_ocl` and skip off the lane.
@@ -1516,6 +1518,39 @@ here, so none of it was measured on them.
 - Kept names: `enable_sdpa_micro` / `OV_GPU_ENABLE_SDPA_MICRO` (now the switch for `sdpa_ocl`), the runtime flag
   `use_micro_sdpa` (means "the DPAS kernel serves this stage"; its gate `can_use_micro_sdpa_for()` became
   `can_use_sdpa_ocl_for()` on 2026-11-02), and test suites named after `sdpa_micro` that now cover `sdpa_ocl`.
+
+### GQA with a transposed V cache (2026-11-02)
+
+An ONNX `com.microsoft` GroupQueryAttention model whose V cache inputs and outputs are `[B, kv_heads, head_size, S]`
+(`past_value -> Transpose{0,1,3,2} -> GQA -> Transpose{0,1,3,2} -> present_value`) was wrong or failed on every GPU.
+`GroupQueryAttentionDecomposition` (GPU plugin, #38578) keeps that cache layout in `StatelessKV` (append along axis 3).
+On XMX devices with the SDPA path it passed V to SDPA as value order `{0,1,3,2}`; `sdpa_ocl` (`ldv = VAL_S2`, `VAL_S3`
+never read) and `sdpa_opt` (`VALUE_BLOCK_READ` along the head dim) both read the head dim of V as contiguous. On every
+other path (softcap, `qk_output`, quantized KV, no XMX) it kept `StatelessKV -> Transpose -> Result`, which
+`realloc_outputs_for_stateless_kv()` rejects ("stateless_kv should directly connect to an output"). Only that I/O
+pattern was affected; a plain `[B, kv_heads, S, head_size]` cache never got the order. No real model with it was at
+hand: the B70 results come from a synthetic ONNX model run through the frontend (cosine -0.007 / -0.055 / 0.0005 for
+prefill 17, decode 1 and a 40-token chunk on `sdpa_ocl`, 0.04 / 0.08 / -0.02 on `sdpa_opt`, 1.000000 on CPU and with
+the plain layout).
+
+- The decomposition now keeps the cache layout on every path (`StatelessKV` axis 3 feeds `present_value` directly) and
+  gives the attention V back as `[B, kv_heads, S, head_size]` through an explicit `Transpose{0,1,3,2}`, so SDPA always
+  gets the default V order and the explicit chain and the KV dequantization get the layout they expect.
+- Guard: `dpas_sdpa_op_supported()` no longer accepts V order `{..,3,2}` (a `sdpa_micro` leftover) and
+  `SDPAOpt::validate_impl()` refuses any V order that moves the head dim, so such an op goes to `SDPARef`, which
+  indexes V through `INPUT2_DIMS_ORDER`. Nothing in the pipeline makes that order any more; the two
+  `sdpa_gpu_micro.transposed_v_*` tests now check `sdpa_ref` against the plain layout on `sdpa_ocl`.
+- Test: `smoke_GQATransposedVCache` (`ov_gpu_func_tests`) runs GQA end to end against the TEMPLATE plugin: both cache
+  layouts x SDPA / softcap / `qk_output` / i8 per-channel KV x head 64 / 128, steps prefill 17, decode 1, chunk 40 on
+  a past of 18. On the B70 all 16 pass; with the plugin from before the change the 8 transposed-V cases fail (SDPA:
+  wrong output, max error 1.86 and 1.98; the other paths: the `StatelessKV` exception) and the 8 plain-layout cases
+  pass.
+- Cost: one V-cache-sized permute per layer and step (`permute_ref`), plus a V-cache-sized intermediate buffer (its
+  size follows the cache; not measured). Device time of one GQA layer at decode on the B70 (H 32, KV heads 8, head
+  128, f16, perf counters, median of 50): plain layout 146 / 291 / 759 us at 1K / 4K / 16K context, transposed layout
+  190 / 371 / 988 us (the Transpose is 31 / 74 / 223 us; SDPA is the same as for the plain layout). The old fused path
+  was 417 / 844 / 2237 us, its SDPA 12 to 14x slower than the plain one besides being wrong. Reading `{0,1,3,2}` V in
+  `sdpa_ocl` directly would save the permute; not done.
 
 ### Token-major-only MIXED (2026-11-02)
 
