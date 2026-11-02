@@ -2,6 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+/**
+ * @brief Codec for the pointer-mode #model_struct_tag section containing serialized IR topology.
+ * @file openvino/runtime/hsm_model_struct.hpp
+ *
+ * The payload is exactly the IR XML bytes, in their original order. Its length is the section size in the
+ * manifest; there is no length prefix, trailing NUL, or other framing. Weights belong in a separate section.
+ * The decoder returns those bytes as a string without parsing or validating the XML.
+ */
+
 #pragma once
 
 #include <memory>
@@ -17,10 +26,10 @@
 namespace ov::runtime::hsm {
 inline namespace v1 {
 
-/** @brief Sends raw, unframed IR XML bytes directly to the destination sink without buffering. */
+/** @brief Sends exactly @p xml to the destination sink without buffering or adding framing. */
 OPENVINO_RUNTIME_API void encode_model_struct(std::string_view xml, const SectionSink& sink);
 
-/** @brief Produces XML on demand, when the writer finalizes the section. */
+/** @brief Produces the same raw XML bytes on demand, possibly in multiple sink calls. */
 class IModelStructSource {
 public:
     virtual ~IModelStructSource() = default;
