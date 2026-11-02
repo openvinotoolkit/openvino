@@ -105,7 +105,30 @@
 #ifndef PA_K_WIDE_TILES
 #  define PA_K_WIDE_TILES 4
 #endif
-#define PA_K_PERMUTED IS_PA_K_U4
+// Plain SDPA with per-channel compressed K/V (KV_COMP_PER_CHANNEL: the GQA decomposition's quantized cache), optionally
+// packed 4-bit (PLAIN_KV_U4: two channels per byte, low nibble = even channel; PLAIN_KV_U4_SIGNED: i4 two's-complement
+// nibbles, else u4). Set by the host (add_plain_compressed_jit()) only where they apply.
+#ifndef KV_COMP_PER_CHANNEL
+#  define KV_COMP_PER_CHANNEL 0
+#endif
+#ifndef PLAIN_KV_U4
+#  define PLAIN_KV_U4 0
+#endif
+#ifndef PLAIN_KV_U4_SIGNED
+#  define PLAIN_KV_U4_SIGNED 0
+#endif
+#ifndef USE_2D_BLOCK_IO_K_U4
+#  define USE_2D_BLOCK_IO_K_U4 0
+#endif
+#ifndef USE_2D_BLOCK_IO_V_U4
+#  define USE_2D_BLOCK_IO_V_U4 0
+#endif
+#ifndef NEG_X5
+#  define NEG_X5 0
+#endif
+// The packed plain K takes the u4 page's permuted depth labelling (PA_K_U4_CHANNEL below): a byte-column read hands lane
+// L the channel pair (2L, 2L + 1) of its 32-channel window, the same as the page's.
+#define PA_K_PERMUTED (IS_PA_K_U4 || PLAIN_KV_U4)
 #if PA_K_PERMUTED
 // The u4 depth permutation pairs tiles (2g, 2g+1) over one 32-channel window, so an odd active
 // count would leave the last pair half-formed. Round up; DKS is even (D_MAX is a power of two
@@ -120,12 +143,36 @@
 #if DKS_ACTIVE < 1
 #  error "sdpa_ocl.cl: DKS_ACTIVE must cover at least one depth tile"
 #endif
-#if defined(KV_COMPRESSED) && !(KEY_ZERO_POINTS && VAL_ZERO_POINTS)
+#if defined(KV_COMPRESSED) && !KV_COMP_PER_CHANNEL && !(KEY_ZERO_POINTS && VAL_ZERO_POINTS)
 // SDPAOclGenerator::supported() admits only asymmetric KV-cache compression with planar scale and
 // zero-point tensors -- the only mode kv_cache_compression.cpp produces on the XMX parts this kernel
 // runs on -- and every plain-SDPA dequant below assumes a zero point.
 #  error "sdpa_ocl.cl: plain-SDPA KV compression must be asymmetric with planar scale/zp tensors"
 #endif
+#if KV_COMP_PER_CHANNEL
+#  if !defined(KV_COMPRESSED) || IS_PAGED_ATTENTION
+#    error "sdpa_ocl.cl: KV_COMP_PER_CHANNEL is a plain-SDPA compressed-KV mode"
+#  endif
+// The per-channel reads hold one channel per lane of a 16-wide subgroup and dequantize in half (f16 queries); the host
+// admits nothing else (per_channel_kv_supported()).
+#  if SUBGROUP_SIZE != 16 || INPUT0_IS_BF16
+#    error "sdpa_ocl.cl: per-channel compressed KV is read on SG16 with f16 queries only"
+#  endif
+// Symmetric (no zero-point tensors) or asymmetric for both K and V.
+#  if (KEY_ZERO_POINTS + 0) != (VAL_ZERO_POINTS + 0)
+#    error "sdpa_ocl.cl: per-channel compressed K and V must both have zero points or neither"
+#  endif
+#endif
+#if PLAIN_KV_U4 && !KV_COMP_PER_CHANNEL
+#  error "sdpa_ocl.cl: the plain 4-bit cache is read for per-channel compression only"
+#endif
+#if (USE_2D_BLOCK_IO_K_U4 || USE_2D_BLOCK_IO_V_U4) && !PLAIN_KV_U4
+#  error "sdpa_ocl.cl: USE_2D_BLOCK_IO_K_U4 / _V_U4 read the packed 4-bit plain cache only"
+#endif
+#if PLAIN_KV_U4 && (USE_2D_BLOCK_IO_K_I8 || USE_2D_BLOCK_IO_V_I8)
+#  error "sdpa_ocl.cl: the i8 block reads would read the packed 4-bit cache as bytes"
+#endif
+
 // Tiling invariants choose_config() / solve_sv_split() guarantee. A violation does not fail -- it
 // silently leaves part of the output uncomputed -- so make any host/kernel drift loud here.
 #if (sv_sg_per_wg_values * sv_sg_per_wg_scores) != sg_per_wg
@@ -320,6 +367,52 @@
 // The signed byte at bit `sh` of a 16-bit word, as half, the same way: 0x6480 ^ b is 0x6400 | (b ^ 0x80) and b ^ 0x80
 // is (char)b + 128, so the subtraction gives (half)(char)b bit for bit (and +0 for 0).
 #define I8_TO_HALF(w16, sh) (as_half((ushort)((((w16) >> (sh)) & (ushort)0xFF) ^ (ushort)0x6480)) - (half)1152.0h)
+// A 4-bit plain-cache value at bit `sh` of a word, as half, exactly: as_half(0x6400 | n) is 1024 + n, so u4 gives n and
+// i4 (n ^ 8 then 1032) gives the two's-complement nibble n - 16 * (n >> 3).
+#if PLAIN_KV_U4_SIGNED
+#  define PLAIN_U4_TO_HALF(w, sh) (as_half((ushort)(((((uint)(w) >> (sh)) & 0xFu) ^ 0x8u) | 0x6400u)) - (half)1032.0h)
+#else
+#  define PLAIN_U4_TO_HALF(w, sh) (as_half((ushort)((((uint)(w) >> (sh)) & 0xFu) | 0x6400u)) - (half)1024.0h)
+#endif
+// Per-channel K is folded, not dequantized per element: the KQ DPAS reads the stored code widened to half plus a constant
+// KV_K_BIAS (as_half(0x6480 ^ byte) = (char)byte + 1152, as_half(0x6400 | nibble) = nibble + 1024, signed i4 1032 +
+// value), Q carries the K scale (q_fold_k_scale()) and sum_d q'_d * (zp_d + KV_K_BIAS) is subtracted from every score of
+// the query (k_comp_query_offset()). Exact algebra; it takes every K element's subtract and multiply out of the key loop.
+#define I8_WIDE(w, sh) as_half((ushort)((((uint)(w) >> (sh)) & 0xFFu) ^ 0x6480u))
+#if PLAIN_KV_U4_SIGNED
+#  define PLAIN_K_U4_WIDE(w, sh) as_half((ushort)(((((uint)(w) >> (sh)) & 0xFu) ^ 0x8u) | 0x6400u))
+#  define KV_K_BIAS 1032.0f
+#elif PLAIN_KV_U4
+#  define PLAIN_K_U4_WIDE(w, sh) as_half((ushort)((((uint)(w) >> (sh)) & 0xFu) | 0x6400u))
+#  define KV_K_BIAS 1024.0f
+#else
+#  define KV_K_BIAS 1152.0f
+#endif
+// Packed 4-bit V read by block (USE_2D_BLOCK_IO_V_U4): the value columns of each 32-column window are permuted like the K
+// depth, so the read needs no shuffle (a lane shuffle to the natural order was ~45% of a u4 prefill). A window is two
+// 16-column value blocks, of one subgroup (an even sv_value_blocks) or of two neighbouring ones (one block per subgroup,
+// an even sv_sg_per_wg_values: the d_max <= 128 tilings); the block with parity h (((sg_j0_sv >> 4) + cd) & 1) takes
+// nibble h of the window's bytes, so lane L holds column 2L + h of the window, and the epilogue stores every column where
+// it belongs. The host enables the read for such splits only (v_u4_window_split_ok()); others take v_tile_gather_ch().
+#define PLAIN_V_U4_PERMUTED USE_2D_BLOCK_IO_V_U4
+#if USE_2D_BLOCK_IO_V_U4 && !((sv_value_blocks % 2) == 0 || (sv_value_blocks == 1 && (sv_sg_per_wg_values % 2) == 0))
+#  error "sdpa_ocl.cl: USE_2D_BLOCK_IO_V_U4 needs value blocks that pair into 32-column windows"
+#endif
+// The 32-column window of value block cd (the read covers it) and the block's half of it.
+#define V_U4_WINDOW(sg_j0, cd) ((((int)(sg_j0) + (cd) * SUBGROUP_SIZE) / (2 * SUBGROUP_SIZE)) * (2 * SUBGROUP_SIZE))
+#define V_U4_PARITY(sg_j0, cd) ((((int)(sg_j0) / SUBGROUP_SIZE) + (cd)) & 1)
+#if PLAIN_V_U4_PERMUTED
+#  define V_COMP_COLUMN(sg_j0, cd, l) (V_U4_WINDOW(sg_j0, cd) + 2 * (int)(l) + V_U4_PARITY(sg_j0, cd))
+#else
+#  define V_COMP_COLUMN(sg_j0, cd, l) ((int)(sg_j0) + (cd) * SUBGROUP_SIZE + (int)(l))
+#endif
+// Head-dim channel of lane l in K depth tile db for the per-channel scale/zp: contiguous, or the permuted labelling of
+// the packed 4-bit K (PA_K_U4_CHANNEL).
+#if PLAIN_KV_U4
+#  define K_COMP_CHANNEL(db, l) PA_K_U4_CHANNEL(db, l)
+#else
+#  define K_COMP_CHANNEL(db, l) ((db) * DPAS_K + (int)(l))
+#endif
 // Offset of the (depth tile db, query block qb) Q tile in Q_slm.
 #define Q_SLM_OFF(db, qb) (((db) * q_blocks + (qb)) * Q_DWORDS * SUBGROUP_SIZE)
 

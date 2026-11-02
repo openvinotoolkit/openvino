@@ -178,10 +178,21 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #endif
 
 #define APPLY_SCALE_TO_QUERY 1
+// A per-channel 4-bit cache (the GQA decomposition's) holds two channels per byte, the even one in the low nibble: K/V
+// are indexed at channel / 2 and the nibble is unpacked (i4: two's complement). INPUT1_SIZE_X is head_size / 2 there.
+#define PER_CHANNEL_INT4 (IS_KV_COMPRESSED && COMPRESSED_PER_CHANNEL && IS_INT4_COMPRESSED)
+#if PER_CHANNEL_INT4
+    #define KV_INT4_VALUE(packed, ch) \
+        (IS_INT4_SIGNED ? ((int)(((uint)(uchar)(packed) >> (((ch) & 1) * 4)) & 0xFu) ^ 8) - 8 : (int)(((uint)(uchar)(packed) >> (((ch) & 1) * 4)) & 0xFu))
+#endif
 #define HAS_KV_CACHE_ZP_INPUT USE_ASYMMETRIC_QUANTIZATION && !COMBINE_SCALES_AND_ZP
 
 #if IS_KV_COMPRESSED
-#if COMPRESSED_PER_HEAD
+#if COMPRESSED_PER_CHANNEL
+    // [B or 1, KV heads or 1, 1, head size]: the channel x of this batch and KV head (0 where that dim is 1).
+    #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) \
+        GET_DATA_INDEX(INPUT, ((INPUT##_BATCH_NUM == 1) ? 0 : (b)), ((INPUT##_FEATURE_NUM == 1) ? 0 : (f)), 0, (x))
+#elif COMPRESSED_PER_HEAD
     #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) GET_DATA_INDEX(INPUT, (b), (f), (y), (0));
 #else
     #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) GET_DATA_INDEX(INPUT, (b), (0), (y), (0));
@@ -233,6 +244,8 @@ KERNEL(sdpa_ref)(
     const OUTPUT_COMPUTE_T scale_val = *scale;
 #elif defined(STATIC_SCALE_VALUE)
     const OUTPUT_COMPUTE_T scale_val = TO_OUTPUT_COMPUTE_T(STATIC_SCALE_VALUE);
+#elif PER_CHANNEL_INT4
+    const OUTPUT_COMPUTE_T scale_val = OUTPUT_COMPUTE_VAL_ONE / sqrt(TO_OUTPUT_COMPUTE_T(K_HEAD_SIZE));
 #else
     const OUTPUT_COMPUTE_T scale_val = OUTPUT_COMPUTE_VAL_ONE / sqrt(TO_OUTPUT_COMPUTE_T(INPUT1_SIZE_X));
 #endif
@@ -249,7 +262,11 @@ KERNEL(sdpa_ref)(
 #else
                 uint b_idx = b0;
 #endif
+#if PER_CHANNEL_INT4
+                uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, h / 2);
+#else
                 uint key_offset = FUNC_CALL(get_input1_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, h);
+#endif
 
 #if APPLY_SCALE_TO_QUERY
                 INPUT0_COMPUTE_T q_val = LOAD_INPUT0(query_input[query_offset]) * scale_val;
@@ -259,7 +276,7 @@ KERNEL(sdpa_ref)(
 
                 INPUT1_TYPE k_val_packed = key_input[key_offset];
 #if IS_KV_COMPRESSED
-                const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, 0);
+                const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, h);
                 KEY_COMPRESSION_SCALE_COMPUTE_TYPE comp_scale = DECODE_KEY_COMPRESSION_SCALE_COMPUTE_TYPE(key_scale[comp_offset]);
 
 #if USE_ASYMMETRIC_QUANTIZATION && HAS_KV_CACHE_ZP_INPUT
@@ -269,7 +286,11 @@ KERNEL(sdpa_ref)(
 #else
                 KEY_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = 0;
 #endif
+#if PER_CHANNEL_INT4
+                KEY_COMPRESSION_SCALE_COMPUTE_TYPE k_val = (KV_INT4_VALUE(k_val_packed, h) - comp_zp) * comp_scale;
+#else
                 KEY_COMPRESSION_SCALE_COMPUTE_TYPE k_val = (k_val_packed - comp_zp) * comp_scale;
+#endif
 
 #else
                 INPUT1_COMPUTE_T k_val = LOAD_INPUT1(k_val_packed);
@@ -363,11 +384,15 @@ KERNEL(sdpa_ref)(
 #else
         uint b_idx = b0;
 #endif
+#if PER_CHANNEL_INT4
+        uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, head_size_idx / 2);
+#else
         uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, b1, 0, 0, s, head_size_idx);
+#endif
 
         const INPUT2_TYPE value_packed = value_input[value_offset];
 #if IS_KV_COMPRESSED
-        const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, 0);
+        const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, head_size_idx);
         VALUE_COMPRESSION_SCALE_COMPUTE_TYPE comp_scale = DECODE_VALUE_COMPRESSION_SCALE_COMPUTE_TYPE(val_scale[comp_offset]);
 
 #if USE_ASYMMETRIC_QUANTIZATION && HAS_KV_CACHE_ZP_INPUT
@@ -377,7 +402,11 @@ KERNEL(sdpa_ref)(
 #else
         VALUE_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = 0;
 #endif
+#if PER_CHANNEL_INT4
+        VALUE_COMPRESSION_SCALE_COMPUTE_TYPE value = (KV_INT4_VALUE(value_packed, head_size_idx) - comp_zp) * comp_scale;
+#else
         VALUE_COMPRESSION_SCALE_COMPUTE_TYPE value = (value_packed - comp_zp) * comp_scale;
+#endif
 #else
         INPUT2_COMPUTE_T value = LOAD_INPUT2(value_packed);
 #endif

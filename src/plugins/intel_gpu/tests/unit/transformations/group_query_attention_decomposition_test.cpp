@@ -50,7 +50,7 @@ struct GQAConfig {
     bool static_past_cache = false;
     bool transpose_v = false;
     bool sdpa_support_immad = true;
-    bool fuse_compressed_kv = true;  // the pass's mode; the GPU pipeline runs it with false
+    bool fuse_compressed_kv = true;  // the pass's mode; the GPU pipeline sets it on the sdpa_ocl lane only
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
     bool attention_bias = false;
@@ -559,7 +559,8 @@ TEST(GQADecompositionTest, per_channel_kv_without_immad_uses_decompressed_sdpa) 
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::f32);
 }
 
-// The GPU pipeline's mode: no SDPA kernel reads per-channel scales, so even with immad the K/V are dequantized first.
+// The GPU pipeline's mode off the sdpa_ocl lane (sdpa_opt reads one scale per token): even with immad the K/V are
+// dequantized first.
 TEST(GQADecompositionTest, per_channel_kv_without_compressed_kv_fusion_uses_decompressed_sdpa) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 8;

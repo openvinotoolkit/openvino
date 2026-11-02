@@ -80,6 +80,15 @@ bool GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     if ((kv_cache_bit_width != 8 && kv_cache_bit_width != 4) || key_type != value_type || !is_supported_compressed_kv_type(key_type) ||
         key_quant_type == GQAQuantType::PER_TENSOR || value_quant_type == GQAQuantType::PER_TENSOR || !m_sdpa_support_immad || !m_fuse_compressed_kv)
         return false;
+    // Only what sdpa_ocl reads (SDPAOclGenerator's per_channel_kv_supported(); its f16-query condition is the pipeline's
+    // fuse_compressed_kv): a static head size, and an i8 8-bit cache (a u8 one is read as unsigned bytes); anything else
+    // would land on sdpa_ref. Head sizes above 256 stay unfused although sdpa_ocl reads them: at head 512 its
+    // per-channel kernels spill (8-11 KB against 1.4 KB for the f16 one) and an int8 prefill of 2048 tokens took 42% longer
+    // per layer than dequantizing first (B70; docs "Per-channel compressed KV").
+    const auto& head_dim = key_partial_shape.rank().is_static() ? key_partial_shape[key_partial_shape.rank().get_length() - 1] : ov::Dimension::dynamic();
+    const int64_t head_size = head_dim.is_static() ? head_dim.get_length() * (kv_cache_bit_width == 4 ? 2 : 1) : -1;
+    if (head_size <= 0 || head_size > 256 || (kv_cache_bit_width == 8 && key_type != ov::element::i8))
+        return false;
 
     auto& compressed_kv = metadata.compressed_kv.emplace();
 

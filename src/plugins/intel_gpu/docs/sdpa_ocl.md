@@ -1491,7 +1491,8 @@ here, so none of it was measured on them.
   `OV_GPU_ENABLE_SDPA_MICRO=0` alike, while 18 passed with `TEST_USE_SDPA_OCL=0`. Now the GPU pipeline runs
   `GroupQueryAttentionDecomposition` with `fuse_compressed_kv = false` on every device (K/V are dequantized before SDPA,
   the path non-XMX devices always took), `SDPAOpt::validate_impl()` refuses per-channel compressed KV, and those two
-  suites are `DISABLED_` reproducers. A per-channel reader in `sdpa_ocl` would let the fusion come back.
+  suites are `DISABLED_` reproducers. A per-channel reader in `sdpa_ocl` would let the fusion come back. Done on
+  2026-11-02, see "Per-channel compressed KV".
 - Opt-kernel accuracy gaps that become the default path off the lane (reproduce on B70 with
   `OV_GPU_ENABLE_SDPA_MICRO=0`): `pa_sdpa_opt` outputs zeros for Q/K/V with a 2 B feature padding
   (`smoke_paged_attention_prefill_h128` /15 and /33; those cases skip off the lane), `feature_pad/46` misses its 0.002
@@ -1659,6 +1660,72 @@ so on the lane all 8 cases failed on that assert, which stopped them before the 
 - Test: every case runs on `sdpa_ocl` (`_dpas`, skips off the lane or with the knob off) and on the opt stage kernels
   (`_opt`, `enable_sdpa_micro(false)`); each arm checks the kernel it executed, non-fatally, so the compare still runs.
   With the two arms' configs swapped on purpose, all 16 fail on the kernel check and none on the values.
+
+### Per-channel compressed KV (2026-11-02)
+
+The GPU `GroupQueryAttentionDecomposition` (#37157) can hand SDPA the quantized cache of an ONNX `com.microsoft`
+GroupQueryAttention with `kv_cache_bit_width` 8 / 4 and `PER_CHANNEL` k/v scales: i8 symmetric (no zero point), or 4-bit
+stored as u8 bytes of two nibbles (even channel low) described as u4 with a fixed zero point 8, plus `[1, kv_heads, 1,
+head_size]` f16 scales. Since the `sdpa_micro` removal no kernel read that, so the fusion was off and the K/V were
+dequantized before SDPA (a Convert + Multiply, for 4-bit a 16-node unpack chain, all `generic_eltwise_ref`).
+
+- `sdpa_ocl` reads it (`KV_COMP_PER_CHANNEL`; `PLAIN_KV_U4[_SIGNED]` for packed 4-bit, u4 or i4), symmetric or
+  asymmetric, on Xe2 with f16 queries (`per_channel_kv_supported()`). The scale / zero-point tensors are `[B or 1, KV
+  heads or 1, 1, head size]`, read at their own batch and head.
+  - K is folded, not dequantized per element: Q is staged as q times the channel's K scale (`q_fold_k_scale()`, one
+    half rounding where the dequantization rounds k times scale), the KQ DPAS reads the stored code widened to half
+    plus a constant (`I8_WIDE`: code + 1152, u4 + 1024, i4 + 1032), and sum_d q'_d (zp_d + bias) is subtracted from
+    every score of the query (`k_comp_query_offset()`, in float; exact algebra). Per-element zp and scale had cost
+    about 8% of a prefill.
+  - V subtracts the column's zero point per element (exact for an integer zp) and multiplies the output column by its
+    scale in the epilogue (in float).
+  - 4-bit: K takes the u4 page's permuted depth (`PA_K_U4_CHANNEL`, Q via `q_chunk_u4`); V permutes the value columns of
+    each 32-column window (`V_COMP_COLUMN`: two value blocks of one subgroup, or of two neighbouring subgroups at d_max
+    <= 128, where a subgroup has one block), so lane L of the block with parity h takes nibble h of byte L and no lane
+    shuffle is needed; the epilogue stores per column. The first version shuffled the bytes to the natural order: that
+    was about 45% of a 4-bit prefill (6.3 ms instead of 3.4 ms for 4096 tokens).
+  - Block reads (8-bit transform of the packed rows, `USE_2D_BLOCK_IO_{K,V}_I8` / `_U4`) where the row pitch allows
+    (a 64 B row: i8 head 64+, 4-bit head 128+), per-element gathers otherwise (`k_tile_gather_ch`, `v_tile_gather_ch`).
+- `SDPAOpt::validate_impl()` admits per-channel compressed KV only where `sdpa_ocl` serves it (lane, knob,
+  `dpas_sdpa_op_supported()`, `SDPAOclGenerator::supported()`), and `execute()` refuses to run it on any other stage;
+  everything else goes to `SDPARef`, which now reads it too (`COMPRESSED_PER_CHANNEL`, the nibble unpack, the default
+  scale from the logical head size). `sdpa_opt` still reads one scale per token.
+- The pipeline fuses again where `sdpa_ocl` serves it: `sdpa_ocl_selected(device, false)` (Xe2+ XMX, oneDNN build),
+  `enable_sdpa_micro` on and f16 inference precision; the pass also requires a static head size up to 256 and an i8
+  8-bit cache. Head 512 stays unfused although `sdpa_ocl` reads it right: its per-channel kernels spill (11136 / 8192
+  bytes int8 / int4, the f16 one 1408) and one layer (16 heads, 4 KV heads) took 3410 -> 4846 us (+42%) for an int8
+  prefill of 2048 tokens and 4000 -> 4306 us (+8%) int4, while decode on 4K keys gained 26% / 52%. Only the batch-1 caches the GPU decomposition builds take it (the full `StatelessKV` cache and the
+  windowed `sliding_window_cache` one); a batch other than a static 1 goes through the common per-batch cache, which
+  dequantizes before SDPA on every device.
+- Tests: `smoke_sdpa_gpu_compressed_kv_per_channel` and `smoke_sdpa_gpu_gqa_decomp` (24, no longer `DISABLED_`) run
+  each case on `sdpa_ocl` (kernel check) and on `sdpa_ref` (knob off, kernel check). Their decode cases are not causal
+  for per-channel KV and Q is in [-8, 8]: a causal (upper-left) single query attends key 0 only, and a near-uniform
+  softmax over 512 keys hides K as well; with the old data every decode case passed with a wrong K read.
+  `smoke_GQAQuantizedKVCache` (`ov_gpu_func_tests`, 22) runs GQA end to end against the same model in f32 on TEMPLATE
+  (TEMPLATE runs the f16 model in f16 and was up to 0.06 off on every GPU path), int8 / int4 x head 64 / 80 / 128 x full,
+  windowed and batch-2 caches, plus heads 256 / 512; present caches bit-exact. Negative controls (a temporary build
+  with `SDPA_OCL_NEG_X5`, since `SDPA_OCL_NO_GETENV` compiles the switches out): the K scale / zp of the neighbouring
+  channel (1) or the V one (2) fail all 24 unit and all 16 fused func cases, swapped K (3) or V (4) nibbles every
+  4-bit one, and only the batch-2 (unfused) func cases pass; `sdpa_ref` with per-token indexing fails all 24 (12 GPU
+  faults).
+- Cost, one GQA layer on the B70 (synthetic ONNX model, 32 heads, 8 KV heads, head 128, f16, perf counters, median of
+  30, one process per case, mean of 2 rounds within 9%, unpinned clock; kit `test/xe2fix/x5`), dequantize-then-SDPA before /
+  fused after, total device time of the layer (it also holds a full-cache `StatelessKV` copy per step):
+
+  | case | int8 | int4 |
+  |---|---|---|
+  | decode on 1K / 4K / 16K keys | 180.5 / 580.5 / 2319 -> 125 / 360 / 1403 us (-31 / -38 / -39%) | 260 / 764 / 2999 -> 129.5 / 283 / 911 us (-50 / -63 / -70%) |
+  | 512-token chunk on 4000 | 1379 -> 1283 us (-7%) | 1647.5 -> 1280 us (-22%) |
+  | prefill 1024 / 4096 | 715.5 / 4609 -> 717.5 / 4993.5 us (0 / +8%) | 908 / 5182 -> 852 / 5359 us (-6 / +3%) |
+
+  Head 256 (16 heads, 4 KV heads, no spill either way) behaves alike: int8 decode on 4K / 16K -26 / -28%, prefill 2048
+  / 4096 +5 / +10%; int4 -45 / -52%, +1 / +4%.
+  The fused SDPA itself is slower than the f16 one in prefill (int8 3382.5 against 2781 us at 4096 tokens): every query
+  tile widens the codes again. The removed dequantization (52 / 200.5 / 965.5 us int8, 124.5 / 451 / 1991 us int4 at decode)
+  pays for that elsewhere. Master's `sdpa_micro` reads int8 per channel faster (2485 us at prefill 4096, 274.5 us at
+  decode on 16K); its fused 4-bit path does not compile ("No layout format available for sdpa": `validate_impl()`
+  refused the u8 cache). Not done: folding V the same way (zp + bias through the exact row sum of the f16 P) measured
+  about 7 points of prefill, but cancels a 1152-sized constant summed over every key.
 
 ### Token-major-only MIXED (2026-11-02)
 
