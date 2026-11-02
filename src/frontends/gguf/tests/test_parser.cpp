@@ -346,8 +346,9 @@ TEST_F(GGUFParser, AcceptsEmptyQuantizedTensors) {
         EXPECT_EQ(unpacked.weight.get_shape(), (ov::Shape{2, 0}));
         EXPECT_EQ(unpacked.scales.get_shape(), (ov::Shape{2, 0}));
         for (const auto& tensor : {unpacked.weight, unpacked.scales, unpacked.zero_point}) {
-            if (tensor)
+            if (tensor) {
                 EXPECT_EQ(tensor.get_size(), 0);
+            }
         }
     }
 }
