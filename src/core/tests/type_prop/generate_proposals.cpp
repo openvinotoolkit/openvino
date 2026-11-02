@@ -158,11 +158,12 @@ class GenerateProposalsBatchMismatchTest : public TestWithParam<BatchMismatchPar
 INSTANTIATE_TEST_SUITE_P(
     type_prop,
     GenerateProposalsBatchMismatchTest,
-    Values(BatchMismatchParams{2, 3, Dimension::dynamic(), "Batch size of 'input_deltas' is not compatible"},
-           BatchMismatchParams{{1, 2}, {3, 4}, Dimension::dynamic(), "Batch size of 'input_deltas' is not compatible"},
-           BatchMismatchParams{2, Dimension::dynamic(), 3, "Batch size of 'input_scores' is not compatible"},
-           BatchMismatchParams{Dimension::dynamic(), 2, 3, "Batch size of 'input_scores' is not compatible"},
-           BatchMismatchParams{{1, 2}, Dimension::dynamic(), {3, 4}, "Batch size of 'input_scores' is not compatible"}));
+    Values(
+        BatchMismatchParams{2, 3, Dimension::dynamic(), "Batch size of 'input_deltas' is not compatible"},
+        BatchMismatchParams{{1, 2}, {3, 4}, Dimension::dynamic(), "Batch size of 'input_deltas' is not compatible"},
+        BatchMismatchParams{2, Dimension::dynamic(), 3, "Batch size of 'input_scores' is not compatible"},
+        BatchMismatchParams{Dimension::dynamic(), 2, 3, "Batch size of 'input_scores' is not compatible"},
+        BatchMismatchParams{{1, 2}, Dimension::dynamic(), {3, 4}, "Batch size of 'input_scores' is not compatible"}));
 
 TEST_P(GenerateProposalsBatchMismatchTest, batch_mismatch_throws) {
     const auto& p = GetParam();
