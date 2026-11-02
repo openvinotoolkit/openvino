@@ -554,6 +554,8 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
         auto target_layout = dep.get_output_layout();
+        if (target_layout.format == format)
+            return;
         target_layout.format = format;
         auto reorder_prim = std::make_shared<reorder>(dep.id() + "_reorder_" + fc_node.id(), dep.id(), target_layout);
         p.add_intermediate(reorder_prim, fc_node, dep_id, true);
@@ -573,8 +575,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
 
         auto groups_idx = dep_rank == 1 ? 0 : weight_rank - 1;
         auto groups_count = dep_pshape[groups_idx].get_length();
-        // grouped parameters that are already in fbyx (uploaded or computed that way) need no reorder
-        return groups_count > 1 && dep_layout.format != format::fbyx;
+        return groups_count > 1;
     };
     // possible cases
     // legacy [K, N, 1, 1] => crop padded dims
