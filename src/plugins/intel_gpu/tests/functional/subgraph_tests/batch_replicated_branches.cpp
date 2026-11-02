@@ -76,6 +76,8 @@ protected:
         function = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input});
     }
 
+    // The default generator takes the range of the Gather data input, which is wider than [-1, 1], so the f16
+    // Convolution sums exceed abs_threshold. The same range as the constants keeps them within it
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
         inputs.clear();
         const auto& input = function->get_parameters().front();
@@ -84,7 +86,10 @@ protected:
 
     void validate() override {
         ov::test::SubgraphBaseTest::validate();
+        // Without the pass every branch keeps its Gather and Convolution, and the outputs are joined by Concat.
+        // With it the batched input is a Reshape of the data, so only one Convolution and no Gather or Concat remain
         ov::test::CheckNumberOfNodesWithType(compiledModel, "Convolution", 1);
+        ov::test::CheckNumberOfNodesWithTypes(compiledModel, {"Gather", "Concat"}, 0);
     }
 };
 

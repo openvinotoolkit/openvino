@@ -4,6 +4,7 @@
 
 #include "batch_replicated_branches.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -12,6 +13,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -23,8 +25,8 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/block.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/type_relaxed.hpp"
@@ -37,20 +39,14 @@ namespace {
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Predicate;
 
-using NodePtr = std::shared_ptr<ov::Node>;
-using NodeVector = std::vector<NodePtr>;
-
 bool is_type_relaxed(const ov::Node* node) {
     return dynamic_cast<const ov::op::TypeRelaxedBase*>(node) != nullptr;
 }
 
-int64_t normalized_concat_axis(const ov::op::v0::Concat& concat) {
-    const auto axis = concat.get_axis();
-    return axis < 0 ? axis + concat.get_output_partial_shape(0).rank().get_length() : axis;
-}
-
-struct BranchPattern {
-    BranchPattern() {
+// Branch i: Gather(data, i, axis) -> Convolution -> [MaxPool] -> [Add] -> [Relu]
+class ReplicaBranch : public ov::pass::pattern::op::Block {
+public:
+    explicit ReplicaBranch(size_t index) : Block({}, {}, "ReplicaBranch" + std::to_string(index)) {
         // Branch nodes are cloned with [N, ...] input instead of [1, ...], so they must have batch 1
         // and a single consumer; TypeRelaxed and control dependencies are not preserved by cloning
         const auto branch_node = has_static_shape() && shape_matches("[1, ?, ?, ?]") && consumers_count(1) &&
@@ -68,91 +64,101 @@ struct BranchPattern {
             },
             "max_pool_indices_unused");
 
-        data = any_input(has_static_shape());
-        gather = wrap_type<ov::op::v8::Gather>({data, wrap_type<ov::op::v0::Constant>(), wrap_type<ov::op::v0::Constant>()},
-                                               branch_node && attrs_match({{"batch_dims", 0}}));
+        auto data = any_input(has_static_shape());
+        auto axis = wrap_type<ov::op::v0::Constant>();
+        auto gather = wrap_type<ov::op::v8::Gather>({data, wrap_type<ov::op::v0::Constant>(value_matches(std::to_string(index))), axis},
+                                                    branch_node && attrs_match({{"batch_dims", 0}}));
+        auto weights = wrap_type<ov::op::v0::Constant>();
+        auto weights_convert = optional<ov::op::v0::Convert>({weights});
+        auto conv = wrap_type<ov::op::v1::Convolution>({gather, weights_convert}, branch_node);
+        auto pool = optional<ov::op::v1::MaxPool, ov::op::v8::MaxPool, ov::op::v14::MaxPool>({conv}, branch_node && indices_unused);
+        // Bias broadcast to [1, C, H, W] is also valid for [N, C, H, W]
+        auto bias = wrap_type<ov::op::v0::Constant>();
+        auto add = optional<ov::op::v1::Add>({pool, bias}, branch_node && attrs_match({{"auto_broadcast", "numpy"}}));
+        auto relu = optional<ov::op::v0::Relu>({add}, branch_node);
 
-        weights_const = wrap_type<ov::op::v0::Constant>();
-        weights_convert = wrap_type<ov::op::v0::Convert>({weights_const});
-        const auto weights = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{weights_const, weights_convert});
-        conv = wrap_type<ov::op::v1::Convolution>({gather, weights}, branch_node);
-        pool = optional<ov::op::v1::MaxPool, ov::op::v8::MaxPool, ov::op::v14::MaxPool>({conv}, branch_node && indices_unused);
-        // Bias broadcast to [1, C, H, W] is also valid for [N, C, H, W]; checked after cloning
-        bias = wrap_type<ov::op::v0::Constant>();
-        add = optional<ov::op::v1::Add>({pool, bias}, branch_node && attrs_match({{"auto_broadcast", "numpy"}}));
-        relu = optional<ov::op::v0::Relu>({add}, branch_node);
+        m_inputs = {data};
+        m_outputs = {relu};
+        REGISTER_ANCHORS(this, data, axis, gather, weights, weights_convert, conv, pool, bias, add, relu);
     }
 
-    std::shared_ptr<ov::Node> data, gather, weights_const, weights_convert, conv, pool, bias, add, relu;
+    // Compared by value
+    std::vector<std::optional<ov::Output<ov::Node>>> get_constants_to_compare(const PatternValueMap& pm) const {
+        return {get_anchor("axis", pm), get_anchor("weights", pm), get_anchor("bias", pm)};
+    }
 
-    std::vector<std::shared_ptr<ov::Node>> chain() const {
-        return {conv, pool, add, relu};
+    // Compared by type and attributes
+    std::vector<std::optional<ov::Output<ov::Node>>> get_nodes_to_compare(const PatternValueMap& pm) const {
+        return {get_anchor("gather", pm),
+                get_anchor("weights_convert", pm),
+                get_anchor("conv", pm),
+                get_anchor("pool", pm),
+                get_anchor("add", pm),
+                get_anchor("relu", pm)};
     }
 };
 
-bool constant_inputs_are_equal(const ov::Output<ov::Node>& lhs, const ov::Output<ov::Node>& rhs) {
-    if (lhs == rhs)
-        return true;
-    const auto lhs_node = lhs.get_node_shared_ptr();
-    const auto rhs_node = rhs.get_node_shared_ptr();
-    const auto lhs_constant = ov::as_type_ptr<ov::op::v0::Constant>(lhs_node);
-    const auto rhs_constant = ov::as_type_ptr<ov::op::v0::Constant>(rhs_node);
-    if (lhs_constant || rhs_constant)
-        return lhs_constant && rhs_constant && ov::op::util::constants_are_equal(*lhs_constant, *rhs_constant);
-    return ov::op::util::node_attributes_are_equal(lhs_node, rhs_node) && constant_inputs_are_equal(lhs_node->input_value(0), rhs_node->input_value(0));
-}
+// Blocks are created per branch index on demand, as the number of branches is known only at match time
+using ReplicaBranches = std::vector<std::shared_ptr<ReplicaBranch>>;
 
-bool branches_are_equal(const BranchPattern& pattern, const PatternValueMap& reference, const PatternValueMap& branch) {
-    for (const auto& pattern_node : pattern.chain()) {
-        if (reference.count(pattern_node) != branch.count(pattern_node))
-            return false;
-        if (!reference.count(pattern_node))
-            continue;
-        const auto reference_node = reference.at(pattern_node).get_node_shared_ptr();
-        const auto branch_node = branch.at(pattern_node).get_node_shared_ptr();
-        if (!ov::op::util::node_attributes_are_equal(reference_node, branch_node))
+struct MatchedBranch {
+    std::shared_ptr<ReplicaBranch> block;
+    PatternValueMap pm;
+
+    std::optional<ov::Output<ov::Node>> get(const std::string& name) const {
+        return block->get_anchor(name, pm);
+    }
+};
+
+// Optional nodes must be matched in both branches or in neither
+template <typename Equal>
+bool all_equal(const std::vector<std::optional<ov::Output<ov::Node>>>& lhs, const std::vector<std::optional<ov::Output<ov::Node>>>& rhs, Equal equal) {
+    for (size_t i = 0; i < lhs.size(); ++i) {
+        if (lhs[i].has_value() != rhs[i].has_value() || (lhs[i] && !equal(lhs[i]->get_node_shared_ptr(), rhs[i]->get_node_shared_ptr())))
             return false;
     }
-    const auto weights = [&pattern](const PatternValueMap& map) {
-        return map.at(pattern.conv).get_node()->input_value(1);
-    };
-    if (!constant_inputs_are_equal(weights(reference), weights(branch)))
-        return false;
-    return !reference.count(pattern.add) || constant_inputs_are_equal(reference.at(pattern.bias), branch.at(pattern.bias));
+    return true;
 }
 
-// Checks relations the single-branch pattern can't express: branch i gathers slice i of the same
+bool branches_are_equal(const MatchedBranch& lhs, const MatchedBranch& rhs) {
+    const auto constants_are_equal = [](const std::shared_ptr<ov::Node>& lhs, const std::shared_ptr<ov::Node>& rhs) {
+        return ov::op::util::constants_are_equal(*ov::as_type_ptr<ov::op::v0::Constant>(lhs), *ov::as_type_ptr<ov::op::v0::Constant>(rhs));
+    };
+    // The pattern fixes the branch ops, and all of them have comparable attributes
+    const auto attributes_are_equal = [](const std::shared_ptr<ov::Node>& lhs, const std::shared_ptr<ov::Node>& rhs) {
+        return lhs->get_type_info() == rhs->get_type_info() && ov::op::util::get_comparable_attributes(lhs) == ov::op::util::get_comparable_attributes(rhs);
+    };
+    return all_equal(lhs.block->get_constants_to_compare(lhs.pm), rhs.block->get_constants_to_compare(rhs.pm), constants_are_equal) &&
+           all_equal(lhs.block->get_nodes_to_compare(lhs.pm), rhs.block->get_nodes_to_compare(rhs.pm), attributes_are_equal);
+}
+
+// Checks relations the single-branch pattern can't express: all branches gather from the same
 // tensor, the slices cover the whole replica dimension, and all branches are equal
-std::optional<std::vector<PatternValueMap>> match_branches(const BranchPattern& pattern, const ov::Output<ov::Node>& concat_output) {
+std::optional<std::vector<MatchedBranch>> match_branches(ReplicaBranches& blocks, const ov::Output<ov::Node>& concat_output) {
     const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(concat_output.get_node_shared_ptr());
     const auto replica_count = concat ? concat->get_input_size() : 0;
     // Replicas are stacked on axis 0, so Concat must be on another axis
-    if (replica_count < 2 || normalized_concat_axis(*concat) <= 0)
+    if (replica_count < 2 || ov::util::normalize(concat->get_axis(), concat->get_output_shape(0).size()) <= 0)
         return std::nullopt;
 
-    std::vector<PatternValueMap> branches;
+    while (blocks.size() < replica_count)
+        blocks.push_back(std::make_shared<ReplicaBranch>(blocks.size()));
+
+    std::vector<MatchedBranch> branches;
     branches.reserve(replica_count);
     for (size_t i = 0; i < replica_count; ++i) {
-        Matcher matcher(pattern.relu, "BatchReplicatedBranch");
+        Matcher matcher(blocks[i], "BatchReplicatedBranch");
         if (!matcher.match(concat->input_value(i)))
             return std::nullopt;
-        branches.push_back(matcher.get_pattern_value_map());
-        const auto& branch = branches.back();
-
-        const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(branch.at(pattern.gather).get_node_shared_ptr());
-        const auto index = ov::as_type_ptr<ov::op::v0::Constant>(gather->get_input_node_shared_ptr(1));
-        if (index->cast_vector<int64_t>() != std::vector<int64_t>{static_cast<int64_t>(i)})
-            return std::nullopt;
-
+        const auto& branch = branches.emplace_back(MatchedBranch{blocks[i], matcher.get_pattern_value_map()});
         const auto& reference = branches.front();
-        const auto reference_gather = reference.at(pattern.gather).get_node_shared_ptr();
         if (i == 0) {
+            const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(branch.get("gather")->get_node_shared_ptr());
             const auto data_shape = gather->get_input_shape(0);
             const auto axis = static_cast<size_t>(gather->get_axis());
             if (axis >= data_shape.size() || data_shape[axis] != replica_count)
                 return std::nullopt;
-        } else if (branch.at(pattern.data) != reference.at(pattern.data) || !ov::op::util::node_attributes_are_equal(gather, reference_gather) ||
-                   gather->get_axis() != ov::as_type_ptr<ov::op::v8::Gather>(reference_gather)->get_axis() || !branches_are_equal(pattern, reference, branch)) {
+        } else if (branch.get("data") != reference.get("data") || !branches_are_equal(reference, branch)) {
             return std::nullopt;
         }
     }
@@ -160,7 +166,7 @@ std::optional<std::vector<PatternValueMap>> match_branches(const BranchPattern& 
 }
 
 // rt_info of all replicas is merged (e.g. fused names) so query_model reports all of them
-void copy_metadata(const NodeVector& replicas, const NodePtr& clone) {
+void copy_metadata(const ov::NodeVector& replicas, const std::shared_ptr<ov::Node>& clone) {
     const auto& reference = replicas.front();
     clone->set_friendly_name(reference->get_friendly_name());
     ov::copy_runtime_info(replicas, clone);
@@ -172,32 +178,51 @@ void copy_metadata(const NodeVector& replicas, const NodePtr& clone) {
     }
 }
 
-bool batch_replicated_branches(const BranchPattern& pattern,
-                               const std::shared_ptr<ov::op::v0::Concat>& output_concat,
-                               const std::vector<PatternValueMap>& branches) {
+bool batch_replicated_branches(const std::shared_ptr<ov::op::v0::Concat>& output_concat, const std::vector<MatchedBranch>& branches) {
     const auto& reference = branches.front();
     const auto replica_count = branches.size();
-    const auto replicas_of = [&branches](const std::shared_ptr<ov::Node>& pattern_node) {
-        NodeVector replicas;
+    const auto replicas_of = [&branches](const std::string& name) {
+        ov::NodeVector replicas;
         for (const auto& branch : branches)
-            replicas.push_back(branch.at(pattern_node).get_node_shared_ptr());
+            replicas.push_back(branch.get(name)->get_node_shared_ptr());
         return replicas;
     };
 
-    // [1, C, H, W] x N -> [N, C, H, W]
-    ov::OutputVector slices;
-    for (const auto& gather : replicas_of(pattern.gather))
-        slices.push_back(gather);
-    auto batched_input = std::make_shared<ov::op::v0::Concat>(slices, 0);
+    // Branch i gathers slice i of data, so the stacked slices are data with the replica axis moved to the front.
+    // Transpose is needed only when a dim before the replica axis is not 1, otherwise Reshape keeps the order
+    const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(reference.get("gather")->get_node_shared_ptr());
+    ov::Output<ov::Node> data = gather->input_value(0);
+    const auto& data_shape = data.get_shape();
+    const auto replica_axis = static_cast<size_t>(gather->get_axis());
+    ov::NodeVector batched_input_nodes;
+    if (std::any_of(data_shape.begin(), data_shape.begin() + replica_axis, [](size_t dim) {
+            return dim != 1;
+        })) {
+        std::vector<int64_t> order{static_cast<int64_t>(replica_axis)};
+        for (size_t axis = 0; axis < data_shape.size(); ++axis) {
+            if (axis != replica_axis)
+                order.push_back(static_cast<int64_t>(axis));
+        }
+        data = std::make_shared<ov::op::v1::Transpose>(data, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{order.size()}, order));
+        data.get_node()->set_friendly_name(output_concat->get_friendly_name() + "/replica_batch_transpose");
+        batched_input_nodes.push_back(data.get_node_shared_ptr());
+    }
+    auto batched_input_shape = gather->get_output_shape(0);
+    batched_input_shape[0] = replica_count;
+    auto batched_input =
+        std::make_shared<ov::op::v1::Reshape>(data,
+                                              ov::op::v0::Constant::create(ov::element::i64, ov::Shape{batched_input_shape.size()}, batched_input_shape),
+                                              false);
     batched_input->set_friendly_name(output_concat->get_friendly_name() + "/replica_batch");
-    ov::copy_runtime_info(output_concat, batched_input);
+    batched_input_nodes.push_back(batched_input);
+    ov::copy_runtime_info(replicas_of("gather"), batched_input_nodes);
 
-    ov::Output<ov::Node> reference_output = reference.at(pattern.gather);
+    ov::Output<ov::Node> reference_output = *reference.get("gather");
     ov::Output<ov::Node> batched = batched_input;
-    for (const auto& pattern_node : pattern.chain()) {
-        if (!reference.count(pattern_node))
+    for (const auto& name : {"conv", "pool", "add", "relu"}) {
+        if (!reference.get(name))
             continue;
-        const auto replicas = replicas_of(pattern_node);
+        const auto replicas = replicas_of(name);
         const auto& reference_node = replicas.front();
         ov::OutputVector inputs = reference_node->input_values();
         // Constant inputs are equal in all replicas, so the reference ones are reused as is with
@@ -215,12 +240,12 @@ bool batch_replicated_branches(const BranchPattern& pattern,
     const auto branch_shape = output_concat->get_input_shape(0);
     auto batched_shape = branch_shape;
     batched_shape[0] = replica_count;
-    if (batched.get_shape() != batched_shape)
-        return false;
+
+    OPENVINO_ASSERT(batched.get_shape() == batched_shape, "Unexpected shape of the batched branch: ", batched.get_shape());
 
     // Restore the Concat layout, e.g. for axis 3: [N, C, H, W] -> [C, H, N, W] -> [1, C, H, N * W]
     const auto rank = branch_shape.size();
-    const auto concat_axis = static_cast<size_t>(normalized_concat_axis(*output_concat));
+    const auto concat_axis = static_cast<size_t>(ov::util::normalize(output_concat->get_axis(), rank));
     std::vector<int64_t> transpose_order;
     std::vector<int64_t> output_shape{1};
     for (size_t axis = 1; axis < rank; ++axis) {
@@ -241,7 +266,7 @@ bool batch_replicated_branches(const BranchPattern& pattern,
 }  // namespace
 
 BatchReplicatedBranches::BatchReplicatedBranches() {
-    const auto branch_pattern = std::make_shared<BranchPattern>();
+    const auto blocks = std::make_shared<ReplicaBranches>();
     auto output_concat = wrap_type<ov::op::v0::Concat>(has_static_shape() &&
                                                        Predicate(
                                                            [](const ov::Output<ov::Node>& output) {
@@ -249,8 +274,8 @@ BatchReplicatedBranches::BatchReplicatedBranches() {
                                                            },
                                                            "not_type_relaxed") &&
                                                        Predicate(
-                                                           [branch_pattern](const ov::Output<ov::Node>& output) {
-                                                               return match_branches(*branch_pattern, output).has_value();
+                                                           [blocks](const ov::Output<ov::Node>& output) {
+                                                               return match_branches(*blocks, output).has_value();
                                                            },
                                                            "replicated_branches_match"));
 
@@ -258,8 +283,8 @@ BatchReplicatedBranches::BatchReplicatedBranches() {
         const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(m.get_match_root());
         if (transformation_callback(concat))
             return false;
-        const auto branches = match_branches(*branch_pattern, concat->output(0));
-        return branches && batch_replicated_branches(*branch_pattern, concat, *branches);
+        const auto branches = match_branches(*blocks, concat->output(0));
+        return branches && batch_replicated_branches(concat, *branches);
     };
 
     auto matcher = std::make_shared<Matcher>(output_concat, "BatchReplicatedBranches");

@@ -8,15 +8,66 @@
 
 namespace ov::intel_gpu {
 
-// Runs N equal replicated branches (e.g. per-camera backbones) as one batched branch.
-//
-// Before:
-//     data -> Gather(i) -> Convolution -> [MaxPool] -> [Add] -> [Relu] -> Concat(axis > 0), i = 0..N-1
-// After:
-//     data -> Gather(0..N-1) -> Concat(axis 0) -> Convolution -> [MaxPool] -> [Add] -> [Relu]
-//          -> Transpose -> Reshape
-//
-// Branches must be static [1, C, H, W], feed only the Concat, and have equal attributes and constants.
+/**
+ * @brief Runs N equal branches that process slices of one tensor as a single branch with batch N.
+ *
+ * Multi-camera models (e.g. BEV detectors) run the same backbone on every camera image and concatenate the
+ * results. Each replica is a separate batch-1 Convolution, which underuses the GPU; one batch-N Convolution
+ * computes the same values in one kernel.
+ *
+ * Before ([ ] marks optional nodes):
+ *
+ *                       data [.., N, ..]
+ *                │                         │
+ *          ┌─────┴─────┐             ┌─────┴─────┐
+ *          │ Gather(0) │             │Gather(N-1)│
+ *          └─────┬─────┘             └─────┬─────┘
+ *         ┌──────┴──────┐           ┌──────┴──────┐
+ *         │ Convolution │    ...    │ Convolution │
+ *         └──────┬──────┘           └──────┬──────┘
+ *            [MaxPool]                 [MaxPool]
+ *              [Add]                     [Add]
+ *             [Relu]                    [Relu]
+ *                │ [1,C,H,W]               │ [1,C,H,W]
+ *                └────────────┬────────────┘
+ *                   ┌─────────┴─────────┐
+ *                   │ Concat(axis k > 0)│
+ *                   └───────────────────┘
+ *
+ * After:
+ *
+ *                       data [.., N, ..]
+ *                             │
+ *                        [Transpose]       replica axis to the front
+ *                             │
+ *                       ┌─────┴─────┐
+ *                       │  Reshape  │      [N,C,H,W]
+ *                       └─────┬─────┘
+ *                      ┌──────┴──────┐
+ *                      │ Convolution │     weights of branch 0
+ *                      └──────┬──────┘
+ *                         [MaxPool]
+ *                           [Add]
+ *                          [Relu]
+ *                       ┌─────┴─────┐
+ *                       │ Transpose │      N in front of axis k
+ *                       └─────┬─────┘
+ *                       ┌─────┴─────┐
+ *                       │  Reshape  │      N merged into axis k
+ *                       └───────────┘
+ *
+ * The rewrite is applied when:
+ *  - all shapes are static and every branch output is [1, C, H, W] with Concat on axis k > 0, so batch N is
+ *    free for the replicas and the Concat layout can be restored by Transpose and Reshape;
+ *  - branch i gathers slice i of one tensor and the N slices cover the gathered dimension, so the batched
+ *    input is that tensor with the replica axis moved to the front; Transpose is added only when a dim before
+ *    that axis is not 1;
+ *  - all branches have the same operations, attributes and constants, so the batched branch computes every
+ *    replica; Add uses numpy broadcast;
+ *  - every branch node feeds only the next one and MaxPool indices are unused, otherwise the original branches
+ *    would stay in the graph next to the batched one;
+ *  - branch nodes and Concat are not TypeRelaxed and have no control dependencies, which cloning does not keep.
+ */
 class BatchReplicatedBranches : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::BatchReplicatedBranches");

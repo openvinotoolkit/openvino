@@ -114,17 +114,6 @@ ov::AnyMap get_comparable_attributes(const std::shared_ptr<ov::Node>& node) {
     return NodeComparingVisitor().visit_attributes(node);
 }
 
-bool node_attributes_are_equal(const std::shared_ptr<ov::Node>& lhs, const std::shared_ptr<ov::Node>& rhs) {
-    if (lhs->get_type_info() != rhs->get_type_info())
-        return false;
-    try {
-        return get_comparable_attributes(lhs) == get_comparable_attributes(rhs);
-    } catch (...) {
-        // Attributes that can't be compared are treated as different
-        return false;
-    }
-}
-
 bool constants_are_equal(const v0::Constant& lhs, const v0::Constant& rhs) {
     return lhs.get_element_type() == rhs.get_element_type() && lhs.get_shape() == rhs.get_shape() &&
            std::memcmp(lhs.get_data_ptr(), rhs.get_data_ptr(), lhs.get_byte_size()) == 0;
