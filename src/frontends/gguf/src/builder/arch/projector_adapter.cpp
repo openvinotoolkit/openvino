@@ -95,7 +95,7 @@ Value additive_mask(const Value& visible) {
 }
 
 void require_square_fits(int64_t value, int64_t factor, const char* key) {
-    OPENVINO_ASSERT(value <= std::numeric_limits<int64_t>::max() / factor / value,
+    OPENVINO_ASSERT(value > 0 && value <= std::numeric_limits<int64_t>::max() / factor / value,
                     "[GGUF] out-of-range mmproj metadata ",
                     key);
 }
@@ -402,18 +402,17 @@ void temporal_packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64
     OPENVINO_ASSERT(temporal == 1 || temporal == 2,
                     "[GGUF] temporal packed vision requires one or two temporal patches");
     require_square_fits(patch, 3 * temporal, "vision.patch_size");
-    const auto inputs = model->get_parameters();
-    const auto results = model->get_results();
-    auto first_pixels = find_parameter(model, "pixel_values");
-    auto second_pixels = find_parameter(model, "pixel_values_1");
-    auto spatial_positions = find_parameter(model, "positions");
+    // The body is a clone so the supplied model stays untouched until the iterator is complete.
+    auto body = model->clone();
+    auto first_pixels = find_parameter(body, "pixel_values");
+    auto second_pixels = find_parameter(body, "pixel_values_1");
+    auto spatial_positions = find_parameter(body, "positions");
     OPENVINO_ASSERT(first_pixels && spatial_positions && (!second_pixels || temporal == 2) &&
-                        inputs.size() == (second_pixels ? 3u : 2u) && results.size() == 1 &&
-                        model->get_sinks().empty() && model->get_variables().empty(),
+                        body->get_parameters().size() == (second_pixels ? 3u : 2u) && body->get_results().size() == 1 &&
+                        body->get_sinks().empty() && body->get_variables().empty(),
                     "[GGUF] temporal packed vision requires pixel inputs, positions and one embedding output");
     OPENVINO_ASSERT(spatial_positions->get_element_type() == ov::element::i32,
                     "[GGUF] temporal packed vision requires i32 spatial positions");
-    auto body = std::make_shared<ov::Model>(results, inputs);
 
     const auto pixel_dim = 3 * temporal * patch * patch;
     auto pixels = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1, pixel_dim});
@@ -429,7 +428,7 @@ void temporal_packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64
         OPENVINO_ASSERT(input->get_element_type() == ov::element::f32 && input_shape.rank() == 4 &&
                             input_shape[0] == 1 && input_shape[1] == 3,
                         "[GGUF] temporal packed vision requires singleton RGB NCHW pixel inputs");
-        auto frame = std::make_shared<v8::Gather>(packed, scalar(index), ints({4}));
+        auto frame = std::make_shared<v8::Gather>(packed, scalar(index), scalar(4));
         auto image = std::make_shared<v1::Transpose>(frame, ints({0, 3, 1, 4, 2, 5}));
         replace_input(body, input->get_friendly_name(), std::make_shared<v1::Reshape>(image, frame_shape, false));
     };
@@ -457,9 +456,9 @@ void temporal_packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64
     auto output = iterator->get_concatenated_slices(features, 0, 1, 1, -1, 0);
     output.set_names({"last_hidden_state"});
     iterator->validate_and_infer_types();
-    for (const auto& result : results)
+    for (const auto& result : ov::ResultVector(model->get_results()))
         model->remove_result(result);
-    for (const auto& parameter : inputs)
+    for (const auto& parameter : ov::ParameterVector(model->get_parameters()))
         model->remove_parameter(parameter);
     model->add_parameters({input});
     model->add_results({std::make_shared<v0::Result>(output)});

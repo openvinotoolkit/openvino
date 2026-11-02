@@ -42,8 +42,11 @@ ov::Tensor tensor(const cnpy::NpyArray& value, ov::element::Type type = ov::elem
 using Frames = std::pair<ov::Tensor, ov::Tensor>;
 
 ov::Tensor packed_pixels(const std::vector<Frames>& groups, size_t patch = 16, size_t temporal = 2) {
+    OPENVINO_ASSERT(!groups.empty(), "packed_pixels requires at least one group");
     const auto shape = groups.front().first.get_shape();
+    OPENVINO_ASSERT(shape.size() == 4 && shape[0] == 1 && shape[1] == 3, "packed_pixels requires [1,3,H,W] frames");
     const auto height = shape[2], width = shape[3];
+    OPENVINO_ASSERT(height % patch == 0 && width % patch == 0, "packed_pixels requires patch-aligned frames");
     ov::Tensor packed(ov::element::f32, {groups.size(), height / patch, width / patch, 3 * temporal * patch * patch});
     auto* destination = packed.data<float>();
     for (const auto& frames : groups) {
