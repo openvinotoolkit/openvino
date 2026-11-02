@@ -49,6 +49,7 @@ size_t count_nodes(const std::shared_ptr<ov::Model>& model) {
 void normalize(const std::shared_ptr<ov::Model>& model) {
     EXPECT_TRUE(pass::MaterializeGGUFWeights().run_on_model(model));
     EXPECT_EQ(count_nodes<GGUFConstant>(model), 0);
+    EXPECT_EQ(count_nodes<ov::op::util::FrameworkNode>(model), 0);
     model->validate_nodes_and_infer_types();
 }
 
@@ -99,8 +100,16 @@ std::shared_ptr<ov::Node> row_slice(const ov::Output<ov::Node>& input, int64_t s
 TEST(GGUFWeightNormalization, RawMetadataAndClonesRetainSourceStorage) {
     auto source = ternary(2, 0);
     const auto original = std::make_shared<GGUFConstant>(source.source);
+    EXPECT_TRUE(ov::is_type<ov::op::util::FrameworkNode>(original));
+    auto attrs = original->get_attrs();
+    EXPECT_EQ(attrs.get_type_name(), "GGUFConstant");
+    EXPECT_EQ(attrs.get_opset_name(), "gguf");
+    attrs["diagnostic"] = "raw source";
+    original->set_attrs(attrs);
     const auto clone = ov::as_type_ptr<GGUFConstant>(original->clone_with_new_inputs({}));
     ASSERT_TRUE(clone);
+    EXPECT_TRUE(ov::is_type<ov::op::util::FrameworkNode>(clone));
+    EXPECT_TRUE(clone->get_attrs() == original->get_attrs());
     EXPECT_EQ(clone->source().data.data(), source.source.data.data());
     EXPECT_EQ(clone->source().data.get_byte_size(), 72);
     EXPECT_EQ(clone->get_output_shape(0), (ov::Shape{2, 128}));

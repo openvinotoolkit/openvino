@@ -8,8 +8,12 @@
 
 namespace ov::frontend::gguf {
 
-GGUFConstant::GGUFConstant(const GgufWeight& source) : m_source(source) {
+GGUFConstant::GGUFConstant(const GgufWeight& source) : ov::op::util::FrameworkNode({}, 1), m_source(source) {
     OPENVINO_ASSERT(source.data, "GGUF weight has no source storage");
+    ov::op::util::FrameworkNodeAttrs attrs;
+    attrs.set_type_name("GGUFConstant");
+    attrs.set_opset_name("gguf");
+    set_attrs(attrs);
     constructor_validate_and_infer_types();
 }
 
@@ -26,7 +30,9 @@ void GGUFConstant::validate_and_infer_types() {
 
 std::shared_ptr<ov::Node> GGUFConstant::clone_with_new_inputs(const ov::OutputVector& inputs) const {
     OPENVINO_ASSERT(inputs.empty(), "GGUFConstant has no inputs");
-    return std::make_shared<GGUFConstant>(m_source);
+    auto clone = std::make_shared<GGUFConstant>(m_source);
+    clone->set_attrs(get_attrs());
+    return clone;
 }
 
 std::shared_ptr<ov::Node> GGUFConstant::materialize() const {
