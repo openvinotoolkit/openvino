@@ -102,7 +102,7 @@ struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_k
     }
 
 private:
-    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
     bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_core)) && (jpp.dtype_size == 4);
@@ -197,9 +197,6 @@ private:
         case x64::avx512_core:
             kxnord(k_mask, k_mask, k_mask);
             vgatherdps(vmm_arg | k_mask, ptr[mem_base + mem_offset]);
-            break;
-        case x64::sse41:
-            emulate_gather(vmm_arg, mem_base);
             break;
         default:
             OPENVINO_THROW("Got unsupported instruction set.");
@@ -453,7 +450,7 @@ void ExtractImagePatches::prepareParams() {
     const auto& out_dims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const auto prcSize = getOriginalInputPrecisionAtPort(0).size();
     ExtractImagePatchesKey key = {in_dims, out_dims, _ksizes, _strides, _rates, _auto_pad, prcSize};
-    const auto isJit = ov::with_cpu_x86_sse42();
+    const auto isJit = ov::with_cpu_x86_avx2();
     auto buildExecutor = [&isJit](const ExtractImagePatchesKey& key) -> executorPtr {
         if (isJit) {
             return std::make_shared<ExtractImagePatchesJitExecutor>(key.inDims,
@@ -706,8 +703,6 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
         jpp.block_size = 64 / prcSize;
     } else if (ov::with_cpu_x86_avx2()) {
         jpp.block_size = 32 / prcSize;
-    } else if (ov::with_cpu_x86_sse42()) {
-        jpp.block_size = 16 / prcSize;
     } else {
         jpp.block_size = 1;
     }
@@ -729,8 +724,6 @@ ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecu
         pKernel = std::make_unique<jit_extract_image_patches_kernel<x64::avx512_core>>(jpp);
     } else if (ov::with_cpu_x86_avx2()) {
         pKernel = std::make_unique<jit_extract_image_patches_kernel<x64::avx2>>(jpp);
-    } else if (ov::with_cpu_x86_sse42()) {
-        pKernel = std::make_unique<jit_extract_image_patches_kernel<x64::sse41>>(jpp);
     } else {
         OPENVINO_THROW("Can't create jit extract image patches kernel");
     }

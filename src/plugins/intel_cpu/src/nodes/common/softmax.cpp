@@ -119,10 +119,7 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
 
             load_vector(vmm_val, ptr[aux_reg_src], jcp_.src_dt);
 
-            if (isa == x64::sse41) {
-                uni_vmovups(vmm_mask, vmm_val);
-                uni_vcmpgtps(vmm_mask, vmm_mask, vmm_max);
-            } else if (isa == x64::avx2) {
+            if (isa == x64::avx2) {
                 uni_vcmpgtps(vmm_mask, vmm_val, vmm_max);
             } else {
                 vcmpps(k_mask, vmm_val, vmm_max, _cmp_nle_us);
@@ -200,7 +197,7 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
     }
 
 private:
-    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -278,9 +275,6 @@ SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPr
     } else if (ov::with_cpu_x86_avx2()) {
         softmax_kernel = std::make_shared<jit_uni_softmax_kernel_f32<x64::avx2>>(jcp);
         block_size = 8;
-    } else if (ov::with_cpu_x86_sse42()) {
-        softmax_kernel = std::make_shared<jit_uni_softmax_kernel_f32<x64::sse41>>(jcp);
-        block_size = 4;
     }
     if (softmax_kernel) {
         softmax_kernel->create_ker();

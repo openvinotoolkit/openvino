@@ -893,13 +893,6 @@ struct RDFTJitExecutor : public RDFTExecutor {
             if (primDesc) {
                 primDesc->setImplementationType(jit_avx2);
             }
-        } else if (mayiuse(cpu::x64::sse41)) {
-            rdftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, rdftType);
-            dftKernel = std::make_unique<jit_dft_kernel_f32<cpu::x64::sse41>>(isInverse, complex_to_complex);
-            vlen = cpu_isa_traits_t<cpu::x64::sse41>::vlen;
-            if (primDesc) {
-                primDesc->setImplementationType(jit_sse42);
-            }
         } else {
             OPENVINO_THROW("Can't create RDFT kernel");
         }
@@ -1165,7 +1158,7 @@ void RDFT::createPrimitive() {
         std::shared_ptr<RDFTExecutor> executor;
         NodeDesc* primDesc = getSelectedPrimitiveDescriptor();
 #if defined(OPENVINO_ARCH_X86_64)
-        if (mayiuse(cpu::x64::sse41)) {
+        if (mayiuse(cpu::x64::avx2)) {
             executor = std::make_shared<RDFTJitExecutor>(key.isInverse, primDesc);
             return executor;
         }
@@ -1187,7 +1180,7 @@ std::shared_ptr<RDFTExecutor> RDFTExecutor::build(bool inverse, NodeDesc* primDe
 #if defined(OPENVINO_ARCH_X86_64)
     using namespace dnnl::impl;
     using namespace dnnl::impl::cpu::x64;
-    if (mayiuse(cpu::x64::sse41)) {
+    if (mayiuse(cpu::x64::avx2)) {
         executor = std::make_shared<RDFTJitExecutor>(inverse, primDesc);
         return executor;
     }

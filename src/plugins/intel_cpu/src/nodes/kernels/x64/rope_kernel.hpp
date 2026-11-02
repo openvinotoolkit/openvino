@@ -58,11 +58,8 @@ struct jit_rotary_kernel : public JitKernel<jit_rotary_compile_params, jit_rotar
     explicit jit_rotary_kernel(const jit_rotary_compile_params& jcp) : JitKernel(jit_name(), jcp, isa) {}
 
 private:
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         isa == dnnl::impl::cpu::x64::avx2,
-                                                         Xbyak::Ymm,
-                                                         Xbyak::Zmm>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     void generate() override;
     void rotary_half(size_t step);
