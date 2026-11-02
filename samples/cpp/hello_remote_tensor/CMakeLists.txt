@@ -7,18 +7,19 @@ if(OpenVINO_SOURCE_DIR AND NOT ENABLE_INTEL_GPU)
     return()
 endif()
 
-if(NOT TARGET LevelZero::LevelZero)
+# Only the Level Zero headers are needed: the loader is opened at runtime, because it ships with the GPU driver.
+if(TARGET LevelZero::Headers)
+    set(level_zero_headers LevelZero::Headers)
+else()
     find_path(LEVEL_ZERO_INCLUDE_DIR NAMES level_zero/ze_api.h)
-    find_library(LEVEL_ZERO_LOADER NAMES ze_loader)
-    if(NOT LEVEL_ZERO_INCLUDE_DIR OR NOT LEVEL_ZERO_LOADER)
-        message(STATUS "hello_remote_tensor SKIPPED: Level Zero headers and loader are required")
+    if(NOT LEVEL_ZERO_INCLUDE_DIR)
+        message(STATUS "hello_remote_tensor SKIPPED: Level Zero headers are required")
         return()
     endif()
 
-    add_library(LevelZero::LevelZero UNKNOWN IMPORTED)
-    set_target_properties(LevelZero::LevelZero PROPERTIES
-        IMPORTED_LOCATION "${LEVEL_ZERO_LOADER}"
-        INTERFACE_INCLUDE_DIRECTORIES "${LEVEL_ZERO_INCLUDE_DIR}")
+    add_library(level_zero_headers INTERFACE IMPORTED)
+    set_target_properties(level_zero_headers PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${LEVEL_ZERO_INCLUDE_DIR}")
+    set(level_zero_headers level_zero_headers)
 endif()
 
 # OpenCL is used only to get the Level Zero context on drivers with Level Zero - OpenCL interoperability (LEO)
@@ -32,4 +33,4 @@ endif()
 
 ov_add_sample(NAME hello_remote_tensor
               SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp"
-              DEPENDENCIES format_reader ie_samples_utils LevelZero::LevelZero OpenCL::OpenCL)
+              DEPENDENCIES format_reader ie_samples_utils ${level_zero_headers} OpenCL::OpenCL ${CMAKE_DL_LIBS})

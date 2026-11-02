@@ -37,9 +37,9 @@ For more detailed information on how this sample works, check the dedicated [art
   a driver without LEO, the default context is already a Level Zero context
   (`ov::intel_gpu::ContextType::ZE`) and its handle is used directly.
 - OpenCL headers and the OpenCL ICD loader library.
-- Level Zero headers to build, and the Level Zero loader library in the system at runtime
-  (for example the `libze1` package on Ubuntu, or the loader shipped with the GPU driver
-  on Windows).
+- Level Zero headers to build. The Level Zero loader library (`libze_loader.so.1` /
+  `ze_loader.dll`) is not linked; it is loaded at runtime from the system, where it is
+  installed together with the GPU driver (or the `libze1` package on Ubuntu).
 
 The following C++ API is used in the application:
 
@@ -69,7 +69,7 @@ is `hello_remote_tensor`. For a standalone samples build, select it with
 `BUILD_SAMPLE_NAME=hello_remote_tensor`; CMake skips this target with a status
 message if Level Zero or OpenCL development files are unavailable. For nonstandard system
 installations, set `LEVEL_ZERO_INCLUDE_DIR` to the directory containing
-`level_zero/ze_api.h` and `LEVEL_ZERO_LOADER` to the loader library.
+`level_zero/ze_api.h`.
 
 After setting up the OpenVINO runtime environment, run:
 
@@ -106,10 +106,11 @@ top 10 classification results and returns a nonzero exit code on failure.
 ## Smoke tests
 
 The sample tests check invalid arguments without requiring a GPU. Set
-`IE_APP_PATH` to the directory containing the executable. Enable the
-classification tests explicitly on a machine with an Intel GPU and a LEO-capable driver:
+`IE_APP_PATH` to the directory containing the executable. The classification tests run
+on the GPU devices listed in `TEST_DEVICE` (the default device list contains no GPU, so
+they are skipped); run them on a machine with an Intel GPU and a LEO-capable driver:
 
 ```sh
 cd tests/samples_tests/smoke_tests
-TEST_LEVEL_ZERO_REMOTE_TENSORS=1 python -m pytest test_hello_remote_tensor.py
+TEST_DEVICE="GPU;GPU.0" python -m pytest test_hello_remote_tensor.py
 ```
