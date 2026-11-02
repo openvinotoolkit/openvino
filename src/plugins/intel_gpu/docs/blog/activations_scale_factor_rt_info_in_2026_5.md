@@ -4,7 +4,7 @@
 
 Some models overflow FP16 when they run on Intel GPU. The GPU plugin can fix this with **activations scaling**: it scales activations down by a factor, runs the layers in FP16, and scales the result back up. The factor is set with the `ACTIVATIONS_SCALE_FACTOR` (ASF) property. A model can also carry the factor in its IR.
 
-Up to 2026.4, the GPU plugin ignored the ASF in the IR of any LLM. OpenVINO 2026.5 changes this: the plugin applies the IR's ASF to an LLM when the value is not `8.0`. This post explains the old behavior, the change in 2026.5, and the planned final behavior.
+Up to 2026.4, the GPU plugin ignored the ASF in the IR of any LLM. OpenVINO 2026.5 changes this: the plugin applies the IR's ASF to an LLM when the value is not `8.0`. This post explains the old behavior and the change in 2026.5.
 
 ---
 
@@ -127,35 +127,15 @@ OV_ACTIVATIONS_SCALE_FACTOR=4 python your_script.py
 
 ---
 
-## Planned Final Behavior
-
-The rule "ignore 8.0" is a workaround for old IRs. The plan is:
-
-1. **Optimum Intel stops writing a default ASF.** New IRs carry an ASF only when the model is known to need it.
-2. **The GPU plugin uses the IR's ASF as it is, for every model.** The LLM check and the 8.0 check in the plugin are removed.
-
-| Model | IR has no ASF | IR has ASF |
-|---|---|---|
-| Any model | Off (default `-1.0`) | Used |
-
-Step 2 can happen only after these are done:
-
-- Old IRs that carry the default 8.0 are no longer in use. Until then, removing the 8.0 check would turn on scaling for all of them.
-- Activations scaling works correctly for the models that currently get wrong output or become slower with it.
-
----
-
 ## Summary
 
-| | Before 2026.5 | 2026.5 | Planned |
-|---|---|---|---|
-| Non-LLM, IR's ASF | Used | Used | Used |
-| LLM, IR's ASF = 8.0 | Ignored | Ignored | Used* |
-| LLM, IR's ASF != 8.0 | Ignored | **Used** | Used |
-| LLM with LoRA on GPU without XMX | Used | Used | Used |
-| User property or `OV_ACTIVATIONS_SCALE_FACTOR` | Used (highest priority) | Used (highest priority) | Used (highest priority) |
-
-\* In the final behavior, new IRs carry an ASF only when the model needs it, so "8.0" no longer means "default".
+| | Before 2026.5 | 2026.5 |
+|---|---|---|
+| Non-LLM, IR's ASF | Used | Used |
+| LLM, IR's ASF = 8.0 | Ignored | Ignored |
+| LLM, IR's ASF != 8.0 | Ignored | **Used** |
+| LLM with LoRA on GPU without XMX | Used | Used |
+| User property or `OV_ACTIVATIONS_SCALE_FACTOR` | Used (highest priority) | Used (highest priority) |
 
 ---
 
