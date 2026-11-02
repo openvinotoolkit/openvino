@@ -4,7 +4,11 @@
 import logging
 import sys
 import unittest
-from smart_ci import ComponentConfig
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
+
+from smart_ci import ComponentConfig, main
 
 log = logging.getLogger()
 log.level = logging.DEBUG
@@ -211,6 +215,90 @@ class TestComponentConfig(unittest.TestCase):
             'comp4': {'build'},
         }
         self.validate(config_data, changed_components, expected_result)
+
+
+class TestAutomationOnlyChanges(unittest.TestCase):
+    # Non-Markdown paths from the rerunner proposal PR, alongside agentic sources and documentation.
+    automation_files = [
+        '.claude/skills/ov-agentic-workflows/SKILL.md',
+        '.github/aw/actions-lock.json',
+        '.github/ci-doctor-mq/schemas/pattern.schema.json',
+        '.github/scripts/agentic-workflows/propose_rerun_pattern.py',
+        '.github/scripts/workflow_rerun/argument_parser.py',
+        '.github/scripts/workflow_rerun/errors_to_look_for.json',
+        '.github/scripts/workflow_rerun/log_analyzer.py',
+        '.github/scripts/workflow_rerun/rerunner.py',
+        '.github/scripts/workflow_rerun/tests/data/empty_errors.json',
+        '.github/scripts/workflow_rerun/tests/data/patterns/aaaa1111bbbb2222.json',
+        '.github/scripts/workflow_rerun/tests/data/patterns/cccc3333dddd4444.json',
+        '.github/scripts/workflow_rerun/tests/integration_test.py',
+        '.github/scripts/workflow_rerun/tests/log_analyzer_test.py',
+        '.github/workflows/ci-doctor-mq.md',
+        '.github/workflows/ci-doctor-mq.lock.yml',
+        '.github/workflows/ci-doctor-post-commit.lock.yml',
+        '.github/workflows/ci-doctor-remediation.lock.yml',
+        '.github/workflows/ci-doctor.lock.yml',
+        '.github/workflows/shared/agentic-workflows/propose-rerun-pattern.md',
+        '.github/workflows/workflow_rerunner.yml',
+        '.github/workflows/agentic_workflows_check.yml',
+        'docs/dev/ci/github_actions/agentic_workflows.md',
+    ]
+
+    def run_smart_ci(self, files, event='pull_request', labels=('category: CI', 'github_actions', 'category: docs'),
+                     skip_patterns='*.md,*.rst,*.png,*.jpg,*.svg'):
+        root = Path(__file__).resolve().parents[3]
+        argv = [
+            'smart_ci.py', '-r', 'openvinotoolkit/openvino', '-p', 'category: (.*)',
+            '-c', str(root / '.github/components.yml'),
+            '-m', str(root / '.github/actions/smart-ci/components_schema.yml'),
+            '-l', str(root / '.github/labeler.yml'),
+            '--skip-when-only-listed-files-changed', skip_patterns,
+            '-f', 'gh-readonly-queue/master/pr-39282-abc' if event == 'merge_group' else 'master',
+        ]
+        if event == 'pull_request':
+            argv.extend(['--pr', '39282'])
+        outputs = {}
+        pr = SimpleNamespace(labels=[SimpleNamespace(name=name) for name in labels])
+        changed_files = [SimpleNamespace(filename=name) for name in files]
+        with patch.object(sys, 'argv', argv), \
+                patch('smart_ci.GhApi') as api, \
+                patch('smart_ci.get_changeset', return_value=changed_files), \
+                patch('smart_ci.set_github_output', side_effect=outputs.__setitem__):
+            api.return_value.pulls.get.return_value = pr
+            main()
+        return outputs.get('skip_workflow') == 'True'
+
+    def test_automation_only_pr_and_merge_queue_skip(self):
+        for event in ('pull_request', 'merge_group'):
+            with self.subTest(event=event):
+                self.assertTrue(self.run_smart_ci(self.automation_files, event))
+
+    def test_no_match_label_does_not_prevent_file_based_skip(self):
+        self.assertTrue(self.run_smart_ci(self.automation_files, labels=('no-match-files',)))
+
+    def test_each_automation_path_skips_without_workflow_specific_patterns(self):
+        for path in self.automation_files[:-1]:
+            with self.subTest(path=path):
+                self.assertTrue(self.run_smart_ci([path], skip_patterns=''))
+
+    def test_mixed_product_or_ci_changes_do_not_skip(self):
+        for path in (
+            'src/core/src/model.cpp',
+            '.github/workflows/ubuntu_22.yml',
+            '.github/workflows/job_cxx_unit_tests.yml',
+            '.github/actions/smart-ci/smart_ci.py',
+            '.github/labeler.yml',
+            'unclassified-file',
+        ):
+            for event in ('pull_request', 'merge_group'):
+                with self.subTest(path=path, event=event):
+                    self.assertFalse(self.run_smart_ci(self.automation_files + [path], event))
+
+    def test_empty_changeset_does_not_skip(self):
+        self.assertFalse(self.run_smart_ci([]))
+
+    def test_postcommit_does_not_skip(self):
+        self.assertFalse(self.run_smart_ci(self.automation_files, 'push'))
 
 
 if __name__ == '__main__':
