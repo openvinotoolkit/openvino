@@ -224,9 +224,3 @@ set(OV_CORE_TESTS_TYPE_PROP_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/unsqueeze.cpp
     ${CMAKE_CURRENT_LIST_DIR}/variadic_split.cpp
 )
-
-if(ENABLE_OV_EXPERIMENTAL)
-    list(APPEND OV_CORE_TESTS_TYPE_PROP_SRCS
-        ${CMAKE_CURRENT_LIST_DIR}/block_sparse_attention.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/draft_block_mask.cpp)
-endif()

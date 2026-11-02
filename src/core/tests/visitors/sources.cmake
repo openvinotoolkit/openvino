@@ -220,9 +220,3 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/unsqueeze.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/variadic_split.cpp
 )
-
-if(ENABLE_OV_EXPERIMENTAL)
-    list(APPEND OV_CORE_TESTS_VISITORS_SRCS
-        ${CMAKE_CURRENT_LIST_DIR}/op/block_sparse_attention.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/op/draft_block_mask.cpp)
-endif()

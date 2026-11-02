@@ -6,12 +6,11 @@
 // for both the static 3-input form (seqlen/topk from attributes) and the dynamic 5-input form
 // (seqlen/topk supplied as runtime scalars).
 
-#include "openvino/op/experimental/draft_block_mask.hpp"
-
 #include <cstddef>
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "openvino/op/experimental/draft_block_mask.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/reference/draft_block_mask.hpp"
 
@@ -56,16 +55,27 @@ void run_dbm_check(bool runtime_inputs,
     if (runtime_inputs) {
         auto seqlen_in = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
         auto topk_in = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{});
-        (void)std::make_shared<DraftBlockMask>(q_windows, k_windows, local_mask_in, seqlen_in, topk_in, NUM_HEADS, BATCH);
+        (void)
+            std::make_shared<DraftBlockMask>(q_windows, k_windows, local_mask_in, seqlen_in, topk_in, NUM_HEADS, BATCH);
     } else {
         (void)std::make_shared<DraftBlockMask>(q_windows, k_windows, local_mask_in, NUM_HEADS, seqlen, topk, BATCH);
     }
 
     std::vector<T> q_f(q_data.begin(), q_data.end()), k_f(k_data.begin(), k_data.end());
     std::vector<char> mask_out(BATCH * NUM_HEADS * NQ * NK, 0);
-    ov::reference::draft_block_mask<T>(q_f.data(), k_f.data(), local_mask.data(), mask_out.data(),
-                                       NQ, NK, BLOCK_S, D, NUM_HEADS, HW, static_cast<size_t>(seqlen),
-                                       static_cast<size_t>(topk), BATCH);
+    ov::reference::draft_block_mask<T>(q_f.data(),
+                                       k_f.data(),
+                                       local_mask.data(),
+                                       mask_out.data(),
+                                       NQ,
+                                       NK,
+                                       BLOCK_S,
+                                       D,
+                                       NUM_HEADS,
+                                       HW,
+                                       static_cast<size_t>(seqlen),
+                                       static_cast<size_t>(topk),
+                                       BATCH);
 
     // The reference is now the authoritative implementation; verify the expected output size and that
     // it produced a valid (0/1) boolean mask.
@@ -87,13 +97,35 @@ TEST(DraftBlockMaskEval, static_3_input_f16) {
     std::vector<float> q_f32 = make_q_windows(), k_f32 = make_k_windows();
     std::vector<char> lm = make_local_mask();
     std::vector<char> mask_f32(BATCH * NUM_HEADS * NQ * NK, 0);
-    ov::reference::draft_block_mask<float>(q_f32.data(), k_f32.data(), lm.data(), mask_f32.data(),
-                                           NQ, NK, BLOCK_S, D, NUM_HEADS, HW, SEQLEN, TOPK, BATCH);
+    ov::reference::draft_block_mask<float>(q_f32.data(),
+                                           k_f32.data(),
+                                           lm.data(),
+                                           mask_f32.data(),
+                                           NQ,
+                                           NK,
+                                           BLOCK_S,
+                                           D,
+                                           NUM_HEADS,
+                                           HW,
+                                           SEQLEN,
+                                           TOPK,
+                                           BATCH);
 
     std::vector<ov::float16> q_f16(q_f32.begin(), q_f32.end()), k_f16(k_f32.begin(), k_f32.end());
     std::vector<char> mask_f16(BATCH * NUM_HEADS * NQ * NK, 0);
-    ov::reference::draft_block_mask<ov::float16>(q_f16.data(), k_f16.data(), lm.data(), mask_f16.data(),
-                                                 NQ, NK, BLOCK_S, D, NUM_HEADS, HW, SEQLEN, TOPK, BATCH);
+    ov::reference::draft_block_mask<ov::float16>(q_f16.data(),
+                                                 k_f16.data(),
+                                                 lm.data(),
+                                                 mask_f16.data(),
+                                                 NQ,
+                                                 NK,
+                                                 BLOCK_S,
+                                                 D,
+                                                 NUM_HEADS,
+                                                 HW,
+                                                 SEQLEN,
+                                                 TOPK,
+                                                 BATCH);
     EXPECT_EQ(mask_f16, mask_f32);
 }
 
@@ -105,21 +137,27 @@ TEST(DraftBlockMaskEval, runtime_5_input_uses_runtime_topk) {
     // topk=2 keeps strictly more blocks than topk=1, so popcount must be greater -- proving the
     // runtime topk value is actually honored rather than ignored.
     std::vector<float> q(NQ * BLOCK_S * D);
-    for (size_t i = 0; i < q.size(); ++i) q[i] = 0.1f * static_cast<float>(i + 1);
+    for (size_t i = 0; i < q.size(); ++i)
+        q[i] = 0.1f * static_cast<float>(i + 1);
     std::vector<float> k(NK * BLOCK_S * D);
-    for (size_t i = 0; i < k.size(); ++i) k[i] = 0.05f * static_cast<float>(i + 1);
+    for (size_t i = 0; i < k.size(); ++i)
+        k[i] = 0.05f * static_cast<float>(i + 1);
     std::vector<char> lm(HW * HW, 1);
     std::vector<char> mask_topk1(BATCH * NUM_HEADS * NQ * NK, 0);
     std::vector<char> mask_topk2(BATCH * NUM_HEADS * NQ * NK, 0);
 
-    ov::reference::draft_block_mask<float>(q.data(), k.data(), lm.data(), mask_topk1.data(),
-                                           NQ, NK, BLOCK_S, D, NUM_HEADS, HW, SEQLEN, 1, BATCH);
-    ov::reference::draft_block_mask<float>(q.data(), k.data(), lm.data(), mask_topk2.data(),
-                                           NQ, NK, BLOCK_S, D, NUM_HEADS, HW, SEQLEN, 2, BATCH);
+    ov::reference::draft_block_mask<
+        float>(q.data(), k.data(), lm.data(), mask_topk1.data(), NQ, NK, BLOCK_S, D, NUM_HEADS, HW, SEQLEN, 1, BATCH);
+    ov::reference::draft_block_mask<
+        float>(q.data(), k.data(), lm.data(), mask_topk2.data(), NQ, NK, BLOCK_S, D, NUM_HEADS, HW, SEQLEN, 2, BATCH);
 
     size_t count1 = 0, count2 = 0;
-    for (char c : mask_topk1) if (c) count1++;
-    for (char c : mask_topk2) if (c) count2++;
+    for (char c : mask_topk1)
+        if (c)
+            count1++;
+    for (char c : mask_topk2)
+        if (c)
+            count2++;
     EXPECT_GT(count2, count1);
     EXPECT_EQ(count1, 1 * NUM_HEADS);
     EXPECT_EQ(count2, 2 * NUM_HEADS);

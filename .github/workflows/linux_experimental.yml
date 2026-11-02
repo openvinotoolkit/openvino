@@ -20,7 +20,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: 'recursive'
       - name: Install dependencies
@@ -34,14 +34,14 @@ jobs:
         run: |
           cmake -S . -B build_parity \
             -DENABLE_OV_EXPERIMENTAL=OFF \
-            -DENABLE_TESTS=OFF \
+            -DENABLE_TESTS=ON \
             -DENABLE_INTEL_GPU=ON \
             -DENABLE_INTEL_CPU=OFF \
             -DENABLE_INTEL_NPU=OFF \
             -DCMAKE_BUILD_TYPE=Release
       - name: Build (experimental OFF)
         run: |
-          cmake --build build_parity -j $(nproc)
+          cmake --build build_parity --target openvino openvino_intel_gpu_plugin ov_core_unit_tests -j $(nproc)
       - name: Run experimental parity check
         run: |
           bash scripts/check_experimental_parity.sh build_parity
@@ -53,7 +53,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: 'recursive'
       - name: Install dependencies
@@ -82,7 +82,7 @@ jobs:
           FILTER="*BlockSparseAttention*:*DraftBlockMask*:*block_sparse_attention*:*draft_block_mask*"
           MATCHED_COUNT=$("${BIN}" --gtest_filter="${FILTER}" --gtest_list_tests | grep -cE '^\s+\S')
           echo "Matched ${MATCHED_COUNT} core experimental tests"
-          [ "${MATCHED_COUNT}" -ge 33 ] || { echo "Expected >= 33 tests (16+13 type_prop, 2+2 visitors), got ${MATCHED_COUNT}"; exit 1; }
+          [ "${MATCHED_COUNT}" -ge 41 ] || { echo "Expected >= 41 tests (16+13 type_prop, 2+2 visitors, 4+4 eval), got ${MATCHED_COUNT}"; exit 1; }
           "${BIN}" --gtest_filter="${FILTER}"
       - name: Verify GPU Experimental Tests Registration
         shell: bash

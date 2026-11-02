@@ -29,7 +29,10 @@ void check_bsa_eval(const ov::element::Type& dt,
                     int64_t block_size_q,
                     int64_t block_size_kv,
                     bool causal) {
-    ov::TensorVector in{ov::Tensor(dt, q_shape), ov::Tensor(dt, k_shape), ov::Tensor(dt, v_shape), ov::Tensor(ov::element::boolean, mask_shape)};
+    ov::TensorVector in{ov::Tensor(dt, q_shape),
+                        ov::Tensor(dt, k_shape),
+                        ov::Tensor(dt, v_shape),
+                        ov::Tensor(ov::element::boolean, mask_shape)};
     // Fill input tensors with the test data (cast to the tensor's element type).
     auto fill = [&](ov::Tensor& t, const std::vector<float>& data) {
         if (dt == ov::element::f32) {
@@ -66,9 +69,19 @@ void check_bsa_eval(const ov::element::Type& dt,
                                               static_cast<const T*>(in[2].data()),
                                               mask_data.data(),
                                               typed_ref.data(),
-                                              B, Lq, Lk, Hq, Hkv, E, Ev, Bm, Hm,
-                                              static_cast<size_t>(block_size_q), static_cast<size_t>(block_size_kv),
-                                              scale, causal);
+                                              B,
+                                              Lq,
+                                              Lk,
+                                              Hq,
+                                              Hkv,
+                                              E,
+                                              Ev,
+                                              Bm,
+                                              Hm,
+                                              static_cast<size_t>(block_size_q),
+                                              static_cast<size_t>(block_size_kv),
+                                              scale,
+                                              causal);
         for (size_t i = 0; i < out_count; ++i)
             ref[i] = static_cast<float>(typed_ref[i]);
     };
@@ -111,8 +124,8 @@ TEST(BlockSparseAttentionEval, single_query_dense_f32) {
     const float v[] = {1.0f, 1.0f, 2.0f, 2.0f};
     const char m[] = {1};
     std::vector<float> out(2);
-    ov::reference::block_sparse_attention(q, k, v, m, out.data(),
-                                          1, 1, 2, 1, 1, 2, 2, 1, 1, 2, 2, 1.0f / std::sqrt(2.0f), false);
+    ov::reference::
+        block_sparse_attention(q, k, v, m, out.data(), 1, 1, 2, 1, 1, 2, 2, 1, 1, 2, 2, 1.0f / std::sqrt(2.0f), false);
     EXPECT_NEAR(out[0], 1.4125f, 1e-3f);
     EXPECT_NEAR(out[1], 1.4125f, 1e-3f);
 }
@@ -138,17 +151,59 @@ TEST(BlockSparseAttentionEval, prefill_sparse_block_single_query_f32) {
 
     // Dispatch each element type.
     for (const auto& dt : {ov::element::f32, ov::element::f16, ov::element::bf16}) {
-        check_bsa_eval(dt, {B, Lq, Hq, E}, {B, Lk, Hkv, E}, {B, Lk, Hkv, Ev}, {B, Hq, num_q_blocks, num_k_blocks},
-                       q, k, v, mask, 2, 2, false);
+        check_bsa_eval(dt,
+                       {B, Lq, Hq, E},
+                       {B, Lk, Hkv, E},
+                       {B, Lk, Hkv, Ev},
+                       {B, Hq, num_q_blocks, num_k_blocks},
+                       q,
+                       k,
+                       v,
+                       mask,
+                       2,
+                       2,
+                       false);
     }
 
     // Explicitly verify masked sparse output differs from dense (all-1) mask output
     std::vector<char> dense_mask(B * Hq * num_q_blocks * num_k_blocks, 1);
     std::vector<float> sparse_out(B * Lq * Hq * Ev), dense_out(B * Lq * Hq * Ev);
-    ov::reference::block_sparse_attention(q.data(), k.data(), v.data(), mask.data(), sparse_out.data(),
-                                          B, Lq, Lk, Hq, Hkv, E, Ev, B, Hq, 2, 2, 0.5f, false);
-    ov::reference::block_sparse_attention(q.data(), k.data(), v.data(), dense_mask.data(), dense_out.data(),
-                                          B, Lq, Lk, Hq, Hkv, E, Ev, B, Hq, 2, 2, 0.5f, false);
+    ov::reference::block_sparse_attention(q.data(),
+                                          k.data(),
+                                          v.data(),
+                                          mask.data(),
+                                          sparse_out.data(),
+                                          B,
+                                          Lq,
+                                          Lk,
+                                          Hq,
+                                          Hkv,
+                                          E,
+                                          Ev,
+                                          B,
+                                          Hq,
+                                          2,
+                                          2,
+                                          0.5f,
+                                          false);
+    ov::reference::block_sparse_attention(q.data(),
+                                          k.data(),
+                                          v.data(),
+                                          dense_mask.data(),
+                                          dense_out.data(),
+                                          B,
+                                          Lq,
+                                          Lk,
+                                          Hq,
+                                          Hkv,
+                                          E,
+                                          Ev,
+                                          B,
+                                          Hq,
+                                          2,
+                                          2,
+                                          0.5f,
+                                          false);
     bool any_diff = false;
     for (size_t i = 0; i < sparse_out.size(); ++i) {
         if (std::abs(sparse_out[i] - dense_out[i]) > 1e-4f) {
@@ -183,8 +238,24 @@ TEST(BlockSparseAttentionEval, single_query_causal_f32) {
     const float v_data[] = {3.0f, -1.0f, 1.0f, 1.0f, 2.0f, 0.0f, -2.0f, 2.0f};
     const char m_data[] = {1, 1};
     std::vector<float> causal_ref(1 * 1 * 1 * 2);
-    ov::reference::block_sparse_attention(q_data, k_data, v_data, m_data, causal_ref.data(),
-                                          1, 1, 4, 1, 1, 2, 2, 1, 1, 2, 2, 1.0f, true);
+    ov::reference::block_sparse_attention(q_data,
+                                          k_data,
+                                          v_data,
+                                          m_data,
+                                          causal_ref.data(),
+                                          1,
+                                          1,
+                                          4,
+                                          1,
+                                          1,
+                                          2,
+                                          2,
+                                          1,
+                                          1,
+                                          2,
+                                          2,
+                                          1.0f,
+                                          true);
     EXPECT_FLOAT_EQ(causal_ref[0], 3.0f);
     EXPECT_FLOAT_EQ(causal_ref[1], -1.0f);
 }
@@ -200,8 +271,24 @@ TEST(BlockSparseAttentionEval, five_input_runtime_scale) {
     const size_t B = 1, Lq = 1, Hq = 1, E = 2, Lk = 2, Hkv = 1, Ev = 2, Bm = 1, Hm = 1;
     const size_t out_count = B * Lq * Hq * Ev;
     std::vector<float> ref(out_count);
-    ov::reference::block_sparse_attention(q.data(), k.data(), v.data(), mask.data(), ref.data(),
-                                          B, Lq, Lk, Hq, Hkv, E, Ev, Bm, Hm, 2, 2, runtime_scale, false);
+    ov::reference::block_sparse_attention(q.data(),
+                                          k.data(),
+                                          v.data(),
+                                          mask.data(),
+                                          ref.data(),
+                                          B,
+                                          Lq,
+                                          Lk,
+                                          Hq,
+                                          Hkv,
+                                          E,
+                                          Ev,
+                                          Bm,
+                                          Hm,
+                                          2,
+                                          2,
+                                          runtime_scale,
+                                          false);
 
     EXPECT_EQ(ref.size(), out_count);
     for (size_t i = 0; i < ref.size(); ++i)
@@ -209,7 +296,23 @@ TEST(BlockSparseAttentionEval, five_input_runtime_scale) {
 
     // Verify scale 0.25f produces different softmax distribution than default scale 1/sqrt(2) = 0.7071f
     std::vector<float> ref_default(out_count);
-    ov::reference::block_sparse_attention(q.data(), k.data(), v.data(), mask.data(), ref_default.data(),
-                                          B, Lq, Lk, Hq, Hkv, E, Ev, Bm, Hm, 2, 2, 1.0f / std::sqrt(2.0f), false);
+    ov::reference::block_sparse_attention(q.data(),
+                                          k.data(),
+                                          v.data(),
+                                          mask.data(),
+                                          ref_default.data(),
+                                          B,
+                                          Lq,
+                                          Lk,
+                                          Hq,
+                                          Hkv,
+                                          E,
+                                          Ev,
+                                          Bm,
+                                          Hm,
+                                          2,
+                                          2,
+                                          1.0f / std::sqrt(2.0f),
+                                          false);
     EXPECT_NE(ref[0], ref_default[0]);
 }
