@@ -405,6 +405,15 @@ TEST_F(HeteroHsmBlobTests, sub_device_tensor_import_error_is_not_retried_through
     EXPECT_EQ(0u, mock_hsm_import().stream_imports);
 }
 
+TEST_P(HeteroHsmBlobVariantTests, import_from_stream_stops_at_the_end_of_the_container) {
+    const auto variant = export_variant(GetParam());
+    std::stringstream stream(variant.blob + "tail");
+
+    ASSERT_NO_THROW(core.import_model(stream, ov::test::utils::DEVICE_HETERO, {}));
+
+    EXPECT_EQ(static_cast<std::streampos>(variant.blob.size()), stream.tellg());
+}
+
 TEST_P(HeteroHsmBlobVariantTests, unknown_sections_are_skipped) {
     const auto blob = hsm_repack(variant.blob, [](std::vector<HsmEntry>& entries) {
         entries.push_back({runtime::hsm::any_device_id,

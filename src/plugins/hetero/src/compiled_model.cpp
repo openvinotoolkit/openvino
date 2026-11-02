@@ -41,6 +41,16 @@ bool device_imports_tensor(const std::shared_ptr<ov::ICore>& core, const std::st
                               ov::internal::caching_with_mmap);
 }
 
+// Like a legacy blob read, an import leaves the stream right after the blob.
+// The header was validated by the reader.
+void seek_to_container_end(std::istream& stream, std::streampos start) {
+    ov::runtime::hsm::Header header{};
+    stream.clear();
+    stream.seekg(start);
+    stream.read(reinterpret_cast<char*>(&header), sizeof(header));
+    stream.seekg(start + static_cast<std::streamoff>(header.container_size));
+}
+
 ov::SoPtr<ov::ICompiledModel> import_submodel_blob(const std::shared_ptr<ov::ICore>& core,
                                                    const std::string& device,
                                                    const ov::AnyMap& load_config,
@@ -377,6 +387,7 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     const auto start = model.tellg();
     if (auto reader = ov::runtime::hsm::Reader::open(model)) {
         import_container(*reader, HsmBlobSource{&model, start, {}});
+        seek_to_container_end(model, start);
         return;
     }
     // Not an HSM container: rewind and read the legacy layout. A non-seekable stream was not consumed.
