@@ -1311,14 +1311,17 @@ DQLiftGatherCW::DQLiftGatherCW() {
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherCW"), std::move(callback));
 }
 
-// Identify a Gather+DQ Sym GQ MatMul pattern, lift Gather up
+// Identify a Gather+DQ GQ MatMul pattern (zero point is optional), lift Gather up
 // Note(1): this pattern is applied on the full model before any partitioning
-// Note(2): here's a difference, the new lifted Gathers stay behind Convert(W) & Convert(S)
+// Note(2): here's a difference, the new lifted Gathers stay behind Convert(W) & Convert(Z)
 DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+    auto qsubz = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), qcvtz->output(0)});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qcoeff});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qmuls, opp::any_input()});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qreshp});
 
@@ -1345,7 +1348,18 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
         auto new_g_w = std::make_shared<ov::op::v8::Gather>(new_cvt_w, matched_out_ids, gather_c);
         auto new_g_s = std::make_shared<ov::op::v8::Gather>(matched_out_s, matched_out_ids, gather_c);
 
-        auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_g_w, new_g_s);
+        std::shared_ptr<ov::Node> new_dq = new_g_w;
+        if (node_to_output.count(qzerop)) {
+            const auto matched_out_z = node_to_output.at(qzerop);
+            std::shared_ptr<ov::Node> new_z = std::make_shared<ov::op::v0::Convert>(matched_out_z, ov::element::f16);
+            // A zero point broadcast over the vocab rows (a scalar or a single row) has no rows to gather
+            if (matched_out_z.get_shape().size() == matched_out_w.get_shape().size() &&
+                matched_out_z.get_shape()[0] == matched_out_w.get_shape()[0]) {
+                new_z = std::make_shared<ov::op::v8::Gather>(new_z, matched_out_ids, gather_c);
+            }
+            new_dq = std::make_shared<ov::op::v1::Subtract>(new_g_w, new_z);
+        }
+        auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_dq, new_g_s);
 
         auto new_rshp_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32,
                                                                  ov::Shape{matched_gather_shape.size()},
@@ -1797,7 +1811,8 @@ HostGather::HostGather(Context::Ref ctx) {
 }
 
 // Identify the case* where the gather is applied on a compressed
-// (symmetric) vocab tensor. Both CW and GQ paths are supported.
+// vocab tensor. Both CW and GQ paths are supported. The zero point is
+// only supported for u2 GQ weights.
 //
 // FIXME: This may be inefficient: 4x-es the memory consumption
 // due to i4-to-fp16 conversion.
@@ -1809,12 +1824,17 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
 
+    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtc = opp::optional<ov::op::v0::Convert>({qcoeff->output(0)});
 
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qcvtw, ids.minids, opp::any_input()});
+    auto qgthrz = opp::wrap_type<ov::op::v8::Gather>({qcvtz, ids.minids, opp::any_input()});
     auto qgthrc = opp::wrap_type<ov::op::v8::Gather>({qcvtc, ids.minids, opp::any_input()});
-    auto qmul = opp::wrap_type<ov::op::v1::Multiply>({qgthrw, qgthrc});
+    auto qsubz = opp::optional<ov::op::v1::Subtract>({qgthrw->output(0), qgthrz->output(0)});
+    auto qmul = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrc});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -1838,9 +1858,21 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
-        if (out_len >= 2048 && (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
-                                qweight_type == ov::element::nf4 || qweight_type == ov::element::f8e4m3 ||
-                                qweight_type == ov::element::f8e5m2 || qweight_type == ov::element::f8e8m0)) {
+        const auto matched_qzerop = find_matched_param(node_to_output, qzerop);
+        // util::unpack of u2 weights asserts f16 scales
+        const bool is_supported_weight =
+            matched_qzerop
+                ? is_group_quantized_weight(
+                      std::static_pointer_cast<ov::op::v0::Parameter>(matched_out_qweight.get_node_shared_ptr()),
+                      matched_qzerop,
+                      node_to_output.at(qcoeff).get_shape(),
+                      false) &&
+                      node_to_output.at(qcoeff).get_element_type() == ov::element::f16
+                : (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
+                   qweight_type == ov::element::nf4 || qweight_type == ov::element::f8e4m3 ||
+                   qweight_type == ov::element::f8e5m2 || qweight_type == ov::element::f8e8m0);
+
+        if (out_len >= 2048 && is_supported_weight) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
@@ -1849,7 +1881,9 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
-            auto fp16vocab = ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
+            auto fp16vocab = matched_qzerop
+                                 ? ctx.get().unpack(matched_qweight, matched_qzerop, matched_qcoeff, ov::element::f16)
+                                 : ctx.get().unpack(matched_qweight, matched_qcoeff, ov::element::f16);
             auto new_param = ctx.get().host_gather(fp16vocab, matched_ids);
             for (auto&& r : matched_out_mul.get_target_inputs()) {
                 r.replace_source_output(new_param);
