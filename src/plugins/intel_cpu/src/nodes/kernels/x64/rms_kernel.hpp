@@ -45,11 +45,8 @@ struct jit_rms_kernel : public JitKernel<jit_rms_compile_params, jit_rms_call_ar
 
 private:
     using Xmm = Xbyak::Xmm;
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         isa == dnnl::impl::cpu::x64::avx2,
-                                                         Xbyak::Ymm,
-                                                         Xbyak::Zmm>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     void generate() override;
     void load(const Vmm& vmm_dst,

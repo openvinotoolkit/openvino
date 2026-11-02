@@ -182,7 +182,7 @@ void PhiloxGenerator<x64::avx512_core>::initVectors() {
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void PhiloxGenerator<isa>::initVectors() {
     const auto r64_aux = getReg64();
 
@@ -507,7 +507,7 @@ void PhiloxGenerator<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, c
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void PhiloxGenerator<isa>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
         for (size_t i = 0LU; i < v_src.size(); i++) {
@@ -791,7 +791,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void MersenneTwisterGenerator<isa>::initVectors() {
     const auto r64_aux = getReg64();
 
@@ -855,7 +855,7 @@ void MersenneTwisterGenerator<isa>::process() {
 
 template <>
 void MersenneTwisterGenerator<x64::avx512_core>::generateRandomNumbers() {
-    // Difference between this implementation and SSE41/AVX2 is
+    // Difference between this implementation and AVX2 is
     // uni_vmovdqu -> vmovdqu32, uni fails with incorrect EVEX
     // Other functions work just fine
     const auto v_aux = getVmm();
@@ -888,7 +888,7 @@ void MersenneTwisterGenerator<x64::avx512_core>::generateRandomNumbers() {
     vpxord(v_result, v_result, v_aux);  // x ^= tmp
 }
 
-template <x64::cpu_isa_t isa>  // Works for SSE41, AVX2
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void MersenneTwisterGenerator<isa>::generateRandomNumbers() {
     const auto v_aux = getVmm();
 
@@ -1183,7 +1183,7 @@ void MersenneTwisterGenerator<x64::avx2>::convertToOutputTypeMersenne() {
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void MersenneTwisterGenerator<isa>::convertToOutputTypeMersenne() {
     if (m_jcp.out_data_type == element::f32) {
         // Apply mask and divisor
@@ -1372,7 +1372,7 @@ void MersenneTwisterGenerator<x64::avx2>::storeResults() {
     }
 }
 
-template <x64::cpu_isa_t isa>  // Works for SSE41
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void MersenneTwisterGenerator<isa>::storeResults() {
     const auto r64_aux = getReg64();
 
@@ -1384,7 +1384,7 @@ void MersenneTwisterGenerator<isa>::storeResults() {
         cmovg(r64_aux, r64_storage_capacity);
         store(ptr[r64_dst], v_result, r64_aux, m_jcp.out_data_type.size());
     } else if (m_jcp.out_data_type.size() == sizeof(uint16_t)) {
-        // SSE41 does not support 16 bit value transfer
+        // i16 enablement
         OPENVINO_THROW("RandomUniform kernel does not support precision ",
                        m_jcp.out_data_type,
                        " for ",
@@ -1405,11 +1405,9 @@ void MersenneTwisterGenerator<isa>::storeResults() {
 
 template class PhiloxGenerator<x64::avx512_core>;
 template class PhiloxGenerator<x64::avx2>;
-template class PhiloxGenerator<x64::sse41>;
 
 template class MersenneTwisterGenerator<x64::avx512_core>;
 template class MersenneTwisterGenerator<x64::avx2>;
-template class MersenneTwisterGenerator<x64::sse41>;
 
 #undef INIT_ARR
 #undef BROADCAST_PARAM

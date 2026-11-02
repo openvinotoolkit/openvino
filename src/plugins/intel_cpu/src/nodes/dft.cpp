@@ -588,8 +588,6 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
             dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::avx512_core>>();
         } else if (ov::with_cpu_x86_avx2()) {
             dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::avx2>>();
-        } else if (ov::with_cpu_x86_sse42()) {
-            dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::sse41>>();
         } else {
             CPU_NODE_THROW("Can't create jit DFT kernel");
         }
@@ -604,8 +602,6 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
             fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::avx512_core>>();
         } else if (ov::with_cpu_x86_avx2()) {
             fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::avx2>>();
-        } else if (ov::with_cpu_x86_sse42()) {
-            fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::sse41>>();
         } else {
             CPU_NODE_THROW("Can't create jit FFT kernel");
         }
@@ -640,7 +636,7 @@ void DFT::createPrimitive() {
             }
         }
     }
-    if (ov::with_cpu_x86_sse42()) {
+    if (ov::with_cpu_x86_avx2()) {
         createJITKernels(hasDFT, hasFFT);
     }
     Node::createPrimitive();
