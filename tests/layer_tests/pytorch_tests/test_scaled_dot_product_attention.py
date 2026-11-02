@@ -366,73 +366,125 @@ class TestScaledDotProductAttentionGQAGraph:
 
 
 class TestScaledDotProductAttentionGQAKVCacheFusion:
-    """Check that the converted enable_gqa attention fuses with a stateful KV cache on CPU.
+    """Check the converted enable_gqa attention over a stateful KV cache on CPU.
 
     The attention over the present key/value is converted from PyTorch; a KV cache (ReadValue -> Gather(beam_idx)
     -> Concat -> Assign) is then put in place of the present key/value inputs. StatefulSDPAFusion must turn the
-    result into one ScaledDotProductAttention node that reads the un-repeated cache, with the same outputs as torch.
+    result into one ScaledDotProductAttention node that reads the un-repeated cache; the layouts that node can't
+    execute must still compile. Either way the outputs match torch.
     """
 
     class aten_sdpa_gqa(torch.nn.Module):
-        def forward(self, query, present_key, present_value):
-            return torch.nn.functional.scaled_dot_product_attention(query, present_key, present_value, enable_gqa=True)
+        def __init__(self, scale=None):
+            super().__init__()
+            self.scale = scale
+
+        def forward(self, query, present_key, present_value, attn_mask=None):
+            return torch.nn.functional.scaled_dot_product_attention(query, present_key, present_value,
+                                                                    attn_mask=attn_mask, scale=self.scale,
+                                                                    enable_gqa=True)
 
     @staticmethod
-    def _make_stateful_model(num_q_heads, num_kv_heads, head_size):
+    def _make_stateful_model(heads, head_size, prefix=(), scale=None, with_mask=False):
         import openvino.opset13 as ops
         from openvino import op
 
-        example = (torch.randn(1, num_q_heads, 2, head_size),
-                   torch.randn(1, num_kv_heads, 5, head_size),
-                   torch.randn(1, num_kv_heads, 5, head_size))
-        shapes = [ov.PartialShape([-1, heads, -1, head_size]) for heads in (num_q_heads, num_kv_heads, num_kv_heads)]
-        attention = ov.convert_model(TestScaledDotProductAttentionGQAKVCacheFusion.aten_sdpa_gqa(),
-                                     example_input=example, input=shapes)
-        query, present_key, present_value = attention.get_parameters()
+        num_q_heads, num_k_heads, num_v_heads = heads
+        lead = [1, *prefix]
+        example = [torch.randn(*lead, num_q_heads, 2, head_size),
+                   torch.randn(*lead, num_k_heads, 5, head_size),
+                   torch.randn(*lead, num_v_heads, 5, head_size)]
+        shapes = [ov.PartialShape([-1, *prefix, h, -1, head_size]) for h in heads]
+        if with_mask:
+            example.append(torch.randn(1, 1, 2, 5))
+            shapes.append(ov.PartialShape([1, 1, -1, -1]))
+        attention = ov.convert_model(TestScaledDotProductAttentionGQAKVCacheFusion.aten_sdpa_gqa(scale),
+                                     example_input=tuple(example), input=shapes)
+        query, present_key, present_value, *mask = attention.get_parameters()
         query.output(0).get_tensor().set_names({"query"})
-        key = ops.parameter([-1, num_kv_heads, -1, head_size], np.float32, name="key")
-        value = ops.parameter([-1, num_kv_heads, -1, head_size], np.float32, name="value")
+        if mask:
+            mask[0].output(0).get_tensor().set_names({"attn_mask"})
+        key = ops.parameter([-1, *prefix, num_k_heads, -1, head_size], np.float32, name="key")
+        value = ops.parameter([-1, *prefix, num_v_heads, -1, head_size], np.float32, name="value")
         beam_idx = ops.parameter([-1], np.int32, name="beam_idx")
         batch = ops.gather(ops.shape_of(query), ops.constant([0]), ops.constant(0))
         assigns = []
-        for present, current, name in ((present_key, key, "past_key"), (present_value, value, "past_value")):
+        for present, current, num_heads, name in ((present_key, key, num_k_heads, "past_key"),
+                                                  (present_value, value, num_v_heads, "past_value")):
             info = op.util.VariableInfo()
-            info.data_shape = ov.PartialShape([-1, num_kv_heads, -1, head_size])
+            info.data_shape = ov.PartialShape([-1, *prefix, num_heads, -1, head_size])
             info.data_type = ov.Type.f32
             info.variable_id = name
             cache_variable = op.util.Variable(info)
-            empty = ops.broadcast(ops.constant(np.float32(0)),
-                                  ops.concat([batch, ops.constant([num_kv_heads, 0, head_size], dtype=np.int64)], 0))
+            empty_shape = ops.concat([batch, ops.constant([*prefix, num_heads, 0, head_size], dtype=np.int64)], 0)
+            empty = ops.broadcast(ops.constant(np.float32(0)), empty_shape)
             past = ops.gather(ops.read_value(empty, cache_variable), beam_idx, ops.constant(0))
-            cache = ops.concat([past, current], 2)
+            cache = ops.concat([past, current], len(prefix) + 2)
             present.output(0).replace(cache.output(0))
             assigns.append(ops.assign(cache, cache_variable))
-        return ov.Model(attention.get_results(), assigns, [query, key, value, beam_idx], "gqa_kv_cache")
+        return ov.Model(attention.get_results(), assigns, [query, key, value, beam_idx, *mask], "gqa_kv_cache")
 
-    @pytest.mark.nightly
-    @pytest.mark.precommit
-    @pytest.mark.parametrize("num_kv_heads", [2, 1])
-    def test_scaled_dot_product_atten_gqa_kv_cache_fusion(self, ie_device, precision, num_kv_heads):
-        if ie_device != "CPU" or precision != "FP32":
-            pytest.skip("checks the CPU KV-cache fusion")
-        num_q_heads, head_size = 8, 64
-        model = self._make_stateful_model(num_q_heads, num_kv_heads, head_size)
-        compiled = ov.Core().compile_model(model, ie_device, {"INFERENCE_PRECISION_HINT": "f32",
-                                                              "KV_CACHE_PRECISION": "f32"})
-        op_types = [node.get_rt_info()["layerType"].astype(str) for node in compiled.get_runtime_model().get_ops()]
-        assert op_types.count("ScaledDotProductAttention") == 1, op_types
-        assert not {"MatMul", "Softmax", "Subgraph"} & set(op_types), op_types
-
+    @staticmethod
+    def _check_outputs(compiled, heads, head_size, prefix=(), scale=None, with_mask=False):
+        # Prefill, then one decode step over the cache; every output must match torch.
+        num_q_heads, num_k_heads, num_v_heads = heads
         request = compiled.create_infer_request()
         rng = np.random.RandomState(0)
         keys, values = [], []
-        for length in (5, 1):  # prefill, then one decode step over the cache
-            query = rng.randn(1, num_q_heads, length, head_size).astype(np.float32)
-            keys.append(rng.randn(1, num_kv_heads, length, head_size).astype(np.float32))
-            values.append(rng.randn(1, num_kv_heads, length, head_size).astype(np.float32))
-            out = request.infer({"query": query, "key": keys[-1], "value": values[-1],
-                                 "beam_idx": np.zeros(1, dtype=np.int32)})[0]
+        for length in (5, 1):
+            inputs = {"query": rng.randn(1, *prefix, num_q_heads, length, head_size).astype(np.float32),
+                      "key": rng.randn(1, *prefix, num_k_heads, length, head_size).astype(np.float32),
+                      "value": rng.randn(1, *prefix, num_v_heads, length, head_size).astype(np.float32),
+                      "beam_idx": np.zeros(1, dtype=np.int32)}
+            keys.append(inputs["key"])
+            values.append(inputs["value"])
+            mask = None
+            if with_mask:
+                inputs["attn_mask"] = rng.randn(1, 1, length, sum(k.shape[-2] for k in keys)).astype(np.float32)
+                mask = torch.from_numpy(inputs["attn_mask"])
+            out = request.infer(inputs)[0]
             ref = torch.nn.functional.scaled_dot_product_attention(
-                torch.from_numpy(query), torch.from_numpy(np.concatenate(keys, 2)),
-                torch.from_numpy(np.concatenate(values, 2)), enable_gqa=True).numpy()
+                torch.from_numpy(inputs["query"]), torch.from_numpy(np.concatenate(keys, -2)),
+                torch.from_numpy(np.concatenate(values, -2)), attn_mask=mask, scale=scale, enable_gqa=True).numpy()
             np.testing.assert_allclose(out, ref, atol=1e-5, rtol=1e-5)
+
+    @staticmethod
+    def _compile(model, ie_device):
+        compiled = ov.Core().compile_model(model, ie_device, {"INFERENCE_PRECISION_HINT": "f32",
+                                                              "KV_CACHE_PRECISION": "f32"})
+        op_types = [node.get_rt_info()["layerType"].astype(str) for node in compiled.get_runtime_model().get_ops()]
+        return compiled, op_types
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("num_kv_heads,scale,with_mask", [(2, None, False), (1, None, False), (2, 0.125, True)])
+    def test_scaled_dot_product_atten_gqa_kv_cache_fusion(self, ie_device, precision, num_kv_heads, scale, with_mask):
+        if ie_device != "CPU" or precision != "FP32":
+            pytest.skip("checks the CPU KV-cache fusion")
+        heads, head_size = (8, num_kv_heads, num_kv_heads), 64
+        model = self._make_stateful_model(heads, head_size, scale=scale, with_mask=with_mask)
+        compiled, op_types = self._compile(model, ie_device)
+        assert op_types.count("ScaledDotProductAttention") == 1, op_types
+        assert not {"MatMul", "Softmax", "Subgraph"} & set(op_types), op_types
+        self._check_outputs(compiled, heads, head_size, scale=scale, with_mask=with_mask)
+
+    # Layouts the fused CPU node can't execute: they must compile and match torch.
+    # name -> (heads (Hq, Hk, Hv), prefix dimensions, scale, with_mask)
+    FALLBACK_CASES = {
+        "rank5": ((8, 2, 2), (3,), None, False),
+        "hk_ne_hv": ((8, 2, 4), (), None, False),
+        "zero_scale": ((8, 2, 2), (), 0.0, True),
+        "scale_without_mask": ((8, 2, 2), (), 0.125, False),
+    }
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("case", list(FALLBACK_CASES))
+    def test_scaled_dot_product_atten_gqa_kv_cache_fallback(self, ie_device, precision, case):
+        if ie_device != "CPU" or precision != "FP32":
+            pytest.skip("checks the CPU KV-cache fusion")
+        heads, prefix, scale, with_mask = self.FALLBACK_CASES[case]
+        head_size = 64
+        model = self._make_stateful_model(heads, head_size, prefix, scale, with_mask)
+        compiled, _ = self._compile(model, ie_device)
+        self._check_outputs(compiled, heads, head_size, prefix, scale, with_mask)
