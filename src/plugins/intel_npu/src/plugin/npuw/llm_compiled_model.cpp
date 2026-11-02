@@ -24,6 +24,7 @@
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
+#include "npuw_transformations/mask_linear_attention_padding.hpp"
 #include "npuw_transformations/optimize_lincache_layout.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
@@ -101,6 +102,14 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
         return true;
     }
     return false;
+}
+
+bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
+    const std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "mode"};
+    if (!model->has_rt_info(rt_info_path)) {
+        return false;
+    }
+    return model->get_rt_info<std::string>(rt_info_path).find("int8") != std::string::npos;
 }
 
 struct NPUDesc {
@@ -392,7 +401,7 @@ void update_config_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
 }
 
-void disable_ws_for_whisper(ov::AnyMap& config) {
+void disable_ws_for_int8_whisper(ov::AnyMap& config) {
     config.erase("NPUW_FUNCALL_FOR_ALL");
     config.erase("NPUW_FOLD");
     config.erase("NPUW_FOLD_ONLY");
@@ -1085,6 +1094,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                   0,
                                   true)
             .run_on_model(prefill_model);
+
+        // A partial chunk is left-padded. Keep the conv/ssm state of linear-attention layers
+        // (hybrid models) unaffected by the padding that sits between two real chunks.
+        ov::npuw::MaskLinearAttentionPadding().run_on_model(prefill_model);
     } else {
         ov::npuw::ReshapeToStatic(m_kvcache_desc.max_prompt_size,
                                   m_kvcache_desc.max_prompt_size,
@@ -1327,9 +1340,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
-        disable_ws_for_whisper(prefill_config);
-        disable_ws_for_whisper(generate_config);
-        LOG_INFO("NPUW_FOLD and NPUW_FUNCALL_FOR_ALL are disabled for Whisper model.");
+        if (is_int8_compressed(model)) {
+            disable_ws_for_int8_whisper(prefill_config);
+            disable_ws_for_int8_whisper(generate_config);
+            LOG_INFO("WS is disabled for INT8 Whisper model.");
+        }
     }
 
     if (m_is_embedding) {
