@@ -117,6 +117,17 @@ inline vec<int32_t, isa::scalar> srlv(vec<int32_t, isa::scalar> val, vec<int32_t
     return {static_cast<int32_t>(static_cast<uint32_t>(val.v) >> shift.v)};
 }
 
+inline vec<float, isa::scalar> to_f32(vec<int32_t, isa::scalar> v) {
+    return {static_cast<float>(v.v)};
+}
+
+inline vec<float, isa::scalar> min(vec<float, isa::scalar> a, vec<float, isa::scalar> b) {
+    return {a.v < b.v ? a.v : b.v};
+}
+inline vec<float, isa::scalar> max(vec<float, isa::scalar> a, vec<float, isa::scalar> b) {
+    return {a.v > b.v ? a.v : b.v};
+}
+
 inline vec<float, isa::scalar> permute(vec<float, isa::scalar> table, vec<int32_t, isa::scalar> idx) {
     (void)idx;
     return table;
