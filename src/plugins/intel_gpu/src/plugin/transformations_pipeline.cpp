@@ -1926,6 +1926,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // This pass should be done after asymmetric quantization matching as it can move zp subtraction upper in the graph
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovPerChannel>();
+        manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovFusableProducer>(std::vector<ov::DiscreteTypeInfo>{
+            ov::intel_gpu::op::FullyConnected::get_type_info_static(),
+            ov::op::v0::MatMul::get_type_info_static(),
+            ov::op::v1::Transpose::get_type_info_static(),
+        });
 
         manager.register_pass<ov::intel_gpu::ConvertStridedSlicesToVariadicSplit>();
 
@@ -1976,9 +1981,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
                 }
                 // u2 FCs (CM and oneDNN kernels) expect f16 activations; dynamic activation quantization would
-                // make the CM u2 kernel decline. Keep weight-only quantization until i8 activation support exists.
+                // make the CM u2 kernel decline. Keep weight-only quantization until i8 activation support exist
                 if (root->get_input_element_type(1) == ov::element::u2) {
-                    GPU_DEBUG_TRACE_DETAIL << root->get_friendly_name() << "  dyn_quan is turned off: u2 weights require f16 activations" << std::endl;
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: u2 weights require fp16 activations" << std::endl;
                     return true;
                 }
 
