@@ -316,3 +316,122 @@ TEST_F(RuntimeRequirementsSectionTest, WriteUnknownSectionType) {
 
     OV_EXPECT_THROW(section.encode(create_generic_section_sink(stream)), ov::Exception, _);
 }
+
+class RuntimeRequirementsSectionReadTest
+    : public testing::TestWithParam<std::tuple<bool,
+                                               bool,
+                                               std::string,
+                                               CRE,
+                                               std::map<SectionID, std::string>,
+                                               std::unordered_map<SectionID, SectionType>>> {
+public:
+    RuntimeRequirementsSectionReadTest() : section({}) {}
+
+    static std::string getTestCaseName(
+        const testing::TestParamInfo<std::tuple<bool,
+                                                bool,
+                                                std::string,
+                                                CRE,
+                                                std::map<SectionID, std::string>,
+                                                std::unordered_map<SectionID, SectionType>>>& obj) {
+        bool expect_failure, is_tensor_source;
+        std::string serialized_requirements;
+        CRE expected_cre;
+        std::map<SectionID, std::string> expected_sections_requirements;
+        std::unordered_map<SectionID, SectionType> expected_id_to_type_mapping;
+        std::tie(expect_failure,
+                 is_tensor_source,
+                 serialized_requirements,
+                 expected_cre,
+                 expected_sections_requirements,
+                 expected_id_to_type_mapping) = obj.param;
+
+        std::string test_name("expectFailure=");
+        test_name += expect_failure ? "True" : "False";
+        test_name += "_";
+        test_name += "source=";
+        test_name += is_tensor_source ? "tensor" : "stream";
+        test_name += "_";
+        test_name += "cre=";
+        test_name += expected_cre.to_string();
+        test_name += "_";
+        test_name += "sectionsRequirements=[";
+
+        bool first_iteration = true;
+        for (const auto& [id, requirements] : expected_sections_requirements) {
+            if (!first_iteration) {
+                test_name += "_";
+            }
+            first_iteration = false;
+            test_name += id.to_string();
+            test_name += "=";
+            test_name += requirements;
+        }
+
+        test_name += "]_";
+        test_name += "mapping=[";
+
+        first_iteration = true;
+        for (const auto& [id, type] : expected_id_to_type_mapping) {
+            if (!first_iteration) {
+                test_name += "_";
+            }
+            first_iteration = false;
+            test_name += id.to_string();
+            test_name += "=";
+            test_name += type.to_string();
+        }
+
+        test_name += "]";
+        return test_name;
+    }
+
+protected:
+    void SetUp() override {
+        bool is_tensor_source;
+        std::tie(expect_failure,
+                 is_tensor_source,
+                 serialized_requirements,
+                 expected_cre,
+                 expected_sections_requirements,
+                 expected_id_to_type_mapping) = GetParam();
+
+        ov::runtime::hsm::ManifestEntry manifest_entry =
+            create_manifest_entry_of_type(SectionTypeCode::RUNTIME_REQUIREMENTS);
+        manifest_entry.size = serialized_requirements.size();
+
+        if (is_tensor_source) {
+            section = ov::runtime::hsm::Section(
+                manifest_entry,
+                ov::util::MemoryView(reinterpret_cast<std::byte*>(serialized_requirements.data()),
+                                     serialized_requirements.size()));
+        } else {
+            stream = std::istringstream(serialized_requirements);
+            section = ov::runtime::hsm::Section(manifest_entry, stream, 0);
+        }
+    }
+
+    ov::runtime::hsm::Section section;
+    std::istringstream stream;
+    bool expect_failure;
+    std::string serialized_requirements;
+    CRE expected_cre;
+    std::map<SectionID, std::string> expected_sections_requirements;
+    std::unordered_map<SectionID, SectionType> expected_id_to_type_mapping;
+};
+
+TEST_P(RuntimeRequirementsSectionReadTest, Read) {
+    auto read_section = RuntimeRequirementsSection::decode(section);
+
+    if (!expect_failure) {
+        ASSERT_TRUE(read_section);
+        auto casted_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(read_section.value());
+        ASSERT_TRUE(casted_section);
+        const RuntimeRequirements runtime_requirements = casted_section->get_runtime_requirements();
+        ASSERT_TRUE(runtime_requirements.get_cre() == expected_cre);
+        ASSERT_TRUE(runtime_requirements.get_sections_requirements() == expected_sections_requirements);
+        ASSERT_TRUE(runtime_requirements.get_section_id_to_type_mapping() == expected_id_to_type_mapping);
+    } else {
+        ASSERT_FALSE(read_section);
+    }
+}
