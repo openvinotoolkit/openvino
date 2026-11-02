@@ -273,6 +273,7 @@ enum class Tags : uint32_t {
     runtime_requirements = 3,  //!< See #runtime_requirements_tag.
     weights = 4,               //!< See #weights_tag.
     compiled_options = 5,      //!< See #compiled_options_tag.
+    model_struct = 6,          //!< See #model_struct_tag.
     // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
     // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
@@ -285,6 +286,7 @@ inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);        //!
 inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
 inline constexpr uint32_t weights = static_cast<uint32_t>(Tags::weights);  //!< Raw model weights buffer.
 inline constexpr uint32_t compiled_options = static_cast<uint32_t>(Tags::compiled_options);
+inline constexpr uint32_t model_struct = static_cast<uint32_t>(Tags::model_struct);  //!< Serialized IR XML.
 
 /// Wire tag for #model_id - always inline-mode.
 inline constexpr SectionTag model_id_tag = SectionTag::make(model_id, /*is_inline=*/true);
@@ -306,6 +308,9 @@ inline constexpr SectionTag weights_tag = SectionTag::make(weights, /*is_inline=
 
 /// Wire tag for #compiled_options - always pointer-mode. Payload contract: CVS-196452.
 inline constexpr SectionTag compiled_options_tag = SectionTag::make(compiled_options, /*is_inline=*/false);
+
+/// Wire tag for #model_struct - always pointer-mode. Payload is the IR XML string without framing.
+inline constexpr SectionTag model_struct_tag = SectionTag::make(model_struct, /*is_inline=*/false);
 
 /**
  * @brief One fixed-size, 32-byte record of the manifest table (see #Header::manifest_offset).
