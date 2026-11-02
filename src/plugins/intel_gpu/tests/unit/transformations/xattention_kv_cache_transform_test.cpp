@@ -318,7 +318,7 @@ TEST_P(NormalizeMoEOutputReshapeTest, ResolvesAxisCopies) {
     manager.run_passes(model);
     const bool normalized = target_kind <= 5 || target_kind == 8;
     EXPECT_EQ(reshape->get_special_zero(), normalized ? false : target_kind != 6);
-    if (target_kind == 0 || target_kind == 1 || target_kind == 4 || target_kind == 8) {
+    if (target_kind == 0 || target_kind == 1 || target_kind == 3 || target_kind == 4 || target_kind == 8) {
         const auto value = ov::as_type_ptr<ov::op::v0::Constant>(reshape->get_input_node_shared_ptr(1));
         ASSERT_NE(value, nullptr);
         EXPECT_EQ(value->cast_vector<int64_t>(), (std::vector<int64_t>{-1, 8}));

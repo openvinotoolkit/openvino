@@ -505,7 +505,8 @@ public:
                     return false;
                 }
                 if (shape[1].is_static() && shape[1].get_length() > 0 &&
-                    ((values[0] == 0 && (values[1] == 0 || values[1] == shape[1].get_length())) || (values[0] == -1 && values[1] == 0))) {
+                    ((values[0] == 0 && (values[1] == 0 || values[1] == shape[1].get_length() || values[1] == -1)) ||
+                     (values[0] == -1 && values[1] == 0))) {
                     const auto new_target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, std::vector<int64_t>{-1, shape[1].get_length()});
                     ov::copy_runtime_info(target, new_target);
                     root->input(1).replace_source_output(new_target);
