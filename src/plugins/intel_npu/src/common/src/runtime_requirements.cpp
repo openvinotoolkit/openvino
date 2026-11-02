@@ -196,10 +196,6 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
         logger.error("Missing runtime requirements version");
         return std::nullopt;
     }
-    if (!parsed_content.count(CRE_KEY.data())) {
-        logger.error("No CRE found within the runtime requirements");
-        return std::nullopt;
-    }
 
     // Check the format version
     const MajorMinorVersion parsed_version = MajorMinorVersion::from_string(parsed_content.at(VERSION_KEY.data()));
@@ -209,10 +205,22 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
     }
     parsed_content.erase(VERSION_KEY.data());
 
-    // Parse the CRE
-    logger.debug("Parsing the CRE");
-    const CRE cre = CRE::from_string(parsed_content.at(CRE_KEY.data()), logger.level());
-    parsed_content.erase(CRE_KEY.data());
+    // Parse the CRE if available
+    CRE cre;
+    if (parsed_content.count(CRE_KEY.data())) {
+        logger.debug("Parsing the CRE");
+
+        try {
+            cre = CRE::from_string(parsed_content.at(CRE_KEY.data()), logger.level());
+        } catch (const std::exception& ex) {
+            logger.error("Failed to parse the CRE. Exception: %s", ex.what());
+            return std::nullopt;
+        }
+
+        parsed_content.erase(CRE_KEY.data());
+    }
+    logger.warning("No compatibility requirements expression found within the runtime requirements. The compiled model "
+                   "will be considered supported in this case.");
 
     // All other entries should have the key format "<section type name>_<id>"
     logger.debug("Parsing the sections requirements");

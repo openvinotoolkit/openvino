@@ -14,6 +14,9 @@
 using namespace intel_npu;
 using testing::_;
 
+using ReadParams = std::
+    tuple<bool, bool, std::string, CRE, std::map<SectionID, std::string>, std::unordered_map<SectionID, SectionType>>;
+
 namespace {
 
 const auto MOCK_INSTANCE_EVALUATOR = std::make_shared<MockInstanceEvaluator>();
@@ -25,6 +28,37 @@ const auto BATCH_SIZE_PTR = std::make_shared<SectionType>(SectionTypeCode::BATCH
 const auto COMPILER_VERSION_PTR = std::make_shared<SectionType>(SectionTypeCode::COMPILER_VERSION);
 const auto ID_0_PTR = std::make_shared<SectionID>(0);
 const auto ID_2_PTR = std::make_shared<SectionID>(2);
+
+ReadParams make_test_params(bool expect_failure,
+                            const std::string& serialized_requirements,
+                            const CRE& expected_cre = {},
+                            const std::map<SectionID, std::string>& expected_sections_requirements = {},
+                            const std::unordered_map<SectionID, SectionType>& expected_id_to_type = {}) {
+    return ReadParams(expect_failure,
+                      true,
+                      serialized_requirements,
+                      expected_cre,
+                      expected_sections_requirements,
+                      expected_id_to_type);
+}
+
+std::vector<ReadParams> augment_cases_using_stream_type(const std::vector<ReadParams>& test_cases) {
+    std::vector<ReadParams> result = test_cases;
+    for (const auto& [expect_failure,
+                      is_tensor_source,
+                      serialized_requirements,
+                      expected_cre,
+                      expected_sections_requirements,
+                      expected_id_to_type] : test_cases) {
+        result.push_back(ReadParams(expect_failure,
+                                    false,
+                                    serialized_requirements,
+                                    expected_cre,
+                                    expected_sections_requirements,
+                                    expected_id_to_type));
+    }
+    return result;
+}
 
 }  // namespace
 
@@ -317,23 +351,32 @@ TEST_F(RuntimeRequirementsSectionTest, WriteUnknownSectionType) {
     OV_EXPECT_THROW(section.encode(create_generic_section_sink(stream)), ov::Exception, _);
 }
 
-class RuntimeRequirementsSectionReadTest
-    : public testing::TestWithParam<std::tuple<bool,
-                                               bool,
-                                               std::string,
-                                               CRE,
-                                               std::map<SectionID, std::string>,
-                                               std::unordered_map<SectionID, SectionType>>> {
+TEST_F(RuntimeRequirementsSectionTest, WrongTagToDecoder) {
+    const std::string payload("version=3.0");
+    ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
+    manifest_entry.size = payload.size();
+
+    OV_EXPECT_THROW(RuntimeRequirementsSection::decode(ov::runtime::hsm::Section(
+                        manifest_entry,
+                        ov::util::MemoryView(reinterpret_cast<const std::byte*>(payload.data()), payload.size()))),
+                    ov::Exception,
+                    _);
+}
+
+TEST_F(RuntimeRequirementsSectionTest, InlineTagToDecoder) {
+    const std::string payload("version=3.0");
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        create_manifest_entry_of_type(SectionTypeCode::RUNTIME_REQUIREMENTS, true);
+    std::memcpy(&manifest_entry.inline_bytes, payload.data(), payload.size());
+
+    OV_EXPECT_THROW(RuntimeRequirementsSection::decode(ov::runtime::hsm::Section(manifest_entry)), ov::Exception, _);
+}
+
+class RuntimeRequirementsSectionReadTest : public testing::TestWithParam<ReadParams> {
 public:
     RuntimeRequirementsSectionReadTest() : section({}) {}
 
-    static std::string getTestCaseName(
-        const testing::TestParamInfo<std::tuple<bool,
-                                                bool,
-                                                std::string,
-                                                CRE,
-                                                std::map<SectionID, std::string>,
-                                                std::unordered_map<SectionID, SectionType>>>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ReadParams>& obj) {
         bool expect_failure, is_tensor_source;
         std::string serialized_requirements;
         CRE expected_cre;
@@ -346,7 +389,10 @@ public:
                  expected_sections_requirements,
                  expected_id_to_type_mapping) = obj.param;
 
-        std::string test_name("expectFailure=");
+        std::string test_name("serializedRequirements=");
+        test_name += serialized_requirements;
+        test_name += "_";
+        test_name += "expectFailure=";
         test_name += expect_failure ? "True" : "False";
         test_name += "_";
         test_name += "source=";
@@ -435,3 +481,48 @@ TEST_P(RuntimeRequirementsSectionReadTest, Read) {
         ASSERT_FALSE(read_section);
     }
 }
+
+std::vector<ReadParams> test_cases{
+    make_test_params(true, ""),
+    make_test_params(true, "version=3.1"),
+    make_test_params(true, "version=2.0"),
+    make_test_params(true, "version=4.0"),
+    make_test_params(true, "VERSION=3.0"),
+    make_test_params(true, "versio=3.0"),
+    make_test_params(true, "version=3.0;"),
+    make_test_params(true, "version="),
+    make_test_params(true, "version=3.0;cre="),
+    make_test_params(true, "custom=CONTENT"),
+    make_test_params(true, "version=3.0;cre=(.BATCH_SIZE"),
+    make_test_params(true, "version=3.0;cre=BATCH_SIZE;batch_size=CUSTOM"),  // Missing section ID
+    make_test_params(true, "version=3.0;cre=BATCH_SIZE;batch_size_1=CUSTOM;io_layouts_1=CUSTOM"),
+    make_test_params(true, "version=3.0;cre=BATCH_SIZE;batch_size1=CUSTOM"),
+    make_test_params(false, "version=3.0;cre=BATCH_SIZE", CRE({BATCH_SIZE_PTR})),
+    make_test_params(false,
+                     "version=3.0;batch_size_0=CUSTOM",
+                     CRE(),
+                     {{0, "CUSTOM"}},
+                     {{0, SectionTypeCode::BATCH_SIZE}}),
+    make_test_params(false,
+                     "version=3.0;cre=BATCH_SIZE_2.AND.COMPILER_VERSION_0;batch_size_1=CUSTOM",
+                     CRE({BATCH_SIZE_PTR, ID_2_PTR, CRE::AND_PTR, COMPILER_VERSION_PTR, ID_0_PTR}),
+                     {{1, "CUSTOM"}},
+                     {{1, SectionTypeCode::BATCH_SIZE}}),
+    make_test_params(
+        false,
+        "version=3.0;cre=BATCH_SIZE_2.AND.COMPILER_VERSION_0;batch_size_2=CUSTOM1;compiler_version_0=CUSTOM2",
+        CRE({BATCH_SIZE_PTR, ID_2_PTR, CRE::AND_PTR, COMPILER_VERSION_PTR, ID_0_PTR}),
+        {{2, "CUSTOM1"}, {0, "CUSTOM2"}},
+        {{2, SectionTypeCode::BATCH_SIZE}, {0, SectionTypeCode::COMPILER_VERSION}}),
+    make_test_params(
+        false,
+        "version=3.0;compiler_version_0=CUSTOM2;cre=BATCH_SIZE_2.AND.COMPILER_VERSION_0;batch_size_2=CUSTOM1",
+        CRE({BATCH_SIZE_PTR, ID_2_PTR, CRE::AND_PTR, COMPILER_VERSION_PTR, ID_0_PTR}),
+        {{2, "CUSTOM1"}, {0, "CUSTOM2"}},
+        {{2, SectionTypeCode::BATCH_SIZE}, {0, SectionTypeCode::COMPILER_VERSION}}),
+};
+
+INSTANTIATE_TEST_SUITE_P(UnitTests,
+                         RuntimeRequirementsSectionReadTest,
+                         testing::ValuesIn(augment_cases_using_stream_type(test_cases)),
+                         RuntimeRequirementsSectionReadTest::getTestCaseName);
