@@ -26,6 +26,32 @@ bool is_subtract_128(const std::shared_ptr<ov::Node>& node) {
     return subtract != nullptr && subtract->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
 }
 
+std::shared_ptr<ov::op::v0::Parameter> find_matched_param(const ov::pass::pattern::PatternValueMap& matched,
+                                                          const std::shared_ptr<ov::Node>& pattern) {
+    const auto it = matched.find(pattern);
+    return it == matched.end() ? nullptr
+                               : std::static_pointer_cast<ov::op::v0::Parameter>(it->second.get_node_shared_ptr());
+}
+
+// Group-wise weights are i4 without a zero point, or u2 with a zero point of the same type and the scale
+// shape. The split-by-groups (full) mode has no zero point support.
+bool is_group_quantized_weight(const std::shared_ptr<ov::op::v0::Parameter>& weight,
+                               const std::shared_ptr<ov::op::v0::Parameter>& zerop,
+                               const ov::Shape& coeff_shape,
+                               const bool mm_dq_full) {
+    if (!zerop) {
+        return weight->get_element_type() == ov::element::i4;
+    }
+    return !mm_dq_full && weight->get_element_type() == ov::element::u2 &&
+           zerop->get_element_type() == ov::element::u2 && zerop->get_shape() == coeff_shape;
+}
+
+// Only the split-by-groups (full) mode reshapes the activation and requires rank 3. The permute-only mode
+// does not depend on the activation, so the rank-4 layout of GGUF frontend models is accepted there.
+bool is_supported_act_rank(const ov::Shape& act_shape, const bool mm_dq_full) {
+    return act_shape.size() == 3 || (act_shape.size() == 4 && !mm_dq_full);
+}
+
 }  // namespace
 
 Context::Context(std::shared_ptr<const ov::Model> model, std::size_t param_base_idx)
@@ -541,9 +567,12 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
 
 DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+    auto qsubt = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), qcvtz->output(0)});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubt, qcoeff});
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qcvtm, opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
@@ -574,15 +603,20 @@ DQMatMulGQ2i::DQMatMulGQ2i(Context::Ref ctx) {
         auto act_shape = matched_out_mmi.get_shape();
         auto out_shape = matched_node_matmul->output(0).get_shape();
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
-            ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[0] == 1 && act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] &&
-            qcoeff_shape[2] == 1 && qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
+        if (const auto matched_qzerop = find_matched_param(node_to_output, qzerop);
+            is_group_quantized_weight(matched_qweight, matched_qzerop, qcoeff_shape, ctx.get().mm_dq_full) &&
+            qweight_shape.size() == 3 && ov::element::f16 == matched_qcoeff->get_element_type() &&
+            qcoeff_shape.size() == 3 && is_supported_act_rank(act_shape, ctx.get().mm_dq_full) && act_shape[0] == 1 &&
+            act_shape[1] == 1 && qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[2] == 1 &&
+            qcoeff_shape[1] == qweight_shape[1] && !matched_matmul->get_transpose_a() &&
             matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
                 // Transpose weight and coeff
                 ctx.get().permute(matched_qweight, {1, 0, 2});
                 ctx.get().permute(matched_qcoeff, {1, 0, 2});
+                if (matched_qzerop) {
+                    ctx.get().permute(matched_qzerop, {1, 0, 2});
+                }
 
                 // Add Transpose and insert it
                 std::vector<std::size_t> new_transpose_order = {1, 0, 2};
@@ -826,9 +860,12 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
 //     S* : [32,    1,11008]
 DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qcoeff});
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
+    auto qsubt = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), qcvtz->output(0)});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubt, qcoeff});
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls->output(0)});
     auto qreshp = opp::wrap_type<ov::op::v1::Reshape>({qcvtm, opp::any_input()});
     auto qcvtr = opp::optional<ov::op::v0::Convert>({qreshp->output(0)});
@@ -862,15 +899,20 @@ DQMatMulGQ2iP::DQMatMulGQ2iP(Context::Ref ctx) {
             return (a == 1 && b > 1) || (a > 1 && b == 1);
         };
 
-        if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
-            ov::element::f16 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && just_one(act_shape[0], act_shape[1]) &&  // multi-token case
+        if (const auto matched_qzerop = find_matched_param(node_to_output, qzerop);
+            is_group_quantized_weight(matched_qweight, matched_qzerop, qcoeff_shape, ctx.get().mm_dq_full) &&
+            qweight_shape.size() == 3 && ov::element::f16 == matched_qcoeff->get_element_type() &&
+            qcoeff_shape.size() == 3 && act_shape.size() == 3 &&
+            just_one(act_shape[0], act_shape[1]) &&  // multi-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == qweight_shape[1] && qcoeff_shape[2] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
                 // Transpose weight and coeff
                 ctx.get().permute(matched_qweight, {1, 0, 2});
                 ctx.get().permute(matched_qcoeff, {1, 0, 2});
+                if (matched_qzerop) {
+                    ctx.get().permute(matched_qzerop, {1, 0, 2});
+                }
 
                 // Add Transpose and insert it
                 std::vector<std::size_t> new_transpose_order = {1, 0, 2};
