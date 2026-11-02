@@ -23,6 +23,7 @@
 #include <type_traits>
 #include <unordered_set>
 
+#include "deferred_weights.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
@@ -358,6 +359,45 @@ ov::Shape get_shape(const GgufTensor& tensor) {
     return shape;
 }
 
+WeightTensors make_deferred_weights(const GgufTensor& tensor,
+                                    const std::shared_ptr<ov::MappedMemory>& mapped,
+                                    const std::string& name) {
+    const auto layout = quant_layout(tensor.type, name);
+    OPENVINO_ASSERT(layout, "[load_gguf] tensor '", name, "' has no quantized layout");
+    const auto shape = get_shape(tensor);
+    OPENVINO_ASSERT(!shape.empty(), "[load_gguf] tensor '", name, "' is quantized but has rank 0");
+    ov::Shape weight_shape = shape;
+    weight_shape.back() /= layout->weight_div;
+    ov::Shape scale_shape = shape;
+    scale_shape.back() /= layout->group_size;
+    const auto zp_type = layout->asymmetric ? gguf_zero_point_type(name, static_cast<GgufTensorType>(tensor.type))
+                                            : ov::element::dynamic;
+    std::array<DeferredWeightTensor, 3> components = {DeferredWeightTensor{layout->weight_type, weight_shape},
+                                                      DeferredWeightTensor{layout->scale_type, scale_shape},
+                                                      DeferredWeightTensor{zp_type, scale_shape}};
+    const auto stable_name = std::make_shared<std::string>(name);
+    auto raw = tensor;
+    raw.name = stable_name->data();
+    raw.namelen = stable_name->size();
+    return defer_weight_tensors(
+        components,
+        [raw, mapped, stable_name, asymmetric = layout->asymmetric](WeightTensors& destination) {
+            if (raw.type == GGUF_TYPE_Q5_K && !asymmetric) {
+                gguf_fill_q5_k_i8(raw, destination.weight, destination.scales);
+            } else if (raw.type == GGUF_TYPE_MXFP4) {
+                gguf_fill_mxfp4(raw, destination.weight, destination.scales);
+            } else if (raw.type == GGUF_TYPE_Q2_0 || raw.type == GGUF_TYPE_PQ2_0 || raw.type == GGUF_TYPE_PTQ1_0) {
+                gguf_fill_q2_0(raw, destination.weight, destination.scales, destination.zero_point);
+            } else if (asymmetric) {
+                gguf_fill_asym(raw, destination.weight, destination.scales, destination.zero_point);
+            } else {
+                gguf_fill_sym(raw, destination.weight, destination.scales);
+            }
+            const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
+            mapped->hint_evict(raw.weights_data - base, raw.bsize);
+        });
+}
+
 namespace {
 
 struct TensorInfo {
@@ -600,37 +640,11 @@ void load_gguf_tensors(GgufFile& file,
             continue;
         }
 
-        const auto shape = get_shape(tensor);
-        ov::Shape weight_shape = shape;
-        weight_shape.back() /= layout->weight_div;
-        ov::Shape scale_shape = shape;
-        scale_shape.back() /= layout->group_size;
-
-        // Independent buffers let replaced weights be freed without retaining the whole model.
-        ov::Tensor weights(layout->weight_type, weight_shape);
-        ov::Tensor scales(layout->scale_type, scale_shape);
-        ov::Tensor zp;
-        if (layout->asymmetric) {
-            zp = ov::Tensor(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
-        }
-
-        if (ti.type == GGUF_TYPE_Q5_K && !layout->asymmetric) {
-            gguf_fill_q5_k_i8(tensor, weights, scales);
-        } else if (ti.type == GGUF_TYPE_MXFP4) {
-            gguf_fill_mxfp4(tensor, weights, scales);
-        } else if (ti.type == GGUF_TYPE_Q2_0 || ti.type == GGUF_TYPE_PQ2_0 || ti.type == GGUF_TYPE_PTQ1_0) {
-            gguf_fill_q2_0(tensor, weights, scales, zp);
-        } else if (layout->asymmetric) {
-            gguf_fill_asym(tensor, weights, scales, zp);
-        } else {
-            gguf_fill_sym(tensor, weights, scales);
-        }
-        mapped->hint_evict(abs_off, tensor.bsize);
-
-        arrays.emplace(name, std::move(weights));
-        arrays.emplace(name_prefix + ".scales", std::move(scales));
-        if (zp) {
-            arrays.emplace(name_prefix + ".zp", std::move(zp));
+        auto deferred = make_deferred_weights(tensor, mapped, name);
+        arrays.emplace(name, std::move(deferred.weight));
+        arrays.emplace(name_prefix + ".scales", std::move(deferred.scales));
+        if (deferred.zero_point) {
+            arrays.emplace(name_prefix + ".zp", std::move(deferred.zero_point));
         }
         qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
     }

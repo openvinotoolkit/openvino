@@ -26,3 +26,5 @@ install(DIRECTORY "${GGUF_FRONTEND_DEV_API}/openvino"
 
 # ov::parallel_for (quant dequant) needs the threading (TBB) include directories.
 ov_set_threading_interface_for(openvino_gguf_frontend)
+
+target_include_directories(openvino_gguf_frontend PRIVATE "${OpenVINO_SOURCE_DIR}/src/inference/dev_api")

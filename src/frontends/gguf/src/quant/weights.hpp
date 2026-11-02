@@ -62,6 +62,8 @@ struct WeightTensors {
     ov::Tensor zero_point;
 };
 
+bool same_weight_conversion_policy(const std::string& lhs, const std::string& rhs);
+
 // Quant type recorded for a weight as "<base>.qtype"; F16 when absent.
 GgufTensorType lookup_qtype(const std::string& base, const std::unordered_map<std::string, GgufTensorType>& qtypes);
 

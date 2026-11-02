@@ -7,34 +7,43 @@
 #include <numeric>
 #include <vector>
 
+#include "helper_ops/gguf_constant.hpp"
 #include "node_context.hpp"
 #include "op_table.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "quant/deferred_weights.hpp"
 #include "quant/weights.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
 
-// A GGUF weight surfaced as a node. A weight is a ggml leaf (op type "GGML_OP_NONE") that the
-// decoder marks as a weight. Two payload shapes are supported, both dequantized here so the
-// decoder never builds OV nodes itself:
-//
-//   1. Native .gguf builder path: the parser already extracted the weight into OpenVINO tensors
-//      (weight [+ scales [+ zp]]); the node carries them as attributes "gguf.blob.<sub>" plus the
-//      quant type id "gguf_qtype" (and marker "gguf_weight"). We pass the tensors directly to
-//      make_weight_node -- the exact dequant path the builder used before, unchanged numerics,
-//      and it handles fused-QKV parts / MoE experts uniformly.
-//
-//   2. llama.cpp cgraph path: the node carries the raw ggml bytes in "data" plus the ggml type
-//      name "quant_type"; make_weight_node(data, quant_type, shape) re-extracts and builds. This
-//      path also handles the MoE MXFP4 packed / rank>2 expert-weight layouts.
-//
-// (Model-input leaves are also GGML_OP_NONE, but they are resolved to Parameters before the graph
-// walk and never reach this translator.)
+namespace {
+
+std::shared_ptr<ov::Node> materialize_raw_weight(const ov::Tensor& data,
+                                                 const std::string& quant_type,
+                                                 const ov::Shape& shape,
+                                                 const std::string& name) {
+    if (shape.size() > 2 && quant_type == "MXFP4") {
+        const ov::Shape packed_shape{1, shape[shape.size() - 3], shape[shape.size() - 2], shape.back() / 32, 17};
+        return std::make_shared<ov::op::v0::Constant>(ov::element::u8, packed_shape, data.data());
+    }
+    if (shape.size() > 2) {
+        const size_t cols = shape.back();
+        const size_t rows = std::accumulate(shape.begin(), shape.end() - 1, size_t{1}, std::multiplies<size_t>());
+        auto node = make_weight_node(data, quant_type, ov::Shape{rows, cols}, name);
+        std::vector<int64_t> full(shape.begin(), shape.end());
+        auto target = ov::op::v0::Constant::create(ov::element::i64, {full.size()}, full);
+        return std::make_shared<ov::op::v1::Reshape>(node, target, false);
+    }
+    return make_weight_node(data, quant_type, shape, name);
+}
+
+}  // namespace
+
+// Keep quantized payloads deferred until weight normalization.
 OutputVector translate_weight(const NodeContext& context) {
-    // Path 1: pre-extracted tensors from the native builder.
     if (context.get_attribute<bool>("gguf_weight", false)) {
         WeightTensors tensors{
             context.get_attribute<ov::Tensor>("gguf.blob.weight", ov::Tensor()),
@@ -43,15 +52,20 @@ OutputVector translate_weight(const NodeContext& context) {
         };
         FRONT_END_OP_CONVERSION_CHECK(tensors.weight, "GGML_OP_NONE weight leaf has no 'gguf.blob.weight' attribute");
         auto qtype = static_cast<GgufTensorType>(context.get_attribute<int>("gguf_qtype"));
+        if (is_deferred(tensors) || tensors.scales) {
+            auto node = std::make_shared<GGUFConstant>(tensors, qtype, context.get_name());
+            return rename_outputs_with_suffix({node}, context.get_name());
+        }
         auto node = make_weight_node(tensors, qtype, context.get_name());
         return rename_outputs_with_suffix({std::move(node)}, context.get_name());
     }
 
-    // Path 2: raw ggml bytes from a live cgraph decoder.
     auto data = context.get_attribute<ov::Tensor>("data");
     FRONT_END_OP_CONVERSION_CHECK(data, "GGML_OP_NONE node has no weight payload; not a weight");
     auto quant_type = context.get_attribute<std::string>("quant_type");
     auto shape = context.get_output_shape().to_shape();
+    auto logical_shape = shape;
+    auto type = ov::element::f32;
 
     // MoE MXFP4 expert weights stay PACKED: MUL_MAT_ID gathers the selected expert and dequantizes
     // on-graph, so materializing all experts to f32 here would waste memory. Surface the raw bytes
@@ -67,24 +81,18 @@ OutputVector translate_weight(const NodeContext& context) {
         ov::Shape packed_shape{1, n_expert, m, k_blocks, kBlockBytes};
         FRONT_END_OP_CONVERSION_CHECK(data.get_byte_size() == n_expert * m * k_blocks * kBlockBytes,
                                       "MXFP4 MoE packed byte size mismatch");
-        auto packed = std::make_shared<ov::op::v0::Constant>(ov::element::u8, packed_shape, data.data());
-        return rename_outputs_with_suffix({std::move(packed)}, context.get_name());
+        logical_shape = packed_shape;
+        type = ov::element::u8;
     }
 
-    // MoE expert weights are rank > 2 ([1, n_expert, m, k]). The dequant path works on a 2D
-    // [rows, cols] tensor, so flatten the leading dims to rows, dequantize, then reshape the f32
-    // result back to the full expert shape for MUL_MAT_ID. (Regular weights are already 2D.)
-    if (shape.size() > 2) {
-        const size_t cols = shape.back();
-        const size_t rows = std::accumulate(shape.begin(), shape.end() - 1, size_t{1}, std::multiplies<size_t>());
-        auto node = make_weight_node(data, quant_type, ov::Shape{rows, cols}, context.get_name());
-        std::vector<int64_t> full(shape.begin(), shape.end());
-        auto target = ov::op::v0::Constant::create(ov::element::i64, {full.size()}, full);
-        auto reshaped = std::make_shared<ov::op::v1::Reshape>(node, target, false);
-        return rename_outputs_with_suffix({std::move(reshaped)}, context.get_name());
-    }
-
-    auto node = make_weight_node(data, quant_type, shape, context.get_name());
+    auto materialize = [data, quant_type, shape, name = context.get_name()] {
+        return materialize_raw_weight(data, quant_type, shape, name);
+    };
+    auto node = std::make_shared<GGUFConstant>(logical_shape,
+                                               type,
+                                               gguf_type_from_name(quant_type),
+                                               context.get_name(),
+                                               std::move(materialize));
     return rename_outputs_with_suffix({std::move(node)}, context.get_name());
 }
 

@@ -88,7 +88,7 @@ struct GgufTensor {
 using GGUFMetaData =
     std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>, std::vector<int32_t>>;
 
-// Parsed arrays own repacked quantized buffers and keep non-quantized mmap views alive.
+// Parsed arrays retain deferred quantized storage and non-quantized mmap views.
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::unordered_map<std::string, ov::Tensor>,
                             std::unordered_map<std::string, GgufTensorType>,
@@ -134,7 +134,13 @@ void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
-// Parse GGUF metadata and tensors. Each repacked quantized tensor owns its buffer.
+struct WeightTensors;
+
+WeightTensors make_deferred_weights(const GgufTensor& tensor,
+                                    const std::shared_ptr<ov::MappedMemory>& mapped,
+                                    const std::string& name);
+
+// Parse GGUF metadata and tensors, deferring quantized repacking until byte access.
 GGUFLoad get_gguf_data(const std::filesystem::path& file);
 GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files);
 

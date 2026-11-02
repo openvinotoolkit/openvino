@@ -8,6 +8,8 @@
 #include <tuple>
 #include <vector>
 
+#include "quant/deferred_weights.hpp"
+
 namespace ov::frontend::gguf::blocks {
 
 std::string rms_norm(GraphEmitter& e,
@@ -98,6 +100,9 @@ std::optional<WeightTensors> concat_rows(const WeightTensors& a,
                                          GgufTensorType qb) {
     if (qa != qb || !a.weight || !b.weight) {
         return std::nullopt;
+    }
+    if (is_deferred(a) || is_deferred(b)) {
+        return concat_deferred_rows(a, b);
     }
     WeightTensors out;
     const std::vector<std::tuple<const ov::Tensor*, const ov::Tensor*, ov::Tensor*>> parts{

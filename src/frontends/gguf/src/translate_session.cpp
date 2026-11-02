@@ -47,6 +47,7 @@
 #include "openvino/pass/manager.hpp"
 #include "pass/isolate_precision_sensitive_outputs.hpp"
 #include "pass/lower_set_rows_stateless.hpp"
+#include "pass/materialize_weights.hpp"
 #include "pass/prune_orphaned_parameters.hpp"
 #include "quant/weights.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
@@ -374,6 +375,9 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
 }
 
 std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<Model> model) {
+    ov::pass::Manager weight_normalization;
+    weight_normalization.register_pass<pass::MaterializeGGUFWeights>();
+    weight_normalization.run_passes(model);
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
     manager.register_pass<ov::pass::MarkCompressedFloatConstants>();

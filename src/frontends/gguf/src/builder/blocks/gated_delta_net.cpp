@@ -13,6 +13,7 @@
 
 #include "builder/blocks/common.hpp"
 #include "openvino/core/except.hpp"
+#include "quant/deferred_weights.hpp"
 
 namespace ov::frontend::gguf::blocks {
 
@@ -31,22 +32,25 @@ ov::Tensor permute_chunks(const ov::Tensor& t,
         return {};
     }
     const size_t row_bytes = bytes / outer;
-    ov::Tensor out(t.get_element_type(), t.get_shape());
-    const auto* in_data = static_cast<const uint8_t*>(t.data());
-    auto* out_data = static_cast<uint8_t*>(out.data());
-    const size_t head = first * chunk_bytes, tail = (first + src.size()) * chunk_bytes;
-    for (size_t r = 0; r < outer; ++r) {
-        const auto* in_row = in_data + r * row_bytes;
-        auto* out_row = out_data + r * row_bytes;
-        std::memcpy(out_row, in_row, head);
-        std::memcpy(out_row + tail, in_row + tail, row_bytes - tail);
-        for (size_t n = 0; n < src.size(); ++n) {
-            std::memcpy(out_row + (first + n) * chunk_bytes,
-                        in_row + (first + static_cast<size_t>(src[n])) * chunk_bytes,
-                        chunk_bytes);
+    auto materialize = [t, outer, row_bytes, chunk_bytes, first, src] {
+        ov::Tensor out(t.get_element_type(), t.get_shape());
+        const auto* in_data = static_cast<const uint8_t*>(t.data());
+        auto* out_data = static_cast<uint8_t*>(out.data());
+        const size_t head = first * chunk_bytes, tail = (first + src.size()) * chunk_bytes;
+        for (size_t r = 0; r < outer; ++r) {
+            const auto* in_row = in_data + r * row_bytes;
+            auto* out_row = out_data + r * row_bytes;
+            std::memcpy(out_row, in_row, head);
+            std::memcpy(out_row + tail, in_row + tail, row_bytes - tail);
+            for (size_t n = 0; n < src.size(); ++n) {
+                std::memcpy(out_row + (first + n) * chunk_bytes,
+                            in_row + (first + static_cast<size_t>(src[n])) * chunk_bytes,
+                            chunk_bytes);
+            }
         }
-    }
-    return out;
+        return out;
+    };
+    return is_deferred(t) ? defer_tensor(t.get_element_type(), t.get_shape(), std::move(materialize)) : materialize();
 }
 
 // Reorder `src.size()` blocks of `rows_per_block` rows (dim 0) starting at row `first_row`.

@@ -22,6 +22,7 @@
 #include <tuple>
 #include <vector>
 
+#include "deferred_weights.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/parallel.hpp"
@@ -148,9 +149,12 @@ ov::Tensor slice_leading(const ov::Tensor& t, size_t r0, size_t r1) {
     OPENVINO_ASSERT(!out_shape.empty() && r1 <= out_shape[0] && r0 <= r1, "[GGUF] bad slice");
     const size_t stride = t.get_byte_size() / out_shape[0];
     out_shape[0] = r1 - r0;
-    ov::Tensor out(t.get_element_type(), out_shape);
-    std::memcpy(out.data(), static_cast<const uint8_t*>(t.data()) + r0 * stride, (r1 - r0) * stride);
-    return out;
+    auto materialize = [t, out_shape, r0, r1, stride] {
+        ov::Tensor out(t.get_element_type(), out_shape);
+        std::memcpy(out.data(), static_cast<const uint8_t*>(t.data()) + r0 * stride, (r1 - r0) * stride);
+        return out;
+    };
+    return is_deferred(t) ? defer_tensor(t.get_element_type(), out_shape, std::move(materialize)) : materialize();
 }
 
 // Gather rows in a repeating per-block pattern: for every `block` consecutive rows, take
@@ -161,14 +165,18 @@ ov::Tensor gather_rows_strided(const ov::Tensor& t, size_t block, size_t take, s
     OPENVINO_ASSERT(s.size() == 2 && block > 0 && offset + take <= block && s[0] % block == 0,
                     "[GGUF] bad strided row gather");
     const size_t n_blocks = s[0] / block;
-    ov::Tensor out(t.get_element_type(), ov::Shape{n_blocks * take, s[1]});
     const size_t row_bytes = t.get_byte_size() / s[0];
-    const auto* src = static_cast<const uint8_t*>(t.data());
-    auto* dst = static_cast<uint8_t*>(out.data());
-    for (size_t b = 0; b < n_blocks; ++b) {
-        std::memcpy(dst + b * take * row_bytes, src + (b * block + offset) * row_bytes, take * row_bytes);
-    }
-    return out;
+    const ov::Shape shape{n_blocks * take, s[1]};
+    auto materialize = [t, shape, n_blocks, block, take, offset, row_bytes] {
+        ov::Tensor out(t.get_element_type(), shape);
+        const auto* src = static_cast<const uint8_t*>(t.data());
+        auto* dst = static_cast<uint8_t*>(out.data());
+        for (size_t b = 0; b < n_blocks; ++b) {
+            std::memcpy(dst + b * take * row_bytes, src + (b * block + offset) * row_bytes, take * row_bytes);
+        }
+        return out;
+    };
+    return is_deferred(t) ? defer_tensor(t.get_element_type(), shape, std::move(materialize)) : materialize();
 }
 
 // Keep all leading dims separate rather than flattening: the trailing Reshape must be
@@ -801,6 +809,10 @@ GgufTensorType lookup_qtype(const std::string& base, const std::unordered_map<st
     return qtype;
 }
 
+bool same_weight_conversion_policy(const std::string& lhs, const std::string& rhs) {
+    return is_embedding_or_output(lhs) == is_embedding_or_output(rhs);
+}
+
 // Build one split-off part by applying `slice` (a row-range or strided-gather extractor) to
 // the weight and, if present for this qtype's format, the scales and zero-point.
 template <typename SliceFn>
@@ -939,6 +951,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
                                : qtype == GGUF_TYPE_F16 ? ov::element::f16
                                                         : ov::element::bf16;
         ov::Tensor typed(et, logical_shape, data.data());
+        typed = ov::Tensor(typed, std::make_shared<ov::Tensor>(data));
         return make_weight_node({typed, {}, {}}, qtype, name);
     }
 

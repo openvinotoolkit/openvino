@@ -24,6 +24,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/utils.cpp"
     "${FE_SRC_DIR}/hadamard_sign_folding.cpp"
     "${FE_SRC_DIR}/helper_ops/set_rows_op.cpp"
+    "${FE_SRC_DIR}/helper_ops/gguf_constant.cpp"
     "${FE_SRC_DIR}/pass/adapt_to_genai.cpp"
     "${FE_SRC_DIR}/pass/adapt_mmproj_to_genai.cpp"
     "${FE_SRC_DIR}/pass/lower_set_rows_stateless.cpp"
@@ -31,8 +32,10 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/pass/make_stateful.cpp"
     "${FE_SRC_DIR}/pass/prune_orphaned_parameters.cpp"
     "${FE_SRC_DIR}/pass/simplify_activation_shapes.cpp"
+    "${FE_SRC_DIR}/pass/materialize_weights.cpp"
     "${FE_SRC_DIR}/tokenizer_metadata.cpp"
     "${FE_SRC_DIR}/quant/gguf.cpp"
+    "${FE_SRC_DIR}/quant/deferred_weights.cpp"
     "${FE_SRC_DIR}/quant/gguf_quants.cpp"
     "${FE_SRC_DIR}/quant/weights.cpp"
     "${FE_SRC_DIR}/builder/gguf_builder.cpp"
@@ -128,6 +131,7 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_gdn_normalization.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_isolate_precision_sensitive_outputs.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_parser.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/deferred_weights.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_shared_linear_inputs.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_simplify_activation_shapes.cpp"
@@ -155,6 +159,7 @@ ov_add_test_target(
         # .gguf load path (get_path_from_any in openvino/frontend/common/path_util.hpp).
         "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
         "${OpenVINO_SOURCE_DIR}/src/frontends/common/dev_api"
+        "${OpenVINO_SOURCE_DIR}/src/inference/dev_api"
     ADD_CLANG_FORMAT
     LABELS
         OV UNIT GGUF_FE
