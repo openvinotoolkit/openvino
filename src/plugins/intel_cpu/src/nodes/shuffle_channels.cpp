@@ -115,9 +115,6 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
         if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (ov::with_cpu_x86_sse42()) {
-            return impl_desc_type::jit_sse42;
-        }
         return impl_desc_type::ref;
     }();
 

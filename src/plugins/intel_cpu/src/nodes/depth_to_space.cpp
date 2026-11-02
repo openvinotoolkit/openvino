@@ -134,8 +134,6 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
         impl_type = impl_desc_type::jit_avx512;
     } else if (ov::with_cpu_x86_avx2()) {
         impl_type = impl_desc_type::jit_avx2;
-    } else if (ov::with_cpu_x86_sse42()) {
-        impl_type = impl_desc_type::jit_sse42;
     }
 
     NodeConfig config;

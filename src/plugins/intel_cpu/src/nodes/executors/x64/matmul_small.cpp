@@ -109,8 +109,6 @@ bool MatMulSmallExecutor::update(const MemoryArgs& memory) {
             std::make_shared<jit_uni_matmul_small_kernel_f32<cpu::x64::avx512_core>>(jcp, *dnnlPrimitiveAttr);
     } else if (mayiuse(cpu::x64::avx2)) {
         m_matmul_kernel = std::make_shared<jit_uni_matmul_small_kernel_f32<cpu::x64::avx2>>(jcp, *dnnlPrimitiveAttr);
-    } else if (mayiuse(cpu::x64::sse41)) {
-        m_matmul_kernel = std::make_shared<jit_uni_matmul_small_kernel_f32<cpu::x64::sse41>>(jcp, *dnnlPrimitiveAttr);
     } else {
         OPENVINO_THROW("Can't create jit jit_uni_matmul_small_kernel_f32 kernel");
     }

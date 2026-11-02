@@ -189,7 +189,6 @@ void jit_uni_matmul_small_kernel_f32<isa>::apply_post_ops(ov::element::Type dst_
     }
 }
 
-template struct jit_uni_matmul_small_kernel_f32<cpu::x64::sse41>;
 template struct jit_uni_matmul_small_kernel_f32<cpu::x64::avx2>;
 template struct jit_uni_matmul_small_kernel_f32<cpu::x64::avx512_core>;
 

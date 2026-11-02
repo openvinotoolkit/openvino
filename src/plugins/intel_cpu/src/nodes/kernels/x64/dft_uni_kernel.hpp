@@ -79,11 +79,8 @@ struct jit_uni_dft_kernel_f32 : public jit_uni_dft_kernel, public dnnl::impl::cp
     void generate() override;
 
 private:
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         isa == dnnl::impl::cpu::x64::avx2,
-                                                         Xbyak::Ymm,
-                                                         Xbyak::Zmm>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
@@ -116,11 +113,8 @@ struct jit_uni_fft_kernel_f32 : public jit_uni_fft_kernel, public dnnl::impl::cp
     void generate() override;
 
 private:
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-                                                         Xbyak::Xmm,
-                                                         isa == dnnl::impl::cpu::x64::avx2,
-                                                         Xbyak::Ymm,
-                                                         Xbyak::Zmm>::type;
+    using Vmm =
+        typename dnnl::impl::utils::conditional<isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     const size_t vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_even_in_diff = rax;

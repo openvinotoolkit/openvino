@@ -229,8 +229,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits_t<isa>::vlen;
     const int vector_step = vlen / sizeof(float);
@@ -641,18 +640,6 @@ private:
             store(vmm_val, reg_dst, vector_step);
             add(reg_dst, vector_step * jcp_.dst_data_size);
 
-            if (isa == cpu::x64::sse41) {
-                add(reg_src_aux, vector_step * jcp_.src_data_size);
-                load(reg_src_aux, vmm_val, vector_step);
-                if (attr_.post_ops_.len() != 0) {
-                    add(reg_oc_off, vector_step * sizeof(float));
-                    apply_post_ops(jcp_.dst_prc, 0);
-                    sub(reg_oc_off, vector_step * sizeof(float));
-                }
-                store(vmm_val, reg_dst, vector_step);
-                add(reg_dst, vector_step * jcp_.dst_data_size);
-            }
-
             add(reg_index, jcp_.indices_size);
             sub(reg_work_amount, 1);
 
@@ -779,7 +766,7 @@ private:
         }
         mov(reg_work_amount, ptr[reg_params + GET_OFF(work_amount)]);
 
-        int blk = (isa == cpu::x64::sse41) ? (2 * vector_step) : vector_step;
+        int blk = vector_step;
         int dst_stride = (jcp_.layout == InterpolateLayoutType::by_channel)
                              ? (vector_step * jcp_.dst_data_size)
                              : (blk * jcp_.OW * jcp_.OH * jcp_.OD * jcp_.dst_data_size);
@@ -835,40 +822,6 @@ private:
             }
             store(vmm_valTR, reg_dst, vector_step);
 
-            if ((isa == cpu::x64::sse41) && (jcp_.layout == InterpolateLayoutType::block)) {
-                int offset_src = vector_step * jcp_.src_data_size;
-                load(reg_src, vmm_valTL, vector_step, offset_src);
-                load(reg_src_aux, vmm_valTR, vector_step, offset_src);
-                if (jcp_.spatial_dim_size == 1) {
-                    linear_onnx_worker_1d();
-                }
-                if (jcp_.spatial_dim_size > 1) {
-                    load(reg_src_aux1, vmm_valBL, vector_step, offset_src);
-                    load(reg_src_aux2, vmm_valBR, vector_step, offset_src);
-                    linear_onnx_worker_2d();
-                }
-                if (jcp_.spatial_dim_size > 2) {
-                    uni_vmovups(vmm_d_bias, vmm_valTR);  // temporally save front result to temp_vmm
-                    load(reg_src_aux4, vmm_valTL, vector_step, offset_src);
-                    load(reg_src_aux5, vmm_valTR, vector_step, offset_src);
-                    load(reg_src_aux6, vmm_valBL, vector_step, offset_src);
-                    load(reg_src_aux7, vmm_valBR, vector_step, offset_src);
-                    // 2d for end depth
-                    linear_onnx_worker_2d();
-                    // 3th dimension
-                    uni_vmulps(vmm_valTR, vmm_valTR, vmm_weightE);  // end_value * end_weight
-                    uni_vfmadd231ps(vmm_valTR,
-                                    vmm_d_bias,
-                                    vmm_weightF);  // start_value * start_weight + end_value * end_weight
-                }
-
-                if (attr_.post_ops_.len() != 0) {
-                    apply_post_ops(jcp_.dst_prc, false);
-                    add(reg_oc_off, vector_step * sizeof(float));
-                }
-                int offset_dst = vector_step * jcp_.dst_data_size;
-                store(vmm_valTR, reg_dst, vector_step, offset_dst);
-            }
             add(reg_dst, dst_stride);
             add(reg_src, src_stride);
             add(reg_src_aux, src_stride);
@@ -1144,7 +1097,7 @@ private:
         uni_vbroadcastss(vmm_weightY2, ptr[reg_src_aux1 + 2 * sizeof(float)]);
         uni_vbroadcastss(vmm_weightY3, ptr[reg_src_aux1 + 3 * sizeof(float)]);
 
-        int blk = (isa == cpu::x64::sse41) ? (2 * vector_step) : vector_step;
+        int blk = vector_step;
 
         Xbyak::Label main_loop_label;
         Xbyak::Label main_loop_end_label;
@@ -1170,24 +1123,6 @@ private:
             }
             store(vmm_val, reg_dst, vector_step);
 
-            if ((isa == cpu::x64::sse41) && (jcp_.layout == InterpolateLayoutType::block)) {
-                // vmm is xmm here
-                add(reg_src, vector_step * jcp_.src_data_size);
-                add(reg_dst, vector_step * jcp_.dst_data_size);
-
-                uni_vpxor(vmm_val, vmm_val, vmm_val);
-
-                cubic_c_gathered_matrix(false);
-
-                if (attr_.post_ops_.len() != 0) {
-                    apply_post_ops(jcp_.dst_prc, false);
-                    add(reg_oc_off, vector_step * sizeof(float));  // second vector_step for one blk
-                }
-                store(vmm_val, reg_dst, vector_step);
-
-                sub(reg_src, vector_step * jcp_.src_data_size);
-                sub(reg_dst, vector_step * jcp_.dst_data_size);
-            }
             if (jcp_.layout == InterpolateLayoutType::by_channel) {
                 int dst_stride = vector_step * jcp_.dst_data_size;
                 int src_stride = vector_step * jcp_.src_data_size;
@@ -2178,7 +2113,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     }
 
 #if !defined(OV_CPU_WITH_ACL)
-    if (!ov::with_cpu_x86_sse42()) {
+    if (!ov::with_cpu_x86_avx2()) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 #endif
@@ -2290,12 +2225,6 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                 } else {
                     pushDesc(LayoutType::nspc, jit_avx2, true);
                 }
-            } else if (ov::with_cpu_x86_sse42()) {
-                if (interpAttrs.NCHWAsNHWC) {
-                    pushDesc(LayoutType::ncsp, jit_sse42, true);
-                } else {
-                    pushDesc(LayoutType::nspc, jit_sse42, true);
-                }
             }
         }
         pushDesc(LayoutType::ncsp, ref, true);
@@ -2315,10 +2244,10 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
         inputPrecision = outputPrecision = ov::element::f32;
 #endif
 
-        if (!ov::with_cpu_x86_sse42() || interpAttrs.mode == InterpolateMode::linear) {
+        if (!ov::with_cpu_x86_avx2() || interpAttrs.mode == InterpolateMode::linear) {
             pushDesc(LayoutType::ncsp, ref, false);
         } else {
-            // blk and by_channel JIT kernel on sse41 or above machine
+            // blk and by_channel JIT kernel on avx2 or above machine
             if (dataRank == 4 || (dataRank == 5 && interpAttrs.mode != InterpolateMode::cubic)) {
                 if (ov::with_cpu_x86_avx512_core()) {
                     if (interpAttrs.NCHWAsNHWC) {
@@ -2337,15 +2266,6 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                     }
                     if (isBlkApplied) {
                         pushDesc(LayoutType::nCsp8c, jit_avx2, false);
-                    }
-                } else {
-                    if (interpAttrs.NCHWAsNHWC) {
-                        pushDesc(LayoutType::ncsp, jit_sse42, false);
-                    } else {
-                        pushDesc(LayoutType::nspc, jit_sse42, false);
-                    }
-                    if (isBlkApplied) {
-                        pushDesc(LayoutType::nCsp8c, jit_sse42, false);
                     }
                 }
             }
@@ -2541,15 +2461,15 @@ void Interpolate::prepareParams() {
         bool isNearestLinearOrCubic = key.nodeAttrs.mode == InterpolateMode::nearest ||
                                       key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
                                       key.nodeAttrs.mode == InterpolateMode::cubic;
-        bool isPlanarLayourAndSse41 = key.nodeAttrs.layout != InterpolateLayoutType::planar && ov::with_cpu_x86_sse42();
+        bool isNonPlanarAndAvx2 = key.nodeAttrs.layout != InterpolateLayoutType::planar && ov::with_cpu_x86_avx2();
         bool isAvx2AndF32 = ov::with_cpu_x86_avx2() && key.nodeAttrs.inPrc == ov::element::f32;
         bool isPillowMode = key.nodeAttrs.mode == InterpolateMode::bilinear_pillow ||
                             key.nodeAttrs.mode == InterpolateMode::bicubic_pillow;
         bool isByChannelLayout = key.nodeAttrs.layout == InterpolateLayoutType::by_channel;
-        bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isPlanarLayourAndSse41 || isAvx2AndF32);
+        bool isNearestLinearOrCubicSupported = isNearestLinearOrCubic && (isNonPlanarAndAvx2 || isAvx2AndF32);
         bool isPillowModeSupported = isPillowMode && isByChannelLayout;
 
-        if ((isNearestLinearOrCubicSupported || isPillowModeSupported) && ov::with_cpu_x86_sse42()) {
+        if ((isNearestLinearOrCubicSupported || isPillowModeSupported) && ov::with_cpu_x86_avx2()) {
             executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
@@ -3337,7 +3257,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
             weightPtr[4] = reinterpret_cast<float*>(&auxTable[scratchLen + 4 * OW * OH * OD]);
             weightPtr[5] = reinterpret_cast<float*>(&auxTable[scratchLen + 5 * OW * OH * OD]);
         }
-        int scale = ov::with_cpu_x86_sse42() ? srcDataSize : 1;
+        int scale = ov::with_cpu_x86_avx2() ? srcDataSize : 1;
 
         for (int oz = 0; oz < OD; oz++) {
             int izF = 0;
@@ -4407,8 +4327,6 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
                 std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx512_core>>(jcp, *attr.get());
         } else if (ov::with_cpu_x86_avx2()) {
             interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
-        } else if (ov::with_cpu_x86_sse42()) {
-            interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::sse41>>(jcp, *attr.get());
         }
     } else if (ov::with_cpu_x86_avx2() && interpAttrs.inPrc == ov::element::f32) {
         // gather ISA(for planar JIT kernel) for avx2 and fp32
@@ -4556,7 +4474,7 @@ size_t Interpolate::getSpatialDimsNum(const std::vector<float>& scales) {
 }
 
 bool Interpolate::canFuse(const NodePtr& node) const {
-    if (!ov::with_cpu_x86_sse42() || interpAttrs.mode == InterpolateMode::linear ||
+    if (!ov::with_cpu_x86_avx2() || interpAttrs.mode == InterpolateMode::linear ||
         interpAttrs.mode == InterpolateMode::bilinear_pillow || interpAttrs.mode == InterpolateMode::bicubic_pillow ||
         (none_of(dataRank, 4U, 5U) && !ov::with_cpu_x86_avx2())) {
         return false;

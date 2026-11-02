@@ -411,21 +411,6 @@ void jit_dft_kernel_f32<avx2>::interleave_and_store(const Vmm& real,
     uni_vmovups(ptr[reg_exp + vlen], high);
 }
 
-template <>
-void jit_dft_kernel_f32<sse41>::interleave_and_store(const Vmm& real,
-                                                     const Vmm& imag,
-                                                     const Xbyak::RegExp& reg_exp,
-                                                     const Vmm& tmp) {
-    const Vmm& low = tmp;
-    const Vmm& high = real;
-    uni_vmovups(low, real);
-    unpcklps(low, imag);
-    unpckhps(high, imag);
-    uni_vmovups(ptr[reg_exp], low);
-    uni_vmovups(ptr[reg_exp + vlen], high);
-}
-
-template struct jit_dft_kernel_f32<cpu::x64::sse41>;
 template struct jit_dft_kernel_f32<cpu::x64::avx2>;
 template struct jit_dft_kernel_f32<cpu::x64::avx512_core>;
 

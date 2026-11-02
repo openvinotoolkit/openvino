@@ -77,8 +77,7 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
     }
 
 private:
-    using Vmm =
-        typename dnnl::impl::utils::conditional3<isa == cpu_isa_t::sse41, Xmm, isa == cpu_isa_t::avx2, Ymm, Zmm>::type;
+    using Vmm = typename dnnl::impl::utils::conditional<isa == cpu_isa_t::avx2, Ymm, Zmm>::type;
 
     void generate() override {
         this->preamble();
@@ -366,9 +365,6 @@ void Interaction::prepareParams() {
     } else if (ov::with_cpu_x86_avx2()) {
         moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx2>>(jcp);
         moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::avx2>>(interJcp);
-    } else if (ov::with_cpu_x86_sse42()) {
-        moveFeatureKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::sse41>>(jcp);
-        moveInteractKernel = std::make_unique<jit_move_scale_kernel<cpu_isa_t::sse41>>(interJcp);
     }
 #endif  // OPENVINO_ARCH_X86_64
 

@@ -45,7 +45,7 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             return false;
         }
 #if defined(OPENVINO_ARCH_X86_64)
-        if (!x64::mayiuse(x64::sse41)) {
+        if (!x64::mayiuse(x64::avx2)) {
             errorMessage = "Not supported CPU instructions set.";
             return false;
         }
@@ -121,11 +121,9 @@ void GridSample::initSupportedPrimitiveDescriptors() {
     dataTypeSize = dataPrecision.size();
     gridTypeSize = gridPrecision.size();
 
-    impl_desc_type implType = jit_sse42;
+    impl_desc_type implType = jit_avx2;
     if (x64::mayiuse(x64::avx512_core)) {
         implType = jit_avx512;
-    } else if (x64::mayiuse(x64::avx2)) {
-        implType = jit_avx2;
     }
 
     // 95905 - to add nspc layout support.
@@ -163,8 +161,6 @@ void GridSample::createPrimitive() {
         jitKernel = std::make_shared<kernel::GridSampleKernel<x64::avx512_core>>(jcp);
     } else if (x64::mayiuse(x64::avx2)) {
         jitKernel = std::make_shared<kernel::GridSampleKernel<x64::avx2>>(jcp);
-    } else if (x64::mayiuse(x64::sse41)) {
-        jitKernel = std::make_shared<kernel::GridSampleKernel<x64::sse41>>(jcp);
     }
     CPU_NODE_ASSERT(jitKernel, "could not create JIT kernel.");
     jitKernel->create_ker();

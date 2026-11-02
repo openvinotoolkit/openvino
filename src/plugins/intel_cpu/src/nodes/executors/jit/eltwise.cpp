@@ -288,11 +288,6 @@ EltwiseJitExecutor::EltwiseJitExecutor(const Key& key)
                                                                                          key.eltwise_data,
                                                                                          key.ops_list,
                                                                                          key.postOps);
-    } else if (mayiuse(dnnl::impl::cpu::x64::sse41)) {
-        m_kernel = std::make_unique<jit_uni_eltwise_generic<dnnl::impl::cpu::x64::sse41>>(jep,
-                                                                                          key.eltwise_data,
-                                                                                          key.ops_list,
-                                                                                          key.postOps);
     } else {
         OPENVINO_THROW("Can't create jit eltwise kernel");
     }
@@ -378,7 +373,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                                   [[maybe_unused]] const std::vector<ov::element::Type>& input_precisions,
                                   [[maybe_unused]] const std::vector<ov::element::Type>& output_precisions) {
 #if defined(OPENVINO_ARCH_X86_64)
-    const auto isISASupportedByJIT = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41);
+    const auto isISASupportedByJIT = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
 #elif defined(OPENVINO_ARCH_ARM64)
     const auto isISASupportedByJIT = dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
 #elif defined(OPENVINO_ARCH_RISCV64)
@@ -563,10 +558,6 @@ impl_desc_type EltwiseJitExecutor::implType() {
 
     if (mayiuse(dnnl::impl::cpu::x64::avx2)) {
         return impl_desc_type::jit_avx2;
-    }
-
-    if (mayiuse(dnnl::impl::cpu::x64::sse41)) {
-        return impl_desc_type::jit_sse42;
     }
 #endif
     OPENVINO_THROW("Unsupported architecture for Eltwise JIT executor");

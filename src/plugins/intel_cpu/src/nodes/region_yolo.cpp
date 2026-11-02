@@ -142,7 +142,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
     }
 
 private:
-    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
     size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Address table_val(int index) {
@@ -185,10 +185,7 @@ private:
         uni_vmovups(vmm_aux2, table_val(1));
         uni_vsubps(vmm_aux2, vmm_aux2, vmm_src);
 
-        if (isa == x64::sse41) {
-            uni_vblendvps(vmm_aux2, vmm_aux2, vmm_src, vmm_aux0);
-            uni_vmovups(vmm_src, vmm_aux2);
-        } else if (isa == x64::avx2) {
+        if (isa == x64::avx2) {
             uni_vblendvps(vmm_src, vmm_aux2, vmm_src, vmm_aux0);
         } else {
             vptestmd(k_mask, vmm_aux0, vmm_aux0);
@@ -338,9 +335,6 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
         if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (ov::with_cpu_x86_sse42()) {
-            return impl_desc_type::jit_sse42;
-        }
         return impl_desc_type::ref;
     }();
 
@@ -364,9 +358,6 @@ void RegionYolo::createPrimitive() {
     } else if (ov::with_cpu_x86_avx2()) {
         logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::avx2>>(jcp);
         block_size = 8;
-    } else if (ov::with_cpu_x86_sse42()) {
-        logistic_kernel = std::make_shared<jit_uni_logistic_kernel_f32<x64::sse41>>(jcp);
-        block_size = 4;
     }
 
     if (logistic_kernel) {

@@ -239,7 +239,6 @@ std::string RandomUniform::getPrimitiveDescriptorType() const {
 
     SEARCH_TYPE(avx512);
     SEARCH_TYPE(avx2);
-    SEARCH_TYPE(sse42);
     SEARCH_TYPE(any);
 
 #undef SEARCH_TYPE
@@ -451,8 +450,8 @@ void RandomUniform::prepareGeneratorKernel() {
                 selected_pd->setImplementationType(jit_avx512);
             } else if (m_jit_kernel->getIsa() == x64::avx2) {
                 selected_pd->setImplementationType(jit_avx2);
-            } else if (m_jit_kernel->getIsa() == x64::sse41) {
-                selected_pd->setImplementationType(jit_sse42);
+            } else {
+                CPU_NODE_THROW("RandomUniform JIT kernel was created for unsupported ISA: ", m_jit_kernel->getIsa());
             }
         }
     }

@@ -393,8 +393,6 @@ inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t 
     case isa:                \
         return std::make_shared<IsaRegistersPool<(isa)>>(regsToExclude);
     switch (isa) {
-        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::sse41)
-        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx)
         ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx2)
         ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx2_vnni)
         ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx512_core)
@@ -407,19 +405,9 @@ inline RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t 
         return std::make_shared<IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>>(regsToExclude);
     case dnnl::impl::cpu::x64::avx512_vpopcnt:
         return std::make_shared<IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>>(regsToExclude);
-    case dnnl::impl::cpu::x64::isa_undef:
-    case dnnl::impl::cpu::x64::amx_tile:
-    case dnnl::impl::cpu::x64::amx_int8:
-    case dnnl::impl::cpu::x64::amx_bf16:
-    case dnnl::impl::cpu::x64::avx2_vnni_2:
-    case dnnl::impl::cpu::x64::amx_fp16:
-    case dnnl::impl::cpu::x64::avx512_core_amx_fp16:
-    case dnnl::impl::cpu::x64::isa_all:
-    case dnnl::impl::cpu::x64::avx10_2_512:
-    case dnnl::impl::cpu::x64::avx10_2_512_amx_2:
+    default:
         OPENVINO_THROW("Invalid isa argument in RegistersPool::create()");
     }
-    OPENVINO_THROW("Invalid isa argument in RegistersPool::create()");
 #undef ISA_SWITCH_CASE
 }
 
