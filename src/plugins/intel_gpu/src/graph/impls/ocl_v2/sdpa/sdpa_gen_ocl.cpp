@@ -1284,10 +1284,24 @@ void add_strides_jit(JitConstants& jit, const jit_inputs& in) {
         return;
     }
     const auto desc = in.params.typed_desc<scaled_dot_product_attention>();
-    jit.add(convert_strides("QRY", "INPUT0", extend_order_in_num_heads_dim(desc->input_q_transpose_order)));
-    jit.add(convert_strides("KEY", "INPUT1", extend_order_in_num_heads_dim(desc->input_k_transpose_order)));
-    jit.add(convert_strides("VAL", "INPUT2", extend_order_in_num_heads_dim(desc->input_v_transpose_order)));
+    const auto q_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+    const auto k_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+    const auto v_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+    // With sizes: QRY/KEY/VAL_D0 are the batch sizes the kernel wraps a broadcast batch index by.
+    jit.add(convert_strides("QRY", "INPUT0", q_order, true));
+    jit.add(convert_strides("KEY", "INPUT1", k_order, true));
+    jit.add(convert_strides("VAL", "INPUT2", v_order, true));
     jit.add(convert_strides("DST", "OUTPUT", extend_order_in_num_heads_dim(desc->output_transpose_order)));
+    // The Q, K and V batches broadcast numpy-style (each is 1 or the output batch), the rule sdpa_opt follows
+    // (get_broadcast_batch() also rejects static batches that cannot broadcast). An input whose batch is not
+    // statically the output's, or any dynamic batch, makes the kernel wrap that input's batch index.
+    const auto q_batch = get_batch_size(in.params.get_input_layout(0), q_order);
+    const auto k_batch = get_batch_size(in.params.get_input_layout(1), k_order);
+    const auto v_batch = get_batch_size(in.params.get_input_layout(2), v_order);
+    const auto out_batch = get_broadcast_batch(q_batch, k_batch, v_batch);  // -1: dynamic
+    jit.make("BROADCAST_Q_BATCH", (out_batch == -1 || q_batch != out_batch) ? 1 : 0);
+    jit.make("BROADCAST_K_BATCH", (out_batch == -1 || k_batch != out_batch) ? 1 : 0);
+    jit.make("BROADCAST_V_BATCH", (out_batch == -1 || v_batch != out_batch) ? 1 : 0);
     jit.add(unit_parameters("QRY"));
     jit.add(unit_parameters("KEY"));
     jit.add(unit_parameters("VAL"));
