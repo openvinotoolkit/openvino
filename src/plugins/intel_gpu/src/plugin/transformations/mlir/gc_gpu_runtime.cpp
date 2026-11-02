@@ -393,7 +393,16 @@ public:
             };
 
             const auto& layout = mem->get_layout();
-            OPENVINO_ASSERT(cldnn::format::is_default_format(layout.format), "[GPU] Only plain layouts are supported by mlir_primitive '", instance.id(), "'");
+            // Input formats are validated against the program's requirements in mlir_primitive_impl::execute_impl;
+            // Here we only validate that the format can be expressed as memref strides (is supported by gc-runtime).
+            // TODO: bzyxf is a "simple" format too, move it into format::is_simple_data_format.
+            OPENVINO_ASSERT(cldnn::format::is_simple_data_format(layout.format) || layout.format == cldnn::format::bzyxf,
+                            "[GPU] mlir_primitive '",
+                            instance.id(),
+                            "', ",
+                            argument(),
+                            ": blocked formats are not supported, got ",
+                            layout.format.to_string());
             OPENVINO_ASSERT(!layout.data_padding, "[GPU] mlir_primitive '", instance.id(), "', ", argument(), ": padded buffers are not supported");
             OPENVINO_ASSERT(mem->buffer_ptr() != nullptr, "[GPU] mlir_primitive '", instance.id(), "' requires USM buffers");
             OPENVINO_ASSERT(layout.data_type == type,
@@ -409,9 +418,6 @@ public:
 
             const auto& ps = layout.get_partial_shape();
             OPENVINO_ASSERT(ps.size() >= rank, "[GPU] mlir_primitive '", instance.id(), "': expected rank ", rank, ", got ", ps.size());
-            // A plain unpadded layout is dense row-major: the strides are the trailing dimension products.
-            llvm::SmallVector<int64_t, 12> strides(ps.size());
-            int64_t stride = 1;
             for (size_t i = ps.size(); i--;) {
                 OPENVINO_ASSERT(ps[i].is_static(), "[GPU] mlir_primitive '", instance.id(), "' requires static buffer dimensions");
                 OPENVINO_ASSERT(i < rank || ps[i].get_length() == 1,
@@ -422,9 +428,10 @@ public:
                                 " of ",
                                 argument(),
                                 " is not 1");
-                strides[i] = stride;
-                stride *= ps[i].get_length();
             }
+            // Element strides in logical order, derived from the format.
+            const auto pitches = layout.get_pitches();
+            OPENVINO_ASSERT(pitches.size() >= rank, "[GPU] mlir_primitive '", instance.id(), "', ", argument(), ": unexpected pitches rank ", pitches.size());
 
             builder.storeMemref(
                 held,
@@ -433,7 +440,7 @@ public:
                     return ps[i].get_length();
                 },
                 [&](unsigned i) {
-                    return strides[i];
+                    return static_cast<int64_t>(pitches[i]);
                 });
         };
 
