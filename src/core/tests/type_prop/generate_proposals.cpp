@@ -166,7 +166,7 @@ INSTANTIATE_TEST_SUITE_P(
         BatchMismatchParams{{1, 2}, Dimension::dynamic(), {3, 4}, "Batch size of 'input_scores' is not compatible"}));
 
 TEST_P(GenerateProposalsBatchMismatchTest, batch_mismatch_throws) {
-    const auto& p = GetParam();
+    const auto& [im_info_batch, deltas_batch, scores_batch, expected_msg] = GetParam();
 
     Attrs attrs;
     attrs.min_size = 0.0f;
@@ -174,16 +174,14 @@ TEST_P(GenerateProposalsBatchMismatchTest, batch_mismatch_throws) {
     attrs.post_nms_count = 1000;
     attrs.pre_nms_count = 1000;
 
-    const auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{p.im_info_batch, 4});
+    const auto im_info = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{im_info_batch, 4});
     const auto anchors = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{200, 336, 3, 4});
-    const auto deltas =
-        std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{p.deltas_batch, 12, 200, 336});
-    const auto scores =
-        std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{p.scores_batch, 3, 200, 336});
+    const auto deltas = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{deltas_batch, 12, 200, 336});
+    const auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{scores_batch, 3, 200, 336});
 
     OV_EXPECT_THROW(std::ignore = std::make_shared<GenerateProposals>(im_info, anchors, deltas, scores, attrs),
                     NodeValidationFailure,
-                    HasSubstr(p.expected_msg));
+                    HasSubstr(expected_msg));
 }
 
 TEST(type_prop, generate_proposals_dynamic) {
