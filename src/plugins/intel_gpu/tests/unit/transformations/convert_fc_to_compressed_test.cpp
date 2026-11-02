@@ -970,12 +970,22 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed26_GnkU2ParameterWeightsOnCmDe
     }
 }
 
-TEST_F(TransformationTestsF, ConvertFCToCompressed27_GnkU2ParameterWeightsStayUnconvertedWithoutCm) {
+TEST(TransformationTests, ConvertFCToCompressed27_GnkU2ParameterWeightsFallBackToNkWithoutCm) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 128});
     auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u2, ov::Shape{2, 32, 64});
-    model = make_gnk_u2_model(input, weights, ov::ParameterVector{input, weights});
+    auto model = make_gnk_u2_model(input, weights, ov::ParameterVector{input, weights});
+    ov::pass::Manager manager;
     manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
-    model_ref = model->clone();
+    manager.run_passes(model);
+
+    size_t compressed_fc_count = 0;
+    for (const auto& node : model->get_ops()) {
+        if (auto fc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(node)) {
+            ++compressed_fc_count;
+            EXPECT_EQ(fc->get_weights_layout(), ov::intel_gpu::op::FcWeightsLayout::NK);
+        }
+    }
+    EXPECT_EQ(compressed_fc_count, 1u);
 }
 
 enum class TransposeBeforeReshapePattern {

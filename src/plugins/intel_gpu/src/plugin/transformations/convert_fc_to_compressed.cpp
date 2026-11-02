@@ -143,26 +143,30 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             return result;
         };
 
-        // Native GNK u2 weights for the CM kernel: [G, N, gs] as is, scale / zp [G, N]. The weights may be a constant
-        // or a Parameter; either is passed through untouched.
-        if (pattern_map.count(gnk_transpose_reshape_m)) {
-            const bool has_zp = pattern_map.count(subtract_m) > 0;
-            const auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
-            const auto zp_const = has_zp ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sub_const_m).get_node_shared_ptr()) : nullptr;
-            const bool accepted = fc->get_transpose_b() && !pattern_map.count(weights_reshape_m) && scale_const && zp_const &&
-                                  cm::woq_u2_accepts_gnk(m_device_info,
-                                                         m_cm_jit_supported,
-                                                         weight_ptr->get_element_type(),
-                                                         weight_ptr->get_output_partial_shape(0),
-                                                         scale_const->get_element_type(),
-                                                         scale_const->get_output_partial_shape(0),
-                                                         has_zp,
-                                                         zp_const->get_element_type(),
-                                                         zp_const->get_output_partial_shape(0));
-            if (!accepted) {
-                return false;
-            }
-
+        // [G, N, gs] -> Transpose{1, 0, 2} -> Reshape [N, G * gs] u2 weights can be passed to the CM kernel as is (scale / zp [G, N])
+        // instead of being permuted to NK. The weights may be a constant or a Parameter. Otherwise the permute path below applies.
+        bool is_gnk_u2 = false;
+        if (has_transpose_before_reshape && !pattern_map.count(weights_reshape_m) && fc->get_transpose_b() && weight_ptr->get_output_partial_shape(0).is_static() &&
+            weight_ptr->get_output_shape(0).size() == 3) {
+            const auto order = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(transpose_const_m).get_node_shared_ptr());
+            const auto& w = weight_ptr->get_output_shape(0);
+            const auto& reshaped = pattern_map.at(transpose_before_reshape_m).get_node()->get_output_partial_shape(0);
+            is_gnk_u2 = order && order->cast_vector<int64_t>() == std::vector<int64_t>{1, 0, 2} && reshaped.is_static() && reshaped.size() == 2 &&
+                        reshaped[0].get_length() == static_cast<int64_t>(w[1]) && reshaped[1].get_length() == static_cast<int64_t>(w[0] * w[2]);
+        }
+        const bool has_zp = pattern_map.count(subtract_m) > 0;
+        const auto scale_const = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(mul_const_m).get_node_shared_ptr());
+        const auto zp_const = has_zp ? ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(sub_const_m).get_node_shared_ptr()) : nullptr;
+        if (is_gnk_u2 && scale_const && zp_const &&
+            cm::woq_u2_accepts_gnk(m_device_info,
+                                   m_cm_jit_supported,
+                                   weight_ptr->get_element_type(),
+                                   weight_ptr->get_output_partial_shape(0),
+                                   scale_const->get_element_type(),
+                                   scale_const->get_output_partial_shape(0),
+                                   has_zp,
+                                   zp_const->get_element_type(),
+                                   zp_const->get_output_partial_shape(0))) {
             const auto& w_shape = weight_ptr->get_output_shape(0);
             auto to_gn = [&](const std::shared_ptr<ov::op::v0::Constant>& constant) {
                 auto reshaped = std::make_shared<ov::op::v0::Constant>(*constant, ov::Shape{w_shape[0], w_shape[1]});
