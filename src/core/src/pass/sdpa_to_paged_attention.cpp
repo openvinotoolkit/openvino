@@ -179,14 +179,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
 
     // A GatedDeltaNet that PagedGatedDeltaNetFusion did not match still assumes the [batch, tokens, ...]
     // layout, while the paged graph now carries [tokens, 1, ...]; it would fail or mix tokens at runtime.
-    for (const auto& op : model->get_ops()) {
-        OPENVINO_ASSERT(!ov::is_type<ov::op::internal::GatedDeltaNet>(op),
-                        "GatedDeltaNet node '",
-                        op->get_friendly_name(),
-                        "' was not converted to PagedGatedDeltaNet (its recurrent state is not read directly "
-                        "from ReadValue or Gather(ReadValue)). Stateful GatedDeltaNet nodes cannot be left in the "
-                        "graph.");
-    }
+    OPENVINO_ASSERT(!ov::op::util::has_op_with_type<ov::op::internal::GatedDeltaNet>(model),
+                    "A GatedDeltaNet node was not converted to PagedGatedDeltaNet, most likely because its recurrent "
+                    "state is not read directly from ReadValue or Gather(ReadValue). Stateful GatedDeltaNet nodes "
+                    "cannot be left in the graph.");
 
     {
         // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,
