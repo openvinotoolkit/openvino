@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -91,10 +92,10 @@ using GGUFMetaData =
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::unordered_map<std::string, ov::Tensor>,
                             std::unordered_map<std::string, GgufTensorType>,
-                            std::shared_ptr<ov::MappedMemory>>;
+                            std::vector<std::shared_ptr<ov::MappedMemory>>>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
-// (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights; Q1_0: u1 weights).
+// (Q8_0/Q8_1/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights; Q1_0: u1 weights).
 // Integer weights are centered during unpacking; Q1_0 keeps binary codes and applies 2 * bit - 1 in the graph.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
 
@@ -126,25 +127,16 @@ bool requantize_q8_0_channelwise_faithful(const GgufTensor& tensor,
                                           int8_t* out_weights,
                                           ov::float16* out_scales);
 
+void gguf_fill_q5_k_i8(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
+
 // Test-only accessors for the per-row faithful K-quant dequant (see test_dequant_vs_ggml.cpp).
 void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
 // Parse GGUF metadata and tensors. Each repacked quantized tensor owns its buffer.
-GGUFLoad get_gguf_data(const std::string& file);
-
-// Extract the DECODER-family architecture config (architecture, layer_num, head_num, head_size,
-// head_num_kv, hidden_size, max_position_embeddings, rms_norm_eps, rope_freq_base, file_type, ...)
-// from parsed metadata.
-//
-// Every key it reads is prefixed with the LLM architecture name ("<arch>.block_count",
-// "<arch>.attention.head_count", ...), so it is only meaningful for a causal-decoder GGUF. Call
-// detect_model_kind() first: an mmproj file names its architecture "clip" and carries "clip.*"
-// keys instead, and would fail here on a missing block_count. A future non-decoder family gets its
-// own reader next to this one rather than extending it.
-std::map<std::string, GGUFMetaData> decoder_config_from_meta(
-    const std::unordered_map<std::string, GGUFMetaData>& metadata);
+GGUFLoad get_gguf_data(const std::filesystem::path& file);
+GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files);
 
 // Reverse of the GGML dimension order (GGUF stores dims fastest-first).
 ov::Shape get_shape(const GgufTensor& tensor);

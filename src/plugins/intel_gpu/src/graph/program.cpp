@@ -22,6 +22,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/tensor_conversion.hpp"
 
 
 #include "allocation_order.hpp"
@@ -1958,6 +1959,9 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
             }
         }
+        const auto conversion_executor = get_tensor_conversion(false);
+        if (conversion_executor)
+            kernels_cache.add_to_cached_kernels(conversion_executor->get_kernels());
         ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
@@ -1968,6 +1972,15 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             ob << get_node_ptr(impl_id)->selected_impl;
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
+
+        auto keys = conversion_executor ? conversion_executor->get_keys() : std::vector<tensor_conversion_key>{};
+        ob << keys.size();
+        for (const auto& key : keys) {
+            ob << static_cast<int32_t>(key.first);
+            ob << static_cast<int32_t>(key.second);
+        }
+        ob << (conversion_executor ? kernels_cache.get_cached_kernel_ids(conversion_executor->get_kernels())
+                                   : std::vector<std::string>{});
     }
 
     ob << optimized_out.size();
@@ -2164,6 +2177,30 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             std::vector<std::string> cached_kernel_ids;
             ib >> cached_kernel_ids;
             p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
+        }
+
+        size_t conversion_count;
+        ib >> conversion_count;
+        std::vector<tensor_conversion_key> conversion_keys;
+        conversion_keys.reserve(conversion_count);
+        for (size_t i = 0; i < conversion_count; ++i) {
+            int32_t src_type, dst_type;
+            ib >> src_type;
+            ib >> dst_type;
+            conversion_keys.emplace_back(static_cast<data_types>(src_type), static_cast<data_types>(dst_type));
+        }
+        std::vector<std::string> conversion_ids;
+        ib >> conversion_ids;
+        OPENVINO_ASSERT(conversion_ids.size() == conversion_keys.size(), "[GPU] State conversion cache is incomplete");
+        std::vector<kernel::ptr> conversion_kernels;
+        conversion_kernels.reserve(conversion_ids.size());
+        for (const auto& id : conversion_ids)
+            conversion_kernels.push_back(kernels_cache.get_kernel_from_cached_kernels(id));
+        if (!conversion_keys.empty()) {
+            get_tensor_conversion()->restore(_engine, conversion_keys, conversion_kernels);
+        } else {
+            std::lock_guard<std::mutex> lock(_tensor_conversion_mutex);
+            _tensor_conversion.reset();
         }
     }
 

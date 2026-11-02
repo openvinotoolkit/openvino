@@ -19,6 +19,7 @@
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
 #include "lora_inst.h"
+#include "program_helpers.h"
 #include "quantize_inst.h"
 #include "read_value_inst.h"
 
@@ -367,6 +368,12 @@ public:
         if (dep->is_type<lora>()) {
             node->add_memory_dependency(dep->get_dependency(0));
             dep->get_dependency(0).add_memory_dependency(*node);
+        }
+
+        // oneDNN in-place post-op (sum or binary_mul_inplace): dep's output aliases the buffer of its eltwise input
+        if (auto idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(*dep); idx != -1) {
+            add_memory_dependency(node, &dep->get_dependency(idx));
+            add_memory_dependency(&dep->get_dependency(idx), node);
         }
 
         if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) &&

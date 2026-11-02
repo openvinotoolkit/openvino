@@ -114,7 +114,8 @@ struct stateless_kv_impl : typed_primitive_impl_ocl<stateless_kv> {
 
     kernel_arguments_data get_arguments(const typed_primitive_inst<stateless_kv>& instance) const override {
         kernel_arguments_data args;
-        args.inputs.push_back(instance.input_memory_ptr(0)); // past
+        const auto past = instance.input_memory_ptr(0);
+        args.inputs.push_back(past ? past : instance.input_memory_ptr(1)); // past
         if (!_has_pos_idx_input) {
             args.inputs.push_back(instance.input_memory_ptr(1)); // new_token_data
         } else {

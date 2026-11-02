@@ -22,6 +22,9 @@ updates:
       - "rkazants"
       - "mryzhov"
     versioning-strategy: increase-if-necessary
+    exclude-paths:
+      - "**/requirements*"
+      - "**/constraints*"
     groups:
       pip-root:
         patterns:
