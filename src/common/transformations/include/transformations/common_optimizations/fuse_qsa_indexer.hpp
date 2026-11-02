@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include <cstdint>
-#include <optional>
-#include <vector>
-
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
@@ -15,69 +12,95 @@ namespace ov::pass {
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Device-specific QSAIndexer kernel limits used by FuseQSAIndexer.
+ * @brief Fuses QSAPrepare and SparseAttentionIndexer into the stateful internal QSAIndexer op, leaving query-side
+ * RMSNorm and RoPE outside the op (query_norm and query_rope disabled).
  *
- * The default configuration adds no limits of its own, and the CPU and GPU pipelines use it;
- * a plugin may pass a narrower configuration that matches its QSAIndexer kernels.
+ *        Query  RawKeys cos/sin ... KeyLength           Query
+ *          │       │       │            │                 │
+ *          │    ┌──┴───────┴────────────┴──┐          Transpose  RawKeys cos/sin ... KeyLength
+ *          │    │        QSAPrepare        │              │      [layout adapters, cache growth]
+ *          │    └──┬────────┬──────────┬───┘           ┌──┴──────────┴───────┴───────────┴──┐
+ *   ┌──────┴───────┴──┐     │          │      ──►      │             QSAIndexer             │
+ *   │ SparseAttention │  incomplete keys / rope        └──┬──────┬───────┬───────┬──────────┘
+ *   │     Indexer     │                               indices count  Squeeze Squeeze   incomplete
+ *   └──┬──────────┬───┘                                              block   incomplete  rope
+ *   indices    count                                                 keys    keys
+ *
+ * QSAIndexer takes [B, L, H, D] activations and head-first states, so the pass adds adapters:
+ *  - the [B, H, L, D] query is transposed;
+ *  - the raw keys get a head axis 2, and the block-key cache and incomplete keys get a head axis 1,
+ *    which is squeezed from the matching QSAIndexer outputs;
+ *  - key_length is broadcast unless its statically known length equals the raw-key batch size;
+ *  - cos / sin are broadcast unless their statically known batch sizes equal the raw-key batch size;
+ *    dynamic batch dimensions are not assumed equal without shape-symbol propagation;
+ *  - the block-key cache is grown by zero blocks up to the complete blocks of the longest sequence, which
+ *    is the shape of the QSAPrepare output, since QSAIndexer keeps the cache shape;
+ *  - q_norm_weight is a vector of ones.
+ * block_topk is token_budget / key_block_size and scale is the default 1 / sqrt(head size).
+ *
+ * The rewrite is applied only when the query and the raw keys have compatible sequence lengths, the query
+ * head count and head size are static, RoPE and the key norm are enabled, both source ops use the same
+ * key_block_size and i32 key length, and SparseAttentionIndexer consumes QSAPrepare output 0, has no index
+ * weights and selects with one head. The other requirements are validated by the source ops.
  */
-struct FuseQSAIndexerConfig {
-    /// Allowed SparseAttentionIndexer num_selection_heads values; empty allows any value.
-    std::vector<int64_t> supported_num_selection_heads;
-    /// When set, the query and key RMSNorm epsilons must agree:
-    /// |q_eps - k_eps| <= max_epsilon_relative_difference * k_eps. Used by kernels with a single epsilon.
-    std::optional<float> max_epsilon_relative_difference;
+class TRANSFORMATIONS_API FuseQSAIndexerBase : public MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseQSAIndexerBase");
+
+    FuseQSAIndexerBase();
 };
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Fuses QSAPrepare and SparseAttentionIndexer into the stateful internal QSAIndexer op.
+ * @brief Moves the query RoPE into a QSAIndexer created by FuseQSAIndexerBase, enabling query_rope.
  *
- * The query RMSNorm, key block preparation and block scoring are executed by one kernel, which
- * avoids materializing the intermediate block index keys and updated cache state separately.
+ *   x ─► RoPE(input_trans0213) ─► Transpose(0, 2, 1, 3) ─► QSAIndexer   ──►   x ─► QSAIndexer(query_rope)
  *
- * Before:                                            After:
- *
- *   Query  QWeight   RawKeys ... KeyLength ...         Query QWeight RawKeys ... KeyLength ...
- *     │       │         │            │                    │     │       │            │
- *   ┌─┴───────┴─┐   ┌───┴────────────┴───┐             ┌──┴─────┴───────┴────────────┴──┐
- *   │  RMSNorm  │   │     QSAPrepare     │             │            QSAIndexer          │
- *   └─────┬─────┘   └──┬──────┬──────┬───┘             └─┬────┬────────┬────────┬────┬──┘
- *         │   BlockKeys│      │      │                 indices count  block  incomplete
- *       ┌─┴────────────┴──────┴─┐    │                                 keys   keys/rope
- *       │SparseAttentionIndexer │    │ incomplete keys/rope state
- *       └───┬──────────────┬────┘    │
- *        indices         count
- *
- * RMSNorm is either the internal RMSNorm op or its decomposition
- * Multiply(Divide(x, Sqrt(Add(ReduceMean(Power(x, 2), last_axis, keep_dims), eps))), weight).
- *
- * The rewrite is applied only when:
- *  - query has QSAIndexer::query_rank and raw keys have QSAIndexer::keys_rank, with compatible
- *    batch and sequence; the block-key cache and incomplete keys have QSAIndexer::keys_rank;
- *  - the query head count, the head size and the rotary dimension are static, since QSAIndexer
- *    kernels are specialized for them;
- *  - RoPE is enabled, since QSAIndexer kernels always apply it: rope_cos / rope_sin have
- *    QSAIndexer::rope_rank and the incomplete RoPE state has QSAIndexer::incomplete_rope_rank;
- *  - both source ops use the same key_block_size and the same key length input;
- *  - both RMSNorm weights are enabled;
- *  - SparseAttentionIndexer consumes QSAPrepare output 0 and has no index weights input;
- *  - every RMSNorm node and every QSAPrepare output has a single consumer, since all of them are
- *    replaced by QSAIndexer;
- *  - the graph is within the device-specific kernel limits of FuseQSAIndexerConfig: selection
- *    head count and query/key epsilon agreement.
- *
- * Head count, head size, key block size and token budget values are taken from the graph and are
- * not fixed, and element types are not restricted. Token budget positivity and divisibility, the
- * minimum key block size, and the rotary dimension bounds are guaranteed by SparseAttentionIndexer
- * and QSAPrepare validation.
+ * The RoPE is the plain rotate-half RoPE of the QSAIndexer rotary dimension, with Unsqueeze(axis=1) of the
+ * QSAIndexer cos / sin (before their batch Broadcast). It must precede the query norm in QSAIndexer, so it
+ * is fused only while query_norm and query_rope are disabled.
  */
-class TRANSFORMATIONS_API FuseQSAIndexer : public MatcherPass {
+class TRANSFORMATIONS_API FuseQSAIndexerQueryRoPE : public MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("FuseQSAIndexer");
-    using Config = FuseQSAIndexerConfig;
+    OPENVINO_MATCHER_PASS_RTTI("FuseQSAIndexerQueryRoPE");
 
-    FuseQSAIndexer();
-    explicit FuseQSAIndexer(const Config& config);
+    FuseQSAIndexerQueryRoPE();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Moves the query RMSNorm into a QSAIndexer, enabling query_norm.
+ *
+ *   x ─► RMS ─► QSAIndexer   ──►   x ─► QSAIndexer(query_norm)
+ *
+ * The RMS is the non-affine RMS of the last axis that keeps the precision, and its epsilon equals the
+ * QSAIndexer epsilon. It is fused only while query_norm is disabled.
+ */
+class TRANSFORMATIONS_API FuseQSAIndexerQueryNorm : public MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("FuseQSAIndexerQueryNorm");
+
+    FuseQSAIndexerQueryNorm();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Fuses QSAPrepare and SparseAttentionIndexer into QSAIndexer, then moves the query RoPE and the query
+ * RMSNorm into it.
+ *
+ * Run after RMSFusion and RoPEFusion, while RMS and RoPE remain separate nodes. In the GPU pipeline it runs
+ * before FuseRMSRoPE combines them. The Qwen query (non-affine RMS on [B, L, H, D], then RoPE with
+ * input_trans0213) gives the GPU contract, a QSAIndexer with query_norm and query_rope enabled.
+ */
+class TRANSFORMATIONS_API FuseQSAIndexer : public GraphRewrite {
+public:
+    OPENVINO_GRAPH_REWRITE_RTTI("FuseQSAIndexer");
+
+    FuseQSAIndexer() {
+        add_matcher<FuseQSAIndexerBase>();
+        add_matcher<FuseQSAIndexerQueryRoPE>();
+        add_matcher<FuseQSAIndexerQueryNorm>();
+    }
 };
 
 }  // namespace ov::pass

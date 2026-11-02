@@ -7,162 +7,176 @@
 #include <cmath>
 
 #include "itt.hpp"
-#include "openvino/core/validation_util.hpp"
 
 namespace ov::op::internal {
+namespace {
+
+Dimension dim_at(const PartialShape& shape, size_t axis) {
+    return shape.rank().is_static() && shape.size() > axis ? shape[axis] : Dimension::dynamic();
+}
+
+void check_shape(const Node* node, size_t idx, const char* name, const PartialShape& expected) {
+    const auto& shape = node->get_input_partial_shape(idx);
+    NODE_VALIDATION_CHECK(node,
+                          shape.compatible(expected),
+                          "QSAIndexer expects ",
+                          name,
+                          " shaped ",
+                          expected,
+                          ", got ",
+                          shape);
+}
+
+}  // namespace
 
 QSAIndexer::QSAIndexer(const ov::OutputVector& args, const Config& config) : Op(args), m_config(config) {
     constructor_validate_and_infer_types();
 }
 
+bool QSAIndexer::validate_config(const Config& config, std::string& reason) {
+    const auto fail = [&reason](const char* message) {
+        reason = message;
+        return false;
+    };
+    if (config.key_block_size == 0) {
+        return fail("key_block_size must be positive");
+    }
+    if (config.block_topk == 0) {
+        return fail("block_topk must be positive");
+    }
+    if (config.num_selection_heads == 0) {
+        return fail("num_selection_heads must be positive");
+    }
+    if (config.indexer_head_dim == 0) {
+        return fail("indexer_head_dim must be positive");
+    }
+    if (config.indexer_rotary_dim % 2 != 0 || config.indexer_rotary_dim > config.indexer_head_dim) {
+        return fail("indexer_rotary_dim must be even and not exceed indexer_head_dim");
+    }
+    if (!std::isfinite(config.scale) || config.scale < 0.0f) {
+        return fail("scale must be positive (0 selects the default 1 / sqrt(indexer_head_dim))");
+    }
+    if (!std::isfinite(config.epsilon) || config.epsilon <= 0.0f) {
+        return fail("epsilon must be positive");
+    }
+    return true;
+}
+
+float QSAIndexer::effective_scale(const Config& config) {
+    return config.scale > 0.0f ? config.scale : 1.0f / std::sqrt(static_cast<float>(config.indexer_head_dim));
+}
+
 bool QSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
     OV_OP_SCOPE(QSAIndexer_visit_attributes);
     visitor.on_attribute("key_block_size", m_config.key_block_size);
-    visitor.on_attribute("token_budget", m_config.token_budget);
+    visitor.on_attribute("block_topk", m_config.block_topk);
     visitor.on_attribute("num_selection_heads", m_config.num_selection_heads);
-    visitor.on_attribute("q_epsilon", m_config.q_epsilon);
-    visitor.on_attribute("k_epsilon", m_config.k_epsilon);
-    visitor.on_attribute("is_causal", m_config.is_causal);
+    visitor.on_attribute("indexer_rotary_dim", m_config.indexer_rotary_dim);
+    visitor.on_attribute("indexer_head_dim", m_config.indexer_head_dim);
+    visitor.on_attribute("epsilon", m_config.epsilon);
+    visitor.on_attribute("scale", m_config.scale);
+    visitor.on_attribute("query_norm", m_config.query_norm);
+    visitor.on_attribute("query_rope", m_config.query_rope);
     return true;
 }
 
 void QSAIndexer::validate_and_infer_types() {
     OV_OP_SCOPE(QSAIndexer_validate_and_infer_types);
-    NODE_VALIDATION_CHECK(this, get_input_size() == 10, "QSAIndexer requires ten inputs.");
-    NODE_VALIDATION_CHECK(this, m_config.key_block_size > 0);
-    NODE_VALIDATION_CHECK(this, m_config.token_budget > 0 && m_config.token_budget % m_config.key_block_size == 0);
-    NODE_VALIDATION_CHECK(this, m_config.num_selection_heads > 0);
     NODE_VALIDATION_CHECK(this,
-                          std::isfinite(m_config.q_epsilon) && m_config.q_epsilon > 0.0f &&
-                              std::isfinite(m_config.k_epsilon) && m_config.k_epsilon > 0.0f);
-    NODE_VALIDATION_CHECK(this, m_config.is_causal, "Only causal block selection is supported.");
+                          get_input_size() == InputIdx::COUNT,
+                          "QSAIndexer expects ",
+                          InputIdx::COUNT,
+                          " inputs, got ",
+                          get_input_size());
+    std::string reason;
+    NODE_VALIDATION_CHECK(this, validate_config(m_config, reason), "QSAIndexer configuration is invalid: ", reason);
 
-    auto data_type = get_input_element_type(0);
+    auto data_type = element::dynamic;
+    for (const auto idx : {InputIdx::INDEX_QUERY,
+                           InputIdx::RAW_INDEX_KEYS,
+                           InputIdx::ROPE_COS,
+                           InputIdx::ROPE_SIN,
+                           InputIdx::Q_NORM_WEIGHT,
+                           InputIdx::K_NORM_WEIGHT,
+                           InputIdx::BLOCK_INDEX_KEYS_CACHE,
+                           InputIdx::PAST_INCOMPLETE_RAW_K,
+                           InputIdx::PAST_INCOMPLETE_ROPE}) {
+        NODE_VALIDATION_CHECK(this,
+                              element::Type::merge(data_type, data_type, get_input_element_type(idx)),
+                              "QSAIndexer expects all floating-point inputs to share one element type; input ",
+                              idx,
+                              " is ",
+                              get_input_element_type(idx));
+    }
     NODE_VALIDATION_CHECK(this,
                           data_type.is_dynamic() || data_type.is_real(),
-                          "QSAIndexer data inputs must have a floating-point element type.");
-    for (const auto i : {1U, 2U, 3U, 5U, 6U, 7U, 8U, 9U}) {
-        NODE_VALIDATION_CHECK(this,
-                              element::Type::merge(data_type, data_type, get_input_element_type(i)),
-                              "QSAIndexer floating-point input element types must match.");
-    }
+                          "QSAIndexer expects floating-point inputs, got ",
+                          data_type);
+    const auto& length_type = get_input_element_type(InputIdx::KEY_LENGTH);
     NODE_VALIDATION_CHECK(this,
-                          data_type.is_dynamic() || data_type.is_real(),
-                          "QSAIndexer data inputs must have a floating-point element type.");
-    const auto length_type = get_input_element_type(4);
-    NODE_VALIDATION_CHECK(this,
-                          length_type.is_dynamic() || length_type == element::i32 || length_type == element::i64,
-                          "key_length must have i32 or i64 element type.");
+                          length_type.is_dynamic() || length_type == element::i32,
+                          "QSAIndexer expects an i32 key_length input, got ",
+                          length_type);
 
-    const auto query_shape = get_input_partial_shape(0);
-    const auto raw_keys_shape = get_input_partial_shape(1);
-    const auto rope_cos_shape = get_input_partial_shape(2);
-    const auto rope_sin_shape = get_input_partial_shape(3);
-    const auto length_shape = get_input_partial_shape(4);
-    const auto q_weight_shape = get_input_partial_shape(5);
-    const auto k_weight_shape = get_input_partial_shape(6);
-    const auto cache_shape = get_input_partial_shape(7);
-    const auto incomplete_keys_shape = get_input_partial_shape(8);
-    const auto incomplete_rope_shape = get_input_partial_shape(9);
-    const auto rope_disabled = ov::util::is_empty_constant_tensor(input_value(2));
+    const auto& query_shape = get_input_partial_shape(InputIdx::INDEX_QUERY);
+    const auto& raw_keys_shape = get_input_partial_shape(InputIdx::RAW_INDEX_KEYS);
     NODE_VALIDATION_CHECK(this,
-                          ov::util::is_empty_constant_tensor(input_value(3)) == rope_disabled &&
-                              ov::util::is_empty_constant_tensor(input_value(9)) == rope_disabled,
-                          "rope_cos, rope_sin, and past_incomplete_rope must all be empty constants to disable RoPE.");
-    const auto q_norm_disabled = ov::util::is_empty_constant_tensor(input_value(5));
-    const auto k_norm_disabled = ov::util::is_empty_constant_tensor(input_value(6));
-    NODE_VALIDATION_CHECK(this, query_shape.rank().compatible(query_rank));
-    NODE_VALIDATION_CHECK(this, raw_keys_shape.rank().compatible(keys_rank));
-    if (!rope_disabled) {
-        NODE_VALIDATION_CHECK(this, rope_cos_shape.rank().compatible(rope_rank));
-        NODE_VALIDATION_CHECK(this, rope_sin_shape.rank().compatible(rope_rank));
-    }
-    NODE_VALIDATION_CHECK(this, length_shape.rank().compatible(1));
-    NODE_VALIDATION_CHECK(this, q_norm_disabled || q_weight_shape.rank().compatible(1));
-    NODE_VALIDATION_CHECK(this, k_norm_disabled || k_weight_shape.rank().compatible(1));
-    NODE_VALIDATION_CHECK(this, cache_shape.rank().compatible(keys_rank));
-    NODE_VALIDATION_CHECK(this, incomplete_keys_shape.rank().compatible(keys_rank));
-    if (!rope_disabled) {
-        NODE_VALIDATION_CHECK(this, incomplete_rope_shape.rank().compatible(incomplete_rope_rank));
-    }
+                          query_shape.rank().compatible(4),
+                          "QSAIndexer expects a rank-4 [B, L, H_iq, D_idx] index_query input, got ",
+                          query_shape);
+    NODE_VALIDATION_CHECK(this,
+                          raw_keys_shape.rank().compatible(4),
+                          "QSAIndexer expects a rank-4 [B, L, H_ik, D_idx] raw_index_keys input, got ",
+                          raw_keys_shape);
 
-    auto batch = Dimension::dynamic();
-    auto sequence = Dimension::dynamic();
-    auto depth = Dimension::dynamic();
-    auto heads = Dimension::dynamic();
-    if (query_shape.rank().is_static()) {
-        batch = query_shape[0];
-        sequence = query_shape[2];
-        depth = query_shape[3];
-        heads = query_shape[1];
-    }
-    if (raw_keys_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this, raw_keys_shape[0].compatible(batch));
-        NODE_VALIDATION_CHECK(this, raw_keys_shape[2].compatible(depth));
-        if (query_shape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(this, sequence.compatible(raw_keys_shape[1]));
-        }
-    }
-    if (cache_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this, cache_shape[0].compatible(batch));
-        NODE_VALIDATION_CHECK(this, cache_shape[2].compatible(depth));
-    }
-    if (incomplete_keys_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this, incomplete_keys_shape[0].compatible(batch));
-        NODE_VALIDATION_CHECK(this, incomplete_keys_shape[1].compatible(m_config.key_block_size - 1));
-        NODE_VALIDATION_CHECK(this, incomplete_keys_shape[2].compatible(depth));
-    }
-    if (length_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this, length_shape[0].compatible(1) || length_shape[0].compatible(batch));
-    }
-    if (!q_norm_disabled && q_weight_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this, q_weight_shape[0].compatible(depth));
-    }
-    if (!k_norm_disabled && k_weight_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this, k_weight_shape[0].compatible(depth));
-    }
-    if (!rope_disabled && rope_cos_shape.rank().is_static() && rope_sin_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this, rope_cos_shape[0].compatible(1) || rope_cos_shape[0].compatible(batch));
-        NODE_VALIDATION_CHECK(this, rope_sin_shape[0].compatible(1) || rope_sin_shape[0].compatible(batch));
-        NODE_VALIDATION_CHECK(
-            this,
-            rope_cos_shape[1].compatible(raw_keys_shape.rank().is_static() ? raw_keys_shape[1] : Dimension::dynamic()));
-        NODE_VALIDATION_CHECK(
-            this,
-            rope_sin_shape[1].compatible(raw_keys_shape.rank().is_static() ? raw_keys_shape[1] : Dimension::dynamic()));
-        NODE_VALIDATION_CHECK(this, rope_cos_shape[2].compatible(rope_sin_shape[2]));
+    const auto r = static_cast<int64_t>(m_config.key_block_size);
+    const Dimension head_size(static_cast<int64_t>(m_config.indexer_head_dim));
+    const Dimension rotary_dim(static_cast<int64_t>(m_config.indexer_rotary_dim));
+    const Dimension rope_row(static_cast<int64_t>(2 * m_config.indexer_rotary_dim));
+    const auto batch = dim_at(query_shape, 0);
+    const auto length = dim_at(query_shape, 1);
+    const auto key_heads = dim_at(raw_keys_shape, 2);
+
+    check_shape(this, InputIdx::INDEX_QUERY, "index_query", PartialShape{batch, length, -1, head_size});
+    check_shape(this, InputIdx::RAW_INDEX_KEYS, "raw_index_keys", PartialShape{batch, length, key_heads, head_size});
+    check_shape(this, InputIdx::ROPE_COS, "rope_cos", PartialShape{batch, length, rotary_dim});
+    check_shape(this, InputIdx::ROPE_SIN, "rope_sin", PartialShape{batch, length, rotary_dim});
+    check_shape(this, InputIdx::KEY_LENGTH, "key_length", PartialShape{batch});
+    check_shape(this, InputIdx::Q_NORM_WEIGHT, "q_norm_weight", PartialShape{head_size});
+    check_shape(this, InputIdx::K_NORM_WEIGHT, "k_norm_weight", PartialShape{head_size});
+    check_shape(this,
+                InputIdx::BLOCK_INDEX_KEYS_CACHE,
+                "block_index_keys_cache",
+                PartialShape{batch, key_heads, -1, head_size});
+    check_shape(this,
+                InputIdx::PAST_INCOMPLETE_RAW_K,
+                "past_incomplete_raw_k",
+                PartialShape{batch, key_heads, r - 1, head_size});
+    check_shape(this, InputIdx::PAST_INCOMPLETE_ROPE, "past_incomplete_rope", PartialShape{batch, rope_row});
+
+    const auto query_heads = dim_at(query_shape, 2);
+    if (query_heads.is_static() && key_heads.is_static()) {
+        const auto h_iq = static_cast<size_t>(query_heads.get_length());
+        const auto h_ik = static_cast<size_t>(key_heads.get_length());
         NODE_VALIDATION_CHECK(this,
-                              rope_cos_shape[2].is_dynamic() || depth.is_dynamic() ||
-                                  rope_cos_shape[2].get_length() <= depth.get_length(),
-                              "Rotary dimension must not exceed the head size.");
-        if (incomplete_rope_shape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(this, incomplete_rope_shape[0].compatible(batch));
-            if (rope_cos_shape[2].is_static()) {
-                NODE_VALIDATION_CHECK(
-                    this,
-                    incomplete_rope_shape[1].compatible(Dimension(2 * rope_cos_shape[2].get_length())));
-            }
-        }
+                              h_ik != 0 && h_iq % h_ik == 0,
+                              "QSAIndexer: H_iq must be a positive multiple of H_ik.");
+        NODE_VALIDATION_CHECK(this,
+                              m_config.num_selection_heads == 1 || m_config.num_selection_heads == h_ik,
+                              "QSAIndexer: num_selection_heads must be 1 or H_ik.");
     }
 
-    if (query_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(this,
-                              heads.is_dynamic() || heads.get_length() % m_config.num_selection_heads == 0,
-                              "The query head count must be divisible by num_selection_heads.");
+    const Dimension selections(static_cast<int64_t>(m_config.num_selection_heads));
+    set_output_size(OutputIdx::COUNT);
+    set_output_type(OutputIdx::SELECTED_BLOCK_INDICES,
+                    element::i32,
+                    PartialShape{batch, selections, length, Dimension(static_cast<int64_t>(m_config.block_topk))});
+    set_output_type(OutputIdx::SELECTED_BLOCK_COUNT, element::i32, PartialShape{batch, selections, length});
+    for (const auto& [out, in] : {std::pair{OutputIdx::BLOCK_INDEX_KEYS_CACHE, InputIdx::BLOCK_INDEX_KEYS_CACHE},
+                                  std::pair{OutputIdx::PAST_INCOMPLETE_RAW_K, InputIdx::PAST_INCOMPLETE_RAW_K},
+                                  std::pair{OutputIdx::PAST_INCOMPLETE_ROPE, InputIdx::PAST_INCOMPLETE_ROPE}}) {
+        set_output_type(out, get_input_element_type(in), get_input_partial_shape(in));
     }
-    const auto queries = query_shape.rank().is_static() ? query_shape[2] : Dimension::dynamic();
-    const auto selections = Dimension(m_config.num_selection_heads);
-    const auto top_k = Dimension(m_config.token_budget / m_config.key_block_size);
-    auto updated_rope_shape = incomplete_rope_shape;
-    if (rope_disabled) {
-        const auto rope_batch = raw_keys_shape.rank().is_static() ? raw_keys_shape[0] : Dimension::dynamic();
-        updated_rope_shape = PartialShape{rope_batch, Dimension(0)};
-    }
-    set_output_type(0, element::i32, PartialShape{batch, selections, queries, top_k});
-    set_output_type(1, element::i32, PartialShape{batch, selections, queries});
-    set_output_type(2, data_type, cache_shape);
-    set_output_type(3, data_type, incomplete_keys_shape);
-    set_output_type(4, data_type, updated_rope_shape);
 }
 
 std::shared_ptr<Node> QSAIndexer::clone_with_new_inputs(const ov::OutputVector& new_args) const {

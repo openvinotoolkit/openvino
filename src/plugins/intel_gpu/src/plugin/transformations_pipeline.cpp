@@ -1819,6 +1819,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
         manager.register_pass<ov::pass::RoPEFusion>(true);
+        // Fuse before FuseRMSRoPE combines the query's internal RMS and RoPE nodes.
+        manager.register_pass<ov::pass::FuseQSAIndexer>();
         manager.register_pass<ov::intel_gpu::FuseRoPEInputDeinterleave>();
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
@@ -1995,7 +1997,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::ExpandBroadcastReshapeSDPAFusion>();
         manager.register_pass<ov::intel_gpu::StatelessKVFusion>();
-        manager.register_pass<ov::pass::FuseQSAIndexer>();
 
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();

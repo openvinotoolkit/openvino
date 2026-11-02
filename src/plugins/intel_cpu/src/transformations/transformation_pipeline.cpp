@@ -594,7 +594,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         },
         ov::pass::KeepConstAndDecompression);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::AUGRUCellFusion);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::FuseQSAIndexer);
     CPU_REGISTER_PASS_COMMON(manager, SDPASubgraphFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GatedDeltaNetFusion);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
@@ -1199,6 +1198,8 @@ void Transformations::PostLpt() {
                           ov::pass::RMSFusion,
                           false /* force_tail_convert */,
                           enable_without_gamma);
+    // Fuse while the query RMS and RoPE are still separate internal ops.
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::FuseQSAIndexer);
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,
