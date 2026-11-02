@@ -992,6 +992,9 @@ public:
     using MockCompiledModel::MockCompiledModel;
 
     void export_model(std::ostream& stream) const override {
+        if (ov::hetero::tests::mock_hsm_import().export_not_implemented) {
+            OPENVINO_THROW_NOT_IMPLEMENTED("[MOCKHSM] export_model is not implemented");
+        }
         std::ostringstream xml;
         std::ostringstream weights;
         ov::pass::Serialize(xml, weights).run_on_model(std::const_pointer_cast<ov::Model>(get_model()));

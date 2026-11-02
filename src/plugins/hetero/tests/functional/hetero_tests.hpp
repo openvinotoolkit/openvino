@@ -17,13 +17,14 @@ namespace ov {
 namespace hetero {
 namespace tests {
 
-// How the mock device MOCKHSM, which exports a nested HSM container, was imported last.
+// State of the mock device MOCKHSM, which exports a nested HSM container: how it was imported last.
 struct MockHsmImport {
     enum class Source { none, stream, tensor };
     Source source = Source::none;
-    uint64_t weights_offset = 0;  //!< Offset of the weights section in the nested container.
-    size_t tensor_imports = 0;    //!< import_model(Tensor) calls, including failed ones.
-    size_t stream_imports = 0;    //!< import_model(istream) calls, including failed ones.
+    uint64_t weights_offset = 0;          //!< Offset of the weights section in the nested container.
+    size_t tensor_imports = 0;            //!< import_model(Tensor) calls, including failed ones.
+    size_t stream_imports = 0;            //!< import_model(istream) calls, including failed ones.
+    bool export_not_implemented = false;  //!< export_model throws ov::NotImplemented, like the Auto batch plugin.
 };
 MockHsmImport& mock_hsm_import();
 
@@ -57,6 +58,17 @@ protected:
 
     pos_type seekpos(pos_type, std::ios_base::openmode) override {
         return pos_type(off_type(-1));
+    }
+
+private:
+    std::string _data;
+};
+
+// Input buffer that serves the given bytes and fails every seek, so tellg() reports -1.
+class NonSeekableInputBuffer : public std::streambuf {
+public:
+    explicit NonSeekableInputBuffer(std::string data) : _data(std::move(data)) {
+        setg(_data.data(), _data.data(), _data.data() + _data.size());
     }
 
 private:

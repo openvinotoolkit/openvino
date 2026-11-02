@@ -51,6 +51,14 @@ void seek_to_container_end(std::istream& stream, std::streampos start) {
     stream.seekg(start + static_cast<std::streamoff>(header.container_size));
 }
 
+bool starts_with_hsm_magic(const std::string& text) {
+    const auto& magic = ov::runtime::hsm::BlobMagic::single.value;
+    return text.size() >= magic.size() &&
+           std::equal(magic.begin(), magic.end(), text.begin(), [](uint8_t expected, char actual) {
+               return expected == static_cast<uint8_t>(actual);
+           });
+}
+
 ov::SoPtr<ov::ICompiledModel> import_submodel_blob(const std::shared_ptr<ov::ICore>& core,
                                                    const std::string& device,
                                                    const ov::AnyMap& load_config,
@@ -402,8 +410,15 @@ ov::hetero::CompiledModel::CompiledModel(std::istream& model,
     pugi::xml_document heteroXmlDoc;
     pugi::xml_parse_result res = heteroXmlDoc.load_string(heteroXmlStr.c_str());
 
-    if (res.status != pugi::status_ok)
+    if (res.status != pugi::status_ok) {
+        // The legacy parser got an HSM container: the reader rejected it or the stream cannot seek.
+        if (starts_with_hsm_magic(heteroXmlStr)) {
+            OPENVINO_THROW(start == std::streampos(-1)
+                               ? "[HETERO] Cannot import an HSM compiled blob from a non-seekable stream."
+                               : "[HETERO] Cannot import compiled blob: invalid HSM container.");
+        }
         OPENVINO_THROW("Failed to read Hetero device xml header");
+    }
 
     using namespace ov::util::pugixml;
 

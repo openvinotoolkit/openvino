@@ -253,6 +253,43 @@ TEST_F(HeteroHsmBlobTests, export_to_non_seekable_stream) {
     expect_runs(import_from_stream(buffer.str()));
 }
 
+TEST_F(HeteroHsmBlobTests, hsm_blob_from_non_seekable_stream_is_rejected_with_a_clear_error) {
+    const auto variant = export_variant(ir_variant);
+    NonSeekableInputBuffer buffer{variant.blob};
+    std::istream stream(&buffer);
+
+    OV_EXPECT_THROW(core.import_model(stream, ov::test::utils::DEVICE_HETERO, {}),
+                    ov::Exception,
+                    testing::HasSubstr("seekable"));
+}
+
+TEST_F(HeteroHsmBlobTests, corrupted_hsm_container_is_reported_as_invalid) {
+    const auto variant = export_variant(ir_variant);
+    auto corrupted = variant.blob;
+    corrupted.resize(sizeof(runtime::hsm::Header));
+
+    OV_EXPECT_THROW(import_from_stream(corrupted), ov::Exception, testing::HasSubstr("HSM"));
+}
+
+TEST_F(HeteroHsmBlobTests, submodel_that_cannot_export_falls_back_to_ir_sections) {
+    constexpr size_t size = 2048;
+    EXPECT_NO_THROW(core.get_available_devices());
+    auto compiled_model = compile(create_model_with_weights(size), "MOCKHSM");
+
+    mock_hsm_import() = {};
+    mock_hsm_import().export_not_implemented = true;
+    const auto blob = export_blob(compiled_model);
+    mock_hsm_import() = {};
+
+    const auto reader = runtime::hsm::Reader::open(as_bytes(blob), blob.size());
+    ASSERT_TRUE(reader.has_value());
+    EXPECT_EQ(0u, reader->count(hsm::submodel_blob.device, hsm::submodel_blob.tag.id()));
+    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_xml.device, hsm::submodel_ir_xml.tag.id()));
+    EXPECT_EQ(1u, reader->count(hsm::submodel_ir_weights.device, hsm::submodel_ir_weights.tag.id()));
+    expect_adds_weights(import_from_stream(blob), size, 1.0f);
+    expect_adds_weights(import_from_tensor(blob), size, 1.0f);
+}
+
 TEST_F(HeteroHsmBlobTests, legacy_blob_imports_in_hsm_mode) {
     const auto legacy = export_blob(compile(create_model_with_subtract(), "MOCK0,MOCK1", false));
     EXPECT_FALSE(is_hsm_blob(legacy));
