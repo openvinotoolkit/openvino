@@ -5,6 +5,7 @@
 #pragma once
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -38,6 +39,16 @@ struct mlir_primitive : public primitive_base<mlir_primitive> {
 
     std::shared_ptr<ov::intel_gpu::op::MLIROp> op;
     shape_infer_function shape_infer_f;
+
+    // Physical format required for some inputs (key == dependency index == MLIR function argument index).
+    // The compiled MLIR program bakes the input memref layouts in, so cldnn must deliver exactly these
+    // formats. Inputs without an entry must be in the default (plain) format for their rank.
+    std::map<size_t, format::type> required_input_fmts;
+
+    [[nodiscard]] format::type get_required_input_format(size_t idx, size_t rank) const {
+        const auto it = required_input_fmts.find(idx);
+        return it != required_input_fmts.end() ? it->second : format::get_default_format(rank).value;
+    }
 
     void save(BinaryOutputBuffer& /*ob*/) const override {
         OPENVINO_THROW("[GPU] Compiled model export / model caching is not supported for models with MLIR "
