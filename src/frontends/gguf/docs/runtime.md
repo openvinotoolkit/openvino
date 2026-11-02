@@ -189,5 +189,20 @@ provenance and complete-model external IR remain separate acceptance work. Other
 operations in the table do not gain IR support from this path. Compiled-model export, import and
 caching are plugin-specific; test them on the target device. In-process conversion needs no IR.
 
+GPU GGUF implementations serialize their execution-selection state with the compiled kernels:
+OCL shuffle flags, prefill threshold and F16/DQ selection, and CM weight format and threshold.
+Import restores these values rather than using the import process's environment defaults;
+temporary transcode and activation scratch buffers remain lazily allocated. This fixes missing
+derived state in the source implementation as well, without changing kernels or default routing.
+No compatibility with blobs exported before this state was serialized is asserted.
+
+File regressions export and import eleven raw FC formats through a fresh Core after external IR
+read-back, checking dynamic rows, new input buffers, original numerical limits and executed stages.
+The six applicable formats also exercise actual CM after import. A Q4_0 regression separately
+checks same-process, fresh-Core cache misses/hits for static and dynamic raw/SG graphs, payload-tail
+invalidation, and two independent asynchronous requests. These are full compiled blobs, not
+weightless or encrypted caches. Cross-process caching, fused signatures, cancel/reset, explicit
+multi-stream execution and full-checkpoint serialization remain separate acceptance work.
+
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.

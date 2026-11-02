@@ -573,6 +573,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     std::set<std::string> executed_stages;
     bool ir_roundtrip = false;
     bool external_reference = false;
+    bool compiled_import = false;
     const auto run = [&](const char* threshold_value, const char* shuffle_value,
                          ov::element::Type inference_type = ov::element::f32, const char* binary_mode = nullptr,
                          size_t static_rows = 0, bool rebind_broadcast = false) {
@@ -610,10 +611,23 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         const std::string scenario = std::string(binary_mode ? binary_mode : "plain") + "_" +
             inference_type.get_type_name() + "_s" + shuffle_value + (threshold_value ? "_native" : "_default") +
             (static_rows ? "_static" : "_dynamic") + (rebind_broadcast ? "_broadcast" : "") +
-            (ir_roundtrip ? "_ir" : "") + (external_reference ? "_external" : "");
+            (ir_roundtrip ? "_ir" : "") + (external_reference ? "_external" : "") +
+            (compiled_import ? "_import" : "");
         SCOPED_TRACE(scenario);
         auto compiled = core.compile_model(run_model, "GPU", ov::hint::inference_precision(inference_type),
                            ov::enable_profiling(true));
+        if (compiled_import) {
+            std::stringstream blob;
+            compiled.export_model(blob);
+            RecordProperty(scenario + "_compiled_blob_bytes", std::to_string(blob.str().size()));
+            compiled = ov::CompiledModel{};
+            ov::Core import_core;
+            GgufScopedEnvironment import_threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "0");
+            GgufScopedEnvironment import_f16("OV_GPU_GGUF_PREFILL_F16", "0");
+            GgufScopedEnvironment import_dq("OV_GPU_GGUF_PREFILL_DQ_ACT", "1");
+            compiled = import_core.import_model(blob, "GPU", ov::hint::inference_precision(inference_type),
+                                                ov::enable_profiling(true));
+        }
         auto request = compiled.create_infer_request();
         const std::vector<size_t> row_counts = static_rows ? std::vector<size_t>{static_rows, static_rows}
                                                         : std::vector<size_t>{1, 2, 33, 1, 1, 33, 2};
@@ -985,6 +999,11 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
         EXPECT_NO_THROW(ov::pass::Serialize(fresh_xml, fresh_binary).run_on_model(replacement_model));
         EXPECT_LT(fresh_binary.str().size(), payload.size());
     }
+    run("64", "0");
+    run("64", "1", ov::element::f16);
+    run(nullptr, "0");
+    run(nullptr, "1", ov::element::f16);
+    compiled_import = true;
     run("64", "0");
     run("64", "1", ov::element::f16);
     run(nullptr, "0");

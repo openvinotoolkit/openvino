@@ -585,6 +585,16 @@ public:
         add_stage(act_f32_to_f16_stage, params);
     }
 
+    void save(cldnn::BinaryOutputBuffer& ob) const override {
+        PrimitiveImplCM::save(ob);
+        ob << cldnn::make_data(&m_weight_type, sizeof(m_weight_type)) << m_prefill_threshold;
+    }
+
+    void load(cldnn::BinaryInputBuffer& ib) override {
+        PrimitiveImplCM::load(ib);
+        ib >> cldnn::make_data(&m_weight_type, sizeof(m_weight_type)) >> m_prefill_threshold;
+    }
+
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         auto copy = make_deep_copy<FCGGUFCmImpl>(this);
         auto* c = static_cast<FCGGUFCmImpl*>(copy.get());

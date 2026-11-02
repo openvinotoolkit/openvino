@@ -784,6 +784,18 @@ public:
 #endif
     }
 
+    void save(cldnn::BinaryOutputBuffer& ob) const override {
+        PrimitiveImplOCL::save(ob);
+        ob << m_prefill_threshold << m_q4k_shuffle << m_q5k_shuffle << m_q6k_shuffle
+           << m_q4_0_shuffle << m_q4_1_shuffle << m_q8_0_shuffle << m_prefill_f16 << m_use_dq_act;
+    }
+
+    void load(cldnn::BinaryInputBuffer& ib) override {
+        PrimitiveImplOCL::load(ib);
+        ib >> m_prefill_threshold >> m_q4k_shuffle >> m_q5k_shuffle >> m_q6k_shuffle
+           >> m_q4_0_shuffle >> m_q4_1_shuffle >> m_q8_0_shuffle >> m_prefill_f16 >> m_use_dq_act;
+    }
+
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         auto copy = make_deep_copy<FCGGUFOptImpl>(this);
         auto* c = static_cast<FCGGUFOptImpl*>(copy.get());

@@ -9,6 +9,7 @@
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "test_utils.h"
 #include "random_generator.hpp"
 #include "network_test.h"
@@ -46,6 +47,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <filesystem>
 #include <optional>
 
 using namespace cldnn;
@@ -229,6 +231,86 @@ TEST(fully_connected_gpu, gguf_constant_source_sharing) {
                            std::to_string(count));
             EXPECT_EQ(count, index == 0 && second_source != 42 ? 2 : 1);
         }
+        ov::Core import_core;
+        auto imported = import_core.import_model(binary, "GPU", ov::hint::inference_precision(ov::element::f32));
+        const auto check_requests = [&](ov::CompiledModel& execution, bool changed_tail = false,
+                                        const std::vector<size_t>& row_counts = {1, 2, 1, 1, 2}) {
+            std::array<ov::InferRequest, 2> requests{execution.create_infer_request(), execution.create_infer_request()};
+            for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
+                const auto rows = row_counts[iteration];
+                for (size_t request_index = 0; request_index < requests.size(); ++request_index) {
+                    for (size_t input = 0; input < weights.size(); ++input) {
+                        ov::Tensor tensor(ov::element::f32, {rows, 256});
+                        std::fill_n(tensor.data<float>(), rows * 256,
+                                    static_cast<float>((request_index + 1) * (iteration + 1)));
+                        requests[request_index].set_input_tensor(input, tensor);
+                    }
+                    requests[request_index].start_async();
+                }
+                for (auto& pending : requests) {
+                    pending.wait();
+                }
+                for (size_t request_index = 0; request_index < requests.size(); ++request_index) {
+                    const auto factor = static_cast<float>((request_index + 1) * (iteration + 1));
+                    for (size_t output = 0; output < weights.size(); ++output) {
+                        const auto tensor = requests[request_index].get_output_tensor(output);
+                        ASSERT_EQ(tensor.get_shape(), (ov::Shape{rows, 32}));
+                        for (size_t row = 0; row < rows; ++row) {
+                            for (size_t channel = 0; channel < 32; ++channel) {
+                                const float expected = factor *
+                                    (256.f * (channel + 1 + (output >= 2 && channel == 0)) +
+                                     (changed_tail && output == 0 && channel == 31 ? 32.f : 0.f));
+                                EXPECT_NEAR(tensor.data<const float>()[row * 32 + channel], expected, 0.1f);
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        check_requests(imported);
+        RecordProperty("source_sharing_import_" + std::to_string(second_source), "1");
+        struct CacheDirectory {
+            std::filesystem::path path;
+            ~CacheDirectory() {
+                std::error_code error;
+                std::filesystem::remove_all(path, error);
+                EXPECT_FALSE(error) << error.message();
+            }
+        } cache{std::filesystem::temp_directory_path() / ov::test::utils::generateTestFilePrefix()};
+        const auto check_cache = [&](const std::shared_ptr<ov::Model>& graph, bool hit, bool changed_tail,
+                                     const std::vector<size_t>& rows = {1, 2, 1, 1, 2}) {
+            ov::Core cache_core;
+            const auto directory = cache.path / (std::string(std::getenv("OV_GPU_GGUF_SHUFFLE")) == "1" ? "sg" : "raw");
+            auto cached = cache_core.compile_model(graph, "GPU", ov::cache_dir(directory.string()),
+                                                  ov::hint::inference_precision(ov::element::f32));
+            EXPECT_EQ(cached.get_property(ov::loaded_from_cache), hit);
+            check_requests(cached, changed_tail, rows);
+        };
+        check_cache(model, false, false);
+        check_cache(model, true, false);
+        const auto changed_model = model->clone();
+        std::vector<char> changed_payload(weights[0]->get_data_ptr<char>(), weights[0]->get_data_ptr<char>() + bytes);
+        const ov::float16 changed_scale(33.f);
+        std::memcpy(changed_payload.data() + bytes - 18, &changed_scale, sizeof(changed_scale));
+        changed_model->get_results()[0]->get_input_node_shared_ptr(0)->input(1).replace_source_output(
+            std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_0, weight_shape, changed_payload.data()));
+        check_cache(changed_model, false, true);
+        check_cache(changed_model, true, true);
+        const auto static_model = model->clone();
+        for (const auto& parameter : static_model->get_parameters()) {
+            parameter->set_partial_shape(ov::Shape{2, 256});
+        }
+        static_model->validate_nodes_and_infer_types();
+        check_cache(static_model, false, false, {2, 2});
+        check_cache(static_model, true, false, {2, 2});
+        {
+            gguf_scoped_env_var sg_shuffle("OV_GPU_GGUF_SHUFFLE", "1");
+            check_cache(model, false, false);
+            check_cache(model, true, false);
+            check_cache(static_model, false, false, {2, 2});
+            check_cache(static_model, true, false, {2, 2});
+        }
+        RecordProperty("source_sharing_cache_miss_hit_" + std::to_string(second_source), "1");
     }
 #endif
 }
