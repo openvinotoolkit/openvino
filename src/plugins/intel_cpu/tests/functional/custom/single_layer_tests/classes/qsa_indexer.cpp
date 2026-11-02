@@ -396,7 +396,7 @@ void QSAIndexerLayerCPUTest::SetUp() {
     p_past_raw_k->set_friendly_name("past_raw_k");
     p_past_rope->set_friendly_name("past_rope");
 
-    ov::intel_cpu::QSAIndexer::Config config;
+    ov::intel_cpu::QSAIndexerNode::Config config;
     config.compress_ratio = m_compress_ratio;
     config.block_topk = m_block_topk;
     config.h_sel = m_h_sel;
@@ -416,8 +416,8 @@ void QSAIndexerLayerCPUTest::SetUp() {
                              p_summary_cache,
                              p_past_raw_k,
                              p_past_rope};
-    using OutputIdx = ov::intel_cpu::QSAIndexer::OutputIdx;
-    auto qsa_indexer_v2 = std::make_shared<ov::intel_cpu::QSAIndexer>(args, config);
+    using OutputIdx = ov::intel_cpu::QSAIndexerNode::OutputIdx;
+    auto qsa_indexer_v2 = std::make_shared<ov::intel_cpu::QSAIndexerNode>(args, config);
 
     function = std::make_shared<ov::Model>(
         ov::ResultVector{std::make_shared<ov::op::v0::Result>(qsa_indexer_v2->output(OutputIdx::SEL_INDICES)),
@@ -584,9 +584,9 @@ std::vector<ov::Tensor> QSAIndexerLayerCPUTest::run_call(const CallSpec& call, s
             << "state input " << i << " was modified in place";
     }
     // ...and the state outputs are what the outside Assign feeds into the next call.
-    m_summary_cache_tensor = outs[ov::intel_cpu::QSAIndexer::OutputIdx::SUMMARY_CACHE];
-    m_past_raw_k_tensor = outs[ov::intel_cpu::QSAIndexer::OutputIdx::PAST_INCOMPLETE_RAW_K];
-    m_past_rope_tensor = outs[ov::intel_cpu::QSAIndexer::OutputIdx::PAST_INCOMPLETE_ROPE];
+    m_summary_cache_tensor = outs[ov::intel_cpu::QSAIndexerNode::OutputIdx::SUMMARY_CACHE];
+    m_past_raw_k_tensor = outs[ov::intel_cpu::QSAIndexerNode::OutputIdx::PAST_INCOMPLETE_RAW_K];
+    m_past_rope_tensor = outs[ov::intel_cpu::QSAIndexerNode::OutputIdx::PAST_INCOMPLETE_ROPE];
     return outs;
 }
 

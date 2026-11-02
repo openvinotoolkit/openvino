@@ -22,7 +22,7 @@ namespace qsa {
 class BrgemmBlockScorer;
 }  // namespace qsa
 
-/// @brief F32 reference implementation of ov::intel_cpu::QSAIndexer (padding-aware,
+/// @brief F32 reference implementation of ov::intel_cpu::QSAIndexerNode (padding-aware,
 /// non-paged, caller-owned-cache block-level indexer for Qwen Sparse Attention).
 ///
 /// Unlike QSAIndexer, this op is fed a per-row `key_length` (total valid length, past + current,
@@ -39,7 +39,7 @@ class BrgemmBlockScorer;
 /// precision (f32, f16 or bf16, that of `q_idx`); compute is always performed in fp32.
 /// `sel_indices`/`sel_count` are always i32.
 class QSAIndexer : public Node {
-    using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
+    using InputIdx = ov::intel_cpu::QSAIndexerNode::InputIdx;
 
 public:
     QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
@@ -76,7 +76,7 @@ private:
     template <typename T>
     void execute_typed();
 
-    ov::intel_cpu::QSAIndexer::Config m_config{};
+    ov::intel_cpu::QSAIndexerNode::Config m_config{};
     // The scorer of the block scoring on brgemm (see qsa_brgemm_scorer.hpp), taken from the params cache of the graph
     // context in createPrimitive(): the layers of the same configuration share it, and nothing is built while the model
     // runs. Null when this CPU or configuration has no brgemm scoring (the scalar scoring runs then).

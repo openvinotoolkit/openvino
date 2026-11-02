@@ -49,8 +49,8 @@ namespace ov::intel_cpu::node {
 
 namespace {
 
-using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
-using OutputIdx = ov::intel_cpu::QSAIndexer::OutputIdx;
+using InputIdx = ov::intel_cpu::QSAIndexerNode::InputIdx;
+using OutputIdx = ov::intel_cpu::QSAIndexerNode::OutputIdx;
 
 using qsa::make_row_plan;
 using qsa::rmsnorm_partial_rope;
@@ -150,7 +150,7 @@ private:
 // row, which is read from the key_length values.
 class QSAIndexerShapeInfer : public ShapeInferEmptyPads {
 public:
-    explicit QSAIndexerShapeInfer(const ov::intel_cpu::QSAIndexer::Config& config) : m_config(config) {}
+    explicit QSAIndexerShapeInfer(const ov::intel_cpu::QSAIndexerNode::Config& config) : m_config(config) {}
 
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
@@ -179,13 +179,13 @@ public:
     }
 
 private:
-    ov::intel_cpu::QSAIndexer::Config m_config;
+    ov::intel_cpu::QSAIndexerNode::Config m_config;
 };
 
 class QSAIndexerShapeInferFactory : public ShapeInferFactory {
 public:
     explicit QSAIndexerShapeInferFactory(const std::shared_ptr<ov::Node>& op) {
-        if (const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexer>(op)) {
+        if (const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op)) {
             m_config = qsa_indexer->get_config();
         }
     }
@@ -195,7 +195,7 @@ public:
     }
 
 private:
-    ov::intel_cpu::QSAIndexer::Config m_config;
+    ov::intel_cpu::QSAIndexerNode::Config m_config;
 };
 
 }  // namespace
@@ -206,7 +206,7 @@ QSAIndexer::QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexer>(op);
+    const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op);
     OPENVINO_ASSERT(qsa_indexer, "Expected QSAIndexer node");
     m_config = qsa_indexer->get_config();
 }
@@ -246,7 +246,7 @@ void QSAIndexer::createPrimitive() {
             m_config.block_topk,
             static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()),
             m_config.eps,
-            ov::intel_cpu::QSAIndexer::effective_scale(m_config),
+            ov::intel_cpu::QSAIndexerNode::effective_scale(m_config),
             precision,
             m_config.order_by_score};
         m_scorer = qsa::BrgemmBlockScorer::get(context->getParamsCache(), config);
@@ -312,7 +312,7 @@ void QSAIndexer::execute_typed() {
     const auto r = static_cast<int64_t>(c.compress_ratio);
     const size_t rotary_dim = c.indexer_rotary_dim;
     const float eps = c.eps;
-    const float scale = ov::intel_cpu::QSAIndexer::effective_scale(c);
+    const float scale = ov::intel_cpu::QSAIndexerNode::effective_scale(c);
     const size_t block_topk = c.block_topk;
     const size_t H_sel = c.h_sel;
 
@@ -693,7 +693,7 @@ void QSAIndexer::execute_typed() {
 
 bool QSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexer>(op);
+        const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op);
         if (!qsa_indexer) {
             errorMessage = "Only QSAIndexer operation is supported";
             return false;
@@ -729,7 +729,7 @@ bool QSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
             }
         }
         std::string reason;
-        if (!ov::intel_cpu::QSAIndexer::validate_config(qsa_indexer->get_config(), reason)) {
+        if (!ov::intel_cpu::QSAIndexerNode::validate_config(qsa_indexer->get_config(), reason)) {
             errorMessage = "QSAIndexer configuration is invalid: " + reason;
             return false;
         }

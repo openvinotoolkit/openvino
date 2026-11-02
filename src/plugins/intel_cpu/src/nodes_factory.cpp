@@ -267,10 +267,10 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
-    INTEL_CPU_NODE(node::QSAIndexer, Type::QSAIndexer);
+    INTEL_CPU_NODE(QSAIndexer, Type::QSAIndexer);
     INTEL_CPU_NODE(SparseSDPA, Type::SparseSDPA);
     INTEL_CPU_NODE(PagedQSAIndexer, Type::PagedQSAIndexer);
-    INTEL_CPU_NODE(node::SparsePA, Type::SparsePA);
+    INTEL_CPU_NODE(SparsePA, Type::SparsePA);
 #elif defined(OPENVINO_ARCH_ARM64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);

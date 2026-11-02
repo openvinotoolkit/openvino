@@ -34,11 +34,11 @@ namespace ov::intel_cpu {
 /// every call, and keep their input shape.
 ///
 /// \ingroup ov_ops_cpp_api
-class QSAIndexer : public ov::op::Op {
+class QSAIndexerNode : public ov::op::Op {
 public:
     OPENVINO_OP("QSAIndexer", "cpu_plugin_opset");
 
-    /// @brief Fixed input order of the QSAIndexer op. All state cache ports are grouped at
+    /// @brief Fixed input order of the QSAIndexerNode op. All state cache ports are grouped at
     /// the end, after every plain-data/weight input.
     struct InputIdx {
         static constexpr size_t Q_IDX = 0;          ///< [B, L, H_iq, D_idx]
@@ -58,7 +58,7 @@ public:
         static constexpr size_t COUNT = 10;
     };
 
-    /// @brief Fixed output order of the QSAIndexer op. The three state outputs are the updated
+    /// @brief Fixed output order of the QSAIndexerNode op. The three state outputs are the updated
     /// values of the matching state inputs (same element type; summary_cache grows, see the class comment).
     struct OutputIdx {
         static constexpr size_t SEL_INDICES = 0;            ///< [B, H_sel, L, block_topk] i32
@@ -85,8 +85,8 @@ public:
         bool order_by_score = false;
     };
 
-    QSAIndexer() = default;
-    QSAIndexer(const ov::OutputVector& args, const Config& config);
+    QSAIndexerNode() = default;
+    QSAIndexerNode(const ov::OutputVector& args, const Config& config);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;

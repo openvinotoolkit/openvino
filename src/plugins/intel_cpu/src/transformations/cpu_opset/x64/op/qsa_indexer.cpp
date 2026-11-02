@@ -113,11 +113,11 @@ ov::Dimension dim_at(const ov::PartialShape& ps, size_t axis) {
 }
 }  // namespace
 
-QSAIndexer::QSAIndexer(const ov::OutputVector& args, const Config& config) : Op(args), m_config(config) {
+QSAIndexerNode::QSAIndexerNode(const ov::OutputVector& args, const Config& config) : Op(args), m_config(config) {
     constructor_validate_and_infer_types();
 }
 
-bool QSAIndexer::validate_config(const Config& c, std::string& reason) {
+bool QSAIndexerNode::validate_config(const Config& c, std::string& reason) {
     auto fail = [&reason](const char* msg) {
         reason = msg;
         return false;
@@ -143,25 +143,25 @@ bool QSAIndexer::validate_config(const Config& c, std::string& reason) {
     return true;
 }
 
-float QSAIndexer::effective_scale(const Config& c) {
+float QSAIndexerNode::effective_scale(const Config& c) {
     return c.scale > 0.0F ? c.scale : 1.0F / std::sqrt(static_cast<float>(c.indexer_head_dim));
 }
 
-size_t QSAIndexer::get_index_query_heads() const {
+size_t QSAIndexerNode::get_index_query_heads() const {
     const auto& ps = get_input_partial_shape(InputIdx::Q_IDX);
     OPENVINO_ASSERT(ps.rank().is_static() && ps.size() == 4 && ps[2].is_static(),
                     "QSAIndexer: q_idx shape is not static");
     return static_cast<size_t>(ps[2].get_length());
 }
 
-size_t QSAIndexer::get_index_key_heads() const {
+size_t QSAIndexerNode::get_index_key_heads() const {
     const auto& ps = get_input_partial_shape(InputIdx::K_IDX);
     OPENVINO_ASSERT(ps.rank().is_static() && ps.size() == 4 && ps[2].is_static(),
                     "QSAIndexer: k_idx shape is not static");
     return static_cast<size_t>(ps[2].get_length());
 }
 
-bool QSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
+bool QSAIndexerNode::visit_attributes(ov::AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(QSAIndexer_visit_attributes);
     visitor.on_attribute("compress_ratio", m_config.compress_ratio);
     visitor.on_attribute("block_topk", m_config.block_topk);
@@ -174,7 +174,7 @@ bool QSAIndexer::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-void QSAIndexer::validate_and_infer_types() {
+void QSAIndexerNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(QSAIndexer_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           get_input_size() == InputIdx::COUNT,
@@ -283,9 +283,9 @@ void QSAIndexer::validate_and_infer_types() {
                     get_input_partial_shape(InputIdx::PAST_INCOMPLETE_ROPE));
 }
 
-std::shared_ptr<Node> QSAIndexer::clone_with_new_inputs(const ov::OutputVector& new_args) const {
+std::shared_ptr<Node> QSAIndexerNode::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<QSAIndexer>(new_args, m_config);
+    return std::make_shared<QSAIndexerNode>(new_args, m_config);
 }
 
 }  // namespace ov::intel_cpu

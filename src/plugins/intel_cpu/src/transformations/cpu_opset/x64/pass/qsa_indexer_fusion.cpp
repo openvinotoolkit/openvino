@@ -168,7 +168,7 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
             new_nodes.push_back(convert);
             return convert;
         };
-        std::shared_ptr<ov::intel_cpu::QSAIndexer> qsa_indexer;
+        std::shared_ptr<ov::intel_cpu::QSAIndexerNode> qsa_indexer;
         ov::Output<ov::Node> block_index_keys;
         ov::Output<ov::Node> incomplete_raw_keys;
         ov::Output<ov::Node> incomplete_rope;
@@ -188,7 +188,7 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
                 std::make_shared<v0::Unsqueeze>(to_type(prepare_node->input_value(PAST_INCOMPLETE_RAW_KEYS), data_type),
                                                 i64_const({1}));
 
-            ov::intel_cpu::QSAIndexer::Config config;
+            ov::intel_cpu::QSAIndexerNode::Config config;
             config.compress_ratio = match->key_block_size;
             config.block_topk = match->block_topk;
             config.h_sel = 1;
@@ -199,8 +199,8 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
             config.scale = 1.0F;
             config.order_by_score = !selection_feeds_only_attention(sai_node->output(0));
 
-            ov::OutputVector args(ov::intel_cpu::QSAIndexer::InputIdx::COUNT);
-            using InputIdx = ov::intel_cpu::QSAIndexer::InputIdx;
+            ov::OutputVector args(ov::intel_cpu::QSAIndexerNode::InputIdx::COUNT);
+            using InputIdx = ov::intel_cpu::QSAIndexerNode::InputIdx;
             args[InputIdx::Q_IDX] = to_type(raw_query, data_type);
             args[InputIdx::K_IDX] = k_idx;
             // the RoPE tables [1 | N, L, Dr] are shared by the batches, QSAIndexer takes them as they are
@@ -212,10 +212,10 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
             args[InputIdx::SUMMARY_CACHE] = past_blocks;
             args[InputIdx::PAST_INCOMPLETE_RAW_K] = past_raw_keys;
             args[InputIdx::PAST_INCOMPLETE_ROPE] = to_type(prepare_node->input_value(PAST_INCOMPLETE_ROPE), data_type);
-            qsa_indexer = std::make_shared<ov::intel_cpu::QSAIndexer>(args, config);
+            qsa_indexer = std::make_shared<ov::intel_cpu::QSAIndexerNode>(args, config);
 
             // ---- QSAPrepare outputs: all blocks of the longest sequence, incomplete block keys and rope ----
-            using OutputIdx = ov::intel_cpu::QSAIndexer::OutputIdx;
+            using OutputIdx = ov::intel_cpu::QSAIndexerNode::OutputIdx;
             block_index_keys =
                 to_type(std::make_shared<v0::Squeeze>(qsa_indexer->output(OutputIdx::SUMMARY_CACHE), i64_const({1})),
                         prepare_node->get_output_element_type(0));
@@ -238,7 +238,7 @@ ov::intel_cpu::QSAIndexerFusion::QSAIndexerFusion() {
             return false;
         }
 
-        using OutputIdx = ov::intel_cpu::QSAIndexer::OutputIdx;
+        using OutputIdx = ov::intel_cpu::QSAIndexerNode::OutputIdx;
         qsa_indexer->set_friendly_name(sai_node->get_friendly_name());
         auto matched_nodes = match->nodes;
         matched_nodes.push_back(sai_node);

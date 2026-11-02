@@ -277,8 +277,9 @@ void split_into_kv_chunks(const int32_t* sel_ids,
     const auto start_of = [&](size_t i) {
         return pad + static_cast<int64_t>(sel_ids[i]) * static_cast<int64_t>(Bk);
     };
-    // Pass 1. Example with unit_blocks = 1, ids {5,6,7,8,9, 20, 30,31}: runs are {5..9}, {20}, {30,31}.
-    // Run {5..9} gives one 4-unit chunk {5..8}; block 9 and the short runs become pending leftovers.
+    // Pass 1. Example with unit_blocks = 1, ids {9, 5,6,7,8, 30, 20, 31}: a run needs id[i+1] == id[i] + 1, so the
+    // runs are {9}, {5..8}, {30}, {20}, {31}. Only {5..8} makes a 4-unit chunk (read in place); 9, 30, 20, 31 stay
+    // pending. Any order works: fewer adjacent blocks only means more gathering.
     size_t i = 0;
     while (i < nblocks) {
         // The run is the maximal stretch of consecutive ids starting at position i: ids i, i+1, ... differ by 1.
@@ -304,8 +305,8 @@ void split_into_kv_chunks(const int32_t* sel_ids,
         }
         i += run_len;
     }
-    // Pass 2. The pending blocks, in selection order, are not adjacent: form the same chunks from them; the K/V rows
-    // of such a chunk are gathered by id. `taken` counts the pending blocks consumed.
+    // Pass 2. The pending blocks, in selection order, are not adjacent: form the same chunks from them (above:
+    // {9, 30, 20, 31}); their K/V rows are gathered by id. `taken` counts the pending blocks consumed.
     const size_t pending = result.leftover_count;
     size_t taken = 0;
     for (const size_t units : {size_t{4}, size_t{1}}) {
