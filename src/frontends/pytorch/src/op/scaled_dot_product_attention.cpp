@@ -4,21 +4,18 @@
 
 #include "openvino/op/scaled_dot_product_attention.hpp"
 
+#include <limits>
+
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/subtract.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
@@ -49,111 +46,96 @@ ov::OutputVector prepare_inputs_to_sdpa(const NodeContext& context,
     return inputs;
 }
 
-// Extracts a dimension using a negative index, -1 means last dimension, etc.
-ov::Output<ov::Node> get_dim_for_negative_idx(const NodeContext& context,
-                                              const ov::Output<ov::Node>& input_shape,
-                                              int64_t idx) {
-    OPENVINO_ASSERT(idx < 0, "This get_dim only supports negative indexing from the end.");
-
-    // Get shape of shape (i.e., rank of input)
-    auto input_rank = context.mark_node(std::make_shared<ov::op::v3::ShapeOf>(input_shape, element::i64));
-    auto scalar_shape = ov::op::v0::Constant::create(element::i64, Shape{0}, {});
-    auto scalar_rank = context.mark_node(std::make_shared<ov::op::v1::Reshape>(input_rank, scalar_shape, false));
-
-    // Compute positive index: rank + idx (since idx is negative)
-    auto idx_const = ov::op::v0::Constant::create(element::i64, Shape{}, {idx});
-    auto positive_index = context.mark_node(std::make_shared<ov::op::v1::Add>(scalar_rank, idx_const));
-
-    // Slice shape[positive_index : positive_index + 1]
-    auto begin = context.mark_node(
-        std::make_shared<ov::op::v1::Reshape>(positive_index,
-                                              ov::op::v0::Constant::create(element::i64, Shape{1}, {1}),
-                                              false));
-    auto one_const = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
-    auto end = context.mark_node(std::make_shared<ov::op::v1::Add>(begin, one_const));
-
-    auto stride = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
-    auto res_dim = context.mark_node(std::make_shared<ov::op::v1::StridedSlice>(input_shape,
-                                                                                begin,
-                                                                                end,
-                                                                                stride,
-                                                                                std::vector<int64_t>{0},
-                                                                                std::vector<int64_t>{0},
-                                                                                std::vector<int64_t>{0},
-                                                                                std::vector<int64_t>{0}));
-    return res_dim;
+// Number of heads (axis -3) of an SDPA input [B..., H, L, E], dynamic when unknown at conversion time.
+Dimension get_num_heads(const Output<Node>& input) {
+    const auto& shape = input.get_partial_shape();
+    return shape.rank().is_static() ? shape[-3] : Dimension::dynamic();
 }
 
-// Returns sub-shape[0 : rank - delta]
-ov::Output<ov::Node> get_prefix_shape_until_rank_minus_delta(const NodeContext& context,
-                                                             const Output<Node>& input_shape,
-                                                             int64_t delta) {
-    auto input_rank = context.mark_node(std::make_shared<v3::ShapeOf>(input_shape, element::i64));
-
-    // end = rank - delta
-    auto const_delta = v0::Constant::create(element::i64, Shape{}, {delta});
-    auto end_index = context.mark_node(std::make_shared<v1::Subtract>(input_rank, const_delta));
-
-    // Slice shape[0:end_index]
-    auto begin = v0::Constant::create(element::i64, Shape{1}, {0});
-    auto stride = v0::Constant::create(element::i64, Shape{1}, {1});
-
-    return context.mark_node(std::make_shared<v1::StridedSlice>(input_shape,
-                                                                begin,
-                                                                end_index,
-                                                                stride,
-                                                                std::vector<int64_t>{0},  // begin_mask
-                                                                std::vector<int64_t>{0},  // end_mask
-                                                                std::vector<int64_t>{0},  // new_axis_mask
-                                                                std::vector<int64_t>{0}   // shrink_axis_mask
-                                                                ));
+// Elements [begin, end) of a 1-D shape tensor; negative bounds count from the end.
+Output<Node> slice_dims(const NodeContext& context, const Output<Node>& shape, int64_t begin, int64_t end) {
+    auto begin_const = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {begin}));
+    auto end_const = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {end}));
+    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    return context.mark_node(std::make_shared<v8::Slice>(shape, begin_const, end_const, step));
 }
 
+// Repeats the heads of key or value to match the query, like torch repeat_interleave(Hq / Hkv, dim=-3):
+//   [B..., Hkv, S, E] -> Unsqueeze -> [B..., Hkv, 1, S, E] -> Broadcast -> [B..., Hkv, G, S, E]
+//                     -> Reshape -> [B..., Hq, S, E]
+// This is the graph that aten::expand produces for transformers' repeat_kv, which the KV-cache fusions match
+// (ov::op::util::match_multi_query_bcst, GPU ExpandBroadcastReshapeSDPAFusion, SDPAToPagedAttention). The broadcast
+// target is a Concat of kv's own dims whose second-to-last input is S, as NPUW's find_kv_cache_concat expects. A
+// single ShapeOf of kv feeds every shape computation: CPU StatefulSDPAFusion accepts one ShapeOf consumer on the
+// KV-cache Concat.
+Output<Node> repeat_kv_heads(const NodeContext& context, const Output<Node>& kv, const Output<Node>& query) {
+    const auto num_q_heads = get_num_heads(query);
+    const auto num_kv_heads = get_num_heads(kv);
+    const bool static_heads = num_q_heads.is_static() && num_kv_heads.is_static();
+    if (static_heads) {
+        PYTORCH_OP_CONVERSION_CHECK(
+            num_kv_heads.get_length() > 0 && num_q_heads.get_length() % num_kv_heads.get_length() == 0,
+            "Number of heads in key and value must divide the number of heads in query, got ",
+            num_kv_heads,
+            " and ",
+            num_q_heads);
+        if (num_q_heads == num_kv_heads) {
+            // An all-ones Broadcast would be removed by EliminateNopBroadcast, leaving Unsqueeze -> Reshape,
+            // which the KV-cache fusions don't match. SDPA takes the input as is.
+            return kv;
+        }
+    }
+
+    auto kv_shape = context.mark_node(std::make_shared<v3::ShapeOf>(kv, element::i64));
+    Output<Node> q_heads, group;
+    if (static_heads) {
+        q_heads = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {num_q_heads.get_length()}));
+        group = context.mark_node(
+            v0::Constant::create(element::i64, Shape{1}, {num_q_heads.get_length() / num_kv_heads.get_length()}));
+    } else {
+        auto q_shape = context.mark_node(std::make_shared<v3::ShapeOf>(query, element::i64));
+        q_heads = slice_dims(context, q_shape, -3, -2);
+        group = context.mark_node(std::make_shared<v1::Divide>(q_heads, slice_dims(context, kv_shape, -3, -2)));
+    }
+    auto seq_len = slice_dims(context, kv_shape, -2, -1);
+    auto head_size = slice_dims(context, kv_shape, -1, std::numeric_limits<int64_t>::max());
+    auto target_shape = context.mark_node(
+        std::make_shared<v0::Concat>(OutputVector{slice_dims(context, kv_shape, 0, -2), group, seq_len, head_size}, 0));
+    auto output_shape = context.mark_node(
+        std::make_shared<v0::Concat>(OutputVector{slice_dims(context, kv_shape, 0, -3), q_heads, seq_len, head_size},
+                                     0));
+    auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-3}));
+    auto unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(kv, axis));
+    auto broadcasted =
+        context.mark_node(std::make_shared<v3::Broadcast>(unsqueezed, target_shape, BroadcastType::BIDIRECTIONAL));
+    return context.mark_node(std::make_shared<v1::Reshape>(broadcasted, output_shape, false));
+}
+
+// enable_gqa: query [B..., Hq, L, E], key [B..., Hk, S, E], value [B..., Hv, S, Ev], with Hk and Hv dividing Hq
+// (they may differ). Key and value heads are repeated to Hq separately, then a regular SDPA of the input rank is
+// created, so the KV-cache fusions see the same graph as for transformers' repeat_kv.
 std::shared_ptr<Node> decompose_gqa(const NodeContext& context,
-                                    const Output<Node>& query,      // [B,..., Hq, L, D]
-                                    const Output<Node>& key,        // [B,..., Hk, S, D]
-                                    const Output<Node>& value,      // [B,..., Hk, S, Dv]
+                                    const Output<Node>& query,
+                                    const Output<Node>& key,
+                                    const Output<Node>& value,
                                     const Output<Node>& scale,      // optional
                                     const Output<Node>& attn_mask,  // optional
                                     bool is_causal) {
-    auto q_shape = context.mark_node(std::make_shared<v3::ShapeOf>(query, element::i64));
-    auto v_shape = context.mark_node(std::make_shared<v3::ShapeOf>(value, element::i64));
-
-    auto Hq = get_dim_for_negative_idx(context, q_shape, -3);
-    auto L = get_dim_for_negative_idx(context, q_shape, -2);
-    auto D = get_dim_for_negative_idx(context, q_shape, -1);
-    auto Dv = get_dim_for_negative_idx(context, v_shape, -1);
-    auto Hk = get_dim_for_negative_idx(context, v_shape, -3);
-
-    // Extract prefix shape for query [B, ...]. it excludes [Hq, L, D]
-    auto prefix_shape = get_prefix_shape_until_rank_minus_delta(context, q_shape, 3);
-
-    // Compute group_size = Hq / Hk
-    auto group_size = context.mark_node(std::make_shared<v1::Divide>(Hq, Hk));
-
-    // Reshape query: [B,..., Hq, T, D] -> [B,..., Hk, group_size, T, D]
-    auto reshape_q_shape =
-        context.mark_node(std::make_shared<v0::Concat>(OutputVector{prefix_shape, Hk, group_size, L, D}, 0));
-    auto q_reshaped = context.mark_node(std::make_shared<v1::Reshape>(query, reshape_q_shape, true));
-
-    // Unsqueeze key, value: [B,..., Hk, T, D] -> [B,..., Hk, 1, T, D]
-    auto axis = v0::Constant::create(element::i64, Shape{1}, {-3});
-    auto k_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(key, axis));
-    auto v_unsqueezed = context.mark_node(std::make_shared<v0::Unsqueeze>(value, axis));
-
-    ov::Output<ov::Node> unsqueezed_attn_mask = attn_mask;
-    if (attn_mask.get_node() && attn_mask.get_partial_shape().rank().is_static() &&
-        attn_mask.get_partial_shape().rank().get_length() > 2) {
-        // need to adjust shape as well since auxiliary dimension for group is introduced
-        unsqueezed_attn_mask = context.mark_node(std::make_shared<v0::Unsqueeze>(attn_mask, axis));
+    for (const auto& input : {query, key, value}) {
+        const auto& rank = input.get_partial_shape().rank();
+        PYTORCH_OP_CONVERSION_CHECK(rank.is_dynamic() || rank.get_length() >= 3,
+                                    "scaled_dot_product_attention with enable_gqa=True expects inputs of rank 3 or "
+                                    "higher, got rank ",
+                                    rank);
     }
-
-    auto inputs = prepare_inputs_to_sdpa(context, q_reshaped, k_unsqueezed, v_unsqueezed, scale, unsqueezed_attn_mask);
-    auto attn = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal));
-
-    // Reshape back: [B,..., Hk, group_size, T, Dv] -> [B,..., Hq, T, Dv]
-    auto reshape_out_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{prefix_shape, Hq, L, Dv}, 0));
-    return context.mark_node(std::make_shared<v1::Reshape>(attn, reshape_out_shape, true));
+    // The mask is broadcastable to [B..., Hq, L, S] and is applied as is.
+    auto inputs = prepare_inputs_to_sdpa(context,
+                                         query,
+                                         repeat_kv_heads(context, key, query),
+                                         repeat_kv_heads(context, value, query),
+                                         scale,
+                                         attn_mask);
+    return context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(inputs, is_causal));
 }
 
 }  // namespace
