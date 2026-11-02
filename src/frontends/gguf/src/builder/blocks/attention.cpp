@@ -300,11 +300,7 @@ std::string attention(GraphEmitter& e,
                           {"special_zero", true}});
         } else {
             e.add_weight(p + "attn_gate.weight");
-            const auto gate_weight = std::find_if(graph.nodes.begin(), graph.nodes.end(), [&](const auto& node) {
-                return node.name == p + "attn_gate.weight";
-            });
-            rank3_gate = gate_weight->attributes.at("gguf.blob.weight").template as<ov::Tensor>().get_element_type() !=
-                         ov::element::u2;
+            rank3_gate = e.weight_tensor(p + "attn_gate.weight").get_element_type() != ov::element::u2;
             gate = e.add_op("GGML_OP_MUL_MAT",
                             p + "attn_gate",
                             {p + "attn_gate.weight", attn_norm},
