@@ -20,8 +20,21 @@ namespace auto_plugin {
 
 class CacheWarmupManager;
 
-// Cache warm-up state of one compiled model: compiles the model to the given devices in the background
-// to populate cache blobs, releasing each compiled model right away.
+// Cache warm-up state of one compiled model, used when ov::intel_auto::compile_for_all is enabled. While AUTO serves
+// requests on the actual device, the other candidate devices are compiled in the background so that their cache blobs
+// exist the next time the model is loaded (e.g. when a different device is picked later). Needs a cache dir/path.
+//
+// Flow:
+//  1. start() is called once the actual device is known. It filters out the actual device and CPU (AUTO already
+//     compiles the CPU itself) and hands this object to CacheWarmupManager (once per object).
+//  2. The manager's single worker thread calls run(), which handles the devices one by one:
+//     - caching disabled for the device (no cache dir/path) -> skip;
+//     - the blob for this model/config is already in the cache -> skip;
+//     - otherwise call core->compile_model() with a low-priority, reduced-thread config that keeps the cache key
+//       unchanged, so Core itself writes the blob; the resulting compiled model is dropped immediately.
+//     A failure on one device is logged and does not affect the other devices or the user's compiled model.
+//  3. stop() (called when the owning compiled model is destroyed) skips the not yet started devices and waits for the
+//     compilation in flight, so the core and the model are not used after the owner is gone.
 class CacheWarmup : public std::enable_shared_from_this<CacheWarmup> {
 public:
     CacheWarmup(CacheWarmupManager& manager,
