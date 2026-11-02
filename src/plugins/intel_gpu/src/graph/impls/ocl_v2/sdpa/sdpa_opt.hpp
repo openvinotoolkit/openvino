@@ -65,6 +65,14 @@ struct SDPAOpt : public ImplementationManager {
             return false;
         }
 
+        // A V order that moves the head dim (e.g. {0,1,3,2}) goes to SDPARef, which indexes every V element through
+        // INPUT2_DIMS_ORDER. Neither the sdpa_ocl stages nor the sdpa_opt kernels read it right: both take the head dim of
+        // V as contiguous (sdpa_ocl never reads VAL_S3, sdpa_opt block-reads consecutive head-dim elements).
+        const auto& v_order = desc->input_v_transpose_order;
+        if (!v_order.empty() && v_order.back() != static_cast<int64_t>(v_order.size() - 1)) {
+            return false;
+        }
+
         auto k_head_size = k_layout.get_partial_shape()[desc->input_k_transpose_order.back()];
         auto v_head_size = v_layout.get_partial_shape()[desc->input_v_transpose_order.back()];
         if (k_head_size.is_dynamic() || v_head_size.is_dynamic()) {

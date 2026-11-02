@@ -65,7 +65,6 @@ struct GroupQueryAttentionDecomposition::StatelessKVMetadata : public ov::pass::
         op::SDPA::QuantizationAttribute quantization_attrs;
     };
     std::optional<CompressedKV> compressed_kv;
-    std::vector<int64_t> transpose_v_order;
     ~StatelessKVMetadata() override = default;
 };
 
@@ -149,16 +148,13 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     const bool query_seqlens = node->has_query_seqlens();
     const bool need_qk_output = node->get_qk_output() != ov::op::internal::GroupQueryAttentionQKOutput::NONE;
     const bool use_explicit_attention = node->get_softcap() > 0.0f || need_qk_output;
-    bool can_fuse_transpose_v = m_sdpa_support_immad && !use_explicit_attention;
     // The explicit attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
     if (!use_explicit_attention) {
         // covers ExpandBroadcastReshapeSDPAFusion, gpu sdpa supports broadcast natively
         metadata.should_broadcast_kv = false;
         if (node->is_kv_quantized()) {
-            if (!prepare_compressed_kv(node, past_key.get_element_type(), past_value.get_element_type(), past_key.get_partial_shape(), metadata)) {
-                // when failed to fuse compressed kv, should not fuse transpose_v, dequantized K/V expects original layout.
-                can_fuse_transpose_v = false;
-            }
+            // On failure the K/V are dequantized before the attention instead (should_dequantize_kv stays set).
+            prepare_compressed_kv(node, past_key.get_element_type(), past_value.get_element_type(), past_key.get_partial_shape(), metadata);
         }
     }
 
@@ -206,15 +202,11 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
         return transpose;
     };
 
-    std::shared_ptr<v1::Transpose> past_value_transpose;
+    std::shared_ptr<v1::Transpose> past_value_transpose = find_value_transpose(node->input_value(4));
     std::shared_ptr<v1::Transpose> present_value_transpose;
-    // explicit attention hard-coded layout so don't fuse
-    if (can_fuse_transpose_v) {
-        past_value_transpose = find_value_transpose(node->input_value(4));
-        if (node->output(2).get_target_inputs().size() == 1) {
-            const auto target = *node->output(2).get_target_inputs().begin();
-            present_value_transpose = find_value_transpose(target.get_node()->output(target.get_index()));
-        }
+    if (node->output(2).get_target_inputs().size() == 1) {
+        const auto target = *node->output(2).get_target_inputs().begin();
+        present_value_transpose = find_value_transpose(target.get_node()->output(target.get_index()));
     }
     if (past_value_transpose && present_value_transpose) {
         OPENVINO_ASSERT(!present_value);
@@ -253,29 +245,35 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     const auto key_cache = make_stateless_kv(past_key, key, 2);
     key_cache->set_friendly_name(present_key->get_friendly_name() + "_stateless");
 
+    // The attention reads the full cache (output 0) when it also has to emit the QK scores, else output 1.
+    const size_t attention_kv_output = need_qk_output ? 0 : 1;
     std::shared_ptr<op::StatelessKV> value_cache;
+    ov::Output<ov::Node> attention_value;
     if (past_value_transpose && present_value_transpose) {
-        metadata.transpose_v_order = transpose_v_order;
+        // The model stores its V cache as [B, KVH, head_size, S]. StatelessKV has to feed the present Result directly
+        // (realloc_outputs_for_stateless_kv() asserts it), so the cache keeps the model's layout and the output Transpose
+        // is bypassed; the attention gets V back as [B, KVH, S, head_size] through an explicit Transpose.
         // Before: past_value -> Transpose -> GQA cache -> Transpose -> present_value.
         // After:  past_value -------------------------> StatelessKV(axis=3) -> present_value.
-        //         current_value -> Transpose ----------^      (the output Transpose is bypassed)
+        //         current_value -> Transpose ----------^           |
+        //                                                         +-> Transpose -> attention V
+        // V must not reach SDPA as value order {0,1,3,2} instead: no SDPA kernel reads V with a strided head dim (sdpa_ocl
+        // and sdpa_opt read it as contiguous and give wrong output, sdpa_micro was the only reader), and the explicit chain
+        // and the KV dequantization expect the default layout as well.
         const auto transposed_value = register_new_node<v1::Transpose>(value, value_transpose_order);
         value_cache = make_stateless_kv(past_value_transpose->input_value(0), transposed_value, 3);
         present_value_transpose->output(0).replace(value_cache->output(0));
+        attention_value = register_new_node<v1::Transpose>(value_cache->output(attention_kv_output), value_transpose_order);
     } else {
         value_cache = make_stateless_kv(past_value, value, 2);
+        attention_value = value_cache->output(attention_kv_output);
     }
     value_cache->set_friendly_name(present_value->get_friendly_name() + "_stateless");
 
     outputs.present_key = key_cache->output(0);
     outputs.present_value = value_cache->output(0);
-    if (need_qk_output) {
-        outputs.sdpa_key = key_cache->output(0);
-        outputs.sdpa_value = value_cache->output(0);
-    } else {
-        outputs.sdpa_key = key_cache->output(1);
-        outputs.sdpa_value = value_cache->output(1);
-    }
+    outputs.sdpa_key = key_cache->output(attention_kv_output);
+    outputs.sdpa_value = attention_value;
 
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     if (sliding_window) {
@@ -321,7 +319,6 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
     }
 
     const auto order = op::SDPA::default_order(query.get_partial_shape().rank().get_length());
-    const auto& value_order = metadata.transpose_v_order.empty() ? order : metadata.transpose_v_order;
     const auto alignment = is_causal ? op::SDPA::CausalMaskAlignment::LOWER_RIGHT : op::SDPA::CausalMaskAlignment::UPPER_LEFT;
     // GQA's -1 sentinel for "no window" maps to SDPA's 0 = disabled.
     const int64_t sdpa_window = (local_window_size >= 1) ? local_window_size : 0;
@@ -331,14 +328,14 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
                                            is_causal,
                                            order,
                                            order,
-                                           value_order,
+                                           order,
                                            order,
                                            compressed_kv->quantization_attrs,
                                            ov::element::dynamic,
                                            alignment, 
                                            sdpa_window);
     } else {
-        sdpa = register_new_node<op::SDPA>(inputs, is_causal, order, order, value_order, order, ov::element::dynamic, alignment, sdpa_window);
+        sdpa = register_new_node<op::SDPA>(inputs, is_causal, order, order, order, order, ov::element::dynamic, alignment, sdpa_window);
     }
     return sdpa;
 }
