@@ -67,20 +67,24 @@ void copy_columns_by_row_chunks_2d(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITe
 }
 
 template <typename T>
-void fill_with_lowest(const ov::SoPtr<ov::ITensor>& tensor) {
-    std::fill_n(tensor->data<T>(), tensor->get_size(), std::numeric_limits<T>::lowest());
+void fill_fully_masked(const ov::SoPtr<ov::ITensor>& tensor) {
+    // The lowest finite f16 value, to mitigate risk of having -inf for f16 and bf16 CPU sub-models,
+    // and then a fully masked padding row of -inf giving NaN in Softmax.
+    // Still masks fully for f32.
+    const auto value = static_cast<T>(std::numeric_limits<ov::float16>::lowest());
+    std::fill_n(tensor->data<T>(), tensor->get_size(), value);
 }
 
 void fill_additive_attention_mask(const ov::SoPtr<ov::ITensor>& tensor) {
     switch (tensor->get_element_type()) {
     case ov::element::f32:
-        fill_with_lowest<float>(tensor);
+        fill_fully_masked<float>(tensor);
         break;
     case ov::element::f16:
-        fill_with_lowest<ov::float16>(tensor);
+        fill_fully_masked<ov::float16>(tensor);
         break;
     case ov::element::bf16:
-        fill_with_lowest<ov::bfloat16>(tensor);
+        fill_fully_masked<ov::bfloat16>(tensor);
         break;
     default:
         OPENVINO_THROW("Unsupported additive attention_mask element type: ", tensor->get_element_type());

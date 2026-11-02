@@ -261,16 +261,8 @@ protected:
     std::unique_ptr<TestableLLMInferRequest> m_request;
 };
 
-// The value the NPUW's LLMInferRequest uses for a fully masked position.
-float lowest_of(const ov::element::Type& type) {
-    switch (type) {
-    case ov::element::f32:
-        return std::numeric_limits<float>::lowest();
-    case ov::element::f16:
-        return static_cast<float>(std::numeric_limits<ov::float16>::lowest());
-    default:
-        OPENVINO_THROW("Unsupported element type in the test: ", type);
-    }
+float padding_value() {
+    return static_cast<float>(std::numeric_limits<ov::float16>::lowest());
 }
 
 // Checks every cell of the staged mask and reports the first one that differs from expected(row, column).
@@ -328,7 +320,7 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, PrefillPutsTheMaskIntoTheBottomRightCo
     const size_t size = staged->get_shape()[2];
     ASSERT_EQ(staged->get_shape(), (ov::Shape{1, 1, size, size}));
     const size_t offset = size - kPromptLen;
-    const float masked = lowest_of(GetParam());
+    const float masked = padding_value();
     expect_cells(staged, [&](size_t row, size_t column) {
         return (row >= offset && column >= offset) ? marker(row - offset, column - offset) : masked;
     });
@@ -355,7 +347,7 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, GenerateSplitsTheMaskIntoPastAndCurren
     constexpr size_t kPromptLen = 5;
     run_prefill(kPromptLen);
 
-    const float masked = lowest_of(GetParam());
+    const float masked = padding_value();
     for (size_t step = 0; step < 2; ++step) {
         SCOPED_TRACE("generate step " + std::to_string(step));
         const size_t past_len = kPromptLen + step;
@@ -407,18 +399,41 @@ ov::Tensor make_causal_mask(size_t rows, size_t columns) {
     const size_t past_len = columns - rows;
     for (size_t row = 0; row < rows; ++row) {
         for (size_t column = 0; column < columns; ++column) {
-            mask.data<float>()[row * columns + column] = column <= row + past_len ? 0.0f : lowest_of(ov::element::f32);
+            mask.data<float>()[row * columns + column] =
+                column <= row + past_len ? 0.0f : std::numeric_limits<float>::lowest();
         }
     }
     return mask;
 }
 
+std::vector<ov::Tensor> run_prefill_and_generate(ov::CompiledModel& compiled,
+                                                 size_t prompt_len,
+                                                 size_t generate_steps) {
+    auto request = compiled.create_infer_request();
+    ov::Tensor beam_idx(ov::element::i32, ov::Shape{1});
+    beam_idx.data<int32_t>()[0] = 0;
+    std::vector<ov::Tensor> logits;
+    const auto step = [&](size_t past_len, size_t new_tokens) {
+        request.set_tensor("input_ids", make_i64_iota({1, new_tokens}, static_cast<int64_t>(1 + past_len)));
+        request.set_tensor("attention_mask", make_causal_mask(new_tokens, past_len + new_tokens));
+        request.set_tensor("position_ids", make_i64_iota({1, new_tokens}, static_cast<int64_t>(past_len)));
+        request.set_tensor("beam_idx", beam_idx);
+        request.infer();
+        auto output = request.get_output_tensor(0);
+        ov::Tensor copy(output.get_element_type(), output.get_shape());
+        output.copy_to(copy);
+        logits.push_back(make_tensor_with_precision_convert(copy, ov::element::f32));
+    };
+    step(0, prompt_len);
+    for (size_t i = 0; i < generate_steps; ++i) {
+        step(prompt_len + i, 1);
+    }
+    return logits;
+}
+
 // The blob does not store whether the mask is 4D float: the import derives it from the restored inputs. The imported
 // model must still take the caller's f32 mask for prefill and for generate and give the compiled model's logits. The
 // model goes through disk like a converted model, so the blob is weightless and the import gets only the weights path.
-// The prompt fills the static prompt window. With a shorter one, the CPU sub-models compute in bf16 by default and the
-// f32 lowest value that NPUW stages for the padding rows turns into -inf there, so the logits are NaN. Requesting f32
-// inference precision removes the NaN.
 TEST(LLM4DFloatAttentionMaskRoundTrip, ImportedModelRunsLikeTheCompiledOne) {
     constexpr size_t kGenerateSteps = 2;
 
@@ -443,31 +458,8 @@ TEST(LLM4DFloatAttentionMaskRoundTrip, ImportedModelRunsLikeTheCompiledOne) {
     auto imported = core.import_model(blob, "NPU", import_props);
 
     // The prompt in one prefill, then single-token generate steps; returns the logits of every step.
-    const auto run = [&](ov::CompiledModel& model_under_test) {
-        auto request = model_under_test.create_infer_request();
-        ov::Tensor beam_idx(ov::element::i32, ov::Shape{1});
-        beam_idx.data<int32_t>()[0] = 0;
-        std::vector<ov::Tensor> logits;
-        const auto step = [&](size_t past_len, size_t new_tokens) {
-            request.set_tensor("input_ids", make_i64_iota({1, new_tokens}, static_cast<int64_t>(1 + past_len)));
-            request.set_tensor("attention_mask", make_causal_mask(new_tokens, past_len + new_tokens));
-            request.set_tensor("position_ids", make_i64_iota({1, new_tokens}, static_cast<int64_t>(past_len)));
-            request.set_tensor("beam_idx", beam_idx);
-            request.infer();
-            auto output = request.get_output_tensor(0);
-            ov::Tensor copy(output.get_element_type(), output.get_shape());
-            output.copy_to(copy);
-            logits.push_back(make_tensor_with_precision_convert(copy, ov::element::f32));
-        };
-        step(0, prompt_len);
-        for (size_t i = 0; i < kGenerateSteps; ++i) {
-            step(prompt_len + i, 1);
-        }
-        return logits;
-    };
-
-    const auto expected = run(compiled);
-    const auto actual = run(imported);
+    const auto expected = run_prefill_and_generate(compiled, prompt_len, kGenerateSteps);
+    const auto actual = run_prefill_and_generate(imported, prompt_len, kGenerateSteps);
     ASSERT_EQ(actual.size(), expected.size());
     for (size_t step = 0; step < expected.size(); ++step) {
         SCOPED_TRACE("step " + std::to_string(step));
@@ -477,5 +469,46 @@ TEST(LLM4DFloatAttentionMaskRoundTrip, ImportedModelRunsLikeTheCompiledOne) {
         }
     }
 }
+
+class LLM4DFloatAttentionMaskPrecisionTest : public ::testing::TestWithParam<ov::element::Type> {};
+
+TEST_P(LLM4DFloatAttentionMaskPrecisionTest, ShortPromptGivesTheF32Logits) {
+    constexpr size_t kPromptLen = 5;
+    constexpr size_t kGenerateSteps = 2;
+    constexpr float kTolerance = 0.05f;
+
+    ov::Core core;
+    const std::string capability = GetParam() == ov::element::bf16 ? "BF16" : "FP16";
+    const auto capabilities = core.get_property("CPU", ov::device::capabilities);
+    if (std::find(capabilities.begin(), capabilities.end(), capability) == capabilities.end()) {
+        GTEST_SKIP() << "The CPU does not support " << capability;
+    }
+
+    const auto compile = [&](const ov::element::Type& precision) {
+        auto props = make_props({{"NPU_USE_NPUW", "YES"}, {"NPUW_ONLINE_PIPELINE", "NONE"}});
+        props[ov::hint::inference_precision.name()] = precision;
+        return core.compile_model(build_llm_test_model(make_4d_float_mask_config(ov::element::f32)), "NPU", props);
+    };
+    auto reference_model = compile(ov::element::f32);
+    auto model_under_test = compile(GetParam());
+
+    const auto expected = run_prefill_and_generate(reference_model, kPromptLen, kGenerateSteps);
+    const auto actual = run_prefill_and_generate(model_under_test, kPromptLen, kGenerateSteps);
+    ASSERT_EQ(actual.size(), expected.size());
+    for (size_t step = 0; step < expected.size(); ++step) {
+        SCOPED_TRACE("step " + std::to_string(step));
+        ASSERT_EQ(actual[step].get_shape(), expected[step].get_shape());
+        for (size_t i = 0; i < expected[step].get_size(); ++i) {
+            ASSERT_NEAR(actual[step].data<float>()[i], expected[step].data<float>()[i], kTolerance) << "element " << i;
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(CpuPrecisions,
+                         LLM4DFloatAttentionMaskPrecisionTest,
+                         ::testing::Values(ov::element::bf16, ov::element::f16),
+                         [](const ::testing::TestParamInfo<ov::element::Type>& info) {
+                             return info.param.to_string();
+                         });
 
 }  // namespace
