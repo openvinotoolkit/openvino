@@ -661,6 +661,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp,
                                                               Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
                                                               Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64})));
 
+// Batched GEMV with a hidden_size that is not a multiple of 1024 (Gemma-4-26B-A4B: 2816).
+// The mlp_reduce local size must divide hidden_size; some drivers reject non-uniform work-groups.
+INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_hidden_not_multiple_of_1024,
+                         moe_3gemm_compressed_gpu_random,
+                         ::testing::Combine(::testing::Values(cldnn::MoERouterFused::RoutingType::SOFTMAX,
+                                                              cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS),
+                                            ::testing::Values(Moe3GemmTestParams{1, true, 2816, 512, 4, 2, 128},
+                                                              Moe3GemmTestParams{2, true, 2816, 512, 4, 2, 128})));
+
 class moe_3gemm_compressed_gpu_u4 : public ::testing::TestWithParam<cldnn::MoERouterFused::RoutingType> {};
 
 class moe_3gemm_compressed_gpu_shared_random : public ::testing::TestWithParam<Moe3GemmTestParams> {};
@@ -941,6 +950,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_mtp_shared,
                                            // Sub-128 group_size batched GEMV coverage.
                                            Moe3GemmTestParams{2, true, 128, 256, 4, 2, 64},
                                            Moe3GemmTestParams{2, false, 128, 256, 4, 2, 64}));
+
+// Shared-expert variant of smoke_batched_gemv_hidden_not_multiple_of_1024 (REDUCE_COUNT = MAX_TOPK + 1).
+INSTANTIATE_TEST_SUITE_P(smoke_batched_gemv_hidden_not_multiple_of_1024_shared,
+                         moe_3gemm_compressed_gpu_shared_random,
+                         ::testing::Values(Moe3GemmTestParams{1, true, 2816, 512, 4, 2, 128},
+                                           Moe3GemmTestParams{2, true, 2816, 512, 4, 2, 128}));
 
 TEST_P(moe_3gemm_compressed_gpu_u4, moe_accuracy_test_u4) {
     auto routing_type = GetParam();

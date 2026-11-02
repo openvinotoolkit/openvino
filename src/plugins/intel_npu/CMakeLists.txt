@@ -28,7 +28,10 @@ else()
     message(STATUS "The download of Intel NPU Compiler library is skipped!")
 endif()
 
-set(CMAKE_CXX_STANDARD 17)
+# to allow overriding CMAKE_CXX_STANDARD from the command line (e.g. the C++20 opt-in CI jobs)
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 17)
+endif()
 
 if(ENABLE_NPU_DEBUG_CAPS)
     add_compile_definitions(NPU_PLUGIN_DEVELOPER_BUILD)

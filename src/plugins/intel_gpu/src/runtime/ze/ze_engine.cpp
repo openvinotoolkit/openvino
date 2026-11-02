@@ -114,11 +114,14 @@ memory::ptr ze_engine::reinterpret_buffer(const memory& memory, const layout& ne
     memory::ptr reinterpret_memory = nullptr;
     if (memory_capabilities::is_usm_type(memory.get_allocation_type())
         || memory.get_allocation_type() == allocation_type::cl_mem) {
-        reinterpret_memory = std::make_shared<ze::gpu_usm>(this,
+        const auto& src = reinterpret_cast<const ze::gpu_usm&>(memory);
+        auto usm_memory = std::make_shared<ze::gpu_usm>(this,
                                      new_layout,
-                                     reinterpret_cast<const ze::gpu_usm&>(memory).get_resource(),
+                                     src.get_resource(),
                                      memory.get_allocation_type(),
                                      memory.get_mem_tracker());
+        usm_memory->set_parent_resource(src.get_owning_resource());
+        reinterpret_memory = usm_memory;
     } else if (new_layout.format.is_image_2d()) {
         reinterpret_memory = std::make_shared<ze::gpu_image2d>(this,
                                      new_layout,
@@ -170,11 +173,13 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
     ov_ze_usm_handle usm_handle{ctx.handle(), reinterpret_cast<uint8_t*>(ptr) + byte_offset};
     const bool is_borrowed = true;
     ze_usm_resource usm_res(usm_handle, is_borrowed);
-    return std::make_shared<ze::gpu_usm>(this,
-                             new_layout,
-                             usm_res,
-                             memory.get_allocation_type(),
-                             memory.get_mem_tracker());
+    auto sub_buffer = std::make_shared<ze::gpu_usm>(this,
+                                                    new_layout,
+                                                    usm_res,
+                                                    memory.get_allocation_type(),
+                                                    memory.get_mem_tracker());
+    sub_buffer->set_parent_resource(new_buf.get_owning_resource());
+    return sub_buffer;
 }
 
 memory_ptr ze_engine::create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
@@ -272,7 +277,7 @@ memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
     return std::make_shared<ze::gpu_usm>(this, output_layout, imported_buffer, allocation, mem_tracker);
 }
 
-bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
+bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) const {
     if (mem1.get_engine() != this || mem2.get_engine() != this)
         return false;
     if (mem1.get_allocation_type() != mem2.get_allocation_type())

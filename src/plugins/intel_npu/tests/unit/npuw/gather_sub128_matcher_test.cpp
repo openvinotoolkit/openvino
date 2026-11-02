@@ -262,15 +262,16 @@ TEST(DQLiftGatherAsymCWTest, RejectsUnmarked128Subtractions) {
 }
 
 TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
-    ov::npuw::patterns::opt::Context context;
-    EXPECT_TRUE(run_host_gather(make_parameter_gather_model(128.0f), context));
+    const auto model = make_parameter_gather_model(128.0f);
+    ov::npuw::patterns::opt::Context context(model, 0);
+    EXPECT_TRUE(run_host_gather(model, context));
     ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
     ASSERT_EQ(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.size(), 1);
 }
 
 TEST(HostGatherQuantAsymmTest, MarksPairedSub128Sources) {
-    ov::npuw::patterns::opt::Context context;
     const auto model = make_parameter_gather_model(128.0f);
+    ov::npuw::patterns::opt::Context context(model, 0);
 
     EXPECT_TRUE(run_host_gather(model, context));
     ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
@@ -305,11 +306,11 @@ TEST(HostGatherQuantAsymmTest, MarksPairedSub128Sources) {
 }
 
 TEST(HostGatherQuantAsymmTest, KeepsRawSourcesWithoutMarkedPattern) {
-    ov::npuw::patterns::opt::Context context;
     const auto model = make_parameter_gather_model(std::nullopt,
                                                    std::nullopt,
                                                    ov::element::u8,
                                                    ov::element::u8);
+    ov::npuw::patterns::opt::Context context(model, 0);
 
     EXPECT_TRUE(run_host_gather(model, context));
     ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
@@ -320,14 +321,15 @@ TEST(HostGatherQuantAsymmTest, KeepsRawSourcesWithoutMarkedPattern) {
 }
 
 TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
-    ov::npuw::patterns::opt::Context context;
-    EXPECT_FALSE(run_host_gather(make_parameter_gather_model(127.0f), context));
+    const auto model = make_parameter_gather_model(127.0f);
+    ov::npuw::patterns::opt::Context context(model, 0);
+    EXPECT_FALSE(run_host_gather(model, context));
 }
 
 TEST(HostGatherQuantAsymmTest, RejectsUnmarked128Subtractions) {
     const auto model = make_parameter_gather_model(128.0f);
     clear_sub128_shift_markers(model);
-    ov::npuw::patterns::opt::Context context;
+    ov::npuw::patterns::opt::Context context(model, 0);
 
     EXPECT_FALSE(run_host_gather(model, context));
     EXPECT_FALSE(context.params_to_quant_gather_unpack.has_value());
@@ -335,8 +337,8 @@ TEST(HostGatherQuantAsymmTest, RejectsUnmarked128Subtractions) {
 }
 
 TEST(ConvertDQVocabTest, ReplacesMarkedShiftsWithLazySources) {
-    ov::npuw::patterns::opt::Context context;
     const auto model = make_parameter_vocab_dq_model();
+    ov::npuw::patterns::opt::Context context(model, 0);
 
     ov::pass::GraphRewrite rewrite;
     rewrite.add_matcher<ov::npuw::patterns::opt::ConvertDQVocab>(std::ref(context));

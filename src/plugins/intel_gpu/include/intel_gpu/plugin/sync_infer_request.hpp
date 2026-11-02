@@ -157,7 +157,8 @@ private:
     std::vector<cldnn::event::ptr> prepare_input(const std::string& internal_name,
                                                  size_t input_idx,
                                                  const ov::Output<const ov::Node>& port,
-                                                 const TensorWrapper& user_tensor_wrapper);
+                                                 const TensorWrapper& user_tensor_wrapper,
+                                                 bool is_temporary_repacked_input = false);
     std::vector<cldnn::event::ptr> prepare_output(size_t output_idx, const ov::Output<const ov::Node>& port, const TensorWrapper& user_tensor_wrapper);
     std::vector<cldnn::event::ptr> prepare_batched_input(size_t input_idx,
                                                          const ov::Output<const ov::Node>& port,
@@ -183,6 +184,22 @@ private:
 
     void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
+
+    // Reject partial/offset or multiple exact overlaps; compare host tensors and RemoteTensorImpl by GPU memory range.
+    // Validate a single exact overlap downstream; output_capacity_bytes covers tail space after shrink/grow.
+    bool can_use_caller_output_memory(const std::shared_ptr<ov::ITensor>& output_tensor, size_t output_capacity_bytes);
+    // Checks the exact overlap left by can_use_caller_output_memory() against the graph via network::may_alias().
+    bool may_bind_caller_output(const std::string& output_id, const void* output_ptr) const;
+
+    struct InputAliasRange {
+        const void* ptr;
+        size_t size;
+        size_t port_idx;
+    };
+    // Rebuilt every enqueue(): a host tensor may reallocate on set_shape() without set_tensor().
+    std::vector<InputAliasRange> m_input_alias_ranges;
+    bool m_input_alias_ranges_valid = false;
+
     uint64_t total_output_bytes = 0;
 
     // Per-output-port OutputMemoryBlock for zero-copy dynamic output.

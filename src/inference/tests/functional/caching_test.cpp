@@ -7,9 +7,11 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstring>
 #include <functional>
 #include <mutex>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -30,6 +32,7 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/hsm_format.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/iremote_context.hpp"
@@ -3564,6 +3567,284 @@ static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestP
 INSTANTIATE_TEST_SUITE_P(CachingTest,
                          CachingTest,
                          ::testing::Combine(::testing::ValuesIn(loadVariants), ::testing::ValuesIn(cacheFolders)),
+                         getTestCaseName);
+
+namespace {
+void write_minimal_hsm_container(std::ostream& stream, std::string_view payload) {
+    using namespace ov::runtime::hsm;
+    Header header{};
+    header.magic = BlobMagic::single;
+    header.version_major = FormatVersion::major;
+    header.version_minor = FormatVersion::minor;
+    header.container_size = sizeof(Header) + payload.size();
+    header.manifest_offset = sizeof(Header) + payload.size();
+    header.manifest_size = 0;
+    stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
+    stream.write(payload.data(), static_cast<std::streamsize>(payload.size()));
+}
+}  // namespace
+
+class CachingHsmTest : public CachingTest {
+public:
+    void SetUp() override {
+        CachingTest::SetUp();
+
+        ON_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
+            .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
+                return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                     ov::internal::emit_hsm_format.name()};
+            }));
+        ON_CALL(*mockPlugin, get_property(ov::internal::emit_hsm_format.name(), _))
+            .WillByDefault(Return(ov::Any{true}));
+
+        ON_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _))
+            .WillByDefault(Invoke([&](std::istream& istr, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&) {
+                return import_from_hsm_stream(istr);
+            }));
+        ON_CALL(*mockPlugin, import_model(A<std::istream&>(), _))
+            .WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap&) {
+                return import_from_hsm_stream(istr);
+            }));
+        ON_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _))
+            .WillByDefault(
+                Invoke([&](const ov::Tensor& tensor, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&) {
+                    return import_from_hsm_tensor(tensor);
+                }));
+        ON_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _))
+            .WillByDefault(Invoke([&](const ov::Tensor& tensor, const ov::AnyMap&) {
+                return import_from_hsm_tensor(tensor);
+            }));
+
+        m_post_mock_net_callbacks.emplace_back([](MockICompiledModelImpl& net) {
+            ON_CALL(net, export_model(_)).WillByDefault(Invoke([&net](std::ostream& s) {
+                write_minimal_hsm_container(s, net.get_model()->get_friendly_name());
+            }));
+        });
+    }
+
+protected:
+    static void expect_hsm_magic_at_start(const ov::runtime::hsm::Header& header) {
+        EXPECT_EQ(header.magic, ov::runtime::hsm::BlobMagic::single)
+            << "Core must forward the HSM container unmodified from byte 0";
+    }
+
+    static void expect_hsm_magic_at_start(const char* data, size_t size) {
+        using namespace ov::runtime::hsm;
+        ASSERT_GE(size, sizeof(Header));
+        expect_hsm_magic_at_start(Header::view(data));
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_from_hsm_stream(std::istream& istr) {
+        ov::runtime::hsm::Header header{};
+        istr.read(reinterpret_cast<char*>(&header), sizeof(header));
+        EXPECT_EQ(istr.gcount(), static_cast<std::streamsize>(sizeof(header)));
+        expect_hsm_magic_at_start(header);
+        std::string name;
+        istr >> name;
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return create_mock_compiled_model(m_models.at(name), mockPlugin);
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_from_hsm_tensor(const ov::Tensor& tensor) {
+        const auto* data = tensor.data<const char>();
+        expect_hsm_magic_at_start(data, tensor.get_byte_size());
+        size_t pos = sizeof(ov::runtime::hsm::Header);
+        auto name = getline_from_buffer(data, tensor.get_byte_size(), pos);
+        std::lock_guard<std::mutex> lock(mock_creation_mutex);
+        return create_mock_compiled_model(m_models.at(name), mockPlugin);
+    }
+};
+
+TEST_P(CachingHsmTest, round_trip_stream) {
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+        .Times(!m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(!m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+
+    testLoad([&](ov::Core& core) {
+        core.set_property(ov::cache_path(m_cacheDir));
+        EXPECT_NO_THROW(m_testFunction(core));  // cache miss: compile + export an HSM blob
+        EXPECT_NO_THROW(m_testFunction(core));  // cache hit: detect + forward the HSM blob unmodified
+    });
+}
+
+TEST_P(CachingHsmTest, round_trip_mmap) {
+    ON_CALL(*mockPlugin, get_property(ov::internal::supported_properties.name(), _))
+        .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
+            return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                 ov::internal::emit_hsm_format.name(),
+                                                 ov::internal::caching_with_mmap.name()};
+        }));
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+        .Times(!m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(!m_remoteContext ? 1 : 0);
+
+    testLoad([&](ov::Core& core) {
+        core.set_property(ov::cache_path(m_cacheDir));
+        EXPECT_NO_THROW(m_testFunction(core));  // cache miss: compile + export an HSM blob
+        EXPECT_NO_THROW(m_testFunction(core));  // cache hit: detect + forward the HSM blob
+    });
+}
+
+TEST_P(CachingHsmTest, cache_file_has_no_core_authored_bytes) {
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(AnyNumber());
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    testLoad([&](ov::Core& core) {
+        core.set_property(ov::cache_path(m_cacheDir));
+        EXPECT_NO_THROW(m_testFunction(core));
+    });
+
+    auto blobs = ov::test::utils::listFilesWithExt(m_cacheDir, "blob");
+    ASSERT_FALSE(blobs.empty());
+    for (const auto& fileName : blobs) {
+        std::ifstream blob(fileName, std::ios_base::binary);
+        ov::runtime::hsm::Header header{};
+        blob.read(reinterpret_cast<char*>(&header), sizeof(header));
+        ASSERT_EQ(blob.gcount(), static_cast<std::streamsize>(sizeof(header)));
+        // No ov::CompiledBlobHeader (or any other Core-authored bytes) may precede the plugin's own container.
+        expect_hsm_magic_at_start(header);
+    }
+}
+
+TEST_P(CachingHsmTest, older_version_hsm_blob_still_loads) {
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(AnyNumber());
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    testLoad([&](ov::Core& core) {
+        core.set_property(ov::cache_path(m_cacheDir));
+        EXPECT_NO_THROW(m_testFunction(core));
+    });
+    m_post_mock_net_callbacks.pop_back();
+
+    auto blobs = ov::test::utils::listFilesWithExt(m_cacheDir, "blob");
+    ASSERT_FALSE(blobs.empty());
+    for (const auto& fileName : blobs) {
+        std::filesystem::permissions(fileName, std::filesystem::perms::owner_write, std::filesystem::perm_options::add);
+        std::fstream blob(fileName, std::ios_base::binary | std::ios_base::in | std::ios_base::out);
+        // version_major lives right after magic - rewrite it to simulate an older-format HSM blob.
+        const uint16_t older_version_major = 0;
+        blob.seekp(offsetof(ov::runtime::hsm::Header, version_major));
+        blob.write(reinterpret_cast<const char*>(&older_version_major), sizeof(older_version_major));
+        blob.close();
+        std::filesystem::permissions(fileName,
+                                     std::filesystem::perms::owner_write,
+                                     std::filesystem::perm_options::remove);
+    }
+
+    // Core's HSM compatibility rule is magic-only/non-blocking: an older format_version must still be
+    // forwarded to the plugin, never rejected, and never trigger a silent recompile.
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(!m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+    for (auto& net : comp_models) {
+        EXPECT_CALL(*net, export_model(_)).Times(0);
+    }
+    testLoad([&](ov::Core& core) {
+        core.set_property(ov::cache_path(m_cacheDir));
+        EXPECT_NO_THROW(m_testFunction(core));
+    });
+}
+
+TEST_P(CachingHsmTest, corrupted_hsm_blob_falls_back_to_recompile) {
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(AnyNumber());
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    testLoad([&](ov::Core& core) {
+        core.set_property(ov::cache_path(m_cacheDir));
+        EXPECT_NO_THROW(m_testFunction(core));
+    });
+    m_post_mock_net_callbacks.pop_back();
+
+    auto blobs = ov::test::utils::listFilesWithExt(m_cacheDir, "blob");
+    ASSERT_FALSE(blobs.empty());
+    for (const auto& fileName : blobs) {
+        std::filesystem::permissions(fileName, std::filesystem::perms::owner_write, std::filesystem::perm_options::add);
+        std::fstream blob(fileName, std::ios_base::binary | std::ios_base::in | std::ios_base::out);
+        // Leave the 32-byte header (and its "OVBLS" magic) intact, so Core's magic-only detection still
+        // recognizes this as an HSM container and forwards it unmodified; only the payload is garbled, so the
+        // plugin itself must fail to make sense of it.
+        blob.seekp(sizeof(ov::runtime::hsm::Header));
+        blob << "garbage-payload-no-such-model";
+        blob.close();
+        std::filesystem::permissions(fileName,
+                                     std::filesystem::perms::owner_write,
+                                     std::filesystem::perm_options::remove);
+    }
+
+    m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
+        EXPECT_CALL(net, export_model(_)).Times(1);
+    });
+    EXPECT_CALL(*mockPlugin, compile_model(_, _, _)).Times(m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+        .Times(!m_remoteContext ? 1 : 0);
+    // Exactly one import attempt (the format-appropriate overload) - a thrown import must not trigger a
+    // cross-format retry via the other overload.
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _, _)).Times(m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(!m_remoteContext ? 1 : 0);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _, _)).Times(0);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(0);
+    testLoad([&](ov::Core& core) {
+        core.set_property(ov::cache_path(m_cacheDir));
+        EXPECT_NO_THROW(m_testFunction(core));  // import throws internally -> cache removed -> recompiled
+    });
+}
+
+TEST_P(CachingHsmTest, direct_import_model_forwards_hsm_bytes_unmodified) {
+    EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());
+    EXPECT_CALL(*mockPlugin, import_model(A<std::istream&>(), _)).Times(1);
+    EXPECT_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).Times(1);
+
+    testLoad([&](ov::Core& core) {
+        std::ostringstream oss;
+        write_minimal_hsm_container(oss, "direct_import_model");
+        const auto blob_str = oss.str();
+        m_models["direct_import_model"] =
+            ov::test::utils::make_conv_pool_relu({1, 3, 227, 227}, ov::element::Type_t::f32);
+
+        // ov::Core::import_model(std::istream&, ...) must reach the plugin byte-identical, from byte 0.
+        std::istringstream iss(blob_str);
+        EXPECT_NO_THROW(core.import_model(iss, deviceToLoad));
+
+        // ov::Core::import_model(const ov::Tensor&, ...) must reach the plugin byte-identical, from byte 0.
+        ov::Tensor tensor(ov::element::u8, ov::Shape{blob_str.size()});
+        std::memcpy(tensor.data(), blob_str.data(), blob_str.size());
+        EXPECT_NO_THROW(core.import_model(tensor, deviceToLoad));
+    });
+}
+
+INSTANTIATE_TEST_SUITE_P(CachingHsmTest,
+                         CachingHsmTest,
+                         Combine(ValuesIn(loadVariants), ValuesIn(cacheFolders)),
                          getTestCaseName);
 #endif  // defined(ENABLE_OV_IR_FRONTEND)
 
