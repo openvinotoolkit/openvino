@@ -16,6 +16,7 @@
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/parallel_read_streambuf.hpp"
 #include "common_utils/parallel_mem_streambuf.hpp"
+#include "common_utils/prefetch_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -2036,7 +2037,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
                                               allocation_type::usm_host,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
         // Weights become sub-buffers of the blob, so its pages must stay resident.
-        if (auto* prefetch_buf = dynamic_cast<ov::util::PrefetchStreamBuf*>(ib.get_streambuf())) {
+        if (auto* prefetch_buf = dynamic_cast<ov::intel_gpu::PrefetchStreamBuf*>(ib.get_streambuf())) {
             prefetch_buf->keep_read_data();
         }
     }

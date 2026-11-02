@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <memory>
 #include <optional>
-#include <streambuf>
 #include <unordered_map>
 #include <vector>
 
@@ -105,7 +104,9 @@ public:
      *
      * Default window and step showed the best import time and peak RSS in manual testing.
      */
-    explicit SequentialPrefetchScheduler(ov::Tensor tensor, size_t window = 32 * one_mib, size_t step = 8 * one_mib);
+    explicit SequentialPrefetchScheduler(ov::Tensor tensor,
+                                         size_t window = 32 * one_mib,
+                                         size_t step = 8 * one_mib);
 
     /** @brief Reports that [begin, end) is read next and the bytes before @p begin are consumed. */
     void advance(size_t begin, size_t end) noexcept;
@@ -125,28 +126,5 @@ private:
     size_t m_prefetched = 0;
     size_t m_evicted = 0;
     bool m_evict = true;
-};
-
-/**
- * @brief Read-only stream buffer over a tensor that drives a SequentialPrefetchScheduler when @p prefetch is set and
- * the tensor has memory hints, and is a plain memory reader otherwise.
- */
-class OPENVINO_API PrefetchStreamBuf : public std::streambuf {
-public:
-    explicit PrefetchStreamBuf(const ov::Tensor& tensor, bool prefetch = true);
-
-    void keep_read_data() noexcept {
-        if (m_scheduler) {
-            m_scheduler->keep_read_data();
-        }
-    }
-
-protected:
-    std::streamsize xsgetn(char_type* dst, std::streamsize count) override;
-    pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override;
-    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override;
-
-private:
-    std::unique_ptr<SequentialPrefetchScheduler> m_scheduler;
 };
 }  // namespace ov::util

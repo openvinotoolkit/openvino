@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "common_utils/parallel_mem_streambuf.hpp"
+#include "common_utils/prefetch_streambuf.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
@@ -549,7 +550,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
         // Memory without hints (e.g. user provided), keep the pread path for user file mappings.
         buf = std::make_unique<ov::intel_gpu::ParallelMemStreamBuf>(model.data(), model.get_byte_size());
     } else {
-        buf = std::make_unique<ov::util::PrefetchStreamBuf>(model);
+        buf = std::make_unique<ov::intel_gpu::PrefetchStreamBuf>(model);
     }
     std::istream stream(buf.get());
     auto compiled_model = import_model(stream, context, config);

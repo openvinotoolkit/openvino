@@ -9,7 +9,6 @@
 #include <filesystem>
 #include <fstream>
 #include <future>
-#include <numeric>
 #include <optional>
 #include <sstream>
 #include <vector>
@@ -754,25 +753,5 @@ TEST_F(SharedBufferTest, sequential_prefetch_scheduler_slides_window) {
 
 TEST_F(SharedBufferTest, sequential_prefetch_scheduler_rejects_non_byte_tensor) {
     EXPECT_THROW(ov::util::SequentialPrefetchScheduler(ov::Tensor{ov::element::f32, ov::Shape{4}}), ov::Exception);
-}
-
-TEST(prefetch_stream_buf, reads_and_seeks_plain_memory) {
-    std::vector<char> data(64);
-    std::iota(data.begin(), data.end(), 0);
-    ov::util::PrefetchStreamBuf buf(ov::Tensor{ov::element::u8, ov::Shape{data.size()}, data.data()});
-    std::istream stream(&buf);
-
-    std::vector<char> out(10);
-    stream.read(out.data(), out.size());
-    EXPECT_EQ(out, std::vector<char>(data.begin(), data.begin() + 10));
-    stream.seekg(5, std::ios::cur);
-    EXPECT_EQ(stream.tellg(), 15);
-    EXPECT_EQ(stream.get(), 15);
-    stream.seekg(0, std::ios::end);
-    EXPECT_EQ(stream.tellg(), 64);
-    stream.seekg(60);
-    stream.read(out.data(), out.size());
-    EXPECT_EQ(stream.gcount(), 4);
-    EXPECT_TRUE(stream.eof());
 }
 }  // namespace ov::test
