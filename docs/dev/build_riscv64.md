@@ -89,10 +89,10 @@ When installing packages using the utilities `apt` or `apt-get` the packages are
 
 1. Add riscv64 repositories to download riscv64-specific packages:
     ```sh
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy main >> riscv64-sources.list
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy universe >> riscv64-sources.list
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main >> riscv64-sources.list
-    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main >> riscv64-sources.list
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble main >> riscv64-sources.list
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble universe >> riscv64-sources.list
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main >> riscv64-sources.list
+    echo deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main >> riscv64-sources.list
     mv riscv64-sources.list /etc/apt/sources.list.d/
     dpkg --add-architecture riscv64
     apt-get update -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/riscv64-sources.list
