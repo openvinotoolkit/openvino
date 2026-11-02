@@ -807,6 +807,16 @@ static size_t int3_gemv_nb(const RuntimeParams& params, Int3Projection proj) {
     return nb;
 }
 
+// Most tokens per step for which the u3 batched GEMV beats the int3 grouped GEMMs on Qwen3.6-35B-A3B experts:
+// ~6 on the bandwidth-bound iGPUs (LNL), 24 on BMG.
+static size_t int3_gemv_threshold(const RuntimeParams& params) {
+    const size_t configured = params.get_program().get_config().get_moe_u3_batched_gemv_threshold();
+    if (configured > 0) {
+        return configured;
+    }
+    return params.get_device_info().dev_type == cldnn::device_type::discrete_gpu ? 24 : 6;
+}
+
 static bool int3_gemv_supported(const RuntimeParams& params, Int3Projection proj) {
     const auto shape = get_int3_projection_shape(params, proj);
     return shape.k % (INT3_GEMV_SIMD * 32) == 0 && shape.weight_group_size > 0 && shape.weight_group_size % 32 == 0 &&
@@ -1437,8 +1447,8 @@ public:
                                << ", decode_impl=" << static_cast<int>(decode_impl) << ", use_int3_gemm=" << use_int3_gemm
                                << ", use_int3_gemv=" << use_int3_gemv << std::endl;
 
-        // The u3 GEMV loses to the grouped GEMM paths from a few tokens on (~6 on LNL), much earlier than the other GEMVs
-        batched_gemv_threshold = use_int3_gemv ? config.get_moe_u3_batched_gemv_threshold() : config.get_moe_batched_gemv_threshold();
+        // The u3 GEMV loses to the grouped GEMM paths much earlier than the other GEMVs
+        batched_gemv_threshold = use_int3_gemv ? int3_gemv_threshold(params) : config.get_moe_batched_gemv_threshold();
         if (batched_gemv_threshold == 0) {
             batched_gemv_threshold = 1;
         }
