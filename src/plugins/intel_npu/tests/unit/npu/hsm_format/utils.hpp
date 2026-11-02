@@ -37,4 +37,24 @@ public:
     ov::CompatibilityCheck evaluate(std::string_view runtime_requirements) const override;
 };
 
+class MockSection : public ISection {
+public:
+    MockSection(const std::vector<std::shared_ptr<CREToken>>& cre_tokens,
+                const std::optional<std::string>& individual_requirements,
+                const ov::runtime::hsm::SectionAlignment& alignment = {});
+
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
+
+    static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
+
+    std::optional<std::string> get_individual_compatibility_requirements() const override;
+
+    std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
+        const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const override;
+
+private:
+    std::vector<std::shared_ptr<CREToken>> m_cre_tokens;
+    std::optional<std::string> m_individual_requirements;
+};
+
 }  // namespace intel_npu

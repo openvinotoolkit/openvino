@@ -44,4 +44,29 @@ ov::CompatibilityCheck MockInstanceEvaluator::evaluate(std::string_view runtime_
     return ov::CompatibilityCheck::NOT_APPLICABLE;
 }
 
+MockSection::MockSection(const std::vector<std::shared_ptr<CREToken>>& cre_tokens,
+                         const std::optional<std::string>& individual_requirements,
+                         const ov::runtime::hsm::SectionAlignment& alignment)
+    : ISection(SectionTypeCode::IO_LAYOUTS, alignment, true),  // TODO comment
+      m_cre_tokens(m_cre_tokens),
+      m_individual_requirements(individual_requirements) {}
+
+void MockSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
+    return;
+}
+
+ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> MockSection::decode =
+    [](const ov::runtime::hsm::Section& section) -> std::optional<std::shared_ptr<ISection>> {
+    return std::make_shared<MockSection>({}, std::nullopt);
+};
+
+std::optional<std::string> MockSection::get_individual_compatibility_requirements() const {
+    return m_individual_requirements;
+}
+
+std::vector<std::shared_ptr<CREToken>> MockSection::get_compatibility_requirements_subexpression(
+    const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const {
+    return m_cre_tokens;
+}
+
 }  // namespace intel_npu
