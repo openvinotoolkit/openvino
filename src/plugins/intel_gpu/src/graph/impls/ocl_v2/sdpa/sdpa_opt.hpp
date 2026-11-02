@@ -37,6 +37,10 @@ struct SDPAOpt : public ImplementationManager {
     // dpas_sdpa_op_supported() without a single-element mask. Not SDPAOclGenerator::supported(): see validate_impl().
     [[nodiscard]] static bool dpas_lane_op_supported(const kernel_impl_params& params);
     [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
+    // Per-channel compressed KV has one reader among these stages, sdpa_ocl, so it is admitted only where sdpa_ocl serves
+    // the op (the lane, enable_sdpa_micro on, dpas_sdpa_op_supported() and SDPAOclGenerator::supported()); SDPARef takes
+    // it everywhere else.
+    [[nodiscard]] static bool per_channel_kv_on_dpas_lane(const kernel_impl_params& params);
     // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout dpas_sdpa_op_supported() refuses
     // (the oneDNN micro SDPA stage gave NaN on it), so it has to run on the regular sdpa_opt stages instead.
     [[nodiscard]] static bool has_bf16_compressed_kv_zero_point(const kernel_impl_params& params);
@@ -46,8 +50,11 @@ struct SDPAOpt : public ImplementationManager {
         const auto is_supported_precision = [&supported_precisions](const ov::element::Type& dt) {
             return one_of(dt, supported_precisions);
         };
-        const auto is_supported_kv_precision = [&is_supported_precision](const ov::element::Type& dt) {
-            return is_supported_precision(dt) || dt == ov::element::i8;
+        auto p = node.get_kernel_impl_params();
+        const bool per_channel_kv = has_per_channel_compressed_kv(*p);
+        // The GQA decomposition stores a 4-bit per-channel cache as u8 (two nibbles per byte).
+        const auto is_supported_kv_precision = [&is_supported_precision, per_channel_kv](const ov::element::Type& dt) {
+            return is_supported_precision(dt) || dt == ov::element::i8 || (per_channel_kv && dt == ov::element::u8);
         };
         const auto& q_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::QUERY);
         const auto& k_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::KEY);
@@ -91,12 +98,10 @@ struct SDPAOpt : public ImplementationManager {
             desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
         const bool combine_scales_and_zp = desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
-        // No kernel here reads per-channel scales: sdpa_ocl and sdpa_opt read one scale per token. Only sdpa_micro did, and it
-        // is gone, so the GQA decomposition no longer fuses per-channel compressed KV into SDPA (GPU plugin
-        // GroupQueryAttentionDecomposition, fuse_compressed_kv).
-        auto p = node.get_kernel_impl_params();
-        if (has_per_channel_compressed_kv(*p)) {
-            return false;
+        // Per-channel compressed KV (the GQA decomposition's fused quantized cache): sdpa_ocl reads it, the opt kernels read
+        // one scale per token. So it stays here only where sdpa_ocl serves it, and SDPARef takes it otherwise.
+        if (per_channel_kv) {
+            return per_channel_kv_on_dpas_lane(*p);
         }
         // Asymmetric planar compressed KV. On the sdpa_ocl lane this looks only at dpas_lane_op_supported(), never at
         // SDPAOclGenerator::supported(): when sdpa_ocl refuses a compressed op, opt still gets it and, if this is false, SDPARef
