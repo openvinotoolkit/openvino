@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "httpx connecterror errno 2 name or service not known|Network",
+  "signature_hash": "4f16a665a4668e71",
+  "title": "LLM accuracy iGPU tests fail downloading TinyLlama model from HuggingFace Hub - DNS resolution failure",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-11-02T11:21:44Z",
+  "last_seen": "2026-11-02T11:21:44Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41426227749"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36630"
+  ],
+  "recent_timestamps": [
+    "2026-11-02T11:21:44Z"
+  ],
+  "rerun_search_string": "httpx.ConnectError: [Errno -2] Name or service not known"
+}

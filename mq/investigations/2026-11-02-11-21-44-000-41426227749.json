@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-02-11-21-44-000-41426227749",
+  "timestamp": "2026-11-02T11:21:44Z",
+  "run_id": "41426227749",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41426227749",
+  "workflow_name": "LLM accuracy iGPU tests",
+  "pr_number": "36630",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36630",
+  "author": "dependabot[bot]",
+  "category": "Network",
+  "title": "LLM accuracy iGPU tests fail downloading TinyLlama model from HuggingFace Hub - DNS resolution failure",
+  "signature": "httpx connecterror errno 2 name or service not known|Network",
+  "signature_hash": "4f16a665a4668e71",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-GPU] failed with httpx.ConnectError: Name or service not known while calling huggingface_hub list_repo_files"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the upstream LLM accuracy job failed"
+    }
+  ],
+  "key_errors": [
+    "httpcore.ConnectError: [Errno -2] Name or service not known",
+    "httpx.ConnectError: [Errno -2] Name or service not known",
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-GPU] - httpx.ConnectError: [Errno -2] Name or service not known",
+    "File \"/__w/openvino/openvino/tests/llm/accuracy_conformance.py\", line 158, in setup_model: quantized_model = OVModelForCausalLM.from_pretrained(...) -> optimum.exporters.tasks.get_model_files -> huggingface_hub.hf_api.list_repo_files -> httpx GET request failed to resolve hostname"
+  ],
+  "root_cause": "The TinyLlama INT8-GPU accuracy test attempts to call huggingface_hub.HfApi.list_repo_files() (via optimum's TasksManager.get_model_files), which issues an httpx GET request to the Hugging Face Hub API. The underlying httpcore/httpx connection failed with 'Name or service not known', a DNS resolution failure, before any HTTP response was received. The job only configures HTTP(S)_PROXY/NO_PROXY env vars at the Docker-container-create step (visible early in the log) but the pytest test-execution step's env block does not show the proxy variables being forwarded, strongly suggesting the proxy/DNS configuration was not propagated into the venv/python process used for the pytest run, causing outbound DNS lookups for huggingface.co (or its CDN) to fail. Other parallel accuracy tests in the same run (INT4-GPU, Qwen2 INT8/INT4) passed because their target models were already available in the local HF cache (/mnt/caches/huggingface) and did not need to reach out to the network, while the TinyLlama INT8 variant triggered a fresh metadata lookup that required network access.",
+  "reproduction_steps": "1. Run `tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-GPU]` in an environment without HF_HUB_CACHE pre-populated for this model/quantization, or with the Intel corporate proxy variables unset in the shell executing pytest, to reproduce the DNS failure when huggingface_hub.HfApi.list_repo_files() is called. 2. Alternatively, directly run `python3 -c \"from huggingface_hub import HfApi; HfApi().list_repo_files('TinyLlama/TinyLlama-1.1B-Chat-v1.0')\"` without proxy env vars set, to reproduce 'Name or service not known'.",
+  "recommended_actions": [
+    "Re-run the failed GPU accuracy job; this is very likely a transient infrastructure DNS/proxy issue, not a code defect introduced by the PR (which only bumps a GitHub Action version and does not touch tests/llm/*).",
+    "Verify that the pytest step for `LLM accuracy GPU tests` inherits HTTP_PROXY/HTTPS_PROXY/NO_PROXY from the job environment (the docker container create step sets them, but the later pytest `env:` block in the log does not list them) so that huggingface_hub calls can resolve external hosts through the Intel proxy.",
+    "Consider pre-caching all accuracy_conformance model variants (including TinyLlama INT8) in /mnt/caches/huggingface so list_repo_files() network calls are avoided entirely during CI.",
+    "Add retry/backoff around huggingface_hub network calls in tests/llm/accuracy_conformance.py (or configure HF_HUB_OFFLINE=1 with pre-fetched models) to make the test resilient to transient DNS blips."
+  ],
+  "prevention_strategies": "Ensure CI runner containers that need external network access (HuggingFace Hub, PyPI, etc.) consistently propagate proxy and DNS configuration into every step's shell environment, not only at container-create time. Pre-warm the HuggingFace cache for all models used by tests/llm/accuracy_conformance.py in a dedicated setup step so test execution does not depend on live Hub API availability. Consider wrapping HF Hub metadata calls with retries and clear 'infrastructure/network' failure classification in the test itself so flaky network dips do not require a full re-investigation.",
+  "historical_context": "Several prior Network-category failures exist for DNS/proxy resolution against proxy-dmz.intel.com and other external hosts (e.g. patterns 4af26ac5e3256c5f 'GPU RoPE Tests fail - proxy-dmz.intel.com not resolvable', 2e6aac1671dde42f 'LLM accuracy iGPU tests fail installing requirements - Could not resolve proxy', 688d70acdbdfc8ce/dfd265b1c0ea3af5 'NPU Models Tests fail downloading external model artifacts due to DNS resolution failure'), confirming this class of transient network/DNS failure recurs periodically across different jobs that need external connectivity. This is the first occurrence of the specific httpx ConnectError signature during huggingface_hub.list_repo_files for the TinyLlama GPU accuracy test."
+}
