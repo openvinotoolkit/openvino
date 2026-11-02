@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include "llm_infer_base_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
@@ -14,6 +15,7 @@ namespace ov {
 namespace npuw {
 
 class LLMInferRequest;  // forward declaration — strategy always outlived by its owning request
+class KVBlock;          // forward declaration — full definition in llm_prefix_caching.hpp
 
 /**
  * @brief Abstract strategy interface for LLM KV cache management.
@@ -112,6 +114,31 @@ public:
         (void)keep;
         (void)delta_len;
         OPENVINO_THROW("Continuous prefill is not supported by this KV cache strategy.");
+    }
+
+    // Prefix caching support.
+
+    // Load cached blocks (ascending token order, starting at token 0) into this strategy's KV
+    // state. Called before the first prefill chunk, so on_prefill_chunk_begin() sees them as the
+    // already-computed prefix.
+    virtual void apply_cached_prefix_blocks(const std::vector<std::shared_ptr<KVBlock>>& blocks) {
+        (void)blocks;
+        OPENVINO_THROW("Prefix caching is not supported by this KV cache strategy.");
+    }
+
+    // Build a cache block for the `block_size` tokens that start at prompt position
+    // `block_token_start` and at `out_token_offset` in the current prefill output buffer.
+    // Called after the chunk's infer() and before on_prefill_chunk_done().
+    // Returns nullptr when the block cannot be cached; the caller then skips it.
+    virtual std::shared_ptr<KVBlock> make_prefix_block(size_t block_token_start,
+                                                       size_t out_token_offset,
+                                                       size_t block_size,
+                                                       const std::vector<uint64_t>& token_hashes) {
+        (void)block_token_start;
+        (void)out_token_offset;
+        (void)block_size;
+        (void)token_hashes;
+        OPENVINO_THROW("Prefix caching is not supported by this KV cache strategy.");
     }
 
 protected:

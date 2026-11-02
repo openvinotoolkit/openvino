@@ -46,24 +46,19 @@ KVCacheBlockManager::KVCacheBlockManager(uint32_t block_size,
         blocks_.push_back({});
     }
 
-    // Push block IDs to stack in reverse order (so block 0 is on top).
-    for (uint32_t i = max_blocks; i > 0; --i) {
-        free_block_ids_.push(i - 1);
-    }
-
     LOG_INFO("KVCacheBlockManager initialized: " << "block_size=" << block_size << ", max_blocks=" << max_blocks
                                                  << ", total_capacity=" << (block_size * max_blocks) << " tokens"
                                                  << ", device=" << device);
 }
 
 std::optional<uint32_t> KVCacheBlockManager::allocate_block() {
-    if (free_block_ids_.empty()) {
+    const auto free_id = first_free_block_id();
+    if (!free_id) {
         LOG_WARN("KVCacheBlockManager: No free blocks available! " << "All " << max_blocks_ << " blocks are in use.");
         return std::nullopt;
     }
 
-    uint32_t block_id = free_block_ids_.top();
-    free_block_ids_.pop();
+    const uint32_t block_id = *free_id;
 
     auto& block = blocks_[block_id];
 
@@ -77,11 +72,55 @@ std::optional<uint32_t> KVCacheBlockManager::allocate_block() {
     // Reset block state
     block.num_tokens = 0;
     block.is_allocated = true;
+    block.is_shared = false;
 
-    LOG_VERB("KVCacheBlockManager: Allocated block " << block_id
-                                                     << " (free blocks remaining: " << free_block_ids_.size() << ")");
+    LOG_VERB("KVCacheBlockManager: Allocated block " << block_id << " (free blocks remaining: " << num_free_blocks()
+                                                     << ")");
 
     return block_id;
+}
+
+uint32_t KVCacheBlockManager::allocate_block_with_tensor(ov::SoPtr<ov::ITensor> tensor, uint32_t num_tokens) {
+    OPENVINO_ASSERT(tensor, "KVCacheBlockManager: cannot inject a null tensor");
+    OPENVINO_ASSERT(num_tokens <= block_size_,
+                    "KVCacheBlockManager: cannot inject ",
+                    num_tokens,
+                    " tokens (capacity: ",
+                    block_size_,
+                    ")");
+    const auto free_id = first_free_block_id();
+    OPENVINO_ASSERT(free_id.has_value(), "KVCacheBlockManager: no free blocks available for prefix cache restore");
+
+    const uint32_t block_id = *free_id;
+
+    auto& block = blocks_[block_id];
+    block.tensor = std::move(tensor);
+    block.num_tokens = num_tokens;
+    block.is_allocated = true;
+    block.is_shared = true;
+
+    LOG_VERB("KVCacheBlockManager: Injected cached tensor into block " << block_id << " (" << num_tokens << " tokens)");
+    return block_id;
+}
+
+void KVCacheBlockManager::mark_block_shared(uint32_t block_id) {
+    validate_block_id(block_id);
+    OPENVINO_ASSERT(blocks_[block_id].is_allocated, "KVCacheBlockManager: cannot share free block ", block_id);
+    blocks_[block_id].is_shared = true;
+}
+
+bool KVCacheBlockManager::make_block_private(uint32_t block_id) {
+    validate_block_id(block_id);
+    auto& block = blocks_[block_id];
+    OPENVINO_ASSERT(block.is_allocated, "KVCacheBlockManager: cannot make free block ", block_id, " private");
+    if (!block.is_shared) {
+        return false;
+    }
+    auto copy = ov::npuw::util::allocMem(element_type_, block_shape_, device_, plugin_);
+    block.tensor->copy_to(copy._ptr);
+    block.tensor = std::move(copy);
+    block.is_shared = false;
+    return true;
 }
 
 ov::SoPtr<ov::ITensor> KVCacheBlockManager::get_block_tensor(uint32_t block_id) const {
@@ -131,15 +170,20 @@ uint32_t KVCacheBlockManager::get_block_tokens(uint32_t block_id) const {
 
 std::vector<uint32_t> KVCacheBlockManager::get_allocated_blocks() const {
     std::vector<uint32_t> allocated;
-    allocated.reserve(max_blocks_ - free_block_ids_.size());
-
     for (uint32_t i = 0; i < blocks_.size(); ++i) {
         if (blocks_[i].is_allocated) {
             allocated.push_back(i);
         }
     }
-
     return allocated;
+}
+
+uint32_t KVCacheBlockManager::num_free_blocks() const {
+    uint32_t free_blocks = 0;
+    for (const auto& block : blocks_) {
+        free_blocks += block.is_allocated ? 0u : 1u;
+    }
+    return free_blocks;
 }
 
 void KVCacheBlockManager::release(uint32_t keep_warm_count) {
@@ -155,6 +199,13 @@ void KVCacheBlockManager::release(uint32_t keep_warm_count) {
         }
         block.is_allocated = false;
         block.num_tokens = 0;
+        if (block.is_shared) {
+            // The prefix cache still references this tensor, so a later conversation must not
+            // reuse it as scratch memory. Only the pool's reference is dropped here.
+            block.tensor = {};
+            block.is_shared = false;
+            continue;
+        }
         if (warm_seen >= keep_warm_count) {
             block.tensor = {};  // Drop SoPtr — returns device memory to allocator
         }
@@ -165,25 +216,20 @@ void KVCacheBlockManager::release(uint32_t keep_warm_count) {
         LOG_DEBUG("KVCacheBlockManager: Released " << (warm_seen - keep_warm_count) << " block tensor(s), kept "
                                                    << keep_warm_count << " warm");
     }
-
-    rebuild_free_block_ids();
 }
 
 void KVCacheBlockManager::clear_all() {
     release(0);
 }
 
-void KVCacheBlockManager::rebuild_free_block_ids() {
-    // Push in descending ID order so the smallest free ID ends up on top of the stack
-    // and is handed out first. Allocation order then follows block ID order, which is
-    // what keeps a truncated prefix contiguous when the freed suffix is reacquired.
-    std::stack<uint32_t> empty;
-    free_block_ids_.swap(empty);
-    for (uint32_t i = max_blocks_; i > 0; --i) {
-        if (!blocks_[i - 1].is_allocated) {
-            free_block_ids_.push(i - 1);
+std::optional<uint32_t> KVCacheBlockManager::first_free_block_id() const {
+    // Smallest free ID first: release() keeps the lowest IDs warm, so those tensors are reused first.
+    for (uint32_t i = 0; i < max_blocks_; ++i) {
+        if (!blocks_[i].is_allocated) {
+            return i;
         }
     }
+    return std::nullopt;
 }
 
 void KVCacheBlockManager::truncate_allocated(uint32_t keep_count) {
@@ -195,14 +241,17 @@ void KVCacheBlockManager::truncate_allocated(uint32_t keep_count) {
                     allocated.size(),
                     " are allocated");
 
-    // Deallocate the suffix, keeping device tensors warm for quick reuse.
+    // Deallocate the suffix, keeping device tensors warm for quick reuse. Shared tensors are
+    // still referenced by the prefix cache, so they are dropped instead.
     for (size_t i = keep_count; i < allocated.size(); ++i) {
         auto& block = blocks_[allocated[i]];
         block.is_allocated = false;
         block.num_tokens = 0;
+        if (block.is_shared) {
+            block.tensor = {};
+            block.is_shared = false;
+        }
     }
-
-    rebuild_free_block_ids();
 
     LOG_DEBUG("KVCacheBlockManager: truncated to " << keep_count << " blocks, " << (allocated.size() - keep_count)
                                                    << " suffix block(s) freed");

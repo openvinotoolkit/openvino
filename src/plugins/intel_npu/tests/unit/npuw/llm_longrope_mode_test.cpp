@@ -20,23 +20,15 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
-#include <cstring>
+#include <map>
 #include <memory>
-#include <numeric>
 #include <string>
 #include <vector>
 
-#include "executor.hpp"
-#include "llm_block_kvcache_strategy.hpp"
-#include "llm_compiled_model.hpp"
-#include "llm_infer_request.hpp"
+#include "kv_cache_block_manager_test_access.hpp"
+#include "llm_block_kv_test_harness.hpp"
 #include "llm_longrope_kv.hpp"
-#include "llm_test_helpers.hpp"
-#include "openvino/openvino.hpp"
-#include "openvino/runtime/make_tensor.hpp"
-#include "util.hpp"
 
 namespace ov::test::npuw {
 
@@ -83,21 +75,6 @@ struct LLMLongRopeModeTestAccess {
     static const ov::npuw::LLMInferRequest::PortsMap& generate_in_ports(Request& req) {
         return req.m_kvcache_in_ports;
     }
-
-    static ov::npuw::LLMBlockKVCacheStrategy& block_strategy(Request& req) {
-        auto* strategy = dynamic_cast<ov::npuw::LLMBlockKVCacheStrategy*>(req.m_kvcache_strategy.get());
-        OPENVINO_ASSERT(strategy != nullptr, "the request does not run on the block KV strategy");
-        return *strategy;
-    }
-
-    static const std::unordered_map<uint32_t, ov::npuw::LayerBlockManagers>& block_managers(
-        const ov::npuw::LLMBlockKVCacheStrategy& strategy) {
-        return strategy.m_kv_cache_block_managers;
-    }
-
-    static uint32_t block_size(const ov::npuw::LLMBlockKVCacheStrategy& strategy) {
-        return strategy.m_block_size;
-    }
 };
 
 }  // namespace ov::test::npuw
@@ -105,9 +82,14 @@ struct LLMLongRopeModeTestAccess {
 namespace {
 
 using ov::test::npuw::build_longrope_llm_test_model;
+using ov::test::npuw::KVCacheBlockManagerTestAccess;
+using ov::test::npuw::LLMBlockKvTestAccess;
+using ov::test::npuw::LLMKvTestPipeline;
 using ov::test::npuw::LLMLongRopeModeTestAccess;
+using ov::test::npuw::make_i64;
+using ov::test::npuw::make_patterned_factory;
 using ov::test::npuw::NullPlugin;
-class FakeSubCompiledModel;
+using ov::test::npuw::to_floats;
 
 // A position no prompt in this file reaches, so the model never leaves the short
 // mode and its KV cache is never re-rotated.
@@ -115,222 +97,40 @@ constexpr int64_t kUnreachableLimit = 4096;
 // Crossed by generated token 16 of a 16-token prompt.
 constexpr int64_t kCrossingLimit = 16;
 
-// Deterministic, finite, port-dependent contents so two models with the same port names
-// produce the same KV bytes.
-void fill_pattern(const ov::SoPtr<ov::ITensor>& tensor, size_t seed) {
-    const size_t count = tensor->get_size();
-    const auto type = tensor->get_element_type();
-    if (type == ov::element::f16) {
-        auto* data = tensor->data<ov::float16>();
-        for (size_t i = 0; i < count; ++i) {
-            data[i] = ov::float16(std::sin(static_cast<float>(i + seed) * 0.137f) * 1.25f);
-        }
-    } else if (type == ov::element::f32) {
-        auto* data = tensor->data<float>();
-        for (size_t i = 0; i < count; ++i) {
-            data[i] = std::sin(static_cast<float>(i + seed) * 0.137f) * 1.25f;
-        }
-    } else {
-        std::memset(tensor->data(), 0, tensor->get_byte_size());
-    }
-}
-
-class FakeSubInferRequest final : public ov::ISyncInferRequest {
+// The shared pipeline over a LongRoPE model with the given context limit.
+class LongRopePipeline : public LLMKvTestPipeline {
 public:
-    explicit FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model);
-
-    void infer() override;
-    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override {
-        return ov::ISyncInferRequest::get_tensor(port);
-    }
-    void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
-        ov::ISyncInferRequest::set_tensor(port, tensor);
-    }
-    void check_tensors() const override {}
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {};
-    }
-    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
-        return {};
-    }
-};
-
-class FakeSubCompiledModel final : public ov::npuw::ICompiledModel_v0 {
-public:
-    FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model,
-                         const std::shared_ptr<const ov::IPlugin>& plugin,
-                         const ov::AnyMap&)
-        : ov::npuw::ICompiledModel_v0(model, plugin),
-          m_model(model) {}
-
-    void export_model(std::ostream&) const override {}
-    std::shared_ptr<const ov::Model> get_runtime_model() const override {
-        return m_model;
-    }
-    void set_property(const ov::AnyMap&) override {}
-    ov::Any get_property(const std::string&) const override {
-        return {};
-    }
-    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        auto self = std::static_pointer_cast<const FakeSubCompiledModel>(shared_from_this());
-        return std::make_shared<FakeSubInferRequest>(std::move(self));
-    }
-    std::shared_ptr<ov::npuw::IBaseInferRequest> create_base_infer_request() const override {
-        return {};
-    }
-    std::shared_ptr<ov::IAsyncInferRequest> wrap_async_infer_request(
-        std::shared_ptr<ov::npuw::IBaseInferRequest>) const override {
-        return std::make_shared<ov::IAsyncInferRequest>(create_sync_infer_request(),
-                                                        intel_npu::make_executor("longrope_mode_task", 1),
-                                                        intel_npu::make_executor("longrope_mode_callback", 1));
-    }
-    std::string submodel_device(std::size_t) const override {
-        return "CPU";
-    }
-    std::size_t num_submodels() const override {
-        return 1;
-    }
-    std::shared_ptr<ov::npuw::weights::Bank> get_weights_bank() const override {
-        return {};
-    }
-    void set_weights_bank(std::shared_ptr<ov::npuw::weights::Bank>) override {}
-    void finalize_weights_bank() override {}
-    void reconstruct_closure() override {}
-    void serialize(std::ostream&, const ov::npuw::s11n::CompiledContext&) const override {}
-
-private:
-    std::shared_ptr<ov::Model> m_model;
-};
-
-FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model)
-    : ov::ISyncInferRequest(std::move(compiled_model)) {
-    for (const auto& input : get_compiled_model()->inputs()) {
-        ov::ISyncInferRequest::set_tensor(input,
-                                          ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
-    }
-    for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(
-            output,
-            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
-    }
-}
-
-void FakeSubInferRequest::infer() {
-    for (const auto& output : get_compiled_model()->outputs()) {
-        fill_pattern(ov::ISyncInferRequest::get_tensor(output), std::hash<std::string>{}(output.get_any_name()));
-    }
-}
-
-ov::npuw::LLMCompiledModel::CompiledModelFactory make_fake_factory() {
-    return [](const std::shared_ptr<ov::Model>& model,
-              const std::shared_ptr<const ov::IPlugin>& plugin,
-              const ov::AnyMap& props) -> std::shared_ptr<ov::npuw::ICompiledModel_v0> {
-        return std::make_shared<FakeSubCompiledModel>(model, plugin, props);
-    };
-}
-
-ov::Tensor make_i64(std::initializer_list<size_t> shape, int64_t fill_value) {
-    ov::Tensor tensor(ov::element::i64, ov::Shape(shape));
-    std::fill_n(tensor.data<int64_t>(), tensor.get_size(), fill_value);
-    return tensor;
-}
-
-ov::Tensor make_i64_iota(std::initializer_list<size_t> shape, int64_t start) {
-    ov::Tensor tensor(ov::element::i64, ov::Shape(shape));
-    std::iota(tensor.data<int64_t>(), tensor.data<int64_t>() + tensor.get_size(), start);
-    return tensor;
-}
-
-std::vector<float> to_floats(const ov::SoPtr<ov::ITensor>& tensor) {
-    ov::Tensor dense(tensor->get_element_type(), tensor->get_shape());
-    tensor->copy_to(ov::get_tensor_impl(dense)._ptr);
-    std::vector<float> out(dense.get_size());
-    if (dense.get_element_type() == ov::element::f16) {
-        const auto* data = dense.data<ov::float16>();
-        for (size_t i = 0; i < out.size(); ++i) {
-            out[i] = static_cast<float>(data[i]);
-        }
-    } else {
-        const auto* data = dense.data<float>();
-        std::copy_n(data, out.size(), out.begin());
-    }
-    return out;
-}
-
-// One conversation driver over a freshly compiled model with the given context limit.
-class LongRopePipeline {
-public:
-    explicit LongRopePipeline(int64_t context_limit, const ov::AnyMap& extra_props = {}) {
-        m_plugin = std::make_shared<NullPlugin>();
-        ov::AnyMap props{{"NPUW_LLM", "YES"},
-                         {"NPUW_DEVICES", "CPU"},
-                         {"NPUW_LLM_MAX_PROMPT_LEN", "64"},
-                         {"NPUW_LLM_MIN_RESPONSE_LEN", "32"},
-                         {"NPUW_LLM_CACHE_ROPE", "YES"}};
-        for (const auto& [key, value] : extra_props) {
-            props[key] = value;
-        }
-        m_compiled = std::make_shared<ov::npuw::LLMCompiledModel>(build_longrope_llm_test_model(context_limit),
-                                                                  m_plugin,
-                                                                  props,
-                                                                  make_fake_factory());
-        m_request = std::make_unique<ov::npuw::LLMInferRequest>(m_compiled);
-    }
-
-    ov::npuw::LLMInferRequest& request() {
-        return *m_request;
-    }
-
-    const ov::npuw::LLMCompiledModel& compiled() const {
-        return *m_compiled;
-    }
-
-    void prefill(size_t prompt_len, int64_t first_position) {
-        set_inputs(make_i64({1, prompt_len}, 1),
-                   make_i64({1, prompt_len}, 1),
-                   make_i64_iota({1, prompt_len}, first_position));
-        m_request->infer();
-    }
-
-    void generate_step(size_t live_tokens, int64_t position) {
-        set_inputs(make_i64({1, 1}, 1), make_i64({1, live_tokens + 1}, 1), make_i64({1, 1}, position));
-        m_request->infer();
-    }
+    explicit LongRopePipeline(int64_t context_limit, const ov::AnyMap& extra_props = {})
+        : LLMKvTestPipeline(build_longrope_llm_test_model(context_limit), with_cache_rope(extra_props)) {}
 
     // The past keys of every layer, flattened, in m_kvcache_past_names order.
     std::vector<std::vector<float>> generate_keys() {
         std::vector<std::vector<float>> out;
-        for (const auto& name : LLMLongRopeModeTestAccess::past_names(*m_request)) {
+        for (const auto& name : LLMLongRopeModeTestAccess::past_names(request())) {
             if (ov::npuw::util::isPastKeyParam(name)) {
-                out.push_back(to_floats(LLMLongRopeModeTestAccess::generate_past(*m_request, name)));
+                out.push_back(to_floats(LLMLongRopeModeTestAccess::generate_past(request(), name)));
             }
         }
         return out;
     }
 
     ov::Shape generate_key_shape() {
-        for (const auto& name : LLMLongRopeModeTestAccess::past_names(*m_request)) {
+        for (const auto& name : LLMLongRopeModeTestAccess::past_names(request())) {
             if (ov::npuw::util::isPastKeyParam(name)) {
-                return LLMLongRopeModeTestAccess::generate_past(*m_request, name)->get_shape();
+                return LLMLongRopeModeTestAccess::generate_past(request(), name)->get_shape();
             }
         }
         return {};
     }
 
 private:
-    void set_inputs(const ov::Tensor& input_ids, const ov::Tensor& attention_mask, const ov::Tensor& position_ids) {
-        const auto& inputs = m_request->get_inputs();
-        m_request->set_tensor(ov::npuw::util::find_port_by_name(inputs, "input_ids").value(),
-                              ov::get_tensor_impl(input_ids));
-        m_request->set_tensor(ov::npuw::util::find_port_by_name(inputs, "attention_mask").value(),
-                              ov::get_tensor_impl(attention_mask));
-        m_request->set_tensor(ov::npuw::util::find_port_by_name(inputs, "position_ids").value(),
-                              ov::get_tensor_impl(position_ids));
+    static ov::AnyMap with_cache_rope(const ov::AnyMap& extra_props) {
+        ov::AnyMap props{{"NPUW_LLM_CACHE_ROPE", "YES"}};
+        for (const auto& [key, value] : extra_props) {
+            props[key] = value;
+        }
+        return props;
     }
-
-    std::shared_ptr<ov::IPlugin> m_plugin;
-    std::shared_ptr<ov::npuw::LLMCompiledModel> m_compiled;
-    std::unique_ptr<ov::npuw::LLMInferRequest> m_request;
 };
 
 // Applies the same turn the request is expected to have applied, to a copy of the
@@ -497,10 +297,7 @@ TEST(LLMLongRopeMode, RejectedTransitionLeavesTheCacheAndTheModeAlone) {
     expect_keys_near(crossing.generate_keys(), before, 0.0f);
 
     // The flip is still pending, so a well-formed retry performs it in full.
-    LLMLongRopeModeTestAccess::sync_mode(req,
-                                         LLMLongRopeModeTestAccess::generate_in_ports(req),
-                                         position_ids,
-                                         kCached);
+    LLMLongRopeModeTestAccess::sync_mode(req, LLMLongRopeModeTestAccess::generate_in_ports(req), position_ids, kCached);
     EXPECT_TRUE(LLMLongRopeModeTestAccess::long_mode(req));
     EXPECT_NE(crossing.generate_keys(), before);
 }
@@ -509,19 +306,8 @@ TEST(LLMLongRopeMode, RejectedTransitionLeavesTheCacheAndTheModeAlone) {
 // to find them there instead of in one tensor per layer. Same observation trick as above,
 // but read out of the pool: a request port is either a view of a block, a copy of one, or
 // a dummy tensor shared by every port that currently backs no token.
-class LongRopeBlockCache : public ::testing::Test {
+class LongRopeBlockCache : public ov::test::npuw::LLMBlockKvTest {
 protected:
-    // Block size follows the chunk size. The generate model's past KV is 95 rows, so two
-    // numbered blocks cover positions 0..63 and a tail block covers the rest - the prompt
-    // and crossing below are picked to populate the tail as well.
-    static ov::AnyMap block_props() {
-        return {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"},
-                {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
-                {"NPUW_LLM_GENERATE_ATTENTION_HINT", "PYRAMID"},
-                {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"}};
-    }
-
     struct PooledKeys {
         ov::Shape block_shape;
         std::vector<uint32_t> layer;
@@ -532,9 +318,9 @@ protected:
 
     // Every live key block of every layer, layer-major and in block order.
     static PooledKeys pooled_keys(ov::npuw::LLMInferRequest& req, uint32_t num_cached) {
-        auto& strategy = LLMLongRopeModeTestAccess::block_strategy(req);
-        const auto& managers = LLMLongRopeModeTestAccess::block_managers(strategy);
-        const uint32_t block_size = LLMLongRopeModeTestAccess::block_size(strategy);
+        auto& strategy = LLMBlockKvTestAccess::block_strategy(req);
+        const auto& managers = LLMBlockKvTestAccess::block_managers(strategy);
+        const uint32_t block_size = LLMBlockKvTestAccess::block_size(strategy);
 
         std::vector<uint32_t> layers;
         for (const auto& [layer_idx, unused] : managers) {
@@ -569,8 +355,7 @@ protected:
                                     bool to_long) {
         const auto delta = ov::npuw::longrope::make_mode_delta(tables, 0, num_cached, to_long);
         for (size_t i = 0; i < keys.data.size(); ++i) {
-            auto tensor = ov::get_tensor_impl(
-                ov::Tensor(ov::element::f32, keys.block_shape, keys.data[i].data()));
+            auto tensor = ov::get_tensor_impl(ov::Tensor(ov::element::f32, keys.block_shape, keys.data[i].data()));
             const auto layout = ov::npuw::longrope::check_key_tensor(tensor, seq_dim, keys.live_tokens[i], delta);
             ov::npuw::longrope::rerotate_keys(layout, keys.live_tokens[i], delta, keys.first_token[i]);
         }
@@ -610,10 +395,10 @@ protected:
 // and the tail one, and leaves the tail port - which holds a copy of its block rather than
 // a view of it - agreeing with the block it was copied from.
 TEST_F(LongRopeBlockCache, CrossingTurnsEveryBlockOfThePool) {
-    constexpr size_t kPrompt = 64;    // two full blocks
-    constexpr int64_t kLimit = 100;   // crossed by the generate step at position 100
-    constexpr uint32_t kCached = 100; // rows in the cache when that step re-rotates, three
-                                      // full blocks plus four rows of the tail one
+    constexpr size_t kPrompt = 64;     // two full blocks
+    constexpr int64_t kLimit = 100;    // crossed by the generate step at position 100
+    constexpr uint32_t kCached = 100;  // rows in the cache when that step re-rotates, three
+                                       // full blocks plus four rows of the tail one
 
     LongRopePipeline control(kUnreachableLimit, block_props());
     run(control, kPrompt, kLimit);
@@ -681,6 +466,42 @@ TEST_F(LongRopeBlockCache, CrossingTurnsEveryBlockOfThePool) {
     EXPECT_GT(tails_checked, 0u);
 }
 
+// Prefix caching on top of the block KV cache; the tests that do not involve LongRoPE are
+// in llm_prefix_caching_block_kv_test.cpp. A cached block keeps references to the pool's
+// own block tensors instead of copies, so a re-rotation, which rewrites keys in place, must
+// not reach them: the pool turns a private copy instead and rebinds the request to it.
+TEST_F(LongRopeBlockCache, LongRopeTurnLeavesTheCachedBlockUntouched) {
+    constexpr size_t kPrompt = kTwoBlocks;
+    constexpr int64_t kLimit = 100;
+
+    LongRopePipeline pipeline(kLimit, block_props());
+    pipeline.prefill(kPrompt, 0);
+    const auto block = store_block(pipeline.request(), 0u);
+    ASSERT_NE(block, nullptr);
+    const auto& refs = as_pool_block(block).get_layer_refs();
+
+    std::map<uint32_t, std::vector<float>> cached_before;
+    for (const auto& [layer_idx, ref] : refs) {
+        cached_before[layer_idx] = to_floats(ref.key_tensor);
+    }
+
+    for (int64_t position = static_cast<int64_t>(kPrompt); position <= kLimit; ++position) {
+        pipeline.generate_step(static_cast<size_t>(position), position);
+    }
+    ASSERT_TRUE(LLMLongRopeModeTestAccess::long_mode(pipeline.request()));
+
+    for (const auto& [layer_idx, ref] : refs) {
+        const auto& layer = managers(pipeline.request()).at(layer_idx);
+        const auto key_id = layer.key_manager->get_allocated_blocks().at(0);
+        const auto pooled = layer.key_manager->get_block_tensor(key_id);
+
+        EXPECT_EQ(to_floats(ref.key_tensor), cached_before.at(layer_idx)) << "cached keys changed, layer " << layer_idx;
+        EXPECT_NE(pooled->data(), ref.key_tensor->data()) << "layer " << layer_idx;
+        EXPECT_NE(to_floats(pooled), cached_before.at(layer_idx)) << "pool keys were not turned, layer " << layer_idx;
+        EXPECT_FALSE(KVCacheBlockManagerTestAccess::is_shared(*layer.key_manager, key_id));
+    }
+}
+
 // A KV layout the rewrite cannot turn is refused when the model is compiled, not at the
 // crossing token: by then there is no correct thing left to do.
 class LongRopeCompileRejection : public ::testing::Test {
@@ -701,7 +522,7 @@ protected:
         ov::npuw::LLMCompiledModel(build_longrope_llm_test_model(context_limit),
                                    std::make_shared<NullPlugin>(),
                                    props,
-                                   make_fake_factory());
+                                   make_patterned_factory());
     }
 
     void expect_longrope_rejection(int64_t context_limit, const ov::AnyMap& extra) {

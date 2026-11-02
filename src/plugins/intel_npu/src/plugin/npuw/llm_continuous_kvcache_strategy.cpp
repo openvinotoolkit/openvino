@@ -4,11 +4,13 @@
 
 #include "llm_continuous_kvcache_strategy.hpp"
 
+#include <regex>
 #include <unordered_map>
 
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "llm_longrope_kv.hpp"
+#include "llm_prefix_caching.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
@@ -69,6 +71,22 @@ void LLMContinuousKVCacheStrategy::on_initialize() {
     if (use_chunk_prefill) {
         m_req.bind_past_kv();
         m_req.clear_chunk_prefill_kv_cache();
+    }
+
+    if (m_req.m_npuw_llm_compiled_model->m_enable_prefix_caching) {
+        static const std::regex present_regex("present");
+        const auto& prefill_compiled = m_req.m_prefill_request->get_compiled_model();
+        for (std::size_t i = LLMInferRequest::layer_ids::kStartOutputKVCacheLayers;
+             i < prefill_compiled->outputs().size();
+             ++i) {
+            const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
+            std::string input_name = std::regex_replace(output_name, present_regex, "past_key_values");
+            if (m_req.m_prefill_in_ports.find(input_name) == m_req.m_prefill_in_ports.end()) {
+                LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+                continue;
+            }
+            m_prefill_out_to_in_port_map[output_name] = std::move(input_name);
+        }
     }
 }
 
@@ -169,6 +187,58 @@ void LLMContinuousKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<
                                              num_cached_tokens,
                                              m_req.m_first_position_id,
                                              to_long);
+}
+
+void LLMContinuousKVCacheStrategy::apply_cached_prefix_blocks(const std::vector<std::shared_ptr<KVBlock>>& blocks) {
+    const auto& compiled = m_req.m_npuw_llm_compiled_model;
+    const auto& kvcache_desc = compiled->m_kvcache_desc;
+    const uint64_t block_size = compiled->m_prefix_caching_block_size;
+
+    ov::parallel_for(blocks.size(), [&](size_t block_idx) {
+        const auto& block = blocks[block_idx];
+        const auto token_start = block->get_token_start();
+        for (const auto& [out_name, kv_tensor] : block->get_block_kv_data()) {
+            const auto map_it = m_prefill_out_to_in_port_map.find(out_name);
+            if (map_it == m_prefill_out_to_in_port_map.end()) {
+                continue;
+            }
+            const uint32_t kv_dim =
+                (out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_pre)
+                    ? 3u
+                    : kvcache_desc.dim;
+            auto dst_tensor = m_req.m_prefill_request->get_tensor(m_req.m_prefill_in_ports.at(map_it->second));
+            auto dst_slice = ov::npuw::util::view(dst_tensor, kv_dim, token_start, block_size);
+            ov::npuw::util::copy_tensor_by_dim(kv_tensor, dst_slice, kv_dim, kv_dim);
+        }
+    });
+}
+
+std::shared_ptr<KVBlock> LLMContinuousKVCacheStrategy::make_prefix_block(size_t block_token_start,
+                                                                         size_t out_token_offset,
+                                                                         size_t block_size,
+                                                                         const std::vector<uint64_t>& token_hashes) {
+    const auto& kvcache_desc = m_req.m_npuw_llm_compiled_model->m_kvcache_desc;
+
+    KVData kvcache_data;
+    kvcache_data.reserve(m_prefill_out_to_in_port_map.size());
+    for (const auto& out_in : m_prefill_out_to_in_port_map) {
+        const auto& output_name = out_in.first;
+        const uint32_t kv_dim =
+            (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed_pre)
+                ? 3u
+                : kvcache_desc.dim;
+        auto src_tensor = m_req.m_prefill_request->get_tensor(m_req.m_prefill_out_ports.at(output_name));
+        auto src_slice = ov::npuw::util::view(src_tensor, kv_dim, out_token_offset, block_size);
+
+        auto new_kv_tensor = ov::get_tensor_impl(ov::Tensor(src_slice->get_element_type(), src_slice->get_shape()));
+        ov::npuw::util::copy_tensor_by_dim(src_slice, new_kv_tensor, kv_dim, kv_dim);
+        kvcache_data.emplace_back(output_name, new_kv_tensor);
+    }
+
+    auto block = std::make_shared<KVBlock>(block_size);
+    block->set_token_start(block_token_start);
+    block->add_block(token_hashes, kvcache_data);
+    return block;
 }
 
 namespace {

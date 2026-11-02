@@ -36,6 +36,7 @@ struct LLMPortNameRegistrationTestAccess;
 struct LLMContinuedPrefillTestAccess;
 struct LLMLongRopeModeTestAccess;
 struct LLMSwaCacheTestAccess;
+struct LLMBlockKvTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -278,6 +279,7 @@ protected:
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
     friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
+    friend struct ov::test::npuw::LLMBlockKvTestAccess;
 };
 
 }  // namespace npuw

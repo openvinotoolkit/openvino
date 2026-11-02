@@ -9,6 +9,8 @@
 #include <mutex>
 #include <regex>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/itensor.hpp"
@@ -42,6 +44,8 @@ public:
           m_parent_block_hash(0) {
         m_token_hashes.reserve(m_block_size);
     }
+
+    virtual ~KVBlock() = default;
 
     bool is_full() const {
         return m_is_full;
@@ -104,6 +108,35 @@ private:
     // One block only has single parent block
     uint64_t m_parent_block_hash;
     KVData m_kv_data;
+};
+
+/// NPU-resident KV tensors of one layer for one cached block.
+struct BlockKVRef {
+    ov::SoPtr<ov::ITensor> key_tensor;  // Shared reference: keeps the NPU memory alive after the pool drops its own
+    ov::SoPtr<ov::ITensor> value_tensor;
+    uint32_t num_tokens = 0;
+};
+
+/**
+ * @brief Prefix cache block produced by the block-based KV cache strategy.
+ *
+ * Holds references to the pool's block tensors for every layer instead of CPU copies, so
+ * storing it moves no data and evicting it frees the NPU memory once no request uses it.
+ */
+class PrefixBlockBlockKV : public KVBlock {
+public:
+    using KVBlock::KVBlock;
+
+    void add_layer_ref(uint32_t layer_idx, BlockKVRef ref) {
+        m_layer_refs[layer_idx] = std::move(ref);
+    }
+
+    const std::unordered_map<uint32_t, BlockKVRef>& get_layer_refs() const {
+        return m_layer_refs;
+    }
+
+private:
+    std::unordered_map<uint32_t, BlockKVRef> m_layer_refs;
 };
 
 class PrefixCacheManager {
@@ -225,11 +258,7 @@ private:
     LLMInferRequest& m_request;
     std::shared_ptr<PrefixCacheManager> m_cache_manager;
 
-    // Cached name mapping from output to input ports (initialized once in constructor)
-    std::unordered_map<std::string, std::string> m_cached_input_name_map;
-
     std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
-    void create_name_mapping();
 
     /**
      * @brief Find cached KV blocks from cache manager
@@ -241,11 +270,8 @@ private:
                                                              const std::vector<uint64_t>& prompt_hashes);
 
     /**
-     * @brief Copy KV data from cached blocks to prefill request tensors
-     * @param cached_blocks Vector of cached KV blocks to copy from
+     * @brief Restore cached blocks into the active KV cache strategy, then return restored token count
      */
-    void copy_cached_kv_data(const std::vector<std::shared_ptr<KVBlock>>& cached_blocks);
-
     uint64_t restore_blocks(const ov::SoPtr<ov::ITensor>& input_ids, const std::vector<uint64_t>& prompt_hashes);
     void store_blocks(size_t chunk_size, const std::vector<uint64_t>& prompt_hashes, size_t& token_idx);
 };

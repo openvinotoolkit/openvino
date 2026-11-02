@@ -20,7 +20,7 @@ namespace ov {
 namespace test {
 namespace npuw {
 struct LLMContinuedPrefillTestAccess;
-struct LLMLongRopeModeTestAccess;
+struct LLMBlockKvTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -141,9 +141,17 @@ public:
     // block pool to it, releasing all suffix bindings.
     void continue_prefill(uint32_t keep, uint32_t delta_len) override;
 
+    // Prefix caching. Cached blocks reference the pool's block tensors, so restoring injects
+    // them into free pool slots and storing copies references; no KV data moves.
+    void apply_cached_prefix_blocks(const std::vector<std::shared_ptr<KVBlock>>& blocks) override;
+    std::shared_ptr<KVBlock> make_prefix_block(size_t block_token_start,
+                                               size_t out_token_offset,
+                                               size_t block_size,
+                                               const std::vector<uint64_t>& token_hashes) override;
+
 private:
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
-    friend struct ov::test::npuw::LLMLongRopeModeTestAccess;
+    friend struct ov::test::npuw::LLMBlockKvTestAccess;
 
     // -------------------------------------------------------------------------
     // Private helper structs (used only during initialize())
