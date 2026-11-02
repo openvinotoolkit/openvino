@@ -42,15 +42,15 @@ using testing::_;
 using SectionTypeTest = ::testing::Test;
 
 TEST_F(SectionTypeTest, SectionTypeCodesRemainedUnchanged) {
-    ASSERT_EQ(SectionTypeCode::UNKNOWN, CORE_TAG_ID_RANGE_END);
-    ASSERT_EQ(SectionTypeCode::RUNTIME_REQUIREMENTS, CORE_TAG_ID_RANGE_END + 1);
-    ASSERT_EQ(SectionTypeCode::ELF_MAIN_SCHEDULE, CORE_TAG_ID_RANGE_END + 2);
-    ASSERT_EQ(SectionTypeCode::ELF_INIT_SCHEDULES, CORE_TAG_ID_RANGE_END + 3);
-    ASSERT_EQ(SectionTypeCode::DYNAMIC_SCHEDULE, CORE_TAG_ID_RANGE_END + 4);
-    ASSERT_EQ(SectionTypeCode::IO_LAYOUTS, CORE_TAG_ID_RANGE_END + 5);
-    ASSERT_EQ(SectionTypeCode::BATCH_SIZE, CORE_TAG_ID_RANGE_END + 6);
-    ASSERT_EQ(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, CORE_TAG_ID_RANGE_END + 7);
-    ASSERT_EQ(SectionTypeCode::COMPILER_VERSION, CORE_TAG_ID_RANGE_END + 8);
+    ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::UNKNOWN), CORE_TAG_ID_RANGE_END);
+    ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::RUNTIME_REQUIREMENTS), CORE_TAG_ID_RANGE_END + 1);
+    ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::ELF_MAIN_SCHEDULE), CORE_TAG_ID_RANGE_END + 2);
+    ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::ELF_INIT_SCHEDULES), CORE_TAG_ID_RANGE_END + 3);
+    ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::DYNAMIC_SCHEDULE), CORE_TAG_ID_RANGE_END + 4);
+    ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::IO_LAYOUTS), CORE_TAG_ID_RANGE_END + 5);
+    ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::BATCH_SIZE), CORE_TAG_ID_RANGE_END + 6);
+    ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG), CORE_TAG_ID_RANGE_END + 7);
+    ASSERT_EQ(static_cast<uint32_t>(SectionTypeCode::COMPILER_VERSION), CORE_TAG_ID_RANGE_END + 8);
 }
 
 TEST_F(SectionTypeTest, CreateAllSectionTypeUsingCorrectCode) {

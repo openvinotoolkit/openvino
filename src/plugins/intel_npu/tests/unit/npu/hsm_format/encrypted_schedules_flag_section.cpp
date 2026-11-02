@@ -49,13 +49,13 @@ TEST_P(EncryptedSchedulesFlagSectionTest, NullIndividualReqs) {
     ASSERT_FALSE(section->get_individual_compatibility_requirements().has_value());
 }
 
-TEST_F(EncryptedSchedulesFlagSectionTest, Alignment) {
+TEST_P(EncryptedSchedulesFlagSectionTest, Alignment) {
     const ov::runtime::hsm::SectionAlignment reference({});
     ASSERT_EQ(section->get_alignment().offset_align, reference.offset_align);
     ASSERT_EQ(section->get_alignment().size_align, reference.size_align);
 }
 
-TEST_F(EncryptedSchedulesFlagSectionTest, IsInline) {
+TEST_P(EncryptedSchedulesFlagSectionTest, IsInline) {
     ASSERT_TRUE(section->is_inline());
 }
 

@@ -351,6 +351,31 @@ TEST_F(RuntimeRequirementsSectionTest, WriteUnknownSectionType) {
     OV_EXPECT_THROW(section.encode(create_generic_section_sink(stream)), ov::Exception, _);
 }
 
+TEST_F(RuntimeRequirementsSectionTest, WriteRead) {
+    const std::map<SectionID, std::string> sections_requirements{{SectionID(0), "CONTENT"}};
+    const std::unordered_map<SectionID, SectionType> section_id_to_type{{SectionID(0), SectionTypeCode::BATCH_SIZE}};
+    const CRE cre({BATCH_SIZE_PTR, ID_0_PTR});
+    RuntimeRequirementsSection initial_section(RuntimeRequirements(sections_requirements, cre, section_id_to_type));
+    std::stringstream stream;
+
+    OV_ASSERT_NO_THROW(initial_section.encode(create_generic_section_sink(stream)));
+
+    ov::runtime::hsm::ManifestEntry manifest_entry =
+        create_manifest_entry_of_type(SectionTypeCode::RUNTIME_REQUIREMENTS);
+    manifest_entry.size = stream.str().size();
+
+    ov::runtime::hsm::Section section(manifest_entry, stream, 0);
+    auto read_section = RuntimeRequirementsSection::decode(section);
+    ASSERT_TRUE(read_section);
+    auto casted_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(read_section.value());
+    ASSERT_TRUE(casted_section);
+
+    const RuntimeRequirements runtime_requirements = casted_section->get_runtime_requirements();
+    ASSERT_TRUE(runtime_requirements.get_cre() == cre);
+    ASSERT_TRUE(runtime_requirements.get_sections_requirements() == sections_requirements);
+    ASSERT_TRUE(runtime_requirements.get_section_id_to_type_mapping() == section_id_to_type);
+}
+
 TEST_F(RuntimeRequirementsSectionTest, WrongTagToDecoder) {
     const std::string payload("version=3.0");
     ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE);
