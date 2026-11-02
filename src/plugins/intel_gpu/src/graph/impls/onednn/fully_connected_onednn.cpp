@@ -23,6 +23,11 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     static constexpr int COMMON = 0;
     static constexpr int PER_OC = 2;
 
+    // static_sbzp when prepare_quantization replaced a floating-point zero point by zp * scale
+    static dnnl::quantization_mode get_weights_quantization_mode(const fully_connected& prim) {
+        return prim.decompression_zero_point_after_scale ? dnnl::quantization_mode::static_sbzp : dnnl::quantization_mode::static_sazp;
+    }
+
     // Group (IFM) axis is last for [N, groups] (transpose_b) and second-to-last for [groups, N].
     static int64_t get_ifm_dim_idx(const layout& param_layout, bool transpose_b_param, size_t weights_rank) {
         const auto& pshape = param_layout.get_partial_shape();
@@ -297,6 +302,7 @@ public:
         int per_oc = PER_OC << shift_size;
         int grouped = (1 << prim->input_size) - 1;
 
+        const auto qmode = get_weights_quantization_mode(*prim);
         bool has_decompression_scale = prim->decompression_scale.is_valid();
         if (has_decompression_scale) {
             ib >> _ds_group_size;
@@ -310,7 +316,7 @@ public:
             } else if (ngroups == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _ds_data_type);
             } else {
-                _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type);
+                _attrs->set_scales(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _ds_data_type, false, qmode);
             }
         }
 
@@ -328,7 +334,7 @@ public:
                     if (ngroups == 1) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
-                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type);
+                        _attrs->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {_ds_group_size, 1}, _dzp_data_type, false, qmode);
                     }
                 }
             }
@@ -400,6 +406,7 @@ public:
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
             int grouped = (1 << prim->input_size) - 1;
+            const auto qmode = get_weights_quantization_mode(*prim);
 
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = ++idx;
@@ -422,7 +429,7 @@ public:
                     // Example:
                     // input[32, 6, 2088], W_t[32, 5760, 2088], scale[32, 1, 5760]
                     // set scale group as [32, 2088, 1]
-                    attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type);
+                    attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type, false, qmode);
                 }
             }
 
@@ -443,7 +450,7 @@ public:
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
                         // should use {K, 1} for the group size + per tensor mask for 3d
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type);
+                        attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type, false, qmode);
                     }
                 }
             }

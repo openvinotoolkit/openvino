@@ -1733,6 +1733,124 @@ public:
         compare_outputs<ov::float16>(output_mem, ref_output_mem, 12.0f);
     }
 
+    // u4 or u8 weights with a non-integer f16 zero point per group, as in asymmetric formats such as GGUF Q4_K or
+    // Q5_K (w = (q - min / scale) * scale). The output must match the exact formula, not a rounded zero point.
+    // With oneDNN, the zero point is replaced by zp * scale and oneDNN's static_sbzp mode subtracts it after scaling;
+    // without oneDNN, the OpenCL kernels use the zero point as given. input_3d: [1, batch, ifm] input (input_size 3), as
+    // LLM layers have; oneDNN then gets 3D weights with a size-1 batch dimension. shared_zp: a second fully connected
+    // uses the same scale and zero point constants, and each gets its own zp * scale. groups_major: scale and zero point
+    // laid out [groups, N] (transpose_b_scale / transpose_b_zp false) instead of [N, groups].
+    void test_compressed_f16_zp(data_types wei_dt,
+                                bool is_dynamic,
+                                long int batch_num,
+                                bool use_onednn = true,
+                                bool is_caching_test = false,
+                                bool input_3d = false,
+                                bool shared_zp = false,
+                                bool groups_major = false) {
+        tests::random_generator rg(GET_SUITE_NAME);
+        auto& engine = get_test_engine();
+        if (use_onednn && !engine.get_device_info().supports_immad)
+            GTEST_SKIP();
+
+        const long int ifm_num = 512;
+        const long int ofm_num = 256;
+        const long int group_size = 32;
+        const long int group_num = ifm_num / group_size;
+
+        const ov::PartialShape in_shape = input_3d ? ov::PartialShape{1, batch_num, ifm_num} : ov::PartialShape{batch_num, ifm_num};
+        auto input_mem = engine.allocate_memory({in_shape, data_types::f16, format::bfyx});
+        const bool is_u4 = wei_dt == data_types::u4;
+        auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, wei_dt, format::bfyx});
+        const ov::PartialShape param_shape = groups_major ? ov::PartialShape{group_num, ofm_num} : ov::PartialShape{ofm_num, group_num};
+        auto scale_mem = engine.allocate_memory({param_shape, data_types::f16, format::bfyx});
+        auto zp_mem = engine.allocate_memory({param_shape, data_types::f16, format::bfyx});
+
+        auto input_data = rg.generate_random_1d<ov::float16>(batch_num * ifm_num, -1.0f, 1.0f, 64);
+        // u8 weights hold 5-bit values here, as GGUF Q5_K / Q5_1 weights do, so their zero points go up to 31
+        auto weights_data =
+            is_u4 ? rg.generate_random_1d<uint8_t>(ofm_num * ifm_num / 2, 0, 255, 1) : rg.generate_random_1d<uint8_t>(ofm_num * ifm_num, 0, 31, 1);
+        auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * group_num, 0.01f, 0.1f, 1000);
+        const float zp_max = is_u4 ? 15.0f : 31.0f;
+        auto zp_data = rg.generate_random_1d<ov::float16>(ofm_num * group_num, 0.0f, zp_max);
+        set_values(input_mem, input_data);
+        set_values(weights_mem, weights_data);
+        set_values(scale_mem, scale_data);
+        set_values(zp_mem, zp_data);
+
+        auto reference = [&](bool round_zp) {
+            std::vector<float> ref(batch_num * ofm_num, 0.0f);
+            for (long int b = 0; b < batch_num; b++) {
+                for (long int o = 0; o < ofm_num; o++) {
+                    float acc = 0.0f;
+                    for (long int i = 0; i < ifm_num; i++) {
+                        const size_t w_idx = o * ifm_num + i;
+                        const float w =
+                            is_u4 ? static_cast<float>((weights_data[w_idx / 2] >> ((w_idx % 2) * 4)) & 0xF) : static_cast<float>(weights_data[w_idx]);
+                        const size_t g = groups_major ? (i / group_size) * ofm_num + o : o * group_num + i / group_size;
+                        const float zp = round_zp ? std::round(static_cast<float>(zp_data[g])) : static_cast<float>(zp_data[g]);
+                        acc += static_cast<float>(input_data[b * ifm_num + i]) * (w - zp) * static_cast<float>(scale_data[g]);
+                    }
+                    ref[b * ofm_num + o] = acc;
+                }
+            }
+            return ref;
+        };
+
+        ov::PartialShape dyn_shape = input_3d ? ov::PartialShape{1, -1, ifm_num} : ov::PartialShape{-1, ifm_num};
+        auto in_layout = layout{is_dynamic ? dyn_shape : in_shape, data_types::f16, format::bfyx};
+        auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "zp", data_types::f16, input_3d ? 3 : 2, 2, true,
+                                       !groups_major, !groups_major);
+
+        topology topology(input_layout("input", in_layout), data("weights", weights_mem), data("scale", scale_mem), data("zp", zp_mem), fc_prim);
+        std::vector<primitive_id> fc_ids = {"fc_prim"};
+        if (shared_zp) {
+            topology.add(fully_connected("fc_prim2", input_info("input"), "weights", "", "scale", "zp", data_types::f16, input_3d ? 3 : 2, 2, true,
+                                         !groups_major, !groups_major));
+            fc_ids.push_back("fc_prim2");
+        }
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        // A user property: finalize() enables oneDNN on systolic devices unless the user disabled it
+        if (!use_onednn)
+            config.set_user_property(ov::intel_gpu::use_onednn(false));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), fc_ids.size());
+
+        const auto ref = reference(false);
+        const auto ref_rounded_zp = reference(true);
+        for (const auto& id : fc_ids) {
+            auto fc_inst = network->get_primitive(id);
+            auto impl = fc_inst->get_impl();
+            ASSERT_NE(impl, nullptr);
+            ASSERT_EQ(impl->is_onednn(), use_onednn);
+            ASSERT_EQ(fc_inst->get_impl_params()->typed_desc<fully_connected>()->decompression_zero_point_after_scale, use_onednn);
+            if (use_onednn && !is_caching_test) {
+                // zp * scale is written in the layout the fully connected reads ([groups][N]): a constant, with no reorder in between
+                auto& zp_dep = network->get_program()->get_node(id).get_dependency(3);
+                ASSERT_TRUE(zp_dep.is_type<data>()) << id;
+                ASSERT_EQ(zp_dep.get_output_layout().format, groups_major ? format::bfyx : format::fbyx) << id;
+            }
+
+            cldnn::mem_lock<ov::float16> output_ptr(outputs.at(id).get_memory(), get_test_stream());
+            float err = 0.0f;
+            float err_rounded_zp = 0.0f;
+            for (size_t i = 0; i < ref.size(); i++) {
+                const float out = static_cast<float>(output_ptr[i]);
+                ASSERT_NEAR(out, ref[i], 0.05f + 0.02f * std::abs(ref[i])) << id << " index " << i;
+                err += std::abs(out - ref[i]);
+                err_rounded_zp += std::abs(out - ref_rounded_zp[i]);
+            }
+            // The output must follow the exact zero point, not a rounded one.
+            ASSERT_LT(err * 4, err_rounded_zp) << id;
+        }
+    }
+
     void test_compressed_int4_scale_large_n(bool is_caching_test, bool is_dynamic, long int batch_num, bool is_dyn_quan = false) {
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
@@ -5887,6 +6005,66 @@ TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int4_group_s
 
 TEST_F(fully_connected_gpu_tests, onednn_acc_test_compressed_weight_int8_group_scale_scalar_zp_gs16) {
     this->test_comp_weight_scale_zp(false, 64, 256, 2048, 0, 16, 16, WzpMode::Symmetric, WeightMode::Bit8);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token) {
+    this->test_compressed_f16_zp(data_types::u4, false, 1);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token_dynamic) {
+    this->test_compressed_f16_zp(data_types::u4, true, 1);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch) {
+    this->test_compressed_f16_zp(data_types::u4, false, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch_dynamic) {
+    this->test_compressed_f16_zp(data_types::u4, true, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_f16_zp_single_token) {
+    this->test_compressed_f16_zp(data_types::u8, false, 1);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_f16_zp_batch_dynamic) {
+    this->test_compressed_f16_zp(data_types::u8, true, 64);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch_dynamic_cached) {
+    this->test_compressed_f16_zp(data_types::u4, true, 64, true, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token_3d) {
+    this->test_compressed_f16_zp(data_types::u4, true, 1, true, false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_f16_zp_batch_3d) {
+    this->test_compressed_f16_zp(data_types::u8, false, 64, true, false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_shared_zp) {
+    this->test_compressed_f16_zp(data_types::u4, false, 64, true, false, false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_groups_major) {
+    this->test_compressed_f16_zp(data_types::u4, false, 64, true, false, false, false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_groups_major_dynamic) {
+    this->test_compressed_f16_zp(data_types::u4, true, 1, true, false, false, false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_shared_zp_ocl) {
+    this->test_compressed_f16_zp(data_types::u4, false, 64, false, false, false, true);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_single_token_ocl) {
+    this->test_compressed_f16_zp(data_types::u4, false, 1, false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int4_f16_zp_batch_dynamic_ocl) {
+    this->test_compressed_f16_zp(data_types::u4, true, 64, false);
 }
 
 using fully_connected_dynamic_test_params = std::tuple<
