@@ -4,7 +4,6 @@
 
 #include "intel_gpu/plugin/hsm_writer_handler.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cstring>
 #include <limits>
@@ -24,23 +23,23 @@ public:
 
 protected:
     std::streamsize xsputn(const char* data, std::streamsize size) override {
-        OPENVINO_ASSERT(size >= 0 && size <= std::numeric_limits<off_type>::max() - m_position, "[GPU] HSM section output offset overflow");
-        m_position += size;
-        const auto count = size;
-        while (size > 0) {
-            if (m_used == 0 && static_cast<size_t>(size) >= m_buffer.size()) {
-                m_sink({reinterpret_cast<const std::byte*>(data), static_cast<size_t>(size)});
-                break;
+        OPENVINO_ASSERT(size >= 0, "[GPU] Invalid HSM section output size");
+        const auto count = static_cast<size_t>(size);
+        if (count == 0)
+            return 0;
+        if (count <= m_buffer.size() - m_used) {
+            std::memcpy(m_buffer.data() + m_used, data, count);
+            m_used += count;
+        } else {
+            sync();
+            if (count >= m_buffer.size()) {
+                emit(data, count);
+            } else {
+                std::memcpy(m_buffer.data(), data, count);
+                m_used = count;
             }
-            const auto part = std::min(static_cast<size_t>(size), m_buffer.size() - m_used);
-            std::memcpy(m_buffer.data() + m_used, data, part);
-            m_used += part;
-            data += part;
-            size -= static_cast<std::streamsize>(part);
-            if (m_used == m_buffer.size())
-                sync();
         }
-        return count;
+        return size;
     }
 
     int_type overflow(int_type ch) override {
@@ -53,21 +52,29 @@ protected:
 
     int sync() override {
         if (m_used) {
-            m_sink({reinterpret_cast<const std::byte*>(m_buffer.data()), m_used});
+            emit(m_buffer.data(), m_used);
             m_used = 0;
         }
         return 0;
     }
 
     pos_type seekoff(off_type offset, std::ios_base::seekdir direction, std::ios_base::openmode) override {
-        return offset == 0 && direction == std::ios_base::cur ? pos_type(m_position) : pos_type(off_type(-1));
+        if (offset != 0 || direction != std::ios_base::cur || m_used > static_cast<size_t>(std::numeric_limits<off_type>::max()) - m_emitted)
+            return pos_type(off_type(-1));
+        return pos_type(static_cast<off_type>(m_emitted + m_used));
     }
 
 private:
+    void emit(const char* data, size_t size) {
+        OPENVINO_ASSERT(size <= static_cast<size_t>(std::numeric_limits<off_type>::max()) - m_emitted, "[GPU] HSM section output offset overflow");
+        m_sink({reinterpret_cast<const std::byte*>(data), size});
+        m_emitted += size;
+    }
+
     const wire::SectionSink& m_sink;
     std::array<char, 64 * 1024> m_buffer;
     size_t m_used = 0;
-    off_type m_position = 0;
+    size_t m_emitted = 0;
 };
 
 class ModelEncoder final : public wire::ISectionEncoder {
