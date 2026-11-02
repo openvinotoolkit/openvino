@@ -4,6 +4,8 @@
 
 #include "prepare_qwen3_asr_model.hpp"
 
+#include <algorithm>
+
 #include "../logging.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
@@ -18,6 +20,39 @@
 namespace opp = ov::pass::pattern;
 
 namespace {
+
+std::shared_ptr<ov::op::v0::Parameter> get_or_create_input(const std::shared_ptr<ov::Model>& model,
+                                                         const std::string& name,
+                                                         const ov::PartialShape& shape) {
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->output(0).get_names().count(name)) {
+            OPENVINO_ASSERT(parameter->get_element_type() == ov::element::i64 &&
+                                parameter->get_partial_shape().compatible(shape),
+                            "Qwen3-ASR input '",
+                            name,
+                            "' has an incompatible type or shape.");
+            return parameter;
+        }
+    }
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, shape);
+    parameter->output(0).set_names({name});
+    parameter->set_friendly_name(name);
+    model->add_parameters({parameter});
+    return parameter;
+}
+
+void validate_prepared_inputs(const std::shared_ptr<ov::Model>& model) {
+    const auto inputs = model->inputs();
+    for (const std::string name : {"attention_mask", "position_ids"}) {
+        const auto count = std::count_if(inputs.begin(), inputs.end(), [&](const auto& input) {
+            return input.get_names().count(name) != 0;
+        });
+        OPENVINO_ASSERT(count == 1,
+                        "Qwen3-ASR model preparation requires exactly one '",
+                        name,
+                        "' input; unsupported exported attention/position pattern.");
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Injects attention_mask [1, -1] and combines it with the existing causal mask:
@@ -62,11 +97,7 @@ public:
                     return false;
 
                 // Inject attention_mask [1, -1] parameter
-                auto attention_mask =
-                    std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
-                attention_mask->get_output_tensor(0).set_names({"attention_mask"});
-                attention_mask->set_friendly_name("attention_mask");
-                model->add_parameters({attention_mask});
+                auto attention_mask = get_or_create_input(model, "attention_mask", ov::PartialShape{1, -1});
 
                 // padding_not_masked = Equal(Unsqueeze(Unsqueeze(am, 1), 2), 0)
                 // [1,N] -> [1,1,1,N] — broadcasts over [1,heads,Q,N]
@@ -122,11 +153,7 @@ public:
                                  return false;
 
                              // Inject position_ids [1] parameter
-                             auto position_ids =
-                                 std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
-                             position_ids->get_output_tensor(0).set_names({"position_ids"});
-                             position_ids->set_friendly_name("position_ids");
-                             model->add_parameters({position_ids});
+                             auto position_ids = get_or_create_input(model, "position_ids", ov::PartialShape{1});
 
                              // Redirect: position_ids -> existing Reshape (preserves shape constant)
                              reshape_node->input(0).replace_source_output(position_ids->output(0));
@@ -165,19 +192,15 @@ public:
                 auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(reshape_node->get_input_node_shared_ptr(1));
                 if (shape_const) {
                     auto shape_vals = shape_const->cast_vector<int64_t>();
+                    OPENVINO_ASSERT(!shape_vals.empty(), "Qwen3-ASR position_ids reshape must not be scalar.");
                     shape_vals.back() = -1LL;  // last dim = dynamic (seq len)
                     auto new_shape_const =
                         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{shape_vals.size()}, shape_vals);
                     reshape_node->input(1).replace_source_output(new_shape_const->output(0));
                 }
 
-                std::cout << "[Qwen3-ASR] Injecting position_ids [-1] for prefill model (full-sequence positions)."
-                          << std::endl;
                 // Inject position_ids [-1] — filled with full-sequence positions at inference.
-                auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
-                position_ids->get_output_tensor(0).set_names({"position_ids"});
-                position_ids->set_friendly_name("position_ids");
-                model->add_parameters({position_ids});
+                auto position_ids = get_or_create_input(model, "position_ids", ov::PartialShape{-1});
 
                 // Redirect: position_ids -> Reshape (whose last dim is now -1)
                 reshape_node->input(0).replace_source_output(position_ids->output(0));
@@ -238,7 +261,8 @@ bool ov::npuw::PrepareQwen3ASRModel::run_on_model(const std::shared_ptr<ov::Mode
         model->remove_sink(ov::as_type_ptr<ov::op::Sink>(s));
 
     // Remove variable metadata
-    for (const auto& var : model->get_variables())
+    const auto variables = model->get_variables();
+    for (const auto& var : variables)
         model->remove_variable(var);
 
     return true;
@@ -256,6 +280,7 @@ bool ov::npuw::PrepareQwen3ASRKVCacheModel::run_on_model(const std::shared_ptr<o
     rewr.add_matcher<Qwen3ASRPositionIdsMatcher>(model);
     rewr.run_on_model(model);
 
+    validate_prepared_inputs(model);
     ov::pass::Validate().run_on_model(model);
     return true;
 }
@@ -288,6 +313,7 @@ bool ov::npuw::PrepareQwen3ASRPrefillModel::run_on_model(const std::shared_ptr<o
         }
     }
 
+    validate_prepared_inputs(model);
     ov::pass::Validate().run_on_model(model);
     return true;
 }
