@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-02-20-08-46-000-41502170440",
+  "timestamp": "2026-11-02T20:08:46Z",
+  "run_id": "41502170440",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41502170440",
+  "workflow_name": "OpenVINO JS API (22) / OpenVINO JS API",
+  "pr_number": "39321",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39321",
+  "author": "jkasprza",
+  "category": "Code Issue",
+  "title": "infer_request.test.js GC safety test crashes Node test runner with SIGSEGV",
+  "signature": "infer_request.test.js gc safety test node test runner crashed with signal sigsegv failuretype testcodefailure|Code Issue",
+  "signature_hash": "64286f1d490ba863",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (22) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "Node test runner subprocess running tests/unit/infer_request.test.js crashed with SIGSEGV during/near the 'GC safety infer() / inferAsync()' suite; 269 subtests passed, 1 top-level test file reported as failed (failureType testCodeFailure, signal SIGSEGV)"
+    }
+  ],
+  "key_errors": [
+    "2026-11-02T19:14:21.9453078Z # Subtest: GC safety infer() / inferAsync()\n2026-11-02T19:14:21.9453653Z     # Subtest: original TypedArray is alive during infer()\n2026-11-02T19:14:21.9454241Z     ok 1 - original TypedArray is alive during infer()",
+    "2026-11-02T19:14:21.9456052Z # Subtest: tests/unit/infer_request.test.js\n2026-11-02T19:14:21.9456739Z not ok 5 - tests/unit/infer_request.test.js\n2026-11-02T19:14:21.9457167Z   duration_ms: 2524.133253\n2026-11-02T19:14:21.9457827Z   location: '/__w/openvino/openvino/src/bindings/js/node/tests/unit/infer_request.test.js:1:1'\n2026-11-02T19:14:21.9459272Z   failureType: 'testCodeFailure'\n2026-11-02T19:14:21.9459990Z   signal: 'SIGSEGV'\n2026-11-02T19:14:21.9460320Z   error: 'test failed'\n2026-11-02T19:14:21.9460669Z   code: 'ERR_TEST_FAILURE'",
+    "2026-11-02T19:14:22.0107629Z # pass 269\n2026-11-02T19:14:22.0107722Z # fail 1"
+  ],
+  "root_cause": "The Node.js test-runner subprocess executing src/bindings/js/node/tests/unit/infer_request.test.js crashed with a native SIGSEGV. The crash is reported at the whole-file level (location :1:1) rather than inside a specific subtest assertion, and the last subtests to report individually completed ('original TypedArray is alive during infer()' passed) are part of the newly-added 'GC safety infer() / inferAsync()' describe block, which repeatedly creates ov.Tensor objects wrapping freshly-allocated Float32Array buffers across async infer()/inferAsync() calls and explicitly exercises V8 garbage-collection timing (including an explicit global.gc() call) to validate that the native addon keeps the underlying TypedArray buffer alive for the duration of native inference. This file and these GC-safety tests are brand new (added in commit 6aabd6aa, merged the same day as this failure) and are exercising native memory-lifetime edge cases in the N-API Tensor/InferRequest bindings (src/bindings/js/node/src/infer_request.cpp, src/bindings/js/node/include/infer_request.hpp) that did not exist before. The failing PR under test (#39321) only touches src/plugins/intel_gpu/src/runtime/ze/ze_ocl_common.hpp (a GPU Level-Zero/OpenCL header-only compile-time check) and runs on CPU infer in this JS test, so the PR diff is unrelated to the crash; the native segfault is most consistent with a pre-existing buffer-lifetime/use-after-free or GC-pinning bug in the new GC-safety test coverage or in the underlying N-API buffer-wrapping code it exercises, not a regression introduced by this specific PR.",
+  "reproduction_steps": "On a Linux build of OpenVINO with the Node.js bindings enabled: build src/bindings/js/node, then run `node --test tests/unit/infer_request.test.js` from src/bindings/js/node repeatedly (the crash may be intermittent / timing-dependent on GC and async scheduling). Pay particular attention to the 'GC safety infer() / inferAsync()' describe block (lines ~449-505), especially 'original TypedArray is alive during inferAsync()' which calls global.gc() while async infer() promises wrapping freshly-created Tensors/TypedArrays are still in flight.",
+  "recommended_actions": [
+    "Re-run the failed 'OpenVINO JS API (22) / OpenVINO JS API' job; if it passes consistently afterward, this points to flaky/non-deterministic GC-timing-dependent native memory behavior rather than a deterministic crash.",
+    "If it crashes again, run the JS Node bindings test suite under a sanitizer (ASan) or with core-dump collection enabled on CI to capture a native stack trace pinpointing the faulting frame (the plain Node TAP output here gives no backtrace).",
+    "Review the native buffer-lifetime handling for ov.Tensor/TypedArray wrapping in src/bindings/js/node/src/infer_request.cpp and src/bindings/js/node/include/infer_request.hpp, in particular how references to the backing ArrayBuffer are kept alive (e.g. Napi::Reference/ObjectWrap finalizers) across inferAsync() while the JS GC can run concurrently.",
+    "Add CI core-dump / backtrace capture for the Node JS API job so future SIGSEGV failures include a native stack trace instead of only a TAP 'not ok' summary."
+  ],
+  "prevention_strategies": "Enable core-dump collection (e.g., ulimit -c unlimited plus an artifact-upload step for core files, or run under gdb/valgrind in a dedicated diagnostic CI lane) for the Node.js JS API test job so native crashes produce an actionable backtrace rather than just a bare SIGSEGV marker. When adding new tests that deliberately stress GC/async timing (as the new 'GC safety' suite does), consider running them several times in CI or under a stress-test mode before merging, since GC-timing-dependent native bugs are often intermittent.",
+  "historical_context": "No prior investigation in the CI Doctor MQ database matches this exact signature (infer_request.test.js / GC safety suite / SIGSEGV); this is the first recorded occurrence of a native crash in the OpenVINO JS API Node test runner. Prior JS API failures in repo-memory (patterns 323dd65a, ffd22b8d, 2a7c090f, b29c6f84, 85df2648, d1cc7ff2, 4d65f509, 2c533762, be56bc7e, 197368415) are all Windows E2E/Electron packaging or network/model-download issues unrelated to this native SIGSEGV in the core Linux unit-test binary. Separately, repo-memory records a 'Code Issue' category SIGSEGV pattern for an unrelated GPU test (smoke_ScaledAttnDynamic4D_GPU, pattern 588722c2, count 2) that is a different component and signature."
+}

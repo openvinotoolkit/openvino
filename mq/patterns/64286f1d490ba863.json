@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "infer_request.test.js gc safety test node test runner crashed with signal sigsegv failuretype testcodefailure|Code Issue",
+  "signature_hash": "64286f1d490ba863",
+  "title": "infer_request.test.js GC safety test crashes Node test runner with SIGSEGV",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-11-02T20:08:46Z",
+  "last_seen": "2026-11-02T20:08:46Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41502170440"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39321"
+  ],
+  "recent_timestamps": [
+    "2026-11-02T20:08:46Z"
+  ],
+  "rerun_search_string": null
+}
