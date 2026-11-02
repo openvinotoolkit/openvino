@@ -636,6 +636,26 @@ TEST(GGUFOps, L2Norm) {
     expect_near(out, expected, 1e-4f);
 }
 
+TEST(GGUFOps, L2NormExtremeEpsilon) {
+    for (const auto& parameters : std::vector<std::pair<float, float>>{{2e19f, 1e19f},
+                                                                       {1e-30f, 1e-30f},
+                                                                       {3e-23f, 1e-23f},
+                                                                       {0.f, 1e-4f},
+                                                                       {-1.f, 1e-4f}}) {
+        const auto eps = parameters.first;
+        const auto amplitude = parameters.second;
+        SCOPED_TRACE(eps);
+        const auto model = SingleOpBuilder()
+                               .op("GGML_OP_L2_NORM")
+                               .input("x", ov::element::f32, {1, 2})
+                               .output("out", ov::element::f32, {1, 2})
+                               .attr("eps", eps)
+                               .build();
+        const auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2}, {amplitude, 0.f})}});
+        expect_near(out, {amplitude / std::max(amplitude, eps), 0.f}, 1e-6f);
+    }
+}
+
 // SumRows: reduce-sum over the last axis, keeping rank.
 TEST(GGUFOps, SumRows) {
     const size_t cols = 4;
