@@ -8,6 +8,8 @@ set(GPU_PLUGIN_CORE_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/compiled_model.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/custom_layer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/graph.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/hsm_reader_handler.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/plugin/hsm_writer_handler.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/multi_tensor_variable_state.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/plugin.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/plugin/program_builder.cpp

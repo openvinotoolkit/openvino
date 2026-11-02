@@ -187,6 +187,7 @@ struct weightless_cache_manager {
 
             size_t num_dims = 0;
             ib >> make_data(&num_dims, sizeof(size_t));
+            ib.check_size(num_dims, sizeof(ov::Shape::value_type));
             shape.resize(num_dims);
             ib >> make_data(shape.data(), num_dims * sizeof(ov::Shape::value_type));
         } else {
@@ -451,6 +452,7 @@ public:
                     ib.seek_current_ptr(pad);
                 }
             }
+            ib.check_size(data_size);
             // Zero-copy: create subbuffer referencing mmap'd cache without host-to-device transfer.
             if (can_use_zero_copy_mode) {
                 mem = ib.get_engine().create_subbuffer(*host_buffer_base_ptr, output_layout, ib.get_offset());

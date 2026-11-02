@@ -34,7 +34,8 @@ public:
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
                   const bool loaded_from_cache,
-                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr);
+                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr,
+                  std::string runtime_requirements = {});
     ~CompiledModel() override {
         auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
         streams_executor->cpu_reset();
@@ -101,16 +102,20 @@ public:
     }
 
 private:
+    void export_payload(cldnn::BinaryOutputBuffer& buffer) const;
+
     RemoteContextImpl::Ptr m_context;
     ExecutionConfig m_config;
+    const bool m_export_hsm_format;
     std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
     std::string m_model_name;
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
+    // Must outlive m_graphs, whose host-USM buffers can reference this storage.
+    std::shared_ptr<ov::Tensor> _backing_tensor;
     std::vector<std::shared_ptr<Graph>> m_graphs;
     bool m_loaded_from_cache;
     std::string m_runtime_requirements;
-    std::shared_ptr<ov::Tensor> _backing_tensor;
 
     // The member m_weight_sharing_context holds the context for weight sharing currently used by cross-plugin sharing.
     // That context consists of the necessary information as source_id, constant_id, and the non-owning view of the source buffer, where the weights are stored.

@@ -20,6 +20,7 @@
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/hsm_reader_handler.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
@@ -61,11 +62,19 @@
 
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
-thread_local const size_t* g_current_tensor_base = nullptr;
 
 namespace ov::intel_gpu {
 
 namespace {
+
+void validate_export_format(bool configured, ov::AnyMap& properties) {
+    if (const auto it = properties.find(ov::intel_gpu::export_hsm_format.name()); it != properties.end()) {
+        OPENVINO_ASSERT(it->second.as<bool>() == configured,
+                        "[GPU] GPU_EXPORT_HSM_FORMAT is plugin-scoped. Configure it using Core::set_property "
+                        "before compilation; a conflicting per-call setting cannot change the cache format.");
+        properties.erase(it);
+    }
+}
 
 ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& config) {
     const auto property_name = ov::internal::model_sharing_context.name();
@@ -297,6 +306,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     auto user_config = orig_config;
+    validate_export_format(get_property(ov::internal::emit_hsm_format.name(), {}).as<bool>(), user_config);
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
     config.set_user_property(user_config, OptionVisibility::RELEASE);
 
@@ -322,6 +332,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     auto user_config = orig_config;
+    validate_export_format(get_property(ov::internal::emit_hsm_format.name(), {}).as<bool>(), user_config);
     auto weight_sharing_context = extract_weight_sharing_context(user_config);
     config.set_user_property(user_config, OptionVisibility::RELEASE);
 
@@ -379,6 +390,10 @@ void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_ma
 }
 
 void Plugin::set_property(const ov::AnyMap &config) {
+    auto rest = config;
+    if (auto selection = rest.extract(ov::intel_gpu::export_hsm_format.name()); !selection.empty()) {
+        m_export_hsm_format = selection.mapped().as<bool>();
+    }
     auto update_config = [](ExecutionConfig& config, const ov::AnyMap& user_config) {
         config.set_user_property(user_config, OptionVisibility::RELEASE);
         // Check that custom layers config can be loaded
@@ -389,7 +404,6 @@ void Plugin::set_property(const ov::AnyMap &config) {
         }
     };
 
-    auto rest = config;
     if (auto id_map = rest.extract(ov::internal::device_id_map.name()); !id_map.empty()) {
         apply_device_id_map(id_map.mapped().as<std::map<std::string, std::string>>());
         if (!rest.empty()) {
@@ -398,19 +412,19 @@ void Plugin::set_property(const ov::AnyMap &config) {
         return;
     }
 
-    if (config.find(ov::internal::config_device_id.name()) != config.end()) {
-        std::string device_id = config.at(ov::internal::config_device_id.name()).as<std::string>();
-        auto config_for_device = config;
+    if (rest.find(ov::internal::config_device_id.name()) != rest.end()) {
+        std::string device_id = rest.at(ov::internal::config_device_id.name()).as<std::string>();
+        auto config_for_device = rest;
         config_for_device.erase(ov::internal::config_device_id.name());
         update_config(m_configs_map.at(device_id), config_for_device);
     } else {
-        std::string device_id = get_device_id_from_config(config);
+        std::string device_id = get_device_id_from_config(rest);
         if (!device_id.empty()) {
             m_default_device_id = device_id;
-            update_config(m_configs_map.at(device_id), config);
+            update_config(m_configs_map.at(device_id), rest);
         } else {
             for (auto& conf : m_configs_map) {
-                update_config(conf.second, config);
+                update_config(conf.second, rest);
             }
         }
     }
@@ -424,7 +438,9 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     auto ctx = get_default_context(device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(orig_config, OptionVisibility::RELEASE);
+    auto user_config = orig_config;
+    validate_export_format(get_property(ov::internal::emit_hsm_format.name(), {}).as<bool>(), user_config);
+    config.set_user_property(user_config, OptionVisibility::RELEASE);
     config.finalize(ctx.get(), model.get());
 
     ProgramBuilder prog(ctx->get_engine(), config);
@@ -459,6 +475,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, co
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& orig_config) const {
+    return import_model_impl(model, context, orig_config, nullptr);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model_impl(std::istream& model,
+                                                              const ov::SoPtr<ov::IRemoteContext>& context,
+                                                              const ov::AnyMap& orig_config,
+                                                              const std::shared_ptr<ov::Tensor>& backing_tensor) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
 
     auto context_impl = get_context_impl(context);
@@ -483,21 +506,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     auto weight_sharing_context = extract_weight_sharing_context(_orig_config);
 
     ExecutionConfig config = m_configs_map.at(device_id);
+    validate_export_format(get_property(ov::internal::emit_hsm_format.name(), {}).as<bool>(), _orig_config);
     config.set_user_property(_orig_config, OptionVisibility::RELEASE);
 
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
 
-    std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
-        encryption_callbacks.decrypt
-            ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model, context_impl->get_engine(), encryption_callbacks.decrypt)
-            : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine(), g_current_tensor_base);
-    auto& ib = *ib_ptr;
+    hsm::ReaderHandler reader(model, context_impl->get_engine(), backing_tensor, encryption_callbacks.decrypt);
 
-    ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
-    ib >> cldnn::make_data(&loaded_cache_mode, sizeof(ov::CacheMode));
-
-    if (loaded_cache_mode != cache_mode) {
+    if (reader.cache_mode() != cache_mode) {
         return nullptr;
     }
 
@@ -522,11 +539,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         }
     }
 
-    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache, weight_sharing_context);
+    auto compiled_model = std::make_shared<CompiledModel>(reader.buffer(),
+                                                          shared_from_this(),
+                                                          context_impl,
+                                                          config,
+                                                          loaded_from_cache,
+                                                          weight_sharing_context,
+                                                          reader.requirements());
+    reader.finish();
+    compiled_model->set_backing_tensor(backing_tensor);
+    return compiled_model;
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
-                                                         const ov::AnyMap& config) const{
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model, const ov::AnyMap& config) const {
     std::string device_id = get_device_id(config);
     auto context = get_default_context(device_id);
     return import_model(model, { context, nullptr }, config);
@@ -534,23 +559,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
-                                                         const ov::AnyMap& config) const{
-    // Store tensor base in thread-local storage
-    g_current_tensor_base = static_cast<const size_t*>(model.data());
+                                                         const ov::AnyMap& config) const {
     ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
     std::istream stream(&par_buf);
-    auto compiled_model = import_model(stream, context, config);
-
-    // Clear thread-local storage
-    g_current_tensor_base = nullptr;
-
-    // Ensure the tensor stays alive as long as the compiled model
-    auto* gpu_model = dynamic_cast<CompiledModel*>(compiled_model.get());
-    if (gpu_model) {
-        gpu_model->set_backing_tensor(std::make_shared<ov::Tensor>(model));
-    }
-
-    return compiled_model;
+    return import_model_impl(stream, context, config, std::make_shared<ov::Tensor>(model));
 }
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options) const {
@@ -573,6 +585,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::internal::caching_properties) {
         return decltype(ov::internal::caching_properties)::value_type(get_caching_properties());
+    }
+    if (name == ov::internal::emit_hsm_format || name == ov::intel_gpu::export_hsm_format) {
+        const auto environment = ov::util::getenv_string("OV_GPU_EXPORT_HSM_FORMAT");
+        return environment.empty() ? m_export_hsm_format : ov::Any(environment).as<bool>();
     }
 
     ov::AnyMap actual_runtime_info;
@@ -890,6 +906,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
         ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::internal::emit_hsm_format.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::export_hsm_format.name(), ov::PropertyMutability::RW},
         ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
         ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
         ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},

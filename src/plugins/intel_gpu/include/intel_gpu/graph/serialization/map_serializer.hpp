@@ -27,6 +27,7 @@ public:
     static void load(BufferType& buffer, std::map<Key, Value>& map) {
         typename std::map<Key, Value>::size_type map_size = 0UL;
         buffer >> map_size;
+        buffer.check_size(map_size);
         map.clear();
         Key key;
         for (size_t i = 0; i < map_size; i++) {
