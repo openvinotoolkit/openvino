@@ -7,6 +7,7 @@
 #include <level_zero/ze_api.h>
 #include <ze_graph_ext.h>
 
+#include <algorithm>
 #include <sstream>
 
 #include "intel_npu/common/itt.hpp"
@@ -183,6 +184,9 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                                    commandQueueDesc.sharedCommonQueue() ? _command_queue->handle() : nullptr,
                                    _init_structs->getGraphDdiTable().getImpl(),
                                    _init_structs->getCommandQueueDdiTable().getImpl());
+        if (commandQueueDesc.sharedCommonQueue()) {
+            _vm_referenced_command_queues.push_back(_command_queue);
+        }
         _runtime_config_command_queue_desc = commandQueueDesc;
         _runtime_config_command_queue_desc_valid = true;
     } else {
@@ -260,8 +264,10 @@ void DynamicPipeline::push() {
     const bool commandQueueVersionChanged = (commandQueueDesc.key() != _command_queue->desc().key());
 
     const npu_vm_runtime_config_desc_t* runtimeConfig = nullptr;
+
     if (useV2Api) {
         if (commandQueueVersionChanged && commandQueueDesc.sharedCommonQueue()) {
+            // The outgoing queue stays alive in _vm_referenced_command_queues until Execute2 rebinds off it.
             _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
         }
 
@@ -272,6 +278,8 @@ void DynamicPipeline::push() {
             _runtime_config_command_queue_desc_valid = true;
         }
     } else if (commandQueueVersionChanged) {
+        // v1 Fences own a shared_ptr to their queue, so the old queue outlives the fence recreation below;
+        // no extra retention is needed here (unlike the v2 runtime-owned fence migrated in Execute2).
         _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
 
         if (_sync_output_with_fences) {
@@ -452,6 +460,14 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
 
     _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
     const auto result = npuVMRuntimeExecute2(vmRuntime, &params);
+    if (commandQueue != nullptr) {
+        auto& queues = _vm_referenced_command_queues;
+        if (result == NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            queues.assign(1, _command_queue);
+        } else if (std::find(queues.begin(), queues.end(), _command_queue) == queues.end()) {
+            queues.push_back(_command_queue);
+        }
+    }
     OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS,
                     "Failed to execute VM runtime engine (v2), error code: ",
                     result);
@@ -538,12 +554,6 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
         params.pOutputs = outputMemRefHandles.data();
         params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
-        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
-            const auto commandQueueDesc = _graph->get_command_queue_desc();
-            if (commandQueueDesc.sharedCommonQueue() && commandQueueDesc.key() != _command_queue->desc().key()) {
-                _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, commandQueueDesc);
-            }
-        }
         params.executionContext =
             use_npu_vm_runtime_v2_api(_apiVersion) ? _executionContext.handle() : _executionContext.ensure(vmRuntime);
 

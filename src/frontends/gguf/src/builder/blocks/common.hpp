@@ -7,6 +7,7 @@
 #include <array>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "builder/graph_emitter.hpp"
 
@@ -36,6 +37,9 @@ std::string layer_norm(GraphEmitter& e,
 
 // Scale a tensor by a constant: GGML_OP_SCALE with attr "scale" (and bias 0).
 std::string scale(GraphEmitter& e, const std::string& x, float factor, const std::string& name);
+
+// GGML_OP_RESHAPE with special_zero: a 0 in `target` keeps the input dim, -1 is inferred.
+std::string reshape(GraphEmitter& e, const std::string& x, std::vector<int64_t> target, const std::string& name);
 
 // "<name>.weight" -> "<name>.bias".
 std::string bias_weight_name(const std::string& weight_name);
