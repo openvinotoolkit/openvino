@@ -54,6 +54,26 @@
 #include "transformations/convert_precision.hpp"
 
 namespace {
+constexpr std::size_t kMaxNpuwImportDepth = 32;
+thread_local std::size_t npuw_import_depth = 0;
+
+class NpuwImportDepthGuard {
+public:
+    NpuwImportDepthGuard() {
+        if (npuw_import_depth >= kMaxNpuwImportDepth) {
+            OPENVINO_THROW("NPUW ORC import nesting exceeds the maximum depth of ", kMaxNpuwImportDepth);
+        }
+        ++npuw_import_depth;
+    }
+
+    ~NpuwImportDepthGuard() {
+        --npuw_import_depth;
+    }
+
+    NpuwImportDepthGuard(const NpuwImportDepthGuard&) = delete;
+    NpuwImportDepthGuard& operator=(const NpuwImportDepthGuard&) = delete;
+};
+
 std::string canonical_device_name(const std::string& device_name) {
     const auto dot_pos = device_name.find('.');
     return dot_pos == std::string::npos ? device_name : device_name.substr(0, dot_pos);
@@ -1560,6 +1580,8 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
     const ov::AnyMap& properties,
     bool require_weights_bank,
     const std::function<std::string(const std::string&)>& decrypt) {
+    [[maybe_unused]] const NpuwImportDepthGuard import_depth_guard;
+
     ov::npuw::orc::ScopedReadSection root(stream);
     if (root.header().type != kOrcType || root.header().version > kOrcVersion ||
         ov::npuw::orc::has_flag(root.header().flags, ov::npuw::orc::SectionFlag::LEAF)) {
