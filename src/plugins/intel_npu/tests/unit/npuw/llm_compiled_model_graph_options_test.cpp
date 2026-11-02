@@ -6,8 +6,8 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <optional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -111,13 +111,27 @@ protected:
     std::shared_ptr<ov::IPlugin> m_plugin;
 };
 
+TEST_F(LLMCompiledModelGraphOptionsTest, SparseMoEPreservesExpertFoldingForSmallModels) {
+    RecordingFactory recorder;
+    auto props = base_props();
+    props["NPUW_LLM_GENERATE_MOE_HINT"] = "HOST_ROUTED";
+    props["NPUW_LLM_PREFILL_MOE_HINT"] = "HOST_ROUTED";
+    props["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
+    const auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    auto compiled = std::make_unique<ov::npuw::LLMCompiledModel>(model, m_plugin, props, recorder.make_factory());
+    const auto& prefill = require_call_containing(recorder, "_prefill");
+    EXPECT_EQ(prefill.props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn,expert");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    EXPECT_EQ(generate.props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn,expert");
+}
+
 TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefillEmbeds) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"},
-                                                      {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"}, {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto* prefill = recorder.find_suffix("_prefill");
@@ -125,7 +139,7 @@ TEST_F(LLMCompiledModelGraphOptionsTest, SharedHeadAddsHeadModelAndSlicesPrefill
     ASSERT_NE(prefill, nullptr);
     ASSERT_NE(lm_head, nullptr);
 
-    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::output_embeds);
+    const auto embeds = find_output(prefill->model, ov::npuw::LLMCompiledModel::layer_names::output_embeds);
     ASSERT_TRUE(embeds.has_value());
     ASSERT_TRUE(embeds->get_partial_shape().is_static());
     EXPECT_EQ(embeds->get_shape(), (ov::Shape{1, 8, 64}));
@@ -261,9 +275,9 @@ TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillReportsOffForStaticPre
 
     // Whole (STATIC) prefill has no continuation path, so even an explicit YES
     // is reported as NO.
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
-                                                      {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
-                                                     recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        {{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}, {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
+                        recorder));
     ASSERT_NE(compiled, nullptr);
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
 }

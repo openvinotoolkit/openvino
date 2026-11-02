@@ -10,20 +10,28 @@
 #include <unordered_map>
 
 #include "gguf.hpp"
+#include "openvino/core/node_output.hpp"
 
 namespace ov {
 class Node;
-}
+class Model;
+}  // namespace ov
 
 namespace ov::frontend::gguf {
+
+void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model);
+
+ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices);
 
 // Element type of the zero-point constant for an asymmetric quantized weight.
 // Q2_0 always uses u8. The raw-byte Q8_0_C requantization path separately uses temporary f16
 // zero-points for its host dequantizer, including Q2_0 embedding/output tensors.
 // Q4_K and Q4_1 matmul weights are faithfully decoded and requantized to u4 with an integer
-// zero-point, which keeps the compressed-FullyConnected path available on CPU and GPU. Q5_K matmul
-// weights are requantized the same way to an 8-bit u8 grid. token_embd/output keep an f16 zero-point.
+// zero-point, which keeps the compressed-FullyConnected path available on CPU and GPU. Native
+// Q5_K matmul weights use symmetric i8. token_embd/output keep an f16 zero-point.
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype);
+
+bool native_q5_k_is_symmetric(const std::string& name);
 
 // A lossy weight approximation the frontend deliberately makes, reported to the user once so a
 // later accuracy investigation starts from the right place.
@@ -34,6 +42,7 @@ enum class LossyWeightApproximation {
     Q4_REQUANT,
     // Q5_K asymmetric weights faithfully decoded and requantized group-wise to OpenVINO u8.
     Q5_K_REQUANT,
+    Q5_K_SYMMETRIC_REQUANT,
 };
 
 // Warn -- ONCE per process and per approximation kind -- that weights are being converted with a

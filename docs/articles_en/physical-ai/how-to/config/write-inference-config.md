@@ -1,7 +1,5 @@
 # Write Inference Config
 
-> **Preview:** The config system (`physicalai.config`) is a planned API. The examples below document the target design.
-
 Use an inference config when you need to author an inference pipeline outside an exported manifest.
 
 ```yaml
@@ -21,3 +19,8 @@ action = model.select_action(observation)
 ```
 
 Use workflow config to express user-authored intent. Use a manifest to describe exported package metadata.
+
+To export a model's supplied constructor arguments from Python, call
+`Config.from_instance(model)`. Rebuild that trusted local recipe with
+`config.instantiate()`; construction loads the model package
+and can allocate substantial resources.
