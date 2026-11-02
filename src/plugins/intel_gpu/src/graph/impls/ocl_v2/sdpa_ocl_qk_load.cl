@@ -93,7 +93,63 @@ SDPA_OCL_INLINE void FUNC(q_chunk)(__private uint8 *q_pack, const __global QRY_D
 // ---- Per-k0-tile K hoists: everything the K tile reads need that depends only on the key, loaded
 // once per k0 tile instead of per (depth tile, key).
 
-#ifdef KV_COMPRESSED
+#if KV_COMP_PER_CHANNEL
+// Plain SDPA, per-channel compression (see KV_K_BIAS). Lane l of K depth tile db carries channel K_COMP_CHANNEL(db, l),
+// and dword j of a Q_slm chunk holds the channels of lanes 2j (low half) and 2j + 1 (high half) in both labellings
+// (q_chunk(), q_chunk_u4()). The comp offset of channel ch: KEY_COMP_OFF(0, 0, 0, ch) from k_ch_base; NEG_X5 == 1
+// (negative control) takes the neighbouring channel's scale and zp.
+#  if NEG_X5 == 1
+#    define K_COMP_CH_OFF(ch) KEY_COMP_OFF(0, 0, 0, (ch) ^ 1)
+#  else
+#    define K_COMP_CH_OFF(ch) KEY_COMP_OFF(0, 0, 0, (ch))
+#  endif
+
+// Q chunk of depth tile db times the K scale of each channel, rounded to half once (the K/V dequantization before an
+// uncompressed SDPA rounds k * scale instead): the scale is per channel, i.e. per element of the contraction. Channels
+// at/past d get scale 0 (their Q is 0 anyway). db may be a runtime value (the staging loop deals tiles round-robin).
+SDPA_OCL_INLINE void FUNC(q_fold_k_scale)(OPTIONAL_SHAPE_INFO_ARG __private uint8 *q_pack,
+                                          const __global KEY_ATTR_SCALES_DATA_T *K_scales, const uint k_ch_base,
+                                          const int d, const int db, const int lane_i) {
+    const int ch = K_COMP_CHANNEL(db, lane_i);
+    const half sc = (ch < d) ? K_COMP_SCALE_TO_HALF(K_scales[k_ch_base + K_COMP_CH_OFF(ch)]) : (half)0.0h;
+    #pragma unroll
+    for (int j = 0; j < 8; ++j) {
+        const half2 s2 = (half2)(sub_group_broadcast(sc, 2 * j), sub_group_broadcast(sc, 2 * j + 1));
+        (*q_pack)[j] = as_uint(as_half2((*q_pack)[j]) * s2);
+    }
+}
+
+// Per-query score offset of the folded K: sum over the channels of q'_d * (zp_d + KV_K_BIAS), with q' the scaled Q the
+// KQ DPAS reads from Q_slm, so the offset cancels exactly what the widened codes add (a product of two halves is exact in
+// float). zp + KV_K_BIAS is kept in float: in half a non-integer zp would round. One value per lane (query) of each of
+// this subgroup's query blocks, computed once per workgroup.
+SDPA_OCL_INLINE void FUNC(k_comp_query_offset)(OPTIONAL_SHAPE_INFO_ARG __private float *k_off, const local uint *Q_slm,
+    #if KEY_ZERO_POINTS
+                                               const __global KEY_ATTR_ZP_DATA_T *K_zp,
+    #endif
+                                               const uint k_ch_base, const int d, const size_t sg_j0_kq, const int lane_i) {
+    #pragma unroll
+    for (int qb = 0; qb < kq_query_blocks; ++qb)
+        k_off[qb] = 0.0f;
+    for (int db = 0; db < DKS_ACTIVE; ++db) {
+        const int ch = K_COMP_CHANNEL(db, lane_i);
+    #if KEY_ZERO_POINTS
+        const float zb = (ch < d) ? convert_float(K_zp[k_ch_base + K_COMP_CH_OFF(ch)]) + KV_K_BIAS : 0.0f;
+    #else
+        const float zb = (ch < d) ? KV_K_BIAS : 0.0f;
+    #endif
+        #pragma unroll
+        for (int qb = 0; qb < kq_query_blocks; ++qb) {
+            const uint8 qw = intel_sub_group_block_read8((const local uint *)&Q_slm[Q_SLM_OFF(db, sg_j0_kq / SUBGROUP_SIZE + qb)]);
+            #pragma unroll
+            for (int j = 0; j < 8; ++j) {
+                const half2 q2 = as_half2(qw[j]);
+                k_off[qb] += convert_float(q2.s0) * sub_group_broadcast(zb, 2 * j) + convert_float(q2.s1) * sub_group_broadcast(zb, 2 * j + 1);
+            }
+        }
+    }
+}
+#elif defined(KV_COMPRESSED)
 // Plain SDPA: per-token K scale and zp of the keys key_base + ii * SUBGROUP_SIZE + lane, one 16-wide
 // load each. Kept in half for the bias-trick dequant: zp absorbs the widen bias (+1152.0h), so a byte
 // dequants as (as_half(0x6480 ^ byte) - (zp + 1152)) * scale. Keys at/past k get scale 0.
@@ -261,7 +317,57 @@ SDPA_OCL_INLINE void FUNC(k_tile_b2d16)(__private ushort8 *k_raw, const __global
 }
 #endif
 
-#if USE_2D_BLOCK_IO_K_I8
+#if USE_2D_BLOCK_IO_K_I8 && KV_COMP_PER_CHANNEL
+// Per-channel int8 K: the read of k_tile_i8_b2d below (lane = head dim, 4 consecutive keys per uint), widened only (the
+// scale and zp are folded, see KV_K_BIAS). Keys at/past k read as 0 (the surface ends at k) and are masked.
+SDPA_OCL_INLINE void FUNC(k_tile_i8_b2d_ch)(__private ushort8 *k_raw, __private uint *kt, const __global KEY_DATA_T *K,
+                                            const int KD_w, const int KD_h, const int KD_p, const int key_base, const int db) {
+    intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+        (global void *)K, KD_w, KD_h, KD_p,
+        (int2)(db * DPAS_K, key_base), (private uint *)&kt[0]);
+    #pragma unroll
+    for (int u = 0; u < kq_sg_tile_keys / 4; ++u) {
+        const uint w = kt[u];
+        #pragma unroll
+        for (int bb = 0; bb < 4; ++bb) {
+            const int krel = u * 4 + bb;
+            k_raw[krel / 8][krel % 8] = as_ushort(I8_WIDE(w, bb * 8));
+        }
+    }
+}
+#endif
+
+#if USE_2D_BLOCK_IO_K_U4
+// Packed 4-bit K (PLAIN_KV_U4) via the 8-bit transform read of the packed rows: a read at byte PA_K_U4_WIN(db) / 2 hands
+// lane L byte L of the tile pair's 16-byte window, i.e. channels win + 2L and win + 2L + 1, with 4 consecutive keys per
+// uint. Depth tile db takes nibble PA_K_U4_PAR(db) of it: channel PA_K_U4_CHANNEL(db, L), the permuted labelling Q was
+// staged in (q_chunk_u4), so the tile pair (2g, 2g + 1) shares one read, issued on the even tile into the caller's kt.
+// Widened only, as k_tile_i8_b2d_ch. NEG_X5 == 3 (negative control) swaps the nibbles.
+SDPA_OCL_INLINE void FUNC(k_tile_u4_b2d)(__private ushort8 *k_raw, __private uint *kt, const __global KEY_DATA_T *K,
+                                         const int KD_w, const int KD_h, const int KD_p, const int key_base, const int db) {
+    if ((db & 1) == 0) {
+        intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+            (global void *)K, KD_w, KD_h, KD_p,
+            (int2)(PA_K_U4_WIN(db) / 2, key_base), (private uint *)&kt[0]);
+    }
+#if NEG_X5 == 3
+    const uint nsh = PA_K_U4_PAR(db) ? 0u : 4u;
+#else
+    const uint nsh = PA_K_U4_PAR(db) ? 4u : 0u;
+#endif
+    #pragma unroll
+    for (int u = 0; u < kq_sg_tile_keys / 4; ++u) {
+        const uint w = kt[u];
+        #pragma unroll
+        for (int bb = 0; bb < 4; ++bb) {
+            const int krel = u * 4 + bb;
+            k_raw[krel / 8][krel % 8] = as_ushort(PLAIN_K_U4_WIDE(w, bb * 8 + nsh));
+        }
+    }
+}
+#endif
+
+#if USE_2D_BLOCK_IO_K_I8 && !KV_COMP_PER_CHANNEL
 // Plain-SDPA int8 K via the 8-bit VNNI-transform read: row-major [key, head] read at (x = db *
 // DPAS_K, y = key_base) gives lane = head with 4 consecutive keys per uint, no shuffle. One read spans
 // 32 keys, of which this subgroup uses kq_sg_tile_keys (kq_sg_tile_keys / 4 uints). Bias-trick
@@ -653,7 +759,43 @@ SDPA_OCL_INLINE void FUNC(k_tile_dword_i8)(__private int8 *k_raw, const __global
 // ---- Per-key scalar gathers: the fallbacks wherever no block read applies. One message per (key,
 // head); a key at/past k (or a head at/past d) leaves its element 0.
 
-#if !IS_PA_MIXED && !USE_2D_BLOCK_IO_K_I8 && !USE_2D_BLOCK_IO_KV
+#if KV_COMP_PER_CHANNEL && !USE_2D_BLOCK_IO_K_I8 && !USE_2D_BLOCK_IO_K_U4
+// Per-channel K where no block read applies: one byte per (key, lane), lane l = channel K_COMP_CHANNEL(db, l) (for the
+// packed 4-bit cache byte PA_K_U4_WIN(db) / 2 + l, nibble PA_K_U4_PAR(db)), widened as k_tile_i8_b2d_ch. A key at/past k
+// or a channel at/past d leaves its element 0 (the key is masked, the channel's Q is 0).
+SDPA_OCL_INLINE void FUNC(k_tile_gather_ch)(__private ushort8 *k_raw, const __global KEY_DATA_T *K, const uint ldk,
+                                            const int key_base, const int k, const int d, const int db, const int lane_i) {
+    const int ch = K_COMP_CHANNEL(db, lane_i);
+#if PLAIN_KV_U4
+    const int col = PA_K_U4_WIN(db) / 2 + lane_i;
+    #if NEG_X5 == 3
+    const uint nsh = PA_K_U4_PAR(db) ? 0u : 4u;
+    #else
+    const uint nsh = PA_K_U4_PAR(db) ? 4u : 0u;
+    #endif
+#else
+    const int col = ch;
+#endif
+    #pragma unroll
+    for (int mb = 0; mb < kq_key_blocks; ++mb) {
+        k_raw[mb] = (ushort8)0;
+        #pragma unroll
+        for (int key_offset = 0; key_offset < 8; ++key_offset) {
+            const int key = key_base + mb * 8 + key_offset;
+            if (ch < d && key < k) {
+                const uchar byte = ((const global uchar *)K)[(size_t)key * ldk + col];
+#if PLAIN_KV_U4
+                k_raw[mb][key_offset] = as_ushort(PLAIN_K_U4_WIDE(byte, nsh));
+#else
+                k_raw[mb][key_offset] = as_ushort(I8_WIDE(byte, 0));
+#endif
+            }
+        }
+    }
+}
+#endif
+
+#if !IS_PA_MIXED && !USE_2D_BLOCK_IO_K_I8 && !USE_2D_BLOCK_IO_KV && !KV_COMP_PER_CHANNEL
 // K input: f16/bf16 as-is, or plain-SDPA i8 with the per-token asymmetric dequant from the hoisted
 // scale/zp.
 SDPA_OCL_INLINE void FUNC(k_tile_gather)(__private ushort8 *k_raw, const __global KEY_DATA_T *K, const uint ldk,

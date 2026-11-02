@@ -13,7 +13,7 @@ class GroupQueryAttentionDecomposition : public ov::pass::GroupQueryAttentionDec
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::GroupQueryAttentionDecomposition");
     // fuse_compressed_kv: keep quantized (per-channel) K/V compressed into SDPA instead of dequantizing them first.
-    // Needs an SDPA kernel that reads per-channel scales (transformations_pipeline.cpp passes false: none does).
+    // Needs an SDPA kernel that reads per-channel scales: sdpa_ocl (transformations_pipeline.cpp sets it on its lane).
     GroupQueryAttentionDecomposition(bool sdpa_support_immad, bool fuse_compressed_kv)
         : m_sdpa_support_immad(sdpa_support_immad),
           m_fuse_compressed_kv(fuse_compressed_kv) {}

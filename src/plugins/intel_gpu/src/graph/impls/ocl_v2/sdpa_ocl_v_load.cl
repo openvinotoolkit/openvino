@@ -159,7 +159,29 @@ SDPA_OCL_INLINE void FUNC(v_i8_read)(__private uint *vt, const __global VAL_DATA
     }
 #endif
 }
+#endif
 
+#if USE_2D_BLOCK_IO_V_I8 && KV_COMP_PER_CHANNEL
+// Per-channel int8 V from v_i8_read's paired read (lane = value column, 4 consecutive keys per uint; this cp block uses
+// the 4 uints at vt_half): the byte widens exactly and only the column's zp is subtracted here, exactly for an integer
+// zp. The column's scale multiplies the output instead (v_comp_per_channel()).
+SDPA_OCL_INLINE void FUNC(v_i8_dequant_ch)(__private int8 *vb, const __private uint *vt, const int vt_half,
+                                           const __private half *v_zp_ch) {
+    #pragma unroll
+    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+        #pragma unroll
+        for (int u = 0; u < 4; ++u) {
+            const uint w = vt[cd * 8 + vt_half + u];
+            const half4 deq4 = (half4)(I8_TO_HALF(w, 0), I8_TO_HALF(w, 8), I8_TO_HALF(w, 16), I8_TO_HALF(w, 24)) - (half4)v_zp_ch[cd];
+            // f16 VNNI operand: vb[cd][key_pair] packs keys (2*key_pair, 2*key_pair+1).
+            vb[cd][u * 2 + 0] = as_int(deq4.lo);
+            vb[cd][u * 2 + 1] = as_int(deq4.hi);
+        }
+    }
+}
+#endif
+
+#if USE_2D_BLOCK_IO_V_I8 && !KV_COMP_PER_CHANNEL
 // Per-token V scale and zp of this cp block. The scale depends only on the key, and pA is already
 // lane = key, so it folds into pA with a per-lane multiply instead of being broadcast across V's
 // head-dim lanes; zp is a subtraction, so it stays on the V side and is returned. Kept in half:
@@ -221,6 +243,121 @@ SDPA_OCL_INLINE void FUNC(v_i8_dequant)(__private int8 *vb, __private half4 *zpb
             vb[cd][u * 2 + 0] = as_int(deq4.lo);
             vb[cd][u * 2 + 1] = as_int(deq4.hi);
 #endif
+        }
+    }
+}
+#endif
+
+#if KV_COMP_PER_CHANNEL
+// Per-channel V zp and scale of every value block, for the whole workgroup: lane l of block cd is column
+// V_COMP_COLUMN(sg_j0_sv, cd, l) (sg_j0_sv + cd * SUBGROUP_SIZE + l, or the permuted window of PLAIN_V_U4_PERMUTED). The V
+// reads subtract the zp; the scale is linear in the S*V sum, so it multiplies the output
+// column once in the epilogue (in float) instead of every V element. Columns at/past dv get 0 (they are not stored). A
+// symmetric cache has zp 0. NEG_X5 == 2 (negative control) takes the neighbouring column's.
+SDPA_OCL_INLINE void FUNC(v_comp_per_channel)(OPTIONAL_SHAPE_INFO_ARG __private half *v_zp_ch, __private float *v_sc_ch,
+                                              const __global VAL_ATTR_SCALES_DATA_T *V_scales,
+    #if VAL_ZERO_POINTS
+                                              const __global VAL_ATTR_ZP_DATA_T *V_zp,
+    #endif
+                                              const uint v_ch_base, const int dv, const size_t sg_j0_sv, const int lane_i) {
+    #pragma unroll
+    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+        const int col = V_COMP_COLUMN(sg_j0_sv, cd, lane_i);
+        const bool ok = col < dv;
+    #if NEG_X5 == 2
+        const uint off = v_ch_base + VAL_COMP_OFF(0, 0, 0, col ^ 1);
+    #else
+        const uint off = v_ch_base + VAL_COMP_OFF(0, 0, 0, col);
+    #endif
+        v_sc_ch[cd] = ok ? V_COMP_SCALE_TO_FLOAT(V_scales[off]) : 0.0f;
+    #if VAL_ZERO_POINTS
+        v_zp_ch[cd] = ok ? convert_half(V_zp[off]) : (half)0.0h;
+    #else
+        v_zp_ch[cd] = (half)0.0h;
+    #endif
+    }
+}
+#endif
+
+#if USE_2D_BLOCK_IO_V_U4
+// Packed 4-bit V (PLAIN_KV_U4, column 2b in the low nibble of byte b, 2b + 1 in the high one). An 8-bit transform read
+// of 16 packed bytes x 32 keys at the byte of the 32-column window holding block cd hands lane L byte L, i.e. columns
+// 2L and 2L + 1 of the window, 4 consecutive keys per uint; uints 0..3 hold the keys of cp and 4..7 those of cp + 1. So,
+// like v_i8_read, it is issued on even cp only, and once per value-block pair (one block per subgroup reads its pair's
+// window; columns past the row read as 0).
+SDPA_OCL_INLINE void FUNC(v_u4_read)(__private uint *vt, const __global VAL_DATA_T *V, const int VD_w, const int VD_h,
+                                     const int VD_p, const size_t sg_j0_sv, const int k0, const int cp) {
+    #pragma unroll
+    for (int cd = 0; cd < sv_value_blocks; cd += 2) {
+        intel_sub_group_2d_block_read_transform_8b_32r16x1c(
+            (global void *)V, VD_w, VD_h, VD_p,
+            (int2)((((int)sg_j0_sv + cd * SUBGROUP_SIZE) / (2 * SUBGROUP_SIZE)) * SUBGROUP_SIZE, k0 + cp * DPAS_K),
+            (private uint *)&vt[(cd / 2) * 8]);
+    }
+}
+
+// Block cd takes nibble V_U4_PARITY of every lane's own byte (lane L = column 2L + parity of the window, see
+// PLAIN_V_U4_PERMUTED), then v_i8_dequant_ch's zp subtraction. NEG_X5 == 4 (negative control) swaps the nibbles.
+SDPA_OCL_INLINE void FUNC(v_u4_dequant)(__private int8 *vb, const __private uint *vt, const int vt_half,
+                                        const __private half *v_zp_ch, const size_t sg_j0_sv) {
+    #pragma unroll
+    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+    #if NEG_X5 == 4
+        const uint nsh = V_U4_PARITY(sg_j0_sv, cd) ? 0u : 4u;
+    #else
+        const uint nsh = V_U4_PARITY(sg_j0_sv, cd) ? 4u : 0u;
+    #endif
+        #pragma unroll
+        for (int u = 0; u < 4; ++u) {
+            const uint w = vt[(cd / 2) * 8 + vt_half + u];
+            const half4 deq4 = (half4)(PLAIN_U4_TO_HALF(w, nsh), PLAIN_U4_TO_HALF(w, 8 + nsh), PLAIN_U4_TO_HALF(w, 16 + nsh),
+                                       PLAIN_U4_TO_HALF(w, 24 + nsh)) - (half4)v_zp_ch[cd];
+            vb[cd][u * 2 + 0] = as_int(deq4.lo);
+            vb[cd][u * 2 + 1] = as_int(deq4.hi);
+        }
+    }
+}
+#endif
+
+#if KV_COMP_PER_CHANNEL && !USE_2D_BLOCK_IO_V_I8 && !USE_2D_BLOCK_IO_V_U4
+// Per-channel V where no block read applies: one byte per (key, column), lane = column (for the packed 4-bit cache byte
+// column / 2, nibble column & 1), with the zp subtraction of v_i8_dequant_ch. A key at/past k or a column at/past dv
+// leaves its element 0.
+SDPA_OCL_INLINE void FUNC(v_tile_gather_ch)(__private int8 *vb, const __global VAL_DATA_T *V, const uint ldv,
+                                            const __private half *v_zp_ch, const int k0, const int cp, const int k,
+                                            const int dv, const size_t sg_j0_sv, const int lane_i) {
+    #pragma unroll
+    for (int cd = 0; cd < sv_value_blocks; ++cd) {
+        vb[cd] = (int8)0;
+        const int value = (int)sg_j0_sv + cd * SUBGROUP_SIZE + lane_i;
+#if PLAIN_KV_U4
+        const int col = value / 2;
+    #if NEG_X5 == 4
+        const uint nsh = (value & 1) ? 0u : 4u;
+    #else
+        const uint nsh = (value & 1) ? 4u : 0u;
+    #endif
+#else
+        const int col = value;
+#endif
+        if (value < dv) {
+            #pragma unroll
+            for (int key_pair = 0; key_pair < 8; ++key_pair) {
+                const int key0 = k0 + cp * DPAS_K + key_pair * 2;
+                half2 vv = (half2)0.0h;
+                #pragma unroll
+                for (int j = 0; j < 2; ++j) {
+                    if (key0 + j < k) {
+                        const uchar byte = ((const global uchar *)V)[(size_t)(key0 + j) * ldv + col];
+#if PLAIN_KV_U4
+                        vv[j] = PLAIN_U4_TO_HALF(byte, nsh) - v_zp_ch[cd];
+#else
+                        vv[j] = I8_TO_HALF(byte, 0) - v_zp_ch[cd];
+#endif
+                    }
+                }
+                vb[cd][key_pair] = as_int(vv);
+            }
         }
     }
 }
@@ -505,7 +642,7 @@ SDPA_OCL_INLINE void FUNC(pa_v_tile_gather)(__private int8 *vb, const __global V
 }
 #endif
 
-#if !IS_PA_MIXED && !USE_2D_BLOCK_IO_V_I8 && !USE_2D_BLOCK_IO_KV
+#if !IS_PA_MIXED && !USE_2D_BLOCK_IO_V_I8 && !USE_2D_BLOCK_IO_KV && !KV_COMP_PER_CHANNEL
 // V input: f16/bf16 as-is, or plain-SDPA i8 with the per-token (per-kv-head) asymmetric dequant. The
 // scale/zp vary per key (token), so they are indexed by key0/key1 here, not by the value (head-dim)
 // index.

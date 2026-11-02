@@ -343,6 +343,7 @@ set(GPU_FUNCTIONAL_TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/dynamic_unfusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/eltwise_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/eltwise_merge.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/gqa_quantized_kv_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/gqa_sliding_window.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/gqa_transposed_v_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/subgraph_tests/dynamic/hybrid.cpp

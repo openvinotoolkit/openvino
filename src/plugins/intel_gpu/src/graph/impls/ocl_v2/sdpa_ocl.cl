@@ -94,10 +94,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int q
 #endif
     #ifdef KV_COMPRESSED
+        // The zero points are absent for a symmetric (per-channel) cache, as in get_arguments_desc().
         , const global KEY_ATTR_SCALES_DATA_T *K_scales
+      #if KEY_ZERO_POINTS
         , const global KEY_ATTR_ZP_DATA_T *K_zp
+      #endif
         , const global VAL_ATTR_SCALES_DATA_T *V_scales
+      #if VAL_ZERO_POINTS
         , const global VAL_ATTR_ZP_DATA_T *V_zp
+      #endif
     #endif
         )
 {
@@ -284,7 +289,20 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
     msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
 #endif
-#ifdef KV_COMPRESSED
+#if KV_COMP_PER_CHANNEL
+    // Per-channel scale / zp. The comp tensors are [B or 1, KV heads or 1, 1, head size] and are read at their own batch
+    // and head, 0 where that dim is 1 (the GQA decomposition's are [1, KV heads, 1, head size]). K is folded into Q and a
+    // per-query offset (KV_K_BIAS); the V zp / scale are hoisted for the whole workgroup (v_comp_per_channel()).
+    const uint k_ch_base = KEY_COMP_OFF((KEY_SCALE_BATCH_NUM == 1) ? 0 : b1_k, (KEY_SCALE_FEATURE_NUM == 1) ? 0 : b0_kv, 0, 0);
+    const uint v_ch_base = VAL_COMP_OFF((VAL_SCALE_BATCH_NUM == 1) ? 0 : b1_v, (VAL_SCALE_FEATURE_NUM == 1) ? 0 : b0_kv, 0, 0);
+    half v_zp_ch[sv_value_blocks];
+    float v_sc_ch[sv_value_blocks];
+    FUNC_CALL(v_comp_per_channel)(OPTIONAL_SHAPE_INFO_TENSOR v_zp_ch, v_sc_ch, V_scales,
+    #if VAL_ZERO_POINTS
+                                  V_zp,
+    #endif
+                                  v_ch_base, dv, sg_j0_sv, (int)lane);
+#elif defined(KV_COMPRESSED)
     // Hoist dynamic compression-layout batch/head pitches out of the hot loops.
     const uint k_comp_base = KEY_COMP_OFF(b1_k, b0_kv, 0, 0);
     #if USE_2D_BLOCK_IO_V_I8
@@ -294,9 +312,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     const int QD_w = d * (int)sizeof(QRY_DATA_T), QD_h = q, QD_p = (int)ldq * (int)sizeof(QRY_DATA_T);
 #if !IS_PA_MIXED
-    // Input K/V surfaces. MIXED has none: its K/V are the cache pages (plus Kc/Vc).
+    // Input K/V surfaces. MIXED has none: its K/V are the cache pages (plus Kc/Vc). A packed 4-bit row is half a byte
+    // per channel.
+  #if PLAIN_KV_U4
+    const int KD_w = d / 2, KD_h = k, KD_p = (int)ldk;
+    const int VD_w = dv / 2, VD_h = k, VD_p = (int)ldv;
+  #else
     const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = (int)ldk * (int)sizeof(KEY_DATA_T);
     const int VD_w = dv * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = (int)ldv * (int)sizeof(VAL_DATA_T);
+  #endif
 #endif
     const int AD_w = dv * (int)sizeof(OUTPUT_TYPE), AD_h = q, AD_p = (int)lda * (int)sizeof(OUTPUT_TYPE);
 
@@ -394,6 +418,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #else
         FUNC_CALL(q_chunk)(&q_pack, Q, QD_w, QD_h, QD_p, ldq, q, d, query_base, db, lane);
 #endif
+#if KV_COMP_PER_CHANNEL
+        FUNC_CALL(q_fold_k_scale)(OPTIONAL_SHAPE_INFO_TENSOR &q_pack, K_scales, k_ch_base, d, db, (int)lane);
+#endif
 #if WIDE_Q_SLM
         {
             // The ulong4 block layout (lane l's ulong j at j * SUBGROUP_SIZE + l), stored per lane: with
@@ -440,6 +467,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             A_tile[r][cd] = (float8)0.0f;
 
     barrier(CLK_LOCAL_MEM_FENCE);
+
+#if KV_COMP_PER_CHANNEL
+    // Subtracted from every score of the query after the KQ DPAS (see KV_K_BIAS).
+    float k_off[kq_query_blocks];
+    FUNC_CALL(k_comp_query_offset)(OPTIONAL_SHAPE_INFO_TENSOR k_off, Q_slm,
+    #if KEY_ZERO_POINTS
+                                   K_zp,
+    #endif
+                                   k_ch_base, d, sg_j0_kq, (int)lane);
+#endif
 
 #if IS_PA_MIXED
     const int query_position_offset = past_len;
@@ -598,7 +635,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int qb = 0; qb < kq_query_blocks; ++qb)
                 S_tile[mb][qb] = (float8)0.0f;
 
-#ifdef KV_COMPRESSED
+#if defined(KV_COMPRESSED) && !KV_COMP_PER_CHANNEL
         half k_scale_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
         half k_zpb_lane[kq_sg_tile_keys / SUBGROUP_SIZE];   // zp + 1152.0h (bias-trick bias folded in)
         FUNC_CALL(k_comp_per_key)(OPTIONAL_SHAPE_INFO_TENSOR k_scale_lane, k_zpb_lane, K_scales, K_zp, k_comp_base,
@@ -645,6 +682,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
 #if WIDE_K_READS
         ushort8 k_wide[2 * kq_key_blocks];
+#endif
+#if USE_2D_BLOCK_IO_K_U4
+        // k_tile_u4_b2d()'s read, shared by the depth tile pair (2g, 2g + 1).
+        uint kt_u4[8];
 #endif
 #if IS_PA_MIXED && USE_2D_BLOCK_IO_K_PA && PA_K_WIDE_READS
         // pa_k_tile_b2d16_pair()'s reads, PA_K_WIDE_TILES / 2 per key group in flight.
@@ -723,9 +764,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #endif
             }
     #endif
+#elif USE_2D_BLOCK_IO_K_U4
+            FUNC_CALL(k_tile_u4_b2d)(k_raw, kt_u4, K, KD_w, KD_h, KD_p, key_base, db);
 #elif USE_2D_BLOCK_IO_K_I8
             uint kt[8];
+    #if KV_COMP_PER_CHANNEL
+            FUNC_CALL(k_tile_i8_b2d_ch)(k_raw, kt, K, KD_w, KD_h, KD_p, key_base, db);
+    #else
             FUNC_CALL(k_tile_i8_b2d)(k_raw, kt, K, KD_w, KD_h, KD_p, k_scale_lane, k_zpb_lane, key_base, db);
+    #endif
 #elif USE_2D_BLOCK_IO_KV
     #if WIDE_K_READS
             // Depth tiles db and db + 1 in one read, block-major: db's key rows, then db + 1's.
@@ -750,7 +797,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #elif SG8
             FUNC_CALL(k_tile_dword)(k_raw, K, ldk, key_base, k, d, db, lane, k_dword_ok);
     #else
-    #ifdef KV_COMPRESSED
+    #if KV_COMP_PER_CHANNEL
+            FUNC_CALL(k_tile_gather_ch)(k_raw, K, ldk, key_base, k, d, db, (int)lane);
+    #elif defined(KV_COMPRESSED)
             FUNC_CALL(k_tile_gather)(k_raw, K, ldk, k_scale_lane, k_zpb_lane, key_base, k, d, db, lane);
     #else
             FUNC_CALL(k_tile_gather)(k_raw, K, ldk, key_base, k, d, db, lane);
@@ -771,6 +820,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         }
 #if CAUSAL_TILE_SKIP
         }
+#endif
+#if KV_COMP_PER_CHANNEL
+        // The folded K's per-query offset (S_tile lane = query of block qb, component = key).
+        #pragma unroll
+        for (int mb = 0; mb < kq_key_blocks; ++mb)
+            #pragma unroll
+            for (int qb = 0; qb < kq_query_blocks; ++qb)
+                S_tile[mb][qb] -= k_off[qb];
 #endif
 
         KMASK_HALF_T mask_tile;
@@ -1081,6 +1138,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #if USE_2D_BLOCK_IO_V_I8
             // Declared outside the cp loop because one read serves two consecutive cp blocks (see below).
             uint vt[8 * sv_value_blocks];
+        #elif USE_2D_BLOCK_IO_V_U4
+            // The same for v_u4_read(), one read per value-block pair.
+            uint vt[8 * ((sv_value_blocks + 1) / 2)];
         #endif
         #pragma unroll
         for (int cp = 0; cp < sv_key_blocks; ++cp) {
@@ -1104,6 +1164,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     const int vt_half = (cp & 1) * 4;
                 if (vt_do_read)
                     FUNC_CALL(v_i8_read)(vt, V, VD_w, VD_h, VD_p, sg_j0_sv, k0, cp);
+            #elif USE_2D_BLOCK_IO_V_U4
+                const int vt_half = (cp & 1) * 4;
+                if ((cp & 1) == 0)
+                    FUNC_CALL(v_u4_read)(vt, V, VD_w, VD_h, VD_p, sg_j0_sv, k0, cp);
             #endif
 
             DPAS_A_T pA[sv_score_blocks];
@@ -1127,7 +1191,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
             }
 
-            #if USE_2D_BLOCK_IO_V_I8
+            #if USE_2D_BLOCK_IO_V_I8 && !KV_COMP_PER_CHANNEL
                 const half vzb_c = FUNC_CALL(v_i8_comp_fold)(OPTIONAL_SHAPE_INFO_TENSOR pA, V_scales, V_zp, v_comp_base,
                                                              k0, cp, k, lane);
             #elif IS_PA_KV_COMPRESSED && IS_PA_MIXED
@@ -1173,8 +1237,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #elif USE_2D_BLOCK_IO_V_I8
                 // The paired read above gives a 32-key x 16-value tile (lane = value, 4 keys per
                 // uint); this cp block uses the 4 uints at vt_half.
+              #if KV_COMP_PER_CHANNEL
+                FUNC_CALL(v_i8_dequant_ch)(vb, vt, vt_half, v_zp_ch);
+              #else
                 half4 zpb4[4];
                 FUNC_CALL(v_i8_dequant)(vb, zpb4, vt, vt_half, vzb_c);
+              #endif
+            #elif USE_2D_BLOCK_IO_V_U4
+                FUNC_CALL(v_u4_dequant)(vb, vt, vt_half, v_zp_ch, sg_j0_sv);
             #elif USE_2D_BLOCK_IO_KV
               #if WIDE_V_READS
                 // Value blocks cd and cd + 1 in one read, block-major, i.e. vb[cd] then vb[cd + 1].
@@ -1187,7 +1257,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 FUNC_CALL(v_tile_b2d16)(vb, V_b2d, VD_w_b2d, VD_h, VD_p, VD_x0, sg_j0_sv, k0, cp, 0);
               #endif
             #else
-        #ifdef KV_COMPRESSED
+        #if KV_COMP_PER_CHANNEL
+                FUNC_CALL(v_tile_gather_ch)(vb, V, ldv, v_zp_ch, k0, cp, k, dv, sg_j0_sv, (int)lane);
+        #elif defined(KV_COMPRESSED)
                 FUNC_CALL(v_tile_gather)(OPTIONAL_SHAPE_INFO_TENSOR vb, V, ldv, V_scales, V_zp, b1_v, b0_kv, k0, cp, k, dv,
                                          sg_j0_sv, lane);
         #else
@@ -1232,8 +1304,31 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         #pragma unroll
         for (int cd = 0; cd < sv_value_blocks; ++cd)
             A_tile[r][cd] *= inv_l;
+#if KV_COMP_PER_CHANNEL
+        // The per-channel V scale of this lane's column (the V reads subtracted only the zp).
+        #pragma unroll
+        for (int cd = 0; cd < sv_value_blocks; ++cd)
+            A_tile[r][cd] *= v_sc_ch[cd];
+#endif
     }
 
+#if PLAIN_V_U4_PERMUTED
+    // Lane L of value block cd holds column V_COMP_COLUMN(sg_j0_sv, cd, L), every other column of a 32-column window.
+    #pragma unroll
+    for (int r = 0; r < sv_score_blocks; ++r) {
+        #pragma unroll
+        for (int cd = 0; cd < sv_value_blocks; ++cd) {
+            const DT_OUT8_T out = ACC_TO_OUT8(A_tile[r][cd]);
+            const int out_col = V_COMP_COLUMN(sg_j0_sv, cd, lane);
+            const int row = wg_j0 + sg_i0_sv + r * 8;
+            #pragma unroll
+            for (int rr = 0; rr < 8; ++rr) {
+                if (row + rr < q && out_col < dv)
+                    A[(size_t)(row + rr) * lda + out_col] = out[rr];
+            }
+        }
+    }
+#else
     #pragma unroll
     for (int r = 0; r < sv_score_blocks; ++r) {
         #pragma unroll
@@ -1261,5 +1356,6 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
         }
     }
+#endif
 }
 #endif  // HPG_PA_PREFILL
