@@ -287,9 +287,9 @@ std::string attention(GraphEmitter& e,
                             {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
 
     if (cfg.has_attn_gate) {
-        bool rank3_gate;
+        const auto gate_weight_name = p + (gate.empty() ? "attn_gate.weight" : "attn_q.weight");
+        const bool rank3_gate = e.weight_tensor(gate_weight_name).get_element_type() != ov::element::u2;
         if (!gate.empty()) {
-            rank3_gate = e.weight_tensor(p + "attn_q.weight").get_element_type() != ov::element::u2;
             gate =
                 e.add_op("GGML_OP_RESHAPE",
                          p + "attn_gate",
@@ -300,7 +300,6 @@ std::string attention(GraphEmitter& e,
                           {"special_zero", true}});
         } else {
             e.add_weight(p + "attn_gate.weight");
-            rank3_gate = e.weight_tensor(p + "attn_gate.weight").get_element_type() != ov::element::u2;
             gate = e.add_op("GGML_OP_MUL_MAT",
                             p + "attn_gate",
                             {p + "attn_gate.weight", attn_norm},
