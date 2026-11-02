@@ -48,6 +48,7 @@ enum class OperationType : uint8_t {
     Eltwise,
     GatherMatmul,
     GatedDeltaNet,
+    GatedResidual,
     SelectiveSSM,
     PagedSelectiveSSM
 };

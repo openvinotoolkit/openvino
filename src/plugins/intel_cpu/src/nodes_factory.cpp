@@ -38,6 +38,7 @@
 #include "nodes/eye.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gated_delta_net.h"
+#include "nodes/gated_residual.h"
 #include "nodes/gather.h"
 #include "nodes/gather_elements.h"
 #include "nodes/gather_nd.h"
@@ -262,6 +263,7 @@ Node::NodesFactory::NodesFactory() : Factory("NodesFactory") {
     INTEL_CPU_NODE(QKVProjection, Type::QKVProjection);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);
     INTEL_CPU_NODE(RMSNorm, Type::RMS);
+    INTEL_CPU_NODE(GatedResidual, Type::GatedResidual);
 #elif defined(OPENVINO_ARCH_ARM64)
     INTEL_CPU_NODE(FakeQuantize, Type::FakeQuantize);
     INTEL_CPU_NODE(PagedAttention, Type::PagedAttention);

@@ -10,9 +10,10 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-typedef std::tuple<ElementType,                      // netPrecision
-                   std::vector<InputShape>,          // shape
-                   std::string,                      // targetDevice
+typedef std::tuple<ElementType,              // netPrecision (data)
+                   ElementType,              // scale (gamma) precision; ignored when there is no scale input
+                   std::vector<InputShape>,  // shape
+                   std::string,              // targetDevice
                    CPUSpecificParams>
     RMSNormCPUTestParams;
 

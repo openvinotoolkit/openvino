@@ -192,6 +192,11 @@ void jit_rms_kernel<isa>::generate() {
         vmulss(xmm_rsqrt, xmm_rsqrt, xmm_tmp);
     }
     vbroadcastss(vmm_rsqrt, xmm_rsqrt);
+    if (m_jcp.scale_plus_one && m_jcp.scale_size != 1) {
+        mov(reg_tmp.cvt32(), float2int(1.0F));
+        vmovd(Xmm(vmm_one.getIdx()), reg_tmp.cvt32());
+        vbroadcastss(vmm_one, Xmm(vmm_one.getIdx()));
+    }
     mov(reg_size, m_jcp.data_size / vec_size);
     mov(reg_src, reg_src_org);
     if (m_jcp.data_size >= vec_size) {
@@ -203,14 +208,17 @@ void jit_rms_kernel<isa>::generate() {
             load(vmm_src, reg_src, m_jcp.src_prc, vec_size, false);
             vmulps(vmm_src, vmm_src, vmm_rsqrt);
             if (m_jcp.scale_size != 1) {
-                load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false);
+                load(vmm_tmp, reg_scale, m_jcp.scale_prc, vec_size, false);
+                if (m_jcp.scale_plus_one) {
+                    vaddps(vmm_tmp, vmm_tmp, vmm_one);
+                }
                 vmulps(vmm_src, vmm_src, vmm_tmp);
             }
             store(reg_dst, vmm_src, m_jcp.dst_prc, vec_size);
 
             add(reg_src, vec_size * m_jcp.src_prc.size());
             if (m_jcp.scale_size != 1) {
-                add(reg_scale, vec_size * sizeof(float));
+                add(reg_scale, vec_size * m_jcp.scale_prc.size());
             }
             add(reg_dst, vec_size * m_jcp.dst_prc.size());
             dec(reg_size);
@@ -222,7 +230,10 @@ void jit_rms_kernel<isa>::generate() {
         load(vmm_src, reg_src, m_jcp.src_prc, m_jcp.data_size % vec_size, false);
         vmulps(vmm_src, vmm_src, vmm_rsqrt);
         if (m_jcp.scale_size != 1) {
-            load(vmm_tmp, reg_scale, ov::element::f32, m_jcp.data_size % vec_size, false);
+            load(vmm_tmp, reg_scale, m_jcp.scale_prc, m_jcp.data_size % vec_size, false);
+            if (m_jcp.scale_plus_one) {
+                vaddps(vmm_tmp, vmm_tmp, vmm_one);
+            }
             vmulps(vmm_src, vmm_src, vmm_tmp);
         }
         store(reg_dst, vmm_src, m_jcp.dst_prc, m_jcp.data_size % vec_size);
