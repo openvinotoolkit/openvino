@@ -24,10 +24,9 @@ TEST_P(NpuMemRefTypeTest, SetsContiguousElementStrides) {
     EXPECT_EQ(memref._data, tensor->data());
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    HostCompile,
-    NpuMemRefTypeTest,
-    testing::Values(ov::element::u4, ov::element::i4, ov::element::nf4, ov::element::f16));
+INSTANTIATE_TEST_SUITE_P(HostCompile,
+                         NpuMemRefTypeTest,
+                         testing::Values(ov::element::u4, ov::element::i4, ov::element::nf4, ov::element::f16));
 
 TEST(NpuMemRefStridedTensorTest, PreservesNonContiguousF16Strides) {
     std::vector<uint16_t> storage(16);
