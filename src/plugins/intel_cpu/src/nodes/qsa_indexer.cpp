@@ -14,7 +14,6 @@
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "cpu_memory.h"
@@ -22,21 +21,20 @@
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
-#include "nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/qsa_indexer_config.hpp"
+#include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "shape_inference/shape_inference_status.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
-
-#ifdef OPENVINO_ARCH_X86_64
-#    include "nodes/kernels/sparse_attn/qsa_brgemm_scorer.hpp"
-#endif
 
 namespace ov::intel_cpu::node {
 
@@ -107,54 +105,7 @@ QSAIndexer::QSAIndexer(const std::shared_ptr<ov::Node>& op, const GraphContext::
     }
     const auto qsa_indexer = ov::as_type_ptr<const ov::intel_cpu::QSAIndexerNode>(op);
     OPENVINO_ASSERT(qsa_indexer, "Expected QSAIndexer node");
-    m_config = qsa_indexer->get_config();
-}
-
-#ifdef OPENVINO_ARCH_X86_64
-// Query heads per K head if the scoring of this node (precision of the data ports `precision`) runs on brgemm, 0 if
-// not.
-static size_t brgemm_group_size(const Node& node,
-                                const ov::element::Type& precision,
-                                size_t selection_heads,
-                                size_t dim) {
-    const auto q_heads = node.getInputShapeAtPort(InputIdx::Q_IDX).getDims()[2];
-    const auto k_heads = node.getInputShapeAtPort(InputIdx::K_IDX).getDims()[2];
-    if (q_heads == Shape::UNDEFINED_DIM || k_heads == Shape::UNDEFINED_DIM) {
-        return 0;
-    }
-    return qsa::brgemm_score_group_size(precision, q_heads, k_heads, selection_heads, dim);
-}
-#endif
-
-void QSAIndexer::createPrimitive() {
-#ifdef OPENVINO_ARCH_X86_64
-    // The scorer depends on the configuration, the static head counts and the precision only: like the executor of the
-    // ScaledDotProductAttention it comes from the params cache once here, never while the model runs.
-    // initSupportedPrimitiveDescriptors() registered the brgemm implementation type for the nodes that can have it.
-    const auto precision =
-        getSelectedPrimitiveDescriptor()->getConfig().inConfs[InputIdx::Q_IDX].getMemDesc()->getPrecision();
-    const auto q_heads = getInputShapeAtPort(InputIdx::Q_IDX).getDims()[2];
-    const auto k_heads = getInputShapeAtPort(InputIdx::K_IDX).getDims()[2];
-    if (q_heads != Shape::UNDEFINED_DIM && k_heads != Shape::UNDEFINED_DIM) {
-        const qsa::BrgemmBlockScorer::Config config{
-            q_heads,
-            k_heads,
-            m_config.h_sel,
-            m_config.indexer_head_dim,
-            m_config.indexer_rotary_dim,
-            m_config.block_topk,
-            static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()),
-            m_config.eps,
-            ov::intel_cpu::QSAIndexerNode::effective_scale(m_config),
-            precision,
-            m_config.order_by_score};
-        m_scorer = qsa::BrgemmBlockScorer::get(context->getParamsCache(), config);
-    }
-    if (!m_scorer) {
-        // nothing to score with on brgemm: the scalar scoring runs, so the node is a reference implementation
-        getSelectedPrimitiveDescriptor()->setImplementationType(impl_desc_type::ref);
-    }
-#endif
+    m_attrs.config = qsa_indexer->get_config();
 }
 
 void QSAIndexer::initSupportedPrimitiveDescriptors() {
@@ -164,45 +115,61 @@ void QSAIndexer::initSupportedPrimitiveDescriptors() {
     // Every floating-point port (data inputs, state inputs and state outputs) is declared with the
     // precision of Q_IDX, so the kernel sees a single precision (a mismatching edge gets a Reorder).
     // KEY_LENGTH stays i32 -- reordering it to f32 would numerically convert the index values.
-    // sel_indices/sel_count are i32; the state outputs never share memory with their inputs
-    // (inPlace == -1): the update is out-of-place.
+    // sel_indices/sel_count are i32; the state outputs never share memory with their inputs: the update is
+    // out-of-place.
+    const auto& creators_map = BlockedDescCreator::getCommonCreators();
     const auto data_precision = getOriginalInputPrecisionAtPort(InputIdx::Q_IDX);
-    std::vector<PortConfigurator> inPortConfigs;
+
+    MemoryDescArgs descs;
     for (size_t i = 0; i < getParentEdges().size(); ++i) {
         const ov::element::Type precision = i == InputIdx::KEY_LENGTH ? ov::element::i32 : data_precision;
-        inPortConfigs.emplace_back(LayoutType::ncsp, precision, getInputShapeAtPort(i), false, -1);
+        descs[qsa_src_arg(i)] = creators_map.at(LayoutType::ncsp)->createSharedDesc(precision, getInputShapeAtPort(i));
     }
-    std::vector<PortConfigurator> outPortConfigs = {
-        PortConfigurator{LayoutType::ncsp, ov::element::i32, getOutputShapeAtPort(OutputIdx::SEL_INDICES), false, -1},
-        PortConfigurator{LayoutType::ncsp, ov::element::i32, getOutputShapeAtPort(OutputIdx::SEL_COUNT), false, -1}};
-    static constexpr std::pair<size_t, size_t> state_ports[] = {
-        {InputIdx::SUMMARY_CACHE, OutputIdx::SUMMARY_CACHE},
-        {InputIdx::PAST_INCOMPLETE_RAW_K, OutputIdx::PAST_INCOMPLETE_RAW_K},
-        {InputIdx::PAST_INCOMPLETE_ROPE, OutputIdx::PAST_INCOMPLETE_ROPE}};
-    for (const auto& [in_port, out_port] : state_ports) {
-        outPortConfigs.emplace_back(LayoutType::ncsp, data_precision, getOutputShapeAtPort(out_port), false, -1);
+    for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
+        const bool is_index = i == OutputIdx::SEL_INDICES || i == OutputIdx::SEL_COUNT;
+        descs[qsa_dst_arg(i)] =
+            creators_map.at(LayoutType::ncsp)
+                ->createSharedDesc(is_index ? ov::element::i32 : data_precision, getOutputShapeAtPort(i));
     }
-    // The scoring runs on brgemm where the CPU, the precision and the head counts allow it (see createPrimitive()).
-    impl_desc_type impl = impl_desc_type::ref;
-#ifdef OPENVINO_ARCH_X86_64
-    if (brgemm_group_size(*this, data_precision, m_config.h_sel, m_config.indexer_head_dim) != 0) {
-        impl = qsa::score_impl_type(data_precision);
+
+    auto execution_context = std::make_shared<ExecutorContext>(context, getImplPriority());
+    m_factory = std::make_shared<ExecutorFactory<QSAIndexerAttrs>>(m_attrs, execution_context, descs);
+
+    const auto node_descriptors_list = m_factory->getProperMemoryDescriptors(descs);
+    for (const auto& node_descriptors : node_descriptors_list) {
+        NodeConfig node_config;
+        node_config.inConfs.resize(getParentEdges().size());
+        for (size_t i = 0; i < getParentEdges().size(); ++i) {
+            node_config.inConfs[i] = PortConfig{node_descriptors.at(qsa_src_arg(i))};
+        }
+        for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
+            node_config.outConfs.emplace_back(node_descriptors.at(qsa_dst_arg(i)));
+        }
+        supportedPrimitiveDescriptors.emplace_back(node_config, impl_desc_type::undef);
     }
-#endif
-    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl);
+}
+
+void QSAIndexer::bindMemoryArguments() {
+    for (size_t i = 0; i < getParentEdges().size(); ++i) {
+        m_memory[qsa_src_arg(i)] = getSrcMemoryAtPort(i);
+    }
+    for (size_t i = 0; i < OutputIdx::COUNT; ++i) {
+        m_memory[qsa_dst_arg(i)] = getDstMemoryAtPort(i);
+    }
+}
+
+void QSAIndexer::createPrimitive() {
+    bindMemoryArguments();
+
+    m_executor = m_factory->make(m_memory);
+    Node::createPrimitive();
+    getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
 }
 
 void QSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
-    const auto data_precision = getSrcMemoryAtPort(InputIdx::Q_IDX)->getDesc().getPrecision();
-    if (data_precision == ov::element::f32) {
-        qsa::run_indexer<float>(*this, m_config, context, m_scorer.get());
-    } else if (data_precision == ov::element::f16) {
-        qsa::run_indexer<ov::float16>(*this, m_config, context, m_scorer.get());
-    } else if (data_precision == ov::element::bf16) {
-        qsa::run_indexer<ov::bfloat16>(*this, m_config, context, m_scorer.get());
-    } else {
-        OPENVINO_THROW("QSAIndexer: unsupported precision ", data_precision);
-    }
+    bindMemoryArguments();
+
+    m_executor->execute(m_memory);
 }
 
 bool QSAIndexer::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

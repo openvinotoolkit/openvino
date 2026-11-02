@@ -9,15 +9,16 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
-#include <numeric>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
+#include "cpu_parallel.hpp"
 #include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
+#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
 #include "nodes/kernels/sparse_attn/sparse_brgemm_kernel.hpp"
 #ifdef OPENVINO_ARCH_X86_64
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
@@ -636,7 +637,7 @@ void attention_over_amx_chunks(PackWork& w, const AmxWork<AmxT>& amx, const KvCh
     amx.gemv1->tile_config();
     size_t first_block = 0;  // of the chunk, in chunks.block_starts
     for (size_t idx = 0; idx < chunks.chunk_count; idx++) {
-        const size_t n_units = static_cast<size_t>(chunks.chunk_units[idx]);
+        const auto n_units = static_cast<size_t>(chunks.chunk_units[idx]);
         const size_t n_blocks = n_units * amx.unit_blocks;
         const int64_t* starts = chunks.block_starts + first_block;
         first_block += n_blocks;
@@ -737,7 +738,7 @@ void attention_selected_blocks_gemv(PackWork& w,
     kv_chunks.block_starts = kv_chunk_scratch;
     kv_chunks.chunk_units = kv_chunk_scratch + max_blocks;
     kv_chunks.leftover_block_start = kv_chunk_scratch + 2 * max_blocks;
-    const size_t page_sel_blocks = static_cast<size_t>(w.page_size / w.key_block_size);
+    const auto page_sel_blocks = static_cast<size_t>(w.page_size / w.key_block_size);
     split_into_kv_chunks_paged(block_ids,
                                nblocks,
                                static_cast<size_t>(w.key_block_size),
@@ -819,12 +820,13 @@ struct PagedRowSource {
 // heads, over gathered rows (see attention_over_selection_tiles). Leaves unnormalized attention in w.acc and the
 // softmax denominators in w.running_sum; the caller normalizes and stores.
 template <typename T>
-void attention_full_selection_brgemm(const SparsePAArgs& a,
-                                     PackWork& w,
-                                     uint8_t* ws,
-                                     const SparsePAScratchLayout& layout,
-                                     const int32_t* block_ids,
-                                     size_t nblocks) {
+void attention_full_selection_brgemm(
+    const SparsePAArgs& a,
+    PackWork& w,
+    uint8_t* ws,  // NOLINT(readability-non-const-parameter): the buffers it carves are written
+    const SparsePAScratchLayout& layout,
+    const int32_t* block_ids,
+    size_t nblocks) {
     const auto& lay = layout.brgemm;
     const BrgemmBuffers<T> b{static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.qk),
                              static_cast<ov::intel_cpu::BrgemmKernel*>(a.brgemm.pv_overwrite),

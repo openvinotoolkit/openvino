@@ -12,17 +12,16 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/qsa_indexer_config.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 
 namespace ov::intel_cpu::node {
 
-namespace qsa {
-class BrgemmBlockScorer;
-}  // namespace qsa
-
-/// @brief F32 reference implementation of ov::intel_cpu::QSAIndexerNode (padding-aware,
+/// @brief CPU implementation of ov::intel_cpu::QSAIndexerNode (padding-aware,
 /// non-paged, caller-owned-cache block-level indexer for Qwen Sparse Attention).
 ///
 /// Unlike QSAIndexer, this op is fed a per-row `key_length` (total valid length, past + current,
@@ -73,11 +72,14 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    ov::intel_cpu::QSAIndexerNode::Config m_config{};
-    // The scorer of the block scoring on brgemm (see qsa_brgemm_scorer.hpp), taken from the params cache of the graph
-    // context in createPrimitive(): the layers of the same configuration share it, and nothing is built while the model
-    // runs. Null when this CPU or configuration has no brgemm scoring (the scalar scoring runs then).
-    std::shared_ptr<const qsa::BrgemmBlockScorer> m_scorer;
+    void bindMemoryArguments();
+
+    // The implementations (executors/qsa_indexer_implementations.cpp): the scoring on brgemm where the CPU, the
+    // precision and the head counts allow it, plain C++ otherwise.
+    QSAIndexerAttrs m_attrs;
+    ExecutorFactoryPtr<QSAIndexerAttrs> m_factory;
+    ExecutorPtr m_executor;
+    MemoryArgs m_memory;
 };
 
 }  // namespace ov::intel_cpu::node

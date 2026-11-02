@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 #include <utility>
 
@@ -46,12 +47,16 @@ inline RowPlan make_row_plan(int64_t key_length, int64_t window, int64_t ratio) 
 }
 
 // Converts a short row to / from f32. cpu_convert dispatches on every call, which costs more than the conversion of
-// a row of a few hundred values: bf16 is converted by a plain loop.
+// a row of a few hundred values: bf16 is converted by a plain loop. A bf16 is the upper half of an f32: the loop shifts
+// the bits (ov::bfloat16::operator float() is not inline: every element would be a call through the PLT).
 template <typename T>
 void row_to_f32(const T* src, float* dst, size_t len) {
     if constexpr (std::is_same_v<T, ov::bfloat16>) {
+        static_assert(sizeof(ov::bfloat16) == sizeof(uint16_t));
+        const auto* bits = reinterpret_cast<const uint16_t*>(src);
         for (size_t i = 0; i < len; i++) {
-            dst[i] = static_cast<float>(src[i]);
+            const uint32_t word = static_cast<uint32_t>(bits[i]) << 16;
+            std::memcpy(&dst[i], &word, sizeof(float));
         }
     } else {
         cpu_convert(src, dst, ov::element::from<T>(), ov::element::f32, len);

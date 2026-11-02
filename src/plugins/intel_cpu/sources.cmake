@@ -168,6 +168,10 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/executors/common/offset_helper.hpp
     ${CPU_SRC_DIR}/nodes/executors/common/paged_selective_ssm_executor.cpp
     ${CPU_SRC_DIR}/nodes/executors/common/paged_selective_ssm_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/common/qsa_indexer_ref_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/common/qsa_indexer_ref_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/common/paged_qsa_indexer_ref_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/common/paged_qsa_indexer_ref_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/common/ref_convert.cpp
     ${CPU_SRC_DIR}/nodes/executors/common/ref_convert.hpp
     ${CPU_SRC_DIR}/nodes/executors/common/ref_opt_transpose.cpp
@@ -234,6 +238,10 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/executors/mvn_list.hpp
     ${CPU_SRC_DIR}/nodes/executors/paged_selective_ssm_config.hpp
     ${CPU_SRC_DIR}/nodes/executors/paged_selective_ssm_implementations.cpp
+    ${CPU_SRC_DIR}/nodes/executors/qsa_indexer_config.hpp
+    ${CPU_SRC_DIR}/nodes/executors/qsa_indexer_implementations.cpp
+    ${CPU_SRC_DIR}/nodes/executors/paged_qsa_indexer_config.hpp
+    ${CPU_SRC_DIR}/nodes/executors/paged_qsa_indexer_implementations.cpp
     ${CPU_SRC_DIR}/nodes/executors/pooling.cpp
     ${CPU_SRC_DIR}/nodes/executors/pooling.hpp
     ${CPU_SRC_DIR}/nodes/executors/pooling_list.cpp
@@ -436,7 +444,12 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/qsa_indexer.cpp
     ${CPU_SRC_DIR}/nodes/qsa_indexer.h
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_common.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_backends.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_jit_backend.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_jit_backend.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_jit_kernels.hpp
     ${CPU_SRC_DIR}/nodes/random_uniform.cpp
     ${CPU_SRC_DIR}/nodes/random_uniform.hpp
     ${CPU_SRC_DIR}/nodes/range.cpp
@@ -818,6 +831,10 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/executors/x64/matmul_small.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/selective_ssm_jit_executor.cpp
     ${CPU_SRC_DIR}/nodes/executors/x64/selective_ssm_jit_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/qsa_indexer_jit_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/qsa_indexer_jit_executor.hpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/paged_qsa_indexer_jit_executor.cpp
+    ${CPU_SRC_DIR}/nodes/executors/x64/paged_qsa_indexer_jit_executor.hpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.cpp
     ${CPU_SRC_DIR}/nodes/executors/x64/subgraph.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/brgemm_kernel.cpp
@@ -850,6 +867,9 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/x64/rdft_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/registers_pool.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_jit_kernels.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_score_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_score_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.hpp

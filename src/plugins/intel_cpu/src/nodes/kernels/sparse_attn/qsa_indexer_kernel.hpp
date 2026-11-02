@@ -20,25 +20,21 @@
 
 #include "cpu_memory.h"
 #include "cpu_parallel.hpp"
-#include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
-#include "node.h"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/qsa_indexer_config.hpp"
+#include "nodes/kernels/sparse_attn/qsa_backends.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
-
-#ifdef OPENVINO_ARCH_X86_64
-#    include "nodes/kernels/sparse_attn/qsa_brgemm_scorer.hpp"
-#else
-namespace ov::intel_cpu::node::qsa {
-class BrgemmBlockScorer;
-}  // namespace ov::intel_cpu::node::qsa
-#endif
 
 namespace ov::intel_cpu::node::qsa {
 
@@ -49,23 +45,23 @@ struct Ports {
     using In = ov::intel_cpu::QSAIndexerNode::InputIdx;
     using Out = ov::intel_cpu::QSAIndexerNode::OutputIdx;
 
-    explicit Ports(const Node& node)
-        : q_idx(node.getSrcMemoryAtPort(In::Q_IDX)),
-          k_idx(node.getSrcMemoryAtPort(In::K_IDX)),
-          rope_cos(node.getSrcMemoryAtPort(In::ROPE_COS)),
-          rope_sin(node.getSrcMemoryAtPort(In::ROPE_SIN)),
-          key_length(node.getSrcMemoryAtPort(In::KEY_LENGTH)),
-          q_norm_weight(node.getSrcMemoryAtPort(In::Q_NORM_WEIGHT)),
-          k_norm_weight(node.getSrcMemoryAtPort(In::K_NORM_WEIGHT)),
+    explicit Ports(const MemoryArgs& memory)
+        : q_idx(memory.at(qsa_src_arg(In::Q_IDX))),
+          k_idx(memory.at(qsa_src_arg(In::K_IDX))),
+          rope_cos(memory.at(qsa_src_arg(In::ROPE_COS))),
+          rope_sin(memory.at(qsa_src_arg(In::ROPE_SIN))),
+          key_length(memory.at(qsa_src_arg(In::KEY_LENGTH))),
+          q_norm_weight(memory.at(qsa_src_arg(In::Q_NORM_WEIGHT))),
+          k_norm_weight(memory.at(qsa_src_arg(In::K_NORM_WEIGHT))),
           // The state inputs are read-only; the updated state lives in the matching outputs.
-          past_raw_k_in(node.getSrcMemoryAtPort(In::PAST_INCOMPLETE_RAW_K)),
-          past_rope_in(node.getSrcMemoryAtPort(In::PAST_INCOMPLETE_ROPE)),
-          summary_cache_in(node.getSrcMemoryAtPort(In::SUMMARY_CACHE)),
-          summary_cache(node.getDstMemoryAtPort(Out::SUMMARY_CACHE)),
-          past_raw_k(node.getDstMemoryAtPort(Out::PAST_INCOMPLETE_RAW_K)),
-          past_rope(node.getDstMemoryAtPort(Out::PAST_INCOMPLETE_ROPE)),
-          sel_indices(node.getDstMemoryAtPort(Out::SEL_INDICES)),
-          sel_count(node.getDstMemoryAtPort(Out::SEL_COUNT)) {}
+          past_raw_k_in(memory.at(qsa_src_arg(In::PAST_INCOMPLETE_RAW_K))),
+          past_rope_in(memory.at(qsa_src_arg(In::PAST_INCOMPLETE_ROPE))),
+          summary_cache_in(memory.at(qsa_src_arg(In::SUMMARY_CACHE))),
+          summary_cache(memory.at(qsa_dst_arg(Out::SUMMARY_CACHE))),
+          past_raw_k(memory.at(qsa_dst_arg(Out::PAST_INCOMPLETE_RAW_K))),
+          past_rope(memory.at(qsa_dst_arg(Out::PAST_INCOMPLETE_ROPE))),
+          sel_indices(memory.at(qsa_dst_arg(Out::SEL_INDICES))),
+          sel_count(memory.at(qsa_dst_arg(Out::SEL_COUNT))) {}
 
     PlainTensor q_idx, k_idx, rope_cos, rope_sin, key_length, q_norm_weight, k_norm_weight;
     PlainTensor past_raw_k_in, past_rope_in, summary_cache_in;
@@ -123,7 +119,7 @@ const float* pending_row(const Ports& p, const RowPlan& plan, size_t b, size_t h
 // [rope_cos, rope_sin] of the first token of the block starting at pending position `pos`, in the layout of the
 // past_incomplete_rope state:
 template <typename T>
-void block_ref(const Ports& p, const Config& c, const RowPlan& plan, size_t b, int64_t pos, float* dst) {
+void get_first_token_cos_sin(const Ports& p, const Config& c, const RowPlan& plan, size_t b, int64_t pos, float* dst) {
     constexpr auto prec = ov::element::from<T>();
     const size_t rotary_dim = c.indexer_rotary_dim;
     if (pos < plan.tail) {
@@ -139,29 +135,60 @@ void block_ref(const Ports& p, const Config& c, const RowPlan& plan, size_t b, i
     }
 }
 
+// Step 1 and 2 of the block's index key: the RMSNorm of the pooled keys (in place) and the RoPE of its first channels
+// with the cos / sin of the first token of the block starting at pending position `pos`. `cos_sin` is scratch for
+// [rope_cos | rope_sin].
+template <typename T, typename Backend>
+void norm_rope_block(const Backend& backend,
+                     const Ports& p,
+                     const Config& c,
+                     const RowPlan& plan,
+                     size_t b,
+                     int64_t pos,
+                     const float* k_norm_w,
+                     float* pooled,
+                     float* cos_sin) {
+    get_first_token_cos_sin<T>(p, c, plan, b, pos, cos_sin);
+    backend.rms_rope(pooled,
+                     pooled,
+                     k_norm_w,
+                     p.q_idx.size(3),
+                     c.indexer_rotary_dim,
+                     c.eps,
+                     cos_sin,
+                     cos_sin + c.indexer_rotary_dim);
+}
+
 // The buffers of one worker thread's slice of the scratch. The phases run one after the other, so they share the
 // floats; the (score, block) pairs and the chosen ids are for the scalar scoring.
 struct ThreadBuffers {
     float* q_normed;  // [H_iq, D_idx] normalized + rotated index queries (phase 1: the first row is the pooled block)
     float* row_buf;   // [D_idx] a converted row
     float* rope_cos_sin;  // [2 * rotary_dim] cos / sin of the first token of a block (phase 2: of the token)
-    BlockScore* scores;   // [blocks]
+    float* stage;         // [4, D_idx] summary rows converted to f32 (the JIT scoring)
+    float* score_f32;     // [blocks] the scores of the blocks of a token and selection head
+    BlockScore* scores;   // [blocks] (score * scale, block), what the top-k selects from
     int32_t* chosen;      // [block_topk]
 };
 
 struct ThreadLayout {
     size_t row_buf_off;       // floats
     size_t rope_cos_sin_off;  // floats
+    size_t stage_off;         // floats
+    size_t score_f32_off;     // floats
     size_t scores_off;        // bytes
     size_t chosen_off;        // bytes
     size_t bytes;
 
     static constexpr size_t kAlign = 64;
+    static constexpr size_t kStageRows = 4;  // the rows the JIT scoring converts at a time
 
     ThreadLayout(size_t H_iq, size_t D_idx, size_t rotary_dim, size_t max_blocks, size_t block_topk)
         : row_buf_off(H_iq * D_idx),
           rope_cos_sin_off(row_buf_off + D_idx),
-          scores_off(rnd_up((rope_cos_sin_off + 2 * rotary_dim) * sizeof(float), kAlign)),
+          stage_off(rope_cos_sin_off + 2 * rotary_dim),
+          score_f32_off(stage_off + kStageRows * D_idx),
+          scores_off(rnd_up((score_f32_off + max_blocks) * sizeof(float), kAlign)),
           chosen_off(rnd_up(scores_off + max_blocks * sizeof(BlockScore), kAlign)),
           bytes(rnd_up(chosen_off + block_topk * sizeof(int32_t), kAlign)) {}
 
@@ -170,6 +197,8 @@ struct ThreadLayout {
         return {floats,
                 floats + row_buf_off,
                 floats + rope_cos_sin_off,
+                floats + stage_off,
+                floats + score_f32_off,
                 reinterpret_cast<BlockScore*>(slice + scores_off),
                 reinterpret_cast<int32_t*>(slice + chosen_off)};
     }
@@ -185,7 +214,7 @@ public:
     IndexerScratch(const Ports& p,
                    const Config& c,
                    const RowStats& stats,
-                   const GraphContext::CPtr& context,
+                   const ExecutorContext::CPtr& context,
                    const BrgemmBlockScorer* brgemm_scorer)
         : scorer(brgemm_scorer != nullptr && p.summary_cache.size(2) > 0 ? brgemm_scorer : nullptr),
           layout(p.q_idx.size(2), p.q_idx.size(3), c.indexer_rotary_dim, p.summary_cache.size(2), c.block_topk) {
@@ -353,53 +382,47 @@ void initialize_summary_cache(const Ports& p, const CpuParallel& parallel) {
 //   RMS    pooled / sqrt(mean(pooled^2) + eps) * k_norm_weight   [D]
 //   RoPE   the first Dr channels rotated with the cos / sin of the FIRST token of the block ([Dr] each)
 // and the result is the index key of the block: summary_cache[b, h, blk, :] ----
-template <typename T>
-void append_complete_blocks(const Ports& p,
+template <typename T, typename Backend>
+void append_complete_blocks(const Backend& backend,
+                            const Ports& p,
                             const Config& c,
                             const RowStats& stats,
                             const IndexerScratch<T>& scratch,
                             const CpuParallel& parallel) {
     const size_t D_idx = p.q_idx.size(3);
     const auto r = static_cast<int64_t>(c.compress_ratio);
-    parallel.parallel_for3d(p.q_idx.size(0),
-                            p.k_idx.size(2),
-                            static_cast<size_t>(stats.max_new_blocks),
-                            [&](size_t b, size_t h, size_t j) {
-                                const auto plan = row_plan(p, c, b);
-                                if (static_cast<int64_t>(j) >= plan.new_blocks) {
-                                    return;
-                                }
-                                const auto buf = scratch.thread();
-                                float* const pooled = buf.q_normed;
+    parallel.parallel_for3d(
+        p.q_idx.size(0),
+        p.k_idx.size(2),
+        static_cast<size_t>(stats.max_new_blocks),
+        [&](size_t b, size_t h, size_t j) {
+            const auto plan = row_plan(p, c, b);
+            if (static_cast<int64_t>(j) >= plan.new_blocks) {
+                return;
+            }
+            const auto buf = scratch.thread();
+            float* const pooled = buf.q_normed;
 
-                                const int64_t block_start = static_cast<int64_t>(j) * r;
-                                std::fill_n(pooled, D_idx, 0.0F);
-                                for (int64_t pos = block_start; pos < block_start + r; pos++) {
-                                    const float* const row = pending_row<T>(p, plan, b, h, pos, buf.row_buf);
-                                    for (size_t d = 0; d < D_idx; d++) {
-                                        pooled[d] += row[d];
-                                    }
-                                }
-                                const float inv_r = 1.0F / static_cast<float>(r);
-                                for (size_t d = 0; d < D_idx; d++) {
-                                    pooled[d] *= inv_r;
-                                }
-                                block_ref<T>(p, c, plan, b, block_start, buf.rope_cos_sin);
-                                rmsnorm_partial_rope(pooled,
-                                                     pooled,
-                                                     scratch.k_norm_w,
-                                                     D_idx,
-                                                     c.indexer_rotary_dim,
-                                                     c.eps,
-                                                     buf.rope_cos_sin,
-                                                     buf.rope_cos_sin + c.indexer_rotary_dim);
-                                const auto blk = static_cast<size_t>(plan.past_blocks) + j;
-                                cpu_convert(pooled,
-                                            p.summary_cache.template ptr<T>(b, h, blk),
-                                            ov::element::f32,
-                                            ov::element::from<T>(),
-                                            D_idx);
-                            });
+            const int64_t block_start = static_cast<int64_t>(j) * r;
+            std::fill_n(pooled, D_idx, 0.0F);
+            for (int64_t pos = block_start; pos < block_start + r; pos++) {
+                const float* const row = pending_row<T>(p, plan, b, h, pos, buf.row_buf);
+                for (size_t d = 0; d < D_idx; d++) {
+                    pooled[d] += row[d];
+                }
+            }
+            const float inv_r = 1.0F / static_cast<float>(r);
+            for (size_t d = 0; d < D_idx; d++) {
+                pooled[d] *= inv_r;
+            }
+            norm_rope_block<T>(backend, p, c, plan, b, block_start, scratch.k_norm_w, pooled, buf.rope_cos_sin);
+            const auto blk = static_cast<size_t>(plan.past_blocks) + j;
+            cpu_convert(pooled,
+                        p.summary_cache.template ptr<T>(b, h, blk),
+                        ov::element::f32,
+                        ov::element::from<T>(),
+                        D_idx);
+        });
 }
 
 // ---- Phase 1b: fully overwrite the fixed-size incomplete-block state: the raw keys [B, H_ik, ratio - 1, D] of the
@@ -431,7 +454,7 @@ void update_incomplete_block(const Ports& p,
             }
         }
         if (rest > 0) {
-            block_ref<T>(p, c, plan, b, rest_start, buf.rope_cos_sin);
+            get_first_token_cos_sin<T>(p, c, plan, b, rest_start, buf.rope_cos_sin);
         } else {
             std::fill_n(buf.rope_cos_sin, 2 * c.indexer_rotary_dim, 0.0F);
         }
@@ -452,10 +475,14 @@ bool run_brgemm_scorer(const Ports& p, const Config& c, const IndexerScratch<T>&
 }
 #endif
 
-// ---- Phase 2 (scalar scoring, the fallback of the brgemm scorer; see qsa_brgemm_scorer.hpp for the steps): per
-// real token, query RMSNorm + RoPE, then per-selection-head scoring of the complete blocks ----
-template <typename T>
-void run_scalar_scorer(const Ports& p, const Config& c, const IndexerScratch<T>& scratch, const CpuParallel& parallel) {
+// ---- Phase 2 per real token (the steps are described in qsa_brgemm_scorer.hpp): the query RMSNorm + RoPE, then per
+// selection head the scoring of the complete blocks (what the backend provides) and the top-k ----
+template <typename T, typename Backend>
+void run_token_scorer(const Backend& backend,
+                      const Ports& p,
+                      const Config& c,
+                      const IndexerScratch<T>& scratch,
+                      const CpuParallel& parallel) {
     const size_t D_idx = p.q_idx.size(3);
     const size_t H_iq = p.q_idx.size(2);
     const size_t H_ik = p.k_idx.size(2);
@@ -479,14 +506,14 @@ void run_scalar_scorer(const Ports& p, const Config& c, const IndexerScratch<T>&
         const float* const sin_row = row_f32<T>(p.rope_sin, rotary_dim, rope_sin_buf, rope_batch(p.rope_sin, b), l);
         for (size_t h = 0; h < H_iq; h++) {
             const float* const q_row = row_f32<T>(p.q_idx, D_idx, buf.row_buf, b, l, h);
-            rmsnorm_partial_rope(q_row,
-                                 buf.q_normed + h * D_idx,
-                                 scratch.q_norm_w,
-                                 D_idx,
-                                 rotary_dim,
-                                 c.eps,
-                                 cos_row,
-                                 sin_row);
+            backend.rms_rope(q_row,
+                             buf.q_normed + h * D_idx,
+                             scratch.q_norm_w,
+                             D_idx,
+                             rotary_dim,
+                             c.eps,
+                             cos_row,
+                             sin_row);
         }
 
         // ---- Phase 2b: per selection head sh and complete block blk visible to the token:
@@ -500,22 +527,21 @@ void run_scalar_scorer(const Ports& p, const Config& c, const IndexerScratch<T>&
             const size_t hk_end = div_up((sh + 1) * H_ik, c.h_sel);
             size_t k = 0;
             if (n_complete > 0) {
+                // the scores of the complete blocks, summed over the index key heads of the selection head: the
+                // blocks of a head are contiguous rows of the summary cache
+                std::fill_n(buf.score_f32, static_cast<size_t>(n_complete), 0.0F);
+                for (size_t hk = hk_begin; hk < hk_end; hk++) {
+                    backend.template score_run<T>(buf.q_normed + hk * G * D_idx,
+                                                  p.summary_cache.template ptr<T>(b, hk, 0),
+                                                  static_cast<size_t>(n_complete),
+                                                  G,
+                                                  D_idx,
+                                                  buf.score_f32,
+                                                  buf.stage,
+                                                  buf.row_buf);
+                }
                 for (int64_t blk = 0; blk < n_complete; blk++) {
-                    float score = 0.0F;
-                    for (size_t hk = hk_begin; hk < hk_end; hk++) {
-                        // a summary row is converted once per block and index key head, whatever the number of query
-                        // heads that share it
-                        const float* const block_f32 =
-                            row_f32<T>(p.summary_cache, D_idx, buf.row_buf, b, hk, static_cast<size_t>(blk));
-                        for (size_t h = hk * G; h < (hk + 1) * G; h++) {
-                            float dot = 0.0F;
-                            for (size_t d = 0; d < D_idx; d++) {
-                                dot += buf.q_normed[h * D_idx + d] * block_f32[d];
-                            }
-                            score += std::max(0.0F, dot);
-                        }
-                    }
-                    buf.scores[blk] = {score * scale, static_cast<int32_t>(blk)};
+                    buf.scores[blk] = {buf.score_f32[blk] * scale, static_cast<int32_t>(blk)};
                 }
                 k = select_topk(buf.scores,
                                 buf.chosen,
@@ -530,29 +556,49 @@ void run_scalar_scorer(const Ports& p, const Config& c, const IndexerScratch<T>&
     });
 }
 
-// The node's computation, T is the precision of its data ports. `scorer` is null when the node has no brgemm scorer.
+// Phase 2 of the plain C++ backend.
 template <typename T>
-void run_indexer(const Node& node,
-                 const Config& config,
-                 const GraphContext::CPtr& context,
-                 const BrgemmBlockScorer* scorer) {
-    const Ports ports(node);
+void run_scorer(const ScalarBackend& backend,
+                const Ports& p,
+                const Config& c,
+                const IndexerScratch<T>& scratch,
+                const CpuParallel& parallel) {
+    run_token_scorer<T>(backend, p, c, scratch, parallel);
+}
+
+// The computation of the node, T is the precision of its data ports.
+template <typename T, typename Backend>
+void run_indexer_typed(const Backend& backend,
+                       const MemoryArgs& memory,
+                       const Config& config,
+                       const ExecutorContext::CPtr& context) {
+    const Ports ports(memory);
     const RowStats stats = row_stats(ports, config);
-    const IndexerScratch<T> scratch(ports, config, stats, context, scorer);
+    const IndexerScratch<T> scratch(ports, config, stats, context, backend.scorer());
     const auto cpu_parallel = context->getCpuParallel();
     const CpuParallel& parallel = *cpu_parallel;
 
     initialize_summary_cache<T>(ports, parallel);
-    append_complete_blocks<T>(ports, config, stats, scratch, parallel);
+    append_complete_blocks<T>(backend, ports, config, stats, scratch, parallel);
     update_incomplete_block<T>(ports, config, scratch, parallel);
+    run_scorer<T>(backend, ports, config, scratch, parallel);
+}
 
-#ifdef OPENVINO_ARCH_X86_64
-    if (run_brgemm_scorer<T>(ports, config, scratch, parallel)) {
-        return;
+template <typename Backend>
+void run_indexer(const Backend& backend,
+                 const MemoryArgs& memory,
+                 const Config& config,
+                 const ExecutorContext::CPtr& context) {
+    const auto precision = memory.at(qsa_src_arg(Ports::In::Q_IDX))->getDesc().getPrecision();
+    if (precision == ov::element::f32) {
+        run_indexer_typed<float>(backend, memory, config, context);
+    } else if (precision == ov::element::f16) {
+        run_indexer_typed<ov::float16>(backend, memory, config, context);
+    } else if (precision == ov::element::bf16) {
+        run_indexer_typed<ov::bfloat16>(backend, memory, config, context);
+    } else {
+        OPENVINO_THROW("QSAIndexer: unsupported precision ", precision);
     }
-#endif
-
-    run_scalar_scorer<T>(ports, config, scratch, parallel);
 }
 
 }  // namespace ov::intel_cpu::node::qsa
