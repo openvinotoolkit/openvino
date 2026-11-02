@@ -182,6 +182,32 @@ TEST_F(GGUFMMProj, ExtensionReusesBuiltinProjectorAndReplacementIsExplicit) {
                  ov::Exception);
 }
 
+TEST_F(GGUFMMProj, ReplacementProjectorKeepsExplicitUnsupportedGenAILayout) {
+    using namespace ov::frontend::gguf;
+    using Adapter = pass::AdaptMmprojToGenAI;
+    encoder("vision", "gemma3");
+    ASSERT_TRUE(writer.write(path));
+    ProjectorDefinition definition{"clip.vision.gemma3",
+                                   "clip",
+                                   "vision",
+                                   "gemma3",
+                                   [](GgufGraphContext& graph) {
+                                       auto result = build_builtin_projector(graph, "vision", "gemma3");
+                                       result.genai_layout = ProjectorLayout::Unsupported;
+                                       return result;
+                                   },
+                                   {}};
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace));
+    auto model = frontend.convert(frontend.load(path));
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "unsupported");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    OV_EXPECT_THROW(adapter.run_on_model(restored), ov::Exception, testing::HasSubstr("no GenAI vision layout"));
+    EXPECT_TRUE(adapter.get_vision_models().empty());
+}
+
 TEST_F(GGUFMMProj, CustomProjectorOverridesSerializableGenAILayout) {
     using namespace ov::frontend::gguf;
     using Adapter = pass::AdaptMmprojToGenAI;
