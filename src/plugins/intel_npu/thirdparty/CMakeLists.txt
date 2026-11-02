@@ -6,9 +6,11 @@
 # zeroApi
 #
 
-add_library(level-zero-ext INTERFACE)
-set_property(TARGET level-zero-ext APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/level-zero-ext/>)
-add_library(LevelZero::NPUExt ALIAS level-zero-ext)
+if(ENABLE_NPU_PLUGIN_ENGINE)
+    add_library(level-zero-ext INTERFACE)
+    set_property(TARGET level-zero-ext APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/level-zero-ext/>)
+    add_library(LevelZero::NPUExt ALIAS level-zero-ext)
+endif()
 
 #
 # yaml-cpp
