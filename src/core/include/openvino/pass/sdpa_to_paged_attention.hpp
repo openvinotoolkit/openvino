@@ -149,8 +149,8 @@ struct PaResults : public NamedNodeStore<ov::op::v0::Result, ov::ResultVector> {
  * @brief The transformation replaces KV-cache processing part in LLMs by PagedAttention operation.
  * NOTE:
  * The transformation may throw an exception when some configuration of the model failed:
- * i.e. the SDPA node is absent in the model. This means the graph cannot be processed for the PA scenario,
- * so the GenAI pipeline (the only pipeline the transformation is used in so far) will fallback to the SDPA
+ * i.e. both SDPA and SparseAttention nodes are absent in the model. This means the graph cannot be processed for the PA
+ * scenario, so the GenAI pipeline (the only pipeline the transformation is used in so far) will fallback to the SDPA
  * implementaion and run inference using it.
  * \ingroup ov_pass_cpp_api
  */

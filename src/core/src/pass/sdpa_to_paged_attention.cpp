@@ -4,6 +4,9 @@
 
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
 
+#include <algorithm>
+#include <unordered_set>
+
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/assign.hpp"
@@ -11,6 +14,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
@@ -23,6 +27,7 @@
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
 #include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
+#include "transformations/paged_attention/paged_sparse_attention_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
@@ -82,9 +87,11 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "
                     "of --task text-generation");
 
-    OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
-                    "No ScaledDotProductAttention operation observed in the graph, cannot perform "
-                    "the SDPAToPagedAttention transformation.");
+    const bool has_sparse_attention = ov::op::util::has_op_with_type<ov::op::v17::SparseAttention>(model);
+    OPENVINO_ASSERT(
+        ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model) || has_sparse_attention,
+        "No ScaledDotProductAttention or SparseAttention operation observed in the graph, cannot perform "
+        "the SDPAToPagedAttention transformation.");
 
     m_params = PaParams{model->get_parameters()};
     m_results = PaResults{model->get_results()};
@@ -116,6 +123,21 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
     for (const auto& target : input_ids_target_inputs) {
         target.replace_source_output(processed_input_ids);
+    }
+
+    // Pack the ngram embeddings alongside inputs_embeds. Restore the singleton sequence axis
+    // for existing consumers: [B_token, num_ngrams, embedding_size] -> [B_token, 1, num_ngrams, embedding_size].
+    if (const auto ngram_embeddings = get_parameter(model, "ngram_embeddings")) {
+        const auto ngram_shape = ngram_embeddings->get_partial_shape();
+        OPENVINO_ASSERT(ngram_shape.rank() == 4,
+                        "Expected ngram_embeddings in [B_seq, L, num_ngrams, embedding_size] layout.");
+        const auto targets = ngram_embeddings->get_output_target_inputs(0);
+        ngram_embeddings->set_partial_shape(PartialShape{-1, ngram_shape[2], ngram_shape[3]});
+        const auto unsqueezed =
+            std::make_shared<v0::Unsqueeze>(ngram_embeddings, v0::Constant::create(element::i32, Shape{}, {1}));
+        for (const auto& target : targets) {
+            target.replace_source_output(unsqueezed);
+        }
     }
 
     std::unordered_set<std::string> var_ids_to_remove;
@@ -162,6 +184,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     } else {
         manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
     }
+    manager.register_pass<PagedSparseAttentionFusion>(m_params, m_options, var_ids_to_remove);
     manager.register_pass<EliminateConvPaddingMaskGating>();
     auto paged_ssm_fusion = manager.register_pass<PagedSelectiveSSMFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PagedCausalConv1DFusion>(m_params, var_ids_to_remove);
@@ -198,23 +221,21 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
         }
     }
 
+    // Sparse indexing may still need beam_idx and attention_mask. For sparse models,
+    // retain parameters referenced by the remaining graph, ignoring discarded subgraphs.
+    std::unordered_set<const ov::Node*> live_nodes;
+    for (const auto& node : model->get_ordered_ops()) {
+        live_nodes.insert(node.get());
+    }
+
     for (const auto& param_name : params_to_remove) {
         if (auto param = get_parameter(model, param_name)) {
-            model->remove_parameter(param);
-
-            if (param->output(0).get_target_inputs().size() == 0) {
-                std::stringstream consumers;
-                consumers << std::endl;
-                for (auto& input : param->output(0).get_target_inputs()) {
-                    consumers << *input.get_node() << std::endl;
-                }
-                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
-                                "PagedAttention transformation failed: couldn't remove ",
-                                param->output(0).get_target_inputs().size(),
-                                " inputs of ",
-                                param_name,
-                                " input: ",
-                                consumers.str());
+            const auto consumers = param->get_output_target_inputs(0);
+            const bool has_live_consumers = std::any_of(consumers.begin(), consumers.end(), [&](const auto& input) {
+                return live_nodes.count(input.get_node()) != 0;
+            });
+            if (!has_sparse_attention || !has_live_consumers) {
+                model->remove_parameter(param);
             }
         }
     }
