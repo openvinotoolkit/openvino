@@ -309,6 +309,7 @@ device_info init_device_info(const ::sycl::device& device, const ::sycl::context
 #else  // ENABLE_ONEDNN_FOR_GPU
     info.arch = gpu_arch::unknown;
 #endif  // ENABLE_ONEDNN_FOR_GPU
+    info.supports_bf16 = info.supports_immad;
 
     return info;
 }
