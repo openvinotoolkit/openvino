@@ -1235,6 +1235,9 @@ INSTANTIATE_TEST_SUITE_P(
     onednn_sdpa_gpu_test::PrintToStringParamName);
 #endif  // ENABLE_DEBUG_CAPS
 
+// V with the head dim strided (input_v_transpose_order {0,1,3,2}, V stored [b, h, head_size, seq]) must give the same
+// result as the plain layout. Only the removed sdpa_micro read that layout; sdpa_ocl and sdpa_opt take the head dim of V
+// as contiguous, so the op goes to sdpa_ref (SDPAOpt::validate_impl()), while the plain layout runs sdpa_ocl.
 TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
     constexpr int batch = 1;
     constexpr int heads = 4;
@@ -1281,7 +1284,8 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
 
     auto execute = [&](const layout& input_v_layout,
                        const memory::ptr& input_v,
-                       const std::vector<int64_t>& input_v_order) {
+                       const std::vector<int64_t>& input_v_order,
+                       const std::string& expected_kernel) {
         topology topo;
         topo.add(input_layout("q", q_layout));
         topo.add(input_layout("k", k_layout));
@@ -1300,18 +1304,11 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
 
         auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
-        std::string sdpa_info;
-        for (const auto& info : network->get_primitives_info()) {
-            if (info.type_id == "scaled_dot_product_attention") {
-                sdpa_info = network->get_primitive_info(info.original_id);
-                break;
-            }
-        }
-        EXPECT_NE(sdpa_info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was not selected; node description was:\n" << sdpa_info;
+        const std::string sdpa_info = network->get_primitive_info("sdpa");
+        EXPECT_NE(sdpa_info.find(expected_kernel), std::string::npos) << expected_kernel << " was not selected; node description was:\n" << sdpa_info;
 
         network->set_input_data("q", q_mem);
         network->set_input_data("k", k_mem);
@@ -1319,8 +1316,8 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
         return network->execute().at("result").get_memory();
     };
 
-    auto reference_mem = execute(v_layout, v_mem, {0, 1, 2, 3});
-    auto transposed_mem = execute(transposed_v_layout, transposed_v_mem, {0, 1, 3, 2});
+    auto reference_mem = execute(v_layout, v_mem, {0, 1, 2, 3}, "sdpa_ocl");
+    auto transposed_mem = execute(transposed_v_layout, transposed_v_mem, {0, 1, 3, 2}, "sdpa_ref");
 
     mem_lock<ov::float16, mem_lock_type::read> reference(reference_mem, get_test_stream());
     mem_lock<ov::float16, mem_lock_type::read> transposed(transposed_mem, get_test_stream());
@@ -1331,8 +1328,8 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
     }
 }
 
-// Uses seq_q == seq_kv so the last query workgroup's causal_k always spans the full seq_kv,
-// forcing the K/V loop to cross multiple K-tiles and exercise the TRANSPOSE_V advancement path.
+// Same as above with seq_q == seq_kv, so the last queries attend to the full seq_kv (with sdpa_micro this crossed several
+// K tiles of its TRANSPOSE_V path; now the transposed run is sdpa_ref).
 TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
     constexpr int batch = 1;
     constexpr int heads = 4;
@@ -1379,7 +1376,8 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
 
     auto execute = [&](const layout& input_v_layout,
                        const memory::ptr& input_v,
-                       const std::vector<int64_t>& input_v_order) {
+                       const std::vector<int64_t>& input_v_order,
+                       const std::string& expected_kernel) {
         topology topo;
         topo.add(input_layout("q", q_layout));
         topo.add(input_layout("k", k_layout));
@@ -1398,18 +1396,11 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
 
         auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
-        std::string sdpa_info;
-        for (const auto& info : network->get_primitives_info()) {
-            if (info.type_id == "scaled_dot_product_attention") {
-                sdpa_info = network->get_primitive_info(info.original_id);
-                break;
-            }
-        }
-        EXPECT_NE(sdpa_info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was not selected; node description was:\n" << sdpa_info;
+        const std::string sdpa_info = network->get_primitive_info("sdpa");
+        EXPECT_NE(sdpa_info.find(expected_kernel), std::string::npos) << expected_kernel << " was not selected; node description was:\n" << sdpa_info;
 
         network->set_input_data("q", q_mem);
         network->set_input_data("k", k_mem);
@@ -1417,8 +1408,8 @@ TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v_multi_tile) {
         return network->execute().at("result").get_memory();
     };
 
-    auto reference_mem = execute(v_layout, v_mem, {0, 1, 2, 3});
-    auto transposed_mem = execute(transposed_v_layout, transposed_v_mem, {0, 1, 3, 2});
+    auto reference_mem = execute(v_layout, v_mem, {0, 1, 2, 3}, "sdpa_ocl");
+    auto transposed_mem = execute(transposed_v_layout, transposed_v_mem, {0, 1, 3, 2}, "sdpa_ref");
 
     mem_lock<ov::float16, mem_lock_type::read> reference(reference_mem, get_test_stream());
     mem_lock<ov::float16, mem_lock_type::read> transposed(transposed_mem, get_test_stream());
