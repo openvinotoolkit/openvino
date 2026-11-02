@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <unordered_set>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -11,6 +13,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/matmul.hpp"
@@ -21,7 +24,9 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -1384,4 +1389,257 @@ TEST_F(TransformationTestsF, MarkRandomUniformAsPrecisionSensitive) {
 
     model_ref = model->clone();
     manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true, false, true);
+}
+
+namespace {
+
+void compare_marks(const shared_ptr<Model>& model, const shared_ptr<Model>& model_ref) {
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    // compare twice to ensure that no extra nodes are marked
+    FunctionsComparator::Result result = func_comparator(model_ref, model);
+    ASSERT_TRUE(result.valid) << result.message;
+    result = func_comparator(model, model_ref);
+    ASSERT_TRUE(result.valid) << result.message;
+}
+
+// sum(hidden * mask, 1) / mask.sum(1): masked mean pooling without eps (HF ModernBERT), preceded by residual Adds
+shared_ptr<Model> make_masked_mean_pooling(const PartialShape& hidden_shape, bool reference) {
+    auto hidden = make_shared<Parameter>(element::f32, hidden_shape);
+    auto residual = make_shared<Parameter>(element::f32, hidden_shape);
+    auto add_1 = make_shared<Add>(hidden, residual);
+    auto add_2 = make_shared<Add>(add_1, residual);
+    auto weights = Constant::create(element::f32, Shape{8, 8}, vector<float>(64, 0.5f));
+    auto other_branch = make_shared<MatMul>(add_2, weights);
+
+    auto mask = make_shared<Parameter>(element::i64, PartialShape{hidden_shape[0], hidden_shape[1]});
+    auto mask_unsqueezed = make_shared<Unsqueeze>(mask, Constant::create(element::i64, Shape{1}, {-1}));
+    auto mask_converted = make_shared<Convert>(mask_unsqueezed, element::f32);
+    auto masked = make_shared<Multiply>(add_2, mask_converted);
+    auto sum = make_shared<ReduceSum>(masked, Constant::create(element::i64, Shape{1}, {1}), false);
+    auto count = make_shared<ReduceSum>(mask, Constant::create(element::i64, Shape{1}, {1}), true);
+    auto count_converted = make_shared<Convert>(count, element::f32);
+    count_converted->set_friendly_name("count_converted");
+    auto mean = make_shared<Divide>(sum, count_converted);
+    auto classifier = make_shared<MatMul>(mean, weights);
+
+    if (reference) {
+        for (const auto& node : NodeVector{masked, sum, count_converted, mean}) {
+            disable_conversion(node, element::f16);
+        }
+    }
+    return make_shared<Model>(OutputVector{classifier, other_branch}, ParameterVector{hidden, residual, mask});
+}
+
+}  // namespace
+
+TEST(TransformationTests, MarkSumDivCountToKeepInMixedPrecision_MaskedMeanPooling) {
+    for (const auto& shape : {PartialShape{2, 16, 8}, PartialShape{-1, -1, 8}}) {
+        auto model = make_masked_mean_pooling(shape, false);
+        pass::Manager manager;
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+        compare_marks(model, make_masked_mean_pooling(shape, true));
+    }
+}
+
+// sum(hidden * w, 1) / w.sum(1) with float weights: the weighted product is kept in fp32 as well
+TEST(TransformationTests, MarkSumDivCountToKeepInMixedPrecision_FloatWeights) {
+    auto build = [](bool reference) {
+        auto hidden = make_shared<Parameter>(element::f32, PartialShape{2, -1, 8});
+        auto residual = make_shared<Parameter>(element::f32, PartialShape{2, -1, 8});
+        auto add = make_shared<Add>(hidden, residual);
+        auto weights = make_shared<Parameter>(element::f32, PartialShape{2, -1, 1});
+        auto weighted = make_shared<Multiply>(add, weights);
+        auto sum = make_shared<ReduceSum>(weighted, Constant::create(element::i64, Shape{1}, {1}), false);
+        auto count = make_shared<ReduceSum>(weights, Constant::create(element::i64, Shape{1}, {1}), false);
+        auto mean = make_shared<Divide>(sum, count);
+        if (reference) {
+            for (const auto& node : NodeVector{weighted, sum, count, mean}) {
+                disable_conversion(node, element::f16);
+            }
+        }
+        return make_shared<Model>(OutputVector{mean}, ParameterVector{hidden, residual, weights});
+    };
+    auto model = build(false);
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+    compare_marks(model, build(true));
+}
+
+// wav2vec2 heads: the integer count is reshaped to [B, 1] before the Convert
+TEST(TransformationTests, MarkSumDivCountToKeepInMixedPrecision_ReshapedIntegerCount) {
+    auto build = [](bool reference) {
+        auto hidden = make_shared<Parameter>(element::f32, PartialShape{2, -1, 8});
+        auto mask = make_shared<Parameter>(element::i64, PartialShape{2, -1});
+        auto mask_converted =
+            make_shared<Convert>(make_shared<Unsqueeze>(mask, Constant::create(element::i64, Shape{1}, {-1})),
+                                 element::f32);
+        auto masked = make_shared<Multiply>(hidden, mask_converted);
+        auto sum = make_shared<ReduceSum>(masked, Constant::create(element::i64, Shape{1}, {1}), false);
+        auto count = make_shared<ReduceSum>(mask, Constant::create(element::i64, Shape{1}, {1}), false);
+        auto target_shape = Constant::create(element::i64, Shape{2}, {-1, 1});
+        auto count_reshaped = make_shared<Reshape>(count, target_shape, false);
+        auto count_converted = make_shared<Convert>(count_reshaped, element::f32);
+        auto mean = make_shared<Divide>(sum, count_converted);
+        if (reference) {
+            for (const auto& node : NodeVector{masked, sum, count_converted, mean}) {
+                disable_conversion(node, element::f16);
+            }
+            // marked by MarkPrecisionSensitiveShapeOfSubgraphs: the target shape is a precision sensitive input
+            disable_conversion(target_shape, element::f16);
+        }
+        return make_shared<Model>(OutputVector{mean}, ParameterVector{hidden, mask});
+    };
+    auto model = build(false);
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+    compare_marks(model, build(true));
+}
+
+// the converted count is unsqueezed to [B, 1]: the Unsqueeze is on the count path, kept in fp32 as well
+TEST(TransformationTests, MarkSumDivCountToKeepInMixedPrecision_UnsqueezedConvertedCount) {
+    auto build = [](bool reference) {
+        auto hidden = make_shared<Parameter>(element::f32, PartialShape{2, -1, 8});
+        auto mask = make_shared<Parameter>(element::i64, PartialShape{2, -1});
+        auto mask_converted =
+            make_shared<Convert>(make_shared<Unsqueeze>(mask, Constant::create(element::i64, Shape{1}, {-1})),
+                                 element::f32);
+        auto masked = make_shared<Multiply>(hidden, mask_converted);
+        auto sum = make_shared<ReduceSum>(masked, Constant::create(element::i64, Shape{1}, {1}), false);
+        auto count = make_shared<ReduceSum>(mask, Constant::create(element::i64, Shape{1}, {1}), false);
+        auto count_converted = make_shared<Convert>(count, element::f32);
+        auto unsqueeze_axis = Constant::create(element::i64, Shape{1}, {-1});
+        auto count_unsqueezed = make_shared<Unsqueeze>(count_converted, unsqueeze_axis);
+        auto mean = make_shared<Divide>(sum, count_unsqueezed);
+        if (reference) {
+            for (const auto& node : NodeVector{masked, sum, count_converted, count_unsqueezed, mean}) {
+                disable_conversion(node, element::f16);
+            }
+        }
+        return make_shared<Model>(OutputVector{mean}, ParameterVector{hidden, mask});
+    };
+    auto model = build(false);
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+    compare_marks(model, build(true));
+}
+
+// masked RMSNorm x / sqrt(sum(x * x * mask) / sum(mask) + eps): the eps pattern still keeps the whole norm in fp32,
+// including x * x above the masked mean
+TEST(TransformationTests, MarkSumDivCountToKeepInMixedPrecision_MaskedRMSNormKeepsSquareMarked) {
+    auto x = make_shared<Parameter>(element::f32, PartialShape{2, -1, 8});
+    auto mask = make_shared<Parameter>(element::f32, PartialShape{2, -1, 1});
+    auto square = make_shared<Multiply>(x, x);
+    auto masked = make_shared<Multiply>(square, mask);
+    auto sum = make_shared<ReduceSum>(masked, Constant::create(element::i64, Shape{1}, {1}), true);
+    auto count = make_shared<ReduceSum>(mask, Constant::create(element::i64, Shape{1}, {1}), true);
+    auto mean = make_shared<Divide>(sum, count);
+    auto eps = Constant::create(element::f32, Shape{}, {1e-6f});
+    auto add_eps = make_shared<Add>(mean, eps);
+    auto root = make_shared<Sqrt>(add_eps);
+    auto normalized = make_shared<Divide>(x, root);
+    auto model = make_shared<Model>(OutputVector{normalized}, ParameterVector{x, mask});
+
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+
+    for (const auto& node : NodeVector{square, masked, sum, mean}) {
+        EXPECT_TRUE(is_conversion_disabled(node, element::f16)) << node;
+    }
+}
+
+// the masking product has another consumer: it keeps its precision, only the pooling itself is kept in fp32
+TEST(TransformationTests, MarkSumDivCountToKeepInMixedPrecision_SharedProductIsNotMarked) {
+    auto build = [](bool reference) {
+        auto hidden = make_shared<Parameter>(element::f32, PartialShape{2, -1, 8});
+        auto weights = make_shared<Parameter>(element::f32, PartialShape{2, -1, 1});
+        auto weighted = make_shared<Multiply>(hidden, weights);
+        auto other = make_shared<Relu>(weighted);
+        auto sum = make_shared<ReduceSum>(weighted, Constant::create(element::i64, Shape{1}, {1}), false);
+        auto count = make_shared<ReduceSum>(weights, Constant::create(element::i64, Shape{1}, {1}), false);
+        auto mean = make_shared<Divide>(sum, count);
+        if (reference) {
+            for (const auto& node : NodeVector{sum, count, mean}) {
+                disable_conversion(node, element::f16);
+            }
+        }
+        return make_shared<Model>(OutputVector{mean, other}, ParameterVector{hidden, weights});
+    };
+    auto model = build(false);
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+    compare_marks(model, build(true));
+}
+
+// the count comes from the shape, not from a ReduceSum: e.g. a hand-written mean, not marked
+TEST(TransformationTests, MarkSumDivCountToKeepInMixedPrecision_ShapeOfDivisorIsNotMarked) {
+    auto build = [] {
+        auto hidden = make_shared<Parameter>(element::f32, PartialShape{2, -1, 8});
+        auto sum = make_shared<ReduceSum>(hidden, Constant::create(element::i64, Shape{1}, {1}), false);
+        auto length = make_shared<Gather>(make_shared<ShapeOf>(hidden),
+                                          Constant::create(element::i64, Shape{1}, {1}),
+                                          Constant::create(element::i64, Shape{}, {0}));
+        auto mean = make_shared<Divide>(sum, make_shared<Convert>(length, element::f32));
+        return make_shared<Model>(OutputVector{mean}, ParameterVector{hidden});
+    };
+    auto model = build();
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+    compare_marks(model, build());
+}
+
+// the sum and the count are taken over different axes: not a mean, not marked
+TEST(TransformationTests, MarkSumDivCountToKeepInMixedPrecision_DifferentAxesAreNotMarked) {
+    auto build = [] {
+        auto hidden = make_shared<Parameter>(element::f32, PartialShape{2, 16, 8});
+        auto mask = make_shared<Parameter>(element::f32, PartialShape{2, 16, 8});
+        auto sum = make_shared<ReduceSum>(hidden, Constant::create(element::i64, Shape{1}, {1}), true);
+        auto count = make_shared<ReduceSum>(mask, Constant::create(element::i64, Shape{1}, {2}), true);
+        auto ratio = make_shared<Divide>(sum, count);
+        return make_shared<Model>(OutputVector{ratio}, ParameterVector{hidden, mask});
+    };
+    auto model = build();
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+    compare_marks(model, build());
+}
+
+// with ConvertPrecision as in the CPU plugin: the pooling is computed in fp32, its producers keep f16
+TEST(TransformationTests, ConvertPrecision_MaskedMeanPoolingKeptInFP32) {
+    auto model = make_masked_mean_pooling(PartialShape{-1, -1, 8}, false);
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true,
+                                                  false);
+    manager.run_passes(model);
+
+    size_t checked = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (is_type_any_of<Divide, ReduceSum, Multiply>(node) && node->get_output_element_type(0).is_real()) {
+            EXPECT_EQ(node->get_output_element_type(0), element::f32) << node;
+            checked++;
+        } else if (is_type<Add>(node)) {
+            EXPECT_EQ(node->get_output_element_type(0), element::f16) << node;
+            checked++;
+        } else if (is_type<MatMul>(node)) {
+            // the classifier after the pooling and the other consumer of the hidden states keep f16
+            EXPECT_EQ(node->get_output_element_type(0), element::f16) << node;
+            checked++;
+        } else if (node->get_friendly_name() == "count_converted") {
+            // an integer count above 2048 is not exact in f16
+            EXPECT_EQ(node->get_output_element_type(0), element::f32) << node;
+            checked++;
+        }
+    }
+    // Divide, the f32 ReduceSum, Multiply, two Adds, two MatMuls and the count Convert
+    EXPECT_EQ(checked, 8u);
 }

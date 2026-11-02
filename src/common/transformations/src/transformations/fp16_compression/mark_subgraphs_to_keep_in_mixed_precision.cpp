@@ -399,6 +399,70 @@ public:
     }
 };
 
+/* MarkSumDivCount marks the masked mean
+ *   ReduceSum(x, axes) / [Reshape|Unsqueeze|Squeeze]([Convert]([Reshape|Unsqueeze|Squeeze](ReduceSum(mask, axes))))
+ * e.g. mean pooling without eps in HF ModernBERT and wav2vec2 heads. The sum grows with the length of the reduced axes
+ * and can exceed the fp16 range although the mean does not. Applied when both ReduceSum have constant axes, inputs of
+ * static rank and the same normalized axes, and the division has a floating-point output.
+ *
+ * The division, the sum, the Multiply producing the summed tensor (if the sum is its only consumer) and the count path
+ * from its ReduceSum are kept in fp32. The pass runs after the mark propagation, so these marks are not propagated:
+ * the producers of the pooled tensor (e.g. the residual stream of an encoder) and the consumers of the mean keep fp16,
+ * and the marks of the other patterns are propagated as without this pass.
+ */
+class MarkSumDivCount : public MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MarkSumDivCount");
+    MarkSumDivCount() {
+        MATCHER_SCOPE(MarkSumDivCount);
+
+        auto sum = pattern::wrap_type<v1::ReduceSum>(
+            {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<v0::Constant>()});
+        auto count = pattern::wrap_type<v1::ReduceSum>(
+            {pattern::any_input(pattern::has_static_rank()), pattern::wrap_type<v0::Constant>()});
+        auto count_reshape = pattern::optional<v1::Reshape, v0::Unsqueeze, v0::Squeeze>({count, pattern::any_input()});
+        auto count_convert = pattern::optional<v0::Convert>(count_reshape);
+        // e.g. mask.sum(1).float().unsqueeze(-1)
+        auto count_convert_reshape =
+            pattern::optional<v1::Reshape, v0::Unsqueeze, v0::Squeeze>({count_convert, pattern::any_input()});
+        auto divide = pattern::wrap_type<v1::Divide>({sum, count_convert_reshape}, [](const Output<Node>& output) {
+            return output.get_element_type().is_real();
+        });
+
+        matcher_pass_callback callback = [=](pattern::Matcher& m) {
+            const auto& pattern_map = m.get_pattern_value_map();
+            const auto sum_node = as_type_ptr<v1::ReduceSum>(pattern_map.at(sum).get_node_shared_ptr());
+            const auto count_node = as_type_ptr<v1::ReduceSum>(pattern_map.at(count).get_node_shared_ptr());
+            OPENVINO_ASSERT(sum_node && count_node, "MarkSumDivCount: unexpected nodes matched as ReduceSum");
+            if (transformation_callback(m.get_match_root()))
+                return false;
+            // a mean divides by the count of the same elements
+            if (sum_node->get_reduction_axes() != count_node->get_reduction_axes())
+                return false;
+
+            disable_conversion(m.get_match_root(), element::f16);
+            disable_conversion(sum_node, element::f16);
+            // the whole count path: a sum of float weights can exceed the fp16 range, and an integer count converted
+            // to fp16 is not exact above 2048
+            for (const auto& label : {count, count_reshape, count_convert, count_convert_reshape}) {
+                if (pattern_map.count(label) && pattern_map.at(label).get_element_type().is_real()) {
+                    disable_conversion(pattern_map.at(label).get_node_shared_ptr(), element::f16);
+                }
+            }
+            // a product summed only here (e.g. hidden * mask) is kept in fp32 too: float weights can make it exceed
+            // the fp16 range, while a product with other consumers keeps its precision for them
+            const auto product = sum_node->get_input_node_shared_ptr(0);
+            if (is_type<v1::Multiply>(product) && product->get_output_target_inputs(0).size() == 1) {
+                disable_conversion(product, element::f16);
+            }
+            return true;
+        };
+
+        auto m = make_shared<pattern::Matcher>(divide, matcher_name);
+        register_matcher(m, callback);
+    }
+};
+
 class PropagateDownDisableSensitivityForQuantized : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("PropagateDownDisableSensitivityForQuantized");
@@ -478,6 +542,9 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
 
     auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
     ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
+
+    // Mark the masked means after the propagation, so that their marks do not spread to the producers
+    REGISTER_PASS(manager, MarkSumDivCount)
 
     // Mark nodes in ShapeOf subgraphs to keep in FP32
     REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
