@@ -14,7 +14,7 @@ using ov::test::NodeBuilder;
 TEST(attributes, histc_op) {
     NodeBuilder::opset().insert<ov::op::v17::Histc>();
     const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 4});
-    const auto histc = std::make_shared<ov::op::v17::Histc>(data, 7, -1.5, 3.25, ov::op::v17::Histc::OutputType::I32);
+    const auto histc = std::make_shared<ov::op::v17::Histc>(data, 7, -1.5, 3.25, false);
 
     NodeBuilder builder(histc, {data});
     const auto g_histc = ov::as_type_ptr<ov::op::v17::Histc>(builder.create());
@@ -23,5 +23,5 @@ TEST(attributes, histc_op) {
     EXPECT_EQ(g_histc->get_bins(), histc->get_bins());
     EXPECT_EQ(g_histc->get_min(), histc->get_min());
     EXPECT_EQ(g_histc->get_max(), histc->get_max());
-    EXPECT_EQ(g_histc->get_output_type(), histc->get_output_type());
+    EXPECT_EQ(g_histc->get_preserve_input_type(), histc->get_preserve_input_type());
 }

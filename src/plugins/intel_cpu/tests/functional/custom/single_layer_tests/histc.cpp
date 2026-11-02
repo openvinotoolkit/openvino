@@ -16,12 +16,12 @@ namespace ov::test {
 using HistcCPUParams = std::tuple<InputShape,
                                   std::tuple<int64_t, double, double>,  // bins, min, max
                                   ElementType,
-                                  ov::op::v17::Histc::OutputType>;
+                                  bool>;  // preserve_input_type
 
 class HistcLayerCPUTest : public testing::WithParamInterface<HistcCPUParams>, virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<HistcCPUParams>& obj) {
-        const auto& [shape, attrs, prc, output_type] = obj.param;
+        const auto& [shape, attrs, prc, preserve_input_type] = obj.param;
         const auto& [bins, min, max] = attrs;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({shape.first}) << "_TS=";
@@ -29,18 +29,18 @@ public:
             result << ov::test::utils::vec2str(item) << "_";
         }
         result << "bins=" << bins << "_min=" << min << "_max=" << max << "_prc=" << prc
-               << "_out=" << ov::as_string(output_type);
+               << "_preserve_input_type=" << preserve_input_type;
         return result.str();
     }
 
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        const auto& [shape, attrs, prc, output_type] = GetParam();
+        const auto& [shape, attrs, prc, preserve_input_type] = GetParam();
         const auto& [bins, min, max] = attrs;
         init_input_shapes({shape});
         const auto data = std::make_shared<ov::op::v0::Parameter>(prc, inputDynamicShapes[0]);
-        const auto histc = std::make_shared<ov::op::v17::Histc>(data, bins, min, max, output_type);
+        const auto histc = std::make_shared<ov::op::v17::Histc>(data, bins, min, max, preserve_input_type);
         function = std::make_shared<ov::Model>(histc->outputs(), ov::ParameterVector{data}, "Histc");
     }
 
@@ -51,7 +51,7 @@ protected:
         const auto& param = function->get_parameters()[0];
         auto tensor =
             ov::test::utils::create_and_fill_tensor(param->get_element_type(), targetInputStaticShapes[0], in_data);
-        const auto& [shape, attrs, prc, output_type] = GetParam();
+        const auto& [shape, attrs, prc, preserve_input_type] = GetParam();
         // Special values are ignored for an explicit range, but make a range taken from data infinite.
         if (std::get<1>(attrs) != std::get<2>(attrs) && tensor.get_size() >= 3) {
             switch (prc) {
@@ -104,9 +104,6 @@ const std::vector<std::tuple<int64_t, double, double>> attrs = {
     {7, -1.3, 4.1},
 };
 
-const std::vector<ov::op::v17::Histc::OutputType> output_types = {ov::op::v17::Histc::OutputType::SAME_AS_INPUT,
-                                                                  ov::op::v17::Histc::OutputType::I32};
-
 INSTANTIATE_TEST_SUITE_P(smoke_Histc,
                          HistcLayerCPUTest,
                          ::testing::Combine(::testing::ValuesIn(shapes),
@@ -120,11 +117,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Histc,
                                                               ElementType::i8,
                                                               ElementType::u16,
                                                               ElementType::i16),
-                                            ::testing::ValuesIn(output_types)),
+                                            ::testing::Bool()),
                          HistcLayerCPUTest::getTestCaseName);
 
 // Single-bin counts above 65535 (f16 max). i16/u16 are left out: CPU computes them in i32 and the
-// output conversion wraps instead of saturating, which the spec allows as backend dependent.
+// output conversion wraps instead of saturating, which the spec allows as implementation defined.
 INSTANTIATE_TEST_SUITE_P(smoke_Histc_LargeCounts,
                          HistcLayerCPUTest,
                          ::testing::Combine(::testing::Values(InputShape{{}, {{300, 300}}}),
@@ -136,7 +133,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Histc_LargeCounts,
                                                               ElementType::i32,
                                                               ElementType::u8,
                                                               ElementType::i8),
-                                            ::testing::ValuesIn(output_types)),
+                                            ::testing::Bool()),
                          HistcLayerCPUTest::getTestCaseName);
 
 // Like torch.histc, NaN is ignored for an explicit range but makes a range taken from data invalid.

@@ -36,7 +36,7 @@ Histc::Histc(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     const auto histc = ov::as_type_ptr<const ov::op::v17::Histc>(op);
     m_min = histc->get_min();
     m_max = histc->get_max();
-    m_i32_output = histc->get_output_type() == ov::op::v17::Histc::OutputType::I32;
+    m_i32_output = !histc->get_preserve_input_type();
 }
 
 bool Histc::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {

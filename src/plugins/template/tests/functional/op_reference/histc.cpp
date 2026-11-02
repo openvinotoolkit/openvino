@@ -15,7 +15,6 @@
 #include "openvino/op/parameter.hpp"
 
 using namespace reference_tests;
-using OutputType = ov::op::v17::Histc::OutputType;
 
 namespace {
 struct HistcParams {
@@ -25,7 +24,7 @@ struct HistcParams {
     double max;
     Tensor expected;
     std::string name;
-    OutputType output_type = OutputType::SAME_AS_INPUT;
+    bool preserve_input_type = true;
 };
 
 class ReferenceHistcLayerTest : public testing::TestWithParam<HistcParams>, public CommonReferenceTest {
@@ -33,7 +32,7 @@ public:
     void SetUp() override {
         const auto& p = GetParam();
         const auto in = std::make_shared<ov::op::v0::Parameter>(p.data.type, p.data.shape);
-        const auto histc = std::make_shared<ov::op::v17::Histc>(in, p.bins, p.min, p.max, p.output_type);
+        const auto histc = std::make_shared<ov::op::v17::Histc>(in, p.bins, p.min, p.max, p.preserve_input_type);
         function = std::make_shared<ov::Model>(ov::OutputVector{histc}, ov::ParameterVector{in});
         inputData = {p.data.data};
         refOutData = {p.expected.data};
@@ -42,7 +41,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<HistcParams>& obj) {
         const auto& p = obj.param;
         return p.name + "_type=" + p.data.type.get_type_name() + "_shape=" + p.data.shape.to_string() +
-               "_out=" + ov::as_string(p.output_type);
+               "_preserve_input_type=" + std::to_string(p.preserve_input_type);
     }
 };
 
@@ -269,56 +268,56 @@ std::vector<HistcParams> generateCombinedParams() {
                     2.,
                     {Shape{2}, ov::element::u8, std::vector<uint8_t>{255, 2}},
                     "count_saturates_one_bin"},
-                   // output_type = i32 gives exact counts for narrow input types.
+                   // preserve_input_type = false gives exact i32 counts for narrow input types.
                    {{Shape{300}, ov::element::u8, std::vector<uint8_t>(300, 0)},
                     1,
                     0.,
                     1.,
                     {Shape{1}, ov::element::i32, std::vector<int32_t>{300}},
                     "count_exact",
-                    OutputType::I32},
+                    false},
                    {{Shape{200}, ov::element::i8, std::vector<int8_t>(200, 0)},
                     1,
                     0.,
                     1.,
                     {Shape{1}, ov::element::i32, std::vector<int32_t>{200}},
                     "count_exact",
-                    OutputType::I32},
+                    false},
                    {{Shape{70000}, ov::element::f16, std::vector<ov::float16>(70000, 0)},
                     1,
                     0.,
                     1.,
                     {Shape{1}, ov::element::i32, std::vector<int32_t>{70000}},
                     "count_exact",
-                    OutputType::I32},
+                    false},
                    {{Shape{2, 2}, ov::element::f32, std::vector<float>{1, 2, 1, 4}},
                     4,
                     0.,
                     0.,
                     {Shape{4}, ov::element::i32, std::vector<int32_t>{2, 1, 0, 1}},
                     "data_range",
-                    OutputType::I32},
+                    false},
                    {{Shape{3}, ov::element::f64, std::vector<double>{1, 2, 1}},
                     4,
                     0.,
                     3.,
                     {Shape{4}, ov::element::i32, std::vector<int32_t>{0, 2, 1, 0}},
                     "explicit_range",
-                    OutputType::I32},
+                    false},
                    {{Shape{3}, ov::element::i32, std::vector<int32_t>{-5, 0, 5}},
                     2,
                     -5.,
                     5.,
                     {Shape{2}, ov::element::i32, std::vector<int32_t>{1, 2}},
                     "signed_int",
-                    OutputType::I32},
+                    false},
                    {{Shape{0}, ov::element::i64, std::vector<int64_t>{}},
                     3,
                     0.,
                     0.,
                     {Shape{3}, ov::element::i32, std::vector<int32_t>{0, 0, 0}},
                     "empty",
-                    OutputType::I32},
+                    false},
                    {{Shape{4}, ov::element::u8, std::vector<uint8_t>{0, 5, 10, 200}},
                     2,
                     -10.,

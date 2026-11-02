@@ -15,12 +15,12 @@ Histc::Histc(const Output<Node>& data,
              const int64_t bins,
              const double min,
              const double max,
-             const OutputType output_type)
+             const bool preserve_input_type)
     : Op({data}),
       m_bins{bins},
       m_min{min},
       m_max{max},
-      m_output_type{output_type} {
+      m_preserve_input_type{preserve_input_type} {
     constructor_validate_and_infer_types();
 }
 
@@ -29,7 +29,7 @@ bool Histc::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("bins", m_bins);
     visitor.on_attribute("min", m_min);
     visitor.on_attribute("max", m_max);
-    visitor.on_attribute("output_type", m_output_type);
+    visitor.on_attribute("preserve_input_type", m_preserve_input_type);
     return true;
 }
 
@@ -54,28 +54,12 @@ void Histc::validate_and_infer_types() {
                           m_max);
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
-    set_output_type(0, m_output_type == OutputType::I32 ? element::i32 : data_et, output_shapes[0]);
+    set_output_type(0, m_preserve_input_type ? data_et : element::i32, output_shapes[0]);
 }
 
 std::shared_ptr<Node> Histc::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v17_Histc_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<Histc>(new_args.at(0), m_bins, m_min, m_max, m_output_type);
+    return std::make_shared<Histc>(new_args.at(0), m_bins, m_min, m_max, m_preserve_input_type);
 }
 }  // namespace ov::op::v17
-
-namespace ov {
-std::ostream& operator<<(std::ostream& s, const op::v17::Histc::OutputType& type) {
-    return s << as_string(type);
-}
-
-template <>
-OPENVINO_API EnumNames<op::v17::Histc::OutputType>& EnumNames<op::v17::Histc::OutputType>::get() {
-    static auto enum_names = EnumNames<op::v17::Histc::OutputType>(
-        "op::v17::Histc::OutputType",
-        {{"same_as_input", op::v17::Histc::OutputType::SAME_AS_INPUT}, {"i32", op::v17::Histc::OutputType::I32}});
-    return enum_names;
-}
-
-AttributeAdapter<op::v17::Histc::OutputType>::~AttributeAdapter() = default;
-}  // namespace ov
