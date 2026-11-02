@@ -988,6 +988,33 @@ TEST(TransformationTests, ConvertFCToCompressed27_GnkU2ParameterWeightsFallBackT
     EXPECT_EQ(compressed_fc_count, 1u);
 }
 
+TEST(TransformationTests, ConvertFCToCompressed28_GnkU2FallBackToNkWhenCmRejectsDevice) {
+    auto low_slm_device = cm_u2_capable_device();
+    low_slm_device.max_local_mem_size = 32 * 1024;
+
+    struct Case {
+        cldnn::device_info info;
+        bool cm_jit_supported;
+    };
+    for (const auto& c : {Case{low_slm_device, true}, Case{cm_u2_capable_device(), false}}) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 128});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::u2, ov::Shape{2, 32, 64});
+        auto model = make_gnk_u2_model(input, weights, ov::ParameterVector{input, weights});
+        ov::pass::Manager manager;
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>(c.info, c.cm_jit_supported);
+        manager.run_passes(model);
+
+        size_t compressed_fc_count = 0;
+        for (const auto& node : model->get_ops()) {
+            if (auto fc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(node)) {
+                ++compressed_fc_count;
+                EXPECT_EQ(fc->get_weights_layout(), ov::intel_gpu::op::FcWeightsLayout::NK);
+            }
+        }
+        EXPECT_EQ(compressed_fc_count, 1u);
+    }
+}
+
 enum class TransposeBeforeReshapePattern {
     ScaleOnly,
     ScaleAndZeroPoint,
