@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "npuw_transformations/broadcast_u2_zero_point.hpp"
 #include "npuw_transformations/collapse_unqdq.hpp"
 #include "npuw_transformations/conv_to_matmul.hpp"
 #include "npuw_transformations/drop_zp_subtract.hpp"
@@ -223,6 +224,62 @@ TEST(DropZPSubtractPassTest, KeepsSubtractWhenZeroPointIsNotAllZeros) {
     model->validate_nodes_and_infer_types();
 
     EXPECT_EQ(count_ops<ov::op::v1::Subtract>(model), 1u);
+}
+
+std::shared_ptr<ov::Model> build_u2_weights_scalar_zero_point_model(const float zero_point) {
+    const auto weights = ov::op::v0::Constant::create(ov::element::u2,
+                                                      ov::Shape{4, 2, 8},
+                                                      std::vector<uint8_t>(4 * 2 * 8, 2));
+    const auto zero_point_scalar = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {zero_point});
+    const auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+    const auto subtract = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_scalar);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(subtract)},
+                                       ov::ParameterVector{});
+}
+
+std::shared_ptr<ov::op::v0::Constant> find_zero_point_constant(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ordered_ops()) {
+        if (const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(op)) {
+            return ov::as_type_ptr<ov::op::v0::Constant>(
+                subtract->input_value(1).get_node()->input_value(0).get_node_shared_ptr());
+        }
+    }
+    return nullptr;
+}
+
+TEST(BroadcastU2ZeroPointPassTest, BroadcastsScalarZeroPointToPerGroupU2) {
+    const auto model = build_u2_weights_scalar_zero_point_model(1.f);
+
+    ov::npuw::BroadcastU2ZeroPoint pass;
+    pass.run_on_model(model);
+    model->validate_nodes_and_infer_types();
+
+    const auto zero_point = find_zero_point_constant(model);
+    ASSERT_NE(zero_point, nullptr);
+    EXPECT_EQ(zero_point->get_element_type(), ov::element::u2);
+    EXPECT_EQ(zero_point->get_shape(), (ov::Shape{4, 2, 1}));
+    const auto values = zero_point->cast_vector<uint8_t>();
+    EXPECT_TRUE(std::all_of(values.begin(), values.end(), [](uint8_t value) {
+        return value == 1;
+    }));
+    EXPECT_EQ(model->get_results().front()->input_value(0).get_element_type(), ov::element::f16);
+    EXPECT_EQ(model->get_results().front()->input_value(0).get_shape(), (ov::Shape{4, 2, 8}));
+}
+
+TEST(BroadcastU2ZeroPointPassTest, KeepsZeroPointThatDoesNotFitInTwoBits) {
+    for (const float zero_point : {4.f, -1.f, 0.5f}) {
+        const auto model = build_u2_weights_scalar_zero_point_model(zero_point);
+
+        ov::npuw::BroadcastU2ZeroPoint pass;
+        pass.run_on_model(model);
+        model->validate_nodes_and_infer_types();
+
+        for (const auto& op : model->get_ordered_ops()) {
+            if (const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(op)) {
+                EXPECT_TRUE(ov::is_type<ov::op::v0::Constant>(subtract->get_input_node_shared_ptr(1)));
+            }
+        }
+    }
 }
 
 TEST(CollapseUNQDQPassTest, ConvToMatMulAndUNQDQOrderDoesNotMatter) {
