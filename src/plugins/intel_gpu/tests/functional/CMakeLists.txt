@@ -55,6 +55,13 @@ if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)
 endif()
 
+# Same view of intel_gpu/runtime headers as the plugin, which compiles them with ENABLE_ONEDNN_FOR_GPU.
+if(ENABLE_ONEDNN_FOR_GPU)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_ONEDNN_FOR_GPU)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:onednn_gpu_tgt,INTERFACE_INCLUDE_DIRECTORIES>)
+    add_dependencies(${TARGET_NAME} onednn_gpu_tgt)
+endif()
+
 # try to find VA libraries
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
