@@ -1913,12 +1913,12 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
-    if (granularity == kv_quant_granularity::per_channel) {
-        const auto& device_info = engine.get_device_info();
-        if (!device_info.supports_immad || device_info.arch < gpu_arch::xe_hpg) {
-            GTEST_SKIP() << "Per-channel compressed KV was supported by the removed sdpa_micro only";
-        }
-    }
+    // Per-channel compressed KV has two readers: sdpa_ocl on its lane (Xe2+ XMX, f16 queries; SDPAOpt::validate_impl()
+    // admits it only there) and sdpa_ref everywhere else. Both run here where they can, each with a check of the kernel
+    // that ran: a silent fallback to the opt kernels, which read one scale per token, would be wrong.
+    const bool per_channel = granularity == kv_quant_granularity::per_channel;
+    const bool per_channel_dpas =
+        per_channel && !is_bf16 && params.dt == data_types::f16 && cldnn::paged_attention::sdpa_ocl_selected(engine.get_device_info(), false);
 
     const int bit_width = params.bit_width;
     const bool asymmetric = params.asymmetric;
@@ -1933,8 +1933,13 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     OPENVINO_ASSERT(bit_width != 4 || head_size % 2 == 0, "INT4 KV packing requires an even head size");
     const int packed_head_size = bit_width == 4 ? head_size / 2 : head_size;
 
-    // Q and original float K/V use [batch, heads, sequence, head_size].
-    auto q_data = rg.generate_random_1d<T>(static_cast<size_t>(batch) * seq_q * q_num_heads * head_size, -1.0f, 1.0f);
+    // Q and original float K/V use [batch, heads, sequence, head_size]. Per-channel cases make K matter at decode: a causal
+    // (upper-left) single query attends key 0 only, so decode is not causal there, and Q is in [-8, 8] (logit std ~2.7
+    // instead of ~0.3) because a near-uniform softmax over 512 keys hides K errors as well. Without both, every decode case
+    // passed with the K scale of the neighbouring channel or the K nibbles swapped (negative controls).
+    const bool causal = !(per_channel && seq_q == 1);
+    const float q_range = per_channel ? 8.0f : 1.0f;
+    auto q_data = rg.generate_random_1d<T>(static_cast<size_t>(batch) * seq_q * q_num_heads * head_size, -q_range, q_range);
     auto k_orig = rg.generate_random_1d<T>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
     auto v_orig = rg.generate_random_1d<T>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
 
@@ -2006,7 +2011,7 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
         topo.add(input_layout("v", kv_deq_layout));
         auto prim = scaled_dot_product_attention("sdpa",
                                                  {input_info("q"), input_info("k"), input_info("v")},
-                                                 true,
+                                                 causal,
                                                  -1,
                                                  {0, 1, 2, 3},
                                                  {0, 1, 2, 3},
@@ -2028,7 +2033,9 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     };
 
     // --- Compressed path: quantized KV + interleaved scale/zp on the optimized kernel (sdpa_opt) ---
-    auto make_opt_output = [&]() {
+    // dpas: the forced sdpa_opt impl (its sdpa_ocl stages on the lane); else the DPAS kernel off and no forcing, which
+    // leaves per-channel compressed KV to SDPARef. expected_kernel: a kernel name the dispatched stages must contain.
+    auto make_opt_output = [&](bool dpas, const std::string& expected_kernel) {
         auto k_mem = engine.allocate_memory(kv_packed_layout);
         auto v_mem = engine.allocate_memory(kv_packed_layout);
         auto k_comp_mem = engine.allocate_memory(comp_layout);
@@ -2083,14 +2090,18 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
             inputs.emplace_back("v_zp");
         }
 
-        auto prim = scaled_dot_product_attention("sdpa", inputs, true, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, qa, true);
+        auto prim = scaled_dot_product_attention("sdpa", inputs, causal, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, qa, true);
         topo.add(prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, dt));
 
         ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         cfg.set_property(ov::hint::kv_cache_precision(bit_width == 4 ? ov::element::i4 : ov::element::i8));
-        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
+        if (dpas) {
+            cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
+        } else {
+            cfg.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+        }
 
         auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
@@ -2102,23 +2113,46 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
             net->set_input_data("k_zp", k_zp_mem);
             net->set_input_data("v_zp", v_zp_mem);
         }
-        return net->execute().at("result").get_memory();
+        auto out = net->execute().at("result").get_memory();
+        if (!expected_kernel.empty()) {
+            // A removable output reorder may rename the SDPA node to "result".
+            std::string sdpa_id;
+            for (const auto& info : net->get_primitives_info()) {
+                if (info.type_id == "scaled_dot_product_attention")
+                    sdpa_id = info.original_id;
+            }
+            EXPECT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
+            if (!sdpa_id.empty()) {
+                const auto inst = net->get_primitive(sdpa_id);
+                const auto entries = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
+                EXPECT_NE(entries.find(expected_kernel), std::string::npos) << "dispatched: " << entries;
+            }
+        }
+        return out;
     };
 
     auto ref_mem = make_ref_output();
-    auto opt_mem = make_opt_output();
-
     cldnn::mem_lock<T, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
-    cldnn::mem_lock<T, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
+    const auto check_output = [&](const cldnn::memory::ptr& opt_mem, const std::string& arm) {
+        cldnn::mem_lock<T, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
+        ASSERT_EQ(ref_ptr.size(), opt_ptr.size());
+        for (size_t i = 0; i < opt_ptr.size(); ++i) {
+            ASSERT_FALSE(std::isnan(static_cast<float>(opt_ptr[i]))) << arm << ": NaN in compressed output at index " << i;
+        }
+        const float sim = cosineSimilarity(ref_ptr, opt_ptr);
+        // bf16 has a shorter mantissa, so allow a slightly lower similarity for it.
+        const float min_sim = is_bf16 ? 0.99f : 0.999f;
+        ASSERT_GE(sim, min_sim) << arm << ": bit_width=" << bit_width << ", asymmetric=" << asymmetric << " cosine similarity too low: " << sim;
+    };
 
-    ASSERT_EQ(ref_ptr.size(), opt_ptr.size());
-    for (size_t i = 0; i < opt_ptr.size(); ++i) {
-        ASSERT_FALSE(std::isnan(static_cast<float>(opt_ptr[i]))) << "NaN in compressed output at index " << i;
+    if (!per_channel) {
+        check_output(make_opt_output(true, ""), "sdpa_opt");
+        return;
     }
-    const float sim = cosineSimilarity(ref_ptr, opt_ptr);
-    // bf16 has a shorter mantissa, so allow a slightly lower similarity for it.
-    const float min_sim = is_bf16 ? 0.99f : 0.999f;
-    ASSERT_GE(sim, min_sim) << "bit_width=" << bit_width << ", asymmetric=" << asymmetric << " cosine similarity too low: " << sim;
+    if (per_channel_dpas) {
+        check_output(make_opt_output(true, seq_q > 1 ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed"), "sdpa_ocl");
+    }
+    check_output(make_opt_output(false, "sdpa_ref"), "sdpa_ref");
 }
 
 struct sdpa_gpu_compressed_kv_test_base : public ::testing::TestWithParam<sdpa_test_params> {
@@ -2131,14 +2165,12 @@ struct sdpa_gpu_compressed_kv_test_base : public ::testing::TestWithParam<sdpa_t
     }
 };
 
-// Per-channel compressed KV: only the removed sdpa_micro read per-channel scales (sdpa_ocl, sdpa_opt and sdpa_ref read one
-// scale per token), so SDPAOpt::validate_impl() refuses it and the GPU pipeline no longer fuses it into SDPA
-// (GroupQueryAttentionDecomposition fuse_compressed_kv = false). Kept disabled as the reproducer for a per-channel reader
-// (on B70 at the last micro build: wrong output or a GPU fault on sdpa_ocl / sdpa_opt). Run with
-// --gtest_also_run_disabled_tests.
+// Per-channel compressed KV (one scale / zp per head-dim channel, the GPU GroupQueryAttentionDecomposition's fused
+// quantized cache): sdpa_ocl reads it on its lane, sdpa_ref everywhere (sdpa_opt reads one scale per token and is never
+// given it, SDPAOpt::validate_impl()). Both arms run, see run_compressed_kv_sdpa_test().
 struct sdpa_gpu_compressed_kv_per_channel_test : public sdpa_gpu_compressed_kv_test_base {};
 
-TEST_P(sdpa_gpu_compressed_kv_per_channel_test, DISABLED_compare_with_gpu_dequantized_reference) {
+TEST_P(sdpa_gpu_compressed_kv_per_channel_test, compare_with_gpu_dequantized_reference) {
     run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_channel);
 }
 
@@ -2166,11 +2198,11 @@ TEST_P(sdpa_gpu_compressed_kv_bf16_int8_zp_test, compare_with_gpu_dequantized_re
     run_compressed_kv_sdpa_test<ov::bfloat16>(GetParam(), kv_quant_granularity::per_token, /*gqa_decomp=*/false, ov::element::i8);
 }
 
-// Verify the INT4 and INT8 cache encodings produced by the GQA decomposition. Per-channel, so disabled like
-// sdpa_gpu_compressed_kv_per_channel_test above.
+// Verify the INT4 and INT8 cache encodings produced by the GQA decomposition (per-channel, like
+// sdpa_gpu_compressed_kv_per_channel_test above).
 struct sdpa_gpu_gqa_decomp_test : public sdpa_gpu_compressed_kv_test_base {};
 
-TEST_P(sdpa_gpu_gqa_decomp_test, DISABLED_compare_with_gpu_dequantized_reference) {
+TEST_P(sdpa_gpu_gqa_decomp_test, compare_with_gpu_dequantized_reference) {
     run_compressed_kv_sdpa_test<ov::float16>(GetParam(), kv_quant_granularity::per_channel, /*gqa_decomp=*/true);
 }
 

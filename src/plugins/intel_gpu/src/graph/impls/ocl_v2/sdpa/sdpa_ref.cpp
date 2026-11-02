@@ -47,6 +47,10 @@ protected:
         if (data_inputs_num > scale_idx) {
             jit.make("HAS_SCALE_INPUT", 1);
         }
+        // One scale (and zp) per head-dim channel instead of per token (the GQA decomposition's quantized cache).
+        if (SDPABase::has_per_channel_compressed_kv(params)) {
+            jit.make("COMPRESSED_PER_CHANNEL", 1);
+        }
         return jit;
     }
 

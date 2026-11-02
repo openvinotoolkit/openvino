@@ -1027,10 +1027,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::FuseGroupedDepthToSpace>();
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
-        // No fused compressed K/V: no SDPA kernel reads the per-channel scales this pass would hand it (sdpa_ocl and
-        // sdpa_opt read one scale per token; only the removed sdpa_micro read them), so quantized GQA K/V are
-        // dequantized before SDPA on every device.
-        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad, false);
+        // Fused compressed K/V (SDPA reads the quantized cache and its per-channel scales) only where sdpa_ocl serves SDPA:
+        // Xe2+ XMX with the DPAS kernel on (not OV_GPU_ENABLE_SDPA_MICRO=0) and f16 queries (it runs after ConvertPrecision).
+        // sdpa_opt reads one scale per token, so everywhere else the quantized K/V are dequantized before SDPA. A fused op
+        // sdpa_ocl still refuses runs on sdpa_ref (SDPAOpt::validate_impl()), correct but slow; the pass keeps the ops it
+        // can tell apart unfused, and heads above 256 (slower fused there).
+        const bool fuse_compressed_kv =
+            cldnn::paged_attention::sdpa_ocl_selected(device_info, false) && config.get_enable_sdpa_micro() && infer_precision == ov::element::f16;
+        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>(device_info.supports_immad, fuse_compressed_kv);
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".

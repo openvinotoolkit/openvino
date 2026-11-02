@@ -528,6 +528,12 @@ JitConstants convert_strides(std::string target_prefix, std::string source_prefi
     return definitions;
 }
 
+// Plain SDPA on a per-channel compressed 4-bit cache (the GQA decomposition's): two channels per byte, low nibble =
+// even channel, so the K/V layouts hold head_size / 2 bytes and the kernel unpacks the nibbles (PLAIN_KV_U4).
+inline bool plain_kv_u4(const kernel_impl_params& params) {
+    return SDPABase::has_per_channel_compressed_kv(params) && SDPABase::is_int4_kv_cache(params);
+}
+
 // Head counts, head sizes and sequence lengths of Q (0), K (1) and V (2): from the descriptor for paged
 // attention, from the (transposed) layouts for plain SDPA.
 inline size_t qkv_heads_num(const kernel_impl_params& params, size_t qkv_idx) {
@@ -587,11 +593,11 @@ inline size_t qkv_head_size(const kernel_impl_params& params, size_t qkv_idx) {
         }
         case 1: {
             const auto head_size = get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-            return ensure_positive_dim(head_size, "head size for K");
+            return ensure_positive_dim(head_size, "head size for K") * (plain_kv_u4(params) ? 2 : 1);
         }
         case 2: {
             const auto head_size = get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
-            return ensure_positive_dim(head_size, "head size for V");
+            return ensure_positive_dim(head_size, "head size for V") * (plain_kv_u4(params) ? 2 : 1);
         }
         default:
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
@@ -820,6 +826,8 @@ jit_inputs make_jit_inputs(const kernel_impl_params& params, bool is_prefill) {
     const auto problem = make_problem(params, is_prefill);
     const auto precision = pa_kv_cache_precision(params);
     const auto cache = classify_pa_cache(params, is_prefill, k, precision, problem);
+    // A packed 4-bit row is head_size / 2 bytes.
+    const size_t kv_row_div = plain_kv_u4(params) ? 2 : 1;
     return {params,
             is_prefill,
             is_pa,
@@ -830,8 +838,8 @@ jit_inputs make_jit_inputs(const kernel_impl_params& params, bool is_prefill) {
             v,
             out,
             problem.k_head_size * ov::element::Type(q.data_type).size(),
-            problem.k_head_size * ov::element::Type(k.data_type).size(),
-            problem.v_head_size * ov::element::Type(v.data_type).size(),
+            problem.k_head_size * ov::element::Type(k.data_type).size() / kv_row_div,
+            problem.v_head_size * ov::element::Type(v.data_type).size() / kv_row_div,
             problem.v_head_size * ov::element::Type(out.data_type).size(),
             precision,
             cache};
@@ -1116,16 +1124,34 @@ void add_pa_current_token_jit(JitConstants& jit, const jit_inputs& in) {
 void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     const auto& config = in.config;
     const bool allowed = block2d_io_allowed(static_cast<size_t>(in.problem.tiling.subgroup_size));
-    int v_i8_2d = (config.is_kv_compressed && block2d_layout_ok(in.v, in.ldv)) ? 1 : 0;
+    // Per-channel scales/zp (KV_COMP_PER_CHANNEL), and a packed 4-bit cache (PLAIN_KV_U4), which takes its own 8-bit
+    // transform reads of the packed rows (ldk / ldv are head_size / 2 bytes there) instead of the i8 ones.
+    const bool per_channel = !in.is_pa && config.is_kv_compressed && SDPABase::has_per_channel_compressed_kv(in.params);
+    const bool kv_u4 = per_channel && plain_kv_u4(in.params);
+    if (kv_u4) {
+        const auto qdt = in.params.typed_desc<scaled_dot_product_attention>()->quantization_attributes.quantization_dt;
+        jit.make("PLAIN_KV_U4", 1);
+        if (qdt == ov::element::i4)
+            jit.make("PLAIN_KV_U4_SIGNED", 1);
+        jit.make("USE_2D_BLOCK_IO_K_U4", block2d_env_int("SDPA_OCL_K_U4_2D", block2d_layout_ok(in.k, in.ldk) ? 1 : 0, allowed));
+        // The u4 V block read hands a subgroup a 32-column window and keeps no lane shuffle, so its value blocks must pair
+        // into windows (sdpa_ocl_config.cl PLAIN_V_U4_PERMUTED); every tiling in choose_config() does.
+        const auto& t = in.problem.tiling;
+        const int value_blocks = t.sv_sg_tile_values / t.subgroup_size;
+        const bool v_u4_window_split_ok = value_blocks % 2 == 0 || (value_blocks == 1 && t.sv_sg_per_wg_values % 2 == 0);
+        const int v_u4_2d = (block2d_layout_ok(in.v, in.ldv) && v_u4_window_split_ok) ? 1 : 0;
+        jit.make("USE_2D_BLOCK_IO_V_U4", v_u4_window_split_ok ? block2d_env_int("SDPA_OCL_V_U4_2D", v_u4_2d, allowed) : 0);
+    }
+    int v_i8_2d = (config.is_kv_compressed && !kv_u4 && block2d_layout_ok(in.v, in.ldv)) ? 1 : 0;
     if (config.is_kv_compressed)
         v_i8_2d = block2d_env_int("SDPA_OCL_V_I8_2D", v_i8_2d, allowed);
-    if (!allowed)
+    if (!allowed || kv_u4)
         v_i8_2d = 0;
     jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
-    int k_i8_2d = (config.is_kv_compressed && block2d_layout_ok(in.k, in.ldk)) ? 1 : 0;
+    int k_i8_2d = (config.is_kv_compressed && !kv_u4 && block2d_layout_ok(in.k, in.ldk)) ? 1 : 0;
     if (config.is_kv_compressed)
         k_i8_2d = block2d_env_int("SDPA_OCL_K_I8_2D", k_i8_2d, allowed);
-    if (!allowed)
+    if (!allowed || kv_u4)
         k_i8_2d = 0;
     jit.make("USE_2D_BLOCK_IO_K_I8", k_i8_2d);
     if (in.is_pa || !config.is_kv_compressed) {
@@ -1152,6 +1178,14 @@ void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     jit.add(convert_strides("VAL_COMP", "VAL_SCALE", default_order));
     jit.add(unit_parameters("KEY_COMP"));
     jit.add(unit_parameters("VAL_COMP"));
+    if (per_channel) {
+        jit.make("KV_COMP_PER_CHANNEL", 1);
+        // Negative controls of the per-channel reads, each must fail the per-channel tests: 1 = K scale/zp of the
+        // neighbouring channel, 2 = V scale/zp of the neighbouring column, 3 = K nibbles swapped, 4 = V nibbles swapped
+        // (3, 4: 4-bit only). Absent unless asked for, so the default jit is unchanged.
+        if (const int neg = env_int("SDPA_OCL_NEG_X5", 0); neg != 0)
+            jit.make("NEG_X5", neg);
+    }
 
     if (config.use_asymmetric_quantization) {
         jit.make("KEY_ATTR_ZP_DATA_T", to_ocl_type(params.input_layouts[n + 2].data_type));
@@ -1470,6 +1504,54 @@ uint32_t SDPAOclGenerator::hpg_tier_required(const kernel_impl_params& params) {
     return bits;
 }
 
+namespace {
+// Per-channel compressed K/V (the GQA decomposition's quantized cache): one scale, and with asymmetric quantization one
+// zero point, per head-dim channel of a KV head, as planar [B or 1, KV heads or 1, 1, head size] tensors. Read on Xe2
+// (the per-channel reads put one channel per lane of a 16-wide subgroup; SG8 has none) for f16 queries, from an i8
+// cache or a 4-bit one (u4 or i4 nibbles, two per i8/u8 byte). SDPAOpt::validate_impl() sends anything refused here to
+// SDPARef, the only other reader.
+bool per_channel_kv_supported(const kernel_impl_params& params) {
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto& qa = desc->quantization_attributes;
+    if (params.get_device_info().arch < gpu_arch::xe2 || params.input_layouts[0].data_type != ov::element::f16 ||
+        qa.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
+        return false;
+    }
+    const auto k_dt = params.input_layouts[1].data_type;
+    const auto v_dt = params.input_layouts[2].data_type;
+    const bool int4 = qa.quantization_dt == ov::element::u4 || qa.quantization_dt == ov::element::i4;
+    if (int4 ? !(data_type_traits::is_i8_u8(k_dt) && data_type_traits::is_i8_u8(v_dt))
+             : !(qa.quantization_dt == ov::element::i8 && k_dt == ov::element::i8 && v_dt == ov::element::i8)) {
+        return false;
+    }
+    const auto k = get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+    const auto v = get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+    if (k <= 0 || v <= 0) {
+        return false;
+    }
+    const int64_t packing = int4 ? 2 : 1;
+    const bool asymmetric = qa.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+    const size_t n = get_data_inputs_num(*desc);
+    // K scale, V scale, then (asymmetric) K zp, V zp.
+    for (size_t i = 0; i < (asymmetric ? 4u : 2u); ++i) {
+        const auto& l = params.input_layouts[n + i];
+        const auto& ps = l.get_partial_shape();
+        const int64_t channels = ((i % 2) == 0 ? k : v) * packing;
+        if (ps.rank().is_dynamic() || ps.size() != 4 || !ps[2].is_static() || ps[2].get_length() != 1 || !ps[3].is_static() || ps[3].get_length() != channels ||
+            !layout_unpadded(l)) {
+            return false;
+        }
+        const bool is_scale = i < 2;
+        const auto dt = l.data_type;
+        if (is_scale ? !(dt == ov::element::f16 || dt == ov::element::f32 || dt == ov::element::bf16)
+                     : !(dt == ov::element::f16 || dt == ov::element::f32 || data_type_traits::is_i8_u8(dt))) {
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
 bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
     const auto is_f16 = [](data_types dt) {
         return dt == ov::element::f16 || dt == ov::element::bf16;
@@ -1516,8 +1598,9 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
             if (k <= 0 || v <= 0) {
                 return false;
             }
-            k_head_size = static_cast<size_t>(k);
-            v_head_size = static_cast<size_t>(v);
+            const size_t packing = plain_kv_u4(params) ? 2 : 1;
+            k_head_size = static_cast<size_t>(k) * packing;
+            v_head_size = static_cast<size_t>(v) * packing;
         }
         SDPAOclTilingInfo tiling;
         if (!sdpa_ocl_describe_tiling(arch, k_head_size, v_head_size, tiling)) {
@@ -1544,10 +1627,13 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
                is_compilable_kv(params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE].data_type);
     }
 
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (desc->is_kv_compressed && SDPABase::has_per_channel_compressed_kv(params)) {
+        return per_channel_kv_supported(params);
+    }
     // KV-cache compression is always asymmetric with planar storage on the parts this kernel runs on
     // (kv_cache_compression.cpp), so anything else is rejected rather than implemented; sdpa_ocl_config.cl
     // #errors on it.
-    const auto desc = params.typed_desc<scaled_dot_product_attention>();
     if (desc->is_kv_compressed && (desc->quantization_attributes.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
                                    desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar)) {
         return false;
