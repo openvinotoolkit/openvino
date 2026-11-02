@@ -22,6 +22,7 @@ private:
 
     mutable std::map<std::string, std::shared_ptr<RemoteContextImpl>> m_default_contexts;
     mutable std::once_flag m_default_contexts_once;
+    bool m_export_hsm_format = false;
 
     std::map<std::string, std::shared_ptr<RemoteContextImpl>> get_default_contexts() const;
 
@@ -49,6 +50,10 @@ private:
 
     bool is_metric(const std::string& name) const;
     ov::Any get_metric(const std::string& name, const ov::AnyMap& arguments) const;
+    std::shared_ptr<ov::ICompiledModel> import_model_impl(std::istream& model,
+                                                          const ov::SoPtr<ov::IRemoteContext>& context,
+                                                          const ov::AnyMap& properties,
+                                                          const std::shared_ptr<ov::Tensor>& backing_tensor) const;
 
 public:
     Plugin();

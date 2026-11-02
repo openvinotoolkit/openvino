@@ -30,6 +30,7 @@ public:
     static void load(BufferType& buffer, ov::PartialShape& partial_shape) {
         size_t num_dimensions;
         buffer >> num_dimensions;
+        buffer.check_size(num_dimensions, 2 * sizeof(ov::Interval::value_type));
         for (size_t i = 0; i < num_dimensions; i++) {
             ov::Interval::value_type min_val, max_val;
             buffer >> min_val >> max_val;
@@ -79,6 +80,7 @@ public:
 
         size_t num_block_size;
         buffer >> num_block_size;
+        buffer.check_size(num_block_size, 2 * (sizeof(size_t) + sizeof(int)));
         size_t blk_size;
         int axis_idx;
         for (size_t i = 0; i < num_block_size; i++) {

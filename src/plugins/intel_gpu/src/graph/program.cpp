@@ -19,6 +19,7 @@
 #include "common_utils/prefetch_streambuf.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/plugin/hsm_reader_handler.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -2062,14 +2063,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     // primitives into one bulk parallel pread.  The cap keeps the up-front
     // dispatch/allocation cost bounded; reads that fall outside the prefetched
     // window transparently fall back to file I/O.
-    {
-        auto* rdbuf = ib.get_streambuf();
-        if (auto* prs = dynamic_cast<ov::util::ParallelReadStreamBuf*>(rdbuf)) {
-            prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
-        } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
-            pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
-        }
-    }
+    ov::intel_gpu::hsm::prefetch_cache_data(ib.get_streambuf(), ov::util::default_parallel_io_prefetch_cap);
 
     for (size_t i = 0; i < num_nodes; ++i) {
         ib >> is_valid_data_node;
@@ -2100,14 +2094,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     // Same prefetch hook for the post-load loop: node_post_load is dominated by
     // ~15 small ib >> ... calls per node across thousands of nodes, which maps
     // to thousands of single_read dispatches if left unbatched.
-    {
-        auto* rdbuf = ib.get_streambuf();
-        if (auto* prs = dynamic_cast<ov::util::ParallelReadStreamBuf*>(rdbuf)) {
-            prs->prefetch(ov::util::default_parallel_io_prefetch_cap);
-        } else if (auto* pms = dynamic_cast<ov::intel_gpu::ParallelMemStreamBuf*>(rdbuf)) {
-            pms->prefetch(ov::util::default_parallel_io_prefetch_cap);
-        }
-    }
+    ov::intel_gpu::hsm::prefetch_cache_data(ib.get_streambuf(), ov::util::default_parallel_io_prefetch_cap);
 
     for (size_t i = 0; i < num_nodes; ++i) {
         primitive_id prim_id;

@@ -4,13 +4,16 @@
 
 #pragma once
 
+#include <limits>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
+
+#include "bind.hpp"
 #include "buffer.hpp"
 #include "helpers.hpp"
-#include "bind.hpp"
 
 namespace cldnn {
 
@@ -83,6 +86,8 @@ public:
     virtual ~BinaryInputBuffer() = default;
 
     virtual void read(void* const data, std::streamsize size) {
+        OPENVINO_ASSERT(size >= 0, "[GPU] Invalid negative read size");
+        check_size(static_cast<size_t>(size));
         const auto read_size = _stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
         OPENVINO_ASSERT(read_size == size, "[GPU] Failed to read " + std::to_string(size) + " bytes from stream! Read " + std::to_string(read_size));
         _offset += read_size;
@@ -106,6 +111,8 @@ public:
     }
 
     size_t get_stream_size() const {
+        if (_read_limit)
+            return *_read_limit;
         std::streampos current_pos = _stream.tellg();
         _stream.seekg(0, std::ios::end);
         std::streampos end_pos = _stream.tellg();
@@ -118,11 +125,22 @@ public:
     size_t get_offset() const {
         return _offset;
     }
+    void set_read_limit(size_t size) {
+        OPENVINO_ASSERT(_offset <= size, "[GPU] Invalid payload read limit");
+        _read_limit = size;
+    }
+    void check_size(size_t count, size_t element_size = 1) const {
+        OPENVINO_ASSERT(element_size > 0 && count <= std::numeric_limits<size_t>::max() / element_size, "[GPU] Serialized size overflow");
+        OPENVINO_ASSERT(!_read_limit || count <= (*_read_limit - _offset) / element_size, "[GPU] Serialized size exceeds GPU payload bounds");
+    }
     void seek_current_ptr(std::streamsize size) {
+        OPENVINO_ASSERT(size >= 0, "[GPU] Invalid negative payload skip");
+        check_size(static_cast<size_t>(size));
         // Get current stream position
         std::streampos current_pos = _stream.tellg();
         // Advance stream position
         _stream.seekg(current_pos + static_cast<std::streampos>(size));
+        OPENVINO_ASSERT(_stream.good(), "[GPU] Cannot seek within GPU payload");
         _offset += size;
     }
 
@@ -142,6 +160,7 @@ private:
     const size_t* _tensor_base_ptr;
     bool _is_encrypted;
     size_t _offset;
+    std::optional<size_t> _read_limit;
 };
 
 class EncryptedBinaryOutputBuffer : public BinaryOutputBuffer {
