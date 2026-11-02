@@ -143,6 +143,29 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const size_t b0 = get_group_id(1);     // heads_num
     const size_t b1 = get_group_id(2);     // batch
     const size_t b0_kv = b0 / KV_GROUP_SIZE;
+#if !IS_PAGED_ATTENTION
+    // The output batch is the numpy broadcast of the Q, K and V batches, so each input reads batch b1 % its own batch.
+    // That batch is 1 or the output's (get_broadcast_batch() and the output shape inference reject anything else), so
+    // a select gives the same index without the emulated integer division: b1 % D0 added 213 instructions to the
+    // shape-agnostic kernels and moved their time by -2..+4% on the B70; the select stays within 0.5%. The flags are
+    // compile-time and 0 where that batch is statically the output's. b1 itself addresses the output and the mask
+    // (which wraps it by MSK_D0).
+    #if BROADCAST_Q_BATCH
+    const size_t b1_q = (QRY_D0 == 1) ? 0 : b1;
+    #else
+    const size_t b1_q = b1;
+    #endif
+    #if BROADCAST_K_BATCH
+    const size_t b1_k = (KEY_D0 == 1) ? 0 : b1;
+    #else
+    const size_t b1_k = b1;
+    #endif
+    #if BROADCAST_V_BATCH
+    const size_t b1_v = (VAL_D0 == 1) ? 0 : b1;
+    #else
+    const size_t b1_v = b1;
+    #endif
+#endif
 
     const size_t sg_i_kq  = sg_ij % kq_sg_per_wg_keys;
     const size_t sg_j_kq  = sg_ij / kq_sg_per_wg_keys;
@@ -242,9 +265,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             token_type_ids += subsequence_begin;
     #endif
 #else
-    Q += QRY_OFF(b1, b0, 0, 0) + INPUT0_OFFSET;
-    K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
-    V += VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET;
+    Q += QRY_OFF(b1_q, b0, 0, 0) + INPUT0_OFFSET;
+    K += KEY_OFF(b1_k, b0_kv, 0, 0) + INPUT1_OFFSET;
+    V += VAL_OFF(b1_v, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
 #endif
 #if SG8 && !defined(KV_COMPRESSED)
@@ -263,9 +286,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #ifdef KV_COMPRESSED
     // Hoist dynamic compression-layout batch/head pitches out of the hot loops.
-    const uint k_comp_base = KEY_COMP_OFF(b1, b0_kv, 0, 0);
+    const uint k_comp_base = KEY_COMP_OFF(b1_k, b0_kv, 0, 0);
     #if USE_2D_BLOCK_IO_V_I8
-    const uint v_comp_base = VAL_COMP_OFF(b1, b0_kv, 0, 0);
+    const uint v_comp_base = VAL_COMP_OFF(b1_v, b0_kv, 0, 0);
     #endif
 #endif
 
@@ -1165,7 +1188,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
               #endif
             #else
         #ifdef KV_COMPRESSED
-                FUNC_CALL(v_tile_gather)(OPTIONAL_SHAPE_INFO_TENSOR vb, V, ldv, V_scales, V_zp, b1, b0_kv, k0, cp, k, dv,
+                FUNC_CALL(v_tile_gather)(OPTIONAL_SHAPE_INFO_TENSOR vb, V, ldv, V_scales, V_zp, b1_v, b0_kv, k0, cp, k, dv,
                                          sg_j0_sv, lane);
         #else
                 FUNC_CALL(v_tile_gather)(OPTIONAL_SHAPE_INFO_TENSOR vb, V, ldv, k0, cp, k, dv, sg_j0_sv, lane);
