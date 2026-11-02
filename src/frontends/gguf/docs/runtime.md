@@ -193,7 +193,7 @@ GPU GGUF implementations serialize their execution-selection state with the comp
 OCL shuffle flags, prefill threshold and F16/DQ selection, and CM weight format and threshold.
 Import restores these values rather than using the import process's environment defaults;
 temporary transcode and activation scratch buffers remain lazily allocated. This fixes missing
-derived state in the source implementation as well, without changing kernels or default routing.
+derived state also missing in the fixed source, without changing kernels or default routing.
 No compatibility with blobs exported before this state was serialized is asserted.
 
 File regressions export and import eleven raw FC formats through a fresh Core after external IR
@@ -201,8 +201,16 @@ read-back, checking dynamic rows, new input buffers, original numerical limits a
 The six applicable formats also exercise actual CM after import. A Q4_0 regression separately
 checks same-process, fresh-Core cache misses/hits for static and dynamic raw/SG graphs, payload-tail
 invalidation, and two independent asynchronous requests. These are full compiled blobs, not
-weightless or encrypted caches. Cross-process caching, fused signatures, cancel/reset, explicit
-multi-stream execution and full-checkpoint serialization remain separate acceptance work.
+weightless or encrypted caches.
+
+Separate Q4_0 process replays check generation, reuse, a changed payload tail, reuse of that variant,
+and return to the original weights using a caller-owned test cache and stable graph/tensor names.
+They cover F32 static M2 and dynamic M1/2 raw/SG graphs, assert actual cache-hit status and executed
+stages, and keep the original numerical limits. Hit phases leave compiled blobs unchanged; changed
+weights add distinct entries without replacing the original blobs. This acceptance is limited to
+the tested device, build and configuration, not other formats, CM or a full checkpoint. Fused
+signatures, cancel/reset, explicit multi-stream/cross-device execution, cross-version compatibility
+and weightless/encrypted caching remain separate acceptance work.
 
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.
