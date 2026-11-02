@@ -730,7 +730,9 @@ blocks after a subgroup's score rows (`CAUSAL_TILE_SKIP`, "Paged-attention PREFI
 
 For `CAUSAL_MASK_LOWER_RIGHT` (plain SDPA) every query moves by `causal_offset = max(0, k - q)`,
 the shift `sdpa_micro` / reference / `sdpa_opt` apply. Without it a single new token (q == 1,
-k == 512) would only see the first tile of keys.
+k == 512) would only see the first tile of keys. The sliding-window lower bound (`window_k0_begin`)
+takes the same shift: without it a chunk or a single token on a longer past never skips a tile (the
+result is the same, every element below the window is masked one by one).
 
 ### Paged-attention MIXED: current tokens from Kc/Vc
 
@@ -1493,9 +1495,9 @@ here, so none of it was measured on them.
 - Opt-kernel accuracy gaps that become the default path off the lane (reproduce on B70 with
   `OV_GPU_ENABLE_SDPA_MICRO=0`): `pa_sdpa_opt` outputs zeros for Q/K/V with a 2 B feature padding
   (`smoke_paged_attention_prefill_h128` /15 and /33; those cases skip off the lane), `feature_pad/46` misses its 0.002
-  tolerance (0.0034), and the `sdpa_opt.cl` stages ignore `sliding_window`
-  (`sdpa_sliding_window_test.opt_stage_kernels_apply_sliding_window`), which matters wherever the GQA decomposition drops
-  the explicit mask for the native window. Not fixed here.
+  tolerance (0.0034). Not fixed here. (This list also said the `sdpa_opt.cl` stages ignore `sliding_window`; they apply it
+  with `IS_CAUSAL` (#38167). The 0.511 of `sdpa_sliding_window_test.opt_stage_kernels_apply_sliding_window` came from
+  `sdpa_ocl`, which takes that test's single-element mask too; see "Plain SDPA sliding window".)
 - Plain-SDPA cases only `sdpa_micro` got right, found when the removal widened the unit tests beyond the kit groups
   (B70, results identical before and after the removal; "micro" = `TEST_USE_SDPA_OCL=0` on 1d50b4272a):
   - transposed V (`input_v_transpose_order` ending `3, 2`, which `GroupQueryAttentionDecomposition` fused on XMX
@@ -1503,15 +1505,16 @@ here, so none of it was measured on them.
     0.012 on `sdpa_ocl` and 0.084 / 0.028 on `sdpa_opt` (knob off), and passed on micro (#38309 added the layout to it).
     Fixed on 2026-11-02, see "GQA with a transposed V cache";
   - `sliding_window` on plain SDPA: 6 of the 9 `smoke/sdpa_sliding_window_test.basic` cases are below 0.95 (0.47 to
-    0.89) on `sdpa_ocl` and passed on micro; `sdpa_opt` ignores the window altogether (above);
+    0.89) on `sdpa_ocl` and passed on micro (and on `sdpa_opt`). Fixed on 2026-11-02, see "Plain SDPA sliding window";
   - K/V batch broadcast (`sdpa_broadcast_test`, e.g. Q batch 2 over K/V batch 1, NaN-guarded buffers): 16 of 18 cases
     fail on `sdpa_ocl` (`/0`: a non-finite output, as from a read past the K/V batch); `/0` passes on micro and on
     `sdpa_opt`, the other cases were not run there.
-  On Xe2 these were wrong before the removal too; off the lane they move from micro to the opt kernels. The last two
-  are not fixed here.
+  On Xe2 these were wrong before the removal too; off the lane they move from micro to the opt kernels. The last one
+  is not fixed here.
   Two suites also expect a kernel that no longer runs: `sdpa_opt_key_leftover_test` expects `sdpa_opt` but `sdpa_ocl`
   takes its single-element mask, and the old micro-pinned suites (`sdpa_gpu_micro.*`, `sdpa_micro_key_broadcast_mask_test`,
-  `sdpa_micro_prefetch_k_test`, `sdpa_sliding_window_test`) now pin `sdpa_ocl` and skip off the lane.
+  `sdpa_micro_prefetch_k_test`, `sdpa_sliding_window_test`) now pin `sdpa_ocl` and skip off the lane
+  (`sdpa_sliding_window_test.basic` also runs the opt stage kernels since 2026-11-02).
 - Builds without oneDNN still have no DPAS SDPA: the `ENABLE_ONEDNN_FOR_GPU` guards around `sdpa_ocl` stay, although
   nothing in it needs oneDNN now (only the include-order note in `sdpa_gen_ocl.hpp` mentions `micro_utils.hpp`).
 - `TT_BOUNDS_STAGE` in `paged_attention_opt.cl` is dead code, kept so the file stays upstream's.
@@ -1551,6 +1554,51 @@ the plain layout).
   190 / 371 / 988 us (the Transpose is 31 / 74 / 223 us; SDPA is the same as for the plain layout). The old fused path
   was 417 / 844 / 2237 us, its SDPA 12 to 14x slower than the plain one besides being wrong. Reading `{0,1,3,2}` V in
   `sdpa_ocl` directly would save the permute; not done.
+
+### Plain SDPA sliding window (2026-11-02)
+
+A plain SDPA with `sliding_window` and `is_causal` attended over the whole causal range on `sdpa_ocl`:
+`add_mask_jit()` emitted `SLIDING_WINDOW_SIZE` for paged attention only, so for plain SDPA every
+`#if SLIDING_WINDOW_SIZE` block of the kernel compiled out (`sdpa_micro` emitted it for both). The kernel's window code
+itself (the per-element predicate, the block-level skip) was right; its key-loop lower bound `window_k0_begin` lacked
+the `CAUSAL_MASK_LOWER_RIGHT` shift that `sdpa_micro` had. `sdpa_opt.cl` applies the window (#38167); `sdpa_ref.cl` has
+no window code at all, but it only gets an op `SDPAOpt` refuses, which the path below never produces (not fixed).
+
+- Reach: the only producer of a plain-SDPA window is the GPU `GroupQueryAttentionDecomposition` (`local_window_size`).
+  It drops the explicit mask and gives SDPA `is_causal` + the window for a causal GQA with `sliding_window_cache` and
+  no attention bias, scale or sink; every other GQA window keeps the explicit causal + window mask with
+  `is_causal = false`, where all kernels leave the window attribute alone. A synthetic ONNX model through the frontend
+  (window 16, capacity 24, prefill 40, two decodes, a 20-token chunk; kit `test/xe2fix/x2`) gave cosine 0.933 /
+  0.812 / 0.811 / 0.689 on `sdpa_ocl` (head 64; head 128 alike) and 1.000000 on CPU, with `OV_GPU_ENABLE_SDPA_MICRO=0`
+  and with the explicit-mask control. No real model with it was at hand.
+- Fix: plain SDPA jits `SLIDING_WINDOW_SIZE` too, and `window_k_begin` takes the `causal_offset` shift (as `causal_k`
+  does). The shift changes no result (bitwise identical outputs on every case measured below; it skips only tiles
+  every query of the workgroup masks).
+- Tests: `smoke/sdpa_sliding_window_test.basic` runs every case on `sdpa_ocl` (`_dpas`, skips off the lane or with the
+  knob off) and on the opt stage kernels (`_opt`, `enable_sdpa_micro(false)`), and checks which kernel compiled;
+  `opt_stage_kernels_apply_sliding_window` pins the opt stage kernels the same way (its single-element mask went to
+  `sdpa_ocl`) against `sdpa_ref`; `smoke_GQASlidingWindow` (`ov_gpu_func_tests`) runs the GQA end to end against the
+  TEMPLATE plugin (native window, windowed cache with an explicit scale, full-length cache; head 64 / 128). On the B70:
+  all pass; without the jit line the 6 `_dpas` cases whose window cuts a key fail (cosine 0.57 to 0.89) and the rest
+  pass; with the bound one key tile too high 6 `_dpas` cases and `causal_true_with_explicit_mask` fail; the func test
+  with the plugin from before fails its 2 native-window cases at every step and passes the 4 explicit-mask ones.
+- Cost (SDPA device time on the B70, one GQA layer, 32 / 8 heads, head 128, f16, capacity 16384, perf counters, median of
+  30, one process per case, 2 rounds within 1%, unpinned clock):
+
+  | case | master (`sdpa_micro`) | jit only | jit + shifted bound |
+  |---|---|---|---|
+  | window 1024, decode on 4000 / 8000 / 16000 keys | 31 / 32 / 33 us | 116 / 241 / 490 us | 34 / 36 / 37 us |
+  | window 1024, 512-token chunk on 8000 | 190 us | 1,392 us | 208 us |
+  | window 1024, 4096-token prefill | 1,307 us | 1,479 us | 1,479 us |
+  | window 4096, decode on 16000 | 102 us | 491 us | 130 us |
+  | window 4096, 512-token chunk on 12000 | 644 us | 2,049 us | 694 us |
+  | window 4096, 4096-token prefill (window never cuts) | 2,633 us | 2,930 us | 2,929 us |
+
+  Without the shift a decode or a chunk walks every key, as it did without the window. With it `sdpa_ocl` is 8 to 27%
+  slower than `sdpa_micro`, the same order as without a window (the last row; not investigated).
+- Measurement trap, not investigated: within one process the SDPA time depends on the first shape the model ran. After
+  a 4096-token prefill a decode on 4000 keys takes 818 us on master and 926 us here, against 31 / 35 us when it runs
+  first, with or without a window; so each case above ran in its own process.
 
 ### Token-major-only MIXED (2026-11-02)
 
