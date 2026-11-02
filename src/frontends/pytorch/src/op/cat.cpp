@@ -106,7 +106,16 @@ OutputVector translate_cat_common(const NodeContext& context,
             }
         }
     }
-    auto concat = context.mark_node(std::make_shared<v0::Concat>(inputs_vec, axis));
+    OutputVector concat_inputs;
+    std::copy_if(inputs_vec.begin(),
+                 inputs_vec.end(),
+                 std::back_inserter(concat_inputs),
+                 [is_complex](const auto& input) {
+                     // PyTorch ignores rank-one empty tensors, but they still participate in type promotion.
+                     return input.get_partial_shape() != (is_complex ? PartialShape{0, 2} : PartialShape{0});
+                 });
+    auto concat = concat_inputs.empty() ? inputs_vec.front()
+                                        : context.mark_node(std::make_shared<v0::Concat>(concat_inputs, axis));
     if (is_complex) {
         concat = context.mark_node(std::make_shared<ComplexTypeMark>(concat));
     }
