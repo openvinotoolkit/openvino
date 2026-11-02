@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "common_test_utils/file_utils.hpp"
+#include "helper_ops/gguf_constant.hpp"
 #include "node_context.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
@@ -28,6 +29,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "pass/materialize_weights.hpp"
 #include "quant/gguf.hpp"
 #include "quant/weights.hpp"
 #include "utils.hpp"
@@ -222,17 +224,21 @@ TEST(GGUFWeight, Q8_1CpuMatmulAndGatherMatchRepresentedWeights) {
     }
 }
 
-TEST(GGUFWeight, TernaryRowsKeepCompressedDictionaryAndTiedProjection) {
+TEST(GGUFWeight, DeferredTernaryRowsKeepCompressedDictionaryAndTiedProjection) {
     for (const auto& format :
          std::vector<std::pair<const char*, const char*>>{{"q2_0", "Q2_0"}, {"pq2_0", "PQ2_0"}, {"ptq1_0", "PTQ1_0"}}) {
         SCOPED_TRACE(format.second);
         const auto bytes = load_npy<uint8_t>(std::string(format.first) + "_qbytes");
-        const auto weight = make_weight_node(bytes_to_u8_tensor(bytes), format.second, {kRows, kCols});
+        GgufWeight source;
+        source.data = bytes_to_u8_tensor(bytes);
+        source.shape = {kRows, kCols};
+        source.qtype = gguf_type_from_name(format.second);
+        const auto leaf = std::make_shared<GGUFConstant>(source);
         auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 1, 1, -1});
         indices->set_friendly_name("indices");
         indices->output(0).set_names({"indices"});
         auto activation = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, kCols});
-        auto projection = std::make_shared<ov::op::v0::MatMul>(activation, weight, false, true);
+        auto projection = std::make_shared<ov::op::v0::MatMul>(activation, leaf, false, true);
         auto decoder = SingleOpBuilder()
                            .op("GGML_OP_GET_ROWS")
                            .input("weight", ov::element::f32, {kRows, kCols})
@@ -240,11 +246,15 @@ TEST(GGUFWeight, TernaryRowsKeepCompressedDictionaryAndTiedProjection) {
                            .output("rows", ov::element::f32, {1, 1, -1, kCols})
                            .decoder();
         auto tensors = std::make_shared<TensorMap>();
-        (*tensors)["weight"] = weight;
+        (*tensors)["weight"] = leaf;
         (*tensors)["indices"] = indices;
         NodeContext context(decoder, tensors);
         auto rows = op::translate_get_rows(context)[0];
-        auto model = std::make_shared<ov::Model>(ov::OutputVector{rows}, ov::ParameterVector{indices});
+        auto tied =
+            std::make_shared<ov::Model>(ov::OutputVector{rows, projection}, ov::ParameterVector{indices, activation});
+        ASSERT_TRUE(pass::MaterializeGGUFWeights().run_on_model(tied));
+        const auto weight = projection->get_input_node_shared_ptr(1);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{tied->output(0)}, ov::ParameterVector{indices});
         size_t dictionaries = 0;
         const void* dictionary_data = nullptr;
         for (const auto& node : model->get_ops()) {
@@ -256,7 +266,6 @@ TEST(GGUFWeight, TernaryRowsKeepCompressedDictionaryAndTiedProjection) {
             EXPECT_EQ(constant->get_byte_size(), kRows * kCols / 4);
         }
         EXPECT_EQ(dictionaries, 1);
-        EXPECT_EQ(projection->get_input_node_shared_ptr(1), weight);
         auto original = std::make_shared<ov::Model>(ov::OutputVector{weight}, ov::ParameterVector{});
         size_t subtracts = 0;
         for (const auto& op : original->get_ordered_ops()) {

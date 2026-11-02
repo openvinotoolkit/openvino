@@ -338,6 +338,18 @@ void separate_incompatible_projections(const std::shared_ptr<ov::Model>& model) 
     }
 }
 
+// Weights are deferred while GET_ROWS translates, so its packed-row lookup is applied once they exist.
+void gather_packed_rows(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto gather = ov::as_type_ptr<ov::op::v8::Gather>(node);
+        if (!gather || gather->get_batch_dims() != 0 ||
+            constant_values(gather->get_input_node_shared_ptr(2)) != std::vector<int64_t>{0})
+            continue;
+        if (const auto packed = gather_packed_u2_rows(gather->input_value(0), gather->input_value(1)))
+            ov::replace_node_update_name(gather, packed);
+    }
+}
+
 }  // namespace
 
 bool MaterializeGGUFWeights::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -379,6 +391,8 @@ bool MaterializeGGUFWeights::run_on_model(const std::shared_ptr<ov::Model>& mode
             ov::replace_node_update_name(weight, materialized);
             changed = true;
         }
+    if (changed)
+        gather_packed_rows(model);
     return changed;
 }
 

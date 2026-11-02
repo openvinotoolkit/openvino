@@ -21,6 +21,9 @@ namespace ov::frontend::gguf {
 
 void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model);
 
+// Rows of a ternary (Q2_0 family) decompressed weight gathered from its packed bytes before
+// unpacking; nullptr when `data` is not such a weight.
+std::shared_ptr<ov::Node> gather_packed_u2_rows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices);
 ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices);
 
 // Element type of the zero-point constant for an asymmetric quantized weight.

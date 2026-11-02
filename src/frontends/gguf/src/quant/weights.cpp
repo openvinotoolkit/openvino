@@ -133,12 +133,6 @@ WeightFormat get_weight_format(GgufTensorType qtype,
     return et == ov::element::i8 ? WeightFormat{FillKind::SYMMETRIC, 32, ov::element::i8} : format;
 }
 
-const ov::Tensor& get(const std::unordered_map<std::string, ov::Tensor>& weights, const std::string& key) {
-    auto it = weights.find(key);
-    OPENVINO_ASSERT(it != weights.end(), "[GGUF] missing weight tensor: ", key);
-    return it->second;
-}
-
 // Keep all leading dims separate rather than flattening: the trailing Reshape must be
 // (orig_rank+1)D -> orig_rank for the CompressedWeightsBlock matcher to fire.
 ov::Shape grouped_weight_shape(const ov::Shape& orig, size_t num_groups, size_t group_size) {
@@ -465,29 +459,26 @@ private:
 
 }  // namespace
 
-ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices) {
+std::shared_ptr<ov::Node> gather_packed_u2_rows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices) {
     const auto axis = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
-    const auto gather = [&]() -> ov::Output<ov::Node> {
-        return std::make_shared<ov::op::v8::Gather>(data, indices, axis);
-    };
     const auto output_convert = ov::as_type_ptr<ov::op::v0::Convert>(data.get_node_shared_ptr());
     if (!output_convert || data.get_element_type() != ov::element::f32 || !data.get_partial_shape().is_static() ||
         data.get_partial_shape().rank() != 2 || indices.get_partial_shape().rank() != 2)
-        return gather();
+        return nullptr;
     const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(output_convert->get_input_node_shared_ptr(0));
     if (!reshape)
-        return gather();
+        return nullptr;
     const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(reshape->get_input_node_shared_ptr(0));
     if (!multiply || multiply->get_element_type() != ov::element::f16)
-        return gather();
+        return nullptr;
     const auto scales = ov::as_type_ptr<ov::op::v0::Constant>(multiply->get_input_node_shared_ptr(1));
     const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(multiply->get_input_node_shared_ptr(0));
     if (!scales || scales->get_element_type() != ov::element::f16 || !subtract)
-        return gather();
+        return nullptr;
     const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(0));
     const auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->get_input_node_shared_ptr(1));
     if (!convert || convert->get_element_type() != ov::element::f16)
-        return gather();
+        return nullptr;
     const auto weights = ov::as_type_ptr<ov::op::v0::Constant>(convert->get_input_node_shared_ptr(0));
     const auto zp = ov::as_type_ptr<ov::op::v0::Constant>(zp_convert ? zp_convert->get_input_node_shared_ptr(0)
                                                                      : subtract->get_input_node_shared_ptr(1));
@@ -495,14 +486,14 @@ ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const 
         weights->get_shape().back() % 4 != 0 || !zp ||
         (zp->get_element_type() != ov::element::u8 && zp->get_element_type() != ov::element::f16) ||
         !zp->get_shape().empty() || zp->cast_vector<float>()[0] != 1.f)
-        return gather();
+        return nullptr;
 
     const auto shape = data.get_shape();
     const auto rows = shape[0];
     const auto cols = shape[1];
     if (weights->get_shape()[0] != rows || weights->get_shape()[1] * weights->get_shape()[2] != cols ||
         scales->get_shape() != ov::Shape{rows, weights->get_shape()[1], 1})
-        return gather();
+        return nullptr;
     const auto& compressed_shape = weights->get_shape();
     // Gather packed bytes before unpacking, sharing the original two-bit buffer.
     auto dictionary =
@@ -546,6 +537,12 @@ ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const 
         ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, 0, static_cast<int64_t>(cols)}),
         true);
     return std::make_shared<ov::op::v0::Convert>(restored, ov::element::f32);
+}
+
+ov::Output<ov::Node> gather_weight_rows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices) {
+    if (const auto packed = gather_packed_u2_rows(data, indices))
+        return packed;
+    return std::make_shared<ov::op::v8::Gather>(data, indices, ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
 }
 
 void normalize_u2_zero_points(const std::shared_ptr<ov::Model>& model) {

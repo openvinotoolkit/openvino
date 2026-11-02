@@ -714,7 +714,9 @@ void load_gguf_tensors(GgufFile& file, GgufWeightTable& arrays) {
         source.source_name = name;
         source.mapped = mapped;
         if (quant_layout(ti.type, ti.name)) {
-            auto bytes = ov::Tensor(ov::element::u8, {tensor.bsize}, const_cast<uint8_t*>(tensor.weights_data));
+            auto bytes = ov::Tensor(ov::element::u8,
+                                    {static_cast<size_t>(tensor.bsize)},
+                                    const_cast<uint8_t*>(tensor.weights_data));
             source.data = ov::Tensor(bytes, mapped);
         } else {
             source.data = extract_tensor_data(tensor, mapped);
