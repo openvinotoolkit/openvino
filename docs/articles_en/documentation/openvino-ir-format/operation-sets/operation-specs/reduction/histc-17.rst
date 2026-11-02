@@ -65,12 +65,12 @@ The output element ``output[i]`` is the number of elements assigned to the bin `
 * *output_type*
 
   * **Description**: the element type of the output tensor.
-  * **Range of values**: ``"torch"`` or ``"i32"``
+  * **Range of values**: ``"same_as_input"`` or ``"i32"``
 
-    * ``"torch"`` - the output element type is *T*, as in ``torch.histc``.
+    * ``"same_as_input"`` - the output element type is *T*, as in ``torch.histc``.
     * ``"i32"`` - the output element type is ``i32`` regardless of *T*.
   * **Type**: string
-  * **Default value**: ``"torch"``
+  * **Default value**: ``"same_as_input"``
   * **Required**: *no*
 
 **Inputs**
@@ -79,7 +79,7 @@ The output element ``output[i]`` is the number of elements assigned to the bin `
 
 **Outputs**
 
-* **1**: A 1D tensor of shape ``[bins]``, containing the number of input elements in each bin. Its element type is *T* if *output_type* is ``"torch"`` and ``i32`` if *output_type* is ``"i32"``.
+* **1**: A 1D tensor of shape ``[bins]``, containing the number of input elements in each bin. Its element type is *T* if *output_type* is ``"same_as_input"`` and ``i32`` if *output_type* is ``"i32"``.
 
 **Types**
 
