@@ -241,5 +241,15 @@ stream configurations, other formats or complete-model multi-request support. Ar
 signatures, cross-device execution, cross-version compatibility,
 weightless/encrypted caching and complete checkpoints remain separate acceptance work.
 
+The existing raw-file FC/Gather test separately covers Q4_K, Q5_K, Q6_K, Q8_0, Q4_0 and Q4_1
+with explicit one/two-stream configurations and F32/F16 inference settings. The two-stream
+plain graphs submit two asynchronous requests with distinct activations and Gather indices,
+checking both against the existing independent ggml references through dynamic row changes and
+new buffers. Full compiled-model export/import also checks the returned stream configuration
+and repeats the numerical checks. All requests finish before querying the shared runtime model;
+its stage records are completed-batch snapshots, not per-stream execution timelines. This is
+stateless file-level coverage, not six-format state isolation, cross-process warm-cache reuse,
+physical overlap or full-checkpoint acceptance.
+
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.

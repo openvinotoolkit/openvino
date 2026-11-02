@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <set>
 #include <sstream>
@@ -574,6 +575,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     bool ir_roundtrip = false;
     bool external_reference = false;
     bool compiled_import = false;
+    int stream_count = 1;
     const auto run = [&](const char* threshold_value, const char* shuffle_value,
                          ov::element::Type inference_type = ov::element::f32, const char* binary_mode = nullptr,
                          size_t static_rows = 0, bool rebind_broadcast = false) {
@@ -612,10 +614,13 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             inference_type.get_type_name() + "_s" + shuffle_value + (threshold_value ? "_native" : "_default") +
             (static_rows ? "_static" : "_dynamic") + (rebind_broadcast ? "_broadcast" : "") +
             (ir_roundtrip ? "_ir" : "") + (external_reference ? "_external" : "") +
-            (compiled_import ? "_import" : "");
+            (compiled_import ? "_import" : "") + (stream_count == 2 ? "_streams2" : "");
         SCOPED_TRACE(scenario);
         auto compiled = core.compile_model(run_model, "GPU", ov::hint::inference_precision(inference_type),
-                           ov::enable_profiling(true));
+                           ov::enable_profiling(true), ov::num_streams(stream_count));
+        const int compiled_streams = compiled.get_property(ov::num_streams);
+        EXPECT_EQ(compiled_streams, stream_count);
+        RecordProperty(scenario + "_compiled_streams", std::to_string(compiled_streams));
         if (compiled_import) {
             std::stringstream blob;
             compiled.export_model(blob);
@@ -626,160 +631,193 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             GgufScopedEnvironment import_f16("OV_GPU_GGUF_PREFILL_F16", "0");
             GgufScopedEnvironment import_dq("OV_GPU_GGUF_PREFILL_DQ_ACT", "1");
             compiled = import_core.import_model(blob, "GPU", ov::hint::inference_precision(inference_type),
-                                                ov::enable_profiling(true));
+                                                ov::enable_profiling(true), ov::num_streams(stream_count));
+            const int imported_streams = compiled.get_property(ov::num_streams);
+            EXPECT_EQ(imported_streams, stream_count);
+            RecordProperty(scenario + "_imported_streams", std::to_string(imported_streams));
         }
-        auto request = compiled.create_infer_request();
+        std::vector<ov::InferRequest> requests{compiled.create_infer_request()};
+        if (stream_count == 2)
+            requests.push_back(compiled.create_infer_request());
+        RecordProperty(scenario + "_requests", std::to_string(requests.size()));
         const std::vector<size_t> row_counts = static_rows ? std::vector<size_t>{static_rows, static_rows}
                                                         : std::vector<size_t>{1, 2, 33, 1, 1, 33, 2};
         for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
             const auto rows = row_counts[iteration];
-            ov::Tensor input(ov::element::f32, ov::Shape{1, 1, rows, columns});
-            for (size_t row = 0; row < rows; ++row) {
-                const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1));
-                for (size_t column = 0; column < columns; ++column) {
-                    input.data<float>()[row * columns + column] = (binary_mode ? 1.f / 64.f : 1.f) * factor *
-                        static_cast<float>(column / 256 + 1) *
-                        static_cast<float>(static_cast<int>(((column % 256) * 13) % 31) - 15);
-                }
-            }
-            request.set_input_tensor(0, input);
-            ov::Tensor indices;
-            if (has_gather) {
-                indices = ov::Tensor(ov::element::i64, ov::Shape{1, 1, 1, rows});
-                for (size_t row = 0; row < rows; ++row) {
-                    indices.data<int64_t>()[row] = static_cast<int64_t>((row * 7 + iteration) % channels);
-                }
-                request.set_input_tensor(1, indices);
-            }
-            ov::Tensor peer;
             const bool broadcast_peer = rebind_broadcast && rows > 1 && iteration % 2 == 0;
-            if (binary_mode) {
-                peer = ov::Tensor(ov::element::f32, ov::Shape{1, 1, broadcast_peer ? 1 : rows, channels});
-                for (size_t index = 0; index < peer.get_size(); ++index) {
-                    peer.data<float>()[index] = static_cast<float>(static_cast<int>((index + iteration * 3) % 7) - 3) / 4.f;
-                    if (std::string(binary_mode) == "sum") {
-                        float fc_reference = 0.f;
-                        for (size_t column = 0; column < columns; ++column)
-                            fc_reference += decoded[(index % channels % 4) * 256 + column % 256] *
-                                            input.data<const float>()[index / channels * columns + column];
-                        peer.data<float>()[index] += std::ceil(std::abs(fc_reference)) + 2.f;
-                    }
-                }
-                request.set_input_tensor(2, peer);
-            }
-            request.infer();
-            std::string iteration_stages;
-            std::string iteration_fusions;
-            for (const auto& operation : compiled.get_runtime_model()->get_ops()) {
-                const auto& info = operation->get_rt_info();
-                const auto stages = info.find("gguf_last_executed_kernels");
-                if (stages != info.end()) {
-                    const auto& names = stages->second.as<std::vector<std::string>>();
-                    executed_stages.insert(names.begin(), names.end());
-                    for (const auto& name : names)
-                        iteration_stages += name + ";";
-                }
-                const auto fusions = info.find("gguf_runtime_fused_ids");
-                if (fusions != info.end()) {
-                    iteration_fusions += info.at("gguf_runtime_fused_count").as<std::string>() + ":" +
-                                         fusions->second.as<std::string>() + ";";
-                }
-            }
-            RecordProperty(scenario + "_stage_" + std::to_string(iteration), iteration_stages);
-            if (!has_gather) {
-                const auto weight_name = gguf_raw_element_type(format.type).to_string();
-                const std::string expected_stage = !threshold_value && rows > 32
-                    ? "fc_gguf_transcode_" + weight_name : "fc_gguf_opt_" + weight_name;
-                EXPECT_NE(iteration_stages.find(expected_stage), std::string::npos) << iteration_stages;
-                EXPECT_EQ(iteration_stages.find("_sg"), std::string::npos) << iteration_stages;
-                EXPECT_EQ(iteration_stages.find("gemm_q"), std::string::npos) << iteration_stages;
-            }
-            EXPECT_EQ(iteration_stages.find("fc_gguf_act_dq"), std::string::npos) << iteration_stages;
-            if (binary_mode) {
-                const bool expect_fused = !static_rows || (cm_requested && shuffled);
-                EXPECT_EQ(iteration_fusions.find("file_binary_post") != std::string::npos, expect_fused) << iteration_fusions;
-                EXPECT_EQ(iteration_fusions.rfind("0:", 0) == 0u, !expect_fused) << iteration_fusions;
-                const bool prefill = !threshold_value && rows > 32;
-                const std::string sg_stage = format.type == GGUF_TYPE_Q4_0 ? "fc_gguf_q4_0_sg"
-                    : format.type == GGUF_TYPE_Q4_1 ? "fc_gguf_q4_1_sg"
-                    : format.type == GGUF_TYPE_Q4_K ? "fc_gguf_q4k_sg"
-                    : format.type == GGUF_TYPE_Q5_K ? "fc_gguf_q5k_sg"
-                    : format.type == GGUF_TYPE_Q6_K ? "fc_gguf_q6k_sg" : "fc_gguf_q8_0_sg";
-                const std::string cm_stage = format.type == GGUF_TYPE_Q4_0 ? "gemm_q40_full"
-                    : format.type == GGUF_TYPE_Q4_1 ? "gemm_q41_full"
-                    : format.type == GGUF_TYPE_Q4_K ? "gemm_q4k_full"
-                    : format.type == GGUF_TYPE_Q5_K ? "gemm_q5k_full"
-                    : format.type == GGUF_TYPE_Q6_K ? "gemm_q6k_full" : "gemm_q80_full";
-                const auto weight_name = gguf_raw_element_type(format.type).to_string();
-                const std::string expected_stage = broadcast_peer ? sg_stage
-                    : prefill ? (cm_requested && shuffled ? cm_stage : "fc_gguf_transcode_" + weight_name)
-                    : shuffled ? sg_stage : "fc_gguf_opt_" + weight_name;
-                EXPECT_NE(iteration_stages.find(expected_stage), std::string::npos) << iteration_stages;
-                RecordProperty(scenario + "_fusions_" + std::to_string(iteration), iteration_fusions);
-            }
-            const auto output = request.get_output_tensor(0);
-            ASSERT_EQ(output.get_shape(), (ov::Shape{1, 1, rows, channels}));
-            bool detects_missing_fc = false;
-            bool detects_missing_binary = false;
-            float max_fc_error = 0.f;
-            for (size_t row = 0; row < rows; ++row) {
-                for (size_t channel = 0; channel < channels; ++channel) {
-                    float expected = 0.f;
-                    for (size_t column = 0; column < columns; ++column) {
-                        const float weight = decoded[(channel % 4) * 256 + column % 256];
-                        const float reference = !threshold_value && rows > 32
-                                                    ? static_cast<float>(ov::float16(weight)) : weight;
-                        expected += reference * input.data<const float>()[row * columns + column];
-                    }
-                    if (inference_type == ov::element::f16) {
-                        expected = ov::float16(expected);
-                    }
-                    if (binary_mode) {
-                        const float fc_reference = expected;
-                        const auto operand = peer.data<const float>()[(broadcast_peer ? 0 : row) * channels + channel];
-                        expected = std::string(binary_mode) == "sum" ? expected + operand : expected * operand;
-                        if (inference_type == ov::element::f16)
-                            expected = ov::float16(expected);
-                        expected = std::max(expected, 0.f);
-                        const float without_fc = std::string(binary_mode) == "sum" ? std::max(operand, 0.f) : 0.f;
-                        detects_missing_fc |= std::abs(expected - without_fc) > 0.2f;
-                        detects_missing_binary |= std::abs(expected - std::max(fc_reference, 0.f)) > 0.2f;
-                    }
-                    max_fc_error = std::max(max_fc_error,
-                        std::abs(output.data<const float>()[row * channels + channel] - expected));
-                    EXPECT_NEAR(output.data<const float>()[row * channels + channel], expected, 0.1f)
-                        << "iteration=" << iteration << " row=" << row << " channel=" << channel;
-                }
-            }
-            RecordProperty(scenario + "_max_error_" + std::to_string(iteration), max_fc_error);
-            if (binary_mode) {
-                EXPECT_TRUE(detects_missing_fc) << iteration;
-                EXPECT_TRUE(detects_missing_binary) << iteration;
-            }
-            if (has_gather) {
-                const auto embedding = request.get_output_tensor(1);
-                ASSERT_EQ(embedding.get_element_type(), ov::element::f32);
-                ASSERT_EQ(embedding.get_shape(), (ov::Shape{1, 1, rows, columns}));
+            for (size_t request_index = 0; request_index < requests.size(); ++request_index) {
+                auto& request = requests[request_index];
+                ov::Tensor input(ov::element::f32, ov::Shape{1, 1, rows, columns});
                 for (size_t row = 0; row < rows; ++row) {
-                    const auto channel = static_cast<size_t>(indices.data<const int64_t>()[row]);
+                    const float factor = static_cast<float>((row % 3 + 1) * (iteration % 2 + 1) *
+                                                            (request_index * 2 + 1));
                     for (size_t column = 0; column < columns; ++column) {
-                        const float expected = ov::float16(decoded[(channel % 4) * 256 + column % 256]);
-                        EXPECT_EQ(embedding.data<const float>()[row * columns + column], expected)
-                            << "iteration=" << iteration << " row=" << row << " column=" << column;
+                        input.data<float>()[row * columns + column] = (binary_mode ? 1.f / 64.f : 1.f) * factor *
+                            static_cast<float>(column / 256 + 1) *
+                            static_cast<float>(static_cast<int>(((column % 256) * 13) % 31) - 15);
                     }
                 }
+                request.set_input_tensor(0, input);
+                ov::Tensor indices;
+                if (has_gather) {
+                    indices = ov::Tensor(ov::element::i64, ov::Shape{1, 1, 1, rows});
+                    for (size_t row = 0; row < rows; ++row) {
+                        indices.data<int64_t>()[row] = static_cast<int64_t>((row * 7 + iteration + request_index) % channels);
+                    }
+                    request.set_input_tensor(1, indices);
+                }
+                ov::Tensor peer;
+                if (binary_mode) {
+                    peer = ov::Tensor(ov::element::f32, ov::Shape{1, 1, broadcast_peer ? 1 : rows, channels});
+                    for (size_t index = 0; index < peer.get_size(); ++index) {
+                        peer.data<float>()[index] = static_cast<float>(static_cast<int>((index + iteration * 3) % 7) - 3) / 4.f;
+                        if (std::string(binary_mode) == "sum") {
+                            float fc_reference = 0.f;
+                            for (size_t column = 0; column < columns; ++column)
+                                fc_reference += decoded[(index % channels % 4) * 256 + column % 256] *
+                                                input.data<const float>()[index / channels * columns + column];
+                            peer.data<float>()[index] += std::ceil(std::abs(fc_reference)) + 2.f;
+                        }
+                    }
+                    request.set_input_tensor(2, peer);
+                }
+                request.start_async();
             }
-            EXPECT_EQ(owner.expired(), ir_roundtrip);
+            for (auto& request : requests)
+                request.wait();
+            for (size_t request_index = 0; request_index < requests.size(); ++request_index) {
+                auto& request = requests[request_index];
+                SCOPED_TRACE(request_index);
+                const auto request_scenario = scenario + (stream_count == 2 ? "_request" + std::to_string(request_index) : "");
+                const auto input = request.get_input_tensor(0);
+                const auto indices = has_gather ? request.get_input_tensor(1) : ov::Tensor{};
+                const auto peer = binary_mode ? request.get_input_tensor(2) : ov::Tensor{};
+                std::string iteration_stages;
+                std::string iteration_fusions;
+                for (const auto& operation : compiled.get_runtime_model()->get_ops()) {
+                    const auto& info = operation->get_rt_info();
+                    const auto stages = info.find("gguf_last_executed_kernels");
+                    if (stages != info.end()) {
+                        const auto& names = stages->second.as<std::vector<std::string>>();
+                        executed_stages.insert(names.begin(), names.end());
+                        for (const auto& name : names)
+                            iteration_stages += name + ";";
+                    }
+                    const auto fusions = info.find("gguf_runtime_fused_ids");
+                    if (fusions != info.end()) {
+                        iteration_fusions += info.at("gguf_runtime_fused_count").as<std::string>() + ":" +
+                                             fusions->second.as<std::string>() + ";";
+                    }
+                }
+                RecordProperty(request_scenario + "_stage_" + std::to_string(iteration), iteration_stages);
+                if (!has_gather) {
+                    const auto weight_name = gguf_raw_element_type(format.type).to_string();
+                    const std::string expected_stage = !threshold_value && rows > 32
+                        ? "fc_gguf_transcode_" + weight_name : "fc_gguf_opt_" + weight_name;
+                    EXPECT_NE(iteration_stages.find(expected_stage), std::string::npos) << iteration_stages;
+                    EXPECT_EQ(iteration_stages.find("_sg"), std::string::npos) << iteration_stages;
+                    EXPECT_EQ(iteration_stages.find("gemm_q"), std::string::npos) << iteration_stages;
+                }
+                EXPECT_EQ(iteration_stages.find("fc_gguf_act_dq"), std::string::npos) << iteration_stages;
+                if (binary_mode) {
+                    const bool expect_fused = !static_rows || (cm_requested && shuffled);
+                    EXPECT_EQ(iteration_fusions.find("file_binary_post") != std::string::npos, expect_fused) << iteration_fusions;
+                    EXPECT_EQ(iteration_fusions.rfind("0:", 0) == 0u, !expect_fused) << iteration_fusions;
+                    RecordProperty(request_scenario + "_fusions_" + std::to_string(iteration), iteration_fusions);
+                }
+                if (binary_mode || stream_count == 2) {
+                    const bool prefill = !threshold_value && rows > 32;
+                    const std::string sg_stage = format.type == GGUF_TYPE_Q4_0 ? "fc_gguf_q4_0_sg"
+                        : format.type == GGUF_TYPE_Q4_1 ? "fc_gguf_q4_1_sg"
+                        : format.type == GGUF_TYPE_Q4_K ? "fc_gguf_q4k_sg"
+                        : format.type == GGUF_TYPE_Q5_K ? "fc_gguf_q5k_sg"
+                        : format.type == GGUF_TYPE_Q6_K ? "fc_gguf_q6k_sg" : "fc_gguf_q8_0_sg";
+                    const std::string cm_stage = format.type == GGUF_TYPE_Q4_0 ? "gemm_q40_full"
+                        : format.type == GGUF_TYPE_Q4_1 ? "gemm_q41_full"
+                        : format.type == GGUF_TYPE_Q4_K ? "gemm_q4k_full"
+                        : format.type == GGUF_TYPE_Q5_K ? "gemm_q5k_full"
+                        : format.type == GGUF_TYPE_Q6_K ? "gemm_q6k_full" : "gemm_q80_full";
+                    const auto weight_name = gguf_raw_element_type(format.type).to_string();
+                    const std::string expected_stage = broadcast_peer ? sg_stage
+                        : prefill ? (cm_requested && shuffled ? cm_stage : "fc_gguf_transcode_" + weight_name)
+                        : shuffled ? sg_stage : "fc_gguf_opt_" + weight_name;
+                    EXPECT_NE(iteration_stages.find(expected_stage), std::string::npos) << iteration_stages;
+                }
+                const auto output = request.get_output_tensor(0);
+                ASSERT_EQ(output.get_shape(), (ov::Shape{1, 1, rows, channels}));
+                bool detects_missing_fc = false;
+                bool detects_missing_binary = false;
+                float max_fc_error = 0.f;
+                for (size_t row = 0; row < rows; ++row) {
+                    for (size_t channel = 0; channel < channels; ++channel) {
+                        float expected = 0.f;
+                        for (size_t column = 0; column < columns; ++column) {
+                            const float weight = decoded[(channel % 4) * 256 + column % 256];
+                            const float reference = !threshold_value && rows > 32
+                                                        ? static_cast<float>(ov::float16(weight)) : weight;
+                            expected += reference * input.data<const float>()[row * columns + column];
+                        }
+                        if (inference_type == ov::element::f16) {
+                            expected = ov::float16(expected);
+                        }
+                        if (binary_mode) {
+                            const float fc_reference = expected;
+                            const auto operand = peer.data<const float>()[(broadcast_peer ? 0 : row) * channels + channel];
+                            expected = std::string(binary_mode) == "sum" ? expected + operand : expected * operand;
+                            if (inference_type == ov::element::f16)
+                                expected = ov::float16(expected);
+                            expected = std::max(expected, 0.f);
+                            const float without_fc = std::string(binary_mode) == "sum" ? std::max(operand, 0.f) : 0.f;
+                            detects_missing_fc |= std::abs(expected - without_fc) > 0.2f;
+                            detects_missing_binary |= std::abs(expected - std::max(fc_reference, 0.f)) > 0.2f;
+                        }
+                        max_fc_error = std::max(max_fc_error,
+                            std::abs(output.data<const float>()[row * channels + channel] - expected));
+                        EXPECT_NEAR(output.data<const float>()[row * channels + channel], expected, 0.1f)
+                            << "iteration=" << iteration << " row=" << row << " channel=" << channel;
+                    }
+                }
+                RecordProperty(request_scenario + "_max_error_" + std::to_string(iteration), max_fc_error);
+                if (binary_mode) {
+                    EXPECT_TRUE(detects_missing_fc) << iteration;
+                    EXPECT_TRUE(detects_missing_binary) << iteration;
+                }
+                if (has_gather) {
+                    const auto embedding = request.get_output_tensor(1);
+                    ASSERT_EQ(embedding.get_element_type(), ov::element::f32);
+                    ASSERT_EQ(embedding.get_shape(), (ov::Shape{1, 1, rows, columns}));
+                    for (size_t row = 0; row < rows; ++row) {
+                        const auto channel = static_cast<size_t>(indices.data<const int64_t>()[row]);
+                        for (size_t column = 0; column < columns; ++column) {
+                            const float expected = ov::float16(decoded[(channel % 4) * 256 + column % 256]);
+                            EXPECT_EQ(embedding.data<const float>()[row * columns + column], expected)
+                                << "iteration=" << iteration << " row=" << row << " column=" << column;
+                        }
+                    }
+                }
+                EXPECT_EQ(owner.expired(), ir_roundtrip);
+            }
+        }
+        RecordProperty(scenario + "_completed_requests", std::to_string(row_counts.size() * requests.size()));
+        if (stream_count == 2) {
+            std::cout << "GGUF_FILE_STREAM_CHECK format=" << format.name << " scenario=" << scenario
+                      << " requests=" << row_counts.size() * requests.size() << std::endl;
         }
     };
-    run("64", "1");
-    run("64", "0");
-    run(nullptr, "1");
-    run(nullptr, "0");
-    run("64", "1", ov::element::f16);
-    run("64", "0", ov::element::f16);
-    run(nullptr, "1", ov::element::f16);
-    run(nullptr, "0", ov::element::f16);
+    for (const int streams : {1, 2}) {
+        if (streams == 2 && !has_gather)
+            continue;
+        stream_count = streams;
+        run("64", "1");
+        run("64", "0");
+        run(nullptr, "1");
+        run(nullptr, "0");
+        run("64", "1", ov::element::f16);
+        run("64", "0", ov::element::f16);
+        run(nullptr, "1", ov::element::f16);
+        run(nullptr, "0", ov::element::f16);
+    }
+    stream_count = 1;
     if (has_gather) {
         for (const auto& precision : {ov::element::f32, ov::element::f16}) {
             for (const char* binary : {"sum", "prod"}) {
@@ -1004,10 +1042,15 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     run(nullptr, "0");
     run(nullptr, "1", ov::element::f16);
     compiled_import = true;
-    run("64", "0");
-    run("64", "1", ov::element::f16);
-    run(nullptr, "0");
-    run(nullptr, "1", ov::element::f16);
+    for (const int streams : {1, 2}) {
+        if (streams == 2 && !has_gather)
+            continue;
+        stream_count = streams;
+        run("64", "0");
+        run("64", "1", ov::element::f16);
+        run(nullptr, "0");
+        run(nullptr, "1", ov::element::f16);
+    }
     EXPECT_FALSE(executed_stages.empty());
     std::string stage_summary;
     for (const auto& stage : executed_stages) {
