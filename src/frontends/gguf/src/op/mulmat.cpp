@@ -41,7 +41,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
     const auto deferred = ov::as_type_ptr<GGUFConstant>(weight);
     const bool u2_weights =
         (ov::is_type<ov::op::v0::Constant>(weight) && weight->get_output_element_type(0) == ov::element::u2) ||
-        (deferred && (deferred->is_u2() || deferred->qtype() == GGUF_TYPE_Q2_K));
+        (deferred && gguf_has_u2_weights(deferred->qtype()));
     const auto& shape = A.get_partial_shape();
     const bool rank3_output = context.get_attribute<int>("activation_rank", 4) == 3;
     const bool rank3_projection = u2_weights && shape.rank() == 4 && shape[1] == 1 && shape[3].is_static() &&

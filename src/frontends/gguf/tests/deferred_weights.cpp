@@ -9,6 +9,7 @@
 #include <tuple>
 
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/ov_test_utils.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
 #include "helper_ops/gguf_constant.hpp"
@@ -38,18 +39,10 @@ ov::TensorVector evaluate(const std::shared_ptr<ov::Model>& model, const ov::Ten
     return outputs;
 }
 
-template <typename T>
-size_t count_nodes(const std::shared_ptr<ov::Model>& model) {
-    const auto nodes = model->get_ordered_ops();
-    return std::count_if(nodes.begin(), nodes.end(), [](const auto& node) {
-        return ov::is_type<T>(node);
-    });
-}
-
 void normalize(const std::shared_ptr<ov::Model>& model) {
     EXPECT_TRUE(pass::MaterializeGGUFWeights().run_on_model(model));
-    EXPECT_EQ(count_nodes<GGUFConstant>(model), 0);
-    EXPECT_EQ(count_nodes<ov::op::util::FrameworkNode>(model), 0);
+    EXPECT_EQ(count_ops_of_type<GGUFConstant>(model), 0);
+    EXPECT_EQ(count_ops_of_type<ov::op::util::FrameworkNode>(model), 0);
     model->validate_nodes_and_infer_types();
 }
 
@@ -90,11 +83,11 @@ void expect_values(const ov::Tensor& output, const std::vector<float>& values) {
         EXPECT_FLOAT_EQ(output.data<const float>()[i], values[i]) << i;
 }
 
-std::shared_ptr<ov::Node> row_slice(const ov::Output<ov::Node>& input, int64_t start, int64_t stop) {
+std::shared_ptr<ov::Node> row_slice(const ov::Output<ov::Node>& input, int64_t start, int64_t stop, int64_t step = 1) {
     auto constant = [](int64_t value) {
         return ov::op::v0::Constant::create(ov::element::i64, {1}, {value});
     };
-    return std::make_shared<ov::op::v8::Slice>(input, constant(start), constant(stop), constant(1), constant(0));
+    return std::make_shared<ov::op::v8::Slice>(input, constant(start), constant(stop), constant(step), constant(0));
 }
 
 TEST(GGUFWeightNormalization, RawMetadataAndClonesRetainSourceStorage) {
@@ -147,9 +140,9 @@ TEST(GGUFWeightNormalization, NestedConcatSlicesAndGatherFoldBeforeRepacking) {
         for (const auto column : order)
             expected.push_back(values[row * 128 + column]);
     normalize(model);
-    EXPECT_EQ(count_nodes<ov::op::v0::Concat>(model), 0);
-    EXPECT_EQ(count_nodes<ov::op::v8::Gather>(model), 0);
-    EXPECT_EQ(count_nodes<ov::op::v8::Slice>(model), 0);
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Concat>(model), 0);
+    EXPECT_EQ(count_ops_of_type<ov::op::v8::Gather>(model), 0);
+    EXPECT_EQ(count_ops_of_type<ov::op::v8::Slice>(model), 0);
     expect_values(evaluate(model)[0], expected);
 }
 
@@ -164,7 +157,7 @@ TEST(GGUFWeightNormalization, UnalignedColumnGatherPreservesLogicalValues) {
                                              ov::op::v0::Constant::create(ov::element::i64, {}, {1}));
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{gather}, ov::ParameterVector{});
     normalize(model);
-    EXPECT_EQ(count_nodes<ov::op::v8::Gather>(model), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v8::Gather>(model), 1);
     std::vector<float> expected;
     for (size_t row = 0; row < 2; ++row)
         for (auto col : order)
@@ -185,8 +178,8 @@ TEST(GGUFWeightNormalization, SharedProjectionsPreserveUnequalSizesTiesAndCodeTh
     const auto model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{input});
     normalize(model);
     normalize_u2_zero_points(model);
-    EXPECT_EQ(count_nodes<ov::op::v0::MatMul>(model), 1);
-    EXPECT_EQ(count_nodes<ov::op::v1::Subtract>(model), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::MatMul>(model), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v1::Subtract>(model), 1);
     ov::Tensor x(ov::element::f32, {2, 128});
     for (size_t i = 0; i < x.get_size(); ++i)
         x.data<float>()[i] = (static_cast<int>(i % 11) - 5) * 0.125f;
@@ -218,7 +211,7 @@ TEST(GGUFWeightNormalization, MixedWeightTypesKeepSeparateCompressedProjections)
     const auto mm = std::make_shared<ov::op::v0::MatMul>(input, concat, false, true);
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{mm}, ov::ParameterVector{input});
     normalize(model);
-    EXPECT_EQ(count_nodes<ov::op::v0::MatMul>(model), 2);
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::MatMul>(model), 2);
     ov::Tensor x(ov::element::f32, {1, 128});
     std::fill_n(x.data<float>(), 128, 1.f);
     const auto result = evaluate(model, {x});
@@ -242,7 +235,7 @@ TEST(GGUFWeightNormalization, PlainRowViewsAndConcatsPreserveValues) {
         const auto row_size = data.get_size() / shape[0];
         std::vector<float> expected(data.data<float>(), data.data<float>() + data.get_size());
         expected.insert(expected.end(), data.data<float>() + row_size, data.data<float>() + 3 * row_size);
-        EXPECT_EQ(count_nodes<ov::op::v0::Concat>(model), 0);
+        EXPECT_EQ(count_ops_of_type<ov::op::v0::Concat>(model), 0);
         expect_values(evaluate(model)[0], expected);
     }
 }
@@ -270,7 +263,7 @@ TEST(GGUFWeightNormalization, Q5KWeightAndBiasPoliciesRemainSeparate) {
                                         ov::ParameterVector{});
         const auto expected = evaluate(reference)[0];
         normalize(model);
-        EXPECT_EQ(count_nodes<ov::op::v0::Concat>(model), 1);
+        EXPECT_EQ(count_ops_of_type<ov::op::v0::Concat>(model), 1);
         expect_values(
             evaluate(model)[0],
             std::vector<float>(expected.data<const float>(), expected.data<const float>() + expected.get_size()));
@@ -279,17 +272,10 @@ TEST(GGUFWeightNormalization, Q5KWeightAndBiasPoliciesRemainSeparate) {
 
 TEST(GGUFWeightNormalization, LargePositiveSliceStepDoesNotOverflow) {
     const auto raw = ternary(3, 0);
-    const auto constant = [](int64_t value) {
-        return ov::op::v0::Constant::create(ov::element::i64, {1}, {value});
-    };
-    const auto slice = std::make_shared<ov::op::v8::Slice>(std::make_shared<GGUFConstant>(raw.source),
-                                                           constant(1),
-                                                           constant(3),
-                                                           constant(std::numeric_limits<int64_t>::max()),
-                                                           constant(0));
+    const auto slice = row_slice(std::make_shared<GGUFConstant>(raw.source), 1, 3, std::numeric_limits<int64_t>::max());
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{slice}, ov::ParameterVector{});
     normalize(model);
-    EXPECT_EQ(count_nodes<ov::op::v8::Slice>(model), 0);
+    EXPECT_EQ(count_ops_of_type<ov::op::v8::Slice>(model), 0);
     expect_values(evaluate(model)[0], std::vector<float>(raw.values.begin() + 128, raw.values.begin() + 256));
 }
 
@@ -300,7 +286,7 @@ TEST(GGUFWeightNormalization, RankOneQuantizedViewsUseLogicalFallback) {
         std::make_shared<ov::Model>(ov::OutputVector{row_slice(std::make_shared<GGUFConstant>(raw.source), 1, 4)},
                                     ov::ParameterVector{});
     normalize(model);
-    EXPECT_EQ(count_nodes<ov::op::v8::Slice>(model), 1);
+    EXPECT_EQ(count_ops_of_type<ov::op::v8::Slice>(model), 1);
     expect_values(evaluate(model)[0], std::vector<float>(raw.values.begin() + 1, raw.values.begin() + 4));
 }
 
@@ -355,7 +341,7 @@ TEST_P(GGUFWeightFormatNormalization, ConcatenatesRawRowsWithoutFloatWeightExpan
         ov::ParameterVector{});
     const auto expected = evaluate(reference)[0];
     normalize(model);
-    EXPECT_EQ(count_nodes<ov::op::v0::Concat>(model), 0);
+    EXPECT_EQ(count_ops_of_type<ov::op::v0::Concat>(model), 0);
     const auto actual = evaluate(model)[0];
     ASSERT_EQ(actual.get_shape(), expected.get_shape());
     for (size_t i = 0; i < expected.get_size(); ++i)

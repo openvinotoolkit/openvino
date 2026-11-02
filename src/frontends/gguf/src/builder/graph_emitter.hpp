@@ -28,10 +28,8 @@ std::string strip_weight_suffix(const std::string& name);
 // Builds OpenVINO values through the shared GGML converters.
 class GraphEmitter {
 public:
-    // `weights` / `qtypes` are the parser's tensor tables; they are referenced, not copied, and
-    // must outlive the emitter.
-    GraphEmitter(GgufWeightTable& weights,
-                 std::unordered_map<std::string, GgufTensorType>& qtypes,
+    // `weights` is the parser's tensor table; it is referenced, not copied, and must outlive the emitter.
+    GraphEmitter(const GgufWeightTable& weights,
                  std::string arch,
                  const std::unordered_map<std::string, CreatorFunction>* translators = nullptr);
 
@@ -47,7 +45,8 @@ public:
     const ov::Shape& weight_shape(const std::string& name) const;
     int64_t weight_rows(const std::string& name) const;
     GgufTensorType weight_qtype(const std::string& base) const;
-    void register_graph_weight(const std::string& name, GgufTensorType qtype);
+    // Whether selecting `columns` of a parser weight keeps its quantization groups whole.
+    bool column_groups_aligned(const std::string& name, const std::vector<int64_t>& columns) const;
     void add_generated_weight(const std::string& name, const ov::Tensor& tensor);
 
     const ov::Output<ov::Node>& value(const std::string& name) const;
@@ -77,7 +76,13 @@ public:
 
     void add_weight(const std::string& ggml_name);
     void add_weight_from(const std::string& node_name, const std::string& src_base);
-    void add_named_weight(const std::string& ggml_name);
+    // Emit weight `name` computed by `op_type` from weights `sources`. It takes the first source's
+    // qtype and Hadamard rotation; all sources must agree on the rotation.
+    std::string derive_weight(const std::string& name,
+                              const std::string& op_type,
+                              const std::vector<std::string>& sources,
+                              int op_case,
+                              std::map<std::string, ov::Any> attrs = {});
 
     bool weight_emitted(const std::string& name) const {
         return m_emitted_weights.count(name) > 0;
@@ -91,18 +96,17 @@ public:
     bool has_grouped_hadamard_gdn() const {
         return m_hadamard_v_heads > 0;
     }
-    void inherit_hadamard(const std::string& name, const std::string& source);
 
 private:
+    void register_graph_weight(const std::string& name, GgufTensorType qtype);
     struct GraphWeight {
         ov::Shape shape;
         GgufTensorType qtype;
     };
     void emit_weight(const std::string& name, const GgufWeight& source);
 
-    GgufWeightTable& m_weights;
+    const GgufWeightTable& m_weights;
     std::unordered_map<std::string, GraphWeight> m_graph_weights;
-    std::unordered_map<std::string, GgufTensorType>& m_qtypes;
     // Architecture name, used only to make a missing-tensor diagnostic actionable.
     std::string m_arch;
 

@@ -27,9 +27,8 @@ namespace {
 struct Environment {
     std::unordered_map<std::string, GGUFMetaData> metadata;
     GgufWeightTable weights;
-    std::unordered_map<std::string, GgufTensorType> qtypes;
     detail::MetadataStore store{metadata};
-    detail::WeightStore tensors{weights, qtypes};
+    detail::WeightStore tensors{weights};
     BuildContext context{GgufMetadata(store), "test", &tensors};
 
     Environment() {

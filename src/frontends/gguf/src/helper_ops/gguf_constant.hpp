@@ -15,7 +15,6 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override;
     std::shared_ptr<ov::Node> materialize() const;
-    bool is_u2() const;
     GgufTensorType qtype() const;
     const GgufWeight& source() const;
 

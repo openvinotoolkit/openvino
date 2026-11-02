@@ -206,7 +206,7 @@ DecoderConfig::DecoderConfig(const DecoderParameters& p, const GgufWeightTable& 
     }
     has_qk_norm = p.normalization.qk_norm.value_or(has(attention_probe + "attn_q_norm.weight"));
     if (has_qk_norm && has(attention_probe + "attn_q_norm.weight")) {
-        const auto& shape = weights.at(attention_probe + "attn_q_norm.weight").get_shape();
+        const auto& shape = weights.at(attention_probe + "attn_q_norm.weight").shape;
         OPENVINO_ASSERT(!shape.empty(), "[GGUF] empty Q normalization weight");
         qk_norm_full = shape[0] != static_cast<size_t>(layer_head_size(attention_layer));
     }

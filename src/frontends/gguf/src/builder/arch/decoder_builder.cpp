@@ -42,7 +42,7 @@ constexpr int64_t D = -1;
 
 DecoderBuilder::DecoderBuilder(const BuildContext& context, const DecoderParameters& parameters)
     : m_cfg(parameters, context.weights->weights),
-      m_emit(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators),
+      m_emit(context.weights->weights, context.arch, context.weights->translators),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
     m_cfg.configure_graph(m_emit, context.metadata);
 }
@@ -312,7 +312,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
 
     // Gemma4: per-layer output scale (layer_output_scale.weight is a scalar [1]).
     if (m_emit.has_weight(p + "layer_output_scale.weight")) {
-        m_emit.add_named_weight(p + "layer_output_scale.weight");
+        m_emit.add_weight(p + "layer_output_scale.weight");
         cur = m_emit.add_op("GGML_OP_MUL", p + "scaled_out", {cur, p + "layer_output_scale.weight"});
     }
     return cur;

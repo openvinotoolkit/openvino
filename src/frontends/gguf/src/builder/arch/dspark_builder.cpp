@@ -21,7 +21,7 @@ public:
     explicit DSparkBuilder(const BuildContext& context)
         : m_metadata(context.metadata),
           m_config(resolve_decoder_parameters(context.metadata, RopeMode::Neox), context.weights->weights),
-          m_emitter(context.weights->weights, context.weights->qtypes, context.arch, context.weights->translators) {}
+          m_emitter(context.weights->weights, context.arch, context.weights->translators) {}
 
     std::shared_ptr<GgufGraph> build() override {
         using ov::element::f32;

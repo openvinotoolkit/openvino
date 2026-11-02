@@ -21,8 +21,7 @@ void GGUFConstant::validate_and_infer_types() {
     auto shape = m_source.shape;
     auto type = ov::element::f32;
     if (!m_source.native && m_source.qtype == GGUF_TYPE_MXFP4 && shape.size() > 2) {
-        OPENVINO_ASSERT(shape.back() % 32 == 0, "Invalid packed MXFP4 expert width");
-        shape = {1, shape[shape.size() - 3], shape[shape.size() - 2], shape.back() / 32, 17};
+        shape = mxfp4_packed_shape(shape);
         type = ov::element::u8;
     }
     set_output_type(0, type, shape);
@@ -37,9 +36,6 @@ std::shared_ptr<ov::Node> GGUFConstant::clone_with_new_inputs(const ov::OutputVe
 
 std::shared_ptr<ov::Node> GGUFConstant::materialize() const {
     return make_weight_node(m_source);
-}
-bool GGUFConstant::is_u2() const {
-    return m_source.qtype == GGUF_TYPE_Q2_0 || m_source.qtype == GGUF_TYPE_PQ2_0 || m_source.qtype == GGUF_TYPE_PTQ1_0;
 }
 GgufTensorType GGUFConstant::qtype() const {
     return m_source.qtype;

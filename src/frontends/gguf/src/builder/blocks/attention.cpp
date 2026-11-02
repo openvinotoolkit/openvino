@@ -226,7 +226,7 @@ std::string attention(GraphEmitter& e,
     if (!cfg.embedding_model || cfg.causal_attention)
         attn_in.emplace_back(is_swa_layer ? "self_kq_mask_swa" : "self_kq_mask");
     if (cfg.has_sinks) {
-        e.add_named_weight(p + "attn_sinks.weight");
+        e.add_weight(p + "attn_sinks.weight");
         attn_in.push_back(p + "attn_sinks.weight");
     }
     std::map<std::string, ov::Any> attn_attrs = {{"scale", kq_scale}};
@@ -246,8 +246,7 @@ std::string attention(GraphEmitter& e,
     if (cfg.has_attn_gate) {
         const auto gate_name = p + (joint_q_gate ? "attn_q.weight" : "attn_gate.weight");
         const auto qtype = e.weight_qtype(gate_name);
-        const bool rank3_gate =
-            qtype != GGUF_TYPE_Q2_K && qtype != GGUF_TYPE_Q2_0 && qtype != GGUF_TYPE_PQ2_0 && qtype != GGUF_TYPE_PTQ1_0;
+        const bool rank3_gate = !gguf_has_u2_weights(qtype);
         auto gate_width = static_cast<size_t>(q_width);
         if (!joint_q_gate) {
             const auto& gate_shape = e.weight_shape(gate_name);

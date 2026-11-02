@@ -260,8 +260,7 @@ TEST(GGUFSharedLinearInputs, JointInterleavedProjectionPreservesHeadsBatchesAndT
     using namespace ov::frontend::gguf;
     for (const auto& shape : {ov::PartialShape{2, -1, 8}, ov::PartialShape{2, 1, -1, 8}}) {
         GgufWeightTable weights;
-        std::unordered_map<std::string, GgufTensorType> qtypes;
-        GraphEmitter emitter(weights, qtypes, "test");
+        GraphEmitter emitter(weights, "test");
         const auto x = emitter.add_input("x", ov::element::f32, shape);
         weights["joint.weight"] = ov::Tensor(ov::element::f32, {12, 8});
         for (size_t i = 0; i < 96; ++i)
@@ -304,8 +303,7 @@ TEST(GGUFSharedLinearInputs, JointInterleavedProjectionPreservesHeadsBatchesAndT
 TEST(GGUFSharedLinearInputs, GateUpProjectionKeepsGLUBranchesRank3) {
     using namespace ov::frontend::gguf;
     GgufWeightTable weights;
-    std::unordered_map<std::string, GgufTensorType> qtypes;
-    GraphEmitter emitter(weights, qtypes, "test");
+    GraphEmitter emitter(weights, "test");
     const auto x = emitter.add_input("x", ov::element::f32, {2, 1, -1, 8});
     for (const auto* name : {"ffn_gate.weight", "ffn_up.weight"}) {
         weights[name] = ov::Tensor(ov::element::f32, {3, 8});

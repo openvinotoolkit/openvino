@@ -34,22 +34,11 @@ std::vector<int64_t> row_permutation(const ov::Shape& shape,
     return indices;
 }
 
-std::string permute_weight(GraphEmitter& e,
-                           const std::string& source,
-                           const std::string& name,
-                           int64_t axis,
-                           const std::vector<int64_t>& indices) {
-    e.add_named_weight(source);
-    e.add_op("GGML_OP_VIEW", name, {source}, 3, {{"view_gather_axis", axis}, {"view_gather_indices", indices}});
-    e.register_graph_weight(name, e.weight_qtype(source));
-    e.inherit_hadamard(name, source);
-    return name;
-}
-
-bool compatible_row_shapes(GraphEmitter& e, const std::string& lhs, const std::string& rhs) {
+bool concatenable_rows(GraphEmitter& e, const std::string& lhs, const std::string& rhs) {
     const auto& a = e.weight_shape(lhs + ".weight");
     const auto& b = e.weight_shape(rhs + ".weight");
-    return !a.empty() && a.size() == b.size() && std::equal(a.begin() + 1, a.end(), b.begin() + 1);
+    return !a.empty() && a.size() == b.size() && std::equal(a.begin() + 1, a.end(), b.begin() + 1) &&
+           e.weight_qtype(lhs) == e.weight_qtype(rhs);
 }
 
 }  // namespace
@@ -80,7 +69,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     // per-V-head weight lets the op run without a runtime Tile of q and k.
     std::string qkv_base = p + "attn_qkv", gate_base = p + "attn_gate", out_base = p + "ssm_out";
     std::string alpha_base = p + "ssm_alpha", beta_base = p + "ssm_beta";
-    std::string conv_w = p + "ssm_conv1d.weight", a_w = p + "ssm_a", dt_w = p + "ssm_dt.bias";
+    std::string conv_base = p + "ssm_conv1d", a_base = p + "ssm_a", dt_base = p + "ssm_dt";
     bool gqa_grouped = false;
     const bool grouped_hadamard = e.has_grouped_hadamard_gdn();
     if ((!e.has_hadamard() || grouped_hadamard) && H_v != H_k && H_v % H_k == 0) {
@@ -90,50 +79,43 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
             src[n] = (n % rep) * H_k + n / rep;
         }
         struct Grouped {
-            std::string* name;
-            std::string source;
+            std::string* base;
+            std::string suffix;
             int64_t axis;
             std::vector<int64_t> indices;
-            bool base_name;
         };
         std::vector<Grouped> grouped;
-        const auto rows = [&](std::string& name, bool base_name, int64_t first, int64_t per_block) {
-            const auto source = name + (base_name ? ".weight" : "");
-            grouped.push_back(
-                {&name, source, 0, row_permutation(e.weight_shape(source), first, per_block, src), base_name});
+        const auto rows = [&](std::string& base, const std::string& suffix, int64_t first, int64_t per_block) {
+            const auto& shape = e.weight_shape(base + suffix);
+            grouped.push_back({&base, suffix, 0, row_permutation(shape, first, per_block, src)});
         };
-        rows(qkv_base, true, 2 * key_dim, head_v);
-        rows(gate_base, true, 0, head_v);
-        rows(alpha_base, true, 0, 1);
-        rows(beta_base, true, 0, 1);
-        rows(conv_w, false, 2 * key_dim, head_v);
-        rows(a_w, false, 0, 1);
-        rows(dt_w, false, 0, 1);
+        rows(qkv_base, ".weight", 2 * key_dim, head_v);
+        rows(gate_base, ".weight", 0, head_v);
+        rows(alpha_base, ".weight", 0, 1);
+        rows(beta_base, ".weight", 0, 1);
+        rows(conv_base, ".weight", 2 * key_dim, head_v);
+        rows(a_base, "", 0, 1);
+        rows(dt_base, ".bias", 0, 1);
         if (!grouped_hadamard) {
-            const auto source = out_base + ".weight";
-            const auto& shape = e.weight_shape(source);
+            const auto& shape = e.weight_shape(out_base + ".weight");
             auto indices = shape.size() == 2 && shape[1] == static_cast<size_t>(value_dim)
                                ? row_permutation({shape[1]}, 0, head_v, src)
                                : std::vector<int64_t>{};
-            grouped.push_back({&out_base, source, 1, std::move(indices), true});
+            if (!e.column_groups_aligned(out_base + ".weight", indices))
+                indices.clear();
+            grouped.push_back({&out_base, ".weight", 1, std::move(indices)});
         }
         if (std::all_of(grouped.begin(), grouped.end(), [](const Grouped& weight) {
                 return !weight.indices.empty();
             })) {
             for (auto& weight : grouped) {
-                std::string name;
-                if (weight.base_name) {
-                    *weight.name += "_grouped";
-                    name = *weight.name + ".weight";
-                } else {
-                    const auto pos = weight.source.rfind('.');
-                    name = pos != std::string::npos &&
-                                   (weight.source.substr(pos) == ".weight" || weight.source.substr(pos) == ".bias")
-                               ? weight.source.substr(0, pos) + "_grouped" + weight.source.substr(pos)
-                               : weight.source + "_grouped";
-                    *weight.name = name;
-                }
-                permute_weight(e, weight.source, name, weight.axis, weight.indices);
+                const auto source = *weight.base + weight.suffix;
+                *weight.base += "_grouped";
+                e.derive_weight(*weight.base + weight.suffix,
+                                "GGML_OP_VIEW",
+                                {source},
+                                105,
+                                {{"gather_axis", weight.axis}, {"gather_indices", weight.indices}});
             }
             gqa_grouped = true;
         }
@@ -147,9 +129,9 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     // remain separate so their bias and activations can fuse into FCs.
     std::string z, beta, alpha;
     const bool dense_gates = e.weight_qtype(beta_base) == GGUF_TYPE_F32 && e.weight_qtype(alpha_base) == GGUF_TYPE_F32;
-    const bool ba = (!dense_gates || !e.has_hadamard()) && compatible_row_shapes(e, beta_base, alpha_base);
+    const bool ba = (!dense_gates || !e.has_hadamard()) && concatenable_rows(e, beta_base, alpha_base);
     const bool zba = ba && !e.has_hadamard() && (!dense_gates || e.weight_qtype(gate_base) == GGUF_TYPE_F32) &&
-                     compatible_row_shapes(e, gate_base, beta_base);
+                     concatenable_rows(e, gate_base, beta_base);
     if (zba) {
         concat_weight_rows(e,
                            p + "ssm_z_beta_alpha.weight",
@@ -192,11 +174,12 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                     {{"reshape_target", std::vector<int64_t>{0, -1, H_v, 1}}, {"special_zero", true}});
 
     // g = softplus(ssm_alpha @ x + ssm_dt.bias) * ssm_a   (ggml: -A_log.exp() * softplus)
-    e.add_named_weight(dt_w);
+    const auto dt_w = dt_base + ".bias";
+    e.add_weight(dt_w);
     alpha = e.add_op("GGML_OP_ADD", p + "alpha_biased", {alpha, dt_w});
     alpha = e.add_op("GGML_UNARY_OP_SOFTPLUS", p + "alpha_sp", {alpha});
-    e.add_named_weight(a_w);
-    auto g = e.add_op("GGML_OP_MUL", p + "gate", {alpha, a_w});
+    e.add_weight(a_base);
+    auto g = e.add_op("GGML_OP_MUL", p + "gate", {alpha, a_base});
     g = e.add_op("GGML_OP_RESHAPE",
                  p + "gate_4d",
                  {g},
@@ -220,7 +203,8 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     graph.model_output_names.push_back(cs_out);
     graph.recurrent_states.emplace_back(cs, cs_out);
 
-    e.add_named_weight(conv_w);
+    const auto conv_w = conv_base + ".weight";
+    e.add_weight(conv_w);
     auto conv = e.add_op("GGML_OP_SSM_CONV",
                          p + "conv_silu",
                          {conv_in, conv_w},

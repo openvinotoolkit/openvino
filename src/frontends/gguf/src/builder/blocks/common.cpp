@@ -16,10 +16,7 @@ std::string rms_norm(GraphEmitter& e,
                      const std::string& weight,
                      const std::string& out_prefix,
                      float eps) {
-    if (strip_weight_suffix(weight) == weight)
-        e.add_named_weight(weight);
-    else
-        e.add_weight(weight);
+    e.add_weight(weight);
     auto norm = e.add_op("GGML_OP_RMS_NORM", out_prefix + ".rms", {in}, 0, {{"eps", eps}});
     return e.add_op("GGML_OP_MUL", out_prefix, {norm, weight});
 }
@@ -48,7 +45,7 @@ std::string reshape(GraphEmitter& e, const std::string& x, std::vector<int64_t> 
 }
 
 std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& bias_weight, const std::string& name) {
-    e.add_named_weight(bias_weight);
+    e.add_weight(bias_weight);
     return e.add_op("GGML_OP_ADD", name, {x, bias_weight});
 }
 
@@ -86,16 +83,16 @@ std::array<std::string, 2> split_interleaved_projection(GraphEmitter& e,
 
 std::string concat_weight_rows(GraphEmitter& e, const std::string& name, const std::vector<std::string>& weights) {
     OPENVINO_ASSERT(!weights.empty(), "[GGUF] weight concatenation requires inputs");
-    for (const auto& weight : weights) {
-        e.add_weight(weight);
-    }
     const auto rank = e.weight_shape(weights.front()).size();
     OPENVINO_ASSERT(rank > 0 && weights.size() > 1, "[GGUF] weight concatenation requires nonscalar inputs");
     auto input = weights.front();
     for (size_t i = 1; i < weights.size(); ++i) {
         const auto output = i + 1 == weights.size() ? name : name + ".concat" + std::to_string(i);
-        e.add_op("GGML_OP_CONCAT", output, {input, weights[i]}, 0, {{"concat_axis", static_cast<int>(rank - 1)}});
-        e.register_graph_weight(output, e.weight_qtype(weights.front()));
+        e.derive_weight(output,
+                        "GGML_OP_CONCAT",
+                        {input, weights[i]},
+                        0,
+                        {{"concat_axis", static_cast<int>(rank - 1)}});
         input = output;
     }
     return name;

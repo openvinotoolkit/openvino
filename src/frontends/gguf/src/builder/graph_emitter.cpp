@@ -34,12 +34,10 @@ std::string strip_weight_suffix(const std::string& name) {
     return ends_with_weight ? name.substr(0, name.size() - suffix.size()) : name;
 }
 
-GraphEmitter::GraphEmitter(GgufWeightTable& weights,
-                           std::unordered_map<std::string, GgufTensorType>& qtypes,
+GraphEmitter::GraphEmitter(const GgufWeightTable& weights,
                            std::string arch,
                            const std::unordered_map<std::string, CreatorFunction>* translators)
     : m_weights(weights),
-      m_qtypes(qtypes),
       m_arch(std::move(arch)),
       m_graph(std::make_shared<GgufGraph>()),
       m_translators(translators ? *translators : get_supported_ops()) {}
@@ -55,7 +53,7 @@ const ov::Shape& GraphEmitter::weight_shape(const std::string& name) const {
                     "' for architecture '",
                     m_arch,
                     "'");
-    return it->second.get_shape();
+    return it->second.shape;
 }
 
 int64_t GraphEmitter::weight_rows(const std::string& name) const {
@@ -127,13 +125,6 @@ std::string GraphEmitter::add_op(const std::string& op_type,
                    m_translators,
                    m_constant_cache);
     return name;
-}
-
-void GraphEmitter::inherit_hadamard(const std::string& name, const std::string& source) {
-    if (m_hadamard_weights.count(source)) {
-        m_hadamard_weights.insert(name);
-        m_hadamard_consumed.insert(source);
-    }
 }
 
 void GraphEmitter::validate_hadamard() const {
@@ -276,39 +267,54 @@ void GraphEmitter::emit_weight(const std::string& name, const GgufWeight& source
     m_emitted_weights.insert(name);
 }
 
-GgufTensorType GraphEmitter::weight_qtype(const std::string& base) const {
-    const auto name = base.size() >= 7 && base.compare(base.size() - 7, 7, ".weight") == 0 ? base : base + ".weight";
-    if (const auto it = m_graph_weights.find(name); it != m_graph_weights.end()) {
-        return it->second.qtype;
-    }
-    if (const auto it = m_graph_weights.find(base); it != m_graph_weights.end()) {
-        return it->second.qtype;
-    }
-    if (const auto it = m_weights.find(name); it != m_weights.end()) {
-        return it->second.qtype;
-    }
-    if (const auto it = m_weights.find(base); it != m_weights.end()) {
-        return it->second.qtype;
-    }
-    const auto it = m_qtypes.find(strip_weight_suffix(base) + ".qtype");
-    return it != m_qtypes.end() ? it->second : GGUF_TYPE_F16;
+bool GraphEmitter::column_groups_aligned(const std::string& name, const std::vector<int64_t>& columns) const {
+    const auto it = m_weights.find(name);
+    return it == m_weights.end() || gguf_column_groups_are_aligned(it->second, columns);
 }
 
-void GraphEmitter::add_weight(const std::string& ggml_name) {
-    add_named_weight(ggml_name);
+GgufTensorType GraphEmitter::weight_qtype(const std::string& base) const {
+    const auto name = strip_weight_suffix(base) + ".weight";
+    const auto find = [&](const auto& table) {
+        const auto it = table.find(name);
+        return it != table.end() ? it : table.find(base);
+    };
+    if (const auto it = find(m_graph_weights); it != m_graph_weights.end())
+        return it->second.qtype;
+    if (const auto it = find(m_weights); it != m_weights.end())
+        return it->second.qtype;
+    return GGUF_TYPE_F16;
 }
 
 void GraphEmitter::add_weight_from(const std::string& node_name, const std::string& src_base) {
     if (m_emitted_weights.count(node_name)) {
         return;
     }
-    const auto source_name = src_base + ".weight";
-    add_weight(source_name);
-    add_op("GGML_OP_VIEW", node_name, {source_name}, 3);
-    register_graph_weight(node_name, weight_qtype(src_base));
+    derive_weight(node_name, "GGML_OP_VIEW", {src_base + ".weight"}, 3);
 }
 
-void GraphEmitter::add_named_weight(const std::string& ggml_name) {
+std::string GraphEmitter::derive_weight(const std::string& name,
+                                        const std::string& op_type,
+                                        const std::vector<std::string>& sources,
+                                        int op_case,
+                                        std::map<std::string, ov::Any> attrs) {
+    OPENVINO_ASSERT(!sources.empty(), "[GGUF] derived weight requires sources: ", name);
+    const bool rotated = m_hadamard_weights.count(sources.front()) > 0;
+    for (const auto& source : sources) {
+        add_weight(source);
+        OPENVINO_ASSERT(m_hadamard_weights.count(source) == rotated,
+                        "[GGUF] derived weight mixes Hadamard-rotated and plain sources: ",
+                        name);
+    }
+    add_op(op_type, name, sources, op_case, std::move(attrs));
+    register_graph_weight(name, weight_qtype(sources.front()));
+    if (rotated) {
+        m_hadamard_weights.insert(name);
+        m_hadamard_consumed.insert(sources.begin(), sources.end());
+    }
+    return name;
+}
+
+void GraphEmitter::add_weight(const std::string& ggml_name) {
     if (m_emitted_weights.count(ggml_name)) {
         return;
     }

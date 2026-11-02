@@ -70,9 +70,10 @@ void place_dynamic_token_axis(std::vector<int64_t>& tgt, const ov::PartialShape&
 OutputVector translate_view(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
 
-    if (!context.get_attribute_as_any("view_gather_indices").empty()) {
-        const auto gather_indices = context.get_attribute<std::vector<int64_t>>("view_gather_indices");
-        const auto axis = context.get_attribute<int64_t>("view_gather_axis");
+    // op_case 105 (builder): constant row or column permutation of a weight.
+    if (context.get_op_case() == 105) {
+        const auto gather_indices = context.get_attribute<std::vector<int64_t>>("gather_indices");
+        const auto axis = context.get_attribute<int64_t>("gather_axis");
         auto indices = ov::op::v0::Constant::create(ov::element::i64, {gather_indices.size()}, gather_indices);
         auto axis_node = ov::op::v0::Constant::create(ov::element::i64, {}, {axis});
         return rename_outputs_with_suffix(

@@ -19,8 +19,7 @@ OutputVector translate_weight(const NodeContext& context) {
         source.data = context.get_attribute<ov::Tensor>("data");
         FRONT_END_OP_CONVERSION_CHECK(source.data, "GGML_OP_NONE node has no weight payload");
         source.shape = context.get_output_shape().to_shape();
-        source.quant_type = context.get_attribute<std::string>("quant_type");
-        source.qtype = gguf_type_from_name(source.quant_type);
+        source.qtype = gguf_type_from_name(context.get_attribute<std::string>("quant_type"));
         source.source_name = context.get_name();
         source.native = false;
     }

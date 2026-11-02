@@ -95,14 +95,10 @@ struct GgufWeight {
     GgufTensorType qtype = GGUF_TYPE_F32;
     std::string source_name;
     bool native = true;
-    std::string quant_type;
     std::shared_ptr<ov::MappedMemory> mapped;
 
     GgufWeight() = default;
     GgufWeight(const ov::Tensor& tensor);
-    const ov::Shape& get_shape() const {
-        return shape;
-    }
 };
 
 using GgufWeightTable = std::unordered_map<std::string, GgufWeight>;
@@ -110,7 +106,6 @@ using GgufWeightTable = std::unordered_map<std::string, GgufWeight>;
 // Raw weight descriptors retain the source mapping without unpacking quantized tensors.
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             GgufWeightTable,
-                            std::unordered_map<std::string, GgufTensorType>,
                             std::vector<std::shared_ptr<ov::MappedMemory>>>;
 
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
@@ -160,6 +155,14 @@ void unpack_gguf_weight_into(const GgufWeight& source, WeightTensors& destinatio
 WeightTensors unpack_gguf_weight(const GgufWeight& source);
 bool gguf_column_groups_are_aligned(const GgufWeight& source, const std::vector<int64_t>& columns);
 size_t gguf_weight_group_size(const GgufWeight& source);
+// Q2_0, PQ2_0 and PTQ1_0 share the ternary Q2_0 code layout.
+bool gguf_is_q2_0_family(GgufTensorType type);
+// Whether rows of `a` and `b` unpack into tensors of the same types, so they can share one buffer.
+bool gguf_same_unpacked_layout(const GgufWeight& a, const GgufWeight& b);
+// Hint the OS to drop the mmap pages backing source.data after it has been unpacked.
+void evict_gguf_weight(const GgufWeight& source);
+// Types unpacked to u2 weights: the Q2_0 family plus Q2_K.
+bool gguf_has_u2_weights(GgufTensorType type);
 
 // Parse GGUF metadata and raw weight descriptors.
 GGUFLoad get_gguf_data(const std::filesystem::path& file);

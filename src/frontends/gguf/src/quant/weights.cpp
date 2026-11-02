@@ -139,37 +139,6 @@ const ov::Tensor& get(const std::unordered_map<std::string, ov::Tensor>& weights
     return it->second;
 }
 
-// Copy the range [r0, r1) along the outermost dimension. Rows are block-independent in every
-// GGUF quant layout, so a fused attn_qkv weight can be split by a plain row copy without
-// touching the quant blocks; a fused attn_qkv.bias is a plain unquantized 1D array, where the
-// same byte-range copy is exact regardless of dtype.
-ov::Tensor slice_leading(const ov::Tensor& t, size_t r0, size_t r1) {
-    ov::Shape out_shape = t.get_shape();
-    OPENVINO_ASSERT(!out_shape.empty() && r1 <= out_shape[0] && r0 <= r1, "[GGUF] bad slice");
-    const size_t stride = t.get_byte_size() / out_shape[0];
-    out_shape[0] = r1 - r0;
-    ov::Tensor out(t.get_element_type(), out_shape);
-    std::memcpy(out.data(), static_cast<const uint8_t*>(t.data()) + r0 * stride, (r1 - r0) * stride);
-    return out;
-}
-
-// Gather rows in a repeating per-block pattern: for every `block` consecutive rows, take
-// [offset, offset + take) into the result. Used to de-interleave qwen35's attn_q, which packs
-// query and gate per head as [q_h0 | gate_h0 | q_h1 | gate_h1 | ...].
-ov::Tensor gather_rows_strided(const ov::Tensor& t, size_t block, size_t take, size_t offset) {
-    const auto& s = t.get_shape();
-    OPENVINO_ASSERT(s.size() == 2 && block > 0 && offset + take <= block && s[0] % block == 0,
-                    "[GGUF] bad strided row gather");
-    const size_t n_blocks = s[0] / block;
-    const size_t row_bytes = t.get_byte_size() / s[0];
-    ov::Tensor out(t.get_element_type(), {n_blocks * take, s[1]});
-    const auto* src = static_cast<const uint8_t*>(t.data());
-    auto* dst = static_cast<uint8_t*>(out.data());
-    for (size_t b = 0; b < n_blocks; ++b)
-        std::memcpy(dst + b * take * row_bytes, src + (b * block + offset) * row_bytes, take * row_bytes);
-    return out;
-}
-
 // Keep all leading dims separate rather than flattening: the trailing Reshape must be
 // (orig_rank+1)D -> orig_rank for the CompressedWeightsBlock matcher to fire.
 ov::Shape grouped_weight_shape(const ov::Shape& orig, size_t num_groups, size_t group_size) {
@@ -792,105 +761,19 @@ GgufTensorType gguf_type_from_name(const std::string& quant_type) {
     return it->second;
 }
 
-GgufTensorType lookup_qtype(const std::string& base, const std::unordered_map<std::string, GgufTensorType>& qtypes) {
-    GgufTensorType qtype = GGUF_TYPE_F16;
-    if (auto it = qtypes.find(base + ".qtype"); it != qtypes.end()) {
-        qtype = it->second;
-    }
-    return qtype;
-}
-
 bool same_weight_conversion_policy(const std::string& lhs, const std::string& rhs) {
     return is_embedding_or_output(lhs) == is_embedding_or_output(rhs);
 }
 
-// Build one split-off part by applying `slice` (a row-range or strided-gather extractor) to
-// the weight and, if present for this qtype's format, the scales and zero-point.
-template <typename SliceFn>
-FusedQkvPart make_split_part(GgufTensorType qtype,
-                             const std::unordered_map<std::string, ov::Tensor>& weights,
-                             const std::string& base,
-                             const SliceFn& slice) {
-    const auto& weight = get(weights, base + ".weight");
-    const auto zp = weights.find(base + ".zp");
-    const ov::Tensor zero_point = zp != weights.end() ? zp->second : ov::Tensor{};
-    const auto format = get_weight_format(qtype, weight, zero_point, base);
-    FusedQkvPart part;
-    part.qtype = qtype;
-    part.tensors.weight = slice(weight);
-    if (format.has_scales()) {
-        part.tensors.scales = slice(get(weights, base + ".scales"));
-    }
-    if (format.has_zero_point()) {
-        part.tensors.zero_point = slice(get(weights, base + ".zp"));
-    }
-    return part;
-}
-
-std::array<FusedQkvPart, 3> split_fused_qkv_extracted(const std::string& base,
-                                                      const std::unordered_map<std::string, ov::Tensor>& weights,
-                                                      const std::unordered_map<std::string, GgufTensorType>& qtypes,
-                                                      size_t n_q,
-                                                      size_t n_k,
-                                                      size_t n_v) {
-    const GgufTensorType qtype = lookup_qtype(base, qtypes);
-
-    const size_t total_rows = get(weights, base + ".weight").get_shape()[0];
-    OPENVINO_ASSERT(n_q + n_k + n_v == total_rows, "[GGUF] fused qkv row mismatch for ", base);
-
-    const std::array<std::pair<size_t, size_t>, 3> ranges = {std::make_pair(size_t(0), n_q),
-                                                             std::make_pair(n_q, n_q + n_k),
-                                                             std::make_pair(n_q + n_k, total_rows)};
-    std::array<FusedQkvPart, 3> out;
-    for (size_t i = 0; i < 3; ++i) {
-        const size_t r0 = ranges[i].first;
-        const size_t r1 = ranges[i].second;
-        out[i] = make_split_part(qtype, weights, base, [&](const ov::Tensor& t) {
-            return slice_leading(t, r0, r1);
-        });
-    }
-    return out;
-}
-
-std::array<ov::Tensor, 3> split_fused_qkv_bias(const std::string& base,
-                                               const std::unordered_map<std::string, ov::Tensor>& weights,
-                                               size_t n_q,
-                                               size_t n_k,
-                                               size_t n_v) {
-    const ov::Tensor& b = get(weights, base + ".bias");
-    const auto& s = b.get_shape();
-    OPENVINO_ASSERT(s.size() == 1, "[GGUF] fused qkv bias for ", base, " is not 1D");
-    OPENVINO_ASSERT(n_q + n_k + n_v == s[0], "[GGUF] fused qkv bias row mismatch for ", base);
-    return {slice_leading(b, 0, n_q), slice_leading(b, n_q, n_q + n_k), slice_leading(b, n_q + n_k, s[0])};
-}
-
-// qwen35: attn_q packs the query and the attention output gate interleaved per head, as
-// [q_h0 | gate_h0 | q_h1 | gate_h1 | ...] with a stride of 2*head_dim rows. De-interleave it
-// into two plain weights so the graph sees ordinary projections. Returns {query, gate}.
-std::array<FusedQkvPart, 2> split_interleaved_q_gate(const std::string& base,
-                                                     const std::unordered_map<std::string, ov::Tensor>& weights,
-                                                     const std::unordered_map<std::string, GgufTensorType>& qtypes,
-                                                     size_t head_dim) {
-    const GgufTensorType qtype = lookup_qtype(base, qtypes);
-
-    const size_t block = 2 * head_dim;
-    OPENVINO_ASSERT(get(weights, base + ".weight").get_shape()[0] % block == 0,
-                    "[GGUF] interleaved q/gate row mismatch for ",
-                    base);
-
-    const std::array<size_t, 2> offsets = {0, head_dim};
-
-    std::array<FusedQkvPart, 2> out;
-    for (size_t i = 0; i < 2; ++i) {
-        out[i] = make_split_part(qtype, weights, base, [&](const ov::Tensor& t) {
-            return gather_rows_strided(t, block, head_dim, offsets[i]);
-        });
-    }
-    return out;
+std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
+                                           const std::string& quant_type,
+                                           const ov::Shape& logical_shape,
+                                           const std::string& name) {
+    return make_weight_node(data, gguf_type_from_name(quant_type), logical_shape, name);
 }
 
 std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
-                                           const std::string& quant_type,
+                                           GgufTensorType qtype,
                                            const ov::Shape& logical_shape,
                                            const std::string& name) {
     OPENVINO_ASSERT(logical_shape.size() == 2,
@@ -898,7 +781,6 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
                     logical_shape.size());
     const size_t rows = logical_shape[0];
     const size_t cols = logical_shape[1];
-    const GgufTensorType qtype = gguf_type_from_name(quant_type);
 
     if (qtype == GGUF_TYPE_Q8_1) {
         OPENVINO_ASSERT(cols != 0 && cols % 32 == 0, "[GGUF] Q8_1 columns must be a nonzero multiple of 32");
@@ -1034,7 +916,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
         break;
     }
     case FillKind::NONE:
-        OPENVINO_THROW("[GGUF] unsupported weight quant type: ", quant_type);
+        OPENVINO_THROW("[GGUF] unsupported weight quant type: ", static_cast<int>(qtype));
     }
 
     // Non-K requant sources (e.g. an F16 / Q4_0 / Q8_0 token_embd or output): the K-quant fast path
@@ -1047,22 +929,27 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     return make_weight_node(tensors, qtype, name);
 }
 
+ov::Shape mxfp4_packed_shape(const ov::Shape& shape) {
+    OPENVINO_ASSERT(shape.size() > 2 && shape.back() % 32 == 0, "Invalid packed MXFP4 expert shape");
+    return {1, shape[shape.size() - 3], shape[shape.size() - 2], shape.back() / 32, 17};
+}
+
 std::shared_ptr<ov::Node> make_weight_node(const GgufWeight& source) {
     if (source.native)
         return make_weight_node(unpack_gguf_weight(source), source.qtype, source.source_name);
     const auto& shape = source.shape;
     if (shape.size() > 2 && source.qtype == GGUF_TYPE_MXFP4) {
-        const ov::Shape packed_shape{1, shape[shape.size() - 3], shape[shape.size() - 2], shape.back() / 32, 17};
+        const auto packed_shape = mxfp4_packed_shape(shape);
         OPENVINO_ASSERT(source.data.get_byte_size() == ov::shape_size(packed_shape), "MXFP4 packed byte size mismatch");
         return std::make_shared<ov::op::v0::Constant>(ov::element::u8, packed_shape, source.data.data());
     }
     if (shape.size() > 2) {
         const auto rows = std::accumulate(shape.begin(), shape.end() - 1, size_t{1}, std::multiplies<size_t>());
-        auto node = make_weight_node(source.data, source.quant_type, {rows, shape.back()}, source.source_name);
+        auto node = make_weight_node(source.data, source.qtype, {rows, shape.back()}, source.source_name);
         auto target = ov::op::v0::Constant::create(ov::element::i64, {shape.size()}, shape);
         return std::make_shared<ov::op::v1::Reshape>(node, target, false);
     }
-    return make_weight_node(source.data, source.quant_type, shape, source.source_name);
+    return make_weight_node(source.data, source.qtype, shape, source.source_name);
 }
 
 }  // namespace ov::frontend::gguf
