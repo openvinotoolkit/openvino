@@ -363,12 +363,17 @@ Models split_merger_layout(const std::shared_ptr<ov::Model>& model) {
 
     const auto results = model->get_results();
     squeeze_output(model);
-    if (results.size() > 1) {
-        ov::OutputVector levels;
-        for (size_t i = 1; i < results.size(); ++i) {
+    ov::OutputVector levels;
+    for (size_t i = 1; i < results.size(); ++i) {
+        const auto& names = results[i]->output(0).get_names();
+        if (std::any_of(names.begin(), names.end(), [](const std::string& name) {
+                return name.rfind("deepstack_features.", 0) == 0;
+            })) {
             levels.push_back(results[i]->input_value(0));
             model->remove_result(results[i]);
         }
+    }
+    if (!levels.empty()) {
         auto deepstack = std::make_shared<v0::Concat>(levels, 0);
         deepstack->output(0).get_tensor().set_names({"deepstack_feature_lists"});
         auto deepstack_result = std::make_shared<v0::Result>(deepstack);
