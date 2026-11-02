@@ -27,11 +27,19 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "perf_log.hpp"
 #include "properties.hpp"
 
 namespace {
+
+// Core hands a mapped blob to the devices that report caching_with_mmap, which is also how a tensor import is
+// advertised.
+bool device_imports_tensor(const std::shared_ptr<ov::ICore>& core, const std::string& device) {
+    return ov::util::contains(core->get_property(device, ov::internal::supported_properties),
+                              ov::internal::caching_with_mmap);
+}
 
 ov::SoPtr<ov::ICompiledModel> import_submodel_blob(const std::shared_ptr<ov::ICore>& core,
                                                    const std::string& device,
@@ -53,13 +61,10 @@ ov::SoPtr<ov::ICompiledModel> import_submodel_blob(const std::shared_ptr<ov::ICo
 
     const auto view = located.section.view();
     OPENVINO_ASSERT(!view.empty(), "HETERO compiled submodel section is empty");
-    if (source.tensor.get_element_type() == ov::element::u8 && source.tensor.get_shape().size() == 1) {
-        try {
-            // A view of the mapped container lets the sub-device keep its weights zero-copy.
-            return core->import_model(ov::hetero::read_hsm_tensor(located, source), device, load_config);
-        } catch (const ov::Exception&) {
-            // The plugin wrapper reports a missing tensor import as a plain exception; a broken blob fails again below.
-        }
+    if (source.tensor.get_element_type() == ov::element::u8 && source.tensor.get_shape().size() == 1 &&
+        device_imports_tensor(core, device)) {
+        // A view of the mapped container lets the sub-device keep its weights zero-copy.
+        return core->import_model(ov::hetero::read_hsm_tensor(located, source), device, load_config);
     }
     ov::SharedStreamBuffer buffer{view.data(), view.size()};
     std::istream payload{&buffer};

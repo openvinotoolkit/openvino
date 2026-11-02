@@ -392,6 +392,19 @@ TEST_F(HeteroHsmBlobTests, nested_hsm_blob_of_a_sub_device_exported_to_non_seeka
     expect_adds_weights(import_from_stream(buffer.str()), size, 1.0f);
 }
 
+TEST_F(HeteroHsmBlobTests, sub_device_tensor_import_error_is_not_retried_through_a_stream) {
+    EXPECT_NO_THROW(core.get_available_devices());
+    const auto blob = export_blob(compile(create_model_with_weights(64), "MOCKHSM"));
+    const auto broken = hsm_edit_payload(blob, hsm::submodel_blob, [](const std::string&) {
+        return std::string(64, '\xFF');
+    });
+
+    mock_hsm_import() = {};
+    EXPECT_THROW(import_from_tensor(broken), ov::Exception);
+    EXPECT_EQ(1u, mock_hsm_import().tensor_imports);
+    EXPECT_EQ(0u, mock_hsm_import().stream_imports);
+}
+
 TEST_P(HeteroHsmBlobVariantTests, unknown_sections_are_skipped) {
     const auto blob = hsm_repack(variant.blob, [](std::vector<HsmEntry>& entries) {
         entries.push_back({runtime::hsm::any_device_id,

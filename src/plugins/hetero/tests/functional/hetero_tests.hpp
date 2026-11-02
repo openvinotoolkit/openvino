@@ -17,6 +17,16 @@ namespace ov {
 namespace hetero {
 namespace tests {
 
+// How the mock device MOCKHSM, which exports a nested HSM container, was imported last.
+struct MockHsmImport {
+    enum class Source { none, stream, tensor };
+    Source source = Source::none;
+    uint64_t weights_offset = 0;  //!< Offset of the weights section in the nested container.
+    size_t tensor_imports = 0;    //!< import_model(Tensor) calls, including failed ones.
+    size_t stream_imports = 0;    //!< import_model(istream) calls, including failed ones.
+};
+MockHsmImport& mock_hsm_import();
+
 // Output buffer that collects the written bytes and fails every seek.
 class NonSeekableOutputBuffer : public std::streambuf {
 public:
