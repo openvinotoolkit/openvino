@@ -178,7 +178,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
     }
 
 private:
-    using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     using Ymm = const Xbyak::Ymm;
     using reg8_t = const Xbyak::Reg8;
@@ -307,7 +307,7 @@ private:
         case memory::data_type::s8:
             uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
 
-            if (isa != x64::sse41 && !scalar_store) {
+            if (!scalar_store) {
                 vpermq(ymm_dst, ymm_dst, 0x08);
             }
 
@@ -317,18 +317,14 @@ private:
                 movq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
             } else {
-                if (isa != x64::sse41) {
-                    vmovq(op, xmm_dst);
-                } else {
-                    movd(op, xmm_dst);
-                }
+                vmovq(op, xmm_dst);
             }
             break;
         case memory::data_type::u8:
         case memory::data_type::bin:
             uni_vpackusdw(vmm_dst, vmm_dst, vmm_dst);
 
-            if (isa != x64::sse41 && !scalar_store) {
+            if (!scalar_store) {
                 vpermq(ymm_dst, ymm_dst, 0x08);
             }
 
@@ -338,11 +334,7 @@ private:
                 movq(reg_tmp_64, xmm_dst);
                 mov(op, reg_tmp_8);
             } else {
-                if (isa != x64::sse41) {
-                    vmovq(op, xmm_dst);
-                } else {
-                    movd(op, xmm_dst);
-                }
+                vmovq(op, xmm_dst);
             }
 
             break;
@@ -355,7 +347,7 @@ private:
                       int pad_l,
                       int pad_r,
                       int oc_blocks,
-                      int oc_step,
+                      [[maybe_unused]] int oc_step,
                       int ic_blocks,
                       bool last_icb,
                       bool h_padded) {
@@ -366,7 +358,7 @@ private:
         int ic_blk = jcp_.ic_block;
         int oc_blk = jcp_.oc_block;
 
-        int repeats = isa == x64::sse41 && oc_step > (oc_blk / 2) ? 2 : 1;
+        int repeats = 1;
         int nbits = 8;
 
         for (int ki = 0; ki < kw; ki++) {
@@ -410,27 +402,14 @@ private:
                                            Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj),
                                            vmm_tmp);
                             } else {
-                                if (isa == x64::sse41) {
-                                    movups(vmm_tmp1, vmm_tmp);
-                                    pand(vmm_tmp1, vmm_mask);
-                                } else {
-                                    uni_vandps(vmm_tmp1, vmm_mask, vmm_tmp);
-                                }
+                                uni_vandps(vmm_tmp1, vmm_mask, vmm_tmp);
 
                                 uni_vpsrld(vmm_tmp, vmm_tmp, 4);
                                 uni_vandps(vmm_tmp, vmm_tmp, vmm_mask);
 
-                                if (isa == x64::sse41) {
-                                    movups(vmm_tmp2, vmm_lookup);
-                                    pshufb(vmm_tmp2, vmm_tmp);
-                                    movups(vmm_tmp, vmm_lookup);
-                                    pshufb(vmm_tmp, vmm_tmp1);
-                                    paddb(vmm_tmp, vmm_tmp2);
-                                } else {
-                                    uni_vpshufb(vmm_tmp, vmm_lookup, vmm_tmp);
-                                    uni_vpshufb(vmm_tmp1, vmm_lookup, vmm_tmp1);
-                                    uni_vpaddb(vmm_tmp, vmm_tmp, vmm_tmp1);
-                                }
+                                uni_vpshufb(vmm_tmp, vmm_lookup, vmm_tmp);
+                                uni_vpshufb(vmm_tmp1, vmm_lookup, vmm_tmp1);
+                                uni_vpaddb(vmm_tmp, vmm_tmp, vmm_tmp1);
 
                                 if (mayiuse(avx512_core_vnni)) {
                                     vpdpbusd(Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj),
@@ -563,7 +542,7 @@ private:
 
     void width_blk_step(int ur_w, int pad_l, int pad_r, int oc_blocks, int oc_step) {
         int nbits = 8;
-        int repeats = isa == x64::sse41 && oc_step > (static_cast<int>(jcp_.oc_block / 2)) ? 2 : 1;
+        int repeats = 1;
 
         for (int r = 0; r < repeats; r++) {
             for (int ii = 0; ii < oc_blocks; ii++) {
@@ -585,9 +564,8 @@ private:
 
         const auto& p = attr_.post_ops_;
         for (int r = 0; r < repeats; r++) {
-            int tail_size = isa == x64::sse41 ? nstl::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
-            bool is_scalar_store = isa == x64::sse41 ? static_cast<size_t>(tail_size) < jcp_.oc_block / 2
-                                                     : static_cast<size_t>(tail_size) < jcp_.oc_block;
+            int tail_size = oc_step;
+            bool is_scalar_store = static_cast<size_t>(tail_size) < jcp_.oc_block;
 
             std::vector<int> kw_padding(ur_w);
 
@@ -728,8 +706,7 @@ private:
             for (int ii = 0; ii < oc_blocks; ii++) {
                 for (int jj = 0; jj < ur_w; jj++) {
                     for (int r = 0; r < repeats; r++) {
-                        int tail_size =
-                            isa == x64::sse41 ? nstl::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
+                        int tail_size = oc_step;
                         mov(reg_b_mask, (1 << tail_size) - 1);
                         uni_vmovups(
                             vmm_thr,
@@ -777,10 +754,8 @@ private:
             }
         } else {
             for (int r = 0; r < repeats; r++) {
-                int tail_size =
-                    isa == x64::sse41 ? nstl::min(jcp_.oc_block / 2, oc_step - r * jcp_.oc_block / 2) : oc_step;
-                bool is_scalar_store = isa == x64::sse41 ? static_cast<size_t>(tail_size) < jcp_.oc_block / 2
-                                                         : static_cast<size_t>(tail_size) < jcp_.oc_block;
+                int tail_size = oc_step;
+                bool is_scalar_store = static_cast<size_t>(tail_size) < jcp_.oc_block;
                 if (is_scalar_store) {
                     for (int jj = 0; jj < ur_w; jj++) {
                         auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
@@ -805,14 +780,10 @@ private:
 
                                 store_dst(ptr[reg_output + o_off * jcp_.typesize_out], vmm_dst, true);
 
-                                if (isa == x64::sse41) {
-                                    psrldq(vmm_dst, jcp_.typesize_out);
-                                } else {
-                                    auto ymm_dst = Ymm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
+                                auto ymm_dst = Ymm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
 
-                                    vperm2i128(ymm_tmp, ymm_dst, ymm_dst, 0x01);
-                                    vpalignr(ymm_dst, vmm_tmp, ymm_dst, jcp_.typesize_out);
-                                }
+                                vperm2i128(ymm_tmp, ymm_dst, ymm_dst, 0x01);
+                                vpalignr(ymm_dst, vmm_tmp, ymm_dst, jcp_.typesize_out);
                             }
                         }
                     }
@@ -1016,8 +987,6 @@ BinaryConvolution::BinaryConvolution(const std::shared_ptr<ov::Node>& op, const 
             implType = impl_desc_type::jit_avx512;
         } else if (ov::with_cpu_x86_avx2()) {
             implType = impl_desc_type::jit_avx2;
-        } else if (ov::with_cpu_x86_sse42()) {
-            implType = impl_desc_type::jit_sse42;
         } else {
             implType = impl_desc_type::ref;
         }
@@ -1178,9 +1147,7 @@ void BinaryConvolution::createPrimitive() {
     jcp.oc_block = simd_w;
     jcp.nb_oc = div_up(jcp.oc, jcp.oc_block);
 
-    if (implType == impl_desc_type::jit_sse42) {
-        jcp.nb_oc_blocking = nstl::min(static_cast<decltype(jcp.nb_oc)>(2), jcp.nb_oc);
-    } else if (implType == impl_desc_type::jit_avx2) {
+    if (implType == impl_desc_type::jit_avx2) {
         jcp.nb_oc_blocking = nstl::min(static_cast<decltype(jcp.nb_oc)>(4), jcp.nb_oc);
     } else {
         jcp.nb_oc_blocking = nstl::min(static_cast<decltype(jcp.nb_oc)>(6), jcp.nb_oc);
@@ -1214,8 +1181,6 @@ void BinaryConvolution::createPrimitive() {
             std::make_shared<jit_uni_bin_conv_kernel_f32<x64::avx512_core>>(jcp, jcp_dw_conv, *attr.get());
     } else if (implType == impl_desc_type::jit_avx2) {
         bin_conv_kernel = std::make_shared<jit_uni_bin_conv_kernel_f32<x64::avx2>>(jcp, jcp_dw_conv, *attr.get());
-    } else if (implType == impl_desc_type::jit_sse42) {
-        bin_conv_kernel = std::make_shared<jit_uni_bin_conv_kernel_f32<x64::sse41>>(jcp, jcp_dw_conv, *attr.get());
     }
     if (bin_conv_kernel) {
         bin_conv_kernel->create_ker();

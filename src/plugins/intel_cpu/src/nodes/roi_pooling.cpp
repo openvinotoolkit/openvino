@@ -122,8 +122,7 @@ struct jit_uni_roi_pooling_kernel_f32 : public jit_uni_roi_pooling_kernel, publi
     }
 
 private:
-    using Vmm =
-        typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+    using Vmm = typename conditional<isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
     const int vlen = cpu_isa_traits_t<isa>::vlen;
     const int step = vlen / sizeof(float);
@@ -219,11 +218,7 @@ private:
                         {},
                         load_pool_gpr_idxs);
 
-                    if (isa == cpu::x64::sse41) {
-                        movups(vmm_mask, vmm_max);
-                        cmpps(vmm_mask, vmm_src, _cmp_lt_os);
-                        blendvps(vmm_max, vmm_src);
-                    } else if (isa == cpu::x64::avx2) {
+                    if (isa == cpu::x64::avx2) {
                         vcmpps(vmm_mask, vmm_max, vmm_src, _cmp_lt_os);
                         vblendvps(vmm_max, vmm_max, vmm_src, vmm_mask);
                     } else if (isa == cpu::x64::avx512_core) {
@@ -340,24 +335,10 @@ private:
             roi_pool_bilinear(c_blocks);
         }
 
-        if (isa == cpu::x64::sse41) {
-            add(reg_input, 4 * jpp_.src_prc.size());
-            add(reg_output, 4 * jpp_.dst_prc.size());
-
-            if (jpp_.alg == Algorithm::ROIPoolingMax) {
-                roi_pool_max(c_blocks);
-            } else {
-                roi_pool_bilinear(c_blocks);
-            }
-        }
         jmp(exit_label, T_NEAR);
 
         L(empty_roi_label);
         empty_roi(c_blocks);
-        if (isa == cpu::x64::sse41) {
-            add(reg_output, 4 * jpp_.dst_prc.size());
-            empty_roi(c_blocks);
-        }
 
         L(exit_label);
     }
@@ -479,9 +460,6 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
         if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (ov::with_cpu_x86_sse42()) {
-            return impl_desc_type::jit_sse42;
-        }
         return impl_desc_type::ref;
     }();
 
@@ -579,8 +557,6 @@ public:
             roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>>(jpp);
         } else if (ov::with_cpu_x86_avx2()) {
             roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx2>>(jpp);
-        } else if (ov::with_cpu_x86_sse42()) {
-            roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::sse41>>(jpp);
         } else {
             OPENVINO_THROW("Can't create jit RoiPooling kernel");
         }
@@ -1030,7 +1006,7 @@ template <typename T>
 std::shared_ptr<ROIPooling::ROIPoolingExecutor> ROIPooling::ROIPoolingExecutor::makeExecutor(
     const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (ov::with_cpu_x86_sse42()) {
+    if (ov::with_cpu_x86_avx2()) {
         return std::make_shared<ROIPoolingJitExecutor<T>>(jpp);
     }
 #endif

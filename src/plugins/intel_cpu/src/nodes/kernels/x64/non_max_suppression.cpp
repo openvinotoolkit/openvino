@@ -460,9 +460,7 @@ inline void NonMaxSuppression<isa>::horizontal_mul() {
     auto xmm_weight = Xbyak::Xmm(vmm_temp3.getIdx());
     auto xmm_temp1 = Xbyak::Xmm(vmm_temp1.getIdx());
     auto xmm_temp2 = Xbyak::Xmm(vmm_temp2.getIdx());
-    if (isa == x64::sse41) {
-        horizontal_mul_xmm(xmm_weight, xmm_temp1);
-    } else if (isa == x64::avx2) {
+    if (isa == x64::avx2) {
         auto ymm_weight = Xbyak::Ymm(vmm_temp3.getIdx());
         vextractf128(xmm_temp1, ymm_weight, 0);
         vextractf128(xmm_temp2, ymm_weight, 1);
@@ -483,6 +481,5 @@ inline void NonMaxSuppression<isa>::horizontal_mul() {
 
 template class NonMaxSuppression<x64::avx512_core>;
 template class NonMaxSuppression<x64::avx2>;
-template class NonMaxSuppression<x64::sse41>;
 
 }  // namespace ov::intel_cpu::kernel

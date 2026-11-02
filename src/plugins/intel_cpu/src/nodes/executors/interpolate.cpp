@@ -255,7 +255,7 @@ void ov::intel_cpu::InterpolateExecutor::buildTblLinearOnnx(const VectorDims& sr
             weightPtr[4] = reinterpret_cast<float*>(&indexTable[scratchLen + 4 * OW * OH * OD]);
             weightPtr[5] = reinterpret_cast<float*>(&indexTable[scratchLen + 5 * OW * OH * OD]);
         }
-        int scale = ov::with_cpu_x86_sse42() ? static_cast<int>(srcDataSize) : 1;
+        int scale = ov::with_cpu_x86_avx2() ? static_cast<int>(srcDataSize) : 1;
 
         for (int oz = 0; oz < OD; oz++) {
             int izF = 0;
