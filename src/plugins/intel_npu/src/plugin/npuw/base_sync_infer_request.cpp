@@ -142,6 +142,9 @@ bool ov::npuw::IBaseInferRequest::is_stored(const ov::Output<const ov::Node>& po
 
 void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const ov::Node>& port,
                                                           const ov::SoPtr<ov::ITensor>& tensor) {
+    if (ov::npuw::util::is_remote(tensor)) {
+        return;  // Set on the subrequest as is, see bind_global_params()
+    }
     for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
         if (m_npuw_model->inputs()[i] == port) {
             // This is a tricky case:
@@ -475,6 +478,12 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
             // function pipelining
             NPUW_ASSERT(false && "Global parameter can't be spatial");
             m_spatial_io[real_idx].inputs.at(sub_in_idx) = g_tnsr;
+        } else if (ov::npuw::util::is_remote(g_tnsr)) {
+            // A device tensor has no host memory to copy from. The subgraph
+            // takes it as is, so it must run on that device, like the PA
+            // blocks on GPU taking the cache pools the pipeline allocated there.
+            LOG_DEBUG("Will be set (device tensor)");
+            request->set_tensor(s_port, g_tnsr);
         } else if (bind_behavior_input(idx, real_idx, sub_in_idx, g_tnsr, request)) {
             continue;
         } else {
