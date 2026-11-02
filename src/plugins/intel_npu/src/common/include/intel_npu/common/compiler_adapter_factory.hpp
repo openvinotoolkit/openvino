@@ -23,10 +23,13 @@ namespace intel_npu {
 class CompilerAdapterFactory final {
 public:
     /**
-     * @param vclFunctions Supplies the VCL entry points. It is called only when a compiler-in-plugin
-     *        gets built, so the driver compiler path never loads the library.
+     * @param vclFunctions Supplies the VCL entry points. This factory calls it only to build or probe a
+     *        compiler-in-plugin. Driver compilation never calls it.
      */
     explicit CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctions);
+
+    CompilerAdapterFactory(const CompilerAdapterFactory&) = delete;
+    CompilerAdapterFactory& operator=(const CompilerAdapterFactory&) = delete;
 
     std::unique_ptr<ICompilerAdapter> getCompiler(
         const ov::SoPtr<IEngineBackend>& engineBackend,
@@ -55,9 +58,9 @@ private:
         ABSENT = 2,
     };
 
-    // Copies share the availability result for this provider, independently of other plugin instances.
-    std::shared_ptr<std::atomic<PluginCompilerPresence>> _pluginCompilerPresence =
-        std::make_shared<std::atomic<PluginCompilerPresence>>(PluginCompilerPresence::UNKNOWN);
+    // Outcome of the compiler-in-plugin availability probe for this provider. The factory is not copyable, so
+    // everything sharing one instance sees the same outcome and another plugin instance probes on its own.
+    mutable std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
 
     VCLFunctionTableProvider _vclFunctions;
 };

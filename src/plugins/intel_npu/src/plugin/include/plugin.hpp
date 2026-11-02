@@ -92,13 +92,11 @@ private:
     // Defers VCL loading until compiler construction or profiling decoder creation needs it.
     std::shared_ptr<VCLLoaderHolder> _vclLoaderHolder;
 
-    // PREFER_PLUGIN probes compiler availability and remembers whether to use the plugin or driver compiler.
-    // A process-wide cache can reuse another provider's result, choosing DRIVER despite an available compiler
-    // or PLUGIN despite an unavailable one. Keep one factory per plugin so compile/query operations,
-    // property queries and option support checks share the result for this plugin's VCL provider.
-    // Creating a fresh factory for each operation would lose that result and repeat failed compiler probes.
-    // Factory copies held by the helpers share this cache; explicit PLUGIN requests still retry after failure.
-    std::unique_ptr<CompilerAdapterFactory> _compilerAdapterFactory;
+    // PREFER_PLUGIN probes compiler availability once and remembers whether to use the plugin or driver compiler.
+    // The outcome depends on this plugin's VCL provider, so it must not be shared across plugin instances.
+    // The factory is not copyable. Compile and query operations, property queries and option support checks
+    // share this single instance, so a failed probe is not repeated. Explicit PLUGIN requests still retry.
+    std::shared_ptr<const CompilerAdapterFactory> _compilerAdapterFactory;
 
     mutable Logger _logger;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;

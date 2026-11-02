@@ -42,10 +42,13 @@ TEST(VCLLoaderHolderTests, Functions_CalledConcurrentlyWithMissingLibrary_EveryC
     const ::intel_npu::VCLLoaderHolder holder(kMissingLibraryDir);
     constexpr size_t threadCount = 8;
     std::atomic<size_t> throwCount{0};
+    std::promise<void> startSignal;
+    const auto start = startSignal.get_future().share();
 
     std::vector<std::thread> threads;
     for (size_t i = 0; i < threadCount; i++) {
         threads.emplace_back([&] {
+            start.wait();
             try {
                 holder.functions();
             } catch (const ov::Exception&) {
@@ -53,6 +56,7 @@ TEST(VCLLoaderHolderTests, Functions_CalledConcurrentlyWithMissingLibrary_EveryC
             }
         });
     }
+    startSignal.set_value();
     for (auto& thread : threads) {
         thread.join();
     }
@@ -93,12 +97,16 @@ TEST_F(VCLLoaderHolderLibraryTests, Functions_AfterHolderDestroyed_LibraryRemain
 TEST_F(VCLLoaderHolderLibraryTests, Functions_ConcurrentFirstCalls_ReturnSameTable) {
     const ::intel_npu::VCLLoaderHolder holder(directory);
     constexpr size_t threadCount = 8;
+    std::promise<void> startSignal;
+    const auto start = startSignal.get_future().share();
     std::array<std::future<std::shared_ptr<const ::intel_npu::VCLFunctionTable>>, threadCount> calls;
     for (auto& call : calls) {
-        call = std::async(std::launch::async, [&holder] {
+        call = std::async(std::launch::async, [&holder, start] {
+            start.wait();
             return holder.functions();
         });
     }
+    startSignal.set_value();
     const auto functions = calls.front().get();
     ASSERT_NE(functions, nullptr);
     for (size_t i = 1; i < calls.size(); i++) {

@@ -47,11 +47,12 @@ namespace ov {
 namespace test {
 namespace behavior {
 namespace {
-::intel_npu::VCLFunctionTableProvider testVclFunctions() {
+// All tests of a process share one holder, so the compiler library loads at most once.
+std::shared_ptr<const ::intel_npu::CompilerAdapterFactory> makeTestCompilerAdapterFactory() {
     static const auto holder = std::make_shared<::intel_npu::VCLLoaderHolder>();
-    return [] {
+    return std::make_shared<const ::intel_npu::CompilerAdapterFactory>([] {
         return holder->functions();
-    };
+    });
 }
 }  // namespace
 
@@ -166,7 +167,7 @@ public:
             REGISTER_OPTION(Opt);
         });
 
-        const CompilerAdapterFactory compilerAdapterFactory{testVclFunctions()};
+        const auto compilerAdapterFactory = makeTestCompilerAdapterFactory();
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
@@ -694,7 +695,7 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
 
     std::shared_ptr<::intel_npu::OptionsDesc> localOptions = std::make_shared<::intel_npu::OptionsDesc>();
     localOptions->add<::intel_npu::COMPILER_TYPE>();
-    const ::intel_npu::CompilerAdapterFactory compilerAdapterFactory{testVclFunctions()};
+    const auto compilerAdapterFactory = makeTestCompilerAdapterFactory();
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,

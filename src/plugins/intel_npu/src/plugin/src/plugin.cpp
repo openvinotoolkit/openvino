@@ -168,7 +168,10 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
 
 namespace intel_npu {
 
-Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
+Plugin::Plugin()
+    : _vclLoaderHolder(std::make_shared<VCLLoaderHolder>()),
+      _compilerAdapterFactory(std::make_shared<const CompilerAdapterFactory>(vcl_functions())),
+      _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
 
@@ -180,8 +183,6 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
     config->parseEnvVars();
     Logger::global().setLevel(config->get<LOG_LEVEL>());
     _logger.setLevel(config->get<LOG_LEVEL>());
-
-    _vclLoaderHolder = std::make_shared<VCLLoaderHolder>();
 
     OV_ITT_TASK_CHAIN(PLUGIN, itt::domains::NPUPlugin, "Plugin::Plugin", "GetBackend");
     // backend registry shall be created after configs are updated
@@ -196,12 +197,11 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _compilerAdapterFactory = std::make_unique<CompilerAdapterFactory>(vcl_functions());
-    _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, *_compilerAdapterFactory);
+    _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, _compilerAdapterFactory);
     _propertiesManager = std::make_unique<PluginPropertyManager>(options,
                                                                  _backend,
                                                                  _compilerOptionSupportHelper,
-                                                                 *_compilerAdapterFactory,
+                                                                 _compilerAdapterFactory,
                                                                  _logger);
 }
 

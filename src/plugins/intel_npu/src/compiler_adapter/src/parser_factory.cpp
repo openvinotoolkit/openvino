@@ -22,9 +22,9 @@ std::unique_ptr<IParser> ParserFactory::getParser(const std::shared_ptr<ZeroInit
 
     std::shared_ptr<IProfilingDecoder> profilingDecoder;
     if (perfCountEnabled) {
+        OPENVINO_ASSERT(vclFunctions != nullptr,
+                        "Profiling is enabled but no way to obtain the VCL entry points was given");
         try {
-            OPENVINO_ASSERT(vclFunctions != nullptr,
-                            "Profiling is enabled but no way to obtain the VCL entry points was given");
             profilingDecoder = std::make_shared<VCLProfilingDecoder>(vclFunctions());
         } catch (const std::exception& ex) {
             Logger::global().warning("Failed to create the VCL profiling decoder for model import: %s", ex.what());
