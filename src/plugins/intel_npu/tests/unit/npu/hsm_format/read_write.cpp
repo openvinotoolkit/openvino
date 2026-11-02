@@ -30,6 +30,20 @@ const auto COMPILER_VERSION_PTR = std::make_shared<SectionType>(SectionTypeCode:
 const auto ID_0_PTR = std::make_shared<SectionID>(0);
 const auto ID_2_PTR = std::make_shared<SectionID>(2);
 
+ov::runtime::hsm::Reader create_base_reader(std::stringstream& stream, const bool use_tensor_source) {
+    std::optional<ov::runtime::hsm::Reader> reader;
+    if (!use_tensor_source) {
+        reader = ov::runtime::hsm::Reader::open(stream);
+        OPENVINO_ASSERT(reader);
+        return std::move(reader).value();
+    }
+
+    const std::string content = stream.str();
+    reader = ov::runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(content.data()), content.size());
+    OPENVINO_ASSERT(reader);
+    return std::move(reader).value();
+}
+
 }  // namespace
 
 // write_to(stream, const BlobSectionsRegistry& blob_sections_registry);
@@ -39,10 +53,17 @@ const auto ID_2_PTR = std::make_shared<SectionID>(2);
 //     section_readers, const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
 //     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators)
 
+using HSMWriteFailure = ::testing::Test;
+
+TEST_F(HSMWriteFailure, WriteInvalidStream) {
+    BlobSectionsRegistry sections_registry;
+    std::stringstream stream;
+    stream.seekg(1);
+    OV_EXPECT_THROW(hsm::write_to(stream, sections_registry), ov::Exception, _);
+}
+
 class HSMReadWriteTest : public testing::TestWithParam<bool> {
 public:
-    HSMReadWriteTest() : section({}) {}
-
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
         bool tensor_source = obj.param;
 
@@ -51,6 +72,8 @@ public:
 
 protected:
     void SetUp() override {
+        use_tensor_source = GetParam();
+
         batch_size_section_1 = std::make_shared<BatchSizeSection>(0);
         batch_size_section_2 = std::make_shared<BatchSizeSection>(1);
         compiler_version_section = std::make_shared<CompilerVersionSection>(2);
@@ -60,8 +83,18 @@ protected:
 
         section_readers[SectionTypeCode::BATCH_SIZE] = BatchSizeSection::decode;
         section_readers[SectionTypeCode::COMPILER_VERSION] = CompilerVersionSection::decode;
+
+        type_evaluators[SectionTypeCode::BATCH_SIZE] = MOCK_TYPE_EVALUATOR_TRUE;
+        type_evaluators[SectionTypeCode::COMPILER_VERSION] = MOCK_TYPE_EVALUATOR_TRUE;
+        // The mock section uses the IO layouts code since it cannot insert a new one by design
+        type_evaluators[SectionTypeCode::IO_LAYOUTS] = MOCK_TYPE_EVALUATOR_TRUE;
+
+        instance_evaluators[SectionTypeCode::BATCH_SIZE] = MOCK_INSTANCE_EVALUATOR;
+        instance_evaluators[SectionTypeCode::COMPILER_VERSION] = MOCK_INSTANCE_EVALUATOR;
+        instance_evaluators[SectionTypeCode::IO_LAYOUTS] = MOCK_INSTANCE_EVALUATOR;
     }
 
+    bool use_tensor_source;
     std::stringstream stream;
     BlobSectionsRegistry sections_registry;
     std::shared_ptr<BatchSizeSection> batch_size_section_1;
@@ -72,63 +105,7 @@ protected:
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators;
 };
 
-TEST_P(RuntimeRequirementsSectionReadTest, Read) {
-    auto read_section = RuntimeRequirementsSection::decode(section);
-
-    if (!expect_failure) {
-        ASSERT_TRUE(read_section);
-        auto casted_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(read_section.value());
-        ASSERT_TRUE(casted_section);
-        const RuntimeRequirements runtime_requirements = casted_section->get_runtime_requirements();
-        ASSERT_TRUE(runtime_requirements.get_cre() == expected_cre);
-        ASSERT_TRUE(runtime_requirements.get_sections_requirements() == expected_sections_requirements);
-        ASSERT_TRUE(runtime_requirements.get_section_id_to_type_mapping() == expected_id_to_type_mapping);
-    } else {
-        ASSERT_FALSE(read_section);
-    }
-}
-
-std::vector<ReadParams> test_cases{
-    make_test_params(true, ""),
-    make_test_params(true, "version=3.1"),
-    make_test_params(true, "version=2.0"),
-    make_test_params(true, "version=4.0"),
-    make_test_params(true, "VERSION=3.0"),
-    make_test_params(true, "versio=3.0"),
-    make_test_params(true, "version=3.0;"),
-    make_test_params(true, "version="),
-    make_test_params(true, "version=3.0;cre="),
-    make_test_params(true, "custom=CONTENT"),
-    make_test_params(true, "version=3.0;cre=(.BATCH_SIZE"),
-    make_test_params(true, "version=3.0;cre=BATCH_SIZE;batch_size=CUSTOM"),  // Missing section ID
-    make_test_params(true, "version=3.0;cre=BATCH_SIZE;batch_size_1=CUSTOM;io_layouts_1=CUSTOM"),
-    make_test_params(true, "version=3.0;cre=BATCH_SIZE;batch_size1=CUSTOM"),
-    make_test_params(false, "version=3.0;cre=BATCH_SIZE", CRE({BATCH_SIZE_PTR})),
-    make_test_params(false,
-                     "version=3.0;batch_size_0=CUSTOM",
-                     CRE(),
-                     {{0, "CUSTOM"}},
-                     {{0, SectionTypeCode::BATCH_SIZE}}),
-    make_test_params(false,
-                     "version=3.0;cre=BATCH_SIZE_2.AND.COMPILER_VERSION_0;batch_size_1=CUSTOM",
-                     CRE({BATCH_SIZE_PTR, ID_2_PTR, CRE::AND_PTR, COMPILER_VERSION_PTR, ID_0_PTR}),
-                     {{1, "CUSTOM"}},
-                     {{1, SectionTypeCode::BATCH_SIZE}}),
-    make_test_params(
-        false,
-        "version=3.0;cre=BATCH_SIZE_2.AND.COMPILER_VERSION_0;batch_size_2=CUSTOM1;compiler_version_0=CUSTOM2",
-        CRE({BATCH_SIZE_PTR, ID_2_PTR, CRE::AND_PTR, COMPILER_VERSION_PTR, ID_0_PTR}),
-        {{2, "CUSTOM1"}, {0, "CUSTOM2"}},
-        {{2, SectionTypeCode::BATCH_SIZE}, {0, SectionTypeCode::COMPILER_VERSION}}),
-    make_test_params(
-        false,
-        "version=3.0;compiler_version_0=CUSTOM2;cre=BATCH_SIZE_2.AND.COMPILER_VERSION_0;batch_size_2=CUSTOM1",
-        CRE({BATCH_SIZE_PTR, ID_2_PTR, CRE::AND_PTR, COMPILER_VERSION_PTR, ID_0_PTR}),
-        {{2, "CUSTOM1"}, {0, "CUSTOM2"}},
-        {{2, SectionTypeCode::BATCH_SIZE}, {0, SectionTypeCode::COMPILER_VERSION}}),
-};
-
 INSTANTIATE_TEST_SUITE_P(UnitTests,
-                         RuntimeRequirementsSectionReadTest,
-                         testing::ValuesIn(augment_cases_using_stream_type(test_cases)),
-                         RuntimeRequirementsSectionReadTest::getTestCaseName);
+                         HSMReadWriteTest,
+                         testing::ValuesIn(std::vector<bool>({true, false})),
+                         HSMReadWriteTest::getTestCaseName);

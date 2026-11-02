@@ -23,6 +23,9 @@ SectionID BlobSectionsRegistry::register_section(const std::shared_ptr<ISection>
     OPENVINO_ASSERT(!section->get_id().has_value(),
                     "The given section has already been registered in a sections registry");
     const SectionType section_type = section->get_type();
+    OPENVINO_ASSERT(section_type != SectionTypeCode::RUNTIME_REQUIREMENTS,
+                    "The runtime requirements section should not be added to the registry since its content is "
+                    "volatile and depends on all other registered sections");
 
     // TODO overflow checks
     const SectionID section_id = parsed_id.has_value() ? parsed_id.value() : SectionID(m_next_section_id++);
