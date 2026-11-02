@@ -280,3 +280,61 @@ TEST(moe_offload_constant, shared_routed_constant_is_not_offloadable) {
                                                  layout);
     EXPECT_FALSE(desc.enabled);
 }
+
+TEST(moe_offload_constant, resident_fallback_keeps_sibling_constants_fully_resident) {
+    auto& engine = tests::get_test_engine();
+    auto config = tests::get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::offload_ratio(75));
+
+    for (bool tensor_weight : {false, true}) {
+        SCOPED_TRACE(tensor_weight);
+        auto graph = MoETestGraph::build();
+        ov::ResultVector results{std::make_shared<ov::op::v0::Result>(graph.moe_node)};
+        if (tensor_weight) {
+            auto weight = std::make_shared<ov::op::v0::Parameter>(graph.constants[0]->get_element_type(), graph.constants[0]->get_shape());
+            graph.moe_node->input(3).replace_source_output(weight);
+            graph.parameters.push_back(weight);
+        } else {
+            auto consumer = std::make_shared<ov::op::v0::Relu>(graph.constants[0]);
+            results.push_back(std::make_shared<ov::op::v0::Result>(consumer));
+        }
+        ov::Model model(results, graph.parameters);
+        EXPECT_FALSE(is_moe_otd_eligible(graph.moe_node.get()));
+        EXPECT_EQ(get_model_resident_constant_bytes(model, 75), get_model_resident_constant_bytes(model, 0));
+        EXPECT_EQ(get_model_resident_constant_bytes(model, 100), get_model_resident_constant_bytes(model, 0));
+
+        for (size_t index = 1; index < 9; ++index) {
+            const auto& constant = graph.constants[index];
+            EXPECT_FALSE(is_moe_constant_offloadable(constant));
+            const auto shape = constant->get_shape();
+            const auto layout =
+                cldnn::layout(shape, cldnn::element_type_to_data_type(constant->get_element_type()), cldnn::format::get_default_format(shape.size()));
+            const auto desc = try_prepare_partial_upload(engine, config, constant, shape, layout.data_type, layout.format, layout);
+            EXPECT_FALSE(desc.enabled);
+        }
+    }
+}
+
+TEST(moe_offload_constant, shared_routed_weights_propagate_resident_fallback) {
+    auto first = MoETestGraph::build();
+    auto second = MoETestGraph::build();
+    second.moe_node->input(3).replace_source_output(first.constants[0]);
+
+    EXPECT_TRUE(is_moe_otd_eligible(first.moe_node.get()));
+    EXPECT_TRUE(is_moe_otd_eligible(second.moe_node.get()));
+    EXPECT_TRUE(is_moe_constant_offloadable(first.constants[0]));
+
+    auto weight = std::make_shared<ov::op::v0::Parameter>(second.constants[3]->get_element_type(), second.constants[3]->get_shape());
+    second.moe_node->input(6).replace_source_output(weight);
+    second.parameters.push_back(weight);
+    auto parameters = first.parameters;
+    parameters.insert(parameters.end(), second.parameters.begin(), second.parameters.end());
+    ov::Model model(ov::ResultVector{std::make_shared<ov::op::v0::Result>(first.moe_node), std::make_shared<ov::op::v0::Result>(second.moe_node)}, parameters);
+
+    EXPECT_FALSE(is_moe_otd_eligible(first.moe_node.get()));
+    EXPECT_FALSE(is_moe_otd_eligible(second.moe_node.get()));
+    EXPECT_FALSE(is_moe_constant_offloadable(first.constants[0]));
+    EXPECT_FALSE(is_moe_constant_offloadable(first.constants[1]));
+    EXPECT_FALSE(is_moe_constant_offloadable(second.constants[1]));
+    EXPECT_EQ(get_model_resident_constant_bytes(model, 75), get_model_resident_constant_bytes(model, 0));
+}

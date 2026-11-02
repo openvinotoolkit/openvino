@@ -71,6 +71,12 @@ expert before returning. One slot is sufficient for this sequential path.
 
 ## Build unit test
 
+`moe_mixed_routed_input.*` compares OFFLOAD_RATIO=75 against fully resident
+execution when a routed weight is a tensor input or has a non-MoE consumer.
+Such nodes, including other MoE nodes sharing their routed weights, must keep
+all routed constants fully resident. `moe_offload_constant.*` also checks that
+partial allocation and resident-memory estimates use the same eligibility rule.
+
 1. Turn on `ENABLE_TESTS` in cmake option:
 
    ```bash

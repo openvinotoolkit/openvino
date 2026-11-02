@@ -8,6 +8,7 @@
 #include <functional>
 #include <limits>
 #include <unordered_set>
+#include <vector>
 
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
@@ -75,6 +76,37 @@ MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant
     return MoEConstantRole::NotOffloadableMoE;
 }
 
+bool is_moe_otd_eligible(const ov::Node* node) {
+    std::vector<const ov::Node*> pending{node};
+    std::unordered_set<const ov::Node*> visited;
+    while (!pending.empty()) {
+        const auto* current = pending.back();
+        pending.pop_back();
+        if (!visited.insert(current).second)
+            continue;
+        if (!is_otd_capable_moe(current) || current->get_input_size() <= ROUTED_INPUT_END)
+            return false;
+        for (size_t index = ROUTED_INPUT_START; index <= ROUTED_INPUT_END; ++index) {
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(current->input_value(index).get_node_shared_ptr());
+            if (!constant || get_moe_constant_role(constant) != MoEConstantRole::OffloadableRoutedExpert)
+                return false;
+            for (const auto& consumer : constant->get_output_target_inputs(0)) {
+                pending.push_back(consumer.get_node());
+            }
+        }
+    }
+    return true;
+}
+
+bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op) {
+    if (get_moe_constant_role(op) != MoEConstantRole::OffloadableRoutedExpert)
+        return false;
+    const auto consumers = op->get_output_target_inputs(0);
+    return std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& consumer) {
+        return is_moe_otd_eligible(consumer.get_node());
+    });
+}
+
 bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op) {
     return get_moe_constant_role(op) != MoEConstantRole::NotMoE;
 }
@@ -102,7 +134,7 @@ uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offloa
                 continue;
 
             uint64_t constant_resident_bytes = constant->get_byte_size();
-            if (role == MoEConstantRole::OffloadableRoutedExpert && offload_ratio > 0) {
+            if (offload_ratio > 0 && is_moe_constant_offloadable(constant)) {
                 const auto& shape = constant->get_shape();
                 if (shape.empty() || shape[0] == 0)
                     continue;
@@ -152,8 +184,7 @@ PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
     const size_t otd_ratio = config.get_offload_ratio();
     // Only routed expert weights are partially uploaded; shared experts stay fully resident.
     // ratio=0 keeps all experts resident; positive ratios enable partial upload.
-    const bool partial_moe_const_upload = otd_ratio > 0 &&
-                                          get_moe_constant_role(op) == MoEConstantRole::OffloadableRoutedExpert;
+    const bool partial_moe_const_upload = otd_ratio > 0 && is_moe_constant_offloadable(op);
     if (!partial_moe_const_upload || const_layout.bytes_count() == 0 || const_shape.empty() || const_shape[0] == 0) {
         return desc;
     }

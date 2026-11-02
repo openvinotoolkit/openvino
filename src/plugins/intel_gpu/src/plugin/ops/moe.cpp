@@ -46,19 +46,7 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     if (otd_ratio > 0 && otd_ratio <= 100) {
         // Fall back to resident mode if any routed expert constant is not safely offloadable
         // (e.g. shared with non-routed consumers: NotOffloadableRoutedExpert).
-        bool all_routed_inputs_offloadable = true;
-        for (size_t idx = static_cast<size_t>(input_idx::weight_0); idx <= static_cast<size_t>(input_idx::zp_2); ++idx) {
-            if (idx >= op->get_input_size()) {
-                all_routed_inputs_offloadable = false;
-                break;
-            }
-            auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(op->input_value(idx).get_node_shared_ptr());
-            if (!const_node || get_moe_constant_role(const_node) != MoEConstantRole::OffloadableRoutedExpert) {
-                all_routed_inputs_offloadable = false;
-                break;
-            }
-        }
-        if (all_routed_inputs_offloadable) {
+        if (is_moe_otd_eligible(op.get())) {
             lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * (100 - otd_ratio) / 100);
         } else {
             lru_expert_num = 0;

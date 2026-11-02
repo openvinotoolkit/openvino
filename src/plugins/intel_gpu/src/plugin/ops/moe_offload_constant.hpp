@@ -32,6 +32,9 @@ enum class MoEConstantRole {
 /// Checks if an op is an OTD-capable MOE node (MOECompressed with GEMM3_SWIGLU).
 bool is_otd_capable_moe(const ov::Node* node);
 
+bool is_moe_otd_eligible(const ov::Node* node);
+bool is_moe_constant_offloadable(const std::shared_ptr<ov::op::v0::Constant>& op);
+
 /// Determines the role of a Constant feeding into MOECompressed.
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op);
 
