@@ -4358,13 +4358,26 @@ struct sdpa_broadcast_test_params {
     int head_size;
     bool dynamic_batch;  // batch dim is dynamic in the network (tensors are static)
     int order_kind;      // 0: [B,H,L,E] default order; 1: [B,L,H,E] order {0,2,1,3}; 2: [L,B,H,E] order {1,2,0,3}
+    int mask_batch;      // 0: no mask; else an additive [mask_batch,1,L,S] mask (1, or the output batch)
+    bool causal;
 
-    sdpa_broadcast_test_params(int qb, int kb, int vb, int nh, int sq, int sk, int hs, bool dyn_batch, int kind)
-        : q_batch(qb), k_batch(kb), v_batch(vb), num_heads(nh), seq_q(sq), seq_kv(sk), head_size(hs),
-          dynamic_batch(dyn_batch), order_kind(kind) {}
+    sdpa_broadcast_test_params(int qb, int kb, int vb, int nh, int sq, int sk, int hs, bool dyn_batch, int kind, int mask_b = 0, bool is_causal = false)
+        : q_batch(qb),
+          k_batch(kb),
+          v_batch(vb),
+          num_heads(nh),
+          seq_q(sq),
+          seq_kv(sk),
+          head_size(hs),
+          dynamic_batch(dyn_batch),
+          order_kind(kind),
+          mask_batch(mask_b),
+          causal(is_causal) {}
 };
 
-struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test_params> {
+// dpas = true: the DPAS kernel (sdpa_ocl, on its lane only); false: the opt stage kernels (enable_sdpa_micro off), the
+// default plain SDPA path of every XMX device off the lane. Each arm checks which kernel it executed.
+struct sdpa_broadcast_test : public ::testing::TestWithParam<std::tuple<sdpa_broadcast_test_params, bool>> {
     tests::random_generator rg;
 
     void SetUp() override {
@@ -4375,12 +4388,16 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
     cldnn::memory::ptr run_broadcast_network(const cldnn::layout& q_layout,
                                              const cldnn::layout& k_layout,
                                              const cldnn::layout& v_layout,
+                                             const std::optional<cldnn::layout>& mask_layout,
                                              cldnn::memory::ptr q_mem,
                                              cldnn::memory::ptr k_mem,
                                              cldnn::memory::ptr v_mem,
+                                             cldnn::memory::ptr mask_mem,
                                              const std::string& impl,
-                                             int order_kind) {
+                                             int order_kind,
+                                             bool causal) {
         auto& engine = get_test_engine();
+        const bool dpas = std::get<1>(GetParam());
         topology topo;
         topo.add(input_layout("q", q_layout));
         topo.add(input_layout("k", k_layout));
@@ -4388,12 +4405,17 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
         if (impl == "sdpa_ref")
             v_shape[3] = ov::Dimension::dynamic();
         topo.add(input_layout("v", cldnn::layout(v_shape, v_layout.data_type, v_layout.format)));
+        std::vector<input_info> inputs = {input_info("q"), input_info("k"), input_info("v")};
+        if (mask_layout) {
+            topo.add(input_layout("mask", *mask_layout));
+            inputs.push_back(input_info("mask"));
+        }
 
         const std::vector<std::vector<int64_t>> orders = {{0, 1, 2, 3}, {0, 2, 1, 3}, {1, 2, 0, 3}};
         const std::vector<int64_t>& in_order = orders.at(order_kind);
         auto sdpa_prim = scaled_dot_product_attention("sdpa",
-                                                      {input_info("q"), input_info("k"), input_info("v")},
-                                                      false,
+                                                      inputs,
+                                                      causal,
                                                       -1,
                                                       in_order,
                                                       in_order,
@@ -4409,6 +4431,9 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
         if (!impl.empty() && impl != "sdpa_ref") {
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
                 {"sdpa", {format::type::bfyx, impl}}}));
+            if (!dpas) {
+                config.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+            }
         }
 
         auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
@@ -4431,22 +4456,43 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
         net->set_input_data("q", q_mem);
         net->set_input_data("k", k_mem);
         net->set_input_data("v", v_mem);
+        if (mask_layout)
+            net->set_input_data("mask", mask_mem);
         auto result = net->execute().at("result").get_memory();
         verify_manager();
         const auto instance = net->get_primitive(sdpa_id);
         const auto executed_kernels = instance->get_impl()->get_kernels_dump_info(*instance->get_impl_params()).get_entries();
         const bool is_reference = impl == "sdpa_ref";
         EXPECT_EQ(executed_kernels.find("sdpa_ref") != std::string::npos, is_reference) << "Executed kernels: " << executed_kernels;
-        EXPECT_EQ(executed_kernels.find("sdpa_ocl") != std::string::npos || executed_kernels.find("sdpa_opt") != std::string::npos, !is_reference)
-            << "Executed kernels: " << executed_kernels;
+        if (!is_reference) {
+            // The DPAS arm must run sdpa_ocl (a silent fallback to the opt kernels would hide its batch indexing).
+            EXPECT_EQ(executed_kernels.find("sdpa_ocl") != std::string::npos, dpas) << "Executed kernels: " << executed_kernels;
+            EXPECT_EQ(executed_kernels.find("sdpa_opt") != std::string::npos, !dpas) << "Executed kernels: " << executed_kernels;
+        }
         RecordProperty(is_reference ? "reference_kernels" : "optimized_kernels", executed_kernels);
         EXPECT_EQ(result->get_layout().data_type, q_layout.data_type);
         return result;
     }
 
     void check_broadcast() {
-        const auto& p = GetParam();
+        const auto& [p, dpas] = GetParam();
         auto& engine = get_test_engine();
+        if (dpas) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            // A mask, causal, a dynamic shape and one query need PLAIN_EXT on xe_hpg.
+            if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
+                GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
+            }
+#else
+            GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) in a build without oneDNN";
+#endif
+            // Finalized as the program finalizes its config, so OV_GPU_ENABLE_SDPA_MICRO=0 reaches enable_sdpa_micro.
+            auto config = get_test_default_config(engine);
+            config.finalize(engine);
+            if (!config.get_enable_sdpa_micro()) {
+                GTEST_SKIP() << "the DPAS SDPA kernel is turned off (enable_sdpa_micro)";
+            }
+        }
 
         auto dims = [&](int64_t b, int64_t seq) {
             switch (p.order_kind) {
@@ -4473,12 +4519,12 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
             v_data[i] = ov::float16(static_cast<float>(v_data[i]) + 0.5f * static_cast<float>(batch));
         }
 
-        // Fill the space after the real Q/K/V data with NaN, so any read past the batch shows up as NaN.
+        // Fill the space after the real Q/K/V (and mask) data with NaN, so any read past the batch shows up as NaN.
         const int max_batch = std::max({p.q_batch, p.k_batch, p.v_batch});
         std::vector<cldnn::memory::ptr> keep_alive;
-        auto make_guarded = [&](const cldnn::layout& real_layout, const std::vector<ov::float16>& data) {
+        auto make_guarded = [&](const cldnn::layout& real_layout, const std::vector<ov::float16>& data, size_t batch_axis) {
             auto shape = real_layout.get_shape();
-            shape[p.order_kind == 2 ? 1 : 0] = static_cast<size_t>(max_batch);
+            shape[batch_axis] = static_cast<size_t>(max_batch);
             cldnn::layout big_layout(shape, real_layout.data_type, real_layout.format);
             auto big = engine.allocate_memory(big_layout);
             std::vector<ov::float16> padded(big_layout.count(), ov::float16(std::numeric_limits<float>::quiet_NaN()));
@@ -4487,9 +4533,21 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
             keep_alive.push_back(big);
             return engine.reinterpret_buffer(*big, real_layout);
         };
-        auto q_mem = make_guarded(q_layout, q_data);
-        auto k_mem = make_guarded(k_layout, k_data);
-        auto v_mem = make_guarded(v_layout, v_data);
+        const size_t qkv_batch_axis = p.order_kind == 2 ? 1 : 0;
+        auto q_mem = make_guarded(q_layout, q_data, qkv_batch_axis);
+        auto k_mem = make_guarded(k_layout, k_data, qkv_batch_axis);
+        auto v_mem = make_guarded(v_layout, v_data, qkv_batch_axis);
+
+        // Additive [mask_batch, 1, L, S] mask, broadcast over the heads; per-batch values when mask_batch > 1.
+        std::optional<cldnn::layout> mask_layout, net_mask_layout;
+        std::vector<ov::float16> mask_data;
+        cldnn::memory::ptr mask_mem;
+        if (p.mask_batch > 0) {
+            mask_layout = cldnn::layout(ov::PartialShape{p.mask_batch, 1, p.seq_q, p.seq_kv}, data_types::f16, format::bfyx);
+            net_mask_layout = p.dynamic_batch ? cldnn::layout(ov::PartialShape{-1, 1, p.seq_q, p.seq_kv}, data_types::f16, format::bfyx) : *mask_layout;
+            mask_data = rg.generate_random_1d<ov::float16>(mask_layout->count(), -2.0f, 0.0f);
+            mask_mem = make_guarded(*mask_layout, mask_data, 0);
+        }
 
         // SDPAOpt (sdpa_ocl stages on its lane, sdpa_opt ones elsewhere); force_implementations keeps only the impl type.
         const std::string opt_impl = "sdpa_opt";
@@ -4498,7 +4556,17 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
         auto batches_conflict = [](int a, int b) { return a != 1 && b != 1 && a != b; };
         if (!p.dynamic_batch && (batches_conflict(p.q_batch, p.k_batch) || batches_conflict(p.q_batch, p.v_batch) ||
                                  batches_conflict(p.k_batch, p.v_batch))) {
-            EXPECT_ANY_THROW(run_broadcast_network(net_q_layout, net_k_layout, net_v_layout, q_mem, k_mem, v_mem, opt_impl, p.order_kind));
+            EXPECT_ANY_THROW(run_broadcast_network(net_q_layout,
+                                                   net_k_layout,
+                                                   net_v_layout,
+                                                   net_mask_layout,
+                                                   q_mem,
+                                                   k_mem,
+                                                   v_mem,
+                                                   mask_mem,
+                                                   opt_impl,
+                                                   p.order_kind,
+                                                   p.causal));
             return;
         }
 
@@ -4515,15 +4583,20 @@ struct sdpa_broadcast_test : public ::testing::TestWithParam<sdpa_broadcast_test
         auto ref_q_mem = make_f32_memory(q_layout, q_data);
         auto ref_k_mem = make_f32_memory(k_layout, k_data);
         auto ref_v_mem = make_f32_memory(v_layout, v_data);
+        auto ref_mask_mem = mask_layout ? make_f32_memory(*mask_layout, mask_data) : nullptr;
         auto mem_ref = run_broadcast_network(as_f32_layout(net_q_layout),
                                              as_f32_layout(net_k_layout),
                                              as_f32_layout(net_v_layout),
+                                             net_mask_layout ? std::optional<cldnn::layout>(as_f32_layout(*net_mask_layout)) : std::nullopt,
                                              ref_q_mem,
                                              ref_k_mem,
                                              ref_v_mem,
+                                             ref_mask_mem,
                                              "sdpa_ref",
-                                             p.order_kind);
-        auto mem_opt = run_broadcast_network(net_q_layout, net_k_layout, net_v_layout, q_mem, k_mem, v_mem, opt_impl, p.order_kind);
+                                             p.order_kind,
+                                             p.causal);
+        auto mem_opt =
+            run_broadcast_network(net_q_layout, net_k_layout, net_v_layout, net_mask_layout, q_mem, k_mem, v_mem, mask_mem, opt_impl, p.order_kind, p.causal);
 
         ASSERT_NE(mem_ref, nullptr);
         ASSERT_NE(mem_opt, nullptr);
@@ -4558,7 +4631,7 @@ TEST_P(sdpa_broadcast_test, matches_reference) {
 INSTANTIATE_TEST_SUITE_P(
     sdpa_broadcast,
     sdpa_broadcast_test,
-    ::testing::Values(
+    ::testing::Combine(::testing::Values(
         // K/V batch = 1 (K and V broadcast, then each alone), default layout [B,H,L,E]
         sdpa_broadcast_test_params(2, 1, 1, 16, 1, 1024, 64, true, 0),
         sdpa_broadcast_test_params(2, 1, 1, 16, 64, 1024, 64, true, 0),
@@ -4581,7 +4654,25 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_broadcast_test_params(1, 4, 1, 16, 1, 1024, 64, true, 0),
         sdpa_broadcast_test_params(1, 1, 4, 16, 1, 1024, 64, true, 0),
         sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, true, 2),
-        sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, false, 1)));
+        sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, false, 1),
+        // with a mask: the mask wraps the output batch by its own batch, Q/K/V by theirs
+        sdpa_broadcast_test_params(2, 1, 1, 16, 64, 1024, 64, true, 0, 1),
+        sdpa_broadcast_test_params(2, 1, 1, 16, 1, 1024, 64, true, 0, 2),
+        sdpa_broadcast_test_params(1, 2, 2, 16, 64, 1024, 64, false, 0, 2),
+        sdpa_broadcast_test_params(2, 2, 1, 16, 64, 1024, 64, true, 1, 2),
+        // causal (UPPER_LEFT): the key-loop bound with a broadcast batch
+        sdpa_broadcast_test_params(2, 1, 1, 16, 64, 1024, 64, true, 0, 0, true),
+        sdpa_broadcast_test_params(2, 1, 1, 16, 256, 256, 64, false, 1, 0, true),
+        sdpa_broadcast_test_params(1, 2, 2, 16, 64, 1024, 64, true, 2, 0, true)),
+    ::testing::Bool()),
+    [](const testing::TestParamInfo<std::tuple<sdpa_broadcast_test_params, bool>>& info) {
+        const auto& p = std::get<0>(info.param);
+        return "q" + std::to_string(p.q_batch) + "_k" + std::to_string(p.k_batch) + "_v" + std::to_string(p.v_batch)
+             + "_sq" + std::to_string(p.seq_q) + "_sk" + std::to_string(p.seq_kv)
+             + (p.dynamic_batch ? "_dyn" : "_static") + "_o" + std::to_string(p.order_kind)
+             + (p.mask_batch ? "_m" + std::to_string(p.mask_batch) : "") + (p.causal ? "_causal" : "")
+             + (std::get<1>(info.param) ? "_dpas" : "_opt");
+    });
 
 // The multi-token sdpa_opt kernel reads keys in blocks of 16 rows, and a head size that is not a multiple of 16
 // as 16-wide chunks plus a leftover. In the last, partial block, the leftover read must skip the rows past the

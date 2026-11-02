@@ -1507,10 +1507,9 @@ here, so none of it was measured on them.
   - `sliding_window` on plain SDPA: 6 of the 9 `smoke/sdpa_sliding_window_test.basic` cases are below 0.95 (0.47 to
     0.89) on `sdpa_ocl` and passed on micro (and on `sdpa_opt`). Fixed on 2026-11-02, see "Plain SDPA sliding window";
   - K/V batch broadcast (`sdpa_broadcast_test`, e.g. Q batch 2 over K/V batch 1, NaN-guarded buffers): 16 of 18 cases
-    fail on `sdpa_ocl` (`/0`: a non-finite output, as from a read past the K/V batch); `/0` passes on micro and on
-    `sdpa_opt`, the other cases were not run there.
-  On Xe2 these were wrong before the removal too; off the lane they move from micro to the opt kernels. The last one
-  is not fixed here.
+    fail on `sdpa_ocl` (`/0`: a non-finite output, as from a read past the K/V batch); `/0` passes on micro, and all 18
+    pass on `sdpa_opt` (knob off). Fixed on 2026-11-02, see "Plain SDPA batch broadcast".
+  On Xe2 these were wrong before the removal too; off the lane they move from micro to the opt kernels.
   Two suites also expect a kernel that no longer runs: `sdpa_opt_key_leftover_test` expects `sdpa_opt` but `sdpa_ocl`
   takes its single-element mask, and the old micro-pinned suites (`sdpa_gpu_micro.*`, `sdpa_micro_key_broadcast_mask_test`,
   `sdpa_micro_prefetch_k_test`, `sdpa_sliding_window_test`) now pin `sdpa_ocl` and skip off the lane
@@ -1599,6 +1598,51 @@ no window code at all, but it only gets an op `SDPAOpt` refuses, which the path 
 - Measurement trap, not investigated: within one process the SDPA time depends on the first shape the model ran. After
   a 4096-token prefill a decode on 4000 keys takes 818 us on master and 926 us here, against 31 / 35 us when it runs
   first, with or without a window; so each case above ran in its own process.
+
+### Plain SDPA batch broadcast (2026-11-02)
+
+The batch dimension of Q, K and V broadcasts numpy-style: each is 1 or the output batch (#38467 made the shape
+inference take the broadcast and fixed `sdpa_opt` and `sdpa_micro`). `sdpa_ocl` read all three with the output batch
+index `b1`, so a batch-1 input was read past its end: NaN where the NaN-guarded test buffers follow, rows of other
+buffers, or a GPU page fault. The grid already took the output batch and the mask already wraps `b1` by `MSK_D0`.
+
+- Reach: a core `ScaledDotProductAttention` with such batches stays fused on the lane (4D, head size up to 256), as
+  in Whisper beam-search cross-attention (Q batch = beams, K/V batch = 1; ticket of #38467). One op through the plugin
+  (kit `test/xe2fix/x3`): Q batch 3 over K/V batch 1 on 1500 keys faulted the GPU (`CL_OUT_OF_RESOURCES`) at 1 and at
+  64 queries; Q batch 1 over K/V 2, K only and V only gave batch 1 off by 0.03 to 0.56 (batch 0 right); equal batches,
+  CPU and `OV_GPU_ENABLE_SDPA_MICRO=0` were right.
+- Fix: plain SDPA jits `QRY/KEY/VAL_D0` (the batch sizes) and `BROADCAST_{Q,K,V}_BATCH` by `sdpa_opt`'s rule (1 if
+  that batch is not statically the output's, or any batch is dynamic; `get_broadcast_batch()` also rejects static
+  batches that cannot broadcast). The kernel reads Q/K/V, the compressed scale / zero-point bases and the per-key V
+  scales at batch `D0 == 1 ? 0 : b1`. That equals `b1 % D0` since a batch is 1 or the output's, without the emulated
+  integer division: `%` added 213 instructions to the shape-agnostic kernels and moved their time by -2 to +4%, the
+  select adds 8 and stays within 0.5% of before on every case below. A static equal batch compiles to the same ISA as before
+  (plain prefill / single token, i8 compressed, a spilling head-72 kernel; `isa_ab.sh`).
+- Tests: `sdpa_broadcast_test` runs every case on `sdpa_ocl` (`_dpas`, skips off the lane or with the knob off) and on
+  the opt stage kernels (`_opt`), checks which kernel executed (it accepted either before, so a fallback would have
+  passed), and adds 4 mask cases (mask batch 1 or the output's) and 3 causal ones (25 cases, 50 tests).
+  `smoke_SDPABatchBroadcast` (`ov_gpu_func_tests`) runs one op with dynamic batch and lengths end to end (Whisper decode
+  and chunk, Q / K / V alone broadcast, equal batches; plain, mask, causal; head 64 / 128) against an fp32 reference of
+  the same f16 inputs. The TEMPLATE plugin is not the oracle there: its f16 result is up to 0.025 off on 1500 keys, and
+  it throws "Tile with non-positive repeats" on some of these shapes (not investigated). On the B70 all pass; with the
+  kernel and jit from before, the 23 broadcast `_dpas` cases fail and the 2 equal-batch `_dpas` and the 25 `_opt` cases
+  pass; the func test with the plugin from before fails all 6 (batches 1 and 2 wrong at head 64, a GPU fault at 128).
+- Cost (SDPA device time on the B70, one op, 32 heads, head 128, f16, K/V device-resident, perf counters, median of 30,
+  one process per case, mean of 2 rounds within 1%, unpinned clock; both modes ran the shape-agnostic kernel).
+  Before / after:
+
+  | case | new key length every infer | same shape |
+  |---|---|---|
+  | decode on 4096 / 16384 keys | 172.5 / 605 us, 173 / 605 us | 165 / 596.5 us, 165 / 596 us |
+  | batch 4 decode on 4096 / batch 8 on 256 | 536.5 / 91 us, 536 / 91 us | 564 / 74.5 us, 563 / 74 us |
+  | causal prefill 2048 / 512-token chunk on 8192 | 856 / 141 us, 860.5 / 141.5 us | 863 / 140.5 us, 864.5 / 140.5 us |
+
+  With the fix, the Whisper shape (5 beams, K/V batch 1, 1500 keys, 20 heads, head 64) takes 73 us per decode and
+  92 us per 64-query chunk on `sdpa_ocl` (610 us on `sdpa_opt` for the chunk).
+- Measurement trap: SDPA reading the K/V *input* tensors reads host memory over PCIe (4.2 ms instead of 167 us for a
+  decode on 4096 keys, before and after alike), so `sdpa_cost.py` puts an `Add` in front. `sdpa_opt`'s perf counter
+  shows 3 us for the Whisper decode and 17 us for the 4096-key one, below what reading K/V takes, so it covers only
+  part of that stage (not investigated).
 
 ### Token-major-only MIXED (2026-11-02)
 
