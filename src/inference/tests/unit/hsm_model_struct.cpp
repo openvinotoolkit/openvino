@@ -6,77 +6,80 @@
 
 #include <gtest/gtest.h>
 
-#include <optional>
+#include <memory>
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <utility>
 
 namespace ov::test {
 namespace hsm = ov::runtime::hsm;
 namespace {
 
-std::optional<std::string> round_trip(std::string xml) {
-    const auto encoder = hsm::encode_model_struct(std::move(xml));
+std::string collect(const hsm::ISectionEncoder& encoder) {
     std::string encoded;
-    encoder->encode([&encoded](ov::util::MemoryView chunk) {
+    encoder.encode([&encoded](ov::util::MemoryView chunk) {
         encoded.append(reinterpret_cast<const char*>(chunk.data()), chunk.size());
     });
-
-    hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_struct_tag;
-    entry.size = encoded.size();
-    const hsm::Section section{
-        entry,
-        ov::util::MemoryView{reinterpret_cast<const std::byte*>(encoded.data()), encoded.size()}};
-    return hsm::decode_model_struct(section);
+    return encoded;
 }
+
+class XmlSource final : public hsm::IModelStructSource {
+public:
+    void write_structure(const hsm::SectionSink& sink) override {
+        hsm::encode_model_struct(xml, sink);
+    }
+
+    std::string xml;
+};
 
 }  // namespace
 
 TEST(HsmModelStructTest, round_trips_xml) {
     const std::string expected = "<?xml version=\"1.0\"?><net name=\"test\">\n<layers/>\n</net>";
-    EXPECT_EQ(round_trip(expected), expected);
+    std::string encoded;
+    hsm::encode_model_struct(expected, [&encoded](ov::util::MemoryView chunk) {
+        encoded.append(reinterpret_cast<const char*>(chunk.data()), chunk.size());
+    });
+    EXPECT_EQ(encoded, expected);
+
+    hsm::ManifestEntry entry{};
+    entry.tag = hsm::model_struct_tag;
+    entry.size = encoded.size();
+    const hsm::Section section{entry, {reinterpret_cast<const std::byte*>(encoded.data()), encoded.size()}};
+    EXPECT_EQ(hsm::decode_model_struct(section), expected);
 }
 
 TEST(HsmModelStructTest, round_trips_empty_xml) {
-    EXPECT_EQ(round_trip({}), std::string{});
-}
+    std::string encoded;
+    hsm::encode_model_struct({}, [&encoded](ov::util::MemoryView chunk) {
+        encoded.append(reinterpret_cast<const char*>(chunk.data()), chunk.size());
+    });
+    EXPECT_TRUE(encoded.empty());
 
-TEST(HsmModelStructTest, views_xml_without_copying) {
-    const std::string expected = "<net name=\"test\"/>";
-    hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_struct_tag;
-    entry.size = expected.size();
-    const hsm::Section section{
-        entry,
-        ov::util::MemoryView{reinterpret_cast<const std::byte*>(expected.data()), expected.size()}};
-
-    const auto decoded = hsm::decode_model_struct_view(section);
-    ASSERT_TRUE(decoded.has_value());
-    EXPECT_EQ(*decoded, expected);
-    EXPECT_EQ(decoded->data(), expected.data());
-}
-
-TEST(HsmModelStructTest, views_empty_xml) {
     hsm::ManifestEntry entry{};
     entry.tag = hsm::model_struct_tag;
     const hsm::Section section{entry, ov::util::MemoryView{}};
-
-    EXPECT_EQ(hsm::decode_model_struct_view(section), std::string_view{});
+    EXPECT_EQ(hsm::decode_model_struct(section), std::string{});
 }
 
-TEST(HsmModelStructTest, view_requires_addressable_pointer_section) {
+TEST(HsmModelStructTest, encoder_reads_xml_at_encode_time) {
+    auto source = std::make_shared<XmlSource>();
+    hsm::ModelStructEncoder encoder{source};
+    source->xml = "<net name=\"deferred\"/>";
+    source.reset();
+
+    EXPECT_EQ(collect(encoder), "<net name=\"deferred\"/>");
+}
+
+TEST(HsmModelStructTest, decodes_stream_section) {
+    const std::string expected = "<net/>";
+    std::istringstream stream{expected};
     hsm::ManifestEntry entry{};
     entry.tag = hsm::model_struct_tag;
-    entry.size = 3;
-    std::istringstream stream{"xml"};
-    const hsm::Section stream_section{entry, stream, std::streampos{0}};
-    EXPECT_FALSE(hsm::decode_model_struct_view(stream_section).has_value());
+    entry.size = expected.size();
+    const hsm::Section section{entry, stream, std::streampos{0}};
 
-    entry.tag = hsm::SectionTag::make(hsm::model_struct, /*is_inline=*/true);
-    const hsm::Section inline_section{entry};
-    EXPECT_FALSE(hsm::decode_model_struct_view(inline_section).has_value());
+    EXPECT_EQ(hsm::decode_model_struct(section), expected);
 }
 
 }  // namespace ov::test
