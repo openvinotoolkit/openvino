@@ -1511,9 +1511,10 @@ here, so none of it was measured on them.
     pass on `sdpa_opt` (knob off). Fixed on 2026-11-02, see "Plain SDPA batch broadcast".
   On Xe2 these were wrong before the removal too; off the lane they move from micro to the opt kernels.
   Two suites also expect a kernel that no longer runs: `sdpa_opt_key_leftover_test` expects `sdpa_opt` but `sdpa_ocl`
-  takes its single-element mask, and the old micro-pinned suites (`sdpa_gpu_micro.*`, `sdpa_micro_key_broadcast_mask_test`,
-  `sdpa_micro_prefetch_k_test`, `sdpa_sliding_window_test`) now pin `sdpa_ocl` and skip off the lane
-  (`sdpa_sliding_window_test.basic` also runs the opt stage kernels since 2026-11-02).
+  takes its single-element mask (fixed on 2026-11-02, see "Plain SDPA key leftover test"), and the old micro-pinned
+  suites (`sdpa_gpu_micro.*`, `sdpa_micro_key_broadcast_mask_test`, `sdpa_micro_prefetch_k_test`,
+  `sdpa_sliding_window_test`) now pin `sdpa_ocl` and skip off the lane (`sdpa_sliding_window_test.basic` also runs the
+  opt stage kernels since 2026-11-02).
 - Builds without oneDNN still have no DPAS SDPA: the `ENABLE_ONEDNN_FOR_GPU` guards around `sdpa_ocl` stay, although
   nothing in it needs oneDNN now (only the include-order note in `sdpa_gen_ocl.hpp` mentions `micro_utils.hpp`).
 - `TT_BOUNDS_STAGE` in `paged_attention_opt.cl` is dead code, kept so the file stays upstream's.
@@ -1644,6 +1645,21 @@ buffers, or a GPU page fault. The grid already took the output batch and the mas
   shows 3 us for the Whisper decode and 17 us for the 4096-key one, below what reading K/V takes, so it covers only
   part of that stage (not investigated).
 
+### Plain SDPA key leftover test (2026-11-02)
+
+`sdpa_opt_key_leftover_test` (head sizes 40 / 72 / 76 / 136, key lengths that leave a partial 16-row block, f16 and
+bf16, `[B,H,L,E]` and `[B,L,H,E]`, lower-right causal with a single-element runtime mask) was written for the
+`sdpa_opt` multi-token kernel's leftover key read and asserted `sdpa_opt__multi_reg` ran. `sdpa_ocl` takes that mask,
+so on the lane all 8 cases failed on that assert, which stopped them before the accuracy compare. A test change only.
+
+- `sdpa_ocl` accuracy on these shapes (B70, the assert taken out): all 8 within tolerance, max error 1.5e-4 for f16
+  and 1.1e-3 for bf16 (tolerance 5e-3 / 1e-2), no non-finite output; `sdpa_opt` (knob off) 4.7e-4 to 9.7e-4. With Q
+  scaled by 8 (a peaky softmax) 2.8e-3 on `sdpa_ocl`, 2.6e-3 on `sdpa_opt`. Dropping the last key from the reference
+  moves the output by 0.011 to 0.049, 1.6 to 10 times the tolerance, so the data catches a lost leftover row.
+- Test: every case runs on `sdpa_ocl` (`_dpas`, skips off the lane or with the knob off) and on the opt stage kernels
+  (`_opt`, `enable_sdpa_micro(false)`); each arm checks the kernel it executed, non-fatally, so the compare still runs.
+  With the two arms' configs swapped on purpose, all 16 fail on the kernel check and none on the values.
+
 ### Token-major-only MIXED (2026-11-02)
 
 The `sdpa_ocl` MIXED stage reads the token-major K page only: the d-major reads (`pa_k_tile_dt()`, the d-major arm of
@@ -1675,6 +1691,13 @@ stage still compiles on a d-major page, as the token-major reader, without being
 
 ### Correctness
 
+- Plain SDPA with `is_causal` and an attention mask: the spec ignores the mask when `causal` is true, and so do the
+  CPU reference, `sdpa_ref.cl` and `sdpa_opt.cl` (`#elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT`), but `sdpa_ocl.cl` adds
+  it on top of the causal mask (`STATIC_SCALAR_ATTN_MASK_VALUE`, `HAS_SCALAR_ATTN_MASK` and `WITH_ATTN_MASK` in the
+  logit loop); the plugin passes both (`ops/scaled_dot_product_attention.cpp`). A finite scalar shifts every logit
+  alike and changes nothing. Measured on the B70 with the `sdpa_opt_key_leftover_test` shapes and a single-element
+  runtime mask of -inf: `sdpa_ocl` outputs all zeros (no NaN), `sdpa_opt` (knob off) the right result; with 0 or 5
+  both are right. A full mask with causal is not measured. Found in the 2026-11-02 X4 work, not fixed.
 - Compressed BY_CHANNEL with f32 or ACCURACY (dynamic) inference precision:
   `transformations_pipeline.cpp` sizes the per-channel comp by the inference precision (f32: i8
   page row 24, u4 16; dynamic has size 0: 16 and 8), while `graph/paged_attention.cpp` and
