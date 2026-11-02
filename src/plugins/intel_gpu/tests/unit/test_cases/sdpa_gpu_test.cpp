@@ -4679,9 +4679,12 @@ INSTANTIATE_TEST_SUITE_P(
 // source length: they are past the end of the key buffer, and reading them can fault the GPU. Whether it faults
 // depends on what is mapped after the key, so this checks the result and that the kernel ran.
 //
-// A non-const scalar mask input kept the removed sdpa_micro out, so sdpa_opt ran on every device. sdpa_opt ignores the mask
-// when is_causal is set. With the lower-right causal mask and seq_q <= seq_kv, the last query sees every key, so the
-// partial key block is computed.
+// sdpa_opt ignores the mask when is_causal is set; sdpa_ocl adds it, which a 0 scalar leaves unchanged. With the
+// lower-right causal mask and seq_q <= seq_kv, the last query sees every key, so the partial key block is computed.
+//
+// dpas = true: the DPAS kernel (sdpa_ocl, on its lane only), which also takes the single-element runtime mask; false:
+// the opt stage kernels (enable_sdpa_micro off), whose key-leftover read this test was written for. Each arm checks
+// which kernel it executed, without stopping the accuracy compare.
 struct sdpa_opt_key_leftover_params {
     data_types dt;
     int num_heads;
@@ -4691,20 +4694,38 @@ struct sdpa_opt_key_leftover_params {
     bool transposed;  // [B, L, H, E] inputs with order {0, 2, 1, 3}, otherwise [B, H, L, E]
 };
 
-class sdpa_opt_key_leftover_test : public ::testing::TestWithParam<sdpa_opt_key_leftover_params> {
+class sdpa_opt_key_leftover_test : public ::testing::TestWithParam<std::tuple<sdpa_opt_key_leftover_params, bool>> {
 public:
-    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_opt_key_leftover_params>& info) {
-        const auto& p = info.param;
+    static std::string PrintToStringParamName(const testing::TestParamInfo<std::tuple<sdpa_opt_key_leftover_params, bool>>& info) {
+        const auto& p = std::get<0>(info.param);
         return std::string(p.dt == data_types::bf16 ? "bf16" : "f16") + "_h" + std::to_string(p.num_heads) + "_q" +
                std::to_string(p.seq_q) + "_kv" + std::to_string(p.seq_kv) + "_e" + std::to_string(p.head_size) +
-               (p.transposed ? "_blhe" : "_bhle");
+               (p.transposed ? "_blhe" : "_bhle") + (std::get<1>(info.param) ? "_dpas" : "_opt");
     }
 
 protected:
     template <typename T>
     void run() {
-        const auto& p = GetParam();
+        // Not a structured binding: the lambdas below capture p.
+        const auto& p = std::get<0>(GetParam());
+        const bool dpas = std::get<1>(GetParam());
         auto& engine = get_test_engine();
+        if (dpas) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            // A mask, causal, bf16 and one query need PLAIN_EXT on xe_hpg.
+            if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
+                GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
+            }
+#else
+            GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) in a build without oneDNN";
+#endif
+            // Finalized as the program finalizes its config, so OV_GPU_ENABLE_SDPA_MICRO=0 reaches enable_sdpa_micro.
+            auto config = get_test_default_config(engine);
+            config.finalize(engine);
+            if (!config.get_enable_sdpa_micro()) {
+                GTEST_SKIP() << "the DPAS SDPA kernel is turned off (enable_sdpa_micro)";
+            }
+        }
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
@@ -4757,6 +4778,9 @@ protected:
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        if (!dpas) {
+            config.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+        }
         auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
         net->set_input_data("k", k_mem);
@@ -4772,7 +4796,12 @@ protected:
         ASSERT_FALSE(sdpa_id.empty()) << "Expected an SDPA primitive";
         const auto inst = net->get_primitive(sdpa_id);
         const auto kernels = inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries();
-        ASSERT_NE(kernels.find("sdpa_opt__multi_reg"), std::string::npos) << "Executed kernels: " << kernels;
+        if (dpas) {
+            EXPECT_NE(kernels.find("sdpa_ocl"), std::string::npos) << "Executed kernels: " << kernels;
+            EXPECT_EQ(kernels.find("sdpa_opt"), std::string::npos) << "Executed kernels: " << kernels;
+        } else {
+            EXPECT_NE(kernels.find("sdpa_opt__multi_reg"), std::string::npos) << "Executed kernels: " << kernels;
+        }
 
         const float scale = 1.0f / std::sqrt(static_cast<float>(head_size));
         std::vector<float> expected(heads * seq_q * head_size, 0.0f);
@@ -4814,7 +4843,7 @@ protected:
 };
 
 TEST_P(sdpa_opt_key_leftover_test, matches_reference) {
-    if (GetParam().dt == data_types::bf16)
+    if (std::get<0>(GetParam()).dt == data_types::bf16)
         run<ov::bfloat16>();
     else
         run<ov::float16>();
@@ -4823,7 +4852,7 @@ TEST_P(sdpa_opt_key_leftover_test, matches_reference) {
 INSTANTIATE_TEST_SUITE_P(
     smoke_sdpa_opt_key_leftover,
     sdpa_opt_key_leftover_test,
-    ::testing::Values(
+    ::testing::Combine(::testing::Values(
         // [B, L, H, E] as in smoke_ScaledAttnStatic_GPU bf16 [1.8.1.72] with_transpose1: rows 96-99 are the partial block.
         sdpa_opt_key_leftover_params{data_types::bf16, 8, 1, 100, 72, true},
         sdpa_opt_key_leftover_params{data_types::f16, 8, 1, 100, 72, true},
@@ -4836,6 +4865,7 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_opt_key_leftover_params{data_types::f16, 4, 16, 33, 40, false},
         // Head size >= 128 loads the full chunks in the calc loop on systolic devices.
         sdpa_opt_key_leftover_params{data_types::f16, 2, 1, 50, 136, false}),
+    ::testing::Bool()),
     sdpa_opt_key_leftover_test::PrintToStringParamName);
 
 } // namespace
