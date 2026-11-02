@@ -7,6 +7,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/constant.hpp"
 
 #include "intel_gpu/plugin/custom_layer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -103,6 +104,9 @@ public:
     using IsRemoteWeight = bool;
     using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type, IsRemoteWeight>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
+    using GgufBlobCacheKey = std::tuple<uint64_t, uint64_t, size_t, ov::Shape, ov::element::Type, bool>;
+    std::multimap<GgufBlobCacheKey,
+                  std::pair<std::shared_ptr<const ov::op::v0::Constant>, cldnn::primitive_id>> ggufBlobMemCache;
 
     std::shared_ptr<cldnn::program> get_compiled_program() const;
     std::shared_ptr<cldnn::topology> get_topology() const { return m_topology; }

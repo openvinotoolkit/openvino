@@ -128,13 +128,42 @@ These core `ov::op::internal` operations can remain in the converted model:
 | `SelectiveSSM` | `SSM_SCAN`, Mamba 2 scalar decay | None |
 | `GatedDeltaNet` | `GATED_DELTA_NET`, scalar gate | `Loop` reference path for per-key gating or `force_ref`; not available with `split_outputs` |
 | `GatherMatmul` | `MUL_MAT_ID`, eligible constant expert weights | Generic Gather/MatMul for other weights |
+| `FullyConnectedCompressed` | Experimental raw GGUF matrix weights | Default decomposed weight path |
+| `GatherCompressed` | Experimental raw GGUF embedding weights in the six supported formats | Default decomposed weight path |
 
 See [`ssm_scan.cpp`](../src/op/ssm_scan.cpp), [`gated_delta_net.cpp`](../src/op/gated_delta_net.cpp)
 and [`mul_mat_id.cpp`](../src/op/mul_mat_id.cpp) for exact selection conditions.
 
 Internal operations are outside the public IR opsets. Saving IR can succeed and still produce a file
-the IR frontend cannot read back, so test the save/read round trip. Compiled-model export, import
-and caching are plugin-specific; test them on the target device. In-process conversion needs no IR.
+the IR frontend cannot read back, so test the save/read round trip. The IR reader explicitly restores
+`FullyConnectedCompressed` and `GatherCompressed` from `ie_internal_opset`, including their raw GGUF
+Constants, using block-aware byte counts. Ordinary XML and BIN retain the raw payload; this does not
+automatically create external GGUF references or preserve the original file mapping. File regressions
+check payload identity, shared weights and GPU results after the original mapping is released.
+
+Explicit external references are supported for unchanged raw Constants carrying all three internal
+`gguf_ext_source`, `gguf_ext_offset` and `gguf_ext_size` metadata fields. The serializer writes the bare
+GGUF filename, byte offset and exact block-aware payload size into the Const data attributes instead
+of copying that payload to BIN. Load the paired XML/BIN through the model-file entrance: the reader
+resolves the source relative to the weights-file directory and checks the filename, GGUF magic,
+type/shape/size and overflow-safe file range. In-memory XML has no such directory and is rejected.
+The current entrance also requires the accompanying BIN path; external-only XML without BIN is not
+covered. The target FileWeightsProvider shares providers/regions within a read and returns owned,
+copy-backed buffers with existing descriptors, not mx's zero-copy mmap. Its no-mmap guard is unchanged.
+Loaded payloads remain snapshots if the source is subsequently replaced; a fresh read observes the
+replacement. This is not a content-integrity check or a symlink-confinement guarantee.
+
+The frontend does not automatically annotate these references, and reading an external reference does
+not restore its metadata for another external export. During one GPU graph build, descriptor-backed
+raw GGUF Constants can reuse a previously uploaded primitive despite different CPU pointers. The
+source index includes descriptor identity/offset, byte size, shape, type and batch interpretation;
+candidate payloads must match byte-for-byte, so source-ID collisions or changed snapshots cannot
+merge different data. Only full uploads enter this index; SG-marked Constants and builds using a
+cross-device weight-sharing context bypass it. Existing pointer caching and shared-buffer ownership
+remain in place. This is not a cache across compiled models or processes. Repack/slice provenance
+and automatic external-reference metadata remain separate pending work. Other internal
+operations in the table do not gain IR support from this path. Compiled-model export, import and
+caching are plugin-specific; test them on the target device. In-process conversion needs no IR.
 
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.

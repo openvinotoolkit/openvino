@@ -36,6 +36,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "plugin/transformations/repack_gguf_weights.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
@@ -152,6 +153,84 @@ void check_gguf_cm_fusion_support(const ImplementationManager& manager, const ke
     scaled_sum->stride = {tensor{1, 1, 1, 1}, tensor{1, 1, 1, 1}};
     EXPECT_FALSE(manager.support_shapes(params));
 }
+}
+
+TEST(fully_connected_gpu, gguf_constant_source_sharing) {
+#if !defined(OV_GPU_WITH_OCL_RT) || !defined(ENABLE_ONEDNN_FOR_GPU)
+    GTEST_SKIP() << "GGUF implementation requires OCL and oneDNN build support";
+#else
+    gguf_scoped_env_var shuffle("OV_GPU_GGUF_SHUFFLE", "0");
+    gguf_scoped_env_var cm("OV_GPU_GGUF_GEMM_CM", "0");
+    gguf_scoped_env_var threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", "64");
+    const ov::Shape weight_shape{32, 256};
+    const size_t bytes = 32 * 8 * 18;
+    const auto make_weight = [&](bool changed, size_t source_id) {
+        auto buffer = std::make_shared<ov::AlignedBuffer>(bytes);
+        for (size_t channel = 0; channel < 32; ++channel) {
+            const ov::float16 scale(static_cast<float>(channel + 1 + (changed && channel == 0)));
+            for (size_t block = 0; block < 8; ++block) {
+                auto* data = buffer->get_ptr<char>() + (channel * 8 + block) * 18;
+                std::memcpy(data, &scale, sizeof(scale));
+                std::memset(data + 2, 0x99, 16);
+            }
+        }
+        auto shared = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+            buffer->get_ptr<char>(), bytes, buffer, ov::create_base_descriptor(source_id, 0, buffer));
+        return std::make_shared<ov::op::v0::Constant>(ov::element::gguf_q4_0, weight_shape, shared);
+    };
+    for (const size_t second_source : {size_t{42}, size_t{43}, size_t{0}}) {
+        const std::vector<std::shared_ptr<ov::op::v0::Constant>> weights{
+            make_weight(false, 42), make_weight(false, second_source), make_weight(true, 42), make_weight(true, 42)};
+        ASSERT_NE(weights[0]->get_data_ptr(), weights[1]->get_data_ptr());
+        ov::ParameterVector parameters;
+        ov::OutputVector outputs;
+        for (const auto& weight : weights) {
+            auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+            auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{32}, {0.f});
+            auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+            outputs.push_back(std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+                input, weight, bias, scale, ov::element::f32));
+            parameters.push_back(input);
+        }
+        const auto model = std::make_shared<ov::Model>(outputs, parameters);
+        ov::Core core;
+        auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        for (const size_t rows : {size_t{1}, size_t{2}}) {
+            for (size_t input = 0; input < weights.size(); ++input) {
+                ov::Tensor tensor(ov::element::f32, {rows, 256});
+                std::fill_n(tensor.data<float>(), rows * 256, 1.f);
+                request.set_input_tensor(input, tensor);
+            }
+            request.infer();
+            for (size_t output = 0; output < weights.size(); ++output) {
+                const auto tensor = request.get_output_tensor(output);
+                for (size_t row = 0; row < rows; ++row) {
+                    for (size_t channel = 0; channel < 32; ++channel) {
+                        EXPECT_NEAR(tensor.data<const float>()[row * 32 + channel],
+                                    256.f * (channel + 1 + (output >= 2 && channel == 0)), 0.1f);
+                    }
+                }
+            }
+        }
+        std::stringstream binary;
+        compiled.export_model(binary);
+        const auto exported = binary.str();
+        for (const size_t index : {size_t{0}, size_t{2}}) {
+            const std::string payload(weights[index]->get_data_ptr<char>(), bytes);
+            size_t count = 0;
+            size_t position = 0;
+            while ((position = exported.find(payload, position)) != std::string::npos) {
+                ++count;
+                position += bytes;
+            }
+            RecordProperty(std::string(index == 0 ? "same_source_payload_copies_" : "changed_source_payload_copies_") +
+                               std::to_string(second_source),
+                           std::to_string(count));
+            EXPECT_EQ(count, index == 0 && second_source != 42 ? 2 : 1);
+        }
+    }
+#endif
 }
 
 TEST_P(gguf_fc_dynamic_reference, matches_reference) {

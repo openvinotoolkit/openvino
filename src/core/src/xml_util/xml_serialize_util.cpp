@@ -746,6 +746,12 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
+            if (!m_gguf_ext_source.empty()) {
+                m_xml_node.append_attribute("source").set_value(m_gguf_ext_source.c_str());
+                m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(m_gguf_ext_offset));
+                m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(m_gguf_ext_size));
+                return;
+            }
             const auto size = a->get()->size();
             size_t new_size = 0lu;
             int64_t offset = get_constant_write_handler().write(static_cast<const char*>(a->get()->get_ptr()),
@@ -1127,6 +1133,20 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
                                         compress_to_fp16,
                                         output_element_type,
                                         modified_node.data_is_temporary());
+            const auto& info = node->get_rt_info();
+            if (info.count("gguf_ext_source") || info.count("gguf_ext_offset") || info.count("gguf_ext_size")) {
+                const auto constant = ov::as_type<ov::op::v0::Constant>(node);
+                OPENVINO_ASSERT(constant && constant->get_element_type().is_gguf_block() &&
+                                    info.count("gguf_ext_source") && info.count("gguf_ext_offset") &&
+                                    info.count("gguf_ext_size") && !compress_to_fp16 &&
+                                    !modified_node.data_is_temporary(),
+                                "GGUF external references require an unchanged raw Constant and complete metadata");
+                const auto size = info.at("gguf_ext_size").as<uint64_t>();
+                OPENVINO_ASSERT(size == constant->get_byte_size(), "GGUF external weight size does not match Constant");
+                visitor->set_gguf_external_weight(info.at("gguf_ext_source").as<std::string>(),
+                                                 info.at("gguf_ext_offset").as<uint64_t>(),
+                                                 size);
+            }
             OPENVINO_ASSERT(visitor->append_node_attributes(*fixed_node.get_node()),
                             "Visitor API is not supported in ",
                             node);

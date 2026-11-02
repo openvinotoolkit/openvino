@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstring>
 #include <fstream>
+#include <sstream>
 #include <vector>
 
 #include "builder/gguf_builder_decoder.hpp"
@@ -24,6 +25,7 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "quant/gguf.hpp"
 #include "quant/weights.hpp"
@@ -135,25 +137,39 @@ TEST(GGUFRawCompressedFC, SharedEmitterPreservesRawWeightThroughConversion) {
             std::shared_ptr<GgufDecoder> decoder = std::make_shared<GgufBuilderDecoder>(emitter.graph());
             FrontEnd frontend;
             const auto model = frontend.convert(frontend.load(decoder));
-            std::shared_ptr<ov::Node> shared_weight;
-            for (const auto& result : model->get_results()) {
-                const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
-                    result->get_input_node_shared_ptr(0));
-                ASSERT_TRUE(fc);
-                EXPECT_EQ(fc->get_output_partial_shape(0), (ov::PartialShape{1, 1, -1, kRows}));
-                EXPECT_EQ(fc->get_output_element_type(0), ov::element::f32);
-                const auto raw = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
-                ASSERT_TRUE(raw);
-                EXPECT_EQ(raw->get_element_type(), weight_type);
-                EXPECT_EQ(raw->get_data_ptr(), weights.at("projection.weight").data());
-                EXPECT_EQ(raw->get_byte_size(), bytes.size());
-                EXPECT_EQ(std::memcmp(raw->get_data_ptr(), bytes.data(), bytes.size()), 0);
-                if (shared_weight) {
-                    EXPECT_EQ(raw, shared_weight);
-                }
-                shared_weight = raw;
-                for (size_t input = 2; input < 5; ++input) {
-                    EXPECT_EQ(fc->get_input_shape(input), (ov::Shape{0}));
+            std::stringstream xml, binary;
+            ov::pass::Serialize(xml, binary).run_on_model(model);
+            const auto payload = binary.str();
+            ov::Tensor constants(ov::element::u8, {payload.size()});
+            std::memcpy(constants.data(), payload.data(), payload.size());
+            ov::Core core;
+            const auto restored = core.read_model(xml.str(), constants);
+            ov::Tensor truncated(ov::element::u8, {payload.size() - 1});
+            std::memcpy(truncated.data(), payload.data(), truncated.get_byte_size());
+            EXPECT_ANY_THROW(core.read_model(xml.str(), truncated));
+            for (const auto& checked_model : {model, restored}) {
+                std::shared_ptr<ov::Node> shared_weight;
+                for (const auto& result : checked_model->get_results()) {
+                    const auto fc = ov::as_type_ptr<ov::op::internal::FullyConnectedCompressed>(
+                        result->get_input_node_shared_ptr(0));
+                    ASSERT_TRUE(fc);
+                    EXPECT_EQ(fc->get_output_partial_shape(0), (ov::PartialShape{1, 1, -1, kRows}));
+                    EXPECT_EQ(fc->get_output_element_type(0), ov::element::f32);
+                    const auto raw = ov::as_type_ptr<ov::op::v0::Constant>(fc->get_input_node_shared_ptr(1));
+                    ASSERT_TRUE(raw);
+                    EXPECT_EQ(raw->get_element_type(), weight_type);
+                    EXPECT_EQ(raw->get_shape(), (ov::Shape{kRows, kCols}));
+                    if (checked_model == model)
+                        EXPECT_EQ(raw->get_data_ptr(), weights.at("projection.weight").data());
+                    EXPECT_EQ(raw->get_byte_size(), bytes.size());
+                    EXPECT_EQ(std::memcmp(raw->get_data_ptr(), bytes.data(), bytes.size()), 0);
+                    if (shared_weight) {
+                        EXPECT_EQ(raw, shared_weight);
+                    }
+                    shared_weight = raw;
+                    for (size_t input = 2; input < 5; ++input) {
+                        EXPECT_EQ(fc->get_input_shape(input), (ov::Shape{0}));
+                    }
                 }
             }
         }

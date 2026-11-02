@@ -27,6 +27,8 @@
 #include "openvino/runtime/string_aligned_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
+#include "ov_ops/fully_connected_compressed.hpp"
+#include "ov_ops/gather_compressed.hpp"
 #include "transformations/rt_info/attributes.hpp"
 
 namespace ov::util {
@@ -884,7 +886,6 @@ void XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<std:
 }
 
 void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter) {
-    OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
     std::vector<int64_t> shape;
     std::string el_type_str;
     const auto& dn = m_node.child("data");
@@ -897,9 +898,37 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
 
     const auto size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
     const auto offset = static_cast<size_t>(pugixml::get_uint64_attr(dn, "offset"));
+    const auto el_type = ov::element::Type(el_type_str);
+    if (const auto source_attribute = dn.attribute("source")) {
+        const std::string source = source_attribute.value();
+        OPENVINO_ASSERT(!source.empty() && source != "." && source != ".." &&
+                            source.find_first_of("/\\:") == std::string::npos,
+                        "GGUF external weight source must be a bare filename");
+        OPENVINO_ASSERT(el_type.is_gguf_block() && size > 0 &&
+                            size == ov::util::get_memory_size(el_type, ov::shape_size(shape)),
+                        "GGUF external weight type, shape and size are inconsistent");
+        OPENVINO_ASSERT(!m_external_weights_directory.empty(),
+                        "GGUF external weights require a model file directory");
+        const auto path = m_external_weights_directory / source;
+        const auto key = path.string();
+        auto found = m_external_weights->find(key);
+        if (found == m_external_weights->end()) {
+            auto provider = std::make_shared<FileWeightsProvider>(path);
+            OPENVINO_ASSERT(provider->size() >= sizeof(uint32_t), "Invalid GGUF external weight source");
+            const auto header = provider->make_region(0, sizeof(uint32_t));
+            uint32_t magic = 0;
+            std::memcpy(&magic, header->get_ptr(), sizeof(magic));
+            OPENVINO_ASSERT(magic == 0x46554747, "Invalid GGUF external weight source");
+            found = m_external_weights->emplace(key, std::move(provider)).first;
+        }
+        OPENVINO_ASSERT(is_valid_weights_range(found->second->size(), offset, size),
+                        "GGUF external weights exceed source file range");
+        adapter.set(found->second->make_region(offset, size));
+        return;
+    }
+    OPENVINO_ASSERT(m_weights_provider, "Empty weights data in bin file or bin file cannot be found!");
     OPENVINO_ASSERT(is_valid_weights_range(m_weights_provider->size(), offset, size), "Incorrect weights in bin file!");
 
-    const auto el_type = ov::element::Type(el_type_str);
     if (el_type == element::string) {
         auto raw_buffer = m_weights_provider->make_region(offset, size);
         auto buffer = ov::AttributeAdapter<std::shared_ptr<ov::StringAlignedBuffer>>::unpack_string_tensor(
@@ -907,15 +936,9 @@ void XmlDeserializer::set_constant_num_buffer(ov::AttributeAdapter<std::shared_p
             size);
         adapter.set(buffer);
     } else {
-        if (size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3)) {
-            OPENVINO_THROW("Attribute and shape size are inconsistent for ",
-                           node_type,
-                           " op!",
-                           size,
-                           ", ",
-                           ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3),
-                           ", ",
-                           ov::util::get_memory_size(el_type, ov::shape_size(shape)));
+        const auto expected_size = ov::util::get_memory_size(el_type, ov::shape_size(shape));
+        if (size < expected_size) {
+            OPENVINO_THROW("Attribute and shape size are inconsistent for ", node_type, " op!", size, ", ", expected_size);
         }
 
         auto buffer = m_weights_provider->make_region(offset, size);
@@ -1260,6 +1283,21 @@ std::shared_ptr<ov::Node> XmlDeserializer::create_node(
     if (experimental_ops_added_to_opset.count(type_name) &&
         (params.version == "experimental" || params.version == "extension")) {
         opsetIt = m_opsets.find("opset6");
+    }
+
+    if (!ovNode && params.version == "ie_internal_opset") {
+        if (type_name == "FullyConnectedCompressed") {
+            ovNode = std::make_shared<ov::op::internal::FullyConnectedCompressed>();
+        } else if (type_name == "GatherCompressed") {
+            ovNode = std::make_shared<ov::op::internal::GatherCompressed>();
+        }
+        if (ovNode) {
+            ovNode->set_arguments(inputs);
+            auto visitor = make_visitor(node, weights_provider, m_opsets, m_extensions, m_variables, m_version);
+            if (ovNode->visit_attributes(*visitor)) {
+                ovNode->constructor_validate_and_infer_types();
+            }
+        }
     }
 
     if (!ovNode && opsetIt != m_opsets.end()) {

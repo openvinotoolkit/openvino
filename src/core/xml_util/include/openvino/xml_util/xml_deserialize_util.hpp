@@ -56,6 +56,10 @@ public:
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version);
 
+    void set_external_weights_directory(const std::filesystem::path& directory) {
+        m_external_weights_directory = directory;
+    }
+
     void on_adapter(const std::string& name, ov::ValueAccessor<std::string>& value) override;
 
     void on_adapter(const std::string& name, ov::ValueAccessor<bool>& value) override;
@@ -135,10 +139,16 @@ private:
         const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
         size_t version) const {
-        return std::make_unique<XmlDeserializer>(node, weights_provider, opsets, extensions, variables, version);
+        auto visitor = std::make_unique<XmlDeserializer>(node, weights_provider, opsets, extensions, variables, version);
+        visitor->m_external_weights_directory = m_external_weights_directory;
+        visitor->m_external_weights = m_external_weights;
+        return visitor;
     }
 
     // -- DATA --
+    std::filesystem::path m_external_weights_directory;
+    std::shared_ptr<std::map<std::string, std::shared_ptr<FileWeightsProvider>>> m_external_weights =
+        std::make_shared<std::map<std::string, std::shared_ptr<FileWeightsProvider>>>();
     const pugi::xml_node m_node;
     const std::shared_ptr<WeightsProvider> m_weights_provider;
     const std::unordered_map<std::string, ov::OpSet>& m_opsets;

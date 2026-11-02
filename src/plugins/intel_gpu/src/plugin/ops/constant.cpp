@@ -140,6 +140,30 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     const auto cache_key =
         std::make_tuple(data, const_shape, op->get_output_element_type(0), weight_sharing_constant_buffer_view != nullptr);
 
+    const auto source_id = op->get_element_type().is_gguf_block()
+                               ? weight_sharing::Extension::get_constant_source_id(*op)
+                               : weight_sharing::invalid_source_id;
+    const bool use_gguf_source = source_id != weight_sharing::invalid_source_id &&
+                                 !p.get_weight_sharing_ctx() && const_shape == op->get_shape() &&
+                                 !op->get_rt_info().count("intel_gpu_gguf_weights_shuffled") &&
+                                 constLayout.bytes_count() == op->get_byte_size();
+    ProgramBuilder::GgufBlobCacheKey gguf_key;
+    if (use_gguf_source) {
+        gguf_key = std::make_tuple(source_id, weight_sharing::Extension::get_constant_id(*op),
+                                   op->get_byte_size(), const_shape, op->get_element_type(),
+                                   props.needsBatchInterpretation);
+        const auto candidates = p.ggufBlobMemCache.equal_range(gguf_key);
+        for (auto candidate = candidates.first; candidate != candidates.second; ++candidate) {
+            if (std::memcmp(data, candidate->second.first->get_data_ptr(), op->get_byte_size()) == 0) {
+                constPrimID = candidate->second.second;
+                p.primitive_ids[initialconstPrimID] = constPrimID;
+                p.profiling_ids.push_back(initialconstPrimID);
+                p.blobMemCache[cache_key] = constPrimID;
+                return;
+            }
+        }
+    }
+
     auto bufIter = p.blobMemCache.find(cache_key);
 
     if (bufIter != p.blobMemCache.end()) {
@@ -212,6 +236,9 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.add_primitive(*op, data_prim);
         p.blobMemCache[cache_key] = initialconstPrimID;
         constPrimID = initialconstPrimID;
+        if (use_gguf_source && !partial_upload.enabled) {
+            p.ggufBlobMemCache.emplace(gguf_key, std::make_pair(op, initialconstPrimID));
+        }
     }
 }
 

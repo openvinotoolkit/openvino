@@ -30,6 +30,9 @@ class OPENVINO_API XmlSerializer : public ov::AttributeVisitor {
     bool m_compress_to_fp16;
     ov::element::Type m_output_element_type;
     bool m_data_is_temporary;
+    std::string m_gguf_ext_source;
+    uint64_t m_gguf_ext_offset = 0;
+    uint64_t m_gguf_ext_size = 0;
     std::function<bool(pugi::xml_node& node, const ov::RuntimeAttribute& attribute)> m_custom_rt_info_append;
 
     template <typename T>
@@ -79,6 +82,15 @@ protected:
     virtual util::ConstantWriter& get_constant_write_handler();
 
 public:
+    void set_gguf_external_weight(const std::string& source, uint64_t offset, uint64_t size) {
+        OPENVINO_ASSERT(!source.empty() && source != "." && source != ".." &&
+                            source.find_first_of("/\\:") == std::string::npos,
+                        "GGUF external weight source must be a bare filename");
+        m_gguf_ext_source = source;
+        m_gguf_ext_offset = offset;
+        m_gguf_ext_size = size;
+    }
+
     XmlSerializer(pugi::xml_node& data,
                   const std::string& node_type_name,
                   ov::util::ConstantWriter& constant_write_handler,
