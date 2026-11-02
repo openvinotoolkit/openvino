@@ -8,11 +8,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <optional>
 #include <random>
 #include <set>
 #include <string>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -56,6 +58,14 @@ TEST(PAVariantConfig, PartitionsThePAOpsOffNPU) {
     EXPECT_EQ(str(config, "NPUW_WEIGHTS_BANK"), "bank0");
     EXPECT_EQ(str(config, "NPU_COMPILATION_MODE_PARAMS"),
               "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+}
+
+TEST(PAVariantConfig, SendsThePAOpsAndTheTailToTheGPU) {
+    const auto config = PACompiledModel::make_variant_config({}, "GPU", "bank0", std::nullopt);
+
+    EXPECT_EQ(str(config, "NPUW_DEVICES"), "NPU,GPU");
+    EXPECT_EQ(str(config, "NPUW_ONLINE_AVOID"), "Op:PagedAttentionExtension/NPU");
+    EXPECT_EQ(str(config, "NPUW_SUBMODEL_DEVICE"), "last:GPU");
 }
 
 TEST(PAVariantConfig, StartsFromTheLLMPathNPUDefaults) {
@@ -253,6 +263,42 @@ TEST(PACompiledModelEndToEnd, VariantsCompileAndMatchTheDynamicModel) {
             EXPECT_NEAR(expected[step][i], actual[step][i], 1e-3f * scale) << "step " << step << " at " << i;
         }
     }
+}
+
+// Sets an environment variable for one test and restores the previous value.
+class ScopedEnv final {
+public:
+    ScopedEnv(const char* name, const char* value) : m_name(name) {
+        if (const char* old = std::getenv(name)) {
+            m_old = old;
+        }
+        set(value);
+    }
+    ScopedEnv(const ScopedEnv&) = delete;
+    ScopedEnv& operator=(const ScopedEnv&) = delete;
+    ~ScopedEnv() {
+        set(m_old ? m_old->c_str() : nullptr);
+    }
+
+private:
+    void set(const char* value) {
+#ifdef _WIN32
+        _putenv_s(m_name.c_str(), value ? value : "");
+#else
+        value ? setenv(m_name.c_str(), value, 1) : unsetenv(m_name.c_str());
+#endif
+    }
+    std::string m_name;
+    std::optional<std::string> m_old;
+};
+
+TEST(PACompiledModelEndToEnd, RejectsAPADeviceOtherThanCPUOrGPU) {
+    const ScopedEnv env("OPENVINO_NPUW_PA_DEVICE", "NPU");
+    const ov::AnyMap npuw = {{"NPU_USE_NPUW", "YES"}, {"NPUW_PA", "YES"}, {"NPUW_DEVICES", "CPU"}};
+    ov::Core core;
+    OV_EXPECT_THROW(core.compile_model(make_pipeline_pa_model(), "NPU", npuw),
+                    ov::Exception,
+                    testing::HasSubstr("CPU or GPU"));
 }
 
 // A token-major trunk as the PA model has it: a weight MatMul over
