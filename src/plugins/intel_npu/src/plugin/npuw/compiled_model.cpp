@@ -440,8 +440,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
 }
 
 ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
-                                         const std::shared_ptr<const ov::IPlugin>& plugin)
-    : ov::ICompiledModel(model, plugin) {}
+                                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                                         const ov::SoPtr<ov::IRemoteContext>& context)
+    : ov::ICompiledModel(model, plugin, context) {}
 
 ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                        const std::shared_ptr<const ov::IPlugin>& plugin,

@@ -293,8 +293,12 @@ bool is_swa_kv_cache_name(const std::string& input_name);
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
 
+// A device tensor (GPU memory, for one) has no host pointer: data() throws.
+bool is_remote(const ov::SoPtr<ov::ITensor>& tensor);
+
 // One-line tensor digest for log traces: LOG_VERB("x: " << TensorBrief{t}).
-// Tensors past kMaxStats elements, such as KV cache pools, print their shape only.
+// Tensors past kMaxStats elements, such as KV cache pools, print their shape only,
+// device tensors their shape and "(device)".
 struct TensorBrief {
     static constexpr std::size_t kMaxInline = 16u;
     static constexpr std::size_t kMaxStats = 1u << 20;

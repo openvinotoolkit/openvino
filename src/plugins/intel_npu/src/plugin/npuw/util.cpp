@@ -34,6 +34,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
 
@@ -1193,11 +1194,18 @@ bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
            ov::npuw::util::starts_with(input_name, "value_cache.");
 }
 
+bool ov::npuw::util::is_remote(const ov::SoPtr<ov::ITensor>& tensor) {
+    return std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._ptr) != nullptr;
+}
+
 std::ostream& ov::npuw::util::operator<<(std::ostream& os, const TensorBrief& brief) {
     const auto& tensor = brief.tensor;
     const auto type = tensor->get_element_type();
     const auto n = tensor->get_size();
     os << type << " " << tensor->get_shape();
+    if (is_remote(tensor)) {
+        return os << " (device)";
+    }
     const bool readable =
         type == ov::element::f32 || type == ov::element::f16 || type == ov::element::i32 || type == ov::element::i64;
     if (!readable || n == 0 || n > TensorBrief::kMaxStats) {
