@@ -454,6 +454,40 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     }
 }
 
+namespace {
+
+// Weights [rows, groups, group_size] (u2), zero points and scales [rows, groups, 1] (u2, f16), LSB-first packing
+void unpack_u2f16_group_zp(const ov::SoPtr<ov::ITensor>& from,
+                           const ov::SoPtr<ov::ITensor>& zerop,
+                           const ov::SoPtr<ov::ITensor>& scale,
+                           const ov::SoPtr<ov::ITensor>& to) {
+    NPUW_ASSERT(from->is_continuous() && zerop->is_continuous() && scale->is_continuous() && to->is_continuous());
+    NPUW_ASSERT(to->get_size() == from->get_size());
+
+    const auto& shape = from->get_shape();
+    const std::size_t groups = shape[1];
+    const std::size_t group_size = shape[2];
+
+    const auto* weights = static_cast<const uint8_t*>(from->data());
+    const auto* zero_points = static_cast<const uint8_t*>(zerop->data());
+    const auto* scales = static_cast<const ov::float16*>(scale->data());
+    auto* result = static_cast<ov::float16*>(to->data());
+
+    const auto get_u2 = [](const uint8_t* packed, const std::size_t idx) {
+        return static_cast<float>((packed[idx / 4] >> (2 * (idx % 4))) & 0x3);
+    };
+    ov::parallel_for(shape[0] * groups, [&](const std::size_t group_idx) {
+        const float zero_point = get_u2(zero_points, group_idx);
+        const float group_scale = static_cast<float>(scales[group_idx]);
+        for (std::size_t k = 0; k < group_size; ++k) {
+            const std::size_t idx = group_idx * group_size + k;
+            result[idx] = ov::float16((get_u2(weights, idx) - zero_point) * group_scale);
+        }
+    });
+}
+
+}  // namespace
+
 void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                             const ov::SoPtr<ov::ITensor>& zerop,
                             const ov::SoPtr<ov::ITensor>& scale,
@@ -467,6 +501,10 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     if (type_from == ov::element::u4) {
         NPUW_ASSERT(type_zerop == ov::element::u4 || type_zerop == ov::element::f16 || type_zerop == ov::element::f32);
         NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
+        NPUW_ASSERT(type_to == ov::element::f16);
+    } else if (type_from == ov::element::u2) {
+        NPUW_ASSERT(type_zerop == type_from);
+        NPUW_ASSERT(type_scale == ov::element::f16);
         NPUW_ASSERT(type_to == ov::element::f16);
     } else if (type_from == ov::element::u8) {
         NPUW_ASSERT(type_zerop == type_from);
@@ -519,6 +557,10 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         } else {
             NPUW_ASSERT(false);
         }
+    } else if (type_from == ov::element::u2) {
+        NPUW_ASSERT(from_shape.size() == 3 && scale_shape.size() == 3 && scale_shape == zerop_shape &&
+                    scale_shape[0] == from_shape[0] && scale_shape[1] == from_shape[1] && scale_shape[2] == 1);
+        unpack_u2f16_group_zp(from, zerop, scale, to);
     } else if (type_from == ov::element::u8 || type_from == ov::element::i8) {
         if (scale_shape.size() == 3 && scale_shape[1] == 1 && scale_shape[2] == 1) {
             // Special case for broadcasting vocab by 2 dimensions

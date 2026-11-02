@@ -31,6 +31,7 @@
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
 #include "npuw_transformations/propagate_slice.hpp"
 #include "npuw_transformations/remove_token_type_ids.hpp"
+#include "npuw_transformations/restore_u2_gather_dequant.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
@@ -1117,6 +1118,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
+    ov::npuw::RestoreU2GatherDequant().run_on_model(kvcache_model);
     ov::npuw::BroadcastU2ZeroPoint().run_on_model(kvcache_model);
     if (lm_head_model) {
         ov::npuw::BroadcastU2ZeroPoint().run_on_model(lm_head_model);
