@@ -35,7 +35,18 @@ static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK
  * after the actual device is ready and the CPU helper is released, to populate cache blobs for faster device switching.
  * Requires ov::cache_dir or ov::cache_path, otherwise compiling the model throws when at least two non-CPU candidate
  * devices exist. Ignored in cumulative throughput mode, when there is no other candidate device, and when
- * ov::cache_blob_id is set.
+ * ov::cache_blob_id is set. Devices are skipped when the cache path is a single-file cache (*.bin).
+ *
+ * Only the devices listed in ov::device::priorities (or in the device string, e.g. "AUTO:GPU,NPU") are candidates;
+ * other available devices are not compiled. For example, to warm up the cache for GPU and NPU, so that the one not
+ * selected by AUTO is compiled in the background:
+ * @code
+ * core.compile_model(model,
+ *                    "AUTO",
+ *                    ov::device::priorities("GPU,NPU"),
+ *                    ov::cache_dir("model_cache"),
+ *                    ov::intel_auto::compile_for_all(true));
+ * @endcode
  */
 static constexpr Property<bool> compile_for_all{"COMPILE_FOR_ALL"};
 

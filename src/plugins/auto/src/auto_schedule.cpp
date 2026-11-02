@@ -57,9 +57,9 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
                                         m_context->m_low_power_device);
-            // Keep at most the actual and the fallback compiled models alive.
+            // Never wait for an in-flight warm-up compilation here: it would block the failing inference callback.
             if (m_cache_warmup) {
-                m_cache_warmup->stop();
+                m_cache_warmup->cancel();
             }
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();

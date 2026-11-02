@@ -16,6 +16,22 @@
 namespace ov {
 namespace auto_plugin {
 namespace {
+// Core keeps all blobs of a *.bin cache path in one archive. Its writes are only locked per blob ID, so a background
+// warm-up must not write into it concurrently with other compilations.
+bool is_single_file_cache(const std::filesystem::path& cache_location) {
+    return cache_location.extension() == ".bin";
+}
+
+// Core moves the ID of e.g. "GPU.1" into ov::device::id, so the cache key must be built for that device instance.
+ov::AnyMap create_compile_config(const ov::ICore& core, const std::string& device_name, const ov::AnyMap& config) {
+    const ov::DeviceIDParser parser(device_name);
+    auto device_config = config;
+    if (!parser.get_device_id().empty()) {
+        device_config.emplace(ov::device::id.name(), parser.get_device_id());
+    }
+    return core.create_compile_config(parser.get_device_name(), device_config);
+}
+
 // Lowers the host-side cost of the background compilation without changing the cache key.
 ov::AnyMap make_warmup_config(const ov::ICore& core, const DeviceInformation& device) {
     std::vector<ov::PropertyName> supported;
@@ -37,8 +53,8 @@ ov::AnyMap make_warmup_config(const ov::ICore& core, const DeviceInformation& de
     if (config.size() == device.config.size()) {
         return config;
     }
-    const auto base_name = ov::DeviceIDParser(device.device_name).get_device_name();
-    if (core.create_compile_config(base_name, config) != core.create_compile_config(base_name, device.config)) {
+    if (create_compile_config(core, device.device_name, config) !=
+        create_compile_config(core, device.device_name, device.config)) {
         return device.config;
     }
     return config;
@@ -58,7 +74,7 @@ CacheWarmup::CacheWarmup(CacheWarmupManager& manager,
       m_model_path(std::move(model_path)),
       m_log_tag(std::move(log_tag)) {}
 
-std::string CacheWarmup::get_log_tag() const noexcept {
+const std::string& CacheWarmup::get_log_tag() const noexcept {
     return m_log_tag;
 }
 
@@ -71,26 +87,40 @@ void CacheWarmup::start(const std::string& actual_device, const std::vector<Devi
     }
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (m_started || m_stopped) {
+        if (m_state != State::Created) {
             return;
         }
-        m_started = true;
         if (devices.empty() || (!m_model && m_model_path.empty())) {
             m_model.reset();
+            m_state = State::Done;
             return;
         }
+        m_state = State::Idle;
         m_devices = std::move(devices);
         LOG_INFO_TAG("start cache pre-compilation for %lu device(s)", static_cast<unsigned long>(m_devices.size()));
     }
     m_manager.enqueue(shared_from_this());
 }
 
+void CacheWarmup::request_stop_unsafe() {
+    m_model.reset();
+    if (m_state == State::Compiling) {
+        m_state = State::Stopping;
+    } else if (m_state != State::Stopping) {
+        m_state = State::Stopped;
+    }
+}
+
+void CacheWarmup::cancel() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    request_stop_unsafe();
+}
+
 void CacheWarmup::stop() {
     std::unique_lock<std::mutex> lock(m_mutex);
-    m_stopped = true;
-    m_model.reset();
+    request_stop_unsafe();
     m_cv.wait(lock, [this] {
-        return !m_compiling;
+        return m_state != State::Stopping;
     });
 }
 
@@ -105,10 +135,10 @@ void CacheWarmup::run() {
     for (const auto& device : devices) {
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            if (m_stopped) {
+            if (m_state != State::Idle) {
                 return;
             }
-            m_compiling = true;
+            m_state = State::Compiling;
         }
         const auto begin = std::chrono::steady_clock::now();
         try {
@@ -119,6 +149,11 @@ void CacheWarmup::run() {
                 if (cache_location.empty()) {
                     LOG_INFO_TAG("cache pre-compilation skipped for device: %s, caching is disabled for it",
                                  device.device_name.c_str());
+                } else if (is_single_file_cache(cache_location)) {
+                    LOG_WARNING_TAG("cache pre-compilation skipped for device: %s, single-file cache %s is not "
+                                    "supported",
+                                    device.device_name.c_str(),
+                                    cache_location.string().c_str());
                 } else if (CacheWarmupManager::is_blob_cached(*core,
                                                               device.device_name,
                                                               config,
@@ -144,9 +179,13 @@ void CacheWarmup::run() {
         }
         {
             std::lock_guard<std::mutex> lock(m_mutex);
-            m_compiling = false;
+            m_state = m_state == State::Stopping ? State::Stopped : State::Idle;
         }
         m_cv.notify_all();
+    }
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_state == State::Idle) {
+        m_state = State::Done;
     }
 }
 
@@ -226,13 +265,12 @@ bool CacheWarmupManager::is_blob_cached(const ov::ICore& core,
                                         const std::shared_ptr<const ov::Model>& model,
                                         const std::filesystem::path& model_path,
                                         const std::filesystem::path& cache_location) {
-    // A single-file cache (*.bin) cannot be probed per blob, so treat it as a miss.
-    if (cache_location.empty() || cache_location.extension() == ".bin" || (!model && model_path.empty())) {
+    // The cache location is a directory with one <blob_id>.blob per model; a single-file cache is never a hit here.
+    if (cache_location.empty() || (!model && model_path.empty())) {
         return false;
     }
-    const auto base_name = ov::DeviceIDParser(device_name).get_device_name();
     const auto compile_config =
-        core.create_compile_config(base_name, core.get_supported_property(base_name, config));
+        create_compile_config(core, device_name, core.get_supported_property(device_name, config));
     // Same precedence as Core: a user blob ID wins, then the hash (which covers ov::cache_model_path for a model).
     const auto blob_id = [&]() -> std::string {
         if (const auto it = config.find(ov::cache_blob_id.name()); it != config.end()) {

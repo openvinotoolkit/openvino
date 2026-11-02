@@ -215,8 +215,19 @@ the following setup options:
 |                                              | other candidate device to compile, and when ``ov::cache_blob_id``  |
 |                                              | is set for AUTO or for any candidate device.                       |
 |                                              |                                                                    |
-|                                              | At most two compiled models are alive at the same time. The memory |
-|                                              | needed by the background compilation itself is not included.       |
+|                                              | A device whose cache path is a single-file cache (``*.bin``) is    |
+|                                              | skipped with a warning.                                            |
+|                                              |                                                                    |
+|                                              | Only the devices listed in ``ov::device::priorities`` or in the    |
+|                                              | device string, for example ``AUTO:GPU,NPU``, are compiled; other   |
+|                                              | available devices are not. With ``AUTO:GPU,NPU``, if GPU becomes   |
+|                                              | actual device, NPU is compiled in the background (and vice versa). |
+|                                              |                                                                    |
+|                                              | Warm-up compiles one device at a time and releases each compiled   |
+|                                              | model right away. A runtime fallback does not wait for a warm-up   |
+|                                              | compilation already in progress; it finishes in the background.    |
+|                                              | The memory needed by the background compilation itself is not      |
+|                                              | included.                                                          |
 |                                              |                                                                    |
 |                                              | The default value is ``false``.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+

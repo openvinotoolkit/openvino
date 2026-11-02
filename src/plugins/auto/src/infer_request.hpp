@@ -13,7 +13,6 @@
 #include <vector>
 #include <utility>
 #include <memory>
-#include <optional>
 #include <string>
 #include "plugin.hpp"
 
@@ -40,7 +39,7 @@ public:
 private:
     SoAsyncInferRequest m_shared_request;
     // Profiling data snapshot taken when the scheduled request completes.
-    std::optional<std::vector<ov::ProfilingInfo>> m_profiling_info;
+    std::vector<ov::ProfilingInfo> m_profiling_info;
     // Error raised by the backend profiling query, rethrown by get_profiling_info().
     std::exception_ptr m_profiling_error;
 };

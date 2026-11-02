@@ -257,7 +257,7 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                             (infer_request);
                         try {
                             auto_request->set_profiling_info((*worker_infer_request)->m_inferrequest->get_profiling_info());
-                        } catch (...) {
+                        } catch (const std::exception&) {
                             auto_request->set_profiling_error(std::current_exception());
                         }
                     }

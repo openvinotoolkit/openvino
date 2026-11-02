@@ -33,8 +33,23 @@ class CacheWarmupManager;
 //     - otherwise call core->compile_model() with a low-priority, reduced-thread config that keeps the cache key
 //       unchanged, so Core itself writes the blob; the resulting compiled model is dropped immediately.
 //     A failure on one device is logged and does not affect the other devices or the user's compiled model.
-//  3. stop() (called when the owning compiled model is destroyed) skips the not yet started devices and waits for the
-//     compilation in flight, so the core and the model are not used after the owner is gone.
+//  3. cancel() (runtime fallback) skips the not yet started devices without waiting; the compilation in flight
+//     finishes in the background. stop() (owning compiled model destroyed) does the same and then waits for it, so
+//     the core and the model are not used after the owner is gone.
+//
+// State transitions (guarded by m_mutex):
+//
+//   Created --start(): nothing to warm up--> Done
+//      |
+//      +--start(): devices queued--> Idle <--------------------+
+//                                      |                        | compile finished
+//                                      +--run(): device--> Compiling
+//                                      |                        |
+//                                      | all devices done       | stop() / cancel()
+//                                      v                        v
+//                                    Done                   Stopping --compile finished--> Stopped
+//
+//   stop() / cancel() in Created, Idle or Done go straight to Stopped; start() is accepted only in Created.
 class CacheWarmup : public std::enable_shared_from_this<CacheWarmup> {
 public:
     CacheWarmup(CacheWarmupManager& manager,
@@ -45,13 +60,16 @@ public:
 
     // Queues the warm-up of the candidates other than the actual device and CPU; only the first call counts.
     void start(const std::string& actual_device, const std::vector<DeviceInformation>& candidates);
-    // Skips the remaining devices and waits for the in-flight compilation; idempotent.
+    // Skips the remaining devices without waiting for the in-flight compilation; idempotent.
+    void cancel();
+    // Like cancel(), then waits for the in-flight compilation; idempotent.
     void stop();
 
 private:
     friend class CacheWarmupManager;
     void run();
-    std::string get_log_tag() const noexcept;
+    void request_stop_unsafe();
+    const std::string& get_log_tag() const noexcept;
 
     CacheWarmupManager& m_manager;
     // The owning compiled model keeps the core alive until stop() returns.
@@ -62,9 +80,15 @@ private:
     std::vector<DeviceInformation> m_devices;
     std::mutex m_mutex;
     std::condition_variable m_cv;
-    bool m_started = false;
-    bool m_stopped = false;
-    bool m_compiling = false;
+    enum class State {
+        Created,    // start() has not been called
+        Idle,       // queued, or between two device compilations
+        Compiling,  // a device compilation is in flight
+        Stopping,   // stop()/cancel() arrived during a compilation; run() completes the stop
+        Stopped,    // stop() completed; nothing will be compiled anymore
+        Done        // all devices processed, or there was nothing to warm up
+    };
+    State m_state = State::Created;
 };
 
 // Plugin-wide queue; a single worker thread serializes the warm-up compilations of all compiled models.
