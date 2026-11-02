@@ -2,7 +2,7 @@
 
 OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. When enabled, plugin will use Level Zero as GPU compute API instead of OpenCL.
 
-Level Zero is the better-performing runtime on Xe2 and newer Intel GPU architectures; on pre-Xe2 GPUs, OpenCL remains the better choice.
+Level Zero is the better-performing runtime on Xe2 and newer Intel GPU architectures; on pre-Xe2 GPUs, it is not supported.
 
 ## How to build with Level Zero support
 
