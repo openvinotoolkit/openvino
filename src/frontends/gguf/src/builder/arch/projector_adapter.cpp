@@ -502,12 +502,9 @@ void temporal_packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64
                                 input_shape[0] == 1 && input_shape[1] == 3,
                             "[GGUF] temporal packed vision requires singleton RGB NCHW pixel inputs");
             first |= !second;
-            auto frame = std::make_shared<v0::Squeeze>(std::make_shared<v8::Slice>(packed,
-                                                                                   axes({second ? 1 : 0}),
-                                                                                   axes({second ? 2 : 1}),
-                                                                                   axes({1}),
-                                                                                   axes({4})),
-                                                       axes({4}));
+            auto frame = std::make_shared<v8::Gather>(packed,
+                                                      v0::Constant::create(ov::element::i64, {}, {second ? 1 : 0}),
+                                                      axes({4}));
             replacement =
                 std::make_shared<v1::Reshape>(std::make_shared<v1::Transpose>(frame, axes({0, 3, 1, 4, 2, 5})),
                                               image_shape,

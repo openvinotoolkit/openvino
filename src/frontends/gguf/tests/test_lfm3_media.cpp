@@ -167,12 +167,17 @@ TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutMatchesCpuOracleAcrossGroupsAndIR
     auto native_request = core.compile_model(native, "CPU", properties).create_infer_request();
     const auto xml = fixture.path + ".xml";
     ov::serialize(native, xml);
-    for (const bool restored : {false, true}) {
-        auto model = restored ? core.read_model(xml) : native->clone();
+    enum class Reload { None, Native, Adapted };
+    for (const auto reload : {Reload::None, Reload::Native, Reload::Adapted}) {
+        auto model = reload == Reload::Native ? core.read_model(xml) : native->clone();
         Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
         ASSERT_TRUE(adapter.run_on_model(model));
         ASSERT_EQ(adapter.get_vision_models().size(), 1);
         EXPECT_EQ(adapter.get_vision_models().at("vision_embeddings"), model);
+        if (reload == Reload::Adapted) {
+            ov::serialize(model, xml);
+            model = core.read_model(xml);
+        }
         ASSERT_EQ(model->inputs().size(), 1);
         EXPECT_EQ(model->input().get_any_name(), "pixel_values");
         EXPECT_EQ(model->input().get_element_type(), ov::element::f32);
@@ -186,11 +191,8 @@ TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutMatchesCpuOracleAcrossGroupsAndIR
             const auto first = tensor(data.at(key + "pixel_values"));
             const auto second = tensor(data.at(key + "pixel_values_1"));
             for (const size_t group_count : {1, 3, 1}) {
-                std::vector<Frames> groups{{first, second}};
-                if (group_count == 3) {
-                    groups.emplace_back(second, first);
-                    groups.emplace_back(first, first);
-                }
+                std::vector<Frames> groups{{first, second}, {second, first}, {first, first}};
+                groups.resize(group_count);
                 request.set_tensor("pixel_values", packed_pixels(groups));
                 request.infer();
                 const auto actual = request.get_tensor("last_hidden_state");
