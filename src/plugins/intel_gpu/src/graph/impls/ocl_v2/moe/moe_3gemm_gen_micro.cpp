@@ -492,9 +492,7 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     shim_options.decorator = "moe";
 
     kd.code->jit += micro::generate_shim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
-    if (moe_gemm.grfMin > 128) {
-        kd.code->options += " -cl-intel-256-GRF-per-thread";
-    }
+    kd.code->options += micro::get_grf_mode_build_option(moe_gemm.grfMin, device_info.arch);
     kd.micro_kernels.push_back(std::make_shared<micro::MicroKernelPackage>(moe_gemm));
 
     // Micro kernel is using slm implicitly inside the kernel.
