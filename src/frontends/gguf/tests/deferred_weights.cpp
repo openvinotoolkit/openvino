@@ -319,8 +319,9 @@ TEST(GGUFWeightNormalization, DeferredTwoBitProjectionPreservesRankThreeLowering
 using QuantCase = std::tuple<GgufTensorType, size_t, size_t>;
 class GGUFWeightFormatNormalization : public testing::TestWithParam<QuantCase> {};
 TEST_P(GGUFWeightFormatNormalization, ConcatenatesRawRowsWithoutFloatWeightExpansion) {
-    const auto [type, block, bytes] = GetParam();
-    GgufWeight a, b;
+    const auto type = std::get<0>(GetParam());
+    const auto block = std::get<1>(GetParam());
+    const auto bytes = std::get<2>(GetParam());
     auto source = [&](size_t rows, uint8_t seed) {
         GgufWeight weight;
         weight.qtype = type;
@@ -330,8 +331,8 @@ TEST_P(GGUFWeightFormatNormalization, ConcatenatesRawRowsWithoutFloatWeightExpan
         std::memset(weight.data.data(), seed, weight.data.get_byte_size());
         return weight;
     };
-    a = source(2, 1);
-    b = source(3, 2);
+    const auto a = source(2, 1);
+    const auto b = source(3, 2);
     const auto concat = std::make_shared<ov::op::v0::Concat>(
         ov::OutputVector{std::make_shared<GGUFConstant>(a), std::make_shared<GGUFConstant>(b)},
         0);
