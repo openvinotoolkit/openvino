@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "nodes/kernels/scaled_attn/sparse_pa_kernel.hpp"
+#include "nodes/kernels/sparse_attn/sparse_pa_kernel.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -18,7 +18,7 @@
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
-#include "nodes/kernels/scaled_attn/sparse_brgemm_kernel.hpp"
+#include "nodes/kernels/sparse_attn/sparse_brgemm_kernel.hpp"
 #ifdef OPENVINO_ARCH_X86_64
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #endif
@@ -580,11 +580,10 @@ bool online_softmax_rows(PackWork& w, size_t head, float* raw, size_t valid_rows
     return true;
 }
 
-// The same for the chunk of adjacent rows starting at block_start: the rows the query attends are a prefix of it.
-bool online_softmax_chunk(PackWork& w, size_t head, float* raw, int64_t block_start, size_t chunk_len) {
+// The rows the query attends in the chunk of adjacent rows starting at block_start: a prefix of it.
+size_t valid_chunk_rows(const PackWork& w, int64_t block_start, size_t chunk_len) {
     const int64_t limit = w.causal ? std::min(w.valid_max, w.token_pos + 1) : w.valid_max;
-    const auto valid_rows = static_cast<size_t>(std::clamp<int64_t>(limit - block_start, 0, chunk_len));
-    return online_softmax_rows(w, head, raw, valid_rows, chunk_len);
+    return static_cast<size_t>(std::clamp<int64_t>(limit - block_start, 0, chunk_len));
 }
 
 // Phase 3 for an AMX chunk: acc += weights . values with the vectorized batched FMA.
@@ -676,11 +675,14 @@ void attention_over_amx_chunks(PackWork& w, const AmxWork<AmxT>& amx, const KvCh
                 k_amx = w.key_cache.ptr<AmxT>(phys_block, w.k_head, slot_start);
                 v_amx = w.value_cache.ptr<AmxT>(phys_block, w.k_head, slot_start);
             }
+            // P.V only over the valid rows: the weights past them are 0, but the V rows there may hold stale data (0 *
+            // NaN).
+            const size_t valid_rows = valid_chunk_rows(w, block_start, chunk_len);
             for (size_t head = 0; head < w.pack_size; head++) {
                 float* raw = amx.raw + head * raw_stride;
                 qk_scores_amx_chunk<AmxT>(w, amx, head, k_amx, n_units, raw);
-                if (online_softmax_chunk(w, head, raw, block_start, chunk_len)) {
-                    pv_accumulate_amx_chunk<AmxT>(w, head, raw, v_amx, chunk_len);
+                if (online_softmax_rows(w, head, raw, valid_rows, chunk_len)) {
+                    pv_accumulate_amx_chunk<AmxT>(w, head, raw, v_amx, valid_rows);
                 }
             }
             continue;

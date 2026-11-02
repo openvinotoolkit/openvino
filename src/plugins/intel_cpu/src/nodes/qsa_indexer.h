@@ -73,9 +73,6 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    template <typename T>
-    void execute_typed();
-
     ov::intel_cpu::QSAIndexerNode::Config m_config{};
     // The scorer of the block scoring on brgemm (see qsa_brgemm_scorer.hpp), taken from the params cache of the graph
     // context in createPrimitive(): the layers of the same configuration share it, and nothing is built while the model

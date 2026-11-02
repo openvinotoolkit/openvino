@@ -19,7 +19,7 @@
 
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/softmax_kernel.hpp"
-#include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
+#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
 #include "utils/general_utils.h"
 
 #ifdef OPENVINO_ARCH_X86_64

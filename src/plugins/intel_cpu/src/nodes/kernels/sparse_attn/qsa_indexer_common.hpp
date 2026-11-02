@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 
 #include "nodes/common/cpu_convert.h"
 #include "openvino/core/type/bfloat16.hpp"
@@ -82,6 +83,33 @@ const float* row_f32(const PlainTensor& t, size_t len, float* scratch, Idx... id
         row_to_f32(t.ptr<T>(idx...), scratch, len);
         return scratch;
     }
+}
+
+// The (score, block id) of a complete block.
+using BlockScore = std::pair<float, int32_t>;
+
+// Writes the ids of the k = min(block_topk, num_blocks) blocks of the highest scores[0, num_blocks) to `chosen` and
+// returns k. Equal scores: the lower block id wins. The blocks are in ascending id order, or in descending score order
+// (equal scores: the lower id first) with order_by_score. `scores` is reordered.
+inline size_t select_topk(BlockScore* scores,
+                          int32_t* chosen,
+                          size_t num_blocks,
+                          size_t block_topk,
+                          bool order_by_score) {
+    const size_t k = std::min(block_topk, num_blocks);
+    std::partial_sort(scores, scores + k, scores + num_blocks, [](const BlockScore& lhs, const BlockScore& rhs) {
+        if (lhs.first != rhs.first) {
+            return lhs.first > rhs.first;
+        }
+        return lhs.second < rhs.second;
+    });
+    for (size_t i = 0; i < k; i++) {
+        chosen[i] = scores[i].second;
+    }
+    if (!order_by_score) {
+        std::sort(chosen, chosen + k);
+    }
+    return k;
 }
 
 inline float rms_inv_scale(const float* x, size_t n, float eps) {

@@ -9,7 +9,7 @@
 #include <numeric>
 
 #include "cpu_parallel.hpp"
-#include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
+#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"

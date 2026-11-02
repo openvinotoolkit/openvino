@@ -26,7 +26,7 @@
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
-#include "nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp"
+#include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"

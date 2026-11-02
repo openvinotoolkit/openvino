@@ -353,12 +353,12 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.cpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/softmax_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_brgemm.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_brgemm_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_pa_kernel.cpp
-    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_pa_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_sdpa_kernel.cpp
-    ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_brgemm.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_brgemm_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_pa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_pa_kernel.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.cpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/transpose_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/scaled_attn/xattention.hpp
@@ -435,7 +435,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/qkv_proj.h
     ${CPU_SRC_DIR}/nodes/qsa_indexer.cpp
     ${CPU_SRC_DIR}/nodes/qsa_indexer.h
-    ${CPU_SRC_DIR}/nodes/qsa_indexer_common.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_common.hpp
+    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
     ${CPU_SRC_DIR}/nodes/random_uniform.cpp
     ${CPU_SRC_DIR}/nodes/random_uniform.hpp
     ${CPU_SRC_DIR}/nodes/range.cpp

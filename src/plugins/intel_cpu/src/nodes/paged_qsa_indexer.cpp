@@ -20,6 +20,7 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -29,13 +30,12 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
-#include "qsa_indexer_common.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 #ifdef OPENVINO_ARCH_X86_64
-#    include "kernels/x64/qsa_brgemm_scorer.hpp"
+#    include "nodes/kernels/sparse_attn/qsa_brgemm_scorer.hpp"
 #endif
 
 namespace ov::intel_cpu::node {
@@ -104,6 +104,22 @@ struct SeqPlan {
     int64_t block_capacity;  // index blocks that fit the sequence's pages
     int64_t past_blocks;
     int64_t new_blocks;
+
+    // The complete blocks visible to the token `v` of the call (counted from the first token of the sequence's call):
+    // those up to the block the token completes.
+    [[nodiscard]] int64_t blocks_visible(int64_t v, int64_t key_block_size) const {
+        return (past_len + v + 1) / key_block_size;
+    }
+    // The complete blocks of the sequence after the call.
+    [[nodiscard]] int64_t total_blocks() const {
+        return past_blocks + new_blocks;
+    }
+};
+
+// A row of a paged cache: the physical page (an entry of block_indices) and the slot inside it.
+struct CacheAddress {
+    size_t page;
+    size_t slot;
 };
 
 // Float buffers (offsets in floats) and the (score, block) / chosen arrays (offsets in bytes) of a worker thread's
@@ -134,8 +150,131 @@ struct ThreadLayout {
           bytes(rnd_up(chosen_off + block_topk * sizeof(int32_t), kAlign)) {}
 };
 
+// The buffers of one worker thread's slice (see ThreadLayout).
+struct ThreadScratch {
+    float* q_normed;
+    float* row_buf;
+    float* summary_buf;
+    float* pooled;
+    float* cos_sin;
+    float* cos_tmp;
+    float* sin_tmp;
+    qsa::BlockScore* scores;
+    int32_t* chosen;
+};
+
+ThreadScratch bind_thread_scratch(uint8_t* slice, const ThreadLayout& lay) {
+    auto* const floats = reinterpret_cast<float*>(slice);
+    return {floats + lay.q_normed_off,
+            floats + lay.row_buf_off,
+            floats + lay.summary_buf_off,
+            floats + lay.pooled_off,
+            floats + lay.cos_sin_off,
+            floats + lay.cos_tmp_off,
+            floats + lay.sin_tmp_off,
+            reinterpret_cast<qsa::BlockScore*>(slice + lay.scores_off),
+            reinterpret_cast<int32_t*>(slice + lay.chosen_off)};
+}
+
+// The ports of the node, each taken by its own name.
+struct IndexerTensors {
+    explicit IndexerTensors(const Node& node)
+        : q_idx(node.getSrcMemoryAtPort(InputIdx::INDEX_QUERY)),
+          k_idx(node.getSrcMemoryAtPort(InputIdx::RAW_INDEX_KEYS)),
+          rope_cos(node.getSrcMemoryAtPort(InputIdx::ROPE_COS)),
+          rope_sin(node.getSrcMemoryAtPort(InputIdx::ROPE_SIN)),
+          q_norm_weight(node.getSrcMemoryAtPort(InputIdx::Q_NORM_WEIGHT)),
+          k_norm_weight(node.getSrcMemoryAtPort(InputIdx::K_NORM_WEIGHT)),
+          past_lens(node.getSrcMemoryAtPort(InputIdx::PAST_LENS)),
+          subsequence_begins(node.getSrcMemoryAtPort(InputIdx::SUBSEQUENCE_BEGINS)),
+          block_indices(node.getSrcMemoryAtPort(InputIdx::BLOCK_INDICES)),
+          block_indices_begins(node.getSrcMemoryAtPort(InputIdx::BLOCK_INDICES_BEGINS)),
+          raw_k_cache(node.getSrcMemoryAtPort(InputIdx::INDEX_KEY_CACHE)),
+          indexer_rope_cache(node.getSrcMemoryAtPort(InputIdx::INDEX_BLOCK_ROPE_CACHE)),
+          summary_cache(node.getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE)),
+          sel_indices(node.getDstMemoryAtPort(OutputIdx::SEL_INDICES)),
+          sel_count(node.getDstMemoryAtPort(OutputIdx::SEL_COUNT)) {}
+
+    PlainTensor q_idx, k_idx, rope_cos, rope_sin, q_norm_weight, k_norm_weight;
+    PlainTensor past_lens, subsequence_begins, block_indices, block_indices_begins;
+    PlainTensor raw_k_cache, indexer_rope_cache, summary_cache;
+    PlainTensor sel_indices, sel_count;
+};
+
+// The sizes of a call, derived from the configuration and the shapes of the ports.
+struct IndexerGeometry {
+    IndexerGeometry(const IndexerTensors& t, const ov::op::internal::PagedQSAIndexer::Config& c)
+        : key_block_size(static_cast<int64_t>(c.key_block_size)),
+          // page_size is carried by the cache shape: [N_phys, H_ik, page_size, D_idx]
+          page_size(static_cast<int64_t>(t.raw_k_cache.size(2))),
+          slots_per_page(page_size / key_block_size),
+          rotary_dim(c.indexer_rotary_dim),
+          D_idx(c.indexer_head_dim),
+          tokens(t.q_idx.size(0)),
+          H_iq(t.q_idx.size(1) / D_idx),
+          H_ik(t.k_idx.size(1) / D_idx),
+          H_sel(c.num_selection_heads),
+          block_topk(c.block_topk),
+          eps(c.epsilon),
+          scale(ov::op::internal::PagedQSAIndexer::effective_scale(c)) {}
+
+    int64_t key_block_size;
+    int64_t page_size;
+    int64_t slots_per_page;
+    size_t rotary_dim;
+    size_t D_idx;
+    size_t tokens;
+    size_t H_iq;  // index query heads
+    size_t H_ik;  // index key heads
+    size_t H_sel;
+    size_t block_topk;
+    float eps;
+    float scale;
+};
+
+// The tables and the scratch of a call, filled field by field.
+struct IndexerRuntime {
+    const SeqPlan* plans = nullptr;
+    const int32_t* token_seq = nullptr;  // per token: its sequence, -1 for a token that belongs to none
+    const size_t* sel_of_kv = nullptr;   // per index-key head: its selection head
+    const float* q_norm_w = nullptr;
+    const float* k_norm_w = nullptr;
+    const ThreadLayout* thread_layout = nullptr;
+    uint8_t* thread_slices = nullptr;
+};
+
 // Everything the three phases read, see PagedQSAIndexer::execute_typed().
 struct IndexerArgs {
+    IndexerArgs(const IndexerTensors& t, const IndexerGeometry& g, const IndexerRuntime& rt)
+        : q_idx(t.q_idx),
+          k_idx(t.k_idx),
+          rope_cos(t.rope_cos),
+          rope_sin(t.rope_sin),
+          block_indices(t.block_indices),
+          raw_k_cache(t.raw_k_cache),
+          indexer_rope_cache(t.indexer_rope_cache),
+          summary_cache(t.summary_cache),
+          sel_indices(t.sel_indices),
+          sel_count(t.sel_count),
+          r(g.key_block_size),
+          page_size(g.page_size),
+          slots_per_page(g.slots_per_page),
+          rotary_dim(g.rotary_dim),
+          D_idx(g.D_idx),
+          H_iq(g.H_iq),
+          H_ik(g.H_ik),
+          H_sel(g.H_sel),
+          block_topk(g.block_topk),
+          eps(g.eps),
+          scale(g.scale),
+          plans(rt.plans),
+          token_seq(rt.token_seq),
+          sel_of_kv(rt.sel_of_kv),
+          q_norm_w(rt.q_norm_w),
+          k_norm_w(rt.k_norm_w),
+          thread_layout(*rt.thread_layout),
+          thread_slices(rt.thread_slices) {}
+
     const PlainTensor& q_idx;
     const PlainTensor& k_idx;
     const PlainTensor& rope_cos;
@@ -158,29 +297,31 @@ struct IndexerArgs {
     float eps;
     float scale;
     const SeqPlan* plans;
-    const int32_t* token_seq;  // per token: its sequence, -1 for a token that belongs to none
-    const size_t* sel_of_kv;   // per index-key head: its selection head
+    const int32_t* token_seq;
+    const size_t* sel_of_kv;
     const float* q_norm_w;
     const float* k_norm_w;
     const ThreadLayout& thread_layout;
     uint8_t* thread_slices;
 
-    // Maps a logical token position (relative to the sequence's own 0..S history) to the physical (block, slot) address
-    // into INDEX_KEY_CACHE through the shared page table.
-    [[nodiscard]] std::pair<size_t, size_t> token_phys(const SeqPlan& plan, int64_t logical_pos) const {
-        const int64_t phys_idx = plan.block_begin + logical_pos / page_size;
-        const auto phys_block = static_cast<size_t>(*block_indices.ptr<int32_t>(static_cast<size_t>(phys_idx)));
-        return {phys_block, static_cast<size_t>(logical_pos % page_size)};
+    // Maps a logical token position (relative to the sequence's own 0..S history) to the (page, slot) address into
+    // INDEX_KEY_CACHE through the shared page table.
+    [[nodiscard]] CacheAddress token_address(const SeqPlan& plan, int64_t logical_pos) const {
+        const int64_t page_table_idx = plan.block_begin + logical_pos / page_size;
+        const auto page = static_cast<size_t>(*block_indices.ptr<int32_t>(static_cast<size_t>(page_table_idx)));
+        return {page, static_cast<size_t>(logical_pos % page_size)};
     }
-    // Maps a (sequence-local, 0-based) completed-block index to the physical (block, slot) address into
+    // Maps a (sequence-local, 0-based) completed-block index to the (page, slot) address into
     // BLOCK_INDEX_KEYS_CACHE / INDEX_BLOCK_ROPE_CACHE.
-    [[nodiscard]] std::pair<size_t, size_t> block_phys(const SeqPlan& plan, int64_t block_idx) const {
-        const int64_t phys_idx = plan.block_begin + (block_idx * r) / page_size;
-        const auto phys_block = static_cast<size_t>(*block_indices.ptr<int32_t>(static_cast<size_t>(phys_idx)));
-        return {phys_block, static_cast<size_t>(block_idx % slots_per_page)};
+    [[nodiscard]] CacheAddress block_address(const SeqPlan& plan, int64_t block_idx) const {
+        const int64_t page_table_idx = plan.block_begin + (block_idx * r) / page_size;
+        const auto page = static_cast<size_t>(*block_indices.ptr<int32_t>(static_cast<size_t>(page_table_idx)));
+        return {page, static_cast<size_t>(block_idx % slots_per_page)};
     }
-    [[nodiscard]] uint8_t* thread_slice() const {
-        return thread_slices + static_cast<size_t>(parallel_get_thread_num()) * thread_layout.bytes;
+    // The buffers of this worker thread's slice of the scratch.
+    [[nodiscard]] ThreadScratch thread() const {
+        return bind_thread_scratch(thread_slices + static_cast<size_t>(parallel_get_thread_num()) * thread_layout.bytes,
+                                   thread_layout);
     }
 };
 
@@ -201,10 +342,10 @@ public:
     }
     // the complete blocks up to the one the token completes
     [[nodiscard]] int64_t blocks_visible(size_t seq, int64_t v) const {
-        return (m_a.plans[seq].past_len + v + 1) / m_a.r;
+        return m_a.plans[seq].blocks_visible(v, m_a.r);
     }
     [[nodiscard]] int64_t blocks(size_t seq) const {
-        return m_a.plans[seq].past_blocks + m_a.plans[seq].new_blocks;
+        return m_a.plans[seq].total_blocks();
     }
     [[nodiscard]] const float* query_row(size_t seq, int64_t v, size_t h, float* buf) const {
         return row_view(m_a.q_idx, m_a.D_idx, buf, token(seq, v), h * m_a.D_idx);
@@ -223,14 +364,14 @@ public:
     [[nodiscard]] const T* block_rows(size_t seq, size_t hk, size_t first, size_t count, T* stage) const {
         const auto& plan = m_a.plans[seq];
         const auto slots = static_cast<size_t>(m_a.slots_per_page);
-        const auto [first_page, first_slot] = m_a.block_phys(plan, static_cast<int64_t>(first));
+        const auto [first_page, first_slot] = m_a.block_address(plan, static_cast<int64_t>(first));
         if (count == qsa::kScoreBlockRows && first_slot + count <= slots) {
             return m_a.summary_cache.template ptr<T>(first_page, hk, first_slot);
         }
         const size_t dim = m_a.D_idx;
         size_t done = 0;
         while (done < count) {
-            const auto [page, slot] = m_a.block_phys(plan, static_cast<int64_t>(first + done));
+            const auto [page, slot] = m_a.block_address(plan, static_cast<int64_t>(first + done));
             const size_t run = std::min(count - done, slots - slot);
             std::copy_n(m_a.summary_cache.template ptr<T>(page, hk, slot), run * dim, stage + done * dim);
             done += run;
@@ -262,28 +403,27 @@ private:
 void store_token_rows(const IndexerArgs& a, size_t token) {
     const auto& plan = a.plans[a.token_seq[token]];
     const int64_t logical_pos = plan.past_len + (static_cast<int64_t>(token) - plan.token_begin);
-    auto* const floats = reinterpret_cast<float*>(a.thread_slice());
-    const auto& lay = a.thread_layout;
-    float* const row_buf = floats + lay.row_buf_off;
+    const auto buf = a.thread();
+    float* const row_buf = buf.row_buf;
 
     if (logical_pos % a.r == 0) {
         const int64_t block_idx = logical_pos / a.r;
         if (block_idx < plan.block_capacity) {
-            float* const cos_sin = floats + lay.cos_sin_off;
-            const float* const cos_row = row_view(a.rope_cos, a.rotary_dim, floats + lay.cos_tmp_off, token);
-            const float* const sin_row = row_view(a.rope_sin, a.rotary_dim, floats + lay.sin_tmp_off, token);
+            float* const cos_sin = buf.cos_sin;
+            const float* const cos_row = row_view(a.rope_cos, a.rotary_dim, buf.cos_tmp, token);
+            const float* const sin_row = row_view(a.rope_sin, a.rotary_dim, buf.sin_tmp, token);
             for (size_t j = 0; j < a.rotary_dim; j++) {
                 cos_sin[2 * j] = cos_row[j];
                 cos_sin[2 * j + 1] = sin_row[j];
             }
-            const auto [phys_block, slot] = a.block_phys(plan, block_idx);
-            store_row_f32(a.indexer_rope_cache, 2 * a.rotary_dim, cos_sin, phys_block, slot);
+            const auto [page, slot] = a.block_address(plan, block_idx);
+            store_row_f32(a.indexer_rope_cache, 2 * a.rotary_dim, cos_sin, page, slot);
         }
     }
-    const auto [cur_phys_block, cur_slot] = a.token_phys(plan, logical_pos);
+    const auto [cur_page, cur_slot] = a.token_address(plan, logical_pos);
     for (size_t h = 0; h < a.H_ik; h++) {
         const float* const row = row_view(a.k_idx, a.D_idx, row_buf, token, h * a.D_idx);
-        store_row_f32(a.raw_k_cache, a.D_idx, row, cur_phys_block, h, cur_slot);
+        store_row_f32(a.raw_k_cache, a.D_idx, row, cur_page, h, cur_slot);
     }
 }
 
@@ -291,20 +431,19 @@ void store_token_rows(const IndexerArgs& a, size_t token) {
 // keys, RMSNorm'ed and RoPE'd with the coefficients of its first token. The blocks are independent of each other.
 void pool_block(const IndexerArgs& a, size_t seq, size_t h, size_t j) {
     const auto& plan = a.plans[seq];
-    auto* const floats = reinterpret_cast<float*>(a.thread_slice());
-    const auto& lay = a.thread_layout;
-    float* const row_buf = floats + lay.row_buf_off;
-    float* const pooled = floats + lay.pooled_off;
-    float* const summary_buf = floats + lay.summary_buf_off;
-    float* const cos_sin_buf = floats + lay.cos_sin_off;
+    const auto buf = a.thread();
+    float* const row_buf = buf.row_buf;
+    float* const pooled = buf.pooled;
+    float* const summary_buf = buf.summary_buf;
+    float* const cos_sin_buf = buf.cos_sin;
 
     const int64_t block_idx = plan.past_blocks + static_cast<int64_t>(j);
     const int64_t block_start = block_idx * a.r;
-    const auto [block_phys_block, block_slot] = a.block_phys(plan, block_idx);
+    const auto [block_page, block_slot] = a.block_address(plan, block_idx);
     std::fill_n(pooled, a.D_idx, 0.0F);
     for (int64_t p = block_start; p < block_start + a.r; p++) {
-        const auto [p_phys_block, p_slot] = a.token_phys(plan, p);
-        const float* const row = row_view(a.raw_k_cache, a.D_idx, row_buf, p_phys_block, h, p_slot);
+        const auto [p_page, p_slot] = a.token_address(plan, p);
+        const float* const row = row_view(a.raw_k_cache, a.D_idx, row_buf, p_page, h, p_slot);
         for (size_t d = 0; d < a.D_idx; d++) {
             pooled[d] += row[d];
         }
@@ -313,10 +452,9 @@ void pool_block(const IndexerArgs& a, size_t seq, size_t h, size_t j) {
     for (size_t d = 0; d < a.D_idx; d++) {
         pooled[d] *= inv_r;
     }
-    const float* const cos_sin =
-        row_view(a.indexer_rope_cache, 2 * a.rotary_dim, cos_sin_buf, block_phys_block, block_slot);
+    const float* const cos_sin = row_view(a.indexer_rope_cache, 2 * a.rotary_dim, cos_sin_buf, block_page, block_slot);
     rmsnorm_partial_rope(pooled, summary_buf, a.k_norm_w, a.D_idx, a.rotary_dim, a.eps, cos_sin, cos_sin + 1, 2);
-    store_row_f32(a.summary_cache, a.D_idx, summary_buf, block_phys_block, h, block_slot);
+    store_row_f32(a.summary_cache, a.D_idx, summary_buf, block_page, h, block_slot);
 }
 
 // Phase 3, per token: the query RMSNorm + partial RoPE of every index-query head, then per selection head the score of
@@ -325,38 +463,34 @@ void pool_block(const IndexerArgs& a, size_t seq, size_t h, size_t j) {
 // query heads that share it.
 void select_blocks(const IndexerArgs& a, size_t token) {
     const auto& plan = a.plans[a.token_seq[token]];
-    const int64_t logical_pos = plan.past_len + (static_cast<int64_t>(token) - plan.token_begin);
-    auto* const thread_base = a.thread_slice();
-    auto* const floats = reinterpret_cast<float*>(thread_base);
-    const auto& lay = a.thread_layout;
-    float* const q_normed = floats + lay.q_normed_off;
-    float* const row_buf = floats + lay.row_buf_off;
-    float* const summary_buf = floats + lay.summary_buf_off;
-    auto* const scores = reinterpret_cast<std::pair<float, int32_t>*>(thread_base + lay.scores_off);
-    auto* const chosen = reinterpret_cast<int32_t*>(thread_base + lay.chosen_off);
+    const auto buf = a.thread();
+    float* const q_normed = buf.q_normed;
+    float* const row_buf = buf.row_buf;
+    float* const summary_buf = buf.summary_buf;
+    auto* const scores = buf.scores;
+    auto* const chosen = buf.chosen;
 
-    const float* const cos_row = row_view(a.rope_cos, a.rotary_dim, floats + lay.cos_tmp_off, token);
-    const float* const sin_row = row_view(a.rope_sin, a.rotary_dim, floats + lay.sin_tmp_off, token);
+    const float* const cos_row = row_view(a.rope_cos, a.rotary_dim, buf.cos_tmp, token);
+    const float* const sin_row = row_view(a.rope_sin, a.rotary_dim, buf.sin_tmp, token);
     for (size_t h = 0; h < a.H_iq; h++) {
         const float* const q_row = row_view(a.q_idx, a.D_idx, row_buf, token, h * a.D_idx);
         rmsnorm_partial_rope(q_row, q_normed + h * a.D_idx, a.q_norm_w, a.D_idx, a.rotary_dim, a.eps, cos_row, sin_row);
     }
 
     // The complete blocks visible to this token, including the one this token completes.
-    const int64_t n_complete = (logical_pos + 1) / a.r;
+    const int64_t n_complete = plan.blocks_visible(static_cast<int64_t>(token) - plan.token_begin, a.r);
     const size_t group = a.H_iq / a.H_ik;  // query heads per index-key head
     for (size_t sh = 0; sh < a.H_sel; sh++) {
         size_t k = 0;
         if (n_complete > 0) {
             for (int64_t bidx = 0; bidx < n_complete; bidx++) {
-                const auto [s_phys_block, s_slot] = a.block_phys(plan, bidx);
+                const auto [s_page, s_slot] = a.block_address(plan, bidx);
                 float score = 0.0F;
                 for (size_t hk = 0; hk < a.H_ik; hk++) {
                     if (a.sel_of_kv[hk] != sh) {
                         continue;
                     }
-                    const float* const block_row =
-                        row_view(a.summary_cache, a.D_idx, summary_buf, s_phys_block, hk, s_slot);
+                    const float* const block_row = row_view(a.summary_cache, a.D_idx, summary_buf, s_page, hk, s_slot);
                     for (size_t h = hk * group; h < (hk + 1) * group; h++) {
                         float dot = 0.0F;
                         for (size_t d = 0; d < a.D_idx; d++) {
@@ -367,17 +501,7 @@ void select_blocks(const IndexerArgs& a, size_t token) {
                 }
                 scores[static_cast<size_t>(bidx)] = {score * a.scale, static_cast<int32_t>(bidx)};
             }
-            k = std::min(a.block_topk, static_cast<size_t>(n_complete));
-            std::partial_sort(scores, scores + k, scores + n_complete, [](const auto& x, const auto& y) {
-                if (x.first != y.first) {
-                    return x.first > y.first;
-                }
-                return x.second < y.second;
-            });
-            for (size_t i = 0; i < k; i++) {
-                chosen[i] = scores[i].second;
-            }
-            std::sort(chosen, chosen + k);
+            k = qsa::select_topk(scores, chosen, static_cast<size_t>(n_complete), a.block_topk, false);
         }
 
         auto* out_row = a.sel_indices.ptr<int32_t>(token, sh, 0);
@@ -495,49 +619,32 @@ void PagedQSAIndexer::execute([[maybe_unused]] const dnnl::stream& strm) {
         execute_typed<float>();
     } else if (summary_precision == ov::element::f16) {
         execute_typed<ov::float16>();
-    } else {
+    } else if (summary_precision == ov::element::bf16) {
         execute_typed<ov::bfloat16>();
+    } else {
+        OPENVINO_THROW("PagedQSAIndexer: unsupported summary precision ", summary_precision);
     }
 }
 
 template <typename T>
 void PagedQSAIndexer::execute_typed() {
-    const auto& c = m_config;
-    const auto r = static_cast<int64_t>(c.key_block_size);
-    const size_t rotary_dim = c.indexer_rotary_dim;
-    const size_t D_idx = c.indexer_head_dim;
-    const size_t block_topk = c.block_topk;
-    const size_t H_sel = c.num_selection_heads;
+    const IndexerTensors tensors(*this);
+    const IndexerGeometry geo(tensors, m_config);
+    const int64_t r = geo.key_block_size;
+    const int64_t slots_per_page = geo.slots_per_page;
+    const size_t rotary_dim = geo.rotary_dim;
+    const size_t D_idx = geo.D_idx;
+    const size_t block_topk = geo.block_topk;
+    const size_t H_sel = geo.H_sel;
+    const size_t tokens = geo.tokens;
+    const size_t H_iq = geo.H_iq;
+    const size_t H_ik = geo.H_ik;
 
-    PlainTensor q_idx(getSrcMemoryAtPort(InputIdx::INDEX_QUERY));
-    PlainTensor k_idx(getSrcMemoryAtPort(InputIdx::RAW_INDEX_KEYS));
-    PlainTensor rope_cos(getSrcMemoryAtPort(InputIdx::ROPE_COS));
-    PlainTensor rope_sin(getSrcMemoryAtPort(InputIdx::ROPE_SIN));
-    PlainTensor q_norm_weight(getSrcMemoryAtPort(InputIdx::Q_NORM_WEIGHT));
-    PlainTensor k_norm_weight(getSrcMemoryAtPort(InputIdx::K_NORM_WEIGHT));
-    PlainTensor past_lens(getSrcMemoryAtPort(InputIdx::PAST_LENS));
-    PlainTensor subsequence_begins(getSrcMemoryAtPort(InputIdx::SUBSEQUENCE_BEGINS));
-    PlainTensor block_indices(getSrcMemoryAtPort(InputIdx::BLOCK_INDICES));
-    PlainTensor block_indices_begins(getSrcMemoryAtPort(InputIdx::BLOCK_INDICES_BEGINS));
-    PlainTensor raw_k_cache(getSrcMemoryAtPort(InputIdx::INDEX_KEY_CACHE));
-    PlainTensor indexer_rope_cache(getSrcMemoryAtPort(InputIdx::INDEX_BLOCK_ROPE_CACHE));
-    PlainTensor summary_cache(getSrcMemoryAtPort(InputIdx::BLOCK_INDEX_KEYS_CACHE));
-    PlainTensor sel_indices(getDstMemoryAtPort(OutputIdx::SEL_INDICES));
-    PlainTensor sel_count(getDstMemoryAtPort(OutputIdx::SEL_COUNT));
+    const auto* subsequence_begins_p = tensors.subsequence_begins.ptr<int32_t>();
+    const auto* block_indices_begins_p = tensors.block_indices_begins.ptr<int32_t>();
+    const auto* past_lens_p = tensors.past_lens.ptr<int32_t>();
 
-    // page_size is carried by the cache shape: [N_phys, H_ik, page_size, D_idx]
-    const auto page_size = static_cast<int64_t>(raw_k_cache.size(2));
-    const int64_t slots_per_page = page_size / r;
-
-    const size_t tokens = q_idx.size(0);
-    const size_t H_iq = q_idx.size(1) / D_idx;
-    const size_t H_ik = k_idx.size(1) / D_idx;
-
-    const auto* subsequence_begins_p = subsequence_begins.ptr<int32_t>();
-    const auto* block_indices_begins_p = block_indices_begins.ptr<int32_t>();
-    const auto* past_lens_p = past_lens.ptr<int32_t>();
-
-    const auto seq_tensor_size = subsequence_begins.size(0);
+    const auto seq_tensor_size = tensors.subsequence_begins.size(0);
     OPENVINO_ASSERT(seq_tensor_size >= 1, "[CPU] paged_qsa_indexer: subsequence_begins must be non-empty");
     const size_t num_sequences = seq_tensor_size - 1;
 
@@ -559,9 +666,9 @@ void PagedQSAIndexer::execute_typed() {
         plan.block_capacity = seq_blocks * slots_per_page;
         plan.past_blocks = plan.past_len / r;
         plan.new_blocks = (plan.past_len + plan.q_len) / r - plan.past_blocks;
-        OPENVINO_ASSERT(plan.past_blocks + plan.new_blocks <= plan.block_capacity,
+        OPENVINO_ASSERT(plan.total_blocks() <= plan.block_capacity,
                         "[CPU] paged_qsa_indexer: the completed blocks do not fit the sequence's cache blocks");
-        max_blocks = std::max(max_blocks, plan.past_blocks + plan.new_blocks);
+        max_blocks = std::max(max_blocks, plan.total_blocks());
         max_new_blocks = std::max(max_new_blocks, plan.new_blocks);
         max_q_len = std::max(max_q_len, plan.q_len);
         plans[seq] = plan;
@@ -616,40 +723,21 @@ void PagedQSAIndexer::execute_typed() {
     for (size_t hk = 0; hk < H_ik; hk++) {
         sel_of_kv[hk] = (hk * H_sel) / H_ik;
     }
-    load_row_f32(q_norm_weight, D_idx, q_norm_w);
-    load_row_f32(k_norm_weight, D_idx, k_norm_w);
+    load_row_f32(tensors.q_norm_weight, D_idx, q_norm_w);
+    load_row_f32(tensors.k_norm_weight, D_idx, k_norm_w);
 
-    std::fill_n(sel_indices.ptr<int32_t>(), tokens * H_sel * block_topk, static_cast<int32_t>(-1));
-    std::fill_n(sel_count.ptr<int32_t>(), tokens * H_sel, static_cast<int32_t>(0));
+    std::fill_n(tensors.sel_indices.ptr<int32_t>(), tokens * H_sel * block_topk, static_cast<int32_t>(-1));
+    std::fill_n(tensors.sel_count.ptr<int32_t>(), tokens * H_sel, static_cast<int32_t>(0));
 
-    const IndexerArgs args{q_idx,
-                           k_idx,
-                           rope_cos,
-                           rope_sin,
-                           block_indices,
-                           raw_k_cache,
-                           indexer_rope_cache,
-                           summary_cache,
-                           sel_indices,
-                           sel_count,
-                           r,
-                           page_size,
-                           slots_per_page,
-                           rotary_dim,
-                           D_idx,
-                           H_iq,
-                           H_ik,
-                           H_sel,
-                           block_topk,
-                           c.epsilon,
-                           ov::op::internal::PagedQSAIndexer::effective_scale(c),
-                           plans.data(),
-                           token_seq,
-                           sel_of_kv,
-                           q_norm_w,
-                           k_norm_w,
-                           thread_layout,
-                           scratch_base + threads_offset};
+    IndexerRuntime runtime;
+    runtime.plans = plans.data();
+    runtime.token_seq = token_seq;
+    runtime.sel_of_kv = sel_of_kv;
+    runtime.q_norm_w = q_norm_w;
+    runtime.k_norm_w = k_norm_w;
+    runtime.thread_layout = &thread_layout;
+    runtime.thread_slices = scratch_base + threads_offset;
+    const IndexerArgs args(tensors, geo, runtime);
 
     const auto& cpu_parallel = context->getCpuParallel();
     // Phase 1: the raw keys of the tokens (and the rope rows of the blocks they start) go to the caches; disjoint

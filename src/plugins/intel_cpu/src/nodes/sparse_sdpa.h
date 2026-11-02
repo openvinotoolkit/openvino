@@ -16,7 +16,7 @@
 #include "node.h"
 #include "nodes/kernels/scaled_attn/cache_spec.hpp"
 #include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
-#include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
+#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/sparse_attention.hpp"

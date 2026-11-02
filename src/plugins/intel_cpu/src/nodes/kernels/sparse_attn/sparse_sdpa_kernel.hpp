@@ -7,8 +7,8 @@
 #include <cstdint>
 
 #include "cpu_parallel.hpp"
-#include "nodes/kernels/scaled_attn/sparse_brgemm.hpp"
-#include "nodes/kernels/scaled_attn/sparse_sdpa_scratch.hpp"
+#include "nodes/kernels/sparse_attn/sparse_brgemm.hpp"
+#include "nodes/kernels/sparse_attn/sparse_sdpa_scratch.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/plain_tensor.hpp"
 

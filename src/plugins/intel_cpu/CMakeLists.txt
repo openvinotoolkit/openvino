@@ -283,15 +283,15 @@ cross_compiled_file(${TARGET_NAME}
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/sparse_sdpa_kernel.cpp
-        API         src/nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp
+                    src/nodes/kernels/sparse_attn/sparse_sdpa_kernel.cpp
+        API         src/nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp
         NAME        sparse_sdpa_compute sparse_kv_dequantize_rows
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )
 cross_compiled_file(${TARGET_NAME}
         ARCH AVX512F AVX2 ANY
-                    src/nodes/kernels/scaled_attn/sparse_pa_kernel.cpp
-        API         src/nodes/kernels/scaled_attn/sparse_pa_kernel.hpp
+                    src/nodes/kernels/sparse_attn/sparse_pa_kernel.cpp
+        API         src/nodes/kernels/sparse_attn/sparse_pa_kernel.hpp
         NAME        sparse_pa_compute
         NAMESPACE   ov::Extensions::Cpu::XARCH
 )

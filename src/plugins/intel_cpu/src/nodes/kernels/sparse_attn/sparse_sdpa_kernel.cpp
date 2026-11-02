@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "nodes/kernels/scaled_attn/sparse_sdpa_kernel.hpp"
+#include "nodes/kernels/sparse_attn/sparse_sdpa_kernel.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +15,7 @@
 #include "nodes/kernels/scaled_attn/attn_quant_kernel.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
 #include "nodes/kernels/scaled_attn/paged_attn_kernel.hpp"
-#include "nodes/kernels/scaled_attn/sparse_brgemm_kernel.hpp"
+#include "nodes/kernels/sparse_attn/sparse_brgemm_kernel.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -754,16 +754,20 @@ void sparse_sdpa_compute(const ov::intel_cpu::PlainTensor& query,
         std::fill(it.run_sum, it.run_sum + pack, 0.0F);
 
         const int32_t* block_ids = sel_indices.ptr<int32_t>(b, sh, l);
+        // The count comes from the producer of the selection: a negative one becomes a huge size_t, so it fails here
+        // too.
         const auto nblocks = static_cast<size_t>(*sel_count.ptr<int32_t>(b, sh, l));
+        OPENVINO_ASSERT(nblocks <= sel_indices.size(3),
+                        "[CPU] sparse_sdpa: block_count exceeds the width of block_indices");
         const auto block_start = [&](size_t i) {
             return pad + static_cast<int64_t>(block_ids[i]) * static_cast<int64_t>(Bk);
         };
 #ifdef OPENVINO_ARCH_X86_64
         if (amx && nblocks > 0) {
-            // Per-thread slice of the runs scratch allocated by the caller (nblocks > 0 here
-            // implies kv_chunk_scratch is non-null, since nblocks is always <= SEL_INDICES' K_max
-            // dimension).
+            // Per-thread slice of the chunk scratch allocated by the caller, 3 arrays of K_max entries (nblocks > 0
+            // here implies kv_chunk_scratch is non-null, as nblocks <= K_max is asserted above).
             const size_t K_max_per_thread = kv_chunk_scratch_per_thread / 3;
+            OPENVINO_ASSERT(nblocks <= K_max_per_thread, "[CPU] sparse_sdpa: kv chunk scratch is too small");
             KvChunks kv_chunks;
             kv_chunks.block_starts = kv_chunk_scratch + tid * kv_chunk_scratch_per_thread;
             kv_chunks.chunk_units = kv_chunks.block_starts + K_max_per_thread;
