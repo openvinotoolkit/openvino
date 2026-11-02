@@ -90,6 +90,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_shape_of_subgraphs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_state_init_subgraphs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/memory_dependency_construction_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/mlir_primitive_layouts_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/oooq_memory_dependencies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/post_optimize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/prepare_buffer_fusing_test.cpp

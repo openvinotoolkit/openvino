@@ -18,6 +18,7 @@ struct MLIRPrimitiveImplementationManager : public ImplementationManager {
         : ImplementationManager(impl_types::common, shape_type, std::move(vf)) {}
 
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
+    [[nodiscard]] in_out_fmts_t query_formats(const program_node& node) const override;
 };
 
 }  // namespace cldnn::common
