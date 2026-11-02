@@ -104,9 +104,7 @@ public:
      *
      * Default window and step showed the best import time and peak RSS in manual testing.
      */
-    explicit SequentialPrefetchScheduler(ov::Tensor tensor,
-                                         size_t window = 32 * one_mib,
-                                         size_t step = 8 * one_mib);
+    explicit SequentialPrefetchScheduler(ov::Tensor tensor, size_t window = 32 * one_mib, size_t step = 8 * one_mib);
 
     /** @brief Reports that [begin, end) is read next and the bytes before @p begin are consumed. */
     void advance(size_t begin, size_t end) noexcept;
