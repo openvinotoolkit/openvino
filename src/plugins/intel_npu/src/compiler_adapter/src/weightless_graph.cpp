@@ -4,11 +4,16 @@
 
 #include "weightless_graph.hpp"
 
+#include <algorithm>
 #include <cinttypes>
 #include <condition_variable>
+#include <cstring>
 #include <iterator>
 #include <mutex>
+#include <optional>
 #include <queue>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -28,6 +33,204 @@
 namespace intel_npu {
 
 namespace {
+
+/**
+ * @brief Process-wide record of the weights produced by the init schedules of weightless graphs, used when
+ * NPU_SHARE_WEIGHTLESS_INIT_OUTPUTS is enabled.
+ * @details Applications often load several compiled models over the same weights (an LLM compiled for several token
+ * block sizes or context lengths, prefill and decode graphs). Each weightless graph runs its init schedules into a
+ * device buffer of its own, so every such model holds another full copy of the weights. After an init schedule ran,
+ * every output is looked up here (size + a sampled hash, then compared byte by byte) among the outputs of graphs that
+ * are still alive:
+ * - an output found whole, or as an aligned part of a larger earlier output, is bound to that memory;
+ * - when every output was found, the new buffer is released;
+ * - when only some were, the others are copied into a compact buffer of their own and the new buffer is released too.
+ * The buffers bound this way are kept alive by the graph that uses them (shared ownership of the ZeroTensor).
+ */
+class InitOutputsRegistry {
+public:
+    static InitOutputsRegistry& get() {
+        static InitOutputsRegistry registry;
+        return registry;
+    }
+
+    /**
+     * @brief Looks up the outputs of an init schedule that ran into "allocatedTensor".
+     * @param tensorsMap The views of "allocatedTensor" by output name; entries found elsewhere are replaced by views
+     * of the existing memory.
+     * @returns The buffers the outputs now point to, when "allocatedTensor" is no longer needed; std::nullopt when
+     * nothing was found (the outputs are then recorded for later graphs).
+     */
+    std::optional<std::vector<std::shared_ptr<ZeroTensor>>> share(
+        const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+        const std::shared_ptr<ZeroTensor>& allocatedTensor,
+        std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensorsMap,
+        const Logger& logger) {
+        std::lock_guard<std::mutex> lock(_mutex);
+
+        std::unordered_map<std::string, std::pair<std::shared_ptr<ZeroTensor>, const unsigned char*>> found;
+        size_t foundBytes = 0;
+        for (const auto& [name, tensor] : tensorsMap) {
+            const auto* data = static_cast<const unsigned char*>(tensor->data());
+            const size_t size = tensor->get_byte_size();
+            if (auto match = find(data, size, allocatedTensor)) {
+                found.emplace(name, *match);
+                foundBytes += size;
+            }
+        }
+
+        if (found.empty()) {
+            record(allocatedTensor, tensorsMap, nullptr);
+            logger.debug("Init outputs not found elsewhere: %zu outputs, %zu bytes",
+                         tensorsMap.size(),
+                         allocatedTensor->get_byte_size());
+            return std::nullopt;
+        }
+
+        std::vector<std::shared_ptr<ZeroTensor>> owners;
+        for (const auto& [name, match] : found) {
+            const auto& view = tensorsMap.at(name);
+            tensorsMap[name] =
+                ov::make_tensor(view->get_element_type(), view->get_shape(), const_cast<unsigned char*>(match.second));
+            owners.push_back(match.first);
+        }
+
+        if (found.size() != tensorsMap.size()) {
+            // The outputs not found elsewhere are copied into a compact buffer, each at an aligned offset
+            const auto align = [](size_t value) {
+                return (value + ALIGNMENT - 1) & ~(ALIGNMENT - 1);
+            };
+            size_t compactSize = 0;
+            for (const auto& [name, tensor] : tensorsMap) {
+                if (found.count(name) == 0) {
+                    compactSize += align(tensor->get_byte_size());
+                }
+            }
+            const auto compact =
+                std::make_shared<ZeroTensor>(initStructs, ov::element::Type_t::u8, ov::Shape({compactSize}), false);
+            auto* base = static_cast<unsigned char*>(const_cast<void*>(compact->data(ov::element::Type_t::u8)));
+            size_t offset = 0;
+            std::unordered_set<std::string> moved;
+            for (auto& [name, tensor] : tensorsMap) {
+                if (found.count(name) != 0) {
+                    continue;
+                }
+                const size_t size = tensor->get_byte_size();
+                std::memcpy(base + offset, tensor->data(), size);
+                tensor = ov::make_tensor(tensor->get_element_type(), tensor->get_shape(), base + offset);
+                moved.insert(name);
+                offset += align(size);
+            }
+            record(compact, tensorsMap, &moved);
+            owners.push_back(compact);
+            logger.info("Init outputs partly shared: %zu of %zu outputs (%zu bytes) found, %zu bytes kept of %zu",
+                        found.size(),
+                        tensorsMap.size(),
+                        foundBytes,
+                        compactSize,
+                        allocatedTensor->get_byte_size());
+            return owners;
+        }
+
+        logger.info("Init outputs shared: all %zu outputs found, %zu bytes released",
+                    found.size(),
+                    allocatedTensor->get_byte_size());
+        return owners;
+    }
+
+private:
+    struct Entry {
+        std::weak_ptr<ZeroTensor> owner;
+        const unsigned char* data;
+        size_t size;
+    };
+
+    static constexpr size_t ALIGNMENT = 64;
+    // Outputs from this size on are also looked up as a part of a larger earlier output: e.g. a group-quantized weight
+    // kept per group by one graph and as chunks of several groups by another one
+    static constexpr size_t MIN_PART_SIZE = size_t(1) << 15;
+    static constexpr size_t MIN_CONTAINER_SIZE = size_t(1) << 16;
+
+    static uint64_t sampled_hash(const unsigned char* data, size_t size) {
+        uint64_t hash = 1469598103934665603ULL ^ size;  // FNV-1a over 64 bytes of every 4 KB, and the last 64 bytes
+        const auto mix = [&](const unsigned char* begin, size_t length) {
+            for (size_t i = 0; i < length; ++i) {
+                hash = (hash ^ begin[i]) * 1099511628211ULL;
+            }
+        };
+        for (size_t offset = 0; offset < size; offset += 4096) {
+            mix(data + offset, std::min<size_t>(64, size - offset));
+        }
+        if (size > 64) {
+            mix(data + size - 64, 64);
+        }
+        return hash;
+    }
+
+    std::optional<std::pair<std::shared_ptr<ZeroTensor>, const unsigned char*>>
+    find(const unsigned char* data, size_t size, const std::shared_ptr<ZeroTensor>& self) const {
+        const auto range = _byHash.equal_range(sampled_hash(data, size));
+        for (auto it = range.first; it != range.second; ++it) {
+            auto owner = it->second.owner.lock();
+            if (owner == nullptr || owner == self || it->second.size != size) {
+                continue;
+            }
+            if (std::memcmp(it->second.data, data, size) == 0) {
+                return std::make_pair(owner, it->second.data);
+            }
+        }
+        if (size < MIN_PART_SIZE) {
+            return std::nullopt;
+        }
+        for (const auto& container : _containers) {
+            if (container.size <= size || container.size % size != 0) {
+                continue;
+            }
+            auto owner = container.owner.lock();
+            if (owner == nullptr || owner == self) {
+                continue;
+            }
+            for (size_t offset = 0; offset + size <= container.size; offset += size) {
+                const unsigned char* part = container.data + offset;
+                if (std::memcmp(part, data, 64) == 0 && std::memcmp(part, data, size) == 0) {
+                    return std::make_pair(owner, part);
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    void record(const std::shared_ptr<ZeroTensor>& owner,
+                const std::unordered_map<std::string, std::shared_ptr<ov::ITensor>>& tensorsMap,
+                const std::unordered_set<std::string>* only) {
+        // Entries of buffers released in the meantime go first
+        for (auto it = _byHash.begin(); it != _byHash.end();) {
+            it = it->second.owner.expired() ? _byHash.erase(it) : std::next(it);
+        }
+        _containers.erase(std::remove_if(_containers.begin(),
+                                         _containers.end(),
+                                         [](const Entry& entry) {
+                                             return entry.owner.expired();
+                                         }),
+                          _containers.end());
+
+        for (const auto& [name, tensor] : tensorsMap) {
+            if (only != nullptr && only->count(name) == 0) {
+                continue;
+            }
+            const auto* data = static_cast<const unsigned char*>(tensor->data());
+            const size_t size = tensor->get_byte_size();
+            _byHash.emplace(sampled_hash(data, size), Entry{owner, data, size});
+            if (size >= MIN_CONTAINER_SIZE) {
+                _containers.push_back(Entry{owner, data, size});
+            }
+        }
+    }
+
+    std::mutex _mutex;
+    std::unordered_multimap<uint64_t, Entry> _byHash;
+    std::vector<Entry> _containers;
+};
 
 constexpr uint8_t MAIN_SCHEDULE_INDEX = 0;
 constexpr std::string_view WEIGHTS_IR_EXTENSION = ".bin";
@@ -407,6 +610,8 @@ void WeightlessGraph::initialize_impl(const Config& config) {
         config.get<SHARED_COMMON_QUEUE>()};
     _initsCommandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, commandQueueDesc);
 
+    _shareInitOutputs = config.get<SHARE_WEIGHTLESS_INIT_OUTPUTS>();
+
 #if USE_SINGLE_THREADED_RUN_INIT
     run_init_single_threaded();
 #else
@@ -422,6 +627,7 @@ void WeightlessGraph::initialize_impl(const Config& config) {
     _initsFences.clear();
     _initsMetadata.clear();
     _initsCommandQueue.reset();
+    _sharedInitOutputsToRelease.clear();
 
     // The main schedule is initialized after the weights initialization ones in order to save some memory
     Graph::initialize_impl(config);
@@ -556,6 +762,17 @@ void WeightlessGraph::run_init_single_threaded() {
         create_pipeline(initIndex, initInputsViewTensors, initOutputsViewTensors);
         run_pipeline(initIndex);
 
+        if (_shareInitOutputs) {
+            if (auto owners = InitOutputsRegistry::get().share(_zeroInitStruct,
+                                                               initOutputsAllocatedTensor,
+                                                               initOutputsViewTensorsMap,
+                                                               _wgLogger)) {
+                merge_two_maps(_mainInputsViewTensors, initOutputsViewTensorsMap);
+                _mainInputsAllocatedTensors.insert(_mainInputsAllocatedTensors.end(), owners->begin(), owners->end());
+                _sharedInitOutputsToRelease.push_back(std::move(initOutputsAllocatedTensor));
+                continue;
+            }
+        }
         merge_two_maps(_mainInputsViewTensors, initOutputsViewTensorsMap);
         _mainInputsAllocatedTensors.push_back(std::move(initOutputsAllocatedTensor));
     }
@@ -594,6 +811,19 @@ void WeightlessGraph::run_init_multi_threaded() {
             run_pipeline(data.initIndex);
 
             // TODO: pre-allocate those well in advance? (outside of this loop)
+            if (_shareInitOutputs) {
+                if (auto owners = InitOutputsRegistry::get().share(_zeroInitStruct,
+                                                                   data.outputs.hostTensor,
+                                                                   data.outputs.tensorsMap,
+                                                                   _wgLogger)) {
+                    merge_two_maps(_mainInputsViewTensors, data.outputs.tensorsMap);
+                    _mainInputsAllocatedTensors.insert(_mainInputsAllocatedTensors.end(),
+                                                       owners->begin(),
+                                                       owners->end());
+                    _sharedInitOutputsToRelease.push_back(data.outputs.hostTensor);
+                    return;
+                }
+            }
             merge_two_maps(_mainInputsViewTensors, data.outputs.tensorsMap);
             _mainInputsAllocatedTensors.push_back(data.outputs.hostTensor);
         },

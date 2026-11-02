@@ -965,6 +965,26 @@ struct SHARED_COMMON_QUEUE final : OptionBase<SHARED_COMMON_QUEUE, bool> {
     }
 };
 
+struct SHARE_WEIGHTLESS_INIT_OUTPUTS final : OptionBase<SHARE_WEIGHTLESS_INIT_OUTPUTS, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::share_weightless_init_outputs.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
+    static std::string_view envVar() {
+        return "OV_NPU_SHARE_WEIGHTLESS_INIT_OUTPUTS";
+    }
+#endif
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct CACHE_ENCRYPTION_CALLBACKS final : OptionBase<CACHE_ENCRYPTION_CALLBACKS, ov::EncryptionCallbacks> {
     static std::string_view key() {
         return ov::cache_encryption_callbacks.name();
