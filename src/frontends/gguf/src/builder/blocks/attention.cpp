@@ -289,7 +289,9 @@ std::string attention(GraphEmitter& e,
     if (cfg.has_attn_gate) {
         bool rank3_gate;
         if (!gate.empty()) {
-            rank3_gate = e.weight_tensor(p + "attn_q.weight").get_element_type() != ov::element::u2;
+            const auto qtype = e.weight_qtype(p + "attn_q");
+            rank3_gate = qtype != GGUF_TYPE_Q2_K && qtype != GGUF_TYPE_Q2_0 && qtype != GGUF_TYPE_PQ2_0 &&
+                         qtype != GGUF_TYPE_PTQ1_0;
             gate =
                 e.add_op("GGML_OP_RESHAPE",
                          p + "attn_gate",
@@ -300,11 +302,9 @@ std::string attention(GraphEmitter& e,
                           {"special_zero", true}});
         } else {
             e.add_weight(p + "attn_gate.weight");
-            const auto gate_weight = std::find_if(graph.nodes.begin(), graph.nodes.end(), [&](const auto& node) {
-                return node.name == p + "attn_gate.weight";
-            });
-            rank3_gate = gate_weight->attributes.at("gguf.blob.weight").template as<ov::Tensor>().get_element_type() !=
-                         ov::element::u2;
+            const auto qtype = e.weight_qtype(p + "attn_gate");
+            rank3_gate = qtype != GGUF_TYPE_Q2_K && qtype != GGUF_TYPE_Q2_0 && qtype != GGUF_TYPE_PQ2_0 &&
+                         qtype != GGUF_TYPE_PTQ1_0;
             gate = e.add_op("GGML_OP_MUL_MAT",
                             p + "attn_gate",
                             {p + "attn_gate.weight", attn_norm},
@@ -314,7 +314,7 @@ std::string attention(GraphEmitter& e,
         gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate});
         auto gate_width = static_cast<size_t>(q_width);
         if (!cfg.interleaved_q_gate) {
-            const auto& gate_shape = e.weight_tensor(p + "attn_gate.weight").get_shape();
+            const auto& gate_shape = e.weight_shape(p + "attn_gate.weight");
             OPENVINO_ASSERT(gate_shape.size() == 2 && (gate_shape[0] == static_cast<size_t>(n_head_l) ||
                                                        gate_shape[0] == static_cast<size_t>(q_width)),
                             "[GGUF] attention gate must have one value per head or per channel");

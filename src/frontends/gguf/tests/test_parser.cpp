@@ -17,6 +17,7 @@
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "quant/weights.hpp"
+#include "raw_weight_test_utils.hpp"
 
 using namespace ov_gguf_test;
 
@@ -90,7 +91,7 @@ TEST_F(GGUFParser, Q8_1PreservesCodesScalesAndIgnoresSumForAllWeightNames) {
     for (const std::string name : {"blk.0.attn_q", "token_embd", "output"}) {
         SCOPED_TRACE(name);
         ASSERT_NO_FATAL_FAILURE(write_tensor(name + ".weight", GGUF_TYPE_Q8_1, 256, 4, bytes));
-        const auto loaded = get_gguf_data(m_path);
+        const auto loaded = get_unpacked_gguf_data(m_path);
         const auto& arrays = std::get<1>(loaded);
         EXPECT_EQ(std::get<2>(loaded).at(name + ".qtype"), GGUF_TYPE_Q8_1);
         const auto& weights = arrays.at(name + ".weight");
@@ -116,11 +117,27 @@ TEST_F(GGUFParser, Q8_1PreservesCodesScalesAndIgnoresSumForAllWeightNames) {
     }
 }
 
+TEST_F(GGUFParser, QuantizedLoaderKeepsOneRawDescriptorPerTensor) {
+    const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
+    ASSERT_NO_FATAL_FAILURE(write_tensor("output.weight", GGUF_TYPE_Q8_1, 256, 4, bytes));
+    const auto loaded = get_gguf_data(m_path);
+    const auto& weights = std::get<1>(loaded);
+    ASSERT_EQ(weights.size(), 1);
+    const auto& weight = weights.at("output.weight");
+    EXPECT_EQ(weight.source_name, "output.weight");
+    EXPECT_EQ(weight.qtype, GGUF_TYPE_Q8_1);
+    EXPECT_EQ(weight.shape, (ov::Shape{4, 256}));
+    EXPECT_TRUE(weight.native);
+    ASSERT_EQ(weight.data.get_byte_size(), bytes.size());
+    EXPECT_EQ(std::memcmp(weight.data.data<const uint8_t>(), bytes.data(), bytes.size()), 0);
+    EXPECT_EQ(std::get<2>(loaded).at("output.qtype"), GGUF_TYPE_Q8_1);
+}
+
 TEST_F(GGUFParser, Q8_1KeepsHigherRankGroups) {
     const auto bytes = load_npy<uint8_t>("q8_1_qbytes");
     const auto reference = load_npy<float>("q8_1_deq");
     ASSERT_NO_FATAL_FAILURE(write_tensor("experts.weight", GGUF_TYPE_Q8_1, 256, 2, bytes, {}, {2}));
-    const auto loaded = get_gguf_data(m_path);
+    const auto loaded = get_unpacked_gguf_data(m_path);
     const auto& arrays = std::get<1>(loaded);
     const auto& weights = arrays.at("experts.weight");
     const auto& scales = arrays.at("experts.scales");
@@ -153,7 +170,7 @@ TEST_F(GGUFParser, Q8_1ExtractedBuffersPreserveFiniteScaleRangeAfterParserReleas
     ASSERT_NO_FATAL_FAILURE(write_tensor("output.weight", GGUF_TYPE_Q8_1, reference.size(), 1, bytes));
     WeightTensors tensors;
     {
-        const auto loaded = get_gguf_data(m_path);
+        const auto loaded = get_unpacked_gguf_data(m_path);
         const auto& arrays = std::get<1>(loaded);
         tensors = {arrays.at("output.weight"), arrays.at("output.scales"), {}};
         ASSERT_EQ(tensors.scales.get_size(), scale_bits.size());
@@ -190,7 +207,7 @@ TEST_F(GGUFParser, Q1_0PreservesBinaryStorageAndScaleValues) {
     const auto bytes = load_npy<uint8_t>("q1_0_qbytes");
     const auto reference = load_npy<float>("q1_0_deq");
     ASSERT_NO_FATAL_FAILURE(write_tensor("token_embd.weight", GGUF_TYPE_Q1_0, 256, 4, bytes));
-    const auto loaded = get_gguf_data(m_path);
+    const auto loaded = get_unpacked_gguf_data(m_path);
     const auto& arrays = std::get<1>(loaded);
     const auto& weights = arrays.at("token_embd.weight");
     const auto& scales = arrays.at("token_embd.scales");
@@ -218,7 +235,7 @@ TEST_F(GGUFParser, Q2_0KeepsIntegerZeroPointsForAllWeightNames) {
     for (const std::string name : {"blk.0.attn_q", "token_embd", "output"}) {
         SCOPED_TRACE(name);
         ASSERT_NO_FATAL_FAILURE(write_tensor(name + ".weight", GGUF_TYPE_Q2_0, 256, 4, bytes));
-        const auto loaded = get_gguf_data(m_path);
+        const auto loaded = get_unpacked_gguf_data(m_path);
         const auto& arrays = std::get<1>(loaded);
         const auto& weights = arrays.at(name + ".weight");
         const auto& scales = arrays.at(name + ".scales");
@@ -246,7 +263,7 @@ TEST_F(GGUFParser, PrismTernaryFormatsMatchGgmlIncludingLegacyGroup128) {
         const auto bytes = load_npy<uint8_t>(std::string(stem) + "_qbytes");
         const auto reference = load_npy<float>(std::string(stem) + "_deq");
         ASSERT_NO_FATAL_FAILURE(write_tensor("token_embd.weight", file_type, 256, 4, bytes));
-        const auto loaded = get_gguf_data(m_path);
+        const auto loaded = get_unpacked_gguf_data(m_path);
         const auto& arrays = std::get<1>(loaded);
         EXPECT_EQ(std::get<2>(loaded).at("token_embd.qtype"), expected_type);
         EXPECT_EQ(arrays.at("token_embd.scales").get_shape(), (ov::Shape{4, 2}));
@@ -263,8 +280,8 @@ TEST_F(GGUFParser, PrismTernaryFormatsMatchGgmlIncludingLegacyGroup128) {
 }
 
 TEST(GGUFHadamardMetadata, RejectsInvalidBlocksWidthsAndUnusedWeights) {
-    std::unordered_map<std::string, ov::Tensor> weights{{"output.weight", ov::Tensor(ov::element::f32, {4, 16})},
-                                                        {"token_embd.weight", ov::Tensor(ov::element::f32, {4, 12})}};
+    GgufWeightTable weights{{"output.weight", ov::Tensor(ov::element::f32, {4, 16})},
+                            {"token_embd.weight", ov::Tensor(ov::element::f32, {4, 12})}};
     std::unordered_map<std::string, GgufTensorType> qtypes;
     const auto scalar = [](uint32_t value) {
         ov::Tensor tensor(ov::element::u32, {});
@@ -304,7 +321,7 @@ TEST_F(GGUFParser, Q4KZeroPointModeAppliesToLanguageAndProjectorModels) {
     for (const std::string architecture : {"clip", "qwen35", "qwen35moe", "gemma4", "muse-glimmer", ""}) {
         SCOPED_TRACE(architecture);
         ASSERT_NO_FATAL_FAILURE(write_tensor("v.blk.0.attn_q.weight", GGUF_TYPE_Q4_K, 256, 4, bytes, architecture));
-        const auto loaded = get_gguf_data(m_path);
+        const auto loaded = get_unpacked_gguf_data(m_path);
         const auto& arrays = std::get<1>(loaded);
         const auto& zp = arrays.at("v.blk.0.attn_q.zp");
         ASSERT_EQ(zp.get_element_type(), expected_zp);
@@ -325,7 +342,7 @@ TEST_F(GGUFParser, QuantizedBuffersOutliveParserResult) {
     ASSERT_NO_FATAL_FAILURE(write_tensor("blk.0.attn_q.weight", GGUF_TYPE_Q2_K, 256, 4, bytes));
     WeightTensors tensors;
     {
-        const auto loaded = get_gguf_data(m_path);
+        const auto loaded = get_unpacked_gguf_data(m_path);
         const auto& arrays = std::get<1>(loaded);
         tensors = {arrays.at("blk.0.attn_q.weight"), arrays.at("blk.0.attn_q.scales"), arrays.at("blk.0.attn_q.zp")};
     }
@@ -358,7 +375,7 @@ TEST_F(GGUFParser, AcceptsEmptyQuantizedTensors) {
     for (const auto& [name, type] : types) {
         SCOPED_TRACE(name);
         ASSERT_NO_FATAL_FAILURE(write_tensor("empty.weight", type, 0, 2));
-        const auto loaded = get_gguf_data(m_path);
+        const auto loaded = get_unpacked_gguf_data(m_path);
         const auto& arrays = std::get<1>(loaded);
         EXPECT_EQ(arrays.at("empty.weight").get_shape(), (ov::Shape{2, 0}));
         EXPECT_EQ(arrays.at("empty.scales").get_shape(), (ov::Shape{2, 0}));
@@ -425,18 +442,18 @@ protected:
 TEST_F(GGUFShards, DiscoversSiblingsFromEitherShardAndKeepsMappingsAlive) {
     ASSERT_NO_FATAL_FAILURE(write_shard(0, 0));
     ASSERT_NO_FATAL_FAILURE(write_shard(1, 1));
-    ov::Tensor retained;
+    ov::frontend::gguf::GgufWeight retained;
     for (size_t index : {0, 1}) {
         const auto loaded = get_gguf_data(path(index));
         EXPECT_EQ(std::get<3>(loaded).size(), 2);
         EXPECT_EQ(std::get<std::string>(std::get<0>(loaded).at("general.architecture")), "qwen3");
         const auto& arrays = std::get<1>(loaded);
         ASSERT_EQ(arrays.size(), 2);
-        EXPECT_FLOAT_EQ(arrays.at("weight0.weight").data<const float>()[0], 1.f);
-        EXPECT_FLOAT_EQ(arrays.at("weight1.weight").data<const float>()[0], 2.f);
+        EXPECT_FLOAT_EQ(arrays.at("weight0.weight").data.data<const float>()[0], 1.f);
+        EXPECT_FLOAT_EQ(arrays.at("weight1.weight").data.data<const float>()[0], 2.f);
         retained = arrays.at("weight1.weight");
     }
-    EXPECT_FLOAT_EQ(retained.data<const float>()[1], 3.f);
+    EXPECT_FLOAT_EQ(retained.data.data<const float>()[1], 3.f);
 }
 
 TEST_F(GGUFShards, ExplicitListAllowsRenamedFilesInDifferentDirectoriesAndReversedOrder) {
@@ -483,10 +500,10 @@ TEST_F(GGUFShards, LegacyGroup128PackingMatchesMergedFileAcrossShards) {
             ASSERT_TRUE(shard.write(path(index)));
         }
         ASSERT_TRUE(merged.write(merged_path));
-        const auto reference = get_gguf_data(merged_path);
-        for (const auto& loaded : {get_gguf_data(path(0)),
-                                   get_gguf_data(path(1)),
-                                   get_gguf_data(std::vector<std::filesystem::path>{path(1), path(0)})}) {
+        const auto reference = get_unpacked_gguf_data(merged_path);
+        for (const auto& loaded : {get_unpacked_gguf_data(path(0)),
+                                   get_unpacked_gguf_data(path(1)),
+                                   get_unpacked_gguf_data(std::vector<std::filesystem::path>{path(1), path(0)})}) {
             for (const std::string stem : {"small", "large"}) {
                 EXPECT_EQ(std::get<2>(loaded).at(stem + ".qtype"), GGUF_TYPE_PQ2_0);
                 const auto& arrays = std::get<1>(loaded);

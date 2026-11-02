@@ -30,6 +30,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "quant/gguf.hpp"
 #include "quant/weights.hpp"
+#include "raw_weight_test_utils.hpp"
 #include "utils.hpp"
 
 using namespace ov_gguf_test;
@@ -1032,7 +1033,7 @@ TEST_F(GGUFQ5KNative, KeepsDiskTypeAndUsesSymmetricStorageForMatrices) {
         const auto full_name = name == "blk.0.attn_q.bias" ? name : name + ".weight";
         const bool symmetric = name == "blk.0.ffn_up";
         ASSERT_NO_FATAL_FAILURE(write_tensor(full_name, bytes));
-        const auto loaded = get_gguf_data(path);
+        const auto loaded = get_unpacked_gguf_data(path);
         const auto& arrays = std::get<1>(loaded);
         const auto& prefix = name;
         EXPECT_EQ(std::get<2>(loaded).at(prefix + ".qtype"), GGUF_TYPE_Q5_K);

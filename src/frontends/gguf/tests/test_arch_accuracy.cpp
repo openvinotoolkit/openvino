@@ -24,6 +24,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
+#include "helper_ops/gguf_constant.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
@@ -155,7 +156,7 @@ TEST(GGUFDSparkAccuracy, ConfidenceAndMarkovHeadsAreIndependent) {
             weights.erase("dspark.markov_head_b.weight");
         }
         ov::Tensor projection(ov::element::f32, {1, with_markov ? size_t{72} : size_t{64}});
-        std::copy_n(weights.at("dspark.confidence_head.weight").data<const float>(),
+        std::copy_n(weights.at("dspark.confidence_head.weight").data.data<const float>(),
                     projection.get_size(),
                     projection.data<float>());
         weights["dspark.confidence_head.weight"] = projection;
@@ -199,13 +200,14 @@ TEST(GGUFDSparkAccuracy, ConfidenceAndMarkovHeadsAreIndependent) {
         const auto score = request.get_tensor("dspark.confidence_score");
         ASSERT_EQ(score.get_size(), 4u);
         for (size_t token = 0; token < 4; ++token) {
-            double expected = weights.at("dspark.confidence_head.bias").data<const float>()[0];
+            double expected = weights.at("dspark.confidence_head.bias").data.data<const float>()[0];
             for (size_t feature = 0; feature < 64; ++feature)
                 expected += hidden.data<const float>()[token * 64 + feature] * projection.data<const float>()[feature];
             if (with_markov)
                 for (size_t feature = 0; feature < 8; ++feature)
-                    expected += weights.at("dspark.markov_head_a.weight").data<const float>()[token * 8 + feature] *
-                                projection.data<const float>()[64 + feature];
+                    expected +=
+                        weights.at("dspark.markov_head_a.weight").data.data<const float>()[token * 8 + feature] *
+                        projection.data<const float>()[64 + feature];
             EXPECT_NEAR(score.data<const float>()[token], expected, 1e-6);
         }
     }
@@ -302,7 +304,11 @@ TEST(GGUFDSparkAccuracy, RejectsOversizedDraftBlocksBeforeBuildingTheGraph) {
     metadata["dspark.dspark.block_size"] = value;
     const auto graph = ov::frontend::gguf::make_dspark_builder(context)->build();
     EXPECT_EQ(graph->model_inputs.at("inp_tokens")->get_output_partial_shape(0), (ov::PartialShape{1, 1, 1, 4096}));
-    EXPECT_EQ(weights.at("dspark.log_snr_features").get_byte_size(), 4096 * 128 * sizeof(float));
+    EXPECT_EQ(weights.count("dspark.log_snr_features"), 0);
+    const auto features = ov::as_type_ptr<ov::frontend::gguf::GGUFConstant>(
+        graph->values->at("dspark.log_snr_features").get_node_shared_ptr());
+    ASSERT_TRUE(features);
+    EXPECT_EQ(features->source().data.get_byte_size(), 4096 * 128 * sizeof(float));
 }
 
 TEST(GGUFDSparkAccuracy, LogSnrUsesNormalizedEndpointsAndRequiresValidBounds) {
@@ -322,15 +328,17 @@ TEST(GGUFDSparkAccuracy, LogSnrUsesNormalizedEndpointsAndRequiresValidBounds) {
         detail::MetadataStore store{metadata};
         detail::WeightStore tensors{std::get<1>(loaded), std::get<2>(loaded)};
         const BuildContext context{GgufMetadata(store), "dspark", &tensors};
-        EXPECT_NO_THROW(make_dspark_builder(context)->build());
-        const auto& features = tensors.weights.at("dspark.log_snr_features");
+        const auto graph = make_dspark_builder(context)->build();
+        const auto features =
+            ov::as_type_ptr<GGUFConstant>(graph->values->at("dspark.log_snr_features").get_node_shared_ptr());
+        ASSERT_TRUE(features);
         for (size_t pos = 0; pos < 4; ++pos) {
             const float log_snr = pos == 0 ? high : low;
             const float time = (log_snr - low) / (high - low) * 1000.f;
             for (size_t i = 0; i < 64; ++i) {
                 const float angle = time * std::exp(-std::log(10000.f) * i / 64.f);
-                EXPECT_FLOAT_EQ(features.data<const float>()[pos * 128 + i], std::sin(angle));
-                EXPECT_FLOAT_EQ(features.data<const float>()[pos * 128 + 64 + i], std::cos(angle));
+                EXPECT_FLOAT_EQ(features->source().data.data<const float>()[pos * 128 + i], std::sin(angle));
+                EXPECT_FLOAT_EQ(features->source().data.data<const float>()[pos * 128 + 64 + i], std::cos(angle));
             }
         }
     }
@@ -761,8 +769,23 @@ TEST(GGUFMultimodalBackboneAdaptation, TernaryAttentionGatesRestoreRankBeforeSig
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
         auto loaded = get_gguf_data(temporary.path);
         auto& weights = std::get<1>(loaded);
-        auto& gate = weights.at("blk.0.attn_gate.weight");
-        gate = ov::Tensor(type, gate.get_shape());
+        const auto name = "blk.0.attn_gate.weight";
+        auto& gate = weights.at(name);
+        if (type == ov::element::f32) {
+            gate = GgufWeight(ov::Tensor(type, gate.shape));
+            gate.source_name = name;
+        } else {
+            size_t elements = 1;
+            for (const auto dim : gate.shape)
+                elements *= dim;
+            ASSERT_EQ(elements % 64, 0);
+            gate.data = ov::Tensor(ov::element::u8, {elements / 64 * 18});
+            std::memset(gate.data.data(), 0, gate.data.get_byte_size());
+            gate.qtype = GGUF_TYPE_Q2_0;
+            gate.source_name = name;
+            gate.native = true;
+            gate.mapped.reset();
+        }
         const auto& metadata = std::get<0>(loaded);
         detail::MetadataStore store{metadata};
         const auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Neox);

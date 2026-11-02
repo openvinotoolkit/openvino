@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -88,9 +89,27 @@ struct GgufTensor {
 using GGUFMetaData =
     std::variant<std::monostate, float, int, ov::Tensor, std::string, std::vector<std::string>, std::vector<int32_t>>;
 
-// Parsed arrays retain deferred quantized storage and non-quantized mmap views.
+struct GgufWeight {
+    ov::Tensor data;
+    ov::Shape shape;
+    GgufTensorType qtype = GGUF_TYPE_F32;
+    std::string source_name;
+    bool native = true;
+    std::string quant_type;
+    std::shared_ptr<ov::MappedMemory> mapped;
+
+    GgufWeight() = default;
+    GgufWeight(const ov::Tensor& tensor);
+    const ov::Shape& get_shape() const {
+        return shape;
+    }
+};
+
+using GgufWeightTable = std::unordered_map<std::string, GgufWeight>;
+
+// Raw weight descriptors retain the source mapping without unpacking quantized tensors.
 using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
-                            std::unordered_map<std::string, ov::Tensor>,
+                            GgufWeightTable,
                             std::unordered_map<std::string, GgufTensorType>,
                             std::vector<std::shared_ptr<ov::MappedMemory>>>;
 
@@ -136,11 +155,13 @@ void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y);
 
 struct WeightTensors;
 
-WeightTensors make_deferred_weights(const GgufTensor& tensor,
-                                    const std::shared_ptr<ov::MappedMemory>& mapped,
-                                    const std::string& name);
+WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& shape);
+void unpack_gguf_weight_into(const GgufWeight& source, WeightTensors& destination);
+WeightTensors unpack_gguf_weight(const GgufWeight& source);
+bool gguf_column_groups_are_aligned(const GgufWeight& source, const std::vector<int64_t>& columns);
+size_t gguf_weight_group_size(const GgufWeight& source);
 
-// Parse GGUF metadata and tensors, deferring quantized repacking until byte access.
+// Parse GGUF metadata and raw weight descriptors.
 GGUFLoad get_gguf_data(const std::filesystem::path& file);
 GGUFLoad get_gguf_data(const std::vector<std::filesystem::path>& files);
 

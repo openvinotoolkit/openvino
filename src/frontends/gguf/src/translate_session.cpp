@@ -124,12 +124,7 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     const std::shared_ptr<ConstantCache>& constant_cache) {
     const auto& operation_type = decoder->get_op_type();
     if (operation_type == "GGML_OP_NONE") {
-        // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
-        // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
-        // bytes ("data"). Otherwise it is a model-input leaf (already seeded as a Parameter
-        // above) and there is nothing to translate.
-        const bool is_builder_weight =
-            decoder->get_attribute("gguf_weight").is<bool>() && decoder->get_attribute("gguf_weight").as<bool>();
+        const bool is_builder_weight = decoder->get_attribute("gguf_source").is<GgufWeight>();
         const bool is_cgraph_weight = decoder->get_attribute("data").is<ov::Tensor>();
         if (!is_builder_weight && !is_cgraph_weight) {
             return;

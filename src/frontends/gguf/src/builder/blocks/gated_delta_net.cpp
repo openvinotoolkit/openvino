@@ -6,104 +6,50 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
-#include <functional>
-#include <optional>
+#include <numeric>
 #include <vector>
 
 #include "builder/blocks/common.hpp"
 #include "openvino/core/except.hpp"
-#include "quant/deferred_weights.hpp"
 
 namespace ov::frontend::gguf::blocks {
 
 namespace {
 
-// Copy of `t` viewed as `outer` rows of bytes, where the chunks [first, first + src.size())
-// of `chunk_bytes` in every row are reordered so that new chunk n holds old chunk src[n].
-// Returns an empty tensor when the byte layout does not split evenly.
-ov::Tensor permute_chunks(const ov::Tensor& t,
-                          size_t outer,
-                          size_t chunk_bytes,
-                          size_t first,
-                          const std::vector<int64_t>& src) {
-    const size_t bytes = t.get_byte_size();
-    if (outer == 0 || bytes % outer != 0 || chunk_bytes == 0 || (first + src.size()) * chunk_bytes > bytes / outer) {
+std::vector<int64_t> row_permutation(const ov::Shape& shape,
+                                     int64_t first,
+                                     int64_t rows_per_block,
+                                     const std::vector<int64_t>& source) {
+    if (shape.empty() || shape[0] == 0 || rows_per_block <= 0 || first < 0 ||
+        static_cast<size_t>(first + rows_per_block * source.size()) > shape[0]) {
         return {};
     }
-    const size_t row_bytes = bytes / outer;
-    auto materialize = [t, outer, row_bytes, chunk_bytes, first, src] {
-        ov::Tensor out(t.get_element_type(), t.get_shape());
-        const auto* in_data = static_cast<const uint8_t*>(t.data());
-        auto* out_data = static_cast<uint8_t*>(out.data());
-        const size_t head = first * chunk_bytes, tail = (first + src.size()) * chunk_bytes;
-        for (size_t r = 0; r < outer; ++r) {
-            const auto* in_row = in_data + r * row_bytes;
-            auto* out_row = out_data + r * row_bytes;
-            std::memcpy(out_row, in_row, head);
-            std::memcpy(out_row + tail, in_row + tail, row_bytes - tail);
-            for (size_t n = 0; n < src.size(); ++n) {
-                std::memcpy(out_row + (first + n) * chunk_bytes,
-                            in_row + (first + static_cast<size_t>(src[n])) * chunk_bytes,
-                            chunk_bytes);
-            }
-        }
-        return out;
-    };
-    return is_deferred(t) ? defer_tensor(t.get_element_type(), t.get_shape(), std::move(materialize)) : materialize();
-}
-
-// Reorder `src.size()` blocks of `rows_per_block` rows (dim 0) starting at row `first_row`.
-ov::Tensor permute_row_blocks(const ov::Tensor& t,
-                              size_t first_row,
-                              size_t rows_per_block,
-                              const std::vector<int64_t>& src) {
-    const auto& shape = t.get_shape();
-    if (shape.empty() || shape[0] == 0 || rows_per_block == 0 || t.get_byte_size() % shape[0] != 0) {
-        return {};
-    }
-    const size_t chunk = t.get_byte_size() / shape[0] * rows_per_block;
-    if (first_row % rows_per_block != 0) {
-        return {};
-    }
-    return permute_chunks(t, 1, chunk, first_row / rows_per_block, src);
-}
-
-// Reorder `src.size()` column blocks of `block_cols` of a [rows, logical_cols] weight part.
-// Per-row tensors with a single column (channel-wise scales) are left as they are.
-ov::Tensor permute_col_blocks(const ov::Tensor& t,
-                              size_t logical_cols,
-                              size_t block_cols,
-                              const std::vector<int64_t>& src) {
-    const auto& shape = t.get_shape();
-    if (shape.size() == 2 && shape[1] == 1) {
-        return t;
-    }
-    if (shape.size() != 2 || shape[0] == 0 || logical_cols == 0 || t.get_byte_size() % shape[0] != 0) {
-        return {};
-    }
-    const size_t row_bytes = t.get_byte_size() / shape[0];
-    if ((row_bytes * block_cols) % logical_cols != 0) {
-        return {};
-    }
-    return permute_chunks(t, shape[0], row_bytes * block_cols / logical_cols, 0, src);
-}
-
-// Apply `fn` to every present part; fails (returns false) if any present part cannot be transformed.
-template <typename Fn>
-bool transform_parts(const WeightTensors& in, WeightTensors& out, Fn&& fn) {
-    const std::vector<std::pair<const ov::Tensor*, ov::Tensor*>> parts{{&in.weight, &out.weight},
-                                                                       {&in.scales, &out.scales},
-                                                                       {&in.zero_point, &out.zero_point}};
-    for (const auto& [src, dst] : parts) {
-        if (*src) {
-            *dst = fn(*src);
-            if (!*dst) {
-                return false;
-            }
+    std::vector<int64_t> indices(shape[0]);
+    std::iota(indices.begin(), indices.end(), 0);
+    for (size_t block = 0; block < source.size(); ++block) {
+        for (int64_t row = 0; row < rows_per_block; ++row) {
+            indices[first + block * rows_per_block + row] = first + source[block] * rows_per_block + row;
         }
     }
-    return true;
+    return indices;
+}
+
+std::string permute_weight(GraphEmitter& e,
+                           const std::string& source,
+                           const std::string& name,
+                           int64_t axis,
+                           const std::vector<int64_t>& indices) {
+    e.add_named_weight(source);
+    e.add_op("GGML_OP_VIEW", name, {source}, 3, {{"view_gather_axis", axis}, {"view_gather_indices", indices}});
+    e.register_graph_weight(name, e.weight_qtype(source));
+    e.inherit_hadamard(name, source);
+    return name;
+}
+
+bool compatible_row_shapes(GraphEmitter& e, const std::string& lhs, const std::string& rhs) {
+    const auto& a = e.weight_shape(lhs + ".weight");
+    const auto& b = e.weight_shape(rhs + ".weight");
+    return !a.empty() && a.size() == b.size() && std::equal(a.begin() + 1, a.end(), b.begin() + 1);
 }
 
 }  // namespace
@@ -143,49 +89,52 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         for (int64_t n = 0; n < H_v; ++n) {
             src[n] = (n % rep) * H_k + n / rep;
         }
-        const auto rows = [&](size_t first, size_t per_block) {
-            return [&, first, per_block](const ov::Tensor& t) {
-                return permute_row_blocks(t, first, per_block, src);
-            };
-        };
-        const auto cols = [&](const ov::Tensor& t) {
-            if (grouped_hadamard)
-                return t;
-            return permute_col_blocks(t, value_dim, head_v, src);
-        };
         struct Grouped {
-            std::string& base;
-            std::function<ov::Tensor(const ov::Tensor&)> permute;
-            WeightTensors parts;
+            std::string* name;
+            std::string source;
+            int64_t axis;
+            std::vector<int64_t> indices;
+            bool base_name;
         };
-        std::array<Grouped, 5> grouped{{{qkv_base, rows(2 * key_dim, head_v), {}},
-                                        {gate_base, rows(0, head_v), {}},
-                                        {alpha_base, rows(0, 1), {}},
-                                        {beta_base, rows(0, 1), {}},
-                                        {out_base, cols, {}}}};
-        bool ok = std::all_of(grouped.begin(), grouped.end(), [&](Grouped& w) {
-            return transform_parts(e.weight_parts(w.base), w.parts, w.permute);
-        });
-        ov::Tensor conv, a, dt;
-        if (ok) {
-            conv = permute_row_blocks(e.weight_tensor(conv_w), 2 * key_dim, head_v, src);
-            a = permute_row_blocks(e.weight_tensor(a_w), 0, 1, src);
-            dt = permute_row_blocks(e.weight_tensor(dt_w), 0, 1, src);
-            ok = conv && a && dt;
+        std::vector<Grouped> grouped;
+        const auto rows = [&](std::string& name, bool base_name, int64_t first, int64_t per_block) {
+            const auto source = name + (base_name ? ".weight" : "");
+            grouped.push_back(
+                {&name, source, 0, row_permutation(e.weight_shape(source), first, per_block, src), base_name});
+        };
+        rows(qkv_base, true, 2 * key_dim, head_v);
+        rows(gate_base, true, 0, head_v);
+        rows(alpha_base, true, 0, 1);
+        rows(beta_base, true, 0, 1);
+        rows(conv_w, false, 2 * key_dim, head_v);
+        rows(a_w, false, 0, 1);
+        rows(dt_w, false, 0, 1);
+        if (!grouped_hadamard) {
+            const auto source = out_base + ".weight";
+            const auto& shape = e.weight_shape(source);
+            auto indices = shape.size() == 2 && shape[1] == static_cast<size_t>(value_dim)
+                               ? row_permutation({shape[1]}, 0, head_v, src)
+                               : std::vector<int64_t>{};
+            grouped.push_back({&out_base, source, 1, std::move(indices), true});
         }
-        if (ok) {
-            const std::string g = "_grouped";
-            for (auto& w : grouped) {
-                if (grouped_hadamard && &w.base == &out_base)
-                    continue;
-                store_parts(e, w.base + g, w.parts, e.weight_qtype(w.base));
-                e.inherit_hadamard(w.base + g + ".weight", w.base + ".weight");
-                w.base += g;
+        if (std::all_of(grouped.begin(), grouped.end(), [](const Grouped& weight) {
+                return !weight.indices.empty();
+            })) {
+            for (auto& weight : grouped) {
+                std::string name;
+                if (weight.base_name) {
+                    *weight.name += "_grouped";
+                    name = *weight.name + ".weight";
+                } else {
+                    const auto pos = weight.source.rfind('.');
+                    name = pos != std::string::npos &&
+                                   (weight.source.substr(pos) == ".weight" || weight.source.substr(pos) == ".bias")
+                               ? weight.source.substr(0, pos) + "_grouped" + weight.source.substr(pos)
+                               : weight.source + "_grouped";
+                    *weight.name = name;
+                }
+                permute_weight(e, weight.source, name, weight.axis, weight.indices);
             }
-            conv_w = p + "ssm_conv1d" + g + ".weight", a_w = p + "ssm_a" + g, dt_w = p + "ssm_dt" + g + ".bias";
-            e.weights()[conv_w] = conv;
-            e.weights()[a_w] = a;
-            e.weights()[dt_w] = dt;
             gqa_grouped = true;
         }
     }
@@ -198,17 +147,13 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     // remain separate so their bias and activations can fuse into FCs.
     std::string z, beta, alpha;
     const bool dense_gates = e.weight_qtype(beta_base) == GGUF_TYPE_F32 && e.weight_qtype(alpha_base) == GGUF_TYPE_F32;
-    auto ba = !dense_gates || !e.has_hadamard() ? concat_rows(e.weight_parts(beta_base),
-                                                              e.weight_parts(alpha_base),
-                                                              e.weight_qtype(beta_base),
-                                                              e.weight_qtype(alpha_base))
-                                                : std::nullopt;
-    auto zba = ba && !e.has_hadamard()
-                   ? concat_rows(e.weight_parts(gate_base), *ba, e.weight_qtype(gate_base), e.weight_qtype(beta_base))
-                   : std::nullopt;
+    const bool ba = (!dense_gates || !e.has_hadamard()) && compatible_row_shapes(e, beta_base, alpha_base);
+    const bool zba = ba && !e.has_hadamard() && (!dense_gates || e.weight_qtype(gate_base) == GGUF_TYPE_F32) &&
+                     compatible_row_shapes(e, gate_base, beta_base);
     if (zba) {
-        store_parts(e, p + "ssm_z_beta_alpha", *zba, e.weight_qtype(gate_base));
-        e.add_weight(p + "ssm_z_beta_alpha.weight");
+        concat_weight_rows(e,
+                           p + "ssm_z_beta_alpha.weight",
+                           {gate_base + ".weight", beta_base + ".weight", alpha_base + ".weight"});
         auto zba_out = e.add_op("GGML_OP_MUL_MAT", p + "z_beta_alpha", {p + "ssm_z_beta_alpha.weight", attn_norm});
         z = e.add_op("GGML_OP_VIEW", p + "z", {zba_out}, 3, {{"view_slice", std::vector<int64_t>{3, 0, value_dim}}});
         beta = e.add_op("GGML_OP_VIEW",
@@ -224,8 +169,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     } else if (ba && !dense_gates) {
         e.add_weight(gate_base + ".weight");
         z = e.add_op("GGML_OP_MUL_MAT", p + "z", {gate_base + ".weight", attn_norm});
-        store_parts(e, p + "ssm_beta_alpha", *ba, e.weight_qtype(beta_base));
-        e.add_weight(p + "ssm_beta_alpha.weight");
+        concat_weight_rows(e, p + "ssm_beta_alpha.weight", {beta_base + ".weight", alpha_base + ".weight"});
         auto ba_out = e.add_op("GGML_OP_MUL_MAT", p + "beta_alpha", {p + "ssm_beta_alpha.weight", attn_norm});
         beta = e.add_op("GGML_OP_VIEW", p + "beta", {ba_out}, 3, {{"view_slice", std::vector<int64_t>{3, 0, H_v}}});
         alpha = e.add_op("GGML_OP_VIEW", p + "alpha", {ba_out}, 3, {{"view_slice", std::vector<int64_t>{3, H_v, H_v}}});

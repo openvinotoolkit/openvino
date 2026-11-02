@@ -4,11 +4,9 @@
 
 #include "builder/blocks/common.hpp"
 
-#include <cstring>
-#include <tuple>
 #include <vector>
 
-#include "quant/deferred_weights.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::frontend::gguf::blocks {
 
@@ -81,52 +79,21 @@ std::array<std::string, 2> split_interleaved_projection(GraphEmitter& e,
     return outputs;
 }
 
-void store_parts(GraphEmitter& e, const std::string& base, const WeightTensors& t, GgufTensorType qtype) {
-    auto& w = e.weights();
-    w[base + ".weight"] = t.weight;
-    if (t.scales) {
-        w[base + ".scales"] = t.scales;
+std::string concat_weight_rows(GraphEmitter& e, const std::string& name, const std::vector<std::string>& weights) {
+    OPENVINO_ASSERT(!weights.empty(), "[GGUF] weight concatenation requires inputs");
+    for (const auto& weight : weights) {
+        e.add_weight(weight);
     }
-    if (t.zero_point) {
-        w[base + ".zp"] = t.zero_point;
+    const auto rank = e.weight_shape(weights.front()).size();
+    OPENVINO_ASSERT(rank > 0 && weights.size() > 1, "[GGUF] weight concatenation requires nonscalar inputs");
+    auto input = weights.front();
+    for (size_t i = 1; i < weights.size(); ++i) {
+        const auto output = i + 1 == weights.size() ? name : name + ".concat" + std::to_string(i);
+        e.add_op("GGML_OP_CONCAT", output, {input, weights[i]}, 0, {{"concat_axis", static_cast<int>(rank - 1)}});
+        e.register_graph_weight(output, e.weight_qtype(weights.front()));
+        input = output;
     }
-    e.qtypes()[base + ".qtype"] = qtype;
-}
-
-// Concatenate the rows of two weights with the same quantization layout into one; empty on mismatch.
-std::optional<WeightTensors> concat_rows(const WeightTensors& a,
-                                         const WeightTensors& b,
-                                         GgufTensorType qa,
-                                         GgufTensorType qb) {
-    if (qa != qb || !a.weight || !b.weight) {
-        return std::nullopt;
-    }
-    if (is_deferred(a) || is_deferred(b)) {
-        return concat_deferred_rows(a, b);
-    }
-    WeightTensors out;
-    const std::vector<std::tuple<const ov::Tensor*, const ov::Tensor*, ov::Tensor*>> parts{
-        {&a.weight, &b.weight, &out.weight},
-        {&a.scales, &b.scales, &out.scales},
-        {&a.zero_point, &b.zero_point, &out.zero_point}};
-    for (const auto& [x, y, dst] : parts) {
-        if (static_cast<bool>(*x) != static_cast<bool>(*y)) {
-            return std::nullopt;
-        }
-        if (!*x) {
-            continue;
-        }
-        auto sx = x->get_shape(), sy = y->get_shape();
-        if (x->get_element_type() != y->get_element_type() || sx.empty() || sx.size() != sy.size() ||
-            !std::equal(sx.begin() + 1, sx.end(), sy.begin() + 1)) {
-            return std::nullopt;
-        }
-        sx[0] += sy[0];
-        *dst = ov::Tensor(x->get_element_type(), sx);
-        std::memcpy(dst->data(), x->data(), x->get_byte_size());
-        std::memcpy(static_cast<uint8_t*>(dst->data()) + x->get_byte_size(), y->data(), y->get_byte_size());
-    }
-    return out;
+    return name;
 }
 
 }  // namespace ov::frontend::gguf::blocks

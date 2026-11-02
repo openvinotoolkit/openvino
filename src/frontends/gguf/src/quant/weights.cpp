@@ -22,7 +22,6 @@
 #include <tuple>
 #include <vector>
 
-#include "deferred_weights.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/parallel.hpp"
@@ -149,12 +148,9 @@ ov::Tensor slice_leading(const ov::Tensor& t, size_t r0, size_t r1) {
     OPENVINO_ASSERT(!out_shape.empty() && r1 <= out_shape[0] && r0 <= r1, "[GGUF] bad slice");
     const size_t stride = t.get_byte_size() / out_shape[0];
     out_shape[0] = r1 - r0;
-    auto materialize = [t, out_shape, r0, r1, stride] {
-        ov::Tensor out(t.get_element_type(), out_shape);
-        std::memcpy(out.data(), static_cast<const uint8_t*>(t.data()) + r0 * stride, (r1 - r0) * stride);
-        return out;
-    };
-    return is_deferred(t) ? defer_tensor(t.get_element_type(), out_shape, std::move(materialize)) : materialize();
+    ov::Tensor out(t.get_element_type(), out_shape);
+    std::memcpy(out.data(), static_cast<const uint8_t*>(t.data()) + r0 * stride, (r1 - r0) * stride);
+    return out;
 }
 
 // Gather rows in a repeating per-block pattern: for every `block` consecutive rows, take
@@ -166,17 +162,12 @@ ov::Tensor gather_rows_strided(const ov::Tensor& t, size_t block, size_t take, s
                     "[GGUF] bad strided row gather");
     const size_t n_blocks = s[0] / block;
     const size_t row_bytes = t.get_byte_size() / s[0];
-    const ov::Shape shape{n_blocks * take, s[1]};
-    auto materialize = [t, shape, n_blocks, block, take, offset, row_bytes] {
-        ov::Tensor out(t.get_element_type(), shape);
-        const auto* src = static_cast<const uint8_t*>(t.data());
-        auto* dst = static_cast<uint8_t*>(out.data());
-        for (size_t b = 0; b < n_blocks; ++b) {
-            std::memcpy(dst + b * take * row_bytes, src + (b * block + offset) * row_bytes, take * row_bytes);
-        }
-        return out;
-    };
-    return is_deferred(t) ? defer_tensor(t.get_element_type(), shape, std::move(materialize)) : materialize();
+    ov::Tensor out(t.get_element_type(), {n_blocks * take, s[1]});
+    const auto* src = static_cast<const uint8_t*>(t.data());
+    auto* dst = static_cast<uint8_t*>(out.data());
+    for (size_t b = 0; b < n_blocks; ++b)
+        std::memcpy(dst + b * take * row_bytes, src + (b * block + offset) * row_bytes, take * row_bytes);
+    return out;
 }
 
 // Keep all leading dims separate rather than flattening: the trailing Reshape must be
@@ -1054,6 +1045,24 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     }
 
     return make_weight_node(tensors, qtype, name);
+}
+
+std::shared_ptr<ov::Node> make_weight_node(const GgufWeight& source) {
+    if (source.native)
+        return make_weight_node(unpack_gguf_weight(source), source.qtype, source.source_name);
+    const auto& shape = source.shape;
+    if (shape.size() > 2 && source.qtype == GGUF_TYPE_MXFP4) {
+        const ov::Shape packed_shape{1, shape[shape.size() - 3], shape[shape.size() - 2], shape.back() / 32, 17};
+        OPENVINO_ASSERT(source.data.get_byte_size() == ov::shape_size(packed_shape), "MXFP4 packed byte size mismatch");
+        return std::make_shared<ov::op::v0::Constant>(ov::element::u8, packed_shape, source.data.data());
+    }
+    if (shape.size() > 2) {
+        const auto rows = std::accumulate(shape.begin(), shape.end() - 1, size_t{1}, std::multiplies<size_t>());
+        auto node = make_weight_node(source.data, source.quant_type, {rows, shape.back()}, source.source_name);
+        auto target = ov::op::v0::Constant::create(ov::element::i64, {shape.size()}, shape);
+        return std::make_shared<ov::op::v1::Reshape>(node, target, false);
+    }
+    return make_weight_node(source.data, source.quant_type, shape, source.source_name);
 }
 
 }  // namespace ov::frontend::gguf

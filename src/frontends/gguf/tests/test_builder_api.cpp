@@ -26,7 +26,7 @@ using namespace ov::frontend::gguf;
 namespace {
 struct Environment {
     std::unordered_map<std::string, GGUFMetaData> metadata;
-    std::unordered_map<std::string, ov::Tensor> weights;
+    GgufWeightTable weights;
     std::unordered_map<std::string, GgufTensorType> qtypes;
     detail::MetadataStore store{metadata};
     detail::WeightStore tensors{weights, qtypes};

@@ -31,7 +31,7 @@ void validate_rope(const RopeConfig& rope, int head_size) {
 }
 }  // namespace
 
-DecoderConfig::DecoderConfig(const DecoderParameters& p, const std::unordered_map<std::string, ov::Tensor>& weights) {
+DecoderConfig::DecoderConfig(const DecoderParameters& p, const GgufWeightTable& weights) {
     const auto has = [&weights](const std::string& name) {
         return weights.count(name) > 0;
     };

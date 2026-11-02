@@ -23,7 +23,6 @@
 #include <type_traits>
 #include <unordered_set>
 
-#include "deferred_weights.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/shape_util.hpp"
@@ -359,43 +358,110 @@ ov::Shape get_shape(const GgufTensor& tensor) {
     return shape;
 }
 
-WeightTensors make_deferred_weights(const GgufTensor& tensor,
-                                    const std::shared_ptr<ov::MappedMemory>& mapped,
-                                    const std::string& name) {
-    const auto layout = quant_layout(tensor.type, name);
-    OPENVINO_ASSERT(layout, "[load_gguf] tensor '", name, "' has no quantized layout");
-    const auto shape = get_shape(tensor);
-    OPENVINO_ASSERT(!shape.empty(), "[load_gguf] tensor '", name, "' is quantized but has rank 0");
-    ov::Shape weight_shape = shape;
+GgufWeight::GgufWeight(const ov::Tensor& tensor) : data(tensor), shape(tensor.get_shape()) {
+    const auto type = tensor.get_element_type();
+    if (type == ov::element::f32)
+        qtype = GGUF_TYPE_F32;
+    else if (type == ov::element::f16)
+        qtype = GGUF_TYPE_F16;
+    else if (type == ov::element::bf16)
+        qtype = GGUF_TYPE_BF16;
+    else if (type == ov::element::f64)
+        qtype = GGUF_TYPE_F64;
+    else if (type == ov::element::i8)
+        qtype = GGUF_TYPE_I8;
+    else if (type == ov::element::i16)
+        qtype = GGUF_TYPE_I16;
+    else if (type == ov::element::i32)
+        qtype = GGUF_TYPE_I32;
+    else if (type == ov::element::i64)
+        qtype = GGUF_TYPE_I64;
+    else
+        OPENVINO_THROW("Unsupported generated GGUF weight element type ", type);
+}
+
+WeightTensors allocate_gguf_weight(const GgufWeight& source, const ov::Shape& shape) {
+    WeightTensors result;
+    const auto layout = quant_layout(source.qtype, source.source_name);
+    if (!layout) {
+        result.weight = ov::Tensor(source.data.get_element_type(), shape);
+        return result;
+    }
+    OPENVINO_ASSERT(!shape.empty() && shape.back() % layout->group_size == 0 && shape.back() % layout->weight_div == 0,
+                    "Invalid GGUF weight shape ",
+                    shape);
+    auto weight_shape = shape;
     weight_shape.back() /= layout->weight_div;
-    ov::Shape scale_shape = shape;
+    auto scale_shape = shape;
     scale_shape.back() /= layout->group_size;
-    const auto zp_type = layout->asymmetric ? gguf_zero_point_type(name, static_cast<GgufTensorType>(tensor.type))
-                                            : ov::element::dynamic;
-    std::array<DeferredWeightTensor, 3> components = {DeferredWeightTensor{layout->weight_type, weight_shape},
-                                                      DeferredWeightTensor{layout->scale_type, scale_shape},
-                                                      DeferredWeightTensor{zp_type, scale_shape}};
-    const auto stable_name = std::make_shared<std::string>(name);
-    auto raw = tensor;
-    raw.name = stable_name->data();
-    raw.namelen = stable_name->size();
-    return defer_weight_tensors(
-        components,
-        [raw, mapped, stable_name, asymmetric = layout->asymmetric](WeightTensors& destination) {
-            if (raw.type == GGUF_TYPE_Q5_K && !asymmetric) {
-                gguf_fill_q5_k_i8(raw, destination.weight, destination.scales);
-            } else if (raw.type == GGUF_TYPE_MXFP4) {
-                gguf_fill_mxfp4(raw, destination.weight, destination.scales);
-            } else if (raw.type == GGUF_TYPE_Q2_0 || raw.type == GGUF_TYPE_PQ2_0 || raw.type == GGUF_TYPE_PTQ1_0) {
-                gguf_fill_q2_0(raw, destination.weight, destination.scales, destination.zero_point);
-            } else if (asymmetric) {
-                gguf_fill_asym(raw, destination.weight, destination.scales, destination.zero_point);
-            } else {
-                gguf_fill_sym(raw, destination.weight, destination.scales);
-            }
-            const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
-            mapped->hint_evict(raw.weights_data - base, raw.bsize);
-        });
+    result.weight = ov::Tensor(layout->weight_type, weight_shape);
+    result.scales = ov::Tensor(layout->scale_type, scale_shape);
+    if (layout->asymmetric)
+        result.zero_point = ov::Tensor(gguf_zero_point_type(source.source_name, source.qtype), scale_shape);
+    return result;
+}
+
+void unpack_gguf_weight_into(const GgufWeight& source, WeightTensors& destination) {
+    const auto layout = quant_layout(source.qtype, source.source_name);
+    if (!layout) {
+        OPENVINO_ASSERT(source.data.get_element_type() == destination.weight.get_element_type() &&
+                        source.data.get_byte_size() == destination.weight.get_byte_size());
+        std::memcpy(destination.weight.data(), source.data.data(), source.data.get_byte_size());
+        return;
+    }
+    GgufTensor tensor;
+    tensor.type = source.qtype;
+    tensor.ndim = source.shape.size();
+    OPENVINO_ASSERT(tensor.ndim <= 4, "Unsupported GGUF weight rank");
+    tensor.num_weights = ov::shape_size(source.shape);
+    for (size_t i = 0; i < source.shape.size(); ++i)
+        tensor.dim[i] = source.shape[source.shape.size() - 1 - i];
+    tensor.name = source.source_name.data();
+    tensor.namelen = source.source_name.size();
+    tensor.weights_data = source.data.data<const uint8_t>();
+    tensor.bsize = source.data.get_byte_size();
+    if (source.qtype == GGUF_TYPE_Q5_K && !layout->asymmetric)
+        gguf_fill_q5_k_i8(tensor, destination.weight, destination.scales);
+    else if (source.qtype == GGUF_TYPE_MXFP4)
+        gguf_fill_mxfp4(tensor, destination.weight, destination.scales);
+    else if (source.qtype == GGUF_TYPE_Q2_0 || source.qtype == GGUF_TYPE_PQ2_0 || source.qtype == GGUF_TYPE_PTQ1_0)
+        gguf_fill_q2_0(tensor, destination.weight, destination.scales, destination.zero_point);
+    else if (layout->asymmetric)
+        gguf_fill_asym(tensor, destination.weight, destination.scales, destination.zero_point);
+    else
+        gguf_fill_sym(tensor, destination.weight, destination.scales);
+}
+
+WeightTensors unpack_gguf_weight(const GgufWeight& source) {
+    if (!quant_layout(source.qtype, source.source_name))
+        return {source.data, {}, {}};
+    auto result = allocate_gguf_weight(source, source.shape);
+    unpack_gguf_weight_into(source, result);
+    if (source.mapped) {
+        const auto* base = reinterpret_cast<const uint8_t*>(source.mapped->data());
+        source.mapped->hint_evict(source.data.data<const uint8_t>() - base, source.data.get_byte_size());
+    }
+    return result;
+}
+
+size_t gguf_weight_group_size(const GgufWeight& source) {
+    const auto layout = quant_layout(source.qtype, source.source_name);
+    return layout ? layout->group_size : 1;
+}
+
+bool gguf_column_groups_are_aligned(const GgufWeight& source, const std::vector<int64_t>& columns) {
+    const auto group = gguf_weight_group_size(source);
+    if (columns.size() % group != 0)
+        return false;
+    for (size_t i = 0; i < columns.size(); i += group) {
+        if (columns[i] < 0 || static_cast<size_t>(columns[i]) % group != 0)
+            return false;
+        for (size_t j = 0; j < group; ++j)
+            if (columns[i + j] != columns[i] + static_cast<int64_t>(j) ||
+                static_cast<size_t>(columns[i + j]) >= source.shape.back())
+                return false;
+    }
+    return true;
 }
 
 namespace {
@@ -544,7 +610,7 @@ void detect_legacy_q2_layout(std::vector<GgufFile>& files) {
 }
 
 void load_gguf_tensors(GgufFile& file,
-                       std::unordered_map<std::string, ov::Tensor>& arrays,
+                       GgufWeightTable& arrays,
                        std::unordered_map<std::string, GgufTensorType>& qtype) {
     auto& [metadata, infos, mapped, alignment, data_off] = file;
     const auto* base = reinterpret_cast<const uint8_t*>(mapped->data());
@@ -631,21 +697,21 @@ void load_gguf_tensors(GgufFile& file,
         const std::string name_prefix =
             ov::util::ends_with(name, WEIGHT_SUFFIX) ? name.substr(0, name.length() - WEIGHT_SUFFIX.length()) : name;
 
-        const auto layout = quant_layout(ti.type, ti.name);
-        if (!layout) {
-            ov::Tensor loaded = extract_tensor_data(tensor, mapped);  // zero-copy mmap view
-            const bool inserted = arrays.emplace(name, std::move(loaded)).second;
-            OPENVINO_ASSERT(inserted, "[load_gguf] duplicate tensor name '", name, "'");
-            qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
-            continue;
+        GgufWeight source;
+        source.shape = get_shape(tensor);
+        source.qtype = static_cast<GgufTensorType>(ti.type);
+        source.source_name = name;
+        source.mapped = mapped;
+        if (quant_layout(ti.type, ti.name)) {
+            auto bytes = ov::Tensor(ov::element::u8, {tensor.bsize}, const_cast<uint8_t*>(tensor.weights_data));
+            source.data = ov::Tensor(bytes, mapped);
+        } else {
+            source.data = extract_tensor_data(tensor, mapped);
         }
-
-        auto deferred = make_deferred_weights(tensor, mapped, name);
-        arrays.emplace(name, std::move(deferred.weight));
-        arrays.emplace(name_prefix + ".scales", std::move(deferred.scales));
-        if (deferred.zero_point) {
-            arrays.emplace(name_prefix + ".zp", std::move(deferred.zero_point));
-        }
+        OPENVINO_ASSERT(arrays.emplace(name, std::move(source)).second,
+                        "[load_gguf] duplicate tensor name '",
+                        name,
+                        "'");
         qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
     }
 }
@@ -735,7 +801,7 @@ GGUFLoad load_gguf_files(std::vector<GgufFile> files) {
         }
     }
 
-    std::unordered_map<std::string, ov::Tensor> arrays;
+    GgufWeightTable arrays;
     std::unordered_map<std::string, GgufTensorType> qtype;
     std::vector<std::shared_ptr<ov::MappedMemory>> mappings;
     mappings.reserve(files.size());

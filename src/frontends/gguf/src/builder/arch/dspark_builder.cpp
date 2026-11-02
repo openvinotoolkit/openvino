@@ -75,8 +75,7 @@ public:
                     features.data<float>()[pos * feature_width + feature_width / 2 + i] = std::cos(angle);
                 }
             }
-            e.weights()["dspark.log_snr_features"] = features;
-            e.add_named_weight("dspark.log_snr_features");
+            e.add_generated_weight("dspark.log_snr_features", features);
             auto snr = std::string("dspark.log_snr_features");
             for (int layer = 1; layer <= 2; ++layer) {
                 const auto name = "dspark.log_snr_fc" + std::to_string(layer);

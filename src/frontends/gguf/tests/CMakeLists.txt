@@ -35,7 +35,6 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/pass/materialize_weights.cpp"
     "${FE_SRC_DIR}/tokenizer_metadata.cpp"
     "${FE_SRC_DIR}/quant/gguf.cpp"
-    "${FE_SRC_DIR}/quant/deferred_weights.cpp"
     "${FE_SRC_DIR}/quant/gguf_quants.cpp"
     "${FE_SRC_DIR}/quant/weights.cpp"
     "${FE_SRC_DIR}/builder/gguf_builder.cpp"
@@ -159,7 +158,6 @@ ov_add_test_target(
         # .gguf load path (get_path_from_any in openvino/frontend/common/path_util.hpp).
         "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
         "${OpenVINO_SOURCE_DIR}/src/frontends/common/dev_api"
-        "${OpenVINO_SOURCE_DIR}/src/inference/dev_api"
     ADD_CLANG_FORMAT
     LABELS
         OV UNIT GGUF_FE

@@ -75,6 +75,8 @@ std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
                                            GgufTensorType qtype,
                                            const std::string& name = "weight");
 
+std::shared_ptr<ov::Node> make_weight_node(const GgufWeight& source);
+
 // Build the OpenVINO weight node directly from the raw GGUF weight bytes, as provided by a
 // decoder (e.g. wrapping llama.cpp's tensor->data). `data` holds the bytes exactly as ggml
 // laid them out; `quant_type` is the ggml type name ("F16", "F32", "BF16", "Q4_0", "Q4_K",
