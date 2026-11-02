@@ -16,98 +16,154 @@ using op::v0::Constant, op::v0::Parameter;
 class TypePropQSAIndexerTest : public TypePropOpTest<op::internal::QSAIndexer> {
 protected:
     using Config = op::internal::QSAIndexer::Config;
+    using InputIdx = op::internal::QSAIndexer::InputIdx;
+    using OutputIdx = op::internal::QSAIndexer::OutputIdx;
 
     static std::shared_ptr<Parameter> param(element::Type et, const PartialShape& shape) {
         return std::make_shared<Parameter>(et, shape);
     }
 
-    static std::shared_ptr<Constant> disabled() {
-        return Constant::create(element::f32, Shape{0}, std::vector<float>{});
-    }
-
-    /// Inputs with query [batch, heads, sequence, head_size] and a rotary dimension of 16.
-    static OutputVector make_inputs(const PartialShape& query_shape = PartialShape{2, 4, 3, 128},
-                                    const Dimension& head_size = 128) {
-        return {param(element::f32, query_shape),
-                param(element::f32, PartialShape{2, 3, head_size}),
+    /// Inputs with B = 2, L = 3, H_iq = 4, H_ik = 1, D = 128, a rotary dimension of 16, r = 4 and 5 cached blocks.
+    static OutputVector make_inputs() {
+        return {param(element::f32, PartialShape{2, 3, 4, 128}),
+                param(element::f32, PartialShape{2, 3, 1, 128}),
                 param(element::f32, PartialShape{2, 3, 16}),
                 param(element::f32, PartialShape{2, 3, 16}),
                 param(element::i32, PartialShape{2}),
-                param(element::f32, PartialShape{head_size}),
-                param(element::f32, PartialShape{head_size}),
-                param(element::f32, PartialShape{2, 4, head_size}),
-                param(element::f32, PartialShape{2, 3, head_size}),
+                param(element::f32, PartialShape{128}),
+                param(element::f32, PartialShape{128}),
+                param(element::f32, PartialShape{2, 1, 5, 128}),
+                param(element::f32, PartialShape{2, 1, 3, 128}),
                 param(element::f32, PartialShape{2, 32})};
     }
 
     static Config config() {
-        return Config{4, 16, 1, 1e-6f, 1e-6f, true};
+        Config config;
+        config.key_block_size = 4;
+        config.block_topk = 4;
+        config.indexer_rotary_dim = 16;
+        config.indexer_head_dim = 128;
+        return config;
     }
 };
 
 TEST_F(TypePropQSAIndexerTest, infers_selection_and_state_shapes) {
     const auto op = make_op(make_inputs(), config());
-    EXPECT_EQ(op->get_output_size(), 5);
-    EXPECT_EQ(op->get_output_element_type(0), element::i32);
-    EXPECT_EQ(op->get_output_element_type(1), element::i32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, 3, 4}));
-    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{2, 1, 3}));
-    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{2, 4, 128}));
-    EXPECT_EQ(op->get_output_partial_shape(3), (PartialShape{2, 3, 128}));
-    EXPECT_EQ(op->get_output_partial_shape(4), (PartialShape{2, 32}));
+    EXPECT_EQ(op->get_output_size(), OutputIdx::COUNT);
+    EXPECT_EQ(op->get_output_element_type(OutputIdx::SELECTED_BLOCK_INDICES), element::i32);
+    EXPECT_EQ(op->get_output_element_type(OutputIdx::SELECTED_BLOCK_COUNT), element::i32);
+    EXPECT_EQ(op->get_output_element_type(OutputIdx::BLOCK_INDEX_KEYS_CACHE), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(OutputIdx::SELECTED_BLOCK_INDICES), (PartialShape{2, 1, 3, 4}));
+    EXPECT_EQ(op->get_output_partial_shape(OutputIdx::SELECTED_BLOCK_COUNT), (PartialShape{2, 1, 3}));
+    EXPECT_EQ(op->get_output_partial_shape(OutputIdx::BLOCK_INDEX_KEYS_CACHE), (PartialShape{2, 1, 5, 128}));
+    EXPECT_EQ(op->get_output_partial_shape(OutputIdx::PAST_INCOMPLETE_RAW_K), (PartialShape{2, 1, 3, 128}));
+    EXPECT_EQ(op->get_output_partial_shape(OutputIdx::PAST_INCOMPLETE_ROPE), (PartialShape{2, 32}));
+    EXPECT_FLOAT_EQ(op::internal::QSAIndexer::effective_scale(config()), 1.0f / std::sqrt(128.0f));
 }
 
 TEST_F(TypePropQSAIndexerTest, dynamic_batch_and_sequence) {
-    auto inputs = make_inputs(PartialShape{-1, 4, -1, 128});
-    inputs[1] = param(element::f32, PartialShape{-1, -1, 128});
-    inputs[2] = param(element::f32, PartialShape{-1, -1, 16});
-    inputs[3] = param(element::f32, PartialShape{-1, -1, 16});
-    inputs[4] = param(element::i32, PartialShape{1});
-    inputs[7] = param(element::f32, PartialShape{-1, -1, 128});
-    inputs[8] = param(element::f32, PartialShape{-1, 3, 128});
-    inputs[9] = param(element::f32, PartialShape{-1, 32});
-    const auto op = make_op(inputs, config());
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{-1, 1, -1, 4}));
-    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{-1, -1, 128}));
-    EXPECT_EQ(op->get_output_partial_shape(3), (PartialShape{-1, 3, 128}));
-}
-
-TEST_F(TypePropQSAIndexerTest, rope_disabled_by_empty_inputs) {
     auto inputs = make_inputs();
-    inputs[2] = disabled();
-    inputs[3] = disabled();
-    inputs[9] = disabled();
+    inputs[InputIdx::INDEX_QUERY] = param(element::f32, PartialShape{-1, -1, 4, 128});
+    inputs[InputIdx::RAW_INDEX_KEYS] = param(element::f32, PartialShape{-1, -1, 1, 128});
+    inputs[InputIdx::ROPE_COS] = param(element::f32, PartialShape{-1, -1, 16});
+    inputs[InputIdx::ROPE_SIN] = param(element::f32, PartialShape{-1, -1, 16});
+    inputs[InputIdx::KEY_LENGTH] = param(element::i32, PartialShape{-1});
+    inputs[InputIdx::BLOCK_INDEX_KEYS_CACHE] = param(element::f32, PartialShape{-1, 1, -1, 128});
+    inputs[InputIdx::PAST_INCOMPLETE_RAW_K] = param(element::f32, PartialShape{-1, 1, 3, 128});
+    inputs[InputIdx::PAST_INCOMPLETE_ROPE] = param(element::f32, PartialShape{-1, 32});
     const auto op = make_op(inputs, config());
-    EXPECT_EQ(op->get_output_partial_shape(4), (PartialShape{2, 0}));
+    EXPECT_EQ(op->get_output_partial_shape(OutputIdx::SELECTED_BLOCK_INDICES), (PartialShape{-1, 1, -1, 4}));
+    EXPECT_EQ(op->get_output_partial_shape(OutputIdx::BLOCK_INDEX_KEYS_CACHE), (PartialShape{-1, 1, -1, 128}));
 }
 
-TEST_F(TypePropQSAIndexerTest, head_count_and_head_size_derived_from_inputs) {
-    const auto op = make_op(make_inputs(PartialShape{2, 8, 3, 64}, 64), config());
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{2, 1, 3, 4}));
-    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{2, 4, 64}));
-}
+TEST_F(TypePropQSAIndexerTest, selection_per_key_head) {
+    auto inputs = make_inputs();
+    inputs[InputIdx::RAW_INDEX_KEYS] = param(element::f32, PartialShape{2, 3, 2, 128});
+    inputs[InputIdx::BLOCK_INDEX_KEYS_CACHE] = param(element::f32, PartialShape{2, 2, 5, 128});
+    inputs[InputIdx::PAST_INCOMPLETE_RAW_K] = param(element::f32, PartialShape{2, 2, 3, 128});
+    auto per_head = config();
+    per_head.num_selection_heads = 2;
+    const auto op = make_op(inputs, per_head);
+    EXPECT_EQ(op->get_output_partial_shape(OutputIdx::SELECTED_BLOCK_INDICES), (PartialShape{2, 2, 3, 4}));
 
-TEST_F(TypePropQSAIndexerTest, rotary_dimension_larger_than_head_size) {
-    OV_EXPECT_THROW(std::ignore = make_op(make_inputs(PartialShape{2, 4, 3, 8}, 8), config()),
+    per_head.num_selection_heads = 3;
+    OV_EXPECT_THROW(std::ignore = make_op(inputs, per_head),
                     NodeValidationFailure,
-                    testing::HasSubstr("Rotary dimension must not exceed the head size"));
+                    testing::HasSubstr("num_selection_heads must be 1 or H_ik"));
 }
 
-TEST_F(TypePropQSAIndexerTest, non_causal_configuration) {
-    auto non_causal = config();
-    non_causal.is_causal = false;
-    EXPECT_THROW(std::ignore = make_op(make_inputs(), non_causal), NodeValidationFailure);
+TEST_F(TypePropQSAIndexerTest, incompatible_shapes) {
+    const std::vector<std::pair<size_t, PartialShape>> cases{
+        {InputIdx::INDEX_QUERY, PartialShape{2, 3, 4, 64}},
+        {InputIdx::RAW_INDEX_KEYS, PartialShape{2, 3, 128}},
+        {InputIdx::ROPE_COS, PartialShape{2, 3, 8}},
+        {InputIdx::KEY_LENGTH, PartialShape{3}},
+        {InputIdx::Q_NORM_WEIGHT, PartialShape{64}},
+        {InputIdx::BLOCK_INDEX_KEYS_CACHE, PartialShape{2, 5, 128}},
+        {InputIdx::PAST_INCOMPLETE_RAW_K, PartialShape{2, 1, 2, 128}},
+        {InputIdx::PAST_INCOMPLETE_ROPE, PartialShape{2, 16}},
+    };
+    for (const auto& [idx, shape] : cases) {
+        auto inputs = make_inputs();
+        inputs[idx] = param(inputs[idx].get_element_type(), shape);
+        EXPECT_THROW(std::ignore = make_op(inputs, config()), NodeValidationFailure) << "input " << idx;
+    }
+}
+
+TEST_F(TypePropQSAIndexerTest, incompatible_element_types) {
+    auto inputs = make_inputs();
+    inputs[InputIdx::K_NORM_WEIGHT] = param(element::f16, PartialShape{128});
+    OV_EXPECT_THROW(std::ignore = make_op(inputs, config()),
+                    NodeValidationFailure,
+                    testing::HasSubstr("share one element type"));
+
+    inputs = make_inputs();
+    inputs[InputIdx::KEY_LENGTH] = param(element::i64, PartialShape{2});
+    OV_EXPECT_THROW(std::ignore = make_op(inputs, config()),
+                    NodeValidationFailure,
+                    testing::HasSubstr("i32 key_length"));
+}
+
+TEST_F(TypePropQSAIndexerTest, invalid_configuration) {
+    const std::vector<std::pair<std::string, Config>> cases{
+        {"block_topk",
+         [] {
+             auto c = config();
+             c.block_topk = 0;
+             return c;
+         }()},
+        {"odd rotary",
+         [] {
+             auto c = config();
+             c.indexer_rotary_dim = 15;
+             return c;
+         }()},
+        {"rotary above head size",
+         [] {
+             auto c = config();
+             c.indexer_rotary_dim = 130;
+             return c;
+         }()},
+        {"negative scale",
+         [] {
+             auto c = config();
+             c.scale = -1.0f;
+             return c;
+         }()},
+    };
+    for (const auto& [name, op_config] : cases) {
+        std::string reason;
+        EXPECT_FALSE(op::internal::QSAIndexer::validate_config(op_config, reason)) << name;
+        EXPECT_FALSE(reason.empty()) << name;
+        OV_EXPECT_THROW(std::ignore = make_op(make_inputs(), op_config),
+                        NodeValidationFailure,
+                        testing::HasSubstr("configuration is invalid"));
+    }
 }
 
 TEST_F(TypePropQSAIndexerTest, incorrect_number_of_inputs) {
     auto inputs = make_inputs();
     inputs.pop_back();
     EXPECT_THROW(std::ignore = make_op(inputs, config()), NodeValidationFailure);
-}
-
-TEST_F(TypePropQSAIndexerTest, incorrect_epsilon) {
-    auto zero_epsilon = config();
-    zero_epsilon.q_epsilon = 0.0f;
-    EXPECT_THROW(std::ignore = make_op(make_inputs(), zero_epsilon), NodeValidationFailure);
 }
 }  // namespace ov::test
