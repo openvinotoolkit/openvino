@@ -73,10 +73,7 @@ A model that really needs scaling cannot ask for it, because the plugin drops th
 
 The decoder IR already has `ACTIVATIONS_SCALE_FACTOR=8.0`, and with this value the output is correct. But the plugin ignores it.
 
-We could not simply apply the IR's ASF to all LLMs. All existing LLM IRs carry 8.0, so this would turn on scaling for every LLM. In our tests this:
-
-- broke some models: for example, gemma-4 VLMs gave empty answers (NaN logits);
-- made other models slower: up to 5x slower second-token latency for some models on some platforms.
+We could not simply apply the IR's ASF to all LLMs. All existing LLM IRs carry 8.0, so this would turn on scaling for every LLM. For some models, activations scaling changed the output or made inference slower.
 
 And because every LLM IR carries 8.0, the plugin cannot tell from the value alone which model needs scaling.
 
@@ -144,7 +141,7 @@ The rule "ignore 8.0" is a workaround for old IRs. The plan is:
 Step 2 can happen only after these are done:
 
 - Old IRs that carry the default 8.0 are no longer in use. Until then, removing the 8.0 check would turn on scaling for all of them.
-- The activations scaling issues found during this work are fixed, such as NaN output for gemma-4.
+- Activations scaling works correctly for the models that currently get wrong output or become slower with it.
 
 ---
 
