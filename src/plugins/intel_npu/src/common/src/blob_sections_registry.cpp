@@ -20,6 +20,7 @@ BlobSectionsRegistry::BlobSectionsRegistry()
 
 SectionID BlobSectionsRegistry::register_section(const std::shared_ptr<ISection>& section,
                                                  const std::optional<SectionID>& parsed_id) {
+    OPENVINO_ASSERT(section);
     OPENVINO_ASSERT(!section->get_id().has_value(),
                     "The given section has already been registered in a sections registry");
     const SectionType section_type = section->get_type();
