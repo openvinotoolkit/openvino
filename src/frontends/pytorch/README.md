@@ -80,15 +80,6 @@ This region trace runs after export for both models and supplied exported graphs
 The original graph stays unchanged, no OpenVINO loops are introduced, and the
 trace must not introduce new shape guards.
 
-### Concatenation with empty tensors
-
-`torch.cat` accepts statically known rank-one empty tensors with shape `(0,)`
-alongside tensors of other ranks, including an initially empty Hugging Face KV
-cache. These empty tensors are omitted from concatenation but still participate
-in dtype promotion. Higher-rank empty tensors retain the usual concatenation
-shape requirements. This applies to TorchScript, `torch.export`, and
-`openvino.convert_model(..., dynamo=True)` conversion.
-
 ## How to Implement Support for a New PyTorch Operation
 
 PyTorch conversion into the OpenVINO opset operations consists of two stages:
