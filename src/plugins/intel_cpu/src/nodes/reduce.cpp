@@ -2296,6 +2296,38 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     }
 }
 
+#if defined(OV_CPU_WITH_ACL)
+void Reduce::selectOptimalPrimitiveDescriptor() {
+    // When no ACL descriptor matches the parent, e.g. f16 Sum/Mean/Prod run on f32 descriptors (see
+    // initSupportedPrimitiveDescriptors), the generic selection takes the first (nspc) one. Keep the planar or
+    // channels-last layout of the parent instead, so that the inserted Reorder only converts the precision.
+    const auto& parentEdge = getParentEdgeAt(REDUCE_DATA);
+    const auto* parentPD = parentEdge->getParent()->getSelectedPrimitiveDescriptor();
+    if (canUseAclExecutor && parentPD != nullptr && !parentPD->getConfig().outConfs.empty()) {
+        auto inNum = parentEdge->getInputNum();
+        if (inNum < 0 || inNum >= static_cast<int>(parentPD->getConfig().outConfs.size())) {
+            inNum = 0;
+        }
+        const auto& parentDesc = parentPD->getConfig().outConfs[inNum].getMemDesc();
+        const auto& descs = getSupportedPrimitiveDescriptors();
+        if (std::none_of(descs.begin(), descs.end(), [&](const NodeDesc& desc) {
+                return desc.getConfig().inConfs[REDUCE_DATA].getMemDesc()->isCompatible(*parentDesc);
+            })) {
+            for (size_t i = 0; i < descs.size(); i++) {
+                const auto& desc = descs[i].getConfig().inConfs[REDUCE_DATA].getMemDesc();
+                for (const auto layout : {LayoutType::nspc, LayoutType::ncsp}) {
+                    if (parentDesc->hasLayoutType(layout) && desc->hasLayoutType(layout)) {
+                        selectPrimitiveDescriptorByIndex(static_cast<int>(i));
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    Node::selectOptimalPrimitiveDescriptor();
+}
+#endif
+
 bool Reduce::neverExecute() const {
     return getSelectedPrimitiveDescriptor()->hasZeroOutputDimsAtPort(0);
 }

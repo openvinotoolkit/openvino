@@ -109,6 +109,9 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
+#if defined(OV_CPU_WITH_ACL)
+    void selectOptimalPrimitiveDescriptor() override;
+#endif
     void prepareParams() override;
     void createPrimitive() override;
     bool created() const override;
