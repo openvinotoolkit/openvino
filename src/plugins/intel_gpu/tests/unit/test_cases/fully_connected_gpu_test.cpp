@@ -33,10 +33,15 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/swish.hpp"
+#include "openvino/op/assign.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/util/variable.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "plugin/transformations/repack_gguf_weights.hpp"
@@ -367,6 +372,223 @@ TEST(fully_connected_gpu, gguf_constant_source_sharing) {
             check_cache(changed_model, true, true);
             check_cache(static_model, initial_hit, false, {2, 2});
             check_cache(static_model, true, false, {2, 2});
+        }
+        if (second_source == 42) {
+            auto& engine = get_test_engine();
+            const auto device_config = get_test_default_config(engine);
+            const bool cm_available = engine.get_device_info().supports_immad &&
+                check_cm_jit_support(engine, device_config) && device_config.get_use_cm();
+            RecordProperty("fusion_cache_cm_available", cm_available ? "1" : "0");
+            std::vector<char> fusion_payload(bytes * 2);
+            std::memcpy(fusion_payload.data(), weights[0]->get_data_ptr(), bytes);
+            std::memcpy(fusion_payload.data() + bytes, weights[0]->get_data_ptr(), bytes);
+            const auto fusion_weight = std::make_shared<ov::op::v0::Constant>(
+                ov::element::gguf_q4_0, ov::Shape{64, 256}, fusion_payload.data());
+            size_t fusion_hits = 0;
+            size_t fusion_misses = 0;
+            for (const std::string route : {"raw", "sg", "cm"}) {
+                if (route == "cm" && !cm_available)
+                    continue;
+                gguf_scoped_env_var fusion_shuffle("OV_GPU_GGUF_SHUFFLE", route == "raw" ? "0" : "1");
+                gguf_scoped_env_var fusion_cm("OV_GPU_GGUF_GEMM_CM", route == "cm" ? "1" : "0");
+                gguf_scoped_env_var fusion_threshold("OV_GPU_GGUF_PREFILL_THRESHOLD", route == "cm" ? "32" : "64");
+                const auto directory = cache.path / "fusion" / route;
+                for (const std::string signature : {"plain", "bias", "relu", "swish", "add", "multiply", "stateful"}) {
+                    const bool binary_post = signature == "add" || signature == "multiply";
+                    const bool stateful = signature == "stateful";
+                    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+                    ov::Output<ov::Node> activation_input = input;
+                    ov::SinkVector sinks;
+                    if (stateful) {
+                        const auto variable = std::make_shared<ov::op::util::Variable>(
+                            ov::op::util::VariableInfo{ov::PartialShape{256}, ov::element::f32, "gguf_fc_state"});
+                        const auto initial = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{256}, {0.f});
+                        const auto previous = std::make_shared<ov::op::v6::ReadValue>(initial, variable);
+                        activation_input = std::make_shared<ov::op::v1::Add>(input, previous);
+                        const auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+                        const auto update = std::make_shared<ov::op::v1::ReduceMean>(activation_input, axes, false);
+                        sinks.push_back(std::make_shared<ov::op::v6::Assign>(update, variable));
+                    }
+                    const auto bias = ov::op::v0::Constant::create(
+                        ov::element::f32, ov::Shape{64}, {signature == "bias" ? 0.25f : 0.f});
+                    const auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1}, {1.f});
+                    ov::Output<ov::Node> result = std::make_shared<ov::op::internal::FullyConnectedCompressed>(
+                        activation_input, fusion_weight, bias, scale, ov::element::f32);
+                    ov::ParameterVector inputs{input};
+                    if (signature == "relu")
+                        result = std::make_shared<ov::op::v0::Relu>(result);
+                    else if (signature == "swish")
+                        result = std::make_shared<ov::op::v4::Swish>(result);
+                    else if (binary_post) {
+                        const auto peer = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 64});
+                        inputs.push_back(peer);
+                        if (signature == "add")
+                            result = std::make_shared<ov::op::v1::Add>(result, peer);
+                        else
+                            result = std::make_shared<ov::op::v1::Multiply>(result, peer);
+                        result.get_node_shared_ptr()->set_friendly_name("binary_post");
+                        result = std::make_shared<ov::op::v0::Relu>(result);
+                    }
+                    const auto graph = std::make_shared<ov::Model>(ov::OutputVector{result}, sinks, inputs);
+                    graph->set_friendly_name("gguf_fusion_cache");
+                    size_t node_index = 0;
+                    for (const auto& node : graph->get_ordered_ops()) {
+                        const auto name = "gguf_fusion_node_" + std::to_string(node_index++);
+                        if (node->get_friendly_name() != "binary_post")
+                            node->set_friendly_name(name);
+                        for (size_t output = 0; output < node->get_output_size(); ++output)
+                            node->output(output).set_names({name + "_" + std::to_string(output)});
+                    }
+                    for (const bool repeated : {false, true}) {
+                        SCOPED_TRACE("route=" + route + ", signature=" + signature + ", repeated=" + std::to_string(repeated));
+                        ov::Core fusion_core;
+                        auto execution = fusion_core.compile_model(graph, "GPU", ov::cache_dir(directory.string()),
+                            ov::hint::inference_precision(ov::element::f32), ov::enable_profiling(true), ov::num_streams(1));
+                        const bool hit = execution.get_property(ov::loaded_from_cache);
+                        EXPECT_EQ(hit, initial_hit || repeated);
+                        hit ? ++fusion_hits : ++fusion_misses;
+                        std::array<ov::InferRequest, 2> fusion_requests{
+                            execution.create_infer_request(), execution.create_infer_request()};
+                        size_t cancelled_requests = 0;
+                        size_t completed_cancel_requests = 0;
+                        std::array<float, 2> state_history{0.f, 0.f};
+                        const std::array<size_t, 4> row_counts{1, 33, 1, 33};
+                        for (size_t iteration = 0; iteration < row_counts.size(); ++iteration) {
+                            const auto rows = row_counts[iteration];
+                            const bool cancel_request = !stateful && iteration % 2 == 0;
+                            if (iteration == (stateful ? 3u : 2u)) {
+                                fusion_requests[0] = execution.create_infer_request();
+                                state_history[0] = 0.f;
+                            }
+                            if (stateful && iteration == 1) {
+                                fusion_requests[0].reset_state();
+                                state_history[0] = 0.f;
+                            }
+                            if (stateful && iteration == 2) {
+                                auto states = fusion_requests[1].query_state();
+                                ASSERT_EQ(states.size(), 1u);
+                                states[0].reset();
+                                state_history[1] = 0.f;
+                            }
+                            for (size_t request_index = 0; request_index < fusion_requests.size(); ++request_index) {
+                                const float factor = static_cast<float>((request_index + 1) * (iteration + 1)) *
+                                    (iteration % 2 == 0 ? 1.f : -1.f);
+                                ov::Tensor activation(ov::element::f32, {rows, 256});
+                                std::fill_n(activation.data<float>(), rows * 256, factor / 256.f);
+                                fusion_requests[request_index].set_input_tensor(0, activation);
+                                if (binary_post) {
+                                    ov::Tensor peer(ov::element::f32, {rows, 64});
+                                    for (size_t index = 0; index < rows * 64; ++index)
+                                        peer.data<float>()[index] = static_cast<float>(static_cast<int>(index % 7) - 3) / 4.f;
+                                    fusion_requests[request_index].set_input_tensor(1, peer);
+                                }
+                                fusion_requests[request_index].start_async();
+                            }
+                            if (cancel_request)
+                                fusion_requests[0].cancel();
+                            for (size_t request_index = 0; request_index < fusion_requests.size(); ++request_index) {
+                                try {
+                                    fusion_requests[request_index].wait();
+                                    if (cancel_request && request_index == 0)
+                                        ++completed_cancel_requests;
+                                } catch (const ov::Cancelled&) {
+                                    if (!cancel_request || request_index != 0)
+                                        throw;
+                                    ++cancelled_requests;
+                                }
+                            }
+                            if (cancel_request) {
+                                for (size_t input_index = 0; input_index < inputs.size(); ++input_index) {
+                                    const auto previous = fusion_requests[0].get_input_tensor(input_index);
+                                    ov::Tensor replacement(previous.get_element_type(), previous.get_shape());
+                                    previous.copy_to(replacement);
+                                    if (input_index == 0) {
+                                        for (size_t element = 0; element < replacement.get_size(); ++element)
+                                            replacement.data<float>()[element] *= 3.f;
+                                    }
+                                    fusion_requests[0].set_input_tensor(input_index, replacement);
+                                }
+                                fusion_requests[0].start_async();
+                                fusion_requests[0].wait();
+                            }
+                            for (size_t request_index = 0; request_index < fusion_requests.size(); ++request_index) {
+                                float factor = static_cast<float>((request_index + 1) * (iteration + 1)) *
+                                    (iteration % 2 == 0 ? 1.f : -1.f);
+                                if (cancel_request && request_index == 0)
+                                    factor *= 3.f;
+                                if (stateful) {
+                                    factor += state_history[request_index];
+                                    state_history[request_index] = factor;
+                                    const auto states = fusion_requests[request_index].query_state();
+                                    ASSERT_EQ(states.size(), 1u);
+                                    EXPECT_EQ(states[0].get_name(), "gguf_fc_state");
+                                    const auto state = states[0].get_state();
+                                    ASSERT_EQ(state.get_element_type(), ov::element::f32);
+                                    ASSERT_EQ(state.get_shape(), (ov::Shape{256}));
+                                    for (size_t element = 0; element < state.get_size(); ++element)
+                                        EXPECT_NEAR(state.data<const float>()[element], factor / 256.f, 1e-6f);
+                                }
+                                const auto output = fusion_requests[request_index].get_output_tensor();
+                                ASSERT_EQ(output.get_shape(), (ov::Shape{rows, 64}));
+                                for (size_t index = 0; index < rows * 64; ++index) {
+                                    float expected = factor * static_cast<float>(index % 32 + 1) +
+                                        (shifted_tail && index % 32 == 31 ? factor / 8.f : 0.f);
+                                    if (signature == "bias")
+                                        expected += 0.25f;
+                                    if (signature == "swish")
+                                        expected /= 1.f + std::exp(-expected);
+                                    if (binary_post) {
+                                        const float peer = static_cast<float>(static_cast<int>(index % 7) - 3) / 4.f;
+                                        expected = signature == "add" ? expected + peer : expected * peer;
+                                    }
+                                    if (signature == "relu" || binary_post)
+                                        expected = std::max(0.f, expected);
+                                    EXPECT_NEAR(output.data<const float>()[index], expected, 0.1f);
+                                }
+                            }
+                            size_t executed_fcs = 0;
+                            for (const auto& node : execution.get_runtime_model()->get_ops()) {
+                                if (std::string(node->get_type_name()) == "Result")
+                                    continue;
+                                const auto& info = node->get_rt_info();
+                                const auto found = info.find("gguf_last_executed_kernels");
+                                if (found == info.end())
+                                    continue;
+                                ++executed_fcs;
+                                const std::string expected_stage = route == "cm" && signature != "bias" && rows > 32 ? "gemm_q40_full"
+                                    : route == "raw" ? "fc_gguf_opt_gguf_q4_0" : "fc_gguf_q4_0_sg";
+                                std::string stages;
+                                for (const auto& name : found->second.as<std::vector<std::string>>())
+                                    stages += name + ";";
+                                EXPECT_NE(stages.find(expected_stage), std::string::npos) << stages;
+                                const auto fused_count = info.at("gguf_runtime_fused_count").as<std::string>();
+                                if (binary_post) {
+                                    EXPECT_NE(fused_count, "0");
+                                    EXPECT_NE(info.at("gguf_runtime_fused_ids").as<std::string>().find("binary_post"), std::string::npos);
+                                } else {
+                                    EXPECT_EQ(fused_count, signature == "plain" || stateful ? "0" : "1");
+                                }
+                            }
+                            EXPECT_EQ(executed_fcs, 1u);
+                        }
+                        if (stateful) {
+                            RecordProperty("request_state_" + route + (repeated ? "_repeat" : "_initial"),
+                                           "request_reset=1,variable_reset=1,recreated=1,outputs=8,states=8");
+                        } else {
+                            EXPECT_EQ(cancelled_requests + completed_cancel_requests, 2u);
+                            const auto lifecycle = "cancelled=" + std::to_string(cancelled_requests) +
+                                ",completed=" + std::to_string(completed_cancel_requests) + ",recovered=2,recreated=1";
+                            RecordProperty("request_lifecycle_" + route + "_" + signature + (repeated ? "_repeat" : "_initial"), lifecycle);
+                        }
+                        RecordProperty("fusion_cache_" + route + "_" + signature + (repeated ? "_repeat" : "_initial"), hit ? "hit" : "miss");
+                        if (external_cache)
+                            std::cout << "GGUF_FUSION_CACHE_CHECK route=" << route << " signature=" << signature
+                                      << " hit=" << hit << " repeated=" << repeated << std::endl;
+                    }
+                }
+            }
+            RecordProperty("fusion_cache_hits", std::to_string(fusion_hits));
+            RecordProperty("fusion_cache_misses", std::to_string(fusion_misses));
         }
         RecordProperty("source_sharing_cache_miss_hit_" + std::to_string(second_source), "1");
         RecordProperty("source_sharing_cache_hits_" + std::to_string(second_source), std::to_string(cache_hits));

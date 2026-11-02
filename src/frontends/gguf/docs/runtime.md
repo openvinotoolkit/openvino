@@ -208,9 +208,31 @@ and return to the original weights using a caller-owned test cache and stable gr
 They cover F32 static M2 and dynamic M1/2 raw/SG graphs, assert actual cache-hit status and executed
 stages, and keep the original numerical limits. Hit phases leave compiled blobs unchanged; changed
 weights add distinct entries without replacing the original blobs. This acceptance is limited to
-the tested device, build and configuration, not other formats, CM or a full checkpoint. Fused
-signatures, cancel/reset, explicit multi-stream/cross-device execution, cross-version compatibility
-and weightless/encrypted caching remain separate acceptance work.
+the tested device, build and configuration; these raw/SG replays alone do not establish CM support.
+
+Additional Q4_0 replays share identical weights and one cache directory per raw, SG or CM-enabled
+configuration across plain, nonzero bias, ReLU, Swish, Add+ReLU and Multiply+ReLU graphs. They check
+first misses, repeated and fresh-process hits, changed payload tails and restoration of the original
+weights. Dynamic M1/33 execution with new buffers and two independent asynchronous requests retains
+the original numerical limits and checks actual fused operations and stages. Eligible CM graphs
+execute CM at M33 and SG at M1; channel-broadcast bias uses the existing safe SG fallback, not CM.
+
+These stateless graphs also exercise cancel calls followed by wait, restart of the same request
+with different activation data in new buffers, dynamic shape changes, and request destruction and
+recreation. Both requests' outputs retain independent analytical checks. Cold and fresh-process
+warm cache replays record cancelled and normally completed outcomes separately: the tested GPU
+completed every submitted task, so this validates recovery after a cancel call, not device-task
+interruption or the Cancelled-exception branch.
+
+A separate stateful Q4_0 variant adds a fixed-size feedback state to the FC input and updates it
+with the mean activation over dynamic rows. Cold and fresh-process warm cache replays check two
+independent request histories, resetting one request without resetting the other, resetting an
+individual VariableState, and recreating a request with fresh initial state. Both FC outputs and
+state tensors use independent analytical references, with actual raw/SG and eligible CM execution
+checks. The stateful variant does not cancel requests; it does not establish cancellation rollback
+or complete-model KV/recurrent-state semantics. Other formats, arbitrary fused signatures,
+explicit multi-stream/cross-device execution, cross-version compatibility,
+weightless/encrypted caching and complete checkpoints remain separate acceptance work.
 
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.
