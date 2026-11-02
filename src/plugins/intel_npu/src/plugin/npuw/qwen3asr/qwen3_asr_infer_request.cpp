@@ -13,7 +13,10 @@ constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1u;
 }  // namespace
 
 ov::npuw::Qwen3ASRInferRequest::Qwen3ASRInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
-    : LLMInferRequest(compiled_model) {}
+    : LLMInferRequest(compiled_model) {
+    OPENVINO_ASSERT(compiled_model->m_kvcache_desc.max_generation_token_len == 1u,
+                    "Qwen3-ASR supports one generated token per inference call.");
+}
 
 // ---------------------------------------------------------------------------
 // infer(): dispatch to prefill or generate based on seq_len
@@ -23,6 +26,9 @@ void ov::npuw::Qwen3ASRInferRequest::infer() {
 
     auto input_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, m_input_ids_name).value());
     OPENVINO_ASSERT(ov::element::i64 == input_ids->get_element_type());
+    const auto& input_shape = input_ids->get_shape();
+    OPENVINO_ASSERT(input_shape.size() == 2u && input_shape[0] == 1u && input_shape[1] > 0u,
+                    "Qwen3-ASR input_ids must contain a non-empty, single-batch sequence.");
 
     auto enc_hs_opt = ov::npuw::util::find_port_by_name(inputs, layer_names::encoder_hidden_states);
     OPENVINO_ASSERT(enc_hs_opt.has_value(), "Qwen3-ASR model must expose 'encoder_hidden_states' input");
@@ -98,27 +104,30 @@ void ov::npuw::Qwen3ASRInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_
 
     // Inject attention_mask: 1 (mask) for left-padding, 0 (attend) for real tokens.
     // Convention from Equal(am, 0): 0 = attend, non-zero = mask.
-    if (const auto attn_it = m_prefill_in_ports.find(layer_names::attention_mask);
-        attn_it != m_prefill_in_ports.end()) {
+    {
+        const auto attn_it = m_prefill_in_ports.find(layer_names::attention_mask);
+        OPENVINO_ASSERT(attn_it != m_prefill_in_ports.end(), "Qwen3-ASR prefill requires attention_mask.");
         auto attn_mask = m_prefill_request->get_tensor(attn_it->second);
-        if (attn_mask->get_size() >= kvcache_desc.max_prompt_size) {
-            auto* mask = attn_mask->data<int64_t>();
-            const auto pad_len = static_cast<int64_t>(kvcache_desc.max_prompt_size - prompt_length);
-            std::fill(mask, mask + pad_len, int64_t{1});
-            std::fill(mask + pad_len, mask + kvcache_desc.max_prompt_size, int64_t{0});
-        }
+        OPENVINO_ASSERT(attn_mask->get_size() == kvcache_desc.max_prompt_size,
+                        "Qwen3-ASR prefill attention_mask must cover the static prompt.");
+        auto* mask = attn_mask->data<int64_t>();
+        const auto pad_len = static_cast<int64_t>(kvcache_desc.max_prompt_size - prompt_length);
+        std::fill(mask, mask + pad_len, int64_t{1});
+        std::fill(mask + pad_len, mask + kvcache_desc.max_prompt_size, int64_t{0});
     }
 
     // Inject position_ids: 0 for left-padding, [0, 1, ..., N-1] for real tokens.
-    if (const auto pos_it = m_prefill_in_ports.find(layer_names::position_ids); pos_it != m_prefill_in_ports.end()) {
+    {
+        const auto pos_it = m_prefill_in_ports.find(layer_names::position_ids);
+        OPENVINO_ASSERT(pos_it != m_prefill_in_ports.end(), "Qwen3-ASR prefill requires position_ids.");
         auto pos_ids = m_prefill_request->get_tensor(pos_it->second);
-        if (pos_ids->get_size() >= kvcache_desc.max_prompt_size) {
-            auto* pos = pos_ids->data<int64_t>();
-            const auto pad_len = static_cast<int64_t>(kvcache_desc.max_prompt_size - prompt_length);
-            std::fill(pos, pos + pad_len, int64_t{0});
-            for (int64_t i = 0; i < static_cast<int64_t>(prompt_length); ++i)
-                pos[pad_len + i] = i;
-        }
+        OPENVINO_ASSERT(pos_ids->get_size() == kvcache_desc.max_prompt_size,
+                        "Qwen3-ASR prefill position_ids must cover the static prompt.");
+        auto* pos = pos_ids->data<int64_t>();
+        const auto pad_len = static_cast<int64_t>(kvcache_desc.max_prompt_size - prompt_length);
+        std::fill(pos, pos + pad_len, int64_t{0});
+        for (int64_t i = 0; i < static_cast<int64_t>(prompt_length); ++i)
+            pos[pad_len + i] = i;
     }
 
     m_prefill_request->infer();
@@ -153,6 +162,12 @@ void ov::npuw::Qwen3ASRInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input
                     kvcache_desc.total_size,
                     ")");
 
+    const bool copy_prefill = !m_generate_initialized;
+    bool switched_variant = false;
+    if (m_generate_initialized && kvcache_desc.num_stored_tokens >= get_current_variant_capacity()) {
+        switched_variant = try_switch_to_larger_variant();
+    }
+
     // ------------------------------------------------------------------
     // Initialization (first generate step only):
     //   - Copy KV from prefill model into generate model.
@@ -161,19 +176,22 @@ void ov::npuw::Qwen3ASRInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input
     //       [1]*(cap-1-N)  (mask unused/zero-padded slots N..cap-2)
     //       [0]        (attend to slot cap-1 = current token's K slot)
     // ------------------------------------------------------------------
-    if (!m_generate_initialized) {
-        LOG_DEBUG("[Qwen3-ASR] First generate step: copying KV from prefill model.");
-        if (kvcache_desc.num_stored_tokens > 0) {
+    if (copy_prefill || switched_variant) {
+        LOG_DEBUG("[Qwen3-ASR] Initializing inputs for the active generate variant.");
+        if (copy_prefill && kvcache_desc.num_stored_tokens > 0) {
             m_kvcache_strategy->on_generate_kv_init();  // calls copy_kvcache() (left-aligned)
         }
 
         uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
 
-        if (const auto attn_it = m_kvcache_in_ports.find(layer_names::attention_mask);
-            attn_it != m_kvcache_in_ports.end()) {
+        {
+            const auto attn_it = m_kvcache_in_ports.find(layer_names::attention_mask);
+            OPENVINO_ASSERT(attn_it != m_kvcache_in_ports.end(), "Qwen3-ASR generation requires attention_mask.");
             auto attn_mask = m_kvcache_request->get_tensor(attn_it->second);
             auto* mask = attn_mask->data<int64_t>();
             const auto cap = static_cast<int64_t>(attn_mask->get_size());
+            OPENVINO_ASSERT(kvcache_desc.num_stored_tokens < cap,
+                            "Qwen3-ASR attention_mask cannot hold the stored context and current token.");
 
             std::fill(mask, mask + kvcache_desc.num_stored_tokens, int64_t{0});  // attend prefill
             if (kvcache_desc.num_stored_tokens < cap - 1) {
@@ -212,7 +230,9 @@ void ov::npuw::Qwen3ASRInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input
     }
 
     // Set position_ids = absolute position of current token
-    if (const auto pos_it = m_kvcache_in_ports.find(layer_names::position_ids); pos_it != m_kvcache_in_ports.end()) {
+    {
+        const auto pos_it = m_kvcache_in_ports.find(layer_names::position_ids);
+        OPENVINO_ASSERT(pos_it != m_kvcache_in_ports.end(), "Qwen3-ASR generation requires position_ids.");
         auto pos_ids = m_kvcache_request->get_tensor(pos_it->second);
         OPENVINO_ASSERT(pos_ids->get_size() == 1u, "Qwen3-ASR position_ids must be [1]");
         pos_ids->data<int64_t>()[0] = static_cast<int64_t>(kvcache_desc.num_stored_tokens);
@@ -228,7 +248,7 @@ void ov::npuw::Qwen3ASRInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input
 
     // Persist the new token's KV outputs into the past_key_values input buffer
     // so the next generate step sees the updated context.
-    if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
+    if (kvcache_desc.num_stored_tokens <= get_current_variant_capacity()) {
         m_kvcache_strategy->on_generate_step_done(1u);
     }
 
@@ -238,9 +258,9 @@ void ov::npuw::Qwen3ASRInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input
         attn_it != m_kvcache_in_ports.end()) {
         auto attn_mask = m_kvcache_request->get_tensor(attn_it->second);
         const auto new_slot = static_cast<int64_t>(kvcache_desc.num_stored_tokens) - 1;
-        if (new_slot >= 0) {
-            attn_mask->data<int64_t>()[new_slot] = int64_t{0};
-        }
+        OPENVINO_ASSERT(new_slot >= 0 && static_cast<size_t>(new_slot) < attn_mask->get_size(),
+                        "Qwen3-ASR KV-cache update exceeds the active attention mask.");
+        attn_mask->data<int64_t>()[new_slot] = int64_t{0};
     }
 
     if (m_lm_head_request) {

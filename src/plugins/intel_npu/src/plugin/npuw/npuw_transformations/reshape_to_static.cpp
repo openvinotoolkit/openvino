@@ -64,8 +64,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             } else {
                 new_shape = ov::PartialShape({1, kvcache_size});
                 if (is_whisper && lhs_seq_size && !is_prefill)
-                    // NB: for Whisper kvcache model only: attn mask needs size+1 to cover
-                    // the extra query position appended during generate.
+                    // Only Whisper generate needs an extra query position.
                     new_shape = ov::PartialShape({1, kvcache_size + 1});
             }
         } else if (input_name.find(ov::npuw::util::kVisualPosMasksParamName) != std::string::npos) {
