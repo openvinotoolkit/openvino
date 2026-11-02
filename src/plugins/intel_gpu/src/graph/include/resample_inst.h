@@ -22,6 +22,9 @@ public:
 
     program_node& input() const { return get_dependency(0); }
 
+    // Format-independent conditions of the byxf path in resample_opt; byxf is offered only when they hold.
+    bool is_byxf_opt_supported() const;
+
     std::vector<size_t> get_shape_infer_dependencies() const override {
         // if vector of sizes or scales exists, resample in CreateInterpolateOp generates no dependency for inputs of sizes and scales
         if (!typed_desc()->sizes.empty() && !typed_desc()->scales.empty()) {

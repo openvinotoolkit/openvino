@@ -30,6 +30,15 @@
     #define TO_OUT_VEC_TYPE(x)          TO_OUTPUT_VECTOR_TYPE(x, VEC_SIZE)
 #endif
 
+#if OUTPUT_LAYOUT_BYXF
+// Features are the fastest GWS dimension: a sub-group handles FEATURE_SLICE_SIZE features of one pixel.
+#    define XY_GWS_DIM         1
+#    define FEATURE_SLICE_ID() (get_global_id(0) / SUB_GROUP_SIZE)
+#else
+#    define XY_GWS_DIM         0
+#    define FEATURE_SLICE_ID() get_group_id(1)
+#endif
+
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
     if (scale == 1.0f)
@@ -218,28 +227,39 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif // SAMPLE_TYPE_CAFFE_INTERP
 
 #ifndef SAMPLE_TYPE_CAFFE_INTERP
-REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
-KERNEL (resample_opt)(__global INPUT0_TYPE* input,
-                      __global OUTPUT_TYPE* output
-#if HAS_FUSED_OPS_DECLS
-                      , FUSED_OPS_DECLS
-#endif
-)
-{
-#if OUTPUT_DIMS == 5
-    const int xyz = get_global_id(0);
-    const int z = xyz / (OUTPUT_SIZE_Y * X_BLOCKS);
-    const int xy = xyz % (OUTPUT_SIZE_Y * X_BLOCKS);
-    const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
-    const int y = (xy / X_BLOCKS);
-#else
-    const int xy = get_global_id(0);
-    const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
-    const int y = (xy / X_BLOCKS);
-#endif
-    const int f_block = get_group_id(1);
-    const int b = get_global_id(2);
-    const uint feature_block = f_block * FEATURE_SLICE_SIZE;
+#    if HAS_FUSED_OPS_DECLS
+#        define OPTIONAL_FUSED_OPS_DECLS , FUSED_OPS_DECLS
+#        define OPTIONAL_FUSED_OPS_ARGS  , FUSED_OPS_ARGS
+#    else
+#        define OPTIONAL_FUSED_OPS_DECLS
+#        define OPTIONAL_FUSED_OPS_ARGS
+#    endif
+
+// Output x-block [x, x + OUTPUT_X_BLOCK_SIZE) of row (z, y) for FEATURE_SLICE_SIZE features from feature_block.
+inline void FUNC(resample_opt_block)(__global INPUT0_TYPE* input,
+                                     __global OUTPUT_TYPE* output,
+                                     const int b,
+                                     const uint feature_block,
+                                     const int z,
+                                     const int y,
+                                     const int x OPTIONAL_FUSED_OPS_DECLS) {
+#    if BYXF_INTEGRAL_NEAREST
+    // Each input pixel is read once for its UPSAMPLE_X outputs in the x-block of output row y.
+    unroll_for(uint ix = 0; ix < OUTPUT_X_BLOCK_SIZE / UPSAMPLE_X; ix++) {
+        IN_VEC_TYPE res = READ_FUNC(input, INPUT0_GET_INDEX(b, feature_block, y / UPSAMPLE_Y, x / UPSAMPLE_X + ix));
+        unroll_for(uint dx = 0; dx < UPSAMPLE_X; dx++) {
+            const uint out_x = ix * UPSAMPLE_X + dx;
+#        if HAS_FUSED_OPS
+            FUSED_OPS;
+            OUT_VEC_TYPE out = FUSED_OPS_RESULT;
+#        else
+            OUT_VEC_TYPE out = TO_OUT_VEC_TYPE(ACTIVATION(DECODE_IN_VEC_TYPE(res), ACTIVATION_PARAMS));
+#        endif
+            WRITE_FUNC(output, OUTPUT_GET_INDEX(b, feature_block, y, (x + out_x)), out);
+        }
+    }
+    return;
+#    endif
 
     typedef IN_VEC_TYPE in_vec_t;
     typedef ACC_VEC_TYPE acc_vec_t;
@@ -353,8 +373,32 @@ KERNEL (resample_opt)(__global INPUT0_TYPE* input,
 #endif
     }
 }
+
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
+KERNEL(resample_opt)(__global INPUT0_TYPE* input, __global OUTPUT_TYPE* output OPTIONAL_FUSED_OPS_DECLS) {
+#    if OUTPUT_DIMS == 5
+    const int xyz = get_global_id(0);
+    const int z = xyz / (OUTPUT_SIZE_Y * X_BLOCKS);
+    const int xy = xyz % (OUTPUT_SIZE_Y * X_BLOCKS);
+#    else
+    const int z = 0;
+    const int xy = get_global_id(XY_GWS_DIM);
+#    endif
+    const int x = (xy % X_BLOCKS) * OUTPUT_X_BLOCK_SIZE;
+    const int y = (xy / X_BLOCKS);
+    const int b = get_global_id(2);
+    // FEATURE_SLICES_PER_WI > 1 only for byxf when 16 * VEC_SIZE elements fit in one cache line (see host code).
+    for (uint fs = 0; fs < FEATURE_SLICES_PER_WI; fs++) {
+        const uint feature_block = (FEATURE_SLICE_ID() * FEATURE_SLICES_PER_WI + fs) * FEATURE_SLICE_SIZE;
+        FUNC_CALL(resample_opt_block)(input, output, b, feature_block, z, y, x OPTIONAL_FUSED_OPS_ARGS);
+    }
+}
+#    undef OPTIONAL_FUSED_OPS_DECLS
+#    undef OPTIONAL_FUSED_OPS_ARGS
 #endif // !SAMPLE_TYPE_CAFFE_INTERP
 
 #undef TRIANGLE_COEFF
 #undef READ_FUNC
 #undef WRITE_FUNC
+#undef XY_GWS_DIM
+#undef FEATURE_SLICE_ID
