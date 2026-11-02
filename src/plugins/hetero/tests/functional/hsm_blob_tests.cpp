@@ -38,6 +38,7 @@ struct ExportedBlob {
     std::string blob;
     hsm::SectionId payload;
     size_t submodels;
+    ov::Tensor expected;  //!< Output of the original model for the fixed input.
 };
 
 // Mock devices cannot cache, so their submodels are stored as IR; CPU stores its own blob.
@@ -148,17 +149,26 @@ protected:
         return core.import_model(tensor, ov::test::utils::DEVICE_HETERO, {});
     }
 
-    void expect_runs(ov::CompiledModel compiled_model) {
+    // Runs the model on a fixed input and returns a copy of its output.
+    ov::Tensor infer_fixed_input(ov::CompiledModel compiled_model) {
+        auto request = compiled_model.create_infer_request();
+        request.set_input_tensor(
+            create_and_fill_tensor(compiled_model.input().get_element_type(), compiled_model.input().get_shape()));
+        request.infer();
+        const auto result = request.get_output_tensor();
+        ov::Tensor output(result.get_element_type(), result.get_shape());
+        result.copy_to(output);
+        return output;
+    }
+
+    void expect_same_output(const ov::Tensor& expected, ov::CompiledModel compiled_model) {
         ASSERT_EQ(1, compiled_model.inputs().size());
         ASSERT_EQ(1, compiled_model.outputs().size());
-        auto request = compiled_model.create_infer_request();
-        auto input =
-            create_and_fill_tensor(compiled_model.input().get_element_type(), compiled_model.input().get_shape());
-        request.set_input_tensor(input);
-        ASSERT_NO_THROW(request.infer());
-        auto output = request.get_output_tensor();
-        EXPECT_EQ(compiled_model.output().get_shape(), output.get_shape());
-        EXPECT_EQ(compiled_model.output().get_element_type(), output.get_element_type());
+        ov::Tensor actual;
+        ASSERT_NO_THROW(actual = infer_fixed_input(compiled_model));
+        ASSERT_EQ(expected.get_element_type(), actual.get_element_type());
+        ASSERT_EQ(expected.get_shape(), actual.get_shape());
+        EXPECT_EQ(0, std::memcmp(expected.data(), actual.data(), expected.get_byte_size()));
     }
 
     // Checks output[i] == 1 + weight_scale * i for the input filled with ones.
@@ -182,12 +192,11 @@ protected:
 
     ExportedBlob export_variant(const std::string& name) {
         if (name == cpu_variant) {
-            return {name,
-                    export_blob(compile(create_model_with_reshape(), ov::test::utils::DEVICE_CPU)),
-                    hsm::submodel_blob,
-                    1};
+            auto compiled_model = compile(create_model_with_reshape(), ov::test::utils::DEVICE_CPU);
+            return {name, export_blob(compiled_model), hsm::submodel_blob, 1, infer_fixed_input(compiled_model)};
         }
-        return {name, export_blob(compile(create_model_with_subtract(), "MOCK0,MOCK1")), hsm::submodel_ir_xml, 2};
+        auto compiled_model = compile(create_model_with_subtract(), "MOCK0,MOCK1");
+        return {name, export_blob(compiled_model), hsm::submodel_ir_xml, 2, infer_fixed_input(compiled_model)};
     }
 };
 
@@ -237,12 +246,13 @@ TEST_P(HeteroHsmBlobVariantTests, export_is_hsm_with_hetero_sections_per_submode
 }
 
 TEST_P(HeteroHsmBlobVariantTests, import_from_stream_and_tensor_runs) {
-    expect_runs(import_from_stream(variant.blob));
-    expect_runs(import_from_tensor(variant.blob));
+    expect_same_output(variant.expected, import_from_stream(variant.blob));
+    expect_same_output(variant.expected, import_from_tensor(variant.blob));
 }
 
 TEST_F(HeteroHsmBlobTests, export_to_non_seekable_stream) {
     auto compiled_model = compile(create_model_with_subtract(), "MOCK0,MOCK1");
+    const auto expected = infer_fixed_input(compiled_model);
     NonSeekableOutputBuffer buffer;
     std::ostream stream(&buffer);
 
@@ -250,7 +260,7 @@ TEST_F(HeteroHsmBlobTests, export_to_non_seekable_stream) {
 
     ASSERT_TRUE(stream);
     EXPECT_TRUE(is_hsm_blob(buffer.str()));
-    expect_runs(import_from_stream(buffer.str()));
+    expect_same_output(expected, import_from_stream(buffer.str()));
 }
 
 TEST_F(HeteroHsmBlobTests, hsm_blob_from_non_seekable_stream_is_rejected_with_a_clear_error) {
@@ -291,12 +301,14 @@ TEST_F(HeteroHsmBlobTests, submodel_that_cannot_export_falls_back_to_ir_sections
 }
 
 TEST_F(HeteroHsmBlobTests, legacy_blob_imports_in_hsm_mode) {
-    const auto legacy = export_blob(compile(create_model_with_subtract(), "MOCK0,MOCK1", false));
+    auto reference = compile(create_model_with_subtract(), "MOCK0,MOCK1", false);
+    const auto expected = infer_fixed_input(reference);
+    const auto legacy = export_blob(reference);
     EXPECT_FALSE(is_hsm_blob(legacy));
 
     core.set_property(ov::test::utils::DEVICE_HETERO, ov::hetero::export_hsm_format(true));
-    expect_runs(import_from_stream(legacy));
-    expect_runs(import_from_tensor(legacy));
+    expect_same_output(expected, import_from_stream(legacy));
+    expect_same_output(expected, import_from_tensor(legacy));
 }
 
 TEST_F(HeteroHsmBlobTests, plugin_property_selects_format_and_is_reported) {
@@ -323,7 +335,7 @@ TEST_F(HeteroHsmBlobTests, re_export_of_imported_model_round_trips) {
     const auto re_exported = export_blob(first);
 
     EXPECT_TRUE(is_hsm_blob(re_exported));
-    expect_runs(import_from_tensor(re_exported));
+    expect_same_output(variant.expected, import_from_tensor(re_exported));
 }
 
 TEST_F(HeteroHsmBlobTests, ir_submodel_stores_xml_and_weights_sections) {
@@ -462,8 +474,8 @@ TEST_P(HeteroHsmBlobVariantTests, unknown_sections_are_skipped) {
                            std::vector<std::byte>(7, std::byte{2})});
     });
 
-    expect_runs(import_from_stream(blob));
-    expect_runs(import_from_tensor(blob));
+    expect_same_output(variant.expected, import_from_stream(blob));
+    expect_same_output(variant.expected, import_from_tensor(blob));
 }
 
 TEST_P(HeteroHsmBlobVariantTests, import_rejects_blob_without_mandatory_sections) {
@@ -655,7 +667,7 @@ TEST_P(HeteroHsmBlobVariantTests, import_rejects_inline_sections) {
 TEST_P(HeteroHsmBlobVariantTests, import_from_multi_dimensional_tensor_runs) {
     ov::Tensor tensor(ov::element::u8, ov::Shape{1, variant.blob.size()});
     std::memcpy(tensor.data(), variant.blob.data(), variant.blob.size());
-    expect_runs(core.import_model(tensor, ov::test::utils::DEVICE_HETERO, {}));
+    expect_same_output(variant.expected, core.import_model(tensor, ov::test::utils::DEVICE_HETERO, {}));
 }
 #endif
 
