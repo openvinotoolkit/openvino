@@ -460,9 +460,16 @@ memory::ptr make_quant_weights(engine& eng, const quant_matrix& m) {
 }
 
 memory::ptr make_quant_zp(engine& eng, const quant_matrix& m) {
-    auto mem = eng.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(m.G), static_cast<int64_t>(m.N)}, data_types::u8, format::bfyx});
+    auto mem = eng.allocate_memory(
+        layout{ov::PartialShape{static_cast<int64_t>(m.G), static_cast<int64_t>(m.N)}, m.u4 ? data_types::u4 : data_types::u8, format::bfyx});
     cldnn::mem_lock<uint8_t> lock(mem, get_test_stream());
-    std::copy(m.zp.begin(), m.zp.end(), lock.begin());
+    if (m.u4) {
+        for (size_t i = 0; i < m.zp.size(); i += 2) {
+            lock[i / 2] = static_cast<uint8_t>(m.zp[i] | (m.zp[i + 1] << 4));  // low nibble = even index
+        }
+    } else {
+        std::copy(m.zp.begin(), m.zp.end(), lock.begin());
+    }
     return mem;
 }
 

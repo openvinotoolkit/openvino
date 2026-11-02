@@ -167,10 +167,11 @@ void GatedResidual::validate_and_infer_types() {
                                   name,
                                   " scale must be f16.");
             NODE_VALIDATION_CHECK(this,
-                                  get_input_element_type(zp_idx).is_dynamic() || get_input_element_type(zp_idx) == ov::element::u8,
+                                  get_input_element_type(zp_idx).is_dynamic() || get_input_element_type(zp_idx) == wd_et,
                                   "GatedResidual ",
                                   name,
-                                  " zero point must be u8.");
+                                  " zero point must have the weight element type ",
+                                  wd_et);
             if (sps.rank().is_static() && sps[0].is_static()) {
                 const auto g = static_cast<size_t>(sps[0].get_length());
                 NODE_VALIDATION_CHECK(this,

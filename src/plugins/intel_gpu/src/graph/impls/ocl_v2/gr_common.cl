@@ -166,7 +166,12 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 
 // scale / zp row g holds N entries; nb..nb+15 is one contiguous block read, lane l gets output channel nb + l
 #define GR_WQ_SCALE2(scale, g, N, nb) ((half2)(as_half(intel_sub_group_block_read_us((scale) + (size_t)(g) * (N) + (nb)))))
-#define GR_WQ_ZP2(zp, g, N, nb, lane) ((half2)((half)1024.0h + convert_half((zp)[(size_t)(g) * (N) + (nb) + (lane)])))
+#if GR_W_TYPE == GR_WT_U4
+    // u4 zp is packed two per byte (low nibble = even index); N % 16 == 0, so a 16-lane block never straddles a row
+    #define GR_WQ_ZP2(zp, g, N, nb, lane) ((half2)((half)1024.0h + convert_half((uint)(((zp)[((size_t)(g) * (N) + (nb) + (lane)) >> 1] >> ((((size_t)(g) * (N) + (nb) + (lane)) & 1) * 4)) & 0xF))))
+#else
+    #define GR_WQ_ZP2(zp, g, N, nb, lane) ((half2)((half)1024.0h + convert_half((zp)[(size_t)(g) * (N) + (nb) + (lane)])))
+#endif
 
 // u8 decode GEMMs (see GR_WQ_FOLD) feed half(q) as the B operand; q < 256 is exact in half
 #define GR_WQ_ONES ((int8)(0x3C003C00))

@@ -55,8 +55,8 @@ public:
         // scale of its own output channel.
         static constexpr size_t SCALE_DOWN = 4;  ///< f16 [G_d, L]
         static constexpr size_t SCALE_UP = 5;    ///< f16 [G_u, C*D]
-        static constexpr size_t ZP_DOWN = 6;     ///< u8 [G_d, L]
-        static constexpr size_t ZP_UP = 7;       ///< u8 [G_u, C*D]
+        static constexpr size_t ZP_DOWN = 6;     ///< same type as the weights (u4 packed / u8) [G_d, L]
+        static constexpr size_t ZP_UP = 7;       ///< same type as the weights (u4 packed / u8) [G_u, C*D]
     };
 
     static constexpr size_t compressed_input_count = 8;

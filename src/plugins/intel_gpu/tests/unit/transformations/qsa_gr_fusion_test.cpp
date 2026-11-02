@@ -235,7 +235,8 @@ void expect_compressed(const std::shared_ptr<op::GatedResidual>& gr, const ov::e
     EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::SCALE_DOWN), ov::element::f16);
     EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::SCALE_DOWN), (ov::Shape{groups_down, static_cast<size_t>(LQ)}));
     EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::SCALE_UP), (ov::Shape{groups_up, static_cast<size_t>(C * D)}));
-    EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::ZP_DOWN), ov::element::u8);
+    EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::ZP_DOWN), wt);
+    EXPECT_EQ(gr->get_input_element_type(op::GatedResidual::ReadInputIdx::ZP_UP), wt);
     EXPECT_EQ(gr->get_input_shape(op::GatedResidual::ReadInputIdx::ZP_UP), (ov::Shape{groups_up, static_cast<size_t>(C * D)}));
 }
 

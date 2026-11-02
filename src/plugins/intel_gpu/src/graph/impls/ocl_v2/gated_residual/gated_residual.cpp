@@ -1030,7 +1030,7 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
         return false;
     }
 
-    // Compressed READ / FINAL_MIX: u4 (group 32) / u8 (per-channel) W_down / W_up + f16 scale + u8 zp, dpas path only.
+    // Compressed READ / FINAL_MIX: u4 (group 32) / u8 (per-channel) W_down / W_up + f16 scale + zp of the weight type, dpas path only.
     const bool compressed =
         desc->mode != cldnn::gated_residual::Mode::WRITE && node.get_dependencies().size() == ov::intel_gpu::op::GatedResidual::compressed_input_count;
     if (compressed) {
@@ -1045,7 +1045,7 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
             const auto& l = node.get_input_layout(i);
             const ov::element::Type expected =
                 i < 2 ? ov::element::Type(ov::element::f16)
-                      : (i < 4 ? ov::element::Type(wt) : (i < 6 ? ov::element::Type(ov::element::f16) : ov::element::Type(ov::element::u8)));
+                      : (i < 4 ? ov::element::Type(wt) : (i < 6 ? ov::element::Type(ov::element::f16) : ov::element::Type(wt)));
             if (l.format != cldnn::format::bfyx || l.data_type != expected) {
                 return false;
             }

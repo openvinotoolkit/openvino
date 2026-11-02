@@ -183,7 +183,7 @@ bool get_branch_split(const ov::Output<ov::Node>& split, size_t& C, size_t& D) {
 struct CompressedWeight {
     ov::Output<ov::Node> weights;  // Constant u4/u8 [N, K], K contiguous (a metadata-only reshape of the checkpoint constant)
     ov::Output<ov::Node> scale;    // Constant f16 [G, N]
-    ov::Output<ov::Node> zp;       // Constant u8 [G, N]
+    ov::Output<ov::Node> zp;       // Constant of the weight type (u4 packed / u8) [G, N]
     size_t bits = 0;               // 4 (group 32) or 8 (per-channel)
     size_t groups = 0;
 };
@@ -241,11 +241,12 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     // scale / zp are [N, G] in the checkpoint; the kernels read [G, N] (n contiguous), see GatedResidual::ReadInputIdx.
     const auto scale_ng = scale->cast_vector<float>();
     const auto zp_ng = zp->cast_vector<int32_t>();
+    const int32_t zp_max = bits == 4 ? 15 : 255;
     std::vector<ov::float16> scale_gn(G * N);
     std::vector<uint8_t> zp_gn(G * N);
     for (size_t n = 0; n < N; ++n) {
         for (size_t g = 0; g < G; ++g) {
-            if (zp_ng[n * G + g] < 0 || zp_ng[n * G + g] > 255) {
+            if (zp_ng[n * G + g] < 0 || zp_ng[n * G + g] > zp_max) {
                 return std::nullopt;
             }
             scale_gn[g * N + n] = ov::float16(scale_ng[n * G + g]);
@@ -258,7 +259,7 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     CompressedWeight result;
     result.weights = weights_2d->output(0);
     result.scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{G, N}, scale_gn)->output(0);
-    result.zp = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{G, N}, zp_gn)->output(0);
+    result.zp = ov::op::v0::Constant::create(wt, ov::Shape{G, N}, zp_gn)->output(0);
     result.bits = bits;
     result.groups = G;
     return result;
