@@ -1,6 +1,6 @@
 {
     "schema_version": "1.0",
-    "total": 61,
+    "total": 62,
     "entries": [
         {
             "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -624,6 +624,15 @@
             "category": "Flaky Test",
             "signature_hash": "db252223813d9c7c",
             "commit_sha": "14b84dc2bbc18de3385d72f68fd2ff77945a3f86"
+        },
+        {
+            "investigation_id": "2026-11-02-18-41-12-000-41494839038",
+            "run_id": "41494839038",
+            "timestamp": "2026-11-02T18:41:12Z",
+            "title": "smoke_CompareWithRefs_Mvn3D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+            "category": "Flaky Test",
+            "signature_hash": "809d4bb416b7d3e9",
+            "commit_sha": "d3f0de8a9476a2ff8b6e8e1dfc83a06a6ce5c5eb"
         }
     ]
 }

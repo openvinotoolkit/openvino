@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp: Failure: Value of: primTypeCheck(primType) Actual: false Expected: true primType is unexpected: undef_f32 Expected: acl_f32 (MvnLayerCPUTest Mvn3D ACL primitive)|Flaky Test",
+    "signature_hash": "809d4bb416b7d3e9",
+    "title": "smoke_CompareWithRefs_Mvn3D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+    "category": "Flaky Test",
+    "count": 1,
+    "first_seen": "2026-11-02T18:41:12Z",
+    "last_seen": "2026-11-02T18:41:12Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41494839038"
+    ],
+    "affected_commits": [
+        "d3f0de8a9476a2ff8b6e8e1dfc83a06a6ce5c5eb"
+    ],
+    "recent_timestamps": [
+        "2026-11-02T18:41:12Z"
+    ]
+}

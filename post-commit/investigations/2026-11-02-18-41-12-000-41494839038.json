@@ -1,0 +1,37 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-02-18-41-12-000-41494839038",
+    "timestamp": "2026-11-02T18:41:12Z",
+    "run_id": "41494839038",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41494839038",
+    "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "d3f0de8a9476a2ff8b6e8e1dfc83a06a6ce5c5eb",
+    "pr_number": null,
+    "pr_url": null,
+    "author": null,
+    "category": "Flaky Test",
+    "title": "smoke_CompareWithRefs_Mvn3D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+    "signature": "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp: Failure: Value of: primTypeCheck(primType) Actual: false Expected: true primType is unexpected: undef_f32 Expected: acl_f32 (MvnLayerCPUTest Mvn3D ACL primitive)|Flaky Test",
+    "signature_hash": "809d4bb416b7d3e9",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "CPU functional tests / CPU functional tests",
+            "conclusion": "failure",
+            "symptom": "smoke_CompareWithRefs_Mvn3D/MvnLayerCPUTest.CompareWithRefs assertion failure: primType is undef_f32 instead of expected acl_f32"
+        }
+    ],
+    "key_errors": [
+        "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32",
+        "[  FAILED  ] smoke_CompareWithRefs_Mvn3D/MvnLayerCPUTest.CompareWithRefs/IS=[?.?.?]_TS=((2.16.6))_((4.16.2))_((2.16.6))_((4.16.2))_Precision=f32_AcrossChannels=FALSE_NormalizeVariance=TRUE_Epsilon=1e-09_CNNInpPrc=i8_CNNOutPrc=f32_PluginConf_INFERENCE_PRECISION_HINT=f32 (84 ms)"
+    ],
+    "root_cause": "On the Linux ARM64 CPU functional test run, MvnLayerCPUTest.CompareWithRefs for the Mvn3D dynamic-shape (IS=[?.?.?]) i8-input/f32-output configuration expected the ARM Compute Library (ACL) MVN kernel to be selected (acl_f32), but the CPU plugin instead executed the fallback/reference kernel (primType reported as undef_f32, meaning no exec kernel type was recorded for the selected implementation). This indicates either the ACL MVN implementation declines this particular dynamic-shape/mixed-precision parameter combination at runtime (falling back silently) or the executor selection/graph info for this node is not populated correctly for dynamic input shapes on ARM64, which is consistent with three previously recorded sibling patterns (AvgPool, MaxPool, Convert) all showing the identical primTypeCheck assertion failing specifically on ARM64 with ACL/ref primitive selection mismatches for dynamic-shape test parameterizations.",
+    "reproduction_steps": "On an aarch64 (ARM64) build with ACL enabled, run: ./ov_cpu_func_tests --gtest_filter=\"*smoke_CompareWithRefs_Mvn3D*CompareWithRefs*IS=?.?.?*TS=((2.16.6))*CNNInpPrc=i8*CNNOutPrc=f32*INFERENCE_PRECISION_HINT=f32*\" and inspect the selected primitive type via OV_CPU_DEBUG_LOG or the exec graph info (ov::exec_model_info::IMPL_TYPE) for the MVN node.",
+    "recommended_actions": [
+        "Inspect the ACL MVN executor factory (src/plugins/intel_cpu/src/nodes/executors/acl/*mvn*) to confirm whether it rejects dynamic input shapes ([?.?.?]) or the i8-in/f32-out precision combination for this test case, and if so, align the test's expected selectedType with the actual supported configuration rather than asserting acl_f32 unconditionally.",
+        "Check why primType is reported as undef_f32 rather than a concrete fallback kernel name (e.g., ref_f32) — this may indicate exec-graph metadata is not being populated for the node actually selected, which is a separate diagnostic gap worth fixing.",
+        "Cross-reference with the three existing related patterns (AvgPool/MaxPool ACL, Convert ref) to determine if a common recent change to CPU executor/implementation selection on ARM64 is responsible, or if these are independent, long-standing ACL support gaps for dynamic shapes."
+    ],
+    "prevention_strategies": "Add explicit test-level handling (e.g., should_be_skipped or a dynamic-shape-aware selectedType expectation) for CPU test parameterizations where ACL is known not to support fully dynamic input shapes, so such configurations do not silently fail primTypeCheck. Track ACL dynamic-shape kernel coverage as a tech-debt item for the intel_cpu ARM64 executor list.",
+    "historical_context": "Three sibling patterns already exist in this database for the identical primTypeCheck assertion on ARM64/ACL: smoke_AvgPool_CPU_4D (pattern d94563b07437b23b, first seen 2026-09-30), smoke_MaxPool_CPU_4D (pattern 2640902748a867ec, first seen 2026-10-15), and smoke_ConvertCPULayerTest_7D_Dynamic (pattern 56c268ac84902dce, unknown_f32 vs ref_f32 variant, first seen 2026-10-07). This Mvn3D occurrence is a new, related signature (not an exact match, since the specific test/op differs) but confirms this is a recurring class of failure affecting ARM64 CPU functional tests with ACL-accelerated ops under dynamic shapes."
+}
