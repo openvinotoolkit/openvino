@@ -35,7 +35,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-// Retains the graph codec's existing prefetch optimization through section-local streams.
-bool prefetch_cache_data(std::streambuf* buffer, std::streamsize size);
-
 }  // namespace ov::intel_gpu::hsm

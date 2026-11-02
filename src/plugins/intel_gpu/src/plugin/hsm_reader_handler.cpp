@@ -44,7 +44,7 @@ private:
 };
 
 // The delegated mmap file reader can see the rest of the file: bound reads and prefetch alike.
-class BoundedInputStreamBuf final : public std::streambuf {
+class BoundedInputStreamBuf final : public ParallelMemStreamBuf {
 public:
     BoundedInputStreamBuf(std::istream& source, pos_type start, size_t size) : m_source(source.rdbuf()), m_start(start) {
         OPENVINO_ASSERT(m_source && start >= pos_type(0) && size <= static_cast<size_t>(std::numeric_limits<off_type>::max()) &&
@@ -54,11 +54,16 @@ public:
         OPENVINO_ASSERT(m_source->pubseekpos(start, std::ios::in) == start, "[GPU] HSM section input requires seeking");
     }
 
-    std::streambuf* source() const {
-        return m_source;
-    }
     std::streamsize remaining() const {
         return m_size - m_position;
+    }
+    bool prefetch(std::streamsize size) override {
+        size = std::min(size, remaining());
+        if (auto* file = dynamic_cast<ov::util::ParallelReadStreamBuf*>(m_source))
+            return file->prefetch(size);
+        if (auto* memory = dynamic_cast<ParallelMemStreamBuf*>(m_source))
+            return memory->prefetch(size);
+        return false;
     }
 
 protected:
@@ -285,18 +290,6 @@ const std::string& ReaderHandler::requirements() const {
 void ReaderHandler::finish() {
     if (m_impl->is_hsm)
         OPENVINO_ASSERT(m_impl->source->pubseekpos(m_impl->container_end, std::ios::in) == m_impl->container_end, "[GPU] Cannot seek past HSM container");
-}
-
-bool prefetch_cache_data(std::streambuf* buffer, std::streamsize size) {
-    while (auto* bounded = dynamic_cast<BoundedInputStreamBuf*>(buffer)) {
-        size = std::min(size, bounded->remaining());
-        buffer = bounded->source();
-    }
-    if (auto* file = dynamic_cast<ov::util::ParallelReadStreamBuf*>(buffer))
-        return file->prefetch(size);
-    if (auto* memory = dynamic_cast<ParallelMemStreamBuf*>(buffer))
-        return memory->prefetch(size);
-    return false;
 }
 
 }  // namespace ov::intel_gpu::hsm

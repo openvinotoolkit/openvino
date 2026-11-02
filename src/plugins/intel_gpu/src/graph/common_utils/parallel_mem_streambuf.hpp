@@ -31,11 +31,14 @@ public:
     /// Forward prefetch to the delegated ParallelReadStreamBuf if this instance
     /// wraps a file-backed mmap. Returns false for the in-memory memcpy path,
     /// where the data is already resident and no preloading is meaningful.
-    bool prefetch(std::streamsize size) {
+    virtual bool prefetch(std::streamsize size) {
         return m_file_buf ? m_file_buf->prefetch(size) : false;
     }
 
 protected:
+    // Unbacked transports override the stream operations and prefetch.
+    ParallelMemStreamBuf() : m_begin(nullptr), m_end(nullptr), m_current(nullptr), m_threshold(0) {}
+
     std::streamsize xsgetn(char_type* dst, std::streamsize n) override;
     int_type underflow() override;
     int_type uflow() override;
