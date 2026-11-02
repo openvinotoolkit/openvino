@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <future>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -141,6 +142,9 @@ struct MemoryProperties {
     size_t offset = 0;  //!< Offset of this buffer within the allocation identified by IBuffer::get_id().
 };
 
+/** @brief Handle to wait for a background prefetch; an invalid handle means there is nothing to wait for. */
+using PrefetchToken = std::shared_future<void>;
+
 /** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
 class MemoryView {
 public:
@@ -170,12 +174,12 @@ private:
 
 /** @brief Non-owning byte view of @p value's object representation; @p value must outlive the view. */
 template <typename T>
-MemoryView as_memory_view(T& value) noexcept {
+MemoryView as_memory_view(const T& value) noexcept {
     static_assert(std::is_trivially_copyable_v<T>, "as_memory_view requires a trivially copyable type");
-    return {reinterpret_cast<const std::byte*>(&value), sizeof(T)};
+    return {reinterpret_cast<const std::byte*>(std::addressof(value)), sizeof(T)};
 }
 
-template <typename T>
+template <typename T, std::enable_if_t<!std::is_lvalue_reference_v<T>>* = nullptr>
 MemoryView as_memory_view(T&&) = delete;
 
 /**

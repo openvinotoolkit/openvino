@@ -89,8 +89,9 @@ single-image-test.exe: Usage: Release\single-image-test.exe[<options>]
     -cosim_threshold (Threshold for 'cosim' mode. Can be a single value or
       per-layer: 'layer1:0.95;layer2:0.90') type: string default: "0.900000"
     -data_shape (Required for models with dynamic shapes. Set shape for input
-      blobs. Only one shape can be set. In case of one input size:
-      "[1,3,224,224]") type: string default: ""
+      blobs. Only one shape can be set per input. In case of one input size:
+      "[1,3,224,224]", applied to every dynamic input. For several inputs:
+      "input1[1,3,224,224],input2[1,4]") type: string default: ""
     -dataset (The dataset used to train the model. Useful for instances such as
       semantic segmentation to visualize the accuracy per-class) type: string
       default: "NONE"
