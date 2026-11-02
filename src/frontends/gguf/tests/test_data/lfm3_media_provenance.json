@@ -1,0 +1,54 @@
+{
+  "llama_cpp": "604cc430239c76ff636c443e3400bf552b750421",
+  "backend": "CPU",
+  "flash_attention": false,
+  "oracle_sha256": "7e2cd8f93d1c8b537f233752b3455aa003e4e966bb372fe25baa9bc1a97e8900",
+  "oracle_source_sha256": "d56eb57a6a25dc1e55d9d67e79f3120dcb5313f631a5f1ab13dded2c47793110",
+  "libraries": {
+    "libggml-base.so": "a51c5f6feae91e2156aec23e6f2e379d4fc4792b7f523528ee01d418bfd6af66",
+    "libggml-cpu.so": "9c6a8cc6ba1ec143eb124b3cd93d926d4d2f78461835f5e1963cf5b20b522343",
+    "libggml.so": "96df0da39879685cb55fbf6d81504b0c099fb297106d9e10e9fc7c9bdb7ccb77",
+    "libllama-common.so": "e7c66e9c347e6427856e7eb766213c5dd1cdcedd23d900cfa83411e74ae5ab01",
+    "libllama-quantize-impl.so": "71dd69628a67d9872dda0d3a68b6fa5c4cd2d2632c2d9ab5633146f5ce3f5586",
+    "libllama.so": "93ab5a8d2b74e9208676592b9733d23a3be2f7bee6ff343653b8bfd26eed2cc2",
+    "libmtmd.so": "115ffdc7cd7c62b5603bd7bda005a467944b517951e08995e7c7806ad6fc2db2"
+  },
+  "fixtures": [
+    {
+      "file": "lfm3_media_vision.npz",
+      "sha256": "e2a9439d11b3cfdb65eb14f09d12a32f5d5f354525d4bdad92206943e408c29e",
+      "cases": 2
+    },
+    {
+      "file": "lfm3_media_audio.npz",
+      "sha256": "4f837208839c1e8e5d24f957514c8b5ae02e5d2a52d8187dc7c1617adbaa144a",
+      "cases": 2
+    },
+    {
+      "file": "lfm3_media_audio_stream.npz",
+      "sha256": "5734ce114b37915a7699c75d790bce1c357a0521f3223d4f32cad756b533e314",
+      "cases": 2
+    },
+    {
+      "file": "lfm3_media_omni.npz",
+      "sha256": "3560658127a9e12b2b3f7c3a48eaeab75a06ea1637de90d7a446d80268f346f6",
+      "independent_components": [
+        {
+          "file": "lfm3_media_vision.npz",
+          "sha256": "afa6dd8702b1bf62fd941e357c7bfde868595cff5ee3333152f66f8de26831a5",
+          "cases": 2
+        },
+        {
+          "file": "lfm3_media_audio.npz",
+          "sha256": "aad1cd4038be13caf5972bfdcd09b6094a5fb40691158a8141ec4f0bea4b50a6",
+          "cases": 2
+        },
+        {
+          "file": "lfm3_speech.npz",
+          "sha256": "6693f663050f5853d0e1abdefbe52164b3552e1f51ca8c9ddbc8820678a2bb61"
+        }
+      ],
+      "language_width": 6
+    }
+  ]
+}
