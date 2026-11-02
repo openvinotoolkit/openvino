@@ -310,12 +310,12 @@ static void adjustInputSize(VectorDims& inputShape,
         size_t signalSize = signalSizes[i];
         if (signalSize <= inputSize) {
             inputShape[axis] = signalSize;
-        } else {
-            OPENVINO_ASSERT(isInverse, "Signal size greater than input size is not supported yet");
+        } else if (!isInverse) {
+            OPENVINO_ASSERT(false, "Signal size greater than input size is not supported yet");
         }
     }
     if (isInverse) {
-        inputShape[axes.back()] = signalSizes.back() / 2 + 1;
+        inputShape[axes.back()] = std::min<size_t>(inputShape[axes.back()], signalSizes.back() / 2 + 1);
     }
 }
 
@@ -465,6 +465,16 @@ static void fftCopyInverseInputData(float* dst,
                                     size_t signalSize,
                                     bool parallelize,
                                     const CpuParallelPtr& cpuParallel) {
+    const size_t hermitianInputSize = signalSize / 2 + 1;
+
+    // Missing Hermitian bins must be treated as zero. A shorter input spectrum is not a
+    // valid half-spectrum; otherwise the CPU path reads past the end of the input buffer.
+    if (inputSize < hermitianInputSize) {
+        std::fill_n(dst, 2 * signalSize, 0.0F);
+        cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
+        return;
+    }
+
     if (!parallelize) {
         cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
         src = src + 2 * inputSize - 4;
