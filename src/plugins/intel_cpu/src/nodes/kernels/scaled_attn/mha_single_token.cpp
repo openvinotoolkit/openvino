@@ -770,6 +770,11 @@ dot_product_fp16(ov::float16* a, void* b, size_t n, float* scale, float* zp, flo
             float group_sum = 0.0f;
 
             auto v_group_zp = vdupq_n_f16(group_zp);
+            // Independent vector accumulators, reduced once per group.
+            float32x4_t v_sum0 = vdupq_n_f32(0.0F);
+            float32x4_t v_sum1 = vdupq_n_f32(0.0F);
+            float32x4_t v_sum2 = vdupq_n_f32(0.0F);
+            float32x4_t v_sum3 = vdupq_n_f32(0.0F);
 
             for (; i + 16 <= group_size; i += 16) {
                 float16x8_t v_a_lo = vld1q_f16(_a + offset + i);
@@ -794,11 +799,12 @@ dot_product_fp16(ov::float16* a, void* b, size_t n, float* scale, float* zp, flo
                 float32x4_t v_f2 = vcvt_f32_f16(vget_low_f16(v_b_hi));
                 float32x4_t v_f3 = vcvt_f32_f16(vget_high_f16(v_b_hi));
 
-                group_sum += vaddvq_f32(v_f0);
-                group_sum += vaddvq_f32(v_f1);
-                group_sum += vaddvq_f32(v_f2);
-                group_sum += vaddvq_f32(v_f3);
+                v_sum0 = vaddq_f32(v_sum0, v_f0);
+                v_sum1 = vaddq_f32(v_sum1, v_f1);
+                v_sum2 = vaddq_f32(v_sum2, v_f2);
+                v_sum3 = vaddq_f32(v_sum3, v_f3);
             }
+            group_sum += vaddvq_f32(vaddq_f32(vaddq_f32(v_sum0, v_sum1), vaddq_f32(v_sum2, v_sum3)));
             for (; i < group_size; i++) {
                 group_sum += _a[i + offset] * (_b[i + offset] - group_zp);
             }

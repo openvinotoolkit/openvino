@@ -1007,6 +1007,11 @@ float dot_product(const TA* a,
         float group_sum = 0.0F;
 
         float32x4_t v_group_zp = vdupq_n_f32(group_zp);
+        // Independent vector accumulators, reduced once per group.
+        float32x4_t v_sum0 = vdupq_n_f32(0.0F);
+        float32x4_t v_sum1 = vdupq_n_f32(0.0F);
+        float32x4_t v_sum2 = vdupq_n_f32(0.0F);
+        float32x4_t v_sum3 = vdupq_n_f32(0.0F);
 
         for (; i + 16 <= group_size; i += 16) {
             uint8x16_t v_u8 = vld1q_u8(b + i + offset);
@@ -1035,15 +1040,10 @@ float dot_product(const TA* a,
                 float32x4_t v_a2 = vld1q_f32(a + i + offset + 8);
                 float32x4_t v_a3 = vld1q_f32(a + i + offset + 12);
 
-                v_f0 = vmulq_f32(v_f0, v_a0);
-                v_f1 = vmulq_f32(v_f1, v_a1);
-                v_f2 = vmulq_f32(v_f2, v_a2);
-                v_f3 = vmulq_f32(v_f3, v_a3);
-
-                group_sum += vaddvq_f32(v_f0);
-                group_sum += vaddvq_f32(v_f1);
-                group_sum += vaddvq_f32(v_f2);
-                group_sum += vaddvq_f32(v_f3);
+                v_sum0 = vfmaq_f32(v_sum0, v_f0, v_a0);
+                v_sum1 = vfmaq_f32(v_sum1, v_f1, v_a1);
+                v_sum2 = vfmaq_f32(v_sum2, v_f2, v_a2);
+                v_sum3 = vfmaq_f32(v_sum3, v_f3, v_a3);
 
             } else if constexpr (std::is_same_v<TA, ov::float16>) {
                 float16x8_t v_la0 = vld1q_f16(reinterpret_cast<const float16_t*>(a) + i + offset + 0);
@@ -1054,17 +1054,13 @@ float dot_product(const TA* a,
                 float32x4_t v_a2 = vcvt_f32_f16(vget_low_f16(v_la1));
                 float32x4_t v_a3 = vcvt_f32_f16(vget_high_f16(v_la1));
 
-                v_f0 = vmulq_f32(v_f0, v_a0);
-                v_f1 = vmulq_f32(v_f1, v_a1);
-                v_f2 = vmulq_f32(v_f2, v_a2);
-                v_f3 = vmulq_f32(v_f3, v_a3);
-
-                group_sum += vaddvq_f32(v_f0);
-                group_sum += vaddvq_f32(v_f1);
-                group_sum += vaddvq_f32(v_f2);
-                group_sum += vaddvq_f32(v_f3);
+                v_sum0 = vfmaq_f32(v_sum0, v_f0, v_a0);
+                v_sum1 = vfmaq_f32(v_sum1, v_f1, v_a1);
+                v_sum2 = vfmaq_f32(v_sum2, v_f2, v_a2);
+                v_sum3 = vfmaq_f32(v_sum3, v_f3, v_a3);
             }
         }
+        group_sum += vaddvq_f32(vaddq_f32(vaddq_f32(v_sum0, v_sum1), vaddq_f32(v_sum2, v_sum3)));
         for (; i < group_size; i++) {
             group_sum += a[i + offset] * (static_cast<float>(b[i + offset]) - group_zp);
         }
