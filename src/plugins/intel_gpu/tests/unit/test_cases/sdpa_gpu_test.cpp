@@ -3781,18 +3781,27 @@ struct sdpa_sliding_window_test_params {
     bool causal_lower_right = true;
 };
 
-struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_window_test_params> {
+// dpas = true: the DPAS kernel (sdpa_ocl, on its lane only); false: the opt stage kernels (enable_sdpa_micro off), the
+// default plain SDPA path of every XMX device off the lane. Each arm checks which kernel it compiled.
+struct sdpa_sliding_window_test : public ::testing::TestWithParam<std::tuple<sdpa_sliding_window_test_params, bool>> {
     tests::random_generator rg;
 
     void SetUp() override {
         rg.set_seed(GET_SUITE_NAME);
     }
 
-    void execute(const sdpa_sliding_window_test_params& p) {
+    void execute(const sdpa_sliding_window_test_params& p, bool dpas) {
         auto& engine = get_test_engine();
-        // The opt stage kernels ignore the window (opt_stage_kernels_apply_sliding_window below).
-        if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
-            GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
+        if (dpas) {
+            if (tests::expected_dpas_backend(engine, false, ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl) {
+                GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl) on this device";
+            }
+            // Finalized as the program finalizes its config, so OV_GPU_ENABLE_SDPA_MICRO=0 reaches enable_sdpa_micro.
+            auto config = get_test_default_config(engine);
+            config.finalize(engine);
+            if (!config.get_enable_sdpa_micro()) {
+                GTEST_SKIP() << "the DPAS SDPA kernel is turned off (enable_sdpa_micro)";
+            }
         }
 
         const auto head_size = p.head_size;
@@ -3873,7 +3882,7 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
             return net->execute().at("result").get_memory();
         };
 
-        // Optimized: causal + sliding_window attribute, the DPAS kernel (sdpa_ocl)
+        // Optimized: causal + sliding_window attribute, sdpa_ocl (dpas) or the opt stage kernels
         auto run_opt = [&]() {
             topology topo;
             topo.add(input_layout("q", q_layout));
@@ -3890,8 +3899,26 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
 
             ExecutionConfig cfg = config_common;
             cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
+            if (!dpas) {
+                cfg.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+            }
 
             auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+            // kernel_entry lists the stages the impl compiled: sdpa_ocl, or only the opt stage kernels. The node is found
+            // by type (the program renames it).
+            std::string info;
+            for (const auto& pi : net->get_primitives_info()) {
+                if (pi.type_id == "scaled_dot_product_attention") {
+                    info = net->get_primitive_info(pi.original_id);
+                }
+            }
+            EXPECT_FALSE(info.empty()) << "no scaled_dot_product_attention primitive";
+            if (dpas) {
+                EXPECT_NE(info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was not selected:\n" << info;
+            } else {
+                EXPECT_EQ(info.find("sdpa_ocl"), std::string::npos) << "sdpa_ocl was selected with enable_sdpa_micro off:\n" << info;
+                EXPECT_NE(info.find("sdpa_opt"), std::string::npos) << "no opt stage kernel was selected:\n" << info;
+            }
             net->set_input_data("q", q_mem);
             net->set_input_data("k", k_mem);
             net->set_input_data("v", v_mem);
@@ -3922,12 +3949,12 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
 };
 
 TEST_P(sdpa_sliding_window_test, basic) {
-    auto p = GetParam();
-    execute(p);
+    const auto& [p, dpas] = GetParam();
+    execute(p, dpas);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
-    ::testing::Values(
+    ::testing::Combine(::testing::Values(
         sdpa_sliding_window_test_params{64, 8, 128, 128, 1, 32},
         sdpa_sliding_window_test_params{64, 8, 128, 128, 1, 128},
         sdpa_sliding_window_test_params{64, 8, 64, 64, 1, 256},
@@ -3944,15 +3971,17 @@ INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
         // but the window is still "dormant" (every valid key is within window of every query) --
         // the historical regression shape for the LOWER_RIGHT col_offset/window interaction.
         sdpa_sliding_window_test_params{128, 1, 512, 4096, 1, 4095, /*causal_lower_right=*/false}
-    ),
-    [](const testing::TestParamInfo<sdpa_sliding_window_test_params>& info) {
-        return "h" + std::to_string(info.param.head_size)
-             + "_n" + std::to_string(info.param.num_heads)
-             + "_sq" + std::to_string(info.param.seq_q)
-             + "_sk" + std::to_string(info.param.seq_kv)
-             + "_b" + std::to_string(info.param.batch)
-             + "_w" + std::to_string(info.param.sliding_window)
-             + (info.param.causal_lower_right ? "_lr" : "_ul");
+    ), ::testing::Bool()),
+    [](const testing::TestParamInfo<std::tuple<sdpa_sliding_window_test_params, bool>>& info) {
+        const auto& p = std::get<0>(info.param);
+        return "h" + std::to_string(p.head_size)
+             + "_n" + std::to_string(p.num_heads)
+             + "_sq" + std::to_string(p.seq_q)
+             + "_sk" + std::to_string(p.seq_kv)
+             + "_b" + std::to_string(p.batch)
+             + "_w" + std::to_string(p.sliding_window)
+             + (p.causal_lower_right ? "_lr" : "_ul")
+             + (std::get<1>(info.param) ? "_dpas" : "_opt");
     });
 
 // is_causal=true together with an explicit attention_mask input, for a SWA-style (causal +
@@ -4060,16 +4089,13 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
 }
 #endif
 
-// Reproducer: the sliding-window suite above only exercises the DPAS kernel (it skips devices off
-// the sdpa_ocl lane), but the opt stage kernels of SDPAOpt (sdpa_opt.cl) never apply the window:
-// SLIDING_WINDOW_SIZE is only emitted under IS_PAGED_ATTENTION there. Whenever the GQA
-// decomposition elides the explicit mask and relies on the kernel-side window (causal +
-// sliding_window_cache), a model running on the opt stage kernels silently attends over the whole
-// causal range instead of the window.
+// The opt stage kernels of SDPAOpt (sdpa_opt.cl) apply the plain SDPA window with IS_CAUSAL. They are the plain SDPA path
+// of every XMX device off the sdpa_ocl lane, where the GQA decomposition still drops the explicit mask for the native
+// window (causal + sliding_window_cache), so a dropped window there would attend over the whole causal range.
 //
-// The scalar (count == 1) attention-mask input was meant to pin this test to the opt stage kernels
-// (the removed sdpa_micro rejected it); the check below verifies that the opt stage kernel ran. The
-// mask value itself is irrelevant - sdpa_opt.cl ignores the mask input whenever IS_CAUSAL is set.
+// enable_sdpa_micro(false) pins the opt stage kernels on every device; the check below verifies it. (The scalar mask
+// input used to do that, but sdpa_ocl takes a single-element mask as well, so on its lane this test ran sdpa_ocl.)
+// The mask value itself is irrelevant: sdpa_opt.cl ignores the mask input whenever IS_CAUSAL is set.
 TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
@@ -4130,7 +4156,9 @@ TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
             false, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3});
         topo.add(prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
-        auto net = get_network(engine, topo, config_common, get_test_stream_ptr(), false);
+        ExecutionConfig cfg = config_common;
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_ref"}}}));
+        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
         net->set_input_data("k", k_mem);
         net->set_input_data("v", v_mem);
@@ -4151,7 +4179,9 @@ TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
         prim.sliding_window = window;
         topo.add(prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
-        auto net = get_network(engine, topo, config_common, get_test_stream_ptr(), false);
+        ExecutionConfig cfg = config_common;
+        cfg.set_property(ov::intel_gpu::enable_sdpa_micro(false));
+        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
         net->set_input_data("k", k_mem);
         net->set_input_data("v", v_mem);
@@ -4181,7 +4211,7 @@ TEST(sdpa_sliding_window_test, opt_stage_kernels_apply_sliding_window) {
     auto similarity = cosineSimilarity(ref_data, window_data);
     EXPECT_GE(similarity, 0.95f)
         << "is_causal + sliding_window on the opt stage kernels does not match the explicit-mask "
-           "reference: the window is ignored (cosine " << similarity << ")";
+           "reference (cosine " << similarity << ")";
 }
 
 struct sdpa_ref_scratch_test : public ::testing::TestWithParam<std::tuple<data_types, int, bool>> {};

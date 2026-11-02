@@ -478,9 +478,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // Sliding-window lower bound, the mirror of causal_k (sdpa_micro's window_k0_begin): the mask
     // keeps (query - SLIDING_WINDOW_SIZE, query], so the first key this workgroup needs is for its
     // first query. Rounded down to a k0 tile so key_base stays tile-aligned for the block reads and
-    // S_slm indexing.
+    // S_slm indexing. A bottom-right-aligned plain SDPA shifts that query by causal_offset, as causal_k
+    // does (sdpa_micro's col_offset): without it the bound follows the chunk's own rows, so a single
+    // token or a chunk no longer than the window on a longer past never skipped a tile.
 #if IS_CAUSAL && SLIDING_WINDOW_SIZE
-    int window_k_begin = max(0, query_position_offset + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    int window_k_begin = max(0, LOWER_RIGHT_SHIFT(query_position_offset + (int)wg_j0) - SLIDING_WINDOW_SIZE + 1);
     #if BIDIR_MASK
     // Mirror of the causal_k extension: a query inside an image group also needs the group's PAST
     // keys even when the window has dropped them, so move the window start back to the start of the
