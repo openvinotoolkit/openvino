@@ -6,27 +6,25 @@ The following example records observations and actions.
 
 ```python
 class RecordingCallback:
-    def before_send_action(self, *, action, step):
+    def on_action_ready(self, *, action, step):
         recorder.write_policy_action(step, action)
         return action
 
     def on_action_sent(self, *, action, step):
         recorder.write_sent_action(step, action)
-
-    def on_hold(self, *, step, holds):
-        recorder.write_hold(step, holds)
 ```
 
 Attach the callback when you construct the runtime.
 
 ```python
-runtime = PolicyRuntime(
+runtime = RobotRuntime(
     robot=robot,
-    model=model,
-    execution=execution,
+    action_source=PolicySource(model=model, execution=execution),
     fps=30,
     callbacks=[RecordingCallback()],
 )
 ```
+
+The same callback instances receive every `run()` performed before the runtime is disconnected. Use the `start` and `shutdown` lifecycle events to separate per-run state. `RobotRuntime.disconnect()` or context exit closes callback resources exactly once and permanently disposes that runtime.
 
 As a general rule, keep workflow-specific logic in callbacks unless the same behavior becomes a reusable runtime primitive.

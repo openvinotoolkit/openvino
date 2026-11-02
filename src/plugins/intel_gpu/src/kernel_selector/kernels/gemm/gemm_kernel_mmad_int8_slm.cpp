@@ -57,7 +57,9 @@ JitConstants GemmKernelMMADslmInt8::GetJitConstants(const gemm_params& params) c
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf = {"", {"b", "f", "output_y", "output_x"}, "dequantized", input_dt, 1};
-        conf.SetLoopAxes({Tensor::DataChannelName::Y}, true);
+        // output_x is defined per value inside the write-back loop (a work item writes 4 columns), so fused inputs
+        // that vary along X must not be preloaded before the loop.
+        conf.SetLoopAxes({Tensor::DataChannelName::Y, Tensor::DataChannelName::X}, true);
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 

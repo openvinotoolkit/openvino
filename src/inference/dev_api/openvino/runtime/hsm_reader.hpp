@@ -188,7 +188,7 @@ public:
     /**
      * @brief Returns a reference to the vector of all manifest entries in the container.
      * @return A reference to the vector of all manifest entries in the container.
-    */
+     */
     const std::vector<ManifestEntry>& entries() const noexcept {
         return m_manifest;
     }
@@ -234,7 +234,8 @@ public:
     }
 
     /**
-     * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in manifest order.
+     * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in
+     * manifest order.
      *
      * @tparam Tag The type of the tag, typically an enum or `uint32_t`.
      * @param device The device ID to match.
