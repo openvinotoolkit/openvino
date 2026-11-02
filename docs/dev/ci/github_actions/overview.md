@@ -242,7 +242,8 @@ manifests to detect unapproved changes to the public package layout.
 
 Missing GOLD BOMs can be proposed by the manual
 [`Initialize GOLD BOM Baseline` workflow](../../../../.github/workflows/initialize_gold_boms.yml).
-It accepts successful build workflow run IDs, collects every `bom_*` artifact from those runs,
+It accepts completed workflow run IDs with successful `Build` jobs, collects every unexpired
+`bom_*` artifact from those runs,
 and creates a PR against the branch selected when starting the workflow, including `master` or
 `releases/*`. Manifests are stored under `boms/<configuration>/<component>.json`. The
 configuration directory comes from the artifact name (for example,
@@ -251,10 +252,15 @@ architectures, and build variants can each have their own baseline. The platform
 inside the artifact is only an artifact layout detail; it is not repeated in the GOLD path.
 
 Run it from **Actions → Initialize GOLD BOM Baseline → Run workflow**, selecting the target
-branch first. Enter a JSON array of successful build run IDs from the same repository,
+branch first. Enter a JSON array of completed workflow run IDs from the same repository,
 covering the configurations to initialize. Both PR runs and branch runs are accepted, 
 regardless of their source or target branch.
 The branch selected for initialization only determines where the GOLD BOM PR is created.
+The overall workflow may be red because BOM validation or other tests failed, including
+when a new configuration has no GOLD baseline yet. Its `Build` job must have completed
+successfully; missing, skipped, cancelled, or failed Build jobs are rejected. BOM artifacts
+are still validated before import. After a rerun, artifacts from earlier attempts of the
+same workflow run can be used.
 For example:
 
 ```json

@@ -51,6 +51,13 @@ To disable generation, configure with `-DENABLE_BOM_GENERATION=OFF`. To generate
 manifests explicitly, run `cmake --build <build-directory> --target bom`, or use
 the `ov_bom_<component>` target for one component.
 
+Before generating manifests, a shared cleanup target removes the current
+platform's previous BOM output directory. All component targets wait for this
+cleanup, so parallel generation cannot delete another component's new manifest.
+This also removes stale manifests after components are disabled in a reused
+build tree. A single-component target cleans the platform directory too and
+then generates only that component; use `bom` to obtain the complete manifest set.
+
 Generation supports archive `CPACK_GENERATOR` values: `7Z`, `TBZ2`, `TGZ`,
 `TXZ`, `TZ`, `TZST`, and `ZIP`. It is automatically disabled when a non-archive
 generator is selected (for example, `DEB`, `RPM`, or `NPM`).

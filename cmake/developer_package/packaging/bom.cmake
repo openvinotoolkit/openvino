@@ -143,6 +143,12 @@ function(ov_add_bom_targets)
         add_dependencies(ov_bom_build_dependencies ${build_targets})
     endif()
 
+    add_custom_target(ov_bom_clean
+        COMMAND "${CMAKE_COMMAND}" -E rm -rf "${OV_BOM_OUTPUT_DIR}/${OV_BOM_PLATFORM}"
+        COMMENT "[BOM] Removing previous component manifests (${OV_BOM_PLATFORM})"
+        VERBATIM)
+    add_dependencies(ov_bom_clean ov_bom_build_dependencies)
+
     set(bom_targets)
 
     foreach(component IN LISTS components)
@@ -164,7 +170,7 @@ function(ov_add_bom_targets)
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
             COMMENT "[BOM] Generating manifest for CPack component '${component}' (${OV_BOM_PLATFORM})"
             VERBATIM)
-        add_dependencies(ov_bom_${component} ov_bom_build_dependencies)
+        add_dependencies(ov_bom_${component} ov_bom_clean)
 
         list(APPEND bom_targets ov_bom_${component})
     endforeach()
