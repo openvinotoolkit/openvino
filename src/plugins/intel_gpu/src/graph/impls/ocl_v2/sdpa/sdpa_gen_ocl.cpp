@@ -1230,6 +1230,11 @@ void add_mask_jit(JitConstants& jit, const jit_inputs& in) {
         jit.make("WITH_ATTN_MASK", sdpa_has_runtime_attn_mask_input(in.params) ? 1 : 0);
     }
     jit.make("MASK_KIND", plain_mask_kind(in.params, config, in.is_prefill));
+    // The plain SDPA window (GroupQueryAttentionDecomposition sets it from local_window_size and drops the explicit
+    // mask for causal + sliding_window_cache). Without it every SLIDING_WINDOW_SIZE block of the kernel compiled out
+    // and the window was silently ignored. The kernel applies it only with IS_CAUSAL: with an explicit mask
+    // (is_causal = false) the mask already holds the window, as in sdpa_opt.cl.
+    jit.make("SLIDING_WINDOW_SIZE", config.sliding_window);
 }
 
 // The runtime scale input (a Parameter or computed scale; a constant one is a jit literal), or nullptr when the
