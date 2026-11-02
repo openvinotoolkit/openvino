@@ -2166,6 +2166,18 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         }
     }
 
+#if defined(OV_CPU_WITH_ACL)
+    // ACL reduction kernels accumulate in the tensor precision and need the same input and output precision, so an
+    // f16 sum stops growing once the f16 step exceeds the added values (e.g. at 32768 for values about 11), and an f16
+    // mean overflows to inf although the mean fits f16. The jit path above writes these modes in f32; in ACL builds
+    // they also read f32, whichever executor is selected (the ref one is f32 anyway). The members are updated (not
+    // only the descriptors) to keep the data sizes and init_dst_data() consistent.
+    if (input_prec == ov::element::f16 && is_precision_sensitive_reduce(algorithm)) {
+        input_prec = ov::element::f32;
+        output_prec = ov::element::f32;
+    }
+#endif
+
     intermediate_prec = fuse_low_precision ? ov::element::f32 : output_prec;
     precision_change = input_prec != intermediate_prec;
     support_split = algorithm != Algorithm::ReduceL2 && algorithm != Algorithm::ReduceLogSumExp &&

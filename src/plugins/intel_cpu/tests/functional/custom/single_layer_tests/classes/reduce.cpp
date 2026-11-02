@@ -63,6 +63,17 @@ void ReduceCPULayerTest::SetUp() {
     netPrecision = _netPrecision;
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     updateSelectedType(getPrimitiveType(), netPrecision == ElementType::boolean ? ElementType::i8 : netPrecision, configuration);
+#if defined(OV_CPU_WITH_ACL)
+    // expected: the accumulating reductions (and the ReduceSum of the decomposed L1/L2) run on f32 tensors under f16,
+    // because ACL accumulates in the tensor precision
+    const bool accumulating = reductionType == utils::ReductionType::Sum ||
+                              reductionType == utils::ReductionType::Mean ||
+                              reductionType == utils::ReductionType::Prod ||
+                              reductionType == utils::ReductionType::L1 || reductionType == utils::ReductionType::L2;
+    if (accumulating && selectedType == makeSelectedTypeStr(getPrimitiveType(), ElementType::f16)) {
+        selectedType = makeSelectedTypeStr(getPrimitiveType(), ElementType::f32);
+    }
+#endif
 
     init_input_shapes(inputShapes);
 
