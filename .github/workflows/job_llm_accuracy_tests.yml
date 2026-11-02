@@ -97,10 +97,10 @@ jobs:
         uses: ./.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
-          wheels-to-install: 'openvino openvino_tokenizers openvino_genai'
+          wheels-to-install: 'openvino openvino_tokenizers openvino_genai whowhatbench'
 
       - name: Install LLM accuracy test requirements
-        run: python3 -m pip install "${INSTALL_DIR}"/whowhatbench-*.whl -r "${LLM_TEST_DIR}/requirements.txt"
+        run: python3 -m pip install -r "${LLM_TEST_DIR}/requirements.txt"
 
       - name: LLM accuracy ${{ inputs.device }} tests
         env:
