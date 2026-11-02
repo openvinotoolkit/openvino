@@ -169,6 +169,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt # Needed by Node.js actions behind the proxy
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt # Needed by the test's model download (requests) behind the proxy
     steps:
       - name: Download OpenVINO artifacts (package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
