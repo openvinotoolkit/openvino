@@ -29,18 +29,16 @@ using namespace cldnn;
 namespace ov::intel_gpu::ocl {
 
 bool SDPAOpt::has_per_channel_compressed_kv(const kernel_impl_params& params) {
-    const auto desc = params.typed_desc<scaled_dot_product_attention>();
-    if (!desc->is_kv_compressed) {
-        return false;
-    }
+    return SDPABase::has_per_channel_compressed_kv(params);
+}
 
-    const auto data_inputs_num = get_data_inputs_num(*desc);
-    const auto is_per_channel_scale = [&params](size_t scale_idx) {
-        const auto& shape = params.input_layouts[scale_idx].get_partial_shape();
-        return shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static() && shape[2].get_length() == 1 && shape[3].is_static() &&
-               shape[3].get_length() > 1;
-    };
-    return is_per_channel_scale(data_inputs_num) || is_per_channel_scale(data_inputs_num + 1);
+bool SDPAOpt::per_channel_kv_on_dpas_lane(const kernel_impl_params& params) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    return dpas_lane_op_supported(params) && SDPAOclGenerator::supported(params);
+#else
+    UNUSED(params);
+    return false;
+#endif
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -192,7 +190,19 @@ public:
         const auto kv_cache_dt = new_params.get_program().get_config().get_kv_cache_precision();
         const bool is_int4_kv = is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
 
-        // Per-channel compressed KV never gets here (validate_impl()).
+        // Per-channel compressed KV is read by sdpa_ocl only (validate_impl() admits it where sdpa_ocl serves it): every opt
+        // stage below reads one scale per token, so a missing sdpa_ocl stage must fail here rather than give wrong output.
+        // A plain int4 cache otherwise stays on the opt kernels (sdpa_ocl unpacks the nibbles of the per-channel one only).
+        const bool per_channel_kv = SDPABase::has_per_channel_compressed_kv(new_params);
+        if (per_channel_kv) {
+            OPENVINO_ASSERT(!is_indirect && has_stage(is_prefill ? ocl_multi_tokens : ocl_single_token),
+                            "[GPU] SDPA with per-channel compressed KV needs the sdpa_ocl ",
+                            is_prefill ? "multi-token" : "single-token",
+                            " stage (indirect = ",
+                            is_indirect,
+                            ")");
+            return execute_stage(events, instance, is_prefill ? ocl_multi_tokens : ocl_single_token);
+        }
         if (is_prefill && !is_indirect && !is_int4_kv && has_stage(ocl_multi_tokens)) {
             GPU_DEBUG_TRACE_DETAIL << "execute ocl_multi_tokens for prefill \n";
             return execute_stage(events, instance, ocl_multi_tokens);
@@ -261,7 +271,7 @@ bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params
         return false;
     }
 
-    // Per-channel compressed KV is refused by validate_impl() altogether and is not supposed to match here.
+    // Per-channel compressed KV runs on the sdpa_ocl stages only (validate_impl(), execute()), never on the regular opt ones.
     if (has_per_channel_compressed_kv(params)) {
         return false;
     }

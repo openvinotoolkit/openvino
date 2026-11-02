@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
+#include "scaled_dot_product_attention_inst.h"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
@@ -23,9 +24,14 @@ struct SDPARef : public ImplementationManager {
         const auto is_supported_precision = [&supported_precisions](const ov::element::Type& dt) {
             return one_of(dt, supported_precisions);
         };
-        // K/V inputs additionally accept quantized (i8) data
-        const auto is_supported_kv_precision = [&is_supported_precision](const ov::element::Type& dt) {
-            return is_supported_precision(dt) || dt == ov::element::i8;
+        // K/V inputs additionally accept quantized (i8) data, and u8 for a per-channel compressed cache (the GQA decomposition
+        // stores a 4-bit one as u8 bytes of two nibbles; per-channel = the head dim is not grouped, see
+        // SDPABase::has_per_channel_compressed_kv()).
+        const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
+        const auto& group_sizes = desc->quantization_attributes.group_sizes;
+        const bool per_channel_kv = desc->is_kv_compressed && !group_sizes.empty() && group_sizes.back() == 1;
+        const auto is_supported_kv_precision = [&is_supported_precision, per_channel_kv](const ov::element::Type& dt) {
+            return is_supported_precision(dt) || dt == ov::element::i8 || (per_channel_kv && dt == ov::element::u8);
         };
 
         const auto& q_layout = node.get_input_layout(0);
