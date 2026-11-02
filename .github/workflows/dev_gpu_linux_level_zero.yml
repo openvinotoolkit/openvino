@@ -168,6 +168,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt # Needed by Node.js actions behind the proxy
     steps:
       - name: Download OpenVINO artifacts (package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -190,6 +191,9 @@ jobs:
       - name: Verify devices
         timeout-minutes: 5
         run: clinfo
+
+      - name: Add proxy CA certificate to system trust store
+        run: update-ca-certificates
 
       # The sample needs a Level Zero context; on the OpenCL runtime this requires LEO (EnableLEO=1).
       - name: hello_remote_tensor sample tests
