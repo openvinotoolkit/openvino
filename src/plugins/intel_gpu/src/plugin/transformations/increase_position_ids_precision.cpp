@@ -914,8 +914,10 @@ bool IncreasePositionIdsPrecision::run_on_model(const std::shared_ptr<ov::Model>
     specialized_manager.register_pass<IncreasePositionIdsPrecisionForQwen25VL>();
     specialized_manager.register_pass<IncreasePositionIdsPrecisionForQwen3VL>();
     specialized_manager.register_pass<IncreasePositionIdsPrecisionForGPTOSS>();
+    // Temporary workaround: the generalized LTX pattern can rematch regions changed by specialized passes.
+    // Skip LTX for the entire model after any specialized change to avoid duplicate precision rewrites.
+    // TODO: Remove this gate once a unified general pass covers the specialized patterns without reprocessing.
     if (specialized_manager.run_passes(model)) {
-        // A specialized pass already matched and increased precision; return to avoid duplicate processing.
         return true;
     }
 
