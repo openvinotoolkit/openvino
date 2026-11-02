@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include "quantize_inst.h"
 
+#include <cmath>
 #include <cstddef>
 
 using namespace cldnn;
@@ -606,6 +607,81 @@ TEST(quantize_gpu, quantize_levels_256_3d_unsigned) {
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_EQ(output_ptr[i], ref_data[i]) << " i=" << i;
+    }
+}
+
+// Weight-style FakeQuantize on a 5D tensor whose ranges vary along the batch and the innermost (x) axis,
+// e.g. [C,1,1,1,KW] ranges of a depthwise GroupConvolution weight. The range offsets used to be computed
+// with a 4D (bfyx) pitch formula, which misplaced x for 5D ranges, gave wrong values in every channel and
+// read past the end of the range buffers for the last channels (NaN outputs).
+TEST(quantize_gpu, quantize_levels_255_5d_ranges_vary_along_x) {
+    cldnn::engine& engine = get_test_engine();
+    const int B = 16, Y = 3, X = 3;
+    const int levels = 255;
+    // cldnn tensor order is {b, f, x, y, z}
+    auto input = engine.allocate_memory({data_types::f32, format::bfzyx, {B, 1, X, Y, 1}});
+    auto input_low = engine.allocate_memory({data_types::f32, format::bfzyx, {B, 1, X, 1, 1}});
+    auto input_high = engine.allocate_memory({data_types::f32, format::bfzyx, {B, 1, X, 1, 1}});
+    auto output_low = engine.allocate_memory({data_types::f32, format::bfzyx, {B, 1, X, 1, 1}});
+    auto output_high = engine.allocate_memory({data_types::f32, format::bfzyx, {B, 1, X, 1, 1}});
+
+    std::vector<float> in(B * Y * X), lo(B * X), hi(B * X);
+    for (int b = 0; b < B; ++b) {
+        for (int x = 0; x < X; ++x) {
+            hi[b * X + x] = 0.5f + 0.25f * static_cast<float>(b) + 0.1f * static_cast<float>(x);
+            lo[b * X + x] = -hi[b * X + x];
+            for (int y = 0; y < Y; ++y)
+                in[(b * Y + y) * X + x] = static_cast<float>((b * 7 + y * 3 + x * 5) % 11 - 5) * 0.3f;
+        }
+    }
+    set_values(input, in);
+    set_values(input_low, lo);
+    set_values(input_high, hi);
+    set_values(output_low, lo);
+    set_values(output_high, hi);
+
+    std::vector<float> ref(in.size());
+    for (int b = 0; b < B; ++b) {
+        for (int y = 0; y < Y; ++y) {
+            for (int x = 0; x < X; ++x) {
+                const float l = lo[b * X + x], h = hi[b * X + x], v = in[(b * Y + y) * X + x];
+                float r;
+                if (v <= l)
+                    r = l;
+                else if (v > h)
+                    r = h;
+                else
+                    r = std::round((v - l) / (h - l) * (levels - 1)) / (levels - 1) * (h - l) + l;
+                ref[(b * Y + y) * X + x] = r;
+            }
+        }
+    }
+
+    topology topology;
+    topology.add(data("input", input),
+                 data("input_low", input_low),
+                 data("input_high", input_high),
+                 data("output_low", output_low),
+                 data("output_high", output_high),
+                 quantize("quantize",
+                          input_info("input"),
+                          input_info("input_low"),
+                          input_info("input_high"),
+                          input_info("output_low"),
+                          input_info("output_high"),
+                          levels,
+                          data_types::f32));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("quantize").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output->count(), ref.size());
+    for (size_t i = 0; i < ref.size(); ++i) {
+        ASSERT_TRUE(std::isfinite(output_ptr[i])) << " i=" << i;
+        ASSERT_NEAR(output_ptr[i], ref[i], 1e-5f) << " i=" << i;
     }
 }
 
