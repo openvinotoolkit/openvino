@@ -435,35 +435,38 @@ protected:
 #    define N_BLOCK      4
 #    define SUBGROUP_NUM 8
 
-// check_gemv_group_size: the kernel runs the gate/up or down GEMV loops, whose FAKE_GROUP_SIZE branches limit the group size
-static void add_common_consts(const RuntimeParams& params, JitConstants& jit, bool check_gemv_group_size = true) {
+static size_t get_gate_up_group_size(const MOECompressed::Config& config) {
+    return config.group_size == std::numeric_limits<size_t>::max() ? config.hidden_size : config.group_size;
+}
+
+// Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE must be >= 2.
+// Smaller values have no kernel branch and would silently produce wrong results.
+static void check_gemv_group_size(const RuntimeParams& params) {
+    const auto gate_up_group_size = get_gate_up_group_size(params.typed_desc<moe_3gemm_fused_compressed>()->_config);
+    const size_t sg = (params.get_device_info().arch >= gpu_arch::xe2) ? 32u : 16u;
+    const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
+    OPENVINO_ASSERT(fake_gs >= 2 * sg,
+                    "MoE GEMV kernel does not support group_size=",
+                    gate_up_group_size,
+                    " on this hardware (SUBGROUP_SIZE=",
+                    sg,
+                    "). Minimum supported group_size is ",
+                    2 * sg,
+                    ". Use a larger quantization group size.");
+}
+
+static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
-    auto gate_up_group_size = desc->_config.group_size;
+    auto gate_up_group_size = get_gate_up_group_size(desc->_config);
     auto down_group_size = desc->_config.group_size;
     if (desc->_config.group_size == std::numeric_limits<size_t>::max()) {
-        gate_up_group_size = desc->_config.hidden_size;
         down_group_size = desc->_config.inter_size;
     }
 
     GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
                            << ", down_group_size=" << down_group_size << std::endl;
-
-    // Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE must be >= 2.
-    // Smaller values have no kernel branch and would silently produce wrong results.
-    if (check_gemv_group_size) {
-        const size_t sg = (info.arch >= gpu_arch::xe2) ? 32u : 16u;
-        const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
-        OPENVINO_ASSERT(fake_gs >= 2 * sg,
-                        "MoE GEMV kernel does not support group_size=",
-                        gate_up_group_size,
-                        " on this hardware (SUBGROUP_SIZE=",
-                        sg,
-                        "). Minimum supported group_size is ",
-                        2 * sg,
-                        ". Use a larger quantization group size.");
-    }
 
     jit.make("MAX_TOPK", desc->_config.top_k);
     jit.make("EXPERT_NUM", desc->_config.num_expert);
@@ -511,6 +514,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        check_gemv_group_size(params);
         add_common_consts(params, jit);
         jit.make("GATE_UP_ENABLE", 1);
         if (desc->_config.activation_type == ov::op::internal::MOE::Activation_type::GEGLU_TANH) {
@@ -550,6 +554,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
+        check_gemv_group_size(params);
         add_common_consts(params, jit);
         jit.make("DOWN_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
@@ -584,8 +589,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
-        // The reduction also follows the u3 batched GEMV, which takes smaller groups
-        add_common_consts(params, jit, /*check_gemv_group_size=*/false);
+        add_common_consts(params, jit);
         jit.make("REDUCE_ENABLE", 1);
         if (!_disable_shared_experts && desc->_config.num_shared_expert > 0 &&
             params.input_layouts.size() > static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_WEIGHT)) {
@@ -1127,10 +1131,10 @@ public:
                 int3_gemv_nbs[static_cast<size_t>(proj)] = int3_gemv_nb(params, proj);
             }
         }
-        // The u3 GEMV loses to the grouped GEMM much earlier than the other GEMVs
-        batched_gemv_threshold = decode_impl == MoeGemmImpl::int3_batched_gemv ? int3_gemv_threshold(params) : config.get_moe_batched_gemv_threshold();
+        batched_gemv_threshold = config.get_moe_batched_gemv_threshold();
         if (batched_gemv_threshold == 0) {
-            batched_gemv_threshold = 1;
+            // The u3 GEMV loses to the grouped GEMM much earlier than the other GEMVs
+            batched_gemv_threshold = decode_impl == MoeGemmImpl::int3_batched_gemv ? int3_gemv_default_threshold(params) : 32;
         }
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt_impl(): batched_gemv_threshold=" << batched_gemv_threshold << std::endl;
 
@@ -1422,6 +1426,7 @@ public:
         for (size_t nb : int3_gemv_nbs) {
             ob << nb;
         }
+        ob << batched_gemv_threshold;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -1434,6 +1439,7 @@ public:
         for (size_t& nb : int3_gemv_nbs) {
             ib >> nb;
         }
+        ib >> batched_gemv_threshold;
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
         auto cur_moe = impl_params->typed_desc<moe_3gemm_fused_compressed>();
         init(cur_moe);
@@ -1845,7 +1851,7 @@ public:
     }
 
     // Batched GEMV path of u3 weights (moe_3gemm_int3.cl): gate/up GEMV with the gate activation fused, down GEMV
-    // scaled by the routing weight, then the per-token reduction. No shared expert.
+    // scaled by the routing weight, then the per-token reduction. The shared expert is one more slot per token.
     cldnn::event::ptr exec_int3_batched_gemv(const std::vector<cldnn::event::ptr>& events,
                                              typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                              scratch_buffers& scratch,
@@ -1859,10 +1865,11 @@ public:
         if (!expert_ids) {
             return exec_batched_gemv_fallback(events, stream, instance, scratch);
         }
-        GPU_DEBUG_TRACE_DETAIL << "\nexec_int3_batched_gemv(): token_num=" << token_num << ", max_topk=" << config.top_k << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "\nexec_int3_batched_gemv(): token_num=" << token_num << ", max_topk=" << config.top_k
+                               << ", has_shared=" << _has_shared_expert << std::endl;
 
         const auto& wei = scratch.moe_fusion_wei_addr;
-        const size_t pairs = token_num * config.top_k;
+        const size_t pairs = token_num * (config.top_k + (_has_shared_expert ? 1 : 0));
         const auto gemv = [&](Int3Projection proj, std::vector<memory::ptr> inputs, memory::ptr output, const std::vector<event::ptr>& deps) {
             const bool down = proj == Int3Projection::DOWN;
             const size_t n = down ? config.hidden_size : config.inter_size;
@@ -1876,23 +1883,35 @@ public:
                                  {INT3_GEMV_SIMD, INT3_GEMV_SGN, 1});
         };
 
+        const auto add_weights = [&](std::vector<memory::ptr>& inputs, int w, bool shared) {
+            inputs.insert(inputs.end(), {shared ? wei.shared_weight[w] : wei.weight[w], shared ? wei.shared_scale[w] : wei.scale[w]});
+            if (config.has_zp) {
+                inputs.push_back(shared ? wei.shared_zp[w] : wei.zp[w]);
+            }
+        };
+
         // scratch.up = act(gate(x)) * up(x) for all (token, expert) pairs
         std::vector<memory::ptr> gate_up_inputs{expert_ids};
-        for (int w : {0, 1}) {
-            gate_up_inputs.insert(gate_up_inputs.end(), {wei.weight[w], wei.scale[w]});
-            if (config.has_zp) {
-                gate_up_inputs.push_back(wei.zp[w]);
-            }
+        add_weights(gate_up_inputs, 0, false);
+        add_weights(gate_up_inputs, 1, false);
+        if (_has_shared_expert) {
+            add_weights(gate_up_inputs, 0, true);
+            add_weights(gate_up_inputs, 1, true);
+            gate_up_inputs.insert(gate_up_inputs.end(), {wei.shared_weight[3], scratch.routing_weights});  // shared_gate_out [token_num]
         }
         gate_up_inputs.push_back(instance.input_memory_ptr(static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES)));
         auto ret_event = gemv(Int3Projection::GATE_UP, gate_up_inputs, scratch.up, events);
 
         // scratch.y = down(scratch.up) * routing_weight for all (token, expert) pairs
-        std::vector<memory::ptr> down_inputs{expert_ids, wei.weight[2], wei.scale[2]};
-        if (config.has_zp) {
-            down_inputs.push_back(wei.zp[2]);
+        std::vector<memory::ptr> down_inputs{expert_ids};
+        add_weights(down_inputs, 2, false);
+        if (_has_shared_expert) {
+            add_weights(down_inputs, 2, true);
         }
         down_inputs.insert(down_inputs.end(), {scratch.up, scratch.topk_weights});
+        if (_has_shared_expert) {
+            down_inputs.push_back(scratch.routing_weights);  // shared_gate_in [token_num]
+        }
         ret_event = gemv(Int3Projection::DOWN, down_inputs, scratch.y, {ret_event});
 
         return exec_batched_gemv_reduce(ret_event, instance, scratch, token_num);

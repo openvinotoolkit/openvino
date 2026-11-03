@@ -457,7 +457,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                          MoECompressedFusionTest::getTestCaseName);
 
 // hidden_size 256 is too short for the u3 batched GEMV, so decode falls back to the grouped GEMM there;
-// hidden_size 2048 runs the batched GEMV for decode (up to GPU_MOE_U3_BATCHED_GEMV_THRESHOLD tokens).
+// hidden_size 2048 runs the batched GEMV for decode (up to GPU_MOE_BATCHED_GEMV_THRESHOLD tokens, by default 6 on
+// integrated and 24 on discrete GPUs).
 // Scalar zp is the NNCF int3 layout (symmetric u3 with zp = 4 for all experts).
 const std::vector<MoeTestShapeParams> moe_params_smoke_u3 = {
     {

@@ -19,15 +19,19 @@ enum class Int3Projection { GATE_UP, DOWN };
 constexpr size_t INT3_GEMV_SGN = 8;
 constexpr size_t INT3_GEMV_SIMD = 16;
 
-// Whether the u3 batched GEMV kernels support this MoE: f16 activations and scales, u8/i8 or no zero point, no shared
-// expert, K a multiple of 512 and weight groups a multiple of 32 values.
+// Whether the u3 batched GEMV kernels support this MoE: f16 activations and scales, a u8/i8 zero point that is scalar or
+// shaped like the scales (or none), K a multiple of 512 and weight groups a multiple of 32 values. A shared expert
+// needs u3 weights of the same layout.
 bool int3_gemv_supported(const RuntimeParams& params);
+
+// Whether the shared expert is fused into the kernels, as an extra slot per token
+bool int3_gemv_has_shared_expert(const RuntimeParams& params);
 
 // Output columns per subgroup of a projection, tied to the GPU size
 size_t int3_gemv_nb(const RuntimeParams& params, Int3Projection proj);
 
-// Most tokens per step that decode through the u3 batched GEMV
-size_t int3_gemv_threshold(const RuntimeParams& params);
+// Most tokens per step that decode through the u3 batched GEMV unless GPU_MOE_BATCHED_GEMV_THRESHOLD is set
+size_t int3_gemv_default_threshold(const RuntimeParams& params);
 
 class MoE3GemmInt3Gemv : public KernelGenerator {
 public:

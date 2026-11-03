@@ -18,6 +18,11 @@
 // GEMV_DOWN computes the down projection of act(gate) * up, scaled by the routing
 // weight; otherwise each subgroup computes NB gate and NB up columns and stores
 // act(gate) * up.
+//
+// SHARED_EXPERT adds the shared expert as slot MAX_TOPK of every token, as in
+// mlp_gate_up/mlp_down: its weights have the routed experts' layout with E = 1,
+// and its routing weight is sigmoid(x . shared_gate_gate_weight), which the
+// gate/up GEMV writes to shared_gate_out for the down GEMV.
 
 #pragma OPENCL EXTENSION cl_intel_subgroups : enable
 
@@ -35,6 +40,11 @@
 #   define MATS 1
 #else
 #   define MATS 2
+#endif
+#if SHARED_EXPERT
+#   define EXPERTS_PER_TOKEN (MAX_TOPK + 1)
+#else
+#   define EXPERTS_PER_TOKEN MAX_TOPK
 #endif
 
 // Eight consecutive u3 values (the low 24 bits of f; higher bits are ignored)
@@ -84,22 +94,51 @@ KERNEL(moe_int3_gemv)(
     const __global ZP_TYPE* zp1,
 #endif
 #endif
-    const __global half* x,                 // gate/up: [tokens, K]; down: [tokens * MAX_TOPK, K]
+#if SHARED_EXPERT
+    const __global uint* shared_weights0,   // [1, N, K] u3: down, or gate
+    const __global half* shared_scale0,     // [1, W_GROUPS_K, N]
+#if HAS_ZP
+    const __global ZP_TYPE* shared_zp0,     // [1, W_GROUPS_K, N] or [1]
+#endif
+#if !GEMV_DOWN
+    const __global uint* shared_weights1,   // up
+    const __global half* shared_scale1,
+#if HAS_ZP
+    const __global ZP_TYPE* shared_zp1,
+#endif
+    const __global half* shared_gate_gate_weight,  // [K]
+    __global half* shared_gate_out,                // [tokens]
+#endif
+#endif
+    const __global half* x,                 // gate/up: [tokens, K]; down: [tokens * EXPERTS_PER_TOKEN, K]
 #if GEMV_DOWN
     const __global half* routing_weights,   // [tokens * MAX_TOPK]
+#if SHARED_EXPERT
+    const __global half* shared_gate_in,    // [tokens]
 #endif
-    __global half* y)                       // [tokens * MAX_TOPK, N]
+#endif
+    __global half* y)                       // [tokens * EXPERTS_PER_TOKEN, N]
 {
     const uint lane = get_sub_group_local_id();
     const uint sg = (uint)get_local_id(1);
     const uint blocks = N_SIZE / (SGN * NB);
     const uint pair = (uint)get_group_id(2) / blocks;
-    const uint n0 = (((uint)get_group_id(2) % blocks) * SGN + sg) * NB;
-    const uint expert = (uint)expert_list[pair];
+    const uint block = (uint)get_group_id(2) % blocks;
+    const uint n0 = (block * SGN + sg) * NB;
+    const uint token = pair / EXPERTS_PER_TOKEN;
+    const uint slot = pair % EXPERTS_PER_TOKEN;
+#if SHARED_EXPERT
+    const bool is_shared = slot == MAX_TOPK;
+#else
+    const bool is_shared = false;
+#endif
+    uint expert = 0;
+    if (!is_shared)
+        expert = (uint)expert_list[token * MAX_TOPK + slot];
 #if GEMV_DOWN
     const __global half* xr = x + (size_t)pair * K_SIZE;
 #else
-    const __global half* xr = x + (size_t)(pair / MAX_TOPK) * K_SIZE;
+    const __global half* xr = x + (size_t)token * K_SIZE;
 #endif
 
     const __global uint* wm[MATS] = {weights0
@@ -118,6 +157,37 @@ KERNEL(moe_int3_gemv)(
                                         , zp1
 #endif
     };
+#endif
+#if SHARED_EXPERT
+    if (is_shared) {
+        wm[0] = shared_weights0;
+        sm[0] = shared_scale0;
+#if HAS_ZP
+        zm[0] = shared_zp0;
+#endif
+#if !GEMV_DOWN
+        wm[1] = shared_weights1;
+        sm[1] = shared_scale1;
+#if HAS_ZP
+        zm[1] = shared_zp1;
+#endif
+#endif
+    }
+#if !GEMV_DOWN
+    // One subgroup per token computes the shared expert's routing weight
+    if (is_shared && block == 0 && sg == 0) {
+        float g = 0.0f;
+        for (uint k = lane * 8; k < K_SIZE; k += SIMD * 8) {
+            const half8 xv = vload8(0, xr + k);
+            const half8 wv = vload8(0, shared_gate_gate_weight + k);
+            unroll_for (uint t = 0; t < 8; ++t)
+                g = fma((float)xv[t], (float)wv[t], g);
+        }
+        g = sub_group_reduce_add(g);
+        if (lane == 0)
+            shared_gate_out[token] = (half)(1.0f / (1.0f + exp(-g)));
+    }
+#endif
 #endif
 
     float acc[MATS][NB];
@@ -156,9 +226,18 @@ KERNEL(moe_int3_gemv)(
         }
     }
 
+#if GEMV_DOWN
+    float routing_weight;
+#if SHARED_EXPERT
+    if (is_shared)
+        routing_weight = (float)shared_gate_in[token];
+    else
+#endif
+        routing_weight = (float)routing_weights[token * MAX_TOPK + slot];
+#endif
     unroll_for (uint j = 0; j < NB; ++j) {
 #if GEMV_DOWN
-        const float out = sub_group_reduce_add(acc[0][j]) * (float)routing_weights[pair];
+        const float out = sub_group_reduce_add(acc[0][j]) * routing_weight;
 #else
         const float gate = sub_group_reduce_add(acc[0][j]);
         const float out = MOE_GATE_ACT(gate) * sub_group_reduce_add(acc[1][j]);
@@ -176,3 +255,4 @@ KERNEL(moe_int3_gemv)(
 #undef CHUNK
 #undef NCHUNK
 #undef MATS
+#undef EXPERTS_PER_TOKEN
