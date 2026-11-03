@@ -1223,12 +1223,14 @@ TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_fall
     run_step(2, 8, true, 1e-2f);
 }
 
-TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_forced_cm_throws) {
+// A one-row epilogue operand needs broadcasting when M > 1: CM rejects it in support_shapes() and the fallback FC must
+// run (and be rebuilt for each new M) rather than a kernel cached for another shape.
+TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_2d_falls_back_per_shape) {
     auto& engine = get_test_engine();
     if (!cm_woq_u2_supported(engine))
         GTEST_SKIP() << "CM u2 FC requires Xe2 / Xe3 with CM JIT support and >= 96 KB SLM";
 
-    const int64_t M = 5, K = 128, N = 256;
+    const int64_t K = 128, N = 256;
     tests::random_generator rg(GET_SUITE_NAME);
     const auto w = make_weights(engine, K, N, ZpKind::tensor_u8, rg, 55);
 
@@ -1239,21 +1241,36 @@ TEST(smoke_fully_connected_cm_woq_u2_regression, runtime_epilogue_broadcast_forc
     topo.add(eltwise("post", input_info("fc_prim"), input_info("epi"), eltwise_mode::sum));
     topo.add(reorder("out", input_info("post"), format::bfyx, data_types::f32));
 
-    network::ptr net = get_network(engine, topo, woq_config(engine, {"fc_prim"}), get_test_stream_ptr(), false);
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+    network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
-    const auto a = random_activations(static_cast<size_t>(M * K), 333);
-    auto in_mem = engine.allocate_memory({ov::PartialShape{M, K}, data_types::f16, format::bfyx});
-    set_values(in_mem, a);
-    net->set_input_data("input", in_mem);
+    for (const int64_t M : {5, 7}) {
+        SCOPED_TRACE("M = " + std::to_string(M));
+        const auto a = random_activations(static_cast<size_t>(M * K), static_cast<uint64_t>(M * 333));
+        auto in_mem = engine.allocate_memory({ov::PartialShape{M, K}, data_types::f16, format::bfyx});
+        set_values(in_mem, a);
+        net->set_input_data("input", in_mem);
 
-    std::vector<float> epi_v(static_cast<size_t>(N), 0.5f);
-    auto epi_mem = engine.allocate_memory({ov::PartialShape{1, N}, data_types::f32, format::bfyx});
-    set_values(epi_mem, epi_v);
-    net->set_input_data("epi", epi_mem);
+        std::vector<float> epi_v(static_cast<size_t>(N), 0.5f);
+        auto epi_mem = engine.allocate_memory({ov::PartialShape{1, N}, data_types::f32, format::bfyx});
+        set_values(epi_mem, epi_v);
+        net->set_input_data("epi", epi_mem);
 
-    auto outputs = net->execute();
-    HostEpi he{Epi::add, &epi_v, true};
-    check_rows(outputs.at("out").get_memory(), M, a, all_rows(M), w, true, he);
+        auto outputs = net->execute();
+        const auto out = read_output(outputs.at("out").get_memory(), static_cast<size_t>(M * N), true);
+        auto ref = host_reference(a, all_rows(M), w);
+        for (float& v : ref)
+            v += 0.5f;
+        size_t bad = 0;
+        for (size_t i = 0; i < out.size(); ++i) {
+            if (!(std::fabs(out[i] - ref[i]) <= 1e-2f))
+                bad++;
+        }
+        ASSERT_EQ(bad, size_t(0)) << bad << " / " << out.size() << " elements exceed tol=1e-2";
+    }
 }
 
 
