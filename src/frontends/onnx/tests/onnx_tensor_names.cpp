@@ -15,6 +15,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/util/topk_base.hpp"
 
 using namespace ov;
@@ -185,8 +186,7 @@ OPENVINO_TEST(onnx_tensor_names, matmulnbits_b_name_preserved) {
 }
 
 OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved) {
-    // MatMulNBits repacks the zero-point into a low-bit Constant; it must keep the ONNX initializer name
-    // "b_zp" so weight sharing / weights-as-input can identify it (mirrors matmulnbits_b_name_preserved).
+    // MatMulNBits repacks the zero-point into a low-bit Constant; it must retain the ONNX initializer name "b_zp".
     const auto model = convert_model("com.microsoft/matmulnbits_3x32_zp.onnx");
 
     const auto ops = model->get_ordered_ops();
@@ -202,18 +202,21 @@ OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved) {
 
 OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved_unaligned) {
     // Same as matmulnbits_zp_name_preserved, but n_blocks_per_col (3) is not a multiple of num_per_byte
-    // (2 for bits=4), so the packed zero-point takes the Slice path. The repacked Constant must still
-    // keep the ONNX initializer name - this is the bug fixed after e07506d308 moved the name-copy into
-    // the aligned-only else branch.
+    // (2 for bits=4). The unpacked Constant has a distinct suffixed name and no padding Slice.
     const auto model = convert_model("com.microsoft/matmulnbits_3x48_zp_unaligned.onnx");
 
     const auto ops = model->get_ordered_ops();
 
-    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Constant>(ops, "b_zp", {"b_zp"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Constant>(ops, "b_zp_aligned", {"b_zp_aligned"}));
 
-    const auto packed_zp = find_by_friendly_name<op::v0::Constant>(ops, "b_zp");
-    ASSERT_NE(packed_zp, nullptr);
-    EXPECT_EQ(packed_zp->get_element_type(), element::u4);
+    const auto repacked_zp = find_by_friendly_name<op::v0::Constant>(ops, "b_zp_aligned");
+    ASSERT_NE(repacked_zp, nullptr);
+    EXPECT_EQ(repacked_zp->get_element_type(), element::u4);
+    const Shape expected_zp_shape{3, 3, 1};
+    EXPECT_EQ(repacked_zp->get_shape(), expected_zp_shape);
+    EXPECT_FALSE(std::any_of(ops.begin(), ops.end(), [](const std::shared_ptr<Node>& node) {
+        return ov::as_type_ptr<op::v8::Slice>(node) != nullptr;
+    }));
 }
 
 OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved_sametype) {
@@ -233,7 +236,7 @@ OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved_sametype) {
 
 OPENVINO_TEST(onnx_tensor_names, matmulnbits_shared_b_name_collision_resolved) {
     // One B feeding two MatMulNBits creates two same-named Constants; ResolveNameCollisions (in
-    // normalize) keeps "b_Q4" on one and suffixes the other - no manual postfix needed.
+    // normalize) keeps "b_Q4" on one and suffixes the other.
     const auto model = convert_model("com.microsoft/matmulnbits_shared_b.onnx");
 
     const auto ops = model->get_ordered_ops();
