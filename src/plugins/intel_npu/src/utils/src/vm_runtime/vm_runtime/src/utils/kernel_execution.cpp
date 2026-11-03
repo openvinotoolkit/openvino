@@ -297,6 +297,7 @@ namespace intel_npu::vm {
 result_t ExecutionContext::EventPool::initialize(ze_device_handle_t deviceHandle, ze_context_handle_t context,
                                                  uint32_t cmdListCount, ExecutionContext::ExecutionMode executionMode,
                                                  bool isCounterBasedEventSupported, bool hostSyncWithEventRequired,
+                                                 bool isDynamicBatchExecution,
                                                  uint32_t concurrentJobCount, ov::ZeroApi* ddiTable) {
     if (ddiTable == nullptr) {
         return failure(ZE_RESULT_ERROR_INVALID_NULL_POINTER, "Invalid ddiTable pointer");
@@ -309,7 +310,7 @@ result_t ExecutionContext::EventPool::initialize(ze_device_handle_t deviceHandle
     _executionMode = executionMode;
 
     // counter based event will be used only for TILE_AGNOSTIC execution mode
-    _eventType = (isCounterBasedEventSupported && executionMode != ExecutionMode::TILE_BOUND)
+    _eventType = (isCounterBasedEventSupported && (executionMode != ExecutionMode::TILE_BOUND || isDynamicBatchExecution))
                          ? EventPool::EventType::COUNTER_BASED
                          : EventPool::EventType::DEFAULT;
 
@@ -323,19 +324,25 @@ result_t ExecutionContext::EventPool::initialize(ze_device_handle_t deviceHandle
             if (_eventType == EventPool::EventType::DEFAULT) {
                 eventCount = MAX_EVENT_POOL_SIZE;
                 _dynamicEventCount = true;
+                _eventGroupSize = EVENT_GROUP_SIZE;
             } else {
                 eventCount += cmdListCount;
+                _eventGroupSize = cmdListCount;
             }
         } else {
             // if counter based event is supported, we only need one signal event per subgraph
             // as the target count will increase for each signal event set
             uint32_t synEventCountPerSubgraph = (_eventType == EventType::COUNTER_BASED) ? 1 : concurrentJobCount;
 
-            if (_eventType == EventPool::EventType::DEFAULT && !_hostSyncWithEventRequired) {
+            if (_eventType == EventPool::EventType::DEFAULT && !_hostSyncWithEventRequired && !isDynamicBatchExecution) {
                 // if there is one subgraph, no sync event is required
                 eventCount += (cmdListCount > 1) ? (cmdListCount - 1) * synEventCountPerSubgraph : 0;
+                _eventGroupSize = 1;
+                _dynamicEventCount = true;
             } else {
                 eventCount += cmdListCount * synEventCountPerSubgraph;
+                _eventGroupSize = cmdListCount * synEventCountPerSubgraph;
+                _dynamicEventCount = isDynamicBatchExecution;
             }
         }
         return eventCount;
@@ -409,7 +416,7 @@ ze_event_handle_t ExecutionContext::EventPool::getSignalEvent() {
         // increase the event pool size if the current event index exceeds the current max event count
         if (_curEventIndex >= _events.size() && _events.size() < MAX_EVENT_POOL_SIZE) {
             uint32_t startIndex = static_cast<uint32_t>(_events.size());
-            _events.resize(std::min(static_cast<uint32_t>(_events.size()) + EVENT_GROUP_SIZE, MAX_EVENT_POOL_SIZE));
+            _events.resize(std::min(static_cast<uint32_t>(_events.size()) + _eventGroupSize, MAX_EVENT_POOL_SIZE));
             if (_eventType == EventType::COUNTER_BASED) {
                 ze_event_pool_counter_based_exp_flags_t flag =
                         _executionMode == ExecutionMode::TILE_AGNOSTIC_IMMEDIATE_CMD_LIST
@@ -530,11 +537,13 @@ result_t ExecutionContext::CmdListPool::createCmdList(ze_context_handle_t contex
 
 result_t ExecutionContext::CmdListPool::initialize(ze_context_handle_t context, ze_device_handle_t device,
                                                    uint32_t cmdListCount, uint32_t groupOrdinal,
-                                                   bool dynamicCmdListCount, ov::ZeroApi* ddiTable) {
+                                                   uint32_t concurrentJobCount,
+                                                   bool dynamicCmdListCount, ExecutionMode executionMode,
+                                                   ov::ZeroApi* ddiTable) {
     if (ddiTable == nullptr) {
         return failure(ZE_RESULT_ERROR_UNINITIALIZED, "Level Zero DDI table is not initialized");
     }
-    
+    _executionMode = executionMode;
     _ddiTable = ddiTable;
     auto pfnCommandListDestroy = ddiTable->zeCommandListDestroy;
     for (uint32_t i = 0; i < _cmdLists.size(); ++i) {
@@ -553,7 +562,8 @@ result_t ExecutionContext::CmdListPool::initialize(ze_context_handle_t context, 
     _context = context;
     _device = device;
     _dynamicCmdListCount = dynamicCmdListCount;
-    if (dynamicCmdListCount) {
+    if (dynamicCmdListCount && (_executionMode == ExecutionMode::TILE_AGNOSTIC_CMDLIST_POOL ||
+        _executionMode == ExecutionMode::TILE_AGNOSTIC_IMMEDIATE_CMD_LIST)) {
         if (cmdListCount > MAX_CMDLIST_POOL_SIZE) {
             return failure(ZE_RESULT_ERROR_INVALID_SIZE,
                            "Requested command list count {} exceeds maximum command list pool size {}", cmdListCount,
@@ -561,8 +571,17 @@ result_t ExecutionContext::CmdListPool::initialize(ze_context_handle_t context, 
         }
         _cmdLists.reserve(MAX_CMDLIST_POOL_SIZE);
         _cmdLists.resize(CMDLIST_GROUP_SIZE);
+        _cmdListGroupSize = CMDLIST_GROUP_SIZE;
     } else {
         _cmdLists.resize(cmdListCount, nullptr);
+        if (dynamicCmdListCount) {
+            _cmdListGroupSize = cmdListCount;
+        }
+        else {
+            _cmdListGroupSize = 1;
+        }
+        
+        _inferenceCmdIds.assign(_cmdLists.size(), DEFAULT_INFERENCE_ID);
     }
 
     for (uint32_t i = 0; i < _cmdLists.size(); ++i) {
@@ -587,6 +606,7 @@ bool ExecutionContext::CmdListPool::destroy() {
             }
         }
     }
+    
     _cmdLists.clear();
 
     return success;
@@ -672,9 +692,6 @@ bool ExecutionContext::destroySyncObjects() {
     return success;
 }
 
-ExecutionContext::ExecutionContext() {
-}
-
 ExecutionContext::~ExecutionContext() {
     (void)destroySyncObjects();
     if (!_cmdListPool.destroy()) {
@@ -687,7 +704,8 @@ ExecutionContext::~ExecutionContext() {
 }
 
 bool ExecutionContext::initialize(ExecutionContextType type, uint32_t cmdListCount, uint32_t /*numNetworkArgs*/,
-                                  uint32_t concurrentJobCount, bool isCounterBasedEventSupported) {
+                                  uint32_t concurrentJobCount, bool isCounterBasedEventSupported,
+                                  bool isDynamicBatchExecution) {
     _executionObjectsInitialized = false;
 
     // release resources
@@ -706,7 +724,7 @@ bool ExecutionContext::initialize(ExecutionContextType type, uint32_t cmdListCou
     _executionMode =
             (_concurrentJobCount > 1) ? ExecutionMode::TILE_AGNOSTIC_ROUND_ROBIN_CMDLIST : ExecutionMode::TILE_BOUND;
     _isCounterBasedEventSupported = isCounterBasedEventSupported;
-
+    _isDynamicBatchExecution = isDynamicBatchExecution;
     return true;
 }
 
@@ -811,15 +829,17 @@ result_t ExecutionContext::initializeExecutionObjects(ze_context_handle_t contex
         if (_executionMode == ExecutionMode::TILE_BOUND ||
             _executionMode == ExecutionMode::TILE_AGNOSTIC_ROUND_ROBIN_CMDLIST) {
             auto totalCmdLists = _cmdListCount * _concurrentJobCount;
-            const bool dynamicCmdListCount = false;
-            result = _cmdListPool.initialize(context, device, totalCmdLists, 0, dynamicCmdListCount, _levelZeroDdiTable);
+            const bool dynamicCmdListCount = _isDynamicBatchExecution? true : false;
+            result = _cmdListPool.initialize(context, device, totalCmdLists, 0, _concurrentJobCount,
+                                             dynamicCmdListCount, _executionMode, _levelZeroDdiTable);
             if (result != ZE_RESULT_SUCCESS) {
                 return failure(result, "Failed to initialize command list pool");
             }
-            _inferenceCmdIds.assign(totalCmdLists, DEFAULT_INFERENCE_ID);
+            _cmdListPool.getInferenceCmdIds().assign(totalCmdLists, DEFAULT_INFERENCE_ID);
         } else if (_executionMode == ExecutionMode::TILE_AGNOSTIC_CMDLIST_POOL) {
             const bool dynamicCmdListCount = true;
-            result = _cmdListPool.initialize(context, device, MAX_CMDLIST_POOL_SIZE, 0, dynamicCmdListCount, _levelZeroDdiTable);
+            result = _cmdListPool.initialize(context, device, MAX_CMDLIST_POOL_SIZE, 0,
+                                             _concurrentJobCount, dynamicCmdListCount, _executionMode, _levelZeroDdiTable);
             if (result != ZE_RESULT_SUCCESS) {
                 return failure(result, "Failed to initialize command list pool");
             }
@@ -846,7 +866,6 @@ result_t ExecutionContext::initializeExecutionObjects(ze_context_handle_t contex
     } else {
         // internal command lists for V1 execution context is not required, so destroy the command list pool
         _cmdListPool.destroy();
-        _inferenceCmdIds.assign(_cmdListCount, DEFAULT_INFERENCE_ID);
     }
     _executionObjectsInitialized = true;
 
@@ -855,7 +874,7 @@ result_t ExecutionContext::initializeExecutionObjects(ze_context_handle_t contex
 
 result_t ExecutionContext::createEventPool(ze_device_handle_t deviceHandle, ze_context_handle_t context) {
     return _eventPool.initialize(deviceHandle, context, _cmdListCount, _executionMode, _isCounterBasedEventSupported,
-                                 _internalHostSyncObjectType == HostSyncOjbectType::EVENT, _concurrentJobCount, _levelZeroDdiTable);
+                                 _internalHostSyncObjectType == HostSyncOjbectType::EVENT, this->_isDynamicBatchExecution, _concurrentJobCount, _levelZeroDdiTable);
 }
 
 result_t ExecutionContext::prepareSubmission(ze_command_list_handle_t commandListHandle, bool needHostSync,
@@ -1190,7 +1209,8 @@ result_t executeGraph(ExecutionContext& executionContext, ze_command_list_handle
             return failure(result, "Failed to append graph execute in command list: {}, kern: {}, numWaits: {}",
                            commandListHandle, graphHandle, waitEvents.size());
         }
-        if (executionContext.getConcurrentJobCount() == 1 && waitEvents.size() == 1) {
+        if (executionContext.getConcurrentJobCount() == 1 && waitEvents.size() == 1 &&
+            executionContext.getEventPool().getEventType() == ExecutionContext::EventPool::EventType::DEFAULT) {
             result = pfnCommandListAppendEventReset(commandListHandle, waitEvents[0]);
             if (result != ZE_RESULT_SUCCESS) {
                 return failure(result, "Failed to append an event reset in command list: {}", commandListHandle);

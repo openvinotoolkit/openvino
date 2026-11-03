@@ -106,6 +106,9 @@ typedef struct _npu_vm_module_load_params {
 
     // If true, the runtime will use counter-based events for synchronization between subgraphs.
     bool counterBasedEventSupported;
+
+    // if true, execution context will create command list pool to support dynamic batch
+    bool dynamicBatchRequired;
 } npu_vm_module_load_params;
 
 typedef struct _npu_vm_module npu_vm_module;
