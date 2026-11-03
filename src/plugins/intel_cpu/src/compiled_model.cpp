@@ -454,8 +454,7 @@ void CompiledModel::release_memory() {
         OPENVINO_ASSERT(lock.owns_lock(),
                         "Attempt to call release_memory() on a compiled model in a busy state. Please ensure that all "
                         "infer requests are completed before releasing memory.");
-        auto ctx = graph.getGraphContext();
-        ctx->releaseMemory();
+        graph.releaseMemory();
     }
 }
 

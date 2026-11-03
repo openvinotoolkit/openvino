@@ -189,6 +189,16 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
 void StridedSlice::getSupportedDescriptors() {}
 
+void StridedSlice::releaseMemory() {
+    Node::releaseMemory();
+    if (execPtr) {
+        auto* commonExecutor = dynamic_cast<StridedSliceCommonExecutor*>(execPtr.get());
+        if (commonExecutor) {
+            commonExecutor->releaseMemory();
+        }
+    }
+}
+
 static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs,
                           const size_t inputRank,
                           const size_t outputRank,
@@ -529,6 +539,13 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
     if (!srcBlockedMemoryDesc->hasLayoutType(LayoutType::ncsp)) {
         orderParametersByLayouts(srcBlockedMemoryDesc);
     }
+}
+
+void StridedSlice::StridedSliceCommonExecutor::releaseMemory() {
+    srcIndices.clear();
+    srcIndices.shrink_to_fit();
+    dstIndices.clear();
+    dstIndices.shrink_to_fit();
 }
 
 void StridedSlice::StridedSliceCommonExecutor::dimsNormalization() {

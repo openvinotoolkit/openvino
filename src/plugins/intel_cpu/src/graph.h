@@ -99,6 +99,7 @@ public:
     VecMemoryDescs getOutputMemoryDescriptors() const;
 
     void Infer(SyncInferRequest* request = nullptr);
+    void releaseMemory();
 
     const std::vector<NodePtr>& GetNodes() const {
         return graphNodes;

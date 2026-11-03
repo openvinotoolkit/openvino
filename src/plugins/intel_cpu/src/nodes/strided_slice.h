@@ -28,6 +28,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
+    void releaseMemory() override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -92,6 +93,7 @@ private:
         void exec(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory) override;
         void execSliceScatter(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
         void execStridedSlice(const std::vector<MemoryCPtr>& srcMemory, const std::vector<MemoryCPtr>& dstMemory);
+        void releaseMemory();
 
     private:
         struct StridedSliceParams {

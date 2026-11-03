@@ -99,6 +99,9 @@ public:
 
     void releaseMemory() const {
         m_auxiliaryNetworkMemoryControl->releaseMemory();
+        for (const auto& scratchPad : m_rtScratchPads) {
+            scratchPad->releaseMemory();
+        }
     }
 
     void allocateMemory() const {

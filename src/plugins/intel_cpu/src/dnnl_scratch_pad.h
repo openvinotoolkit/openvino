@@ -31,6 +31,12 @@ public:
         return std::make_shared<Memory>(eng, md, blockPtr);
     }
 
+    void releaseMemory() {
+        if (baseBlockPtr != nullptr) {
+            baseBlockPtr->free();
+        }
+    }
+
     [[nodiscard]] size_t size() const {
         if (baseBlockPtr) {
             return baseBlockPtr->size();

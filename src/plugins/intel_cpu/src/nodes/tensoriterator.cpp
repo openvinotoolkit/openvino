@@ -305,6 +305,15 @@ void DynamicBuffer::reset(int max_iter_count_) {
     max_iter_count = max_iter_count_;
 }
 
+void DynamicBuffer::releaseMemory() {
+    mem_holder_buffer.reset();
+    chunk_stride_in_byte = 0;
+    chunk_offset_in_byte = 0;
+    chunk_unit_in_byte = 0;
+    num_execs = 0;
+    max_iter_count = -1;
+}
+
 void DynamicBuffer::init(const dnnl::engine& eng) {
     const auto stride = map_rule.stride;
     const auto abs_stride = std::abs(stride);
@@ -681,6 +690,15 @@ void TensorIterator::prepareParamsImpl(const bool compileStage) {
         // reset local states of DynamicBuffer
         for (auto& buffer : buffers) {
             buffer->reset(lastUsedTripCount);
+        }
+    }
+}
+
+void TensorIterator::releaseMemory() {
+    Node::releaseMemory();
+    for (auto& buffer : buffers) {
+        if (buffer) {
+            buffer->releaseMemory();
         }
     }
 }

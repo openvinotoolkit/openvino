@@ -823,6 +823,9 @@ protected:
     }
 
     virtual bool needPrepareParams() const;
+    virtual void releaseMemory() {
+        scratchpadMem.reset();
+    }
     // TODO [mandrono]: add description
     // called after memory allocation/reallocation
     virtual void prepareParams() {
