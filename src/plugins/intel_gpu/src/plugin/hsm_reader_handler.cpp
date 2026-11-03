@@ -199,7 +199,8 @@ std::string decrypt_payload(const wire::Section& section, const Crypt& decrypt) 
 }  // namespace
 
 struct ReaderHandler::Impl {
-    Impl(std::istream& model, cldnn::engine& engine, const size_t* backing, Crypt decrypt) : source(model.rdbuf()), legacy_stream(&model) {
+    Impl(std::istream& model, cldnn::engine& engine, const size_t* backing, size_t backing_size, Crypt decrypt)
+        : source(model.rdbuf()), legacy_stream(&model) {
         OPENVINO_ASSERT(source, "[GPU] Invalid compiled-model input stream");
         const auto start = source->pubseekoff(0, std::ios::cur, std::ios::in);
         const auto probe_size = source->sgetn(magic.data(), magic.size());
@@ -227,6 +228,12 @@ struct ReaderHandler::Impl {
                 header.container_size <= static_cast<uint64_t>(std::numeric_limits<std::streamoff>::max()) &&
                 static_cast<std::streamoff>(start) <= std::numeric_limits<std::streamoff>::max() - static_cast<std::streamoff>(header.container_size),
             "[GPU] Invalid or unsupported HSM container header");
+        if (backing) {
+            const auto offset = static_cast<uint64_t>(static_cast<std::streamoff>(start));
+            // A delegated file stream can extend past the actual tensor mapping.
+            OPENVINO_ASSERT(offset <= backing_size && header.container_size <= backing_size - offset,
+                            "[GPU] HSM container exceeds backing tensor size");
+        }
         container_end = start + static_cast<std::streamoff>(header.container_size);
         const auto source_end = source->pubseekoff(0, std::ios::end, std::ios::in);
         OPENVINO_ASSERT(source_end >= container_end && source->pubseekpos(start, std::ios::in) == start,
@@ -282,8 +289,8 @@ struct ReaderHandler::Impl {
     std::unique_ptr<cldnn::BinaryInputBuffer> input;
 };
 
-ReaderHandler::ReaderHandler(std::istream& source, cldnn::engine& engine, const size_t* tensor_base, Crypt decrypt)
-    : m_impl(std::make_unique<Impl>(source, engine, tensor_base, std::move(decrypt))) {}
+ReaderHandler::ReaderHandler(std::istream& source, cldnn::engine& engine, const size_t* tensor_base, size_t tensor_size, Crypt decrypt)
+    : m_impl(std::make_unique<Impl>(source, engine, tensor_base, tensor_size, std::move(decrypt))) {}
 
 ReaderHandler::~ReaderHandler() = default;
 
