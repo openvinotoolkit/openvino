@@ -249,8 +249,8 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
             brow[j] = w_down + (size_t)row * GR_WD_RB;
 #endif
         }
-#if GR_W_TYPE == GR_WT_U8
-        // per-channel: one scale / zp per output channel for the whole K
+#if GR_W_TYPE != GR_WT_F16 && GR_WD_PERCH
+        // one group: one scale / zp per output channel for the whole K
         half2 scv[GR_RD_NT];
         half2 zpv[GR_RD_NT];
         unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) {
@@ -291,12 +291,12 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
                     GR_RD2D(GR_RD_TM, residual, GR_CD * 2, num_rows, GR_CD * 2, k + 32 * s_, t0, at0);
                     GR_P2_GAIN(ge0, gs0, k + 32 * s_);
                     unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) {
-#if GR_W_TYPE == GR_WT_U4
-                        const half2 scv = GR_WQ_SCALE2(scale_down, (k >> 5) + s_, GR_LOWRANK, n0 + 16 * j_);
-                        const half2 zpv = GR_WQ_ZP2(zp_down, (k >> 5) + s_, GR_LOWRANK, n0 + 16 * j_, lane);
-                        b0[j_] = GR_WQ_DEQ32(rw[j_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
-#else
+#if GR_WD_PERCH
                         b0[j_] = GR_WQ_DEQ32(rw[j_], s_ * GR_WQ_RAW_PER_K32, zpv[j_], scv[j_]);
+#else
+                        const half2 scv = GR_WQ_SCALE2(scale_down, GR_WQ_G((k >> 5) + s_, GR_WD_GS32), GR_LOWRANK, n0 + 16 * j_);
+                        const half2 zpv = GR_WQ_ZP2(zp_down, GR_WQ_G((k >> 5) + s_, GR_WD_GS32), GR_LOWRANK, n0 + 16 * j_, lane);
+                        b0[j_] = GR_WQ_DEQ32(rw[j_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
 #endif
                     }
                     GR_P2_MMA(at0, ge0, gs0, b0);
@@ -398,7 +398,7 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
             for (uint g = 0; g < GR_P3_GB; g++) {
                 wrow[g] = w_up + (size_t)((cg + g) * GR_HIDDEN + d0 + lane) * GR_WU_RB;
             }
-#if GR_W_TYPE == GR_WT_U8
+#if GR_WU_PERCH
             half2 scv[GR_P3_GB];
             half2 zpv[GR_P3_GB];
             unroll_for (uint g_ = 0; g_ < GR_P3_GB; g_++) {
@@ -414,12 +414,12 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
                 unroll_for (uint s_ = 0; s_ < GR_WU_KCH / 32; s_++) {
                     uint16 b[GR_P3_GB];
                     unroll_for (uint g_ = 0; g_ < GR_P3_GB; g_++) {
-#if GR_W_TYPE == GR_WT_U4
-                        const half2 scv = GR_WQ_SCALE2(scale_up, (kb >> 1) + s_, GR_CD, (cg + g_) * GR_HIDDEN + d0);
-                        const half2 zpv = GR_WQ_ZP2(zp_up, (kb >> 1) + s_, GR_CD, (cg + g_) * GR_HIDDEN + d0, lane);
-                        b[g_] = GR_WQ_DEQ32(rw[g_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
-#else
+#if GR_WU_PERCH
                         b[g_] = GR_WQ_DEQ32(rw[g_], s_ * GR_WQ_RAW_PER_K32, zpv[g_], scv[g_]);
+#else
+                        const half2 scv = GR_WQ_SCALE2(scale_up, GR_WQ_G((kb >> 1) + s_, GR_WU_GS32), GR_CD, (cg + g_) * GR_HIDDEN + d0);
+                        const half2 zpv = GR_WQ_ZP2(zp_up, GR_WQ_G((kb >> 1) + s_, GR_WU_GS32), GR_CD, (cg + g_) * GR_HIDDEN + d0, lane);
+                        b[g_] = GR_WQ_DEQ32(rw[g_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
 #endif
                     }
 #pragma unroll

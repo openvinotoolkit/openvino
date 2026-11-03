@@ -105,7 +105,7 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
     return as_float8(BLOCK_READN_SLM(uint, 8, (const __local uint*)p, 0));
 }
 
-// Compressed-weight (i4/u4 group 32, i8/u8 per-channel, optional zero point) helpers of the GatedResidual dpas kernels.
+// Compressed-weight (i4/u4 and i8/u8, group size a multiple of 32, optional zero point) helpers of the GatedResidual dpas kernels.
 //
 // A dpas B operand is b[j] = pack(B[2j][n = lane], B[2j+1][n = lane]): the two k values of one lane share a dword. W is
 // [N, K] with K contiguous, so a lane that owns row n reads its raw bytes and unpacks them in registers:
@@ -116,6 +116,7 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 // 0x6400 | v (v < 1024) is the half 1024 + v, so a pair becomes two halves with one mask/or; (pair - (1024 + zp)) * scale then
 // equals half(half(q - zp) * scale) of the decompression graph bit for bit (q - zp is exact in half, one RNE multiply).
 // scale / zp are [G, N] with N contiguous: one sub-group block read gives every lane the scale of its own output channel.
+// A group spans GS32 K32 slices (group size 32 * GS32; the GR_W*_GS32 JIT constants); GR_W*_PERCH marks a single group.
 //
 // JIT of the including kernel: GR_W_TYPE (0 f16, 1 4-bit, 2 8-bit), GR_W_SIGNED (default 0), GR_HAS_ZP (default 1; kernels still
 // take the zp argument, the host binds any buffer when there is no zp tensor and it is never read).
@@ -162,11 +163,24 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
     #else
         #define GR_WQ_ZPAT(zp, i) GR_WQ_FLIP((uint)((zp)[i]))
     #endif
-    // the same for an already loaded byte of a 4-bit table, `sh` selecting the nibble
-    #define GR_WQ_ZPNIB(b, sh) GR_WQ_FLIP((uint)(((b) >> (sh)) & 0xF))
+    // the same for an already loaded zp byte, `sh` selecting the nibble of a 4-bit table
+    #if GR_W_TYPE == GR_WT_U4
+        #define GR_WQ_ZPLD(b, sh) GR_WQ_FLIP((uint)(((b) >> (sh)) & 0xF))
+    #else
+        #define GR_WQ_ZPLD(b, sh) GR_WQ_FLIP((uint)(b))
+    #endif
 #else
     #define GR_WQ_ZPAT(zp, i) GR_WQ_FLIP(0u)
-    #define GR_WQ_ZPNIB(b, sh) GR_WQ_FLIP(0u)
+    #define GR_WQ_ZPLD(b, sh) GR_WQ_FLIP(0u)
+#endif
+
+// Group of K32 slice s when a group spans gs32 slices (group size = 32 * gs32)
+#define GR_WQ_G(s, gs32) ((s) / (gs32))
+// Offset the group-fold B operand carries: half(1024 + q) for 4-bit, half(q) for 8-bit
+#if GR_W_TYPE == GR_WT_U4
+    #define GR_WQ_BIAS 1024.0f
+#else
+    #define GR_WQ_BIAS 0.0f
 #endif
 
 #define GR_WQ_MAGIC 0x64006400u
@@ -216,22 +230,32 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 #define GR_WQ_ONES ((int8)(0x3C003C00))
 #define GR_WQ_U8H16(q, o) as_uint8(convert_half16(as_uchar16((uint4)((q)[(o)], (q)[(o) + 1], (q)[(o) + 2], (q)[(o) + 3]))))
 #define GR_WQ_U8B32(q, o) ((uint16)(GR_WQ_U8H16(q, o), GR_WQ_U8H16(q, (o) + 4)))
+// B operand of the group-fold loops: half(bias + q) of one K32 slice, no arithmetic (GR_WQ_BIAS)
+#if GR_W_TYPE == GR_WT_U4
+    #define GR_WQ_GB32(q, o) GR_WQ_U4M32(q, o)
+#else
+    #define GR_WQ_GB32(q, o) GR_WQ_U8B32(q, o)
+#endif
 #define GR_WQ_SCALEF(scale, nb) convert_float(as_half(intel_sub_group_block_read_us((scale) + (nb))))
 #define GR_WQ_ZPF(zp, nb, lane) convert_float(GR_WQ_ZPAT(zp, (nb) + (lane)))
 
 #endif  // GR_W_TYPE != GR_WT_F16
 
-// u8 is per-channel, so its zero point and scale are folded out of the K loop: the dpas runs on half(q), also accumulates
-// the token row sums against a ones operand, and the epilogue applies acc = scale * (acc - zp * rowsum).
-#define GR_WQ_FOLD (GR_W_TYPE == GR_WT_U8)
+// Per-channel 8-bit weights (the kernel's JIT sets GR_WQ_FOLD) have their zero point and scale folded out of the K loop: the dpas
+// runs on half(q), also accumulates the token row sums against a ones operand, and the epilogue applies
+// acc = scale * (acc - zp * rowsum). Every other layout applies them per group (see the group-fold loops).
+#ifndef GR_WQ_FOLD
+#define GR_WQ_FOLD 0
+#endif
 
 #if GR_DEQUANT_WEIGHTS
-// Dequantizes one compressed GatedResidual weight matrix [N, K] (u4 group 32 / u8 per-channel, scale / zp [G, N]) into a
+// Dequantizes one compressed GatedResidual weight matrix [N, K] (4-bit / 8-bit, scale / zp [G, N]) into a
 // row-major f16 scratch matrix with the arithmetic of the decompression graph, see the helpers above. The f16 GEMM kernels then
 // run on the scratch (used above OV_GPU_GR_PD_MIN_ROWS rows).
 //
 // One subgroup owns 16 rows x GR_DQ_KCH columns; lane l owns row 16 * tile + l.
-// JIT: GR_DEQUANT_WEIGHTS, GR_W_TYPE, GR_DQ_N, GR_DQ_K, GR_DQ_KCH, GR_DQ_NRAW (dwords per raw load), GR_DQ_RB (row bytes).
+// JIT: GR_DEQUANT_WEIGHTS, GR_W_TYPE, GR_DQ_N, GR_DQ_K, GR_DQ_KCH, GR_DQ_NRAW (dwords per raw load), GR_DQ_RB (row bytes), GR_DQ_GS32
+// (group size / 32), GR_DQ_PERCH (one group).
 // Dispatch: gws = [N / 16 * 16, K / GR_DQ_KCH, 1], lws = [16, 1, 1].
 
 #if GR_W_TYPE == GR_WT_F16
@@ -247,14 +271,14 @@ KERNEL(gr_dequant_weights)(const __global uchar* w, const __global ushort* scale
 
     uint rw[GR_DQ_NRAW];
     GR_WQ_LOAD_RAW(rw, GR_DQ_NRAW, brow, k);
-#if GR_W_TYPE == GR_WT_U8
+#if GR_DQ_PERCH
     const half2 scv = GR_WQ_SCALE2(scale, 0, GR_DQ_N, n0);
     const half2 zpv = GR_WQ_ZP2(zp, 0, GR_DQ_N, n0, lane);
 #endif
     unroll_for (uint s_ = 0; s_ < GR_DQ_KCH / 32; s_++) {
-#if GR_W_TYPE == GR_WT_U4
-        const half2 scv = GR_WQ_SCALE2(scale, (k >> 5) + s_, GR_DQ_N, n0);
-        const half2 zpv = GR_WQ_ZP2(zp, (k >> 5) + s_, GR_DQ_N, n0, lane);
+#if !GR_DQ_PERCH
+        const half2 scv = GR_WQ_SCALE2(scale, GR_WQ_G((k >> 5) + s_, GR_DQ_GS32), GR_DQ_N, n0);
+        const half2 zpv = GR_WQ_ZP2(zp, GR_WQ_G((k >> 5) + s_, GR_DQ_GS32), GR_DQ_N, n0, lane);
 #endif
         const uint16 b = GR_WQ_DEQ32(rw, s_ * GR_WQ_RAW_PER_K32, zpv, scv);
         // the B operand dwords are (k, k + 1) pairs in k order, i.e. already the row-major f16 layout
@@ -264,7 +288,7 @@ KERNEL(gr_dequant_weights)(const __global uchar* w, const __global ushort* scale
 #endif  // GR_DEQUANT_WEIGHTS
 
 #if GR_DEQUANT_INJECT
-// Dequantizes the compressed write-gate weight W_inject [N = C, K = C*D] (u4 group 32 / u8 per-channel, scale / zp [G, N]) into a
+// Dequantizes the compressed write-gate weight W_inject [N = C, K = C*D] (4-bit / 8-bit, scale / zp [G, N]) into a
 // row-major f16 scratch matrix with the arithmetic of the decompression graph: half(half(q - zp) * scale). W_inject has only C rows,
 // so there is no 16-row tile to share a scale block read; one work-item converts one element.
 // JIT: GR_DEQUANT_INJECT, GR_W_TYPE, GR_DQ_N (C), GR_DQ_K (C*D), GR_DQ_GS (group size along K). Dispatch: gws = [N * K], lws = [16].

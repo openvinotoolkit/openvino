@@ -442,15 +442,24 @@ struct quant_matrix {
     }
 };
 
-quant_matrix make_quant_matrix(std::mt19937& gen, size_t N, size_t K, bool u4, bool is_signed = false, bool has_zp = true) {
+/// group == 0: the default of the bit width (32 for 4-bit, per-channel for 8-bit); kPerChannel: group size == K; otherwise the
+/// requested group size when it divides K, else the default (W_up has a different K than W_down / W_inject).
+constexpr size_t kPerChannel = static_cast<size_t>(-1);
+
+quant_matrix make_quant_matrix(std::mt19937& gen, size_t N, size_t K, bool u4, bool is_signed = false, bool has_zp = true, size_t group = 0) {
     quant_matrix m;
     m.N = N;
     m.K = K;
     m.u4 = u4;
     m.is_signed = is_signed;
     m.has_zp = has_zp;
-    m.G = u4 ? K / 32 : 1;
-    const size_t gs = K / m.G;
+    size_t gs = u4 ? 32 : K;
+    if (group == kPerChannel) {
+        gs = K;
+    } else if (group != 0 && K % group == 0) {
+        gs = group;
+    }
+    m.G = K / gs;
     m.q.resize(N * K);
     m.zp.resize(has_zp ? m.G * N : 0);
     m.scale.resize(m.G * N);
@@ -565,6 +574,7 @@ struct gr_quant_case {
     bool write_gate = false;
     bool is_signed = false;
     bool has_zp = true;
+    size_t group = 0;  // see make_quant_matrix
 };
 
 size_t scratch_limit_bytes() {
@@ -606,13 +616,13 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
 
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
-    std::mt19937 gen(1234 + static_cast<uint32_t>(tc.rows * 7 + tc.D + tc.L + (tc.u4 ? 1 : 0) + (tc.is_signed ? 2 : 0) + (tc.has_zp ? 0 : 4)));
+    std::mt19937 gen(1234 + static_cast<uint32_t>(tc.rows * 7 + tc.D + tc.L + (tc.u4 ? 1 : 0) + (tc.is_signed ? 2 : 0) + (tc.has_zp ? 0 : 4) + tc.group));
     const auto residual = random_vec(rg, p.rows * CD, 1.0f);
     const auto gain = random_vec(rg, CD, 0.5f);
-    const auto wd = make_quant_matrix(gen, p.L, CD, tc.u4, tc.is_signed, tc.has_zp);
-    const auto wu = make_quant_matrix(gen, CD, p.L, tc.u4, tc.is_signed, tc.has_zp);
+    const auto wd = make_quant_matrix(gen, p.L, CD, tc.u4, tc.is_signed, tc.has_zp, tc.group);
+    const auto wu = make_quant_matrix(gen, CD, p.L, tc.u4, tc.is_signed, tc.has_zp, tc.group);
     // W_inject: C rows only, compressed like W_down / W_up
-    const auto wi = make_quant_matrix(gen, p.C, CD, tc.u4, tc.is_signed, tc.has_zp);
+    const auto wi = make_quant_matrix(gen, p.C, CD, tc.u4, tc.is_signed, tc.has_zp, tc.group);
 
     auto& engine = get_test_engine();
     const auto mode = tc.final_mix ? gated_residual::Mode::FINAL_MIX : gated_residual::Mode::READ;
@@ -684,9 +694,9 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
         max_diff = std::max(max_diff, std::abs(static_cast<float>(q_run.mixed[i]) - static_cast<float>(f16_run.mixed[i])));
     }
     std::cout << "GR_QUANT_ACC rows=" << p.rows << " D=" << p.D << " L=" << p.L << " " << (tc.is_signed ? "i" : "u") << (tc.u4 ? "4" : "8")
-              << (tc.has_zp ? "" : " nozp") << (tc.write_gate ? " gate" : "") << " differing_elems=" << bit_diffs << "/" << ref_mixed.size()
-              << " max_abs_diff_vs_f16=" << max_diff << " err_vs_fp32_ref: f16=" << max_abs_diff(f16_run.mixed, ref_mixed)
-              << " q=" << max_abs_diff(q_run.mixed, ref_mixed);
+              << " g_down=" << CD / wd.G << " g_up=" << p.L / wu.G << (tc.has_zp ? "" : " nozp") << (tc.write_gate ? " gate" : "")
+              << " differing_elems=" << bit_diffs << "/" << ref_mixed.size() << " max_abs_diff_vs_f16=" << max_diff
+              << " err_vs_fp32_ref: f16=" << max_abs_diff(f16_run.mixed, ref_mixed) << " q=" << max_abs_diff(q_run.mixed, ref_mixed);
     if (tc.write_gate) {
         std::cout << " gate_f16=" << max_abs_diff(f16_run.gate, ref_gate) << " gate_q=" << max_abs_diff(q_run.gate, ref_gate);
     }
@@ -800,6 +810,46 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_quant_case{1000, 64, 32, true, false, true, true, false},
                                            gr_quant_case{1000, 64, 32, false, false, false, false, false},
                                            gr_quant_case{2000, 2560, 320, false, false, true, true, false}));
+
+/// 32 / 64 / 128 and per-channel group sizes of both bit widths on every kernel path; W_up keeps the default group size when it does
+/// not divide its K (= L).
+std::vector<gr_quant_case> group_size_cases() {
+    struct shape {
+        size_t rows;
+        size_t D;
+        size_t L;
+        bool write_gate;
+    };
+    // gemv, decode, mid (shared dequantization), predequantized, production widths
+    const std::vector<shape> shapes = {{1, 64, 32, false},
+                                       {7, 128, 32, true},
+                                       {17, 640, 320, false},
+                                       {33, 128, 64, true},
+                                       {257, 640, 320, true},
+                                       {1000, 64, 32, false},
+                                       {1, 2560, 320, true},
+                                       {8, 2560, 320, false},
+                                       {2000, 2560, 320, true}};
+    std::vector<gr_quant_case> cases;
+    for (const size_t group : {size_t{32}, size_t{64}, size_t{128}, kPerChannel}) {
+        for (const bool u4 : {true, false}) {
+            for (const auto& s : shapes) {
+                cases.push_back({s.rows, s.D, s.L, u4, false, s.write_gate, false, true, group});
+            }
+        }
+    }
+    // signed weights and weights without zero points
+    for (const size_t group : {size_t{64}, size_t{128}}) {
+        for (const bool u4 : {true, false}) {
+            cases.push_back({17, 640, 320, u4, false, true, true, false, group});
+            cases.push_back({1, 2560, 320, u4, false, false, true, true, group});
+            cases.push_back({257, 640, 320, u4, false, true, false, false, group});
+        }
+    }
+    return cases;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_group_sizes, gated_residual_quant_test, ::testing::ValuesIn(group_size_cases()));
 
 TEST(gated_residual_gpu_test, write_combines_branches) {
     if (!gr_available()) {
@@ -1438,10 +1488,11 @@ void run_point(const char* phase, size_t tokens) {
 namespace quant_ab {
 
 struct ab_config {
-    const char* name;
-    int wtype;  // 0 f16, 1 u4, 2 u8
+    std::string name;
+    int wtype;  // 0 f16, 1 4-bit, 2 8-bit
     bool gate;  // READ with the write gate (W_inject in the weight format of the configuration)
     std::vector<std::unique_ptr<network>> layers;
+    size_t group = 0;  // group size along K of W_down / W_inject, see make_quant_matrix
 };
 
 /// Weights live in device memory like in a real model; the default lockable allocation is host / shared USM.
@@ -1561,10 +1612,7 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
         const auto gain = random_vec(rg, CD, 0.5f);
         const quant_matrix wd4 = make_quant_matrix(gen, L, CD, true);
         const quant_matrix wu4 = make_quant_matrix(gen, CD, L, true);
-        const quant_matrix wd8 = make_quant_matrix(gen, L, CD, false);
-        const quant_matrix wu8 = make_quant_matrix(gen, CD, L, false);
         const quant_matrix wi4 = make_quant_matrix(gen, kBranches, CD, true);
-        const quant_matrix wi8 = make_quant_matrix(gen, kBranches, CD, false);
 
         auto residual_mem =
             engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, data_types::f16, format::bfyx},
@@ -1587,11 +1635,30 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
             configs.push_back({"u4g", 1, true, {}});
             configs.push_back({"u8g", 2, true, {}});
         }
+        // GR_AB_GROUPS=32,64,128: 4-bit and 8-bit configurations with these group sizes (default: 32 / per-channel)
+        if (const char* groups_env = std::getenv("GR_AB_GROUPS")) {
+            for (std::stringstream ss(groups_env); ss.good();) {
+                std::string tok;
+                std::getline(ss, tok, ',');
+                if (tok.empty()) {
+                    continue;
+                }
+                const size_t group = std::stoull(tok);
+                for (const bool gate : {false, true}) {
+                    if (gate && std::getenv("GR_AB_GATE") == nullptr) {
+                        continue;
+                    }
+                    configs.push_back({std::string("u4") + (gate ? "g" : "") + "_G" + tok, 1, gate, {}, group});
+                    configs.push_back({std::string("u8") + (gate ? "g" : "") + "_G" + tok, 2, gate, {}, group});
+                }
+            }
+        }
         for (auto& cfg : configs) {
+            const bool u4 = cfg.wtype == 1;
+            const quant_matrix wd = cfg.wtype == 0 ? wd4 : make_quant_matrix(gen, L, CD, u4, false, true, cfg.group);
+            const quant_matrix wu = cfg.wtype == 0 ? wu4 : make_quant_matrix(gen, CD, L, u4, false, true, cfg.group);
+            const quant_matrix wi = cfg.wtype == 0 ? wi4 : make_quant_matrix(gen, kBranches, CD, u4, false, true, cfg.group);
             for (size_t layer = 0; layer < nl; layer++) {
-                const auto& wd = cfg.wtype == 1 ? wd4 : wd8;
-                const auto& wu = cfg.wtype == 1 ? wu4 : wu8;
-                const auto& wi = cfg.wtype == 1 ? wi4 : wi8;
                 std::vector<memory::ptr> w;
                 if (cfg.wtype == 0) {
                     w = {make_f16(engine, {static_cast<int64_t>(L), static_cast<int64_t>(CD)}, wd4.dequant),
