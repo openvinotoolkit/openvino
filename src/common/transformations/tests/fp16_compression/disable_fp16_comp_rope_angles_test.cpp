@@ -17,11 +17,14 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/sin.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
@@ -431,4 +434,43 @@ TEST(TransformationTests, DisableFP16CompForRopeAnglesWithConvertPrecision) {
         EXPECT_TRUE(ov::is_type<v1::Add>(rotated)) << rotated;
         EXPECT_EQ(rotated->get_output_element_type(0), ov::element::f16) << rotated;
     }
+}
+
+// Cos also feeds 1 / Maximum(1 - cos, eps), which ConvertPrecision keeps in f32: that consumer reads the f32 cos
+// directly (in f16, 1 - cos is 0 for the small angles), while the rotation still reads the cos/sin in f16.
+TEST(TransformationTests, DisableFP16CompForRopeAnglesWithConvertPrecision_PrecisionSensitiveConsumer) {
+    const auto r = make_angles(AngleForm::Multiply, true, ov::PartialShape{1, -1});
+    // the rotation, taken before the passes: ConvertPrecision puts a Convert between it and the f32 Result
+    const auto rotated = make_rotation(r, r.cos, r.sin)->get_results()[0]->get_input_node_shared_ptr(0);
+    auto one_minus_cos = std::make_shared<v1::Subtract>(v0::Constant::create(ov::element::f32, {}, {1.0f}), r.cos);
+    auto clamped = std::make_shared<v1::Maximum>(one_minus_cos, v0::Constant::create(ov::element::f32, {}, {1.0e-12f}));
+    auto inverse = std::make_shared<v1::Divide>(v0::Constant::create(ov::element::f32, {}, {1.0f}), clamped);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{rotated->output(0), inverse},
+                                             ov::ParameterVector{r.position_ids, r.q});
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::DisableFP16CompForRopeAngles>();
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::f32, ov::element::f16}},
+                                                      type_to_fuse_map{},
+                                                      true,
+                                                      false);
+    manager.run_passes(model);
+
+    // no f16 round trip between Cos and the eps-guarded division
+    EXPECT_EQ(one_minus_cos->input_value(1), r.cos->output(0));
+    for (const auto& node : ov::NodeVector{r.cos, one_minus_cos, clamped, inverse}) {
+        EXPECT_EQ(node->get_output_element_type(0), ov::element::f32) << node;
+    }
+    // the other consumers of Sin/Cos are the Converts to f16 in front of the rotation, which keeps f16
+    for (const auto& trig : ov::NodeVector{r.sin, r.cos}) {
+        for (const auto& input : trig->output(0).get_target_inputs()) {
+            const auto consumer = input.get_node();
+            if (consumer == one_minus_cos.get()) {
+                continue;
+            }
+            ASSERT_TRUE(ov::is_type<v0::Convert>(consumer)) << consumer;
+            EXPECT_EQ(consumer->get_output_element_type(0), ov::element::f16) << consumer;
+        }
+    }
+    EXPECT_TRUE(ov::is_type<v1::Add>(rotated)) << rotated;
+    EXPECT_EQ(rotated->get_output_element_type(0), ov::element::f16) << rotated;
 }

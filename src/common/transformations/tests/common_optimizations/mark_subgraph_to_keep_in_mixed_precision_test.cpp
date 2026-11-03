@@ -10,6 +10,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -28,6 +29,7 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
@@ -1642,4 +1644,53 @@ TEST(TransformationTests, ConvertPrecision_MaskedMeanPoolingKeptInFP32) {
     }
     // Divide, the f32 ReduceSum, Multiply, two Adds, two MatMuls and the count Convert
     EXPECT_EQ(checked, 8u);
+}
+
+namespace {
+
+// 1 / Maximum(1 - Convert(Cos(x), f32), eps): the marks of the eps-guarded division propagate up through the Convert
+// only if it does not change the type (e.g. a Cast to the same type, or the boundary of DisableFP16CompForRopeAngles)
+shared_ptr<Model> make_eps_division_after_convert(const element::Type& input_type, bool reference) {
+    auto input = make_shared<Parameter>(input_type, PartialShape{2, -1, 8});
+    auto cos = make_shared<Cos>(input);
+    auto convert = make_shared<Convert>(cos, element::f32);
+    auto one = Constant::create(element::f32, Shape{}, {1.0f});
+    auto one_minus = make_shared<Subtract>(one, convert);
+    auto eps = Constant::create(element::f32, Shape{}, {1.0e-12f});
+    auto clamped = make_shared<Maximum>(one_minus, eps);
+    auto numerator = Constant::create(element::f32, Shape{}, {1.0f});
+    auto division = make_shared<Divide>(numerator, clamped);
+    if (reference) {
+        for (const auto& node : NodeVector{one, one_minus, eps, clamped, numerator, division}) {
+            disable_conversion(node, element::f16);
+        }
+        if (input_type == element::f32) {
+            disable_conversion(convert, element::f16);
+            disable_conversion(cos, element::f16);
+        }
+    }
+    return make_shared<Model>(OutputVector{division}, ParameterVector{input});
+}
+
+}  // namespace
+
+// a Convert that keeps the type is a no-op: the marks propagate up through it to Cos
+TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_PropagateUpThroughNoOpConvert) {
+    auto model = make_eps_division_after_convert(element::f32, false);
+    pass::Manager manager;
+    manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+    manager.run_passes(model);
+    compare_marks(model, make_eps_division_after_convert(element::f32, true));
+}
+
+// a Convert to f32 of a non-constant f16 (or not yet inferred) input: the propagation stops at it, Cos is not marked
+TEST(TransformationTests, MarkSugraphsToKeepInMixedPrecision_PropagateUpStopsAtTypeChangingConvert) {
+    for (const auto& input_type : {element::f16, element::dynamic}) {
+        SCOPED_TRACE(input_type);
+        auto model = make_eps_division_after_convert(input_type, false);
+        pass::Manager manager;
+        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
+        manager.run_passes(model);
+        compare_marks(model, make_eps_division_after_convert(input_type, true));
+    }
 }

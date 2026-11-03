@@ -107,7 +107,7 @@ const std::shared_ptr<Node> propagate_through_ops =
                        v1::VariadicSplit,
                        v1::Split,
                        v0::Concat,
-                       v0::Convert,  // through Convert can go only to Constants
+                       v0::Convert,  // up through a Convert only to a Constant or when it keeps the type
                        v0::Constant,
                        v0::Tile>();
 
@@ -141,10 +141,11 @@ public:
 
             auto convert_node = as_type_ptr<v0::Convert>(node);
             if (convert_node) {
-                // if during propagating up there is a Convert it must go to Const,
-                // otherwise interrupt propagation
+                // if during propagating up there is a Convert it must go to Const or keep the type (a no-op, e.g.
+                // the boundary of DisableFP16CompForRopeAngles), otherwise interrupt propagation
                 auto const_node = as_type_ptr<v0::Constant>(node->input_value(0).get_node_shared_ptr());
-                if (!const_node)
+                const bool keeps_type = node->get_input_element_type(0) == convert_node->get_destination_type();
+                if (!const_node && !keeps_type)
                     return false;
             }
 

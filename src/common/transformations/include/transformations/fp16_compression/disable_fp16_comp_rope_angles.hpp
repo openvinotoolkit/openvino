@@ -34,9 +34,11 @@ namespace pass {
  *        +-> Cos -> Convert(f32) -> consumers
  *
  * The inserted Convert stops the downward propagation of the marks, so the rotation of q/k, the fused RoPE and SDPA
- * keep the inference precision. Inside ConvertPrecision, AlignMixedFP32FP16Types puts an f32 -> f16 Convert after
- * Sin/Cos, and the inserted Convert, then f16 -> f16, is removed. The upward propagation of the marks still reaches
- * a non-constant frequency input (e.g. LongRoPE scaling factors).
+ * keep the inference precision. As it does not change the type, the upward propagation of the marks goes through it:
+ * a consumer that ConvertPrecision keeps in f32 (e.g. 1 / Maximum(1 - cos, eps)) reads the f32 cos/sin. Inside
+ * ConvertPrecision, AlignMixedFP32FP16Types puts an f32 -> f16 Convert between Sin/Cos and the other consumers, and
+ * the inserted Convert, a no-op, is removed. The upward propagation of the marks still reaches a non-constant
+ * frequency input (e.g. LongRoPE scaling factors).
  *
  * Applied only when:
  *  - the position Convert converts to f32 the output of a non-Constant node of integer type;
@@ -47,8 +49,7 @@ namespace pass {
  *    consumers, for the nodes before the MatMul|Multiply); a chain that shares nodes with a rejected chain is rejected
  *    too;
  *  - the transformation callback does not reject the Sin/Cos.
- * No Convert is inserted in front of a Result, a Convert or a consumer already kept in f32. A consumer that
- * ConvertPrecision marks as precision sensitive later reads the f16 cos/sin.
+ * No Convert is inserted in front of a Result, a Convert or a consumer already kept in f32.
  */
 class TRANSFORMATIONS_API DisableFP16CompForRopeAngles : public ov::pass::ModelPass {
 public:
