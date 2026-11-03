@@ -38,6 +38,47 @@ std::shared_ptr<ov::Model> create_stateful_model() {
     return std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
 }
 
+// Completes the callback task in place, then holds the calling thread, so that the code which follows the completion
+// of a user request on the device thread can be paused.
+class HoldingCallbackExecutor : public ov::threading::ITaskExecutor {
+public:
+    void run(ov::threading::Task task) override {
+        task();
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_held = true;
+        m_cv.notify_all();
+        m_cv.wait(lock, [this] {
+            return m_released;
+        });
+    }
+
+    bool wait_until_held(std::chrono::milliseconds timeout) {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        return m_cv.wait_for(lock, timeout, [this] {
+            return m_held;
+        });
+    }
+
+    void release() {
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            m_released = true;
+        }
+        m_cv.notify_all();
+    }
+
+private:
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+    bool m_held = false;
+    bool m_released = false;
+};
+
+// set_callback_executor() is protected in ov::ICompiledModel; it is reached through a pointer to member.
+struct CallbackExecutorAccess : public ov::ICompiledModel {
+    using ov::ICompiledModel::set_callback_executor;
+};
+
 // Runs every task on its own thread, so a device completion callback is not issued from the dispatching thread.
 class ThreadPerTaskExecutor : public ov::threading::ITaskExecutor {
 public:
@@ -673,7 +714,7 @@ TEST_F(AutoDynamicDeviceSelectionTest, failure_to_start_a_request_does_not_block
     EXPECT_TRUE(next_request->wait_for(std::chrono::seconds(10)));
 }
 
-// The device completion callback keeps using the scheduler (it gives the execution slot back) after it has notified
+// The device completion callback keeps using the scheduler (it gives the execution slot back) after it has completed
 // the user request, so the scheduler must not be destroyed before that callback is out of it.
 TEST_F(AutoDynamicDeviceSelectionTest, destruction_waits_for_the_device_completion_callback) {
     config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
@@ -685,61 +726,35 @@ TEST_F(AutoDynamicDeviceSelectionTest, destruction_waits_for_the_device_completi
     });
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    // the user request is completed on the device thread, which is then held before it releases the execution slot
+    auto callback_executor = std::make_shared<HoldingCallbackExecutor>();
+    (compiled_model.get()->*(&CallbackExecutorAccess::set_callback_executor))(callback_executor);
     std::shared_ptr<ov::IAsyncInferRequest> request;
     OV_ASSERT_NO_THROW(request = compiled_model->create_infer_request());
-
-    struct SyncState {
-        std::mutex mtx;
-        std::condition_variable cv;
-        bool callback_entered = false;
-        bool release_callback = false;
-        bool teardown_started = false;
-    };
-    auto state = std::make_shared<SyncState>();
-    // runs on the device thread, in the middle of the device completion callback
-    request->set_callback([state](std::exception_ptr) {
-        std::unique_lock<std::mutex> lock(state->mtx);
-        state->callback_entered = true;
-        state->cv.notify_all();
-        state->cv.wait(lock, [&state] {
-            return state->release_callback;
-        });
-    });
     OV_ASSERT_NO_THROW(request->start_async());
-    {
-        std::unique_lock<std::mutex> lock(state->mtx);
-        ASSERT_TRUE(state->cv.wait_for(lock, std::chrono::seconds(10), [&state] {
-            return state->callback_entered;
-        }));
-    }
+    ASSERT_TRUE(callback_executor->wait_until_held(std::chrono::seconds(10)));
+    ASSERT_TRUE(request->wait_for(std::chrono::seconds(10)));
 
+    auto teardown_started = std::make_shared<std::promise<void>>();
     auto teardown_done = std::make_shared<std::promise<void>>();
-    auto teardown_finished = teardown_done->get_future();
-    std::thread teardown([state, teardown_done, request = std::move(request), compiled_model = std::move(compiled_model)]() mutable {
-        {
-            std::lock_guard<std::mutex> lock(state->mtx);
-            state->teardown_started = true;
-        }
+    auto started = teardown_started->get_future();
+    auto finished = teardown_done->get_future();
+    std::thread teardown([teardown_started,
+                          teardown_done,
+                          request = std::move(request),
+                          compiled_model = std::move(compiled_model)]() mutable {
+        teardown_started->set_value();
         request.reset();
         compiled_model.reset();
         teardown_done->set_value();
     });
-    {
-        std::unique_lock<std::mutex> lock(state->mtx);
-        ASSERT_TRUE(state->cv.wait_for(lock, std::chrono::seconds(10), [&state] {
-            return state->teardown_started;
-        }));
-    }
-    // destruction must not get past the callback which is still running
-    EXPECT_EQ(teardown_finished.wait_for(std::chrono::milliseconds(200)), std::future_status::timeout);
+    ASSERT_EQ(started.wait_for(std::chrono::seconds(10)), std::future_status::ready);
+    // destruction has to wait for the held device callback
+    EXPECT_EQ(finished.wait_for(std::chrono::milliseconds(200)), std::future_status::timeout);
 
-    {
-        std::lock_guard<std::mutex> lock(state->mtx);
-        state->release_callback = true;
-    }
-    state->cv.notify_all();
-    const bool finished = teardown_finished.wait_for(std::chrono::seconds(10)) == std::future_status::ready;
-    if (!finished) {
+    callback_executor->release();
+    if (finished.wait_for(std::chrono::seconds(10)) != std::future_status::ready) {
         teardown.detach();
         FAIL() << "destruction did not finish after the device completion callback was released";
     }
