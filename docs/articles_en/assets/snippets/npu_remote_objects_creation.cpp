@@ -58,6 +58,18 @@ int main() {
     }
 
     {
+        //! [import_cpu_va_import_size]
+        void* standard_allocation = nullptr;
+        // Size in bytes of the whole allocation, page-aligned and not smaller than the tensor size
+        size_t allocation_size = 4096;
+        ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
+                             {ov::intel_npu::mem_handle.name(), standard_allocation},
+                             {ov::intel_npu::import_size.name(), allocation_size}};
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, params);
+        //! [import_cpu_va_import_size]
+    }
+
+    {
         //! [wrap_dmabuf_fd]
         int dma_buf_fd = 0;
         ov::intel_npu::MemType memory_type = ov::intel_npu::MemType::SHARED_BUF;
