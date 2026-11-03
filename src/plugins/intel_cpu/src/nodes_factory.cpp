@@ -38,7 +38,6 @@
 #include "nodes/eye.h"
 #include "nodes/fullyconnected.h"
 #include "nodes/gated_delta_net.h"
-#include "nodes/gated_residual.h"
 #include "nodes/gather.h"
 #include "nodes/gather_elements.h"
 #include "nodes/gather_nd.h"
@@ -119,6 +118,7 @@
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/fake_quantize.h"
+#    include "nodes/gated_residual.h"
 #    include "nodes/grid_sample.hpp"
 #    include "nodes/interaction.h"
 #    include "nodes/llm_mlp.h"

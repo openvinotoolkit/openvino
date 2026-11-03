@@ -4,7 +4,9 @@
 
 #include "gated_residual.h"
 
+#include <cstddef>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <set>
 #include <string>
 #include <vector>
@@ -12,10 +14,10 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #endif
-#include "cpu_memory.h"
 #include "graph_context.h"
-#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/gated_residual_config.hpp"
@@ -24,6 +26,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/gated_residual.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"

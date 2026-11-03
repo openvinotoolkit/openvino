@@ -70,7 +70,7 @@ void jit_gated_residual_mix_kernel<isa>::generate() {
 template <cpu_isa_t isa>
 void jit_gated_residual_mix_kernel<isa>::mix_store(size_t step) {
     const bool is_tail = step < vec_size;
-    const int elt_num = static_cast<int>(step);
+    const auto elt_num = static_cast<int>(step);
     // Branch c lives `c * data_size` elements after branch 0 in both rows.
     const size_t branch_stride = m_jcp.data_size * sizeof(float);
 

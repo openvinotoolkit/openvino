@@ -3,27 +3,29 @@
 //
 
 #include "openvino/core/visibility.hpp"
-#include "utils/arch_macros.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
 
+#    include <oneapi/dnnl/dnnl_types.h>
+
 #    include <algorithm>
 #    include <cmath>
-#    include <common/primitive_hashing_utils.hpp>
+#    include <common/primitive_hashing.hpp>
 #    include <common/utils.hpp>
 #    include <cstddef>
 #    include <cstdint>
 #    include <cstring>
 #    include <memory>
 #    include <oneapi/dnnl/dnnl.hpp>
+#    include <oneapi/dnnl/dnnl_common.hpp>
 #    include <unordered_map>
 #    include <vector>
 
 #    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu_memory.h"
-#    include "cpu_parallel.hpp"
 #    include "cpu_shape.h"
 #    include "dnnl_extension_utils.h"
+#    include "memory_desc/cpu_memory_desc.h"
 #    include "nodes/common/blocked_desc_creator.h"
 #    include "nodes/executors/dnnl/dnnl_gated_residual_executor.hpp"
 #    include "nodes/executors/dnnl/dnnl_utils.hpp"
@@ -33,13 +35,10 @@
 #    include "nodes/kernels/x64/gated_residual_mix_kernel.hpp"
 #    include "nodes/kernels/x64/gated_residual_write_kernel.hpp"
 #    include "nodes/kernels/x64/rms_kernel.hpp"
-#    include "onednn/dnnl.h"
 #    include "onednn/iml_type_mapper.h"
 #    include "openvino/core/except.hpp"
 #    include "openvino/core/shape.hpp"
-#    include "openvino/core/type/bfloat16.hpp"
 #    include "openvino/core/type/element_type.hpp"
-#    include "openvino/core/type/float16.hpp"
 #    include "openvino/op/gated_residual.hpp"
 #    include "openvino/runtime/system_conf.hpp"
 #    include "thread_pool_imp.hpp"
@@ -611,7 +610,10 @@ bool GatedResidualDnnlExecutor::update(const MemoryArgs& memory) {
                     "GatedResidual uncompressed weights require the GEMM precision to match the port precision");
 
     m_main = createTileGemms(main_m, memory);
-    m_rem = rem_m == 0 ? TileGemms{} : (rem_m == main_m ? m_main : createTileGemms(rem_m, memory));
+    m_rem = TileGemms{};
+    if (rem_m != 0) {
+        m_rem = rem_m == main_m ? m_main : createTileGemms(rem_m, memory);
+    }
     m_rem_m = rem_m;
 
     const size_t cd = m_hc_count * m_hidden_size;
@@ -674,12 +676,15 @@ GatedResidualDnnlExecutor::TileGemms GatedResidualDnnlExecutor::createTileGemms(
         // Prepacked weights: ask oneDNN for its preferred (blocked) layout the first time; every later M builds on
         // that same layout (the one packed copy serves all M), so the packed weights never depend on the row count.
         const bool pack_weights = packed_idx >= 0 && m_packed[packed_idx].enabled;
-        const dnnl::memory::desc weights_key_md =
-            !pack_weights                ? descs.weights_md
-            : m_packed[packed_idx].ready ? m_packed[packed_idx].md
-                                         : dnnl::memory::desc({static_cast<int64_t>(k), static_cast<int64_t>(n)},
-                                                              weights_dt,
-                                                              dnnl::memory::format_tag::any);
+        const auto weights_key_md = [&]() -> dnnl::memory::desc {
+            if (!pack_weights) {
+                return descs.weights_md;
+            }
+            if (m_packed[packed_idx].ready) {
+                return m_packed[packed_idx].md;
+            }
+            return {{static_cast<int64_t>(k), static_cast<int64_t>(n)}, weights_dt, dnnl::memory::format_tag::any};
+        }();
         MatmulKey key{descs.src_md,
                       weights_key_md,
                       descs.dst_md,

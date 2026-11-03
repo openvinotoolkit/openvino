@@ -104,7 +104,7 @@ private:
     // ~28% faster on the production shape). The packed layout is identical for all M, so one copy per projection
     // serves every row count; the copy comes from the shared weights cache (as in GatherMatmul), so streams
     // share it. Compressed weights are not packed.
-    enum ProjectionIdx : size_t { kDown = 0, kUp = 1, kInject = 2 };
+    enum ProjectionIdx : uint8_t { kDown = 0, kUp = 1, kInject = 2 };
     struct PackedWeights {
         bool enabled = false;
         bool ready = false;
