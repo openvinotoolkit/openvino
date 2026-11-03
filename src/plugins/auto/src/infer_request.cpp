@@ -126,6 +126,8 @@ void ov::auto_plugin::InferRequest::infer() {
 std::vector<ov::ProfilingInfo> ov::auto_plugin::InferRequest::get_profiling_info() const {
     if (m_shared_request)
         return m_shared_request->get_profiling_info();
+    if (!get_compiled_model()->get_property(ov::enable_profiling.name()).as<bool>())
+        OPENVINO_NOT_IMPLEMENTED;
     if (m_profiling_error)
         std::rethrow_exception(m_profiling_error);
     return m_profiling_info;
