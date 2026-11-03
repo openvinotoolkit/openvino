@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-03-18-28-07-586-41683559401",
+  "timestamp": "2026-11-03T18:28:07Z",
+  "run_id": "41683559401",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41683559401",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38197",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38197",
+  "author": "Daksha1611",
+  "category": "External Service",
+  "title": "LLM accuracy GPU tests fail with HuggingFace 429 rate limit on model download",
+  "signature": "429 Too Many Requests you have reached your api rate limit|External Service",
+  "signature_hash": "391fe92c2ec33482",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "2 of 4 accuracy_conformance tests for TinyLlama-1.1B-Chat-v1.0 (INT8/INT4-GPU) failed with huggingface_hub.errors.HfHubHTTPError: 429 Too Many Requests while listing repo files on huggingface.co"
+    }
+  ],
+  "key_errors": [
+    "huggingface_hub.errors.HfHubHTTPError: (Request ID: Root=1-6aea2461-3326e86e27f2d57e5e86aa98;301b95d3-bc75-4574-a3a0-1307f5659a18)\n429 Too Many Requests: you have reached your 'api' rate limit.\nRetry after 29 seconds (0/3000 requests remaining in current 300s window).\nUrl: https://huggingface.co/api/models/TinyLlama/TinyLlama-1.1B-Chat-v1.0/tree/fe8a4ea1ffedaf415f4da2f062534de366a451e6?recursive=true&expand=false.\nWe had to rate limit you, you hit the quota of 3000 api requests per 5 minutes period.",
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT8-GPU] - huggingface_hub.errors.HfHubHTTPError",
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[TinyLlama/TinyLlama-1.1B-Chat-v1.0-INT4-GPU] - huggingface_hub.errors.HfHubHTTPError",
+    "====== 2 failed, 2 passed, 4 deselected, 12 warnings in 350.62s (0:05:50) ======"
+  ],
+  "root_cause": "The LLM accuracy GPU test job calls optimum's TasksManager.get_model_files -> huggingface_hub.hf_api.list_repo_files/list_repo_tree to enumerate TinyLlama-1.1B-Chat-v1.0 files before export, since no cached OpenVINO IR was found locally. HuggingFace Hub returned HTTP 429 (team-plan quota of 3000 API requests per 5-minute window exhausted), which is a third-party rate limit unrelated to the PR under test (tools/benchmark_tool argument-parsing fix). This is the 4th recorded occurrence of this exact signature since 2026-08-27, confirming it is a recurring upstream-capacity issue rather than a regression caused by this PR.",
+  "reproduction_steps": "N/A - depends on HuggingFace Hub's shared API rate-limit window at the time of the CI run; not deterministically reproducible locally.",
+  "recommended_actions": [
+    "Re-run the failed 'LLM accuracy iGPU tests' job; this clears once the 5-minute HF Hub rate-limit window resets.",
+    "Consider caching converted OpenVINO IR models for TinyLlama-1.1B-Chat-v1.0 across merge-queue runs to avoid repeated huggingface_hub.list_repo_files calls.",
+    "Consider setting HF_HUB_OFFLINE/local cache reuse or an HF token with a higher quota tier for CI jobs that run frequently in the merge queue."
+  ],
+  "prevention_strategies": "Add local model/IR caching (e.g., actions/cache keyed on model id+revision) so LLM accuracy jobs do not re-query huggingface_hub.list_repo_files on every merge-queue run, and consider a shared, authenticated HF token with a higher per-5-minute quota for CI.",
+  "historical_context": "Signature 391fe92c2ec33482 ('429 Too Many Requests ... api rate limit' | External Service) has now been seen 4 times since 2026-08-27 (first: 2026-08-27T16:46:44Z, previously last seen 2026-08-28T15:27:21Z), each time on LLM accuracy tests unrelated to the PR under test. A related but distinct signature 77096fab85d0c146 ('httpx HTTPStatusError ... 429 Too Many Requests') was seen once on 2026-08-27. The rerun string '429 Too Many Requests' is already approved in .github/scripts/workflow_rerun/errors_to_look_for.json, so the automated rerunner should already catch this class of failure."
+}

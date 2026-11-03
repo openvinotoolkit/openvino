@@ -2,23 +2,25 @@
   "schema_version": "1.0",
   "signature": "429 Too Many Requests you have reached your api rate limit|External Service",
   "signature_hash": "391fe92c2ec33482",
-  "title": "LLM accuracy CPU tests fail with HuggingFace 429 rate limit on model download",
+  "title": "LLM accuracy GPU tests fail with HuggingFace 429 rate limit on model download",
   "category": "External Service",
-  "count": 3,
+  "count": 4,
   "first_seen": "2026-08-27T16:46:44Z",
-  "last_seen": "2026-08-28T15:27:21Z",
+  "last_seen": "2026-11-03T18:28:07Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41683559401",
     "https://github.com/openvinotoolkit/openvino/actions/runs/33178944609",
     "https://github.com/openvinotoolkit/openvino/actions/runs/33081661909",
     "https://github.com/openvinotoolkit/openvino/actions/runs/33081710335"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38197",
     "https://github.com/openvinotoolkit/openvino/pull/37694",
     "https://github.com/openvinotoolkit/openvino/pull/37473",
     "https://github.com/openvinotoolkit/openvino/pull/37616"
   ],
   "recent_timestamps": [
-    "2026-08-28T15:27:21Z"
+    "2026-11-03T18:28:07Z"
   ],
   "rerun_search_string": "429 Too Many Requests"
 }
