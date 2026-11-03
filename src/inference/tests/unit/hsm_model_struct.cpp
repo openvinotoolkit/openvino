@@ -43,7 +43,7 @@ TEST(HsmModelStructTest, round_trips_xml) {
     EXPECT_EQ(encoded, expected);
 
     hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_struct_tag;
+    entry.tag = hsm::model_tag;
     entry.size = encoded.size();
     const hsm::Section section{entry, {reinterpret_cast<const std::byte*>(encoded.data()), encoded.size()}};
     EXPECT_EQ(hsm::decode_model_struct(section), expected);
@@ -57,7 +57,7 @@ TEST(HsmModelStructTest, round_trips_empty_xml) {
     EXPECT_TRUE(encoded.empty());
 
     hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_struct_tag;
+    entry.tag = hsm::model_tag;
     const hsm::Section section{entry, ov::util::MemoryView{}};
     EXPECT_EQ(hsm::decode_model_struct(section), std::string{});
 }
@@ -75,7 +75,7 @@ TEST(HsmModelStructTest, decodes_stream_section) {
     const std::string expected = "<net/>";
     std::istringstream stream{expected};
     hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_struct_tag;
+    entry.tag = hsm::model_tag;
     entry.size = expected.size();
     const hsm::Section section{entry, stream, std::streampos{0}};
 

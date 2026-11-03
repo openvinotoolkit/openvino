@@ -3,12 +3,14 @@
 //
 
 /**
- * @brief Codec for the pointer-mode #model_struct_tag section containing serialized IR topology.
+ * @brief Codec for serialized IR topology stored under the pointer-mode #model_tag.
  * @file openvino/runtime/hsm_model_struct.hpp
  *
  * The payload is exactly the IR XML bytes, in their original order. Its length is the section size in the
  * manifest; there is no length prefix, trailing NUL, or other framing. Weights belong in a separate section.
- * The decoder returns those bytes as a string without parsing or validating the XML.
+ * This payload contract applies to plugins that store IR XML under #model_tag (such as Template); other
+ * devices may use the same tag for their own serialized model format. The decoder returns the XML bytes
+ * as a string without parsing or validating them.
  */
 
 #pragma once
