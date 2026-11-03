@@ -167,7 +167,8 @@ TEST_P(AutoCacheCompileForAllTest, compileForAllCompilesOtherDevicesWhenEnabled)
     }
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
-    if (cache_kind != CacheKind::NONE && compile_for_all) {
+    // A single-file cache is not warmed up because concurrent writes into one archive are unsafe.
+    if (cache_kind != CacheKind::NONE && cache_kind != CacheKind::CACHE_PATH_FILE && compile_for_all) {
         EXPECT_TRUE(wait_until([&] {
             return warmup_count.load() == 1 && warmup_compiled_model.use_count() == baseline;
         }));
