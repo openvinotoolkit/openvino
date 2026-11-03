@@ -16,7 +16,9 @@
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater.hpp"
+#include "openvino/op/if.hpp"
 #include "openvino/op/less.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -1614,16 +1616,11 @@ TEST(TransformationTests, MarkSumDivCountToKeepInMixedPrecision_DifferentAxesAre
     compare_marks(model, build());
 }
 
-// with ConvertPrecision as in the CPU plugin: the pooling is computed in fp32, its producers keep f16
-TEST(TransformationTests, ConvertPrecision_MaskedMeanPoolingKeptInFP32) {
-    auto model = make_masked_mean_pooling(PartialShape{-1, -1, 8}, false);
-    pass::Manager manager;
-    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
-                                                  type_to_fuse_map{},
-                                                  true,
-                                                  false);
-    manager.run_passes(model);
+namespace {
 
+// the precisions after ConvertPrecision of a model built by make_masked_mean_pooling: the pooling is computed in fp32,
+// its producers and consumers keep f16
+void check_masked_mean_pooling_precisions(const shared_ptr<Model>& model) {
     size_t checked = 0;
     for (const auto& node : model->get_ordered_ops()) {
         if (is_type_any_of<Divide, ReduceSum, Multiply>(node) && node->get_output_element_type(0).is_real()) {
@@ -1644,6 +1641,76 @@ TEST(TransformationTests, ConvertPrecision_MaskedMeanPoolingKeptInFP32) {
     }
     // Divide, the f32 ReduceSum, Multiply, two Adds, two MatMuls and the count Convert
     EXPECT_EQ(checked, 8u);
+}
+
+void convert_precision_keep_sensitive(const shared_ptr<Model>& model) {
+    pass::Manager manager;
+    manager.register_pass<pass::ConvertPrecision>(precisions_map{{element::f32, element::f16}},
+                                                  type_to_fuse_map{},
+                                                  true,
+                                                  false);
+    manager.run_passes(model);
+}
+
+}  // namespace
+
+// with ConvertPrecision as in the CPU plugin: the pooling is computed in fp32, its producers keep f16
+TEST(TransformationTests, ConvertPrecision_MaskedMeanPoolingKeptInFP32) {
+    auto model = make_masked_mean_pooling(PartialShape{-1, -1, 8}, false);
+    convert_precision_keep_sensitive(model);
+    check_masked_mean_pooling_precisions(model);
+}
+
+// ConvertPrecision marks the nodes of an If/Loop body twice: in the run on the parent model, which visits the bodies,
+// and in the run on the body. The masked means of a body are kept in fp32 without spreading to the residual Adds.
+TEST(TransformationTests, ConvertPrecision_MaskedMeanPoolingInIfBodyKeptInFP32) {
+    const auto then_body = make_masked_mean_pooling(PartialShape{2, 16, 8}, false);
+    const auto else_body = make_masked_mean_pooling(PartialShape{2, 16, 8}, false);
+    auto if_op = make_shared<If>(Constant::create(element::boolean, Shape{1}, {true}));
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    ParameterVector params;
+    for (size_t i = 0; i < then_body->get_parameters().size(); ++i) {
+        const auto& body_param = then_body->get_parameters()[i];
+        params.push_back(make_shared<Parameter>(body_param->get_element_type(), body_param->get_partial_shape()));
+        if_op->set_input(params.back(), body_param, else_body->get_parameters()[i]);
+    }
+    OutputVector outputs;
+    for (size_t i = 0; i < then_body->get_results().size(); ++i) {
+        outputs.push_back(if_op->set_output(then_body->get_results()[i], else_body->get_results()[i]));
+    }
+    const auto model = make_shared<Model>(outputs, params);
+
+    convert_precision_keep_sensitive(model);
+
+    check_masked_mean_pooling_precisions(then_body);
+    check_masked_mean_pooling_precisions(else_body);
+}
+
+// the same in the body of a Loop
+TEST(TransformationTests, ConvertPrecision_MaskedMeanPoolingInLoopBodyKeptInFP32) {
+    const auto pooling = make_masked_mean_pooling(PartialShape{2, 16, 8}, false);
+    auto results = pooling->get_results();
+    results.push_back(make_shared<Result>(Constant::create(element::boolean, Shape{}, {true})));
+    const auto body = make_shared<Model>(results, pooling->get_parameters());
+    auto loop = make_shared<Loop>(Constant::create(element::i64, Shape{}, {1}),
+                                  Constant::create(element::boolean, Shape{}, {true}));
+    loop->set_function(body);
+    loop->set_special_body_ports({-1, static_cast<int64_t>(results.size() - 1)});
+    ParameterVector params;
+    for (const auto& body_param : body->get_parameters()) {
+        params.push_back(make_shared<Parameter>(body_param->get_element_type(), body_param->get_partial_shape()));
+        loop->set_invariant_input(body_param, params.back());
+    }
+    OutputVector outputs;
+    for (size_t i = 0; i + 1 < results.size(); ++i) {
+        outputs.push_back(loop->get_iter_value(results[i], -1));
+    }
+    const auto model = make_shared<Model>(outputs, params);
+
+    convert_precision_keep_sensitive(model);
+
+    check_masked_mean_pooling_precisions(body);
 }
 
 namespace {

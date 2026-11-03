@@ -22,7 +22,8 @@ constexpr auto float16_min_normalized = float16::from_bits(0x0400);
  * @brief: MarkSugraphsToKeepInMixedPrecision container for marking passes which marks subgraphs
  * to be kept in f32 for mixed precision inference. Includes passes for the following patterns:
  * L2Normalize, MVN, ShapeOf subgraphs, Exp in ReduceOp paths, Division with small eps values and masked means
- * (sum / count without eps).
+ * (sum / count without eps). The masked means are marked in the nodes of the given model only, not in the bodies of its
+ * If/Loop/TensorIterator nodes: ConvertPrecision runs this pass on each body.
  */
 class ov::pass::MarkSugraphsToKeepInMixedPrecision : public ov::pass::ModelPass {
 public:

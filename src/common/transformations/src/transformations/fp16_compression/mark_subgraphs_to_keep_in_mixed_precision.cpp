@@ -407,9 +407,10 @@ public:
  * static rank and the same normalized axes, and the division has a floating-point output.
  *
  * The division, the sum, the Multiply producing the summed tensor (if the sum is its only consumer) and the count path
- * from its ReduceSum are kept in fp32. The pass runs after the mark propagation, so these marks are not propagated:
- * the producers of the pooled tensor (e.g. the residual stream of an encoder) and the consumers of the mean keep fp16,
- * and the marks of the other patterns are propagated as without this pass.
+ * from its ReduceSum are kept in fp32. The pass is applied after the mark propagation of a model, to the nodes of that
+ * model only (MarkSumDivCountTopLevel), so these marks are not propagated: the producers of the pooled tensor (e.g. the
+ * residual stream of an encoder) and the consumers of the mean keep fp16, and the marks of the other patterns are
+ * propagated as without this pass.
  */
 class MarkSumDivCount : public MatcherPass {
 public:
@@ -461,6 +462,28 @@ public:
 
         auto m = make_shared<pattern::Matcher>(divide, matcher_name);
         register_matcher(m, callback);
+    }
+};
+
+/* MarkSumDivCountTopLevel applies MarkSumDivCount to the nodes of the model only, not to the bodies of its
+ * If/Loop/TensorIterator nodes as a GraphRewrite would. ConvertPrecision runs MarkSugraphsToKeepInMixedPrecision on
+ * each body after the parent model: the propagation of that run would spread masked-mean marks set in the body by the
+ * parent run, and the body run marks its masked means itself, after its own propagation.
+ */
+class MarkSumDivCountTopLevel : public ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("MarkSumDivCountTopLevel");
+    bool run_on_model(const shared_ptr<ov::Model>& m) override {
+        RUN_ON_MODEL_SCOPE(MarkSumDivCountTopLevel);
+        MarkSumDivCount mark_sum_div_count;
+        mark_sum_div_count.set_pass_config(get_pass_config());
+        bool is_changed = false;
+        for (const auto& node : m->get_ordered_ops()) {
+            if (is_type<v1::Divide>(node)) {
+                is_changed = mark_sum_div_count.apply(node) || is_changed;
+            }
+        }
+        return is_changed;
     }
 };
 
@@ -544,8 +567,9 @@ bool MarkSugraphsToKeepInMixedPrecision::run_on_model(const shared_ptr<ov::Model
     auto propagate_up = manager.register_pass<BackwardGraphRewrite>();
     ADD_MATCHER(propagate_up, PropagateUpMarkToKeepInMixedPrecision)
 
-    // Mark the masked means after the propagation, so that their marks do not spread to the producers
-    REGISTER_PASS(manager, MarkSumDivCount)
+    // Mark the masked means after the propagation, so that their marks do not spread to the producers, and only in this
+    // model: the bodies of its If/Loop/TensorIterator nodes are marked by their own run in ConvertPrecision
+    REGISTER_PASS(manager, MarkSumDivCountTopLevel)
 
     // Mark nodes in ShapeOf subgraphs to keep in FP32
     REGISTER_PASS(manager, MarkPrecisionSensitiveShapeOfSubgraphs)
