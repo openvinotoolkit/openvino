@@ -202,30 +202,20 @@ bool AddTransformation::transform(ov::pass::pattern::Matcher &m) {
         //          |
         //     newMultiply
 
-        // nodes created on the full path, to carry the rt_info of the replaced Add
-        ov::NodeVector fullPathNodes;
-        auto convertIfNeeded = [&](const ov::Output<ov::Node>& input, const element::Type& type) -> ov::Output<ov::Node> {
-            if (input.get_element_type() == type) {
-                return input;
-            }
-            fullPathNodes.push_back(std::make_shared<ov::opset1::Convert>(input, type));
-            return fullPathNodes.back();
-        };
-
         inputs[emptyPathIndex] = dequantizationEmptyPath.data;
-        ov::Output<ov::Node> fullPathData;
-        if (newSubtractFullPathValues == nullptr) {
-            fullPathData = convertIfNeeded(fullPathInput, newMultiplyFullPathValues->get_element_type());
-        } else {
-            // precision on branch with dequantization operations can be different with dequantization precision,
-            // for example: FP16 model with FP32 dequantization
-            fullPathNodes.push_back(std::make_shared<ov::opset1::Subtract>(
-                convertIfNeeded(fullPathInput, newSubtractFullPathValues->get_element_type()),
-                newSubtractFullPathValues));
-            fullPathData = fullPathNodes.back();
-        }
-        fullPathNodes.push_back(std::make_shared<ov::opset1::Multiply>(fullPathData, newMultiplyFullPathValues));
-        inputs[fullPathIndex] = fullPathNodes.back();
+        inputs[fullPathIndex] = std::make_shared<ov::opset1::Multiply>(
+            newSubtractFullPathValues == nullptr ?
+                (fullPathInput.get_element_type() != newMultiplyFullPathValues->get_element_type() ?
+                     std::make_shared<ov::opset1::Convert>(fullPathInput, newMultiplyFullPathValues->get_element_type()) :
+                     fullPathInput) :
+                std::make_shared<ov::opset1::Subtract>(
+                    // precision on branch with dequantization operations can be different with dequantization precision,
+                    // for example: FP16 model with FP32 dequantization
+                    fullPathInput.get_element_type() != newSubtractFullPathValues->get_element_type() ?
+                        std::make_shared<ov::opset1::Convert>(fullPathInput, newSubtractFullPathValues->get_element_type()) :
+                        fullPathInput,
+                    newSubtractFullPathValues),
+            newMultiplyFullPathValues);
 
         auto output_type = scalingMode ? add->get_output_element_type(0) : element::f32;
         newAddOrSubtract = std::make_shared<ov::op::TypeRelaxed<ov::opset1::Add>>(
@@ -240,7 +230,6 @@ bool AddTransformation::transform(ov::pass::pattern::Matcher &m) {
         NetworkHelper::insertDequantizationAfter(add, newMultiply, newAddOrSubtract);
         NetworkHelper::copyInfo(add, newAddOrSubtract);
         ov::copy_runtime_info({ add, newMultiply }, newMultiply);
-        ov::copy_runtime_info(add, fullPathNodes);
     }
 
     updateOutput(newMultiply, newAddOrSubtract);

@@ -562,6 +562,8 @@ TEST_P(ActivationsScalingResidualStreamTest, ScaleUpIsRemovedAtNorms) {
     model = make_residual_block(GetParam());
     model_ref = make_scaled_residual_block(GetParam());
     manager.register_pass<ov::pass::ActivationsScaling>(8.f, ov::element::f16);
+    // LPT AddTransformation creates the residual-branch Multiply without copying rt_info
+    disable_rt_info_check();
     // the pass must keep the model output; norm epsilons are checked exactly by EliminateScalarMulF32NormTest
     comparator.enable(FunctionsComparator::CONST_VALUES);
     comparator.enable(FunctionsComparator::ACCURACY);
