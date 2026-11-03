@@ -9,6 +9,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <unordered_map>
+#include <utility>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -105,5 +106,17 @@ dnnl::memory::desc make_bias_md(dnnl::memory::dim N, const MemoryPtr& biasMem);
 // Prepend a batch dimension to a blocked descriptor, keeping the inner blocking untouched. Used to
 // describe a batch of per-group weights / scales / zero points which oneDNN itself is unaware of.
 DnnlMemoryDescPtr add_batch_dim(const BlockedMemoryDescPtr& desc, size_t batchDim);
+
+// Resolves dynamic quantization of the source for compressed u3 weights: returns the source group size
+// (0 if disabled) and the zero point data type to use. u3 weights come with i8 zero points; they are
+// converted to u8 which is lossless only when none of them is negative (zp_non_negative_i8).
+std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_size,
+                                                                 ov::element::Type wei_precision,
+                                                                 ov::element::Type src_precision,
+                                                                 ov::element::Type zp_precision,
+                                                                 bool zp_non_negative_i8,
+                                                                 size_t K,
+                                                                 const VectorDims& scale_shape,
+                                                                 const VectorDims& zp_shape);
 
 }  // namespace ov::intel_cpu::dnnl_utils
