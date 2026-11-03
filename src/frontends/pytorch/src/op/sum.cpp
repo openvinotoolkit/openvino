@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/is_nan.hpp"
 #include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/select.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
@@ -38,6 +41,11 @@ OutputVector translate_sum(const NodeContext& context) {
         out_idx = 4;
     }
     auto data = context.get_input(0);
+    if (context.get_op_type().find("nansum") != std::string::npos && data.get_element_type().is_real()) {
+        auto zero = context.mark_node(ov::op::v0::Constant::create(data.get_element_type(), Shape{}, {0}));
+        auto nan = context.mark_node(std::make_shared<ov::op::v10::IsNaN>(data));
+        data = context.mark_node(std::make_shared<ov::op::v1::Select>(nan, zero, data));
+    }
     auto data_dtype = simplified_type_interpret(context.get_input_type(0));
     // PyTorch sum converts any integer type or bool to i64 for preventing overflow
     if ((data.get_element_type().is_static() && data.get_element_type().is_integral()) ||
@@ -49,17 +57,21 @@ OutputVector translate_sum(const NodeContext& context) {
         axes = get_axes_range(context, 0);
     } else {
         axes = get_input_concat_if_list(context, axis_idx);
+        if (const auto constant = ov::util::get_constant_from_source(axes)) {
+            if (constant->get_byte_size() == 0) {
+                axes = get_axes_range(context, 0);
+            }
+        }
     }
     if (!context.input_is_none(keep_dims_idx)) {
         keep_dims = context.const_input<bool>(keep_dims_idx);
     }
 
+    if (!context.input_is_none(dtype_idx)) {
+        data = apply_dtype(context, dtype_idx, data);
+    }
     auto reduce = std::make_shared<ov::op::v1::ReduceSum>(data, axes, keep_dims);
     Output<Node> sum = context.mark_node(reduce);
-
-    if (!context.input_is_none(dtype_idx)) {
-        sum = apply_dtype(context, dtype_idx, sum);
-    }
 
     if (!context.input_is_none(out_idx)) {
         context.mutate_input(out_idx, sum);
@@ -71,6 +83,11 @@ OutputVector translate_sum_fx(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     bool keep_dims = false;
     auto data = context.get_input(0);
+    if (context.get_op_type().find("nansum") != std::string::npos && data.get_element_type().is_real()) {
+        auto zero = context.mark_node(ov::op::v0::Constant::create(data.get_element_type(), Shape{}, {0}));
+        auto nan = context.mark_node(std::make_shared<ov::op::v10::IsNaN>(data));
+        data = context.mark_node(std::make_shared<ov::op::v1::Select>(nan, zero, data));
+    }
     auto data_dtype = simplified_type_interpret(context.get_input_type(0));
     if (context.has_attribute("dtype")) {
         auto dtype = context.get_attribute<element::Type>("dtype");

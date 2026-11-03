@@ -123,12 +123,16 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
             continue;
         }
         auto names = tensor_desc.get_names();
-        if (!names.empty()) {
-            auto tensor_idx = decode_tensor_name(tensor_desc);
-            if (names.erase(std::to_string(tensor_idx))) {
-                tensor_desc.set_names(names);
+        for (auto it = names.begin(); it != names.end();) {
+            if (!it->empty() && std::all_of(it->begin(), it->end(), [](unsigned char c) {
+                    return std::isdigit(c);
+                })) {
+                it = names.erase(it);
+            } else {
+                ++it;
             }
         }
+        tensor_desc.set_names(names);
     }
     // Set input tensor names to be equal to signature name saved in friendly name
     for (auto& param : model->get_parameters()) {

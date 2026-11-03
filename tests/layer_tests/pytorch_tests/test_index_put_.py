@@ -276,3 +276,20 @@ class TestMaskKosmos_IndexPut(PytorchLayerTest):
     def test_nonzero_kosmos_index_put_(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision,
                    ir_version, trace_model=True, use_convert_model=True)
+
+
+class TestIndexPutScalar(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(2, 4),)
+
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_scalar_column_update(self, ie_device, precision, ir_version):
+        class IndexPutScalar(torch.nn.Module):
+            def forward(self, value):
+                result = value.clone()
+                result[:, torch.tensor([1, 3])] = 0.0
+                return result
+
+        self._test(IndexPutScalar(), "aten::index_put_", ie_device, precision, ir_version,
+                   trace_model=True, fx_kind="aten.index_put_")

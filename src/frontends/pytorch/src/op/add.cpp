@@ -4,6 +4,7 @@
 
 #include "openvino/op/add.hpp"
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/concat.hpp"
@@ -68,6 +69,20 @@ OutputVector translate_add_common(const NodeContext& context, bool inplace) {
     }
 
     auto add = ComplexTypeMark::add(context, lhs, rhs);
+
+    if (add.get_element_type() == element::bf16) {
+        auto left = ov::util::get_constant_from_source(lhs);
+        auto right = ov::util::get_constant_from_source(rhs);
+        if (left && right) {
+            auto left_f32 = ov::op::v0::Constant::create(element::f32, left->get_shape(), left->cast_vector<float>());
+            auto right_f32 =
+                ov::op::v0::Constant::create(element::f32, right->get_shape(), right->cast_vector<float>());
+            auto sum = std::make_shared<v1::Add>(left_f32, right_f32);
+            if (auto constant = ov::util::get_constant_from_source(sum)) {
+                add = context.mark_node(make_bfloat16_constant(constant->get_shape(), constant->cast_vector<float>()));
+            }
+        }
+    }
 
     if (inplace)
         context.mutate_input(0, add);

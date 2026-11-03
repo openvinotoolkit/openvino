@@ -1,0 +1,33 @@
+{
+  "transformers_version": "5.18.0",
+  "fixtures": [
+    {
+      "component": "deepseek_v2/DeepseekV2RotaryEmbedding",
+      "source": "https://github.com/huggingface/transformers/blob/v5.18.0/tests/models/deepseek_v2/test_modeling_deepseek_v2.py",
+      "source_sha256": "eebe71e7c869dc9df553c5390080a60dec5da5b1997f641ed09155fc3dfaf732",
+      "test": "DeepseekV2ModelTest.test_model_rope_scaling_frequencies",
+      "reused": {
+        "short_length": 10,
+        "long_length_factor": 1.5,
+        "scaling_factor": 10,
+        "rope_theta": 10000.0,
+        "rope_types": [
+          "default",
+          "linear",
+          "yarn"
+        ]
+      },
+      "adaptations": [
+        "Construct only the rotary module, with local config and max_position_embeddings=16.",
+        "Expose complex output as real/imaginary pairs for comparison.",
+        "Check conversion and numerical agreement separately for short and long inputs."
+      ],
+      "unadapted": [
+        {
+          "scenario": "dynamic frequency growth/reset",
+          "reason": "Requires an adapter for state changes and data-dependent export guards."
+        }
+      ]
+    }
+  ]
+}

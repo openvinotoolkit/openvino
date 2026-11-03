@@ -171,7 +171,9 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             auto perm_before = v0::Constant::create(element::i64, Shape{perm_vector_before.size()}, perm_vector_before);
             input = rg.make<v1::Transpose>(input, perm_before);
             input_shape = rg.make<v3::ShapeOf>(input, element::i32);
-            values = rg.make<v1::Transpose>(values, perm_before);
+            if (values.get_partial_shape().rank() != Rank(0)) {
+                values = rg.make<v1::Transpose>(values, perm_before);
+            }
         }
 
         auto const_indices_list_len = v0::Constant::create(element::i32, Shape{1}, {indices_list_len});

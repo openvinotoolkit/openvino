@@ -19,6 +19,8 @@ class FrameworkNode;
 
 namespace frontend::pytorch {
 
+std::shared_ptr<ov::op::v0::Constant> make_bfloat16_constant(const Shape& shape, const std::vector<float>& values);
+
 const std::string pytorch_prefix = "[PyTorch Frontend] ";
 
 const std::string& get_pytorch_prefix();
