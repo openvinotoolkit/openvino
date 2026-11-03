@@ -72,13 +72,13 @@ TEST_F(TypePropNGramHashFunctionTest, qwen_trigram) {
 
 TEST_F(TypePropNGramHashFunctionTest, shapes_sdpa_paged_and_dynamic) {
     const auto c = make_config(3, {8, 8}, kQwenMultipliers);
-    for (const auto& [in, out] : std::vector<std::pair<PartialShape, PartialShape>>{
-             {{1, 300, 3}, {1, 300, 16}},
-             {{-1, -1, 3}, {-1, -1, 16}},
-             {{-1, 3}, {-1, 16}},  // continuous batching [T, ngram_size]
-             {{-1, -1}, {-1, 16}},
-             {{3}, {16}},
-             {PartialShape::dynamic(), PartialShape::dynamic()}}) {
+    for (const auto& [in, out] :
+         std::vector<std::pair<PartialShape, PartialShape>>{{{1, 300, 3}, {1, 300, 16}},
+                                                            {{-1, -1, 3}, {-1, -1, 16}},
+                                                            {{-1, 3}, {-1, 16}},  // continuous batching [T, ngram_size]
+                                                            {{-1, -1}, {-1, 16}},
+                                                            {{3}, {16}},
+                                                            {PartialShape::dynamic(), PartialShape::dynamic()}}) {
         for (const auto type : {element::i32, element::i64}) {
             const auto op = make_hash(std::make_shared<Parameter>(type, in), c);
             EXPECT_EQ(op->get_output_element_type(0), element::i32);

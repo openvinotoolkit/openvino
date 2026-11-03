@@ -35,8 +35,8 @@ void ngram_hash_function(const T* ngrams,
         const T* window = ngrams + t * ngram_size;
         int32_t* out = row_ids + t * num_heads;
         // The token itself (x[0]) is the last element of the window.
-        uint64_t mix = static_cast<uint64_t>(static_cast<int64_t>(window[ngram_size - 1])) *
-                       static_cast<uint64_t>(multipliers[0]);
+        uint64_t mix =
+            static_cast<uint64_t>(static_cast<int64_t>(window[ngram_size - 1])) * static_cast<uint64_t>(multipliers[0]);
         size_t h = 0;
         for (size_t k = 1; k < ngram_size; ++k) {
             mix ^= static_cast<uint64_t>(static_cast<int64_t>(window[ngram_size - 1 - k])) *

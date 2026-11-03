@@ -39,9 +39,9 @@ struct NGramHashCase {
 
 const std::vector<int64_t> qwen_multipliers{23703573157769, 20109073645365, 8052911324071, 3000000019};
 const std::vector<int64_t> deepseek_multipliers{0x3BF58476D1CE4E5B,
-                                              static_cast<int64_t>(0x9E3779B97F4A7C15ULL),
-                                              1234567891011,
-                                              static_cast<int64_t>(0xD6E8FEB86659FD93ULL)};
+                                                static_cast<int64_t>(0x9E3779B97F4A7C15ULL),
+                                                1234567891011,
+                                                static_cast<int64_t>(0xD6E8FEB86659FD93ULL)};
 
 const std::vector<NGramHashCase> cases{
     {"Qwen3_8FlashNext_Bigram", {qwen_multipliers[0], qwen_multipliers[1]}, {8}, 0},
@@ -98,11 +98,11 @@ std::vector<int64_t> make_offsets(const std::vector<int64_t>& vocab) {
 std::shared_ptr<Node> make_hash(const Output<Node>& windows, const NGramHashCase& config) {
     const auto vocab = make_vocab_sizes(config);
     return std::make_shared<op::internal::NGramHashFunction>(windows,
-                                                            config.multipliers.size(),
-                                                            config.heads_per_order,
-                                                            config.multipliers,
-                                                            vocab,
-                                                            make_offsets(vocab));
+                                                             config.multipliers.size(),
+                                                             config.heads_per_order,
+                                                             config.multipliers,
+                                                             vocab,
+                                                             make_offsets(vocab));
 }
 
 std::shared_ptr<Model> make_direct_model(const NGramHashCase& config, const element::Type& type) {
@@ -157,14 +157,13 @@ std::shared_ptr<Model> make_traced_model(const NGramHashCase& config, bool refer
         const std::vector<int64_t> starts(offsets.begin() + head_offset, offsets.begin() + head_offset + heads);
         head_offset += heads;
         const auto expanded = std::make_shared<op::v0::Unsqueeze>(mix, axis);
-        const auto mod = std::make_shared<op::v1::FloorMod>(
-            expanded,
-            op::v0::Constant::create(element::i64, Shape{heads}, sizes));
-        blocks.push_back(std::make_shared<op::v1::Add>(
-            mod,
-            op::v0::Constant::create(element::i64, Shape{heads}, starts)));
+        const auto mod =
+            std::make_shared<op::v1::FloorMod>(expanded, op::v0::Constant::create(element::i64, Shape{heads}, sizes));
+        blocks.push_back(
+            std::make_shared<op::v1::Add>(mod, op::v0::Constant::create(element::i64, Shape{heads}, starts)));
     }
-    const Output<Node> output = blocks.size() == 1 ? blocks[0] : std::make_shared<op::v0::Concat>(blocks, -1)->output(0);
+    const Output<Node> output =
+        blocks.size() == 1 ? blocks[0] : std::make_shared<op::v0::Concat>(blocks, -1)->output(0);
     return std::make_shared<Model>(OutputVector{output}, tokens);
 }
 }  // namespace
@@ -173,9 +172,9 @@ class NGramHashFunctionCPUTest : public testing::WithParamInterface<NGramHashPar
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NGramHashParams>& info) {
         const auto& [config, kind] = info.param;
-        const std::string mode = kind == HashInputKind::traced_i64 ? "TracedI64"
-                                : kind == HashInputKind::direct_i64 ? "DirectI64"
-                                                                    : "DirectI32";
+        const std::string mode = kind == HashInputKind::traced_i64   ? "TracedI64"
+                                 : kind == HashInputKind::direct_i64 ? "DirectI64"
+                                                                     : "DirectI32";
         return config.name + "_" + mode;
     }
 
@@ -307,11 +306,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_NGramHashFunction,
                          NGramHashFunctionBroadcastCPUTest,
                          testing::Values(size_t{1}, size_t{2}));
 
-INSTANTIATE_TEST_SUITE_P(smoke_NGramHashFunction,
-                         NGramHashFunctionCPUTest,
-                         testing::Combine(testing::ValuesIn(cases),
-                                          testing::Values(HashInputKind::direct_i32,
-                                                          HashInputKind::direct_i64,
-                                                          HashInputKind::traced_i64)),
-                         NGramHashFunctionCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_NGramHashFunction,
+    NGramHashFunctionCPUTest,
+    testing::Combine(testing::ValuesIn(cases),
+                     testing::Values(HashInputKind::direct_i32, HashInputKind::direct_i64, HashInputKind::traced_i64)),
+    NGramHashFunctionCPUTest::getTestCaseName);
 }  // namespace ov::test

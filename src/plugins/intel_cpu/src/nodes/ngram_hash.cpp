@@ -173,9 +173,7 @@ void NgramHash::initSupportedPrimitiveDescriptors() {
         }
     }
 #endif
-    addSupportedPrimDesc({{LayoutType::ncsp, m_precision}},
-                         {{LayoutType::ncsp, ov::element::i32}},
-                         implementation);
+    addSupportedPrimDesc({{LayoutType::ncsp, m_precision}}, {{LayoutType::ncsp, ov::element::i32}}, implementation);
 }
 
 template <typename T>
@@ -194,15 +192,15 @@ void NgramHash::executeImpl() {
         }
 #endif
         ov::reference::ngram_hash_function(ngrams,
-                                          row_ids,
-                                          begin,
-                                          end,
-                                          m_ngram_size,
-                                          m_heads_per_order.data(),
-                                          m_multipliers.data(),
-                                          m_head_vocab_sizes.data(),
-                                          m_head_offsets.data(),
-                                          num_heads);
+                                           row_ids,
+                                           begin,
+                                           end,
+                                           m_ngram_size,
+                                           m_heads_per_order.data(),
+                                           m_multipliers.data(),
+                                           m_head_vocab_sizes.data(),
+                                           m_head_offsets.data(),
+                                           num_heads);
     };
 
     constexpr size_t serial_window_limit = 256;

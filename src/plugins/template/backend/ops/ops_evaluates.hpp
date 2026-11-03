@@ -14,8 +14,8 @@
 #include "ov_ops/rms.hpp"
 
 extern template bool evaluate_node<ov::op::internal::NGramHashFunction>(std::shared_ptr<ov::Node> node,
-                                                                      ov::TensorVector& outputs,
-                                                                      const ov::TensorVector& inputs);
+                                                                        ov::TensorVector& outputs,
+                                                                        const ov::TensorVector& inputs);
 
 extern template bool evaluate_node<ov::op::v0::Abs>(std::shared_ptr<ov::Node> node,
                                                     ov::TensorVector& outputs,
