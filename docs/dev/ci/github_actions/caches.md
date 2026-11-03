@@ -55,6 +55,13 @@ select their own temporary cache, and inherited cache settings can override
 `HF_HOME`. Xet is disabled so Hub downloads use the proxy's HTTP path.
 Existing token-file settings are preserved.
 
+Steps with confirmed HF model download or initialization paths have
+`(HuggingFace model download)` appended to their display names. This includes
+mixed-source suites: only their Hugging Face Hub requests use the HF proxy.
+The label identifies a possible download/cache lookup, not proof that bytes
+were transferred; cached models and skipped test cases may require no download.
+Proxy setup, package installation and non-HF-only steps are not labeled.
+
 All participating runners, including macOS and dedicated GPU runners, must be
 able to resolve and reach this cluster-local endpoint. Every selected AKS pool,
 including Windows, must have a provisioned `-st` counterpart accessible to the

@@ -113,7 +113,7 @@ jobs:
         if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_tensorflow
 
-      - name: TensorFlow Models Tests - NPU compile-only (convert_model)
+      - name: TensorFlow Models Tests - NPU compile-only (convert_model) (HuggingFace model download)
         if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).TF_FE
         shell: cmd
         run: |
@@ -134,7 +134,7 @@ jobs:
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
         run: python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_jax
 
-      - name: JAX/Flax Models Tests - NPU compile-only
+      - name: JAX/Flax Models Tests - NPU compile-only (HuggingFace model download)
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).JAX_FE) }}
         shell: cmd
         run: |
@@ -149,7 +149,7 @@ jobs:
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\npu_models.txt
 
-      - name: PyTorch Models Tests - NPU compile-only
+      - name: PyTorch Models Tests - NPU compile-only (HuggingFace model download)
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.changed-components).PyTorch_FE) }}
         shell: cmd
         env:

@@ -155,7 +155,7 @@ jobs:
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/transformations_actual.txt \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope_gpu.txt
 
-      - name: OpenVINO GPU RoPE Tests
+      - name: OpenVINO GPU RoPE Tests (HuggingFace model download)
         env:
           TEST_DEVICE: GPU
           PYTHONPATH: ${{ github.workspace }}/install/tests/model_hub_tests

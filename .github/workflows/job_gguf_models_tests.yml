@@ -97,7 +97,7 @@ jobs:
       - name: Install GGUF Models tests requirements
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_gguf
 
-      - name: GGUF Models Tests from Hugging Face
+      - name: GGUF Models Tests from Hugging Face (HuggingFace model download)
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/gguf/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-gguf_model_"${TYPE}"_tests.html --self-contained-html -v

@@ -107,7 +107,7 @@ jobs:
       - name: Install TF Models tests requirements
         run: python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_tensorflow
 
-      - name: TensorFlow Models Tests - TF FE
+      - name: TensorFlow Models Tests - TF FE (HuggingFace model download)
         run: |
           export PYTHONPATH=${INSTALL_TEST_DIR}/model_hub_tests:$PYTHONPATH
           python3 -m pytest ${INSTALL_TEST_DIR}/model_hub_tests/tensorflow/test_tf_convert_model.py -m "${MODEL_SCOPE}" \

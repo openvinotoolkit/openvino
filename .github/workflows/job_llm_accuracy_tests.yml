@@ -103,7 +103,7 @@ jobs:
       - name: Install LLM accuracy test requirements
         run: python3 -m pip install -r ${LLM_TEST_DIR}/requirements.txt
 
-      - name: LLM accuracy ${{ inputs.device }} tests
+      - name: LLM accuracy ${{ inputs.device }} tests (HuggingFace model download)
         env:
           DEVICE: ${{ inputs.device }}
         run: |
