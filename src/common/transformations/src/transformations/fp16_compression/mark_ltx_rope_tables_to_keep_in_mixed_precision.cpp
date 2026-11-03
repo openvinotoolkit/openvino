@@ -2,26 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/fp16_compression/disable_fp16_comp_ltx_rope.hpp"
+#include "transformations/fp16_compression/mark_ltx_rope_tables_to_keep_in_mixed_precision.hpp"
 
 #include <unordered_set>
 #include <vector>
 
 #include "itt.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/sin.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/convolution_base.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/binary_elementwise_comparison.hpp"
+#include "openvino/op/util/binary_elementwise_logical.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/scatter_base.hpp"
+#include "openvino/op/util/scatter_elements_update_base.hpp"
+#include "openvino/op/util/scatter_nd_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/op/util/squeeze_base.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -29,6 +47,7 @@
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
+namespace v4 = ov::op::v4;
 namespace v8 = ov::op::v8;
 namespace op_util = ov::op::util;
 
@@ -36,7 +55,7 @@ namespace {
 
 // Frequencies may be computed in the graph (e.g. theta^linspace in f64, sized by a ShapeOf): accept any subgraph
 // fed by Constants and shapes only.
-bool is_constant_subgraph(const ov::Output<ov::Node>& output) {
+bool is_constant_or_shape_subgraph(const ov::Output<ov::Node>& output) {
     std::unordered_set<ov::Node*> visited;
     std::vector<ov::Node*> stack{output.get_node()};
     while (!stack.empty()) {
@@ -55,9 +74,38 @@ bool is_constant_subgraph(const ov::Output<ov::Node>& output) {
     return true;
 }
 
-// Marks the matched table chain and the input paths of the grid and the frequencies; skips the match if they depend
-// on activations.
-bool mark_rope_table(const ov::NodeVector& chain, const std::vector<ov::Node*>& inputs) {
+// Elementwise, shape and data movement ops that derive positions and frequencies from coordinates or shapes. Any
+// other op (MatMul, convolution, a fused plugin op, ...) means the input depends on activations.
+bool is_position_op(const ov::Node* node) {
+    return ov::is_type_any_of<op_util::UnaryElementwiseArithmetic,
+                              op_util::BinaryElementwiseArithmetic,
+                              op_util::BinaryElementwiseComparison,
+                              op_util::BinaryElementwiseLogical,
+                              op_util::BroadcastBase,
+                              op_util::GatherBase,
+                              op_util::ScatterBase,
+                              op_util::ScatterElementsUpdateBase,
+                              op_util::ScatterNDBase,
+                              op_util::SqueezeBase,
+                              v0::Concat,
+                              v0::Convert,
+                              v0::Range,
+                              v0::Tile,
+                              v0::Unsqueeze,
+                              v1::Reshape,
+                              v1::Select,
+                              v1::Split,
+                              v1::StridedSlice,
+                              v1::Transpose,
+                              v1::VariadicSplit,
+                              v4::Range,
+                              v8::Slice>(node);
+}
+
+// Marks the matched table chain and the floating point nodes on the input paths of the grid and the frequencies;
+// skips the match if they depend on activations. Integer and boolean subgraphs only compute shapes and indices, so
+// the walk does not descend into them.
+void mark_rope_table(const ov::NodeVector& chain, const std::vector<ov::Node*>& inputs) {
     bool depends_on_activations = false;
     std::vector<ov::Node*> path;
     std::unordered_set<ov::Node*> visited;
@@ -69,15 +117,19 @@ bool mark_rope_table(const ov::NodeVector& chain, const std::vector<ov::Node*>& 
                 path.push_back(node);
             },
             [&depends_on_activations](ov::Node* node) {
-                if (ov::is_type_any_of<v0::MatMul, op_util::ConvolutionBase>(node)) {
+                if (ov::is_type_any_of<v0::Constant, v0::Parameter, op_util::ShapeOfBase>(node) ||
+                    !node->get_output_element_type(0).is_real()) {
+                    return true;
+                }
+                if (!is_position_op(node)) {
                     depends_on_activations = true;
                     return true;
                 }
-                return ov::is_type_any_of<v0::Constant, v0::Parameter, op_util::ShapeOfBase>(node);
+                return false;
             });
     }
     if (depends_on_activations) {
-        return false;
+        return;
     }
     for (const auto& node : chain) {
         ov::disable_conversion(node, ov::element::f16);
@@ -85,19 +137,18 @@ bool mark_rope_table(const ov::NodeVector& chain, const std::vector<ov::Node*>& 
     for (const auto& node : path) {
         ov::disable_conversion(node->shared_from_this(), ov::element::f16);
     }
-    return true;
 }
 
 }  // namespace
 
-ov::pass::DisableFP16CompForLtxVideoRopePattern::DisableFP16CompForLtxVideoRopePattern() {
-    MATCHER_SCOPE(DisableFP16CompForLtxVideoRopePattern);
+ov::pass::MarkLtxVideoRopeTable::MarkLtxVideoRopeTable() {
+    MATCHER_SCOPE(MarkLtxVideoRopeTable);
     using namespace ov::pass::pattern;
 
     auto grid = any_input();
-    auto freqs = any_input(is_constant_subgraph);
+    auto freqs = any_input(is_constant_or_shape_subgraph);
     auto mul = wrap_type<v1::Multiply>({grid, freqs});
-    auto shift = wrap_type<v1::Add>({mul, wrap_const()});
+    auto shift = wrap_type<v1::Add, v1::Subtract>({mul, wrap_const()});
     auto layout = optional<v1::Transpose, v1::Reshape>({shift, any_input()});
     auto flatten = optional<v1::Reshape>({layout, any_input()});
     auto sin_or_cos = wrap_type<v0::Sin, v0::Cos>({flatten});
@@ -122,17 +173,17 @@ ov::pass::DisableFP16CompForLtxVideoRopePattern::DisableFP16CompForLtxVideoRopeP
     register_matcher(m, callback);
 }
 
-ov::pass::DisableFP16CompForLtx2RopePattern::DisableFP16CompForLtx2RopePattern() {
-    MATCHER_SCOPE(DisableFP16CompForLtx2RopePattern);
+ov::pass::MarkLtx2RopeTable::MarkLtx2RopeTable() {
+    MATCHER_SCOPE(MarkLtx2RopeTable);
     using namespace ov::pass::pattern;
 
     auto grid = any_input();
-    auto shift = wrap_type<v1::Add>({grid, wrap_const()});
+    auto shift = wrap_type<v1::Add, v1::Subtract>({grid, wrap_const()});
     // MoveEltwiseUpThroughDataMov may move the shift above the position axis selection
     auto squeeze = optional<v0::Squeeze>({shift, wrap_const()});
     auto select = optional<v8::Gather>({squeeze, wrap_const(), wrap_const()});
     auto unsqueeze = optional<v0::Unsqueeze>({select, wrap_const()});
-    auto freqs = any_input(is_constant_subgraph);
+    auto freqs = any_input(is_constant_or_shape_subgraph);
     auto mul = wrap_type<v1::Multiply>({unsqueeze, freqs});
     auto layout = optional<v1::Transpose, v1::Reshape>({mul, any_input()});
     auto flatten = optional<v1::Reshape>({layout, any_input()});
@@ -158,7 +209,7 @@ ov::pass::DisableFP16CompForLtx2RopePattern::DisableFP16CompForLtx2RopePattern()
     register_matcher(m, callback);
 }
 
-ov::pass::DisableFP16CompForLtxRope::DisableFP16CompForLtxRope() {
-    ADD_MATCHER_FOR_THIS(DisableFP16CompForLtxVideoRopePattern)
-    ADD_MATCHER_FOR_THIS(DisableFP16CompForLtx2RopePattern)
+ov::pass::MarkLtxRopeTablesToKeepInMixedPrecision::MarkLtxRopeTablesToKeepInMixedPrecision() {
+    ADD_MATCHER_FOR_THIS(MarkLtxVideoRopeTable)
+    ADD_MATCHER_FOR_THIS(MarkLtx2RopeTable)
 }
