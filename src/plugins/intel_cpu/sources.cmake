@@ -675,6 +675,11 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/utils/general_utils.h
     ${CPU_SRC_DIR}/utils/graph_serializer/deserializer.cpp
     ${CPU_SRC_DIR}/utils/graph_serializer/deserializer.hpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_common.hpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_reader_handler.cpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_reader_handler.hpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_writer_handler.cpp
+    ${CPU_SRC_DIR}/utils/graph_serializer/hsm_writer_handler.hpp
     ${CPU_SRC_DIR}/utils/graph_serializer/serializer.cpp
     ${CPU_SRC_DIR}/utils/graph_serializer/serializer.hpp
     ${CPU_SRC_DIR}/utils/memory_stats_dump.hpp
