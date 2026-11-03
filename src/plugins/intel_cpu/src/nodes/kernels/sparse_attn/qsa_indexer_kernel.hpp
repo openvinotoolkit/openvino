@@ -25,7 +25,6 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/qsa_indexer_config.hpp"
-#include "nodes/kernels/sparse_attn/qsa_backends.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -35,6 +34,10 @@
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
+
+#ifdef OPENVINO_ARCH_X86_64
+#    include "nodes/kernels/sparse_attn/qsa_brgemm_scorer.hpp"
+#endif
 
 namespace ov::intel_cpu::node::qsa {
 

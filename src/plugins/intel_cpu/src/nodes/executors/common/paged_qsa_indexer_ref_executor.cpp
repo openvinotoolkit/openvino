@@ -7,7 +7,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/paged_qsa_indexer_config.hpp"
 #include "nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp"
-#include "nodes/kernels/sparse_attn/qsa_backends.hpp"
+#include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/paged_qsa_indexer.hpp"
 #include "utils/general_utils.h"

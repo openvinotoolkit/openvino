@@ -26,7 +26,6 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/paged_qsa_indexer_config.hpp"
 #include "nodes/kernels/scaled_attn/common.hpp"
-#include "nodes/kernels/sparse_attn/qsa_backends.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -581,7 +580,7 @@ void select_blocks(const Backend& backend, const Ports& p, const Config& c, cons
 }
 
 // The computation of the node, T is the precision of the summary blocks. A backend is what differs between the
-// implementations (see ScalarBackend in qsa_backends.hpp).
+// implementations (see ScalarBackend in qsa_indexer_common.hpp).
 template <typename T, typename Backend>
 void run_indexer_typed(const Backend& backend,
                        const MemoryArgs& memory,

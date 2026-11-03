@@ -13,7 +13,6 @@
 #include "nodes/executors/paged_qsa_indexer_config.hpp"
 #include "nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp"
 #include "nodes/kernels/sparse_attn/qsa_brgemm_scorer.hpp"
-#include "nodes/kernels/sparse_attn/qsa_jit_backend.hpp"
 #include "nodes/kernels/sparse_attn/qsa_jit_kernels.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -56,9 +55,9 @@ PagedQSAIndexerJitExecutor::PagedQSAIndexerJitExecutor(const PagedQSAIndexerAttr
       m_context(std::move(context)) {
     const auto& c = m_attrs.config;
     const auto cache = m_context->getRuntimeCache();
-    m_backend.rms_rope_kernel =
+    m_rms_rope_kernel =
         node::qsa::JitRmsRope::get(cache, node::qsa::RmsRopeKey{c.indexer_head_dim, c.indexer_rotary_dim, c.epsilon});
-    OPENVINO_ASSERT(m_backend.rms_rope_kernel, "PagedQSAIndexer: no JIT RMSNorm / RoPE kernel for this CPU");
+    OPENVINO_ASSERT(m_rms_rope_kernel, "PagedQSAIndexer: no JIT RMSNorm / RoPE kernel for this CPU");
 
     MemoryDescArgs descs;
     for (const auto& [arg, mem] : memory) {
@@ -69,7 +68,7 @@ PagedQSAIndexerJitExecutor::PagedQSAIndexerJitExecutor(const PagedQSAIndexerAttr
     size_t q_heads = 0;
     size_t k_heads = 0;
     if (head_counts(descs, c.indexer_head_dim, q_heads, k_heads) && k_heads != 0 && q_heads % k_heads == 0) {
-        m_backend.score_kernel = node::qsa::JitQsaScore::get(
+        m_score_kernel = node::qsa::JitQsaScore::get(
             cache,
             node::qsa::QsaScoreKey{summary_precision, c.indexer_head_dim, q_heads / k_heads});
         // the query is rounded to the precision of the summary blocks for the brgemm products: only done when it is
@@ -86,10 +85,10 @@ PagedQSAIndexerJitExecutor::PagedQSAIndexerJitExecutor(const PagedQSAIndexerAttr
                 c.epsilon,
                 ov::op::internal::PagedQSAIndexer::effective_scale(c),
                 summary_precision};
-            m_backend.brgemm = node::qsa::BrgemmBlockScorer::get(cache, config);
+            m_brgemm = node::qsa::BrgemmBlockScorer::get(cache, config);
         }
     }
-    if (m_backend.brgemm) {
+    if (m_brgemm) {
         m_impl = node::qsa::score_impl_type(summary_precision);
     } else {
         m_impl = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? impl_desc_type::jit_avx512
@@ -98,7 +97,7 @@ PagedQSAIndexerJitExecutor::PagedQSAIndexerJitExecutor(const PagedQSAIndexerAttr
 }
 
 void PagedQSAIndexerJitExecutor::execute(const MemoryArgs& memory) {
-    node::qsa::paged::run_indexer(m_backend, memory, m_attrs.config, m_context);
+    node::qsa::paged::run_indexer(*this, memory, m_attrs.config, m_context);
 }
 
 }  // namespace ov::intel_cpu

@@ -445,10 +445,7 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/qsa_indexer.h
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_common.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/paged_qsa_indexer_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_backends.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_indexer_jit_backend.hpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_jit_backend.hpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_jit_kernels.hpp
     ${CPU_SRC_DIR}/nodes/random_uniform.cpp
     ${CPU_SRC_DIR}/nodes/random_uniform.hpp
@@ -868,8 +865,6 @@ set(CPU_PLUGIN_X64_SRCS
     ${CPU_SRC_DIR}/nodes/kernels/x64/registers_pool.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_jit_kernels.cpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_score_kernel.cpp
-    ${CPU_SRC_DIR}/nodes/kernels/sparse_attn/qsa_score_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rms_kernel.hpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.cpp
     ${CPU_SRC_DIR}/nodes/kernels/x64/rope_kernel.hpp

@@ -6,7 +6,7 @@
 
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/qsa_indexer_config.hpp"
-#include "nodes/kernels/sparse_attn/qsa_backends.hpp"
+#include "nodes/kernels/sparse_attn/qsa_indexer_common.hpp"
 #include "nodes/kernels/sparse_attn/qsa_indexer_kernel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/cpu_opset/x64/op/qsa_indexer.hpp"

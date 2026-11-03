@@ -20,6 +20,8 @@
 // per-row RMSNorm + partial RoPE does not.
 namespace ov::intel_cpu::node::qsa {
 
+class BrgemmBlockScorer;  // x64 only, see qsa_brgemm_scorer.hpp
+
 // What one row of the batch contributes to a call of the dense QSAIndexer. Every quantity is derived from the row's
 // own key_length and the window length L of the call alone -- no cross-call running counter is kept.
 struct RowPlan {
@@ -173,5 +175,65 @@ inline void rmsnorm_partial_rope(const float* src,
         dst[j + half] = x1 * cos_hi + x0 * sin_hi;
     }
 }
+
+// scores[i] += sum over the G query heads h of max(0, q[h] . rows[i]), for the n summary rows ([n, D] of the type T) of
+// one index key head and its G query heads q ([G, D] f32), the plain C++ way. A row is converted to f32 once, whatever
+// the number of query heads that share it (`row_buf`, D floats).
+template <typename T>
+void score_run_scalar(const float* q, const T* rows, size_t n, size_t G, size_t D, float* scores, float* row_buf) {
+    for (size_t i = 0; i < n; i++) {
+        const T* row = rows + i * D;
+        const float* row_f32 = row_buf;
+        if constexpr (std::is_same_v<T, float>) {
+            row_f32 = row;
+        } else {
+            row_to_f32<T>(row, row_buf, D);
+        }
+        float sum = 0.0F;
+        for (size_t h = 0; h < G; h++) {
+            float dot = 0.0F;
+            for (size_t d = 0; d < D; d++) {
+                dot += q[h * D + d] * row_f32[d];
+            }
+            sum += std::max(0.0F, dot);
+        }
+        scores[i] += sum;
+    }
+}
+
+// What differs between the implementations of the nodes (QSAIndexer, PagedQSAIndexer). A backend provides
+//   rms_rope(src, dst, weight, dim, rotary_dim, eps, cos, sin)   the RMSNorm + partial RoPE of an f32 row (`dst` may be
+//                                                                  `src`)
+//   scorer()                                                     the brgemm scorer of the call, null if it has none
+//   score_run<T>(q, rows, n, G, D, scores, stage, row_buf)       scores[i] += the scores of n summary rows of an
+//                                                                  index key head, see score_run_scalar
+// ScalarBackend is the plain C++ one (the `ref` executors); the JIT executors (QSAIndexerJitExecutor,
+// PagedQSAIndexerJitExecutor) are backends themselves.
+struct ScalarBackend {
+    static void rms_rope(const float* src,
+                         float* dst,
+                         const float* weight,
+                         size_t dim,
+                         size_t rotary_dim,
+                         float eps,
+                         const float* cos,
+                         const float* sin) {
+        rmsnorm_partial_rope(src, dst, weight, dim, rotary_dim, eps, cos, sin);
+    }
+    [[nodiscard]] static const BrgemmBlockScorer* scorer() {
+        return nullptr;
+    }
+    template <typename T>
+    static void score_run(const float* q,
+                          const T* rows,
+                          size_t n,
+                          size_t G,
+                          size_t D,
+                          float* scores,
+                          float* /*stage*/,
+                          float* row_buf) {
+        score_run_scalar<T>(q, rows, n, G, D, scores, row_buf);
+    }
+};
 
 }  // namespace ov::intel_cpu::node::qsa

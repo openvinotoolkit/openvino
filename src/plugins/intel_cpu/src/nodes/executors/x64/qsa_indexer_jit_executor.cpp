@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <utility>
 
+#include "cpu_parallel.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/qsa_indexer_config.hpp"
@@ -35,6 +36,19 @@ bool head_counts(const MemoryDescArgs& descs, size_t& q_heads, size_t& k_heads) 
 
 }  // namespace
 
+// Phase 2 of the JIT executor: brgemm where the scorer exists, the token scorer on the JIT scoring kernel otherwise.
+template <typename T>
+void run_scorer(const QSAIndexerJitExecutor& backend,
+                const node::qsa::Ports& p,
+                const node::qsa::Config& c,
+                const node::qsa::IndexerScratch<T>& scratch,
+                const CpuParallel& parallel) {
+    if (node::qsa::run_brgemm_scorer<T>(p, c, scratch, parallel)) {
+        return;
+    }
+    node::qsa::run_token_scorer<T>(backend, p, c, scratch, parallel);
+}
+
 bool QSAIndexerJitExecutor::supports(const QSAIndexerConfig& config) {
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
         return false;
@@ -50,9 +64,9 @@ QSAIndexerJitExecutor::QSAIndexerJitExecutor(const QSAIndexerAttrs& attrs,
       m_context(std::move(context)) {
     const auto& c = m_attrs.config;
     const auto cache = m_context->getRuntimeCache();
-    m_backend.rms_rope_kernel =
+    m_rms_rope_kernel =
         node::qsa::JitRmsRope::get(cache, node::qsa::RmsRopeKey{c.indexer_head_dim, c.indexer_rotary_dim, c.eps});
-    OPENVINO_ASSERT(m_backend.rms_rope_kernel, "QSAIndexer: no JIT RMSNorm / RoPE kernel for this CPU");
+    OPENVINO_ASSERT(m_rms_rope_kernel, "QSAIndexer: no JIT RMSNorm / RoPE kernel for this CPU");
 
     MemoryDescArgs descs;
     for (const auto& [arg, mem] : memory) {
@@ -63,7 +77,7 @@ QSAIndexerJitExecutor::QSAIndexerJitExecutor(const QSAIndexerAttrs& attrs,
     const auto precision = descs.at(qsa_src_arg(In::Q_IDX))->getPrecision();
     if (head_counts(descs, q_heads, k_heads)) {
         if (k_heads != 0 && q_heads % k_heads == 0) {
-            m_backend.score_kernel =
+            m_score_kernel =
                 node::qsa::JitQsaScore::get(cache,
                                             node::qsa::QsaScoreKey{precision, c.indexer_head_dim, q_heads / k_heads});
         }
@@ -79,9 +93,9 @@ QSAIndexerJitExecutor::QSAIndexerJitExecutor(const QSAIndexerAttrs& attrs,
             QSAIndexerNode::effective_scale(c),
             precision,
             c.order_by_score};
-        m_backend.brgemm = node::qsa::BrgemmBlockScorer::get(cache, config);
+        m_brgemm = node::qsa::BrgemmBlockScorer::get(cache, config);
     }
-    if (m_backend.brgemm) {
+    if (m_brgemm) {
         m_impl = node::qsa::score_impl_type(precision);
     } else {
         m_impl = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? impl_desc_type::jit_avx512
@@ -90,7 +104,7 @@ QSAIndexerJitExecutor::QSAIndexerJitExecutor(const QSAIndexerAttrs& attrs,
 }
 
 void QSAIndexerJitExecutor::execute(const MemoryArgs& memory) {
-    node::qsa::run_indexer(m_backend, memory, m_attrs.config, m_context);
+    node::qsa::run_indexer(*this, memory, m_attrs.config, m_context);
 }
 
 }  // namespace ov::intel_cpu
