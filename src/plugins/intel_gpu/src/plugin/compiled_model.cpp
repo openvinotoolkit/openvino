@@ -62,7 +62,6 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
     : ov::ICompiledModel(model, plugin, context, create_task_executor(plugin, config), nullptr),
       m_context(context),
       m_config(config),
-      m_export_hsm_format(plugin->get_property(ov::internal::emit_hsm_format.name(), {}).as<bool>()),
       m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(
           ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
       m_model_name(model->get_friendly_name()),
@@ -84,40 +83,37 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                              RemoteContextImpl::Ptr context,
                              const ExecutionConfig& config,
                              const bool loaded_from_cache,
-                             ov::internal::WeightSharingCtxPtr weightSharingContext,
-                             std::string runtime_requirements)
-    : ov::ICompiledModel(nullptr, plugin, context, create_task_executor(plugin, config), nullptr),
-      m_context(context),
-      m_config(config),
-      m_export_hsm_format(plugin->get_property(ov::internal::emit_hsm_format.name(), {}).as<bool>()),
-      m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"})),
-      m_loaded_from_cache(loaded_from_cache),
-      m_weight_sharing_context(std::move(weightSharingContext)) {
-    // HSM supplies its bounded descriptor separately. Legacy keeps its magic/version prefix;
-    // both formats share the compatibility policy and graph reconstruction below.
+                             ov::internal::WeightSharingCtxPtr weightSharingContext)
+    : ov::ICompiledModel(nullptr,
+                         plugin,
+                         context,
+                         create_task_executor(plugin, config),
+                         nullptr)
+    , m_context(context)
+    , m_config(config)
+    , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
+    , m_loaded_from_cache(loaded_from_cache)
+    , m_weight_sharing_context(std::move(weightSharingContext)) {
+    // The compiled blob starts (after ov::CacheMode) with a magic-guarded, versioned
+    // compatibility descriptor. Any rejection below throws ov::Exception;
+    // So the caller (cache layer / OV EP) catches it and recompiles instead of consuming a bad blob.
 
     // Missing magic => blob produced by an OpenVINO build predating this feature.
-    if (runtime_requirements.empty()) {
-        uint64_t requirements_magic = 0;
-        ib >> requirements_magic;
-        if (requirements_magic != runtime_requirements_magic) {
-            OPENVINO_THROW("[GPU] Cannot import compiled blob: missing compatibility descriptor "
-                           "(blob produced by an incompatible OpenVINO version).");
-        }
-
-        uint32_t requirements_version = 0;
-        ib >> requirements_version;
-        if (requirements_version != runtime_requirements_version) {
-            OPENVINO_THROW("[GPU] Unsupported compatibility descriptor version ",
-                           requirements_version,
-                           " in compiled blob (expected ",
-                           runtime_requirements_version,
-                           ").");
-        }
-        ib >> m_runtime_requirements;
-    } else {
-        m_runtime_requirements = std::move(runtime_requirements);
+    uint64_t requirements_magic = 0;
+    ib >> requirements_magic;
+    if (requirements_magic != runtime_requirements_magic) {
+        OPENVINO_THROW("[GPU] Cannot import compiled blob: missing compatibility descriptor "
+                       "(blob produced by an incompatible OpenVINO version).");
     }
+
+    // Unknown descriptor version => on-disk contract we can't parse safely.
+    uint32_t requirements_version = 0;
+    ib >> requirements_version;
+    if (requirements_version != runtime_requirements_version) {
+        OPENVINO_THROW("[GPU] Unsupported compatibility descriptor version ", requirements_version,
+                       " in compiled blob (expected ", runtime_requirements_version, ").");
+    }
+    ib >> m_runtime_requirements;
 
     // Descriptor content mismatch => blob built for a different runtime (OpenVINO version/driver).
     const auto& device_info = m_context->get_engine().get_device_info();
@@ -132,7 +128,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     {
         size_t num_params = 0;
         ib >> num_params;
-        ib.check_size(num_params);
 
         for (size_t idx = 0; idx < num_params; ++idx) {
             std::string param_name;
@@ -147,7 +142,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
             std::unordered_set<std::string> param_names;
             size_t num_names;
             ib >> num_names;
-            ib.check_size(num_names);
             for (size_t i = 0; i < num_names; ++i) {
                 std::string name;
                 ib >> name;
@@ -166,7 +160,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     {
         size_t num_results;
         ib >> num_results;
-        ib.check_size(num_results);
 
         for (size_t idx = 0; idx < num_results; ++idx) {
             ov::element::Type fake_element_type;
@@ -187,7 +180,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
             std::unordered_set<std::string> param_names;
             size_t num_names;
             ib >> num_names;
-            ib.check_size(num_names);
             for (size_t i = 0; i < num_names; ++i) {
                 std::string name;
                 ib >> name;
@@ -215,6 +207,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     }
     const auto group_size = graph_base->get_config().get_dynamic_quantization_group_size();
     m_config.set_user_property({ov::hint::dynamic_quantization_group_size(group_size)}, OptionVisibility::RELEASE);
+    m_config.set_user_property({ov::intel_gpu::export_hsm_format(graph_base->get_config().get_export_hsm_format())});
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
@@ -245,7 +238,7 @@ void CompiledModel::export_model(std::ostream& model) const {
     const ov::EncryptionCallbacks encryption_callbacks = m_config.get_cache_encryption_callbacks();
 
     const ov::CacheMode cache_mode = m_config.get_cache_mode();
-    if (m_export_hsm_format) {
+    if (m_config.get_export_hsm_format()) {
         hsm::write_model(
             model,
             cache_mode,

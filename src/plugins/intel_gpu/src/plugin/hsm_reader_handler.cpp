@@ -13,6 +13,7 @@
 
 #include "common_utils/parallel_mem_streambuf.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 
@@ -112,6 +113,25 @@ private:
     off_type m_position = 0;
 };
 
+// Supply the existing constructor's descriptor without counting it in section-local graph offsets.
+class ModelInputBuffer final : public cldnn::BinaryInputBuffer {
+public:
+    ModelInputBuffer(std::istream& stream, cldnn::engine& engine, const size_t* tensor_base, bool encrypted, const std::string& requirements)
+        : BinaryInputBuffer(stream, engine, tensor_base, encrypted) {
+        cldnn::BinaryOutputBuffer header(m_header);
+        header << CompiledModel::runtime_requirements_magic << CompiledModel::runtime_requirements_version << requirements;
+    }
+
+    void read(void* data, std::streamsize size) override {
+        const auto read = m_header.rdbuf()->sgetn(static_cast<char*>(data), size);
+        if (read < size)
+            BinaryInputBuffer::read(static_cast<char*>(data) + read, size - read);
+    }
+
+private:
+    std::stringstream m_header;
+};
+
 class Sections final : public wire::ISectionReaderHandler {
 public:
     explicit Sections(const wire::Reader& reader) {
@@ -179,7 +199,7 @@ std::string decrypt_payload(const wire::Section& section, const Crypt& decrypt) 
 }  // namespace
 
 struct ReaderHandler::Impl {
-    Impl(std::istream& model, cldnn::engine& engine, std::shared_ptr<ov::Tensor> backing, Crypt decrypt) : source(model.rdbuf()), backing(std::move(backing)) {
+    Impl(std::istream& model, cldnn::engine& engine, const size_t* backing, Crypt decrypt) : source(model.rdbuf()), legacy_stream(&model) {
         OPENVINO_ASSERT(source, "[GPU] Invalid compiled-model input stream");
         const auto start = source->pubseekoff(0, std::ios::cur, std::ios::in);
         const auto probe_size = source->sgetn(magic.data(), magic.size());
@@ -189,18 +209,11 @@ struct ReaderHandler::Impl {
             OPENVINO_ASSERT(source->pubseekpos(start, std::ios::in) == start, "[GPU] Cannot restore blob stream position");
 
         if (!is_hsm) {
-            std::istream* legacy_stream = &model;
             if (!seekable) {
                 prefix_buffer = std::make_unique<PrefixInputStreamBuf>(source, magic.data(), static_cast<size_t>(probe_size));
                 payload_stream = std::make_unique<std::istream>(prefix_buffer.get());
                 legacy_stream = payload_stream.get();
             }
-            input = decrypt ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(*legacy_stream, engine, decrypt)
-                            : std::make_unique<cldnn::BinaryInputBuffer>(
-                                  *legacy_stream,
-                                  engine,
-                                  this->backing ? static_cast<const size_t*>(std::as_const(*this->backing).data()) : nullptr);
-            *input >> cldnn::make_data(&cache_mode, sizeof(cache_mode));
             return;
         }
 
@@ -218,11 +231,12 @@ struct ReaderHandler::Impl {
         const auto source_end = source->pubseekoff(0, std::ios::end, std::ios::in);
         OPENVINO_ASSERT(source_end >= container_end && source->pubseekpos(start, std::ios::in) == start,
                         "[GPU] Truncated HSM container or unsupported input seeking");
-        auto reader = this->backing ? wire::Reader::open(static_cast<const std::byte*>(std::as_const(*this->backing).data()), this->backing->get_byte_size())
-                                    : wire::Reader::open(model);
+        auto reader = backing ? wire::Reader::open(reinterpret_cast<const std::byte*>(backing) + static_cast<std::streamoff>(start),
+                                                   static_cast<size_t>(header.container_size))
+                              : wire::Reader::open(model);
         OPENVINO_ASSERT(reader, "[GPU] Invalid or unsupported HSM container");
         Sections sections(*reader);
-        requirements = sections.requirements();
+        const auto requirements = sections.requirements();
         const auto& device_info = engine.get_device_info();
         OPENVINO_ASSERT(CompiledModel::is_runtime_requirements_compatible(requirements, device_info),
                         "[GPU] Cannot import HSM GPU payload: incompatible runtime configuration.\n  blob: ",
@@ -250,17 +264,15 @@ struct ReaderHandler::Impl {
             section_buffer = std::make_unique<BoundedInputStreamBuf>(*memory_stream, 0, payload_size);
         }
         payload_stream = std::make_unique<std::istream>(section_buffer.get());
-        input = std::make_unique<cldnn::BinaryInputBuffer>(*payload_stream, engine, tensor_base, is_encrypted);
-        input->set_read_limit(payload_size);
+        input = std::make_unique<ModelInputBuffer>(*payload_stream, engine, tensor_base, is_encrypted, requirements);
     }
 
     std::streambuf* source;
-    std::shared_ptr<ov::Tensor> backing;
+    std::istream* legacy_stream;
     std::array<char, 5> magic{};
     bool is_hsm = false;
     ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     std::streampos container_end{};
-    std::string requirements;
     std::string plaintext;
     std::unique_ptr<PrefixInputStreamBuf> prefix_buffer;
     std::unique_ptr<ParallelMemStreamBuf> memory_buffer;
@@ -270,10 +282,18 @@ struct ReaderHandler::Impl {
     std::unique_ptr<cldnn::BinaryInputBuffer> input;
 };
 
-ReaderHandler::ReaderHandler(std::istream& source, cldnn::engine& engine, std::shared_ptr<ov::Tensor> backing, Crypt decrypt)
-    : m_impl(std::make_unique<Impl>(source, engine, std::move(backing), std::move(decrypt))) {}
+ReaderHandler::ReaderHandler(std::istream& source, cldnn::engine& engine, const size_t* tensor_base, Crypt decrypt)
+    : m_impl(std::make_unique<Impl>(source, engine, tensor_base, std::move(decrypt))) {}
 
 ReaderHandler::~ReaderHandler() = default;
+
+bool ReaderHandler::is_hsm() const {
+    return m_impl->is_hsm;
+}
+
+std::istream& ReaderHandler::legacy_stream() {
+    return *m_impl->legacy_stream;
+}
 
 cldnn::BinaryInputBuffer& ReaderHandler::buffer() {
     return *m_impl->input;
@@ -281,10 +301,6 @@ cldnn::BinaryInputBuffer& ReaderHandler::buffer() {
 
 ov::CacheMode ReaderHandler::cache_mode() const {
     return m_impl->cache_mode;
-}
-
-const std::string& ReaderHandler::requirements() const {
-    return m_impl->requirements;
 }
 
 void ReaderHandler::finish() {

@@ -6,11 +6,9 @@
 
 #include <istream>
 #include <memory>
-#include <string>
 
 #include "intel_gpu/plugin/hsm_common.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/tensor.hpp"
 
 namespace cldnn {
 class BinaryInputBuffer;
@@ -19,15 +17,16 @@ class engine;
 
 namespace ov::intel_gpu::hsm {
 
-// Routes legacy/HSM and owns all temporary section streams through graph reconstruction.
+// Owns HSM section streams through graph reconstruction; leaves legacy decoding to the plugin.
 class ReaderHandler {
 public:
-    ReaderHandler(std::istream& source, cldnn::engine& engine, std::shared_ptr<ov::Tensor> backing, Crypt decrypt);
+    ReaderHandler(std::istream& source, cldnn::engine& engine, const size_t* tensor_base, Crypt decrypt);
     ~ReaderHandler();
 
+    bool is_hsm() const;
+    std::istream& legacy_stream();
     cldnn::BinaryInputBuffer& buffer();
     ov::CacheMode cache_mode() const;
-    const std::string& requirements() const;
     void finish();
 
 private:

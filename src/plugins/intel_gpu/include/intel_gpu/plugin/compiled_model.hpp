@@ -34,8 +34,7 @@ public:
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
                   const bool loaded_from_cache,
-                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr,
-                  std::string runtime_requirements = {});
+                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr);
     ~CompiledModel() override {
         auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
         streams_executor->cpu_reset();
@@ -106,7 +105,6 @@ private:
 
     RemoteContextImpl::Ptr m_context;
     ExecutionConfig m_config;
-    const bool m_export_hsm_format;
     std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
     std::string m_model_name;
     std::vector<ov::Output<const ov::Node>> m_inputs;
