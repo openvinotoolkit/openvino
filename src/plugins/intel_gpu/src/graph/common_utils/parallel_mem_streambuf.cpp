@@ -157,18 +157,28 @@ ParallelMemStreamBuf::ParallelMemStreamBuf(const void* data, size_t size, size_t
       m_current(static_cast<const char*>(data)),
       m_threshold(threshold) {
     // Detect whether this memory is a file-backed mmap region.
-    // If so, build a ParallelReadStreamBuf over the same file+offset so
+    // If so, build a NativeStreamBuf over the same file region so
     // direct reads are used instead of mmap+memcpy.  This avoids 2x RAM
     // pressure (mmap working-set + destination buffer) that causes
     // working-set thrashing for multi-GB models.
+    // The region is limited to [file_off, file_off + size), so data stored
+    // after it in the same file (e.g. a trailing blob map) is never exposed.
     if (size >= threshold) {
         std::filesystem::path file_path;
         std::streamoff file_off = 0;
         if (get_mmap_file_info(data, file_path, file_off)) {
             try {
-                m_file_buf = std::make_unique<ov::util::ParallelReadStreamBuf>(file_path, file_off, threshold);
+                std::streamoff file_size = 0;
+                ov::util::get_file_handle_and_size(file_path, file_off, m_file_handle, file_size);
+                if (static_cast<uint64_t>(file_size - file_off) >= size) {
+                    m_file_buf = std::make_unique<ov::util::NativeStreamBuf>(m_file_handle, file_off, static_cast<std::streamoff>(size));
+                }
             } catch (...) {
                 // File became inaccessible after mmap detection; fall through to memcpy path.
+            }
+            if (!m_file_buf) {
+                ov::util::close_file_handle(m_file_handle);
+                m_file_handle = ov::invalid_handle;
             }
         }
     }
@@ -177,6 +187,12 @@ ParallelMemStreamBuf::ParallelMemStreamBuf(const void* data, size_t size, size_t
     if (!m_file_buf) {
         prefetch_memory(data, size);
     }
+}
+
+ParallelMemStreamBuf::~ParallelMemStreamBuf() {
+    // NativeStreamBuf does not own the handle; release the buffer before closing it.
+    m_file_buf.reset();
+    ov::util::close_file_handle(m_file_handle);
 }
 
 std::streamsize ParallelMemStreamBuf::xsgetn(char_type* dst, std::streamsize n) {
