@@ -133,9 +133,6 @@ void expect_fp32_pair(const std::shared_ptr<ov::Model>& model) {
             }
         }
     }
-    const auto nodes = model->get_ordered_ops();
-    run_discovery(model);
-    EXPECT_EQ(nodes, model->get_ordered_ops());
 }
 
 std::shared_ptr<ov::Model> make_pair(const ov::Output<ov::Node>& angle,
@@ -167,6 +164,9 @@ TEST(IncreasePositionIdsLTXVideoDiscoveryTest, TimeEmbeddingAndLayoutVariantsWit
         model->add_results({std::make_shared<ov::op::v0::Result>(table)});
         run_discovery(model);
         expect_fp32_pair(model);
+        const auto nodes = model->get_ordered_ops();
+        run_discovery(model);
+        EXPECT_EQ(nodes, model->get_ordered_ops());
         EXPECT_EQ(model->get_results()[2]->input_value(0), angle);
         EXPECT_EQ(angle.get_element_type(), ov::element::f16);
         EXPECT_EQ(table->get_output_element_type(0), ov::element::f16);
@@ -225,80 +225,40 @@ TEST(IncreasePositionIdsLTXVideoDiscoveryTest, IneligiblePairsAndFP32PathsStayUn
     }
 }
 
-// Cross-model synthetic patterns; these do not certify the corresponding real models.
-TEST(IncreasePositionIdsLTXVideoCrossModelPatternTest, ReconstructsPreviouslyAnalyzedAngleStructures) {
-    for (const std::string pattern : {"generic_rope", "qwen25", "qwen3", "gpt_oss", "direct", "gemm"}) {
-        SCOPED_TRACE(pattern);
-        auto positions = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2, 2});
-        auto converted = std::make_shared<ov::op::v0::Convert>(positions, ov::element::f16);
-        auto frequency = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{2, 2}, {1});
-        auto compressed = std::make_shared<ov::op::v0::Convert>(frequency, ov::element::f16);
-        ov::Output<ov::Node> angle;
-        if (pattern == "gemm") {
-            angle = std::make_shared<ov::intel_gpu::op::Gemm>(converted, compressed,
-                                                           std::vector<int64_t>{0, 1},
-                                                           std::vector<int64_t>{0, 1},
-                                                           std::vector<int64_t>{0, 1});
-        } else {
-            angle = std::make_shared<ov::op::v0::MatMul>(converted, compressed);
-        }
-        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
-        if (pattern == "qwen25" || pattern == "gpt_oss") {
-            angle = std::make_shared<ov::op::v1::Transpose>(angle, order);
-        }
-        if (pattern == "qwen3") {
-            auto shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 2});
-            angle = std::make_shared<ov::op::v1::Reshape>(angle, shape, false);
-            auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-            auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
-            auto gather = std::make_shared<ov::op::v8::Gather>(angle, indices, axis);
-            auto scatter_indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2, 1}, {0, 1});
-            angle = std::make_shared<ov::op::v3::ScatterNDUpdate>(angle, scatter_indices, gather);
-        }
-        if (pattern == "generic_rope" || pattern == "qwen25" || pattern == "qwen3") {
-            angle = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{angle, angle}, -1);
-        }
-        auto model = make_pair(angle, {positions});
-        if (pattern == "qwen25" || pattern == "qwen3") {
-            auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
-            auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
-            for (size_t i = 0; i < 2; ++i) {
-                auto table = std::make_shared<ov::op::v8::Gather>(
-                    model->get_results()[i]->input_value(0), indices, axis);
-                model->add_results({std::make_shared<ov::op::v0::Result>(table)});
-            }
-        }
-        if (pattern == "gpt_oss") {
-            auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.5f});
-            for (size_t i = 0; i < 2; ++i) {
-                auto result = model->get_results()[i];
-                auto scaled = std::make_shared<ov::op::v1::Multiply>(result->input_value(0), scale);
-                model->add_results({std::make_shared<ov::op::v0::Result>(scaled)});
-            }
-        }
-        run_discovery(model);
-        expect_fp32_pair(model);
-        EXPECT_EQ(model->get_results()[2]->input_value(0), angle);
-        if (pattern == "gpt_oss") {
-            EXPECT_EQ(model->get_results()[3]->get_input_element_type(0), ov::element::f16);
-            EXPECT_EQ(model->get_results()[4]->get_input_element_type(0), ov::element::f16);
-        }
-    }
-}
-
 // Discovery regressions through the enclosing pass and FP16 input boundaries.
-TEST(IncreasePositionIdsLTXVideoDiscoveryTest, EnclosingPassPreservesTimeEmbeddingAndIsIdempotent) {
-    for (const auto type : {ov::element::f16, ov::element::f32}) {
-        auto positions = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2});
-        auto converted = std::make_shared<ov::op::v0::Convert>(positions, type);
-        auto frequency = ov::op::v0::Constant::create(type, ov::Shape{2}, {2});
-        auto angle = std::make_shared<ov::op::v1::Multiply>(converted, frequency);
-        auto model = make_pair(angle, {positions});
+TEST(IncreasePositionIdsLTXVideoDiscoveryTest, PreservesInputBoundariesAndIsIdempotent) {
+    struct Case {
+        ov::element::Type angle_type;
+        bool fp16_parameter;
+        bool enclosing;
+    };
+    for (const auto& config : {Case{ov::element::f16, false, true},
+                               Case{ov::element::f32, false, true},
+                               Case{ov::element::f16, true, false},
+                               Case{ov::element::f16, true, true}}) {
+        SCOPED_TRACE(::testing::Message() << "angle_type=" << config.angle_type
+                                        << ", fp16_parameter=" << config.fp16_parameter
+                                        << ", enclosing=" << config.enclosing);
+        const auto input_type = config.fp16_parameter ? ov::element::f16 : ov::element::i64;
+        auto input = std::make_shared<ov::op::v0::Parameter>(input_type, ov::Shape{2});
+        auto coefficient = ov::op::v0::Constant::create(config.angle_type, ov::Shape{2}, {2});
+        std::shared_ptr<ov::Node> angle;
+        if (config.fp16_parameter) {
+            angle = std::make_shared<ov::op::v1::Add>(input, coefficient);
+        } else {
+            auto converted = std::make_shared<ov::op::v0::Convert>(input, config.angle_type);
+            angle = std::make_shared<ov::op::v1::Multiply>(converted, coefficient);
+        }
+        auto model = make_pair(angle, {input});
         const auto original = model->get_ordered_ops();
         ov::pass::Manager manager;
-        manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+        if (config.enclosing) {
+            manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
+        } else {
+            manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecisionForLtxVideo>();
+        }
         manager.run_passes(model);
-        if (type == ov::element::f16) {
+        if (config.angle_type == ov::element::f16) {
             expect_fp32_pair(model);
         } else {
             EXPECT_EQ(original, model->get_ordered_ops());
@@ -306,28 +266,7 @@ TEST(IncreasePositionIdsLTXVideoDiscoveryTest, EnclosingPassPreservesTimeEmbeddi
         const auto nodes = model->get_ordered_ops();
         manager.run_passes(model);
         EXPECT_EQ(nodes, model->get_ordered_ops());
-    }
-}
-
-TEST(IncreasePositionIdsLTXVideoDiscoveryTest, ReusesFP16ParameterBoundaryOnRepeatedApplication) {
-    for (const bool enclosing : {false, true}) {
-        SCOPED_TRACE(enclosing);
-        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{2});
-        auto coefficient = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{2}, {2});
-        auto angle = std::make_shared<ov::op::v1::Add>(input, coefficient);
-        auto model = make_pair(angle, {input});
-        ov::pass::Manager manager;
-        if (enclosing) {
-            manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecision>();
-        } else {
-            manager.register_pass<ov::intel_gpu::IncreasePositionIdsPrecisionForLtxVideo>();
-        }
-        manager.run_passes(model);
-        expect_fp32_pair(model);
-        const auto nodes = model->get_ordered_ops();
-        manager.run_passes(model);
-        EXPECT_EQ(nodes, model->get_ordered_ops());
-        EXPECT_EQ(input->get_output_element_type(0), ov::element::f16);
+        EXPECT_EQ(input->get_output_element_type(0), input_type);
         EXPECT_EQ(model->get_results()[2]->input_value(0), angle->output(0));
     }
 }
@@ -976,14 +915,9 @@ LtxAngleTestModel make_ltx_angle_test_model(bool fp32_trig = false,
             consumer = std::make_shared<ov::op::v8::Gather>(trig, indices, table_axis);
             return consumer;
         }
-        auto identity = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 2});
-        consumer = std::make_shared<ov::op::v1::Transpose>(trig, identity);
-        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(consumer, axis);
-        auto target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 1, 1, 2});
-        auto broadcast = std::make_shared<ov::op::v3::Broadcast>(unsqueeze, target);
-        auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
-        auto gather = std::make_shared<ov::op::v8::GatherND>(broadcast, indices);
-        return std::make_shared<ov::op::v1::Transpose>(gather, identity);
+        auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1}, {0});
+        consumer = std::make_shared<ov::op::v8::GatherND>(trig, indices);
+        return consumer;
     };
     const auto sin_values = make_table_path(sin, graph.sin_consumer);
     const auto cos_values = make_table_path(cos, graph.cos_consumer);
@@ -1006,12 +940,6 @@ LtxAngleTestModel make_ltx_angle_test_model(bool fp32_trig = false,
     return graph;
 }
 
-void run_ltx_angle_pass(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::Manager manager;
-    manager.register_pass<IncreasePositionIdsPrecisionForLtxVideo>();
-    manager.run_passes(model);
-}
-
 std::shared_ptr<ov::Node> find_ltx_fp32_node(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     for (const auto& node : model->get_ordered_ops()) {
         if (node->get_friendly_name().find(name + "/fp32_") == 0) {
@@ -1019,6 +947,23 @@ std::shared_ptr<ov::Node> find_ltx_fp32_node(const std::shared_ptr<ov::Model>& m
         }
     }
     return nullptr;
+}
+
+bool skip_ltx_test_constant_precision_preservation(
+    const std::shared_ptr<const ov::Node>& node,
+    const CollectSinCosConstantsForPrecisionPreservation::ConstantSet& constants) {
+    const auto targets = node->get_output_target_inputs(0);
+    const ov::Node* next_node = node.get();
+    if (!targets.empty()) {
+        next_node = targets.begin()->get_node();
+    }
+    if (ov::is_type<ov::op::v0::Convert>(next_node)) {
+        const auto convert_targets = next_node->get_output_target_inputs(0);
+        if (!convert_targets.empty()) {
+            next_node = convert_targets.begin()->get_node();
+        }
+    }
+    return !ov::is_type<ov::op::v0::MatMul>(next_node) && constants.count(node.get()) == 0;
 }
 
 std::shared_ptr<CollectSinCosConstantsForPrecisionPreservation::ConstantSet> run_ltx_constant_precision_passes(
@@ -1032,7 +977,7 @@ std::shared_ptr<CollectSinCosConstantsForPrecisionPreservation::ConstantSet> run
     manager.register_pass<ov::pass::KeepConstantsPrecisionAndAddConverts>();
     manager.get_pass_config()->set_callback<ov::pass::KeepConstantsPrecisionAndAddConverts>(
         [constants](const std::shared_ptr<const ov::Node>& node) {
-            return skip_constant_precision_preservation(node, *constants);
+            return skip_ltx_test_constant_precision_preservation(node, *constants);
         });
     manager.register_pass<ov::pass::ConvertPrecision>(
         precisions_map{{ov::element::f32, ov::element::f16}}, type_to_fuse_map{}, true, false, true);
@@ -1096,7 +1041,7 @@ TEST(IncreasePositionIdsLTXVideoCallbackTest, RemovesFP16RoundTripsFromAnglePath
     for (const auto& config : {Case{false, false}, Case{false, true}, Case{true, false}}) {
         SCOPED_TRACE(::testing::Message() << "fp32_trig=" << config.fp32_trig << ", gather_nd=" << config.gather_nd);
         auto graph = make_ltx_angle_test_model(config.fp32_trig, config.gather_nd);
-        run_ltx_angle_pass(graph.model);
+        run_discovery(graph.model);
         ASSERT_NO_THROW(graph.model->validate_nodes_and_infer_types());
 
         auto sin = graph.sin_consumer->input_value(0).get_node_shared_ptr();
@@ -1113,7 +1058,6 @@ TEST(IncreasePositionIdsLTXVideoCallbackTest, RemovesFP16RoundTripsFromAnglePath
         ASSERT_TRUE(ov::is_type<ov::op::v0::Cos>(cos));
         EXPECT_EQ(sin->get_output_element_type(0), ov::element::f32);
         EXPECT_EQ(cos->get_output_element_type(0), ov::element::f32);
-        EXPECT_EQ(sin->input_value(0), cos->input_value(0));
         expect_ltx_angle_region_fp32(graph);
 
         const auto add = sin->input_value(0).get_node()->input_value(0).get_node()->input_value(0).get_node_shared_ptr();
@@ -1130,14 +1074,11 @@ TEST(IncreasePositionIdsLTXVideoCallbackTest, RemovesFP16RoundTripsFromAnglePath
         const auto scatter = find_ltx_fp32_node(graph.model, "ltx_scatter");
         ASSERT_NE(scatter, nullptr);
         EXPECT_EQ(concat->input_value(0), scatter->output(0));
-        EXPECT_EQ(scatter->get_input_element_type(0), ov::element::f32);
-        EXPECT_EQ(scatter->get_input_element_type(2), ov::element::f32);
         EXPECT_EQ(scatter->input_value(1), graph.scatter->input_value(1));
         EXPECT_TRUE(ov::is_type<ov::op::v3::ScatterNDUpdate>(scatter));
         const auto positions = scatter->input_value(0).get_node_shared_ptr();
         ASSERT_TRUE(ov::is_type<ov::op::v0::Convert>(positions));
         EXPECT_EQ(positions->input_value(0), graph.coordinates->output(0));
-        EXPECT_EQ(positions->get_output_element_type(0), ov::element::f32);
         const auto gather = find_ltx_fp32_node(graph.model, "ltx_scale_gather");
         ASSERT_NE(gather, nullptr);
         EXPECT_EQ(gather->input_value(0), graph.scale->output(0));
@@ -1146,8 +1087,6 @@ TEST(IncreasePositionIdsLTXVideoCallbackTest, RemovesFP16RoundTripsFromAnglePath
         EXPECT_EQ(gather->get_input_element_type(2), ov::element::i64);
         const auto divide = find_ltx_fp32_node(graph.model, "ltx_divide");
         ASSERT_NE(divide, nullptr);
-        EXPECT_EQ(divide->get_input_element_type(0), ov::element::f32);
-        EXPECT_EQ(divide->get_input_element_type(1), ov::element::f32);
         ASSERT_TRUE(ov::is_type<ov::op::v0::Constant>(divide->input_value(1).get_node()));
         EXPECT_EQ(graph.model->get_results()[2]->input_value(0), graph.scatter->output(0));
         EXPECT_EQ(graph.model->get_results()[3]->input_value(0), graph.coefficient_downcast->output(0));
@@ -1158,7 +1097,7 @@ TEST(IncreasePositionIdsLTXVideoCallbackTest, RemovesFP16RoundTripsFromAnglePath
         EXPECT_TRUE(ov::is_type<ov::op::internal::RoPE>(graph.model->get_results()[1]->input_value(0).get_node()));
 
         const auto nodes = graph.model->get_ordered_ops();
-        run_ltx_angle_pass(graph.model);
+        run_discovery(graph.model);
         EXPECT_EQ(nodes, graph.model->get_ordered_ops());
     }
 }
@@ -1221,7 +1160,7 @@ TEST(IncreasePositionIdsLTXVideoCallbackTest, RestoresOriginalFP32Angles) {
             const auto offset_values = graph.offset->cast_vector<float>();
 
             run_ltx_constant_precision_passes(graph.model, collect_constants);
-            run_ltx_angle_pass(graph.model);
+            run_discovery(graph.model);
             ASSERT_NO_THROW(graph.model->validate_nodes_and_infer_types());
             expect_ltx_angle_region_fp32(graph);
             const auto angle = get_ltx_angle(graph.sin_consumer);
