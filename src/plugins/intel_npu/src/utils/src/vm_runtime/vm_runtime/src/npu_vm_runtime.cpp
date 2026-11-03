@@ -42,6 +42,8 @@ struct _npu_vm_runtime_handle_t {
     ze_command_queue_handle_t commandQueue{};
     std::vector<ze_command_queue_handle_t> commandQueues;
     ze_command_queue_npu_dditable_ext_t* commandQueueDdiTableExt{nullptr};
+    npu_vm_batch_mode batchMode = npu_vm_batch_mode_none;
+    uint64_t batchSize = 1;
     std::mutex mutex;
 };
 
@@ -199,6 +201,45 @@ ze_result_t configCmdQueue(npu_vm_runtime_handle_t hRuntime, const npu_vm_runtim
     return ZE_RESULT_SUCCESS;
 }
 
+std::pair<npu_vm_batch_mode, uint64_t> getBatchMode(const npu_vm_runtime_handle_t hRuntime) {
+    if (hRuntime == nullptr) {
+        return {npu_vm_batch_mode_none, 1};
+    }
+
+    uint64_t batchSize = 1;
+    npu_vm_batch_mode batchMode = npu_vm_batch_mode_none;
+    for (auto& input : hRuntime->metadata.inputs) {
+        if (input.shapeFromIRModel.has_value()) {
+            auto& shapeFromIRModel = input.shapeFromIRModel.value();
+            if (shapeFromIRModel.rank() == 4) {
+                auto& batchDim = shapeFromIRModel[0];
+                if (batchDim.is_dynamic()) {
+                    return {npu_vm_batch_mode_dynamic, std::numeric_limits<uint64_t>::max()};
+                } else if (batchDim.get_length() > 1) {
+                    batchMode = npu_vm_batch_mode_static;
+                    batchSize = std::max(batchSize, static_cast<uint64_t>(batchDim.get_length()));
+                }
+            }
+        }
+    }
+
+    for (auto& output : hRuntime->metadata.outputs) {
+        if (output.shapeFromIRModel.has_value()) {
+            auto& shapeFromIRModel = output.shapeFromIRModel.value();
+            if (shapeFromIRModel.rank() == 4) {
+                auto& batchDim = shapeFromIRModel[0];
+                if (batchDim.is_dynamic()) {
+                    return {npu_vm_batch_mode_dynamic, std::numeric_limits<uint64_t>::max()};
+                } else if (batchDim.get_length() > 1) {
+                    batchMode = npu_vm_batch_mode_static;
+                    batchSize = std::max(batchSize, static_cast<uint64_t>(batchDim.get_length()));
+                }
+            }
+        }
+    }
+
+    return {batchMode, batchSize};
+}
 }  // namespace
 
 #ifdef __cplusplus
@@ -270,12 +311,17 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreate(cons
             pProperties->numOfSubGraphs = static_cast<uint32_t>(handle->metadata.numCmdLists);
             pProperties->numOfGraphArgs =
                     static_cast<uint32_t>(handle->metadata.inputs.size() + handle->metadata.outputs.size());
+            const auto [batchMode, batchSize] = getBatchMode(handle.get());
+            handle->batchMode = batchMode;
+            handle->batchSize = batchSize;
         } else {
             NPU_VM_LOG_WARN("Bytecode blob does not contain metadata section. Set conservatively "
                             "numOfGraphArgs=2 and numOfSubGraphs=1 to allow for basic functionality.");
             // if metadata is missing, assume a single subgraph with all inputs and outputs
             pProperties->numOfSubGraphs = 1;
             pProperties->numOfGraphArgs = 2;  // at least one input and one output
+            handle->batchMode = npu_vm_batch_mode_none;
+            handle->batchSize = 1;
         }
         *phRuntime = handle.release();
     } catch (const std::exception& e) {
@@ -758,6 +804,26 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecu
         }
     }
 
+    bool counterBasedEventSupported = false;
+    // The counter based event is supported only on Windows platform for now.
+    // Once all function calls replaced with openvino::zero_loader functions,
+    // the counter based event will be supported on Linux platform as well.
+    auto graphDdiTableExt = pParams->graphDdiTableExt;
+    if (ZE_GRAPH_EXT_VERSION_CURRENT >= ZE_GRAPH_EXT_VERSION_1_19) {
+        if (graphDdiTableExt != nullptr && graphDdiTableExt->pfnCompilerIsOptionSupported != nullptr) {
+            counterBasedEventSupported = graphDdiTableExt->pfnCompilerIsOptionSupported(
+                                                 pParams->device, ZE_NPU_DRIVER_OPTIONS, "COUNTER_BASED_EVENTS",
+                                                 nullptr) == ZE_RESULT_SUCCESS;
+        }
+
+#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
+        const char* envVar = std::getenv("NPU_VM_RUNTIME_DISABLE_COUNTER_BASED_EVENT");
+        if (envVar != nullptr && counterBasedEventSupported) {
+            counterBasedEventSupported = !::intel_npu::OptionParser<bool>::parse(envVar);
+        }
+#endif
+    }
+
     // The execution context is represented by an instance of the VM engine, whose lifetime is managed by the
     // npuVMRuntimeCreateExecutionContext and npuVMRuntimeDestroyExecutionContext functions. In the end-to-end flow, the
     // engine is created once per inference request, then reused for subsequent inferences
@@ -785,29 +851,9 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecu
         }
     }
 
-    bool counterBasedEventSupported = false;
-    // The counter based event is supported only on Windows platform for now.
-    // Once all function calls replaced with openvino::zero_loader functions,
-    // the counter based event will be supported on Linux platform as well.
-#if defined(_WIN32)
-    auto graphDdiTableExt = pParams->graphDdiTableExt;
-    if (ZE_GRAPH_EXT_VERSION_CURRENT >= ZE_GRAPH_EXT_VERSION_1_19) {
-        if (graphDdiTableExt != nullptr && graphDdiTableExt->pfnCompilerIsOptionSupported != nullptr) {
-            counterBasedEventSupported = graphDdiTableExt->pfnCompilerIsOptionSupported(
-                                                 pParams->device, ZE_NPU_DRIVER_OPTIONS, "COUNTER_BASED_EVENTS",
-                                                 nullptr) == ZE_RESULT_SUCCESS;
-        }
-
-#if defined(NPU_PLUGIN_DEVELOPER_BUILD)
-        const char* envVar = std::getenv("NPU_VM_RUNTIME_DISABLE_COUNTER_BASED_EVENT");
-        if (envVar != nullptr && counterBasedEventSupported) {
-            counterBasedEventSupported = !::intel_npu::OptionParser<bool>::parse(envVar);
-        }
-#endif
-    }
-#endif
     module_load_params.counterBasedEventSupported = counterBasedEventSupported;
-
+    module_load_params.batchMode = hRuntime->batchMode;
+    module_load_params.batchSize = hRuntime->batchSize;
     if (pParams->commandQueue == nullptr) {
         // need to use an internally created command queue.
         npu_vm_runtime_create_execution_context_params_t params = *pParams;

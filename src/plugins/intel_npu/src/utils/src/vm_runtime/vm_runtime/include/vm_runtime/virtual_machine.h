@@ -62,6 +62,12 @@ typedef enum _npu_vm_type {
     npu_vm_type_buffer = 10
 } npu_vm_type;
 
+typedef enum _npu_vm_batch_mode {
+    npu_vm_batch_mode_none = 0,
+    npu_vm_batch_mode_static = 1,
+    npu_vm_batch_mode_dynamic = 2,
+} npu_vm_batch_mode;
+
 typedef union _npu_vm_value {
     int8_t i8;
     int16_t i16;
@@ -106,6 +112,12 @@ typedef struct _npu_vm_module_load_params {
 
     // If true, the runtime will use counter-based events for synchronization between subgraphs.
     bool counterBasedEventSupported;
+
+    // Specifies the batch mode of the module
+    npu_vm_batch_mode batchMode;
+
+    // Specifies batch size;
+    uint64_t batchSize;
 } npu_vm_module_load_params;
 
 typedef struct _npu_vm_module npu_vm_module;

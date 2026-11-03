@@ -858,10 +858,12 @@ bool VMEngine::loadModule(std::shared_ptr<BytecodeModule> bytecodeModule, npu_vm
         // initialize the execution context with the number of command lists,
         // number of network arguments, and concurrent job count
         bool counterBasedEventSupported = (loadParams && loadParams->counterBasedEventSupported) ? true : false;
+        auto batchMode = (loadParams) ? loadParams->batchMode : npu_vm_batch_mode_none;
+        auto batchSize = (loadParams) ? loadParams->batchSize : 1;
         bool result =
                 executionContext.initialize(contextType, static_cast<uint32_t>(metadata->numCmdLists),
                                             static_cast<uint32_t>(metadata->inputs.size() + metadata->outputs.size()),
-                                            concurrentJobCount, counterBasedEventSupported);
+                                            concurrentJobCount, counterBasedEventSupported, batchMode, batchSize);
         if (result == false) {
             NPU_VM_LOG_ERROR("Failed to initialize execution context");
             return false;
