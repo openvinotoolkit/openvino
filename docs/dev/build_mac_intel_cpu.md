@@ -13,7 +13,7 @@ The x86_64 native and cross-compilation paths described in this guide are not ex
 
 - [brew](https://brew.sh) package manager to install additional dependencies. Use [install brew](https://brew.sh) guide to achieve this.
 - Installation step for python and python libraries varies depending on the host architecture:
-  - **x86_64** Python 3.11 - 3.14 for the OpenVINO Runtime Python API:
+  - **x86_64** Python 3.11 - 3.15 for the OpenVINO Runtime Python API:
   ```sh
   % # let's have a look what python versions are available in brew
   % brew search python
