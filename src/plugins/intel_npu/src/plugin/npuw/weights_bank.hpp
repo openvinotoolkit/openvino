@@ -65,28 +65,59 @@ public:
                                                                          const ov::Shape& shape,
                                                                          const std::string& device,
                                                                          Handle& handle);
-    void register_shared_weight_source_for_weight(ov::weight_sharing::WeightBuffer source_buffer,
-                                                  const std::string& device,
-                                                  Handle& handle);
 
-    static ov::weight_sharing::WeightBuffer create_shared_buffer(int64_t source_id, std::size_t size);
+    /* TODO CVS-199039, CVS-199076 
+     * Extracts the tensor data and transforms it into a weight source buffer to register it as a shared weight source.
+     * The better control flow would involve creating the shared buffer first, 
+     * which would serve as the staging buffer for ov::Tensor and then registering it.
+     * OV API currently doesn't allow to operate in that way.
+     * 
+     * Once the issues are addressed, the workflow can be updated to create the shared buffer first and then register it
+     * and the method register_tensor_as_shared_weight_source can be removed.
+     */
+    ov::weight_sharing::WeightBuffer register_tensor_as_shared_weight_source(size_t source_id,
+                                                                             const std::string& device,
+                                                                             const ov::Tensor& tensor,
+                                                                             Handle& handle);
 
     bool serialize_native_format(ov::npuw::orc::Stream& stream);
     bool deserialize_native_format(ov::npuw::orc::Stream& stream, const ov::ICore& core);
 
 protected:
-    /* CVS-198039 WeightMetaData has no m_shape */
+    /* CVS-198039
+     * See a comment below
+     */
     const ov::op::v0::Constant& get_transformed_constant(const std::string& device,
                                                          size_t source_id,
                                                          Handle& handle) const;
     bool deserialize_native_format_impl(ov::npuw::orc::Stream& stream, const ov::ICore& core, Handle& handle);
 
 private:
+    static ov::weight_sharing::WeightBuffer create_shared_buffer(int64_t source_id, std::size_t size);
+    static ov::weight_sharing::WeightBuffer create_shared_buffer(int64_t source_id, const ov::Tensor& tensor);
+
+    void register_shared_weight_source_for_weight(ov::weight_sharing::WeightBuffer source_buffer,
+                                                  const std::string& device,
+                                                  Handle& handle);
+    void register_transformed_constant(std::shared_ptr<ov::AlignedBuffer> transformation_buffer, 
+                                       size_t constant_id, 
+                                       const std::string& device,
+                                       const element::Type& type,
+                                       const ov::Shape& shape,
+                                       Handle& handle);
     bool serialize_native_format_impl(ov::npuw::orc::Stream& stream, Handle& handle) const;
     std::mutex m_mutex;
     std::shared_ptr<ov::weight_sharing::Context> m_context = nullptr;
     std::unordered_map<size_t, ov::weight_sharing::WeightBuffer> m_shared_sources;
 
+    /* CVS-198039 
+     * WeightMetaData has no m_shape, 
+     * That is substantial for proper data recovery during deserialization, 
+     * because the shape information is necessary to correctly reconstruct the tensor.
+     * 
+     * As a WA we store the shape information separately to ensure proper reconstruction of the tensor during deserialization.
+     * once the issue is addressed, the TransformedWeightsMap containing the shape information can be removed.
+     */
     using TransformedWeightsMap = std::unordered_map<size_t, ov::op::v0::Constant>;
     std::unordered_map<std::string /* device */, TransformedWeightsMap> m_transformed_weights_per_device;
 };
