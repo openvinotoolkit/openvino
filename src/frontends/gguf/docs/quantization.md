@@ -28,8 +28,15 @@ with the first element in the least significant bits. The loader's `u32` tensors
 Q4_1/Q4_K are backing buffers for eight nibbles per word; their graph Constants use `u4`.
 Unpacking into `u2` or `i4` therefore does not mean allocating one byte per weight.
 
+For ternary embedding row lookups, the frontend views the same `u2` buffer as `u8` bytes,
+with four codes in each byte. It gathers the requested code bytes and scales before
+unpacking the selected rows with integer shifts and masks. The dictionary keeps its
+original two-bit storage; it does not expand to an entire floating-point table. The
+selected codes use I32 arithmetic for shifts, then the original F16 dequantization.
+Matrix multiplication consumers keep their `u2` representation, including tied weights.
+
 The usual graph is `Convert -> [Subtract] -> Multiply -> Reshape -> Convert(F32)`. Decompression
-uses the scale's element type, normally F16. Q6_K and formats with fractional F16 zero points
+uses the scale's element type, normally F16. Q6_K, Q8_1 and formats with fractional F16 zero points
 and code widths of at least four bits instead perform subtraction/multiplication in F32.
 Q8_K uses F32 scales and thus F32 arithmetic. MXFP4 uses an F16 multiply. A final F32 output
 does not undo rounding in earlier F16 operations, and does not imply that a full F32 weight
@@ -47,7 +54,7 @@ the weight values and adds quantization error.
 but exclude object metadata, shape Constants, allocator alignment and file padding. Each row
 compares the same number of logical weights; a negative change means smaller storage.
 
-The type columns describe stored Constants; their decompression or Convert outputs are F32.
+The type columns describe extracted tensors; their decompression or Convert outputs are F32.
 
 | Format | Weights per GGUF block | GGUF bytes | Weight type (`W`) | Scale type (`S`) | Zero-point type (`Z`) | Native OpenVINO bytes (`W + S + Z`) | Change |
 |---|---:|---:|---|---|---|---:|---:|
@@ -55,8 +62,8 @@ The type columns describe stored Constants; their decompression or Convert outpu
 | F16, BF16 | 1 | 2 | `f16`, `bf16` respectively | — | — | 2 | 0% |
 | Q1_0 | 128 | 18 | `u1` | `f16` | — | `16 + 2` = 18 | 0% |
 | Q2_0 (per-64) | 64 | 18 | `u2` | `f16` | `u8` | `16 + 2 + 1` = 19 | +5.6% |
-| PQ2_0 | 128 | 34 | `u2` | `f16` | `u8` | `32 + 2 + 1` = 35 | +2.9% |
-| PTQ1_0 | 128 | 28 | `u2` | `f16` | `u8` | `32 + 2 + 1` = 35 | +25.0% |
+| PQ2_0, ternary codes | 128 | 34 | `u2` | `f16` | scalar `f16` | 34, plus 2 per tensor | 0% group payload |
+| PTQ1_0 | 128 | 28 | `u2` | `f16` | scalar `f16` | 34, plus 2 per tensor | +21.4% group payload |
 | Q2_K | 256 | 84 | `u2` | `f16` | `f16` | `64 + 32 + 32` = 128 | +52.4% |
 | Q3_K | 256 | 110 | `i4` | `f16` | — | `128 + 32` = 160 | +45.5% |
 | Q4_0 | 32 | 18 | `i4` | `f16` | — | `16 + 2` = 18 | 0% |
@@ -66,24 +73,35 @@ The type columns describe stored Constants; their decompression or Convert outpu
 | Q4_K, fractional zero point | 256 | 144 | `u4` | `f16` | `f16` | `128 + 16 + 16` = 160 | +11.1% |
 | Q5_0 | 32 | 22 | `i8` | `f16` | — | `32 + 2` = 34 | +54.5% |
 | Q5_1 | 32 | 24 | `i8` | `f16` | `f16` | `32 + 2 + 2` = 36 | +50.0% |
-| Q5_K, integer zero point | 256 | 176 | `u8` | `f16` | `u8` | `256 + 16 + 8` = 280 | +59.1% |
+| Q5_K, ordinary matrix | 256 | 176 | `i8` | `f16` | — | `256 + 16` = 272 | +54.5% |
 | Q5_K, fractional zero point | 256 | 176 | `u8` | `f16` | `f16` | `256 + 16 + 16` = 288 | +63.6% |
 | Q6_K | 256 | 210 | `i8` | `f16` | — | `256 + 32` = 288 | +37.1% |
 | Q8_0 | 32 | 34 | `i8` | `f16` | — | `32 + 2` = 34 | 0% |
+| Q8_1 | 32 | 36 | `i8` | `f16` | — | `32 + 2` = 34 | -5.6% |
 | Q8_K | 256 | 292 | `i8` | `f32` | — | `256 + 4` = 260 | -11.0% |
 | MXFP4 | 32 | 17 | `f4e2m1` | `f8e8m0` | — | `16 + 1` = 17 | 0% |
 
-Ordinary native Q4_1/Q4_K and Q5_K matrix weights use integer zero points by default.
+Ordinary native Q4_1/Q4_K matrix weights use integer zero points by default.
+Ordinary native Q5_K matrix weights use symmetric i8 with one F16 scale per 32 weights
+and no zero point. Source values are decoded and requantized using the group maximum
+absolute value; this adds rounding error and changes the grid from the former asymmetric u8
+representation. Conversion uses a 256-value scratch buffer per source block. The converted
+weight/scale payload is 2.86% smaller than the former u8/integer-zero-point payload.
+Group size remains 32 for all devices.
 `token_embd.weight` and `output.weight` use fractional zero points for these affine formats;
 Q5_1 and Q2_K also use fractional zero points. See [accuracy controls](#accuracy-controls)
 to select fractional zero points for all Q4_1/Q4_K tensors.
-Q2_0/PQ2_0/PTQ1_0 always use a `u8` zero point of 1 in this path, including embeddings.
+Q2_0 uses a `u8` zero point of 1. PQ2_0/PTQ1_0 use F16 zero points of 1,
+including embeddings.
 The frontend prints an accuracy notice once per process for each requantization approximation.
 
-For example, PQ2_0 adds one byte per 128 weights. PTQ1_0 adds six code bytes plus one zero-point
-byte per 128 weights. Their native storage is identical, at `35/128` bytes per weight
-(2.1875 bits per weight including metadata). The repeated zero point is currently allocated
-per group; the table does not assume that a later pass replaces it with a scalar.
+PTQ1_0 adds six code bytes per 128 weights. For PQ2_0/PTQ1_0 containing only codes
+0, 1 and 2, their native storage is identical, at `34/128` bytes per weight
+(2.125 bits per weight including scales), plus one two-byte zero-point Constant per tensor.
+Code 3 retains a grouped Constant and the existing GPU fallback, using 36 bytes per group.
+Projections sharing an activation input retain grouped zero points if any projection needs
+that fallback, including a singleton group. This keeps their layouts compatible with
+horizontal fusion without changing plugins; all-ternary projection groups remain scalar.
 
 ## Floating-point formats
 
@@ -117,12 +135,14 @@ increase execution and compilation memory despite the compact frontend represent
 
 Q2_0 stores `F16 scale | 16 code bytes` for 64 weights. PQ2_0 (type 142) stores
 `F16 scale | 32 code bytes` for 128 weights. Both already pack four two-bit codes per byte in
-OpenVINO element order, so the code bytes are copied directly. The scale is separated and
-one `u8` zero point of 1 is written per group. Reconstruction is `(code - 1) * scale`;
+OpenVINO element order, so the code bytes are copied directly. The scale is separated.
+Q2_0 uses a `u8` zero point of 1 per group; PQ2_0 uses an FP16 scalar zero point of 1
+for strictly ternary tensors. Tensors containing
+code 3 retain grouped FP16 zero points. Reconstruction is `(code - 1) * scale`;
 codes 0, 1 and 2 represent -1, 0 and +1. A code of 3 reconstructs +2.
 
-No code or scale requantization is introduced. The extra storage is the repeated zero point.
-Older Bonsai files also use type 42 (`Q2_0`) for per-128 blocks. Native loading identifies
+No code or scale requantization is introduced.
+Legacy files can also use type 42 (`Q2_0`) for per-128 blocks. Native loading identifies
 that layout using dimensions and aligned tensor spans and maps it to PQ2_0. Raw-byte callers
 must provide the actual format because they do not supply those descriptor spans.
 
@@ -130,7 +150,7 @@ must provide the actual format because they do not supply those descriptor spans
 
 PTQ1_0 (type 143) stores `26 dense-trit bytes | F16 scale` for 128 weights. The first 16 bytes
 encode five trits each, the next eight encode five each, and the last two encode four each:
-`16*5 + 8*5 + 2*4 = 128`. This is Prism's scaled-byte encoding, decoded in the following order:
+`16*5 + 8*5 + 2*4 = 128`. This scaled-byte encoding is decoded in the following order:
 
 ```text
 for (start, count, trits) in [(0, 16, 5), (16, 8, 5), (24, 2, 4)]:
@@ -149,16 +169,6 @@ Convert/Subtract/Multiply/Reshape decomposition.
 
 The conversion preserves trit values but expands their dense storage to two bits per code.
 It also requires more import work than PQ2_0's direct copy.
-
-### Bonsai-2 Hadamard transforms
-
-Bonsai-2's folded Hadamard weights require the model's `prism.hadamard.*` metadata for
-activation and inverse embedding transforms, even for F16 checkpoints. This is separate from
-unpacking. Each block uses a Walsh–Hadamard butterfly with `log2(block_size)` stages of
-sum/difference operations and a final normalization by `1/sqrt(block_size)`. This avoids a
-dense rotation Constant and reduces arithmetic from quadratic to `O(block_size * log2(block_size))`;
-intermediate activation buffers still depend on device compilation. See
-[Bonsai and Bonsai-2](supported_models.md#bonsai-and-bonsai-2).
 
 ## Integer formats
 
@@ -207,10 +217,24 @@ Code values are preserved, but widening to eight bits and expanding sub-scales i
 F32 graph arithmetic avoids an F16 multiply, but the combined scales have already been rounded
 to F16 at import.
 
-### Q8_0 and Q8_K
+### Q8_0, Q8_1 and Q8_K
 
 Q8_0 directly copies 32 `i8` codes and one F16 scale per block. There is no code expansion,
 requantization or extra metadata; its usual decompression multiply is F16.
+
+Q8_1 (type 9) uses the current ggml layout `F16 d | F16 s | 32 i8 codes`, totaling 36 bytes.
+Import copies `d` and the codes unchanged and omits `s`, a precomputed `d * sum(codes)` used
+by ggml dot-product kernels. It is not an additive weight offset or zero point. OpenVINO
+stores 34 bytes per block, 5.6% less than the GGUF payload. Legacy 40-byte blocks with F32
+`d` and `s` are not supported; the frontend does not infer that layout from padded tensor spans.
+
+Both input paths keep the original per-32 F16 scales for every Q8_1 weight name, including
+embedding/output tensors. The graph converts codes and scales to F32 before multiplying,
+preserving finite reconstructed weight values exactly without F16 multiplication rounding or
+requantization. The stored Constants remain i8 and F16; no full F32 weight Constant is required
+at import. Device compilation can still expand the weights or select different execution
+precision, so the compact payload and exact graph reconstruction do not guarantee runtime
+memory usage or bit-exact inference.
 
 Q8_K copies 256 `i8` codes and an F32 scale unchanged. Each GGUF block contains 256 code bytes,
 four scale bytes and 32 bytes of precomputed sums (`16` values of type `i16`), totaling 292
@@ -222,7 +246,7 @@ or precision is lost by omitting them: reconstruction remains `weight[i] = scale
 in F32, without requantization. The sums can be regenerated exactly from the retained codes
 if a future kernel or GGUF exporter needs them. Preserving them would add unused storage to
 the current representation. OpenVINO does not reproduce GGML's partial-sum kernel through
-this representation. Q8_1 has no implemented native weight unpacking path.
+this representation.
 
 ## Affine K formats
 
@@ -248,16 +272,22 @@ Q5_K reconstructs five-bit codes 0..31 and stores them in `u8`. Both store F16 `
 F16 `offset/sc` (zero for a zero scale), and their graph arithmetic is F32. Both have the
 common affine limitations; Q5_K additionally widens its code payload.
 
-With an **integer zero point**, both first reconstruct 32 source values in F32, then
-requantize onto a new grid whose range includes zero. Q4_K uses 16 levels in packed `u4`:
+With an **integer zero point**, Q4_K first reconstructs 32 source values in F32, then
+requantizes onto a new grid whose range includes zero. It uses 16 levels in packed `u4`:
 min/max initialization, an integer zero point, and a least-squares scale refinement. Candidate
 scales are evaluated after F16 rounding. The importer retains the original codes with a
 rounded integer zero point unless a candidate reduces squared error without increasing
-maximum absolute error. Q5_K uses 256 levels in `u8`, an F16 min/max scale and a rounded,
-clipped integer zero point; values are rounded and clipped to 0..255.
+maximum absolute error.
+
+Ordinary Q5_K matrix weights use a symmetric 255-level i8 grid. Each 32-value group uses `F16(max(abs(value))/127)` and codes rounded against that stored scale,
+clamped to [-127,127]. There is no zero-point tensor. A skewed range can have a coarser
+grid than asymmetric u8, so this representation changes reconstruction error even though
+both paths requantize once. Embedding/output and other non-matrix Q5_K tensors retain
+the existing u8 handling.
 
 Including zero in a one-sided group coarsens the available grid. Q5_K collapses a group to
-zero if its new F16 scale is nonpositive or nonfinite.
+zero if its new F16 scale rounds to zero. The symmetric path rejects nonfinite source
+values and scales that exceed the F16 range.
 
 ### Q4_1
 
@@ -287,7 +317,8 @@ currently differs as follows:
 |---|---|---|
 | Q4_1, Q5_1 | Full F32 Constant decoded with `d*q + m` before other format handling | 128 bytes per 32 weights: +540% for Q4_1, +433.3% for Q5_1 |
 | Q1_0, including embedding/output | Packed `u1` plus per-128 F16 scales, as in native loading | Requires plugin binary decompression support to remain packed at execution |
-| Quantized `token_embd.weight` / `output.weight`, except Q1_0 and the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand |
+| Q8_1, including embedding/output | Original `i8` codes plus per-32 F16 scales, with F32 graph multiplication, as in native loading | Device compilation determines execution storage and precision |
+| Quantized `token_embd.weight` / `output.weight`, except Q1_0/Q8_1 and the Q4_1/Q5_1 cases above | Channel-wise Q8_0_C: `i8` codes with one F16 scale per row | Additional lossy quantization; low-bit sources usually expand |
 | Q5_K ordinary matrices | The same channel-wise Q8_0_C representation | Additional lossy quantization; different scale grouping from native Q5_K |
 | Q4_K/Q5_K/Q6_K selected for Q8_0_C | Stream original F32-dequantized rows directly into channel-wise quantization | Per-worker F32 row scratch; avoids allocating a full temporary F32 matrix |
 | Rank greater than two MXFP4 experts | Packed `u8` blocks retaining scale/code interleaving; expert selection and decompression happen on the graph | Different graph layout; device fusion and temporary storage depend on expert execution |

@@ -4,17 +4,22 @@
 
 #pragma once
 
+#include <memory>
 #include <ostream>
 #include <tuple>
+#include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 
 #include "intel_gpu/runtime/shape_predictor.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/device_info.hpp"
-#include "openvino/core/layout.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+
+namespace cldnn {
+class tensor_conversion;
+}
 
 namespace ov {
 namespace intel_gpu {
@@ -137,6 +142,32 @@ inline void ForceExit() {
               << "to avoid CL_OUT_OF_RESOURCES exception" << std::endl;
     std::_Exit(-1);
 }
+
+struct PendingConversion {
+    PendingConversion() = default;
+    PendingConversion(const PendingConversion&) = delete;
+    PendingConversion& operator=(const PendingConversion&) = delete;
+
+    void wait();
+    // Call only after GPU completion has been confirmed.
+    void clear_after_completion() noexcept;
+
+    cldnn::memory::ptr staging;
+    cldnn::event::ptr done;
+};
+
+// Returns false before submission for unsupported inputs; true means submitted, not completed.
+// Pass an empty pending object; wait or drain and clear before reuse. No destructor waits automatically.
+// Keep destination, conversion, and engine/context alive until pending completes or the stream is drained.
+// Errors propagate; a failed stream drain retains the pending resources.
+bool convert_and_copy_async(
+    const ov::ITensor* src,
+    const cldnn::memory::ptr& dst,
+    cldnn::stream& stream,
+    const cldnn::layout& src_layout,
+    const std::shared_ptr<cldnn::tensor_conversion>& conversion,
+    PendingConversion& pending,
+    bool transpose = false);
 
 void convert_and_copy(
     const ov::ITensor* src,

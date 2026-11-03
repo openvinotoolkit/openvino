@@ -4,13 +4,16 @@
 
 #include "plugin.hpp"
 
-#include <fstream>
 #include <memory>
 
 #include "attach_cache_manager_to_paged_attention.hpp"
+#include "hsm_common.hpp"
+#include "hsm_reader_handler.hpp"
 #include "itt.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -32,6 +35,16 @@ namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
 static constexpr const char* stream_executor_name = "TemplateStreamsExecutor";
 static constexpr const char* template_exclusive_executor = "TemplateExecutor";
+
+using ov::template_plugin::Plugin, ov::template_plugin::Configuration, ov::template_plugin::HsmReaderHandler;
+
+// Properties that affect the compiled model; they form the cache ID and are persisted in the HSM blob.
+std::vector<ov::PropertyName> caching_properties() {
+    return {ov::device::architecture,
+            ov::hint::performance_mode,
+            ov::hint::execution_mode,
+            ov::hint::inference_precision};
+}
 
 uint64_t get_blob_data_size(std::istream& model) {
     uint64_t size = 0;
@@ -59,19 +72,26 @@ ov::Tensor get_model_weights(std::istream& model) {
 }
 
 ov::Tensor get_model_weights(const ov::AnyMap& properties) {
-    ov::Tensor weights;
     if (auto weights_path = properties.find(ov::weights_path.name()); weights_path != properties.end()) {
-        const auto w_path = std::filesystem::path(weights_path->second.as<std::string>());
-        if (auto size = ov::util::file_size(w_path); size > 0) {
-            auto f_weights = std::ifstream(w_path, std::ios::binary | std::ios::in);
-            weights = read_weights(f_weights, size);
-        }
+        const auto w_path = ov::util::make_path(weights_path->second.as<std::string>());
+        return ov::read_tensor_data(w_path);
+    } else {
+        return {};
     }
-    return weights;
+}
+
+// Removes import-only hints from properties; returns the ov::loaded_from_cache value.
+bool consume_cache_import_hints(ov::AnyMap& properties) {
+    bool loaded_from_cache = false;
+    if (auto node = properties.extract(ov::loaded_from_cache.name())) {
+        loaded_from_cache = node.mapped().as<bool>();
+    }
+    properties.erase(ov::hint::compiled_blob.name());
+    return loaded_from_cache;
 }
 
 std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plugin& plugin,
-                                                  ov::Tensor& weights,
+                                                  const ov::Tensor& weights,
                                                   size_t offset,
                                                   const ov::AnyMap& properties) {
     if (auto blob_it = properties.find(ov::hint::compiled_blob.name()); blob_it != properties.end()) {
@@ -88,6 +108,57 @@ std::shared_ptr<ov::Model> get_ov_model_from_blob(const ov::template_plugin::Plu
     }
     return nullptr;
 };
+
+// ! [plugin:read_hsm_blob]
+std::shared_ptr<ov::AlignedBuffer> to_aligned_buffer(ov::Tensor tensor) {
+    if (!tensor) {
+        return nullptr;
+    }
+    // const data(): tensor may be read-only (e.g. mmap'd weights) - never written through, only wrapped.
+    const auto* data = reinterpret_cast<const std::byte*>(static_cast<const ov::Tensor&>(tensor).data());
+    return std::make_shared<ov::SharedBuffer<ov::Tensor>>(const_cast<std::byte*>(data), tensor.get_byte_size(), tensor);
+}
+
+std::pair<std::shared_ptr<ov::Model>, Configuration> read_hsm_blob(
+    const std::shared_ptr<ov::ICore>& core,
+    std::string_view runtime_requirements,
+    const Configuration& default_cfg,
+    const ov::runtime::hsm::Reader& reader,
+    const ov::AnyMap& properties,
+    ov::Tensor properties_weights_hint,
+    std::shared_ptr<ov::AlignedBuffer> source_blob = {}) {
+    HsmReaderHandler handler;
+    handler.m_source_blob = source_blob;
+    reader.read_sections({&handler});
+    handler.check_mandatory_sections();
+
+    // Opaque and optional, like NPU's own ov::runtime_requirements: absent means "nothing to check", not
+    // an import failure - only a present-but-mismatched descriptor rejects the blob.
+    if (const auto& requirements = handler.m_runtime_requirements) {
+        OPENVINO_ASSERT(requirements->find(runtime_requirements) == 0,
+                        "TEMPLATE: unsupported blob runtime requirements: ",
+                        *requirements);
+    }
+
+    auto config = Configuration{properties, Configuration{handler.m_compiled_options, default_cfg, false}};
+
+    const bool weightless = handler.m_blob_info->flags & ov::template_plugin::hsm::BlobInfo::weightless;
+    auto weights = handler.m_weights;
+    if (!weights) {
+        weights = to_aligned_buffer(properties_weights_hint);
+    }
+    // Last resort: the path the model was originally compiled with, restored from the blob's own compiled
+    // options - properties_weights_hint only covers what the caller already knew from @p properties.
+    if (!weights && !config.weights_path.empty() && ov::util::file_size(config.weights_path) > 0) {
+        weights = to_aligned_buffer(ov::read_tensor_data(config.weights_path));
+    }
+    OPENVINO_ASSERT(weightless || weights,
+                    "TEMPLATE: missing mandatory weights section (model is not weightless and no external "
+                    "weights were provided)");
+
+    return {core->read_model(handler.m_model, weights), std::move(config)};
+}
+// ! [plugin:read_hsm_blob]
 }  // namespace
 
 // ! [plugin:ctor]
@@ -240,74 +311,85 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
-    // check ov::loaded_from_cache property and erase it due to not needed any more.
-    auto _properties = properties;
-    const auto& it = _properties.find(ov::loaded_from_cache.name());
-    bool loaded_from_cache = false;
-    if (it != _properties.end()) {
-        loaded_from_cache = it->second.as<bool>();
-        _properties.erase(it);
-    }
-    _properties.erase(ov::hint::compiled_blob.name());
+    auto import_properties = properties;
+    const auto loaded_from_cache = consume_cache_import_hints(import_properties);
 
-    auto fullConfig = Configuration{_properties, m_cfg};
-    fullConfig.streams_executor_config = ov::threading::IStreamsExecutor::Config{stream_executor_name,
-                                                                                 fullConfig.streams,
-                                                                                 fullConfig.threads_per_stream};
     auto weights = get_model_weights(properties);
-    if (!weights) {
-        if (auto model_hint = properties.find(ov::hint::model.name()); model_hint != properties.end()) {
-            if (auto m = model_hint->second.as<std::shared_ptr<ov::Model>>()) {
-                if (m->has_rt_info("__weights_path")) {
-                    AnyMap rt_info;
-                    rt_info[ov::weights_path.name()] = m->get_rt_info<ov::Any>("__weights_path");
-                    weights = get_model_weights(rt_info);
-                }
-            }
-        }
-    }
     auto ov_model = get_ov_model_from_blob(*this, weights, model.tellg(), properties);
-    if (!ov_model) {
+
+    Configuration config;
+    const auto hsm_start = model.tellg();
+    if (ov_model) {
+        // Already fully imported from the hint above - no need to parse `model` at all.
+        config = Configuration{import_properties, m_cfg};
+    } else if (auto hsm_reader = ov::runtime::hsm::Reader::open(model)) {
+        std::tie(ov_model, config) =
+            read_hsm_blob(get_core(), get_runtime_requirements(), m_cfg, *hsm_reader, import_properties, weights);
+    } else {
+        // hsm reader failed on open (not valid hsm blob) - fall back to legacy path and restore stream possition
+        // when legacy import removed this should be import error
+        model.clear();
+        model.seekg(hsm_start);
+
+        config = Configuration{import_properties, m_cfg};
         // read XML content
-        std::string xmlString = get_model_str(model);
+        const auto model_xml = get_model_str(model);
 
         // read blob content
         if (!weights) {
             weights = get_model_weights(model);
         }
 
-        ov_model = get_core()->read_model(xmlString, weights);
+        ov_model = get_core()->read_model(model_xml, weights);
     }
-    auto streamsExecutorConfig =
-        ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig.streams_executor_config);
-    fullConfig.streams = streamsExecutorConfig.get_streams();
-    fullConfig.threads = streamsExecutorConfig.get_threads();
-    fullConfig.threads_per_stream = streamsExecutorConfig.get_threads_per_stream();
-    auto compiled_model =
-        std::make_shared<CompiledModel>(ov_model,
-                                        shared_from_this(),
-                                        context,
-                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
-                                        fullConfig,
-                                        loaded_from_cache);
-    return compiled_model;
+
+    const auto task_executor = get_executor_manager()->get_idle_cpu_streams_executor(
+        ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(config.streams_executor_config));
+    return std::make_shared<CompiledModel>(ov_model,
+                                           shared_from_this(),
+                                           context,
+                                           task_executor,
+                                           config,
+                                           loaded_from_cache);
 }
 // ! [plugin:import_model_with_remote]
 
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(const ov::Tensor& model,
                                                                               const ov::AnyMap& properties) const {
-    ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
-    std::istream stream{&buffer};
-    return import_model(stream, properties);
+    return import_model(model, {}, properties);
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
     const ov::Tensor& model,
     const ov::SoPtr<ov::IRemoteContext>& context,
     const ov::AnyMap& properties) const {
-    ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
-    std::istream stream{&buffer};
-    return import_model(stream, properties);
+    if (auto reader =
+            ov::runtime::hsm::Reader::open(static_cast<const std::byte*>(model.data()), model.get_byte_size())) {
+        auto import_properties = properties;
+        const auto loaded_from_cache = consume_cache_import_hints(import_properties);
+        const auto [imported_model, imported_config] = read_hsm_blob(get_core(),
+                                                                     get_runtime_requirements(),
+                                                                     m_cfg,
+                                                                     *reader,
+                                                                     import_properties,
+                                                                     get_model_weights(properties),
+                                                                     to_aligned_buffer(model));
+
+        const auto executor = get_executor_manager()->get_idle_cpu_streams_executor(
+            ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(
+                imported_config.streams_executor_config));
+        return std::make_shared<CompiledModel>(imported_model,
+                                               shared_from_this(),
+                                               context,
+                                               executor,
+                                               imported_config,
+                                               loaded_from_cache);
+    } else {
+        // legacy format
+        ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
+        std::istream stream{&buffer};
+        return import_model(stream, properties);
+    }
 }
 
 // ! [plugin:query_model]
@@ -417,14 +499,21 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return supported_properties;
     } else if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type{
+        auto internal_properties = decltype(ov::internal::supported_properties)::value_type{
             ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::inference_num_threads.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::threads_per_stream.name(), ov::PropertyMutability::RW},
             ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::internal::cache_header_alignment.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::emit_hsm_format.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::template_plugin::export_hsm_format.name(), ov::PropertyMutability::RW},
         };
+        // Only the HSM reader imports from a mapped blob without copying; the legacy path would copy it.
+        if (m_cfg.export_hsm_format) {
+            internal_properties.emplace_back(ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO);
+        }
+        return internal_properties;
     } else if (ov::available_devices == name) {
         // TODO: fill list of available devices
         return decltype(ov::available_devices)::value_type{{""}};
@@ -436,7 +525,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
     } else if (ov::device::type == name) {
         return decltype(ov::device::type)::value_type{ov::device::Type::INTEGRATED};
     } else if (ov::internal::caching_properties == name) {
-        return decltype(ov::internal::caching_properties)::value_type{ov::device::architecture};
+        return decltype(ov::internal::caching_properties)::value_type{caching_properties()};
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
         return decltype(ov::device::capabilities)::value_type{ov::device::capability::FP32,

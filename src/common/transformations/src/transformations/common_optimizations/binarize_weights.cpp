@@ -16,6 +16,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov;
 
@@ -197,10 +198,10 @@ BinarizeWeights::BinarizeWeights() {
             v0::Constant::create(element::i64, Shape{norm_factor_shape.size()}, norm_factor_shape);
 
         auto activations_norm_factor_reshaped =
-            std::make_shared<v1::Reshape>(activations_norm_factor, norm_factor_shape_const, false);
+            ov::op::util::make_try_fold<v1::Reshape>(activations_norm_factor, norm_factor_shape_const, false);
         auto mul = std::make_shared<v1::Multiply>(new_conv, activations_norm_factor_reshaped);
         auto weights_norm_factor_reshaped =
-            std::make_shared<v1::Reshape>(weights_norm_factor, norm_factor_shape_const, false);
+            ov::op::util::make_try_fold<v1::Reshape>(weights_norm_factor, norm_factor_shape_const, false);
         auto mul2 = std::make_shared<v1::Multiply>(mul, weights_norm_factor_reshaped);
 
         copy_runtime_info(

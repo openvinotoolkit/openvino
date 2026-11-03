@@ -118,6 +118,9 @@ public:
     bool has_hadamard() const {
         return m_hadamard_block != 0;
     }
+    bool has_grouped_hadamard_gdn() const {
+        return m_hadamard_v_heads > 0;
+    }
     void inherit_hadamard(const std::string& name, const std::string& source);
 
 private:
@@ -127,6 +130,7 @@ private:
     std::string m_arch;
 
     std::shared_ptr<GgufGraph> m_graph;
+    std::shared_ptr<ConstantCache> m_constant_cache = std::make_shared<ConstantCache>();
     std::unordered_map<std::string, CreatorFunction> m_translators;
     // Names of weights already emitted as GGML_OP_NONE leaves, so a weight referenced by several
     // ops (or tied, e.g. MQA tie-V) is emitted once.
