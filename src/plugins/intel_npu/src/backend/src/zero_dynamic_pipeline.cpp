@@ -231,7 +231,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                tensor->data(),
                                                tensor->get_shape(),
-                                               MemRefType::getElementStrides(*tensor));
+                                               get_strides(*tensor));
         ++io_index;
     }
 
@@ -242,7 +242,7 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
                                                tensor->data(),
                                                tensor->get_shape(),
-                                               MemRefType::getElementStrides(*tensor));
+                                               get_strides(*tensor));
         ++io_index;
     }
     _logger.debug("Initialization completed");
@@ -653,10 +653,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     // This is the tensor with right shape and strides
     // The required check is already done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
-    _command_list_group->updateMutableCommandList(index,
-                                                  zeroTensor->data(),
-                                                  MemRefType::getElementStrides(*tensor),
-                                                  tensor->get_shape());
+    _command_list_group->updateMutableCommandList(index, zeroTensor->data(), get_strides(*tensor), tensor->get_shape());
     _logger.debug("update_graph_arguments - completed");
 }
 
@@ -674,10 +671,7 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
     OPENVINO_ASSERT(batch_index == 0, "DynamicPipeline owns only one command-list group");
 
-    _command_list_group->updateMutableCommandList(index,
-                                                  zeroTensor->data(),
-                                                  MemRefType::getElementStrides(*tensor),
-                                                  tensor->get_shape());
+    _command_list_group->updateMutableCommandList(index, zeroTensor->data(), get_strides(*tensor), tensor->get_shape());
 }
 
 }  // namespace intel_npu
