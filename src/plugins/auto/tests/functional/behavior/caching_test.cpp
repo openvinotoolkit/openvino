@@ -229,10 +229,10 @@ TEST_F(AutoFuncTests, compile_for_all_fallback_to_device_being_warmed_up_waits_a
         }
     } gate_guard{open_gate};
 
-    compiled_model = core.compile_model(model_cannot_batch,
-                                        "AUTO",
-                                        {ov::device::priorities("MOCK_FAIL", "MOCK_GATED"),
-                                         ov::intel_auto::compile_for_all(true)});
+    compiled_model =
+        core.compile_model(model_cannot_batch,
+                           "AUTO",
+                           {ov::device::priorities("MOCK_FAIL", "MOCK_GATED"), ov::intel_auto::compile_for_all(true)});
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     while (compile_count->load() == 0 && std::chrono::steady_clock::now() < deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
