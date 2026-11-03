@@ -19,13 +19,12 @@
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
 
-
 namespace {
 /* TODO CVS-199040:
  * Proper implementation of ov::IBufferDescriptor for ov::Tensor.
  * Once that implemented, the entire struct can be removed
  */
-struct SharedTensorDescriptor: public ov::IBufferDescriptor {
+struct SharedTensorDescriptor : public ov::IBufferDescriptor {
     size_t get_id() const override {
         return m_source_id;
     }
@@ -35,17 +34,17 @@ struct SharedTensorDescriptor: public ov::IBufferDescriptor {
     }
 
     std::shared_ptr<ov::AlignedBuffer> get_source_buffer() const override {
-        // as long as we store tensor by ourselves, 
+        // as long as we store tensor by ourselves,
         // we can safely create a shared buffer from it every time someone asks for the source buffer.
         //
-        // I don't want to store the tensor in WeightSharingContextAccessor, because 
+        // I don't want to store the tensor in WeightSharingContextAccessor, because
         // it is not the responsibility of WeightSharingContextAccessor to manage the lifetime of the tensor.
-        // The CVS-199040 should address the proper handling of tensor lifetimes in this context, 
+        // The CVS-199040 should address the proper handling of tensor lifetimes in this context,
         // until then we store the tensor here in a temporary place.
         return std::make_shared<ov::SharedBuffer<ov::Tensor>>(
-                    const_cast<char*>(static_cast<const char*>(m_tensor.data())),
-                                            m_tensor.get_byte_size(),
-                                            m_tensor);
+            const_cast<char*>(static_cast<const char*>(m_tensor.data())),
+            m_tensor.get_byte_size(),
+            m_tensor);
     }
 
     const ov::Tensor& get_tensor() const {
@@ -54,13 +53,15 @@ struct SharedTensorDescriptor: public ov::IBufferDescriptor {
 
     ~SharedTensorDescriptor() = default;
 
-    static std::shared_ptr<SharedTensorDescriptor> create(size_t source_id, size_t offset, const ov::Tensor &tensor) {
+    static std::shared_ptr<SharedTensorDescriptor> create(size_t source_id, size_t offset, const ov::Tensor& tensor) {
         return std::shared_ptr<SharedTensorDescriptor>(new SharedTensorDescriptor(source_id, offset, tensor));
     }
+
 private:
-    SharedTensorDescriptor(size_t source_id, size_t offset, const ov::Tensor &tensor)
-        : m_source_id(source_id), m_offset(offset), m_tensor(tensor) {
-    }
+    SharedTensorDescriptor(size_t source_id, size_t offset, const ov::Tensor& tensor)
+        : m_source_id(source_id),
+          m_offset(offset),
+          m_tensor(tensor) {}
     size_t m_source_id;
     size_t m_offset;
     ov::Tensor m_tensor;
@@ -78,12 +79,15 @@ ov::Tensor tensor_factory(const ov::ICore& core,
 
     auto remote_ctx = core.get_default_context(device)._ptr;
     if (ov::npuw::util::starts_with(device, "NPU")) {
-        // TODO CVS-199039, CVS-199076 
-        // Cannot create neither a host tensor from preexisting staging buffer nor a remote tensor for NPU remote context
-        NPUW_ASSERT(!staging_buffer_ptr && "create_tensor_allocator: NPU remote context cannot use the existing staging buffer for its host tensor creation");
+        // TODO CVS-199039, CVS-199076
+        // Cannot create neither a host tensor from preexisting staging buffer nor a remote tensor for NPU remote
+        // context
+        NPUW_ASSERT(!staging_buffer_ptr && "create_tensor_allocator: NPU remote context cannot use the existing "
+                                           "staging buffer for its host tensor creation");
     } else if (ov::npuw::util::starts_with(device, "GPU")) {
         // TODO CVS-199039
-        NPUW_ASSERT(!staging_buffer_ptr && "create_tensor_allocator: GPU remote context cannot use  the existing staging buffer for its host tensor creation");
+        NPUW_ASSERT(!staging_buffer_ptr && "create_tensor_allocator: GPU remote context cannot use  the existing "
+                                           "staging buffer for its host tensor creation");
     }
 
     return ov::make_tensor(remote_ctx->create_host_tensor(type, shape));
@@ -127,12 +131,13 @@ ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor
         ov::create_base_descriptor(source_id, 0, raw));
 }
 
-ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::create_shared_buffer(int64_t source_id, const ov::Tensor& tensor) {
-    return std::make_shared<ov::SharedBuffer<ov::Tensor>>(
-                    const_cast<char*>(static_cast<const char*>(tensor.data())),
-                                            tensor.get_byte_size(),
-                                            tensor, 
-                                            SharedTensorDescriptor::create(source_id, 0, tensor));
+ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::create_shared_buffer(
+    int64_t source_id,
+    const ov::Tensor& tensor) {
+    return std::make_shared<ov::SharedBuffer<ov::Tensor>>(const_cast<char*>(static_cast<const char*>(tensor.data())),
+                                                          tensor.get_byte_size(),
+                                                          tensor,
+                                                          SharedTensorDescriptor::create(source_id, 0, tensor));
 }
 
 const ov::op::v0::Constant& ov::npuw::weights::WeightSharingContextAccessor::get_transformed_constant(
@@ -187,29 +192,35 @@ ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor
     return shared_buffer;
 }
 
-ov::weight_sharing::WeightBuffer ov::npuw::weights::WeightSharingContextAccessor::register_tensor_as_shared_weight_source(
-    size_t source_id,
-    const std::string& device,
-    const ov::Tensor& tensor,
-    Handle& handle) {
+ov::weight_sharing::WeightBuffer
+ov::npuw::weights::WeightSharingContextAccessor::register_tensor_as_shared_weight_source(size_t source_id,
+                                                                                         const std::string& device,
+                                                                                         const ov::Tensor& tensor,
+                                                                                         Handle& handle) {
     if (!handle.context) {
         return {};
     }
 
     auto shared_buffer = WeightSharingContextAccessor::create_shared_buffer(source_id, tensor);
     register_shared_weight_source_for_weight(shared_buffer, device, handle);
-    register_transformed_constant(shared_buffer, source_id, device, tensor.get_element_type(), tensor.get_shape(), handle);
+    register_transformed_constant(shared_buffer,
+                                  source_id,
+                                  device,
+                                  tensor.get_element_type(),
+                                  tensor.get_shape(),
+                                  handle);
     return shared_buffer;
 }
 
 void ov::npuw::weights::WeightSharingContextAccessor::register_transformed_constant(
-                                       std::shared_ptr<ov::AlignedBuffer> transformation_buffer, 
-                                       size_t constant_id, 
-                                       const std::string& device,
-                                       const element::Type& type,
-                                       const ov::Shape& shape,
-                                       Handle& handle) {
-    NPUW_ASSERT(transformation_buffer && "WeightSharingContextAccessor::register_transformed_constant - Transformation buffer must not be null");
+    std::shared_ptr<ov::AlignedBuffer> transformation_buffer,
+    size_t constant_id,
+    const std::string& device,
+    const element::Type& type,
+    const ov::Shape& shape,
+    Handle& handle) {
+    NPUW_ASSERT(transformation_buffer &&
+                "WeightSharingContextAccessor::register_transformed_constant - Transformation buffer must not be null");
 
     // A transformed constant is never exist in the model as a node.
     // let's create a fake constant using the shared buffer as its data source
@@ -272,8 +283,8 @@ bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format_im
                                       [&source_ids](size_t sum, const auto& pair) {
                                           return source_ids.count(pair.first) ? sum + pair.second.size() : sum;
                                       });
-        LOG_DEBUG("WeightSharingContextAccessor::serialize_native_format_impl - total weights for device " << device << ": "
-                                                                                                      << num_weights);
+        LOG_DEBUG("WeightSharingContextAccessor::serialize_native_format_impl - total weights for device "
+                  << device << ": " << num_weights);
         stream & num_weights;
 
         // serialize weights in the incrementing order
@@ -321,9 +332,10 @@ bool ov::npuw::weights::WeightSharingContextAccessor::serialize_native_format_im
                     source_staging_buffer_descriptor && "WeightSharingContextAccessor: staging buffer for source id: ",
                     source_id,
                     " must have a valid descriptor");
-                LOG_VERB("WeightSharingContextAccessor::serialize_native_format_impl - serializing weight data for uid: "
-                         << source_id << ", source_id: " << source_staging_buffer_descriptor->get_id()
-                         << ", size: " << source_staging_buffer->size());
+                LOG_VERB(
+                    "WeightSharingContextAccessor::serialize_native_format_impl - serializing weight data for uid: "
+                    << source_id << ", source_id: " << source_staging_buffer_descriptor->get_id()
+                    << ", size: " << source_staging_buffer->size());
                 stream.bytes(source_staging_buffer->get_ptr(weight_meta_map.m_offset), weight_meta_map.m_size);
             }
         }
@@ -365,11 +377,10 @@ bool ov::npuw::weights::WeightSharingContextAccessor::deserialize_native_format_
             auto common_allocator = [this, &core, &device, uid, &handle](const ov::element::Type& type,
                                                                          const ov::Shape& shape) {
                 if (device == "CPU") {
-                    auto shared_source =
-                        this->request_shared_weight_source_buffer(uid, type, shape, device, handle);
+                    auto shared_source = this->request_shared_weight_source_buffer(uid, type, shape, device, handle);
                     return tensor_factory(core, device, type, shape, shared_source);
                 }
-   
+
                 ov::Tensor tensor = tensor_factory(core, device, type, shape, nullptr);
                 auto shared_source = this->register_tensor_as_shared_weight_source(uid, device, tensor, handle);
                 return tensor;
@@ -377,8 +388,10 @@ bool ov::npuw::weights::WeightSharingContextAccessor::deserialize_native_format_
 
             ov::Tensor regained_tensor;
             transfer_tensor(stream, regained_tensor, common_allocator);
-            (void)regained_tensor;  // can be dropped, not needed. It can be restored from source_descriptor if necessary.
-            LOG_DEBUG("WeightSharingContextAccessor::deserialize_native_format_impl - weight data restored, uid: " << uid);
+            (void)
+                regained_tensor;  // can be dropped, not needed. It can be restored from source_descriptor if necessary.
+            LOG_DEBUG(
+                "WeightSharingContextAccessor::deserialize_native_format_impl - weight data restored, uid: " << uid);
         }
     }
     return true;
@@ -576,15 +589,15 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         // we don't ask WeightSharingContextAccessor for creating the shared buffer beforehand,
         // because OpenVINO and NPU plugin do not provide an API for constructing a Host Tensor
         // from a predefined staged memory buffer.
-        // Instead we create the tensor first, extract the buffer from it, and then register it as a shared weight source buffer.
-        // 
+        // Instead we create the tensor first, extract the buffer from it, and then register it as a shared weight
+        // source buffer.
+        //
         // As this procedure can be called from multiple threads, we must ensure that no one other thread
         // will register the same shared weight source buffer concurrently.
-        // To solve that problem we first acquire a handle and check if the shared weight source buffer is already available.
-        // Given the current Bank implementation, once we started iterating over uids_to_allocated, 
-        // the source buffer must be absent as we haven't registered it yet for this UID.
-        ov::Tensor tensor =
-            tensor_factory(*m_core, device, allocated.meta.type, allocated.meta.shape, nullptr);
+        // To solve that problem we first acquire a handle and check if the shared weight source buffer is already
+        // available. Given the current Bank implementation, once we started iterating over uids_to_allocated, the
+        // source buffer must be absent as we haven't registered it yet for this UID.
+        ov::Tensor tensor = tensor_factory(*m_core, device, allocated.meta.type, allocated.meta.shape, nullptr);
         auto handle = this->get_handle();
         this->register_tensor_as_shared_weight_source(allocated.uid, device, tensor, handle);
         allocated = {allocated.meta, std::move(tensor), allocated.uid};
