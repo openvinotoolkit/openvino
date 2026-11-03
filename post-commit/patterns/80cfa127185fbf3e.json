@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-03T07:07:04Z",
+  "last_seen": "2026-11-03T07:07:04Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41586716106"
+  ],
+  "affected_commits": [
+    "6817c71433fe584fea35dba5380a235b1bd8e77f"
+  ],
+  "recent_timestamps": [
+    "2026-11-03T07:07:04Z"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 63,
+  "total": 64,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -644,6 +644,15 @@
       "category": "Flaky Test",
       "signature_hash": "df5c2ed0f576f29e",
       "commit_sha": "c899536ea60e84f3f3d98c015e50050a94a310d4"
+    },
+    {
+      "investigation_id": "2026-11-03-07-07-04-000-41586716106",
+      "run_id": "41586716106",
+      "timestamp": "2026-11-03T07:07:04Z",
+      "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+      "category": "Infrastructure",
+      "signature_hash": "80cfa127185fbf3e",
+      "commit_sha": "6817c71433fe584fea35dba5380a235b1bd8e77f"
     }
   ]
 }

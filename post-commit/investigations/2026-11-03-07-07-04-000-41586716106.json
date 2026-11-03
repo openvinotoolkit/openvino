@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-03-07-07-04-000-41586716106",
+  "timestamp": "2026-11-03T07:07:04Z",
+  "run_id": "41586716106",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41586716106",
+  "workflow_name": "Windows Conditional Compilation (VS 2022, Python 3.11)",
+  "commit_sha": "6817c71433fe584fea35dba5380a235b1bd8e77f",
+  "pr_number": "39345",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39345",
+  "author": null,
+  "category": "Infrastructure",
+  "title": "Windows CC build fails with compiler/linker out-of-memory errors under high parallelism",
+  "signature": "Windows Release build runs out of memory - compiler fatal error C1060 (out of heap space) and linker fatal error LNK1102 (out of memory) under high parallelism|Infrastructure",
+  "signature_hash": "80cfa127185fbf3e",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Build_And_Run_Collect_Mode",
+      "conclusion": "failure",
+      "symptom": "Ninja build stopped: cl.exe fatal error C1060 (compiler out of heap space) compiling cosh.cpp/cos.cpp, followed by multiple link.exe LNK1102 (out of memory) failures"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_cc",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because Build_And_Run_Collect_Mode failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: build-modules/template/tests/functional/CMakeFiles/ov_template_func_tests.dir/Release/op_reference/cosh.cpp.obj\nC:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\atomic(771): fatal error C1060: compiler is out of heap space",
+    "FAILED: build-modules/template/tests/functional/CMakeFiles/ov_template_func_tests.dir/Release/op_reference/cos.cpp.obj\nC:\\BuildTools\\VC\\Tools\\MSVC\\14.42.34433\\include\\vector(3816): fatal error C1060: compiler is out of heap space",
+    "LINK : fatal error LNK1102: out of memory (benchmark_app.exe, hello_reshape_ssd.exe, ov_api_conformance_tests.exe)",
+    "ninja: build stopped: subcommand failed.\n##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Windows Conditional Compilation build (CMAKE_BUILD_PARALLEL_LEVEL: 31, Ninja Multi-Config, Release) ran out of available memory/address space partway through the build. The MSVC compiler (cl.exe) hit fatal error C1060 (out of heap space) while compiling template functional test translation units (cosh.cpp, cos.cpp), and shortly after the linker (link.exe) hit LNK1102 (out of memory) linking several executables (benchmark_app.exe, hello_reshape_ssd.exe, ov_api_conformance_tests.exe). This pattern is characteristic of too many parallel cl.exe/link.exe processes competing for limited RAM/virtual address space on the Windows runner, rather than a code defect in the touched files. The triggering commit (PR #39345, NPUW weights mapping) does not touch the template op_reference tests or the samples/conformance targets that failed to link, so the failure is not attributable to the code change itself.",
+  "reproduction_steps": "N/A - requires reproducing memory pressure on a constrained Windows CI runner with CMAKE_BUILD_PARALLEL_LEVEL=31 while building the full Release + tests + samples + conformance targets simultaneously; not reliably reproducible on a developer workstation with different RAM/CPU core ratio.",
+  "recommended_actions": [
+    "Re-run (retrigger) the Windows_Conditional_Compilation workflow to see if the failure was transient (memory pressure on a shared/busy runner).",
+    "Consider lowering CMAKE_BUILD_PARALLEL_LEVEL for this job or splitting the heavy template functional test / conformance / samples link stage into a separate job step to reduce peak memory usage.",
+    "Investigate whether the Windows runner pool used for this job has less RAM than expected, or whether other concurrent jobs on the same host are consuming memory.",
+    "If this recurs, consider enabling /Zm (increase precompiled header memory allocation) or reducing unity/jumbo build grouping for heavy template test translation units."
+  ],
+  "prevention_strategies": "Tune CMAKE_BUILD_PARALLEL_LEVEL relative to available runner RAM (roughly 1.5-2GB per parallel MSVC/link process for Release builds with debug info), and monitor Windows runner memory headroom over time. Track recurrence via this pattern database; if count grows, treat it as a capacity/runner-sizing issue rather than retrying blindly each time.",
+  "historical_context": "A related but distinct pattern (signature_hash afb479532c52bf68, 'Windows build job terminated mid-build with unavailable job logs', count 3) covers Windows build jobs that terminate mid-build without logs, which is a different infrastructure failure mode (job termination / 404 logs) rather than this explicit compiler/linker OOM error. No prior occurrence of C1060/LNK1102 out-of-memory errors was found in the existing pattern or investigation database; this is the first recorded instance of this specific signature."
+}
