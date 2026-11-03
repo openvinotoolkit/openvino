@@ -301,7 +301,7 @@ std::string GraphEmitter::derive_weight(const std::string& name,
     const bool rotated = m_hadamard_weights.count(sources.front()) > 0;
     for (const auto& source : sources) {
         add_weight(source);
-        OPENVINO_ASSERT(m_hadamard_weights.count(source) == rotated,
+        OPENVINO_ASSERT((m_hadamard_weights.count(source) != 0) == rotated,
                         "[GGUF] derived weight mixes Hadamard-rotated and plain sources: ",
                         name);
     }
