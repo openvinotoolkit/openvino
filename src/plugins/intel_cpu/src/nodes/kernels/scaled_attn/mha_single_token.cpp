@@ -1222,8 +1222,9 @@ static void attn_reduce(ov::float16* dst, ov::float16* temp, size_t M, size_t S,
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
-// Grouped-query attention: the query heads of a group (and the query tokens) share each key and value row, which
-// is dequantized once for up to 4 of these rows.
+// Grouped-query attention: the h_each_group_len query heads of a key/value head, and its q_len query tokens, read
+// the same key and value rows. The helpers below dequantize each row once for a tile of up to 4 (token, head) rows:
+// 4 rows x 4 f32x4 accumulators plus the 4 dequantized vectors fit in the 32 NEON registers.
 
 // Loads 16 u8 values as 4 f32 vectors and subtracts the zero point.
 static inline void dequant_u8x16(const uint8_t* src, float32x4_t zp, float32x4_t* out) {
@@ -1236,7 +1237,8 @@ static inline void dequant_u8x16(const uint8_t* src, float32x4_t zp, float32x4_t
     out[3] = vsubq_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(v_u16_hi))), zp);
 }
 
-// Dot products of R f32 query rows with one u8 key row, with the arithmetic of the u8 dot_product.
+// Dot products of R f32 query rows with one u8 key row, with the operations and summation order of the ARM64 u8
+// dot_product of common.hpp, so each result equals that function's for the same row.
 // scale_zp holds interleaved {scale, zero point} pairs, one per group of group_size elements.
 template <size_t R>
 static void dot_product_u8_rows(const float* const* q,
@@ -1279,8 +1281,9 @@ static void dot_product_u8_rows(const float* const* q,
     }
 }
 
-// Accumulates one u8 value row into R output rows, out[r] += weight[r] * dequant(v), with the operations of
-// attn_acc_value in the same order. scale_zp holds interleaved {scale, zero point} pairs.
+// Accumulates one u8 value row into R output rows, out[r] += weight[r] * dequant(v), with the operations, order and
+// 16-element step of attn_acc_value(float*, float, uint8_t*, ...), so each row's result is unchanged.
+// scale_zp holds interleaved {scale, zero point} pairs.
 template <size_t R>
 static void attn_acc_value_u8_rows(float* const* out,
                                    const float* weight,
@@ -1386,8 +1389,8 @@ static void attn_acc_value_u8_rows(ov::float16* const* out,
 }
 #    endif
 
-// Walks the q_len x heads (query token, head in group) pairs in tiles of up to 4 and calls
-// f(std::integral_constant<size_t, R>, rows) for each tile, where rows[r] = {query token, head in group}.
+// Calls f(std::integral_constant<size_t, R>{}, rows) for consecutive tiles of up to 4 of the q_len x heads pairs,
+// token-major, where rows[r] = {query token, head in group}; a tile may span query tokens.
 template <typename F>
 static void for_each_row_tile(size_t q_len, size_t heads, const F& f) {
     std::array<std::pair<size_t, size_t>, 4> rows{};
@@ -1750,7 +1753,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 auto* v = present_value.ptr<T2>(b_kv, h_group, pv);
                 auto* p = past_v_scale_zp.ptr<float>(pv, b_kv, h_group);
 #if defined(OPENVINO_ARCH_ARM64)
-                // Values are always quantized per token, so unlike group_heads this ignores quant_key_by_channel.
+                // Values are quantized per token whatever quant_key_by_channel, so both value paths group heads on
+                // h_each_group_len alone, unlike group_heads.
                 if constexpr (std::is_same_v<T2, uint8_t>) {
                     if (h_each_group_len > 1) {
                         const size_t h0 = h_group * h_each_group_len;
