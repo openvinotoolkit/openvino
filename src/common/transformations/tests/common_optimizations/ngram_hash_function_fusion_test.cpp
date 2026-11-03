@@ -121,12 +121,90 @@ std::shared_ptr<Model> make_hash_model(const HashGraphConfig& c,
     return std::make_shared<Model>(OutputVector{out}, tokens);
 }
 
-size_t count_ops(const std::shared_ptr<Model>& model, const std::string& type_name) {
-    size_t count = 0;
-    for (const auto& op : model->get_ops()) {
-        count += std::string(op->get_type_name()) == type_name;
+// The expected rewrite: Convert(NGramHashFunction(Concat(Unsqueeze(x[n-1]), ..., Unsqueeze(x[0])))).
+Output<Node> make_fused_hash(const OutputVector& tokens,
+                             const std::vector<int64_t>& multipliers,
+                             const std::vector<int64_t>& heads_per_order,
+                             const std::vector<int64_t>& vocab_sizes,
+                             const std::vector<int64_t>& offsets) {
+    const auto axis = v0::Constant::create(element::i64, Shape{1}, {-1});
+    OutputVector window;
+    for (auto it = tokens.rbegin(); it != tokens.rend(); ++it) {
+        window.push_back(std::make_shared<v0::Unsqueeze>(*it, axis));
     }
-    return count;
+    const auto hash = std::make_shared<ov::op::internal::NGramHashFunction>(std::make_shared<v0::Concat>(window, -1),
+                                                                            static_cast<int64_t>(tokens.size()),
+                                                                            heads_per_order,
+                                                                            multipliers,
+                                                                            vocab_sizes,
+                                                                            offsets);
+    return std::make_shared<v0::Convert>(hash, element::i64);
+}
+
+std::shared_ptr<Model> make_fused_model(const HashGraphConfig& c, const HashTables& t) {
+    const auto tokens = make_tokens(c);
+    const auto out = make_fused_hash(OutputVector(tokens.begin(), tokens.end()),
+                                     c.multipliers,
+                                     c.heads_per_order,
+                                     t.vocab_sizes,
+                                     t.offsets);
+    return std::make_shared<Model>(OutputVector{out}, tokens);
+}
+
+// A single-order hash as produced by NGramHashBlockFusion: heads only for the last order.
+Output<Node> make_fused_order(const OutputVector& tokens,
+                              const std::vector<int64_t>& multipliers,
+                              const std::vector<int64_t>& vocab_sizes,
+                              const std::vector<int64_t>& offsets) {
+    std::vector<int64_t> heads_per_order(tokens.size() - 1, 0);
+    heads_per_order.back() = static_cast<int64_t>(vocab_sizes.size());
+    return make_fused_hash(tokens, multipliers, heads_per_order, vocab_sizes, offsets);
+}
+
+std::vector<int64_t> head_range(const std::vector<int64_t>& values, size_t begin, size_t end) {
+    return {values.begin() + begin, values.begin() + end};
+}
+
+// Compares both models on inputs that wrap the 64-bit products and produce negative mixes.
+void expect_same_outputs(const std::shared_ptr<Model>& actual, const std::shared_ptr<Model>& expected) {
+    ov::TensorVector inputs;
+    for (const auto& parameter : actual->get_parameters()) {
+        Shape shape;
+        for (const auto& dimension : parameter->get_partial_shape()) {
+            shape.push_back(dimension.is_static() ? dimension.get_length() : 2);
+        }
+        Tensor tensor(element::i64, shape);
+        const auto values = tensor.data<int64_t>();
+        for (size_t i = 0; i < tensor.get_size(); ++i) {
+            values[i] = i % 2 ? std::numeric_limits<int64_t>::min() : 3000000000LL + static_cast<int64_t>(i);
+        }
+        inputs.push_back(tensor);
+    }
+    const auto lhs = ov::test::utils::infer_on_template(actual->clone(), inputs);
+    const auto rhs = ov::test::utils::infer_on_template(expected->clone(), inputs);
+    ASSERT_EQ(lhs.size(), rhs.size());
+    for (size_t i = 0; i < lhs.size(); ++i) {
+        ASSERT_EQ(lhs[i].get_shape(), rhs[i].get_shape());
+        ASSERT_EQ(lhs[i].get_element_type(), element::i64);
+        EXPECT_EQ(std::vector<int64_t>(lhs[i].data<int64_t>(), lhs[i].data<int64_t>() + lhs[i].get_size()),
+                  std::vector<int64_t>(rhs[i].data<int64_t>(), rhs[i].data<int64_t>() + rhs[i].get_size()));
+    }
+}
+
+// Replaces every Unsqueeze with Reshape(x, pattern).
+void replace_unsqueeze_with_reshape(const std::shared_ptr<Model>& model,
+                                    const std::vector<int64_t>& pattern,
+                                    bool special_zero) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(node)) {
+            ov::replace_node(
+                unsqueeze,
+                std::make_shared<v1::Reshape>(unsqueeze->input_value(0),
+                                              v0::Constant::create(element::i64, Shape{pattern.size()}, pattern),
+                                              special_zero));
+        }
+    }
+    model->validate_nodes_and_infer_types();
 }
 
 const std::vector<HashGraphConfig> kPositiveCases{
@@ -147,152 +225,142 @@ const std::vector<HashGraphConfig> kPositiveCases{
     {"Fourgram_SkippedTrigram", kQwenMultipliers, {2, 0, 3}, {-1}},
 };
 
+const HashGraphConfig kBigram{"Bigram", {11, 13}, {2}, {-1, -1}};
+const HashGraphConfig kTrigram{"Trigram", {kWrapMultipliers.begin(), kWrapMultipliers.begin() + 3}, {4, 4}, {-1, -1}};
+
 }  // namespace
 
-class NGramHashFunctionFusionTest : public testing::Test, public testing::WithParamInterface<HashGraphConfig> {
+class NGramHashFunctionFusionTests : public TransformationTestsF {
+public:
+    NGramHashFunctionFusionTests() {
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::pass::NGramHashFunctionFusion>();
+    }
+};
+
+class NGramHashFunctionFusionParamTests : public NGramHashFunctionFusionTests,
+                                          public testing::WithParamInterface<HashGraphConfig> {
 public:
     static std::string get_test_case_name(const testing::TestParamInfo<HashGraphConfig>& info) {
         return info.param.name;
     }
 };
 
-TEST_P(NGramHashFunctionFusionTest, FusesAllOrdersIntoOneOp) {
+TEST_P(NGramHashFunctionFusionParamTests, FusesAllOrdersIntoOneOp) {
     const auto& c = GetParam();
     const auto t = make_tables(c.heads_per_order);
-    const auto model = make_hash_model(c, t);
-    const auto original = model->clone();
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::NGramHashFunctionFusion>();
-    manager.run_passes(model);
-    ASSERT_EQ(count_ops(model, "NGramHashFunction"), 1);
-    for (const auto& node : model->get_ops()) {
-        if (const auto hash = ov::as_type_ptr<ov::op::internal::NGramHashFunction>(node)) {
-            EXPECT_EQ(hash->get_heads_per_order(), c.heads_per_order);
-            EXPECT_EQ(hash->get_head_vocab_sizes(), t.vocab_sizes);
-            EXPECT_EQ(hash->get_head_offsets(), t.offsets);
-        }
-    }
-    ov::TensorVector inputs;
-    for (const auto& parameter : original->get_parameters()) {
-        Shape shape;
-        for (const auto& dimension : parameter->get_partial_shape()) {
-            shape.push_back(dimension.is_static() ? dimension.get_length() : 2);
-        }
-        Tensor tensor(element::i64, shape);
-        const auto values = tensor.data<int64_t>();
-        for (size_t i = 0; i < tensor.get_size(); ++i) {
-            values[i] = i % 2 ? std::numeric_limits<int64_t>::min() : 3000000000LL + static_cast<int64_t>(i);
-        }
-        inputs.push_back(tensor);
-    }
-    const auto actual = ov::test::utils::infer_on_template(model, inputs);
-    auto expected_shape = inputs[0].get_shape();
-    expected_shape.push_back(t.vocab_sizes.size());
-    Tensor expected(element::i64, expected_shape);
-    for (size_t position = 0; position < inputs[0].get_size(); ++position) {
-        uint64_t mix = 0;
-        size_t head = 0;
-        for (size_t back = 0; back < inputs.size(); ++back) {
-            mix ^= static_cast<uint64_t>(inputs[back].data<int64_t>()[position]) *
-                   static_cast<uint64_t>(c.multipliers[back]);
-            if (back == 0) {
-                continue;
-            }
-            const auto signed_mix = static_cast<int64_t>(mix);
-            for (int64_t h = 0; h < c.heads_per_order[back - 1]; ++h, ++head) {
-                auto remainder = signed_mix % t.vocab_sizes[head];
-                if (remainder < 0) {
-                    remainder += t.vocab_sizes[head];
-                }
-                expected.data<int64_t>()[position * t.vocab_sizes.size() + head] = remainder + t.offsets[head];
-            }
-        }
-    }
-    ASSERT_EQ(actual[0].get_shape(), expected.get_shape());
-    EXPECT_EQ(std::vector<int64_t>(actual[0].data<int64_t>(), actual[0].data<int64_t>() + actual[0].get_size()),
-              std::vector<int64_t>(expected.data<int64_t>(), expected.data<int64_t>() + expected.get_size()));
+    model = make_hash_model(c, t);
+    model_ref = make_fused_model(c, t);
+    expect_same_outputs(model, model_ref);
 }
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
-                         NGramHashFunctionFusionTest,
+                         NGramHashFunctionFusionParamTests,
                          testing::ValuesIn(kPositiveCases),
-                         NGramHashFunctionFusionTest::get_test_case_name);
+                         NGramHashFunctionFusionParamTests::get_test_case_name);
 
-namespace {
-void expect_not_fused(const std::shared_ptr<Model>& model) {
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::NGramHashFunctionFusion>();
-    manager.run_passes(model);
-    EXPECT_EQ(count_ops(model, "NGramHashFunction"), 0);
-}
-const HashGraphConfig kTrigram{"Trigram", {kWrapMultipliers.begin(), kWrapMultipliers.begin() + 3}, {4, 4}, {-1, -1}};
-}  // namespace
-
-TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseI32) {
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseI32) {
     const HashGraphConfig i32_trigram{"I32Trigram", {1000003, 999983, 7}, {4, 4}, {-1, -1}};
-    expect_not_fused(make_hash_model(i32_trigram, make_tables(i32_trigram.heads_per_order, 1000003), element::i32));
+    model = make_hash_model(i32_trigram, make_tables(i32_trigram.heads_per_order, 1000003), element::i32);
 }
 
-TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseWhenRowsOverflowInt32) {
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseConcatWhenRowsOverflowInt32) {
+    // Only the bigram block, whose rows fit int32, becomes an op; the trigram block and the Concat stay.
     auto t = make_tables(kTrigram.heads_per_order);
     t.offsets.back() = std::numeric_limits<int32_t>::max() - t.vocab_sizes.back() + 2;
-    const auto model = make_hash_model(kTrigram, t);
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::NGramHashFunctionFusion>();
-    manager.run_passes(model);
-    // The Concat is not fused; only the bigram block, whose rows fit int32, becomes an op.
-    ASSERT_EQ(count_ops(model, "NGramHashFunction"), 1);
-    EXPECT_EQ(count_ops(model, "FloorMod"), 1);
-    for (const auto& op : model->get_ops()) {
-        if (const auto hash = ov::as_type_ptr<ov::op::internal::NGramHashFunction>(op)) {
-            EXPECT_EQ(hash->get_ngram_size(), 2);
-            EXPECT_EQ(hash->get_heads_per_order(), std::vector<int64_t>{4});
-        }
+    model = make_hash_model(kTrigram, t);
+    {
+        const auto tokens = make_tokens(kTrigram);
+        const auto& m = kTrigram.multipliers;
+        auto term = [&](size_t k) {
+            return std::make_shared<v1::Multiply>(tokens[k], v0::Constant::create(element::i64, Shape{}, {m[k]}));
+        };
+        const auto bigram = make_fused_order({tokens[0], tokens[1]},
+                                             head_range(m, 0, 2),
+                                             head_range(t.vocab_sizes, 0, 4),
+                                             head_range(t.offsets, 0, 4));
+        const auto mix =
+            std::make_shared<v13::BitwiseXor>(std::make_shared<v13::BitwiseXor>(term(0), term(1)), term(2));
+        const auto unsq = std::make_shared<v0::Unsqueeze>(mix, v0::Constant::create(element::i64, Shape{}, {-1}));
+        const auto mod = std::make_shared<v1::FloorMod>(
+            unsq,
+            v0::Constant::create(element::i64, Shape{1, 1, 4}, head_range(t.vocab_sizes, 4, 8)));
+        const auto trigram =
+            std::make_shared<v1::Add>(mod, v0::Constant::create(element::i64, Shape{4}, head_range(t.offsets, 4, 8)));
+        model_ref =
+            std::make_shared<Model>(OutputVector{std::make_shared<v0::Concat>(OutputVector{bigram, trigram}, -1)},
+                                    tokens);
     }
 }
 
-TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseUnsqueezeOnOtherAxis) {
-    expect_not_fused(make_hash_model(kTrigram, make_tables(kTrigram.heads_per_order), element::i64, 0));
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseUnsqueezeOnOtherAxis) {
+    model = make_hash_model(kTrigram, make_tables(kTrigram.heads_per_order), element::i64, 0);
 }
 
-TEST(NGramHashFunctionFusionNegativeTest, FusesEveryOrderOnItsOwnWhenConcatOrderIsDescending) {
+TEST_F(NGramHashFunctionFusionTests, FusesEveryOrderOnItsOwnWhenConcatOrderIsDescending) {
     // Heads must be grouped by ascending order to fit one op; otherwise every block is fused separately.
-    const auto model = make_hash_model(kTrigram, make_tables(kTrigram.heads_per_order), element::i64, -1, true);
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::NGramHashFunctionFusion>();
-    manager.run_passes(model);
-    EXPECT_EQ(count_ops(model, "NGramHashFunction"), 2);
+    const auto t = make_tables(kTrigram.heads_per_order);
+    model = make_hash_model(kTrigram, t, element::i64, -1, true);
+    {
+        const auto tokens = make_tokens(kTrigram);
+        const auto& m = kTrigram.multipliers;
+        const auto trigram = make_fused_order({tokens[0], tokens[1], tokens[2]},
+                                              m,
+                                              head_range(t.vocab_sizes, 4, 8),
+                                              head_range(t.offsets, 4, 8));
+        const auto bigram = make_fused_order({tokens[0], tokens[1]},
+                                             head_range(m, 0, 2),
+                                             head_range(t.vocab_sizes, 0, 4),
+                                             head_range(t.offsets, 0, 4));
+        model_ref =
+            std::make_shared<Model>(OutputVector{std::make_shared<v0::Concat>(OutputVector{trigram, bigram}, -1)},
+                                    tokens);
+    }
 }
 
-TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseWhenHigherOrderDoesNotExtendLowerOrder) {
-    // The trigram uses a different second token than the bigram: not one n-gram window.
-    auto tokens = make_tokens(kTrigram);
-    auto extra = std::make_shared<v0::Parameter>(element::i64, kTrigram.token_shape);
-    tokens.push_back(extra);
-    auto mul = [](const Output<Node>& x, int64_t m) {
-        return std::make_shared<v1::Multiply>(x, v0::Constant::create(element::i64, Shape{}, {m}));
-    };
-    auto block = [](const Output<Node>& mix, int64_t vocab, int64_t offset) {
-        auto unsq = std::make_shared<v0::Unsqueeze>(mix, v0::Constant::create(element::i64, Shape{}, {-1}));
-        auto mod = std::make_shared<v1::FloorMod>(unsq, v0::Constant::create(element::i64, Shape{1}, {vocab}));
-        return std::make_shared<v1::Add>(mod, v0::Constant::create(element::i64, Shape{1}, {offset}));
-    };
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseConcatWhenHigherOrderDoesNotExtendLowerOrder) {
+    // The trigram uses a different second token than the bigram: not one n-gram window, so the blocks are fused
+    // on their own.
     const auto& m = kTrigram.multipliers;
-    auto bigram = std::make_shared<v13::BitwiseXor>(mul(tokens[0], m[0]), mul(tokens[1], m[1]));
-    auto trigram = std::make_shared<v13::BitwiseXor>(
-        std::make_shared<v13::BitwiseXor>(mul(tokens[0], m[0]), mul(extra, m[1])),
-        mul(tokens[2], m[2]));
-    auto concat = std::make_shared<v0::Concat>(OutputVector{block(bigram, 1000003, 0), block(trigram, 1000033, 1000003)},
-                                               -1);
-    const auto model = std::make_shared<Model>(OutputVector{concat}, tokens);
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::NGramHashFunctionFusion>();
-    manager.run_passes(model);
-    // Not one op for the Concat; the blocks are fused on their own.
-    EXPECT_EQ(count_ops(model, "NGramHashFunction"), 2);
+    {
+        auto tokens = make_tokens(kTrigram);
+        auto extra = std::make_shared<v0::Parameter>(element::i64, kTrigram.token_shape);
+        tokens.push_back(extra);
+        auto mul = [](const Output<Node>& x, int64_t multiplier) {
+            return std::make_shared<v1::Multiply>(x, v0::Constant::create(element::i64, Shape{}, {multiplier}));
+        };
+        auto block = [](const Output<Node>& mix, int64_t vocab, int64_t offset) {
+            auto unsq = std::make_shared<v0::Unsqueeze>(mix, v0::Constant::create(element::i64, Shape{}, {-1}));
+            auto mod = std::make_shared<v1::FloorMod>(unsq, v0::Constant::create(element::i64, Shape{1}, {vocab}));
+            return std::make_shared<v1::Add>(mod, v0::Constant::create(element::i64, Shape{1}, {offset}));
+        };
+        auto bigram = std::make_shared<v13::BitwiseXor>(mul(tokens[0], m[0]), mul(tokens[1], m[1]));
+        auto trigram =
+            std::make_shared<v13::BitwiseXor>(std::make_shared<v13::BitwiseXor>(mul(tokens[0], m[0]), mul(extra, m[1])),
+                                              mul(tokens[2], m[2]));
+        auto concat =
+            std::make_shared<v0::Concat>(OutputVector{block(bigram, 1000003, 0), block(trigram, 1000033, 1000003)}, -1);
+        model = std::make_shared<Model>(OutputVector{concat}, tokens);
+    }
+    {
+        auto tokens = make_tokens(kTrigram);
+        auto extra = std::make_shared<v0::Parameter>(element::i64, kTrigram.token_shape);
+        tokens.push_back(extra);
+        const auto bigram = make_fused_order({tokens[0], tokens[1]}, head_range(m, 0, 2), {1000003}, {0});
+        const auto trigram = make_fused_order({tokens[0], extra, tokens[2]}, m, {1000033}, {1000003});
+        model_ref =
+            std::make_shared<Model>(OutputVector{std::make_shared<v0::Concat>(OutputVector{bigram, trigram}, -1)},
+                                    tokens);
+    }
 }
 
-TEST(NGramHashFunctionFusionNegativeTest, DoesNotTouchUnrelatedI64AddAndConcat) {
+TEST_F(NGramHashFunctionFusionTests, DoesNotTouchUnrelatedI64AddAndConcat) {
     // Generic i64 Add / FloorMod + Add / Concat without the hashed XOR mix must not match.
     auto x = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1});
     auto y = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1});
@@ -306,13 +374,10 @@ TEST(NGramHashFunctionFusionNegativeTest, DoesNotTouchUnrelatedI64AddAndConcat) 
     auto mod_mul = std::make_shared<v1::FloorMod>(unsq_mul, v0::Constant::create(element::i64, Shape{1}, {7}));
     auto offset_mul = std::make_shared<v1::Add>(mod_mul, v0::Constant::create(element::i64, Shape{1}, {0}));
     auto concat = std::make_shared<v0::Concat>(OutputVector{offset, offset_mul}, -1);
-    const auto model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{x, y});
-    expect_not_fused(model);
-    EXPECT_EQ(count_ops(model, "Add"), 3);
-    EXPECT_EQ(count_ops(model, "Concat"), 1);
+    model = std::make_shared<Model>(OutputVector{concat}, ParameterVector{x, y});
 }
 
-TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseXorWithNonConstantMultiplier) {
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseXorWithNonConstantMultiplier) {
     const auto tokens = make_tokens(kTrigram);
     auto term0 = std::make_shared<v1::Multiply>(tokens[0], tokens[1]);
     auto term1 =
@@ -321,95 +386,118 @@ TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseXorWithNonConstantMultiplie
     auto unsq = std::make_shared<v0::Unsqueeze>(mix, v0::Constant::create(element::i64, Shape{}, {-1}));
     auto mod = std::make_shared<v1::FloorMod>(unsq, v0::Constant::create(element::i64, Shape{1}, {1000003}));
     auto add = std::make_shared<v1::Add>(mod, v0::Constant::create(element::i64, Shape{1}, {0}));
-    expect_not_fused(std::make_shared<Model>(OutputVector{add}, tokens));
+    model = std::make_shared<Model>(OutputVector{add}, tokens);
 }
 
-TEST(NGramHashFunctionFusionNegativeTest, DoesNotDiscardUnprovenReshape) {
-    const HashGraphConfig config{"Reshape", {11, 13}, {2}, {-1, -1}};
-    const auto model = make_hash_model(config, make_tables(config.heads_per_order));
-    for (const auto& node : model->get_ordered_ops()) {
-        if (const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(node)) {
-            ov::replace_node(unsqueeze,
-                             std::make_shared<v1::Reshape>(unsqueeze->input_value(0),
-                                                           v0::Constant::create(element::i64, Shape{3}, {-1, 2, 1}),
-                                                           false));
-        }
-    }
-    expect_not_fused(model);
+TEST_F(NGramHashFunctionFusionTests, DoesNotDiscardUnprovenReshape) {
+    model = make_hash_model(kBigram, make_tables(kBigram.heads_per_order));
+    replace_unsqueeze_with_reshape(model, {-1, 2, 1}, false);
 }
 
-TEST(NGramHashFunctionFusionRegressionTest, FusesProvenReshapeAppend) {
-    for (const bool special_zero : {false, true}) {
-        const HashGraphConfig config{"Reshape",
-                                     {11, 13},
-                                     {2},
-                                     special_zero ? PartialShape{-1, -1} : PartialShape{2, 3}};
-        const auto model = make_hash_model(config, make_tables(config.heads_per_order));
-        for (const auto& node : model->get_ordered_ops()) {
-            if (const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(node)) {
-                const std::vector<int64_t> shape =
-                    special_zero ? std::vector<int64_t>{0, 0, 1} : std::vector<int64_t>{2, 3, 1};
-                ov::replace_node(unsqueeze,
-                                 std::make_shared<v1::Reshape>(unsqueeze->input_value(0),
-                                                               v0::Constant::create(element::i64, Shape{3}, shape),
-                                                               special_zero));
-            }
-        }
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::NGramHashFunctionFusion>();
-        manager.run_passes(model);
-        EXPECT_EQ(count_ops(model, "NGramHashFunction"), 1);
-    }
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseInferredReshapeWithZeroInputDimension) {
+    // Reshape([-1, 0, 1]) maps a [2, 0] input to [1, 0, 1], so removing it would change the output batch dimension.
+    const HashGraphConfig config{"EmptyTokens", {11, 13}, {2}, {2, 0}};
+    model = make_hash_model(config, make_tables(config.heads_per_order));
+    replace_unsqueeze_with_reshape(model, {-1, 0, 1}, false);
+    EXPECT_EQ(model->output(0).get_partial_shape(), PartialShape({1, 0, 2}));
 }
 
-TEST(NGramHashFunctionFusionRegressionTest, FusesSingleInferredPrefixDimension) {
+TEST_F(NGramHashFunctionFusionTests, FusesProvenStaticReshapeAppend) {
+    const HashGraphConfig config{"Reshape", {11, 13}, {2}, {2, 3}};
+    const auto t = make_tables(config.heads_per_order);
+    model = make_hash_model(config, t);
+    replace_unsqueeze_with_reshape(model, {2, 3, 1}, false);
+    model_ref = make_fused_model(config, t);
+}
+
+TEST_F(NGramHashFunctionFusionTests, FusesProvenSpecialZeroReshapeAppend) {
+    const auto t = make_tables(kBigram.heads_per_order);
+    model = make_hash_model(kBigram, t);
+    replace_unsqueeze_with_reshape(model, {0, 0, 1}, true);
+    model_ref = make_fused_model(kBigram, t);
+}
+
+TEST_F(NGramHashFunctionFusionTests, FusesSingleInferredPrefixDimension) {
     const HashGraphConfig config{"Reshape", {11, 13}, {2}, {-1}};
-    const auto model = make_hash_model(config, make_tables(config.heads_per_order));
-    for (const auto& node : model->get_ordered_ops()) {
-        if (const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(node)) {
-            ov::replace_node(unsqueeze,
-                             std::make_shared<v1::Reshape>(unsqueeze->input_value(0),
-                                                           v0::Constant::create(element::i64, Shape{2}, {-1, 1}),
-                                                           false));
-        }
-    }
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::NGramHashFunctionFusion>();
-    manager.run_passes(model);
-    EXPECT_EQ(count_ops(model, "NGramHashFunction"), 1);
+    const auto t = make_tables(config.heads_per_order);
+    model = make_hash_model(config, t);
+    replace_unsqueeze_with_reshape(model, {-1, 1}, false);
+    model_ref = make_fused_model(config, t);
 }
 
-TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseNonNumpyHeadBroadcasts) {
+class NGramHashFunctionFusionNonNumpyTests : public NGramHashFunctionFusionTests,
+                                             public testing::WithParamInterface<std::string> {};
+
+TEST_P(NGramHashFunctionFusionNonNumpyTests, DoesNotFuseNonNumpyHeadBroadcasts) {
     const HashGraphConfig config{"Broadcast", {11, 13}, {2}, {2}};
-    for (const bool change_add : {false, true}) {
-        const auto model = make_hash_model(config, make_tables(config.heads_per_order));
-        for (const auto& node : model->get_ordered_ops()) {
-            if ((change_add && ov::is_type<v1::Add>(node)) || (!change_add && ov::is_type<v1::FloorMod>(node))) {
-                const auto arithmetic = ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(node);
-                const auto constant = ov::as_type_ptr<v0::Constant>(arithmetic->get_input_node_shared_ptr(1));
-                arithmetic->input(1).replace_source_output(
-                    v0::Constant::create(element::i64, Shape{2}, constant->cast_vector<int64_t>()));
-                arithmetic->set_autob(ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 0));
-            }
+    model = make_hash_model(config, make_tables(config.heads_per_order));
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_type_name() == GetParam()) {
+            const auto arithmetic = ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(node);
+            const auto constant = ov::as_type_ptr<v0::Constant>(arithmetic->get_input_node_shared_ptr(1));
+            arithmetic->input(1).replace_source_output(
+                v0::Constant::create(element::i64, Shape{2}, constant->cast_vector<int64_t>()));
+            arithmetic->set_autob(ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 0));
         }
-        model->validate_nodes_and_infer_types();
-        expect_not_fused(model);
     }
+    model->validate_nodes_and_infer_types();
 }
 
-TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseStaticallyBroadcastTokens) {
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         NGramHashFunctionFusionNonNumpyTests,
+                         testing::Values("FloorMod", "Add"),
+                         [](const testing::TestParamInfo<std::string>& info) {
+                             return info.param;
+                         });
+
+TEST_F(NGramHashFunctionFusionTests, DoesNotFuseStaticallyBroadcastTokens) {
     const HashGraphConfig config{"Bigram", {11, 13}, {2}, {3}};
-    const auto model = make_hash_model(config, make_tables(config.heads_per_order));
+    model = make_hash_model(config, make_tables(config.heads_per_order));
     model->get_parameters()[0]->set_partial_shape({1});
     model->validate_nodes_and_infer_types();
-    expect_not_fused(model);
 }
 
-TEST(NGramHashFunctionFusionRegressionTest, FusesInt32RowBoundary) {
+TEST_F(NGramHashFunctionFusionTests, FusesInt32RowBoundary) {
     const HashGraphConfig config{"RowBoundary", {11, 13}, {1}, {2}};
-    const auto model = make_hash_model(config, {{2147483648LL}, {0}});
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::NGramHashFunctionFusion>();
-    EXPECT_NO_THROW(manager.run_passes(model));
-    EXPECT_EQ(count_ops(model, "NGramHashFunction"), 1);
+    const HashTables t{{2147483648LL}, {0}};
+    model = make_hash_model(config, t);
+    model_ref = make_fused_model(config, t);
+}
+
+TEST_F(NGramHashFunctionFusionTests, DoesNotMergeExistingHashWithRepeatedTerm) {
+    // x * 11 ^ x * 11 cancels out; merging it as a set of terms would change the result.
+    const auto x = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1});
+    const auto y = std::make_shared<v0::Parameter>(element::i64, PartialShape{-1, -1});
+    model = std::make_shared<Model>(OutputVector{std::make_shared<v0::Concat>(
+                                        OutputVector{make_fused_order({x, x}, {11, 11}, {1000003}, {0}),
+                                                     make_fused_order({x, y, y}, {11, 13, 17}, {1000033}, {1000003})},
+                                        -1)},
+                                    ParameterVector{x, y});
+}
+
+TEST_F(NGramHashFunctionFusionTests, CallbackSkipsBlockFusion) {
+    model = make_hash_model(kTrigram, make_tables(kTrigram.heads_per_order));
+    manager.get_pass_config()->set_callback<ov::pass::NGramHashBlockFusion>([](const std::shared_ptr<const Node>&) {
+        return true;
+    });
+}
+
+TEST_F(NGramHashFunctionFusionTests, CallbackSkipsConcatFusion) {
+    const auto t = make_tables(kTrigram.heads_per_order);
+    model = make_hash_model(kTrigram, t);
+    manager.get_pass_config()->set_callback<ov::pass::NGramHashConcatFusion>([](const std::shared_ptr<const Node>&) {
+        return true;
+    });
+    const auto tokens = make_tokens(kTrigram);
+    const auto& m = kTrigram.multipliers;
+    const auto bigram = make_fused_order({tokens[0], tokens[1]},
+                                         head_range(m, 0, 2),
+                                         head_range(t.vocab_sizes, 0, 4),
+                                         head_range(t.offsets, 0, 4));
+    const auto trigram = make_fused_order({tokens[0], tokens[1], tokens[2]},
+                                          m,
+                                          head_range(t.vocab_sizes, 4, 8),
+                                          head_range(t.offsets, 4, 8));
+    model_ref =
+        std::make_shared<Model>(OutputVector{std::make_shared<v0::Concat>(OutputVector{bigram, trigram}, -1)}, tokens);
 }

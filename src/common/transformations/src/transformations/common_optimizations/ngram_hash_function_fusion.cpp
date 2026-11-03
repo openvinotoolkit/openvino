@@ -90,6 +90,12 @@ bool appends_unit_last_dim(const ov::Output<ov::Node>& output) {
             if (values.size() != in_shape.size() + 1 || values.back() != 1) {
                 return false;
             }
+            // A literal zero makes '-1' ambiguous: a zero-sized output cannot tell which input dimension it replaces.
+            const bool infers_dim = std::find(values.begin(), values.end(), -1) != values.end();
+            if (infers_dim && !reshape->get_special_zero() &&
+                std::find(values.begin(), values.end(), 0) != values.end()) {
+                return false;
+            }
             for (size_t i = 0; i < in_shape.size(); ++i) {
                 if (values[i] == -1) {
                     // The single inferred dimension is preserved if every other prefix dimension is copied.
@@ -243,7 +249,11 @@ std::optional<std::vector<Term>> get_terms(const ov::op::internal::NGramHashFunc
             !appends_unit_last_dim(unsqueeze)) {
             return std::nullopt;
         }
-        terms.push_back({unsqueeze.get_node()->input_value(0), hash.get_multipliers()[k]});
+        Term term{unsqueeze.get_node()->input_value(0), hash.get_multipliers()[k]};
+        if (std::find(terms.begin(), terms.end(), term) != terms.end()) {
+            return std::nullopt;  // x ^ x cancels out; the concat merge treats terms as a set
+        }
+        terms.push_back(std::move(term));
     }
     return terms;
 }
@@ -282,9 +292,12 @@ ov::pass::NGramHashBlockFusion::NGramHashBlockFusion() {
                        ov::op::AutoBroadcastType::NUMPY;
         });
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         const auto root = m.get_match_root();
+        if (transformation_callback(root)) {
+            return false;
+        }
         const auto unsqueeze = pm.at(unsqueeze_m).get_node_shared_ptr();
 
         auto vocab_sizes = ngram_hash_function_fusion::constant_values(pm.at(vocab_m));
@@ -329,8 +342,11 @@ ov::pass::NGramHashConcatFusion::NGramHashConcatFusion() {
                });
     });
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto root = m.get_match_root();
+        if (transformation_callback(root)) {
+            return false;
+        }
         // Every order must extend the terms of the previous one; XOR is commutative, so only the sets matter.
         std::vector<ngram_hash_function_fusion::Term> terms;
         std::vector<int64_t> heads_per_order;
