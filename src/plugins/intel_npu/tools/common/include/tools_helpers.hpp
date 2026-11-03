@@ -18,7 +18,9 @@ struct InputInfo {
 };
 using InputsInfo = std::map<std::string, InputInfo>;
 
-std::string parameterNameToTensorName(std::string& name, std::vector<ov::Output<ov::Node>>& inputs_info) {
+// NodeType is either ov::Node (ov::Model::inputs()) or const ov::Node (ov::CompiledModel::inputs()).
+template <typename NodeType>
+std::string parameterNameToTensorName(const std::string& name, const std::vector<ov::Output<NodeType>>& inputs_info) {
     // Looking for a tensor name match
     for (const auto& port : inputs_info) {
         if (port.get_names().count(name) > 0) {
@@ -35,8 +37,9 @@ std::string parameterNameToTensorName(std::string& name, std::vector<ov::Output<
                              "\" is not found neither in tensor names nor in nodes names.");
 }
 
-std::map<std::string, std::vector<std::string>> parseInputParameters(std::string& parameter_string,
-                                                                     std::vector<ov::Output<ov::Node>>& input_info) {
+template <typename NodeType>
+std::map<std::string, std::vector<std::string>> parseInputParameters(const std::string& parameter_string,
+                                                                     const std::vector<ov::Output<NodeType>>& input_info) {
     // Parse parameter string like "input0[value0],input1[value1]" or "[value]" (applied to all
     // inputs)
     std::map<std::string, std::vector<std::string>> return_value;
@@ -52,7 +55,7 @@ std::map<std::string, std::vector<std::string>> parseInputParameters(std::string
         if (!input_name.empty()) {
             return_value[parameterNameToTensorName(input_name, input_info)].push_back(std::move(input_value));
         } else {
-            for (auto& item : input_info) {
+            for (const auto& item : input_info) {
                 return_value[item.get_any_name()].push_back(input_value);
             }
         }

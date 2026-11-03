@@ -6,27 +6,34 @@
 #include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "quant/weights.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
 
 OutputVector translate_get_rows(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    const bool relative_shift = context.get_attribute<bool>("relative_shift", false);
+    num_inputs_check(context, relative_shift ? 1 : 2, relative_shift ? 1 : 2);
 
     int op_case = context.get_op_case();
 
     Output<Node> res;
     auto data = context.get_input(0);
-    auto indices = context.get_input(1);
+    ov::Output<ov::Node> indices;
+    if (!relative_shift)
+        indices = context.get_input(1);
     // GGML gathers integer rows as I32 and all floating/quantized rows as F32.
     const auto type = data.get_element_type() == ov::element::i32 ? ov::element::i32 : ov::element::f32;
     const auto convert_rows = [&](ov::Output<Node> rows) {
@@ -36,7 +43,23 @@ OutputVector translate_get_rows(const NodeContext& context) {
         return rows;
     };
 
-    if (context.get_attribute<bool>("gather_elements", false)) {
+    if (relative_shift) {
+        const auto scalar = [](int64_t value) {
+            return ov::op::v0::Constant::create(ov::element::i64, {}, {value});
+        };
+        auto length = std::make_shared<ov::op::v0::Squeeze>(get_dimensions(data, {2}));
+        auto range = std::make_shared<ov::op::v4::Range>(scalar(0), length, scalar(1), ov::element::i64);
+        auto row =
+            std::make_shared<ov::op::v0::Unsqueeze>(range,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 3}));
+        auto column =
+            std::make_shared<ov::op::v0::Unsqueeze>(range,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}));
+        indices = std::make_shared<ov::op::v1::Add>(
+            std::make_shared<ov::op::v1::Subtract>(std::make_shared<ov::op::v1::Subtract>(length, scalar(1)), row),
+            column);
+    }
+    if (context.get_attribute<bool>("gather_elements", false) || relative_shift) {
         // Select a column independently in each row; singleton index batches broadcast.
         auto shape = std::make_shared<ov::op::v0::Concat>(
             ov::OutputVector{get_dimensions(data, {0, 1, 2}), get_dimensions(indices, {3})},
@@ -111,8 +134,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
             res = std::make_shared<ov::op::v8::Gather>(data, indices, axis, 1);
         }
     } else {
-        auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
-        res = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
+        res = gather_weight_rows(data, indices);
     }
 
     // The two Squeezes above dropped the leading axes; restore ggml's rank-4 form.

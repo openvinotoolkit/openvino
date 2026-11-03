@@ -18,6 +18,11 @@
 
 namespace ov {
 
+namespace util {
+class IBuffer;
+class IMemoryHints;
+}  // namespace util
+
 /**
  * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
  * @param type Tensor element type
@@ -55,6 +60,17 @@ OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type ty
                                                           const Shape& shape,
                                                           const void* host_ptr,
                                                           const Strides& strides = {});
+
+/**
+ * @brief Constructs read-only Tensor viewing the beginning of @p buffer and keeping it alive.
+ * @note The tensor takes the source ID of the buffer and gives access to its memory hints, see get_memory_hints().
+ * @param type Tensor element type
+ * @param shape Tensor shape, its byte size must not exceed the buffer size
+ * @param buffer Buffer holding the tensor data
+ */
+OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type type,
+                                                          const Shape& shape,
+                                                          std::shared_ptr<util::IBuffer> buffer);
 
 /**
  * @brief Constructs region of interest (ROI) tensor form another tensor.
@@ -118,5 +134,15 @@ OPENVINO_RUNTIME_API std::optional<uint64_t> get_tensor_source_id(const ov::Tens
  * @param id The source ID to associate with the tensor.
  */
 OPENVINO_RUNTIME_API void set_tensor_source_id(ov::Tensor& tensor, uint64_t id);
+
+/**
+ * @brief Returns residency hints for exactly the tensor bytes; an ROI tensor gets hints for its own sub-range.
+ *
+ * @param tensor OpenVINO Tensor.
+ *
+ * @return The hints, or nullptr if the tensor was not made from a buffer, is not continuous, or covers a sub-range of
+ *         a buffer other than a file mapping.
+ */
+OPENVINO_RUNTIME_API std::shared_ptr<ov::util::IMemoryHints> get_memory_hints(const ov::Tensor& tensor);
 
 }  // namespace ov

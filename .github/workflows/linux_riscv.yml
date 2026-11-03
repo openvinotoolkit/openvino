@@ -138,10 +138,10 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/gnu/${{ needs.Smart_CI.outputs.target_branch }}
-      CCACHE_DIR: ${{ github.workspace }}/ccache
-      CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
-      CCACHE_MAXSIZE: 2G
+      CCACHE_SECONDARY_STORAGE: "file:///mount/caches/ccache/shared/ubuntu22/riscv64/gnu|umask=002|update-mtime=true"
+      CCACHE_MAXSIZE: 10G
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPILERCHECK: content
       # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
       # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
       CMAKE_BUILD_PARALLEL_LEVEL: '15'
@@ -162,18 +162,10 @@ jobs:
         uses: ./openvino/.github/actions/system_info
 
       - name: Setup ccache
-        id: ccache_restore
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-size: 10
-          max-cache-size: 50
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
+        run: |
+          ccache --version
+          test "$(ccache --get-config secondary_storage)" = "$CCACHE_SECONDARY_STORAGE"
+          ccache --show-config
 
       #
       # Build
@@ -202,10 +194,9 @@ jobs:
       - name: Cmake - Build
         run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
-      - name: Show ccache stats and cleanup
-        run: |
-          ccache --show-stats
-          ccache --cleanup
+      - name: Show ccache stats
+        if: ${{ !cancelled() }}
+        run: ccache --show-stats --verbose
 
       - name: Cmake install - OpenVINO
         run: |
