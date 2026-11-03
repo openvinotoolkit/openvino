@@ -103,13 +103,14 @@ void jit_qsa_score_kernel<isa>::load(const Vmm& vmm_dst,
                                      const Xbyak::Reg64& reg_src,
                                      ov::element::Type src_prc,
                                      size_t offset) {
-    const auto seed = load_emitter_params(src_prc, ov::element::f32, vec_size, false, "float_min").hash();
+    constexpr auto load_num = static_cast<int>(vec_size);
+    const auto seed = load_emitter_params(src_prc, ov::element::f32, load_num, false, "float_min").hash();
     if (!emitters[seed]) {
         emitters[seed] = std::make_unique<jit_load_emitter>(this,
                                                             isa,
                                                             src_prc,
                                                             ov::element::f32,
-                                                            vec_size,
+                                                            load_num,
                                                             ov::element::f32,
                                                             false,
                                                             "float_min");
