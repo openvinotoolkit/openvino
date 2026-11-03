@@ -41,11 +41,8 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-<<<<<<< HEAD
 #include "openvino/util/pp.hpp"
-=======
 #include "transformations/rt_info/disable_precision_conversion.hpp"
->>>>>>> 28fefbac41 (Add chunked KV cache pointer registration)
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
