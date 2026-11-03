@@ -138,7 +138,8 @@ GroupedMatMulDnnlExecutor::GroupedMatMulDnnlExecutor(const GroupedMatMulAttrs& a
                                                                                 zp_non_negative_i8,
                                                                                 static_cast<size_t>(K),
                                                                                 scale_shape,
-                                                                                zp_shape);
+                                                                                zp_shape,
+                                                                                true);
 
     InnerProductKey key{src_md,
                         weights_md,

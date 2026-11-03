@@ -117,6 +117,7 @@ std::pair<size_t, dnnl::memory::data_type> dyn_quant_params(uint64_t dq_group_si
                                                                  bool zp_non_negative_i8,
                                                                  size_t K,
                                                                  const VectorDims& scale_shape,
-                                                                 const VectorDims& zp_shape);
+                                                                 const VectorDims& zp_shape,
+                                                                 bool allow_u4 = false);
 
 }  // namespace ov::intel_cpu::dnnl_utils

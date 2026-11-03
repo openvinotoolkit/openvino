@@ -19,6 +19,9 @@ const std::vector<CPUSpecificParams>& filter_specific_params_brgemm() {
     } else if (ov::with_cpu_x86_avx2()) {
         const static std::vector<CPUSpecificParams> specific_params{CPUSpecificParams{{}, {}, {"brgemm_avx2"}, "brgemm_avx2"}};
         return specific_params;
+    } else {
+        const static std::vector<CPUSpecificParams> specific_params{};
+        return specific_params;
     }
 }
 
