@@ -5,6 +5,9 @@ import numpy as np
 import pytest
 import torch
 
+from openvino import Type
+from openvino.frontend import FrontEndManager
+from openvino.frontend.pytorch.ts_decoder import TorchScriptPythonDecoder
 from pytorch_layer_test_class import PytorchLayerTest
 
 NAN = float("nan")
@@ -164,3 +167,19 @@ class TestHistc(PytorchLayerTest):
         data = np.random.RandomState(2).randn(4, 25)
         self._test(HistcInGraph(), "aten::histc", ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"data": data, "dtype": np.float32})
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("dtype,torch_dtype", [
+        (Type.f32, torch.float32), (Type.f64, torch.float64), (Type.f16, torch.float16)])
+    def test_histc_preserves_input_type(self, dtype, torch_dtype, ie_device, precision, ir_version):
+        class Histc(torch.nn.Module):
+            def forward(self, x):
+                return torch.histc(x, bins=4, min=0.0, max=4.0)
+
+        decoder = TorchScriptPythonDecoder(Histc(), example_input=(torch.zeros(3, dtype=torch_dtype),))
+        frontend = FrontEndManager().load_by_framework("pytorch")
+        ov_model = frontend.convert(frontend.load(decoder))
+        histc = next(op for op in ov_model.get_ops() if op.get_type_name() == "Histc")
+        assert histc.get_attributes()["preserve_input_type"] is True
+        assert ov_model.get_output_element_type(0) == dtype

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/histc.hpp"
+
+#include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
@@ -25,7 +26,8 @@ OutputVector translate_histc(const NodeContext& context) {
     if (!context.input_is_none(3)) {
         max = context.const_input<double>(3);
     }
-    return {context.mark_node(std::make_shared<v17::Histc>(context.get_input(0), bins, min, max))};
+    // torch.histc returns counts in the input dtype
+    return {context.mark_node(std::make_shared<v17::Histc>(context.get_input(0), bins, min, max, true))};
 }
 
 }  // namespace ov::frontend::pytorch::op
