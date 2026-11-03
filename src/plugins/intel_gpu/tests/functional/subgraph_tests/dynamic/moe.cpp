@@ -457,7 +457,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                          MoECompressedFusionTest::getTestCaseName);
 
 // hidden_size 256 is too short for the u3 batched GEMV, so decode falls back to the grouped GEMM there;
-// hidden_size 2048 runs the batched GEMV for decode (<= 32 tokens).
+// hidden_size 2048 runs the batched GEMV for decode (up to GPU_MOE_U3_BATCHED_GEMV_THRESHOLD tokens).
 // Scalar zp is the NNCF int3 layout (symmetric u3 with zp = 4 for all experts).
 const std::vector<MoeTestShapeParams> moe_params_smoke_u3 = {
     {
@@ -467,10 +467,10 @@ const std::vector<MoeTestShapeParams> moe_params_smoke_u3 = {
         512                                                                       // intermediate_size
     },
     {
-        {{-1, -1, 2048}, {{1, 4, 2048}, {1, 1, 2048}}},  // prefill + decode
-        4,                                               // topk
-        8,                                               // number_of_experts
-        512                                              // intermediate_size
+        {{-1, -1, 2048}, {{1, 40, 2048}, {1, 1, 2048}, {1, 4, 2048}}},  // prefill + decode
+        4,                                                              // topk
+        8,                                                              // number_of_experts
+        512                                                             // intermediate_size
     },
 };
 
@@ -612,8 +612,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed,
                                             ::testing::Values(true)),        // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
-// Gelu gate on the u3 kernels: the activation is applied by the int8 quantizer of the down input (prefill)
-// and by the batched GEMV (decode).
+// Gelu gate on u3: applied by the batched GEMV (decode) and by OneDNN (prefill).
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmGeluCompressed_u3,
                          MoECompressedFusionTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke_u3),
