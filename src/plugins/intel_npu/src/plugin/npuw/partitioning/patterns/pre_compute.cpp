@@ -4,8 +4,8 @@
 
 #include "pre_compute.hpp"
 
-#include <limits>
 #include <algorithm>
+#include <limits>
 
 #include "../../logging.hpp"
 #include "../../orc.hpp"

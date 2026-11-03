@@ -557,7 +557,7 @@ TEST(PreComputeTest, RebuildTablesRejectsRotaryNdimsInconsistentWithLongFactors)
     tables.max_len = 1;
     tables.rotary_ndims = 4;
     tables.has_long = true;
-    tables.inv_freq_short = {0.5f, 0.25f};  // consistent: 2 * 2 == 4
+    tables.inv_freq_short = {0.5f, 0.25f};       // consistent: 2 * 2 == 4
     tables.inv_freq_long = {0.1f, 0.05f, 0.2f};  // inconsistent: 2 * 3 != 4
 
     EXPECT_THROW(tables.rebuild_tables(), ov::AssertFailure);
@@ -571,7 +571,7 @@ TEST(PreComputeTest, RotaryNdimsMatchesFactorSizeRejectsFactorSizeThatWouldOverf
     using ov::npuw::patterns::pre_compute::LongRopeCosSin;
     constexpr size_t max = std::numeric_limits<size_t>::max();
 
-    const size_t oversized_factor_size = max / 2 + 1;         // 2 * this wraps to 0
+    const size_t oversized_factor_size = max / 2 + 1;               // 2 * this wraps to 0
     const size_t spoofed_rotary_ndims = oversized_factor_size * 2;  // == 0, wrapped
 
     EXPECT_FALSE(LongRopeCosSin::rotary_ndims_matches_factor_size(spoofed_rotary_ndims, oversized_factor_size));
