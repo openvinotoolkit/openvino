@@ -167,6 +167,58 @@ class TestISTFT(PytorchLayerTest):
                    ir_version, kwargs_to_prepare_input={"win_length": window_size, "signal_shape": signal_shape, "n_fft": n_fft, "hop_length": hop_length, "center": center, "normalized": normalized}, trace_model=trace_model)
 
 
+class TestISTFTSplitComplex(PytorchLayerTest):
+    def _prepare_input(self, signal_shape, center, normalized):
+        import numpy as np
+
+        packed, window = TestISTFT._prepare_input(
+            self, 16, 4, 16, center, normalized, signal_shape, rand_data=True)
+        real = np.ascontiguousarray(packed[..., 0])
+        imag = np.ascontiguousarray(packed[..., 1])
+        assert np.any(imag != 0)
+        return real, imag, window
+
+    def create_model(self, center, normalized):
+        class aten_istft_split_complex(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.center = center
+                self.normalized = normalized
+
+            def forward(self, real, imag, window):
+                return torch.istft(
+                    torch.complex(real, imag),
+                    16,
+                    hop_length=4,
+                    win_length=16,
+                    window=window,
+                    center=self.center,
+                    normalized=self.normalized,
+                    onesided=True,
+                    return_complex=False,
+                )
+
+        return aten_istft_split_complex(), ["aten::complex", "aten::istft"]
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.parametrize("trace_model", [False, True])
+    @pytest.mark.parametrize("signal_shape", [(1, 48), (2, 48)])
+    @pytest.mark.parametrize("normalized", [False, True])
+    @pytest.mark.parametrize("center", [False, True])
+    def test_istft_split_complex(self, signal_shape, normalized, center,
+                                ie_device, precision, ir_version, trace_model):
+        if ie_device == "GPU":
+            pytest.xfail(reason="ISTFT op is not supported on GPU yet")
+
+        self._test(
+            *self.create_model(center, normalized), ie_device, precision, ir_version,
+            kwargs_to_prepare_input={"signal_shape": signal_shape, "center": center,
+                                     "normalized": normalized},
+            trace_model=trace_model,
+        )
+
+
 class TestISTFTDefaultParams(PytorchLayerTest):
     def _prepare_input(self, n_fft, hop_length, win_length, center, normalized, signal_shape, out_dtype="float32"):
         import numpy as np
