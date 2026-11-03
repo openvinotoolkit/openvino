@@ -161,5 +161,19 @@ inline std::istream& operator>>(std::istream& is, TensorType& tensor_type) {
  */
 static constexpr Property<TensorType> tensor_type{"TENSOR_TYPE"};
 
+/**
+ * @brief This key sets the size, in bytes, of the memory to import in a shared memory tensor parameter map.
+ * It allows importing more memory than the tensor itself needs.
+ *
+ * - If not set, the size is computed from the tensor element type and shape.
+ * - If set, it must not be smaller than the size computed from the tensor element type and shape.
+ * - It can be set only when importing memory, i.e. when @ref mem_type is MemType::SHARED_BUF or MemType::CPU_VA.
+ *   Setting it for any other memory type, or without @ref mem_type, results in an error.
+ *
+ * The tensor shape and strides are not affected: only the size of the imported memory changes.
+ * @ingroup ov_runtime_level_zero_npu_cpp_api
+ */
+static constexpr Property<std::size_t> import_size{"IMPORT_SIZE"};
+
 }  // namespace intel_npu
 }  // namespace ov
