@@ -184,10 +184,6 @@ Build:
   ...
 ```
 
-If the same step runs `sccache`, also export `SCCACHE_AZURE_CONNECTION_STRING` before invoking it.
-Writing to `GITHUB_ENV` only makes the value available to subsequent steps; a cache server started
-in the current step needs the exported value to connect to Azure.
-
 ### Providing `sccache` Prefix
 
 The folder on the remote storage where the cache for the OS/architecture will be saved is
@@ -218,19 +214,3 @@ Build:
     SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
 ```
 You can also set the options in the CMake configuration command.
-
-For PEP 517 builds using `py-build-cmake` 0.5.0, pass explicit launcher options via its supported overrides:
-```bash
---config-settings='override=cmake.options.CMAKE_CXX_COMPILER_LAUNCHER="sccache"' \
---config-settings='override=cmake.options.CMAKE_C_COMPILER_LAUNCHER="sccache"'
-```
-This backend version silently ignores the `cmake.args` config setting. It inherits environment
-variables, but explicit overrides also set the launchers when configuring an existing build directory.
-Clear and print sccache statistics around the build to confirm that the compiler launcher is active.
-
-Pip build isolation installs build dependencies under a random `pip-build-env-*` directory. When
-those dependencies provide C/C++ headers (for example, OpenVINO wheels), the changing include paths
-can prevent cache reuse. The GenAI wheel job installs the same-run OpenVINO wheel and the build
-requirements declared by GenAI's `pyproject.toml` into the container's stable Python environment,
-then builds with `--no-build-isolation`. Keep the dependency installation in sync with the checked-out
-project's build metadata rather than duplicating version pins in the workflow.
