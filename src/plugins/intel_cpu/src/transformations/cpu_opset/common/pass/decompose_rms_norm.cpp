@@ -10,10 +10,13 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
@@ -37,8 +40,17 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
         if (node == nullptr || transformation_callback(node)) {
             return false;
         }
-        auto data = node->input_value(0);
-        auto data_precision = node->get_input_element_type(0);
+        // RMS may output another type than its input (e.g. f16 data with f32 gamma -> f32), so compute in it
+        const auto data_precision = node->get_output_element_type(0);
+        ov::NodeVector new_nodes;
+        auto to_output_type = [&](const ov::Output<ov::Node>& input) -> ov::Output<ov::Node> {
+            if (input.get_element_type() == data_precision) {
+                return input;
+            }
+            new_nodes.push_back(std::make_shared<ov::op::v0::Convert>(input, data_precision));
+            return new_nodes.back();
+        };
+        auto data = to_output_type(node->input_value(0));
 
         auto power_const = ov::op::v0::Constant::create(data_precision, {}, std::vector<float>{2.F});
         auto power = std::make_shared<ov::op::v1::Power>(data, power_const);
@@ -51,9 +63,13 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
         auto div = std::make_shared<ov::op::v1::Power>(sqrt, div_const);
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v1::Multiply>(data, div);
         if (node->get_input_size() > 1) {
-            result = std::make_shared<ov::op::v1::Multiply>(node->input_value(1), result);
+            new_nodes.push_back(result);
+            result = std::make_shared<ov::op::v1::Multiply>(to_output_type(node->input_value(1)), result);
         }
+        new_nodes.insert(new_nodes.end(), {power, mean, add_eps, sqrt, div, result});
 
+        result->set_friendly_name(node->get_friendly_name());
+        ov::copy_runtime_info(node, new_nodes);
         ov::replace_node(node, result);
         return true;
     };
