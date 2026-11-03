@@ -11,10 +11,12 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sparse_attention.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/common_optimizations/fuse_gated_delta_net.hpp"
+#include "transformations/common_optimizations/fuse_qsa_indexer.hpp"
 #include "transformations/common_optimizations/fuse_ssm.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
@@ -22,7 +24,9 @@
 #include "transformations/paged_attention/gemma4_mtp_state_management_pattern.hpp"
 #include "transformations/paged_attention/paged_causal_conv1d_fusion.hpp"
 #include "transformations/paged_attention/paged_gated_delta_net_fusion.hpp"
+#include "transformations/paged_attention/paged_qsa_indexer_fusion.hpp"
 #include "transformations/paged_attention/paged_selective_ssm_fusion.hpp"
+#include "transformations/paged_attention/paged_sparse_attention_fusion.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
 #include "transformations/paged_attention/state_management_pattern.hpp"
@@ -82,8 +86,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "
                     "of --task text-generation");
 
-    OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
-                    "No ScaledDotProductAttention operation observed in the graph, cannot perform "
+    const bool has_attention = ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model);
+    const bool has_sparse_attention = ov::op::util::has_op_with_type<ov::op::v17::SparseAttention>(model);
+    OPENVINO_ASSERT(has_attention || has_sparse_attention,
+                    "No ScaledDotProductAttention or SparseAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
 
     m_params = PaParams{model->get_parameters()};
@@ -149,7 +155,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     // Refresh shapes after the input_ids/position_ids changes above; per-pass validation is disabled below.
     model->validate_nodes_and_infer_types();
 
-    ov::pass::Manager manager("SDPA to PA");
+    ov::pass::Manager manager(get_pass_config(), "SDPA to PA");
     manager.set_per_pass_validation(false);
     manager.register_pass<EliminateDropBatch>();
     manager.register_pass<RoPEUnsqueezeAxisReplacer>();
@@ -157,10 +163,19 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
     auto ssm_fusion = manager.register_pass<SelectiveSSMFusion>();
+    // QSA selections are converted before their SparseAttention consumers; the sparse KV caches take layer indices
+    // after the SDPA caches created by the state management pattern.
+    manager.register_pass<FuseQSAIndexer>();
+    if (has_sparse_attention) {
+        manager.register_pass<PagedQSAIndexerFusion>(m_params, var_ids_to_remove);
+    }
     if (m_options.is_draft_model) {
         manager.register_pass<Gemma4MTPStateManagementPattern>(m_params, params_to_remove, m_options);
     } else {
         manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
+    }
+    if (has_sparse_attention) {
+        manager.register_pass<PagedSparseAttentionFusion>(m_params, var_ids_to_remove);
     }
     manager.register_pass<EliminateConvPaddingMaskGating>();
     auto paged_ssm_fusion = manager.register_pass<PagedSelectiveSSMFusion>(m_params, var_ids_to_remove);
@@ -183,6 +198,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     " SelectiveSSM node(s), but PagedSelectiveSSMFusion converted ",
                     paged_ssm_fusion->get_fused_count(),
                     ". Stateful SSM nodes cannot be left in the graph.");
+    OPENVINO_ASSERT(!ov::op::util::has_op_with_type<ov::op::v17::SparseAttention>(model),
+                    "SparseAttention cannot be converted to PagedSparseAttention: expected causal attention with "
+                    "query_block_size = 1, supported stateful KV layouts and block selections from a convertible "
+                    "QSAIndexer with query_norm and query_rope enabled.");
 
     {
         // Remove all Assigns aggressively, the path from the kv-cache concat to Assign can be complicated,

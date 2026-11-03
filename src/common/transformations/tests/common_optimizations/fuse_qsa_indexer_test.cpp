@@ -12,20 +12,26 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/maximum.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/qsa_indexer.hpp"
 #include "openvino/op/qsa_prepare.hpp"
 #include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sparse_attention_indexer.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/utils/utils.hpp"
@@ -69,6 +75,9 @@ struct GraphOptions {
     bool extra_state_consumers = false;
     // The SparseAttentionIndexer query is also a model output.
     bool extra_query_consumer = false;
+    // The query RMSNorm and RoPE are decomposed, so FuseQSAIndexer fuses them with RMSFusion and RoPEFusion first.
+    // Only for QueryLayout::BLHDTransposed.
+    bool decomposed_query = false;
     // Negative cases.
     bool query_rope = true;
     bool distinct_query_rope = false;
@@ -121,6 +130,17 @@ Output<Node> head_transpose(const Output<Node>& data) {
     return std::make_shared<v1::Transpose>(data, i64({0, 2, 1, 3}));
 }
 
+// The non-affine RMSNorm as exported: x * 1 / sqrt(mean(x ^ 2) + eps).
+Output<Node> decomposed_rms(const Output<Node>& x, int64_t axis, float eps) {
+    const auto type = x.get_element_type();
+    const auto square = std::make_shared<v1::Power>(x, v0::Constant::create(type, Shape{}, {2.0f}));
+    const auto mean = std::make_shared<v1::ReduceMean>(square, i64({axis}), true);
+    const auto sum = std::make_shared<v1::Add>(mean, v0::Constant::create(type, Shape{}, {eps}));
+    const auto inv =
+        std::make_shared<v1::Divide>(v0::Constant::create(type, Shape{}, {1.0f}), std::make_shared<v0::Sqrt>(sum));
+    return std::make_shared<v1::Multiply>(x, inv);
+}
+
 SharedGraph make_shared_graph(const GraphOptions& o) {
     const auto batch = o.dynamic_shapes ? Dimension::dynamic() : Dimension(2);
     const auto sequence = o.dynamic_shapes ? Dimension::dynamic() : Dimension(o.keys_sequence);
@@ -161,15 +181,29 @@ SharedGraph make_shared_graph(const GraphOptions& o) {
     }
     const auto rms_epsilon = o.query_epsilon != 0 ? o.query_epsilon : epsilon;
     const auto rms =
-        o.affine_query ? std::make_shared<op_internal::RMS>(g.raw_query,
-                                                            v0::Constant::create(o.precision, Shape{head_size}, {0.5f}),
-                                                            rms_epsilon,
-                                                            o.precision,
-                                                            o.rms_axis)
-                       : std::make_shared<op_internal::RMS>(g.raw_query, rms_epsilon, o.precision, o.rms_axis);
+        o.decomposed_query ? decomposed_rms(g.raw_query, o.rms_axis, rms_epsilon)
+        : o.affine_query
+            ? std::make_shared<op_internal::RMS>(g.raw_query,
+                                                 v0::Constant::create(o.precision, Shape{head_size}, {0.5f}),
+                                                 rms_epsilon,
+                                                 o.precision,
+                                                 o.rms_axis)
+            : std::make_shared<op_internal::RMS>(g.raw_query, rms_epsilon, o.precision, o.rms_axis);
 
     g.rope_input = rms;
-    if (o.query_rope) {
+    if (o.decomposed_query) {
+        // The rotate-half RoPE of the transposed query, as exported: x * cos + concat(-x2, x1) * sin.
+        constexpr int64_t last_axis = 3;
+        const auto x = head_transpose(rms);
+        const auto half = rotary / 2;
+        const auto halves = std::make_shared<v1::VariadicSplit>(x, i64({last_axis}), i64({half, half}));
+        const auto minus_x2 =
+            std::make_shared<v1::Multiply>(halves->output(1), v0::Constant::create(o.precision, Shape{}, {-1.0f}));
+        const auto rotated = std::make_shared<v0::Concat>(OutputVector{minus_x2, halves->output(0)}, -1);
+        const auto mul_cos = std::make_shared<v1::Multiply>(x, std::make_shared<v0::Unsqueeze>(cos, i64({1})));
+        const auto mul_sin = std::make_shared<v1::Multiply>(rotated, std::make_shared<v0::Unsqueeze>(sin, i64({1})));
+        g.query = std::make_shared<v1::Add>(mul_cos, mul_sin);
+    } else if (o.query_rope) {
         const auto query_cos = o.distinct_query_rope ? parameter(o.precision, rope_shape) : cos;
         const auto query_sin = o.distinct_query_sin ? parameter(o.precision, rope_shape) : sin;
         op_internal::RoPE::Config rope_config;
@@ -300,7 +334,9 @@ std::shared_ptr<Model> getModelRef(const GraphOptions& o) {
     inputs[QSAIndexerInputIdx::RAW_INDEX_KEYS] = std::make_shared<v0::Unsqueeze>(g.raw_keys, i64({2}));
     inputs[QSAIndexerInputIdx::ROPE_COS] = rope_for_batch(g.rope_cos);
     inputs[QSAIndexerInputIdx::ROPE_SIN] = rope_for_batch(g.rope_sin);
-    inputs[QSAIndexerInputIdx::KEY_LENGTH] = key_length;
+    inputs[QSAIndexerInputIdx::KEY_LENGTH] = key_length.get_element_type() == element::i64
+                                                 ? std::make_shared<v0::Convert>(key_length, element::i32)
+                                                 : key_length;
     inputs[QSAIndexerInputIdx::Q_NORM_WEIGHT] = v0::Constant::create(o.precision, Shape{head_size}, {1.0f});
     inputs[QSAIndexerInputIdx::K_NORM_WEIGHT] = g.key_weight;
     inputs[QSAIndexerInputIdx::BLOCK_INDEX_KEYS_CACHE] = cache;
@@ -374,6 +410,14 @@ const std::vector<GraphOptions> fused_cases{
          [](GraphOptions& o) {
              o.dynamic_shapes = true;
          }),
+    with("i64_key_length",
+         [](GraphOptions& o) {
+             o.key_length_type = element::i64;
+         }),
+    with("decomposed_query_norm_and_rope",
+         [](GraphOptions& o) {
+             o.decomposed_query = true;
+         }),
     with("extra_state_consumers",
          [](GraphOptions& o) {
              o.extra_state_consumers = true;
@@ -389,6 +433,30 @@ INSTANTIATE_TEST_SUITE_P(FuseQSAIndexer,
                          FuseQSAIndexerFusedTest,
                          testing::ValuesIn(fused_cases),
                          FuseQSAIndexerTest::getTestCaseName);
+
+TEST_F(TransformationTestsF, FuseQSAIndexerFusesOtherNonAffineRMSNorm) {
+    GraphOptions o;
+    o.decomposed_query = true;
+    const auto add_other_norm = [](const std::shared_ptr<Model>& m, bool fused) {
+        const auto x = std::make_shared<v0::Parameter>(element::f32, PartialShape{2, head_size});
+        Output<Node> norm;
+        if (fused) {
+            norm = std::make_shared<op_internal::RMS>(x, epsilon, element::f32);
+        } else {
+            norm = decomposed_rms(x, -1, epsilon);
+        }
+        m->add_parameters({x});
+        m->add_results({std::make_shared<v0::Result>(norm)});
+    };
+    model = getModel(o);
+    add_other_norm(model, false);
+    model_ref = getModelRef(o);
+    add_other_norm(model_ref, true);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    disable_result_friendly_names_check();
+    manager.register_pass<pass::FuseQSAIndexer>();
+}
 
 // QSAIndexer keeps the query steps that do not match the kernel ones in the graph.
 const std::vector<GraphOptions> partially_fused_cases{
@@ -509,11 +577,6 @@ const std::vector<GraphOptions> not_fused_cases{
     with("dynamic_key_length_rank",
          [](GraphOptions& o) {
              o.dynamic_key_length_rank = true;
-         }),
-    // QSAIndexer takes an i32 key_length; the plugins convert i64 to i32 before the fusion.
-    with("i64_key_length",
-         [](GraphOptions& o) {
-             o.key_length_type = element::i64;
          }),
     // QSAIndexer always applies the key RoPE and the key norm.
     with("disabled_rope",

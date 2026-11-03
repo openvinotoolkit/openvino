@@ -23,12 +23,15 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/node_registry.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
+#include "transformations/common_optimizations/rms_fusion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::pass {
@@ -53,11 +56,10 @@ FuseQSAIndexerBase::FuseQSAIndexerBase() {
 
     // QSAIndexer kernels are specialized for the query head count, the head size and the rotary dimension.
     // The ranks are fixed, since the callback reads the dimensions.
-    // key_length is i32 as QSAIndexer expects: the plugins convert i64 to i32 before this pass.
     const auto p_query = any_input(rank_equals(4) && has_static_dims({query_heads_axis, query_head_dim_axis}));
     const auto p_raw_keys = any_input(rank_equals(3));
     const auto p_past_block_keys = any_input();
-    const auto p_key_length = any_input(rank_equals(1) && type_matches(ov::element::i32));
+    const auto p_key_length = any_input(rank_equals(1));
     const auto p_rope_cos = any_input(rank_equals(3) && has_static_dim(rotary_dim_axis));
     const auto p_rope_sin = any_input(rank_equals(3));
     const auto p_k_norm_weight = any_input(rank_equals(1));
@@ -160,7 +162,9 @@ FuseQSAIndexerBase::FuseQSAIndexerBase() {
 
         // QSAPrepare output 0 holds the complete blocks of the longest sequence, while QSAIndexer keeps the cache
         // shape, so the cache is grown by zero blocks before the call.
-        const auto key_length_i64 = rg.make<v0::Convert>(key_length, ov::element::i64);
+        const auto key_length_i64 = key_length.get_element_type() == ov::element::i64
+                                        ? key_length
+                                        : rg.make<v0::Convert>(key_length, ov::element::i64);
         const auto max_key_length = rg.make<v1::ReduceMax>(key_length_i64, i64({0}), true);
         const auto needed_blocks = rg.make<v1::Divide>(max_key_length, i64({key_block_size}));
         const auto past_block_count = dims_of(past_block_keys, {1});
@@ -180,11 +184,14 @@ FuseQSAIndexerBase::FuseQSAIndexerBase() {
             rg.make<v0::Concat>(ov::OutputVector{past_block_keys_with_head, cache_padding}, state_blocks_axis);
 
         const auto query_blhd = rg.make<v1::Transpose>(query, i64({0, 2, 1, 3}));
+        const auto key_length_i32 = key_length.get_element_type() == ov::element::i32
+                                        ? batched_key_length
+                                        : rg.make<v0::Convert>(batched_key_length, ov::element::i32);
         const auto fused = rg.make<op_internal::QSAIndexer>(ov::OutputVector{query_blhd,
                                                                              raw_keys_blhd,
                                                                              rope_for_batch(rope_cos),
                                                                              rope_for_batch(rope_sin),
-                                                                             batched_key_length,
+                                                                             key_length_i32,
                                                                              q_norm_weight,
                                                                              k_norm_weight,
                                                                              block_keys_cache,
@@ -332,6 +339,21 @@ FuseQSAIndexerQueryNorm::FuseQSAIndexerQueryNorm() {
     };
 
     register_matcher(std::make_shared<Matcher>(p_indexer, matcher_name), callback);
+}
+
+bool FuseQSAIndexer::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(FuseQSAIndexer);
+    if (!ov::op::util::has_op_with_type<v17::SparseAttentionIndexer>(model)) {
+        return false;
+    }
+    Manager manager(get_pass_config(), "FuseQSAIndexer");
+    manager.register_pass<RoPEFusion>(true);
+    manager.register_pass<RMSFusion>(false, true);
+    const auto fusion = manager.register_pass<GraphRewrite>();
+    fusion->add_matcher<FuseQSAIndexerBase>();
+    fusion->add_matcher<FuseQSAIndexerQueryRoPE>();
+    fusion->add_matcher<FuseQSAIndexerQueryNorm>();
+    return manager.run_passes(model);
 }
 
 }  // namespace ov::pass
