@@ -425,6 +425,31 @@ TEST(GGUFOps, SoftMax) {
     expect_near(out, expected, 1e-5f);
 }
 
+// The native builder can select the softmax axis. gpt-oss normalizes its top-k gating weights
+// [1,T,K,1] over K; the default last axis has size 1 and would turn every weight into 1.
+TEST(GGUFOps, SoftMaxHonorsExplicitAxis) {
+    const size_t T = 2, K = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SOFT_MAX")
+                     .input("x", ov::element::f32, {1, T, K, 1})
+                     .output("out", ov::element::f32, {1, T, K, 1})
+                     .attr<int64_t>("softmax_axis", 2)
+                     .build();
+
+    std::vector<float> x{0.5f, -1.f, 2.f, 3.f, 0.f, 1.f};
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, T, K, 1}, x)}});
+
+    std::vector<float> expected(x.size());
+    for (size_t t = 0; t < T; ++t) {
+        float sum = 0.f;
+        for (size_t k = 0; k < K; ++k)
+            sum += std::exp(x[t * K + k]);
+        for (size_t k = 0; k < K; ++k)
+            expected[t * K + k] = std::exp(x[t * K + k]) / sum;
+    }
+    expect_near(out, expected, 1e-5f);
+}
+
 // Softmax with ALiBi (max_bias > 0): per-head slope applied to the mask.
 TEST(GGUFOps, SoftMaxAlibi) {
     const uint32_t n_head = 6;

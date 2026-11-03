@@ -83,9 +83,13 @@ OutputVector translate_soft_max(const NodeContext& context) {
     ov::Output<Node> res;
 
     // ggml SOFT_MAX reduces ne[0] == the OV last axis (rank-3 attention -> 2, rank-4 router -> 3);
-    // derive it from the rank instead of hardcoding 2. Reused by both Softmax paths below.
+    // derive it from the rank instead of hardcoding 2. The native builder may request another
+    // axis, e.g. the gpt-oss top-k gating weights [1,T,K,1] normalize over K. Reused by both
+    // Softmax paths below.
     const auto& in_ps = input0.get_partial_shape();
-    const int64_t softmax_axis = in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 2;
+    const int64_t softmax_axis = context.has_attribute("softmax_axis")
+                                     ? context.get_attribute<int64_t>("softmax_axis")
+                                     : (in_ps.rank().is_static() ? in_ps.rank().get_length() - 1 : 2);
 
     float scale = context.get_attribute<float>("scale", 1.0f);
     float max_bias = context.get_attribute<float>("max_bias", 0.0f);
