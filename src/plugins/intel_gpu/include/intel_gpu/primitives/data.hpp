@@ -142,15 +142,18 @@ struct weightless_cache_manager {
         reorder_rep = {input_layout, reorder};
     }
 
+    /// @brief Sets the resident expert slot count for partial cache allocation; zero disables partial upload.
     void set_partial_upload(uint32_t resident_expert_num) {
         is_partial_upload = resident_expert_num > 0;
         this->resident_expert_num = resident_expert_num;
     }
 
+    /// @brief Whether cache loading allocates resident expert slots instead of the full expert tensor.
     bool is_partial_upload_enabled() const {
         return is_partial_upload;
     }
 
+    /// @brief Returns the GPU-resident expert slot count, not the total expert count.
     uint32_t get_resident_expert_num() const {
         return resident_expert_num;
     }
@@ -424,8 +427,13 @@ struct data : public primitive_base<data> {
     memory::ptr mem;
 
     /// @brief Whether transfer_memory_to_device skips this node (e.g. OTD partial upload).
-    bool skip_device_transfer() const { return _skip_device_transfer; }
-    uint32_t get_resident_expert_num() const { return _resident_expert_num; }
+    bool skip_device_transfer() const {
+        return _skip_device_transfer;
+    }
+    /// @brief Returns the GPU-resident expert slot count for this data buffer.
+    uint32_t get_resident_expert_num() const {
+        return _resident_expert_num;
+    }
 
 private:
     bool _skip_device_transfer = false;
