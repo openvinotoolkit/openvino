@@ -66,12 +66,12 @@ public:
                                                                          const std::string& device,
                                                                          Handle& handle);
 
-    /* TODO CVS-199039, CVS-199076 
+    /* TODO CVS-199039, CVS-199076
      * Extracts the tensor data and transforms it into a weight source buffer to register it as a shared weight source.
-     * The better control flow would involve creating the shared buffer first, 
+     * The better control flow would involve creating the shared buffer first,
      * which would serve as the staging buffer for ov::Tensor and then registering it.
      * OV API currently doesn't allow to operate in that way.
-     * 
+     *
      * Once the issues are addressed, the workflow can be updated to create the shared buffer first and then register it
      * and the method register_tensor_as_shared_weight_source can be removed.
      */
@@ -99,8 +99,8 @@ private:
     void register_shared_weight_source_for_weight(ov::weight_sharing::WeightBuffer source_buffer,
                                                   const std::string& device,
                                                   Handle& handle);
-    void register_transformed_constant(std::shared_ptr<ov::AlignedBuffer> transformation_buffer, 
-                                       size_t constant_id, 
+    void register_transformed_constant(std::shared_ptr<ov::AlignedBuffer> transformation_buffer,
+                                       size_t constant_id,
                                        const std::string& device,
                                        const element::Type& type,
                                        const ov::Shape& shape,
@@ -110,13 +110,14 @@ private:
     std::shared_ptr<ov::weight_sharing::Context> m_context = nullptr;
     std::unordered_map<size_t, ov::weight_sharing::WeightBuffer> m_shared_sources;
 
-    /* CVS-198039 
-     * WeightMetaData has no m_shape, 
-     * That is substantial for proper data recovery during deserialization, 
+    /* CVS-198039
+     * WeightMetaData has no m_shape,
+     * That is substantial for proper data recovery during deserialization,
      * because the shape information is necessary to correctly reconstruct the tensor.
-     * 
-     * As a WA we store the shape information separately to ensure proper reconstruction of the tensor during deserialization.
-     * once the issue is addressed, the TransformedWeightsMap containing the shape information can be removed.
+     *
+     * As a WA we store the shape information separately to ensure proper reconstruction of the tensor during
+     * deserialization. once the issue is addressed, the TransformedWeightsMap containing the shape information can be
+     * removed.
      */
     using TransformedWeightsMap = std::unordered_map<size_t, ov::op::v0::Constant>;
     std::unordered_map<std::string /* device */, TransformedWeightsMap> m_transformed_weights_per_device;
