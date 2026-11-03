@@ -19,20 +19,6 @@
 
 namespace intel_npu {
 
-namespace {
-
-std::shared_ptr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<const VCLFunctionTable>& functions,
-                                                 const std::shared_ptr<IDevice>& device,
-                                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
-    return std::make_shared<VCLCompilerImpl>(
-        functions,
-        device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
-        ScopedOptionSupportCache{optionSupportCache,
-                                 static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
-}
-
-}  // namespace
-
 CompilerAdapterFactory::CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctions)
     : _vclFunctions(vclFunctions) {
     OPENVINO_ASSERT(_vclFunctions != nullptr, "CompilerAdapterFactory requires a way to obtain the VCL entry points");
@@ -59,7 +45,12 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
         std::shared_ptr<IVCLCompiler> compiler;
         try {
             functions = _vclFunctions();
-            compiler = makePluginCompiler(functions, device, optionSupportCache);
+            compiler = std::make_shared<VCLCompilerImpl>(
+                functions,
+                device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
+                ScopedOptionSupportCache{
+                    optionSupportCache,
+                    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
         } catch (const std::exception& vclException) {
             OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
         }
@@ -146,7 +137,12 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         std::shared_ptr<IVCLCompiler> pluginCompiler;
         try {
             functions = _vclFunctions();
-            pluginCompiler = makePluginCompiler(functions, device, optionSupportCache);
+            pluginCompiler = std::make_shared<VCLCompilerImpl>(
+                functions,
+                device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
+                ScopedOptionSupportCache{
+                    optionSupportCache,
+                    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
         } catch (...) {
             _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT);
             if (onlineCompilation) {
