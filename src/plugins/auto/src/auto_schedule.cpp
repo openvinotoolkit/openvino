@@ -793,10 +793,18 @@ void AutoSchedule::release_execution_slot() {
             auto abandoned_tasks = std::move(m_gate_pending_tasks);
             m_gate_pending_tasks.clear();
             lock.unlock();
-            for (auto& abandoned : abandoned_tasks) {
-                m_this_scheduling_exception =
-                    std::make_exception_ptr(ov::Exception("Model is being destroyed, the request is cancelled"));
-                abandoned.first();
+            if (!abandoned_tasks.empty()) {
+                std::exception_ptr cancelled;
+                // ov::Exception can only be created through OPENVINO_THROW
+                try {
+                    OPENVINO_THROW("Model is being destroyed, the request is cancelled");
+                } catch (const ov::Exception&) {
+                    cancelled = std::current_exception();
+                }
+                for (auto& abandoned : abandoned_tasks) {
+                    m_this_scheduling_exception = cancelled;
+                    abandoned.first();
+                }
             }
             lock.lock();
             m_gate_busy = false;
