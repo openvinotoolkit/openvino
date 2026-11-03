@@ -143,6 +143,12 @@ TEST_F(LLM4DFloatAttentionMaskTest, PrefixCachingIsRejected) {
     EXPECT_THROW(compile(build_llm_test_model(make_4d_float_mask_config(ov::element::f32)), props), ov::NotImplemented);
 }
 
+TEST_F(LLM4DFloatAttentionMaskTest, SwaKVCacheShrinkIsRejected) {
+    const auto props = make_props({{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "YES"}});
+    EXPECT_NO_THROW(compile(build_llm_test_model(), props));
+    EXPECT_THROW(compile(build_llm_test_model(make_4d_float_mask_config(ov::element::f32)), props), ov::NotImplemented);
+}
+
 TEST_F(LLM4DFloatAttentionMaskTest, BlockBasedKVCacheIsRejected) {
     const auto props = make_props({{"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"}});
     EXPECT_NO_THROW(compile(build_llm_test_model(), props));

@@ -950,6 +950,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             OPENVINO_THROW_NOT_IMPLEMENTED(
                 "4D float attention_mask mode does not support NPUW_LLM_ENABLE_PREFIX_CACHING yet.");
         }
+        if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
+            OPENVINO_THROW_NOT_IMPLEMENTED(
+                "4D float attention_mask mode does not support NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK yet.");
+        }
     }
 
     std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
@@ -1067,8 +1071,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
     if (is_per_layer_inputs_model) {
         // SWA shrink is incompatible with prefix caching and multi-token generation (e.g.
-        // speculative decoding). When it applies, continuous prefill is resolved off.
-        const bool swa_shrink_compatible = !m_enable_prefix_caching && max_generation_token_len == 1;
+        // speculative decoding) and with the 4D float attention_mask. When it applies, continuous
+        // prefill is resolved off.
+        const bool swa_shrink_compatible =
+            !m_enable_prefix_caching && max_generation_token_len == 1 && !m_attention_mask_is_4d_float;
         if (swa_shrink_compatible && !m_cfg.has<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
             m_cfg.update({{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "YES"}});
             LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK");
