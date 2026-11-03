@@ -783,3 +783,67 @@ void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_cpu_compile_slo
     std::shared_ptr<ov::IPlugin> base_plugin = std::make_shared<MockCPUPluginCompileSlower>();
     reg_plugin(core, base_plugin, device_name, properties);
 }
+
+void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_gpu_infer_failure(ov::Core& core,
+                                                                                   const std::string& device_name,
+                                                                                   const ov::AnyMap& properties) {
+    class MockInferRequestFailure : public MockInferRequest {
+    public:
+        using MockInferRequest::MockInferRequest;
+        void infer() override {
+            OPENVINO_THROW("runtime inference failure");
+        }
+    };
+    class MockCompiledModelInferFailure : public MockCompiledModel {
+    public:
+        using MockCompiledModel::MockCompiledModel;
+        std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+            return std::make_shared<MockInferRequestFailure>(
+                std::dynamic_pointer_cast<const MockCompiledModel>(shared_from_this()));
+        }
+    };
+    class MockPluginInferFailure : public MockPluginSupportBatchAndContext {
+    public:
+        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties) const override {
+            OPENVINO_ASSERT(model);
+            if (!support_model(model, query_model(model, properties)))
+                OPENVINO_THROW("Unsupported model");
+            return std::make_shared<MockCompiledModelInferFailure>(model, shared_from_this(), properties);
+        }
+    };
+
+    std::shared_ptr<ov::IPlugin> base_plugin = std::make_shared<MockPluginInferFailure>();
+    reg_plugin(core, base_plugin, device_name, properties);
+}
+
+void ov::auto_plugin::tests::AutoFuncTests::register_plugin_mock_gpu_compile_gated(
+    ov::Core& core,
+    const std::string& device_name,
+    std::shared_future<void> gate,
+    std::shared_ptr<std::atomic<int>> compile_count) {
+    class MockPluginCompileGated : public MockPluginSupportBatchAndContext {
+    public:
+        MockPluginCompileGated(std::shared_future<void> gate, std::shared_ptr<std::atomic<int>> compile_count)
+            : m_gate(std::move(gate)),
+              m_compile_count(std::move(compile_count)) {}
+
+        std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
+                                                          const ov::AnyMap& properties) const override {
+            // import_model() also ends up here, marked with ov::loaded_from_cache by Core.
+            if (properties.count(ov::loaded_from_cache.name()) == 0) {
+                ++(*m_compile_count);
+                m_gate.wait();
+            }
+            return MockPluginSupportBatchAndContext::compile_model(model, properties);
+        }
+
+    private:
+        std::shared_future<void> m_gate;
+        std::shared_ptr<std::atomic<int>> m_compile_count;
+    };
+
+    std::shared_ptr<ov::IPlugin> base_plugin =
+        std::make_shared<MockPluginCompileGated>(std::move(gate), std::move(compile_count));
+    reg_plugin(core, base_plugin, device_name, {});
+}

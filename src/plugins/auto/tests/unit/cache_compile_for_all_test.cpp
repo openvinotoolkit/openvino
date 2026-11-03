@@ -21,6 +21,7 @@
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compilation_context.hpp"
+#include "openvino/runtime/threading/immediate_executor.hpp"
 
 using namespace ov::mock_auto_plugin;
 
@@ -512,6 +513,83 @@ TEST_F(AutoCacheWarmupSharedManagerTest, destroyingQueuedModelCancelsItsWarmUp) 
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
     EXPECT_EQ(warmup_count.load(), 1);
     EXPECT_EQ(max_in_flight.load(), 1);
+}
+
+// Inference on the actual device fails, and the warm-up of GPU.0 blocks until open_gate().
+class AutoCacheWarmupRuntimeFallbackTest : public AutoCacheWarmupTestBase, public ::testing::Test {
+protected:
+    std::promise<void> gate;
+    std::shared_future<void> gate_future = gate.get_future().share();
+    std::once_flag gate_opened;
+    std::atomic<int> select_count{0};
+    std::atomic<int> warmup_count{0};
+    std::atomic<int> npu_count{0};
+    std::shared_ptr<NiceMock<ov::MockICompiledModel>> warmup_compiled_model;
+    std::shared_ptr<ov::threading::ImmediateExecutor> executor = std::make_shared<ov::threading::ImmediateExecutor>();
+    // Must be destroyed after the gate is opened, otherwise CacheWarmup::stop() and the inference block.
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    std::shared_ptr<ov::IAsyncInferRequest> request;
+    std::future<void> inference;
+
+    void SetUp() override {
+        set_global_cache("test_cache_dir");
+        set_devices({actual_device, "GPU.0", "NPU"});
+        // GPU.0 and then NPU are queued for warm-up; the runtime fallback selects NPU.
+        ON_CALL(*plugin, select_device(_, _, _, _, _)).WillByDefault(InvokeWithoutArgs([this]() {
+            return select_count++ == 0 ? metaDevices[0] : metaDevices[2];
+        }));
+        on_compile(actual_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
+            return {mockIExeNetActual, {}};
+        });
+        ON_CALL(*mockIExeNetActual, create_infer_request()).WillByDefault([this]() -> std::shared_ptr<ov::IAsyncInferRequest> {
+            auto sync_request = std::make_shared<ov::mock_auto_plugin::MockISyncInferRequest>(mockIExeNetActual);
+            return std::make_shared<ov::mock_auto_plugin::MockAsyncInferRequest>(sync_request, executor, nullptr, true);
+        });
+        warmup_compiled_model = make_compiled_model();
+        on_compile("GPU.0", [this]() -> ov::SoPtr<ov::ICompiledModel> {
+            warmup_count++;
+            gate_future.wait();
+            return {warmup_compiled_model, {}};
+        });
+        on_compile("NPU", [this]() -> ov::SoPtr<ov::ICompiledModel> {
+            npu_count++;
+            return {mockIExeNet, {}};
+        });
+        config.insert(ov::intel_auto::compile_for_all(true));
+    }
+
+    void open_gate() {
+        std::call_once(gate_opened, [this] {
+            gate.set_value();
+        });
+    }
+
+    void TearDown() override {
+        open_gate();
+    }
+};
+
+TEST_F(AutoCacheWarmupRuntimeFallbackTest, fallbackToOtherDeviceDoesNotWaitAndCancelsRemainingWarmUps) {
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    ASSERT_TRUE(wait_until([&] {
+        return warmup_count.load() == 1;
+    }));
+    request = compiled_model->create_infer_request();
+    inference = std::async(std::launch::async, [this] {
+        request->infer();
+    });
+    // The warm-up of GPU.0 is still blocked, so finishing here proves the fallback did not wait for it.
+    ASSERT_EQ(inference.wait_for(std::chrono::seconds(5)), std::future_status::ready);
+    OV_ASSERT_NO_THROW(inference.get());
+    EXPECT_EQ(npu_count.load(), 1);
+    open_gate();
+    // NPU was still queued for warm-up, so compiling it again would mean the queue was not cancelled.
+    EXPECT_FALSE(wait_until(
+        [&] {
+            return npu_count.load() > 1;
+        },
+        std::chrono::milliseconds(500)));
+    EXPECT_EQ(warmup_count.load(), 1);
 }
 
 TEST_F(AutoCacheWarmupTest, destructionSkipsRemainingDevices) {
