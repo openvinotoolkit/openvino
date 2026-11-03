@@ -76,13 +76,6 @@ ov::runtime::hsm::SectionTagReserved build_section_tag(const std::shared_ptr<ISe
 
 }  // namespace
 
-// write_to(stream, const BlobSectionsRegistry& blob_sections_registry);
-// read_from(
-//     ov::runtime::hsm::Reader& base_reader,
-//     const std::unordered_map<SectionType, ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>>>&
-//     section_readers, const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& type_evaluators,
-//     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators)
-
 using HSMWriteFailure = ::testing::Test;
 
 TEST_F(HSMWriteFailure, WriteInvalidStream) {
@@ -261,6 +254,103 @@ TEST_P(HSMReadWriteTest, UnsupportedRuntimeRequirements) {
     OV_EXPECT_THROW_HAS_SUBSTRING(hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators),
                                   ov::Exception,
                                   "The imported model is not compatible");
+}
+
+TEST_P(HSMReadWriteTest, RuntimeRequirementsNotPartOfRegistry) {
+    hsm::write_to(stream, sections_registry);
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    BlobSectionsRegistry registry = hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators);
+    ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::RUNTIME_REQUIREMENTS));
+}
+
+TEST_P(HSMReadWriteTest, UnsupportedSectionInstanceSkipped) {
+    section_readers[SectionTypeCode::IO_LAYOUTS] =
+        [](const ov::runtime::hsm::Section&) -> std::optional<std::shared_ptr<ISection>> {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
+
+    sections_registry.register_section(
+        std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>{CRE::NOT_PTR, IO_LAYOUTS_PTR, ID_3_PTR},
+                                      std::string(STRING_THAT_EVALUATES_TO_UNSUPPORTED)));
+    hsm::write_to(stream, sections_registry);
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    BlobSectionsRegistry registry;
+    OV_ASSERT_NO_THROW(registry = hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
+    ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::IO_LAYOUTS));
+}
+
+TEST_P(HSMReadWriteTest, UnsupportedSectionTypeSkipped) {
+    type_evaluators.erase(SectionTypeCode::IO_LAYOUTS);
+    section_readers[SectionTypeCode::IO_LAYOUTS] =
+        [](const ov::runtime::hsm::Section&) -> std::optional<std::shared_ptr<ISection>> {
+        OPENVINO_NOT_IMPLEMENTED;
+    };
+
+    sections_registry.register_section(
+        std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>{CRE::NOT_PTR, IO_LAYOUTS_PTR, ID_3_PTR},
+                                      std::string(STRING_THAT_EVALUATES_TO_SUPPORTED)));
+    hsm::write_to(stream, sections_registry);
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    BlobSectionsRegistry registry;
+    OV_ASSERT_NO_THROW(registry = hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
+    ASSERT_FALSE(registry.has_section_of_type(SectionTypeCode::IO_LAYOUTS));
+}
+
+// TODO Test that checks a missing instance evaluator evaluates to supported and goes  through the right case branch
+
+TEST_P(HSMReadWriteTest, MixedCases) {
+    sections_registry.register_section(
+        std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>{IO_LAYOUTS_PTR,
+                                                                             ID_3_PTR,
+                                                                             CRE::AND_PTR,
+                                                                             IO_LAYOUTS_PTR,
+                                                                             ID_4_PTR,
+                                                                             CRE::OR_PTR,
+                                                                             BATCH_SIZE_PTR,
+                                                                             CRE::OR_PTR,
+                                                                             COMPILER_VERSION_PTR},
+                                      std::string(STRING_THAT_EVALUATES_TO_SUPPORTED)));
+    sections_registry.register_section(std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>{},
+                                                                     std::string(STRING_THAT_EVALUATES_TO_UNKNOWN)));
+    hsm::write_to(stream, sections_registry);
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    BlobSectionsRegistry registry = hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators);
+    ASSERT_EQ(registry.count_sections_of_type(SectionTypeCode::IO_LAYOUTS), 2);
+    ASSERT_EQ(registry.count_sections_of_type(SectionTypeCode::COMPILER_VERSION), 1);
+    ASSERT_EQ(registry.count_sections_of_type(SectionTypeCode::BATCH_SIZE), 2);
+
+    // Check the contents
+    auto section = registry.retrieve_section(0);
+    ASSERT_TRUE(section);
+    const auto casted_section_0 = std::dynamic_pointer_cast<BatchSizeSection>(section);
+    ASSERT_TRUE(casted_section_0);
+    ASSERT_EQ(casted_section_0->get_batch_size(), batch_size_section_1->get_batch_size());
+
+    section = registry.retrieve_section(1);
+    ASSERT_TRUE(section);
+    const auto casted_section_1 = std::dynamic_pointer_cast<CompilerVersionSection>(section);
+    ASSERT_TRUE(casted_section_1);
+    ASSERT_EQ(casted_section_1->get_compiler_version(), compiler_version_section->get_compiler_version());
+
+    section = registry.retrieve_section(2);
+    ASSERT_TRUE(section);
+    const auto casted_section_2 = std::dynamic_pointer_cast<BatchSizeSection>(section);
+    ASSERT_TRUE(casted_section_2);
+    ASSERT_EQ(casted_section_2->get_batch_size(), batch_size_section_2->get_batch_size());
+
+    section = registry.retrieve_section(3);
+    ASSERT_TRUE(section);
+    const auto casted_section_3 = std::dynamic_pointer_cast<MockSection>(section);
+    ASSERT_TRUE(casted_section_3);
+
+    section = registry.retrieve_section(4);
+    ASSERT_TRUE(section);
+    const auto casted_section_4 = std::dynamic_pointer_cast<MockSection>(section);
+    ASSERT_TRUE(casted_section_4);
 }
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,
