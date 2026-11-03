@@ -85,7 +85,7 @@ std::string ov::npuw::s11n::anyToString(const ov::Any& var) {
     } else if (var.is<ov::hint::PerformanceMode>()) {
         HNDL(PERFMODE, ov::hint::PerformanceMode)
     } else {
-        OPENVINO_THROW("Unsupported type of ov::Any to convert to string!");
+        OPENVINO_THROW("Unsupported type of ov::Any: ", var.type_info().name(), " to convert to string!");
     }
 #undef HNDL
     return stream.str();
