@@ -27,6 +27,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/container_util.hpp"
+#include "openvino/util/log.hpp"
 #include "perf_log.hpp"
 #include "properties.hpp"
 #include "remote_context.hpp"
@@ -127,7 +128,12 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
 
     auto config = Configuration{properties, m_cfg};
     // Core decides on its blob header from the plugin-level flag, so a per-compile false must not override a true.
-    config.export_hsm_format = config.export_hsm_format || m_cfg.export_hsm_format;
+    if (m_cfg.export_hsm_format && !config.export_hsm_format) {
+        OPENVINO_DEBUG("[HETERO] Ignoring per-compile ",
+                       ov::hetero::export_hsm_format.name(),
+                       "=false: it is on at the plugin level");
+        config.export_hsm_format = true;
+    }
 
     if (perf_logging_enabled) {
         t_clone_start = clock::now();

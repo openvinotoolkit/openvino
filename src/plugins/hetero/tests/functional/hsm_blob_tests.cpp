@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iterator>
 #include <numeric>
@@ -395,6 +397,35 @@ TEST_F(HeteroHsmBlobTests, per_compile_false_does_not_override_plugin_level_hsm_
     };
     EXPECT_FALSE(compile_cached().get_property(ov::loaded_from_cache));
     EXPECT_TRUE(compile_cached().get_property(ov::loaded_from_cache));
+    ov::test::utils::removeDir(cache_dir);
+}
+
+TEST_F(HeteroHsmBlobTests, legacy_cache_entry_loads_when_plugin_level_hsm_flag_is_on) {
+    EXPECT_NO_THROW(core.get_available_devices());
+    constexpr size_t size = 64;
+    const auto model = create_model_with_weights(size);
+    const auto cache_dir = ov::test::utils::generateTestFilePrefix() + "_hetero_legacy_cache";
+    const auto compile_cached = [&] {
+        return core.compile_model(model,
+                                  ov::test::utils::DEVICE_HETERO,
+                                  ov::device::priorities("MOCKIR"),
+                                  ov::cache_dir(cache_dir));
+    };
+
+    core.set_property(ov::test::utils::DEVICE_HETERO, ov::hetero::export_hsm_format(false));
+    EXPECT_FALSE(compile_cached().get_property(ov::loaded_from_cache));
+    for (const auto& entry : std::filesystem::directory_iterator(cache_dir)) {
+        std::ifstream file(entry.path(), std::ios::binary);
+        std::string head(sizeof(runtime::hsm::Header), '\0');
+        file.read(head.data(), static_cast<std::streamsize>(head.size()));
+        EXPECT_FALSE(is_hsm_blob(head)) << entry.path();
+    }
+
+    // Core now hands cache entries to HETERO as mapped tensors.
+    core.set_property(ov::test::utils::DEVICE_HETERO, ov::hetero::export_hsm_format(true));
+    auto cached = compile_cached();
+    EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+    expect_adds_weights(cached, size, 1.0f);
     ov::test::utils::removeDir(cache_dir);
 }
 
