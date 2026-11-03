@@ -29,7 +29,6 @@ public:
     static void load(BufferType& buffer, std::set<T>& set) {
         typename std::set<T>::size_type set_size = 0UL;
         buffer >> set_size;
-        buffer.check_size(set_size);
 
         for (long unsigned int i = 0; i < set_size; i++) {
             T el;
@@ -56,7 +55,6 @@ public:
     static void load(BufferType& buffer, std::unordered_set<T>& set) {
         typename std::unordered_set<T>::size_type set_size = 0UL;
         buffer >> set_size;
-        buffer.check_size(set_size);
         if (set.empty()) set.reserve(set_size);
         for (long unsigned int i = 0; i < set_size; i++) {
             T el;
@@ -83,7 +81,6 @@ public:
     static void load(BufferType& buffer, ov::AxisSet& set) {
         typename ov::AxisSet::size_type set_size = 0UL;
         buffer >> set_size;
-        buffer.check_size(set_size, sizeof(size_t));
 
         for (long unsigned int i = 0; i < set_size; i++) {
             size_t el;

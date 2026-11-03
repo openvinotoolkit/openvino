@@ -25,7 +25,6 @@ public:
     static void load(BufferType& buffer, std::string& str) {
         std::string::size_type size;
         buffer >> size;
-        buffer.check_size(size);
         str.resize(size);
         buffer >> make_data(const_cast<std::string::value_type*>(str.data()), static_cast<uint64_t>(size * sizeof(std::string::value_type)));
     }

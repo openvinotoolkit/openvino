@@ -168,6 +168,21 @@ ExecutionConfig ExecutionConfig::clone() const {
     return new_config;
 }
 
+bool ExecutionConfig::visit_attributes(ov::AttributeVisitor& visitor) {
+    // The envelope selector is not part of the existing positional graph codec.
+    auto properties = m_user_properties;
+    properties.erase(ov::intel_gpu::export_hsm_format.name());
+    visitor.on_attribute("m_user_properties", properties);
+    if (const auto it = m_user_properties.find(ov::intel_gpu::export_hsm_format.name()); it != m_user_properties.end())
+        properties.insert(*it);
+    m_user_properties = std::move(properties);
+    for (auto& [name, option] : m_options_map) {
+        if (name != ov::intel_gpu::export_hsm_format.name())
+            visitor.on_attribute(name + "__internal", option);
+    }
+    return true;
+}
+
 void ExecutionConfig::finalize(cldnn::engine& engine) {
     auto ctx = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
     PluginConfig::finalize(ctx.get(), nullptr);

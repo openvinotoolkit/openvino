@@ -35,6 +35,8 @@ struct ExecutionConfig : public ov::PluginConfig {
 
     const ov::AnyMap& get_user_properties() const { return m_user_properties; }
 
+    bool visit_attributes(ov::AttributeVisitor& visitor);
+
 protected:
     void finalize_impl(const IRemoteContext* context) override;
     void apply_model_specific_options(const IRemoteContext* context, const ov::Model& model) override;
