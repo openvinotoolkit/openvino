@@ -376,11 +376,13 @@ std::shared_ptr<ov::Node> make_f32_norm(NormType type, const ov::Output<ov::Node
                                                  static_cast<float>(epsilon),
                                                  ov::op::MVNEpsMode::INSIDE_SQRT);
     }
-    default: {
+    case NormType::GroupNorm: {
         auto scale = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
         auto bias = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
         return std::make_shared<v12::GroupNormalization>(input, scale, bias, 1, epsilon);
     }
+    default:
+        OPENVINO_THROW("Unknown NormType");
     }
 }
 

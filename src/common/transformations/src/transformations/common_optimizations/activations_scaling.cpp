@@ -431,6 +431,22 @@ bool ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>& model) {
     manager.set_per_pass_validation(false);
     auto pass_config = manager.get_pass_config();
 
+    manager.register_pass<activations_scaling::ScaleDownSingleLayer>(m_scale_factor, m_scaled_prec);
+    manager.register_pass<SharedOpOptimization>();
+
+    pass_config->set_callback<activations_scaling::ScaleDownSingleLayer>(
+        [scaled_prec = m_scaled_prec](const std::shared_ptr<const Node>& node) -> bool {
+            return node->input(0).get_element_type() != scaled_prec;
+        });
+
+    // Move down scalar-multiply layers as much as possible
+    auto params = LayerTransformation::Params(false, m_scaled_prec, {m_scaled_prec}, true, true);
+    auto lpt_pass = manager.register_pass<LowPrecision>(std::vector<PrecisionsRestriction>{},
+                                                        std::vector<QuantizationGranularityRestriction>{},
+                                                        params);
+    lpt_pass->add_main<activations_scaling::EliminateScalarMul>();
+    lpt_pass->add_main<activations_scaling::MoveDownScalarMul>();
+
     // keeps LPT's LinOpSequenceFusion prerequisite from fusing scale Multiplies into bias Adds
     pass_config->disable<AddMultiplyFusion>();
     pass_config->disable<RecurrentCellTransformation>();
@@ -451,22 +467,6 @@ bool ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>& model) {
     pass_config->set_callback<FuseConvertTransformation>([](const std::shared_ptr<const Node>& node) -> bool {
         return ov::is_dequantization_node(node) || ov::is_type<v0::FakeQuantize>(node);
     });
-
-    manager.register_pass<activations_scaling::ScaleDownSingleLayer>(m_scale_factor, m_scaled_prec);
-    manager.register_pass<SharedOpOptimization>();
-
-    pass_config->set_callback<activations_scaling::ScaleDownSingleLayer>(
-        [scaled_prec = m_scaled_prec](const std::shared_ptr<const Node>& node) -> bool {
-            return node->input(0).get_element_type() != scaled_prec;
-        });
-
-    // Move down scalar-multiply layers as much as possible
-    auto params = LayerTransformation::Params(false, m_scaled_prec, {m_scaled_prec}, true, true);
-    auto lpt_pass = manager.register_pass<LowPrecision>(std::vector<PrecisionsRestriction>{},
-                                                        std::vector<QuantizationGranularityRestriction>{},
-                                                        params);
-    lpt_pass->add_main<activations_scaling::EliminateScalarMul>();
-    lpt_pass->add_main<activations_scaling::MoveDownScalarMul>();
 
     // Move up remained scalar-multiply layers
     manager.register_pass<EliminateEltwise>();

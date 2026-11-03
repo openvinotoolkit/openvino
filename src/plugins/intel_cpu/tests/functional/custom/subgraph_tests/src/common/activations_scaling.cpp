@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <tuple>
+
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
@@ -46,11 +48,15 @@ namespace test {
 //      RMSNorm
 //         │
 //       Result
-class ActivationsScalingCPUTest : public testing::WithParamInterface<float>, virtual public SubgraphBaseTest {
+// scale factor, whether the RMSNorms have gamma
+using ActivationsScalingCPUParams = std::tuple<float, bool>;
+
+class ActivationsScalingCPUTest : public testing::WithParamInterface<ActivationsScalingCPUParams>,
+                                  virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<float>& obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ActivationsScalingCPUParams>& obj) {
         std::ostringstream result;
-        result << "scale_factor=" << obj.param;
+        result << "scale_factor=" << std::get<0>(obj.param) << "_gamma=" << std::get<1>(obj.param);
         return result.str();
     }
 
@@ -58,7 +64,7 @@ protected:
     static constexpr size_t hidden_size = 64;
     static constexpr size_t inter_size = 256;
 
-    static ov::Output<ov::Node> make_rms_norm(const ov::Output<ov::Node>& x) {
+    static ov::Output<ov::Node> make_rms_norm(const ov::Output<ov::Node>& x, bool with_gamma) {
         auto square =
             std::make_shared<ov::op::v1::Power>(x, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f}));
         auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
@@ -66,6 +72,9 @@ protected:
         auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f});
         auto sqrt = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(mean, eps));
         auto div = std::make_shared<ov::op::v1::Divide>(x, sqrt);
+        if (!with_gamma) {
+            return div;
+        }
         auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{hidden_size}, {1.f});
         return std::make_shared<ov::op::v1::Multiply>(div, gamma);
     }
@@ -73,14 +82,15 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
         configuration = {{ov::hint::inference_precision.name(), ov::element::f16},
-                         {ov::hint::activations_scale_factor.name(), GetParam()}};
+                         {ov::hint::activations_scale_factor.name(), std::get<0>(GetParam())}};
+        const bool with_gamma = std::get<1>(GetParam());
         abs_threshold = 0.05;
         rel_threshold = 0.05;
 
         init_input_shapes({{{-1, -1, hidden_size}, {{1, 8, hidden_size}, {2, 5, hidden_size}}}});
 
         auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputDynamicShapes[0]);
-        auto norm0 = make_rms_norm(input);
+        auto norm0 = make_rms_norm(input, with_gamma);
         // positive weights in [0.5, 1.5] and [4, 12]: each matmul1 output is ~1e5, above the f16 range
         auto weights0 = ov::test::utils::make_constant(ov::element::f32,
                                                        ov::Shape{hidden_size, inter_size},
@@ -110,7 +120,7 @@ protected:
                                                        ov::test::utils::InputGenerateData(4, 8, 1000, 2));
         auto matmul1 = std::make_shared<ov::op::v0::MatMul>(gelu, weights1);
         auto residual = std::make_shared<ov::op::v1::Add>(input, matmul1);
-        auto norm1 = make_rms_norm(residual);
+        auto norm1 = make_rms_norm(residual, with_gamma);
         function = std::make_shared<ov::Model>(ov::OutputVector{norm1, mask},
                                                ov::ParameterVector{input},
                                                "ActivationsScaling");
@@ -147,14 +157,14 @@ TEST_P(ActivationsScalingCPUTest, CompareWithRefs_cached) {
     compile_model();  // exports the blob
     run();            // imports it
     EXPECT_TRUE(compiledModel.get_property(ov::loaded_from_cache));
-    EXPECT_EQ(compiledModel.get_property(ov::hint::activations_scale_factor), GetParam());
+    EXPECT_EQ(compiledModel.get_property(ov::hint::activations_scale_factor), std::get<0>(GetParam()));
     ov::test::utils::removeFilesWithExt(cache_dir, "blob");
     ov::test::utils::removeDir(cache_dir);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScaling,
                          ActivationsScalingCPUTest,
-                         ::testing::Values(8.f),
+                         ::testing::Combine(::testing::Values(8.f), ::testing::Bool()),
                          ActivationsScalingCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace test
