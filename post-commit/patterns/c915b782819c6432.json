@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "test_model_creation_sample.py::Test_model_creation_sample::test[Python-CPU] - AssertionError: Sample execution failed|Flaky Test",
+  "signature_hash": "c915b782819c6432",
+  "title": "model_creation_sample.py Python/CPU smoke test fails intermittently with no stderr output",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-11-03T09:38:42Z",
+  "last_seen": "2026-11-03T09:38:42Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41606510649"
+  ],
+  "affected_commits": [
+    "5dd49adcb0142ef64d1590ab7fa306d5995579e6"
+  ],
+  "recent_timestamps": [
+    "2026-11-03T09:38:42Z"
+  ]
+}
