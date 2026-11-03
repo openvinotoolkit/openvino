@@ -262,5 +262,11 @@ weights into BIN. This prevents stale compiled-cache reuse when the source path,
 shape stay unchanged but the payload changes. It does not establish full-checkpoint cache support,
 cross-version or weightless/encrypted compatibility.
 
+The same opt-in cache sequence also covers the five FC-only formats Q3_K, IQ2_XS,
+IQ2_S, IQ3_XXS and IQ3_S with one stream and one request. It checks F32/F16 inference,
+native raw/default transcode routes and independent FC references across payload changes.
+It does not enable Gather, SG/CM kernels or additional streams for these formats, and
+does not extend the full-checkpoint, source-transformation or cache-compatibility claims.
+
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.

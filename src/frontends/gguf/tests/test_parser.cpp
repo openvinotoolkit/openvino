@@ -482,7 +482,6 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     ASSERT_EQ(cache_directory.empty(), expected_cache_hit.empty());
     ASSERT_TRUE(weight_delta.empty() || (!cache_directory.empty() && (weight_delta == "0" || weight_delta == "1")));
     if (!cache_directory.empty()) {
-        ASSERT_TRUE(has_gather);
         ASSERT_TRUE(std::filesystem::is_directory(cache_directory));
         ASSERT_TRUE(expected_cache_hit == "0" || expected_cache_hit == "1");
         const auto source_directory = std::filesystem::path(cache_directory) / "sources";
