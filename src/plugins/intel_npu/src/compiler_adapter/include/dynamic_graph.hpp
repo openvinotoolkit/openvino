@@ -83,7 +83,6 @@ private:
     bool _blobIsReleased = false;
 
     uint32_t _uniqueId = 0;
-    uint32_t _lastSubmittedId = 0;
 
     Logger _logger;
 

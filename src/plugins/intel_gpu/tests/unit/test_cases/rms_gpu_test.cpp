@@ -1207,10 +1207,7 @@ class rms_mxfp8_dynamic_quantize_test : public ::testing::TestWithParam<std::tup
 
 TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize) {
     auto& engine = get_test_engine();
-    const auto params = GetParam();
-    const auto data_size = std::get<0>(params);
-    const auto quantization_dt = std::get<1>(params);
-    const auto additional_fusion = std::get<2>(params);
+    const auto& [data_size, quantization_dt, additional_fusion] = GetParam();
     const ov::Shape input_shape{1, 1, data_size};
     const auto epsilon = 1e-6f;
 
@@ -1237,7 +1234,8 @@ TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize
 
     ov::Shape scale_shape = input_shape;
     scale_shape.back() = input_shape.back() / 32;
-    auto make_topology = [&]() {
+    // copy additional_fusion to the lambda capture as capture struct bind is cpp20 extension
+    auto make_topology = [&, additional_fusion = additional_fusion]() {
         topology topology;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(data("gamma", gamma));

@@ -50,6 +50,10 @@
 #    include <sys/types.h>
 #endif
 
+#if defined(_WIN32)
+#    include <windows.h>
+#endif
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    define XBYAK_NO_OP_NAMES
 #    define XBYAK_UNDEF_JNL

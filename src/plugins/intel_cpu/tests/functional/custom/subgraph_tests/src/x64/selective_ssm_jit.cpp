@@ -209,11 +209,13 @@ TEST_P(SelectiveSSMJitIntegrationTest, StateSizeLimitSelectsJitOrReferenceWithCo
     }
 
     ov::Core core;
+    // Pre-C++20: structured bindings can't be captured by lambdas, so use a named local.
+    const auto data_precision = precision;
     const auto round_output = [&](float value) {
-        if (precision == ov::element::f16) {
+        if (data_precision == ov::element::f16) {
             return static_cast<float>(ov::float16(value));
         }
-        if (precision == ov::element::bf16) {
+        if (data_precision == ov::element::bf16) {
             return static_cast<float>(ov::bfloat16(value));
         }
         return value;
@@ -263,15 +265,17 @@ TEST_P(SelectiveSSMJitIntegrationTest, SerialRecurrenceWorksOnFreshThread) {
                                        ov::hint::inference_precision(precision),
                                        ov::num_streams(0),
                                        ov::inference_num_threads(1));
+    // Pre-C++20: structured bindings can't be captured by lambdas, so use a named local.
+    const auto is_paged = paged;
     std::thread worker([&] {
         EXPECT_NO_THROW({
             for (const bool alias_state : {false, true}) {
-                if (paged && alias_state) {
+                if (is_paged && alias_state) {
                     continue;
                 }
                 SCOPED_TRACE(testing::Message() << "alias_state=" << alias_state);
                 auto request = compiled.create_infer_request();
-                fill_inputs(request, paged, {0.F, 0.5F, 0.25F, 2.F, 0.125F, 0.5F});
+                fill_inputs(request, is_paged, {0.F, 0.5F, 0.25F, 2.F, 0.125F, 0.5F});
                 if (alias_state) {
                     request.set_output_tensor(1, request.get_input_tensor(5));
                 }
@@ -281,13 +285,13 @@ TEST_P(SelectiveSSMJitIntegrationTest, SerialRecurrenceWorksOnFreshThread) {
                 for (size_t i = 0; i < output.get_size(); ++i) {
                     EXPECT_FLOAT_EQ(tensor_value(output, i), 1.5F + 0.5F * static_cast<float>(i / 20));
                 }
-                const auto state = paged ? request.get_input_tensor(5) : request.get_output_tensor(1);
-                const auto state_size = paged ? state.get_size() / 2 : state.get_size();
+                const auto state = is_paged ? request.get_input_tensor(5) : request.get_output_tensor(1);
+                const auto state_size = is_paged ? state.get_size() / 2 : state.get_size();
                 for (size_t i = 0; i < state_size; ++i) {
-                    if (paged) {
+                    if (is_paged) {
                         EXPECT_FLOAT_EQ(tensor_value(state, i), 0.5F) << "read block index " << i;
                     }
-                    EXPECT_FLOAT_EQ(tensor_value(state, paged ? state_size + i : i), 1.25F)
+                    EXPECT_FLOAT_EQ(tensor_value(state, is_paged ? state_size + i : i), 1.25F)
                         << "final state index " << i;
                 }
             }

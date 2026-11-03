@@ -10,6 +10,7 @@ set(CPU_FUNC_TESTS_ONNX_SRCS
 )
 
 set(CPU_FUNC_TESTS_ARM_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/divide_pythondiv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/low_precision_transformations/aarch64/fq_and_avg_pool_transformation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/low_precision_transformations/aarch64/fq_and_max_pool_transformation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shared_tests_instances/low_precision_transformations/aarch64/fully_connected_transformation.cpp
@@ -276,6 +277,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
 )
 
 set(CPU_FUNC_TESTS_X64_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/divide_pythondiv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/x64/selective_ssm_jit.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/x64/col2im.cpp
@@ -408,6 +410,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
 set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/compatibility_string.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/export_import.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/hsm_blob.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/concurent_release_memory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/input_tensor_initialization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/properties.cpp
