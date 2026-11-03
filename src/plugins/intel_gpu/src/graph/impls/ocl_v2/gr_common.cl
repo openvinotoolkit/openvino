@@ -105,17 +105,20 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
     return as_float8(BLOCK_READN_SLM(uint, 8, (const __local uint*)p, 0));
 }
 
-// Compressed-weight (asymmetric u4 group 32 / u8 per-channel) helpers of the GatedResidual dpas kernels.
+// Compressed-weight (i4/u4 group 32, i8/u8 per-channel, optional zero point) helpers of the GatedResidual dpas kernels.
 //
 // A dpas B operand is b[j] = pack(B[2j][n = lane], B[2j+1][n = lane]): the two k values of one lane share a dword. W is
 // [N, K] with K contiguous, so a lane that owns row n reads its raw bytes and unpacks them in registers:
-//   u4: one byte = (w[n,k], w[n,k+1]) for even k (low nibble = even k)  -> one VNNI dword per byte
-//   u8: one dword = two VNNI dwords
+//   4-bit: one byte = (w[n,k], w[n,k+1]) for even k (low nibble = even k)  -> one VNNI dword per byte
+//   8-bit: one dword = two VNNI dwords
+// Signed weights are moved to the unsigned domain by flipping the sign bit of every element when the raw dwords are loaded
+// (q + 2^(bits - 1)); zero points get the same shift, so q - zp is unchanged. A missing zero point is 0 (2^(bits - 1) once shifted).
 // 0x6400 | v (v < 1024) is the half 1024 + v, so a pair becomes two halves with one mask/or; (pair - (1024 + zp)) * scale then
 // equals half(half(q - zp) * scale) of the decompression graph bit for bit (q - zp is exact in half, one RNE multiply).
 // scale / zp are [G, N] with N contiguous: one sub-group block read gives every lane the scale of its own output channel.
 //
-// JIT of the including kernel: GR_W_TYPE (0 f16, 1 u4, 2 u8).
+// JIT of the including kernel: GR_W_TYPE (0 f16, 1 4-bit, 2 8-bit), GR_W_SIGNED (default 0), GR_HAS_ZP (default 1; kernels still
+// take the zp argument, the host binds any buffer when there is no zp tensor and it is never read).
 
 #ifndef GR_GATE_ONLY
 #define GR_GATE_ONLY 0
@@ -124,16 +127,46 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 #ifndef GR_W_TYPE
 #define GR_W_TYPE 0
 #endif
+#ifndef GR_W_SIGNED
+#define GR_W_SIGNED 0
+#endif
+#ifndef GR_HAS_ZP
+#define GR_HAS_ZP 1
+#endif
 #define GR_WT_F16 0
-#define GR_WT_U4 1
-#define GR_WT_U8 2
+#define GR_WT_U4 1  // 4-bit weights, signed or not (GR_W_SIGNED)
+#define GR_WT_U8 2  // 8-bit weights, signed or not
 
 #if GR_W_TYPE != GR_WT_F16
 
 #if GR_W_TYPE == GR_WT_U4
     #define GR_WQ_BITS 4
+    #define GR_WQ_SIGN 0x8u
+    #define GR_WQ_RAW_FLIP 0x88888888u
 #else
     #define GR_WQ_BITS 8
+    #define GR_WQ_SIGN 0x80u
+    #define GR_WQ_RAW_FLIP 0x80808080u
+#endif
+#if GR_W_SIGNED
+    #define GR_WQ_FLIP(v) ((v) ^ GR_WQ_SIGN)
+#else
+    #define GR_WQ_FLIP(v) (v)
+#endif
+
+// Element i of a [G, N] zero point table (4-bit: packed two per byte, low nibble = even index; N % 16 == 0, so a 16-lane block
+// never straddles a row) in the unsigned domain.
+#if GR_HAS_ZP
+    #if GR_W_TYPE == GR_WT_U4
+        #define GR_WQ_ZPAT(zp, i) GR_WQ_FLIP((uint)((((zp)[(size_t)(i) >> 1]) >> (((size_t)(i) & 1) * 4)) & 0xF))
+    #else
+        #define GR_WQ_ZPAT(zp, i) GR_WQ_FLIP((uint)((zp)[i]))
+    #endif
+    // the same for an already loaded byte of a 4-bit table, `sh` selecting the nibble
+    #define GR_WQ_ZPNIB(b, sh) GR_WQ_FLIP((uint)(((b) >> (sh)) & 0xF))
+#else
+    #define GR_WQ_ZPAT(zp, i) GR_WQ_FLIP(0u)
+    #define GR_WQ_ZPNIB(b, sh) GR_WQ_FLIP(0u)
 #endif
 
 #define GR_WQ_MAGIC 0x64006400u
@@ -168,24 +201,23 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
                   GR_Q8_2((q)[(o) + 4], zp2, sc2), GR_Q8_2((q)[(o) + 5], zp2, sc2), GR_Q8_2((q)[(o) + 6], zp2, sc2), GR_Q8_2((q)[(o) + 7], zp2, sc2)))
 #endif
 
-// raw[] <- nraw dwords of the lane's weight row at K index k (brow: the row's first byte)
+// raw[] <- nraw dwords of the lane's weight row at K index k (brow: the row's first byte), signed weights shifted to unsigned
+#if GR_W_SIGNED
+#define GR_WQ_LOAD_RAW(raw, nraw, brow, k) { MAKE_VECTOR_TYPE(uint, nraw) t_ = CAT(vload, nraw)(0, (const __global uint*)((brow) + (size_t)(k) * GR_WQ_BITS / 8)); t_ ^= GR_WQ_RAW_FLIP; CAT(vstore, nraw)(t_, 0, raw); }
+#else
 #define GR_WQ_LOAD_RAW(raw, nraw, brow, k) { MAKE_VECTOR_TYPE(uint, nraw) t_ = CAT(vload, nraw)(0, (const __global uint*)((brow) + (size_t)(k) * GR_WQ_BITS / 8)); CAT(vstore, nraw)(t_, 0, raw); }
+#endif
 
 // scale / zp row g holds N entries; nb..nb+15 is one contiguous block read, lane l gets output channel nb + l
 #define GR_WQ_SCALE2(scale, g, N, nb) ((half2)(as_half(intel_sub_group_block_read_us((scale) + (size_t)(g) * (N) + (nb)))))
-#if GR_W_TYPE == GR_WT_U4
-    // u4 zp is packed two per byte (low nibble = even index); N % 16 == 0, so a 16-lane block never straddles a row
-    #define GR_WQ_ZP2(zp, g, N, nb, lane) ((half2)((half)1024.0h + convert_half((uint)(((zp)[((size_t)(g) * (N) + (nb) + (lane)) >> 1] >> ((((size_t)(g) * (N) + (nb) + (lane)) & 1) * 4)) & 0xF))))
-#else
-    #define GR_WQ_ZP2(zp, g, N, nb, lane) ((half2)((half)1024.0h + convert_half((zp)[(size_t)(g) * (N) + (nb) + (lane)])))
-#endif
+#define GR_WQ_ZP2(zp, g, N, nb, lane) ((half2)((half)1024.0h + convert_half(GR_WQ_ZPAT(zp, (size_t)(g) * (N) + (nb) + (lane)))))
 
-// u8 decode GEMMs (see GR_WQ_FOLD) feed half(q) as the B operand; q < 256 is exact in half
+// 8-bit decode GEMMs (see GR_WQ_FOLD) feed half(q) as the B operand; q < 256 is exact in half
 #define GR_WQ_ONES ((int8)(0x3C003C00))
 #define GR_WQ_U8H16(q, o) as_uint8(convert_half16(as_uchar16((uint4)((q)[(o)], (q)[(o) + 1], (q)[(o) + 2], (q)[(o) + 3]))))
 #define GR_WQ_U8B32(q, o) ((uint16)(GR_WQ_U8H16(q, o), GR_WQ_U8H16(q, (o) + 4)))
 #define GR_WQ_SCALEF(scale, nb) convert_float(as_half(intel_sub_group_block_read_us((scale) + (nb))))
-#define GR_WQ_ZPF(zp, nb, lane) convert_float((zp)[(nb) + (lane)])
+#define GR_WQ_ZPF(zp, nb, lane) convert_float(GR_WQ_ZPAT(zp, (nb) + (lane)))
 
 #endif  // GR_W_TYPE != GR_WT_F16
 
@@ -246,12 +278,11 @@ KERNEL(gr_dequant_inject)(const __global uchar* w, const __global ushort* scale,
     const uint k = i % GR_DQ_K;
     const uint zi = (k / GR_DQ_GS) * GR_DQ_N + n;  // [G, N]
 #if GR_W_TYPE == GR_WT_U4
-    const uint q = (w[i >> 1] >> ((i & 1) * 4)) & 0xF;
-    const uint z = (zp[zi >> 1] >> ((zi & 1) * 4)) & 0xF;
+    const uint q = GR_WQ_FLIP((w[i >> 1] >> ((i & 1) * 4)) & 0xF);
 #else
-    const uint q = w[i];
-    const uint z = zp[zi];
+    const uint q = GR_WQ_FLIP((uint)w[i]);
 #endif
+    const uint z = GR_WQ_ZPAT(zp, zi);
     // q - zp is exact in half; one RNE multiply by the scale, as in the decompression graph
     const half d = convert_half((int)q - (int)z);
     out[i] = as_ushort(d * as_half(scale[zi]));

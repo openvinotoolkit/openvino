@@ -417,39 +417,63 @@ bool gr_compression_available() {
     return ov::intel_gpu::op::GatedResidual::is_compression_arch_supported(info);
 }
 
-/// One quantized [N, K] weight matrix with its [G, N] scale / zp and the exact f16 tensor the decompression graph produces.
+/// One quantized [N, K] weight matrix with its [G, N] scale / optional zp and the exact f16 tensor the decompression graph produces.
 struct quant_matrix {
     size_t N = 0;
     size_t K = 0;
     size_t G = 0;
-    bool u4 = false;
-    std::vector<uint8_t> q;      // [N * K]
-    std::vector<uint8_t> zp;     // [G * N]
+    bool u4 = false;  // 4-bit (group 32), otherwise 8-bit (per-channel)
+    bool is_signed = false;
+    bool has_zp = true;
+    std::vector<uint8_t> q;      // [N * K] raw element bits (two's complement for the signed types)
+    std::vector<uint8_t> zp;     // [G * N] raw element bits, empty without zero points
     std::vector<float> scale;    // [G * N], f16 values
     std::vector<float> dequant;  // [N * K] = half(half(q - zp) * scale)
+
+    data_types type() const {
+        return u4 ? (is_signed ? data_types::i4 : data_types::u4) : (is_signed ? data_types::i8 : data_types::u8);
+    }
+
+    int value(uint8_t raw) const {
+        if (!is_signed) {
+            return raw;
+        }
+        return u4 ? static_cast<int>(raw ^ 8) - 8 : static_cast<int>(static_cast<int8_t>(raw));
+    }
 };
 
-quant_matrix make_quant_matrix(std::mt19937& gen, size_t N, size_t K, bool u4) {
+quant_matrix make_quant_matrix(std::mt19937& gen, size_t N, size_t K, bool u4, bool is_signed = false, bool has_zp = true) {
     quant_matrix m;
     m.N = N;
     m.K = K;
     m.u4 = u4;
+    m.is_signed = is_signed;
+    m.has_zp = has_zp;
     m.G = u4 ? K / 32 : 1;
     const size_t gs = K / m.G;
     m.q.resize(N * K);
-    m.zp.resize(m.G * N);
+    m.zp.resize(has_zp ? m.G * N : 0);
     m.scale.resize(m.G * N);
     m.dequant.resize(N * K);
+    // unsigned weights without a zero point are all positive: a smaller scale keeps the activations in the f16 range
+    const float scale_div = (!has_zp && !is_signed ? 8.0f : 1.0f) * (u4 ? 512.0f : 2048.0f);
     for (size_t i = 0; i < m.G * N; i++) {
-        m.zp[i] = u4 ? static_cast<uint8_t>(gen() % 16) : static_cast<uint8_t>(100 + gen() % 60);
-        m.scale[i] = static_cast<float>(ov::float16(static_cast<float>(1 + gen() % 8) / (u4 ? 512.0f : 2048.0f)));
+        if (has_zp) {
+            if (u4) {
+                m.zp[i] = static_cast<uint8_t>(gen() % 16);
+            } else {
+                m.zp[i] = is_signed ? static_cast<uint8_t>(static_cast<int8_t>(static_cast<int>(gen() % 60) - 30)) : static_cast<uint8_t>(100 + gen() % 60);
+            }
+        }
+        m.scale[i] = static_cast<float>(ov::float16(static_cast<float>(1 + gen() % 8) / scale_div));
     }
     for (size_t n = 0; n < N; n++) {
         for (size_t k = 0; k < K; k++) {
             const size_t g = k / gs;
             const uint8_t q = static_cast<uint8_t>(gen() % (u4 ? 16 : 256));
             m.q[n * K + k] = q;
-            const float diff = static_cast<float>(ov::float16(static_cast<float>(static_cast<int>(q) - static_cast<int>(m.zp[g * N + n]))));
+            const int zp = has_zp ? m.value(m.zp[g * N + n]) : 0;
+            const float diff = static_cast<float>(ov::float16(static_cast<float>(m.value(q) - zp)));
             m.dequant[n * K + k] = static_cast<float>(ov::float16(diff * m.scale[g * N + n]));
         }
     }
@@ -457,12 +481,11 @@ quant_matrix make_quant_matrix(std::mt19937& gen, size_t N, size_t K, bool u4) {
 }
 
 memory::ptr make_quant_weights(engine& eng, const quant_matrix& m) {
-    auto mem = eng.allocate_memory(
-        layout{ov::PartialShape{static_cast<int64_t>(m.N), static_cast<int64_t>(m.K)}, m.u4 ? data_types::u4 : data_types::u8, format::bfyx});
+    auto mem = eng.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(m.N), static_cast<int64_t>(m.K)}, m.type(), format::bfyx});
     cldnn::mem_lock<uint8_t> lock(mem, get_test_stream());
     if (m.u4) {
         for (size_t i = 0; i < m.q.size(); i += 2) {
-            lock[i / 2] = static_cast<uint8_t>(m.q[i] | (m.q[i + 1] << 4));  // low nibble = even k
+            lock[i / 2] = static_cast<uint8_t>((m.q[i] & 0xF) | (m.q[i + 1] << 4));  // low nibble = even k
         }
     } else {
         std::copy(m.q.begin(), m.q.end(), lock.begin());
@@ -471,17 +494,21 @@ memory::ptr make_quant_weights(engine& eng, const quant_matrix& m) {
 }
 
 memory::ptr make_quant_zp(engine& eng, const quant_matrix& m) {
-    auto mem = eng.allocate_memory(
-        layout{ov::PartialShape{static_cast<int64_t>(m.G), static_cast<int64_t>(m.N)}, m.u4 ? data_types::u4 : data_types::u8, format::bfyx});
+    auto mem = eng.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(m.G), static_cast<int64_t>(m.N)}, m.type(), format::bfyx});
     cldnn::mem_lock<uint8_t> lock(mem, get_test_stream());
     if (m.u4) {
         for (size_t i = 0; i < m.zp.size(); i += 2) {
-            lock[i / 2] = static_cast<uint8_t>(m.zp[i] | (m.zp[i + 1] << 4));  // low nibble = even index
+            lock[i / 2] = static_cast<uint8_t>((m.zp[i] & 0xF) | (m.zp[i + 1] << 4));  // low nibble = even index
         }
     } else {
         std::copy(m.zp.begin(), m.zp.end(), lock.begin());
     }
     return mem;
+}
+
+/// f16 scale tensor [G, N] of a quantized matrix.
+memory::ptr make_quant_scale(engine& eng, const quant_matrix& m) {
+    return make_f16(eng, {static_cast<int64_t>(m.G), static_cast<int64_t>(m.N)}, m.scale);
 }
 
 struct gr_run_result {
@@ -491,7 +518,7 @@ struct gr_run_result {
 };
 
 /// Runs a READ / FINAL_MIX gated_residual whose weight inputs (from index 2 on) are the given memories. With `write_gate` the
-/// last input is W_inject (f16, or u4 / u8 followed by its scale and zp) and output 1 is read back.
+/// last inputs are W_inject (f16, or compressed followed by its scale and optional zp) and output 1 is read back.
 gr_run_result run_gr_read(const gr_ref_params& p,
                           gated_residual::Mode mode,
                           const std::vector<float>& residual,
@@ -533,9 +560,11 @@ struct gr_quant_case {
     size_t rows;
     size_t D;
     size_t L;
-    bool u4;
+    bool u4;  // 4-bit weights, otherwise 8-bit
     bool final_mix = false;
     bool write_gate = false;
+    bool is_signed = false;
+    bool has_zp = true;
 };
 
 size_t scratch_limit_bytes() {
@@ -577,12 +606,13 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
 
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
-    std::mt19937 gen(1234 + static_cast<uint32_t>(tc.rows * 7 + tc.D + tc.L + (tc.u4 ? 1 : 0)));
+    std::mt19937 gen(1234 + static_cast<uint32_t>(tc.rows * 7 + tc.D + tc.L + (tc.u4 ? 1 : 0) + (tc.is_signed ? 2 : 0) + (tc.has_zp ? 0 : 4)));
     const auto residual = random_vec(rg, p.rows * CD, 1.0f);
     const auto gain = random_vec(rg, CD, 0.5f);
-    const auto wd = make_quant_matrix(gen, p.L, CD, tc.u4);
-    const auto wu = make_quant_matrix(gen, CD, p.L, tc.u4);
-    const auto wi = make_quant_matrix(gen, p.C, CD, tc.u4);  // W_inject: C rows only, compressed like W_down / W_up
+    const auto wd = make_quant_matrix(gen, p.L, CD, tc.u4, tc.is_signed, tc.has_zp);
+    const auto wu = make_quant_matrix(gen, CD, p.L, tc.u4, tc.is_signed, tc.has_zp);
+    // W_inject: C rows only, compressed like W_down / W_up
+    const auto wi = make_quant_matrix(gen, p.C, CD, tc.u4, tc.is_signed, tc.has_zp);
 
     auto& engine = get_test_engine();
     const auto mode = tc.final_mix ? gated_residual::Mode::FINAL_MIX : gated_residual::Mode::READ;
@@ -590,15 +620,19 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
                                             make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(p.L)}, wu.dequant)};
     std::vector<memory::ptr> q_weights = {make_quant_weights(engine, wd),
                                           make_quant_weights(engine, wu),
-                                          make_f16(engine, {static_cast<int64_t>(wd.G), static_cast<int64_t>(p.L)}, wd.scale),
-                                          make_f16(engine, {static_cast<int64_t>(wu.G), static_cast<int64_t>(CD)}, wu.scale),
-                                          make_quant_zp(engine, wd),
-                                          make_quant_zp(engine, wu)};
+                                          make_quant_scale(engine, wd),
+                                          make_quant_scale(engine, wu)};
+    if (tc.has_zp) {
+        q_weights.push_back(make_quant_zp(engine, wd));
+        q_weights.push_back(make_quant_zp(engine, wu));
+    }
     if (tc.write_gate) {
         f16_weights.push_back(make_f16(engine, {static_cast<int64_t>(p.C), static_cast<int64_t>(CD)}, wi.dequant));
         q_weights.push_back(make_quant_weights(engine, wi));
-        q_weights.push_back(make_f16(engine, {static_cast<int64_t>(wi.G), static_cast<int64_t>(p.C)}, wi.scale));
-        q_weights.push_back(make_quant_zp(engine, wi));
+        q_weights.push_back(make_quant_scale(engine, wi));
+        if (tc.has_zp) {
+            q_weights.push_back(make_quant_zp(engine, wi));
+        }
     }
     const auto f16_run = run_gr_read(p, mode, residual, gain, f16_weights, tc.write_gate);
     const auto q_run = run_gr_read(p, mode, residual, gain, q_weights, tc.write_gate);
@@ -649,9 +683,10 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
         bit_diffs += q_run.mixed[i].to_bits() != f16_run.mixed[i].to_bits() ? 1 : 0;
         max_diff = std::max(max_diff, std::abs(static_cast<float>(q_run.mixed[i]) - static_cast<float>(f16_run.mixed[i])));
     }
-    std::cout << "GR_QUANT_ACC rows=" << p.rows << " D=" << p.D << " L=" << p.L << " " << (tc.u4 ? "u4" : "u8") << (tc.write_gate ? " gate" : "")
-              << " differing_elems=" << bit_diffs << "/" << ref_mixed.size() << " max_abs_diff_vs_f16=" << max_diff
-              << " err_vs_fp32_ref: f16=" << max_abs_diff(f16_run.mixed, ref_mixed) << " q=" << max_abs_diff(q_run.mixed, ref_mixed);
+    std::cout << "GR_QUANT_ACC rows=" << p.rows << " D=" << p.D << " L=" << p.L << " " << (tc.is_signed ? "i" : "u") << (tc.u4 ? "4" : "8")
+              << (tc.has_zp ? "" : " nozp") << (tc.write_gate ? " gate" : "") << " differing_elems=" << bit_diffs << "/" << ref_mixed.size()
+              << " max_abs_diff_vs_f16=" << max_diff << " err_vs_fp32_ref: f16=" << max_abs_diff(f16_run.mixed, ref_mixed)
+              << " q=" << max_abs_diff(q_run.mixed, ref_mixed);
     if (tc.write_gate) {
         std::cout << " gate_f16=" << max_abs_diff(f16_run.gate, ref_gate) << " gate_q=" << max_abs_diff(q_run.gate, ref_gate);
     }
@@ -734,7 +769,37 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_quant_case{1, 2560, 320, true, false, true},
                                            gr_quant_case{1, 2560, 320, false, false, true},
                                            gr_quant_case{8, 2560, 320, true, false, true},
-                                           gr_quant_case{8, 2560, 320, false, false, true}));
+                                           gr_quant_case{8, 2560, 320, false, false, true},
+                                           // signed weights (i4 / i8) with zero points: gemv, decode, mid, predequantized and FINAL_MIX
+                                           gr_quant_case{1, 64, 32, true, false, false, true},
+                                           gr_quant_case{1, 64, 32, false, false, false, true},
+                                           gr_quant_case{7, 128, 32, true, false, true, true},
+                                           gr_quant_case{7, 128, 32, false, false, true, true},
+                                           gr_quant_case{1, 2560, 320, true, false, true, true},
+                                           gr_quant_case{8, 2560, 320, false, false, true, true},
+                                           gr_quant_case{17, 640, 320, true, false, true, true},
+                                           gr_quant_case{17, 640, 320, false, false, false, true},
+                                           gr_quant_case{33, 128, 64, true, false, true, true},
+                                           gr_quant_case{257, 640, 320, false, false, true, true},
+                                           gr_quant_case{250, 64, 32, true, true, false, true},
+                                           gr_quant_case{1000, 64, 32, true, false, true, true},
+                                           gr_quant_case{1000, 64, 32, false, false, false, true},
+                                           gr_quant_case{2000, 2560, 320, true, false, true, true},
+                                           // no zero points (the zero point is 0), unsigned and signed
+                                           gr_quant_case{1, 64, 32, true, false, false, false, false},
+                                           gr_quant_case{1, 64, 32, false, false, true, false, false},
+                                           gr_quant_case{7, 128, 32, true, false, true, true, false},
+                                           gr_quant_case{7, 128, 32, false, false, false, true, false},
+                                           gr_quant_case{1, 2560, 320, true, false, true, true, false},
+                                           gr_quant_case{8, 2560, 320, false, false, true, false, false},
+                                           gr_quant_case{17, 640, 320, true, false, true, false, false},
+                                           gr_quant_case{17, 640, 320, false, false, true, true, false},
+                                           gr_quant_case{33, 128, 64, true, false, true, true, false},
+                                           gr_quant_case{257, 640, 320, false, false, true, false, false},
+                                           gr_quant_case{250, 64, 32, false, true, false, false, false},
+                                           gr_quant_case{1000, 64, 32, true, false, true, true, false},
+                                           gr_quant_case{1000, 64, 32, false, false, false, false, false},
+                                           gr_quant_case{2000, 2560, 320, false, false, true, true, false}));
 
 TEST(gated_residual_gpu_test, write_combines_branches) {
     if (!gr_available()) {

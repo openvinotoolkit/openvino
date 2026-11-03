@@ -178,21 +178,28 @@ bool get_branch_split(const ov::Output<ov::Node>& split, size_t& C, size_t& D) {
     return true;
 }
 
-/// A W_down / W_up decompression subgraph (NNCF INT4_ASYM / INT8_ASYM) split into its parts, laid out the way the
-/// GatedResidual kernels read them.
+/// A W_down / W_up decompression subgraph (NNCF INT4 / INT8, symmetric or asymmetric) split into its parts, laid out the way
+/// the GatedResidual kernels read them.
 struct CompressedWeight {
-    ov::Output<ov::Node> weights;  // Constant u4/u8 [N, K], K contiguous (a metadata-only reshape of the checkpoint constant)
+    ov::Output<ov::Node> weights;  // Constant i4/u4/i8/u8 [N, K], K contiguous (a metadata-only reshape of the checkpoint constant)
     ov::Output<ov::Node> scale;    // Constant f16 [G, N]
-    ov::Output<ov::Node> zp;       // Constant of the weight type (u4 packed / u8) [G, N]
+    ov::Output<ov::Node> zp;       // Constant of the weight type (4-bit packed) [G, N]; empty without zero points
+    ov::element::Type type;        // weight element type
     size_t bits = 0;               // 4 (group 32) or 8 (per-channel)
     size_t groups = 0;
+
+    bool has_zp() const {
+        return zp.get_node() != nullptr;
+    }
 };
 
-/// Parses `w` as Constant(u4/u8) -> Convert -> Subtract(zp) -> Multiply(scale) [-> Reshape] of an [N, K] weight. Anything else
-/// returns nullopt and the caller keeps feeding the decompressed f16 tensor (then a plain f16 GatedResidual).
+/// Parses `w` as Constant(i4/u4/i8/u8) -> Convert [-> Subtract(zp)] -> Multiply(scale) [-> Reshape] of an [N, K] weight. Anything
+/// else returns nullopt and the caller keeps feeding the decompressed f16 tensor (then a plain f16 GatedResidual).
+/// A scalar zero point of 0, or of 2^(bits - 1) on unsigned weights (older NNCF symmetric u4 / u8), is the symmetric form: the
+/// latter is converted to the equivalent signed weights without zero point by flipping the sign bit of every element.
 /// Rejected, with the TODO that would lift it (see the design doc, section 13):
-///   transposed [K, N] weights (T11), an extra scale multiply, non-Constant weights / scale / zp (T11), a missing zero point
-///   (symmetric i4 / i8, T7), scalar scale / zp (T8), group sizes other than 32 for u4 / per-channel for u8 (T6).
+///   transposed [K, N] weights (T11), an extra scale multiply, non-Constant weights / scale / zp (T11), scalar scale (T8),
+///   other scalar zero points, group sizes other than 32 for 4-bit / per-channel for 8-bit (T6).
 std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Node>& w, size_t N, size_t K) {
     using namespace ov::pass::pattern;
     FC_COMPRESSED_WEIGHT_PATTERN
@@ -201,23 +208,32 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
         return std::nullopt;
     }
     const auto& pm = matcher.get_pattern_value_map();
-    if (pm.count(transpose_m) != 0 || pm.count(mul2_m) != 0 || pm.count(weights_const_m) == 0 || pm.count(sub_const_m) == 0 || pm.count(mul_const_m) == 0) {
+    bool has_zp = pm.count(sub_const_m) != 0;
+    if (pm.count(transpose_m) != 0 || pm.count(mul2_m) != 0 || pm.count(weights_const_m) == 0 || pm.count(mul_const_m) == 0) {
         return std::nullopt;
     }
     auto weights = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(weights_const_m).get_node_shared_ptr());
-    auto zp = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(sub_const_m).get_node_shared_ptr());
+    auto zp = has_zp ? ov::as_type_ptr<ov::op::v0::Constant>(pm.at(sub_const_m).get_node_shared_ptr()) : nullptr;
     auto scale = ov::as_type_ptr<ov::op::v0::Constant>(pm.at(mul_const_m).get_node_shared_ptr());
-    if (!weights || !zp || !scale) {
+    if (!weights || !scale || (has_zp && !zp)) {
         return std::nullopt;
     }
-    const auto wt = weights->get_element_type();
-    if (wt != ov::element::u4 && wt != ov::element::u8) {
+    auto wt = weights->get_element_type();
+    if (!op::GatedResidual::is_compressed_weight_type(wt)) {
         return std::nullopt;
     }
-    if (zp->get_element_type() != ov::element::u4 && zp->get_element_type() != ov::element::u8) {
+    if (has_zp && !op::GatedResidual::is_compressed_weight_type(zp->get_element_type())) {
         return std::nullopt;
     }
-    const size_t bits = wt == ov::element::u4 ? 4 : 8;
+    const size_t bits = wt.bitwidth();
+    bool flip_to_signed = false;
+    if (has_zp && ov::shape_size(zp->get_shape()) == 1) {
+        const int32_t v = zp->cast_vector<int32_t>()[0];
+        flip_to_signed = !wt.is_signed() && v == (1 << (bits - 1));
+        if (v == 0 || flip_to_signed) {
+            has_zp = false;
+        }
+    }
     const auto& ws = weights->get_shape();
     const auto& ss = scale->get_shape();
     size_t G = 0;
@@ -234,32 +250,58 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     } else {
         return std::nullopt;
     }
-    if (zp->get_shape() != ss || !op::GatedResidual::is_group_size_supported(bits, K, op::GatedResidual::derive_group_size(K, G))) {
+    if ((has_zp && zp->get_shape() != ss) || !op::GatedResidual::is_group_size_supported(bits, K, op::GatedResidual::derive_group_size(K, G))) {
         return std::nullopt;
     }
 
-    // scale / zp are [N, G] in the checkpoint; the kernels read [G, N] (n contiguous), see GatedResidual::ReadInputIdx.
+    // scale / zp are [N, G] in the checkpoint; the kernels read [G, N] (n contiguous), see GatedResidual::ReadLayout.
     const auto scale_ng = scale->cast_vector<float>();
-    const auto zp_ng = zp->cast_vector<int32_t>();
-    const int32_t zp_max = bits == 4 ? 15 : 255;
     std::vector<ov::float16> scale_gn(G * N);
-    std::vector<uint8_t> zp_gn(G * N);
     for (size_t n = 0; n < N; ++n) {
         for (size_t g = 0; g < G; ++g) {
-            if (zp_ng[n * G + g] < 0 || zp_ng[n * G + g] > zp_max) {
-                return std::nullopt;
-            }
             scale_gn[g * N + n] = ov::float16(scale_ng[n * G + g]);
-            zp_gn[g * N + n] = static_cast<uint8_t>(zp_ng[n * G + g]);
         }
     }
 
-    auto weights_2d = std::make_shared<ov::op::v0::Constant>(*weights, ov::Shape{N, K});
-    ov::copy_weightless_cache_attr(weights, weights_2d);
+    ov::Output<ov::Node> zp_gn_const;
+    if (has_zp) {
+        // the zero point must be representable in the weight type
+        const int32_t zp_min = wt.is_signed() ? -(1 << (bits - 1)) : 0;
+        const int32_t zp_max = wt.is_signed() ? (1 << (bits - 1)) - 1 : (1 << bits) - 1;
+        const auto zp_ng = zp->cast_vector<int32_t>();
+        std::vector<int32_t> zp_gn(G * N);
+        for (size_t n = 0; n < N; ++n) {
+            for (size_t g = 0; g < G; ++g) {
+                const int32_t v = zp_ng[n * G + g];
+                if (v < zp_min || v > zp_max) {
+                    return std::nullopt;
+                }
+                zp_gn[g * N + n] = v;
+            }
+        }
+        zp_gn_const = ov::op::v0::Constant::create(wt, ov::Shape{G, N}, zp_gn)->output(0);
+    }
+
+    std::shared_ptr<ov::op::v0::Constant> weights_2d;
+    if (flip_to_signed) {
+        // q - 2^(bits - 1) is the sign-bit flip of every element, so the weights keep their bytes up to that bit
+        const auto* src = static_cast<const uint8_t*>(weights->get_data_ptr());
+        std::vector<uint8_t> flipped(weights->get_byte_size());
+        const uint8_t mask = bits == 4 ? 0x88 : 0x80;
+        for (size_t i = 0; i < flipped.size(); ++i) {
+            flipped[i] = src[i] ^ mask;
+        }
+        wt = bits == 4 ? ov::element::i4 : ov::element::i8;
+        weights_2d = std::make_shared<ov::op::v0::Constant>(wt, ov::Shape{N, K}, flipped.data());
+    } else {
+        weights_2d = std::make_shared<ov::op::v0::Constant>(*weights, ov::Shape{N, K});
+        ov::copy_weightless_cache_attr(weights, weights_2d);
+    }
     CompressedWeight result;
     result.weights = weights_2d->output(0);
     result.scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{G, N}, scale_gn)->output(0);
-    result.zp = ov::op::v0::Constant::create(wt, ov::Shape{G, N}, zp_gn)->output(0);
+    result.zp = zp_gn_const;
+    result.type = wt;
     result.bits = bits;
     result.groups = G;
     return result;
@@ -537,16 +579,21 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
             return false;
         }
 
-        // u4 (group 32) / u8 (per-channel) asymmetric weights are fed to the kernels as they are; W_down and W_up must be
-        // compressed the same way, otherwise the decompressed f16 tensors are used.
+        // i4 / u4 (group 32) and i8 / u8 (per-channel) weights, with or without zero points, are fed to the kernels as they are;
+        // W_down and W_up must be compressed the same way, otherwise the decompressed f16 tensors are used.
         ov::OutputVector weight_inputs = {w_down, w_up};
-        size_t compressed_bits = 0;
+        std::optional<CompressedWeight> compressed_down;
         if (allow_compressed_weights) {
             const auto cd = match_compressed_weight(w_down, L, C * D);
             const auto cu = match_compressed_weight(w_up, C * D, L);
-            if (cd && cu && cd->bits == cu->bits && op::GatedResidual::is_weight_compression_supported(cd->bits, L, C * D, cd->groups, C * D, L, cu->groups)) {
-                weight_inputs = {cd->weights, cu->weights, cd->scale, cu->scale, cd->zp, cu->zp};
-                compressed_bits = cd->bits;
+            if (cd && cu && cd->type == cu->type && cd->has_zp() == cu->has_zp() &&
+                op::GatedResidual::is_weight_compression_supported(cd->bits, L, C * D, cd->groups, C * D, L, cu->groups)) {
+                weight_inputs = {cd->weights, cu->weights, cd->scale, cu->scale};
+                if (cd->has_zp()) {
+                    weight_inputs.push_back(cd->zp);
+                    weight_inputs.push_back(cu->zp);
+                }
+                compressed_down = cd;
             }
         }
 
@@ -630,10 +677,14 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
         auto gate_branch = match_write_gate_branch(low_mm->input_value(0), low_mm, C, D);
         ov::OutputVector gate_inputs;
         if (gate_branch && is_f16(gate_branch->gate)) {
-            if (compressed_bits != 0) {
+            if (compressed_down) {
                 const auto ci = match_compressed_weight(gate_branch->w_inject, C, C * D);
-                if (ci && ci->bits == compressed_bits && op::GatedResidual::is_write_gate_compression_supported(ci->bits, C, C * D, ci->groups)) {
-                    gate_inputs = {ci->weights, ci->scale, ci->zp};
+                if (ci && ci->type == compressed_down->type && ci->has_zp() == compressed_down->has_zp() &&
+                    op::GatedResidual::is_write_gate_compression_supported(ci->bits, C, C * D, ci->groups)) {
+                    gate_inputs = {ci->weights, ci->scale};
+                    if (ci->has_zp()) {
+                        gate_inputs.push_back(ci->zp);
+                    }
                 }
             } else if (is_f16(gate_branch->w_inject)) {
                 gate_inputs = {gate_branch->w_inject};

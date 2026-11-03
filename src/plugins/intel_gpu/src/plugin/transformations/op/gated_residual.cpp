@@ -93,13 +93,14 @@ void GatedResidual::validate_and_infer_types() {
     }
 
     // READ / FINAL_MIX
-    const bool compressed = input_size == compressed_input_count || input_size == compressed_write_gate_input_count;
-    NODE_VALIDATION_CHECK(
-        this,
-        input_size == (compressed ? (m_produce_write_gate ? compressed_write_gate_input_count : compressed_input_count) : (m_produce_write_gate ? 5 : 4)),
-        "GatedResidual (READ/FINAL_MIX) expects 4 inputs (5 with W_inject, 8 with compressed weights, 11 with compressed weights and "
-        "W_inject), got ",
-        input_size);
+    const auto layout = read_layout(input_size, m_produce_write_gate);
+    NODE_VALIDATION_CHECK(this,
+                          layout.has_value(),
+                          "GatedResidual (READ/FINAL_MIX) expects 4 inputs (5 with W_inject), 6 / 8 with compressed weights (without / with zero "
+                          "points), or 8 / 11 with compressed weights and W_inject, got ",
+                          input_size);
+    const bool compressed = layout->compressed;
+    const bool has_zp = layout->has_zp;
     NODE_VALIDATION_CHECK(this, m_mode != Mode::FINAL_MIX || !m_produce_write_gate, "GatedResidual (FINAL_MIX) must not produce a write gate.");
     NODE_VALIDATION_CHECK(this, m_lowrank > 0, "GatedResidual (READ/FINAL_MIX) requires a positive low rank L.");
 
@@ -136,14 +137,15 @@ void GatedResidual::validate_and_infer_types() {
                           wd_et,
                           " and ",
                           wu_et);
-    const bool wd_quant = wd_et == ov::element::u4 || wd_et == ov::element::u8;
-    NODE_VALIDATION_CHECK(this, wd_et.is_dynamic() || (compressed == wd_quant), "GatedResidual takes u4/u8 weights exactly with the compressed input forms.");
+    const bool wd_quant = is_compressed_weight_type(wd_et);
+    NODE_VALIDATION_CHECK(this,
+                          wd_et.is_dynamic() || (compressed == wd_quant),
+                          "GatedResidual takes i4/u4/i8/u8 weights exactly with the compressed input forms.");
     if (compressed) {
         // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]; the group size along K is K / G (not an attribute).
-        const size_t bits = wd_et == ov::element::u4 ? 4 : 8;
+        const size_t bits = wd_et.is_dynamic() ? 8 : wd_et.bitwidth();
         auto check_group = [&](size_t scale_idx, size_t zp_idx, size_t n, size_t k, const char* name, bool write_gate) {
             const auto& sps = get_input_partial_shape(scale_idx);
-            const auto& zps = get_input_partial_shape(zp_idx);
             NODE_VALIDATION_CHECK(this,
                                   sps.rank().is_dynamic() || (sps.rank().get_length() == 2 && sps[1].compatible(static_cast<int64_t>(n))),
                                   "GatedResidual ",
@@ -153,22 +155,25 @@ void GatedResidual::validate_and_infer_types() {
                                   "], got ",
                                   sps);
             NODE_VALIDATION_CHECK(this,
-                                  zps.rank().is_dynamic() || sps.rank().is_dynamic() || zps == sps,
-                                  "GatedResidual ",
-                                  name,
-                                  " zero point must match the scale shape, got ",
-                                  zps);
-            NODE_VALIDATION_CHECK(this,
                                   get_input_element_type(scale_idx).is_dynamic() || get_input_element_type(scale_idx) == ov::element::f16,
                                   "GatedResidual ",
                                   name,
                                   " scale must be f16.");
-            NODE_VALIDATION_CHECK(this,
-                                  get_input_element_type(zp_idx).is_dynamic() || get_input_element_type(zp_idx) == wd_et,
-                                  "GatedResidual ",
-                                  name,
-                                  " zero point must have the weight element type ",
-                                  wd_et);
+            if (has_zp) {
+                const auto& zps = get_input_partial_shape(zp_idx);
+                NODE_VALIDATION_CHECK(this,
+                                      zps.rank().is_dynamic() || sps.rank().is_dynamic() || zps == sps,
+                                      "GatedResidual ",
+                                      name,
+                                      " zero point must match the scale shape, got ",
+                                      zps);
+                NODE_VALIDATION_CHECK(this,
+                                      get_input_element_type(zp_idx).is_dynamic() || get_input_element_type(zp_idx) == wd_et,
+                                      "GatedResidual ",
+                                      name,
+                                      " zero point must have the weight element type ",
+                                      wd_et);
+            }
             if (sps.rank().is_static() && sps[0].is_static()) {
                 const auto g = static_cast<size_t>(sps[0].get_length());
                 const size_t group_size = derive_group_size(k, g);
@@ -185,7 +190,7 @@ void GatedResidual::validate_and_infer_types() {
                                       g,
                                       "); supported: ",
                                       int4_group_size,
-                                      " for u4, K (per-channel) for u8.");
+                                      " for 4-bit, K (per-channel) for 8-bit.");
                 NODE_VALIDATION_CHECK(this,
                                       write_gate ? is_write_gate_compression_supported(bits, n, k, g) : is_weight_compression_supported(bits, n, k, g, n, k, g),
                                       "GatedResidual ",
@@ -202,19 +207,19 @@ void GatedResidual::validate_and_infer_types() {
         check_group(ReadInputIdx::SCALE_UP, ReadInputIdx::ZP_UP, cd, m_lowrank, "W_up", false);
         if (m_produce_write_gate) {
             NODE_VALIDATION_CHECK(this,
-                                  get_input_element_type(ReadInputIdx::W_INJECT_Q).is_dynamic() || get_input_element_type(ReadInputIdx::W_INJECT_Q) == wd_et,
+                                  get_input_element_type(layout->w_inject).is_dynamic() || get_input_element_type(layout->w_inject) == wd_et,
                                   "GatedResidual W_inject must have the weight element type ",
                                   wd_et);
-            check_group(ReadInputIdx::SCALE_INJECT, ReadInputIdx::ZP_INJECT, m_hc_count, cd, "W_inject", true);
+            check_group(layout->scale_inject, layout->zp_inject, m_hc_count, cd, "W_inject", true);
         }
     }
     if (m_produce_write_gate) {
-        const size_t inject_idx = compressed ? ReadInputIdx::W_INJECT_Q : ReadInputIdx::W_INJECT;
+        const size_t inject_idx = layout->w_inject;
         if (!compressed) {
             const auto inject_et = get_input_element_type(inject_idx);
             NODE_VALIDATION_CHECK(this,
-                                  inject_et.is_dynamic() || (inject_et != ov::element::u4 && inject_et != ov::element::u8),
-                                  "GatedResidual takes a u4/u8 W_inject exactly with the compressed input forms.");
+                                  inject_et.is_dynamic() || !is_compressed_weight_type(inject_et),
+                                  "GatedResidual takes an i4/u4/i8/u8 W_inject exactly with the compressed input forms.");
         }
         NODE_VALIDATION_CHECK(this,
                               matrix_matches(get_input_partial_shape(inject_idx), m_hc_count, cd),
