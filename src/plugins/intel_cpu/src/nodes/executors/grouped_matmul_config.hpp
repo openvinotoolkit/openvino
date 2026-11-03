@@ -4,11 +4,15 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "executor_config.hpp"
 
 namespace ov::intel_cpu {
 
-struct GroupedMatMulAttrs {};
+struct GroupedMatMulAttrs {
+    uint64_t dynamic_quantization_group_size = 0;
+};
 
 using GroupedMatMulConfig = executor::Config<GroupedMatMulAttrs>;
 
