@@ -348,8 +348,9 @@ TEST(fully_connected_gpu, no_biases_fc_i32) {
 
     auto& engine = get_test_engine();
 
-    auto input_prim = engine.allocate_memory({ data_types::i32, format::bfyx, { input_b, input_f, 1, 1 } });
-    auto weights_prim = engine.allocate_memory({ data_types::i32, format::bfyx, { weight_b, weight_f, 1, 1 } });
+    // Use rank-2 layouts for new shape infer
+    auto input_prim = engine.allocate_memory({ { input_b, input_f}, data_types::i32, format::bfyx});
+    auto weights_prim = engine.allocate_memory({ { weight_b, weight_f} , data_types::i32, format::bfyx});
 
     set_values<int32_t>(input_prim, {
         8, 2, -4
@@ -365,9 +366,9 @@ TEST(fully_connected_gpu, no_biases_fc_i32) {
     cldnn::topology topology{
         input_layout("input", input_prim->get_layout()),
         data("weights", weights_prim),
-        reorder("reorder_to_i32", input_info("input"), { data_types::i32, format::bfyx, { input_b, input_f, 1, 1 } }),
+        reorder("reorder_to_i32", input_info("input"), { { input_b, input_f }, data_types::i32, format::bfyx}),
         fully_connected("fc_prim", input_info("reorder_to_i32"), "weights"),
-        reorder("reorder_to_float", input_info("fc_prim"), { data_types::f32, format::bfyx, { input_b, weight_b, 1, 1 } })
+        reorder("reorder_to_float", input_info("fc_prim"), { { input_b, weight_b }, data_types::f32, format::bfyx})
     };
 
     ExecutionConfig config = get_test_default_config(engine);
