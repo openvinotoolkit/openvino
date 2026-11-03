@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-03-16-13-25-000-41662992773",
+  "timestamp": "2026-11-03T16:13:25Z",
+  "run_id": "41662992773",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41662992773",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39428",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39428",
+  "author": "mvafin",
+  "category": "Flaky Test",
+  "title": "model_creation_sample.py (CPU) sample execution fails intermittently on ARM64 with no captured error output",
+  "signature": "python model_creation_sample.py cpu sample execution failed assertionerror retcode nonzero empty stderr captured|Flaky Test",
+  "signature_hash": "c9b1b7b5879c5a23",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "Samples / Samples",
+      "conclusion": "failure",
+      "symptom": "test_model_creation_sample[param3] (Python/CPU) failed: non-zero return code, stderr captured is empty"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the Samples job failed"
+    }
+  ],
+  "key_errors": [
+    "INFO     root:samples_common_test_class.py:332 Running command: python3 /__w/openvino/openvino/install/samples/python/model_creation_sample/model_creation_sample.py \"/__w/openvino/openvino/install/samples/cpp/model_creation_sample/lenet.bin\" CPU",
+    "ERROR    root:samples_common_test_class.py:339",
+    ">       assert retcode == 0, \"Sample execution failed\"",
+    "E       AssertionError: Sample execution failed",
+    "install/tests/smoke_tests/common/samples_common_test_class.py:340: AssertionError",
+    "FAILED install/tests/smoke_tests/test_model_creation_sample.py::Test_model_creation_sample::test[param3] - AssertionError: Sample execution failed",
+    "1 failed, 207 passed in 347.69s (0:05:47)"
+  ],
+  "root_cause": "The Python model_creation_sample.py smoke test failed on the CPU parametrization (param3) with a non-zero return code, but the captured stderr logged at samples_common_test_class.py:339 is empty, meaning the crash produced no readable diagnostic output visible in this log. The same executable and neighboring parametrizations (MULTI:CPU, AUTO, and the C++ variant) passed in this same run, and the PR's changed files are entirely scoped to the GGUF frontend (src/frontends/gguf/**), which model_creation_sample.py does not exercise. This matches two prior merge-queue investigations (patterns feb1e4843edafb48 and 505ffe872b32b761) of ARM64 Python samples crashing with ld.so dynamic-linker assertion failures (dl-close.c/_dl_close_worker, dl-sort-maps.c/_dl_sort_maps_dfs), and one prior Flaky Test investigation (698433af4622b768) of the very same test_model_creation_sample.py Python/CPU case crashing from the identical ld.so race. The empty stderr here is consistent with the process being killed abruptly (e.g. by an assertion abort/SIGABRT) before Python could flush a traceback, which is the known behavior of this ARM64 glibc ld.so race when dlopen/dlclose of OpenVINO's shared libraries races with the interpreter's import machinery.",
+  "reproduction_steps": "N/A - intermittent ARM64 glibc ld.so race condition triggered under dlopen/dlclose pressure; not deterministically reproducible. Historically reproducible by repeatedly running the Python model_creation_sample.py/CPU smoke test on an ARM64 runner under load.",
+  "recommended_actions": [
+    "Re-run the failed Samples job; the failure is unrelated to the PR's GGUF frontend changes.",
+    "If recurrence increases, pin/upgrade glibc or the ARM64 base image used by the Linux ARM64 runners to a version with the ld.so dl-close/dl-sort-maps race fixed.",
+    "Consider adding a bounded automatic retry wrapper around Python sample smoke tests on ARM64 runners to absorb this known race without failing the whole job."
+  ],
+  "prevention_strategies": "This is a known, recurring ARM64 glibc ld.so race (dl-close.c _dl_close_worker / dl-sort-maps.c _dl_sort_maps_dfs assertions) affecting Python smoke-test samples that dlopen/dlclose OpenVINO shared libraries. It cannot be prevented at the test or PR level. Track recurrence via this pattern database and escalate to the CI infrastructure team to update the ARM64 runner image/glibc version if frequency keeps increasing.",
+  "historical_context": "Prior merge-queue investigations recorded the same class of ARM64 ld.so assertion crash in Python samples: pattern 698433af4622b768 (test_model_creation_sample.py Python/CPU, same test as here, 2026-08-27, PR #37490), pattern feb1e4843edafb48 (throughput_benchmark, 2026-07-28), and pattern 505ffe872b32b761 (throughput_benchmark_py, 2026-07-03, PR #36681). All three were classified Infrastructure/Flaky Test and resolved by re-running the job."
+}

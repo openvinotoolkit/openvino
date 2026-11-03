@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "python model_creation_sample.py cpu sample execution failed assertionerror retcode nonzero empty stderr captured|Flaky Test",
+  "signature_hash": "c9b1b7b5879c5a23",
+  "title": "model_creation_sample.py (CPU) sample execution fails intermittently on ARM64 with no captured error output",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-11-03T16:13:25Z",
+  "last_seen": "2026-11-03T16:13:25Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41662992773"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39428"
+  ],
+  "recent_timestamps": [
+    "2026-11-03T16:13:25Z"
+  ],
+  "rerun_search_string": null
+}

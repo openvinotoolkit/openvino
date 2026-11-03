@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 317,
+  "total": 318,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3096,6 +3096,15 @@
       "category": "Infrastructure",
       "signature_hash": "bbf7249294bc184f",
       "pr_number": "39380"
+    },
+    {
+      "investigation_id": "2026-11-03-16-13-25-000-41662992773",
+      "run_id": "41662992773",
+      "timestamp": "2026-11-03T16:13:25Z",
+      "title": "model_creation_sample.py (CPU) sample execution fails intermittently on ARM64 with no captured error output",
+      "category": "Flaky Test",
+      "signature_hash": "c9b1b7b5879c5a23",
+      "pr_number": "39428"
     }
   ]
 }
