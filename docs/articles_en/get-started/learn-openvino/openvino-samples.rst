@@ -52,7 +52,8 @@ The applications include:
   Inference of image classification networks on an Intel GPU, with input and
   output tensors allocated in Level Zero device memory. The sample supports
   only images as input and supports input paths containing Unicode characters.
-  It requires the experimental Level Zero GPU runtime.
+  With the OpenCL GPU runtime, it requires a driver with Level Zero - OpenCL
+  interoperability (LEO) enabled; the experimental Level Zero GPU runtime is also supported.
 
 - :doc:`Hello NV12 Input Classification Sample <openvino-samples/hello-nv12-input-classification>` -
   Input of any size and layout can be provided to an infer request. The sample
