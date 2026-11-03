@@ -93,6 +93,7 @@ struct Config {
     ov::internal::CacheQuantAlgorithm keyCacheQuantAlg = ov::internal::CacheQuantAlgorithm::SCALAR;
     ov::internal::CacheQuantAlgorithm valueCacheQuantAlg = ov::internal::CacheQuantAlgorithm::SCALAR;
     bool enableSageAttn = false;
+    bool snippetsApproximateSoftmaxExp = false;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
     bool streamsChanged = false;
