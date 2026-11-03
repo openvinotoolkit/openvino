@@ -25,46 +25,46 @@ Unless a footnote says otherwise, it meets the [real decoder replay gate](testin
 the synthetic F32 fixtures below (`gpt-oss` has none), and earlier free-generation smoke runs are
 not counted as tested versions.
 
-| Architecture | Notes | Tested version |
+| Architecture | Tested model | Notes |
 |---|---|---|
-| `afmoe` | Dense lead, routed/shared experts, sigmoid gating, pre/post norms, three sliding layers then one global NoPE layer; F32 oracle fixture | — |
-| `bailingmoe2` | Sigmoid routing, biased/grouped selection, shared experts | Ling-mini-2.0 Q2_K |
-| `deepseek2-ocr` | Language backbone: dense lead layers, shared/routed experts | DeepSeek-OCR-2 Q4_K_M |
-| `ernie4_5-moe` | Interleaved MoE, biased selection, normalized weights, shared experts | ERNIE-4.5-21B-A3B-PT Q4_K_M |
-| `exaone-moe` | Dense lead, shared/routed experts, RoPE on SWA layers only | K-EXAONE-236B-A23B Q2_K ¹ |
-| `exaone4` | Post-norm-only attention and FFN | EXAONE-4.0-1.2B Q4_K_M |
-| `gemma` | GeGLU, multi-query attention | gemma-2b Q4_K_M |
-| `gemma2` | Post-norms, SWA, attention and final soft-caps | gemma-2-2b-it Q4_K_M |
-| `gemma3` | Post-norms, final soft-cap, separate global/local RoPE scaling | — |
-| `gemma4` | SWA, per-layer embeddings, shared KV, dense plus routed experts | — |
-| `glm4moe` | Biased sigmoid selection, shared experts, optional QK-norm | GLM-4.5-Air REAP50 Q2_K |
-| `gpt-oss` | MoE, attention sinks, SWA, OAI gated activation; **no numerical fixture** | — |
-| `hunyuan-dense` | Learned QK-norm after RoPE | Hunyuan-0.5B-Instruct Q8_0 |
-| `hunyuan-moe` | QK-norm after RoPE, routed and shared experts | Hunyuan-A13B-Instruct Q2_K |
-| `jais2` | Biased LayerNorm, ungated ReLU² FFN | Jais-2-8B-Chat Q4_K_M ² |
-| `lfm2` | LFM2 / LFM2.5 dense hybrid short convolution and GQA, QK-norm, tied head | LFM2-350M / LFM2.5-1.2B-Instruct Q4_0 |
-| `lfm2.audio_vocoder` | Standalone speech component; accepts the existing publisher architecture string | LFM2.5-Audio-1.5B Q4_0 ([component parity](mmproj.md#lfm2-audio-components)) |
-| `lfm2moe` | LFM2 / LFM2.5 MoE hybrid, dense lead, biased normalized expert routing | LFM2.5-8B-A1B Q4_0 |
-| `lfm3` | Dense hybrid convolution/GQA, per-head output gates, paired optional post norms, tied output, mixed full/sliding RoPE | LFM3-1.7B / LFM3-VL-2B / LFM3-Audio-2B / LFM3-Omni-2B Q4_0 |
-| `llama` | llama-2 / llama-3, YaRN | Devstral Small 2507 24B Q4_K_M |
-| `llama-embed` | Per-token embeddings; mean/first/last pooling; causal or bidirectional | Llama-Nemotron-Embed-1B-v2 Q4_K_M ² |
-| `maincoder` | NORMAL RoPE, QK-norm after RoPE | Maincoder-1B Q4_K_M |
-| `mamba2` | Mamba 2 mixer, tied or separate output; one-sequence greedy decoding | Mamba2-2.7B Q8_0 ³ |
-| `mellum` | MoE with normalized expert weights | Mellum2-12B-A2.5B-Instruct Q4_K_M |
-| `minicpm` | Embedding/residual scales, inverse logit scale | — |
-| `minimax-m2` | Full-width QK-norm, partial RoPE, normalized experts | MiniMax-M2.1-REAP-50 Q2_K ⁴ |
-| `mistral3` | Dense, NORMAL RoPE, attention temperature | Devstral Small 2 24B; Ministral-3-3B-Instruct-2512 Q4_K_M |
-| `muse-glimmer` | RoPE on SWA layers, attention output gate, pre/post norms | Muse-Glimmer-30B Q4_0 |
-| `nemotron_h` | Hybrid Mamba 2 / attention / ReLU² FFN; one-sequence greedy decoding | Nemotron-H-8B-Reasoning-128K Q4_K_M |
-| `olmoe` | Full-width QK-norm, MoE | — |
-| `phi3` | Fused QKV | — |
-| `plamo3` | Fused QKV and gate/up, bare post-norms, SWA | plamo-3-nict-2b-base Q4_K_M |
-| `qwen2` | qwen2 / qwen2.5 | — |
-| `qwen3` | QK-norm before RoPE | — |
-| `qwen35` | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA | — |
-| `qwen35moe` | Hybrid GatedDeltaNet, separate or fused routed experts, shared expert | Qwen3.6-35B-A3B Q4_K_M / Q4_0 |
-| `qwen3moe` | NEOX RoPE, per-head QK-norm, normalized experts | Qwen3-0.9B-A0.6B Q4_K_M |
-| `smollm3` | NORMAL RoPE, skipped on every fourth layer | SmolLM3-3B Q4_K_M |
+| `afmoe` | — | Dense lead, routed/shared experts, sigmoid gating, pre/post norms, three sliding layers then one global NoPE layer; F32 oracle fixture |
+| `bailingmoe2` | Ling-mini-2.0 Q2_K | Sigmoid routing, biased/grouped selection, shared experts |
+| `deepseek2-ocr` | DeepSeek-OCR-2 Q4_K_M | Language backbone: dense lead layers, shared/routed experts |
+| `ernie4_5-moe` | ERNIE-4.5-21B-A3B-PT Q4_K_M | Interleaved MoE, biased selection, normalized weights, shared experts |
+| `exaone-moe` | K-EXAONE-236B-A23B Q2_K ¹ | Dense lead, shared/routed experts, RoPE on SWA layers only |
+| `exaone4` | EXAONE-4.0-1.2B Q4_K_M | Post-norm-only attention and FFN |
+| `gemma` | gemma-2b Q4_K_M | GeGLU, multi-query attention |
+| `gemma2` | gemma-2-2b-it Q4_K_M | Post-norms, SWA, attention and final soft-caps |
+| `gemma3` | — | Post-norms, final soft-cap, separate global/local RoPE scaling |
+| `gemma4` | — | SWA, per-layer embeddings, shared KV, dense plus routed experts |
+| `glm4moe` | GLM-4.5-Air REAP50 Q2_K | Biased sigmoid selection, shared experts, optional QK-norm |
+| `gpt-oss` | — | MoE, attention sinks, SWA, OAI gated activation; **no numerical fixture** |
+| `hunyuan-dense` | Hunyuan-0.5B-Instruct Q8_0 | Learned QK-norm after RoPE |
+| `hunyuan-moe` | Hunyuan-A13B-Instruct Q2_K | QK-norm after RoPE, routed and shared experts |
+| `jais2` | Jais-2-8B-Chat Q4_K_M ² | Biased LayerNorm, ungated ReLU² FFN |
+| `lfm2` | LFM2-350M / LFM2.5-1.2B-Instruct Q4_0 | LFM2 / LFM2.5 dense hybrid short convolution and GQA, QK-norm, tied head |
+| `lfm2.audio_vocoder` | LFM2.5-Audio-1.5B Q4_0 ([component parity](mmproj.md#lfm2-audio-components)) | Standalone speech component; accepts the existing publisher architecture string |
+| `lfm2moe` | LFM2.5-8B-A1B Q4_0 | LFM2 / LFM2.5 MoE hybrid, dense lead, biased normalized expert routing |
+| `lfm3` | LFM3-1.7B / LFM3-VL-2B / LFM3-Audio-2B / LFM3-Omni-2B Q4_0 | Dense hybrid convolution/GQA, per-head output gates, paired optional post norms, tied output, mixed full/sliding RoPE |
+| `llama` | Devstral Small 2507 24B Q4_K_M | llama-2 / llama-3, YaRN |
+| `llama-embed` | Llama-Nemotron-Embed-1B-v2 Q4_K_M ² | Per-token embeddings; mean/first/last pooling; causal or bidirectional |
+| `maincoder` | Maincoder-1B Q4_K_M | NORMAL RoPE, QK-norm after RoPE |
+| `mamba2` | Mamba2-2.7B Q8_0 ³ | Mamba 2 mixer, tied or separate output; one-sequence greedy decoding |
+| `mellum` | Mellum2-12B-A2.5B-Instruct Q4_K_M | MoE with normalized expert weights |
+| `minicpm` | — | Embedding/residual scales, inverse logit scale |
+| `minimax-m2` | MiniMax-M2.1-REAP-50 Q2_K ⁴ | Full-width QK-norm, partial RoPE, normalized experts |
+| `mistral3` | Devstral Small 2 24B; Ministral-3-3B-Instruct-2512 Q4_K_M | Dense, NORMAL RoPE, attention temperature |
+| `muse-glimmer` | Muse-Glimmer-30B Q4_0 | RoPE on SWA layers, attention output gate, pre/post norms |
+| `nemotron_h` | Nemotron-H-8B-Reasoning-128K Q4_K_M | Hybrid Mamba 2 / attention / ReLU² FFN; one-sequence greedy decoding |
+| `olmoe` | — | Full-width QK-norm, MoE |
+| `phi3` | — | Fused QKV |
+| `plamo3` | plamo-3-nict-2b-base Q4_K_M | Fused QKV and gate/up, bare post-norms, SWA |
+| `qwen2` | — | qwen2 / qwen2.5 |
+| `qwen3` | — | QK-norm before RoPE |
+| `qwen35` | — | Hybrid GatedDeltaNet + attention, interleaved M-RoPE, folded Hadamard weights; batching and beam search with SDPA and PA |
+| `qwen35moe` | Qwen3.6-35B-A3B Q4_K_M / Q4_0 | Hybrid GatedDeltaNet, separate or fused routed experts, shared expert |
+| `qwen3moe` | Qwen3-0.9B-A0.6B Q4_K_M | NEOX RoPE, per-head QK-norm, normalized experts |
+| `smollm3` | SmolLM3-3B Q4_K_M | NORMAL RoPE, skipped on every fourth layer |
 
 1. Below the acceptance threshold: 11 of 13 greedy choices match (same first prediction,
    differences at steps 4–5). Its F32 fixtures, including NextN, pass. A staged CPU runner that
