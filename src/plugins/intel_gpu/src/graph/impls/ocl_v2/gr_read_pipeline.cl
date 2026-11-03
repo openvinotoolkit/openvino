@@ -15,7 +15,7 @@
 // The accumulator layout of one GEMM is the A layout of the next one. The loads of the next K32 step are issued before the
 // dpas of the current one (two register buffers).
 //
-// Compressed weights (GR_W_TYPE = u4 group 32 / u8 per-channel, see gr_common.cl): the lane loads GR_W*_KCH k values of its row as raw
+// Compressed weights (GR_W_TYPE = u4 group 32, 64, 128 / u8 per-channel, see gr_common.cl): the lane loads GR_W*_KCH k values of its row as raw
 // bytes per step and unpacks / dequantizes one K32 slice at a time into the same uint16 B operand; MMA and epilogues are shared.
 // The per-subgroup (decode) DOWN / UP kernels fold the u8 zero point and scale into the epilogue (GR_WQ_FOLD), the others
 // (GR_Q_SHARE) dequantize each K32 slice once per work-group into SLM. RBAR is the same for every weight type.
@@ -31,11 +31,17 @@
 // ---------------------------------------------------------------------------------------------------------------
 // RBAR. JIT: GR_EPS, GR_NORM_GAIN_PLUS_ONE, GR_CH (halves per chunk), GR_NV_CH (= GR_CH / 16), GR_NCH (= D / GR_CH),
 // GR_GPF (gain chunks loaded before the norm reduction; bounded by the register budget).
-// One subgroup per (branch, row): gws = [C * 16, rows, 1], lws = [C * 16, 1, 1].
+// One subgroup per (branch, row): gws = [C * 16, rows, 1], lws = [C * 16, 1, 1]. Branches wider than 4096 are split into a work-group
+// per (branch, row): gws = [C * GR_RBAR_SPLIT * 16, rows, 1], lws = [GR_RBAR_SPLIT * 16, 1, 1], GR_RBAR_SPLIT divides GR_NCH.
 // ---------------------------------------------------------------------------------------------------------------
 REQD_SUB_GROUP_SIZE(16)
 KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_weight, __global ushort* rbar_out, uint num_rows) {
+#if GR_HIDDEN <= 4096
     const uint c = get_sub_group_id();
+#else
+    __local float slm_sq[GR_RBAR_SPLIT];
+    const uint c = get_group_id(0);
+#endif
     const uint row = get_group_id(1);
     if (c >= GR_BRANCHES || row >= num_rows) {
         return;
@@ -78,15 +84,28 @@ KERNEL(gr_rbar)(const __global ushort* residual, const __global ushort* norm_wei
         GR_STF(GR_NV_CH, rbar_out + base + i * GR_CH, o);
     }
 #else
-    // Wide branches: two passes, the second one re-reads the row from cache.
+    // Wide branches: two passes, the second one re-reads the row from cache. The subgroups of the work-group split the row and
+    // add up the squares through SLM.
+    const uint split = get_sub_group_id();
+    const uint d_begin = split * (GR_NCH / GR_RBAR_SPLIT) * GR_CH;
+    const uint d_end = d_begin + (GR_NCH / GR_RBAR_SPLIT) * GR_CH;
     float sq = 0.0f;
-    for (uint d = 0; d < GR_HIDDEN; d += GR_CH) {
+    for (uint d = d_begin; d < d_end; d += GR_CH) {
         const GR_FT(GR_NV_CH) f = GR_LDF(GR_NV_CH, residual + base + d);
         const GR_FT(GR_NV_CH) q = f * f;
         GR_ACC(GR_NV_CH, sq, q);
     }
-    const float inv_rms = native_rsqrt(sub_group_reduce_add(sq) * (1.0f / (float)GR_HIDDEN) + GR_EPS);
-    for (uint d = 0; d < GR_HIDDEN; d += GR_CH) {
+    const float split_sq = sub_group_reduce_add(sq);
+    if (get_sub_group_local_id() == 0) {
+        slm_sq[split] = split_sq;
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+    float total_sq = 0.0f;
+    for (uint s_ = 0; s_ < GR_RBAR_SPLIT; s_++) {
+        total_sq += slm_sq[s_];
+    }
+    const float inv_rms = native_rsqrt(total_sq * (1.0f / (float)GR_HIDDEN) + GR_EPS);
+    for (uint d = d_begin; d < d_end; d += GR_CH) {
         const GR_FT(GR_NV_CH) f = GR_LDF(GR_NV_CH, residual + base + d);
         GR_FT(GR_NV_CH) gain = GR_LDF(GR_NV_CH, norm_weight + gbase + d);
 #if GR_NORM_GAIN_PLUS_ONE
@@ -190,8 +209,8 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
                 uint rw[GR_WQ_RAW_PER_K32];
                 GR_WQ_LOAD_RAW(rw, GR_WQ_RAW_PER_K32, brow[j_], k);
 #if GR_W_TYPE == GR_WT_U4
-                const half2 scv = GR_WQ_SCALE2(w_scale, k >> 5, GR_LOWRANK, n0 + 16 * j_);
-                const half2 zpv = GR_WQ_ZP2(w_zp, k >> 5, GR_LOWRANK, n0 + 16 * j_, lane);
+                const half2 scv = GR_WQ_SCALE2(w_scale, (k >> 5) >> GR_WD_GSL, GR_LOWRANK, n0 + 16 * j_);
+                const half2 zpv = GR_WQ_ZP2(w_zp, (k >> 5) >> GR_WD_GSL, GR_LOWRANK, n0 + 16 * j_, lane);
                 const uint16 b = GR_WQ_DEQ32(rw, 0, zpv, scv);
 #else
                 const uint16 b = GR_WQ_DEQ32(rw, 0, zpv[j_], scv[j_]);
@@ -418,8 +437,8 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
 #if GR_WQ_FOLD
                 b0[j_] = GR_WQ_U8B32(rw[j_], s_ * GR_WQ_RAW_PER_K32);
 #elif GR_W_TYPE == GR_WT_U4
-                const half2 scv = GR_WQ_SCALE2(w_scale, (k >> 5) + s_, GR_LOWRANK, n0 + 16 * j_);
-                const half2 zpv = GR_WQ_ZP2(w_zp, (k >> 5) + s_, GR_LOWRANK, n0 + 16 * j_, lane);
+                const half2 scv = GR_WQ_SCALE2(w_scale, ((k >> 5) + s_) >> GR_WD_GSL, GR_LOWRANK, n0 + 16 * j_);
+                const half2 zpv = GR_WQ_ZP2(w_zp, ((k >> 5) + s_) >> GR_WD_GSL, GR_LOWRANK, n0 + 16 * j_, lane);
                 b0[j_] = GR_WQ_DEQ32(rw[j_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
 #else
                 b0[j_] = GR_WQ_DEQ32(rw[j_], s_ * GR_WQ_RAW_PER_K32, zpv[j_], scv[j_]);
@@ -582,8 +601,8 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
                 uint rw[GR_WQ_RAW_PER_K32];
                 GR_WQ_LOAD_RAW(rw, GR_WQ_RAW_PER_K32, brow[c_], k);
 #if GR_W_TYPE == GR_WT_U4
-                const half2 scv = GR_WQ_SCALE2(w_scale, sl, GR_CD, c_ * GR_HIDDEN + d0);
-                const half2 zpv = GR_WQ_ZP2(w_zp, sl, GR_CD, c_ * GR_HIDDEN + d0, lane);
+                const half2 scv = GR_WQ_SCALE2(w_scale, sl >> GR_WU_GSL, GR_CD, c_ * GR_HIDDEN + d0);
+                const half2 zpv = GR_WQ_ZP2(w_zp, sl >> GR_WU_GSL, GR_CD, c_ * GR_HIDDEN + d0, lane);
                 const uint16 b = GR_WQ_DEQ32(rw, 0, zpv, scv);
 #else
                 const uint16 b = GR_WQ_DEQ32(rw, 0, zpv[c_], scv[c_]);
@@ -779,8 +798,8 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
 #if GR_WQ_FOLD
                 b0[c_] = GR_WQ_U8B32(rw[c_], s_ * GR_WQ_RAW_PER_K32);
 #elif GR_W_TYPE == GR_WT_U4
-                const half2 scv = GR_WQ_SCALE2(w_scale, (k >> 5) + s_, GR_CD, c_ * GR_HIDDEN + d0);
-                const half2 zpv = GR_WQ_ZP2(w_zp, (k >> 5) + s_, GR_CD, c_ * GR_HIDDEN + d0, lane);
+                const half2 scv = GR_WQ_SCALE2(w_scale, ((k >> 5) + s_) >> GR_WU_GSL, GR_CD, c_ * GR_HIDDEN + d0);
+                const half2 zpv = GR_WQ_ZP2(w_zp, ((k >> 5) + s_) >> GR_WU_GSL, GR_CD, c_ * GR_HIDDEN + d0, lane);
                 b0[c_] = GR_WQ_DEQ32(rw[c_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
 #else
                 b0[c_] = GR_WQ_DEQ32(rw[c_], s_ * GR_WQ_RAW_PER_K32, zpv[c_], scv[c_]);

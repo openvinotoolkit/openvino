@@ -201,7 +201,7 @@ bool can_use_dpas_gr_read(const gated_residual& desc, const cldnn::device_info& 
     return desc.hc_count != 0 && desc.hc_count % 2 == 0 && desc.hc_count <= gr_dpas_n;
 }
 
-/// Weight storage of the READ / FINAL_MIX kernels (GR_W_TYPE): f16, or the asymmetric u4 (group 32) / u8 (per-channel) forms
+/// Weight storage of the READ / FINAL_MIX kernels (GR_W_TYPE): f16, or the asymmetric u4 (group 32, 64, 128) / u8 (per-channel) forms
 /// that arrive as the 8-input compressed op (W_down, W_up, scale_down, scale_up, zp_down, zp_up).
 enum class GrWType : int { f16 = 0, u4 = 1, u8 = 2 };
 
@@ -247,12 +247,12 @@ GrQShare gr_down_q_share(const gated_residual& desc, GrTier tier) {
 
 constexpr size_t gr_up_q_st = 4;
 
-/// The 3-dispatch pipeline needs rows * C*D * 2 bytes of Rbar scratch; beyond this the compressed single kernel (which keeps
-/// Rbar in SLM, but dequantizes per token tile) is used instead.
+/// The 3-dispatch pipeline needs rows * C*D * 2 bytes of Rbar scratch per node, and a model has about two nodes per layer; beyond
+/// this the compressed single kernel (which keeps Rbar in SLM, but dequantizes per token tile) is used instead.
 size_t gr_q_scratch_limit() {
     static const size_t bytes = [] {
         const char* env = std::getenv("OV_GPU_GR_Q_SCRATCH_LIMIT_MB");  // lets tests reach the single-kernel path with few rows
-        return (env != nullptr ? static_cast<size_t>(std::strtoull(env, nullptr, 10)) : size_t{256}) << 20;
+        return (env != nullptr ? static_cast<size_t>(std::strtoull(env, nullptr, 10)) : size_t{32}) << 20;
     }();
     return bytes;
 }
@@ -271,11 +271,25 @@ size_t gr_pd_min_rows(const cldnn::device_info& info) {
     return env >= 0 ? static_cast<size_t>(env) : 5 * static_cast<size_t>(info.execution_units_count);
 }
 
-/// GR_<prefix>_KCH / _NRAW / _RB of one weight matrix [N, K].
-void add_wq_matrix_constants(JitConstants& jit, const std::string& prefix, GrWType t, size_t kch, size_t row_k) {
+/// log2 of the K32 slices sharing one scale / zp row of a u4 weight with K columns (group 32: 0, group 128: 2); `scale_input` is
+/// the op input holding its [G, N] scale. Unused for u8, which is per-channel.
+size_t gr_wq_group_shift(const RuntimeParams& params, GrWType t, size_t scale_input, size_t k) {
+    if (t != GrWType::u4) {
+        return 0;
+    }
+    size_t shift = 0;
+    for (size_t slices = k / params.get_input_layout(scale_input).get_shape()[0] / 32; slices > 1; slices >>= 1) {
+        shift++;
+    }
+    return shift;
+}
+
+/// GR_<prefix>_KCH / _NRAW / _RB / _GSL of one weight matrix [N, K].
+void add_wq_matrix_constants(JitConstants& jit, const std::string& prefix, GrWType t, size_t kch, size_t row_k, size_t group_shift) {
     jit.make(prefix + "_KCH", kch);
     jit.make(prefix + "_NRAW", kch * gr_weight_bits(t) / 32);
     jit.make(prefix + "_RB", row_k * gr_weight_bits(t) / 8);
+    jit.make(prefix + "_GSL", group_shift);
 }
 
 /// Float as an OpenCL C literal with full single precision (an unsuffixed literal would be a double).
@@ -295,6 +309,11 @@ void push_num_rows(KernelData& kd, size_t num_rows) {
 
 size_t rows_of(const RuntimeParams& params, const gated_residual& desc) {
     return get_num_rows(params.get_input_layout(0), desc.hc_count * desc.hidden_size);
+}
+
+/// Subgroups of one (branch, row) of RBAR: branches too wide to stay in registers are split, one subgroup would walk them twice.
+size_t gr_rbar_split(const gated_residual& desc) {
+    return desc.hidden_size <= 4096 ? 1 : largest_divisor_up_to(desc.hidden_size / gr_best_tile(desc.hidden_size), 8);
 }
 
 /// Common base of the stages: the kernels take their geometry from JIT constants and `num_rows`, never from shape_info or
@@ -434,8 +453,13 @@ protected:
         if (m_q) {
             const auto wtype = gr_weight_type(params);
             jit.make("GR_W_TYPE", static_cast<int>(wtype));
-            add_wq_matrix_constants(jit, "GR_WD", wtype, gr_wq_kch(wtype, desc->hidden_size, cd, gr_wq_dpas_load_bytes), cd);
-            add_wq_matrix_constants(jit, "GR_WU", wtype, gr_wq_kch(wtype, desc->lowrank, desc->lowrank, gr_wq_dpas_load_bytes), desc->lowrank);
+            add_wq_matrix_constants(jit, "GR_WD", wtype, gr_wq_kch(wtype, desc->hidden_size, cd, gr_wq_dpas_load_bytes), cd, gr_wq_group_shift(params, wtype, 4, cd));
+            add_wq_matrix_constants(jit,
+                                    "GR_WU",
+                                    wtype,
+                                    gr_wq_kch(wtype, desc->lowrank, desc->lowrank, gr_wq_dpas_load_bytes),
+                                    desc->lowrank,
+                                    gr_wq_group_shift(params, wtype, 5, desc->lowrank));
         }
         return jit;
     }
@@ -524,6 +548,7 @@ protected:
         jit.make("GR_NV_CH", ch / 16);
         const size_t nch = desc->hidden_size / ch;
         jit.make("GR_NCH", nch);
+        jit.make("GR_RBAR_SPLIT", gr_rbar_split(*desc));
         // Gain chunks are independent of the norm: preload up to 16 (64 GRFs) while the row is still being reduced.
         jit.make("GR_GPF", desc->hidden_size <= 2560 ? std::min<size_t>(nch, 16) : 0);
         return jit;
@@ -546,9 +571,16 @@ protected:
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = rows_of(params, *desc);
             auto& wgs = kd.params.workGroups;
-            // One subgroup per (branch, row): the norm is branch-wise, so no reduction across subgroups.
-            wgs.global = {desc->hc_count * gr_sg, std::max<size_t>(1, num_rows), 1};
-            wgs.local = {desc->hc_count * gr_sg, 1, 1};
+            // One subgroup per (branch, row): the norm is branch-wise, so no reduction across subgroups. A work-group per
+            // (branch, row) reduces it through SLM when wide branches are split.
+            const size_t split = gr_rbar_split(*desc);
+            if (desc->hidden_size <= 4096) {
+                wgs.global = {desc->hc_count * gr_sg, std::max<size_t>(1, num_rows), 1};
+                wgs.local = {desc->hc_count * gr_sg, 1, 1};
+            } else {
+                wgs.global = {desc->hc_count * split * gr_sg, std::max<size_t>(1, num_rows), 1};
+                wgs.local = {split * gr_sg, 1, 1};
+            }
             push_num_rows(kd, num_rows);
         }};
     }
@@ -583,7 +615,12 @@ protected:
             if (share) {
                 jit.make("GR_Q_ST", qs.st);
             }
-            add_wq_matrix_constants(jit, "GR_WD", wtype, share ? 32 : gr_wq_kch(wtype, cd / tiling.ksplit, cd, gr_wq_down_load_bytes), cd);
+            add_wq_matrix_constants(jit,
+                                    "GR_WD",
+                                    wtype,
+                                    share ? 32 : gr_wq_kch(wtype, cd / tiling.ksplit, cd, gr_wq_down_load_bytes),
+                                    cd,
+                                    gr_wq_group_shift(params, wtype, 4, cd));
         }
         return jit;
     }
@@ -675,7 +712,8 @@ protected:
                                     "GR_WU",
                                     wtype,
                                     share ? 32 : gr_wq_kch(wtype, desc->lowrank / tiling.ksplit, desc->lowrank, gr_wq_up_load_bytes),
-                                    desc->lowrank);
+                                    desc->lowrank,
+                                    gr_wq_group_shift(params, wtype, 5, desc->lowrank));
         }
         return jit;
     }
@@ -757,7 +795,7 @@ protected:
         jit.make("GR_W_TYPE", static_cast<int>(wtype));
         jit.make("GR_DQ_N", rows_n(*desc, m_down));
         jit.make("GR_DQ_K", k);
-        add_wq_matrix_constants(jit, "GR_DQ", wtype, gr_wq_kch(wtype, k, k, 64), k);
+        add_wq_matrix_constants(jit, "GR_DQ", wtype, gr_wq_kch(wtype, k, k, 64), k, gr_wq_group_shift(params, wtype, m_down ? 4 : 5, k));
         return jit;
     }
 
@@ -787,8 +825,9 @@ private:
     bool m_down;
 };
 
-bool use_predequant(GrWType t, size_t num_rows, const cldnn::device_info& info) {
-    return t != GrWType::f16 && num_rows > gr_pd_min_rows(info);
+/// The f16 scratch of both matrices is per node as well, so large weights are always dequantized on the fly.
+bool use_predequant(const gated_residual& desc, GrWType t, size_t num_rows, const cldnn::device_info& info) {
+    return t != GrWType::f16 && num_rows > gr_pd_min_rows(info) && 2 * desc.lowrank * desc.hc_count * desc.hidden_size * 2 <= gr_q_scratch_limit();
 }
 
 bool use_single_read(const gated_residual& desc, const cldnn::device_info& info, size_t rows, bool compressed) {
@@ -864,7 +903,7 @@ public:
                 }
             } else {
                 const size_t rows = rows_of(params, *desc);
-                const bool pd = use_predequant(wtype, rows, info);
+                const bool pd = use_predequant(*desc, wtype, rows, info);
                 if (pd) {
                     add_stage(gr_dq_down, params);
                     add_stage(gr_dq_up, params);
@@ -930,7 +969,7 @@ public:
         if (has_stage(gr_rbar) || has_stage(gr_read_dpas) || has_stage(gr_read_dpas_q) || has_stage(gr_read_dpas_pd)) {
             const auto wtype = gr_weight_type(params);
             const bool q = wtype != GrWType::f16;
-            const bool pd = use_predequant(wtype, rows, params.get_device_info());
+            const bool pd = use_predequant(*desc, wtype, rows, params.get_device_info());
             std::vector<event::ptr> deps = events;
             std::vector<event::ptr> all;
             if (pd) {
@@ -984,7 +1023,7 @@ public:
         const size_t cd = desc->hc_count * desc->hidden_size;
         const size_t num_rows = std::max<size_t>(1, get_num_rows(params.get_input_layout(0), cd));
         const auto wtype = gr_weight_type(params);
-        const bool pd = use_predequant(wtype, num_rows, params.get_device_info());
+        const bool pd = use_predequant(*desc, wtype, num_rows, params.get_device_info());
         const bool single = use_single_read(*desc, params.get_device_info(), num_rows, wtype != GrWType::f16 && !pd);
         if (single && !pd) {
             return {};  // gr_read_dpas keeps its intermediates in SLM
@@ -1026,11 +1065,15 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
     }
 
     const auto desc = node.as<cldnn::gated_residual>().get_primitive();
-    if (!ov::intel_gpu::op::GatedResidual::is_geometry_supported(desc->mode, desc->hc_count, desc->hidden_size, desc->lowrank)) {
+    if (!ov::intel_gpu::op::GatedResidual::is_geometry_supported(desc->mode,
+                                                                 desc->hc_count,
+                                                                 desc->hidden_size,
+                                                                 desc->lowrank,
+                                                                 ov::intel_gpu::op::GatedResidual::is_compression_arch_supported(info))) {
         return false;
     }
 
-    // Compressed READ / FINAL_MIX: u4 (group 32) / u8 (per-channel) W_down / W_up + f16 scale + zp of the weight type, dpas path only.
+    // Compressed READ / FINAL_MIX: u4 (group 32, 64, 128) / u8 (per-channel) W_down / W_up + f16 scale + zp of the weight type, dpas path only.
     const bool compressed =
         desc->mode != cldnn::gated_residual::Mode::WRITE && node.get_dependencies().size() == ov::intel_gpu::op::GatedResidual::compressed_input_count;
     if (compressed) {
