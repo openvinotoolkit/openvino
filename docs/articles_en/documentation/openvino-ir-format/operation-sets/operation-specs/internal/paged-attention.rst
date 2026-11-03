@@ -120,6 +120,7 @@ storage across multiple inference calls.
        token_type_ids,                                   # input 25  [T] or [T,1] or empty  i32
        qq_bias,                                            # input 26  [Nbias] or empty  u8
        qq_bias_begins,                                     # input 27  [B_seq+1] or empty  i32
+       chunk_base_ptrs=None,                               # input 28  [2*Nchunk]  i64  (optional; absent in the 28-input form)
    ):
        # ---------------------------------------------------------------
        # Phase 0 - cache initialization (runs once per op node lifetime)
@@ -344,6 +345,14 @@ are used at the time the model is built or compiled.
     transformation pipeline.  Models constructed programmatically (e.g. in tests) may call ``set_cache_manager`` directly.
   * **Required**: *yes* (must be set before ``compile_model``)
 
+* *blocks_per_chunk* (``rt_info["blocks_per_chunk"]``)
+
+  * **Description**: Number of physical KV-cache blocks held by each chunk of the chunked KV
+    cache (see **Chunked KV cache** below).  It is not derivable from any input shape or type,
+    so it is carried as a runtime-info entry on the node rather than as a serialized attribute.
+  * **Type**: ``int64``, must be greater than ``0``.
+  * **Required**: *yes* when input 28 (``chunk_base_ptrs``) is present; ignored otherwise.
+
 
 **Inputs**
 
@@ -351,12 +360,16 @@ are used at the time the model is built or compiled.
 
    **Input ports are positional and cannot be skipped.**  OpenVINO does not support
    absent or null input ports: if port N were omitted, port N+1 would shift down to
-   position N, making all subsequent indices incorrect.  For this reason, all 28
-   input ports must be present in the graph.  Features that are semantically
+   position N, making all subsequent indices incorrect.  For this reason, input ports
+   0-27 must always be present in the graph.  Features that are semantically
    optional (e.g. ALiBi, xattention, sinks) are **disabled by connecting an empty
    tensor** (zero elements) or a zero sentinel value, not by omitting the port.
-   The CPU, GPU and reference (TEMPLATE) plugins all enforce a fixed input count;
-   no legacy / reduced-input form is accepted.
+
+   The only exception is the single **trailing** port 28 (``chunk_base_ptrs``), which
+   can be omitted without shifting any other port.  The operation therefore accepts
+   exactly **28 inputs** (canonical form) or **29 inputs** (chunked KV cache form);
+   any other input count is rejected during validation.  The 29-input form is
+   implemented only by the GPU plugin (see **Known limitations**).
 
 * **0**: ``query`` - 2D tensor of type *T*, shape ``[T, Hq*S]``.  Rows are query tokens
   packed across all sequences; ``Hq`` query heads of size ``S`` are concatenated in
@@ -507,6 +520,44 @@ are used at the time the model is built or compiled.
   sequence ``s``.  Empty = no custom bias.
   **Required (always present; empty tensor = disabled).**
 
+* **28**: ``chunk_base_ptrs`` - 1D tensor of type ``i64``, shape ``[2*Nchunk]``.  Base device
+  addresses of the KV-cache chunks, bit-cast to ``i64``: entries ``[0, Nchunk)`` are the
+  key-chunk addresses and entries ``[Nchunk, 2*Nchunk)`` are the value-chunk addresses, in
+  chunk-ID order.  The length is dynamic and ``Nchunk`` is derived from it at run time
+  (``Nchunk = shape[0] / 2``).  **Optional trailing input**: absent (28-input form) means
+  ``key_cache``/``value_cache`` are single contiguous allocations; present (29-input form)
+  enables the chunked KV cache described below.  When present, the ``blocks_per_chunk``
+  runtime-info entry is required.
+
+
+**Chunked KV cache**
+
+By default a physical block ID ``b`` in ``block_indices`` addresses block ``b`` of one
+contiguous ``key_cache`` / ``value_cache`` allocation, so growing the cache means allocating a
+larger tensor and copying the existing blocks.  With input 28 present, the cache is instead
+split into ``Nchunk`` independently allocated chunks of ``Bc = blocks_per_chunk`` blocks each,
+and the cache grows by **appending** chunks; existing chunks are never reallocated or copied.
+
+* **Block addressing**: block ID ``b`` resolves to chunk ``b // Bc`` and local block
+  ``b % Bc`` inside that chunk.  A chunk has the same per-block layout as the corresponding
+  blocks of the contiguous form.  Every block ID referenced by ``block_indices`` must satisfy
+  ``b < Nchunk * Bc``.
+
+* **Legacy cache inputs**: ``key_cache`` (input 3) and ``value_cache`` (input 4) are not read
+  or written in this form.  They still define the per-block layout and cache precision, so
+  they must remain connected, but may be bound to a minimal buffer (one block).
+
+* **Pointer table**: ``chunk_base_ptrs`` holds raw device addresses, not indices.  Each chunk
+  must stay allocated and at a fixed address for as long as any block in it is referenced.
+  The table may grow between inference calls (new chunks appended); previously listed
+  entries must not change.  Because the values are addresses, the input must never be
+  narrowed to ``i32`` (e.g. by a plugin's precision-conversion pass), as that would truncate
+  them.
+
+* **Restrictions**: the chunked form supports only an uncompressed KV cache (``f16``, ``bf16``
+  or ``f32`` cache precision).  Combinations with KV-cache rotation (inputs 14-16), score
+  output, and adaptive RKV are not defined for this form (see **Known limitations**).
+
 
 **Outputs**
 
@@ -542,6 +593,9 @@ are used at the time the model is built or compiled.
 
   * Allowed for ``key_cache`` (input 3): ``u4``, ``i8``, ``u8``, ``f16``, ``f32``, ``bf16``.
   * Allowed for ``value_cache`` (input 4): ``u4``, ``u8``, ``f16``, ``f32``, ``bf16``.
+  * With the chunked KV cache form (input 28 present): ``f16``, ``bf16`` or ``f32`` only.
+
+* *T_ptr* - ``i64``; used for ``chunk_base_ptrs`` (input 28), which carries bit-cast device addresses.
 
 
 **Dimension glossary**
@@ -559,6 +613,8 @@ are used at the time the model is built or compiled.
 * ``C``     - number of rows in the RoPE trig LUT.
 * ``Narkv`` - total entries in ``adaptive_rkv_diversity_block_set_indices``.
 * ``Nbias`` - total bytes in the packed ``qq_bias`` buffer.
+* ``Nchunk`` - number of KV-cache chunks in the chunked form (``chunk_base_ptrs`` has ``2*Nchunk`` entries).
+* ``Bc``    - blocks per chunk (``blocks_per_chunk`` runtime-info entry).
 
 Output 0 dimension derivation:
 ``Hq * Sv = (Hq * S) * (Hkv * Sv) / (Hkv * S)``
@@ -578,6 +634,9 @@ i.e. ``query_features * value_features / key_features``.
   runtime inside the evaluate function.  Note: the CPU plugin uses
   ``InternalDynShapeInferFactory`` which always skips shape inference; output 2 sizing on
   the CPU is handled exclusively in ``executeDynamicImpl`` by reading live input data.
+
+* **Input 28** (optional): must be a rank-1 tensor of type ``i64`` with dynamic length.  It
+  does not affect any output shape.
 
 
 **Implementation notes**
@@ -634,9 +693,14 @@ reference.
 +-------------------------------------------------------------+-----+-----------+
 | QQ attention bias (``qq_bias``)                             | Y   | N         |
 +-------------------------------------------------------------+-----+-----------+
+| Chunked KV cache (``chunk_base_ptrs``, input 28)            | N   | N         |
++-------------------------------------------------------------+-----+-----------+
 
 \* CPU produces zero score output for prefill steps when the window value is negative
 (see note 1 below).  Decode steps are not affected.
+
+The chunked KV cache (``chunk_base_ptrs``) is implemented only by the GPU plugin, which is not
+covered by this table; see **Known limitations**.
 
 The following behavioral differences exist between the reference implementation (TEMPLATE
 plugin) and the CPU plugin kernel.  These are not specification violations - each
@@ -836,6 +900,19 @@ configurations.
   plugin.  The GPU plugin and the reference (TEMPLATE) implementation
   both ignore the ``token_type_ids`` input: the tensor is accepted without error but has
   no effect on the attention computation, and all tokens use standard causal attention.
+
+* The chunked KV cache (optional input 28 ``chunk_base_ptrs``) is implemented only by the
+  GPU plugin.  The CPU plugin does not support the 29-input form.  The reference (TEMPLATE)
+  implementation accepts 29 inputs but does not implement chunked addressing, so its results
+  for the 29-input form are not meaningful.
+
+* GPU chunked KV cache: each chunk must be a USM device allocation (a raw ``cl_mem`` handle is
+  not a dereferenceable address), and the plugin registers the chunk addresses with the driver
+  before dispatch because the kernels reach them indirectly.  Only the uncompressed KV cache
+  is supported; compiling a chunked ``PagedAttentionExtension`` with a compressed cache fails
+  with a kernel-level ``#error``.  Micro-kernel SDPA is not used in this form (the plugin
+  falls back to the OpenCL paged-attention kernels).  KV-cache rotation, score output and
+  adaptive RKV have no chunk-aware kernels and must not be combined with input 28.
 
 
 **CPU plugin KV-cache quantization properties**
