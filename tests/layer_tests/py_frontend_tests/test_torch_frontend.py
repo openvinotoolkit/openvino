@@ -926,6 +926,53 @@ def _packed_experts_reference(model, example):
 
 @pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2])
+@pytest.mark.parametrize("split_with_sizes", [False, True])
+def test_make_16bit_traceable_packed_experts_split_weights(dtype, split_with_sizes):
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch import patch_model
+
+    class SplitExperts(_PackedExperts):
+        def forward(self, x):
+            x = x.repeat(self.num_experts, 1).view(self.num_experts, -1, x.shape[-1])
+            if split_with_sizes:
+                gate_weight, up_weight = self.gate_up_proj.split([6, 6], dim=1)
+            else:
+                gate_weight, up_weight = self.gate_up_proj.chunk(2, dim=-2)
+            gate = torch.bmm(x, gate_weight.transpose(1, 2))
+            up = torch.bmm(x, up_weight.transpose(1, 2))
+            return torch.bmm(torch.nn.functional.silu(gate) * up, self.down_proj.transpose(1, 2)).sum(0) + self.offset
+
+    model = SplitExperts()
+    original_model = _packed_experts(dtype)
+    model.load_state_dict(original_model.state_dict(), assign=True)
+    model.offset = original_model.offset
+    model.eval().requires_grad_(False)
+    originals = {"gate_up_proj": model.gate_up_proj, "down_proj": model.down_proj}
+    example = torch.linspace(-0.5, 0.5, 16).reshape(2, 8)
+    expected = _packed_experts_reference(model, example)
+    try:
+        patch_model.__make_16bit_traceable(model)
+        with torch.no_grad():
+            converted = convert_model(model, example_input=(example,))
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+    matmuls = [op for op in converted.get_ops() if op.get_type_name() == "MatMul"]
+    assert len(matmuls) == 3
+    for matmul in matmuls:
+        weights = matmul.input_value(1).get_node()
+        assert weights.get_type_name() == "Convert"
+        assert weights.input_value(0).get_node().get_type_name() == "Constant"
+    assert not any(op.get_type_name() == "Constant" and list(op.get_shape()) == [4, 12, 8]
+                   for op in converted.get_ops())
+    result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
+    np.testing.assert_allclose(result, expected.numpy(), atol=1e-5, rtol=1e-5)
+    for name, original in originals.items():
+        assert getattr(model, name) is original
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2])
 def test_make_16bit_traceable_packed_experts_share_storage(tmp_path, dtype):
     from openvino import convert_model, compile_model
     from openvino.frontend.pytorch import patch_model

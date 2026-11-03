@@ -288,6 +288,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
         // ConvertConvertLike will benefit from types inserted by ReverseShapeAndTypeInfer
         manager.register_pass<ov::pass::ConvertConvertLike>();
+        manager.register_pass<ov::pass::MoveDecompressionAfterSplit>();
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
         bool is_changed = manager.run_passes(model);
 

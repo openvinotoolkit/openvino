@@ -16,6 +16,7 @@ class TRANSFORMATIONS_API DisableDecompressionConvertConstantFolding;
 class TRANSFORMATIONS_API KeepConstAndDecompression;
 class TRANSFORMATIONS_API KeepConstantsPrecisionAndAddConverts;
 class TRANSFORMATIONS_API MarkCompressedFloatConstants;
+class TRANSFORMATIONS_API MoveDecompressionAfterSplit;
 
 }  // namespace pass
 }  // namespace ov
@@ -71,4 +72,18 @@ class ov::pass::MarkCompressedFloatConstants : public MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MarkCompressedFloatConstants");
     MarkCompressedFloatConstants();
+};
+
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Fold constant weight splits before decompression to keep their outputs compressible.
+ *
+ * Constant -> decompression Convert -> Split/VariadicSplit becomes one low-precision
+ * Constant -> decompression Convert per output, without materializing FP32 weights.
+ * Only byte-aligned element types are folded.
+ */
+class ov::pass::MoveDecompressionAfterSplit : public MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MoveDecompressionAfterSplit");
+    MoveDecompressionAfterSplit();
 };

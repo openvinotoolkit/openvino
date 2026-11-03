@@ -5,10 +5,15 @@
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
@@ -157,6 +162,56 @@ MarkCompressedFloatConstants::MarkCompressedFloatConstants() {
 
     auto m = std::make_shared<pattern::Matcher>(convert, matcher_name);
     this->register_matcher(m, callback);
+}
+
+MoveDecompressionAfterSplit::MoveDecompressionAfterSplit() {
+    MATCHER_SCOPE(MoveDecompressionAfterSplit);
+    auto constant = pattern::wrap_type<v0::Constant>([](const Output<Node>& output) {
+        const auto bitwidth = output.get_element_type().bitwidth();
+        return bitwidth >= 8 && bitwidth % 8 == 0;
+    });
+    auto convert = pattern::wrap_type<v0::Convert>({constant}, [](const Output<Node>& output) {
+        return is_decompression(output.get_node_shared_ptr());
+    });
+    auto axis = pattern::any_input();
+    auto split = pattern::wrap_type<ov::op::v1::Split>({convert, axis});
+    auto variadic_split = pattern::wrap_type<ov::op::v1::VariadicSplit>({convert, axis, pattern::any_input()});
+    auto split_pattern = std::make_shared<pattern::op::Or>(OutputVector{split, variadic_split});
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        const auto split_node = m.get_match_root();
+        if (transformation_callback(split_node) || constant_folding_is_disabled(split_node))
+            return false;
+        const auto convert_node = m.get_pattern_value_map().at(convert).get_node_shared_ptr();
+
+        OutputVector inputs{convert_node->input_value(0)};
+        for (size_t i = 1; i < split_node->get_input_size(); ++i) {
+            auto input = ov::util::get_constant_from_source(split_node->input_value(i));
+            if (!input)
+                return false;
+            inputs.push_back(input);
+        }
+        auto low_precision_split = split_node->clone_with_new_inputs(inputs);
+        OutputVector folded(split_node->get_output_size());
+        if (!low_precision_split->constant_fold(folded, inputs))
+            return false;
+
+        OutputVector replacements;
+        for (size_t i = 0; i < folded.size(); ++i) {
+            auto replacement = convert_node->clone_with_new_inputs({folded[i]});
+            replacement->set_friendly_name(split_node->get_friendly_name() + "." + std::to_string(i));
+            copy_runtime_info({inputs[0].get_node_shared_ptr(), split_node}, folded[i].get_node_shared_ptr());
+            copy_runtime_info({convert_node, split_node}, replacement);
+            mark_as_decompression(replacement);
+            disable_constant_folding(replacement);
+            disable_constant_folding(folded[i].get_node_shared_ptr());
+            replacements.push_back(replacement);
+        }
+        replace_node(split_node, replacements);
+        return true;
+    };
+
+    register_matcher(std::make_shared<pattern::Matcher>(split_pattern, matcher_name), callback);
 }
 
 }  // namespace ov::pass

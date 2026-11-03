@@ -80,6 +80,15 @@ This region trace runs after export for both models and supplied exported graphs
 The original graph stays unchanged, no OpenVINO loops are introduced, and the
 trace must not introduce new shape guards.
 
+### Packed low-precision expert weights
+
+Packed FP16, BF16 and FP8 expert weights retain their original precision during
+conversion rather than being copied to FP32 for tracing. Constant `Split` and
+`VariadicSplit` operations on these weights are folded before the decompression
+`Convert`. Each resulting weight is a low-precision constant followed by a
+conversion to FP32, allowing subsequent weight compression to recognize the
+MatMul weights without materializing a full FP32 copy of the packed tensor.
+
 ## How to Implement Support for a New PyTorch Operation
 
 PyTorch conversion into the OpenVINO opset operations consists of two stages:
