@@ -566,7 +566,7 @@ When changing the merge-queue knowledge-base format, update the matching schema 
 stays in sync. Likewise, when changing the post-commit knowledge-base format, update the matching schema
 under [`.github/ci-doctor-post-commit/schemas`](../../../../.github/ci-doctor-post-commit/schemas).
 
-The repository ships an `ov-agentic-workflows` [agent skill](../../../../.agents/skills/ov-agentic-workflows/SKILL.md)
+The repository ships an `ov-agentic-workflows` [agent skill](../../../../.claude/skills/ov-agentic-workflows/SKILL.md)
 that captures these editing rules and common tasks. When you work on these workflows with an AI coding
 assistant (such as GitHub Copilot), it loads the skill automatically to apply the correct procedure and
 guardrails.
