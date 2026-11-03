@@ -511,8 +511,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     }
     auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
     if (!low_power_device.empty()) {
-        if (is_meta_device(low_power_device))
-            OPENVINO_THROW("The meta device should not be used as low_power_device: ", low_power_device);
+        OPENVINO_ASSERT(!is_meta_device(low_power_device),
+                        "The meta device should not be used as low_power_device: ",
+                        low_power_device);
         try {
             auto resolved_low_power_device = parse_meta_devices(low_power_device, full_property);
             if (!resolved_low_power_device.empty())
@@ -827,6 +828,12 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                                         const DeviceSelectionPolicy& selection_policy,
                                         const std::optional<DeviceInformation>& low_power_device) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
+
+    // every candidate has been excluded, only a low power device outside of the list can still run
+    if (meta_devices.empty() && low_power_device.has_value() && get_low_power_mode().value_or(false)) {
+        register_priority(priority, low_power_device->unique_name);
+        return *low_power_device;
+    }
 
     const auto& utilization_thresholds = selection_policy.utilization_thresholds;
     const auto& perf_curve_table = selection_policy.perf_curve_table;

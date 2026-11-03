@@ -84,7 +84,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
     }
 }
 
-bool AutoSchedule::check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) {
+bool AutoSchedule::check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const {
     if (m_context->m_low_power_device && m_context->m_low_power_device->device_name == failed_device_name &&
         !m_context->m_low_power_device_unavailable.exchange(true)) {
         LOG_WARNING_TAG("low_power_device:%s failed, excluding it from future selection",
@@ -94,7 +94,7 @@ bool AutoSchedule::check_and_disable_if_low_power_device_failed(const std::strin
     return false;
 }
 
-DeviceName AutoSchedule::get_dynamic_active_device() {
+DeviceName AutoSchedule::get_dynamic_active_device() const {
     std::lock_guard<std::mutex> lock(m_gate_mutex);
     return m_gate_current_device;
 }
@@ -301,8 +301,13 @@ void AutoSchedule::init() {
         };
         m_executor->run(std::move(recycleTask));
     } else if (m_context->m_dynamic_device_selection ||
-               (m_context->m_device_priorities.size() != 1 && m_context->m_str_devices_initial.size() != 1 &&
-                m_context->m_runtime_fallback)) {
+               (m_context->m_runtime_fallback &&
+                ((m_context->m_device_priorities.size() != 1 && m_context->m_str_devices_initial.size() != 1) ||
+                 // an out-of-list low power device can still fall back onto the candidates at runtime
+                 !deviceChecker().check_if_device_in_list<DeviceInformation>(
+                     m_compile_context[ACTUALDEVICE].m_device_info.device_name,
+                     m_context->m_device_priorities,
+                     true)))) {
         // The performance will has some drop then m_passthrough_compiled_model when enable ENABLE_RUNTIME_FALLBACK
         for (auto&& device : m_context->m_device_priorities) {
             // initialize containers before run async task
@@ -629,15 +634,13 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
         const bool is_pinned = !preferred_device.empty();
         const auto pinned_device_name = device.device_name;
         OPENVINO_ASSERT(ensure_device_ready(device),
-                        "[",
                         get_log_tag(),
-                        "] failed to compile the model on the selected device ",
+                        ": failed to compile the model on the selected device ",
                         device.device_name);
         // reject if a pinned request ended up compiled on a different device
         OPENVINO_ASSERT(!is_pinned || device.device_name == pinned_device_name,
-                        "[",
                         get_log_tag(),
-                        "] failed to compile the model on the device pinned by the remote tensor ",
+                        ": failed to compile the model on the device pinned by the remote tensor ",
                         pinned_device_name);
         const auto& device_name = device.device_name;
         {
@@ -654,7 +657,7 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
         }
         m_dynamic_infer_count++;
         const bool dispatched = run_pipeline_task(pipeline_task, m_idle_worker_requests[device_name], device_name);
-        OPENVINO_ASSERT(dispatched, "[", get_log_tag(), "] no idle infer request available on device ", device_name);
+        OPENVINO_ASSERT(dispatched, get_log_tag(), ": no idle infer request available on device ", device_name);
         // a failure to start the request is swallowed by the pipeline and no callback returns the worker, so give
         // it back here and open the gate
         if (m_this_worker_infer_request && m_this_worker_infer_request->m_dispatch_failed) {
@@ -680,13 +683,17 @@ DeviceInformation AutoSchedule::select_dynamic_device() {
     DeviceInformation device;
     {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
-        OPENVINO_ASSERT(!m_context->m_device_priorities.empty(),
-                        "[", get_log_tag(), "] no candidate device left to run the inference");
+        const auto low_power_device =
+            m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device;
+        // the low power device can run on its own once every other candidate has been excluded
+        OPENVINO_ASSERT(!m_context->m_device_priorities.empty() ||
+                            (low_power_device && m_plugin->get_low_power_mode().value_or(false)),
+                        get_log_tag(), ": no candidate device left to run the inference");
         device = m_plugin->select_device(m_context->m_device_priorities,
                                         m_context->m_model_precision,
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
-                                        (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
+                                        low_power_device);
     }
     // select_device() registers the picked device, dynamic selection keeps no reservation
     m_plugin->unregister_priority(m_context->m_model_priority, device.unique_name);
@@ -727,9 +734,17 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
             failed_devices.push_back(candidate.device_name);
         }
     }
-    if ((fell_back_to_other_device || !context.m_is_load_success) &&
-        std::find(failed_devices.begin(), failed_devices.end(), requested_device_name) == failed_devices.end()) {
-        failed_devices.push_back(requested_device_name);
+    const auto add_failed_device = [&failed_devices](const std::string& name) {
+        if (std::find(failed_devices.begin(), failed_devices.end(), name) == failed_devices.end()) {
+            failed_devices.push_back(name);
+        }
+    };
+    if (fell_back_to_other_device || !context.m_is_load_success) {
+        add_failed_device(requested_device_name);
+    }
+    if (!context.m_is_load_success) {
+        // a failed CPU is never erased from the candidate list by try_to_compile_model(), so it is not found above
+        add_failed_device(context.m_device_info.device_name);
     }
     if (!failed_devices.empty()) {
         // exclude them from the shared candidate list so future inferences stop retrying them
@@ -770,25 +785,36 @@ void AutoSchedule::release_execution_slot() {
     std::pair<ov::threading::Task, DeviceName> next;
     std::shared_ptr<ov::threading::IStreamsExecutor> executor;
     {
-        std::lock_guard<std::mutex> lock(m_gate_mutex);
-        m_gate_busy = false;
+        std::unique_lock<std::mutex> lock(m_gate_mutex);
         if (m_dynamic_shutdown) {
-            // AutoSchedule is being torn down, do not touch m_dynamic_executor anymore and drop any
-            // still-queued follow-up request: the compiled model is being destroyed, so nothing else
-            // is waiting on their completion.
+            // AutoSchedule is being torn down, do not touch m_dynamic_executor anymore; the queued requests can no
+            // longer run, so they are failed instead of being left to hang their callers.
+            // The gate stays busy meanwhile so that ~AutoSchedule() does not finish under them.
+            auto abandoned_tasks = std::move(m_gate_pending_tasks);
+            m_gate_pending_tasks.clear();
+            lock.unlock();
+            for (auto& abandoned : abandoned_tasks) {
+                m_this_scheduling_exception =
+                    std::make_exception_ptr(ov::Exception("Model is being destroyed, the request is cancelled"));
+                abandoned.first();
+            }
+            lock.lock();
+            m_gate_busy = false;
+            // notified under the lock: it is the last access of the device callback to this object
+            m_dispatch_done.notify_all();
             return;
         }
-        if (!m_gate_pending_tasks.empty()) {
-            next = std::move(m_gate_pending_tasks.front());
-            m_gate_pending_tasks.pop_front();
-            m_gate_busy = true;
-            executor = m_dynamic_executor;
-            ++m_active_dispatch;
+        m_gate_busy = false;
+        if (m_gate_pending_tasks.empty()) {
+            // logged under the lock: once it is released ~AutoSchedule() may run, so this must not be touched
+            LOG_DEBUG_TAG("[dynamic] inference finished, no request is waiting");
+            return;
         }
-    }
-    if (!next.first) {
-        LOG_DEBUG_TAG("[dynamic] inference finished, no request is waiting");
-        return;
+        next = std::move(m_gate_pending_tasks.front());
+        m_gate_pending_tasks.pop_front();
+        m_gate_busy = true;
+        executor = m_dynamic_executor;
+        ++m_active_dispatch;
     }
     LOG_DEBUG_TAG("[dynamic] inference finished, dispatching the next queued request");
     submit_dynamic_dispatch(executor, std::move(next.first), next.second);
@@ -802,19 +828,20 @@ AutoSchedule::~AutoSchedule() {
         std::unique_lock<std::mutex> lock(m_gate_mutex);
         m_dynamic_shutdown = true;
         dynamic_executor = std::move(m_dynamic_executor);
-        // in-flight dispatch tasks hold a raw this and may still finish a failed request, so drain them first
+        // in-flight dispatch tasks hold a raw this and may still finish a failed request, and the device completion
+        // callback of a running inference still uses this after it has notified the user request, so drain both
         m_dispatch_done.wait(lock, [this] {
-            return m_active_dispatch == 0;
+            return m_active_dispatch == 0 && !m_gate_busy;
         });
     }
     if (dynamic_executor) {
         LOG_INFO_TAG("[dynamic] total inference:%zu, device switch:%zu",
                      m_dynamic_infer_count.load(),
                      m_dynamic_switch_count.load());
-        // do not clear the executor manager's "AutoDynamicSchedule" entry here: get_idle_cpu_streams_executor()
-        // hands out the same shared executor by name to any concurrently alive AutoSchedule instance, so an
-        // unconditional clear() by name could evict entries still owned by another instance. Just drop our
-        // own reference and let the executor manager keep/reuse or destroy it once the last owner releases it.
+        // do not clear the executor manager's "AutoDynamicSchedule" entry here: clear() works by name and would
+        // also evict the executors of other alive AutoSchedule instances. get_idle_cpu_streams_executor() only
+        // hands out an executor nobody else holds, so instances never share one; just drop our own reference
+        // and let the executor manager keep it for reuse.
         dynamic_executor.reset();
     }
     // this is necessary to guarantee member destroyed after getting future

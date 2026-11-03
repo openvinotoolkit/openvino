@@ -15,6 +15,7 @@
 
 using namespace ov::mock_auto_plugin;
 
+namespace ov::test {
 namespace {
 // Mirrors StatefulModelSupportedTest::create_stateful_model(): a minimal ReadValue/Assign
 // pair is enough for filter_device_by_model() to detect the model as stateful.
@@ -982,3 +983,4 @@ TEST_F(AutoDynamicDeviceSelectionTest, streams_are_not_forced_without_the_per_in
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     EXPECT_EQ(recorder.streams("GPU.0"), -100);
 }
+}  // namespace ov::test

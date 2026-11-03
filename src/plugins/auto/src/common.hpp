@@ -74,6 +74,17 @@ struct WorkerInferRequest {
     bool                          m_dispatch_failed = false;
 };
 
+// flags the worker as not dispatched unless dismissed, i.e. when its scope is left by an exception
+struct DispatchFailureGuard {
+    WorkerInferRequest* m_worker;
+    bool m_dismissed = false;
+    ~DispatchFailureGuard() {
+        if (!m_dismissed) {
+            m_worker->m_dispatch_failed = true;
+        }
+    }
+};
+
 struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
     explicit ThisRequestExecutor(WorkerInferRequest** ptr, AutoImmediateExecutor::Ptr executor = nullptr):
         m_workptrptr{ptr},
@@ -81,12 +92,10 @@ struct ThisRequestExecutor : public ov::threading::ITaskExecutor {
     void run(ov::threading::Task task) override {
         (*m_workptrptr)->m_task = std::move(task);
         (*m_workptrptr)->m_fallback_exec = m_fallback_exec;
-        try {
-            (*m_workptrptr)->m_inferrequest->start_async();
-        } catch (...) {
-            (*m_workptrptr)->m_dispatch_failed = true;
-            throw;
-        }
+        // the completion callback may already own the worker once start_async() returns
+        DispatchFailureGuard guard{*m_workptrptr};
+        (*m_workptrptr)->m_inferrequest->start_async();
+        guard.m_dismissed = true;
     };
     WorkerInferRequest** m_workptrptr = nullptr;
     AutoImmediateExecutor::Ptr m_fallback_exec;

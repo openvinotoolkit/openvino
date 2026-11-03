@@ -20,7 +20,7 @@ public:
     virtual ~AutoSchedule();
     AutoCompileContext                                                     m_compile_context[CONTEXTNUM];
     // device the latest dynamic inference was dispatched to, empty until one has been dispatched
-    DeviceName get_dynamic_active_device();
+    DeviceName get_dynamic_active_device() const;
 
 private:
     void init() override;
@@ -57,7 +57,7 @@ private:
     bool ensure_device_ready(DeviceInformation& device);
     // disables the configured low_power_device override if it matches the failed device
     // @return true only for the call that disabled it, i.e. the first failure of that device
-    bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name);
+    bool check_and_disable_if_low_power_device_failed(const std::string& failed_device_name) const;
     size_t                                                               m_cpuhelp_infer_count = 0;
     double                                                               m_cpuhelp_fps = 0.0;
     mutable std::once_flag                                               m_oc;
@@ -67,7 +67,7 @@ private:
     bool                                                                 m_exitflag = {false};
     std::shared_ptr<ov::threading::IStreamsExecutor>                     m_dynamic_executor;
     std::shared_ptr<ov::Model>                                           m_dynamic_model;
-    std::mutex                                                           m_gate_mutex;
+    mutable std::mutex                                                   m_gate_mutex;
     bool                                                                 m_gate_busy = false;
     // guarded by m_gate_mutex; set once in ~AutoSchedule() so in-flight dynamic tasks stop touching
     // m_dynamic_executor once teardown has started

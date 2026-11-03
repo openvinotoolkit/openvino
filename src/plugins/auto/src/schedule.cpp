@@ -272,16 +272,20 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     if (m_this_scheduling_exception) {
                         auto scheduling_exception = m_this_scheduling_exception;
                         m_this_scheduling_exception = nullptr;
-                        std::rethrow_exception(scheduling_exception);
+                        // the failure can come from a device plugin, so make sure an ov::Exception is surfaced
+                        try {
+                            std::rethrow_exception(scheduling_exception);
+                        } catch (const ov::Exception&) {
+                            throw;
+                        } catch (const std::exception& ex) {
+                            OPENVINO_THROW(ex.what());
+                        }
                     }
                     *worker_infer_request = m_this_worker_infer_request;
                     auto auto_request = std::dynamic_pointer_cast<InferRequest>(infer_request);
-                    try {
-                        auto_request->set_tensors_to_another_request(m_this_worker_infer_request->m_inferrequest);
-                    } catch (...) {
-                        m_this_worker_infer_request->m_dispatch_failed = true;
-                        throw;
-                    }
+                    DispatchFailureGuard guard{m_this_worker_infer_request};
+                    auto_request->set_tensors_to_another_request(m_this_worker_infer_request->m_inferrequest);
+                    guard.m_dismissed = true;
                     INFO_RUN([worker_infer_request]() {
                         (*worker_infer_request)->m_start_times.push_back(std::chrono::steady_clock::now());
                         });
