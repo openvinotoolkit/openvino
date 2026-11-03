@@ -467,11 +467,16 @@ static void fftCopyInverseInputData(float* dst,
                                     const CpuParallelPtr& cpuParallel) {
     const size_t hermitianInputSize = signalSize / 2 + 1;
 
-    // Missing Hermitian bins must be treated as zero. A shorter input spectrum is not a
-    // valid half-spectrum; otherwise the CPU path reads past the end of the input buffer.
+    // Missing Hermitian bins must be treated as zero, while the mirrored conjugate bins must
+    // still be reconstructed to satisfy the full-spectrum inverse transform.
     if (inputSize < hermitianInputSize) {
         std::fill_n(dst, 2 * signalSize, 0.0F);
         cpu_memcpy(dst, src, inputSize * complex_type_size<float>());
+        for (size_t i = 1; i < inputSize; ++i) {
+            const size_t mirroredIndex = signalSize - i;
+            dst[2 * mirroredIndex] = dst[2 * i];
+            dst[2 * mirroredIndex + 1] = -dst[2 * i + 1];
+        }
         return;
     }
 
@@ -547,6 +552,7 @@ void RDFTExecutor::fft(float* input,
     if (inputSize < signalSize || type == real_to_complex) {
         if (isInverse) {
             fftCopyInverseInputData(scratchSpace.data(), input, inputSize, signalSize, parallelize, cpuParallel);
+            inputSize = signalSize;
         } else if (type == real_to_complex) {
             fftCopyRealInputData(scratchSpace.data(), input, inputSize, parallelize, cpuParallel);
         }
@@ -973,6 +979,20 @@ struct RDFTJitExecutor : public RDFTExecutor {
              enum dft_type type,
              bool parallelize,
              [[maybe_unused]] const CpuParallelPtr& cpuParallel) override {
+        if (type == complex_to_real && inputSize < signalSize / 2 + 1) {
+            dftCommon(inputPtr,
+                      twiddlesPtr,
+                      outputPtr,
+                      inputSize,
+                      signalSize,
+                      outputSize,
+                      type,
+                      canUseFFT(signalSize),
+                      parallelize,
+                      cpuParallel);
+            return;
+        }
+
         jit_dft_kernel* kernel = type == complex_to_complex ? dftKernel.get() : rdftKernel.get();
         if (parallelize) {
             const int cachelineSize = 64;
@@ -1071,14 +1091,16 @@ private:
                 imag += inputImag * cos + inputReal * sin;
             }
             if (isInverse) {
-                float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
-                for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inp[0];
-                    float inputImag = -inp[1];
-                    real += inputReal * cos - inputImag * sin;
-                    imag += inputImag * cos + inputReal * sin;
+                if (inputSize >= signalSize / 2 + 1) {
+                    float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
+                    for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
+                        float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                        float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                        float inputReal = inp[0];
+                        float inputImag = -inp[1];
+                        real += inputReal * cos - inputImag * sin;
+                        imag += inputImag * cos + inputReal * sin;
+                    }
                 }
                 real /= outputSize;
                 imag /= outputSize;
@@ -1113,13 +1135,15 @@ private:
                 real += inputReal * cos - inputImag * sin;
             }
             if (isInverse) {
-                float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
-                for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
-                    float cos = twiddlesPtr[2 * (k * outputSize + n)];
-                    float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
-                    float inputReal = inp[0];
-                    float inputImag = inp[1];
-                    real += inputReal * cos + inputImag * sin;
+                if (inputSize >= signalSize / 2 + 1) {
+                    float* inp = inputPtr + 2 * (inputSize - 2 + outputSize % 2);
+                    for (size_t n = inputSize; n < signalSize; n++, inp -= 2) {
+                        float cos = twiddlesPtr[2 * (k * outputSize + n)];
+                        float sin = twiddlesPtr[2 * (k * outputSize + n) + 1];
+                        float inputReal = inp[0];
+                        float inputImag = inp[1];
+                        real += inputReal * cos + inputImag * sin;
+                    }
                 }
                 real /= outputSize;
             }
