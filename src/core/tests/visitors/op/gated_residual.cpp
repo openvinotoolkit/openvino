@@ -18,13 +18,13 @@ TEST(attributes, gated_residual_read_default_attrs) {
     const auto w_up = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{16, 8});
 
     const auto op = std::make_shared<op::internal::GatedResidual>(OutputVector{residual, norm_weight, w_down, w_up},
-                                                                   op::internal::GatedResidual::Mode::READ,
-                                                                   4,
-                                                                   4,
-                                                                   8,
-                                                                   1e-6F,
-                                                                   true,
-                                                                   false);
+                                                                  op::internal::GatedResidual::Mode::READ,
+                                                                  4,
+                                                                  4,
+                                                                  8,
+                                                                  1e-6F,
+                                                                  true,
+                                                                  false);
 
     NodeBuilder builder(op, {residual, norm_weight, w_down, w_up});
     auto g_op = ov::as_type_ptr<op::internal::GatedResidual>(builder.create());
@@ -58,17 +58,17 @@ TEST(attributes, gated_residual_read_compressed_weights_attrs) {
 
     const OutputVector args{residual, norm_weight, w_down, w_up, w_down_scale, w_down_zp, w_up_scale, w_up_zp};
     const auto op = std::make_shared<op::internal::GatedResidual>(args,
-                                                                   op::internal::GatedResidual::Mode::READ,
-                                                                   4,
-                                                                   4,
-                                                                   8,
-                                                                   1e-6F,
-                                                                   true,
-                                                                   false,
-                                                                   element::dynamic,
-                                                                   true,
-                                                                   true,
-                                                                   0);
+                                                                  op::internal::GatedResidual::Mode::READ,
+                                                                  4,
+                                                                  4,
+                                                                  8,
+                                                                  1e-6F,
+                                                                  true,
+                                                                  false,
+                                                                  element::dynamic,
+                                                                  true,
+                                                                  true,
+                                                                  0);
 
     NodeBuilder builder(op, args);
     auto g_op = ov::as_type_ptr<op::internal::GatedResidual>(builder.create());
@@ -88,14 +88,14 @@ TEST(attributes, gated_residual_write_non_default_attrs) {
     const auto write_gate = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{2, 3, 4});
 
     const auto op = std::make_shared<op::internal::GatedResidual>(OutputVector{residual, sublayer_y, write_gate},
-                                                                   op::internal::GatedResidual::Mode::WRITE,
-                                                                   4,
-                                                                   4,
-                                                                   0,
-                                                                   1e-3F,
-                                                                   false,
-                                                                   false,
-                                                                   element::f32);
+                                                                  op::internal::GatedResidual::Mode::WRITE,
+                                                                  4,
+                                                                  4,
+                                                                  0,
+                                                                  1e-3F,
+                                                                  false,
+                                                                  false,
+                                                                  element::f32);
 
     NodeBuilder builder(op, {residual, sublayer_y, write_gate});
     auto g_op = ov::as_type_ptr<op::internal::GatedResidual>(builder.create());

@@ -15,16 +15,16 @@ namespace {
 using Mode = op::internal::GatedResidual::Mode;
 
 std::shared_ptr<op::internal::GatedResidual> make_read(const element::Type& et,
-                                                        const PartialShape& residual,
-                                                        const PartialShape& norm_weight,
-                                                        const PartialShape& w_down,
-                                                        const PartialShape& w_up,
-                                                        size_t hc_count,
-                                                        size_t hidden_size,
-                                                        size_t lowrank,
-                                                        Mode mode = Mode::READ,
-                                                        bool produce_write_gate = false,
-                                                        const PartialShape& w_inject = PartialShape::dynamic()) {
+                                                       const PartialShape& residual,
+                                                       const PartialShape& norm_weight,
+                                                       const PartialShape& w_down,
+                                                       const PartialShape& w_up,
+                                                       size_t hc_count,
+                                                       size_t hidden_size,
+                                                       size_t lowrank,
+                                                       Mode mode = Mode::READ,
+                                                       bool produce_write_gate = false,
+                                                       const PartialShape& w_inject = PartialShape::dynamic()) {
     auto residual_p = std::make_shared<op::v0::Parameter>(et, residual);
     auto norm_weight_p = std::make_shared<op::v0::Parameter>(et, norm_weight);
     auto w_down_p = std::make_shared<op::v0::Parameter>(et, w_down);
@@ -45,11 +45,11 @@ std::shared_ptr<op::internal::GatedResidual> make_read(const element::Type& et,
 }
 
 std::shared_ptr<op::internal::GatedResidual> make_write(const element::Type& et,
-                                                         const PartialShape& residual,
-                                                         const PartialShape& sublayer_y,
-                                                         const PartialShape& write_gate,
-                                                         size_t hc_count,
-                                                         size_t hidden_size) {
+                                                        const PartialShape& residual,
+                                                        const PartialShape& sublayer_y,
+                                                        const PartialShape& write_gate,
+                                                        size_t hc_count,
+                                                        size_t hidden_size) {
     auto residual_p = std::make_shared<op::v0::Parameter>(et, residual);
     auto sublayer_y_p = std::make_shared<op::v0::Parameter>(et, sublayer_y);
     auto write_gate_p = std::make_shared<op::v0::Parameter>(et, write_gate);
@@ -118,14 +118,8 @@ TEST(type_prop, gated_residual_final_mix_static) {
 }
 
 TEST(type_prop, gated_residual_read_partial_shape) {
-    const auto op = make_read(element::f32,
-                              PartialShape{{1, 4}, -1, 16},
-                              Shape{16},
-                              Shape{8, 16},
-                              Shape{16, 8},
-                              4,
-                              4,
-                              8);
+    const auto op =
+        make_read(element::f32, PartialShape{{1, 4}, -1, 16}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 4, 4, 8);
 
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{1, 4}, -1, 4}));
 }
@@ -150,13 +144,13 @@ TEST(type_prop, gated_residual_read_wrong_input_count) {
 
     OV_EXPECT_THROW(
         std::ignore = std::make_shared<op::internal::GatedResidual>(OutputVector{residual, norm_weight, w_down},
-                                                                     Mode::READ,
-                                                                     4,
-                                                                     4,
-                                                                     8,
-                                                                     1e-6F,
-                                                                     true,
-                                                                     false),
+                                                                    Mode::READ,
+                                                                    4,
+                                                                    4,
+                                                                    8,
+                                                                    1e-6F,
+                                                                    true,
+                                                                    false),
         NodeValidationFailure,
         testing::HasSubstr("expects 4 inputs"));
 }
@@ -165,17 +159,16 @@ TEST(type_prop, gated_residual_write_wrong_input_count) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto sublayer_y = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4});
 
-    OV_EXPECT_THROW(
-        std::ignore = std::make_shared<op::internal::GatedResidual>(OutputVector{residual, sublayer_y},
-                                                                     Mode::WRITE,
-                                                                     4,
-                                                                     4,
-                                                                     0,
-                                                                     1e-6F,
-                                                                     true,
-                                                                     false),
-        NodeValidationFailure,
-        testing::HasSubstr("expects 3 inputs"));
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(OutputVector{residual, sublayer_y},
+                                                                                Mode::WRITE,
+                                                                                4,
+                                                                                4,
+                                                                                0,
+                                                                                1e-6F,
+                                                                                true,
+                                                                                false),
+                    NodeValidationFailure,
+                    testing::HasSubstr("expects 3 inputs"));
 }
 
 TEST(type_prop, gated_residual_final_mix_cannot_produce_write_gate) {
@@ -216,17 +209,16 @@ TEST(type_prop, gated_residual_invalid_lowrank) {
 }
 
 TEST(type_prop, gated_residual_invalid_residual_rank) {
-    OV_EXPECT_THROW(
-        std::ignore = make_read(element::f32, Shape{16}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 4, 4, 8),
-        NodeValidationFailure,
-        testing::HasSubstr("rank to be at least 2"));
+    OV_EXPECT_THROW(std::ignore = make_read(element::f32, Shape{16}, Shape{16}, Shape{8, 16}, Shape{16, 8}, 4, 4, 8),
+                    NodeValidationFailure,
+                    testing::HasSubstr("rank to be at least 2"));
 }
 
 namespace {
 
 std::shared_ptr<op::internal::GatedResidual> make_read_compressed(bool produce_write_gate,
-                                                                   bool has_zero_points,
-                                                                   size_t group_size = 0) {
+                                                                  bool has_zero_points,
+                                                                  size_t group_size = 0) {
     auto residual = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 16});
     auto norm_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{16});
     auto w_down = std::make_shared<op::v0::Parameter>(element::u8, Shape{8, 16});
@@ -250,17 +242,17 @@ std::shared_ptr<op::internal::GatedResidual> make_read_compressed(bool produce_w
     }
 
     return std::make_shared<op::internal::GatedResidual>(args,
-                                                          Mode::READ,
-                                                          4,
-                                                          4,
-                                                          8,
-                                                          1e-6F,
-                                                          true,
-                                                          produce_write_gate,
-                                                          element::dynamic,
-                                                          true,
-                                                          has_zero_points,
-                                                          group_size);
+                                                         Mode::READ,
+                                                         4,
+                                                         4,
+                                                         8,
+                                                         1e-6F,
+                                                         true,
+                                                         produce_write_gate,
+                                                         element::dynamic,
+                                                         true,
+                                                         has_zero_points,
+                                                         group_size);
 }
 
 }  // namespace
@@ -317,21 +309,21 @@ TEST(type_prop, gated_residual_write_rejects_compressed_weights) {
     auto sublayer_y = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4});
     auto write_gate = std::make_shared<op::v0::Parameter>(element::f32, Shape{2, 3, 4});
 
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GatedResidual>(
-                        OutputVector{residual, sublayer_y, write_gate},
-                        Mode::WRITE,
-                        4,
-                        4,
-                        0,
-                        1e-6F,
-                        true,
-                        false,
-                        element::dynamic,
-                        true,
-                        false,
-                        0),
-                    NodeValidationFailure,
-                    testing::HasSubstr("does not support compressed weights"));
+    OV_EXPECT_THROW(
+        std::ignore = std::make_shared<op::internal::GatedResidual>(OutputVector{residual, sublayer_y, write_gate},
+                                                                    Mode::WRITE,
+                                                                    4,
+                                                                    4,
+                                                                    0,
+                                                                    1e-6F,
+                                                                    true,
+                                                                    false,
+                                                                    element::dynamic,
+                                                                    true,
+                                                                    false,
+                                                                    0),
+        NodeValidationFailure,
+        testing::HasSubstr("does not support compressed weights"));
 }
 
 }  // namespace ov::test

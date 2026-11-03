@@ -10,7 +10,7 @@
 namespace ov::op::internal {
 
 GatedResidual::CompressedInputIdx GatedResidual::CompressedInputIdx::compute(bool produce_write_gate,
-                                                                              bool has_zero_points) {
+                                                                             bool has_zero_points) {
     CompressedInputIdx idx;
     size_t next = produce_write_gate ? 5 : 4;
     idx.w_down_scale = next++;
@@ -89,7 +89,9 @@ void GatedResidual::validate_and_infer_types() {
                           "GatedResidual requires the residual input rank to be at least 2.");
 
     if (m_mode == Mode::WRITE) {
-        NODE_VALIDATION_CHECK(this, !m_weights_compressed, "GatedResidual (WRITE) does not support compressed weights.");
+        NODE_VALIDATION_CHECK(this,
+                              !m_weights_compressed,
+                              "GatedResidual (WRITE) does not support compressed weights.");
         NODE_VALIDATION_CHECK(this, input_size == 3, "GatedResidual (WRITE) expects 3 inputs, got ", input_size);
         // R' has exactly the residual layout.
         set_output_size(1);
@@ -116,7 +118,9 @@ void GatedResidual::validate_and_infer_types() {
                           expected_input_size,
                           " inputs, got ",
                           input_size);
-    NODE_VALIDATION_CHECK(this, m_mode != Mode::FINAL_MIX || !m_produce_write_gate, "GatedResidual (FINAL_MIX) must not produce a write gate.");
+    NODE_VALIDATION_CHECK(this,
+                          m_mode != Mode::FINAL_MIX || !m_produce_write_gate,
+                          "GatedResidual (FINAL_MIX) must not produce a write gate.");
     NODE_VALIDATION_CHECK(this, m_lowrank > 0, "GatedResidual (READ/FINAL_MIX) requires a positive low rank L.");
 
     if (m_weights_compressed) {
