@@ -404,15 +404,15 @@ struct data : public primitive_base<data> {
         cache_info = std::make_shared<weightless_cache_manager>();
     }
 
-        data(const primitive_id& id,
-                 memory::ptr mem,
-                 std::shared_ptr<weightless_cache_manager> cache_info,
-                 bool skip_device_transfer = false,
-                 uint32_t resident_expert_num = 0)
+    data(const primitive_id& id,
+         memory::ptr mem,
+         std::shared_ptr<weightless_cache_manager> cache_info,
+         bool skip_device_transfer = false,
+         uint32_t resident_expert_num = 0)
         : primitive_base(id, {}),
           mem(std::move(mem)),
-                    _skip_device_transfer(skip_device_transfer),
-                    _resident_expert_num(resident_expert_num),
+          _skip_device_transfer(skip_device_transfer),
+          _resident_expert_num(resident_expert_num),
           cache_info(cache_info) {
         if (!cache_info) {
             this->cache_info = std::make_shared<weightless_cache_manager>();
