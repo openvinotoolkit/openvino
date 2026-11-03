@@ -57,7 +57,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
                                         m_context->m_low_power_device);
-            // Never wait for an in-flight warm-up compilation here: it would block the failing inference callback.
+            // Don't wait for warm-up; a fallback to the device being warmed up still waits on Core's blob lock.
             if (m_cache_warmup) {
                 m_cache_warmup->cancel();
             }

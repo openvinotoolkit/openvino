@@ -37,9 +37,9 @@ static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK
  * devices exist. Ignored in cumulative throughput mode, when there is no other candidate device, and when
  * ov::cache_blob_id is set. Devices are skipped when the cache path is a single-file cache (*.bin).
  *
- * Only the devices listed in ov::device::priorities (or in the device string, e.g. "AUTO:GPU,NPU") are candidates;
- * other available devices are not compiled. For example, to warm up the cache for GPU and NPU, so that the one not
- * selected by AUTO is compiled in the background:
+ * When ov::device::priorities (or a device string such as "AUTO:GPU,NPU") is set, it determines the candidates;
+ * otherwise AUTO discovers its usual eligible devices. For example, to warm up the cache for GPU and NPU, so that
+ * the one not selected by AUTO is compiled in the background:
  * @code
  * core.compile_model(model,
  *                    "AUTO",
