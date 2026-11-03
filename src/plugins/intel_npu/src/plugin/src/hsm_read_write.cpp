@@ -12,7 +12,7 @@ using namespace intel_npu;
 namespace {
 
 constexpr std::string_view PARSE_FAILURE_MESSAGE = "Failed to parse the mandatory section ";
-constexpr std::string_view MANDATORY_READER_MISSING_MESSAGE = "No section reader found for mandatory section ";
+constexpr std::string_view MANDATORY_READER_MISSING_MESSAGE = "No section reader found for mandatory section %s ";
 constexpr std::string_view OPTIONAL_READER_MISSING_MESSAGE = "No section reader found for optional section %s";
 constexpr std::string_view OPTIONAL_SECTION_PARSING_FAILED_MESSAGE = "The parsing of optional section %s has failed.";
 
@@ -170,26 +170,20 @@ BlobSectionsRegistry read_from(
         }
 
         // How the section will be handled depends on the type & instance evaluators:
-        //  * Case 1: evaluated & supported type, evaluated & supported instance - the section is mandatory. It is read
-        //  without a try-catch block.
+        //  * Case 1: evaluated & supported type, evaluated & supported instance - the section is mandatory. Execution
+        //  halts if parsing the section fails.
         //  * Case 2: evaluated & supported type, evaluated & unsupported instance - the section is unsupported. It's
         //  parsing is skipped.
-        //  * Case 3: evaluated & supported type, unevaluated instance - the section is optional. It is read within a
-        //  try-catch block.
+        //  * Case 3: evaluated & supported type, unevaluated instance - the section is optional. Execution will not
+        //  halt upon failure of parsing.
         //  * Case 4: evaluated & unsupported type - the section is unsupported. It's parsing is skipped.
-        //  * Case 5: unevaluated type, unevaluated instance - the section is optional. It is read within a try-catch
-        //  block.
+        //  * Case 5: unevaluated type, unevaluated instance - the section is optional. Execution will not halt upon
+        //  failure of parsing.
 
         const std::optional<bool> type_evaluation_result =
             runtime_requirements->get_type_evaluation_result(section_type);
         const std::optional<bool> instance_evaluation_result =
             runtime_requirements->get_instance_evaluation_result(section_id);
-
-        const std::optional<std::shared_ptr<ISection>> parsed_section =
-            base_reader.decode(manifest_entry.device, manifest_entry.tag.id(), section_readers.at(section_type));
-        if (parsed_section.has_value()) {
-            registry.register_section(parsed_section.value(), section_id);
-        }
 
         if (type_evaluation_result.has_value() && type_evaluation_result.value()) {
             if (instance_evaluation_result.has_value() && instance_evaluation_result.value()) {
@@ -209,7 +203,7 @@ BlobSectionsRegistry read_from(
                              debug_name.data());
             } else {
                 // Case 3
-                logger.trace("The section instance %s was not evaluated", debug_name.data());
+                logger.trace("The section instance %s was not evaluated or evaluated to unknown", debug_name.data());
                 parse_section(base_reader,
                               section_readers,
                               manifest_entry,

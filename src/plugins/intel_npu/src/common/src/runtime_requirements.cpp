@@ -175,7 +175,7 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
     // TODO make sure the inclusion of a runtime requirements section is optional
     const size_t section_length = section.size();
     if (section_length < MINIMUM_RUNTIME_REQUIREMENTS_SIZE) {
-        logger.error("The runtime requirements section is too small");
+        logger.warning("The runtime requirements section is too small");
         return std::nullopt;
     }
 
@@ -188,19 +188,20 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
         compat::Parser parser(full_payload, std::vector<std::string>());
         parsed_content = parser.getAttributes();
     } catch (const std::exception& ex) {
-        logger.error("The content of the runtime requirements section is malformed: %s", ex.what());
+        logger.warning("The content of the runtime requirements section is malformed: %s", ex.what());
         return std::nullopt;
     }
 
     if (!parsed_content.count(VERSION_KEY.data())) {
-        logger.error("Missing runtime requirements version");
+        logger.warning("Missing runtime requirements version");
         return std::nullopt;
     }
 
     // Check the format version
     const MajorMinorVersion parsed_version = MajorMinorVersion::from_string(parsed_content.at(VERSION_KEY.data()));
     if (parsed_version != CURRENT_RUNTIME_REQUIREMENTS_VERSION) {
-        logger.error("Unsupported runtime requirements version: %s", parsed_version.to_string());
+        // TODO check all %s got char*
+        logger.warning("Unsupported runtime requirements version: %s", parsed_version.to_string().data());
         return std::nullopt;
     }
     parsed_content.erase(VERSION_KEY.data());
@@ -213,14 +214,16 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
         try {
             cre = CRE::from_string(parsed_content.at(CRE_KEY.data()), logger.level());
         } catch (const std::exception& ex) {
-            logger.error("Failed to parse the CRE. Exception: %s", ex.what());
+            logger.warning("Failed to parse the CRE. Exception: %s", ex.what());
             return std::nullopt;
         }
 
         parsed_content.erase(CRE_KEY.data());
+    } else {
+        logger.warning(
+            "No compatibility requirements expression found within the runtime requirements. The compiled model "
+            "is considered supported in this case.");
     }
-    logger.warning("No compatibility requirements expression found within the runtime requirements. The compiled model "
-                   "will be considered supported in this case.");
 
     // All other entries should have the key format "<section type name>_<id>"
     logger.debug("Parsing the sections requirements");
@@ -232,12 +235,13 @@ ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> RuntimeRequirementsS
 
         const auto [section_type, section_id] = section_type_and_id_from_string(section_type_and_id_string);
         if (!section_id.has_value()) {
-            logger.error("Missing section ID. The keys within the NPU plugin runtime requirements should contain both "
-                         "section type and ID");
+            logger.warning(
+                "Missing section ID. The keys within the NPU plugin runtime requirements should contain both "
+                "section type and ID");
             return std::nullopt;
         }
         if (sections_requirements.count(section_id.value()) || section_id_to_type.count(section_id.value())) {
-            logger.error("Found the same section ID more than once within the runtime requirements");
+            logger.warning("Found the same section ID more than once within the runtime requirements");
             return std::nullopt;
         }
 

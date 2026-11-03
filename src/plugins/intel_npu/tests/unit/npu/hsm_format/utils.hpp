@@ -12,7 +12,7 @@
 namespace intel_npu {
 
 constexpr std::string_view STRING_THAT_EVALUATES_TO_SUPPORTED = "1";
-constexpr std::string_view STRING_THAT_EVALUATES_TO_UNSUPPORTED = "";
+constexpr std::string_view STRING_THAT_EVALUATES_TO_UNSUPPORTED = "2";
 constexpr std::string_view STRING_THAT_EVALUATES_TO_UNKNOWN = "0";
 
 ov::runtime::hsm::SectionSink create_generic_section_sink(std::ostream& stream);
@@ -43,7 +43,7 @@ public:
                 const std::optional<std::string>& individual_requirements,
                 const ov::runtime::hsm::SectionAlignment& alignment = {});
 
-    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
+    ov::util::MemoryView encode() const override;
 
     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 

@@ -51,8 +51,8 @@ MockSection::MockSection(const std::vector<std::shared_ptr<CREToken>>& cre_token
       m_cre_tokens(cre_tokens),
       m_individual_requirements(individual_requirements) {}
 
-void MockSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
-    return;
+ov::util::MemoryView MockSection::encode() const {
+    return {};
 }
 
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> MockSection::decode =

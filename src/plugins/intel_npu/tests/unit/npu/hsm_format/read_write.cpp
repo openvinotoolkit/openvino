@@ -8,6 +8,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "compiler_version_section.hpp"
 #include "hsm_read_write.hpp"
+#include "intel_npu/common/runtime_requirements.hpp"
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "utils.hpp"
@@ -27,8 +28,21 @@ const auto MOCK_TYPE_EVALUATOR_FALSE = std::make_shared<MockTypeEvaluator>(false
 const auto ELF_MAIN_SCHEDULE_PTR = std::make_shared<SectionType>(SectionTypeCode::ELF_MAIN_SCHEDULE);
 const auto BATCH_SIZE_PTR = std::make_shared<SectionType>(SectionTypeCode::BATCH_SIZE);
 const auto COMPILER_VERSION_PTR = std::make_shared<SectionType>(SectionTypeCode::COMPILER_VERSION);
+const auto IO_LAYOUTS_PTR = std::make_shared<SectionType>(SectionTypeCode::IO_LAYOUTS);
 const auto ID_0_PTR = std::make_shared<SectionID>(0);
 const auto ID_2_PTR = std::make_shared<SectionID>(2);
+const auto ID_3_PTR = std::make_shared<SectionID>(3);
+const auto ID_4_PTR = std::make_shared<SectionID>(4);
+
+const auto NPU_DEVICE_ID = static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu);
+
+class IncompatibleRuntimeRequirementsWriter : public ov::runtime::hsm::ISectionEncoder {
+public:
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override {
+        const std::string content("version=1.0");
+        sink({reinterpret_cast<const std::byte*>(content.data()), content.size()});
+    }
+};
 
 ov::runtime::hsm::Reader create_base_reader(std::stringstream& stream, const bool use_tensor_source) {
     std::optional<ov::runtime::hsm::Reader> reader;
@@ -42,6 +56,22 @@ ov::runtime::hsm::Reader create_base_reader(std::stringstream& stream, const boo
     reader = ov::runtime::hsm::Reader::open(reinterpret_cast<const std::byte*>(content.data()), content.size());
     OPENVINO_ASSERT(reader);
     return std::move(reader).value();
+}
+
+ov::runtime::hsm::SectionTagReserved build_section_tag(const SectionType& section_type,
+                                                       const SectionID& section_id,
+                                                       const bool is_inline) {
+    const ov::runtime::hsm::SectionTag tag =
+        ov::runtime::hsm::SectionTag::make(static_cast<uint32_t>(section_type.get_code()), is_inline);
+    std::array<uint8_t, 4> reserved_bytes{static_cast<uint8_t>(static_cast<uint8_t>(section_id.get_id()) & 0xFF),
+                                          static_cast<uint8_t>(static_cast<uint8_t>(section_id.get_id() >> 8) & 0xFF),
+                                          0,
+                                          0};
+    return ov::runtime::hsm::SectionTagReserved(tag, reserved_bytes);
+}
+
+ov::runtime::hsm::SectionTagReserved build_section_tag(const std::shared_ptr<ISection>& section) {
+    return build_section_tag(section->get_type(), section->get_id().value(), section->is_inline());
 }
 
 }  // namespace
@@ -81,6 +111,7 @@ protected:
         sections_registry.register_section(compiler_version_section);
         sections_registry.register_section(batch_size_section_2);
 
+        section_readers[SectionTypeCode::RUNTIME_REQUIREMENTS] = RuntimeRequirementsSection::decode;
         section_readers[SectionTypeCode::BATCH_SIZE] = BatchSizeSection::decode;
         section_readers[SectionTypeCode::COMPILER_VERSION] = CompilerVersionSection::decode;
 
@@ -104,6 +135,133 @@ protected:
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators;
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators;
 };
+
+TEST_P(HSMReadWriteTest, MultipleRuntimeRequirements) {
+    auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
+    const auto runtime_requirements_section = sections_registry.build_runtime_requirements_section();
+    const auto runtime_requirements_tag = build_section_tag(runtime_requirements_section);
+    deferred_writer->add_section(NPU_DEVICE_ID,
+                                 runtime_requirements_tag,
+                                 runtime_requirements_section,
+                                 runtime_requirements_section->get_alignment());
+    deferred_writer->add_section(NPU_DEVICE_ID,
+                                 runtime_requirements_tag,
+                                 runtime_requirements_section,
+                                 runtime_requirements_section->get_alignment());
+
+    deferred_writer->finalize();
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    OV_EXPECT_THROW(hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators),
+                    ov::Exception,
+                    _);
+}
+
+TEST_P(HSMReadWriteTest, SameIdTwice) {
+    auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
+
+    std::queue<std::shared_ptr<ISection>> write_queue = sections_registry.get_write_queue();
+    ASSERT_FALSE(write_queue.empty());
+    const std::shared_ptr<ISection>& section = write_queue.front();
+    write_queue.pop();
+    auto section_tag = build_section_tag(section);
+    deferred_writer->add_section(NPU_DEVICE_ID, section_tag, section->encode(), section->get_alignment());
+    deferred_writer->add_section(NPU_DEVICE_ID, section_tag, section->encode(), section->get_alignment());
+    deferred_writer->finalize();
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    OV_EXPECT_THROW(hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators),
+                    ov::Exception,
+                    _);
+}
+
+TEST_P(HSMReadWriteTest, MissingRuntimeRequirementsReader) {
+    section_readers.erase(SectionTypeCode::RUNTIME_REQUIREMENTS);
+    hsm::write_to(stream, sections_registry);
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    OV_EXPECT_THROW(hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators),
+                    ov::Exception,
+                    _);
+}
+
+TEST_P(HSMReadWriteTest, OptionalSectionsIfMissingRuntimeRequirements) {
+    section_readers.erase(SectionTypeCode::BATCH_SIZE);
+    auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
+
+    deferred_writer->add_section(NPU_DEVICE_ID,
+                                 build_section_tag(batch_size_section_1),
+                                 batch_size_section_1->encode(),
+                                 batch_size_section_1->get_alignment());
+    deferred_writer->finalize();
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    BlobSectionsRegistry resulted_registry;
+    OV_ASSERT_NO_THROW(resulted_registry =
+                           hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
+    ASSERT_FALSE(resulted_registry.has_section_of_type(SectionTypeCode::BATCH_SIZE));
+}
+
+TEST_P(HSMReadWriteTest, OptionalSectionsIfIncompatibleRuntimeRequirements) {
+    section_readers.erase(SectionTypeCode::BATCH_SIZE);
+    auto deferred_writer = ov::runtime::hsm::DeferredWriter::open(stream);
+
+    deferred_writer->add_section(NPU_DEVICE_ID,
+                                 build_section_tag(SectionTypeCode::RUNTIME_REQUIREMENTS, 5, false),
+                                 std::make_shared<IncompatibleRuntimeRequirementsWriter>());
+    deferred_writer->add_section(NPU_DEVICE_ID,
+                                 build_section_tag(batch_size_section_1),
+                                 batch_size_section_1->encode(),
+                                 batch_size_section_1->get_alignment());
+    deferred_writer->finalize();
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    BlobSectionsRegistry resulted_registry;
+    OV_ASSERT_NO_THROW(resulted_registry =
+                           hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators));
+    ASSERT_FALSE(resulted_registry.has_section_of_type(SectionTypeCode::BATCH_SIZE));
+}
+
+TEST_P(HSMReadWriteTest, SupportedRuntimeRequirementsButMissingReader) {
+    section_readers.erase(SectionTypeCode::IO_LAYOUTS);
+    sections_registry.register_section(
+        std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>{IO_LAYOUTS_PTR, ID_3_PTR},
+                                      std::string(STRING_THAT_EVALUATES_TO_SUPPORTED)));
+    hsm::write_to(stream, sections_registry);
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    OV_EXPECT_THROW_HAS_SUBSTRING(hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators),
+                                  ov::Exception,
+                                  "No section reader found for mandatory section");
+}
+
+TEST_P(HSMReadWriteTest, UnknownRuntimeRequirementsButMissingReader) {
+    section_readers.erase(SectionTypeCode::IO_LAYOUTS);
+    sections_registry.register_section(
+        std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>{IO_LAYOUTS_PTR, ID_3_PTR},
+                                      std::string(STRING_THAT_EVALUATES_TO_UNKNOWN)));
+    sections_registry.register_section(
+        std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>{IO_LAYOUTS_PTR, ID_4_PTR},
+                                      std::string(STRING_THAT_EVALUATES_TO_SUPPORTED)));
+    hsm::write_to(stream, sections_registry);
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    OV_EXPECT_THROW_HAS_SUBSTRING(hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators),
+                                  ov::Exception,
+                                  "No section reader found for mandatory section");
+}
+
+TEST_P(HSMReadWriteTest, UnsupportedRuntimeRequirements) {
+    sections_registry.register_section(
+        std::make_shared<MockSection>(std::vector<std::shared_ptr<CREToken>>{IO_LAYOUTS_PTR, ID_3_PTR},
+                                      std::string(STRING_THAT_EVALUATES_TO_UNSUPPORTED)));
+    hsm::write_to(stream, sections_registry);
+
+    ov::runtime::hsm::Reader base_reader = create_base_reader(stream, use_tensor_source);
+    OV_EXPECT_THROW_HAS_SUBSTRING(hsm::read_from(base_reader, section_readers, type_evaluators, instance_evaluators),
+                                  ov::Exception,
+                                  "The imported model is not compatible");
+}
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,
                          HSMReadWriteTest,
