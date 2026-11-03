@@ -49,15 +49,17 @@ public:
         //  Matmul -> Convert -> Result
         auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
         // MatMul -> Divide -> Tanh -> Multiply -> Result
-        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+        // MatMul -> Divide -> Result (Granite-4.0-h-micro)
+        auto matmul_divide = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
+        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({matmul_divide});
         auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
 
         auto last_op = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
                                                                       matmul_add->output(0),
                                                                       matmul_transpose->output(0),
                                                                       matmul_convert->output(0),
-                                                                      matmul_multiply->output(0)});
+                                                                      matmul_multiply->output(0),
+                                                                      matmul_divide->output(0)});
         auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
 
         auto callback = [=, &lm_head_model](opp::Matcher& m) {
@@ -69,7 +71,8 @@ public:
                 std::static_pointer_cast<ov::op::v0::Result>(node_to_output.at(res).get_node_shared_ptr());
 
             std::shared_ptr<ov::Node> matched_node_last_op = matched_matmul;
-            for (const auto& p : {matmul_add, matmul_transpose, matmul_convert, matmul_multiply}) {
+            // matmul_divide must be checked after matmul_multiply, as divide is a part of the multiply chain too.
+            for (const auto& p : {matmul_add, matmul_transpose, matmul_convert, matmul_multiply, matmul_divide}) {
                 const auto it = node_to_output.find(p);
                 if (it != node_to_output.end()) {
                     matched_node_last_op = it->second.get_node_shared_ptr();

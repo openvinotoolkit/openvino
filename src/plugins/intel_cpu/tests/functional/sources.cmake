@@ -410,6 +410,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
 set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/compatibility_string.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/export_import.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/hsm_blob.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/concurent_release_memory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/input_tensor_initialization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/properties.cpp
