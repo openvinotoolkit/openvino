@@ -34,7 +34,7 @@ The operation is performed in the following steps:
    * Elements with ``x < lo``, ``x > hi``, and NaN elements are ignored.
    * Any other element goes to the bin with the index ``idx = floor((x - lo) * bins / (hi - lo))``, where the result of the division is truncated toward zero. Bins are half-open ``[lo + i * w, lo + (i + 1) * w)``, where ``w = (hi - lo) / bins``, except for the last bin, which is closed and includes ``hi``. This is enforced by ``idx = bins - 1`` whenever ``x == hi``.
 
-The output element ``output[i]`` is the number of elements assigned to the bin ``i``. The counts are accumulated in and returned as the output element type, which is selected by the *preserve_input_type* attribute. If the count is not representable in the output element type (for example, more than 255 elements in one bin for ``u8``), the result is implementation defined. To avoid this for narrow integer input types, set *preserve_input_type* to ``false``.
+The output element ``output[i]`` is the number of elements assigned to the bin ``i``. The counts are accumulated in and returned as i32 or input element type, which is selected by the *preserve_input_type* attribute. If the count is not representable in the output element type (for example, more than 255 elements in one bin for ``u8``), the result is implementation defined. To avoid this for narrow integer input types, set *preserve_input_type* to ``false``.
 
 **Attributes**
 
