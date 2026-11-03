@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <numeric>
 #include <optional>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "core/null_node.hpp"
@@ -33,12 +35,17 @@ using namespace ov::op;
 namespace ov::frontend::onnx::com_microsoft::opset_1 {
 namespace {
 // MatMulNBits repacks B/scales/zero_point initializers into new low-bit Constants. Preserve the
-// original ONNX initializer's friendly name and tensor names on the repacked Constant so weight
-// sharing / weights-as-input can still identify it as the same external weight.
+// original ONNX initializer's friendly name and tensor names, optionally with a suffix for a
+// differently shaped representation.
 void preserve_initializer_name(const std::shared_ptr<v0::Constant>& repacked,
-                               const std::shared_ptr<v0::Constant>& original) {
-    repacked->set_friendly_name(original->get_friendly_name());
-    repacked->get_output_tensor(0).set_names(original->get_output_tensor(0).get_names());
+                               const std::shared_ptr<v0::Constant>& original,
+                               const std::string& suffix = {}) {
+    repacked->set_friendly_name(original->get_friendly_name() + suffix);
+    std::unordered_set<std::string> names;
+    for (const auto& name : original->get_output_tensor(0).get_names()) {
+        names.insert(name + suffix);
+    }
+    repacked->get_output_tensor(0).set_names(names);
 }
 
 // A static shape carries an explicit 2-axis order hint when it is rank 2, or rank 3 with a trailing
@@ -444,8 +451,13 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                         zp_element_type,
                         ov::Shape{static_cast<size_t>(outer_dim), static_cast<size_t>(pack_dim), 1},
                         zero_point_values);
-                    preserve_initializer_name(unpacked_zp, zero_points_const);
+                    // This Constant omits the ONNX per-row byte padding, so give it a distinct name
+                    // from the packed initializer used by consumers that promote weights by name.
+                    preserve_initializer_name(unpacked_zp, zero_points_const, "_aligned");
                     converted_zero_points = std::make_shared<v0::Convert>(unpacked_zp, a.get_element_type());
+                } else {
+                    preserve_initializer_name(casted_zp_org, zero_points_const);
+                    converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
                 }
             } else {
                 FRONT_END_THROW("Unexpected zero point type");

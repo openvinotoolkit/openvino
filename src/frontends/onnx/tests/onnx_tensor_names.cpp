@@ -202,18 +202,18 @@ OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved) {
 
 OPENVINO_TEST(onnx_tensor_names, matmulnbits_zp_name_preserved_unaligned) {
     // Same as matmulnbits_zp_name_preserved, but n_blocks_per_col (3) is not a multiple of num_per_byte
-    // (2 for bits=4). The importer should unpack to the logical shape directly, without a padding Slice.
+    // (2 for bits=4). The unpacked Constant has a distinct suffixed name and no padding Slice.
     const auto model = convert_model("com.microsoft/matmulnbits_3x48_zp_unaligned.onnx");
 
     const auto ops = model->get_ordered_ops();
 
-    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Constant>(ops, "b_zp", {"b_zp"}));
+    EXPECT_TRUE(matching_node_found_in_graph<op::v0::Constant>(ops, "b_zp_aligned", {"b_zp_aligned"}));
 
-    const auto packed_zp = find_by_friendly_name<op::v0::Constant>(ops, "b_zp");
-    ASSERT_NE(packed_zp, nullptr);
-    EXPECT_EQ(packed_zp->get_element_type(), element::u4);
+    const auto repacked_zp = find_by_friendly_name<op::v0::Constant>(ops, "b_zp_aligned");
+    ASSERT_NE(repacked_zp, nullptr);
+    EXPECT_EQ(repacked_zp->get_element_type(), element::u4);
     const Shape expected_zp_shape{3, 3, 1};
-    EXPECT_EQ(packed_zp->get_shape(), expected_zp_shape);
+    EXPECT_EQ(repacked_zp->get_shape(), expected_zp_shape);
     EXPECT_FALSE(std::any_of(ops.begin(), ops.end(), [](const std::shared_ptr<Node>& node) {
         return ov::as_type_ptr<op::v8::Slice>(node) != nullptr;
     }));
