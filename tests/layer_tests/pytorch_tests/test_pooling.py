@@ -161,6 +161,42 @@ class TestPooling(PytorchLayerTest):
         self._test(*self.create_model("avg_pool2d", **params, ceil_mode=ceil_mode, count_include_pad=count_include_pad),
                    ie_device, precision, ir_version, trace_model=True, freeze_model=False, dynamic_shapes=is_dynamic_shapes)
 
+    # EfficientNet-b0 uses nn.AvgPool2d(1280, ceil_mode=True) over a 7x7 feature map.
+    @pytest.mark.parametrize("op_type,input_shape,kernel_size", [
+        ("avg_pool1d", [1, 8, 7], 1280),
+        ("avg_pool2d", [1, 8, 7, 7], [1280, 1280]),
+        ("avg_pool2d", [8, 7, 7], [9, 2]),
+    ])
+    @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.parametrize("is_dynamic_shapes", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
+                       reason='Ticket - 122715')
+    def test_avg_pool_oversized_kernel(self, op_type, input_shape, kernel_size, count_include_pad, is_dynamic_shapes,
+                                       ie_device, precision, ir_version):
+        self.input_tensor = self.random.randn(*input_shape)
+        self._test(*self.create_model(op_type, kernel_size=kernel_size, stride=None, padding=0,
+                                      ceil_mode=True, count_include_pad=count_include_pad),
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False,
+                   dynamic_shapes=is_dynamic_shapes)
+
+    @pytest.mark.parametrize("count_include_pad", [True, False])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_avg_pool_oversized_kernel_dynamic_reuse(self, count_include_pad, ie_device, precision, ir_version):
+        model, _ = self.create_model("avg_pool2d", kernel_size=[32, 32], stride=None, padding=0,
+                                     ceil_mode=True, count_include_pad=count_include_pad)
+        example = torch.randn(1, 2, 7, 7)
+        traced = torch.jit.trace(model, example)
+        ov_model = ov.convert_model(traced, example_input=(example,), input=[ov.PartialShape([-1] * 4)])
+        compiled = ov.Core().compile_model(ov_model, ie_device, {"INFERENCE_PRECISION_HINT": "f32"})
+        for shape in [(1, 2, 7, 7), (1, 2, 40, 64), (1, 2, 64, 7)]:
+            data = torch.randn(*shape)
+            actual = compiled((data.numpy(),))[0]
+            np.testing.assert_allclose(actual, traced(data).numpy(), rtol=1e-4, atol=1e-4)
+
     @pytest.mark.parametrize("input_shape", [[1, 3, 15, 15, 15], [3, 15, 15, 15]])
     @pytest.mark.parametrize("params", d3_params)
     @pytest.mark.parametrize("ceil_mode", [True, False])

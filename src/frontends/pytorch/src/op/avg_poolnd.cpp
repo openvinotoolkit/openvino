@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
@@ -70,8 +72,30 @@ OutputVector translate_avg_pool_base(const NodeContext& context, int dims) {
     }
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(6),
                                 "Translation for aten::avg_pool2d do not support divisor_override input.");
+
+    // PyTorch 1D/2D ceil-mode pooling clips a kernel larger than an unpadded axis to the input, while AvgPool
+    // requires it to fit. Excluded end padding of kernel - 1 makes it fit for any non-empty axis, and with
+    // stride >= kernel it adds no window starting inside the input, so results are unchanged.
+    bool exclude_pad = !count_include_pad;
+    auto pads_end = pads;
+    const auto& shape = input.get_partial_shape();
+    const bool has_spatial_dims = shape.rank().is_static() && shape.size() == kernel.size() + 2;
+    const bool unpadded = std::all_of(pads.begin(), pads.end(), [](size_t pad) {
+        return pad == 0;
+    });
+    if (dims < 3 && rounding_type == RoundingType::CEIL_TORCH && strides.size() == kernel.size() &&
+        pads.size() == kernel.size() && (exclude_pad || unpadded)) {
+        for (size_t i = 0; i < kernel.size(); ++i) {
+            const bool may_be_short =
+                !has_spatial_dims || shape[i + 2].get_min_length() < static_cast<int64_t>(kernel[i]);
+            if (kernel[i] > 1 && pads[i] == 0 && strides[i] >= kernel[i] && may_be_short) {
+                pads_end[i] = kernel[i] - 1;
+                exclude_pad = true;
+            }
+        }
+    }
     auto res = context.mark_node(
-        std::make_shared<v14::AvgPool>(input, strides, pads, pads, kernel, !count_include_pad, rounding_type));
+        std::make_shared<v14::AvgPool>(input, strides, pads, pads_end, kernel, exclude_pad, rounding_type));
 
     if (is_static) {
         if (no_batch_dim) {
