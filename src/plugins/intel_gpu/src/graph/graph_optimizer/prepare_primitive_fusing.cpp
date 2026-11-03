@@ -1564,9 +1564,10 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
         if (lo.get_preferred_impl_type(const_cast<program_node&>(*weightable_node), format::any /*dummy*/) == impl_types::onednn) {
             const auto& const_users = new_const_node.get_users();
             auto* next_node = const_users.front();
-            // A shared constant must not be fused into the reorder of just one of its users.
-            bool can_be_fused =
-                const_users.size() == 1 && next_node->is_type<reorder>() && next_node->as<reorder>().is_simple_reorder() && next_node->get_users().size() == 1;
+            bool can_be_fused = const_users.size() == 1 &&
+                                next_node->is_type<reorder>() &&
+                                next_node->as<reorder>().is_simple_reorder() &&
+                                next_node->get_users().size() == 1;
             if (can_be_fused) {
                 layout reorder_layout = next_node->get_output_layout();
                 reorder_layout.format = format::bfyx;
@@ -1580,7 +1581,6 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
 
                 auto new_reorder = std::make_shared<reorder>(new_const_node.id() + "_reorder_fmt", new_const_node.id(), reorder_layout);
                 auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
-                // All users of the reinterpreted constant must read the reordered weights, not only the first one.
                 p.add_intermediate(new_reorder_node,
                                    *next_node,
                                    new_const_node,
