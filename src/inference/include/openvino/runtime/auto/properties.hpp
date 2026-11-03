@@ -78,11 +78,14 @@ static constexpr Property<SchedulePolicy> schedule_policy{"SCHEDULE_POLICY"};
 
 /**
  * @brief Device utilization thresholds (in percent) used by AUTO for device selection.
- * Setting it enables the per inference device selection: the target device is selected for every inference and
- * inference is serialized per compiled model. This mode does not support startup or runtime fallback: explicitly
- * enabling ENABLE_STARTUP_FALLBACK or ENABLE_RUNTIME_FALLBACK together with it makes the compilation fail, and
- * more than one stream is not supported either. MODEL_PRIORITY is ignored. The thresholds are ignored, and AUTO
- * behaves as without this property, when the telemetry backend (IPF) is not available.
+ * A nonempty value enables per-inference device selection for stateless, in-memory AUTO models with an alternative
+ * device, unless the performance mode is THROUGHPUT or CUMULATIVE_THROUGHPUT, or device_bind_buffer is enabled.
+ * In this mode the target device is selected for every inference and inference is serialized per compiled model.
+ * Startup and runtime fallback are not supported: explicitly enabling ENABLE_STARTUP_FALLBACK or
+ * ENABLE_RUNTIME_FALLBACK makes compilation fail. More than one stream is not supported, and MODEL_PRIORITY
+ * is ignored. These restrictions apply only when per-inference selection is active.
+ * The thresholds are ignored, and AUTO behaves as without this property, when the telemetry backend (IPF)
+ * is not available.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::map<std::string, unsigned>> devices_utilization_threshold{
