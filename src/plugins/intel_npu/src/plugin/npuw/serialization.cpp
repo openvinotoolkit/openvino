@@ -17,10 +17,23 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "util.hpp"
+
+std::shared_ptr<ov::MappedMemory> ov::npuw::s11n::mmap_weights(const ov::FileHandleProvider& handle_provider) {
+    NPUW_ASSERT(handle_provider && "No weights handle provider to map the weights from!");
+    const ov::FileHandle handle = handle_provider();
+    // Where the provider left the handle is where the weights begin (see the declaration).
+    // Unknown position (a non-seekable handle) is the same as "from the start".
+    const auto region_offset = ov::util::get_file_position(handle).value_or(0u);
+    LOG_DEBUG("Mapping weights from the provided file handle at offset " << region_offset << " up to EOF.");
+    // auto_size: to EOF. The region is only an upper bound on the weights - individual weights are
+    // range-checked against it in Const::validate_weight_range().
+    return ov::load_mmap_object(handle, static_cast<std::size_t>(region_offset));
+}
 
 // NOTE: This constructor should only be used when exporting blobs.
 ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
