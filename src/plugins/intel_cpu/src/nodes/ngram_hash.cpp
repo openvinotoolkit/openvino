@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -26,9 +25,16 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/reference/ngram_hash_function.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <common/c_types_map.hpp>
+#    include <limits>
+#    include <utility>
+
 #    include "cpu/x64/jit_generator.hpp"
 #endif
 
