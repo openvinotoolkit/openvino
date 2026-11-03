@@ -40,6 +40,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #include "utils/graph_serializer/hsm_writer_handler.hpp"
+#include "utils/graph_serializer/runtime_requirements.hpp"
 #include "utils/graph_serializer/serializer.hpp"
 #ifdef CPU_DEBUG_CAPS
 #    include "utils/memory_stats_dump.hpp"
@@ -80,16 +81,20 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              Config cfg,
                              const bool loaded_from_cache,
-                             std::shared_ptr<SubMemoryManager> sub_memory_manager)
+                             std::shared_ptr<SubMemoryManager> sub_memory_manager,
+                             std::string runtime_requirements)
     : ov::ICompiledModel::ICompiledModel(model, plugin),
       m_model(model),
       m_plugin(plugin),
       m_cfg{std::move(cfg)},
       m_name{model->get_name()},
       m_loaded_from_cache(loaded_from_cache),
-      m_sub_memory_manager(std::move(sub_memory_manager)) {
+      m_sub_memory_manager(std::move(sub_memory_manager)),
+      m_runtime_requirements(std::move(runtime_requirements)) {
     m_mutex = std::make_shared<std::mutex>();
-    m_runtime_requirements = build_runtime_requirements();
+    if (m_runtime_requirements.empty()) {
+        m_runtime_requirements = build_runtime_requirements(m_model, m_cfg);
+    }
     const auto& core = m_plugin->get_core();
     OPENVINO_ASSERT(core, "Unable to get API version. Core is unavailable");
 
