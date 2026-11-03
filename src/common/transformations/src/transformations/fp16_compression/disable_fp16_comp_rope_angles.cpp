@@ -22,6 +22,7 @@
 #include "openvino/op/sin.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -114,8 +115,17 @@ bool ov::pass::DisableFP16CompForRopeAngles::run_on_model(const std::shared_ptr<
     auto trig = wrap_type<v0::Sin, v0::Cos>({table}, type_matches(element::f32));
     auto matcher = std::make_shared<Matcher>(trig, "DisableFP16CompForRopeAngles");
 
+    bool is_changed = false;
     std::vector<AngleChain> chains;
     for (const auto& node : model->get_ordered_ops()) {
+        // the bodies of If, Loop and TensorIterator are separate models, ConvertPrecision lowers them too
+        if (const auto multi_subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+            if (multi_subgraph->get_transformations_allowed()) {
+                for (size_t i = 0; i < multi_subgraph->get_internal_subgraphs_size(); ++i) {
+                    is_changed |= run_on_model(multi_subgraph->get_function(i));
+                }
+            }
+        }
         if (!ov::is_type_any_of<v0::Sin, v0::Cos>(node) || !matcher->match(node->output(0)) ||
             transformation_callback(node)) {
             continue;
@@ -165,7 +175,6 @@ bool ov::pass::DisableFP16CompForRopeAngles::run_on_model(const std::shared_ptr<
         dropped = chains.size() != size;
     }
 
-    bool is_changed = false;
     for (const auto& chain : chains) {
         for (const auto& chain_node : chain.nodes) {
             if (!ov::is_conversion_disabled(chain_node, element::f16)) {

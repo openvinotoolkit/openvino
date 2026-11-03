@@ -18,15 +18,19 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "transformations/convert_precision.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
@@ -158,6 +162,48 @@ std::shared_ptr<ov::Model> make_model_ref(AngleForm form, bool with_concat, cons
                          std::make_shared<v0::Convert>(r.sin, ov::element::f32));
 }
 
+// Loop that does not allow transformations in its body, as snippets::op::Subgraph
+class LoopWithoutBodyTransformations : public ov::op::v5::Loop {
+public:
+    LoopWithoutBodyTransformations(const ov::Output<ov::Node>& trip_count, const ov::Output<ov::Node>& condition)
+        : Loop(trip_count, condition) {
+        m_transformations_allowed = false;
+    }
+};
+
+// The model as the body of a Loop with one iteration; the model inputs are invariant inputs of the Loop
+std::shared_ptr<ov::Model> wrap_in_loop(const std::shared_ptr<ov::Model>& body_model,
+                                        bool transformations_allowed = true) {
+    ov::ResultVector body_results{
+        std::make_shared<v0::Result>(v0::Constant::create(ov::element::boolean, ov::Shape{}, {true}))};
+    const auto& results = body_model->get_results();
+    body_results.insert(body_results.end(), results.begin(), results.end());
+    const auto body = std::make_shared<ov::Model>(body_results, body_model->get_parameters());
+
+    const auto trip_count = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+    const auto condition = v0::Constant::create(ov::element::boolean, ov::Shape{}, {true});
+    std::shared_ptr<ov::op::v5::Loop> loop;
+    if (transformations_allowed) {
+        loop = std::make_shared<ov::op::v5::Loop>(trip_count, condition);
+    } else {
+        loop = std::make_shared<LoopWithoutBodyTransformations>(trip_count, condition);
+    }
+    loop->set_function(body);
+    loop->set_special_body_ports({-1, 0});
+    ov::ParameterVector parameters;
+    for (const auto& body_parameter : body->get_parameters()) {
+        parameters.push_back(
+            std::make_shared<v0::Parameter>(body_parameter->get_element_type(), body_parameter->get_partial_shape()));
+        loop->set_invariant_input(body_parameter, parameters.back());
+    }
+    ov::OutputVector outputs;
+    for (size_t i = 1; i < body_results.size(); ++i) {
+        outputs.push_back(loop->get_iter_value(body_results[i], -1));
+    }
+    loop->validate_and_infer_types();  // before the outer Results are created on the Loop outputs
+    return std::make_shared<ov::Model>(outputs, parameters);
+}
+
 class DisableFP16CompForRopeAnglesTest : public TransformationTestsF {
 public:
     void SetUp() override {
@@ -174,12 +220,19 @@ public:
         }
     }
 
-    // number of nodes kept from f16 conversion, per op type
+    // number of nodes kept from f16 conversion, per op type, the bodies of If/Loop/TensorIterator included
     static std::map<std::string, size_t> count_marks(const std::shared_ptr<ov::Model>& m) {
         std::map<std::string, size_t> counts;
         for (const auto& node : m->get_ordered_ops()) {
             if (ov::is_conversion_disabled(node, ov::element::f16)) {
                 counts[node->get_type_name()]++;
+            }
+            if (const auto multi_subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
+                for (const auto& body : multi_subgraph->get_functions()) {
+                    for (const auto& [type, count] : count_marks(body)) {
+                        counts[type] += count;
+                    }
+                }
             }
         }
         return counts;
@@ -402,37 +455,116 @@ TEST_F(DisableFP16CompForRopeAnglesTest, SkipsConstantPositions) {
     model = std::make_shared<ov::Model>(ov::OutputVector{rotated}, ov::ParameterVector{q});
 }
 
-// Followed by ConvertPrecision(f32 -> f16) as in the CPU plugin: the angles stay in f32 and the rotation in f16. The
-// boundary Convert is replaced by ConvertPrecision, so the precisions are checked rather than a reference model.
-TEST(TransformationTests, DisableFP16CompForRopeAnglesWithConvertPrecision) {
-    for (const auto form :
-         {AngleForm::MatMulTranspose, AngleForm::MatMulPositionsFirst, AngleForm::Multiply, AngleForm::ModernBert}) {
-        SCOPED_TRACE(static_cast<int>(form));
-        const auto r = make_angles(form, true, ov::PartialShape{1, -1});
-        auto model = make_rotation(r, r.cos, r.sin);
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::DisableFP16CompForRopeAngles>();
-        manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::f32, ov::element::f16}},
-                                                          type_to_fuse_map{},
-                                                          true,
-                                                          false);
-        manager.run_passes(model);
+// The angle chains in the body of a Loop, nested or not, are kept in f32 there; the Loop itself is not marked.
+TEST_F(DisableFP16CompForRopeAnglesTest, MarksAngleChainInLoopBody) {
+    model = wrap_in_loop(make_model(AngleForm::MatMulTranspose, true, ov::PartialShape{1, -1}));
+    model_ref = wrap_in_loop(make_model_ref(AngleForm::MatMulTranspose, true, ov::PartialShape{1, -1}));
+}
 
-        for (const auto& node : r.chain) {
-            EXPECT_EQ(node->get_output_element_type(0), ov::element::f32) << node;
+TEST_F(DisableFP16CompForRopeAnglesTest, MarksAngleChainInNestedLoopBody) {
+    model = wrap_in_loop(wrap_in_loop(make_model(AngleForm::Multiply, true, ov::PartialShape{1, -1})));
+    model_ref = wrap_in_loop(wrap_in_loop(make_model_ref(AngleForm::Multiply, true, ov::PartialShape{1, -1})));
+}
+
+// A Loop that does not allow transformations in its body (as snippets::op::Subgraph): left untouched.
+TEST_F(DisableFP16CompForRopeAnglesTest, SkipsBodyWithoutTransformations) {
+    model = wrap_in_loop(make_model(AngleForm::Multiply, true, ov::PartialShape{1, -1}), false);
+}
+
+// Positions converted to f32 outside of a Loop reach its body as an f32 Parameter: the body chain is not matched.
+TEST_F(DisableFP16CompForRopeAnglesTest, SkipsBodyWithPositionsConvertedOutside) {
+    auto positions = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 1});
+    auto q = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, half_dim});
+    auto angles = std::make_shared<v1::Multiply>(
+        positions,
+        v0::Constant::create(ov::element::f32, ov::Shape{1, 1, half_dim}, std::vector<float>(half_dim, 0.5f)));
+    auto rotated = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(q, std::make_shared<v0::Cos>(angles)),
+                                             std::make_shared<v1::Multiply>(q, std::make_shared<v0::Sin>(angles)));
+    model = wrap_in_loop(std::make_shared<ov::Model>(ov::OutputVector{rotated}, ov::ParameterVector{positions, q}));
+}
+
+// The angle chains in both branches of an If are kept in f32. The fixture does not compare If bodies, so each branch is
+// compared with its reference here.
+TEST(TransformationTests, DisableFP16CompForRopeAnglesMarksAngleChainsInIfBranches) {
+    const auto make_if = [](const std::shared_ptr<ov::Model>& then_body, const std::shared_ptr<ov::Model>& else_body) {
+        auto if_op = std::make_shared<ov::op::v8::If>(v0::Constant::create(ov::element::boolean, ov::Shape{1}, {true}));
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        ov::ParameterVector parameters;
+        for (size_t i = 0; i < then_body->get_parameters().size(); ++i) {
+            const auto& then_parameter = then_body->get_parameters()[i];
+            parameters.push_back(std::make_shared<v0::Parameter>(then_parameter->get_element_type(),
+                                                                 then_parameter->get_partial_shape()));
+            if_op->set_input(parameters.back(), then_parameter, else_body->get_parameters()[i]);
         }
-        for (const auto& trig : ov::NodeVector{r.sin, r.cos}) {
-            EXPECT_EQ(trig->get_output_element_type(0), ov::element::f32) << trig;
-            for (const auto& input : trig->output(0).get_target_inputs()) {
-                const auto consumer = input.get_node();
-                ASSERT_TRUE(ov::is_type<v0::Convert>(consumer)) << consumer;
-                EXPECT_EQ(consumer->get_output_element_type(0), ov::element::f16) << consumer;
+        const auto output = if_op->set_output(then_body->get_results()[0], else_body->get_results()[0]);
+        return std::make_shared<ov::Model>(ov::OutputVector{output}, parameters);
+    };
+    const auto then_body = make_model(AngleForm::MatMulTranspose, true, ov::PartialShape{1, -1});
+    const auto else_body = make_model(AngleForm::Multiply, true, ov::PartialShape{1, -1});
+    const auto model = make_if(then_body, else_body);
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::DisableFP16CompForRopeAngles>();
+    manager.run_passes(model);
+
+    const auto comparator = FunctionsComparator::with_default().enable(FunctionsComparator::RUNTIME_KEYS);
+    for (const auto& [body, body_ref] :
+         {std::make_pair(then_body, make_model_ref(AngleForm::MatMulTranspose, true, ov::PartialShape{1, -1})),
+          std::make_pair(else_body, make_model_ref(AngleForm::Multiply, true, ov::PartialShape{1, -1}))}) {
+        const auto result = comparator(body, body_ref);
+        EXPECT_TRUE(result.valid) << result.message;
+        EXPECT_EQ(DisableFP16CompForRopeAnglesTest::count_marks(body),
+                  DisableFP16CompForRopeAnglesTest::count_marks(body_ref));
+    }
+}
+
+// A change in a body is reported, and running again changes nothing.
+TEST(TransformationTests, DisableFP16CompForRopeAnglesReportsBodyChanges) {
+    const auto model = wrap_in_loop(make_model(AngleForm::Multiply, true, ov::PartialShape{1, -1}));
+    ov::pass::DisableFP16CompForRopeAngles pass;
+    EXPECT_TRUE(pass.run_on_model(model));
+    EXPECT_FALSE(pass.run_on_model(model));
+}
+
+// Followed by ConvertPrecision(f32 -> f16) as in the CPU plugin, at top level and in a Loop body: the angles stay in
+// f32 and the rotation in f16. ConvertPrecision replaces the boundary Convert (in a body, it is left as an f16 -> f16
+// Convert that EliminateConvert removes later), so the precisions are checked rather than a reference model.
+TEST(TransformationTests, DisableFP16CompForRopeAnglesWithConvertPrecision) {
+    for (const auto in_loop : {false, true}) {
+        for (const auto form : {AngleForm::MatMulTranspose,
+                                AngleForm::MatMulPositionsFirst,
+                                AngleForm::Multiply,
+                                AngleForm::ModernBert}) {
+            SCOPED_TRACE(std::to_string(static_cast<int>(form)) + (in_loop ? " in Loop" : ""));
+            const auto r = make_angles(form, true, ov::PartialShape{1, -1});
+            auto model = make_rotation(r, r.cos, r.sin);
+            // the rotation, taken before the passes: ConvertPrecision puts a Convert between it and the f32 Result
+            const auto rotated = model->get_results()[0]->get_input_node_shared_ptr(0);
+            if (in_loop) {
+                model = wrap_in_loop(model);
             }
+            ov::pass::Manager manager;
+            manager.register_pass<ov::pass::DisableFP16CompForRopeAngles>();
+            manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::f32, ov::element::f16}},
+                                                              type_to_fuse_map{},
+                                                              true,
+                                                              false);
+            manager.run_passes(model);
+
+            for (const auto& node : r.chain) {
+                EXPECT_EQ(node->get_output_element_type(0), ov::element::f32) << node;
+            }
+            for (const auto& trig : ov::NodeVector{r.sin, r.cos}) {
+                EXPECT_EQ(trig->get_output_element_type(0), ov::element::f32) << trig;
+                for (const auto& input : trig->output(0).get_target_inputs()) {
+                    const auto consumer = input.get_node();
+                    ASSERT_TRUE(ov::is_type<v0::Convert>(consumer)) << consumer;
+                    EXPECT_EQ(consumer->get_output_element_type(0), ov::element::f16) << consumer;
+                }
+            }
+            EXPECT_TRUE(ov::is_type<v1::Add>(rotated)) << rotated;
+            EXPECT_EQ(rotated->get_output_element_type(0), ov::element::f16) << rotated;
         }
-        // the rotation keeps f16 up to the Convert back to the f32 Result
-        const auto rotated = model->get_results()[0]->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0);
-        EXPECT_TRUE(ov::is_type<v1::Add>(rotated)) << rotated;
-        EXPECT_EQ(rotated->get_output_element_type(0), ov::element::f16) << rotated;
     }
 }
 

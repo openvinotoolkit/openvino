@@ -49,6 +49,12 @@ namespace pass {
  *    consumers, for the nodes before the MatMul|Multiply); a chain that shares nodes with a rejected chain is rejected
  *    too;
  *  - the transformation callback does not reject the Sin/Cos.
+ * The bodies of If, Loop and TensorIterator that allow transformations are processed as separate models: a chain is
+ * matched only when it lies entirely in one body. Positions converted to f32 outside of a body, or angles computed
+ * outside of the body of their Sin/Cos, are not matched. A frequency input that enters a body as a body Parameter is
+ * converted to f16 with the body inputs by ConvertPrecision, so only its product with the positions is kept in f32.
+ * In a body, ConvertPrecision does not remove the inserted Convert: it stays (f16 -> f16, or f32 -> f32 when a
+ * precision sensitive consumer marks it) until EliminateConvert.
  * No Convert is inserted in front of a Result, a Convert or a consumer already kept in f32.
  */
 class TRANSFORMATIONS_API DisableFP16CompForRopeAngles : public ov::pass::ModelPass {
