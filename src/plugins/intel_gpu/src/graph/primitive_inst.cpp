@@ -460,7 +460,8 @@ void primitive_inst::update_shape() {
         input_shape_changed = true;
     }
 
-    if (!get_node().is_type<kv_cache>() && !get_node().is_type<strided_slice>() && !input_shape_changed && _impl_params->get_output_layout().is_static()) {
+    if (!get_node().is_type<kv_cache>() && !get_node().is_type<stateless_kv>() && !get_node().is_type<strided_slice>() &&
+        !input_shape_changed && _impl_params->get_output_layout().is_static()) {
         return;
     }
 
@@ -561,6 +562,12 @@ void primitive_inst::update_shape() {
                 _impl_params->output_layouts[2] = compressed_cache_variable->get_compression_zp_state()->get_layout();
             }
         }
+    }
+
+    if (get_node().is_type<stateless_kv>()) {
+        auto& stateless_kv_instance = downcast<stateless_kv_inst>(*this);
+        const auto desc = get_node().as<stateless_kv>().get_primitive();
+        stateless_kv_instance.set_runtime_state(stateless_kv_inst::compute_runtime_state(*_impl_params, *desc));
     }
 
     if (get_node().is_type<kv_cache>()) {
@@ -834,7 +841,7 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     OPENVINO_ASSERT(output_it != users.end(), "[GPU] stateless_kv should directly connect to an output");
 
     const auto& past_layout = _impl_params->get_input_layout();
-    const auto& mid_layout = _impl_params->get_output_layout(0);     // output to present_kv
+    const auto& mid_layout = _impl_params->get_output_layout(0);  // output to present_kv
     const auto& target_layout = _impl_params->get_output_layout(1);  // output to sdpa
 
     auto& result = **output_it;
@@ -906,15 +913,62 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
                            << (past_tensor ? past_tensor->get_layout().to_short_string() : "") << ") and output[" << present_tensor->buffer_ptr() << "]("
                            << present_tensor->get_layout().to_short_string() << ")(" << result.id() << ") same:" << is_same << std::endl;
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
-                           << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
-                           << ") opt:" << result.can_be_optimized() << std::endl;
-
-    if (_outputs[0]) {
-        OPENVINO_ASSERT(!_mem_allocated, "stateless_kv should never allocate output[0] for itself");
-    }
+                            << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
+                            << ") opt:" << result.can_be_optimized() << std::endl;
+    
     _outputs[0] = kv_present;
-    _outputs[1] = engine.reinterpret_buffer(*kv_present, target_layout);
-    this->_mem_allocated = false;
+
+    const auto& state = downcast<stateless_kv_inst>(*this).get_runtime_state();
+    OPENVINO_ASSERT(state.has_value(), "[GPU] stateless_kv runtime state wasn't initialized before output allocation");
+    const auto is_rolling = state->is_rolling();
+    GPU_DEBUG_TRACE_DETAIL << id() << ": runtime state" << (is_rolling ? "(rolling)" : "") << ": past=" << state->past_seq_len
+                           << " present=" << state->present_seq_len << " new=" << state->new_token_len << ", front_idx: past=" << state->past_front_idx
+                           << " present=" << state->present_front_idx << " sdpa=" << state->sdpa_front_idx << std::endl;
+    auto& memory_pool = get_network().get_memory_pool();
+
+    if (_mem_allocated) {
+        OPENVINO_ASSERT(_outputs[1], "stateless_kv should only allocate output[1] for itself");
+        const auto concat_axis = ov::util::normalize(get_typed_desc<stateless_kv>()->concat_axis, target_layout.get_rank());
+        const auto current_len = target_layout.get_partial_shape()[concat_axis].get_length();
+        const auto last_len = _outputs[1]->get_layout().get_partial_shape()[concat_axis].get_length();
+        const auto layout_match = target_layout == _outputs[1]->get_layout();
+        const auto can_reuse = is_rolling && layout_match;
+        GPU_DEBUG_TRACE_DETAIL << id() << ": current_len=" << current_len << " last_len=" << last_len << ", layout " << (layout_match ? "match" : "changed")
+                               << ", sdpa buffer:" << (can_reuse ? " reuse" : " release") << std::endl;
+        if (!can_reuse){
+            memory_pool.release_memory(_outputs[1].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
+            _outputs[1] = nullptr;
+            _max_output_layout_count[1] = 0;
+            _mem_allocated = false;
+        }
+    }
+
+    if (!is_rolling) {
+        GPU_DEBUG_TRACE_DETAIL << id() << ": reuse present output as SDPA output for non-rolling update" << std::endl;
+        _outputs[1] = engine.reinterpret_buffer(*kv_present, target_layout);
+        _max_output_layout_count[1] = target_layout.get_linear_size();
+        _mem_allocated = false;
+    } else {
+        if (!_mem_allocated) {
+            _outputs[1] = nullptr;
+            GPU_DEBUG_TRACE_DETAIL << id() << ": allocate independent SDPA output for rolling update, required=" << target_layout.bytes_count() << std::endl;
+            _outputs[1] = allocate_output(engine,
+                                          memory_pool,
+                                          get_node(),
+                                          *_impl_params,
+                                          _runtime_memory_dependencies,
+                                          get_network_id(),
+                                          get_network().is_internal(),
+                                          1,
+                                          false,
+                                          is_output_buffer(this, true),
+                                          nullptr,
+                                          true);
+            _max_output_layout_count[1] = target_layout.get_linear_size();
+            _mem_allocated = true;
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+    }
 }
 
 void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
