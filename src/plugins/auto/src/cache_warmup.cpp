@@ -122,11 +122,6 @@ void CacheWarmup::request_stop_unsafe() {
     }
 }
 
-void CacheWarmup::cancel() {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    request_stop_unsafe();
-}
-
 void CacheWarmup::stop() {
     std::unique_lock<std::mutex> lock(m_mutex);
     request_stop_unsafe();

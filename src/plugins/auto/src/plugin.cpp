@@ -569,6 +569,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
             LOG_WARNING_TAG("compile_for_all is ignored: neither ov::cache_dir nor ov::cache_path is set");
             auto_s_context->m_compile_for_all = false;
         }
+        if (auto_s_context->m_compile_for_all) {
+            // Fallbacks switch devices non-deterministically and would overlap with the background warm-up.
+            LOG_INFO_TAG("compile_for_all disables startup and runtime fallback");
+            auto_s_context->m_startup_fallback = false;
+            auto_s_context->m_runtime_fallback = false;
+        }
     }
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
     auto_s_context->m_mtx = m_mtx;
@@ -1103,12 +1109,12 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                     if (cache_location.empty() || device_config.count(ov::cache_blob_id.name()))
                         continue;
                     is_blob_file_exist = CacheWarmupManager::is_blob_cached(*get_core(),
-                                                                            parsed.get_device_name(),
+                                                                            device,
                                                                             device_config,
                                                                             model,
                                                                             model_path,
                                                                             cache_location);
-                } catch (const ov::Exception& ex) {
+                } catch (const std::exception& ex) {
                     // The probe is an optimization only; a failing device must not break compilation.
                     LOG_DEBUG_TAG("cache probe failed for %s: %s", device.c_str(), ex.what());
                 }

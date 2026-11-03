@@ -203,9 +203,12 @@ the following setup options:
 |                                              | ``false``                                                          |
 |                                              |                                                                    |
 |                                              | Compiles the model to the remaining candidate devices in the       |
-|                                              | background, after the actual device is ready and the CPU helper is |
-|                                              | released, to populate cache blobs for faster device switching      |
-|                                              | later. Devices whose cache blob already exists are skipped.        |
+|                                              | background, after the actual device is ready, to populate cache    |
+|                                              | blobs for faster device switching later. Devices whose cache blob  |
+|                                              | already exists are skipped.                                        |
+|                                              |                                                                    |
+|                                              | Enabling it disables ``ov::intel_auto::enable_startup_fallback``   |
+|                                              | and ``ov::intel_auto::enable_runtime_fallback``.                   |
 |                                              |                                                                    |
 |                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``. Without them,    |
 |                                              | compiling the model throws if at least two non-CPU candidate       |
@@ -224,12 +227,8 @@ the following setup options:
 |                                              | actual device, NPU is compiled in the background (and vice versa). |
 |                                              |                                                                    |
 |                                              | Warm-up compiles one device at a time and releases each compiled   |
-|                                              | model right away. A runtime fallback to a device other than the    |
-|                                              | one being warmed up does not wait for the warm-up compilation;     |
-|                                              | it finishes in the background. A runtime fallback to the device    |
-|                                              | being warmed up waits for that compilation to finish, then loads   |
-|                                              | the model from its cache blob. The memory needed by the background |
-|                                              | compilation itself is not included.                                |
+|                                              | model right away. The memory needed by the background compilation  |
+|                                              | itself is not included.                                            |
 |                                              |                                                                    |
 |                                              | The default value is ``false``.                                    |
 +----------------------------------------------+--------------------------------------------------------------------+

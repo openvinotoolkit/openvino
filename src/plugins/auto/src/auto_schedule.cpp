@@ -57,10 +57,6 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
                                         m_context->m_model_priority,
                                         m_context->m_selection_policy,
                                         m_context->m_low_power_device);
-            // Don't wait for warm-up; a fallback to the device being warmed up still waits on Core's blob lock.
-            if (m_cache_warmup) {
-                m_cache_warmup->cancel();
-            }
             try {
                 m_compile_context[FALLBACKDEVICE].m_task();
                 // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
@@ -217,16 +213,7 @@ void AutoSchedule::init() {
         m_executor->run(m_compile_context[CPU].m_task);
         m_executor->run(m_compile_context[ACTUALDEVICE].m_task);
         auto recycleTask = [this]() mutable {
-            bool helper_released = false;
             wait_actual_compiled_model_ready();
-            if (!m_exitflag && !m_compile_context[ACTUALDEVICE].m_is_already && m_cache_warmup) {
-                // The actual device failed and the CPU helper stays as the final device, so it is never released.
-                m_compile_context[CPU].m_future.wait();
-                if (m_compile_context[CPU].m_is_already) {
-                    m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
-                                          m_compile_context[ACTUALDEVICE].m_meta_devices);
-                }
-            }
             while (!m_exitflag && m_compile_context[ACTUALDEVICE].m_is_already) {
                 // handle the case of ACTUAL faster than CPU
                 m_compile_context[CPU].m_future.wait();
@@ -288,14 +275,8 @@ void AutoSchedule::init() {
                     m_compile_context[CPU].m_compiled_model._so.reset();
                     m_compile_context[CPU].m_is_already = false;
                     LOG_INFO_TAG("helper released!!");
-                    helper_released = true;
                     break;
                 }
-            }
-            if (helper_released && m_cache_warmup) {
-                // Failed startup devices were already removed from the actual context's candidates.
-                m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
-                                      m_compile_context[ACTUALDEVICE].m_meta_devices);
             }
         };
         m_executor->run(std::move(recycleTask));
@@ -331,7 +312,8 @@ void AutoSchedule::init() {
         }
         m_context->m_hw_compiled_model = std::move(first_compiled_model);
     }
-    if (m_cache_warmup && !m_compile_context[CPU].m_is_enabled && m_compile_context[ACTUALDEVICE].m_is_already) {
+    // compile_for_all disables the CPU helper, so the warm-up can start as soon as the actual device is ready.
+    if (m_cache_warmup && m_compile_context[ACTUALDEVICE].m_is_already) {
         // Failed startup devices were already removed from the actual context's candidates.
         m_cache_warmup->start(m_compile_context[ACTUALDEVICE].m_device_info.device_name,
                               m_compile_context[ACTUALDEVICE].m_meta_devices);

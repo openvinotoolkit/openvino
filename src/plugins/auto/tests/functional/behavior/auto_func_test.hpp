@@ -6,8 +6,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <atomic>
-#include <future>
 #include <memory>
 #include <thread>
 
@@ -85,15 +83,6 @@ protected:
     void register_plugin_mock_gpu_compile_slower(ov::Core& core,
                                                  const std::string& device_name,
                                                  const ov::AnyMap& properties);
-    // Every inference on a model compiled by this device fails.
-    void register_plugin_mock_gpu_infer_failure(ov::Core& core,
-                                                const std::string& device_name,
-                                                const ov::AnyMap& properties);
-    // compile_model() counts and blocks until gate is ready; imports from the cache are neither counted nor blocked.
-    void register_plugin_mock_gpu_compile_gated(ov::Core& core,
-                                                const std::string& device_name,
-                                                std::shared_future<void> gate,
-                                                std::shared_ptr<std::atomic<int>> compile_count);
     std::shared_ptr<ov::Model> model_can_batch;
     std::shared_ptr<ov::Model> model_cannot_batch;
     std::string cache_path;
