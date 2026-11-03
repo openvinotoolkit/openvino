@@ -741,6 +741,7 @@ public:
     int _gate_up_group_size;
     int _down_group_size;
     std::shared_ptr<IExpertWeightProvider> _weight_provider;
+    // Keep OTD slot IDs alive while kernels are still in flight after execute() returns.
     memory::ptr _expert_index_buffer;
 
     // --- OTD helper methods (used when _weight_provider->is_offloaded()) ---
@@ -1798,7 +1799,6 @@ public:
                                       {1, subgroup_size, SUBGROUP_NUM});
 
             ret = exec_batched_gemv_reduce(ret_event, instance, scratch, token_num);
-            on_after_exec_sync(stream);
         }
         return ret;
     }
