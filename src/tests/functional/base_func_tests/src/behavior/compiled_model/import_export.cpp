@@ -18,6 +18,7 @@
 #include "openvino/runtime/hsm_deferred_writer.hpp"
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace ov {
 namespace test {
@@ -826,6 +827,21 @@ bool is_hsm(const std::string& blob) {
 }
 
 namespace {
+size_t hsm_cache_payload_offset(const std::string& blob) {
+    if (is_hsm(blob))
+        return 0;
+    std::istringstream stream(blob);
+    std::string xml;
+    std::getline(stream, xml);
+    pugi::xml_document header;
+    OPENVINO_ASSERT(stream.good() && stream.tellg() >= std::streampos(0) && header.load_string(xml.c_str()) &&
+                        header.child("compiled_blob"),
+                    "Cannot read Core cache header");
+    const auto offset = static_cast<size_t>(stream.tellg());
+    const auto alignment = header.child("compiled_blob").attribute("header_size_alignment").as_uint();
+    return ov::util::align_size_up(offset, std::max<size_t>(1, alignment));
+}
+
 ov::Tensor hsm_infer(ov::CompiledModel& compiled, const ov::Tensor& input) {
     auto request = compiled.create_infer_request();
     request.set_input_tensor(input);
@@ -868,14 +884,13 @@ void OVCompiledModelHsmBlobTest::SetUp() {
     APIBaseTest::SetUp();
 
     core = ov::test::utils::create_core();
-    // Plugin-level too: Core picks the cache blob format from the plugin, not from the compile config.
+    // Configure the plugin too for devices that advertise headerless HSM caching.
     core.set_property(target_device, configuration);
-    ASSERT_TRUE(core.get_property(target_device, ov::internal::emit_hsm_format));
-
     model = ov::test::utils::make_conv_pool_relu({1, 3, 16, 16}, ov::element::f32);
     cache_path = "hsm_blob_cache_" + ov::test::utils::generateTestFilePrefix();
     input = ov::test::utils::create_and_fill_tensor(ov::element::f32, model->input().get_shape());
     auto compiled = compile(false);
+    ASSERT_TRUE(is_hsm(export_blob(compiled)));
     reference = hsm_infer(compiled, input);
 }
 
@@ -905,15 +920,21 @@ std::string OVCompiledModelHsmBlobTest::read_cache_blob() const {
     const auto blobs = ov::test::utils::listFilesWithExt(ov::util::path_to_string(cache_path), "blob");
     OPENVINO_ASSERT(blobs.size() == 1, "Expected exactly one cache blob, got ", blobs.size());
     std::ifstream file(blobs.front(), std::ios::binary);
-    return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    const std::string blob{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
+    return blob.substr(hsm_cache_payload_offset(blob));
 }
 
 void OVCompiledModelHsmBlobTest::write_cache_blob(const std::string& blob) const {
     const auto blobs = ov::test::utils::listFilesWithExt(ov::util::path_to_string(cache_path), "blob");
     ASSERT_EQ(blobs.size(), 1u) << "Expected exactly one cache blob";
+    std::ifstream previous(blobs.front(), std::ios::binary);
+    const std::string original{std::istreambuf_iterator<char>(previous), std::istreambuf_iterator<char>()};
+    previous.close();
+    const auto payload_offset = hsm_cache_payload_offset(original);
     // Cache files may be created read-only, so replace the file instead of overwriting it.
     std::filesystem::remove(blobs.front());
     std::ofstream file(blobs.front(), std::ios::binary);
+    file.write(original.data(), payload_offset);
     file.write(blob.data(), blob.size());
     ASSERT_TRUE(file.good()) << "Cannot write cache blob " << blobs.front();
 }
@@ -922,12 +943,16 @@ void OVCompiledModelHsmBlobTest::expect_same_inference(ov::CompiledModel& actual
     ov::test::utils::compare(reference, hsm_infer(actual, input));
 }
 
-TEST_P(OVCompiledModelHsmBlobTest, cache_blob_is_identical_to_exported_blob) {
+TEST_P(OVCompiledModelHsmBlobTest, cache_payload_is_identical_to_exported_blob) {
     auto compiled = compile(true);
+    EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache));
     const auto exported = export_blob(compiled);
 
     EXPECT_TRUE(is_hsm(exported));
     EXPECT_EQ(read_cache_blob(), exported);
+    auto cached = compile(true);
+    EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+    expect_same_inference(cached);
 }
 
 TEST_P(OVCompiledModelHsmBlobTest, cache_blob_is_imported_via_import_model) {
