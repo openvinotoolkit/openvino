@@ -36,6 +36,7 @@
 
 using ov::pass::pattern::any_input;
 using ov::pass::pattern::Matcher;
+using ov::pass::pattern::optional;
 using ov::pass::pattern::value_matches;
 using ov::pass::pattern::wrap_type;
 
@@ -59,7 +60,7 @@ ov::pass::PositionIDsReplacer::PositionIDsReplacer(const Output<Node>& position_
     auto convert = wrap_type<v0::Convert>({add_offset});
     auto position_embed = wrap_type<v8::Gather>({any_input(), convert, any_input()});
 
-    auto mul = ov::pass::pattern::optional<v0::MatMul>({input_embed, any_input()});
+    auto mul = optional<v0::MatMul>({input_embed, any_input()});
 
     auto add = wrap_type<v1::Add>({mul, position_embed});
 
@@ -80,8 +81,8 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
 
     // total seq len:
     auto p_max_context_len = wrap_type<v0::Parameter>();
-    auto p_opt_convert = ov::pass::pattern::optional<v0::Convert>(p_max_context_len);
-    auto p_opt_reshape = ov::pass::pattern::optional<v1::Reshape>({p_opt_convert, any_input()});
+    auto p_opt_convert = optional<v0::Convert>(p_max_context_len);
+    auto p_opt_reshape = optional<v1::Reshape>({p_opt_convert, any_input()});
 
     // current seq len:
     // it might be present in 2 different ways:
@@ -94,8 +95,8 @@ ov::pass::PositionIDsReplacerQwen::PositionIDsReplacerQwen(const Output<Node>& p
         wrap_type<v8::Gather>({p_shape_of, ov::pass::pattern::wrap_const(), ov::pass::pattern::wrap_const()});
 
     auto p_neg_const = wrap_type<v0::Constant>();
-    auto p_neg_const_convert = ov::pass::pattern::optional<v0::Convert>(p_neg_const);
-    auto p_neg_const_reshape = ov::pass::pattern::optional<v1::Reshape>({p_neg_const_convert, any_input()});
+    auto p_neg_const_convert = optional<v0::Convert>(p_neg_const);
+    auto p_neg_const_reshape = optional<v1::Reshape>({p_neg_const_convert, any_input()});
     auto p_neg_mul = wrap_type<v1::Multiply>({p_current_len, p_neg_const_reshape});
 
     // For now, it has always been a constant, but this may change in the future.
@@ -171,16 +172,16 @@ ov::pass::PositionIDsReplacerLFM2::PositionIDsReplacerLFM2(const Output<Node>& p
     auto p_range = wrap_type<ov::op::v4::Range>({p_start, p_end, ov::pass::pattern::wrap_const()});
 
     // Model variants may include optional Unsqueeze/Reshape/Convert wrappers before RoPE MatMul.
-    auto p_opt_layout_1 = ov::pass::pattern::optional<v0::Unsqueeze, v1::Reshape>({p_range, any_input()});
-    auto p_opt_layout_2 = ov::pass::pattern::optional<v0::Unsqueeze, v1::Reshape>({p_opt_layout_1, any_input()});
-    auto p_opt_convert = ov::pass::pattern::optional<v0::Convert>({p_opt_layout_2});
+    auto p_opt_layout_1 = optional<v0::Unsqueeze, v1::Reshape>({p_range, any_input()});
+    auto p_opt_layout_2 = optional<v0::Unsqueeze, v1::Reshape>({p_opt_layout_1, any_input()});
+    auto p_opt_convert = optional<v0::Convert>({p_opt_layout_2});
     auto p_matmul = wrap_type<v0::MatMul>({any_input(), p_opt_convert});
-    auto p_opt_transpose = ov::pass::pattern::optional<v1::Transpose>({p_matmul, any_input()});
+    auto p_opt_transpose = optional<v1::Transpose>({p_matmul, any_input()});
     auto p_concat = wrap_type<v0::Concat>({p_opt_transpose, any_input()});
     auto p_sin_cos_l = wrap_type<v0::Sin, v0::Cos>({p_concat});
     auto p_sin_cos_r = wrap_type<v0::Sin, v0::Cos>({p_concat});
-    auto p_sin_cos_layout_l = ov::pass::pattern::optional<v0::Unsqueeze, v1::Reshape>({p_sin_cos_l, any_input()});
-    auto p_sin_cos_layout_r = ov::pass::pattern::optional<v0::Unsqueeze, v1::Reshape>({p_sin_cos_r, any_input()});
+    auto p_sin_cos_layout_l = optional<v0::Unsqueeze, v1::Reshape>({p_sin_cos_l, any_input()});
+    auto p_sin_cos_layout_r = optional<v0::Unsqueeze, v1::Reshape>({p_sin_cos_r, any_input()});
     auto p_mul_l = wrap_type<v1::Multiply>({p_sin_cos_layout_l, any_input()});
     auto p_mul_r = wrap_type<v1::Multiply>({p_sin_cos_layout_r, any_input()});
     auto p_add = wrap_type<v1::Add>({p_mul_l, p_mul_r});
@@ -241,8 +242,8 @@ ov::pass::EliminateDropBatch::EliminateDropBatch() {
     auto p_position_ids = wrap_type<v0::Parameter>([](const Output<Node>& output) -> bool {
         return output.get_names().count("position_ids") != 0;
     });
-    auto p_unsqueeze = ov::pass::pattern::optional<v0::Unsqueeze>({p_position_ids, any_input()});
-    auto p_convert = ov::pass::pattern::optional<v0::Convert>({p_unsqueeze});
+    auto p_unsqueeze = optional<v0::Unsqueeze>({p_position_ids, any_input()});
+    auto p_convert = optional<v0::Convert>({p_unsqueeze});
 
     auto p_index = wrap_type<v0::Constant>(value_matches("0"));
     auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
@@ -276,7 +277,7 @@ ov::pass::RoPEUnsqueezeAxisReplacer::RoPEUnsqueezeAxisReplacer() {
     auto p_outer_matmul = wrap_type<v0::MatMul>({any_input(), ov::pass::pattern::wrap_const()});
     auto p_trig = wrap_type<v0::Cos, v0::Sin>({p_outer_matmul});
     auto p_scaled = wrap_type<v1::Multiply>({any_input(), p_trig});
-    auto p_broadcast = ov::pass::pattern::optional<op::util::BroadcastBase>({p_scaled, any_input()});
+    auto p_broadcast = optional<op::util::BroadcastBase>({p_scaled, any_input()});
     auto p_concat = wrap_type<v0::Concat>({p_broadcast, p_broadcast});
     auto p_rope_out = p_broadcast | p_concat;
     auto p_axis = wrap_type<v0::Constant>(value_matches("0"));
@@ -307,8 +308,8 @@ ov::pass::PositionIDsReplacerCodeGen2::PositionIDsReplacerCodeGen2(const std::sh
     auto p_sin_cos = wrap_type<v0::Sin, v0::Cos>({p_einsum});
     auto p_reshape = wrap_type<v1::Reshape>({p_sin_cos, any_input()});
     auto p_tile = wrap_type<v0::Tile>({p_reshape, any_input()});
-    auto p_opt_reshape = ov::pass::pattern::optional<v1::Reshape>({p_tile, any_input()});
-    auto p_opt_unsq = ov::pass::pattern::optional<v0::Unsqueeze>({p_opt_reshape, any_input()});
+    auto p_opt_reshape = optional<v1::Reshape>({p_tile, any_input()});
+    auto p_opt_unsq = optional<v0::Unsqueeze>({p_opt_reshape, any_input()});
 
     auto p_reshape_1in = wrap_type<v1::Reshape>({any_input(), any_input()});
     auto p_add_2in = wrap_type<v1::Add>({any_input(), any_input()});
@@ -358,9 +359,10 @@ ov::pass::PositionIDsReplacerGranite::PositionIDsReplacerGranite(const Output<No
         return output.get_names().count("max_context_len") != 0;
     });
     auto p_replaced_length = wrap_type<v1::Subtract>({p_max_context_length, any_input()});
-    auto p_replaced_length_convert = wrap_type<v0::Convert>({p_replaced_length});
+    p_replaced_length = optional<v0::Convert>({p_replaced_length});
+    p_replaced_length = optional<v1::Reshape>({p_replaced_length, any_input()});
 
-    auto p_past_length = p_cache_length | p_replaced_length_convert;
+    auto p_past_length = p_cache_length | p_replaced_length;
     auto p_positions = wrap_type<v1::Add>({p_range, p_past_length});
 
     // Absolute positions -> [1, 1, tokens] -> inverse-frequency MatMul -> duplicated RoPE angles.
