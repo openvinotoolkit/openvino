@@ -1274,6 +1274,13 @@ void ZeroInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
     OPENVINO_ASSERT(
         tensors.size() != 1,
         "Internal error (plugin): check_batched_tensors is not allowed to have only one tensor inside batch");
+    // The shapes are indexed by the batch dimension below, so scalar tensors must be rejected before that
+    for (const auto& item : tensors) {
+        OPENVINO_ASSERT(item, "Uninitialized tensor is provided!");
+        OPENVINO_ASSERT(!item->get_shape().empty(),
+                        "set_input_tensors/set_tensors can't be called with scalar tensors, a batch dimension is "
+                        "required");
+    }
 
     auto layout = ov::layout::get_layout(port);
 
