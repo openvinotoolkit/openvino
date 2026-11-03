@@ -796,20 +796,18 @@ DLLEXPORT npu_vm_runtime_result_t NPU_VM_RUNTIME_APICALL npuVMRuntimeCreateExecu
     // Once all function calls replaced with openvino::zero_loader functions,
     // the counter based event will be supported on Linux platform as well.
     auto graphDdiTableExt = pParams->graphDdiTableExt;
-    if (ZE_GRAPH_EXT_VERSION_CURRENT >= ZE_GRAPH_EXT_VERSION_1_19) {
-        if (graphDdiTableExt != nullptr && graphDdiTableExt->pfnCompilerIsOptionSupported != nullptr) {
-            counterBasedEventSupported = graphDdiTableExt->pfnCompilerIsOptionSupported(
-                                                 pParams->device, ZE_NPU_DRIVER_OPTIONS, "COUNTER_BASED_EVENTS",
-                                                 nullptr) == ZE_RESULT_SUCCESS;
-        }
+    if (graphDdiTableExt != nullptr && graphDdiTableExt->pfnCompilerIsOptionSupported != nullptr) {
+        counterBasedEventSupported = graphDdiTableExt->pfnCompilerIsOptionSupported(
+                                                pParams->device, ZE_NPU_DRIVER_OPTIONS, "COUNTER_BASED_EVENTS",
+                                                nullptr) == ZE_RESULT_SUCCESS;
+    }
 
 #if defined(NPU_PLUGIN_DEVELOPER_BUILD)
-        const char* envVar = std::getenv("NPU_VM_RUNTIME_DISABLE_COUNTER_BASED_EVENT");
-        if (envVar != nullptr && counterBasedEventSupported) {
-            counterBasedEventSupported = !::intel_npu::OptionParser<bool>::parse(envVar);
-        }
-#endif
+    const char* envVar = std::getenv("NPU_VM_RUNTIME_DISABLE_COUNTER_BASED_EVENT");
+    if (envVar != nullptr && counterBasedEventSupported) {
+        counterBasedEventSupported = !::intel_npu::OptionParser<bool>::parse(envVar);
     }
+#endif
 
     // The execution context is represented by an instance of the VM engine, whose lifetime is managed by the
     // npuVMRuntimeCreateExecutionContext and npuVMRuntimeDestroyExecutionContext functions. In the end-to-end flow, the
