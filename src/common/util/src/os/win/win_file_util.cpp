@@ -41,4 +41,18 @@ void close_file(FileHandle handle) {
     }
 }
 
+std::optional<uint64_t> get_file_position(FileHandle handle) {
+    if (handle == INVALID_HANDLE_VALUE || handle == nullptr) {
+        return std::nullopt;
+    }
+    // A zero move relative to FILE_CURRENT reports the position without changing it.
+    // Fails for non-seekable handles (pipes, consoles).
+    LARGE_INTEGER distance{};
+    LARGE_INTEGER position{};
+    if (!SetFilePointerEx(handle, distance, &position, FILE_CURRENT) || position.QuadPart < 0) {
+        return std::nullopt;
+    }
+    return static_cast<uint64_t>(position.QuadPart);
+}
+
 }  // namespace ov::util
