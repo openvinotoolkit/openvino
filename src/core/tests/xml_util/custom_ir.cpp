@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <sstream>
 #include <pugixml.hpp>
 
 #include "common_test_utils/file_utils.hpp"
@@ -326,16 +327,44 @@ protected:
                 } else {
                     OPENVINO_ASSERT(w_size >= offset + actual_size, "Incorrect weights in bin file!");
 
-                    if (actual_size < ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3)) {
+                    const auto expected_bytes = (ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3;
+                    if (actual_size < expected_bytes) {
                         const auto type = ov::util::pugixml::get_str_attr(get_node(), "type");
-                        OPENVINO_THROW("Attribute and shape size are inconsistent for ",
+                        const auto raw_name = ov::util::pugixml::get_str_attr(get_node(), "name");
+                        const auto safe_name = raw_name.empty() ? "[Unnamed Constant Node]" : raw_name;
+                        const auto raw_id = ov::util::pugixml::get_str_attr(get_node(), "id");
+                        const auto safe_id = raw_id.empty() ? "[Unknown ID]" : raw_id;
+
+                        std::ostringstream shape_ss;
+                        shape_ss << "[";
+                        for (size_t i = 0; i < shape.size(); ++i) {
+                            shape_ss << (i > 0 ? ", " : "") << shape[i];
+                        }
+                        shape_ss << "]";
+
+                        OPENVINO_THROW("OpenVINO IR Deserialization Error: Layer '",
+                                       safe_name,
+                                       "' (type: ",
                                        type,
-                                       " op!",
+                                       ", id: ",
+                                       safe_id,
+                                       ") constant data size ",
                                        actual_size,
-                                       ", ",
-                                       ((ov::shape_size(shape) * el_type.bitwidth() + 7) >> 3),
-                                       ", ",
-                                       ov::util::get_memory_size(el_type, ov::shape_size(shape)));
+                                       " byte(s) is inconsistent with shape ",
+                                       shape_ss.str(),
+                                       " and element_type '",
+                                       el_type.get_type_name(),
+                                       "'. Expected at least ",
+                                       expected_bytes,
+                                       " byte(s) (memory size: ",
+                                       ov::util::get_memory_size(el_type, ov::shape_size(shape)),
+                                       " byte(s)), but got ",
+                                       actual_size,
+                                       " byte(s) (delta: ",
+                                       expected_bytes - actual_size,
+                                       " byte(s) missing). Attribute and shape size are inconsistent for ",
+                                       type,
+                                       " op!");
                     }
 
                     adapter.set(m_weights_provider->make_region(offset, actual_size));

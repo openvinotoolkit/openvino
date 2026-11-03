@@ -4008,6 +4008,32 @@ INSTANTIATE_TEST_SUITE_P(in_t_range_f64_ct,
                                          RangeParam{element::f64, ov::bfloat16{0.0f}, {}},
                                          RangeParam{element::f64, std::numeric_limits<ov::bfloat16>::max(), {}},
                                          RangeParam{element::f64, std::numeric_limits<ov::bfloat16>::lowest(), {}}));
+
+TEST(constant, buffer_size_mismatch_exception_diagnostics) {
+    Shape shape{2, 2};
+    auto buffer = std::make_shared<ov::AlignedBuffer>(8, 64);
+    OV_EXPECT_THROW(ov::op::v0::Constant(element::f32, shape, buffer),
+                    ov::AssertFailure,
+                    testing::AllOf(testing::HasSubstr("element_type: 'f32'"),
+                                   testing::HasSubstr("shape: [2, 2]"),
+                                   testing::HasSubstr("expected 16 byte(s)"),
+                                   testing::HasSubstr("provided buffer size is 8 byte(s)"),
+                                   testing::HasSubstr("delta: 8 byte(s)"),
+                                   testing::HasSubstr("The Constant byte size and input data byte size not same")));
+}
+
+TEST(constant, reshape_size_mismatch_exception_diagnostics) {
+    Shape shape{2, 2};
+    ov::op::v0::Constant c(element::f32, shape, std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f});
+    c.set_friendly_name("my_weight_tensor");
+    Shape new_shape{2, 4};
+    OV_EXPECT_THROW(ov::op::v0::Constant(c, new_shape),
+                    ov::AssertFailure,
+                    testing::AllOf(testing::HasSubstr("Cannot reshape Constant 'my_weight_tensor'"),
+                                   testing::HasSubstr("source shape [2, 2] (4 elements)"),
+                                   testing::HasSubstr("target shape [2, 4] (8 elements)"),
+                                   testing::HasSubstr("ov::Shape size 8 is not equal to 4")));
+}
 }  // namespace test
 }  // namespace ov
 
