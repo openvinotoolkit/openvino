@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <regex>
 
@@ -116,13 +117,57 @@ void copy_additive_attention_block(const ov::SoPtr<ov::ITensor>& src,
                     dst_shape[1],
                     ".");
 
-    const auto block = [rows, cols](const ov::SoPtr<ov::ITensor>& tensor, size_t q_offset, size_t k_offset) {
-        const auto& shape = tensor->get_shape();
-        return ov::npuw::util::view(tensor,
-                                    {0, 0, q_offset, k_offset},
-                                    {shape[0], shape[1], q_offset + rows, k_offset + cols});
-    };
-    block(src, src_q_offset, src_k_offset)->copy_to(block(dst, dst_q_offset, dst_k_offset)._ptr);
+    OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type(),
+                    "Additive attention_mask element types must match the destination: got ",
+                    src->get_element_type(),
+                    ", expected ",
+                    dst->get_element_type(),
+                    ".");
+    OPENVINO_ASSERT(src_q_offset + rows <= src_shape[2] && src_k_offset + cols <= src_shape[3],
+                    "Additive attention_mask block of ",
+                    rows,
+                    " rows and ",
+                    cols,
+                    " columns at offset [",
+                    src_q_offset,
+                    ", ",
+                    src_k_offset,
+                    "] does not fit the source shape ",
+                    src_shape,
+                    ".");
+    OPENVINO_ASSERT(dst_q_offset + rows <= dst_shape[2] && dst_k_offset + cols <= dst_shape[3],
+                    "Additive attention_mask block of ",
+                    rows,
+                    " rows and ",
+                    cols,
+                    " columns at offset [",
+                    dst_q_offset,
+                    ", ",
+                    dst_k_offset,
+                    "] does not fit the destination shape ",
+                    dst_shape,
+                    ".");
+
+    const size_t elem_size = src->get_element_type().size();
+    const auto& src_strides = src->get_strides();
+    const auto& dst_strides = dst->get_strides();
+    // Ensure a block row is one contiguous run, so each row is a single memcpy
+    OPENVINO_ASSERT(src_strides[3] == elem_size && dst_strides[3] == elem_size,
+                    "Additive attention_mask rows must be contiguous.");
+
+    const size_t src_offset = src_q_offset * src_strides[2] + src_k_offset * elem_size;
+    const size_t dst_offset = dst_q_offset * dst_strides[2] + dst_k_offset * elem_size;
+    const auto* src_data = static_cast<const uint8_t*>(src->data()) + src_offset;
+    auto* dst_data = static_cast<uint8_t*>(dst->data()) + dst_offset;
+    for (size_t b = 0; b < src_shape[0]; ++b) {
+        for (size_t h = 0; h < src_shape[1]; ++h) {
+            const auto* src_block = src_data + b * src_strides[0] + h * src_strides[1];
+            auto* dst_block = dst_data + b * dst_strides[0] + h * dst_strides[1];
+            for (size_t r = 0; r < rows; ++r) {
+                std::memcpy(dst_block + r * dst_strides[2], src_block + r * src_strides[2], cols * elem_size);
+            }
+        }
+    }
 }
 
 void stage_additive_attention_mask_for_prefill(const ov::SoPtr<ov::ITensor>& src,

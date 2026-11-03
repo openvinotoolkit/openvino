@@ -224,9 +224,9 @@ ov::Tensor make_i64_iota(std::initializer_list<size_t> shape, int64_t start) {
 
 class LLM4DFloatAttentionMaskStagingTest : public LLM4DFloatAttentionMaskTest {
 protected:
-    void compile_with_mask_type(const ov::element::Type& type) {
+    void compile_with_mask_type(const ov::element::Type& type, const ov::AnyMap& extra_props = {}) {
         m_type = type;
-        m_compiled = compile(build_llm_test_model(make_4d_float_mask_config(type)), make_props());
+        m_compiled = compile(build_llm_test_model(make_4d_float_mask_config(type)), make_props(extra_props));
     }
 
     TestableLLMInferRequest& request() {
@@ -259,6 +259,14 @@ protected:
         set_inputs(make_i64({1, 1}, 1),  // just a filler
                    make_marker_mask(m_type, 1, mask_keys),
                    make_i64({1, 1}, static_cast<int64_t>(past_len)));
+        request().infer();
+    }
+
+    // The caller mask covers the stored past and the `tokens` current ones: [1, 1, tokens, past + tokens].
+    void run_generate_tokens(size_t past_len, size_t tokens) {
+        set_inputs(make_i64({1, tokens}, 1),  // just a filler
+                   make_marker_mask(m_type, tokens, past_len + tokens),
+                   make_i64_iota({1, tokens}, static_cast<int64_t>(past_len)));  // filled [past..past+tokens-1]
         request().infer();
     }
 
@@ -367,6 +375,37 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, GenerateSplitsTheMaskIntoPastAndCurren
                 return marker(0, column);
             }
             return column == width - 1 ? marker(0, past_len) : masked;
+        });
+    }
+}
+
+// With several current tokens, each row has its own past and current columns,
+// and the rows above them stay fully masked.
+TEST_P(LLM4DFloatAttentionMaskByTypeTest, GenerateStagesEveryRowOfAWindowOfSeveralTokens) {
+    // NPUW rounds a generation window above 1 up to a multiple of 8.
+    constexpr size_t kWindow = 8;
+    compile_with_mask_type(GetParam(), {{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", std::to_string(kWindow)}});
+    constexpr size_t kPromptLen = 5;
+    run_prefill(kPromptLen);
+
+    // The second step trims the KV cache back to the prompt, so the shorter window sits over rows the first one used.
+    const float masked = padding_value();
+    for (const size_t tokens : {kWindow, size_t{2}}) {
+        SCOPED_TRACE("tokens " + std::to_string(tokens));
+        run_generate_tokens(kPromptLen, tokens);
+
+        const auto staged = request().generate_attention_mask();
+        const size_t width = staged->get_shape()[3];
+        ASSERT_EQ(staged->get_shape(), (ov::Shape{1, 1, kWindow, width}));
+        const size_t first_row = kWindow - tokens;
+        expect_cells(staged, [&](size_t row, size_t column) {
+            if (row < first_row) {
+                return masked;
+            }
+            if (column < kPromptLen) {
+                return marker(row - first_row, column);
+            }
+            return column >= width - tokens ? marker(row - first_row, kPromptLen + column - (width - tokens)) : masked;
         });
     }
 }
