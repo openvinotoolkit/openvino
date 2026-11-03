@@ -6,6 +6,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/stateless_kv.hpp>
+#include "openvino/core/validation_util.hpp"
 
 #include "stateless_kv_inst.h"
 
@@ -24,6 +25,8 @@ struct stateless_kv_test_params {
     int64_t concat_axis;
     bool is_seq_len_present_len;
     std::vector<layout> expected_layouts;
+    int64_t window_size = 0;
+    int64_t seq_len = -1;
 };
 
 class stateless_kv_test : public testing::TestWithParam<stateless_kv_test_params> {};
@@ -42,8 +45,9 @@ TEST_P(stateless_kv_test, shape_infer) {
         input_prim_ids.emplace_back(prim_id);
     }
 
+    const auto concat_axis = ov::util::normalize(p.concat_axis, p.input_layouts[0].get_rank());
     auto stateless_kv_prim =
-        std::make_shared<stateless_kv>("output", input_prim_ids, p.concat_axis, p.is_seq_len_present_len);
+        std::make_shared<stateless_kv>("output", input_prim_ids, concat_axis, p.is_seq_len_present_len, p.window_size);
     stateless_kv_prim->num_outputs = 2;
     stateless_kv_prim->output_data_types = {p.input_layouts[0].data_type, p.input_layouts[0].data_type};
     auto& stateless_kv_node = prog.get_or_create(stateless_kv_prim);
@@ -53,69 +57,195 @@ TEST_P(stateless_kv_test, shape_infer) {
     }
 
     auto params = stateless_kv_node.get_kernel_impl_params();
+    if (p.seq_len >= 0) {
+        auto seq_len_mem = engine.allocate_memory(p.input_layouts[2]);
+        set_values<int64_t>(seq_len_mem, {p.seq_len});
+        params->memory_deps.emplace(2, seq_len_mem);
+    }
     const auto result = stateless_kv_inst::calc_output_layouts<ov::PartialShape>(stateless_kv_node, *params);
 
     ASSERT_EQ(result.size(), 2);
     ASSERT_EQ(result, p.expected_layouts);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke,
-                         stateless_kv_test,
-                         testing::ValuesIn(std::vector<stateless_kv_test_params>{
-                             {
-                                 {
-                                     layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
-                                     layout{ov::PartialShape{1, 2, 1, 4}, data_types::f16, format::bfyx},
-                                     layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
-                                 },
-                                 2,
-                                 true,
-                                 {
-                                     layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
-                                     layout{ov::PartialShape{1, 2, -1, 4}, data_types::f16, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
-                                 },
-                             },
-                             {
-                                 {
-                                     layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
-                                     layout{ov::PartialShape{-1, 2, 1, 4}, data_types::f32, format::bfyx},
-                                     layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
-                                     layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
-                                 },
-                                 2,
-                                 false,
-                                 {
-                                     layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
-                                     layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
-                                 },
-                             },
-                             {
-                                 {
-                                     layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
-                                     layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
-                                     layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
-                                 },
-                                 0,
-                                 true,
-                                 {
-                                     layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
-                                     layout{ov::PartialShape{-1, 2, 16, 4}, data_types::f16, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0001"}}},
-                                 },
-                             },
-                             {
-                                 {
-                                     layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
-                                     layout{ov::PartialShape{-1, 2, 1, 4}, data_types::f32, format::bfyx},
-                                     layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
-                                     layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
-                                 },
-                                 -2,
-                                 false,
-                                 {
-                                     layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
-                                     layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
-                                 },
-                             },
-                         }));
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    stateless_kv_test,
+    testing::ValuesIn(std::vector<stateless_kv_test_params>{
+        {
+            {
+                layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 1, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            true,
+            {
+                layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, -1, 4}, data_types::f16, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
+            },
+        },
+        {
+            {
+                layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
+                layout{ov::PartialShape{-1, 2, 1, 4}, data_types::f32, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            false,
+            {
+                layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
+                layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
+            },
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            0,
+            true,
+            {
+                layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{-1, 2, 16, 4}, data_types::f16, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0001"}}},
+            },
+        },
+        {
+            {
+                layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
+                layout{ov::PartialShape{-1, 2, 1, 4}, data_types::f32, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            -2,
+            false,
+            {
+                layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx},
+                layout{ov::PartialShape{-1, 2, -1, 4}, data_types::f32, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
+            },
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 4, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            false,
+            {
+                layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 4, 4}, data_types::f16, format::bfyx, padding{{}, {0, 0, 12}, padding::DynamicDimsMask{"0100"}}},
+            },
+            0,
+            0,  // past=0
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 2, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            false,
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 2, 4}, data_types::f16, format::bfyx, padding{{}, {0, 0, 6}, padding::DynamicDimsMask{"0100"}}},
+            },
+            4,
+            0,  // past=0, no overflow
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 17, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            true,
+            {
+                layout{ov::PartialShape{1, 2, 16, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 17, 4}, data_types::f16, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
+            },
+            4,
+            17,  // past=0, overflow, sdpa len limits to new_token len
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 1, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            true,
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 4, 4}, data_types::f16, format::bfyx, padding{{0, 0, 1}, {0, 0, 3}, padding::DynamicDimsMask{"0100"}}},
+            },
+            4,
+            10,  // past=9, overflow so already trimmed to 5~8, cur=9 requires 6~8, so pad 1,3
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 128, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 1, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            true,
+            {
+                layout{ov::PartialShape{1, 2, 128, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 30, 4}, data_types::f16, format::bfyx, padding{{0, 0, 70}, {0, 0, 28}, padding::DynamicDimsMask{"0100"}}},
+            },
+            30,
+            100,  // past=99, no overflow
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 2, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            true,
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 5, 4}, data_types::f16, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
+            },
+            4,
+            9,  // past=7, no overflow, cur[1]=8 causes overflow so using new tensor for sdpa, len(cur)+windos-1=5 nopadding
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 2, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            true,
+            {
+                layout{ov::PartialShape{1, 2, 8, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 6, 4}, data_types::f16, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
+            },
+            5,
+            10,  // past=8, no overflow, cur[0]=8 causes overflow so using new tensor for sdpa, len(cur)+window-1=6 nopadding
+        },
+        {
+            {
+                layout{ov::PartialShape{1, 2, 4, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 4, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1}, data_types::i64, format::bfyx},
+            },
+            2,
+            false,
+            {
+                layout{ov::PartialShape{1, 2, 4, 4}, data_types::f16, format::bfyx},
+                layout{ov::PartialShape{1, 2, 5, 4}, data_types::f16, format::bfyx, padding{{}, {}, padding::DynamicDimsMask{"0100"}}},
+            },
+            2,
+            7,  // past=7, overflow so already trimmed to 5~6, cur=4 causes overflow so using new tensor for sdpa, len(cur)+window-1=5 nopadding
+        },
+    }));
 
 }  // shape_infer_tests
