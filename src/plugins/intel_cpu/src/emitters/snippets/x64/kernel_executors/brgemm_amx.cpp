@@ -232,7 +232,7 @@ void BrgemmAMXKernelExecutor::create_brgemm_copy_a_kernel(
     dnnl_dim_t K_tail,
     dnnl_dim_t src_stride,
     dnnl_dim_t LDA) {
-    matmul::brgemm_matmul_conf_t conf_;
+    matmul::brgemm_matmul_conf_t conf_{};
     conf_.src_tag = dnnl_abcd;  // unused
     conf_.K = K;
     conf_.K_tail = K_tail;

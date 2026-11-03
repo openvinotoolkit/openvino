@@ -6,6 +6,9 @@ Supported configurations:
 - Windows 10 x86 64-bit or higher with Visual Studio 2019 or higher build for X64 architecture.
 - Windows on ARM (shortly WoA) to build for ARM64 architecture. OpenVINO was validated on [Windows DevKit 2023](https://developer.qualcomm.com/hardware/windows-on-snapdragon/windows-dev-kit-2023)
 
+Current validation includes x86_64 builds with Visual Studio 2022 and Visual Studio 2026.
+Visual Studio 2019 remains the documented minimum but is not exercised by the current CI matrix.
+
 ## Software requirements
 
 - [CMake](https://cmake.org/download/) 3.26 or higher

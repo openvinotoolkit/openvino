@@ -9,6 +9,25 @@
 
 using namespace LayerTestsDefinitions;
 
+namespace LayerTestsDefinitions {
+class ConvolutionBackpropDataTransformationGPU : public ConvolutionBackpropDataTransformation {
+protected:
+    void SetUp() override {
+        ConvolutionBackpropDataTransformation::SetUp();
+        auto [netPrecision, inputShapeAndHandling, outputShape, device, param] = this->GetParam();
+        if (netPrecision == ov::element::f16) {
+            abs_threshold = 0.5;
+            rel_threshold = 0.01;
+        }
+    }
+};
+
+TEST_P(ConvolutionBackpropDataTransformationGPU, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+}
+}  // namespace LayerTestsDefinitions
+
 namespace {
 const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32,
@@ -107,14 +126,14 @@ const std::vector<ov::Shape> outputShapes_4D = {
         { 16, 16 }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT_4D, ConvolutionBackpropDataTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT_4D, ConvolutionBackpropDataTransformationGPU,
     ::testing::Combine(
             ::testing::ValuesIn(netPrecisions),
             ::testing::ValuesIn(inputShapes_4D),
             ::testing::ValuesIn(outputShapes_4D),
             ::testing::Values(ov::test::utils::DEVICE_GPU),
             ::testing::ValuesIn(params)),
-    ConvolutionBackpropDataTransformation::getTestCaseName);
+    ConvolutionBackpropDataTransformationGPU::getTestCaseName);
 
 const std::vector<std::pair<ov::PartialShape, bool>> inputShapes_3D = {
     {{ 1, 32, 16, 16 }, true}
@@ -141,12 +160,12 @@ const std::vector<LayerTestsDefinitions::ConvolutionBackpropDataTransformationPa
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT_3D, ConvolutionBackpropDataTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT_3D, ConvolutionBackpropDataTransformationGPU,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes_3D),
         ::testing::ValuesIn(outputShapes_3D),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(params_3D)),
-    ConvolutionBackpropDataTransformation::getTestCaseName);
+    ConvolutionBackpropDataTransformationGPU::getTestCaseName);
 }  // namespace

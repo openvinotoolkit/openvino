@@ -652,7 +652,11 @@ TEST_P(FileUtilTestP, create_directories) {
 
 class SanitizePathTest : public ::testing::Test {
 protected:
-    std::filesystem::path base{std::filesystem::temp_directory_path() / "ov_sanitize_test_base"};
+    // sanitize_path() resolves symbolic links, so the base has to be resolved as well to compare
+    // the results. On macOS the temporary directory is reached through a symbolic link, for example
+    // /var/folders/... resolves to /private/var/folders/... .
+    std::filesystem::path base{std::filesystem::weakly_canonical(std::filesystem::temp_directory_path()) /
+                               "ov_sanitize_test_base"};
 };
 
 TEST_F(SanitizePathTest, valid_nested_relative_path) {

@@ -13,6 +13,23 @@ KERNEL(depth_to_space_ref)(const __global INPUT0_TYPE* input,
 {
     const uint batch = get_global_id(0);
     const uint feature = get_global_id(1);
+#if GROUPED_DEPTH_FIRST
+    const uint z = (uint)get_global_id(2) / OUTPUT_SIZE_X / OUTPUT_SIZE_Y;
+    const uint y = ((uint)get_global_id(2) / OUTPUT_SIZE_X) % OUTPUT_SIZE_Y;
+    const uint x = (uint)get_global_id(2) % OUTPUT_SIZE_X;
+
+    const uint uncropped_z = z + CROP_BEGIN_T;
+    const uint input_z = uncropped_z / FACTOR_T;
+    const uint offset_z = uncropped_z % FACTOR_T;
+    const uint input_y = y / FACTOR_S;
+    const uint offset_y = y % FACTOR_S;
+    const uint input_x = x / FACTOR_S;
+    const uint offset_x = x % FACTOR_S;
+    const uint repeated_feature = (((feature * FACTOR_T + offset_z) * FACTOR_S + offset_y) * FACTOR_S + offset_x);
+    const uint input_feature = repeated_feature / CHANNEL_REPEATS;
+    const uint output_index = OUTPUT_GET_INDEX(batch, feature, z, y, x);
+    const uint input_index = INPUT0_GET_INDEX(batch, input_feature, input_z, input_y, input_x);
+#else
 #if OUTPUT_DIMS == 5
     const uint z = (uint)get_global_id(2) / OUTPUT_SIZE_X / OUTPUT_SIZE_Y;
     const uint y = ((uint)get_global_id(2) / OUTPUT_SIZE_X) % OUTPUT_SIZE_Y;
@@ -50,6 +67,7 @@ KERNEL(depth_to_space_ref)(const __global INPUT0_TYPE* input,
 #endif // BLOCKS_FIRST
     const uint output_index = OUTPUT_GET_INDEX(batch, feature, y, x);
     const uint input_index = INPUT0_GET_INDEX(batch, input_feature, input_y, input_x);
+#endif
 #endif
 
     INPUT0_TYPE in_val = input[input_index];

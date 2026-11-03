@@ -30,6 +30,9 @@ struct SDPAOpt : public ImplementationManager {
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
     [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
+    // Asymmetric planar compressed KV whose zero-point buffer is bf16: the layout the oneDNN micro SDPA
+    // stage cannot handle, so it has to run on the regular sdpa_opt stages instead.
+    [[nodiscard]] static bool has_bf16_compressed_kv_zero_point(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
         const auto& supported_precisions = ov::intel_gpu::op::SDPA::get_supported_precisions();
@@ -77,7 +80,10 @@ struct SDPAOpt : public ImplementationManager {
         if (has_per_channel_compressed_kv(*p) && !supports_micro_sdpa(*p)) {
             return false;
         }
-        return !use_asymmetric_quantization || combine_scales_and_zp || supports_micro_sdpa(*p);
+        // Asymmetric planar compressed KV is normally handled by the micro kernel. The one layout the micro
+        // kernel cannot handle (an asymmetric bf16 zero-point buffer) is taken over by the regular
+        // sdpa_opt multi-token/single-token stages, so keep the implementation selectable for it as well.
+        return !use_asymmetric_quantization || combine_scales_and_zp || supports_micro_sdpa(*p) || has_bf16_compressed_kv_zero_point(*p);
     }
 };
 

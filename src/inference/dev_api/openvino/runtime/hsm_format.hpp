@@ -115,8 +115,18 @@ struct Header {
      * in place, no copy.
      * @warning No bounds checking: caller must ensure `data` points to at least `sizeof(Header)` readable bytes.
      */
-    static const Header& view(const uint8_t* data) noexcept {
+    static const Header& view(const void* data) noexcept {
         return *reinterpret_cast<const Header*>(data);
+    }
+
+    /**
+     * @brief Non-owning view of the header at the start of an HSM container buffer - reinterprets the bytes
+     * in place, no copy.
+     * @note Debug-asserts if @p data is too small for a Header; still the caller's responsibility in Release.
+     */
+    static const Header& view(ov::util::MemoryView data) noexcept {
+        OPENVINO_DEBUG_ASSERT(data.size() >= sizeof(Header));
+        return view(data.data());
     }
 };
 #pragma pack(pop)
@@ -125,14 +135,48 @@ static_assert(sizeof(Header) == 32,
               "this struct; readers and writers must be updated together.");
 
 /**
- * @brief Device/plugin that owns a ManifestEntry's section. Device catalog and collision rules follow later.
+ * @brief Device/plugin that owns a ManifestEntry's section - see #Devices for the catalog of assigned ids.
  * @note Paired with #SectionTag: a reader always compares `(device, tag)` together, never `tag` alone, so two
  * devices may reuse the same tag id for unrelated content.
  */
 using DeviceId = uint8_t;
 
+/**
+ * @brief Catalog of assigned #DeviceId values; never change or reuse a value once shipped.
+ * #sentinel_count auto-tracks the count and must stay last.
+ * @note A plugin gets an id here if it emits a blob of its own - including HETERO, whose `export_model()`
+ * writes its own container around the submodel blobs it embeds. AUTO, MULTI and AUTO-BATCH have no id:
+ * their `export_model()` is not implemented, so they never own a section. Anything else - sample, test and out-of-tree
+ * plugins - takes an id from #private_device_id_range_start instead.
+ */
+enum class Devices : DeviceId {
+    any = 0,     //!< See #any_device_id.
+    cpu = 1,     //!< See #cpu_device_id.
+    gpu = 2,     //!< See #gpu_device_id.
+    npu = 3,     //!< See #npu_device_id.
+    hetero = 4,  //!< See #hetero_device_id.
+    // Add new real devices above this line only, each with the next explicit value - never change or reuse an
+    // existing device's value.
+    sentinel_count,  // Not a real device id - always exactly one past the last real entry above.
+};
+
+/**
+ * @brief First #DeviceId with no interoperability guarantee: never assigned here, free for anyone -
+ * samples, tests, out-of-tree vendor plugins - to use without colliding with a real device.
+ */
+inline constexpr DeviceId private_device_id_range_start = 0x80;
+static_assert(static_cast<DeviceId>(Devices::sentinel_count) <= private_device_id_range_start,
+              "Too many real devices defined for private_device_id_range_start - widen the boundary.");
+
 /** @brief Reserved #DeviceId for sections not tied to one specific device. */
-inline constexpr DeviceId any_device_id = 0;
+inline constexpr DeviceId any_device_id = static_cast<DeviceId>(Devices::any);
+
+inline constexpr DeviceId cpu_device_id = static_cast<DeviceId>(Devices::cpu);  //!< CPU plugin.
+inline constexpr DeviceId gpu_device_id = static_cast<DeviceId>(Devices::gpu);  //!< GPU plugin.
+inline constexpr DeviceId npu_device_id = static_cast<DeviceId>(Devices::npu);  //!< NPU plugin.
+
+/// HETERO plugin - the one meta-plugin with an id; see the #Devices note for why.
+inline constexpr DeviceId hetero_device_id = static_cast<DeviceId>(Devices::hetero);
 
 /**
  * @brief Boundary in the 23-bit #SectionTag id space: Core ids are `< core_tag_id_range_end`;
@@ -197,6 +241,28 @@ struct SectionTag {
 };
 
 /**
+ * @brief #SectionTag plus its 4 reserved bytes (#ManifestEntry::tag_reserved). Implicitly convertible
+ * from a bare #SectionTag (reserved bytes default to zero), so existing #IWriter::add_section() callers
+ * are unaffected - only a caller whose `(device, tag)` pair redefines #ManifestEntry::tag_reserved's
+ * meaning needs to construct one explicitly.
+ * @note Never part of `(device, tag)` dispatch - see #SectionTag's unknown-tag rule; opaque sub-dispatch
+ * data for the handler that already owns the pair, nothing more.
+ */
+struct SectionTagReserved {
+    SectionTag tag;
+    std::array<uint8_t, 4> bytes;
+
+    constexpr SectionTagReserved(SectionTag tag, std::array<uint8_t, 4> bytes = {}) noexcept : tag(tag), bytes(bytes) {}
+
+    constexpr bool is_inline() const noexcept {
+        return tag.is_inline();
+    }
+    constexpr bool is_pointer() const noexcept {
+        return tag.is_pointer();
+    }
+};
+
+/**
  * @brief Core-owned HSM tag identifiers - explicit wire values so reordering is safe; never change or reuse a
  * value once shipped. #sentinel_count auto-tracks the count and must stay last.
  */
@@ -205,6 +271,8 @@ enum class Tags : uint32_t {
     model_id = 1,              //!< See #model_id.
     model = 2,                 //!< See #model.
     runtime_requirements = 3,  //!< See #runtime_requirements_tag.
+    weights = 4,               //!< See #weights_tag.
+    compiled_options = 5,      //!< See #compiled_options_tag.
     // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
     // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
@@ -215,6 +283,8 @@ static_assert(static_cast<uint32_t>(Tags::sentinel_count) <= core_tag_id_range_e
 inline constexpr uint32_t model_id = static_cast<uint32_t>(Tags::model_id);  //!< Model identifier (e.g. a hash).
 inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);        //!< The serialized compiled model itself.
 inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
+inline constexpr uint32_t weights = static_cast<uint32_t>(Tags::weights);
+inline constexpr uint32_t compiled_options = static_cast<uint32_t>(Tags::compiled_options);
 
 /// Wire tag for #model_id - always inline-mode.
 inline constexpr SectionTag model_id_tag = SectionTag::make(model_id, /*is_inline=*/true);
@@ -230,6 +300,12 @@ inline constexpr SectionTag model_tag = SectionTag::make(model, /*is_inline=*/fa
  * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
 inline constexpr SectionTag runtime_requirements_tag = SectionTag::make(runtime_requirements, /*is_inline=*/false);
+
+/// Wire tag for #weights - always pointer-mode. Payload contract: CVS-196451.
+inline constexpr SectionTag weights_tag = SectionTag::make(weights, /*is_inline=*/false);
+
+/// Wire tag for #compiled_options - always pointer-mode. Payload contract: CVS-196452.
+inline constexpr SectionTag compiled_options_tag = SectionTag::make(compiled_options, /*is_inline=*/false);
 
 /**
  * @brief One fixed-size, 32-byte record of the manifest table (see #Header::manifest_offset).
@@ -371,7 +447,7 @@ public:
      * @brief Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
      */
     constexpr ov::util::MemoryView section(const ManifestEntry& entry) const noexcept {
-        if (entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
+        if (m_view.empty() || entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
             return {};
         } else {
             return {begin() + static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size)};

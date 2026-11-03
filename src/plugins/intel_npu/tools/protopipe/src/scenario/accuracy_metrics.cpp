@@ -23,6 +23,11 @@ Result Norm::compare(const cv::Mat& lhs, const cv::Mat& rhs) {
     auto value = cv::norm(lhsf32, rhsf32);
     LOG_DEBUG() << "Norm: " << value << ", tolerance: " << m_tolerance << std::endl;
 
+    // NB: Every comparison against NaN is false, so without this the metric would report a pass.
+    if (!std::isfinite(value)) {
+        return Error{"Norm is not a finite number - output and/or reference contain NaN/Inf"};
+    }
+
     if (value > m_tolerance) {
         std::stringstream ss;
         ss << value << " > " << m_tolerance;
@@ -62,6 +67,10 @@ Result Cosine::compare(const cv::Mat& lhs, const cv::Mat& rhs) {
 
     const double similarity = numr / (std::sqrt(lhsdot) * std::sqrt(rhsdot));
     LOG_DEBUG() << "Cosine: " << similarity << ", threshold: " << m_threshold << std::endl;
+    // NB: Every comparison against NaN is false, so without this the metric would report a pass.
+    if (!std::isfinite(similarity)) {
+        return Error{"Cosine similarity is not a finite number - output and/or reference contain NaN/Inf"};
+    }
     if (similarity > (1.0 + eps) || similarity < -(1.0 + eps)) {
         std::stringstream ss;
         ss << "Invalid result " << similarity << " (valid range [-1 : +1])";
@@ -113,6 +122,11 @@ Result NRMSE::compare(const cv::Mat& lhs, const cv::Mat& rhs) {
 
     double nrmse = sqrt(error / size) / std::max(0.001f, std::max(lhsmax - lhsmin, rhsmax - rhsmin));
     LOG_DEBUG() << "NRMSE: " << nrmse << ", tolerance: " << m_tolerance << std::endl;
+
+    // NB: Every comparison against NaN is false, so without this the metric would report a pass.
+    if (!std::isfinite(nrmse)) {
+        return Error{"NRMSE is not a finite number - output and/or reference contain NaN/Inf"};
+    }
 
     if (m_tolerance < nrmse) {
         std::stringstream ss;

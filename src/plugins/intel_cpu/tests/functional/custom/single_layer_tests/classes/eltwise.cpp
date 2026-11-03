@@ -128,6 +128,11 @@ void EltwiseLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
     }
 }
 
+void EltwiseLayerCPUTest::validate() {
+    SubgraphBaseTest::validate();
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
+}
+
 void EltwiseLayerCPUTest::SetUp() {
     const auto& [basicParamsSet, cpuParams, fusingParams, enforceSnippets] = this->GetParam();
     const auto& [_shapes, _eltwiseType, secondaryInputType, opType, _netType, _inType, _outType, _targetDevice,
@@ -245,27 +250,7 @@ void EltwiseLayerCPUTest::SetUp() {
                     shape,
                     (netType == element::i32) || (netType == element::u32) ||
                     (netType == element::i8) || (netType == element::u8));
-                if ((netType == ElementType::i8) || (netType == ElementType::u8)) {
-                    auto data_ptr = reinterpret_cast<uint8_t*>(data_tensor.data());
-                    std::vector<uint8_t> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                } else if ((netType == ElementType::i16) || (netType == ElementType::u16)) {
-                    auto data_ptr = reinterpret_cast<uint16_t*>(data_tensor.data());
-                    std::vector<uint16_t> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                } else if ((netType == ElementType::i32) || (netType == ElementType::u32)) {
-                    auto data_ptr = reinterpret_cast<uint32_t*>(data_tensor.data());
-                    std::vector<uint32_t> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                } else if (netType == ElementType::f16) {
-                    auto data_ptr = reinterpret_cast<ov::float16*>(data_tensor.data());
-                    std::vector<ov::float16> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                } else {
-                    auto data_ptr = reinterpret_cast<float*>(data_tensor.data());
-                    std::vector<float> data(data_ptr, data_ptr + ov::shape_size(shape));
-                    secondaryInput = ov::op::v0::Constant::create(netType, shape, data);
-                }
+                secondaryInput = std::make_shared<ov::op::v0::Constant>(data_tensor);
                 break;
             }
             default: {
@@ -325,7 +310,6 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const ov::element::Type_t& ele
 
 TEST_P(EltwiseLayerCPUTest, CompareWithRefs) {
     run();
-    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
 
 namespace Eltwise {

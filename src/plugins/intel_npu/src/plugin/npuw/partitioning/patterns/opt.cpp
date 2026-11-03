@@ -28,6 +28,21 @@ bool is_subtract_128(const std::shared_ptr<ov::Node>& node) {
 
 }  // namespace
 
+Context::Context(std::shared_ptr<const ov::Model> model, std::size_t param_base_idx)
+    : model(std::move(model)),
+      param_base_idx(param_base_idx) {
+    NPUW_ASSERT(this->model);
+    NPUW_ASSERT(param_base_idx <= this->model->get_parameters().size());
+}
+
+bool Context::is_closure(const PPtr& param) const {
+    if (param_base_idx == 0) {
+        return true;
+    }
+    const auto idx = model->get_parameter_index(param);
+    return idx < 0 || static_cast<std::size_t>(idx) >= param_base_idx;
+}
+
 void Context::permute(const PPtr& orig_param, const Context::Axes& order) {
     closures_to_permute[orig_param] = order;
 
@@ -978,6 +993,11 @@ DQParMMGQ::DQParMMGQ(Context::Ref ctx) {
             return false;
         }
 
+        if (!ctx.get().is_closure(w_param) || !ctx.get().is_closure(s_param)) {
+            // Only closures can be concatenated. Function inputs stay unchanged.
+            return false;
+        }
+
         if (!matmul->get_transpose_a() && !matmul->get_transpose_b()) {
             ctx.get().register_parallel_matmul(
                 node_to_output.at(qmmi),
@@ -1431,6 +1451,46 @@ DQUnpackDictGatherGQi::DQUnpackDictGatherGQi(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(qcvtm, "DQDictGatherGQu"), std::move(callback));
 }
 
+namespace {
+
+// The ids feeding a vocab Gather may come guarded by a Minimum(N-1, Maximum(-N, ids))
+// clamp instead of straight from the Parameter. The HostGather* passes below all feed
+// their host-side gather from that Parameter, so the clamp is folded away and
+// util::gather() saturates into the same range in its place. The pattern therefore has
+// to look through the clamp, and the callback has to confirm it really is that clamp -
+// folding away a guard with any other bound would change results.
+struct IdClamp {
+    std::shared_ptr<ov::Node> maxids, minids;
+};
+
+IdClamp id_clamp(const std::shared_ptr<ov::Node>& ids) {
+    auto maxids = opp::optional<ov::op::v1::Maximum>({ids, opp::any_input()});
+    auto minids = opp::optional<ov::op::v1::Minimum>({maxids, opp::any_input()});
+    return {maxids, minids};
+}
+
+bool id_clamp_ok(const ov::pass::pattern::PatternValueMap& m,
+                 const IdClamp& clamp,
+                 const ov::Output<ov::Node>& gather) {
+    const auto vocab_size = static_cast<int64_t>(gather.get_node_shared_ptr()->get_input_shape(0)[0]);
+    auto bound_is = [&](const std::shared_ptr<ov::Node>& pattern_node, int64_t expected) {
+        const auto iter = m.find(pattern_node);
+        if (iter == m.end()) {
+            return true;
+        }
+        for (auto&& in : iter->second.get_node_shared_ptr()->input_values()) {
+            const auto bound = ov::as_type_ptr<ov::op::v0::Constant>(in.get_node_shared_ptr());
+            if (bound && ov::shape_size(bound->get_shape()) == 1 && bound->cast_vector<int64_t>()[0] == expected) {
+                return true;
+            }
+        }
+        return false;
+    };
+    return bound_is(clamp.maxids, -vocab_size) && bound_is(clamp.minids, vocab_size - 1);
+}
+
+}  // anonymous namespace
+
 // This is a companion to DQLiftGatherAsymCW step. This pass runs if
 // the respective block (mainly, a head) was turned a function
 // (e.g. with FUNCALL_FOR_ALL) As in this case the HostGatherQuant
@@ -1441,13 +1501,14 @@ template <typename WType>
 HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
+    auto ids = id_clamp(cvtids);
 
     auto qweight = opp::wrap_type<WType>();
     auto qzerop = opp::wrap_type<WType>();
     auto qcoeff = opp::wrap_type<WType>();
-    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
-    auto qgthrz = opp::wrap_type<ov::op::v8::Gather>({qzerop, cvtids, opp::any_input()});
-    auto qgthrs = opp::wrap_type<ov::op::v8::Gather>({qcoeff, cvtids, opp::any_input()});
+    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, ids.minids, opp::any_input()});
+    auto qgthrz = opp::wrap_type<ov::op::v8::Gather>({qzerop, ids.minids, opp::any_input()});
+    auto qgthrs = opp::wrap_type<ov::op::v8::Gather>({qcoeff, ids.minids, opp::any_input()});
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
@@ -1469,6 +1530,10 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
             return false;
         }
         if (out_shape.size() != 3 && out_shape.size() != 4) {
+            return false;
+        }
+
+        if (!id_clamp_ok(node_to_output, ids, node_to_output.at(qgthrw))) {
             return false;
         }
 
@@ -1543,11 +1608,12 @@ template <typename WType>
 HostGatherQuantSymm<WType>::HostGatherQuantSymm(Context::Ref ctx, bool verify_only) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
+    auto ids = id_clamp(cvtids);
 
     auto qweight = opp::wrap_type<WType>();
     auto qcoeff = opp::wrap_type<WType>();
-    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
-    auto qgthrs = opp::wrap_type<ov::op::v8::Gather>({qcoeff, cvtids, opp::any_input()});
+    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, ids.minids, opp::any_input()});
+    auto qgthrs = opp::wrap_type<ov::op::v8::Gather>({qcoeff, ids.minids, opp::any_input()});
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qcvtw, qgthrs});
@@ -1561,6 +1627,10 @@ HostGatherQuantSymm<WType>::HostGatherQuantSymm(Context::Ref ctx, bool verify_on
         auto out_shape = matched_out_mul.get_shape();
 
         if (out_shape.size() != 3 && out_shape.size() != 4) {
+            return false;
+        }
+
+        if (!id_clamp_ok(node_to_output, ids, node_to_output.at(qgthrw))) {
             return false;
         }
 
@@ -1627,18 +1697,25 @@ template class HostGatherQuantSymm<ov::op::v0::Constant>;
 HostGather::HostGather(Context::Ref ctx) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
+    auto ids = id_clamp(cvtids);
 
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qweight_cvt = opp::optional<ov::op::v0::Convert>({qweight->output(0)});
-    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight_cvt, cvtids, opp::any_input()});
+    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight_cvt, ids.minids, opp::any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto out_shape = node_to_output.at(qgthrw).get_shape();
         auto& matched_out_qweight = node_to_output.at(qweight);
         auto qweight_type = matched_out_qweight.get_element_type();
+        auto matched_qweight =
+            std::static_pointer_cast<ov::op::v0::Parameter>(matched_out_qweight.get_node_shared_ptr());
 
         const auto& matched_out_gather = node_to_output.at(qgthrw);
+
+        if (!id_clamp_ok(node_to_output, ids, matched_out_gather)) {
+            return false;
+        }
 
         auto sole_reader = [](ov::Output<ov::Node> out) {
             const auto readers = out.get_target_inputs();
@@ -1646,13 +1723,14 @@ HostGather::HostGather(Context::Ref ctx) {
             return readers.begin()->get_node();
         };
 
+        // NB: Only a closure can be the vocab. A function input (an output of
+        // another subgraph) is not a weight and stays unchanged.
         if (out_shape.back() >= 2048 && (qweight_type == ov::element::f16 || qweight_type == ov::element::f32) &&
+            ctx.get().is_closure(matched_qweight) &&
             (matched_out_gather.get_target_inputs().size() > 1 ||
              ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
-            auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
             const auto& matched_out_gthr = node_to_output.at(qgthrw);
-            auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
             if (qweight_type == ov::element::f32) {
@@ -1684,6 +1762,7 @@ HostGather::HostGather(Context::Ref ctx) {
 HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
+    auto ids = id_clamp(cvtids);
 
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
@@ -1691,8 +1770,8 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtc = opp::optional<ov::op::v0::Convert>({qcoeff->output(0)});
 
-    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qcvtw, cvtids, opp::any_input()});
-    auto qgthrc = opp::wrap_type<ov::op::v8::Gather>({qcvtc, cvtids, opp::any_input()});
+    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qcvtw, ids.minids, opp::any_input()});
+    auto qgthrc = opp::wrap_type<ov::op::v8::Gather>({qcvtc, ids.minids, opp::any_input()});
     auto qmul = opp::wrap_type<ov::op::v1::Multiply>({qgthrw, qgthrc});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -1705,6 +1784,10 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
 
         if ((out_shape.size() != 3 && out_shape.size() != 4) ||
             (out_shape.size() == 2 && qweight_type != ov::element::nf4)) {
+            return false;
+        }
+
+        if (!id_clamp_ok(node_to_output, ids, node_to_output.at(qgthrw))) {
             return false;
         }
 
@@ -1739,6 +1822,7 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
 HostGatherCB4::HostGatherCB4(Context::Ref ctx) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::wrap_type<ov::op::v0::Convert>({pids});
+    auto ids = id_clamp(cvtids);
 
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
@@ -1751,12 +1835,16 @@ HostGatherCB4::HostGatherCB4(Context::Ref ctx) {
     auto qmul = opp::wrap_type<ov::op::v1::Multiply>({qweightg, qcoeff});
     auto qcvtmul = opp::wrap_type<ov::op::v0::Convert>({qmul});
 
-    auto qgthr = opp::wrap_type<ov::op::v8::Gather>({qcvtmul, cvtids, opp::any_input()});
+    auto qgthr = opp::wrap_type<ov::op::v8::Gather>({qcvtmul, ids.minids, opp::any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         const auto& matched_out_mul = node_to_output.at(qmul);
         auto out_shape = matched_out_mul.get_shape();
+
+        if (!id_clamp_ok(node_to_output, ids, node_to_output.at(qgthr))) {
+            return false;
+        }
 
         if (out_shape.size() == 2 && out_shape.back() >= 2048 &&
             node_to_output.at(qweight).get_element_type() == ov::element::u4) {
@@ -1974,7 +2062,8 @@ DQUnpackDictMatMulGQi::DQUnpackDictMatMulGQi(Context::Ref ctx) {
 // TO:
 //     Param(W):f16 -------->
 //     ???(Act) -> to(f16) -> MatMul -> to(f32) -> Result
-// NB: This pass only worsens the performance so is disabled
+// NB: Only closure weights are compressed. A Parameter that is a function
+// input (an output of another subgraph) is not a weight and stays unchanged.
 CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
     auto weight = opp::wrap_type<ov::op::v0::Parameter>();
     auto mmi = opp::any_input();
@@ -1994,7 +2083,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
         auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_res);
 
-        if (ov::element::f32 == matched_weight->get_element_type() &&
+        if (ov::element::f32 == matched_weight->get_element_type() && ctx.get().is_closure(matched_weight) &&
             matched_matmul->output(0).get_target_inputs().size() == 1) {
             auto new_cvt_a = std::make_shared<ov::op::v0::Convert>(matched_mmi, ov::element::f16);
 
@@ -2395,10 +2484,11 @@ void untangleConst(std::shared_ptr<ov::Model> model) {
         if (this_type == ov::element::i64 && is_single) {
             // Keep the first reader with the original const, but redirect
             // all others to use their individual instance
-            auto this_val = this_const->get_tensor_view();
+            // NB: copy the data - a get_tensor_view() does not own it and dangles if this_const is freed
             auto it = readers.begin();
             while (++it != readers.end()) {
-                auto new_const = std::make_shared<ov::op::v0::Constant>(this_val);
+                auto new_const =
+                    std::make_shared<ov::op::v0::Constant>(this_type, this_shape, this_const->get_data_ptr());
                 new_const->set_friendly_name(util::Unique<Untangled_Const>::name());
                 it->replace_source_output(new_const);
             }
