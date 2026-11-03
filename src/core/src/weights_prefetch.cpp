@@ -5,6 +5,7 @@
 #include "openvino/core/weights_prefetch.hpp"
 
 #include <algorithm>
+#include <exception>
 #include <tuple>
 #include <utility>
 
@@ -21,9 +22,13 @@ SequentialPrefetchScheduler::SequentialPrefetchScheduler(ov::Tensor tensor, size
     : m_tensor(std::move(tensor)),
       m_size(m_tensor.get_byte_size()),
       m_window(window),
-      m_step(std::max<size_t>(step, 1)) {
-    OPENVINO_ASSERT(m_tensor.get_element_type() == ov::element::u8 && m_tensor.get_shape().size() == 1,
-                    "Prefetch tensor must be 1D u8");
+      m_step(std::max<size_t>(step, 1)),
+      m_prefetched(0),
+      m_evicted(0),
+      m_evict(true) {
+    // Chunks are cut with a byte ROI, which needs a 1D u8 tensor.
+    const bool is_1d_byte_tensor = m_tensor.get_element_type() == ov::element::u8 && m_tensor.get_shape().size() == 1;
+    OPENVINO_ASSERT(is_1d_byte_tensor, "Prefetch tensor must be 1D u8");
     advance(0, 0);
 }
 
@@ -54,7 +59,7 @@ void SequentialPrefetchScheduler::advance(size_t begin, size_t end) noexcept {
             }
             m_prefetched = chunk_end;
         }
-    } catch (...) {
+    } catch (const std::exception&) {
         // Hints are advisory, the data is read correctly without them.
     }
 }

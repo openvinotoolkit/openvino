@@ -117,12 +117,12 @@ public:
 private:
     std::shared_ptr<IMemoryHints> chunk_hints(size_t begin, size_t end) const;
 
-    ov::Tensor m_tensor;
-    size_t m_size;
-    size_t m_window;
-    size_t m_step;
-    size_t m_prefetched = 0;
-    size_t m_evicted = 0;
-    bool m_evict = true;
+    ov::Tensor m_tensor;       // Tensor being read.
+    size_t m_size;             // Tensor size in bytes.
+    size_t m_window;           // Bytes to prefetch ahead of the read position.
+    size_t m_step;             // Granularity of prefetch and eviction chunks.
+    size_t m_prefetched;       // End offset of the prefetched region.
+    size_t m_evicted;          // End offset of the evicted region.
+    bool m_evict;              // Whether consumed data should be evicted.
 };
 }  // namespace ov::util

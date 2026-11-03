@@ -18,7 +18,7 @@ namespace ov::intel_gpu {
  */
 class PrefetchStreamBuf : public std::streambuf {
 public:
-    explicit PrefetchStreamBuf(const ov::Tensor& tensor, bool prefetch = true);
+    explicit PrefetchStreamBuf(ov::Tensor tensor, bool prefetch = true);
 
     void keep_read_data() noexcept {
         if (m_scheduler) {

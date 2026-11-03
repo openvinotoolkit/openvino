@@ -6,16 +6,17 @@
 
 #include <algorithm>
 #include <cstring>
+#include <utility>
 
 #include "openvino/runtime/make_tensor.hpp"
 
 namespace ov::intel_gpu {
 
-PrefetchStreamBuf::PrefetchStreamBuf(const ov::Tensor& tensor, bool prefetch) {
-    auto* const begin = static_cast<char*>(const_cast<void*>(tensor.data()));
+PrefetchStreamBuf::PrefetchStreamBuf(ov::Tensor tensor, bool prefetch) {
+    auto* const begin = static_cast<char*>(tensor.data());
     setg(begin, begin, begin + tensor.get_byte_size());
     if (prefetch && ov::get_memory_hints(tensor)) {
-        m_scheduler = std::make_unique<ov::util::SequentialPrefetchScheduler>(tensor);
+        m_scheduler = std::make_unique<ov::util::SequentialPrefetchScheduler>(std::move(tensor));
     }
 }
 
