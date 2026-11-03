@@ -3692,7 +3692,9 @@ std::shared_ptr<primitive_impl> ImplementationsFactory::get_primitive_impl_for_p
     }
 
     // 4. Try to create new shape agnostic impl & cache it
-    if (!dynamic_impl) {
+    // If dynamic impls are cached but none supports these shapes, a new one built from the concrete runtime params
+    // is not shape agnostic and must not be reused for other shapes: use the static path (step 6) instead.
+    if (!dynamic_impl && m_dynamic_impls_cache.empty()) {
         dynamic_impl = find_impl(node, params, shape_types::dynamic_shape);
         if (dynamic_impl && !inst.can_be_optimized()) {
             dynamic_impl->set_node_params(*node);
