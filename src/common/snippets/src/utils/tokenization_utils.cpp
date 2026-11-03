@@ -249,7 +249,10 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
     for (size_t input_index = 0; input_index < input_values.size(); ++input_index) {
         const auto& input_value = input_values[input_index];
         auto input_node = input_value.get_node_shared_ptr();
-        if (ov::is_type<op::Subgraph>(input_node) && !cyclicDependencyIsIntoduced(input_node, currentTopoBounds)) {
+        // Only subgraphs with a cloned body can be merged. Completed subgraphs (e.g. GroupNormalization) have none:
+        // they stay separate and feed the new subgraph as a regular external input.
+        if (ov::is_type<op::Subgraph>(input_node) && clones.count(input_node) &&
+            !cyclicDependencyIsIntoduced(input_node, currentTopoBounds)) {
             auto subgraph = std::static_pointer_cast<op::Subgraph>(input_node);
             if (!input_subgraphs.count(input_node)) {
                 input_subgraphs.insert(input_node);
@@ -283,8 +286,8 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
 
                         auto internal = input_body_parameters[i];
                         auto internal_consumers = internal->outputs();
-                        if (auto to_replace_with =
-                                ov::as_type_ptr<op::Subgraph>(subgraph->get_input_node_shared_ptr(i))) {
+                        auto to_replace_with = ov::as_type_ptr<op::Subgraph>(subgraph->get_input_node_shared_ptr(i));
+                        if (to_replace_with && clones.count(to_replace_with)) {
                             // todo: In principle, we can still attach the node to the subgraph if cyclic dependency is
                             // introduced during ternary merge.
                             //  Need to support.
