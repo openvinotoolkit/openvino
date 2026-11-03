@@ -118,10 +118,12 @@ jobs:
         working-directory: ${{ env.OPENVINO_GENAI_REPO }}
         run: |
           parallel_jobs=$(nproc)
+          openvino_cmake_dir=$(python3 -c 'from openvino.utils import get_cmake_path; print(get_cmake_path())')
           build_args_override="override=cmake.build_args={\"=\"=[\"--parallel\",\"${parallel_jobs}\",\"--target\",\"py_openvino_genai_stub\"]}"
           python3 -m pip wheel -v --no-deps --wheel-dir ${GENAI_BUILD_DIR} --find-links ${INSTALL_WHEELS_DIR} \
             --config-settings='override=cmake.options.CMAKE_CXX_COMPILER_LAUNCHER="sccache"' \
             --config-settings='override=cmake.options.CMAKE_C_COMPILER_LAUNCHER="sccache"' \
+            --config-settings="override=cmake.options.OpenVINO_DIR=\"${openvino_cmake_dir}\"" \
             --config-settings="$build_args_override" .
 
       - name: Show sccache stats
