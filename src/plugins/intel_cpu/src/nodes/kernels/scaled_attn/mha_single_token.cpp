@@ -27,7 +27,6 @@
 #    include <arm_neon.h>
 
 #    include <array>
-#    include <utility>
 #endif
 
 namespace ov::Extensions::Cpu::XARCH {
@@ -1389,40 +1388,27 @@ static void attn_acc_value_u8_rows(ov::float16* const* out,
 }
 #    endif
 
-// Calls f(std::integral_constant<size_t, R>{}, rows) for consecutive tiles of up to 4 of the q_len x heads pairs,
-// token-major, where rows[r] = {query token, head in group}; a tile may span query tokens.
+// Calls f(std::integral_constant<size_t, R>{}, m) for consecutive tiles [m, m + R) of R <= 4 of the q_len x heads
+// rows, token-major (row m is query token m / heads, head m % heads in the group); a tile may span query tokens.
 template <typename F>
-static void for_each_row_tile(size_t q_len, size_t heads, const F& f) {
-    std::array<std::pair<size_t, size_t>, 4> rows{};
-    size_t n = 0;
-    auto flush = [&]() {
-        switch (n) {
-        case 4:
-            f(std::integral_constant<size_t, 4>{}, rows);
-            break;
-        case 3:
-            f(std::integral_constant<size_t, 3>{}, rows);
-            break;
-        case 2:
-            f(std::integral_constant<size_t, 2>{}, rows);
-            break;
-        case 1:
-            f(std::integral_constant<size_t, 1>{}, rows);
-            break;
-        default:
-            break;
-        }
-        n = 0;
-    };
-    for (size_t pq = 0; pq < q_len; pq++) {
-        for (size_t g = 0; g < heads; g++) {
-            rows[n++] = {pq, g};
-            if (n == rows.size()) {
-                flush();
-            }
-        }
+static void for_each_row_tile(size_t rows, const F& f) {
+    size_t m = 0;
+    for (; m + 4 <= rows; m += 4) {
+        f(std::integral_constant<size_t, 4>{}, m);
     }
-    flush();
+    switch (rows - m) {
+    case 3:
+        f(std::integral_constant<size_t, 3>{}, m);
+        break;
+    case 2:
+        f(std::integral_constant<size_t, 2>{}, m);
+        break;
+    case 1:
+        f(std::integral_constant<size_t, 1>{}, m);
+        break;
+    default:
+        break;
+    }
 }
 #endif
 
@@ -1497,7 +1483,6 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
             });
         }
     }
-    [[maybe_unused]] const ov::intel_cpu::PlainTensor& query_f32 = std::is_same_v<T, float> ? query : buf_attn_score;
 #endif
 
     parallel_nt_static(nthr, [&](const size_t ithr, const size_t nthr) {
@@ -1620,21 +1605,26 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 #if defined(OPENVINO_ARCH_ARM64)
                 if constexpr (std::is_same_v<T2, uint8_t>) {
                     if (group_heads) {
+                        const ov::intel_cpu::PlainTensor& query_f32 = std::is_same_v<T, float> ? query : buf_attn_score;
                         for (size_t iwork = start; iwork < end; ++iwork) {
                             auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
                             const auto* p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
                             const auto* k = present_key.ptr<uint8_t>(b_kv, h_group, pk);
                             const size_t h0 = h_group * h_each_group_len;
-                            for_each_row_tile(q_len, h_each_group_len, [&](auto tile, const auto& rows) {
+                            for_each_row_tile(q_len * h_each_group_len, [&](auto tile, size_t m) {
                                 constexpr size_t R = decltype(tile)::value;
                                 std::array<const float*, R> q_rows{};
-                                std::array<float, R> qk{};
+                                std::array<T3*, R> dst_rows{};
                                 for (size_t r = 0; r < R; r++) {
-                                    q_rows[r] = query_f32.ptr<float>(b, h0 + rows[r].second, rows[r].first);
+                                    const size_t pq = (m + r) / h_each_group_len;
+                                    const size_t h = h0 + (m + r) % h_each_group_len;
+                                    q_rows[r] = query_f32.ptr<float>(b, h, pq);
+                                    dst_rows[r] = buf_attn_w.ptr<T3>(b, h, pq) + pk;
                                 }
+                                std::array<float, R> qk{};
                                 dot_product_u8_rows<R>(q_rows.data(), k, S, p, key_group_size, qk.data());
                                 for (size_t r = 0; r < R; r++) {
-                                    T3* dst = buf_attn_w.ptr<T3>(b, h0 + rows[r].second, rows[r].first) + pk;
+                                    T3* dst = dst_rows[r];
 #    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
                                     if constexpr (std::is_same_v<T3, ov::float16>) {
                                         // Hardware rounding, not the out-of-line ov::float16 constructor (they differ
@@ -1758,12 +1748,13 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                 if constexpr (std::is_same_v<T2, uint8_t>) {
                     if (h_each_group_len > 1) {
                         const size_t h0 = h_group * h_each_group_len;
-                        for_each_row_tile(q_len, h_each_group_len, [&](auto tile, const auto& rows) {
+                        for_each_row_tile(q_len * h_each_group_len, [&](auto tile, size_t m) {
                             constexpr size_t R = decltype(tile)::value;
                             std::array<T3*, R> out{};
                             std::array<T3, R> w{};
                             for (size_t r = 0; r < R; r++) {
-                                const auto [pq, g] = rows[r];
+                                const size_t pq = (m + r) / h_each_group_len;
+                                const size_t g = (m + r) % h_each_group_len;
                                 out[r] = buf_attn_score.ptr<T3>(ithr, pq, g);
                                 w[r] = buf_attn_w.ptr<T3>(b, h0 + g, pq)[pv];
                             }
@@ -1835,12 +1826,13 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     if constexpr (std::is_same_v<T2, uint8_t>) {
                         if (h_each_group_len > 1) {
                             const size_t h0 = h_group * h_each_group_len;
-                            for_each_row_tile(q_len, h_each_group_len, [&](auto tile, const auto& rows) {
+                            for_each_row_tile(q_len * h_each_group_len, [&](auto tile, size_t m) {
                                 constexpr size_t R = decltype(tile)::value;
                                 std::array<T3*, R> out{};
                                 std::array<T3, R> w{};
                                 for (size_t r = 0; r < R; r++) {
-                                    const auto [pq, g] = rows[r];
+                                    const size_t pq = (m + r) / h_each_group_len;
+                                    const size_t g = (m + r) % h_each_group_len;
                                     out[r] = buf_attn_score.ptr<T3>(ithr, b, pq, h0 + g);
                                     w[r] = buf_attn_w.ptr<T3>(b, h0 + g, pq)[pv];
                                 }
