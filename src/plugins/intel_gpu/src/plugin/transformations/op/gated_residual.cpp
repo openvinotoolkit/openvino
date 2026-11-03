@@ -28,8 +28,7 @@ GatedResidual::GatedResidual(const ov::OutputVector& args,
                              size_t lowrank,
                              float epsilon,
                              bool norm_gain_plus_one,
-                             bool produce_write_gate,
-                             const ov::element::Type output_type)
+                             bool produce_write_gate)
     : Op(args),
       m_mode(mode),
       m_hc_count(hc_count),
@@ -37,8 +36,7 @@ GatedResidual::GatedResidual(const ov::OutputVector& args,
       m_lowrank(lowrank),
       m_epsilon(epsilon),
       m_norm_gain_plus_one(norm_gain_plus_one),
-      m_produce_write_gate(produce_write_gate),
-      m_output_type(output_type) {
+      m_produce_write_gate(produce_write_gate) {
     constructor_validate_and_infer_types();
 }
 
@@ -52,13 +50,12 @@ bool GatedResidual::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("epsilon", m_epsilon);
     visitor.on_attribute("norm_gain_plus_one", m_norm_gain_plus_one);
     visitor.on_attribute("produce_write_gate", m_produce_write_gate);
-    visitor.on_attribute("output_type", m_output_type);
     return true;
 }
 
 void GatedResidual::validate_and_infer_types() {
     const auto input_size = get_input_size();
-    const auto out_et = m_output_type == ov::element::dynamic ? get_input_element_type(0) : m_output_type;
+    const auto out_et = get_input_element_type(0);
 
     NODE_VALIDATION_CHECK(this, m_hc_count > 0, "GatedResidual requires a positive branch count C.");
     NODE_VALIDATION_CHECK(this, m_hidden_size > 0, "GatedResidual requires a positive hidden size D.");
@@ -91,7 +88,6 @@ void GatedResidual::validate_and_infer_types() {
                 "GatedResidual (WRITE) inputs must share the residual element type.");
         }
         // R' has exactly the residual layout.
-        set_output_size(1);
         set_output_type(0, out_et, residual_ps);
         return;
     }
@@ -219,7 +215,6 @@ void GatedResidual::validate_and_infer_types() {
         mixed_ps[mixed_ps.rank().get_length() - 1] = ov::Dimension(static_cast<int64_t>(m_hidden_size));
     }
     set_output_size(m_produce_write_gate ? 2 : 1);
-    set_output_type(0, out_et, mixed_ps);
 
     if (m_produce_write_gate) {
         auto gate_ps = residual_ps;
@@ -239,8 +234,7 @@ std::shared_ptr<Node> GatedResidual::clone_with_new_inputs(const ov::OutputVecto
                                            m_lowrank,
                                            m_epsilon,
                                            m_norm_gain_plus_one,
-                                           m_produce_write_gate,
-                                           m_output_type);
+                                           m_produce_write_gate);
 }
 
 }  // namespace ov::intel_gpu::op

@@ -78,8 +78,7 @@ public:
                   size_t lowrank,
                   float epsilon,
                   bool norm_gain_plus_one,
-                  bool produce_write_gate,
-                  const ov::element::Type output_type = ov::element::dynamic);
+                  bool produce_write_gate);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -105,9 +104,6 @@ public:
     }
     bool get_produce_write_gate() const {
         return m_produce_write_gate;
-    }
-    ov::element::Type get_output_type() const {
-        return m_output_type;
     }
 
     /// Geometry the kernels can execute; shared by the fusion pass and the impl's validate_impl.
@@ -164,7 +160,6 @@ private:
     float m_epsilon = 1e-6f;
     bool m_norm_gain_plus_one = true;
     bool m_produce_write_gate = false;
-    ov::element::Type m_output_type = ov::element::dynamic;
 };
 
 }  // namespace ov::intel_gpu::op

@@ -11,7 +11,7 @@ GatedResidual
 **Category**: *Internal*
 
 **Short description**:
-The *GatedResidual* operation represents the gated residual (hyper-connection) mechanism used by Qwen4-Exp / Qwen3.8-Flash-Next-style models. It handles branch-wise normalization and gated branch merging, the gated residual update, and an optional terminal merge. READ and WRITE are distinct operation modes; the sub-layer output is an explicit input to WRITE. READ and FINAL_MIX optionally accept u4/u8 compressed ``w_down`` / ``w_up`` weights.
+The *GatedResidual* operation represents the gated residual (hyper-connection) mechanism used by Qwen4-Exp / Qwen3.8-Flash-Next-style models. It handles branch-wise normalization and gated branch merging, the gated residual update, and an optional terminal merge. READ and WRITE are distinct operation modes; the sub-layer output is an explicit input to WRITE. READ and FINAL_MIX optionally accept u4/u8 compressed ``w_down`` / ``w_up`` / ``w_inject`` weights.
 
 **Detailed description**
 
@@ -84,8 +84,8 @@ the READ equations for ``M`` but does not calculate ``S``.
 
 The following PyTorch-equivalent code illustrates the full computation. Weights are given as
 decompressed floating-point tensors; ``dequantize_weight`` shows how the compressed
-``u4``/``u8`` weights of the eight-input form are expanded first, with ``zp`` already unpacked
-to one value per element.
+``u4``/``u8`` weights (``w_down``, ``w_up`` and ``w_inject``) are expanded first, with ``zp``
+already unpacked to one value per element.
 
 .. code-block:: py
 
@@ -179,17 +179,9 @@ to one value per element.
 
 * *produce_write_gate*
 
-  * **Description**: In READ mode, compute and emit the write gate using ``w_inject``. It must be false for FINAL_MIX and for the compressed-weight form, and is unused in WRITE mode.
+  * **Description**: In READ mode, compute and emit the write gate using ``w_inject``. It must be false for FINAL_MIX and is unused in WRITE mode.
   * **Type**: ``bool``
   * **Default value**: ``false``
-  * **Required**: *no*
-
-* *output_type*
-
-  * **Description**: Requested element type of the operation outputs. When dynamic, the output type is inferred from the residual input.
-  * **Range of values**: any floating-point type, or ``dynamic``
-  * **Type**: ``element::Type``
-  * **Default value**: ``dynamic``
   * **Required**: *no*
 
 **Inputs**
@@ -210,31 +202,58 @@ last dimension is as specified below and the leading dimensions agree across the
 
 * **READ / FINAL_MIX input 2**: ``w_down``
   A 2D tensor of shape ``[L, C*D]`` for the low-rank down projection. Floating-point in the
-  four- and five-input forms, ``u4`` or ``u8`` in the eight-input compressed form. **Required.**
+  uncompressed forms, ``u4`` or ``u8`` in the compressed forms. **Required.**
 
 * **READ / FINAL_MIX input 3**: ``w_up``
   A 2D tensor of shape ``[C*D, L]`` for the up projection that produces read-gate logits. Floating-point in the
-  four- and five-input forms, ``u4`` or ``u8`` in the eight-input compressed form. **Required.**
+  uncompressed forms, ``u4`` or ``u8`` in the compressed forms. **Required.**
 
-* **READ input 4**: ``w_inject``
-  A 2D tensor of shape ``[C, C*D]``. Required (five inputs in total) when ``produce_write_gate`` is true; absent otherwise.
+READ and FINAL_MIX accept one of four input forms, selected by the weight element type and
+``produce_write_gate``. Inputs 0-3 are identical in all of them. The compression parameters, when
+present, follow input 3. The write-gate inputs, when present, are always the **last** inputs, so
+the index of ``w_inject`` depends on the form:
 
-* **READ / FINAL_MIX inputs 4-7 (compressed weights)**: when ``w_down`` and ``w_up`` are ``u4`` or ``u8``,
-  the operation takes eight inputs. This form is exclusive with ``w_inject``.
+.. list-table::
+   :header-rows: 1
+
+   * - Form
+     - Inputs
+   * - Floating-point weights
+     - 4 inputs: ``residual``, ``norm_weight``, ``w_down``, ``w_up``
+   * - Floating-point weights, write gate
+     - 5 inputs: inputs 0-3 as above, then ``w_inject`` (input 4)
+   * - Compressed weights
+     - 8 inputs: inputs 0-3 as above, then ``scale_down`` (4), ``scale_up`` (5), ``zp_down`` (6),
+       ``zp_up`` (7)
+   * - Compressed weights, write gate
+     - 11 inputs: inputs 0-7 as in the compressed form, then ``w_inject`` (8), ``scale_inject`` (9),
+       ``zp_inject`` (10)
+
+* **READ / FINAL_MIX inputs 4-7, compressed forms only**: when the weights are ``u4`` or ``u8``,
+  these inputs carry the scales and zero points of ``w_down`` and ``w_up``.
 
   * input 4: ``scale_down``, ``f16``, shape ``[G_d, L]``
   * input 5: ``scale_up``, ``f16``, shape ``[G_u, C*D]``
   * input 6: ``zp_down``, same element type as ``w_down``, same shape as ``scale_down``
   * input 7: ``zp_up``, same element type as ``w_up``, same shape as ``scale_up``
 
-  Scales and zero points are laid out ``[G, N]`` with ``N`` (the output channel) contiguous. The
-  group size is not an attribute: it is derived as ``group_size = K / G``, where ``K`` is the
-  number of columns of the weight (``C*D`` for ``w_down``, ``L`` for ``w_up``) and ``G`` the number
-  of rows of the scale and zero point. ``K`` must be divisible by ``G``; ``G = 1`` means
-  per-channel quantization. ``w_down`` and ``w_up`` must share one element type;
-  ``u4``/``u8`` weights are accepted only in the eight-input form. ``u4`` weights and zero points
-  are packed two elements per byte in row-major order, the even element in the low nibble.
-  Dequantization is ``w = (q - zp) * scale``, see ``dequantize_weight`` above.
+* **READ write-gate inputs, only when produce_write_gate is true; always the last inputs**:
+
+  * ``w_inject``: a 2D tensor of shape ``[C, C*D]`` used to compute the write gate. Floating-point
+    in the five-input form (input 4), ``u4`` or ``u8`` in the compressed form (input 8).
+  * ``scale_inject`` (input 9), compressed form only: ``f16``, shape ``[G_i, C]``.
+  * ``zp_inject`` (input 10), compressed form only: same element type as ``w_inject``, same shape
+    as ``scale_inject``.
+
+For every compressed weight, scales and zero points are laid out ``[G, N]`` with ``N`` (the output
+channel) contiguous. The group size is not an attribute: it is derived as ``group_size = K / G``,
+where ``K`` is the number of columns of the weight (``C*D`` for ``w_down`` and ``w_inject``, ``L``
+for ``w_up``) and ``G`` the number of rows of the scale and zero point. ``K`` must be divisible by
+``G``; ``G = 1`` means per-channel quantization. ``w_down``, ``w_up`` and ``w_inject`` (when
+present) must all share one element type; ``u4``/``u8`` weights are accepted only in the compressed
+forms. ``u4`` weights and zero points are packed two elements per byte in row-major order, the even
+element in the low nibble. Dequantization is ``w = (q - zp) * scale``, see ``dequantize_weight``
+above.
 
 * **WRITE input 0**: ``residual``
   A floating-point tensor with logical shape ``[B, T, C, D]`` and physical shape
@@ -266,13 +285,13 @@ last dimension is as specified below and the leading dimensions agree across the
 * ``hc_count`` and ``hidden_size`` must be positive.
 * The residual rank must be at least 2, and its last dimension must be compatible with
   ``hc_count * hidden_size``.
-* READ and FINAL_MIX require exactly four inputs, five when ``produce_write_gate`` is true, or
-  eight for the compressed-weight form. The compressed form must not produce a write gate.
+* READ and FINAL_MIX require four inputs with floating-point weights, five when ``produce_write_gate`` is true, eight for compressed weights, or eleven for compressed weights with a write gate (see the input forms above).  
+  The write-gate inputs are always the last inputs.  
   FINAL_MIX must not produce a write gate. READ/FINAL_MIX require ``lowrank > 0``.
 * ``norm_weight`` must have shape ``[C*D]``, ``w_down`` ``[L, C*D]``, ``w_up`` ``[C*D, L]``, and
-  ``w_inject`` (if present) ``[C, C*D]``. ``w_down`` and ``w_up`` must share one element type.
+  ``w_inject`` (if present) ``[C, C*D]``. ``w_down``, ``w_up`` and ``w_inject`` (if present) must share one element type.
 * For the compressed form, scale tensors must be rank 2 with last dimension equal to the weight's
-  output channel count (``L`` for ``w_down``, ``C*D`` for ``w_up``), zero points must have the
+  output channel count (``L`` for ``w_down``, ``C*D`` for ``w_up``, ``C`` for ``w_inject``), zero points must have the
   same shape as their scales, scales must be ``f16``, zero points must have the weight element type (``u4`` or ``u8``), and ``K`` must be divisible by the group count ``G``
   (the group size ``K / G`` is derived from the shapes, see the compressed inputs above).
 * WRITE requires exactly three inputs and returns the residual shape. ``sublayer_y`` must have
@@ -281,8 +300,7 @@ last dimension is as specified below and the leading dimensions agree across the
 * READ/FINAL_MIX output 0 preserves the residual rank and leading dimensions and replaces the
   final dimension with ``hidden_size``. When the write gate is produced, output 1 preserves the
   leading dimensions and replaces the final dimension with ``hc_count``.
-* ``output_type`` defaults to dynamic; when it is dynamic, all outputs use the residual input
-  element type. Otherwise all outputs use ``output_type``.
+* All outputs use the element type of ``residual``.
 
 **Implementation notes**
 
@@ -302,7 +320,7 @@ and a generated write gate. The flattened residual has shape ``[1, 2, 256]``.
    <layer ... type="GatedResidual">
        <data mode="0" hc_count="4" hidden_size="64" lowrank="32"
              epsilon="1e-6" norm_gain_plus_one="true"
-             produce_write_gate="true" output_type="f16"/>
+             produce_write_gate="true"/>
        <input>
            <port id="0">  <!-- residual: [B,T,C*D] -->
                <dim>1</dim><dim>2</dim><dim>256</dim>
@@ -338,7 +356,7 @@ The matching WRITE that adds the sub-layer output back to every branch:
    <layer ... type="GatedResidual">
        <data mode="1" hc_count="4" hidden_size="64" lowrank="32"
              epsilon="1e-6" norm_gain_plus_one="true"
-             produce_write_gate="false" output_type="f16"/>
+             produce_write_gate="false"/>
        <input>
            <port id="0">  <!-- residual: [B,T,C*D] -->
                <dim>1</dim><dim>2</dim><dim>256</dim>
@@ -367,7 +385,7 @@ so it is per-channel (group size 32 = K):
    <layer ... type="GatedResidual">
        <data mode="2" hc_count="4" hidden_size="64" lowrank="32"
              epsilon="1e-6" norm_gain_plus_one="true"
-             produce_write_gate="false" output_type="f16"/>
+             produce_write_gate="false"/>
        <input>
            <port id="0">  <!-- residual: f16 [B,T,C*D] -->
                <dim>1</dim><dim>2</dim><dim>256</dim>
@@ -404,6 +422,5 @@ so it is per-channel (group size 32 = K):
 **Types**
 
 * *T*: floating-point element type of the data inputs.
-* *T_W*: ``u4`` or ``u8`` for compressed ``w_down`` / ``w_up`` (eight-input form only); in the uncompressed forms they use a floating-point type.
-* Outputs use the element type specified by ``output_type``. When ``output_type`` is dynamic,
-  outputs use the element type of ``residual``.
+* *T_W*: ``u4`` or ``u8`` for compressed ``w_down`` / ``w_up`` / ``w_inject`` (compressed forms only); in the uncompressed forms they use a floating-point type.
+* Outputs use the element type of ``residual``.

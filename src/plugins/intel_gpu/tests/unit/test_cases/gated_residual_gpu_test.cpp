@@ -804,8 +804,7 @@ TEST(gated_residual_gpu_test, ov_model_write_mode_direct_construction) {
                                                                  /*lowrank=*/0,
                                                                  /*epsilon=*/0.0f,
                                                                  /*norm_gain_plus_one=*/false,
-                                                                 /*produce_write_gate=*/false,
-                                                                 ov::element::f16);
+                                                                 /*produce_write_gate=*/false);
     auto result = std::make_shared<ov::op::v0::Result>(gr);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{residual_p, y_p, gate_p});
 
@@ -873,8 +872,7 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_da
                                                                  L,
                                                                  1e-6f,
                                                                  false,
-                                                                 true,
-                                                                 ov::element::f16);
+                                                                 true);
     auto mixed_result = std::make_shared<ov::op::v0::Result>(gr->output(0));
     auto gate_result = std::make_shared<ov::op::v0::Result>(gr->output(1));
     auto model =
@@ -966,8 +964,7 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_scalar_kernel) {
                                                                  L,
                                                                  1e-6f,
                                                                  false,
-                                                                 false,
-                                                                 ov::element::f16);
+                                                                 false);
     auto result = std::make_shared<ov::op::v0::Result>(gr);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p});
 
@@ -1043,8 +1040,7 @@ TEST(gated_residual_gpu_test, ov_model_write_mode_dynamic_rows_reuses_dispatch_d
                                                                  /*lowrank=*/0,
                                                                  /*epsilon=*/0.0f,
                                                                  /*norm_gain_plus_one=*/false,
-                                                                 /*produce_write_gate=*/false,
-                                                                 ov::element::f16);
+                                                                 /*produce_write_gate=*/false);
     auto result = std::make_shared<ov::op::v0::Result>(gr);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{residual_p, y_p, gate_p});
 

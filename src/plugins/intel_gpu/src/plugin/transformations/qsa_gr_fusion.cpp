@@ -541,8 +541,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
                                                       L,
                                                       epsilon,
                                                       /*norm_gain_plus_one=*/false,
-                                                      /*produce_write_gate=*/false,
-                                                      root->get_output_element_type(0));
+                                                      /*produce_write_gate=*/false);
         // A split that also flattens leading axes (e.g. [B, L, C*D] -> [-1, C, D]) would
         // change the output rank, which the fused op cannot reproduce.
         if (!gr->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
@@ -674,8 +673,7 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
                                                       /*lowrank=*/0,
                                                       /*epsilon=*/0.0f,
                                                       /*norm_gain_plus_one=*/false,
-                                                      /*produce_write_gate=*/false,
-                                                      root->get_output_element_type(0));
+                                                      /*produce_write_gate=*/false);
         if (!gr->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
             return false;
         }
