@@ -20,7 +20,7 @@ namespace ov::intel_cpu::node {
 
 class NgramHashShapeInfer : public ShapeInferEmptyPads {
 public:
-    explicit NgramHashShapeInfer(size_t heads) : m_heads(heads) {}
+    NgramHashShapeInfer(size_t heads, size_t ngram_size) : m_heads(heads), m_ngram_size(ngram_size) {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
@@ -30,6 +30,7 @@ public:
 
 private:
     size_t m_heads;
+    size_t m_ngram_size;
 };
 
 class NgramHashShapeInferFactory : public ShapeInferFactory {

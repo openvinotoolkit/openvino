@@ -27,6 +27,9 @@ namespace internal {
 ///
 /// Input 0: ngrams [..., ngram_size] of type i32 or i64. Output 0: row_ids [..., H] of type i32,
 /// H = sum(heads_per_order).
+/// The head count must fit both int64 shape dimensions and size_t. Every possible row
+/// (head_offsets[h] + head_vocab_sizes[h] - 1) must fit int32; a modulus of 2^31 is valid with offset zero.
+/// A dynamic input window dimension must equal ngram_size at execution.
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API NGramHashFunction : public ov::op::Op {
 public:

@@ -130,5 +130,38 @@ TEST_F(TypePropNGramHashFunctionTest, invalid_inputs_and_attributes) {
     OV_EXPECT_THROW(make_hash(ngrams, bad), NodeValidationFailure, HasSubstr("must fit int32"));
 }
 
+TEST_F(TypePropNGramHashFunctionTest, rejects_overflowing_head_totals) {
+    const auto input = std::make_shared<Parameter>(element::i64, PartialShape{-1, 4});
+    const auto max = std::numeric_limits<int64_t>::max();
+    for (const auto& heads : std::vector<std::vector<int64_t>>{{max, max, 3}, {max, 1, 0}}) {
+        OV_EXPECT_THROW(make_hash(input, {4, heads, {1, 2, 3, 4}, {7}, {0}}),
+                        NodeValidationFailure,
+                        HasSubstr("sum(heads_per_order)"));
+    }
+}
+
+TEST_F(TypePropNGramHashFunctionTest, rejects_negative_and_zero_head_totals) {
+    const auto input = std::make_shared<Parameter>(element::i64, PartialShape{-1, 3});
+    OV_EXPECT_THROW(make_hash(input, {3, {-1, 1}, {1, 2, 3}, {7}, {0}}),
+                    NodeValidationFailure,
+                    HasSubstr("non-negative"));
+    OV_EXPECT_THROW(make_hash(input, {3, {0, 0}, {1, 2, 3}, {}, {}}),
+                    NodeValidationFailure,
+                    HasSubstr("at least one head"));
+}
+
+TEST_F(TypePropNGramHashFunctionTest, accepts_largest_int32_row) {
+    const auto input = std::make_shared<Parameter>(element::i64, PartialShape{-1, 2});
+    const auto max = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
+    EXPECT_NO_THROW(make_hash(input, {2, {1}, {11, 13}, {max + 1}, {0}}));
+    EXPECT_NO_THROW(make_hash(input, {2, {1}, {11, 13}, {1}, {max}}));
+    for (const auto& [vocab, offset] :
+         std::vector<std::pair<int64_t, int64_t>>{{max + 2, 0}, {max + 1, 1}, {1, max + 1}}) {
+        OV_EXPECT_THROW(make_hash(input, {2, {1}, {11, 13}, {vocab}, {offset}}),
+                        NodeValidationFailure,
+                        HasSubstr("must fit int32"));
+    }
+}
+
 }  // namespace test
 }  // namespace ov

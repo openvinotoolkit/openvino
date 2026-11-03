@@ -32,6 +32,9 @@ class TRANSFORMATIONS_API NGramHashFunctionFusion;
  *
  * This pass handles each order independently, including blocks that are not part of a Concat. A later
  * NGramHashConcatFusion may merge compatible single-order results into one multi-order operation.
+ * Requires NUMPY broadcasting and a proven trailing-unit append. Token terms are packed without broadcasting:
+ * statically different token shapes are not fused, and dynamic ones that differ at runtime make inference fail.
+ * This pass does not prevent subsequent backend precision conversion from narrowing token inputs.
  */
 class ov::pass::NGramHashBlockFusion : public ov::pass::MatcherPass {
 public:

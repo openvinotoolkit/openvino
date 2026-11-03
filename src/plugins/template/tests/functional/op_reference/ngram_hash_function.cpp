@@ -109,6 +109,14 @@ std::vector<NGramHashFunctionParams> generate_params() {
         add_case("ZeroTokens", {1, 3}, {0, 0, 0}, {1, 1}, {11, 13, 17}, {7, 11}, {0, 7}, {0, 7});
         add_case("Empty", {0, 3}, {}, {1, 1}, {11, 13, 17}, {7, 11}, {0, 7}, {});
         if (type == ov::element::i64) {
+            add_case("Int32RowBoundary",
+                     {2, 2},
+                     {0, -1, 0, 2147483647},
+                     {1},
+                     {1, 1},
+                     {2147483648LL},
+                     {0},
+                     {2147483647, 2147483647});
             add_case("FullInt64Range",
                      {1, 3},
                      {std::numeric_limits<int64_t>::min(), std::numeric_limits<int64_t>::max(), 3000000000LL},

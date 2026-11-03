@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -22,6 +23,8 @@
 #include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov::test {
@@ -54,14 +57,16 @@ const std::vector<NGramHashCase> cases{
      {1, 2, 1073741824}},
     {"Barrett_MaxDivisor",
      {std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::min()},
-      {2},
+     {2},
      0,
-      {std::numeric_limits<int32_t>::max(), 1}},
+     {std::numeric_limits<int32_t>::max(), 1}},
     {"Barrett_NearPowerOfTwo",
      {qwen_multipliers.begin(), qwen_multipliers.begin() + 3},
      {2, 1},
      0,
      {536870911, 536870913, 536870923}},
+    {"Barrett_Int32RowBoundary", {11, 13}, {1}, 0, {2147483648LL}},
+    {"ReferenceFallback", {11, 13}, {129}, 0, std::vector<int64_t>(129, 1)},
 };
 
 enum class HashInputKind { direct_i32, direct_i64, traced_i64 };
@@ -188,7 +193,7 @@ protected:
         std::vector<InputShape> shapes;
         for (const auto& parameter : function->get_parameters()) {
             std::vector<Shape> static_shapes;
-            for (const size_t tokens : {1, 3, 257, 2}) {
+            for (const size_t tokens : {1, 3, 256, 257, 2}) {
                 Shape shape{tokens};
                 if (config.num_engram) {
                     shape.push_back(config.num_engram);
@@ -233,6 +238,74 @@ TEST_P(NGramHashFunctionCPUTest, CompareWithRefs) {
     run();
     CheckNumberOfNodesWithType(compiledModel, "NgramHash", 1);
 }
+
+TEST(NGramHashFunctionCPUValidationTest, RejectsInvalidDynamicWindow) {
+    const auto input = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1, -1});
+    const auto hash = make_hash(input, cases[1]);
+    const auto model = std::make_shared<Model>(OutputVector{hash}, ParameterVector{input});
+    ov::Core core;
+    auto request = core.compile_model(model, "CPU").create_infer_request();
+    request.set_input_tensor(Tensor(element::i64, Shape{2, 6}));
+    EXPECT_THROW(request.infer(), ov::Exception);
+    Tensor valid(element::i64, Shape{2, 3});
+    std::fill_n(valid.data<int64_t>(), valid.get_size(), 0);
+    request.set_input_tensor(valid);
+    EXPECT_NO_THROW(request.infer());
+    EXPECT_EQ(request.get_output_tensor().get_shape(), (Shape{2, 16}));
+}
+
+TEST(NGramHashFunctionCPUValidationTest, RejectsDifferentOrderPrefixShapes) {
+    ov::Core core;
+    auto request = core.compile_model(make_traced_model(cases[1], false), "CPU").create_infer_request();
+    for (size_t i = 0; i < 3; ++i) {
+        Tensor input(element::i64, Shape{i == 2 ? size_t{3} : size_t{1}});
+        std::fill_n(input.data<int64_t>(), input.get_size(), 1);
+        request.set_input_tensor(i, input);
+    }
+    EXPECT_THROW(request.infer(), ov::Exception);
+}
+
+TEST(NGramHashFunctionCPUValidationTest, RejectsIncompatibleBroadcast) {
+    ov::Core core;
+    auto request = core.compile_model(make_traced_model(cases[1], false), "CPU").create_infer_request();
+    for (size_t i = 0; i < 3; ++i) {
+        Tensor input(element::i64, Shape{i == 0 ? size_t{2} : size_t{3}});
+        std::fill_n(input.data<int64_t>(), input.get_size(), 1);
+        request.set_input_tensor(i, input);
+    }
+    EXPECT_THROW(request.infer(), ov::Exception);
+}
+
+// The fused hash packs token terms without broadcasting, so differently shaped dynamic tokens fail loudly.
+class NGramHashFunctionBroadcastCPUTest : public testing::TestWithParam<size_t> {};
+
+TEST_P(NGramHashFunctionBroadcastCPUTest, RejectsBroadcastAfterFusion) {
+    const auto model = make_traced_model(cases[1], false);
+    for (const auto& parameter : model->get_parameters()) {
+        parameter->set_partial_shape(PartialShape::dynamic(GetParam()));
+    }
+    model->validate_nodes_and_infer_types();
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU");
+    size_t hashes = 0;
+    for (const auto& node : compiled.get_runtime_model()->get_ordered_ops()) {
+        hashes += node->get_rt_info().at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "NgramHash";
+    }
+    ASSERT_EQ(hashes, 1);
+    auto request = compiled.create_infer_request();
+    const std::vector<Shape> concrete =
+        GetParam() == 1 ? std::vector<Shape>{{1}, {3}, {3}} : std::vector<Shape>{{2, 1}, {1, 3}, {2, 3}};
+    for (size_t i = 0; i < concrete.size(); ++i) {
+        Tensor input(element::i64, concrete[i]);
+        std::fill_n(input.data<int64_t>(), input.get_size(), 1);
+        request.set_input_tensor(i, input);
+    }
+    EXPECT_THROW(request.infer(), ov::Exception);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_NGramHashFunction,
+                         NGramHashFunctionBroadcastCPUTest,
+                         testing::Values(size_t{1}, size_t{2}));
 
 INSTANTIATE_TEST_SUITE_P(smoke_NGramHashFunction,
                          NGramHashFunctionCPUTest,

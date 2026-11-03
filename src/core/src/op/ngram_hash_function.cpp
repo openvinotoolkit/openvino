@@ -4,8 +4,8 @@
 
 #include "openvino/op/ngram_hash_function.hpp"
 
+#include <algorithm>
 #include <limits>
-#include <numeric>
 
 #include "itt.hpp"
 #include "ngram_hash_function_shape_inference.hpp"
@@ -41,11 +41,17 @@ bool NGramHashFunction::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 size_t NGramHashFunction::get_num_heads() const {
-    int64_t heads = 0;
+    size_t heads = 0;
+    constexpr auto max_heads =
+        std::min<uint64_t>(std::numeric_limits<int64_t>::max(), std::numeric_limits<size_t>::max());
     for (const auto h : m_heads_per_order) {
-        heads += std::max<int64_t>(h, 0);
+        NODE_VALIDATION_CHECK(this, h >= 0, "heads_per_order values must be non-negative. Got: ", h);
+        NODE_VALIDATION_CHECK(this,
+                              static_cast<uint64_t>(h) <= max_heads - heads,
+                              "sum(heads_per_order) must fit int64 and size_t.");
+        heads += static_cast<size_t>(h);
     }
-    return static_cast<size_t>(heads);
+    return heads;
 }
 
 void NGramHashFunction::validate_and_infer_types() {
@@ -64,9 +70,6 @@ void NGramHashFunction::validate_and_infer_types() {
                           m_ngram_size - 1,
                           ") values. Got: ",
                           m_heads_per_order.size());
-    for (const auto h : m_heads_per_order) {
-        NODE_VALIDATION_CHECK(this, h >= 0, "heads_per_order values must be non-negative. Got: ", h);
-    }
     const auto num_heads = get_num_heads();
     NODE_VALIDATION_CHECK(this, num_heads > 0, "NGramHashFunction must have at least one head.");
     NODE_VALIDATION_CHECK(this,
@@ -84,7 +87,7 @@ void NGramHashFunction::validate_and_infer_types() {
         NODE_VALIDATION_CHECK(this, vocab > 0, "head_vocab_sizes values must be positive. Got: ", vocab);
         NODE_VALIDATION_CHECK(this, offset >= 0, "head_offsets values must be non-negative. Got: ", offset);
         NODE_VALIDATION_CHECK(this,
-                              vocab <= int32_max && offset <= int32_max - (vocab - 1),
+                              vocab - 1 <= int32_max && offset <= int32_max - (vocab - 1),
                               "The rows of head ",
                               h,
                               " (head_offsets + head_vocab_sizes - 1) must fit int32.");

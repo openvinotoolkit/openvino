@@ -167,10 +167,11 @@ void NgramHash::initSupportedPrimitiveDescriptors() {
     auto implementation = impl_desc_type::ref_any;
 #if defined(OPENVINO_ARCH_X86_64)
     if (m_ngram_size <= 32 && m_head_vocab_sizes.size() <= 128) {
-        m_jit_kernel = std::make_shared<JitKernel>(*this);
-        OPENVINO_ASSERT(m_jit_kernel->create_kernel() == dnnl::impl::status::success,
-                        "Failed to create NgramHash Barrett kernel");
-        implementation = impl_desc_type::jit_uni;
+        auto kernel = std::make_shared<JitKernel>(*this);
+        if (kernel->create_kernel() == dnnl::impl::status::success) {
+            m_jit_kernel = std::move(kernel);
+            implementation = impl_desc_type::jit_uni;
+        }
     }
 #endif
     addSupportedPrimDesc({{LayoutType::ncsp, m_precision}},

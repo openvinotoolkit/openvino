@@ -25,15 +25,12 @@
 #include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using namespace ov::op;
-using ov::op::internal::NGramHashFunction;
-using ov::pass::pattern::any_input;
-using ov::pass::pattern::type_matches;
-using ov::pass::pattern::wrap_type;
-
+// A named enclosing namespace keeps these generic helper names unique when UNITY_BUILD combines sources.
+namespace ov::pass::ngram_hash_function_fusion {
 namespace {
 
 // One (token, multiplier) term of the XOR mix.
@@ -46,13 +43,13 @@ struct Term {
 };
 
 bool is_scalar_constant(const ov::Output<ov::Node>& output) {
-    const auto constant = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
+    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
     return constant && ov::shape_size(constant->get_shape()) == 1;
 }
 
 // A constant broadcast along the last axis only: scalar, [H] or [1, ..., 1, H].
 bool is_last_axis_constant(const ov::Output<ov::Node>& output) {
-    const auto constant = ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr());
+    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
     if (!constant) {
         return false;
     }
@@ -61,15 +58,18 @@ bool is_last_axis_constant(const ov::Output<ov::Node>& output) {
 }
 
 std::vector<int64_t> constant_values(const ov::Output<ov::Node>& output) {
-    return ov::as_type_ptr<v0::Constant>(output.get_node_shared_ptr())->cast_vector<int64_t>();
+    return ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr())->cast_vector<int64_t>();
 }
 
 // Unsqueeze(x, -1) or the equivalent Reshape produced by CommonOptimizations.
 bool appends_unit_last_dim(const ov::Output<ov::Node>& output) {
     const auto node = output.get_node_shared_ptr();
     const auto& in_shape = node->get_input_partial_shape(0);
-    if (ov::as_type_ptr<v0::Unsqueeze>(node)) {
-        const auto axes = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
+    if (in_shape.rank().is_dynamic()) {
+        return false;
+    }
+    if (ov::as_type_ptr<ov::op::v0::Unsqueeze>(node)) {
+        const auto axes = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
         if (!axes) {
             return false;
         }
@@ -77,18 +77,41 @@ bool appends_unit_last_dim(const ov::Output<ov::Node>& output) {
         return values.size() == 1 &&
                (values[0] == -1 || (in_shape.rank().is_static() && values[0] == in_shape.rank().get_length()));
     }
-    if (ov::as_type_ptr<v1::Reshape>(node)) {
+    if (ov::as_type_ptr<ov::op::v1::Reshape>(node)) {
         const auto& out_shape = node->get_output_partial_shape(0);
-        if (in_shape.rank().is_dynamic() || out_shape.rank().is_dynamic() ||
-            out_shape.size() != in_shape.size() + 1 || out_shape[out_shape.size() - 1] != 1) {
+        if (in_shape.rank().is_dynamic() || out_shape.rank().is_dynamic() || out_shape.size() != in_shape.size() + 1 ||
+            out_shape[out_shape.size() - 1] != 1) {
             return false;
         }
-        for (size_t i = 0; i < in_shape.size(); ++i) {
-            if (!in_shape[i].compatible(out_shape[i])) {
+        const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node);
+        const auto pattern = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+        if (pattern) {
+            const auto values = pattern->cast_vector<int64_t>();
+            if (values.size() != in_shape.size() + 1 || values.back() != 1) {
                 return false;
             }
+            for (size_t i = 0; i < in_shape.size(); ++i) {
+                if (values[i] == -1) {
+                    // The single inferred dimension is preserved if every other prefix dimension is copied.
+                    continue;
+                }
+                if (reshape->get_special_zero() && values[i] == 0) {
+                    continue;
+                }
+                if (in_shape[i].is_dynamic() || out_shape[i].is_dynamic() || in_shape[i] != out_shape[i]) {
+                    return false;
+                }
+            }
+            return true;
         }
-        return true;
+        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(node->get_input_node_shared_ptr(1));
+        if (!concat || concat->get_axis() != 0 || concat->get_input_size() != 2) {
+            return false;
+        }
+        const auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(concat->get_input_node_shared_ptr(0));
+        const auto one = ov::as_type_ptr<ov::op::v0::Constant>(concat->get_input_node_shared_ptr(1));
+        return shape_of && shape_of->input_value(0) == node->input_value(0) && one &&
+               one->get_shape() == ov::Shape{1} && one->cast_vector<int64_t>() == std::vector<int64_t>{1};
     }
     return false;
 }
@@ -100,13 +123,16 @@ bool is_last_axis(int64_t axis, const ov::Rank& rank) {
 // Walks the XOR tree of the mix; its depth depends on the n-gram order, so it cannot be a fixed pattern.
 bool collect_terms(const ov::Output<ov::Node>& output, std::vector<Term>& terms, ov::NodeVector& nodes) {
     const auto node = output.get_node_shared_ptr();
-    if (const auto xor_node = ov::as_type_ptr<v13::BitwiseXor>(node)) {
+    if (const auto xor_node = ov::as_type_ptr<ov::op::v13::BitwiseXor>(node)) {
+        if (xor_node->get_autob().m_type != ov::op::AutoBroadcastType::NUMPY) {
+            return false;
+        }
         nodes.push_back(xor_node);
         return collect_terms(xor_node->input_value(0), terms, nodes) &&
                collect_terms(xor_node->input_value(1), terms, nodes);
     }
-    const auto mul_node = ov::as_type_ptr<v1::Multiply>(node);
-    if (!mul_node) {
+    const auto mul_node = ov::as_type_ptr<ov::op::v1::Multiply>(node);
+    if (!mul_node || mul_node->get_autob().m_type != ov::op::AutoBroadcastType::NUMPY) {
         return false;
     }
     const bool lhs_const = is_scalar_constant(mul_node->input_value(0));
@@ -114,6 +140,11 @@ bool collect_terms(const ov::Output<ov::Node>& output, std::vector<Term>& terms,
         return false;  // exactly one scalar constant side
     }
     Term term{mul_node->input_value(lhs_const ? 1 : 0), constant_values(mul_node->input_value(lhs_const ? 0 : 1))[0]};
+    const auto& token_rank = term.token.get_partial_shape().rank();
+    const auto multiplier_rank = mul_node->get_input_shape(lhs_const ? 0 : 1).size();
+    if (token_rank.is_dynamic() || multiplier_rank > static_cast<size_t>(token_rank.get_length())) {
+        return false;
+    }
     if (term.token.get_element_type() != ov::element::i64 ||
         std::find(terms.begin(), terms.end(), term) != terms.end()) {
         return false;  // x ^ x cancels out, not an n-gram hash
@@ -140,35 +171,38 @@ bool replace_with_hash(const std::shared_ptr<ov::Node>& root,
                        const std::vector<int64_t>& vocab_sizes,
                        const std::vector<int64_t>& offsets,
                        const ov::NodeVector& matched_nodes) {
+    // Tokens are packed without broadcasting: tokens that only broadcast to a common shape are rejected here when
+    // static, and make the packing Concat fail at runtime when dynamic, instead of silently changing results.
     auto token_shape = terms[0].token.get_partial_shape();
     for (const auto& term : terms) {
         if (!ov::PartialShape::merge_into(token_shape, term.token.get_partial_shape())) {
             return false;
         }
     }
-    const auto axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    ov::NodeVector new_nodes{axis};
     ov::OutputVector window;
     for (auto it = terms.rbegin(); it != terms.rend(); ++it) {
-        window.push_back(std::make_shared<v0::Unsqueeze>(it->token, axis));
+        window.push_back(std::make_shared<ov::op::v0::Unsqueeze>(it->token, axis));
     }
     std::vector<int64_t> multipliers;
     for (const auto& term : terms) {
         multipliers.push_back(term.multiplier);
     }
-    const auto ngrams = std::make_shared<v0::Concat>(window, -1);
-    const auto hash = std::make_shared<NGramHashFunction>(ngrams,
-                                                          static_cast<int64_t>(terms.size()),
-                                                          heads_per_order,
-                                                          multipliers,
-                                                          vocab_sizes,
-                                                          offsets);
+    const auto ngrams = std::make_shared<ov::op::v0::Concat>(window, -1);
+    const auto hash = std::make_shared<ov::op::internal::NGramHashFunction>(ngrams,
+                                                                            static_cast<int64_t>(terms.size()),
+                                                                            heads_per_order,
+                                                                            multipliers,
+                                                                            vocab_sizes,
+                                                                            offsets);
     if (!hash->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
         return false;
     }
-    const auto convert = std::make_shared<v0::Convert>(hash, root->get_output_element_type(0));
+    const auto convert = std::make_shared<ov::op::v0::Convert>(hash, root->get_output_element_type(0));
     hash->set_friendly_name(root->get_friendly_name() + "/NGramHashFunction");
     convert->set_friendly_name(root->get_friendly_name());
-    ov::NodeVector new_nodes{ngrams, hash, convert};
+    new_nodes.insert(new_nodes.end(), {ngrams, hash, convert});
     for (const auto& w : window) {
         new_nodes.push_back(w.get_node_shared_ptr());
     }
@@ -178,12 +212,12 @@ bool replace_with_hash(const std::shared_ptr<ov::Node>& root,
 }
 
 // A single-order NGramHashFunction produced by NGramHashBlockFusion, behind its i64 Convert.
-std::shared_ptr<NGramHashFunction> get_single_order_hash(const ov::Output<ov::Node>& output) {
-    const auto convert = ov::as_type_ptr<v0::Convert>(output.get_node_shared_ptr());
+std::shared_ptr<ov::op::internal::NGramHashFunction> get_single_order_hash(const ov::Output<ov::Node>& output) {
+    const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(output.get_node_shared_ptr());
     if (!convert || convert->get_output_element_type(0) != ov::element::i64) {
         return nullptr;
     }
-    const auto hash = ov::as_type_ptr<NGramHashFunction>(convert->get_input_node_shared_ptr(0));
+    const auto hash = ov::as_type_ptr<ov::op::internal::NGramHashFunction>(convert->get_input_node_shared_ptr(0));
     if (!hash) {
         return nullptr;
     }
@@ -195,8 +229,8 @@ std::shared_ptr<NGramHashFunction> get_single_order_hash(const ov::Output<ov::No
 }
 
 // The (token, multiplier) terms of a packed window Concat(Unsqueeze(x[n-1]), ..., Unsqueeze(x[0])).
-std::optional<std::vector<Term>> get_terms(const NGramHashFunction& hash) {
-    const auto window = ov::as_type_ptr<v0::Concat>(hash.get_input_node_shared_ptr(0));
+std::optional<std::vector<Term>> get_terms(const ov::op::internal::NGramHashFunction& hash) {
+    const auto window = ov::as_type_ptr<ov::op::v0::Concat>(hash.get_input_node_shared_ptr(0));
     const auto n = static_cast<size_t>(hash.get_ngram_size());
     if (!window || window->get_input_size() != n ||
         !is_last_axis(window->get_axis(), window->get_output_partial_shape(0).rank())) {
@@ -205,7 +239,8 @@ std::optional<std::vector<Term>> get_terms(const NGramHashFunction& hash) {
     std::vector<Term> terms;
     for (size_t k = 0; k < n; ++k) {
         const auto unsqueeze = window->input_value(n - 1 - k);
-        if (!ov::as_type_ptr<v0::Unsqueeze>(unsqueeze.get_node_shared_ptr()) || !appends_unit_last_dim(unsqueeze)) {
+        if (!ov::as_type_ptr<ov::op::v0::Unsqueeze>(unsqueeze.get_node_shared_ptr()) ||
+            !appends_unit_last_dim(unsqueeze)) {
             return std::nullopt;
         }
         terms.push_back({unsqueeze.get_node()->input_value(0), hash.get_multipliers()[k]});
@@ -214,42 +249,68 @@ std::optional<std::vector<Term>> get_terms(const NGramHashFunction& hash) {
 }
 
 }  // namespace
+}  // namespace ov::pass::ngram_hash_function_fusion
 
 ov::pass::NGramHashBlockFusion::NGramHashBlockFusion() {
     MATCHER_SCOPE(NGramHashBlockFusion);
     // mix = ... ^ (token * multiplier): the top XOR has at least one Multiply-by-scalar operand.
-    auto term_m = wrap_type<v1::Multiply>({any_input(type_matches(element::i64)), wrap_type<v0::Constant>(is_scalar_constant)});
-    auto xor_m = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{wrap_type<v13::BitwiseXor>({any_input(), term_m}, type_matches(element::i64)),
-                     wrap_type<v13::BitwiseXor>({term_m, any_input()}, type_matches(element::i64))});
-    auto unsqueeze_m = wrap_type<v0::Unsqueeze, v1::Reshape>({xor_m, any_input()}, appends_unit_last_dim);
-    auto vocab_m = wrap_type<v0::Constant>(is_last_axis_constant);
-    auto mod_m = wrap_type<v1::FloorMod>({unsqueeze_m, vocab_m});
-    auto offsets_m = wrap_type<v0::Constant>(is_last_axis_constant);
-    auto add_m = wrap_type<v1::Add>({mod_m, offsets_m}, type_matches(element::i64));
+    auto term_m = ov::pass::pattern::wrap_type<ov::op::v1::Multiply>(
+        {ov::pass::pattern::any_input(ov::pass::pattern::type_matches(ov::element::i64)),
+         ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ngram_hash_function_fusion::is_scalar_constant)});
+    auto xor_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{
+        ov::pass::pattern::wrap_type<ov::op::v13::BitwiseXor>({ov::pass::pattern::any_input(), term_m},
+                                                              ov::pass::pattern::type_matches(ov::element::i64)),
+        ov::pass::pattern::wrap_type<ov::op::v13::BitwiseXor>({term_m, ov::pass::pattern::any_input()},
+                                                              ov::pass::pattern::type_matches(ov::element::i64))});
+    auto unsqueeze_m = ov::pass::pattern::wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>(
+        {xor_m, ov::pass::pattern::any_input()},
+        ngram_hash_function_fusion::appends_unit_last_dim);
+    auto vocab_m =
+        ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ngram_hash_function_fusion::is_last_axis_constant);
+    auto mod_m = ov::pass::pattern::wrap_type<ov::op::v1::FloorMod>(
+        {unsqueeze_m, vocab_m},
+        [](const ov::Output<ov::Node>& output) {
+            return ov::as_type_ptr<ov::op::v1::FloorMod>(output.get_node_shared_ptr())->get_autob().m_type ==
+                   ov::op::AutoBroadcastType::NUMPY;
+        });
+    auto offsets_m =
+        ov::pass::pattern::wrap_type<ov::op::v0::Constant>(ngram_hash_function_fusion::is_last_axis_constant);
+    auto add_m =
+        ov::pass::pattern::wrap_type<ov::op::v1::Add>({mod_m, offsets_m}, [](const ov::Output<ov::Node>& output) {
+            return output.get_element_type() == ov::element::i64 &&
+                   ov::as_type_ptr<ov::op::v1::Add>(output.get_node_shared_ptr())->get_autob().m_type ==
+                       ov::op::AutoBroadcastType::NUMPY;
+        });
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
         const auto root = m.get_match_root();
         const auto unsqueeze = pm.at(unsqueeze_m).get_node_shared_ptr();
 
-        auto vocab_sizes = constant_values(pm.at(vocab_m));
-        auto offsets = constant_values(pm.at(offsets_m));
+        auto vocab_sizes = ngram_hash_function_fusion::constant_values(pm.at(vocab_m));
+        auto offsets = ngram_hash_function_fusion::constant_values(pm.at(offsets_m));
         if (offsets.size() == 1) {
             offsets.resize(vocab_sizes.size(), offsets[0]);
         }
-        if (vocab_sizes.empty() || offsets.size() != vocab_sizes.size() || !rows_fit_int32(vocab_sizes, offsets)) {
+        if (vocab_sizes.empty() || offsets.size() != vocab_sizes.size() ||
+            !ngram_hash_function_fusion::rows_fit_int32(vocab_sizes, offsets)) {
             return false;
         }
 
-        std::vector<Term> terms;
-        NodeVector matched_nodes{root, pm.at(mod_m).get_node_shared_ptr(), unsqueeze};
-        if (!collect_terms(unsqueeze->input_value(0), terms, matched_nodes) || terms.size() < 2) {
+        std::vector<ngram_hash_function_fusion::Term> terms;
+        ov::NodeVector matched_nodes{root, pm.at(mod_m).get_node_shared_ptr(), unsqueeze};
+        if (!ngram_hash_function_fusion::collect_terms(unsqueeze->input_value(0), terms, matched_nodes) ||
+            terms.size() < 2) {
             return false;
         }
         std::vector<int64_t> heads_per_order(terms.size() - 1, 0);
         heads_per_order.back() = static_cast<int64_t>(vocab_sizes.size());
-        return replace_with_hash(root, terms, heads_per_order, vocab_sizes, offsets, matched_nodes);
+        return ngram_hash_function_fusion::replace_with_hash(root,
+                                                             terms,
+                                                             heads_per_order,
+                                                             vocab_sizes,
+                                                             offsets,
+                                                             matched_nodes);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(add_m, matcher_name);
@@ -258,27 +319,27 @@ ov::pass::NGramHashBlockFusion::NGramHashBlockFusion() {
 
 ov::pass::NGramHashConcatFusion::NGramHashConcatFusion() {
     MATCHER_SCOPE(NGramHashConcatFusion);
-    auto concat_m = wrap_type<v0::Concat>([](const Output<Node>& output) {
-        const auto concat = ov::as_type_ptr<v0::Concat>(output.get_node_shared_ptr());
+    auto concat_m = ov::pass::pattern::wrap_type<ov::op::v0::Concat>([](const ov::Output<ov::Node>& output) {
+        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(output.get_node_shared_ptr());
         const auto& inputs = concat->input_values();
-        return output.get_element_type() == element::i64 && inputs.size() > 1 &&
-               is_last_axis(concat->get_axis(), output.get_partial_shape().rank()) &&
-               std::all_of(inputs.begin(), inputs.end(), [](const Output<Node>& input) {
-                   return get_single_order_hash(input) != nullptr;
+        return output.get_element_type() == ov::element::i64 && inputs.size() > 1 &&
+               ngram_hash_function_fusion::is_last_axis(concat->get_axis(), output.get_partial_shape().rank()) &&
+               std::all_of(inputs.begin(), inputs.end(), [](const ov::Output<ov::Node>& input) {
+                   return ngram_hash_function_fusion::get_single_order_hash(input) != nullptr;
                });
     });
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         const auto root = m.get_match_root();
         // Every order must extend the terms of the previous one; XOR is commutative, so only the sets matter.
-        std::vector<Term> terms;
+        std::vector<ngram_hash_function_fusion::Term> terms;
         std::vector<int64_t> heads_per_order;
         std::vector<int64_t> vocab_sizes;
         std::vector<int64_t> offsets;
-        NodeVector matched_nodes{root};
+        ov::NodeVector matched_nodes{root};
         for (const auto& input : root->input_values()) {
-            const auto hash = get_single_order_hash(input);
-            const auto order_terms = get_terms(*hash);
+            const auto hash = ngram_hash_function_fusion::get_single_order_hash(input);
+            const auto order_terms = ngram_hash_function_fusion::get_terms(*hash);
             if (!order_terms || order_terms->size() <= terms.size()) {
                 return false;  // orders must be strictly increasing along the concatenated heads
             }
@@ -294,12 +355,19 @@ ov::pass::NGramHashConcatFusion::NGramHashConcatFusion() {
             }
             heads_per_order.resize(terms.size() - 1, 0);
             heads_per_order.back() = hash->get_heads_per_order().back();
-            vocab_sizes.insert(vocab_sizes.end(), hash->get_head_vocab_sizes().begin(), hash->get_head_vocab_sizes().end());
+            vocab_sizes.insert(vocab_sizes.end(),
+                               hash->get_head_vocab_sizes().begin(),
+                               hash->get_head_vocab_sizes().end());
             offsets.insert(offsets.end(), hash->get_head_offsets().begin(), hash->get_head_offsets().end());
             matched_nodes.insert(matched_nodes.end(),
                                  {input.get_node_shared_ptr(), hash, hash->get_input_node_shared_ptr(0)});
         }
-        return replace_with_hash(root, terms, heads_per_order, vocab_sizes, offsets, matched_nodes);
+        return ngram_hash_function_fusion::replace_with_hash(root,
+                                                             terms,
+                                                             heads_per_order,
+                                                             vocab_sizes,
+                                                             offsets,
+                                                             matched_nodes);
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(concat_m, matcher_name);

@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_xor.hpp"
@@ -120,23 +121,6 @@ std::shared_ptr<Model> make_hash_model(const HashGraphConfig& c,
     return std::make_shared<Model>(OutputVector{out}, tokens);
 }
 
-std::shared_ptr<Model> make_fused_model(const HashGraphConfig& c, const HashTables& t) {
-    const auto tokens = make_tokens(c);
-    OutputVector window;
-    for (auto it = tokens.rbegin(); it != tokens.rend(); ++it) {
-        window.push_back(std::make_shared<v0::Unsqueeze>(*it, v0::Constant::create(element::i64, Shape{1}, {-1})));
-    }
-    auto ngrams = std::make_shared<v0::Concat>(window, -1);
-    auto hash = std::make_shared<ov::op::internal::NGramHashFunction>(ngrams,
-                                                                      static_cast<int64_t>(c.multipliers.size()),
-                                                                      c.heads_per_order,
-                                                                      c.multipliers,
-                                                                      t.vocab_sizes,
-                                                                      t.offsets);
-    auto convert = std::make_shared<v0::Convert>(hash, element::i64);
-    return std::make_shared<Model>(OutputVector{convert}, tokens);
-}
-
 size_t count_ops(const std::shared_ptr<Model>& model, const std::string& type_name) {
     size_t count = 0;
     for (const auto& op : model->get_ops()) {
@@ -165,7 +149,7 @@ const std::vector<HashGraphConfig> kPositiveCases{
 
 }  // namespace
 
-class NGramHashFunctionFusionTest : public TransformationTestsF, public testing::WithParamInterface<HashGraphConfig> {
+class NGramHashFunctionFusionTest : public testing::Test, public testing::WithParamInterface<HashGraphConfig> {
 public:
     static std::string get_test_case_name(const testing::TestParamInfo<HashGraphConfig>& info) {
         return info.param.name;
@@ -175,11 +159,58 @@ public:
 TEST_P(NGramHashFunctionFusionTest, FusesAllOrdersIntoOneOp) {
     const auto& c = GetParam();
     const auto t = make_tables(c.heads_per_order);
-    model = make_hash_model(c, t);
-    model_ref = make_fused_model(c, t);
+    const auto model = make_hash_model(c, t);
+    const auto original = model->clone();
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::NGramHashFunctionFusion>();
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    manager.run_passes(model);
+    ASSERT_EQ(count_ops(model, "NGramHashFunction"), 1);
+    for (const auto& node : model->get_ops()) {
+        if (const auto hash = ov::as_type_ptr<ov::op::internal::NGramHashFunction>(node)) {
+            EXPECT_EQ(hash->get_heads_per_order(), c.heads_per_order);
+            EXPECT_EQ(hash->get_head_vocab_sizes(), t.vocab_sizes);
+            EXPECT_EQ(hash->get_head_offsets(), t.offsets);
+        }
+    }
+    ov::TensorVector inputs;
+    for (const auto& parameter : original->get_parameters()) {
+        Shape shape;
+        for (const auto& dimension : parameter->get_partial_shape()) {
+            shape.push_back(dimension.is_static() ? dimension.get_length() : 2);
+        }
+        Tensor tensor(element::i64, shape);
+        const auto values = tensor.data<int64_t>();
+        for (size_t i = 0; i < tensor.get_size(); ++i) {
+            values[i] = i % 2 ? std::numeric_limits<int64_t>::min() : 3000000000LL + static_cast<int64_t>(i);
+        }
+        inputs.push_back(tensor);
+    }
+    const auto actual = ov::test::utils::infer_on_template(model, inputs);
+    auto expected_shape = inputs[0].get_shape();
+    expected_shape.push_back(t.vocab_sizes.size());
+    Tensor expected(element::i64, expected_shape);
+    for (size_t position = 0; position < inputs[0].get_size(); ++position) {
+        uint64_t mix = 0;
+        size_t head = 0;
+        for (size_t back = 0; back < inputs.size(); ++back) {
+            mix ^= static_cast<uint64_t>(inputs[back].data<int64_t>()[position]) *
+                   static_cast<uint64_t>(c.multipliers[back]);
+            if (back == 0) {
+                continue;
+            }
+            const auto signed_mix = static_cast<int64_t>(mix);
+            for (int64_t h = 0; h < c.heads_per_order[back - 1]; ++h, ++head) {
+                auto remainder = signed_mix % t.vocab_sizes[head];
+                if (remainder < 0) {
+                    remainder += t.vocab_sizes[head];
+                }
+                expected.data<int64_t>()[position * t.vocab_sizes.size() + head] = remainder + t.offsets[head];
+            }
+        }
+    }
+    ASSERT_EQ(actual[0].get_shape(), expected.get_shape());
+    EXPECT_EQ(std::vector<int64_t>(actual[0].data<int64_t>(), actual[0].data<int64_t>() + actual[0].get_size()),
+              std::vector<int64_t>(expected.data<int64_t>(), expected.data<int64_t>() + expected.get_size()));
 }
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
@@ -291,4 +322,94 @@ TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseXorWithNonConstantMultiplie
     auto mod = std::make_shared<v1::FloorMod>(unsq, v0::Constant::create(element::i64, Shape{1}, {1000003}));
     auto add = std::make_shared<v1::Add>(mod, v0::Constant::create(element::i64, Shape{1}, {0}));
     expect_not_fused(std::make_shared<Model>(OutputVector{add}, tokens));
+}
+
+TEST(NGramHashFunctionFusionNegativeTest, DoesNotDiscardUnprovenReshape) {
+    const HashGraphConfig config{"Reshape", {11, 13}, {2}, {-1, -1}};
+    const auto model = make_hash_model(config, make_tables(config.heads_per_order));
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(node)) {
+            ov::replace_node(unsqueeze,
+                             std::make_shared<v1::Reshape>(unsqueeze->input_value(0),
+                                                           v0::Constant::create(element::i64, Shape{3}, {-1, 2, 1}),
+                                                           false));
+        }
+    }
+    expect_not_fused(model);
+}
+
+TEST(NGramHashFunctionFusionRegressionTest, FusesProvenReshapeAppend) {
+    for (const bool special_zero : {false, true}) {
+        const HashGraphConfig config{"Reshape",
+                                     {11, 13},
+                                     {2},
+                                     special_zero ? PartialShape{-1, -1} : PartialShape{2, 3}};
+        const auto model = make_hash_model(config, make_tables(config.heads_per_order));
+        for (const auto& node : model->get_ordered_ops()) {
+            if (const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(node)) {
+                const std::vector<int64_t> shape =
+                    special_zero ? std::vector<int64_t>{0, 0, 1} : std::vector<int64_t>{2, 3, 1};
+                ov::replace_node(unsqueeze,
+                                 std::make_shared<v1::Reshape>(unsqueeze->input_value(0),
+                                                               v0::Constant::create(element::i64, Shape{3}, shape),
+                                                               special_zero));
+            }
+        }
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::NGramHashFunctionFusion>();
+        manager.run_passes(model);
+        EXPECT_EQ(count_ops(model, "NGramHashFunction"), 1);
+    }
+}
+
+TEST(NGramHashFunctionFusionRegressionTest, FusesSingleInferredPrefixDimension) {
+    const HashGraphConfig config{"Reshape", {11, 13}, {2}, {-1}};
+    const auto model = make_hash_model(config, make_tables(config.heads_per_order));
+    for (const auto& node : model->get_ordered_ops()) {
+        if (const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(node)) {
+            ov::replace_node(unsqueeze,
+                             std::make_shared<v1::Reshape>(unsqueeze->input_value(0),
+                                                           v0::Constant::create(element::i64, Shape{2}, {-1, 1}),
+                                                           false));
+        }
+    }
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::NGramHashFunctionFusion>();
+    manager.run_passes(model);
+    EXPECT_EQ(count_ops(model, "NGramHashFunction"), 1);
+}
+
+TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseNonNumpyHeadBroadcasts) {
+    const HashGraphConfig config{"Broadcast", {11, 13}, {2}, {2}};
+    for (const bool change_add : {false, true}) {
+        const auto model = make_hash_model(config, make_tables(config.heads_per_order));
+        for (const auto& node : model->get_ordered_ops()) {
+            if ((change_add && ov::is_type<v1::Add>(node)) || (!change_add && ov::is_type<v1::FloorMod>(node))) {
+                const auto arithmetic = ov::as_type_ptr<ov::op::util::BinaryElementwiseArithmetic>(node);
+                const auto constant = ov::as_type_ptr<v0::Constant>(arithmetic->get_input_node_shared_ptr(1));
+                arithmetic->input(1).replace_source_output(
+                    v0::Constant::create(element::i64, Shape{2}, constant->cast_vector<int64_t>()));
+                arithmetic->set_autob(ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 0));
+            }
+        }
+        model->validate_nodes_and_infer_types();
+        expect_not_fused(model);
+    }
+}
+
+TEST(NGramHashFunctionFusionNegativeTest, DoesNotFuseStaticallyBroadcastTokens) {
+    const HashGraphConfig config{"Bigram", {11, 13}, {2}, {3}};
+    const auto model = make_hash_model(config, make_tables(config.heads_per_order));
+    model->get_parameters()[0]->set_partial_shape({1});
+    model->validate_nodes_and_infer_types();
+    expect_not_fused(model);
+}
+
+TEST(NGramHashFunctionFusionRegressionTest, FusesInt32RowBoundary) {
+    const HashGraphConfig config{"RowBoundary", {11, 13}, {1}, {2}};
+    const auto model = make_hash_model(config, {{2147483648LL}, {0}});
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::NGramHashFunctionFusion>();
+    EXPECT_NO_THROW(manager.run_passes(model));
+    EXPECT_EQ(count_ops(model, "NGramHashFunction"), 1);
 }
