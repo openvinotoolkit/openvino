@@ -44,6 +44,8 @@ public:
         return is_enabled(T::get_type_info_static());
     }
 
+    static PassConfig merge_configs(const PassConfig& lhs, const PassConfig& rhs);
+
     friend bool operator==(const PassConfig& lhs, const PassConfig& rhs);
     friend bool operator!=(const PassConfig& lhs, const PassConfig& rhs);
 
