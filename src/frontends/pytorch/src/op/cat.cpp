@@ -111,7 +111,9 @@ OutputVector translate_cat_common(const NodeContext& context,
                  inputs_vec.end(),
                  std::back_inserter(concat_inputs),
                  [is_complex](const auto& input) {
-                     // PyTorch ignores rank-one empty tensors, but they still participate in type promotion.
+                     // Only shape (0,) is special: PyTorch skips it in cat regardless of the other inputs' rank,
+                     // while v0::Concat requires equal ranks. Other empty tensors keep their rank and stay in
+                     // Concat. Skipped inputs still participate in type promotion above.
                      return input.get_partial_shape() != (is_complex ? PartialShape{0, 2} : PartialShape{0});
                  });
     auto concat = concat_inputs.empty() ? inputs_vec.front()
