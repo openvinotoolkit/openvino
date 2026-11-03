@@ -48,18 +48,23 @@ public:
         static constexpr size_t NORM_WEIGHT = 1;  ///< [C*D]
         static constexpr size_t W_DOWN = 2;       ///< [L, C*D]
         static constexpr size_t W_UP = 3;         ///< [C*D, L]
-        static constexpr size_t W_INJECT = 4;     ///< [C, C*D], only when produce_write_gate
+        static constexpr size_t W_INJECT = 4;     ///< [C, C*D], only when produce_write_gate and the weights are not compressed
 
-        // Compressed weights (W_DOWN / W_UP are u4 or u8; exclusive with W_INJECT, so index 4 is unambiguous).
-        // scale/zp are [G, N] (N contiguous), unlike FC's [N, G]: one sub-group block read gives every lane the
-        // scale of its own output channel.
+        // Compressed weights (W_DOWN / W_UP are u4 or u8). scale/zp are [G, N] (N contiguous), unlike FC's [N, G]: one sub-group
+        // block read gives every lane the scale of its own output channel.
         static constexpr size_t SCALE_DOWN = 4;  ///< f16 [G_d, L]
         static constexpr size_t SCALE_UP = 5;    ///< f16 [G_u, C*D]
         static constexpr size_t ZP_DOWN = 6;     ///< same type as the weights (u4 packed / u8) [G_d, L]
         static constexpr size_t ZP_UP = 7;       ///< same type as the weights (u4 packed / u8) [G_u, C*D]
+
+        // The write-gate inputs are always the last inputs; with compressed weights W_inject is compressed the same way.
+        static constexpr size_t W_INJECT_Q = 8;    ///< u4 / u8 [C, C*D]
+        static constexpr size_t SCALE_INJECT = 9;  ///< f16 [G_i, C]
+        static constexpr size_t ZP_INJECT = 10;    ///< same type as the weights (u4 packed / u8) [G_i, C]
     };
 
     static constexpr size_t compressed_input_count = 8;
+    static constexpr size_t compressed_write_gate_input_count = 11;
     static constexpr size_t int4_group_size = 32;  ///< the only group size along K the kernels support for u4 weights
 
     /// @brief Input indices for Mode::WRITE
@@ -135,9 +140,8 @@ public:
 
     /// Shared by the fusion pass and the impl's validate_impl. N/K/G are the weight rows / columns / scale rows of W_down and
     /// W_up; bits is 4 (u4) or 8 (u8). The group size is K / G.
-    static bool
-    is_weight_compression_supported(size_t bits, size_t n_down, size_t k_down, size_t g_down, size_t n_up, size_t k_up, size_t g_up, bool produce_write_gate) {
-        if ((bits != 4 && bits != 8) || produce_write_gate) {
+    static bool is_weight_compression_supported(size_t bits, size_t n_down, size_t k_down, size_t g_down, size_t n_up, size_t k_up, size_t g_up) {
+        if (bits != 4 && bits != 8) {
             return false;
         }
         auto matrix_ok = [bits](size_t n, size_t k, size_t g) {
@@ -150,6 +154,15 @@ public:
             return (k * bits / 8) % 16 == 0;
         };
         return matrix_ok(n_down, k_down, g_down) && matrix_ok(n_up, k_up, g_up);
+    }
+
+    /// Compressed W_inject [C, K = C*D] with a [G, C] scale / zp. It has only C (< 16) output rows, so the N % 16 rule of
+    /// is_weight_compression_supported does not apply; the group rules are the same as for W_down / W_up.
+    static bool is_write_gate_compression_supported(size_t bits, size_t hc_count, size_t k, size_t g) {
+        if ((bits != 4 && bits != 8) || hc_count == 0 || k == 0 || k % 32 != 0) {
+            return false;
+        }
+        return is_group_size_supported(bits, k, derive_group_size(k, g)) && (k * bits / 8) % 16 == 0;
     }
 
 private:

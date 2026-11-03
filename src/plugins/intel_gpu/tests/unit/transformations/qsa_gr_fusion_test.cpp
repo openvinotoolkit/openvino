@@ -191,14 +191,19 @@ ov::Output<ov::Node> make_decompressed(const ov::element::Type& wt, size_t N, si
     return reshape_to(mul, {static_cast<int64_t>(N), static_cast<int64_t>(K)});
 }
 
-/// The canonical GR READ sub-graph with caller-provided W_down [LQ, C*D] / W_up [C*D, LQ] producers.
+/// The canonical GR READ sub-graph with caller-provided W_down [LQ, C*D] / W_up [C*D, LQ] producers. `rbar_out` receives the
+/// normalized residual so that tests can hang a write-gate branch off it.
 std::shared_ptr<ov::Node> build_gr_read_with_weights(const std::shared_ptr<ov::op::v0::Parameter>& residual,
                                                      const ov::Output<ov::Node>& w_down,
-                                                     const ov::Output<ov::Node>& w_up) {
+                                                     const ov::Output<ov::Node>& w_up,
+                                                     ov::Output<ov::Node>* rbar_out = nullptr) {
     auto r3 = reshape_to(residual, {-1, C, D});
     auto gamma = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{static_cast<size_t>(C), static_cast<size_t>(D)}, std::vector<float>(C * D, 1.0f));
     auto rms = std::make_shared<ov::op::internal::RMS>(r3, gamma, EPS);
     auto rbar = reshape_to(rms, {-1, C * D});
+    if (rbar_out != nullptr) {
+        *rbar_out = rbar->output(0);
+    }
     auto low = std::make_shared<ov::op::v0::MatMul>(rbar, w_down, false, true);
     auto low_scaled = std::make_shared<ov::op::v1::Multiply>(low, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f / C}));
     auto act = std::make_shared<ov::op::v4::Swish>(low_scaled);
@@ -666,14 +671,24 @@ TEST(gated_residual_group_size, supported_group_sizes) {
 
 TEST(gated_residual_group_size, weight_compression_support_uses_k_over_g) {
     // W_down [32, 256], W_up [256, 32]
-    EXPECT_TRUE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 8, 256, 32, 1, false));
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 4, 256, 32, 1, false)) << "W_down group size 64";
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 8, 256, 32, 2, false)) << "W_up group size 16";
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 7, 256, 32, 1, false)) << "K not divisible by G";
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 0, 256, 32, 1, false));
-    EXPECT_TRUE(op::GatedResidual::is_weight_compression_supported(8, 32, 256, 1, 256, 32, 1, false));
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(8, 32, 256, 8, 256, 32, 1, false)) << "u8 grouped";
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 8, 256, 32, 1, true)) << "write gate";
+    EXPECT_TRUE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 8, 256, 32, 1));
+    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 4, 256, 32, 1)) << "W_down group size 64";
+    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 8, 256, 32, 2)) << "W_up group size 16";
+    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 7, 256, 32, 1)) << "K not divisible by G";
+    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 0, 256, 32, 1));
+    EXPECT_TRUE(op::GatedResidual::is_weight_compression_supported(8, 32, 256, 1, 256, 32, 1));
+    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(8, 32, 256, 8, 256, 32, 1)) << "u8 grouped";
+}
+
+TEST(gated_residual_group_size, write_gate_compression_support_has_only_c_rows) {
+    // W_inject [C = 4, K = 256]: N is not a multiple of 16, the group rules are those of W_down / W_up
+    EXPECT_TRUE(op::GatedResidual::is_write_gate_compression_supported(4, 4, 256, 8));
+    EXPECT_TRUE(op::GatedResidual::is_write_gate_compression_supported(8, 4, 256, 1));
+    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(4, 4, 256, 4)) << "group size 64";
+    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(4, 4, 256, 7)) << "K not divisible by G";
+    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(8, 4, 256, 8)) << "u8 grouped";
+    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(4, 4, 48, 1)) << "K % 32";
+    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(2, 4, 256, 8)) << "bits";
 }
 
 TEST(gated_residual_group_size, op_accepts_supported_group_sizes) {
@@ -691,4 +706,348 @@ TEST(gated_residual_group_size, op_rejects_unsupported_group_sizes) {
     EXPECT_THROW(make_compressed_op(ov::element::u4, 1, 1), ov::NodeValidationFailure) << "u4 per-channel";
     EXPECT_THROW(make_compressed_op(ov::element::u8, cd / 32, 1), ov::NodeValidationFailure) << "u8 grouped";
     EXPECT_THROW(make_compressed_op(ov::element::u4, 7, 1), ov::NodeValidationFailure) << "K not divisible by G";
+}
+
+namespace {
+
+/// An 11-input compressed READ op with a compressed W_inject; g_inject is the group count of W_inject's scale / zp.
+std::shared_ptr<op::GatedResidual> make_compressed_gate_op(const ov::element::Type& wt,
+                                                           size_t g_down,
+                                                           size_t g_up,
+                                                           size_t g_inject,
+                                                           const ov::element::Type& inject_wt,
+                                                           const ov::Shape& scale_inject_tail) {
+    const size_t cd = C * D;
+    const auto lq = static_cast<size_t>(LQ);
+    const auto c = static_cast<size_t>(C);
+    auto param = [](const ov::element::Type& et, const ov::Shape& shape) {
+        return std::make_shared<ov::op::v0::Parameter>(et, shape);
+    };
+    ov::Shape scale_inject{g_inject};
+    scale_inject.insert(scale_inject.end(), scale_inject_tail.begin(), scale_inject_tail.end());
+    ov::OutputVector inputs{param(ov::element::f16, {static_cast<size_t>(T), cd}),
+                            param(ov::element::f16, {cd}),
+                            param(wt, {lq, cd}),
+                            param(wt, {cd, lq}),
+                            param(ov::element::f16, {g_down, lq}),
+                            param(ov::element::f16, {g_up, cd}),
+                            param(wt, {g_down, lq}),
+                            param(wt, {g_up, cd}),
+                            param(inject_wt, {c, cd}),
+                            param(ov::element::f16, scale_inject),
+                            param(inject_wt, scale_inject)};
+    return std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, c, static_cast<size_t>(D), lq, EPS, false, true);
+}
+
+}  // namespace
+
+TEST(gated_residual_write_gate_op, compressed_write_gate_has_eleven_inputs) {
+    const size_t cd = C * D;
+    const size_t lq = static_cast<size_t>(LQ);
+    const auto c = static_cast<size_t>(C);
+    std::shared_ptr<op::GatedResidual> u4;
+    ASSERT_NO_THROW(u4 = make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, cd / 32, ov::element::u4, {c}));
+    EXPECT_EQ(u4->get_input_size(), 11u);
+    ASSERT_EQ(u4->get_output_size(), 2u);
+    EXPECT_EQ(u4->get_output_partial_shape(0), (ov::PartialShape{T, D}));
+    EXPECT_EQ(u4->get_output_partial_shape(1), (ov::PartialShape{T, C}));
+    EXPECT_EQ(u4->get_output_element_type(0), ov::element::f16);
+    EXPECT_EQ(u4->get_output_element_type(1), ov::element::f16);
+    EXPECT_NO_THROW(make_compressed_gate_op(ov::element::u8, 1, 1, 1, ov::element::u8, {c}));
+}
+
+TEST(gated_residual_write_gate_op, compressed_write_gate_rejects_inconsistent_inputs) {
+    const size_t cd = C * D;
+    const size_t lq = static_cast<size_t>(LQ);
+    const auto c = static_cast<size_t>(C);
+    EXPECT_THROW(make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, cd / 32, ov::element::u8, {c}), ov::NodeValidationFailure)
+        << "W_inject must have the element type of W_down / W_up";
+    EXPECT_THROW(make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, cd / 32, ov::element::u4, {c + 1}), ov::NodeValidationFailure)
+        << "scale_inject must have C columns";
+    EXPECT_THROW(make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, cd / 64, ov::element::u4, {c}), ov::NodeValidationFailure)
+        << "W_inject group size 64";
+    EXPECT_THROW(make_compressed_gate_op(ov::element::u8, 1, 1, cd / 32, ov::element::u8, {c}), ov::NodeValidationFailure) << "u8 grouped W_inject";
+}
+
+TEST(gated_residual_write_gate_op, f16_write_gate_keeps_five_inputs) {
+    const size_t cd = C * D;
+    auto param = [](const ov::element::Type& et, const ov::Shape& shape) {
+        return std::make_shared<ov::op::v0::Parameter>(et, shape);
+    };
+    ov::OutputVector inputs{param(ov::element::f16, {static_cast<size_t>(T), cd}),
+                            param(ov::element::f16, {cd}),
+                            param(ov::element::f16, {static_cast<size_t>(LQ), cd}),
+                            param(ov::element::f16, {cd, static_cast<size_t>(LQ)}),
+                            param(ov::element::f16, {static_cast<size_t>(C), cd})};
+    auto gr = std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, C, D, LQ, EPS, false, true);
+    EXPECT_EQ(gr->get_output_size(), 2u);
+    EXPECT_EQ(gr->get_output_partial_shape(0), (ov::PartialShape{T, D}));
+    // a compressed-weight W_inject needs the full 11-input form
+    inputs.back() = param(ov::element::u4, {static_cast<size_t>(C), cd});
+    EXPECT_THROW(std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, C, D, LQ, EPS, false, true), ov::NodeValidationFailure);
+}
+
+namespace {
+
+enum class GateScale { multiply, divide, folded };
+
+/// S = 2 * sigmoid(MatMul(Rbar, W_inject, transpose_b) / C) with the 1/C written as a Multiply, a Divide or folded into W_inject.
+/// `scale` is the constant as written (1/C for multiply / folded, C for divide).
+ov::Output<ov::Node> build_write_gate(const ov::Output<ov::Node>& rbar,
+                                      const ov::Output<ov::Node>& w_inject,
+                                      GateScale form = GateScale::multiply,
+                                      float scale = 1.0f / C,
+                                      float times = 2.0f) {
+    auto f16_const = [](float v) {
+        return ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {v});
+    };
+    std::shared_ptr<ov::Node> x;
+    switch (form) {
+    case GateScale::multiply:
+        x = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::MatMul>(rbar, w_inject, false, true), f16_const(scale));
+        break;
+    case GateScale::divide:
+        x = std::make_shared<ov::op::v1::Divide>(std::make_shared<ov::op::v0::MatMul>(rbar, w_inject, false, true), f16_const(scale));
+        break;
+    case GateScale::folded:
+        x = std::make_shared<ov::op::v0::MatMul>(rbar, std::make_shared<ov::op::v1::Multiply>(w_inject, f16_const(scale)), false, true);
+        break;
+    }
+    return std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(x), f16_const(times))->output(0);
+}
+
+ov::Output<ov::Node> f16_inject_weights() {
+    return ov::op::v0::Constant::create(ov::element::f16, ov::Shape{static_cast<size_t>(C), static_cast<size_t>(C * D)}, std::vector<float>(C * C * D, 0.02f));
+}
+
+using gate_fn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>& residual, const ov::Output<ov::Node>& rbar)>;
+
+struct GateFusion {
+    std::shared_ptr<ov::Model> model;
+    std::shared_ptr<op::GatedResidual> gr;
+};
+
+/// READ sub-graph plus the write-gate branch built by `make_gate`; the model outputs are {mixed, S, extra...}.
+GateFusion run_gate_fusion(const ov::Output<ov::Node>& w_down,
+                           const ov::Output<ov::Node>& w_up,
+                           const gate_fn& make_gate,
+                           bool allow_compressed,
+                           const std::function<ov::OutputVector(const ov::Output<ov::Node>& rbar)>& extra_outputs = nullptr) {
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
+    ov::Output<ov::Node> rbar;
+    auto mixed = build_gr_read_with_weights(residual, w_down, w_up, &rbar);
+    ov::OutputVector outputs{mixed, make_gate(residual, rbar)};
+    if (extra_outputs) {
+        const auto extra = extra_outputs(rbar);
+        outputs.insert(outputs.end(), extra.begin(), extra.end());
+    }
+    GateFusion result;
+    result.model = std::make_shared<ov::Model>(outputs, ov::ParameterVector{residual});
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualReadFusion>(allow_compressed);
+    manager.run_passes(result.model);
+    for (const auto& node : result.model->get_ops()) {
+        if (auto gr = ov::as_type_ptr<op::GatedResidual>(node)) {
+            result.gr = gr;
+        }
+    }
+    return result;
+}
+
+void expect_gate_fused(const GateFusion& r, size_t inputs) {
+    ASSERT_NE(r.gr, nullptr);
+    EXPECT_EQ(r.gr->get_input_size(), inputs);
+    EXPECT_TRUE(r.gr->get_produce_write_gate());
+    ASSERT_EQ(r.gr->get_output_size(), 2u);
+    EXPECT_EQ(r.gr->get_output_partial_shape(1), (ov::PartialShape{T, C}));
+    // both model outputs come from the fused op, and no MatMul / Sigmoid of the write-gate branch is left
+    const auto mixed_src = r.model->get_results()[0]->input_value(0);
+    const auto gate_src = r.model->get_results()[1]->input_value(0);
+    EXPECT_EQ(mixed_src.get_node(), r.gr.get());
+    EXPECT_EQ(mixed_src.get_index(), 0u);
+    EXPECT_EQ(gate_src.get_node(), r.gr.get());
+    EXPECT_EQ(gate_src.get_index(), 1u);
+    for (const auto& node : r.model->get_ops()) {
+        EXPECT_EQ(ov::as_type_ptr<ov::op::v0::MatMul>(node), nullptr);
+        EXPECT_EQ(ov::as_type_ptr<ov::op::v0::Sigmoid>(node), nullptr);
+    }
+}
+
+void expect_gate_not_fused(const GateFusion& r, size_t inputs) {
+    ASSERT_NE(r.gr, nullptr) << "the READ itself must still be fused";
+    EXPECT_EQ(r.gr->get_input_size(), inputs);
+    EXPECT_FALSE(r.gr->get_produce_write_gate());
+    EXPECT_EQ(r.gr->get_output_size(), 1u);
+    EXPECT_NE(r.model->get_results()[1]->input_value(0).get_node(), r.gr.get());
+}
+
+gate_fn gate_on_rbar(GateScale form = GateScale::multiply, float scale = 1.0f / C, float times = 2.0f) {
+    return [=](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
+        return build_write_gate(rbar, f16_inject_weights(), form, scale, times);
+    };
+}
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> f16_read_weights() {
+    return {
+        ov::op::v0::Constant::create(ov::element::f16, ov::Shape{static_cast<size_t>(LQ), static_cast<size_t>(C * D)}, std::vector<float>(LQ * C * D, 0.01f)),
+        ov::op::v0::Constant::create(ov::element::f16, ov::Shape{static_cast<size_t>(C * D), static_cast<size_t>(LQ)}, std::vector<float>(LQ * C * D, 0.01f))};
+}
+
+}  // namespace
+
+TEST(qsa_gr_fusion_write_gate, multiply_scale_is_fused) {
+    const auto [w_down, w_up] = f16_read_weights();
+    expect_gate_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(), false), 5u);
+}
+
+TEST(qsa_gr_fusion_write_gate, divide_scale_is_fused) {
+    const auto [w_down, w_up] = f16_read_weights();
+    expect_gate_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::divide, static_cast<float>(C)), false), 5u);
+}
+
+TEST(qsa_gr_fusion_write_gate, scale_folded_into_w_inject_is_fused) {
+    const auto [w_down, w_up] = f16_read_weights();
+    auto r = run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::folded), false);
+    expect_gate_fused(r, 5u);
+    // the fused op reads the unscaled W_inject: the 1/C is applied inside the kernel
+    auto w_inject = ov::as_type_ptr<ov::op::v0::Constant>(r.gr->get_input_node_shared_ptr(op::GatedResidual::ReadInputIdx::W_INJECT));
+    EXPECT_NE(w_inject, nullptr);
+}
+
+TEST(qsa_gr_fusion_write_gate, write_gate_feeds_the_write_fusion) {
+    const auto [w_down, w_up] = f16_read_weights();
+    auto residual = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, C * D});
+    ov::Output<ov::Node> rbar;
+    auto mixed = build_gr_read_with_weights(residual, w_down, w_up, &rbar);
+    auto gate = build_write_gate(rbar, f16_inject_weights());
+    // R' = R + S * Y, canonical case A
+    auto y = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{T, D});
+    auto r3 = reshape_to(residual, {-1, C, D});
+    auto s3 = reshape_to(gate, {-1, C, 1});
+    auto y3 = reshape_to(y, {-1, 1, D});
+    auto updated = reshape_to(std::make_shared<ov::op::v1::Add>(r3, std::make_shared<ov::op::v1::Multiply>(s3, y3)), {-1, C * D});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed, updated}, ov::ParameterVector{residual, y});
+    ov::pass::Manager manager;
+    manager.register_pass<GatedResidualFusion>(false);
+    manager.run_passes(model);
+
+    std::shared_ptr<op::GatedResidual> read;
+    std::shared_ptr<op::GatedResidual> write;
+    for (const auto& node : model->get_ops()) {
+        if (auto gr = ov::as_type_ptr<op::GatedResidual>(node)) {
+            (gr->get_mode() == op::GatedResidual::Mode::READ ? read : write) = gr;
+        }
+    }
+    ASSERT_NE(read, nullptr);
+    ASSERT_NE(write, nullptr);
+    EXPECT_TRUE(read->get_produce_write_gate());
+    EXPECT_EQ(write->input_value(op::GatedResidual::WriteInputIdx::WRITE_GATE).get_node(), read.get());
+}
+
+TEST(qsa_gr_fusion_write_gate, wrong_branch_scale_leaves_the_gate_in_the_graph) {
+    const auto [w_down, w_up] = f16_read_weights();
+    expect_gate_not_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::multiply, 1.0f / (C + 1)), false), 4u);
+    expect_gate_not_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::divide, static_cast<float>(C + 1)), false), 4u);
+}
+
+TEST(qsa_gr_fusion_write_gate, wrong_gate_range_leaves_the_gate_in_the_graph) {
+    const auto [w_down, w_up] = f16_read_weights();
+    // a plain sigmoid or 2 * sigmoid scaled differently is not the write gate
+    expect_gate_not_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::multiply, 1.0f / C, 1.0f), false), 4u);
+    expect_gate_not_fused(run_gate_fusion(w_down, w_up, gate_on_rbar(GateScale::multiply, 1.0f / C, 3.0f), false), 4u);
+}
+
+TEST(qsa_gr_fusion_write_gate, branch_on_another_normalization_is_not_fused) {
+    const auto [w_down, w_up] = f16_read_weights();
+    // the inject MatMul reads its own RMS of the residual, not the Rbar of the READ
+    gate_fn other_rbar = [](const ov::Output<ov::Node>& residual, const ov::Output<ov::Node>&) {
+        auto r3 = reshape_to(residual, {-1, C, D});
+        auto rms = std::make_shared<ov::op::internal::RMS>(r3, EPS);
+        return build_write_gate(reshape_to(rms, {-1, C * D}), f16_inject_weights());
+    };
+    expect_gate_not_fused(run_gate_fusion(w_down, w_up, other_rbar, false), 4u);
+}
+
+TEST(qsa_gr_fusion_write_gate, transposed_or_misshaped_w_inject_is_not_fused) {
+    const auto [w_down, w_up] = f16_read_weights();
+    gate_fn misshaped = [](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
+        auto w = ov::op::v0::Constant::create(ov::element::f16,
+                                              ov::Shape{static_cast<size_t>(C + 4), static_cast<size_t>(C * D)},
+                                              std::vector<float>((C + 4) * C * D, 0.02f));
+        return build_write_gate(rbar, w);
+    };
+    auto r = run_gate_fusion(w_down, w_up, misshaped, false);
+    ASSERT_NE(r.gr, nullptr);
+    EXPECT_FALSE(r.gr->get_produce_write_gate());
+}
+
+TEST(qsa_gr_fusion_write_gate, gate_chain_with_other_consumers_is_not_fused) {
+    const auto [w_down, w_up] = f16_read_weights();
+    // the raw inject MatMul is also a model output, so it cannot be removed
+    ov::Output<ov::Node> inject_mm;
+    gate_fn make_gate = [&](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
+        auto mm = std::make_shared<ov::op::v0::MatMul>(rbar, f16_inject_weights(), false, true);
+        inject_mm = mm->output(0);
+        auto scaled = std::make_shared<ov::op::v1::Multiply>(mm, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {1.0f / C}));
+        auto sig = std::make_shared<ov::op::v0::Sigmoid>(scaled);
+        return std::make_shared<ov::op::v1::Multiply>(sig, ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {2.0f}))->output(0);
+    };
+    auto r = run_gate_fusion(w_down, w_up, make_gate, false, [&](const ov::Output<ov::Node>&) {
+        return ov::OutputVector{inject_mm};
+    });
+    ASSERT_NE(r.gr, nullptr);
+    EXPECT_FALSE(r.gr->get_produce_write_gate());
+}
+
+TEST(qsa_gr_fusion_write_gate, compressed_weights_take_a_compressed_w_inject) {
+    const size_t cd = C * D;
+    const auto c = static_cast<size_t>(C);
+    const auto lq = static_cast<size_t>(LQ);
+    struct Case {
+        ov::element::Type wt;
+        size_t group_k_cd;  // group size along C*D (W_down, W_inject)
+        size_t group_k_l;   // group size along L (W_up)
+    };
+    for (const auto& tc : {Case{ov::element::u4, 32, 32}, Case{ov::element::u8, cd, lq}}) {
+        gate_fn make_gate = [&](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
+            return build_write_gate(rbar, make_decompressed(tc.wt, c, cd, tc.group_k_cd));
+        };
+        auto r = run_gate_fusion(make_decompressed(tc.wt, lq, cd, tc.group_k_cd), make_decompressed(tc.wt, cd, lq, tc.group_k_l), make_gate, true);
+        expect_gate_fused(r, 11u);
+        EXPECT_EQ(r.gr->get_input_element_type(op::GatedResidual::ReadInputIdx::W_INJECT_Q), tc.wt);
+        EXPECT_EQ(r.gr->get_input_shape(op::GatedResidual::ReadInputIdx::W_INJECT_Q), (ov::Shape{c, cd}));
+        EXPECT_EQ(r.gr->get_input_element_type(op::GatedResidual::ReadInputIdx::SCALE_INJECT), ov::element::f16);
+        EXPECT_EQ(r.gr->get_input_shape(op::GatedResidual::ReadInputIdx::SCALE_INJECT), (ov::Shape{cd / tc.group_k_cd, c}));
+        EXPECT_EQ(r.gr->get_input_element_type(op::GatedResidual::ReadInputIdx::ZP_INJECT), tc.wt);
+        EXPECT_EQ(r.gr->get_input_shape(op::GatedResidual::ReadInputIdx::ZP_INJECT), (ov::Shape{cd / tc.group_k_cd, c}));
+    }
+}
+
+TEST(qsa_gr_fusion_write_gate, compressed_read_with_f16_or_mismatched_w_inject_fuses_only_the_read) {
+    const size_t cd = C * D;
+    const auto c = static_cast<size_t>(C);
+    // W_inject stays an f16 tensor while W_down / W_up are compressed
+    auto f16_inject = run_gate_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), gate_on_rbar(), true);
+    expect_gate_not_fused(f16_inject, 8u);
+    // W_inject uses another weight type than W_down / W_up
+    gate_fn u8_inject = [&](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
+        return build_write_gate(rbar, make_decompressed(ov::element::u8, c, cd, cd));
+    };
+    expect_gate_not_fused(run_gate_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), u8_inject, true), 8u);
+    // W_inject with an unsupported group size
+    gate_fn g64_inject = [&](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
+        return build_write_gate(rbar, make_decompressed(ov::element::u4, c, cd, 64));
+    };
+    expect_gate_not_fused(run_gate_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), g64_inject, true),
+                          8u);
+}
+
+TEST(qsa_gr_fusion_write_gate, compressed_w_inject_with_f16_read_weights_uses_the_decompressed_tensor) {
+    const size_t cd = C * D;
+    const auto c = static_cast<size_t>(C);
+    const auto [w_down, w_up] = f16_read_weights();
+    gate_fn compressed_inject = [&](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
+        return build_write_gate(rbar, make_decompressed(ov::element::u4, c, cd, 32));
+    };
+    expect_gate_fused(run_gate_fusion(w_down, w_up, compressed_inject, true), 5u);
 }

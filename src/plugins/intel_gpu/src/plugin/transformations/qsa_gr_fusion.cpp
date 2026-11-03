@@ -265,6 +265,95 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     return result;
 }
 
+/// The write-gate branch that hangs off the same Rbar as the READ: S = 2 * sigmoid(MatMul(Rbar, W_inject, transpose_b) / C).
+struct WriteGateBranch {
+    ov::Output<ov::Node> w_inject;  // [C, C*D] with the 1/C scale taken out of the weights
+    ov::Output<ov::Node> gate;      // S, [.., C]
+    ov::NodeVector nodes;           // the matched MatMul / scale / Sigmoid / Multiply(2)
+};
+
+/// Finds the write-gate branch among the consumers of `rbar`. Every node of the chain except the last must have a single
+/// consumer, otherwise removing the chain would change what other nodes see. The 1/C scale is either an explicit
+/// Multiply(1/C) / Divide(C) after the MatMul or folded into W_inject.
+std::optional<WriteGateBranch> match_write_gate_branch(const ov::Output<ov::Node>& rbar, const std::shared_ptr<ov::Node>& read_matmul, size_t C, size_t D) {
+    const float inv_c = 1.0f / static_cast<float>(C);
+    auto single_consumer = [](const ov::Output<ov::Node>& out) -> std::shared_ptr<ov::Node> {
+        const auto targets = out.get_target_inputs();
+        return targets.size() == 1 ? targets.begin()->get_node()->shared_from_this() : nullptr;
+    };
+    // the operand of a binary node that is not `x`, when `x` is one of its two inputs
+    auto other_operand = [](const std::shared_ptr<ov::Node>& node, const ov::Output<ov::Node>& x) -> std::optional<ov::Output<ov::Node>> {
+        if (node->input_value(0) == x) {
+            return node->input_value(1);
+        }
+        if (node->input_value(1) == x) {
+            return node->input_value(0);
+        }
+        return std::nullopt;
+    };
+
+    for (const auto& target : rbar.get_target_inputs()) {
+        auto mm = ov::as_type_ptr<ov::op::v0::MatMul>(target.get_node()->shared_from_this());
+        if (!mm || mm == read_matmul || target.get_index() != 0 || mm->get_transpose_a() || !mm->get_transpose_b()) {
+            continue;
+        }
+        const auto& w_ps = mm->input_value(1).get_partial_shape();
+        if (w_ps.is_dynamic() || w_ps.size() != 2 || static_cast<size_t>(w_ps[0].get_length()) != C || static_cast<size_t>(w_ps[1].get_length()) != C * D) {
+            continue;
+        }
+
+        WriteGateBranch branch;
+        branch.w_inject = mm->input_value(1);
+        branch.nodes.push_back(mm);
+        ov::Output<ov::Node> x = mm->output(0);
+        auto next = single_consumer(x);
+        if (!next) {
+            continue;
+        }
+
+        float scale = 0.0f;
+        bool scaled = false;
+        if (auto mul = ov::as_type_ptr<ov::op::v1::Multiply>(next)) {
+            const auto other = other_operand(mul, x);
+            scaled = other && get_scalar_f32(*other, scale) && close(scale, inv_c);
+        } else if (auto div = ov::as_type_ptr<ov::op::v1::Divide>(next)) {
+            scaled = div->input_value(0) == x && get_scalar_f32(div->input_value(1), scale) && close(scale, static_cast<float>(C));
+        }
+        if (scaled) {
+            branch.nodes.push_back(next);
+            x = next->output(0);
+            next = single_consumer(x);
+        } else if (auto folded = ov::as_type_ptr<ov::op::v1::Multiply>(branch.w_inject.get_node_shared_ptr())) {
+            for (size_t i = 0; i < 2 && !scaled; ++i) {
+                if (get_scalar_f32(folded->input_value(1 - i), scale) && close(scale, inv_c)) {
+                    branch.w_inject = folded->input_value(i);
+                    scaled = true;
+                }
+            }
+        }
+        if (!scaled || !next) {
+            continue;
+        }
+
+        auto sigmoid = ov::as_type_ptr<ov::op::v0::Sigmoid>(next);
+        if (!sigmoid) {
+            continue;
+        }
+        branch.nodes.push_back(sigmoid);
+        x = sigmoid->output(0);
+        auto times_two = ov::as_type_ptr<ov::op::v1::Multiply>(single_consumer(x));
+        float two = 0.0f;
+        const auto other = times_two ? other_operand(times_two, x) : std::nullopt;
+        if (!other || !get_scalar_f32(*other, two) || !close(two, 2.0f)) {
+            continue;
+        }
+        branch.nodes.push_back(times_two);
+        branch.gate = times_two->output(0);
+        return branch;
+    }
+    return std::nullopt;
+}
+
 }  // namespace
 
 // ===========================================================================
@@ -451,12 +540,13 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
         // u4 (group 32) / u8 (per-channel) asymmetric weights are fed to the kernels as they are; W_down and W_up must be
         // compressed the same way, otherwise the decompressed f16 tensors are used.
         ov::OutputVector weight_inputs = {w_down, w_up};
+        size_t compressed_bits = 0;
         if (allow_compressed_weights) {
             const auto cd = match_compressed_weight(w_down, L, C * D);
             const auto cu = match_compressed_weight(w_up, C * D, L);
-            if (cd && cu && cd->bits == cu->bits &&
-                op::GatedResidual::is_weight_compression_supported(cd->bits, L, C * D, cd->groups, C * D, L, cu->groups, false)) {
+            if (cd && cu && cd->bits == cu->bits && op::GatedResidual::is_weight_compression_supported(cd->bits, L, C * D, cd->groups, C * D, L, cu->groups)) {
                 weight_inputs = {cd->weights, cu->weights, cd->scale, cu->scale, cd->zp, cu->zp};
+                compressed_bits = cd->bits;
             }
         }
 
@@ -534,14 +624,42 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
 
         ov::OutputVector gr_inputs{residual_out, gain_flat};
         gr_inputs.insert(gr_inputs.end(), weight_inputs.begin(), weight_inputs.end());
-        auto gr = std::make_shared<op::GatedResidual>(gr_inputs,
-                                                      op::GatedResidual::Mode::READ,
-                                                      C,
-                                                      D,
-                                                      L,
-                                                      epsilon,
-                                                      /*norm_gain_plus_one=*/false,
-                                                      /*produce_write_gate=*/false);
+
+        // The write gate hangs off the same Rbar. It is fused only when its weights have the same form as W_down / W_up (f16,
+        // or compressed the same way); otherwise the branch stays in the graph and only the READ is fused.
+        auto gate_branch = match_write_gate_branch(low_mm->input_value(0), low_mm, C, D);
+        ov::OutputVector gate_inputs;
+        if (gate_branch && is_f16(gate_branch->gate)) {
+            if (compressed_bits != 0) {
+                const auto ci = match_compressed_weight(gate_branch->w_inject, C, C * D);
+                if (ci && ci->bits == compressed_bits && op::GatedResidual::is_write_gate_compression_supported(ci->bits, C, C * D, ci->groups)) {
+                    gate_inputs = {ci->weights, ci->scale, ci->zp};
+                }
+            } else if (is_f16(gate_branch->w_inject)) {
+                gate_inputs = {gate_branch->w_inject};
+            }
+        }
+
+        auto make_gr = [&](bool with_gate) {
+            ov::OutputVector inputs = gr_inputs;
+            if (with_gate) {
+                inputs.insert(inputs.end(), gate_inputs.begin(), gate_inputs.end());
+            }
+            return std::make_shared<op::GatedResidual>(inputs,
+                                                       op::GatedResidual::Mode::READ,
+                                                       C,
+                                                       D,
+                                                       L,
+                                                       epsilon,
+                                                       /*norm_gain_plus_one=*/false,
+                                                       /*produce_write_gate=*/with_gate);
+        };
+        bool with_gate = !gate_inputs.empty();
+        auto gr = make_gr(with_gate);
+        if (with_gate && !gr->get_output_partial_shape(1).compatible(gate_branch->gate.get_partial_shape())) {
+            with_gate = false;
+            gr = make_gr(false);
+        }
         // A split that also flattens leading axes (e.g. [B, L, C*D] -> [-1, C, D]) would
         // change the output rank, which the fused op cannot reproduce.
         if (!gr->get_output_partial_shape(0).compatible(root->get_output_partial_shape(0))) {
@@ -551,7 +669,11 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) 
         new_ops.push_back(gr);
 
         ov::copy_runtime_info(m.get_matched_nodes(), new_ops);
-        ov::replace_node(root, gr);
+        if (with_gate) {
+            ov::copy_runtime_info(gate_branch->nodes, gr);
+            gate_branch->gate.replace(gr->output(1));
+        }
+        ov::replace_node(root, ov::OutputVector{gr->output(0)});
         return true;
     };
 
