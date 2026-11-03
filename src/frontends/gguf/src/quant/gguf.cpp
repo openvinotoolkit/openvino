@@ -405,8 +405,8 @@ void unpack_gguf_weight_into(const GgufWeight& source, WeightTensors& destinatio
     }
     GgufTensor tensor;
     tensor.type = source.qtype;
-    tensor.ndim = source.shape.size();
-    OPENVINO_ASSERT(tensor.ndim <= 4, "Unsupported GGUF weight rank");
+    OPENVINO_ASSERT(source.shape.size() <= 4, "Unsupported GGUF weight rank");
+    tensor.ndim = static_cast<uint32_t>(source.shape.size());
     tensor.num_weights = ov::shape_size(source.shape);
     for (size_t i = 0; i < source.shape.size(); ++i)
         tensor.dim[i] = source.shape[source.shape.size() - 1 - i];
