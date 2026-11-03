@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "unable to connect to adb daemon on port adb device offline during emulator boot|Infrastructure",
+  "signature_hash": "bbf7249294bc184f",
+  "title": "Android CXX_Unit_Tests fails - emulator adb daemon unreachable, device stays offline during boot",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-11-03T10:53:06Z",
+  "last_seen": "2026-11-03T10:53:06Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41618022107"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39380"
+  ],
+  "recent_timestamps": [
+    "2026-11-03T10:53:06Z"
+  ],
+  "rerun_search_string": "Unable to connect to adb daemon on port"
+}

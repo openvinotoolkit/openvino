@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-03-10-53-06-000-41618022107",
+  "timestamp": "2026-11-03T10:53:06Z",
+  "run_id": "41618022107",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41618022107",
+  "workflow_name": "Android ARM",
+  "pr_number": "39380",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39380",
+  "author": "aobolensk",
+  "category": "Infrastructure",
+  "title": "Android CXX_Unit_Tests fails - emulator adb daemon unreachable, device stays offline during boot",
+  "signature": "unable to connect to adb daemon on port adb device offline during emulator boot|Infrastructure",
+  "signature_hash": "bbf7249294bc184f",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CXX_Unit_Tests",
+      "conclusion": "failure",
+      "symptom": "Android emulator failed to bring the device online (adb device offline), blocking CPU unit test execution"
+    },
+    {
+      "name": "ci/gha_overall_status_android",
+      "conclusion": "failure",
+      "symptom": "Downstream aggregate status job fails because CXX_Unit_Tests failed"
+    }
+  ],
+  "key_errors": [
+    "ERROR        | Unable to connect to adb daemon on port: 5037",
+    "adb: device offline\nThe process '/opt/android-sdk/platform-tools/adb' failed with exit code 1",
+    "WARNING      | adb command '... shell am broadcast -a com.android.emulator.multidisplay.START ...' failed: 'Broadcasting: Intent {...} cmd: Failure calling service activity: Broken pipe (32)'",
+    "##[error]The process '/opt/android-sdk/platform-tools/adb' failed with exit code 224",
+    "ERROR        | stop: Not implemented"
+  ],
+  "root_cause": "The Android x86_64 emulator (reactivecircus/android-emulator-runner) failed to establish an adb connection immediately after boot ('Unable to connect to adb daemon on port: 5037'), leaving the device reporting 'offline' for ~20 seconds of polling before adb finally connected (boot completed in 38406 ms, much slower than usual). This is a known transient flakiness of the headless, software-rendered (swiftshader) x86_64 emulator under containerized CI runners: the adb daemon inside the emulator's guest OS sometimes isn't ready by the time the host-side wait-for-device polling starts, and the emulator's own waiting/broadcast step after boot additionally hit a 'Broken pipe' on the multidisplay service broadcast, causing the post-boot action itself to exit with code 224 (treated as a step failure) even though the unit tests could in principle have still run. No code change in the PR (which only touches src/plugins/intel_cpu/tests/functional/shared_tests_instances/skip_tests_config.cpp, an x86_64/CPU test-skip list) interacts with the Android emulator subsystem, so the failure is unrelated to the PR's diff.",
+  "reproduction_steps": "Not reliably reproducible locally; intermittent emulator/adb startup race under CI container load. To attempt reproduction: run the 'CXX_Unit_Tests' Android job's android-emulator-runner step repeatedly in a resource-constrained container (e.g., limited CPU cores) with api-level 30, google_apis, x86_64, -gpu swiftshader_indirect, and observe adb daemon connection timing after emulator launch.",
+  "recommended_actions": [
+    "Re-run the failed CXX_Unit_Tests job; this is the standard remedy for a one-off emulator adb daemon connectivity glitch.",
+    "Consider increasing the android-emulator-runner 'emulator-boot-timeout' or adding a short retry/backoff around the initial 'adb wait-for-device' / post-boot broadcast step so a slow guest adb daemon does not fail the whole job.",
+    "If this recurs frequently, consider pinning the emulator package version or disabling hardware/display broadcast steps (e.g., disable-animations tuning) that trigger the Broken pipe warning after boot."
+  ],
+  "prevention_strategies": "Track recurrence of adb daemon connectivity failures in the Android emulator CI jobs; if this signature appears 3+ times within 12 hours, treat it as infrastructure instability in the emulator/runner image and escalate to the CI platform owners rather than re-triaging PRs repeatedly.",
+  "historical_context": "Related but distinct emulator/adb infrastructure issues have been seen before: 'Android Build x64 fails uploading unit test artifact due to Azure blob storage DNS resolution failure' (pattern 8a9dfcece16ecc76, Network, 2 occurrences) and 'Android CXX_Unit_Tests fails at Download CPU unit test binary step' (pattern b9bb8c1499335214, Infrastructure, 1 occurrence). This specific 'adb daemon unreachable / device offline during boot' signature has not been recorded before in the pattern database (new signature bbf7249294bc184f)."
+}
