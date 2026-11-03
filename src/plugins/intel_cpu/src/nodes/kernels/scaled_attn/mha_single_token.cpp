@@ -1481,8 +1481,10 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
-    // Grouped key scoring works on f32 queries. Other queries are converted into buf_attn_score, which the value
-    // phase only resizes afterwards.
+    // dot_product_u8_rows reads f32 query rows, so grouped key scoring converts other query types once here, into
+    // buf_attn_score, instead of once per key row; with f16 kernels it thus replaces dot_product_fp16's f16 products
+    // by f32 ones. query_f32 aliases buf_attn_score, which the value phase resizes and clears: it is valid only in
+    // the key phase, and the buffer keeps the larger of the two sizes.
     const bool group_heads = std::is_same_v<T2, uint8_t> && !quant_key_by_channel && h_each_group_len > 1;
     if constexpr (!std::is_same_v<T, float>) {
         if (group_heads) {
@@ -1630,12 +1632,17 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                                 dot_product_u8_rows<R>(q_rows.data(), k, S, p, key_group_size, qk.data());
                                 for (size_t r = 0; r < R; r++) {
                                     T3* dst = buf_attn_w.ptr<T3>(b, h0 + rows[r].second, rows[r].first) + pk;
+#    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
                                     if constexpr (std::is_same_v<T3, ov::float16>) {
-                                        // Hardware rounding; the ov::float16 constructor is an out-of-line call.
-                                        *reinterpret_cast<float16_t*>(dst) = static_cast<float16_t>(qk[r]);
-                                    } else {
-                                        *dst = static_cast<T3>(qk[r]);
+                                        // Hardware rounding, not the out-of-line ov::float16 constructor (they differ
+                                        // only for f16 subnormals, #38797). float16_t takes this file's usual guard,
+                                        // and memcpy stores its bits into ov::float16 without type punning.
+                                        const auto qk_f16 = static_cast<float16_t>(qk[r]);
+                                        std::memcpy(dst, &qk_f16, sizeof(qk_f16));
+                                        continue;
                                     }
+#    endif
+                                    *dst = static_cast<T3>(qk[r]);
                                 }
                             });
                             parallel_it_step(pk, kv_len, b, B, h_group, h_group_num);
