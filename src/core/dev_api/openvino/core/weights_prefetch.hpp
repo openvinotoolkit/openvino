@@ -104,7 +104,9 @@ public:
      *
      * Default window and step showed the best import time and peak RSS in manual testing.
      */
-    explicit SequentialPrefetchScheduler(ov::Tensor tensor, size_t window = 32 * one_mib, size_t step = 8 * one_mib);
+    explicit SequentialPrefetchScheduler(const ov::Tensor& tensor,
+                                         size_t window = 32 * one_mib,
+                                         size_t step = 8 * one_mib);
 
     /** @brief Reports that [begin, end) is read next and the bytes before @p begin are consumed. */
     void advance(size_t begin, size_t end) noexcept;
@@ -117,12 +119,12 @@ public:
 private:
     std::shared_ptr<IMemoryHints> chunk_hints(size_t begin, size_t end) const noexcept;
 
-    ov::Tensor m_tensor;  // Tensor being read.
-    size_t m_size;        // Tensor size in bytes.
-    size_t m_window;      // Bytes to prefetch ahead of the read position.
-    size_t m_step;        // Granularity of prefetch and eviction chunks.
-    size_t m_prefetched;  // End offset of the prefetched region.
-    size_t m_evicted;     // End offset of the evicted region.
-    bool m_evict;         // Whether consumed data should be evicted.
+    const ov::Tensor m_tensor;  // Tensor being read.
+    size_t m_size;              // Tensor size in bytes.
+    size_t m_window;            // Bytes to prefetch ahead of the read position.
+    size_t m_step;              // Granularity of prefetch and eviction chunks.
+    size_t m_prefetched;        // End offset of the prefetched region.
+    size_t m_evicted;           // End offset of the evicted region.
+    bool m_evict;               // Whether consumed data should be evicted.
 };
 }  // namespace ov::util

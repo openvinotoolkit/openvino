@@ -18,7 +18,7 @@ namespace ov::intel_gpu {
  */
 class PrefetchStreamBuf : public std::streambuf {
 public:
-    explicit PrefetchStreamBuf(ov::Tensor tensor, bool prefetch = true);
+    explicit PrefetchStreamBuf(const ov::Tensor& tensor, bool prefetch = true);
 
     void keep_read_data() noexcept {
         if (m_scheduler) {
@@ -27,11 +27,18 @@ public:
     }
 
 protected:
+    int_type underflow() override;
+    int_type uflow() override;
+    std::streamsize showmanyc() override;
     std::streamsize xsgetn(char_type* dst, std::streamsize count) override;
     pos_type seekoff(off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) override;
     pos_type seekpos(pos_type pos, std::ios_base::openmode which) override;
 
 private:
+    // The base get area is unused: setg() takes non-const pointers and blobs may be read-only.
+    const char* m_begin;
+    const char* m_current;
+    const char* m_end;
     std::unique_ptr<ov::util::SequentialPrefetchScheduler> m_scheduler;
 };
 

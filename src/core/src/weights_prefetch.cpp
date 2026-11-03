@@ -18,8 +18,8 @@
 
 namespace ov::util {
 
-SequentialPrefetchScheduler::SequentialPrefetchScheduler(ov::Tensor tensor, size_t window, size_t step)
-    : m_tensor(std::move(tensor)),
+SequentialPrefetchScheduler::SequentialPrefetchScheduler(const ov::Tensor& tensor, size_t window, size_t step)
+    : m_tensor(tensor),
       m_size(m_tensor.get_byte_size()),
       m_window(window),
       m_step(std::max<size_t>(step, 1)),
