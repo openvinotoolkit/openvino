@@ -751,8 +751,9 @@ TEST_P(RemoteRunTests, ImportCpuVAWithImportSizeSmallerThanTensorExpectedError) 
     ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::CPU_VA},
                          {ov::intel_npu::mem_handle.name(), data},
                          {ov::intel_npu::import_size.name(), tensor_size / 2}};
-    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, shape, params), std::exception);
-
+    OV_EXPECT_THROW_HAS_SUBSTRING(context.create_tensor(ov::element::f32, shape, params),
+                                  ov::Exception,
+                                  "is smaller than the tensor size");
     ::operator delete(data, std::align_val_t(4096));
 }
 
@@ -778,12 +779,16 @@ TEST_P(RemoteRunTests, ImportSizeWithNonImportMemTypeExpectedError) {
 
     ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::L0_INTERNAL_BUF},
                          {ov::intel_npu::import_size.name(), tensor_size}};
-    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, shape, params), std::exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(context.create_tensor(ov::element::f32, shape, params),
+                                  ov::Exception,
+                                  "can be set only when importing memory");
 
     ov::AnyMap file_params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::MMAPED_FILE},
                               {ov::intel_npu::file_descriptor.name(), ov::intel_npu::FileDescriptor("dummy_file.bin")},
                               {ov::intel_npu::import_size.name(), tensor_size}};
-    ASSERT_THROW(auto remote_tensor = context.create_tensor(ov::element::f32, shape, file_params), std::exception);
+    OV_EXPECT_THROW_HAS_SUBSTRING(context.create_tensor(ov::element::f32, shape, file_params),
+                                  ov::Exception,
+                                  "can be set only when importing memory");
 }
 
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
