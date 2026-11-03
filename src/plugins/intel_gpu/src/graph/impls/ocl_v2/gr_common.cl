@@ -117,6 +117,10 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 //
 // JIT of the including kernel: GR_W_TYPE (0 f16, 1 u4, 2 u8).
 
+#ifndef GR_GATE_ONLY
+#define GR_GATE_ONLY 0
+#endif
+
 #ifndef GR_W_TYPE
 #define GR_W_TYPE 0
 #endif
@@ -154,6 +158,9 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 #if GR_W_TYPE == GR_WT_U4
     #define GR_WQ_RAW_PER_K32 4
     #define GR_WQ_DEQ32(q, o, zp2, sc2) ((uint16)(GR_Q4_4((q)[(o)], zp2, sc2), GR_Q4_4((q)[(o) + 1], zp2, sc2), GR_Q4_4((q)[(o) + 2], zp2, sc2), GR_Q4_4((q)[(o) + 3], zp2, sc2)))
+    // B operand half(1024 + q) of one K32 slice, no arithmetic: the caller applies (1024 + zp) and the group scale to the accumulator
+    #define GR_U4M_4(a) GR_U4_PAIR0(a), GR_U4_PAIR1(a), GR_U4_PAIR2(a), GR_U4_PAIR3(a)
+    #define GR_WQ_U4M32(q, o) ((uint16)(GR_U4M_4((q)[(o)]), GR_U4M_4((q)[(o) + 1]), GR_U4M_4((q)[(o) + 2]), GR_U4M_4((q)[(o) + 3])))
 #else
     #define GR_WQ_RAW_PER_K32 8
     #define GR_WQ_DEQ32(q, o, zp2, sc2)                                                                                                 \
@@ -188,8 +195,8 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 
 #if GR_DEQUANT_WEIGHTS
 // Dequantizes one compressed GatedResidual weight matrix [N, K] (u4 group 32 / u8 per-channel, scale / zp [G, N]) into a
-// row-major f16 scratch matrix with the arithmetic of the decompression graph, see the helpers above. The f16 GEMM kernels then run on
-// the scratch (experiment: compared against dequantizing inside the GEMM kernels, see OV_GPU_GR_PD_MIN_ROWS).
+// row-major f16 scratch matrix with the arithmetic of the decompression graph, see the helpers above. The f16 GEMM kernels then
+// run on the scratch (used above OV_GPU_GR_PD_MIN_ROWS rows).
 //
 // One subgroup owns 16 rows x GR_DQ_KCH columns; lane l owns row 16 * tile + l.
 // JIT: GR_DEQUANT_WEIGHTS, GR_W_TYPE, GR_DQ_N, GR_DQ_K, GR_DQ_KCH, GR_DQ_NRAW (dwords per raw load), GR_DQ_RB (row bytes).
@@ -223,3 +230,30 @@ KERNEL(gr_dequant_weights)(const __global uchar* w, const __global ushort* scale
     }
 }
 #endif  // GR_DEQUANT_WEIGHTS
+
+#if GR_DEQUANT_INJECT
+// Dequantizes the compressed write-gate weight W_inject [N = C, K = C*D] (u4 group 32 / u8 per-channel, scale / zp [G, N]) into a
+// row-major f16 scratch matrix with the arithmetic of the decompression graph: half(half(q - zp) * scale). W_inject has only C rows,
+// so there is no 16-row tile to share a scale block read; one work-item converts one element.
+// JIT: GR_DEQUANT_INJECT, GR_W_TYPE, GR_DQ_N (C), GR_DQ_K (C*D), GR_DQ_GS (group size along K). Dispatch: gws = [N * K], lws = [16].
+#if GR_W_TYPE == GR_WT_F16
+    #error "gr_common.cl: compressed weights only"
+#endif
+
+KERNEL(gr_dequant_inject)(const __global uchar* w, const __global ushort* scale, const __global uchar* zp, __global ushort* out) {
+    const uint i = get_global_id(0);
+    const uint n = i / GR_DQ_K;
+    const uint k = i % GR_DQ_K;
+    const uint zi = (k / GR_DQ_GS) * GR_DQ_N + n;  // [G, N]
+#if GR_W_TYPE == GR_WT_U4
+    const uint q = (w[i >> 1] >> ((i & 1) * 4)) & 0xF;
+    const uint z = (zp[zi >> 1] >> ((zi & 1) * 4)) & 0xF;
+#else
+    const uint q = w[i];
+    const uint z = zp[zi];
+#endif
+    // q - zp is exact in half; one RNE multiply by the scale, as in the decompression graph
+    const half d = convert_half((int)q - (int)z);
+    out[i] = as_ushort(d * as_half(scale[zi]));
+}
+#endif  // GR_DEQUANT_INJECT

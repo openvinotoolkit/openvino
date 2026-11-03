@@ -191,6 +191,10 @@ std::vector<std::string> executed_stages() {
 /// 4 rows per EU (and D % 32 == 0) the single-kernel gr_read_dpas.cl replaces the 3-kernel
 /// pipeline, whose DOWN_PROJ carries the write gate and UP_PROJ the branch mix. Devices without Xe2+ systolic
 /// arrays always run the scalar gr_read.cl.
+std::vector<std::string> pipeline_stages() {
+    return {"RBAR", "DOWN_PROJ", "UP_PROJ"};
+}
+
 std::vector<std::string> expected_read_stages(size_t rows, size_t D, size_t L) {
     const auto& info = get_test_engine().get_device_info();
     const bool xmx = info.arch >= cldnn::gpu_arch::xe2 && info.supports_immad;
@@ -201,7 +205,7 @@ std::vector<std::string> expected_read_stages(size_t rows, size_t D, size_t L) {
     if (D % 32 == 0 && rows > 4 * eu) {
         return {"READ_DPAS"};
     }
-    return {"RBAR", "DOWN_PROJ", "UP_PROJ"};
+    return pipeline_stages();
 }
 
 struct gr_read_case {
@@ -275,23 +279,30 @@ TEST_P(gated_residual_read_test, matches_fp32_reference) {
     cldnn::mem_lock<ov::float16> mixed_out(outputs.at("gr_read").get_memory(), get_test_stream());
     EXPECT_EQ(executed_stages(), expected_read_stages(p.rows, p.D, p.L));
     ASSERT_EQ(mixed_out.size(), ref_mixed.size());
+    float mixed_err = 0.0f;
     for (size_t i = 0; i < ref_mixed.size(); i++) {
         ASSERT_NEAR(static_cast<float>(mixed_out[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at " << i;
+        mixed_err = std::max(mixed_err, std::abs(static_cast<float>(mixed_out[i]) - ref_mixed[i]));
     }
+    std::cout << "GR_F16_ACC rows=" << p.rows << " D=" << p.D << " L=" << p.L << " err_vs_fp32_ref=" << mixed_err;
 
     if (tc.produce_write_gate) {
         // Secondary outputs are reached through the instance, not the result map.
         auto inst = network.get_primitive("gr_read");
         cldnn::mem_lock<ov::float16> gate_out(inst->output_memory_ptr(1), get_test_stream());
         ASSERT_EQ(gate_out.size(), ref_gate.size());
+        float gate_err = 0.0f;
         for (size_t i = 0; i < ref_gate.size(); i++) {
             const float v = static_cast<float>(gate_out[i]);
             // 2 * sigmoid(x) lives in (0, 2); a (0, 1) clamp would be a semantic bug.
             ASSERT_GT(v, 0.0f);
             ASSERT_LT(v, 2.0f);
             ASSERT_NEAR(v, ref_gate[i], 2e-2f) << "write gate mismatch at " << i;
+            gate_err = std::max(gate_err, std::abs(v - ref_gate[i]));
         }
+        std::cout << " gate_err_vs_fp32_ref=" << gate_err;
     }
+    std::cout << std::endl;
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
@@ -475,15 +486,18 @@ memory::ptr make_quant_zp(engine& eng, const quant_matrix& m) {
 
 struct gr_run_result {
     std::vector<ov::float16> mixed;
+    std::vector<ov::float16> gate;  // only with a write gate
     std::vector<std::string> stages;
 };
 
-/// Runs a READ / FINAL_MIX gated_residual whose weight inputs (from index 2 on) are the given memories.
+/// Runs a READ / FINAL_MIX gated_residual whose weight inputs (from index 2 on) are the given memories. With `write_gate` the
+/// last input is W_inject (f16, or u4 / u8 followed by its scale and zp) and output 1 is read back.
 gr_run_result run_gr_read(const gr_ref_params& p,
                           gated_residual::Mode mode,
                           const std::vector<float>& residual,
                           const std::vector<float>& gain,
-                          const std::vector<memory::ptr>& weights) {
+                          const std::vector<memory::ptr>& weights,
+                          bool write_gate = false) {
     auto& engine = get_test_engine();
     const size_t CD = p.C * p.D;
     auto residual_mem = make_f16(engine, {static_cast<int64_t>(p.rows), static_cast<int64_t>(CD)}, residual);
@@ -496,7 +510,7 @@ gr_run_result run_gr_read(const gr_ref_params& p,
         topology.add(data(id, weights[i]));
         inputs.emplace_back(id);
     }
-    topology.add(gated_residual("gr", inputs, mode, p.C, p.D, p.L, p.eps, p.gain_plus_one, false));
+    topology.add(gated_residual("gr", inputs, mode, p.C, p.D, p.L, p.eps, p.gain_plus_one, write_gate));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -507,6 +521,10 @@ gr_run_result run_gr_read(const gr_ref_params& p,
     gr_run_result result;
     cldnn::mem_lock<ov::float16> out(outputs.at("gr").get_memory(), get_test_stream());
     result.mixed.assign(out.begin(), out.end());
+    if (write_gate) {
+        cldnn::mem_lock<ov::float16> gate(network.get_primitive("gr")->output_memory_ptr(1), get_test_stream());
+        result.gate.assign(gate.begin(), gate.end());
+    }
     result.stages = executed_stages();
     return result;
 }
@@ -517,6 +535,7 @@ struct gr_quant_case {
     size_t L;
     bool u4;
     bool final_mix = false;
+    bool write_gate = false;
 };
 
 size_t scratch_limit_bytes() {
@@ -531,6 +550,16 @@ size_t pd_min_rows() {
 }
 
 class gated_residual_quant_test : public ::testing::TestWithParam<gr_quant_case> {};
+
+/// Largest |a - b| over two equally long vectors.
+template <typename T>
+float max_abs_diff(const std::vector<T>& a, const std::vector<float>& b) {
+    float m = 0.0f;
+    for (size_t i = 0; i < b.size(); i++) {
+        m = std::max(m, std::abs(static_cast<float>(a[i]) - b[i]));
+    }
+    return m;
+}
 
 // The kernels dequantize in registers with the arithmetic of the decompression graph, so the result must equal the f16 path
 // fed with the decompressed weights bit for bit (same tiling, same accumulation order), and match the fp32 reference.
@@ -553,41 +582,62 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
     const auto gain = random_vec(rg, CD, 0.5f);
     const auto wd = make_quant_matrix(gen, p.L, CD, tc.u4);
     const auto wu = make_quant_matrix(gen, CD, p.L, tc.u4);
+    const auto wi = make_quant_matrix(gen, p.C, CD, tc.u4);  // W_inject: C rows only, compressed like W_down / W_up
 
     auto& engine = get_test_engine();
     const auto mode = tc.final_mix ? gated_residual::Mode::FINAL_MIX : gated_residual::Mode::READ;
-    const auto f16_run = run_gr_read(p,
-                                     mode,
-                                     residual,
-                                     gain,
-                                     {make_f16(engine, {static_cast<int64_t>(p.L), static_cast<int64_t>(CD)}, wd.dequant),
-                                      make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(p.L)}, wu.dequant)});
-    const auto q_run = run_gr_read(p,
-                                   mode,
-                                   residual,
-                                   gain,
-                                   {make_quant_weights(engine, wd),
-                                    make_quant_weights(engine, wu),
-                                    make_f16(engine, {static_cast<int64_t>(wd.G), static_cast<int64_t>(p.L)}, wd.scale),
-                                    make_f16(engine, {static_cast<int64_t>(wu.G), static_cast<int64_t>(CD)}, wu.scale),
-                                    make_quant_zp(engine, wd),
-                                    make_quant_zp(engine, wu)});
+    std::vector<memory::ptr> f16_weights = {make_f16(engine, {static_cast<int64_t>(p.L), static_cast<int64_t>(CD)}, wd.dequant),
+                                            make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(p.L)}, wu.dequant)};
+    std::vector<memory::ptr> q_weights = {make_quant_weights(engine, wd),
+                                          make_quant_weights(engine, wu),
+                                          make_f16(engine, {static_cast<int64_t>(wd.G), static_cast<int64_t>(p.L)}, wd.scale),
+                                          make_f16(engine, {static_cast<int64_t>(wu.G), static_cast<int64_t>(CD)}, wu.scale),
+                                          make_quant_zp(engine, wd),
+                                          make_quant_zp(engine, wu)};
+    if (tc.write_gate) {
+        f16_weights.push_back(make_f16(engine, {static_cast<int64_t>(p.C), static_cast<int64_t>(CD)}, wi.dequant));
+        q_weights.push_back(make_quant_weights(engine, wi));
+        q_weights.push_back(make_f16(engine, {static_cast<int64_t>(wi.G), static_cast<int64_t>(p.C)}, wi.scale));
+        q_weights.push_back(make_quant_zp(engine, wi));
+    }
+    const auto f16_run = run_gr_read(p, mode, residual, gain, f16_weights, tc.write_gate);
+    const auto q_run = run_gr_read(p, mode, residual, gain, q_weights, tc.write_gate);
 
-    // compressed weights always use the 3-dispatch pipeline unless its Rbar scratch exceeds the limit
+    // compressed weights use the 3-dispatch pipeline unless its Rbar scratch exceeds the limit
     const auto expected = expected_read_stages(p.rows, p.D, p.L);
     EXPECT_EQ(f16_run.stages, expected);
     const bool single_q = p.D % 32 == 0 && p.rows * p.C * p.D * 2 > scratch_limit_bytes();
-    std::vector<std::string> expected_q = single_q ? std::vector<std::string>{"READ_DPAS"} : std::vector<std::string>{"RBAR", "DOWN_PROJ", "UP_PROJ"};
-    if (p.rows > pd_min_rows()) {
-        // above the predequantization threshold: both matrices are dequantized into f16 scratch and the f16 kernels (f16 routing) run on them
-        expected_q = expected;
-        expected_q.insert(expected_q.begin(), {"DEQUANT", "DEQUANT"});
+    // The compressed single kernel has no write-gate tile: with a write gate that regime predequantizes as well.
+    const bool predequant = p.rows > pd_min_rows() || (tc.write_gate && single_q);
+    std::vector<std::string> expected_q;
+    if (predequant) {
+        // both matrices (and W_inject) are dequantized into f16 scratch and the f16 kernels (f16 routing) run on them
+        expected_q = {"DEQUANT", "DEQUANT"};
+        if (tc.write_gate) {
+            expected_q.emplace_back("DEQUANT");
+        }
+        expected_q.insert(expected_q.end(), expected.begin(), expected.end());
+    } else if (single_q) {
+        expected_q = {"READ_DPAS"};
+    } else if (p.rows <= 32) {
+        // decode: the write gate is a column tile of the compressed DOWN_PROJ
+        expected_q = pipeline_stages();
+    } else {
+        // W_inject is dequantized first; the write gate is its own dispatch between RBAR and DOWN_PROJ
+        if (tc.write_gate) {
+            expected_q.emplace_back("DEQUANT");
+        }
+        expected_q.emplace_back("RBAR");
+        if (tc.write_gate) {
+            expected_q.emplace_back("GATE");
+        }
+        expected_q.insert(expected_q.end(), {"DOWN_PROJ", "UP_PROJ"});
     }
     EXPECT_EQ(q_run.stages, expected_q);
 
     std::vector<float> ref_mixed;
-    std::vector<float> unused;
-    reference_read(p, residual, gain, wd.dequant, wu.dequant, nullptr, ref_mixed, unused);
+    std::vector<float> ref_gate;
+    reference_read(p, residual, gain, wd.dequant, wu.dequant, tc.write_gate ? &wi.dequant : nullptr, ref_mixed, ref_gate);
     ASSERT_EQ(q_run.mixed.size(), ref_mixed.size());
     ASSERT_EQ(f16_run.mixed.size(), ref_mixed.size());
     // The compressed kernels share work differently (split-K factors, single kernel vs pipeline), so only the accumulation
@@ -599,9 +649,29 @@ TEST_P(gated_residual_quant_test, matches_decompressed_f16_path) {
         bit_diffs += q_run.mixed[i].to_bits() != f16_run.mixed[i].to_bits() ? 1 : 0;
         max_diff = std::max(max_diff, std::abs(static_cast<float>(q_run.mixed[i]) - static_cast<float>(f16_run.mixed[i])));
     }
-    std::cout << "GR_QUANT_ACC rows=" << p.rows << " D=" << p.D << " L=" << p.L << " " << (tc.u4 ? "u4" : "u8") << " differing_elems=" << bit_diffs << "/"
-              << ref_mixed.size() << " max_abs_diff_vs_f16=" << max_diff << std::endl;
+    std::cout << "GR_QUANT_ACC rows=" << p.rows << " D=" << p.D << " L=" << p.L << " " << (tc.u4 ? "u4" : "u8") << (tc.write_gate ? " gate" : "")
+              << " differing_elems=" << bit_diffs << "/" << ref_mixed.size() << " max_abs_diff_vs_f16=" << max_diff
+              << " err_vs_fp32_ref: f16=" << max_abs_diff(f16_run.mixed, ref_mixed) << " q=" << max_abs_diff(q_run.mixed, ref_mixed);
+    if (tc.write_gate) {
+        std::cout << " gate_f16=" << max_abs_diff(f16_run.gate, ref_gate) << " gate_q=" << max_abs_diff(q_run.gate, ref_gate);
+    }
+    std::cout << std::endl;
     EXPECT_LE(max_diff, 4e-3f) << "compressed and decompressed-f16 outputs differ";
+
+    if (tc.write_gate) {
+        ASSERT_EQ(q_run.gate.size(), ref_gate.size());
+        ASSERT_EQ(f16_run.gate.size(), ref_gate.size());
+        float gate_diff = 0.0f;
+        for (size_t i = 0; i < ref_gate.size(); i++) {
+            const float v = static_cast<float>(q_run.gate[i]);
+            // 2 * sigmoid(x) lives in [0, 2] (f16 rounds a saturated gate to the bound); a (0, 1) clamp would be a semantic bug.
+            ASSERT_GE(v, 0.0f);
+            ASSERT_LE(v, 2.0f);
+            ASSERT_NEAR(v, ref_gate[i], 2e-2f) << "write gate mismatch at " << i;
+            gate_diff = std::max(gate_diff, std::abs(v - static_cast<float>(f16_run.gate[i])));
+        }
+        EXPECT_LE(gate_diff, 4e-3f) << "compressed and decompressed-f16 write gates differ";
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
@@ -628,7 +698,43 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_quant_case{17, 2560, 320, false},
                                            gr_quant_case{100, 2560, 320, true},
                                            gr_quant_case{2000, 2560, 320, true},
-                                           gr_quant_case{2000, 2560, 320, false}));
+                                           gr_quant_case{2000, 2560, 320, false},
+                                           // compressed W_inject: the write gate of a compressed READ (11 inputs)
+                                           gr_quant_case{1, 64, 32, true, false, true},  // decode
+                                           gr_quant_case{1, 64, 32, false, false, true},
+                                           gr_quant_case{7, 128, 32, true, false, true},
+                                           gr_quant_case{7, 128, 32, false, false, true},
+                                           gr_quant_case{33, 128, 64, true, false, true},  // mid tiling
+                                           gr_quant_case{200, 64, 32, false, false, true},
+                                           gr_quant_case{37, 96, 64, false, false, true},   // partial token tile, D % 64 != 0
+                                           gr_quant_case{17, 640, 320, true, false, true},  // production width
+                                           gr_quant_case{17, 640, 320, false, false, true},
+                                           gr_quant_case{257, 640, 320, false, false, true},
+                                           gr_quant_case{1000, 64, 32, true, false, true},  // above the predequantization threshold
+                                           gr_quant_case{1000, 64, 32, false, false, true},
+                                           gr_quant_case{1111, 128, 64, true, false, true},
+                                           gr_quant_case{17, 2560, 320, true, false, true},  // real width
+                                           gr_quant_case{17, 2560, 320, false, false, true},
+                                           gr_quant_case{100, 2560, 320, true, false, true},
+                                           gr_quant_case{2000, 2560, 320, true, false, true},
+                                           gr_quant_case{2000, 2560, 320, false, false, true},
+                                           // gemv tier (<= 8 rows) at production widths
+                                           gr_quant_case{1, 640, 320, true},
+                                           gr_quant_case{1, 640, 320, false},
+                                           gr_quant_case{8, 640, 320, true},
+                                           gr_quant_case{8, 640, 320, false},
+                                           gr_quant_case{1, 2560, 320, true},
+                                           gr_quant_case{1, 2560, 320, false},
+                                           gr_quant_case{8, 2560, 320, true},
+                                           gr_quant_case{8, 2560, 320, false},
+                                           gr_quant_case{1, 640, 320, true, false, true},
+                                           gr_quant_case{1, 640, 320, false, false, true},
+                                           gr_quant_case{8, 640, 320, true, false, true},
+                                           gr_quant_case{8, 640, 320, false, false, true},
+                                           gr_quant_case{1, 2560, 320, true, false, true},
+                                           gr_quant_case{1, 2560, 320, false, false, true},
+                                           gr_quant_case{8, 2560, 320, true, false, true},
+                                           gr_quant_case{8, 2560, 320, false, false, true}));
 
 TEST(gated_residual_gpu_test, write_combines_branches) {
     if (!gr_available()) {
@@ -1269,6 +1375,7 @@ namespace quant_ab {
 struct ab_config {
     const char* name;
     int wtype;  // 0 f16, 1 u4, 2 u8
+    bool gate;  // READ with the write gate (W_inject in the weight format of the configuration)
     std::vector<std::unique_ptr<network>> layers;
 };
 
@@ -1391,6 +1498,8 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
         const quant_matrix wu4 = make_quant_matrix(gen, CD, L, true);
         const quant_matrix wd8 = make_quant_matrix(gen, L, CD, false);
         const quant_matrix wu8 = make_quant_matrix(gen, CD, L, false);
+        const quant_matrix wi4 = make_quant_matrix(gen, kBranches, CD, true);
+        const quant_matrix wi8 = make_quant_matrix(gen, kBranches, CD, false);
 
         auto residual_mem =
             engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, data_types::f16, format::bfyx},
@@ -1405,17 +1514,26 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
         const bool long_rows = rows >= 8192;
         const size_t nl = long_rows ? 1 : (rows <= 4 * eu ? 16 : 4);
         std::vector<quant_ab::ab_config> configs;
-        configs.push_back({"f16", 0, {}});
-        configs.push_back({"u4", 1, {}});
-        configs.push_back({"u8", 2, {}});
+        configs.push_back({"f16", 0, false, {}});
+        configs.push_back({"u4", 1, false, {}});
+        configs.push_back({"u8", 2, false, {}});
+        if (std::getenv("GR_AB_GATE") != nullptr) {
+            configs.push_back({"f16g", 0, true, {}});
+            configs.push_back({"u4g", 1, true, {}});
+            configs.push_back({"u8g", 2, true, {}});
+        }
         for (auto& cfg : configs) {
             for (size_t layer = 0; layer < nl; layer++) {
                 const auto& wd = cfg.wtype == 1 ? wd4 : wd8;
                 const auto& wu = cfg.wtype == 1 ? wu4 : wu8;
+                const auto& wi = cfg.wtype == 1 ? wi4 : wi8;
                 std::vector<memory::ptr> w;
                 if (cfg.wtype == 0) {
                     w = {make_f16(engine, {static_cast<int64_t>(L), static_cast<int64_t>(CD)}, wd4.dequant),
                          make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(L)}, wu4.dequant)};
+                    if (cfg.gate) {
+                        w.push_back(make_f16(engine, {static_cast<int64_t>(kBranches), static_cast<int64_t>(CD)}, wi4.dequant));
+                    }
                 } else {
                     w = {make_quant_weights(engine, wd),
                          make_quant_weights(engine, wu),
@@ -1423,6 +1541,11 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
                          make_f16(engine, {static_cast<int64_t>(wu.G), static_cast<int64_t>(CD)}, wu.scale),
                          make_quant_zp(engine, wd),
                          make_quant_zp(engine, wu)};
+                    if (cfg.gate) {
+                        w.push_back(make_quant_weights(engine, wi));
+                        w.push_back(make_f16(engine, {static_cast<int64_t>(wi.G), static_cast<int64_t>(kBranches)}, wi.scale));
+                        w.push_back(make_quant_zp(engine, wi));
+                    }
                 }
                 topology topology;
                 topology.add(input_layout("residual", residual_mem->get_layout()));
@@ -1432,7 +1555,7 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
                     topology.add(data("w" + std::to_string(i), quant_ab::to_device(engine, w[i])));
                     inputs.emplace_back("w" + std::to_string(i));
                 }
-                topology.add(gated_residual("gr", inputs, gated_residual::Mode::READ, p.C, D, L, p.eps, false, false));
+                topology.add(gated_residual("gr", inputs, gated_residual::Mode::READ, p.C, D, L, p.eps, false, cfg.gate));
                 ExecutionConfig config = get_test_default_config(engine);
                 config.set_property(ov::intel_gpu::optimize_data(true));
                 config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1606,6 +1729,135 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_fuses_and_matches_reference)
         ASSERT_EQ(out_tensor.get_size(), ref_mixed.size());
         for (size_t i = 0; i < ref_mixed.size(); i++) {
             ASSERT_NEAR(static_cast<float>(out[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
+        }
+    }
+}
+
+// The write-gate branch of the decomposed graph (2 * sigmoid(Rbar . W_inject^T / C), on the same Rbar as the READ) is fused into the
+// READ: one gated_residual node with two outputs, no MatMul left, and both outputs match the FP32 reference.
+TEST(gated_residual_gpu_test, decomposed_read_graph_with_write_gate_fuses_and_matches_reference) {
+    if (!gr_available()) {
+        GTEST_SKIP() << "no GatedResidual implementation is available on this device";
+    }
+
+    const size_t C = kBranches;
+    const size_t D = 64;
+    const size_t L = 32;
+    const size_t CD = C * D;
+    const float eps = 1e-5f;
+    const auto et = ov::element::f16;
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto gain_w = random_vec(rg, CD, 0.25f);
+    const auto w_down = random_vec(rg, L * CD, 0.1f);
+    const auto w_up = random_vec(rg, CD * L, 0.1f);
+    const auto w_inject = random_vec(rg, C * CD, 0.1f);
+
+    auto i64 = [](std::vector<int64_t> v) {
+        return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
+    };
+    auto scalar = [&](float v) {
+        return ov::op::v0::Constant::create(et, ov::Shape{}, {v});
+    };
+    auto f16_param = [&](const ov::Shape& shape) {
+        return std::make_shared<ov::op::v0::Parameter>(et, shape);
+    };
+
+    auto residual_p = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, static_cast<int64_t>(CD)});
+    auto gain_p = f16_param(ov::Shape{CD});
+    auto w_down_p = f16_param(ov::Shape{L, CD});
+    auto w_up_p = f16_param(ov::Shape{CD, L});
+    auto w_inject_p = f16_param(ov::Shape{C, CD});
+    auto r3 = std::make_shared<ov::op::v1::Reshape>(residual_p, i64({-1, static_cast<int64_t>(C), static_cast<int64_t>(D)}), false);
+    auto sq = std::make_shared<ov::op::v1::Power>(r3, scalar(2.0f));
+    auto mean = std::make_shared<ov::op::v1::ReduceMean>(sq, i64({-1}), true);
+    auto rms = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(mean, scalar(eps)));
+    auto inv_rms = std::make_shared<ov::op::v1::Divide>(scalar(1.0f), rms);
+    auto normalized = std::make_shared<ov::op::v1::Multiply>(r3, inv_rms);
+    auto normalized_flat = std::make_shared<ov::op::v1::Reshape>(normalized, i64({-1, static_cast<int64_t>(CD)}), false);
+    auto gain = std::make_shared<ov::op::v1::Add>(gain_p, scalar(1.0f));
+    auto rbar = std::make_shared<ov::op::v1::Multiply>(normalized_flat, gain);
+
+    auto low = std::make_shared<ov::op::v0::MatMul>(rbar, w_down_p, false, true);
+    auto act = std::make_shared<ov::op::v4::Swish>(std::make_shared<ov::op::v1::Multiply>(low, scalar(1.0f / static_cast<float>(C))));
+    auto up = std::make_shared<ov::op::v0::MatMul>(act, w_up_p, false, true);
+    auto weighted = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(up), rbar);
+    auto weighted3 = std::make_shared<ov::op::v1::Reshape>(weighted, i64({-1, static_cast<int64_t>(C), static_cast<int64_t>(D)}), false);
+    auto mixed =
+        std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::ReduceSum>(weighted3, i64({1}), false), scalar(1.0f / static_cast<float>(C)));
+
+    auto inject = std::make_shared<ov::op::v0::MatMul>(rbar, w_inject_p, false, true);
+    auto inject_scaled = std::make_shared<ov::op::v1::Multiply>(inject, scalar(1.0f / static_cast<float>(C)));
+    auto write_gate = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(inject_scaled), scalar(2.0f));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed, write_gate}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p, w_inject_p});
+
+    ov::Core core;
+    ov::CompiledModel compiled;
+    OV_ASSERT_NO_THROW(compiled = core.compile_model(model, "GPU"));
+    size_t fused_nodes = 0;
+    size_t gemm_nodes = 0;
+    std::string runtime_layers;
+    for (const auto& op : compiled.get_runtime_model()->get_ops()) {
+        const auto it = op->get_rt_info().find("layerType");
+        const auto layer_type = it != op->get_rt_info().end() ? it->second.as<std::string>() : std::string("?");
+        if (layer_type == "GatedResidual" || layer_type == "gated_residual") {
+            fused_nodes++;
+        }
+        if (layer_type == "FullyConnected" || layer_type == "fully_connected" || layer_type == "Gemm" || layer_type == "gemm") {
+            gemm_nodes++;
+        }
+        runtime_layers += layer_type + " ";
+    }
+    EXPECT_EQ(fused_nodes, 1u) << "READ with its write gate was not fused into one gated_residual; runtime layers: " << runtime_layers;
+    EXPECT_EQ(gemm_nodes, 0u) << "a MatMul of the write-gate branch is left; runtime layers: " << runtime_layers;
+
+    auto infer_request = compiled.create_infer_request();
+    auto fill = [](ov::Tensor tensor, const std::vector<float>& data) {
+        auto* dst = tensor.data<ov::float16>();
+        ASSERT_EQ(tensor.get_size(), data.size());
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = ov::float16(data[i]);
+        }
+    };
+    fill(infer_request.get_input_tensor(1), gain_w);
+    fill(infer_request.get_input_tensor(2), w_down);
+    fill(infer_request.get_input_tensor(3), w_up);
+    fill(infer_request.get_input_tensor(4), w_inject);
+    for (const size_t rows : {size_t{3}, size_t{64}, size_t{700}}) {
+        tests::random_generator input_rg;
+        input_rg.set_seed(static_cast<uint32_t>(rows));
+        const auto residual = random_vec(input_rg, rows * CD, 1.0f);
+        ov::Tensor residual_tensor(et, ov::Shape{rows, CD});
+        fill(residual_tensor, residual);
+        infer_request.set_tensor(residual_p, residual_tensor);
+
+        std::vector<float> gain_folded(gain_w);
+        for (auto& g : gain_folded) {
+            g += 1.0f;
+        }
+        gr_ref_params p;
+        p.rows = rows;
+        p.C = C;
+        p.D = D;
+        p.L = L;
+        p.eps = eps;
+        std::vector<float> ref_mixed;
+        std::vector<float> ref_gate;
+        reference_read(p, residual, gain_folded, w_down, w_up, &w_inject, ref_mixed, ref_gate);
+
+        OV_ASSERT_NO_THROW(infer_request.infer());
+        const auto mixed_tensor = infer_request.get_output_tensor(0);
+        const auto gate_tensor = infer_request.get_output_tensor(1);
+        const auto* mixed_data = mixed_tensor.data<ov::float16>();
+        const auto* gate_data = gate_tensor.data<ov::float16>();
+        ASSERT_EQ(mixed_tensor.get_size(), ref_mixed.size());
+        ASSERT_EQ(gate_tensor.get_size(), ref_gate.size());
+        for (size_t i = 0; i < ref_mixed.size(); i++) {
+            ASSERT_NEAR(static_cast<float>(mixed_data[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
+        }
+        for (size_t i = 0; i < ref_gate.size(); i++) {
+            ASSERT_NEAR(static_cast<float>(gate_data[i]), ref_gate[i], 2e-2f) << "write gate mismatch at rows=" << rows << " index=" << i;
         }
     }
 }

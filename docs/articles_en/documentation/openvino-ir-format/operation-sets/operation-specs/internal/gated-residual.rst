@@ -229,7 +229,7 @@ the index of ``w_inject`` depends on the form:
      - 11 inputs: inputs 0-7 as in the compressed form, then ``w_inject`` (8), ``scale_inject`` (9),
        ``zp_inject`` (10)
 
-* **READ / FINAL_MIX inputs 4-7, compressed forms only**: when the weights are ``u4`` or ``u8``,
+* **READ / FINAL_MIX inputs 4-7, (for compressed forms only)**: when the weights are ``u4`` or ``u8``,
   these inputs carry the scales and zero points of ``w_down`` and ``w_up``.
 
   * input 4: ``scale_down``, ``f16``, shape ``[G_d, L]``
@@ -237,7 +237,7 @@ the index of ``w_inject`` depends on the form:
   * input 6: ``zp_down``, same element type as ``w_down``, same shape as ``scale_down``
   * input 7: ``zp_up``, same element type as ``w_up``, same shape as ``scale_up``
 
-* **READ write-gate inputs, only when produce_write_gate is true; always the last inputs**:
+* **READ write-gate inputs (for produce_write_gate is true; always the last inputs)**:
 
   * ``w_inject``: a 2D tensor of shape ``[C, C*D]`` used to compute the write gate. Floating-point
     in the five-input form (input 4), ``u4`` or ``u8`` in the compressed form (input 8).
