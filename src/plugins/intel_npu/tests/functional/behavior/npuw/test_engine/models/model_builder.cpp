@@ -793,6 +793,8 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         config.attention_mask_shape.rank().is_static() && config.attention_mask_shape.rank().get_length() == 2;
     OPENVINO_ASSERT(mask_is_2d || (config.sliding_window_size == 0 && !config.use_token_type_ids),
                     "A ready attention_mask cannot be combined with sliding_window_size or use_token_type_ids");
+    OPENVINO_ASSERT(mask_is_2d || !config.force_gqa_broadcast,
+                    "A ready attention_mask cannot be combined with force_gqa_broadcast");
 
     ov::Output<ov::Node> hidden_states;
     ov::Output<ov::Node> seq_source;
@@ -856,9 +858,9 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
 
     // Shared GQA broadcast shape (embedding models only)
     ov::Output<ov::Node> shared_broadcast;
-    if ((!config.use_kv_cache && !config.lm_head_weight) || config.force_gqa_broadcast) {
-        // Dims 0 and 1 of the source are the batch and the sequence length; a ready mask does not carry them.
-        shared_broadcast = make_shared_gqa_broadcast(mask_is_2d ? attention_mask->output(0) : seq_source,
+    if (mask_is_2d && ((!config.use_kv_cache && !config.lm_head_weight) || config.force_gqa_broadcast)) {
+        // The shared broadcast reads the batch and the key length from dims 0 and 1 of a 2D mask.
+        shared_broadcast = make_shared_gqa_broadcast(attention_mask->output(0),
                                                      config.get_kv_heads(),
                                                      config.num_heads,
                                                      config.head_dim);
