@@ -394,6 +394,9 @@ KERNEL(rope_opt)
 #ifdef ENABLE_GATHER
  const __global INPUT3_TYPE* gather,
 #endif
+#ifdef FUSE_RMS_NORM
+ const __global INPUT3_TYPE* gamma,
+#endif
  __global OUTPUT_TYPE* output) {
 #ifdef REVERSED_GWS
     const uint b = get_global_id(2);
@@ -475,9 +478,21 @@ uint cos_sin_p = p;
 
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
 
+#ifdef FUSE_RMS_NORM
+#ifdef INPUT_INTERLEAVED
+#   error "rope_opt.cl - FUSE_RMS_NORM does not support INPUT_INTERLEAVED"
+#endif
+    __local float rms_partial[RMS_WORKERS];
+#endif
+
 #if VEC_SIZE == 1
+#ifdef INPUT_INTERLEAVED
+    ACCUMULATOR_TYPE in1 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + 2 * r]);
+    ACCUMULATOR_TYPE in2 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + 2 * r + 1]);
+#else
     ACCUMULATOR_TYPE in1 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r]);
     ACCUMULATOR_TYPE in2 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + HALF_ROTARY_NDIMS + r]);
+#endif
 
     ACCUMULATOR_TYPE cosv = DECODE_INPUT1_COMPUTE_TYPE(cos[cos_idx + r]);
     ACCUMULATOR_TYPE sinv = DECODE_INPUT2_COMPUTE_TYPE(sin[sin_idx + r]);
@@ -489,16 +504,71 @@ uint cos_sin_p = p;
     res = cosv * in2 + sinv * in1;
     output[output_idx + HALF_ROTARY_NDIMS + r] = TO_OUTPUT_TYPE(res);
 #else
+#ifdef INPUT_INTERLEAVED
+    const uint packed_offset = input_idx + 2 * r;
+    INPUT_VEC_TYPE packed1;
+    INPUT_VEC_TYPE packed2;
+    if (packed_offset % VEC_SIZE == 0) {
+        packed1 = *(INPUT_VEC_TYPE*)(input + packed_offset);
+        packed2 = *(INPUT_VEC_TYPE*)(input + packed_offset + VEC_SIZE);
+    } else {
+        packed1 = CAT(vload, VEC_SIZE)(0, input + packed_offset);
+        packed2 = CAT(vload, VEC_SIZE)(0, input + packed_offset + VEC_SIZE);
+    }
+    #if INPUT0_IS_BF16
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) din1;
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) din2;
+    UNPACK_BF1616_VEC_1(din1, packed1, packed2);
+    UNPACK_BF1616_VEC_2(din2, packed1, packed2);
+    #elif VEC_SIZE == 16
+    INPUT_VEC_TYPE in1;
+    INPUT_VEC_TYPE in2;
+    UNPACK_HALF16_VEC_1(in1, packed1, packed2);
+    UNPACK_HALF16_VEC_2(in2, packed1, packed2);
+    #elif VEC_SIZE == 8
+    INPUT_VEC_TYPE in1;
+    INPUT_VEC_TYPE in2;
+    UNPACK_FLOAT_VEC_1(in1, packed1, packed2);
+    UNPACK_FLOAT_VEC_2(in2, packed1, packed2);
+    #endif
+#else
     INPUT_VEC_TYPE in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
     INPUT_VEC_TYPE in2 = *(INPUT_VEC_TYPE*)(input + input_idx + HALF_ROTARY_NDIMS + r);
+#ifdef FUSE_RMS_NORM
+    {
+        // Mirror rms_gpu_bfyx_opt.cl arithmetic so the fused path matches the standalone RMSNorm.
+        float partial = 0.0f;
+        unroll_for (uint i = 0; i < VEC_SIZE; ++i) {
+            partial += native_powr(convert_float(in1[i]), 2);
+            partial += native_powr(convert_float(in2[i]), 2);
+        }
+        rms_partial[get_local_id(2)] = partial;
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        float total = 0.0f;
+        unroll_for (uint i = 0; i < RMS_WORKERS; ++i) {
+            total += rms_partial[i];
+        }
+        const float scale = native_powr(sqrt(total / (float)ROTARY_NDIMS + RMS_EPSILON), -1);
+
+        unroll_for (uint i = 0; i < VEC_SIZE; ++i) {
+            in1[i] = (INPUT0_TYPE)(scale * convert_float(in1[i]) * convert_float(gamma[r + i]));
+            in2[i] = (INPUT0_TYPE)(scale * convert_float(in2[i]) *
+                                   convert_float(gamma[HALF_ROTARY_NDIMS + r + i]));
+        }
+    }
+#endif
+#endif
     INPUT_VEC_TYPE cos1 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r);
     INPUT_VEC_TYPE cos2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + COS_SIN_TABLE_OFFSET + r);
     INPUT_VEC_TYPE sin1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
     INPUT_VEC_TYPE sin2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + COS_SIN_TABLE_OFFSET + r);
 
     #if INPUT0_IS_BF16
+    #ifndef INPUT_INTERLEAVED
     MAKE_VECTOR_TYPE(float, VEC_SIZE) din1 = CONVERT_AS_BFLOAT16_FLOAT(in1, VEC_SIZE);
     MAKE_VECTOR_TYPE(float, VEC_SIZE) din2 = CONVERT_AS_BFLOAT16_FLOAT(in2, VEC_SIZE);
+    #endif
     MAKE_VECTOR_TYPE(float, VEC_SIZE) dcos1 = CONVERT_AS_BFLOAT16_FLOAT(cos1, VEC_SIZE);
     MAKE_VECTOR_TYPE(float, VEC_SIZE) dcos2 = CONVERT_AS_BFLOAT16_FLOAT(cos2, VEC_SIZE);
     MAKE_VECTOR_TYPE(float, VEC_SIZE) dsin1 = CONVERT_AS_BFLOAT16_FLOAT(sin1, VEC_SIZE);

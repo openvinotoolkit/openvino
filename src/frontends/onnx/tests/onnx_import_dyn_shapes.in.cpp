@@ -1248,3 +1248,47 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_batch_norm_training_mode_dyn_rank) {
 
     test_case.run();
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_unpool_2d_dyn) {
+    // Y_dyn: dynamic N/C/H/W; Y_oshape: output_shape given as a runtime input
+    const auto model = convert_model("dynamic_shapes/max_unpool_2d_dyn.onnx");
+    for (size_t i = 0; i < 2; ++i) {
+        const auto& out_shape = model->get_output_partial_shape(i);
+        EXPECT_EQ(out_shape.rank(), Rank(4));
+        EXPECT_TRUE(out_shape.is_dynamic());
+    }
+
+    const std::vector<float> oshape_x{6.5f, 1.5f, 9.5f, 8.0f, 9.0f, 8.5f, 2.0f, 3.5f};
+    const std::vector<int64_t> oshape_indices{1, 2, 9, 15, 20, 27, 28, 30};
+    const std::vector<float> oshape_y{0.0f, 6.5f, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.5f,
+                                      0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                      9.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.5f, 2.0f, 0.0f,
+                                      3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    {
+        auto test_case_1 = ov::test::TestCase(model, s_device);
+        test_case_1.add_input<float>(Shape{1, 1, 2, 3}, {4.0f, 0.0f, 5.0f, 5.5f, 1.5f, 2.0f});
+        test_case_1.add_input<int64_t>(Shape{1, 1, 2, 3}, {6, 2, 10, 13, 14, 16});
+        test_case_1.add_input<float>(Shape{1, 2, 2, 2}, oshape_x);
+        test_case_1.add_input<int64_t>(Shape{1, 2, 2, 2}, oshape_indices);
+        test_case_1.add_input<int64_t>(Shape{4}, {1, 2, 5, 4});
+        test_case_1.add_expected_output<float>(Shape{1, 1, 4, 6}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 4.0f, 0.0f,
+                                                                   0.0f, 0.0f, 5.0f, 0.0f, 0.0f, 5.5f, 1.5f, 0.0f,
+                                                                   2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        test_case_1.add_expected_output<float>(Shape{1, 2, 5, 4}, oshape_y);
+        test_case_1.run();
+    }
+    {
+        auto test_case_2 = ov::test::TestCase(model, s_device);
+        test_case_2.add_input<float>(Shape{2, 2, 1, 2}, {6.5f, 1.0f, 5.0f, 7.5f, 1.5f, 4.0f, 5.5f, 6.0f});
+        test_case_2.add_input<int64_t>(Shape{2, 2, 1, 2}, {0, 3, 9, 10, 16, 19, 25, 27});
+        test_case_2.add_input<float>(Shape{1, 2, 2, 2}, oshape_x);
+        test_case_2.add_input<int64_t>(Shape{1, 2, 2, 2}, oshape_indices);
+        test_case_2.add_input<int64_t>(Shape{4}, {1, 2, 5, 4});
+        test_case_2.add_expected_output<float>(
+            Shape{2, 2, 2, 4},
+            {6.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 7.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+             1.5f, 0.0f, 0.0f, 4.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.5f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        test_case_2.add_expected_output<float>(Shape{1, 2, 5, 4}, oshape_y);
+        test_case_2.run();
+    }
+}

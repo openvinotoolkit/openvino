@@ -19,13 +19,17 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "cnpy.h"
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "gtest/gtest.h"
 #include "op_table.hpp"
@@ -35,6 +39,7 @@
 #include "openvino/core/visibility.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -323,5 +328,89 @@ std::vector<T> load_npy(const std::string& stem) {
     const T* begin = arr.data<T>();
     return std::vector<T>(begin, begin + arr.num_vals);
 }
+
+// cnpy::npz_t is a vector of pairs, so look the entry up by name.
+inline const cnpy::NpyArray& npz_array(const cnpy::npz_t& arrays, const std::string& name) {
+    const auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
+        return entry.first == name;
+    });
+    OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
+    return it->second;
+}
+
+// Normalized MSE, the acceptance metric for the accuracy fixtures: sum((a-e)^2) / sum(e^2).
+class Nmse {
+public:
+    void add(double actual, double expected) {
+        m_error += (actual - expected) * (actual - expected);
+        m_norm += expected * expected;
+        m_finite = m_finite && std::isfinite(actual);
+    }
+    bool all_finite() const {
+        return m_finite;
+    }
+    // Reference energy; a near-zero value means the fixture itself carries no signal.
+    double reference_norm() const {
+        return m_norm;
+    }
+    double value() const {
+        return m_error / m_norm;
+    }
+
+private:
+    double m_error = 0, m_norm = 0;
+    bool m_finite = true;
+};
+
+inline Nmse nmse(const float* actual, const float* expected, size_t count) {
+    Nmse result;
+    for (size_t i = 0; i < count; ++i)
+        result.add(actual[i], expected[i]);
+    return result;
+}
+
+inline void expect_nmse_below(const Nmse& metric, double limit, const std::string& context = {}) {
+    ASSERT_TRUE(metric.all_finite()) << context;
+    ASSERT_GT(metric.reference_norm(), 1e-12) << context;
+    EXPECT_LT(metric.value(), limit) << context;
+}
+
+// Round-trips a model through in-memory IR serialization.
+inline std::shared_ptr<ov::Model> reload_ir_model(const std::shared_ptr<ov::Model>& model) {
+    std::stringstream xml, weights;
+    ov::pass::Serialize(xml, weights).run_on_model(model);
+    const auto bytes = weights.str();
+    ov::Tensor constants(ov::element::u8, {bytes.size()});
+    if (!bytes.empty())
+        std::memcpy(constants.data(), bytes.data(), bytes.size());
+    return ov::Core{}.read_model(xml.str(), constants);
+}
+
+// GGUFMakeStateful keeps extra leading convolution taps; returns the trailing `taps` per channel.
+inline ov::Tensor trailing_conv_taps(const ov::Tensor& state, size_t channels, size_t taps) {
+    const auto stride = state.get_size() / channels;
+    ov::Tensor logical(ov::element::f32, {channels, taps});
+    for (size_t channel = 0; channel < channels; ++channel)
+        std::copy_n(state.data<const float>() + channel * stride + stride - taps,
+                    taps,
+                    logical.data<float>() + channel * taps);
+    return logical;
+}
+
+// The GGUF bytes a reference npz stores as "model", written to a temporary file for its lifetime.
+struct TemporaryGguf {
+    std::string path =
+        (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
+    explicit TemporaryGguf(const cnpy::NpyArray& bytes) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(bytes.data<char>(), bytes.num_vals);
+        OPENVINO_ASSERT(file, "Cannot write ", path);
+    }
+    TemporaryGguf(const TemporaryGguf&) = delete;
+    TemporaryGguf& operator=(const TemporaryGguf&) = delete;
+    ~TemporaryGguf() {
+        std::filesystem::remove(path);
+    }
+};
 
 }  // namespace ov_gguf_test

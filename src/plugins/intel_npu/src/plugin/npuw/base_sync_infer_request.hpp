@@ -197,7 +197,7 @@ protected:
                                      std::size_t input_idx,
                                      const ov::SoPtr<ov::ITensor>& tensor,
                                      RqPtr request);
-    void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
+    void alloc_quant_gather_tensors(std::size_t idx);
     void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);

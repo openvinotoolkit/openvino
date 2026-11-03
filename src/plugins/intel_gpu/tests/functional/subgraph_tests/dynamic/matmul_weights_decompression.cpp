@@ -269,7 +269,7 @@ TEST_P(MatmulWeightsDecompression, Inference) {
 }
 
 const std::vector<ov::element::Type> activations_precisions = {ov::element::f32, ov::element::f16};
-const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4, ov::element::u2};
+const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4, ov::element::u3, ov::element::u2};
 const std::vector<bool> transpose_weights = {true, false};
 const std::vector<bool> param_weights = {true, false};
 const std::vector<ShapeParams> input_shapes_basic = {
@@ -386,6 +386,21 @@ INSTANTIATE_TEST_SUITE_P(MatMulCompressedWeights_corner_cases_big,
                                             ::testing::Values(1.0f)),
                          MatmulWeightsDecompression::get_test_case_name);
 
+// Grouped scales/zp of non-transposed sub-byte parameter weights: large K is needed for an error in the groups order to exceed the threshold
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_non_transposed_param_weights_grouped,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, -1}, {{1, 1, 4096}}}, {4096, 512}, 128}),
+                                            ::testing::Values(ov::element::u4, ov::element::i4),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(false),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(0),
+                                            ::testing::Values(1.0f)),
+                         MatmulWeightsDecompression::get_test_case_name);
 
 // per_tensor_zp=0 is not supported
 // transpose_weights is not supported
@@ -407,11 +422,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);
 
+// Precomputed reduction is applied only to 8-bit weights, sub-byte weights check that it is skipped
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_precomputed_reduction,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::Values(ShapeParams{{{-1, -1, 1024}, {{1024, 1, 1024}}},
                                                                             {1024, 1024}, 128}),  // shape
-                                            ::testing::Values(ov::element::u4),
+                                            ::testing::Values(ov::element::u8, ov::element::u4, ov::element::u3),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(ov::element::f16),
                                             ::testing::Values(false),
@@ -578,6 +594,40 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_input_4d,
                                             ::testing::Values(false),
                                             ::testing::Values(ov::test::utils::DecompressionType::empty),
                                             ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(1.0f)),
+                         MatmulWeightsDecompression::get_test_case_name);
+
+// Compressed FC (Qwen3-8B q_proj prefill shape) followed by a Transpose, which runs as a separate OCL kernel
+// reading the oneDNN gemm output on the same in-order queue without a host wait. A tail of the output channels can
+// still be in the non-coherent L1 and the Transpose reads stale data.
+// Needs a static shape and a non-oneDNN consumer: a oneDNN consumer or host read-back does not expose it.
+class MatmulWeightsDecompressionWithConsumer : public MatmulWeightsDecompression {
+protected:
+    void SetUp() override {
+        MatmulWeightsDecompression::SetUp();
+        const auto mat_mul = function->get_results()[0]->input_value(0);
+        const auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
+        const auto transpose = std::make_shared<ov::op::v1::Transpose>(mat_mul, transpose_order);
+        function = std::make_shared<ov::Model>(ov::OutputVector{transpose}, function->get_parameters(), "MatmulWeightsDecompressionWithConsumer");
+    }
+};
+
+TEST_P(MatmulWeightsDecompressionWithConsumer, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_gemm_output_coherency,
+                         MatmulWeightsDecompressionWithConsumer,
+                         ::testing::Combine(::testing::Values(ShapeParams{{{}, {{1, 15, 4096}}}, {4096, 6144}, 128}),
+                                            ::testing::ValuesIn({ov::element::u4, ov::element::u3}),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(true),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),
                                             ::testing::Values(false),
                                             ::testing::Values(false),
                                             ::testing::Values(0),

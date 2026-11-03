@@ -9,7 +9,8 @@ import onnx.backend.test
 from tests import (
     BACKEND_NAME,
     skip_rng_tests,
-    xfail_issue_33488,
+    xfail_maxunpool_output_shape_onnx_ref,
+    skip_maxunpool_gpu,
     xfail_issue_33596,
     xfail_issue_33606,
     xfail_issue_33651,
@@ -66,7 +67,6 @@ from tests import (
     xfail_issue_onnx122_flexattention,
     xfail_issue_onnx122_bitcast,
     xfail_issue_onnx122_cumprod,
-    xfail_issue_onnx122_tensorscatter,
     xfail_issue_onnx122_attention,
     xfail_issue_onnx122_newdtype,
     xfail_issue_onnx122_accuracy,
@@ -219,8 +219,11 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_momentum_multiple_cpu",
     ),
     (
-        xfail_issue_33488,
+        xfail_maxunpool_output_shape_onnx_ref,
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
+    ),
+    (
+        skip_maxunpool_gpu,
         "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",
     ),
     (
@@ -641,12 +644,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_cumprod_2d_axis_1_cpu",
         "OnnxBackendNodeModelTest.test_cumprod_2d_int32_cpu",
         "OnnxBackendNodeModelTest.test_cumprod_2d_negative_axis_cpu",
-    ),
-    (
-        xfail_issue_onnx122_tensorscatter,
-        "OnnxBackendNodeModelTest.test_tensorscatter_3d_cpu",
-        "OnnxBackendNodeModelTest.test_tensorscatter_circular_cpu",
-        "OnnxBackendNodeModelTest.test_tensorscatter_cpu",
     ),
     (
         xfail_issue_onnx122_attention,

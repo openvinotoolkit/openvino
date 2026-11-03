@@ -163,6 +163,11 @@ public:
 
 using RuntimeBehaviorFactory = std::function<ISubgraphBehavior::Ptr(const Context&)>;
 using CompileExecutor = std::function<void(CompileContext&)>;
+using CompiledModelVisitor = std::function<void(const ov::SoPtr<ov::ICompiledModel>&)>;
+// Visits the extra device-level compiled models a pipeline owns besides the subgraph's own
+// compiled model (e.g. pyramid attention levels, HFA tiles, MoE experts), looked up in the
+// given pipeline context. Some of them may be the subgraph's own compiled model, reused.
+using ExtraCompiledModelsVisitor = std::function<void(const Context&, const CompiledModelVisitor&)>;
 
 struct RuntimeBehaviorSpec {
     Registration registration;
@@ -176,6 +181,7 @@ struct CompiledPipeline {
     Context context;
     CompileExecutor compile_executor;
     std::optional<RuntimeBehaviorSpec> runtime_behavior;
+    ExtraCompiledModelsVisitor for_each_extra_compiled_model;
     bool is_function_call = false;
     std::optional<std::size_t> function_body_subgraph_idx;
 };
