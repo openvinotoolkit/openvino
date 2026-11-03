@@ -11,7 +11,7 @@ GatedResidual
 **Category**: *Internal*
 
 **Short description**:
-The *GatedResidual* operation represents the gated residual (hyper-connection) mechanism used by Qwen4-Exp / Qwen3.8-Flash-Next-style models. It handles branch-wise normalization and gated branch merging, the gated residual update, and an optional terminal merge. READ and WRITE are distinct operation modes; the sub-layer output is an explicit input to WRITE. READ and FINAL_MIX optionally accept u4/u8 compressed ``w_down`` / ``w_up`` / ``w_inject`` weights.
+The *GatedResidual* operation represents the gated residual (hyper-connection) mechanism used by Qwen4-Exp / Qwen3.8-Flash-Next-style models. It handles branch-wise normalization and gated branch merging, the gated residual update, and an optional terminal merge. READ and WRITE are distinct operation modes; the sub-layer output is an explicit input to WRITE. READ and FINAL_MIX optionally accept ``i4``/``u4``/``i8``/``u8`` compressed ``w_down`` / ``w_up`` / ``w_inject`` weights.
 
 **Detailed description**
 
@@ -84,22 +84,22 @@ the READ equations for ``M`` but does not calculate ``S``.
 
 The following PyTorch-equivalent code illustrates the full computation. Weights are given as
 decompressed floating-point tensors; ``dequantize_weight`` shows how the compressed
-``u4``/``u8`` weights (``w_down``, ``w_up`` and ``w_inject``) are expanded first, with ``zp``
-already unpacked to one value per element.
+``i4``/``u4``/``i8``/``u8`` weights (``w_down``, ``w_up`` and ``w_inject``) are expanded first, with ``zp``
+already unpacked to one value per element (signed types sign-extended) or ``None`` when the op has no zero points.
 
 .. code-block:: py
 
    import torch
    import torch.nn.functional as F
 
-   def dequantize_weight(q, scale, zp):
-       # q: [N, K] u4/u8 values, scale / zp: [G, N]; the group size K // G is derived from the shapes
+   def dequantize_weight(q, scale, zp=None):
+       # q: [N, K] i4/u4/i8/u8 values, scale / zp: [G, N]; the group size K // G is derived from the shapes
        N, K = q.shape
        G = scale.shape[0]
        assert K % G == 0
        s = scale.t().repeat_interleave(K // G, dim=1)   # [N, K]
-       z = zp.t().repeat_interleave(K // G, dim=1)      # [N, K]
-       return ((q.float() - z.float()) * s.float()).half()
+       z = zp.t().repeat_interleave(K // G, dim=1).float() if zp is not None else 0.0   # no zero points: 0
+       return ((q.float() - z) * s.float()).half()
 
    def branch_rms_norm(residual, norm_weight, C, D, epsilon, norm_gain_plus_one):
        # residual: [..., C*D]; every branch is normalized over its own D channels
@@ -202,16 +202,16 @@ last dimension is as specified below and the leading dimensions agree across the
 
 * **READ / FINAL_MIX input 2**: ``w_down``
   A 2D tensor of shape ``[L, C*D]`` for the low-rank down projection. Floating-point in the
-  uncompressed forms, ``u4`` or ``u8`` in the compressed forms. **Required.**
+  uncompressed forms, ``i4``, ``u4``, ``i8`` or ``u8`` in the compressed forms. **Required.**
 
 * **READ / FINAL_MIX input 3**: ``w_up``
   A 2D tensor of shape ``[C*D, L]`` for the up projection that produces read-gate logits. Floating-point in the
-  uncompressed forms, ``u4`` or ``u8`` in the compressed forms. **Required.**
+  uncompressed forms, ``i4``, ``u4``, ``i8`` or ``u8`` in the compressed forms. **Required.**
 
-READ and FINAL_MIX accept one of four input forms, selected by the weight element type and
-``produce_write_gate``. Inputs 0-3 are identical in all of them. The compression parameters, when
-present, follow input 3. The write-gate inputs, when present, are always the **last** inputs, so
-the index of ``w_inject`` depends on the form:
+READ and FINAL_MIX accept one of six input forms, selected by the weight element type, by whether
+zero points are present, and by ``produce_write_gate``. Inputs 0-3 are identical in all of them. The
+compression parameters, when present, follow input 3. The write-gate inputs, when present, are always
+the **last** inputs, so the index of ``w_inject`` depends on the form:
 
 .. list-table::
    :header-rows: 1
@@ -222,37 +222,50 @@ the index of ``w_inject`` depends on the form:
      - 4 inputs: ``residual``, ``norm_weight``, ``w_down``, ``w_up``
    * - Floating-point weights, write gate
      - 5 inputs: inputs 0-3 as above, then ``w_inject`` (input 4)
+   * - Compressed weights, no zero points
+     - 6 inputs: inputs 0-3 as above, then ``scale_down`` (4), ``scale_up`` (5)
    * - Compressed weights
-     - 8 inputs: inputs 0-3 as above, then ``scale_down`` (4), ``scale_up`` (5), ``zp_down`` (6),
-       ``zp_up`` (7)
+     - 8 inputs: inputs 0-5 as in the previous form, then ``zp_down`` (6), ``zp_up`` (7)
+   * - Compressed weights, no zero points, write gate
+     - 8 inputs: inputs 0-5 as in the compressed form without zero points, then ``w_inject`` (6),
+       ``scale_inject`` (7)
    * - Compressed weights, write gate
      - 11 inputs: inputs 0-7 as in the compressed form, then ``w_inject`` (8), ``scale_inject`` (9),
        ``zp_inject`` (10)
 
-* **READ / FINAL_MIX inputs 4-7, (for compressed forms only)**: when the weights are ``u4`` or ``u8``,
-  these inputs carry the scales and zero points of ``w_down`` and ``w_up``.
+Zero points are optional but all-or-nothing: either ``zp_down`` and ``zp_up`` (and ``zp_inject``) are all
+present or none is, and a missing zero point is 0. For a given ``produce_write_gate`` the number of
+inputs selects the form unambiguously.
+
+* **READ / FINAL_MIX inputs 4-5 (compressed forms only)**: when the weights are ``i4``, ``u4``, ``i8`` or
+  ``u8``, these inputs carry the scales of ``w_down`` and ``w_up``.
 
   * input 4: ``scale_down``, ``f16``, shape ``[G_d, L]``
   * input 5: ``scale_up``, ``f16``, shape ``[G_u, C*D]``
+
+* **READ / FINAL_MIX inputs 6-7 (compressed forms with zero points only)**:
+
   * input 6: ``zp_down``, same element type as ``w_down``, same shape as ``scale_down``
   * input 7: ``zp_up``, same element type as ``w_up``, same shape as ``scale_up``
 
-* **READ write-gate inputs (for produce_write_gate is true; always the last inputs)**:
+* **READ write-gate inputs (when produce_write_gate is true; always the last inputs)**:
 
   * ``w_inject``: a 2D tensor of shape ``[C, C*D]`` used to compute the write gate. Floating-point
-    in the five-input form (input 4), ``u4`` or ``u8`` in the compressed form (input 8).
-  * ``scale_inject`` (input 9), compressed form only: ``f16``, shape ``[G_i, C]``.
-  * ``zp_inject`` (input 10), compressed form only: same element type as ``w_inject``, same shape
-    as ``scale_inject``.
+    in the five-input form (input 4), ``i4``, ``u4``, ``i8`` or ``u8`` in the compressed forms
+    (input 6 without zero points, input 8 with them).
+  * ``scale_inject``, compressed forms only: ``f16``, shape ``[G_i, C]`` (the input after ``w_inject``).
+  * ``zp_inject``, compressed form with zero points only (input 10): same element type as ``w_inject``,
+    same shape as ``scale_inject``.
 
 For every compressed weight, scales and zero points are laid out ``[G, N]`` with ``N`` (the output
 channel) contiguous. The group size is not an attribute: it is derived as ``group_size = K / G``,
 where ``K`` is the number of columns of the weight (``C*D`` for ``w_down`` and ``w_inject``, ``L``
 for ``w_up``) and ``G`` the number of rows of the scale and zero point. ``K`` must be divisible by
 ``G``; ``G = 1`` means per-channel quantization. ``w_down``, ``w_up`` and ``w_inject`` (when
-present) must all share one element type; ``u4``/``u8`` weights are accepted only in the compressed
-forms. ``u4`` weights and zero points are packed two elements per byte in row-major order, the even
-element in the low nibble. Dequantization is ``w = (q - zp) * scale``, see ``dequantize_weight``
+present) must all share one element type; ``i4``/``u4``/``i8``/``u8`` weights are accepted only in the compressed
+forms. 4-bit weights and zero points are packed two elements per byte in row-major order, the even
+element in the low nibble; ``i4`` elements are two's complement nibbles. Dequantization is
+``w = (q - zp) * scale`` with ``q`` and ``zp`` interpreted according to the element type, see ``dequantize_weight``
 above.
 
 * **WRITE input 0**: ``residual``
@@ -285,14 +298,14 @@ above.
 * ``hc_count`` and ``hidden_size`` must be positive.
 * The residual rank must be at least 2, and its last dimension must be compatible with
   ``hc_count * hidden_size``.
-* READ and FINAL_MIX require four inputs with floating-point weights, five when ``produce_write_gate`` is true, eight for compressed weights, or eleven for compressed weights with a write gate (see the input forms above).  
+* READ and FINAL_MIX require four inputs with floating-point weights, five when ``produce_write_gate`` is true, six (without zero points) or eight (with zero points) for compressed weights, or eight (without) or eleven (with zero points) for compressed weights with a write gate (see the input forms above).  
   The write-gate inputs are always the last inputs.  
   FINAL_MIX must not produce a write gate. READ/FINAL_MIX require ``lowrank > 0``.
 * ``norm_weight`` must have shape ``[C*D]``, ``w_down`` ``[L, C*D]``, ``w_up`` ``[C*D, L]``, and
   ``w_inject`` (if present) ``[C, C*D]``. ``w_down``, ``w_up`` and ``w_inject`` (if present) must share one element type.
 * For the compressed form, scale tensors must be rank 2 with last dimension equal to the weight's
-  output channel count (``L`` for ``w_down``, ``C*D`` for ``w_up``, ``C`` for ``w_inject``), zero points must have the
-  same shape as their scales, scales must be ``f16``, zero points must have the weight element type (``u4`` or ``u8``), and ``K`` must be divisible by the group count ``G``
+  output channel count (``L`` for ``w_down``, ``C*D`` for ``w_up``, ``C`` for ``w_inject``), zero points (when present) must have the
+  same shape as their scales, scales must be ``f16``, zero points must have the weight element type (``i4``, ``u4``, ``i8`` or ``u8``), and ``K`` must be divisible by the group count ``G``
   (the group size ``K / G`` is derived from the shapes, see the compressed inputs above).
 * WRITE requires exactly three inputs and returns the residual shape. ``sublayer_y`` must have
   last dimension ``D``, ``write_gate`` must have last dimension ``C``, and both must share the
@@ -422,5 +435,5 @@ so it is per-channel (group size 32 = K):
 **Types**
 
 * *T*: floating-point element type of the data inputs.
-* *T_W*: ``u4`` or ``u8`` for compressed ``w_down`` / ``w_up`` / ``w_inject`` (compressed forms only); in the uncompressed forms they use a floating-point type.
+* *T_W*: ``i4``, ``u4``, ``i8`` or ``u8`` for compressed ``w_down`` / ``w_up`` / ``w_inject`` (compressed forms only); in the uncompressed forms they use a floating-point type.
 * Outputs use the element type of ``residual``.

@@ -17,7 +17,7 @@
 //      GR_PRODUCE_WRITE_GATE, GR_WG_SIZE (subgroups), GR_RD_TM (8/16/32), GR_RD_NT, GR_NV_KD (phase 1 chunk halves / 16),
 //      GR_RD_SLM_GAIN (0 = gain from global, 1 = padded SLM copy, 2 = duplicated SLM copy), GR_P3_GB (optional: branches per
 //      phase-3 K loop).
-// Compressed weights (GR_W_TYPE u4 group 32 / u8 per-channel, gr_common.cl; no write gate): GR_WD_KCH / GR_WD_NRAW / GR_WD_RB and
+// Compressed weights (GR_W_TYPE 4-bit group 32 / 8-bit per-channel, gr_common.cl; no write gate): GR_WD_KCH / GR_WD_NRAW / GR_WD_RB and
 //      GR_WU_KCH / GR_WU_NRAW / GR_WU_RB give the k values per raw load, its dwords and the row bytes of W_down / W_up.
 // Dispatch: gws = [WG * 16, ceil(rows / TM), 1], lws = [WG * 16, 1, 1].
 

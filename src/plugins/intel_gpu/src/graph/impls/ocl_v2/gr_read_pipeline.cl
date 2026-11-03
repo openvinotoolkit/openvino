@@ -15,7 +15,7 @@
 // The accumulator layout of one GEMM is the A layout of the next one. The loads of the next K32 step are issued before the
 // dpas of the current one (two register buffers).
 //
-// Compressed weights (GR_W_TYPE = u4 group 32 / u8 per-channel, see gr_common.cl): the lane loads GR_W*_KCH k values of its row as raw
+// Compressed weights (GR_W_TYPE = 4-bit group 32 / 8-bit per-channel, see gr_common.cl): the lane loads GR_W*_KCH k values of its row as raw
 // bytes per step and unpacks one K32 slice at a time into the same uint16 B operand; MMA and epilogues are shared.
 // The per-subgroup (decode) DOWN / UP kernels fold the zero point and scale out of the B operand: u8 per channel into the
 // epilogue (GR_WQ_FOLD), u4 per K32 group into the accumulator update (B = half(1024 + q), no per-weight arithmetic). The
@@ -300,7 +300,7 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
         unroll_for (uint s_ = 0; s_ < GR_WD_KCH / 32; s_++) {                                                   \
             const uint i_ = (((KK) >> 5) + s_) * qn + nrow[j_];                                                 \
             SC[j_][s_] = qs[i_];                                                                                \
-            ZP[j_][s_] = qz[i_ >> 1];                                                                           \
+            ZP[j_][s_] = GR_HAS_ZP ? qz[i_ >> 1] : 0;                                                           \
         }                                                                                                       \
     }
 #endif
@@ -481,7 +481,7 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
     float zf[GR_NT];
     unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
         sf[j_] = convert_float(as_half(qs[nrow[j_]]));
-        zf[j_] = convert_float(qz[nrow[j_]]);
+        zf[j_] = convert_float(GR_WQ_ZPAT(qz, nrow[j_]));
     }
 #endif
 #endif
@@ -544,7 +544,7 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
             GR_DN_RS_TO(rs, at0);
             unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
                 const float sc = convert_float(as_half(scr[j_][s_]));
-                const float zz = 1024.0f + (float)((zpr[j_][s_] >> zsh[j_]) & 0xF);
+                const float zz = 1024.0f + (float)GR_WQ_ZPNIB(zpr[j_][s_], zsh[j_]);
                 unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
                     acc[j_ * GR_MT + m_] = fma((float8)(sc), fma((float8)(-zz), rs[m_], tq[j_ * GR_MT + m_]), acc[j_ * GR_MT + m_]);
                 }
@@ -916,7 +916,7 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
         unroll_for (uint c_ = 0; c_ < GR_BRANCHES; c_++) {                                                      \
             const uint zb_ = (((KK) >> 5) + s_) * GR_CD + c_ * GR_HIDDEN + d0;                                   \
             SC[c_][s_] = convert_float(as_half(intel_sub_group_block_read_us(w_scale + zb_)));                  \
-            ZZ[c_][s_] = 1024.0f + (float)((w_zp[(zb_ + lane) >> 1] >> (((zb_ + lane) & 1) * 4)) & 0xF);         \
+            ZZ[c_][s_] = 1024.0f + (float)GR_WQ_ZPAT(w_zp, zb_ + lane);                                           \
         }                                                                                                       \
     }
 #endif

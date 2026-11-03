@@ -5,9 +5,11 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 
 #include "intel_gpu/runtime/device_info.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
 namespace ov::intel_gpu::op {
@@ -42,30 +44,72 @@ public:
         FINAL_MIX = 2,  ///< model-tail mixer: READ without write-gate generation
     };
 
-    /// @brief Input indices for Mode::READ / Mode::FINAL_MIX
+    /// @brief Input indices for Mode::READ / Mode::FINAL_MIX that do not depend on the input form
     struct ReadInputIdx {
         static constexpr size_t RESIDUAL = 0;     ///< [B,T,C*D]
         static constexpr size_t NORM_WEIGHT = 1;  ///< [C*D]
         static constexpr size_t W_DOWN = 2;       ///< [L, C*D]
         static constexpr size_t W_UP = 3;         ///< [C*D, L]
-        static constexpr size_t W_INJECT = 4;     ///< [C, C*D], only when produce_write_gate and the weights are not compressed
 
-        // Compressed weights (W_DOWN / W_UP are u4 or u8). scale/zp are [G, N] (N contiguous), unlike FC's [N, G]: one sub-group
-        // block read gives every lane the scale of its own output channel.
+        // Compressed weights (W_DOWN / W_UP are i4, u4, i8 or u8). scale/zp are [G, N] (N contiguous), unlike FC's [N, G]: one
+        // sub-group block read gives every lane the scale of its own output channel.
         static constexpr size_t SCALE_DOWN = 4;  ///< f16 [G_d, L]
         static constexpr size_t SCALE_UP = 5;    ///< f16 [G_u, C*D]
-        static constexpr size_t ZP_DOWN = 6;     ///< same type as the weights (u4 packed / u8) [G_d, L]
-        static constexpr size_t ZP_UP = 7;       ///< same type as the weights (u4 packed / u8) [G_u, C*D]
-
-        // The write-gate inputs are always the last inputs; with compressed weights W_inject is compressed the same way.
-        static constexpr size_t W_INJECT_Q = 8;    ///< u4 / u8 [C, C*D]
-        static constexpr size_t SCALE_INJECT = 9;  ///< f16 [G_i, C]
-        static constexpr size_t ZP_INJECT = 10;    ///< same type as the weights (u4 packed / u8) [G_i, C]
+        static constexpr size_t ZP_DOWN = 6;     ///< same type as the weights (4-bit packed) [G_d, L], only with zero points
+        static constexpr size_t ZP_UP = 7;       ///< same type as the weights (4-bit packed) [G_u, C*D], only with zero points
     };
 
-    static constexpr size_t compressed_input_count = 8;
-    static constexpr size_t compressed_write_gate_input_count = 11;
-    static constexpr size_t int4_group_size = 32;  ///< the only group size along K the kernels support for u4 weights
+    /// @brief Input form of a READ / FINAL_MIX node. The write-gate inputs are always the last inputs, so their indices depend on
+    /// the form:
+    ///   floating-point weights:        residual, norm, w_down, w_up [, w_inject]
+    ///   compressed, no zero points:    residual, norm, w_down, w_up, scale_down, scale_up [, w_inject, scale_inject]
+    ///   compressed with zero points:   ... scale_up, zp_down, zp_up [, w_inject, scale_inject, zp_inject]
+    /// Zero points are all-or-nothing; without them they are 0.
+    struct ReadLayout {
+        bool compressed = false;
+        bool has_zp = false;
+        bool write_gate = false;
+        size_t input_count = 4;
+        size_t w_inject = 0;      ///< valid when write_gate
+        size_t scale_inject = 0;  ///< valid when write_gate and compressed
+        size_t zp_inject = 0;     ///< valid when write_gate, compressed and has_zp
+    };
+
+    static constexpr ReadLayout make_read_layout(bool compressed, bool has_zp, bool write_gate) {
+        ReadLayout l;
+        l.compressed = compressed;
+        l.has_zp = compressed && has_zp;
+        l.write_gate = write_gate;
+        const size_t base = compressed ? (l.has_zp ? 8 : 6) : 4;
+        l.w_inject = base;
+        l.scale_inject = base + 1;
+        l.zp_inject = base + 2;
+        l.input_count = base + (write_gate ? (compressed ? (l.has_zp ? 3 : 2) : 1) : 0);
+        return l;
+    }
+
+    /// The form selected by the input count; empty when no form has that many inputs.
+    static std::optional<ReadLayout> read_layout(size_t input_count, bool write_gate) {
+        for (const bool compressed : {false, true}) {
+            for (const bool has_zp : {false, true}) {
+                const auto l = make_read_layout(compressed, has_zp, write_gate);
+                if (l.has_zp == has_zp && l.input_count == input_count) {
+                    return l;
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
+    std::optional<ReadLayout> get_read_layout() const {
+        return read_layout(get_input_size(), m_produce_write_gate);
+    }
+
+    static constexpr size_t int4_group_size = 32;  ///< the only group size along K the kernels support for 4-bit weights
+
+    static bool is_compressed_weight_type(const ov::element::Type& t) {
+        return t == ov::element::i4 || t == ov::element::u4 || t == ov::element::i8 || t == ov::element::u8;
+    }
 
     /// @brief Input indices for Mode::WRITE
     struct WriteInputIdx {
@@ -133,13 +177,13 @@ public:
         return (g == 0 || k % g != 0) ? 0 : k / g;
     }
 
-    /// Group sizes the kernels support: 32 for u4, per-channel (group size == K) for u8.
+    /// Group sizes the kernels support: 32 for 4-bit, per-channel (group size == K) for 8-bit.
     static constexpr bool is_group_size_supported(size_t bits, size_t k, size_t group_size) {
         return group_size != 0 && (bits == 4 ? group_size == int4_group_size : group_size == k);
     }
 
     /// Shared by the fusion pass and the impl's validate_impl. N/K/G are the weight rows / columns / scale rows of W_down and
-    /// W_up; bits is 4 (u4) or 8 (u8). The group size is K / G.
+    /// W_up; bits is 4 (i4 / u4) or 8 (i8 / u8). The group size is K / G.
     static bool is_weight_compression_supported(size_t bits, size_t n_down, size_t k_down, size_t g_down, size_t n_up, size_t k_up, size_t g_up) {
         if (bits != 4 && bits != 8) {
             return false;

@@ -97,9 +97,12 @@ size_t largest_divisor_up_to(size_t n, size_t cap) {
     return 1;
 }
 
-/// Weight storage of the READ / FINAL_MIX kernels (GR_W_TYPE): f16, or the asymmetric u4 (group 32) / u8 (per-channel) forms
-/// that arrive as the 8-input compressed op (W_down, W_up, scale_down, scale_up, zp_down, zp_up).
+/// Weight storage of the READ / FINAL_MIX kernels (GR_W_TYPE): f16, or the compressed forms with f16 scales and optional zero
+/// points. u4 stands for the 4-bit types (i4 / u4, group 32), u8 for the 8-bit ones (i8 / u8, per-channel); signedness is
+/// gr_weight_signed().
 enum class GrWType : int { f16 = 0, u4 = 1, u8 = 2 };
+
+using GrOp = ov::intel_gpu::op::GatedResidual;
 
 /// Row-count regimes of the two dpas GEMM stages: few rows need the K reduction split over a work-group so the weights are
 /// streamed by enough threads; the split stops paying off once the token tiles alone fill the GPU. `gemv` is the decode tier
@@ -222,7 +225,27 @@ bool can_use_dpas_gr_read(const gated_residual& desc, const cldnn::device_info& 
 
 GrWType gr_weight_type(const RuntimeParams& params) {
     const auto dt = params.get_input_layout(2).data_type;
-    return dt == ov::element::u4 ? GrWType::u4 : (dt == ov::element::u8 ? GrWType::u8 : GrWType::f16);
+    if (dt == ov::element::u4 || dt == ov::element::i4) {
+        return GrWType::u4;
+    }
+    return dt == ov::element::u8 || dt == ov::element::i8 ? GrWType::u8 : GrWType::f16;
+}
+
+bool gr_weight_signed(const RuntimeParams& params) {
+    const auto dt = params.get_input_layout(2).data_type;
+    return dt == ov::element::i4 || dt == ov::element::i8;
+}
+
+/// Input form of a READ / FINAL_MIX node (the op validated that its input count is one of the forms).
+GrOp::ReadLayout gr_read_layout(const RuntimeParams& params) {
+    const auto layout = GrOp::read_layout(params.get_input_layout_size(), params.typed_desc<gated_residual>()->produce_write_gate);
+    OPENVINO_ASSERT(layout.has_value(), "[GPU][OCL] gated_residual: unexpected number of inputs ", params.get_input_layout_size());
+    return *layout;
+}
+
+/// The kernels always take a zp argument; without zero points the scale buffer is bound instead and never read (GR_HAS_ZP == 0).
+uint32_t gr_zp_input(const GrOp::ReadLayout& layout, size_t zp_idx, size_t scale_idx) {
+    return static_cast<uint32_t>(layout.has_zp ? zp_idx : scale_idx);
 }
 
 size_t gr_weight_bits(GrWType t) {
@@ -293,6 +316,13 @@ void add_wq_matrix_constants(JitConstants& jit, const std::string& prefix, GrWTy
     jit.make(prefix + "_RB", row_k * gr_weight_bits(t) / 8);
 }
 
+/// Weight format of a compressed kernel: bit width class, signedness and whether there are zero points.
+void add_wq_format_constants(JitConstants& jit, const RuntimeParams& params) {
+    jit.make("GR_W_TYPE", static_cast<int>(gr_weight_type(params)));
+    jit.make("GR_W_SIGNED", gr_weight_signed(params) ? 1 : 0);
+    jit.make("GR_HAS_ZP", gr_read_layout(params).has_zp ? 1 : 0);
+}
+
 /// Float as an OpenCL C literal with full single precision (an unsuffixed literal would be a double).
 JitConstant float_constant(const std::string& name, float value) {
     char buf[64];
@@ -351,7 +381,7 @@ protected:
         return desc.produce_write_gate && wtype == GrWType::f16;
     }
 
-    [[nodiscard]] static Arguments read_arguments(const gated_residual& desc, GrWType wtype, bool pd = false) {
+    [[nodiscard]] static Arguments read_arguments(const gated_residual& desc, const GrOp::ReadLayout& layout, GrWType wtype, bool pd = false) {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // residual
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});  // norm weight
@@ -363,16 +393,16 @@ protected:
             args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // W_up
         }
         if (wtype != GrWType::f16) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // scale_down [G, L]
-            args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // scale_up [G, C*D]
-            args.push_back({ArgumentDescriptor::Types::INPUT, 6});  // zp_down
-            args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // zp_up
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(GrOp::ReadInputIdx::SCALE_DOWN)});  // [G, L]
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(GrOp::ReadInputIdx::SCALE_UP)});    // [G, C*D]
+            args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, GrOp::ReadInputIdx::ZP_DOWN, GrOp::ReadInputIdx::SCALE_DOWN)});
+            args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, GrOp::ReadInputIdx::ZP_UP, GrOp::ReadInputIdx::SCALE_UP)});
         }
         if (gate_in_kernel(desc, wtype)) {
             if (pd) {
                 args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<uint32_t>(GatedResidualInternalBufIdx::WI_F16)});
             } else {
-                args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // W_inject
+                args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(layout.w_inject)});
             }
         }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // mixed
@@ -410,7 +440,7 @@ protected:
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        return read_arguments(*params.typed_desc<gated_residual>(), GrWType::f16);
+        return read_arguments(*params.typed_desc<gated_residual>(), gr_read_layout(params), GrWType::f16);
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -460,7 +490,7 @@ protected:
         jit.make("GR_RD_SLM_GAIN", slm_gain);
         if (m_q) {
             const auto wtype = gr_weight_type(params);
-            jit.make("GR_W_TYPE", static_cast<int>(wtype));
+            add_wq_format_constants(jit, params);
             add_wq_matrix_constants(jit, "GR_WD", wtype, gr_wq_kch(wtype, desc->hidden_size, cd, gr_wq_dpas_load_bytes), cd);
             add_wq_matrix_constants(jit, "GR_WU", wtype, gr_wq_kch(wtype, desc->lowrank, desc->lowrank, gr_wq_dpas_load_bytes), desc->lowrank);
         }
@@ -468,7 +498,7 @@ protected:
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        return read_arguments(*params.typed_desc<gated_residual>(), m_q ? gr_weight_type(params) : GrWType::f16, m_pd);
+        return read_arguments(*params.typed_desc<gated_residual>(), gr_read_layout(params), m_q ? gr_weight_type(params) : GrWType::f16, m_pd);
     }
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
@@ -636,7 +666,7 @@ protected:
         jit.make("GR_PRODUCE_WRITE_GATE", gate_tile(*desc, m_q, m_tier) ? 1 : 0);
         if (m_q) {
             const size_t cd = desc->hc_count * desc->hidden_size;
-            jit.make("GR_W_TYPE", static_cast<int>(wtype));
+            add_wq_format_constants(jit, params);
             jit.make("GR_Q_SHARE", share ? 1 : 0);
             if (share) {
                 jit.make("GR_Q_ST", qs.st);
@@ -647,8 +677,8 @@ protected:
     }
 
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
-        using ReadIdx = ov::intel_gpu::op::GatedResidual::ReadInputIdx;
         const auto desc = params.typed_desc<gated_residual>();
+        const auto layout = gr_read_layout(params);
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::RBAR});
         if (m_pd) {
@@ -657,19 +687,19 @@ protected:
             args.push_back({ArgumentDescriptor::Types::INPUT, 2});  // W_down
         }
         if (m_q) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // scale_down
-            args.push_back({ArgumentDescriptor::Types::INPUT, 6});  // zp_down
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(GrOp::ReadInputIdx::SCALE_DOWN)});
+            args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, GrOp::ReadInputIdx::ZP_DOWN, GrOp::ReadInputIdx::SCALE_DOWN)});
         }
         const bool gate = gate_tile(*desc, m_q, m_tier);
         if (gate) {
             if (m_q) {
-                args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(ReadIdx::W_INJECT_Q)});
-                args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(ReadIdx::SCALE_INJECT)});
-                args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(ReadIdx::ZP_INJECT)});
+                args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(layout.w_inject)});
+                args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(layout.scale_inject)});
+                args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, layout.zp_inject, layout.scale_inject)});
             } else if (m_pd) {
                 args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<uint32_t>(GatedResidualInternalBufIdx::WI_F16)});
             } else {
-                args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(ReadIdx::W_INJECT)});
+                args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(layout.w_inject)});
             }
         }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::T_SCRATCH});
@@ -789,7 +819,7 @@ protected:
         jit.make("GR_UP_KSPLIT", tiling.ksplit);
         if (m_q) {
             const auto wtype = gr_weight_type(params);
-            jit.make("GR_W_TYPE", static_cast<int>(wtype));
+            add_wq_format_constants(jit, params);
             jit.make("GR_Q_SHARE", share ? 1 : 0);
             if (share) {
                 jit.make("GR_Q_ST", gr_up_q_st);
@@ -803,7 +833,8 @@ protected:
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        const auto layout = gr_read_layout(params);
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::T_SCRATCH});
         if (m_pd) {
@@ -812,8 +843,8 @@ protected:
             args.push_back({ArgumentDescriptor::Types::INPUT, 3});  // W_up
         }
         if (m_q) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, 5});  // scale_up
-            args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // zp_up
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(GrOp::ReadInputIdx::SCALE_UP)});
+            args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, GrOp::ReadInputIdx::ZP_UP, GrOp::ReadInputIdx::SCALE_UP)});
         }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::RBAR});
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});  // mixed
@@ -877,18 +908,21 @@ protected:
         const auto wtype = gr_weight_type(params);
         const size_t k = cols_k(*desc, m_down);
         jit.make("GR_DEQUANT_WEIGHTS", 1);
-        jit.make("GR_W_TYPE", static_cast<int>(wtype));
+        add_wq_format_constants(jit, params);
         jit.make("GR_DQ_N", rows_n(*desc, m_down));
         jit.make("GR_DQ_K", k);
         add_wq_matrix_constants(jit, "GR_DQ", wtype, gr_wq_kch(wtype, k, k, 64), k);
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        const auto layout = gr_read_layout(params);
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INPUT, m_down ? 2u : 3u});  // weights
         args.push_back({ArgumentDescriptor::Types::INPUT, m_down ? 4u : 5u});  // scale
-        args.push_back({ArgumentDescriptor::Types::INPUT, m_down ? 6u : 7u});  // zp
+        args.push_back({ArgumentDescriptor::Types::INPUT,
+                        m_down ? gr_zp_input(layout, GrOp::ReadInputIdx::ZP_DOWN, GrOp::ReadInputIdx::SCALE_DOWN)
+                               : gr_zp_input(layout, GrOp::ReadInputIdx::ZP_UP, GrOp::ReadInputIdx::SCALE_UP)});  // zp
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER,
                         static_cast<uint32_t>(m_down ? GatedResidualInternalBufIdx::WD_F16 : GatedResidualInternalBufIdx::WU_F16)});
         return args;
@@ -910,7 +944,7 @@ private:
     bool m_down;
 };
 
-/// Dequantizes the compressed W_inject (inputs 8 / 9 / 10) into the f16 scratch matrix WI_F16, see gr_common.cl.
+/// Dequantizes the compressed W_inject into the f16 scratch matrix WI_F16, see gr_common.cl.
 class GrDequantInjectGenerator : public GrGenerator {
 public:
     GrDequantInjectGenerator() : GrGenerator("gr_common", "inject", /*large_grf=*/false) {}
@@ -922,18 +956,19 @@ protected:
         const auto wtype = gr_weight_type(params);
         const size_t k = desc->hc_count * desc->hidden_size;
         jit.make("GR_DEQUANT_INJECT", 1);
-        jit.make("GR_W_TYPE", static_cast<int>(wtype));
+        add_wq_format_constants(jit, params);
         jit.make("GR_DQ_N", desc->hc_count);
         jit.make("GR_DQ_K", k);
-        jit.make("GR_DQ_GS", wtype == GrWType::u4 ? ov::intel_gpu::op::GatedResidual::int4_group_size : k);
+        jit.make("GR_DQ_GS", wtype == GrWType::u4 ? GrOp::int4_group_size : k);
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        const auto layout = gr_read_layout(params);
         Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(ov::intel_gpu::op::GatedResidual::ReadInputIdx::W_INJECT_Q)});
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(ov::intel_gpu::op::GatedResidual::ReadInputIdx::SCALE_INJECT)});
-        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(ov::intel_gpu::op::GatedResidual::ReadInputIdx::ZP_INJECT)});
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(layout.w_inject)});
+        args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(layout.scale_inject)});
+        args.push_back({ArgumentDescriptor::Types::INPUT, gr_zp_input(layout, layout.zp_inject, layout.scale_inject)});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, static_cast<uint32_t>(GatedResidualInternalBufIdx::WI_F16)});
         return args;
     }
@@ -1244,49 +1279,48 @@ bool GatedResidualImplementationManager::validate_impl(const cldnn::program_node
         return false;
     }
 
-    // Compressed READ / FINAL_MIX: u4 (group 32) / u8 (per-channel) W_down / W_up + f16 scale + zp of the weight type, dpas path only.
-    // With a write gate W_inject, its scale and zp follow as inputs 8 / 9 / 10 and are compressed the same way.
-    using GrOp = ov::intel_gpu::op::GatedResidual;
+    // Compressed READ / FINAL_MIX: i4 / u4 (group 32) or i8 / u8 (per-channel) W_down / W_up (and W_inject) with f16 scales and
+    // optional zero points of the weight type, dpas path only.
     const size_t input_count = node.get_dependencies().size();
-    const bool compressed = desc->mode != cldnn::gated_residual::Mode::WRITE &&
-                            (input_count == GrOp::compressed_input_count || input_count == GrOp::compressed_write_gate_input_count);
-    if (compressed) {
+    std::optional<GrOp::ReadLayout> layout;
+    if (desc->mode != cldnn::gated_residual::Mode::WRITE) {
+        layout = GrOp::read_layout(input_count, desc->produce_write_gate);
+        if (!layout) {
+            return false;
+        }
+    }
+    if (layout && layout->compressed) {
         if (!GrOp::is_compression_arch_supported(info) || !can_use_dpas_gr_read(*desc, info)) {
             return false;
         }
-        if (desc->produce_write_gate != (input_count == GrOp::compressed_write_gate_input_count)) {
-            return false;
-        }
         const auto wt = node.get_input_layout(2).data_type;
-        if ((wt != ov::element::u4 && wt != ov::element::u8) || node.get_input_layout(3).data_type != wt) {
+        if (!GrOp::is_compressed_weight_type(wt) || node.get_input_layout(3).data_type != wt) {
             return false;
         }
         for (size_t i = 0; i < input_count; i++) {
             const auto& l = node.get_input_layout(i);
-            ov::element::Type expected = wt;
-            if (i < 2 || (i >= 4 && i < 6) || i == GrOp::ReadInputIdx::SCALE_INJECT) {
-                expected = ov::element::f16;
-            }
-            if (l.format != cldnn::format::bfyx || l.data_type != expected) {
+            const bool is_scale =
+                i < 2 || i == GrOp::ReadInputIdx::SCALE_DOWN || i == GrOp::ReadInputIdx::SCALE_UP || (desc->produce_write_gate && i == layout->scale_inject);
+            if (l.format != cldnn::format::bfyx || l.data_type != (is_scale ? ov::element::Type_t::f16 : wt)) {
                 return false;
             }
         }
-        const auto& sd = node.get_input_layout(4);
-        const auto& su = node.get_input_layout(5);
+        const auto& sd = node.get_input_layout(GrOp::ReadInputIdx::SCALE_DOWN);
+        const auto& su = node.get_input_layout(GrOp::ReadInputIdx::SCALE_UP);
         if (sd.is_dynamic() || su.is_dynamic() || sd.get_partial_shape().size() != 2 || su.get_partial_shape().size() != 2) {
             return false;
         }
         const size_t cd = desc->hc_count * desc->hidden_size;
         const size_t gd = sd.get_shape()[0];
         const size_t gu = su.get_shape()[0];
-        const size_t bits = gr_weight_bits(wt == ov::element::u4 ? GrWType::u4 : GrWType::u8);
+        const size_t bits = ov::element::Type(wt).bitwidth();
         if (sd.get_shape()[1] != desc->lowrank || su.get_shape()[1] != cd ||
             !GrOp::is_weight_compression_supported(bits, desc->lowrank, cd, gd, cd, desc->lowrank, gu)) {
             return false;
         }
         if (desc->produce_write_gate) {
-            const auto& wi = node.get_input_layout(GrOp::ReadInputIdx::W_INJECT_Q);
-            const auto& si = node.get_input_layout(GrOp::ReadInputIdx::SCALE_INJECT);
+            const auto& wi = node.get_input_layout(layout->w_inject);
+            const auto& si = node.get_input_layout(layout->scale_inject);
             if (wi.is_dynamic() || si.is_dynamic() || wi.get_partial_shape().size() != 2 || si.get_partial_shape().size() != 2 ||
                 wi.get_shape()[0] != desc->hc_count || wi.get_shape()[1] != cd || si.get_shape()[1] != desc->hc_count ||
                 !GrOp::is_write_gate_compression_supported(bits, desc->hc_count, cd, si.get_shape()[0])) {
