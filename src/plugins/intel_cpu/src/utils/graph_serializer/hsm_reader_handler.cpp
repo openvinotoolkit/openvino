@@ -19,7 +19,7 @@
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "utils/graph_serializer/hsm_common.hpp"
-#include "utils/graph_serializer/serializer.hpp"
+#include "utils/graph_serializer/runtime_requirements.hpp"
 
 namespace ov::intel_cpu {
 
@@ -54,11 +54,14 @@ std::string read_compatible_requirements(const runtime::hsm::Section& section) {
     OPENVINO_ASSERT(section.size() <= runtime_requirements_max_size,
                     "[CPU] Cannot import compiled blob: runtime requirements block is too large.");
     auto requirements = read_string(section);
-    OPENVINO_ASSERT(is_runtime_requirements_compatible(requirements),
-                    "[CPU] Cannot import compiled blob: incompatible runtime requirements, blob: ",
-                    requirements,
-                    ", current: ",
-                    build_runtime_requirements());
+    const auto reason = check_runtime_requirements(requirements);
+    OPENVINO_ASSERT(reason.empty(),
+                    "[CPU] Cannot import compiled blob: its runtime requirements are not met by this runtime or "
+                    "device: ",
+                    reason,
+                    ".\n"
+                    "  blob requirements: ",
+                    requirements);
     return requirements;
 }
 
