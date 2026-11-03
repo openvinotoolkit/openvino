@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-03-17-00-30-000-41662992699",
+  "timestamp": "2026-11-03T17:00:30Z",
+  "run_id": "41662992699",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41662992699",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39428",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39428",
+  "author": "mvafin",
+  "category": "Network",
+  "title": "JS API artifact download fails with ListArtifacts ECONNREFUSED on self-hosted Windows runner",
+  "signature": "Failed to ListArtifacts: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "1808e665f1f70825",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "JS API (22)",
+      "conclusion": "failure",
+      "symptom": "akashchi/download-artifact step fails: Failed to ListArtifacts: Unable to make request: ECONNREFUSED while fetching openvino_js_package artifact"
+    }
+  ],
+  "key_errors": [
+    "2026-11-03T16:17:43.1997744Z ##[error]Action failed with error: Failed to ListArtifacts: Unable to make request: ECONNREFUSED",
+    "2026-11-03T16:17:43.2051098Z ##[error]Unable to download artifact(s): Failed to ListArtifacts: Unable to make request: ECONNREFUSED"
+  ],
+  "root_cause": "The self-hosted Windows runner could not reach the GitHub Actions ArtifactService (results.api.v1.ArtifactService/ListArtifacts) endpoint when the download-artifact action attempted to fetch the openvino_js_package artifact, receiving a TCP connection refusal (ECONNREFUSED). This is a transient network/infrastructure connectivity issue between the self-hosted runner and GitHub's artifact storage backend, not a code defect in the PR; a second attempt of the same run (attempt 2) succeeded for the equivalent 'JS API (22)' job on the same commit, confirming the failure was not deterministic.",
+  "reproduction_steps": "N/A - not reproducible outside CI; depends on transient runner-to-GitHub network connectivity at the time of the run.",
+  "recommended_actions": [
+    "Re-run only the failed job(s) (already succeeded on attempt 2 for this run)",
+    "Monitor the self-hosted Windows runner pool for recurring ECONNREFUSED connectivity issues to the GitHub Actions artifact service",
+    "If this signature keeps recurring, consider adding retry/backoff wrapping around akashchi/download-artifact or escalating to infra team for the AKS-hosted runner network egress"
+  ],
+  "prevention_strategies": "Add automatic retry with backoff around artifact download/upload steps on self-hosted runners, and track ECONNREFUSED-to-ArtifactService incidents to detect broader connectivity degradations early.",
+  "historical_context": "This exact signature (Failed to ListArtifacts: Unable to make request: ECONNREFUSED | Network) has been recorded 4 prior times (pattern 1808e665f1f70825, first seen 2026-07-01, last seen 2026-08-28) across unrelated PRs, always resolved by a rerun. Related but distinct ECONNREFUSED signatures exist for CreateArtifact/FinalizeArtifact phases (patterns b6957c2b9e09de1c, 0c33a04c2cbe783c) and other artifact names (b889d24cd154d2dd, c903843ea6da862b)."
+}
