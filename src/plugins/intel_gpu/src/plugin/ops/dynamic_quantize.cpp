@@ -29,9 +29,7 @@ static size_t get_innermost_size(const std::shared_ptr<ov::op::internal::Dynamic
             continue;
         }
 
-        // Weights are [N, K] when transposed, [K, N] otherwise
-        const auto& weights_shape = fc->get_input_partial_shape(1);
-        const auto& ifm = weights_shape[weights_shape.size() - (fc->get_transpose_b() ? 1 : 2)];
+        const auto ifm = op::fc_weight_dims(fc->get_input_partial_shape(1), fc->get_weights_layout()).K;
         if (!ifm.is_static()) {
             continue;
         }

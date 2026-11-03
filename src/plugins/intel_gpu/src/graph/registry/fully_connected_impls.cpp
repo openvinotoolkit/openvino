@@ -28,7 +28,8 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully_connected>::get_implementations() {
     static const auto ocl_supports_weights_layout = [](const program_node& node) {
-        return node.as<fully_connected>().get_primitive()->weights_transposed;
+        const auto& prim = node.as<fully_connected>().get_primitive();
+        return prim->weights_transposed && prim->weights_layout != ov::intel_gpu::op::FcWeightsLayout::GNK;
     };
     // A fused Hadamard input transform is applied only by the TernOCL impl.
     static const auto no_hadamard_input = [](const program_node& node) {

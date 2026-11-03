@@ -25,7 +25,8 @@ public:
                              const ov::element::Type output_type = ov::element::dynamic,
                              const bool transpose_b = true,
                              const bool transpose_b_scale = true,
-                             const bool transpose_b_zp = true);
+                             const bool transpose_b_zp = true,
+                             const std::optional<FcWeightsLayout>& weights_layout = std::nullopt);
 
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
@@ -35,7 +36,8 @@ public:
                              const ov::element::Type output_type = ov::element::dynamic,
                              const bool transpose_b = true,
                              const bool transpose_b_scale = true,
-                             const bool transpose_b_zp = true);
+                             const bool transpose_b_zp = true,
+                             const std::optional<FcWeightsLayout>& weights_layout = std::nullopt);
 
     FullyConnectedCompressed(const ov::Output<Node>& A,
                              const ov::Output<Node>& B,
@@ -44,7 +46,8 @@ public:
                              const ov::element::Type output_type = ov::element::dynamic,
                              const bool transpose_b = true,
                              const bool transpose_b_scale = true,
-                             const bool transpose_b_zp = true);
+                             const bool transpose_b_zp = true,
+                             const std::optional<FcWeightsLayout>& weights_layout = std::nullopt);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
     bool get_transpose_b_scale() const { return m_transpose_b_scale; }

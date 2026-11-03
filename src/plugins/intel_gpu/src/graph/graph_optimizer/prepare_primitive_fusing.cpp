@@ -104,7 +104,6 @@ static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node
     return std::nullopt;
 }
 
-
 void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
@@ -854,6 +853,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
 
+            if (activation_func == cldnn::activation_func::swoosh) {
+                return;
+            }
+
             auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
@@ -1225,7 +1228,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (!can_fuse_parents[i] || !fc.is_type<fully_connected>() || fc.get_input_layout(1).data_type != data_types::u2 ||
                     !fc.get_input_layout(1).is_static())
                     continue;
-                const auto N = static_cast<int64_t>(fc.get_input_layout(1).get_shape()[0]);
+                const auto N = ov::intel_gpu::op::fc_weight_dims(fc.get_input_layout(1).get_partial_shape(),
+                                                                 fc.as<fully_connected>().get_primitive()->weights_layout).N.get_length();
                 const auto& peer = *parents[parents.size() - 1 - i].first;
                 if (!ov::intel_gpu::cm::woq_u2_check_epi_operand(peer.get_output_layout(), node.get_output_layout(), N).empty())
                     can_fuse_parents[i] = false;

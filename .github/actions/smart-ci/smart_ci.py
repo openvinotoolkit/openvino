@@ -15,12 +15,20 @@ from ghapi.all import GhApi
 from fnmatch import fnmatch
 
 
-# Changes limited to agentic (gh-aw) workflow files carry no signal for product CI, so a PR or
+# Changes limited to agentic workflows and rerunner automation carry no signal for product CI, so a PR or
 # merge-queue entry that touches only these always skips the pipeline.
 ALWAYS_SKIPPABLE_FILE_PATTERNS = (
     '.github/workflows/*.md',                          # agentic workflow sources
     '.github/workflows/*.lock.yml',                    # their compiled workflows
     '.github/workflows/shared/agentic-workflows/*',    # shared fragments they import
+    '.github/aw/*',                                  # gh-aw action lock and configuration
+    '.github/ci-doctor*/schemas/*',                   # persisted investigation schemas
+    '.github/scripts/agentic-workflows/*',            # safe-output job scripts
+    '.github/scripts/workflow_rerun/*',              # rerunner code, tests and reviewed error list
+    '.github/workflows/workflow_rerunner.yml',
+    '.github/workflows/agentic_workflows_check.yml',
+    '.claude/skills/ov-agentic-workflows/*',          # agentic workflow guidance
+    '.agents/skills/ov-agentic-workflows/*',
 )
 
 

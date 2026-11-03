@@ -74,6 +74,20 @@ def get_encoding_line_number(file_path: str) -> int:
     return -1
 
 
+def get_header_start_line(file_path: str) -> int:
+    """Return the 0-indexed line where the copyright header must start (after a Python shebang/encoding line)."""
+    encoding_line = get_encoding_line_number(file_path)
+    if encoding_line >= 0:
+        return encoding_line + 1
+    if not file_path.endswith('.py'):
+        return 0
+    try:
+        with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+            return 1 if f.readline().startswith('#!') else 0
+    except Exception:
+        return 0
+
+
 def get_expected_header(file_path: str) -> str:
     """Get the expected copyright header for a file."""
     info = get_file_type_info(file_path)
@@ -99,15 +113,10 @@ def get_file_header(file_path: str, num_lines: int = 3) -> str:
     """Read the first few lines of a file, handling BOM and encoding declaration if present."""
     try:
         with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
-            all_lines = [f.readline() for _ in range(num_lines + 2)]  # Read extra lines to account for encoding
-        
-        # For Python files, skip the encoding line when checking copyright
-        encoding_line = get_encoding_line_number(file_path)
-        if encoding_line >= 0:
-            # Skip encoding line and return the copyright-relevant lines
-            return ''.join(all_lines[encoding_line + 1:encoding_line + 1 + num_lines])
-        
-        return ''.join(all_lines[:num_lines])
+            all_lines = [f.readline() for _ in range(num_lines + 2)]  # Read extra lines to account for shebang/encoding
+
+        header_start = get_header_start_line(file_path)
+        return ''.join(all_lines[header_start:header_start + num_lines])
     except Exception as e:
         print(f"Warning: Could not read {file_path}: {e}")
         return ""
@@ -142,8 +151,7 @@ def generate_diff(file_path: str) -> str:
     comment_style, has_extra_line = info
     current_year = datetime.now().year
 
-    encoding_line = get_encoding_line_number(file_path)
-    header_start = encoding_line + 1 if encoding_line >= 0 else 0
+    header_start = get_header_start_line(file_path)
 
     has_copyright = any('Copyright' in line or 'SPDX-License-Identifier' in line
                         for line in original_lines[header_start:header_start + 5])

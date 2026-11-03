@@ -12,6 +12,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 
@@ -206,7 +207,7 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
     auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
     auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
-    bind_match = [=](const auto& map_sin, const auto& map_cos) {
+    bind_match = [OV_CAPTURE_CPY_AND_THIS](const auto& map_sin, const auto& map_cos) {
         this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
         // concat_1 only participates in the match when the Broadcast node is actually present -
         // when it was folded away (see comment above `broadcast`), concat_1 is left unmatched.
@@ -288,7 +289,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi::LongRopePatternPhi() : matc
     auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
     auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
-    bind_match = [=](const auto& map_sin, const auto& map_cos) {
+    bind_match = [OV_CAPTURE_CPY_AND_THIS](const auto& map_sin, const auto& map_cos) {
         this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
         this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
         this->matched_inv_freq = map_sin.at(inv_freq_short).get_node_shared_ptr();
@@ -366,7 +367,7 @@ ov::npuw::patterns::pre_compute::LongRopePatternPhi_v5::LongRopePatternPhi_v5() 
     auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
     auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
-    bind_match = [=](const auto& map_sin, const auto& map_cos) {
+    bind_match = [OV_CAPTURE_CPY_AND_THIS](const auto& map_sin, const auto& map_cos) {
         this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
         this->matched_concat = map_sin.at(concat_1).get_node_shared_ptr();
         this->matched_short_factor = map_sin.at(short_factor).get_node_shared_ptr();

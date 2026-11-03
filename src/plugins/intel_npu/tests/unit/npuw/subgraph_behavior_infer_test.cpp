@@ -472,7 +472,8 @@ protected:
 };
 
 std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens, bool weight_offsets = false) {
-    constexpr size_t experts = 4, hidden = 8, intermediate = 16, k = 2;
+    size_t experts = 4;  // non-const: the weight lambda below must actually capture it
+    constexpr size_t hidden = 8, intermediate = 16, k = 2;
     auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, hidden});
     auto router = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, experts});
     auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, k});
