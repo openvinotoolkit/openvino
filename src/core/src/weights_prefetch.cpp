@@ -32,35 +32,35 @@ SequentialPrefetchScheduler::SequentialPrefetchScheduler(ov::Tensor tensor, size
     advance(0, 0);
 }
 
-std::shared_ptr<IMemoryHints> SequentialPrefetchScheduler::chunk_hints(size_t begin, size_t end) const {
-    return ov::get_memory_hints(ov::Tensor{m_tensor, ov::Coordinate{begin}, ov::Coordinate{end}});
+std::shared_ptr<IMemoryHints> SequentialPrefetchScheduler::chunk_hints(size_t begin, size_t end) const noexcept {
+    try {
+        return ov::get_memory_hints(ov::Tensor{m_tensor, ov::Coordinate{begin}, ov::Coordinate{end}});
+    } catch (const std::exception&) {
+        return {};
+    }
 }
 
 void SequentialPrefetchScheduler::advance(size_t begin, size_t end) noexcept {
-    try {
-        begin = std::min(begin, m_size);
-        end = std::min(std::max(begin, end), m_size);
-        if (m_evict) {
-            // Whole steps only, the read position may be in the middle of a page.
-            const auto evict_end = begin == m_size ? m_size : begin / m_step * m_step;
-            if (evict_end > m_evicted) {
-                if (const auto hints = chunk_hints(m_evicted, evict_end)) {
-                    hints->hint_evict();
-                }
-                m_evicted = evict_end;
+    begin = std::min(begin, m_size);
+    end = std::min(std::max(begin, end), m_size);
+    if (m_evict) {
+        // Whole steps only, the read position may be in the middle of a page.
+        const auto evict_end = begin == m_size ? m_size : begin / m_step * m_step;
+        if (evict_end > m_evicted) {
+            if (const auto hints = chunk_hints(m_evicted, evict_end)) {
+                hints->hint_evict();
             }
+            m_evicted = evict_end;
         }
-        m_prefetched = std::max(m_prefetched, begin);
-        const auto target = std::min(end + m_window, m_size);
-        while (m_prefetched < target) {
-            const auto chunk_end = std::min(m_prefetched + m_step, m_size);
-            if (const auto hints = chunk_hints(m_prefetched, chunk_end)) {
-                std::ignore = hints->hint_prefetch();
-            }
-            m_prefetched = chunk_end;
+    }
+    m_prefetched = std::max(m_prefetched, begin);
+    const auto target = std::min(end + m_window, m_size);
+    while (m_prefetched < target) {
+        const auto chunk_end = std::min(m_prefetched + m_step, m_size);
+        if (const auto hints = chunk_hints(m_prefetched, chunk_end)) {
+            std::ignore = hints->hint_prefetch();
         }
-    } catch (const std::exception&) {
-        // Hints are advisory, the data is read correctly without them.
+        m_prefetched = chunk_end;
     }
 }
 
