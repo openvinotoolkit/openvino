@@ -63,6 +63,9 @@ constexpr const char* NUM_K_HEADS = "num_k_heads";
 constexpr const char* K_HEAD_SIZE = "k_head_size";
 constexpr const char* NUM_V_HEADS = "num_v_heads";
 constexpr const char* V_HEAD_SIZE = "v_head_size";
+// See new_plan.md Phase 5: read by the GPU plugin's CreatePagedAttentionExtensionOp alongside the
+// optional 29th `chunk_base_ptrs` input.
+constexpr const char* BLOCKS_PER_CHUNK = "blocks_per_chunk";
 using namespace ov::pass;
 using ov::OutputVector;
 
@@ -879,12 +882,24 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
             pa_arguments.insert(pa_arguments.begin() + 26, v0::Constant::create(element::u8, Shape{0}, {}));
             pa_arguments.insert(pa_arguments.begin() + 27, v0::Constant::create(element::i32, Shape{0}, {}));
         }
-        OPENVINO_ASSERT(pa_arguments.size() == 28);
+
+        // See new_plan.md Phase 5: unlike every other optional feature above, this is emitted as a
+        // variable input count (28 or 29) rather than an always-present empty-tensor placeholder, to
+        // minimize the blast radius on the op's other, already-numerous consumers.
+        if (options.allow_chunked_kv_cache) {
+            auto chunk_base_ptrs_name = "chunk_base_ptrs." + std::to_string(m_layer_index);
+            auto chunk_base_ptrs = pa_params.add(chunk_base_ptrs_name, element::i64, PartialShape{-1});
+            pa_arguments.push_back(chunk_base_ptrs);
+        }
+        OPENVINO_ASSERT(pa_arguments.size() == 28 || pa_arguments.size() == 29);
 
         auto paged_attention =
             std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments, kv_params.write_kv_cache);
         paged_attention->get_rt_info()[NUM_K_HEADS] = num_k_heads;
         paged_attention->get_rt_info()[K_HEAD_SIZE] = k_head_size;
+        if (options.allow_chunked_kv_cache) {
+            paged_attention->get_rt_info()[BLOCKS_PER_CHUNK] = static_cast<int64_t>(options.kv_cache_blocks_per_chunk);
+        }
         paged_attention->get_rt_info()[NUM_V_HEADS] = num_v_heads;
         paged_attention->get_rt_info()[V_HEAD_SIZE] = v_head_size;
 

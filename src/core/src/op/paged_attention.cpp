@@ -82,8 +82,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 28,
-                          "PagedAttensionExtension expects 28 inputs, but it has ",
+                          get_input_size() == 28 || get_input_size() == 29,
+                          "PagedAttensionExtension expects 28 or 29 inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -116,6 +116,9 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 25, "token_type_ids", {1, 2}, {element::i32});
     input_check(this, 26, "qq_bias", {1}, {element::u8});
     input_check(this, 27, "qq_bias_begins", {1}, {element::i32});
+    if (get_input_size() == 29) {
+        input_check(this, 28, "chunk_base_ptrs", {1}, {element::i64});
+    }
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);

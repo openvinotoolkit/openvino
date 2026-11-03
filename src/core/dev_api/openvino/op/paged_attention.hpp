@@ -55,6 +55,13 @@ public:
     /// 25  token_type_ids                                   [B_token] or [B_token, 1], i32  optional
     /// 26  qq_bias                                          [total_bias_bytes], u8    optional
     /// 27  qq_bias_begins                                   [B_seq + 1], i32          optional
+    /// 28  chunk_base_ptrs                                  [max_chunks], i64         optional (see
+    ///     new_plan.md Phase 5: absent (28 inputs) or empty means key_cache/value_cache are single,
+    ///     contiguous allocations addressed the legacy way; when present, key_cache/value_cache are
+    ///     interpreted as a flat block-id space split across `max_chunks` equally-sized, independently
+    ///     allocated USM device chunks, and this input holds each chunk's base device pointer (as a
+    ///     bit-cast i64) so it can be plumbed to the plugin as a regular graph input rather than a
+    ///     compile-time constant.
     explicit PagedAttentionExtension(const ov::OutputVector& args, bool write_kv_cache = true);
 
     void validate_and_infer_types() override;
@@ -66,6 +73,12 @@ public:
 
     bool get_write_kv_cache() const {
         return m_write_kv_cache;
+    }
+
+    /// \return Whether this node was constructed with the optional 29th `chunk_base_ptrs` input (see
+    /// new_plan.md Phase 5). Never true for the 28-input legacy shape.
+    bool has_chunk_base_ptrs() const {
+        return get_input_size() == 29;
     }
 
 protected:
