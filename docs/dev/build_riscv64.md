@@ -14,7 +14,7 @@ The software was validated on the following devices:
 
 - [CMake](https://cmake.org/download/) 3.26 or higher
 - GCC 7.5 or higher (for non-RVV) / [riscv-gnu-toolchain](https://github.com/riscv-collab/riscv-gnu-toolchain.git) (for RVV)
-- Python 3.10 for OpenVINO Runtime Python API
+- Python 3.10 for the optional OpenVINO Runtime Python API cross-build described below
 
 ## How to build
 Currently, there are two ways to build OpenVINO Runtime for 64-bit RISC-V platforms:
@@ -109,7 +109,9 @@ When installing packages using the utilities `apt` or `apt-get` the packages are
 
 3. Add the keys `-DENABLE_PYTHON=ON -DENABLE_WHEEL=ON` to cmake command during OpenVINO build.
 
-> **Note**: Currently only Python 3.10 on Ubuntu 22.04 is verified. So the target device must have Python 3.10 in this case.
+> **Note**: This optional Python 3.10 cross-build is not exercised by the current GitHub Actions
+> RISC-V workflow, which builds the C++ Runtime with `ENABLE_PYTHON=OFF`. The target device must
+> provide Python 3.10 when using these manually verified instructions.
 
 ### RISC-V Emulation software
 In order to test applications without hardware one can use emulation software. The command line example to launch executable file with riscv64 emulation:

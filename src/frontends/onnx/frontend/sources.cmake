@@ -132,6 +132,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/max.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/max_pool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/max_roi_pool.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/max_unpool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/mean.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/mean_variance_normalization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/min.cpp
@@ -216,6 +217,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/swish.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tan.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tanh.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/tensor_scatter.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/thresholded_relu.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/tile.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/topk.cpp

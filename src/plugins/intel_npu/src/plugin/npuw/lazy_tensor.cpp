@@ -4,9 +4,15 @@
 
 #include "lazy_tensor.hpp"
 
+#include <limits>
 #include <tuple>
 #include <type_traits>
 #include <variant>
+
+#ifdef __ANDROID__
+#    include <fcntl.h>
+#    include <unistd.h>
+#endif
 
 #include "logging.hpp"
 #include "openvino/core/memory_util.hpp"
@@ -167,10 +173,42 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     }
 }
 
+// The weight has been copied to its destination and is not needed anymore: drop its file range from the page cache
+// right away instead of leaving it there for the reclaim, so the weights do not pile up in the page cache during the
+// model load. This has to happen after the mapping is released, pages that are still mapped cannot be dropped.
+// TODO: Enabled only on Android for now, until a generic fix is found.
+static void drop_file_range(const std::string& path,
+                            const ov::FileHandleProvider& provider,
+                            std::size_t offset,
+                            std::size_t size) {
+#if defined(__ANDROID__) && defined(POSIX_FADV_DONTNEED)
+    if (size == 0 || (path.empty() && !provider) ||
+        offset + size > static_cast<std::size_t>(std::numeric_limits<off_t>::max())) {
+        return;
+    }
+    // The handle provider returns a new file descriptor on every call, the caller owns it
+    const int fd = provider ? provider() : ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        return;
+    }
+    ::posix_fadvise(fd, static_cast<off_t>(offset), static_cast<off_t>(size), POSIX_FADV_DONTNEED);
+    ::close(fd);
+#else
+    static_cast<void>(path);
+    static_cast<void>(provider);
+    static_cast<void>(offset);
+    static_cast<void>(size);
+#endif
+}
+
 void Const::detach() {
     m_node.reset();
     m_read_from_bin = ov::Tensor();
+    const bool was_mapped = m_mmaped_weights != nullptr;
     m_mmaped_weights.reset();
+    if (was_mapped) {
+        drop_file_range(m_weights_path, m_handle_provider, m_offset, m_byte_size);
+    }
 }
 
 std::size_t Concat::hash() const {

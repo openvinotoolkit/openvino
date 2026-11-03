@@ -44,6 +44,12 @@ bool SDPAOpt::has_per_channel_compressed_kv(const kernel_impl_params& params) {
 class SDPAOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
+
+    // The micro-kernel stage (SDPAMicroGenerator) dispatches based on subsequence_begins/max_context_len contents
+    bool supports_replay() const override {
+        return false;
+    }
+
     static constexpr bool indirect = true;
     static constexpr bool prefill = true;
 
@@ -126,6 +132,7 @@ public:
         const auto& params = *instance.get_impl_params();
         auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
         bool is_prefill = is_prefill_stage(new_params);
+        const bool use_multi_tokens = is_prefill || unaligned_head_size(new_params);
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
@@ -139,8 +146,8 @@ public:
         const bool is_int4_kv = is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
         const bool is_per_channel_kv = SDPAOpt::has_per_channel_compressed_kv(new_params);
 
-        if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
-            GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
+        if (has_stage(regular_micro_multi_tokens) && use_multi_tokens && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
+            GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
         }
 #endif
@@ -148,8 +155,8 @@ public:
         // So far this case was observed only from the non-lm models such as vision embedding model.
         // If we need to optimize unaligned head size SDPA for 2nd+ token phase of LM model,
         // we'll need to fix single_token kernel to support unaligned head size.
-        if (is_prefill || unaligned_head_size(new_params)) {
-            GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
+        if (use_multi_tokens) {
+            GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -191,8 +198,43 @@ public:
     }
 };
 
+bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (!desc->is_kv_compressed || desc->quantization_attributes.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
+        desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
+        return false;
+    }
+
+    const auto& k_layout = params.get_input_layout(1);
+    if (!data_type_traits::is_i8_u8(k_layout.data_type) && !data_type_traits::is_i4_u4(k_layout.data_type)) {
+        return false;
+    }
+
+    // Per-channel compressed KV is only supported by the micro kernel, so it cannot be taken over by the
+    // regular stages and is not supposed to match here.
+    if (has_per_channel_compressed_kv(params)) {
+        return false;
+    }
+
+    const auto data_inputs_num = get_data_inputs_num(*desc);
+    return params.get_input_layout(data_inputs_num + 2).data_type == ov::element::bf16;
+#else
+    UNUSED(params);
+    return false;
+#endif
+}
+
 bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): force the SDPA backend onto the OCL sdpa_opt kernel
+    // instead of the oneDNN-derived micro kernel, for accuracy A/B without rebuilding.
+    if (!params.get_program().get_config().get_enable_sdpa_micro()) {
+        GPU_DEBUG_TRACE_DETAIL << "[GPU] SDPA micro kernel DISABLED via OV_GPU_ENABLE_SDPA_MICRO=0; "
+                                  "falling back to OCL sdpa_opt kernel.\n";
+        return false;
+    }
+
     auto& engine = params.get_program().get_engine();
     const auto& device_info = engine.get_device_info();
     auto desc = params.typed_desc<scaled_dot_product_attention>();
@@ -254,6 +296,13 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     // Known limitation: In vision encoding model of qwen-vl, when the shape of sdpa is 3D and num_heads is 1,
     // there is an accuracy issue with sdpa_micro kernel. Therefore, it is currently restricted to execute with sdpa_opt kernel.
     const bool is_output_rank_4d = desc->output_transpose_order.size() == 4;
+
+    // Asymmetric compressed KV with a bf16 zero-point buffer must not use the oneDNN micro SDPA stage:
+    // It emits NaN output and oneDNN own tests haven't test this combination yet
+    if (has_bf16_compressed_kv_zero_point(params)) {
+        return false;
+    }
+
     return is_output_rank_4d;
 #else
     return false;

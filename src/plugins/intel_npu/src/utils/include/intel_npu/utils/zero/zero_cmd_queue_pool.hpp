@@ -33,9 +33,9 @@ struct ZeroCmdQueueKey {
 struct ZeroCmdQueueKeyHash {
     size_t operator()(const ZeroCmdQueueKey& key) const {
         uint64_t hash = zero_hashing::kFnvOffsetBasis64;
-        hash = zero_hashing::hash_combine64(hash, std::hash<void*>{}(key.context));
-        hash = zero_hashing::hash_combine64(hash, std::hash<void*>{}(key.device));
-        hash = zero_hashing::hash_combine64(hash, key.desc.key());
+        hash = zero_hashing::hashCombine64(hash, std::hash<void*>{}(key.context));
+        hash = zero_hashing::hashCombine64(hash, std::hash<void*>{}(key.device));
+        hash = zero_hashing::hashCombine64(hash, key.desc.key());
 
         return static_cast<size_t>(hash);
     }

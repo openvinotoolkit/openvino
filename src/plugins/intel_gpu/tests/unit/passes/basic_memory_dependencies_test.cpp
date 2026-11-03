@@ -6,6 +6,8 @@
 #include "random_generator.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/primitives/fully_connected.hpp"
+#include "openvino/core/symbol.hpp"
 
 #include "intel_gpu/graph/network.hpp"
 #include "data_inst.h"
@@ -183,8 +185,8 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
     for (const auto& fused_desc : conv3_node.get_fused_primitives()) {
         if (!fused_desc.is_type<eltwise>() || !fused_desc.has_outer_dep())
             continue;
-        const auto add_fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(conv3_node, fused_desc);
-        if (add_fusing_type != onednn_add_fusing_helpers::add_fusing_type::sum)
+        const auto add_fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(conv3_node, fused_desc);
+        if (add_fusing_type != onednn_eltwise_fusing_helpers::add_fusing_type::sum)
             continue;
         const auto outer_dep_idx = static_cast<size_t>(fused_desc.outer_dep_start_idx);
         if (outer_dep_idx >= conv3_node.get_dependencies().size())
@@ -198,7 +200,7 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
         << "ICNet pattern requires eltwise(sum) fused INTO conv3 with resample as outer dep";
 
     // conv3 should expose a valid reused eltwise mem idx pointing to resample.
-    int conv3_reused_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(conv3_node);
+    int conv3_reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(conv3_node);
     ASSERT_GE(conv3_reused_idx, 0);
     auto conv3_inst = net.get_primitive("conv3");
     ASSERT_LT(static_cast<size_t>(conv3_reused_idx), conv3_inst->dependencies().size());
@@ -235,4 +237,98 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
             << " abs_tolerance=" << abs_tolerance;
     }
 }
+
+// oneDNN FC with a fused eltwise prod uses binary_mul_inplace: the FC dst aliases the buffer of the
+// prod input ("mul_data"). "x" runs between the FC and its last user ("sum"), so unless "x" is restricted
+// against "mul_data" as well as the FC, the pool may give it that buffer and overwrite the FC result before "sum" reads it.
+class basic_memory_dependencies_mul_inplace : public ::testing::TestWithParam<bool> {};
+TEST_P(basic_memory_dependencies_mul_inplace, fc_output_is_not_reused) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    const bool is_dynamic = GetParam();
+    const int64_t ifm = 64, ofm = 32;
+    const std::vector<int64_t> batches = is_dynamic ? std::vector<int64_t>{16, 32, 8} : std::vector<int64_t>{16};
+
+    // can_use_mul_inplace() matches dynamic dims by symbol, as SymbolicPropagation sets them in the plugin.
+    auto batch_dim = is_dynamic ? ov::Dimension::dynamic() : ov::Dimension(batches[0]);
+    if (is_dynamic)
+        batch_dim.set_symbol(std::make_shared<ov::Symbol>());
+
+    tests::random_generator rg;
+    rg.set_seed("basic_memory_dependencies_mul_inplace");
+    auto weights_layout = layout{ov::PartialShape{ofm, ifm}, data_types::f16, format::bfyx};
+    auto weights_mem = engine.allocate_memory(weights_layout);
+    set_values(weights_mem, rg.generate_random_1d<ov::float16>(weights_layout.count(), -1, 1));
+
+    // Each network needs its own topology: on dGPU, transfer_memory_to_device() resets the mem of the "weights" data primitive.
+    auto make_topology = [&]() {
+        return topology(input_layout("input", layout{ov::PartialShape{batch_dim, ifm}, data_types::f16, format::bfyx}),
+                        input_layout("mul_in", layout{ov::PartialShape{batch_dim, ofm}, data_types::f16, format::bfyx}),
+                        data("weights", weights_mem),
+                        activation("mul_data", input_info("mul_in"), activation_func::abs),
+                        fully_connected("fc", input_info("input"), "weights", "", 2),
+                        eltwise("mul", input_info("fc"), input_info("mul_data"), eltwise_mode::prod),
+                        softmax("softmax", input_info("mul"), 1),
+                        softmax("x", input_info("softmax"), 1),
+                        eltwise("sum", input_info("mul"), input_info("x"), eltwise_mode::sum),
+                        reorder("out", input_info("sum"), format::bfyx, data_types::f32));
+    };
+
+    auto make_config = [&](bool enable_memory_pool) {
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::enable_memory_pool(enable_memory_pool));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"fc", ov::intel_gpu::ImplementationDesc{format::bfyx, "", impl_types::onednn}}}));
+        return config;
+    };
+
+    network net_ref(engine, make_topology(), make_config(false));
+    network net(program::build_program(engine, make_topology(), make_config(true)), 0);
+
+    auto& fc_node = net.get_program()->get_node("fc");
+    const auto reused_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(fc_node);
+    ASSERT_NE(reused_idx, -1) << "eltwise prod is expected to be fused into the oneDNN FC as binary_mul_inplace";
+    ASSERT_EQ(fc_node.get_dependency(reused_idx).id(), "mul_data");
+    ASSERT_TRUE(fc_node.get_dependency(reused_idx).can_share_buffer()) << "the aliased buffer is expected to stay in the memory pool";
+    const auto mul_data_id = static_cast<uint32_t>(fc_node.get_dependency(reused_idx).get_unique_id());
+    ASSERT_TRUE(net.get_program()->get_node("x").has_memory_dependency(mul_data_id));
+
+    for (const auto batch : batches) {
+        auto input_mem = engine.allocate_memory(layout{ov::PartialShape{batch, ifm}, data_types::f16, format::bfyx});
+        auto mul_mem = engine.allocate_memory(layout{ov::PartialShape{batch, ofm}, data_types::f16, format::bfyx});
+        set_values(input_mem, rg.generate_random_1d<ov::float16>(input_mem->count(), -1, 1));
+        set_values(mul_mem, rg.generate_random_1d<ov::float16>(mul_mem->count(), -1, 1));
+
+        net_ref.set_input_data("input", input_mem);
+        net_ref.set_input_data("mul_in", mul_mem);
+        auto out_ref = net_ref.execute().at("out").get_memory();
+
+        net.set_input_data("input", input_mem);
+        net.set_input_data("mul_in", mul_mem);
+        auto out = net.execute().at("out").get_memory();
+
+        ASSERT_EQ(out_ref->count(), out->count());
+        {
+            cldnn::mem_lock<float> ref_ptr(out_ref, get_test_stream());
+            cldnn::mem_lock<float> out_ptr(out, get_test_stream());
+            for (size_t i = 0; i < out_ref->count(); i++) {
+                ASSERT_NEAR(ref_ptr[i], out_ptr[i], 1e-2f) << "batch=" << batch << ", index " << i;
+            }
+        }
+
+        auto fc_mem = net.get_primitive("fc")->output_memory_ptr();
+        ASSERT_TRUE(engine.is_the_same_buffer(*fc_mem, *net.get_primitive("mul_data")->output_memory_ptr()))
+            << "batch=" << batch << ": FC dst is expected to alias the binary_mul_inplace input";
+        ASSERT_FALSE(engine.is_the_same_buffer(*fc_mem, *net.get_primitive("x")->output_memory_ptr()))
+            << "batch=" << batch << ": 'x' reuses the FC dst buffer while the FC result is still needed";
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, basic_memory_dependencies_mul_inplace, ::testing::Bool(), [](const ::testing::TestParamInfo<bool>& info) {
+    return info.param ? "dynamic" : "static";
+});
 #endif  // ENABLE_ONEDNN_FOR_GPU

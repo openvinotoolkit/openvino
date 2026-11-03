@@ -31,21 +31,24 @@ KERNEL(rms_gpu_ref)(
     #endif
 )
 {
-#if NORMALIZE_X
+#if NORMALIZE_X || NORMALIZE_FEATURE
     const uint outer_z_size = INPUT0_SIZE_Z;
     const uint outer_y_size = INPUT0_SIZE_Y;
+    const uint outer_x_size = NORMALIZE_FEATURE ? INPUT0_SIZE_X : 1;
 #else
     const uint outer_z_size = 1;
     const uint outer_y_size = 1;
+    const uint outer_x_size = 1;
 #endif
 
     for (uint outer_z = 0; outer_z < outer_z_size; outer_z++) {
         for (uint outer_y = 0; outer_y < outer_y_size; outer_y++) {
+            for (uint outer_x = 0; outer_x < outer_x_size; outer_x++) {
             uint b = get_global_id(0);
             uint f = get_global_id(1);
             uint z = outer_z;
             uint y = outer_y;
-            uint x = 0;
+            uint x = outer_x;
 
             ACCUMULATOR_TYPE rms = ACCUMULATOR_VAL_ZERO;
             for (uint n = 0; n < NORM_SIZE; n++) {
@@ -73,6 +76,7 @@ KERNEL(rms_gpu_ref)(
                     result = FUSED_OPS_RESULT;
                 #endif
                 output[output_idx] = result;
+            }
             }
         }
     }

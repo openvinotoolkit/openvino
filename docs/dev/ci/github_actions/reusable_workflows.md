@@ -25,12 +25,13 @@ For example, the [`job_python_unit_tests.yml`](./../../../../.github/workflows/j
 ```yaml
   Python_Unit_Tests:
     name: Python unit tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
 ```
 
 ## Using Reusable Workflows
@@ -41,12 +42,13 @@ reusable workflow example in the [`ubuntu_22.yml`](./../../../../.github/workflo
 ```yaml
   Python_Unit_Tests:
     name: Python unit tests
-    needs: [ Build, Smart_CI ]
+    needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "openvinogithubactions.azurecr.io/dockerhub/ubuntu:20.04", "volumes": ["/mount:/mount"]}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
 ```
 where:
 * `name` - the display name of the job;
@@ -63,7 +65,7 @@ To reduce duplication while adding similar stages to several workflows, create a
 In the OpenVINO GitHub Actions CI, reusable workflows typically have:
 * the filename starting with `job_`, for example, [`job_cxx_unit_tests.yml`](./../../../../.github/workflows/job_cxx_unit_tests.yml)
 * the `runner` input, specifying the runner name used to execute the steps in a job. Learn more about [available runners and how to use them](./runners.md)
-* the `container` input represented as a JSON, which is converted to the value of the "container" configuration for the job. Learn more about [using Docker in the workflows](./docker_images.md)
+* the `image` input, specifying the Docker image used by the reusable job. The reusable workflow defines its required container mounts. Learn more about [using Docker in the workflows](./docker_images.md)
 * *Optional* the `affected-components` input, indicating components affected by changes in the commit defined by the Smart CI Action. Learn more about the [Smart CI system](./smart_ci.md)
 
 >**NOTE**: All workflows should be placed under [`./.github/workflows`](./../../../../.github/workflows) according to the [GitHub documentation](https://docs.github.com/en/actions/using-workflows/about-workflows#about-workflows).
