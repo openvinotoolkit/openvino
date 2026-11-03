@@ -90,6 +90,7 @@ bool is_moe_otd_eligible(const ov::Node* node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(current->input_value(index).get_node_shared_ptr());
             if (!constant || get_moe_constant_role(constant) != MoEConstantRole::OffloadableRoutedExpert)
                 return false;
+            // Propagate resident fallback across MoEs sharing routed constants.
             for (const auto& consumer : constant->get_output_target_inputs(0)) {
                 pending.push_back(consumer.get_node());
             }
