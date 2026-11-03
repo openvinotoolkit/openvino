@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-03-23-34-45-000-41721476029",
+  "timestamp": "2026-11-03T23:34:45Z",
+  "run_id": "41721476029",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41721476029",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "39286",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39286",
+  "author": "p-wysocki",
+  "category": "Flaky Test",
+  "title": "smoke/TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch",
+  "signature": "test keras lstm flags numerical mismatch with dropout float32|Flaky Test",
+  "signature_hash": "a284d27dfee44614",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "test_keras_lstm_flags_float32 AssertionError: small numerical mismatch (~0.08 abs diff) between CPU plugin and TF framework LSTM outputs"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the TensorFlow Layer Tests job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED install\\tests\\layer_tests\\tensorflow2_keras_tests\\test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[ ie_device:CPU - precision: - params:{'input_names': ['x'], 'input_shapes': [[4, 8, 3]], 'input_type': tf.float32, 'dropouts': (0.1, 0.3), 'units': 3, 'activation': 'relu', 'use_bias': False, 'recurrent_activation': 'tanh', 'flags': True} ] - AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[ 1.313843 ,  0.90262663,  0.        ], [-0.90329784, -0. ,  0.        ], [-1.0748601 ,  5.032642  , -5.95437   ], [-7.013312  , -2.3230479 ,  0.        ]], dtype=float32)}; framework_res={'output_0': ... array([[ 1.3157017 ,  0.90409726,  0.        ], [-0.9064668 , -0. ,  0.        ], [-0.98900056,  5.032561  , -5.9528804 ], [-7.0111737 , -2.321133  ,  0.        ]], dtype=float32)>}."
+  ],
+  "root_cause": "This is a known, previously-recorded flaky test (pattern a284d27dfee44614, now at 5 occurrences across unrelated PRs since 2026-08-27). TestKerasLSTM::test_keras_lstm_flags_float32 uses dropout (0.1, 0.3) on an LSTM layer, which TF implements with internal, framework-controlled random masking that is not bit-reproducible against the CPU plugin's reference LSTM evaluation. The resulting output differs from the TF framework reference by a small but non-zero margin (third decimal place, e.g. -1.07 vs -0.99), occasionally exceeding the test's comparison tolerance. The failure is not linked to the current PR's Histc-17 changes (none of PR #39286's changed files touch LSTM/RNN code paths), confirming it is an environment/test-tolerance flakiness rather than a regression introduced by this PR.",
+  "reproduction_steps": "Run locally: `pytest install/tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k flags_float32 --device CPU` repeatedly; failure is intermittent and dropout-seed dependent, so multiple runs may be needed to reproduce.",
+  "recommended_actions": [
+    "Increase the comparison tolerance (eps/rtol) for TestKerasLSTM::test_keras_lstm_flags_float32 when dropout is enabled, or mark the dropout-enabled LSTM parametrization as xfail/flaky given 5 recorded recurrences.",
+    "Consider disabling dropout during TF reference generation (model.trainable=False / dropout rate 0 at inference) so the comparison is deterministic.",
+    "Track ticket for a permanent fix instead of relying on reruns indefinitely; the rerun pattern has already masked 5 occurrences."
+  ],
+  "prevention_strategies": "Add tolerance scaling or deterministic-mode handling for any test that exercises dropout-containing layers at inference time, since TF's dropout behavior during evaluation should be a no-op but numerically interacts with random-state initialization; review the test's `ir_version`/precision thresholds for LSTM+dropout parametrizations specifically.",
+  "historical_context": "Recorded 5 times since 2026-08-27 (first occurrence) across unrelated PRs (#37611, #37654, #38168, #39121, and now #39286); also a related but distinctly-signed prior pattern (134f01149f41adcc, 3 occurrences 2026-06-26 to 2026-07-01) with the same symptom but different normalization. Always resolves via workflow rerun; no code fix has been merged yet."
+}
