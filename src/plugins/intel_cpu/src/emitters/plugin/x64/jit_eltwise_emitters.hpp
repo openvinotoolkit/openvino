@@ -193,6 +193,7 @@ private:
 
     bool m_pythondiv = true;
     size_t aux_vecs_count() const override;
+    size_t aux_gprs_count() const override;
 };
 
 class jit_mod_emitter : public jit_emitter {
@@ -218,6 +219,7 @@ private:
 
     bool m_pythondiv = true;
     size_t aux_vecs_count() const override;
+    size_t aux_gprs_count() const override;
 };
 
 class jit_maximum_emitter : public jit_emitter {
