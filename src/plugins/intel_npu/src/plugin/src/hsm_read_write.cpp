@@ -228,10 +228,18 @@ void write_to(std::ostream& stream, const BlobSectionsRegistry& blob_sections_re
     while (!write_queue.empty()) {
         const std::shared_ptr<ISection>& section = write_queue.front();
         write_queue.pop();
-        deferred_writer->add_section(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
-                                     build_section_tag(section),
-                                     section,
-                                     section->get_alignment());
+
+        if (section->is_inline()) {
+            deferred_writer->add_section(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
+                                         build_section_tag(section),
+                                         section->encode(),
+                                         section->get_alignment());
+        } else {
+            deferred_writer->add_section(static_cast<ov::runtime::hsm::DeviceId>(ov::runtime::hsm::Devices::npu),
+                                         build_section_tag(section),
+                                         section,
+                                         section->get_alignment());
+        }
     }
 
     deferred_writer->finalize();

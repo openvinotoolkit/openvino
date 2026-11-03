@@ -23,11 +23,11 @@ std::vector<std::shared_ptr<CREToken>> EncryptedSchedulesFlagSection::get_compat
     return {std::make_shared<SectionType>(get_type())};
 }
 
-void EncryptedSchedulesFlagSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "EncryptedSchedulesFlagSection::write");
-    m_logger.debug("Writing the encryption flag %lu", m_flag);
+ov::util::MemoryView EncryptedSchedulesFlagSection::encode() const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "EncryptedSchedulesFlagSection::encode");
+    m_logger.debug("Encoding the encryption flag %d", m_flag);
 
-    sink({reinterpret_cast<const std::byte*>(&m_flag), sizeof(m_flag)});
+    return ov::util::MemoryView(reinterpret_cast<const std::byte*>(&m_flag), sizeof(m_flag));
 }
 
 bool EncryptedSchedulesFlagSection::get_flag() const {

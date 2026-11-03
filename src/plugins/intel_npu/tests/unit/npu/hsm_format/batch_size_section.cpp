@@ -24,7 +24,6 @@ protected:
 
     int64_t batch_size;
     std::shared_ptr<BatchSizeSection> section;
-    std::stringstream stream;
 };
 
 TEST_F(BatchSizeSectionTest, CtorSetsTheRightValue) {
@@ -56,12 +55,11 @@ TEST_F(BatchSizeSectionTest, NullIndividualReqs) {
 }
 
 TEST_F(BatchSizeSectionTest, Write) {
-    section->encode(create_generic_section_sink(stream));
+    const ov::util::MemoryView encoded_batch_size = section->encode();
+    ASSERT_EQ(encoded_batch_size.size(), sizeof(batch_size));
 
     int64_t parsed_batch_size;
-    ASSERT_TRUE(stream.good());
-    stream.read(reinterpret_cast<char*>(&parsed_batch_size), sizeof(parsed_batch_size));
-    ASSERT_TRUE(stream.good());
+    std::memcpy(&parsed_batch_size, encoded_batch_size.data(), encoded_batch_size.size());
     EXPECT_EQ(parsed_batch_size, batch_size);
 }
 
@@ -77,11 +75,11 @@ TEST_F(BatchSizeSectionTest, Read) {
 }
 
 TEST_F(BatchSizeSectionTest, WriteRead) {
-    section->encode(create_generic_section_sink(stream));
+    const ov::util::MemoryView encoded_batch_size = section->encode();
+    ASSERT_EQ(encoded_batch_size.size(), sizeof(batch_size));
 
-    const std::string buffer = stream.str();
     ov::runtime::hsm::ManifestEntry manifest_entry = create_manifest_entry_of_type(SectionTypeCode::BATCH_SIZE, true);
-    std::memcpy(&manifest_entry.inline_bytes, buffer.data(), buffer.size());
+    std::memcpy(&manifest_entry.inline_bytes, encoded_batch_size.data(), encoded_batch_size.size());
 
     auto read_section = BatchSizeSection::decode(ov::runtime::hsm::Section(manifest_entry));
     ASSERT_TRUE(read_section.has_value());

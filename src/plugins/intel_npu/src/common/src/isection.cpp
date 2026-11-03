@@ -35,6 +35,14 @@ bool ISection::is_inline() const {
     return m_is_inline;
 }
 
+void ISection::encode(const ov::runtime::hsm::SectionSink&) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+ov::util::MemoryView ISection::encode() const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 std::optional<std::string> ISection::get_individual_compatibility_requirements() const {
     // No individual requirements by default
     return std::nullopt;

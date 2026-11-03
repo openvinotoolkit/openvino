@@ -24,7 +24,6 @@ protected:
 
     int32_t compiler_version;
     std::shared_ptr<CompilerVersionSection> section;
-    std::stringstream stream;
 };
 
 TEST_F(CompilerVersionSectionTest, CtorSetsTheRightValue) {
@@ -53,12 +52,11 @@ TEST_F(CompilerVersionSectionTest, IsInline) {
 }
 
 TEST_F(CompilerVersionSectionTest, Write) {
-    section->encode(create_generic_section_sink(stream));
+    const ov::util::MemoryView encoded_version = section->encode();
+    ASSERT_EQ(encoded_version.size(), sizeof(compiler_version));
 
     int32_t parsed_compiler_version;
-    ASSERT_TRUE(stream.good());
-    stream.read(reinterpret_cast<char*>(&parsed_compiler_version), sizeof(parsed_compiler_version));
-    ASSERT_TRUE(stream.good());
+    std::memcpy(&parsed_compiler_version, encoded_version.data(), encoded_version.size());
     EXPECT_EQ(parsed_compiler_version, compiler_version);
 }
 
@@ -75,12 +73,12 @@ TEST_F(CompilerVersionSectionTest, Read) {
 }
 
 TEST_F(CompilerVersionSectionTest, WriteRead) {
-    section->encode(create_generic_section_sink(stream));
+    const ov::util::MemoryView encoded_version = section->encode();
+    ASSERT_EQ(encoded_version.size(), sizeof(compiler_version));
 
-    const std::string buffer = stream.str();
     ov::runtime::hsm::ManifestEntry manifest_entry =
         create_manifest_entry_of_type(SectionTypeCode::COMPILER_VERSION, true);
-    std::memcpy(&manifest_entry.inline_bytes, buffer.data(), buffer.size());
+    std::memcpy(&manifest_entry.inline_bytes, encoded_version.data(), encoded_version.size());
 
     auto read_section = CompilerVersionSection::decode(ov::runtime::hsm::Section(manifest_entry));
     ASSERT_TRUE(read_section);

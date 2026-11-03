@@ -28,7 +28,6 @@ protected:
 
     bool encrypted_flag;
     std::shared_ptr<EncryptedSchedulesFlagSection> section;
-    std::stringstream stream;
 };
 
 TEST_P(EncryptedSchedulesFlagSectionTest, CtorSetsTheRightValue) {
@@ -60,12 +59,11 @@ TEST_P(EncryptedSchedulesFlagSectionTest, IsInline) {
 }
 
 TEST_P(EncryptedSchedulesFlagSectionTest, Write) {
-    section->encode(create_generic_section_sink(stream));
+    const ov::util::MemoryView encoded_flag = section->encode();
+    ASSERT_EQ(encoded_flag.size(), sizeof(encrypted_flag));
 
     bool parsed_flag;
-    ASSERT_TRUE(stream.good());
-    stream.read(reinterpret_cast<char*>(&parsed_flag), sizeof(parsed_flag));
-    ASSERT_TRUE(stream.good());
+    std::memcpy(&parsed_flag, encoded_flag.data(), encoded_flag.size());
     EXPECT_EQ(parsed_flag, encrypted_flag);
 }
 
@@ -82,12 +80,12 @@ TEST_P(EncryptedSchedulesFlagSectionTest, Read) {
 }
 
 TEST_P(EncryptedSchedulesFlagSectionTest, WriteRead) {
-    section->encode(create_generic_section_sink(stream));
+    const ov::util::MemoryView encoded_flag = section->encode();
+    ASSERT_EQ(encoded_flag.size(), sizeof(encrypted_flag));
 
-    const std::string buffer = stream.str();
     ov::runtime::hsm::ManifestEntry manifest_entry =
         create_manifest_entry_of_type(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, true);
-    std::memcpy(&manifest_entry.inline_bytes, buffer.data(), buffer.size());
+    std::memcpy(&manifest_entry.inline_bytes, encoded_flag.data(), encoded_flag.size());
 
     auto read_section = EncryptedSchedulesFlagSection::decode(ov::runtime::hsm::Section(manifest_entry));
     ASSERT_TRUE(read_section);

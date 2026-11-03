@@ -27,11 +27,11 @@ int64_t BatchSizeSection::get_batch_size() const {
     return m_batch_size;
 }
 
-void BatchSizeSection::encode(const ov::runtime::hsm::SectionSink& sink) const {
-    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::write");
-    m_logger.debug("Writting batch size %ld", m_batch_size);
+ov::util::MemoryView BatchSizeSection::encode() const {
+    OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::encode");
+    m_logger.debug("Encoding batch size %ld", m_batch_size);
 
-    sink({reinterpret_cast<const std::byte*>(&m_batch_size), sizeof(m_batch_size)});
+    return ov::util::MemoryView(reinterpret_cast<const std::byte*>(&m_batch_size), sizeof(m_batch_size));
 }
 
 ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> BatchSizeSection::decode =

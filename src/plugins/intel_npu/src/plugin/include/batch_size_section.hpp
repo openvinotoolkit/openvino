@@ -17,7 +17,7 @@ public:
 
     int64_t get_batch_size() const;
 
-    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
+    ov::util::MemoryView encode() const override;
 
     static ov::runtime::hsm::SectionDecoder<std::shared_ptr<ISection>> decode;
 

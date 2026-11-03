@@ -12,7 +12,7 @@ class CompilerVersionSection final : public ISection {
 public:
     CompilerVersionSection(const int32_t version);
 
-    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
+    ov::util::MemoryView encode() const override;
 
     int32_t get_compiler_version() const;
 

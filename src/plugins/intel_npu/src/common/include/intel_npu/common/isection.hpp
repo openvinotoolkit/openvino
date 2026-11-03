@@ -18,6 +18,7 @@
 #include "openvino/runtime/hsm_reader.hpp"
 #include "openvino/runtime/hsm_writer.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/util/memory.hpp"
 
 namespace intel_npu {
 
@@ -62,6 +63,10 @@ public:
     ov::runtime::hsm::SectionAlignment get_alignment() const;
 
     bool is_inline() const;
+
+    void encode(const ov::runtime::hsm::SectionSink& sink) const override;
+
+    virtual ov::util::MemoryView encode() const;
 
     // TODO rename?
     /**
