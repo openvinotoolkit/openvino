@@ -26,7 +26,6 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/ngram_hash_function.hpp"
 #include "openvino/reference/ngram_hash_function.hpp"
-#include "shape_inference/custom/ngram_hash.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -143,7 +142,7 @@ bool NgramHash::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 }
 
 NgramHash::NgramHash(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, NgramHashShapeInferFactory(op)) {
+    : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);

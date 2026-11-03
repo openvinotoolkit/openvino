@@ -538,8 +538,6 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/shape_inference/custom/matmul.hpp
     ${CPU_SRC_DIR}/shape_inference/custom/ngram.cpp
     ${CPU_SRC_DIR}/shape_inference/custom/ngram.hpp
-    ${CPU_SRC_DIR}/shape_inference/custom/ngram_hash.cpp
-    ${CPU_SRC_DIR}/shape_inference/custom/ngram_hash.hpp
     ${CPU_SRC_DIR}/shape_inference/custom/one_hot.cpp
     ${CPU_SRC_DIR}/shape_inference/custom/one_hot.hpp
     ${CPU_SRC_DIR}/shape_inference/custom/priorbox.cpp
