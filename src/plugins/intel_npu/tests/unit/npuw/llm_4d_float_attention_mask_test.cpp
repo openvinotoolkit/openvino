@@ -57,11 +57,14 @@ LLMConfig make_4d_float_mask_config(const ov::element::Type& type) {
     return config;
 }
 
+constexpr size_t kMaxPromptLen = 128;
+constexpr size_t kMinResponseLen = 64;
+
 ov::AnyMap make_props(const ov::AnyMap& extra = {}) {
     ov::AnyMap props{{"NPUW_LLM", "YES"},
                      {"NPUW_DEVICES", "CPU"},
-                     {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
-                     {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                     {"NPUW_LLM_MAX_PROMPT_LEN", std::to_string(kMaxPromptLen)},
+                     {"NPUW_LLM_MIN_RESPONSE_LEN", std::to_string(kMinResponseLen)},
                      {"NPUW_LLM_PREFILL_HINT", "STATIC"}};
     for (const auto& [key, value] : extra) {
         props[key] = value;
@@ -103,8 +106,8 @@ TEST_F(LLM4DFloatAttentionMaskTest, ModelWithoutAttentionMaskIsNotDetected) {
     std::unique_ptr<TestableLLMCompiledModel> compiled;
     ASSERT_NO_THROW(compiled = compile(build_whisper_decoder_test_model(),
                                        {{"NPUW_LLM", "YES"},
-                                        {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
-                                        {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                                        {"NPUW_LLM_MAX_PROMPT_LEN", std::to_string(kMaxPromptLen)},
+                                        {"NPUW_LLM_MIN_RESPONSE_LEN", std::to_string(kMinResponseLen)},
                                         {"NPUW_WHISPER", "YES"},
                                         {"NPUW_WHISPER_EOS_TOKEN", "42"}}));
     EXPECT_FALSE(compiled->attention_mask_is_4d_float());
@@ -182,10 +185,10 @@ public:
     }
 };
 
-// A distinct, negative value for every (row, column) of a mask up to kMarkerSize x kMarkerSize. The largest
-// magnitude is 256, which f32, f16 and bf16 all represent exactly. The masks in these tests are small on purpose.
 constexpr size_t kMarkerSize = 16;
 
+// A distinct, negative value for every (row, column) of a mask up to kMarkerSize x kMarkerSize. The largest
+// magnitude is 256, which f32, f16 and bf16 all represent exactly. The masks in these tests are small on purpose.
 float marker(size_t row, size_t column) {
     return -static_cast<float>(1 + row * kMarkerSize + column);
 }
@@ -258,7 +261,7 @@ protected:
     void run_generate_step(size_t past_len, size_t mask_keys) {
         set_inputs(make_i64({1, 1}, 1),  // just a filler
                    make_marker_mask(m_type, 1, mask_keys),
-                   make_i64({1, 1}, static_cast<int64_t>(past_len)));
+                   make_i64({1, 1}, static_cast<int64_t>(past_len)));  // filled with the next value
         request().infer();
     }
 
@@ -315,17 +318,16 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, MaskIsDetectedAndMadeStatic) {
     ASSERT_NE(prefill, nullptr);
     ASSERT_NE(generate, nullptr);
 
-    // Prefill sees [1, 1, prompt, prompt]; generate sees [1, 1, 1, prompt + response].
     const auto prefill_mask = find_port_by_name(std::as_const(*prefill->model).inputs(), "attention_mask").value();
     const auto generate_mask = find_port_by_name(std::as_const(*generate->model).inputs(), "attention_mask").value();
-    EXPECT_EQ(prefill_mask.get_partial_shape(), (ov::PartialShape{1, 1, 128, 128}));
-    EXPECT_EQ(generate_mask.get_partial_shape(), (ov::PartialShape{1, 1, 1, 192}));
+    EXPECT_EQ(prefill_mask.get_partial_shape(), (ov::PartialShape{1, 1, kMaxPromptLen, kMaxPromptLen}));
+    EXPECT_EQ(generate_mask.get_partial_shape(), (ov::PartialShape{1, 1, 1, kMaxPromptLen + kMinResponseLen}));
     EXPECT_EQ(prefill_mask.get_element_type(), GetParam());
     EXPECT_EQ(generate_mask.get_element_type(), GetParam());
 }
 
-// Prefill pads the caller mask on the left and on the top: its [Q, Q] block ends at the bottom-right corner of
-// the static [P, P] mask, and every padded position is fully masked.
+// Prefill puts the caller mask's [Q, Q] block at the bottom-right corner of the static [P, P] mask;
+// every padded position is fully masked.
 TEST_P(LLM4DFloatAttentionMaskByTypeTest, PrefillPutsTheMaskIntoTheBottomRightCorner) {
     constexpr size_t kPromptLen = 5;
     run_prefill(kPromptLen);
@@ -340,8 +342,8 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, PrefillPutsTheMaskIntoTheBottomRightCo
     });
 }
 
-// Staging puts the caller's [Q, K] block into a corner and does not expand or realign it, so a mask that is not
-// [prompt, prompt] would leave real tokens fully masked or shifted.
+// Prefill does not expand or realign the caller mask, so it should be [prompt, prompt],
+// else it would leave real tokens fully masked or shifted.
 TEST_P(LLM4DFloatAttentionMaskByTypeTest, PrefillRejectsMaskThatDoesNotCoverThePrompt) {
     constexpr size_t kPromptLen = 5;
     const std::vector<std::pair<size_t, size_t>> mask_shapes = {{1, kPromptLen},  // broadcast over the queries
@@ -356,7 +358,7 @@ TEST_P(LLM4DFloatAttentionMaskByTypeTest, PrefillRejectsMaskThatDoesNotCoverTheP
     }
 }
 
-// Generate puts the stored past on the left and the current token in the last column, whatever the static width.
+// Generate puts the stored past on the left and the current token in the last column
 TEST_P(LLM4DFloatAttentionMaskByTypeTest, GenerateSplitsTheMaskIntoPastAndCurrentColumns) {
     constexpr size_t kPromptLen = 5;
     run_prefill(kPromptLen);
@@ -424,8 +426,9 @@ INSTANTIATE_TEST_SUITE_P(AdditiveMaskTypes,
                              return info.param.to_string();
                          });
 
-// The NPUW LLM pipeline converts bf16 to f16 for its sub-models, so the staged mask is f16 while the caller's is
-// bf16, and the request rejects the mismatch on the first infer. Update this test when bf16 masks get supported.
+// The NPUW LLM pipeline converts bf16 to f16 for its sub-models,
+// so the staged mask is f16 while the caller's is bf16, and the request rejects the mismatch on the first infer.
+// Update this test when bf16 masks get supported.
 TEST_F(LLM4DFloatAttentionMaskStagingTest, Bf16MaskIsRejectedAtInferBecauseSubmodelsUseF16) {
     compile_with_mask_type(ov::element::bf16);
     EXPECT_TRUE(m_compiled->attention_mask_is_4d_float());
@@ -451,9 +454,10 @@ ov::Tensor make_causal_mask(size_t rows, size_t columns) {
     return mask;
 }
 
-std::vector<ov::Tensor> run_prefill_and_generate(ov::CompiledModel& compiled,
-                                                 size_t prompt_len,
-                                                 size_t generate_steps) {
+// Runs the prompt as one prefill, then single-token generate steps, and returns the logits of every step.
+std::vector<ov::Tensor> run_prefill_and_generate_logits(ov::CompiledModel& compiled,
+                                                        size_t prompt_len,
+                                                        size_t generate_steps) {
     auto request = compiled.create_infer_request();
     ov::Tensor beam_idx(ov::element::i32, ov::Shape{1});
     beam_idx.data<int32_t>()[0] = 0;
@@ -476,22 +480,32 @@ std::vector<ov::Tensor> run_prefill_and_generate(ov::CompiledModel& compiled,
     return logits;
 }
 
-// The blob does not store whether the mask is 4D float: the import derives it from the restored inputs. The imported
-// model must still take the caller's f32 mask for prefill and for generate and give the compiled model's logits. The
-// model goes through disk like a converted model, so the blob is weightless and the import gets only the weights path.
-TEST(LLM4DFloatAttentionMaskRoundTrip, ImportedModelRunsLikeTheCompiledOne) {
+class LLM4DFloatAttentionMaskRoundTrip : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_dir = std::filesystem::temp_directory_path() / "npuw_4d_float_mask_round_trip";
+        std::filesystem::create_directories(m_dir);
+    }
+
+    void TearDown() override {
+        std::error_code ec;
+        std::filesystem::remove_all(m_dir, ec);
+    }
+
+    std::filesystem::path m_dir;
+};
+
+// Check that the imported model gives the same logits as the compiled one
+TEST_F(LLM4DFloatAttentionMaskRoundTrip, ImportedModelRunsLikeTheCompiledOne) {
     constexpr size_t kGenerateSteps = 2;
 
     ov::Core core;
-    const auto dir = std::filesystem::temp_directory_path() / "npuw_4d_float_mask_round_trip";
-    std::filesystem::create_directories(dir);
-    const auto xml = dir / "model.xml";
-    const auto bin = dir / "model.bin";
+    const auto xml = m_dir / "model.xml";
+    const auto bin = m_dir / "model.bin";
     ov::serialize(build_llm_test_model(make_4d_float_mask_config(ov::element::f32)), xml.string(), bin.string());
     const auto model = core.read_model(xml.string(), bin.string());
 
-    // The online partitioner's repeated-block detection does not cope with the synthetic model, so the sub-models
-    // are compiled whole on CPU.
+    // compiling with NPUW_ONLINE_PIPELINE=NONE because of the synthetic model
     const auto props = make_props({{"NPU_USE_NPUW", "YES"}, {"NPUW_ONLINE_PIPELINE", "NONE"}});
     const auto prompt_len = props.at("NPUW_LLM_MAX_PROMPT_LEN").as<size_t>();
     auto compiled = core.compile_model(model, "NPU", props);
@@ -502,9 +516,8 @@ TEST(LLM4DFloatAttentionMaskRoundTrip, ImportedModelRunsLikeTheCompiledOne) {
     import_props[ov::weights_path.name()] = bin.string();
     auto imported = core.import_model(blob, "NPU", import_props);
 
-    // The prompt in one prefill, then single-token generate steps; returns the logits of every step.
-    const auto expected = run_prefill_and_generate(compiled, prompt_len, kGenerateSteps);
-    const auto actual = run_prefill_and_generate(imported, prompt_len, kGenerateSteps);
+    const auto expected = run_prefill_and_generate_logits(compiled, prompt_len, kGenerateSteps);
+    const auto actual = run_prefill_and_generate_logits(imported, prompt_len, kGenerateSteps);
     ASSERT_EQ(actual.size(), expected.size());
     for (size_t step = 0; step < expected.size(); ++step) {
         SCOPED_TRACE("step " + std::to_string(step));
@@ -537,8 +550,8 @@ TEST_P(LLM4DFloatAttentionMaskPrecisionTest, ShortPromptGivesTheF32Logits) {
     auto reference_model = compile(ov::element::f32);
     auto model_under_test = compile(GetParam());
 
-    const auto expected = run_prefill_and_generate(reference_model, kPromptLen, kGenerateSteps);
-    const auto actual = run_prefill_and_generate(model_under_test, kPromptLen, kGenerateSteps);
+    const auto expected = run_prefill_and_generate_logits(reference_model, kPromptLen, kGenerateSteps);
+    const auto actual = run_prefill_and_generate_logits(model_under_test, kPromptLen, kGenerateSteps);
     ASSERT_EQ(actual.size(), expected.size());
     for (size_t step = 0; step < expected.size(); ++step) {
         SCOPED_TRACE("step " + std::to_string(step));
