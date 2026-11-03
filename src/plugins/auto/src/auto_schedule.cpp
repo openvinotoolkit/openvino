@@ -33,7 +33,7 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             }
             const bool low_power_first_failure = check_and_disable_if_low_power_device_failed(real_device_name);
             const auto current_device_iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>
-                                             (real_device_name, m_context->m_device_priorities);
+                                             (real_device_name, m_context->m_device_priorities, true);
             if (current_device_iter != m_context->m_device_priorities.end()) {
                 if (m_context->m_device_priorities.size() == 1) {
                     LOG_INFO_TAG("No other devices in m_device_priorities");

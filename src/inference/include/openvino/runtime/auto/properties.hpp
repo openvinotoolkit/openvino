@@ -105,8 +105,10 @@ static constexpr Property<PerfCurveTable> perf_curve_table{"PERF_CURVE_TABLE"};
  * devices_utilization_threshold when the platform is in low power mode. The value is matched
  * against a candidate DeviceInformation::device_name first (e.g. "GPU.0"), then against its base
  * device name (e.g. "NPU" also matches a candidate named "NPU.5010").
- * On builds without OV_AUTO_ENABLE_IPF, the telemetry backend always returns unknown, so this
- * property has no effect.
+ * On builds without OV_AUTO_ENABLE_IPF, the telemetry backend always returns unknown, so the platform is never
+ * considered to be in low power mode and the low power device is never selected. Setting this property still
+ * enables the per inference device selection, with its scheduling changes
+ * and its restrictions on the ENABLE_STARTUP_FALLBACK, ENABLE_RUNTIME_FALLBACK and MODEL_PRIORITY properties.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::string> low_power_device{"LOW_POWER_DEVICE"};

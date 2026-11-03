@@ -11,7 +11,10 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <future>
 #include <mutex>
+#include <thread>
+#include <vector>
 
 using namespace ov::mock_auto_plugin;
 
@@ -34,6 +37,29 @@ std::shared_ptr<ov::Model> create_stateful_model() {
     res->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
 }
+
+// Runs every task on its own thread, so a device completion callback is not issued from the dispatching thread.
+class ThreadPerTaskExecutor : public ov::threading::ITaskExecutor {
+public:
+    void run(ov::threading::Task task) override {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_threads.emplace_back(std::move(task));
+    }
+
+    ~ThreadPerTaskExecutor() override {
+        for (auto& thread : m_threads) {
+            if (thread.get_id() == std::this_thread::get_id()) {
+                thread.detach();
+            } else if (thread.joinable()) {
+                thread.join();
+            }
+        }
+    }
+
+private:
+    std::mutex m_mutex;
+    std::vector<std::thread> m_threads;
+};
 
 // Fails the first start_async() calls the way a device does when it cannot accept a request.
 class FailingStartAsyncRequest : public ov::IAsyncInferRequest {
@@ -645,6 +671,79 @@ TEST_F(AutoDynamicDeviceSelectionTest, failure_to_start_a_request_does_not_block
     OV_ASSERT_NO_THROW(next_request = compiled_model->create_infer_request());
     OV_ASSERT_NO_THROW(next_request->start_async());
     EXPECT_TRUE(next_request->wait_for(std::chrono::seconds(10)));
+}
+
+// The device completion callback keeps using the scheduler (it gives the execution slot back) after it has notified
+// the user request, so the scheduler must not be destroyed before that callback is out of it.
+TEST_F(AutoDynamicDeviceSelectionTest, destruction_waits_for_the_device_completion_callback) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    auto device_executor = std::make_shared<ThreadPerTaskExecutor>();
+    auto failures = std::make_shared<std::atomic<int>>(0);
+    ON_CALL(*mockIExeNetActual.get(), create_infer_request()).WillByDefault([this, device_executor, failures]() {
+        return std::static_pointer_cast<ov::IAsyncInferRequest>(
+            std::make_shared<FailingStartAsyncRequest>(inferReqInternalActual, device_executor, nullptr, failures));
+    });
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    std::shared_ptr<ov::IAsyncInferRequest> request;
+    OV_ASSERT_NO_THROW(request = compiled_model->create_infer_request());
+
+    struct SyncState {
+        std::mutex mtx;
+        std::condition_variable cv;
+        bool callback_entered = false;
+        bool release_callback = false;
+        bool teardown_started = false;
+    };
+    auto state = std::make_shared<SyncState>();
+    // runs on the device thread, in the middle of the device completion callback
+    request->set_callback([state](std::exception_ptr) {
+        std::unique_lock<std::mutex> lock(state->mtx);
+        state->callback_entered = true;
+        state->cv.notify_all();
+        state->cv.wait(lock, [&state] {
+            return state->release_callback;
+        });
+    });
+    OV_ASSERT_NO_THROW(request->start_async());
+    {
+        std::unique_lock<std::mutex> lock(state->mtx);
+        ASSERT_TRUE(state->cv.wait_for(lock, std::chrono::seconds(10), [&state] {
+            return state->callback_entered;
+        }));
+    }
+
+    auto teardown_done = std::make_shared<std::promise<void>>();
+    auto teardown_finished = teardown_done->get_future();
+    std::thread teardown([state, teardown_done, request = std::move(request), compiled_model = std::move(compiled_model)]() mutable {
+        {
+            std::lock_guard<std::mutex> lock(state->mtx);
+            state->teardown_started = true;
+        }
+        request.reset();
+        compiled_model.reset();
+        teardown_done->set_value();
+    });
+    {
+        std::unique_lock<std::mutex> lock(state->mtx);
+        ASSERT_TRUE(state->cv.wait_for(lock, std::chrono::seconds(10), [&state] {
+            return state->teardown_started;
+        }));
+    }
+    // destruction must not get past the callback which is still running
+    EXPECT_EQ(teardown_finished.wait_for(std::chrono::milliseconds(200)), std::future_status::timeout);
+
+    {
+        std::lock_guard<std::mutex> lock(state->mtx);
+        state->release_callback = true;
+    }
+    state->cv.notify_all();
+    const bool finished = teardown_finished.wait_for(std::chrono::seconds(10)) == std::future_status::ready;
+    if (!finished) {
+        teardown.detach();
+        FAIL() << "destruction did not finish after the device completion callback was released";
+    }
+    teardown.join();
 }
 
 TEST_F(AutoDynamicDeviceSelectionTest, no_device_is_reserved_while_switching_devices) {
