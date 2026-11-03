@@ -121,7 +121,6 @@ public:
 protected:
     ov::CompiledModel compile(bool with_cache);
     std::string export_blob(ov::CompiledModel compiled) const;
-    // Access the HSM payload while preserving any Core source-freshness header on disk.
     std::string read_cache_blob() const;
     void write_cache_blob(const std::string& blob) const;
     void expect_same_inference(ov::CompiledModel& actual);
