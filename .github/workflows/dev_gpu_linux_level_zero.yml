@@ -90,7 +90,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
+    if: "!needs.smart_ci.outputs.skip_workflow && (fromJSON(needs.smart_ci.outputs.affected_components).GPU || fromJSON(needs.smart_ci.outputs.affected_components).samples)"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
