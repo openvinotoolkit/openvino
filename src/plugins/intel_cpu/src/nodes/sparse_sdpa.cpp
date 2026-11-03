@@ -53,6 +53,7 @@
 #    include <numeric>
 
 #    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#    include "nodes/kernels/sparse_attn/sparse_kernel_cache.hpp"
 #endif
 
 namespace ov::intel_cpu::node {
@@ -238,12 +239,9 @@ void SparseSDPA::createPrimitive() {
         // (e.g. Bk=4 -> 4 blocks = 16 rows; Bk=16 -> 1 block = 16 rows; Bk=2 -> 8 blocks = 16 rows).
         m_amx_unit_blocks = 16 / std::gcd(static_cast<size_t>(16), Bk);
         const auto unit_rows = m_amx_unit_blocks * Bk;
-        m_gemv_qk1 = std::make_shared<ov::Extensions::Cpu::JitMatMulVecAMX>(static_cast<int>(Dh),
-                                                                            static_cast<int>(unit_rows),
-                                                                            m_amx_prec);
-        m_gemv_qk4 = std::make_shared<ov::Extensions::Cpu::JitMatMulVecAMX>(static_cast<int>(Dh),
-                                                                            static_cast<int>(4 * unit_rows),
-                                                                            m_amx_prec);
+        const auto cache = context->getParamsCache();
+        m_gemv_qk1 = get_sparse_gemv_kernel(cache, static_cast<int>(Dh), static_cast<int>(unit_rows), m_amx_prec);
+        m_gemv_qk4 = get_sparse_gemv_kernel(cache, static_cast<int>(Dh), static_cast<int>(4 * unit_rows), m_amx_prec);
     }
     // Prefill over packs of query heads (brgemm products, whose M is the pack): independent of the limits of the JIT
     // kernel above, it needs the AMX type, a causal op and static head counts.
@@ -255,8 +253,12 @@ void SparseSDPA::createPrimitive() {
         none_of(Shape::UNDEFINED_DIM, q_heads, k_heads, sel_heads, Dv)) {
         const size_t pack = ov::Extensions::Cpu::max_q_head_pack_size(q_heads, k_heads, sel_heads);
         if (ov::Extensions::Cpu::SparseBrgemmKernels::supports_pack(pack)) {
-            m_brgemm =
-                ov::Extensions::Cpu::SparseBrgemmKernels(pack, Dh, Dv, ov::Extensions::Cpu::kGatherTileRows, amx_type);
+            m_brgemm = get_sparse_brgemm_kernels(context->getParamsCache(),
+                                                 pack,
+                                                 Dh,
+                                                 Dv,
+                                                 ov::Extensions::Cpu::kGatherTileRows,
+                                                 amx_type);
         }
     }
 #endif

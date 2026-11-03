@@ -99,7 +99,14 @@ private:
     bool deriveQuant(std::string& reason);
     /// @brief Writes the current-step K/V into the paged caches (parallel over token x kv head), quantizing them for
     /// u8/u4 caches. The attention kernel only reads the caches, so this is its barrier-separated first phase.
-    void writeKV();
+    /// @param scratch at least writeKVScratchBytes() bytes, 64-byte aligned: the slot mapping and the by-channel
+    /// requantization buffer live there, not in the node
+    void writeKV(uint8_t* scratch);
+    /// @brief Bytes of the slot mapping of `tokens` tokens in the scratch of writeKV(), aligned to keep what follows it
+    /// aligned.
+    [[nodiscard]] static size_t writeKVSlotMappingBytes(size_t tokens);
+    /// @brief Bytes of scratch writeKV() needs for `tokens` tokens and caches of `block_size` rows per page.
+    [[nodiscard]] size_t writeKVScratchBytes(size_t tokens, size_t block_size) const;
     /// @brief Per-thread scratch layout of the kernel for a selected_block_indices width.
     [[nodiscard]] ov::Extensions::Cpu::SparsePAScratchLayout scratchLayout(size_t max_selected_blocks) const;
 
@@ -109,9 +116,7 @@ private:
     // AMX matrix products of the prefill path (empty when the node is not eligible), see SparseBrgemm.
     ov::Extensions::Cpu::SparseBrgemmKernels m_brgemm;
 #endif
-    size_t m_max_run_rows = 0;                  // most key rows of one run, see SparsePAScratchLayout
-    ov::intel_cpu::PlainTensor m_slot_mapping;  // [tokens], physical slot of every new token
-    ov::intel_cpu::PlainTensor m_temp_buffer;   // by-channel requantization scratch of paged_attn_quantkv
+    size_t m_max_run_rows = 0;  // most key rows of one run, see SparsePAScratchLayout
 
     // AMX QK^T fast path: ov::element::dynamic means "not eligible" (decided once in
     // createPrimitive(), never re-checked per call). Only activates when QUERY/KEY_CACHE are

@@ -42,6 +42,7 @@
 #    include <numeric>
 
 #    include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#    include "nodes/kernels/sparse_attn/sparse_kernel_cache.hpp"
 #endif
 
 namespace ov::intel_cpu::node {
@@ -124,7 +125,21 @@ bool SparsePA::deriveQuant(std::string& reason) {
     return true;
 }
 
-void SparsePA::writeKV() {
+size_t SparsePA::writeKVSlotMappingBytes(size_t tokens) {
+    return ov::Extensions::Cpu::aligned(tokens * sizeof(int32_t));
+}
+
+size_t SparsePA::writeKVScratchBytes(size_t tokens, size_t block_size) const {
+    const auto& c = m_config;
+    size_t bytes = writeKVSlotMappingBytes(tokens);
+    if (m_quant.enabled() && m_quant.key_bychannel) {
+        bytes += static_cast<size_t>(parallel_get_max_threads()) * block_size * c.num_heads *
+                 std::max(c.k_head_size, c.v_head_size) * sizeof(float);
+    }
+    return bytes;
+}
+
+void SparsePA::writeKV(uint8_t* scratch) {
     PlainTensor key(getSrcMemoryAtPort(InputIdx::KEY));
     PlainTensor value(getSrcMemoryAtPort(InputIdx::VALUE));
     PlainTensor key_cache(getSrcMemoryAtPort(InputIdx::KEY_CACHE));
@@ -138,7 +153,8 @@ void SparsePA::writeKV() {
 
     // Physical slot (block * block_size + offset) of every new token, as PagedAttention builds it.
     const size_t tokens = key.size(0);
-    m_slot_mapping.resize<int32_t>({tokens});
+    PlainTensor slot_mapping;
+    slot_mapping.resize<int32_t>({tokens}, reinterpret_cast<int32_t*>(scratch));
     size_t idx = 0;
     for (size_t seq = 0; seq < past_lens.size(0); seq++) {
         const int32_t q_len = subsequence_begins.ptr<int32_t>()[seq + 1] - subsequence_begins.ptr<int32_t>()[seq];
@@ -147,7 +163,7 @@ void SparsePA::writeKV() {
         for (int32_t j = 0; j < q_len; j++) {
             const auto pos = static_cast<size_t>(past) + static_cast<size_t>(j);
             const auto block = static_cast<size_t>(block_indices.ptr<int32_t>()[first_block + pos / block_size]);
-            m_slot_mapping.ptr<int32_t>()[idx++] = static_cast<int32_t>(block * block_size + pos % block_size);
+            slot_mapping.ptr<int32_t>()[idx++] = static_cast<int32_t>(block * block_size + pos % block_size);
         }
     }
 
@@ -158,7 +174,7 @@ void SparsePA::writeKV() {
                                                       value_4d,
                                                       key_cache,
                                                       value_cache,
-                                                      m_slot_mapping,
+                                                      slot_mapping,
                                                       context->getCpuParallel());
         return;
     }
@@ -167,11 +183,13 @@ void SparsePA::writeKV() {
                                                    false,
                                                    m_quant.key_group_size,
                                                    m_quant.value_group_size};
+    PlainTensor temp_buffer;
     if (m_quant.key_bychannel) {
-        m_temp_buffer.resize<float>({static_cast<size_t>(parallel_get_max_threads()),
-                                     block_size,
-                                     c.num_heads,
-                                     std::max(c.k_head_size, c.v_head_size)});
+        temp_buffer.resize<float>({static_cast<size_t>(parallel_get_max_threads()),
+                                   block_size,
+                                   c.num_heads,
+                                   std::max(c.k_head_size, c.v_head_size)},
+                                  reinterpret_cast<float*>(scratch + writeKVSlotMappingBytes(tokens)));
     }
     ov::Extensions::Cpu::XARCH::paged_attn_quantkv(key_4d,
                                                    value_4d,
@@ -181,8 +199,8 @@ void SparsePA::writeKV() {
                                                    subsequence_begins,
                                                    block_indices,
                                                    block_indices_begins,
-                                                   m_slot_mapping,
-                                                   m_temp_buffer,
+                                                   slot_mapping,
+                                                   temp_buffer,
                                                    quant_param,
                                                    context->getCpuParallel());
 }
@@ -260,12 +278,10 @@ void SparsePA::createPrimitive() {
         // here must also fit inside one physical page -- if the page itself can't host even one
         // full unit, the AMX kernels would never be invocable, so skip building them entirely.
         if (unit_rows <= page_size) {
-            m_gemv_qk1 = std::make_shared<ov::Extensions::Cpu::JitMatMulVecAMX>(static_cast<int>(Dh),
-                                                                                static_cast<int>(unit_rows),
-                                                                                m_amx_prec);
-            m_gemv_qk4 = std::make_shared<ov::Extensions::Cpu::JitMatMulVecAMX>(static_cast<int>(Dh),
-                                                                                static_cast<int>(4 * unit_rows),
-                                                                                m_amx_prec);
+            const auto cache = context->getParamsCache();
+            m_gemv_qk1 = get_sparse_gemv_kernel(cache, static_cast<int>(Dh), static_cast<int>(unit_rows), m_amx_prec);
+            m_gemv_qk4 =
+                get_sparse_gemv_kernel(cache, static_cast<int>(Dh), static_cast<int>(4 * unit_rows), m_amx_prec);
         } else {
             m_amx_prec = ov::element::dynamic;
             m_amx_unit_blocks = 0;
@@ -284,11 +300,12 @@ void SparsePA::createPrimitive() {
                                                                   m_config.num_kv_heads,
                                                                   m_config.num_selection_heads);
     if (amx && m_config.causal && ov::Extensions::Cpu::SparseBrgemmKernels::supports_pack(pack)) {
-        m_brgemm = ov::Extensions::Cpu::SparseBrgemmKernels(pack,
-                                                            Dh,
-                                                            m_config.v_head_size,
-                                                            ov::Extensions::Cpu::kGatherTileRows,
-                                                            query_prec);
+        m_brgemm = get_sparse_brgemm_kernels(context->getParamsCache(),
+                                             pack,
+                                             Dh,
+                                             m_config.v_head_size,
+                                             ov::Extensions::Cpu::kGatherTileRows,
+                                             query_prec);
     }
 #endif
 }
@@ -364,19 +381,27 @@ void SparsePA::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
     PlainTensor out(getDstMemoryAtPort(0));
 
-    // Phase 1: write the current K/V into the caches (parallel over token x kv head); it completes before phase 2,
-    // the sparse attention, reads them.
-    writeKV();
-    // Phase 2: sparse attention, parallel over (query token, query head pack), with per-thread scratch that the kernel
-    // carves with the same layout. The width of selected_block_indices is only needed here (it sizes the AMX run
-    // decomposition), so it need not be static.
+    // The width of selected_block_indices is only needed by phase 2 (it sizes the AMX run decomposition), so it need
+    // not be static.
     const auto layout = scratchLayout(sel_indices.size(2));
-    // One block per worker thread, then one token id per token for the kernel's work list (see WorkList).
+    // Phase 2 scratch: one block per worker thread, then one token id per token for the kernel's work list (see
+    // WorkList).
     const size_t thread_scratch_bytes =
         static_cast<size_t>(context->getCpuParallel()->get_num_worker_threads()) * layout.total;
-    const auto scratch = context->getScratchPad()->createScratchPadMem(std::make_shared<CpuBlockedMemoryDesc>(
-        ov::element::u8,
-        ov::intel_cpu::Shape{thread_scratch_bytes + query.size(0) * sizeof(int32_t)}));
+    const size_t attention_bytes = thread_scratch_bytes + query.size(0) * sizeof(int32_t);
+    // Phase 1 scratch (the slot mapping and the by-channel requantization buffer). The phases are separated by a
+    // barrier, so they share the start of one scratchpad request: a second request would free the first one's memory.
+    const size_t block_size = m_quant.enabled() ? m_quant.block_size : key_cache.size(2);
+    const size_t write_bytes = writeKVScratchBytes(query.size(0), block_size);
+    const auto scratch = context->getScratchPad()->createScratchPadMem(
+        std::make_shared<CpuBlockedMemoryDesc>(ov::element::u8,
+                                               ov::intel_cpu::Shape{std::max(attention_bytes, write_bytes)}));
+
+    // Phase 1: write the current K/V into the caches (parallel over token x kv head); it completes before phase 2,
+    // the sparse attention, reads them.
+    writeKV(scratch->getDataAs<uint8_t>());
+    // Phase 2: sparse attention, parallel over (query token, query head pack), with per-thread scratch that the kernel
+    // carves with the same layout.
     ov::Extensions::Cpu::XARCH::sparse_pa_compute(
         query,
         key_cache,
