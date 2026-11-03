@@ -13,6 +13,7 @@ namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
+class WhisperInferRequest;
 
 // Special VariableState for already processed/stored tokens in LLM.
 // Allows external pipelines to call reset on that state where needed.
