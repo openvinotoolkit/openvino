@@ -1215,8 +1215,8 @@ struct GnkDisabledScope {
 
 class fully_connected_cm_woq_u2_gnk_fold : public ::testing::TestWithParam<GnkChain> {};
 
-// (b) When the check fails, the chain folds to f16 exactly as without the GNK path: same graph and constants, no
-// compressed FC and no u2 constant (runtime decompression) left.
+// (b) When the check fails, the pipeline output is exactly the one without the GNK path (master's NK conversion) and
+// contains no GNK FullyConnectedCompressed.
 TEST_P(fully_connected_cm_woq_u2_gnk_fold, matches_pipeline_without_gnk) {
     const auto c = GetParam();
     if (c.needs_no_cm && cm_woq_u2_supported(get_test_engine()))
@@ -1232,9 +1232,8 @@ TEST_P(fully_connected_cm_woq_u2_gnk_fold, matches_pipeline_without_gnk) {
         FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES).enable(FunctionsComparator::CONST_VALUES).compare(with_gnk, without_gnk);
     ASSERT_TRUE(res.valid) << res.message;
     for (const auto& op : with_gnk->get_ops()) {
-        EXPECT_FALSE(ov::is_type<ov::intel_gpu::op::FullyConnectedCompressed>(op)) << op->get_friendly_name();
-        if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op)) {
-            EXPECT_NE(constant->get_element_type(), ov::element::u2) << "u2 constant left (runtime decompression): " << op->get_friendly_name();
+        if (const auto fc = ov::as_type_ptr<ov::intel_gpu::op::FullyConnectedCompressed>(op)) {
+            EXPECT_NE(fc->get_weights_layout(), FcWeightsLayout::GNK) << op->get_friendly_name();
         }
     }
 }
