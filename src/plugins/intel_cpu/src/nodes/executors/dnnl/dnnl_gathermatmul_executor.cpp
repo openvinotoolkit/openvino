@@ -45,51 +45,6 @@ using dnnl_utils::make_bias_md;
 using dnnl_utils::normalize_m;
 
 
-static std::pair<size_t, dnnl::memory::data_type> dynQuantParams(uint64_t dq_group_size,
-                                                                 ov::element::Type wei_precision,
-                                                                 ov::element::Type src_precision,
-                                                                 ov::element::Type zp_precision,
-                                                                 bool zp_non_negative_i8,
-                                                                 size_t K,
-                                                                 const VectorDims& scale_shape,
-                                                                 const VectorDims& zp_shape) {
-    const auto disabled = std::make_pair(size_t{0}, dnnl::memory::data_type::f32);
-    if (dq_group_size == 0 || dq_group_size == std::numeric_limits<uint64_t>::max() || dq_group_size % 32 != 0) {
-        return disabled;
-    }
-    // u3 weights come with i8 zero points. Dynamic quantization converts the zero points to u8, which is
-    // lossless only when none of them is negative.
-    const bool zp_ok = any_of(zp_precision,
-                              ov::element::u8,
-                              ov::element::u2,
-                              ov::element::u3,
-                              ov::element::u4,
-                              ov::element::dynamic) ||
-                       (zp_precision == ov::element::i8 && zp_non_negative_i8);
-    const bool is_u3_weights = wei_precision == ov::element::u3;
-    if (!is_u3_weights || !zp_ok) {
-        return disabled;
-    }
-    if (K < dq_group_size) {
-        return disabled;
-    }
-    for (const auto* shape : {&scale_shape, &zp_shape}) {
-        if (shape->size() >= 2 && (*shape)[1] > 1 && (K / (*shape)[1]) % dq_group_size) {
-            return disabled;
-        }
-    }
-    if (src_precision == ov::element::bf16) {
-        if (!ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx()) {
-            return disabled;
-        }
-    } else if (!ov::with_cpu_x86_avx2_vnni() && !ov::with_cpu_x86_avx512_core_vnni()) {
-        return disabled;
-    }
-    const auto zp_dt =
-        zp_precision == ov::element::dynamic ? dnnl::memory::data_type::f32 : dnnl::memory::data_type::u8;
-    return {static_cast<size_t>(dq_group_size), zp_dt};
-}
-
 bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfig& config) {
 #ifdef OPENVINO_ARCH_X86_64
     // Allow empty (dynamic) src descriptor — actual type is resolved at createPrimitive time
@@ -169,14 +124,14 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor(const GatherMatmulAttrs& attr
                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
                                   dnnl::memory::format_tag::any);
 
-    const auto [src_dyn_quant_group_size, zp_dt] = dynQuantParams(attrs.dynamicQuantizationGroupSize,
-                                                                  weights_precision,
-                                                                  src_precision,
-                                                                  zp_precision,
-                                                                  zp_non_negative_i8,
-                                                                  static_cast<size_t>(K),
-                                                                  scale_shape,
-                                                                  zp_shape);
+    const auto [src_dyn_quant_group_size, zp_dt] = dnnl_utils::dyn_quant_params(attrs.dynamicQuantizationGroupSize,
+                                                                          weights_precision,
+                                                                          src_precision,
+                                                                          zp_precision,
+                                                                          zp_non_negative_i8,
+                                                                          static_cast<size_t>(K),
+                                                                          scale_shape,
+                                                                          zp_shape);
 
     const auto dst_dt = DnnlExtensionUtils::ElementTypeToDataType(memory.at(ARG_DST)->getDesc().getPrecision());
     InnerProductKey key{src_md,
