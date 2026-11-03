@@ -773,6 +773,25 @@ TEST_F(AutoDynamicDeviceSelectionTest, destruction_waits_for_the_device_completi
     teardown.join();
 }
 
+// The selection which reserves nothing must not be steered by the reservations of other models either.
+TEST_F(AutoDynamicDeviceSelectionTest, reservations_of_other_models_do_not_affect_the_selection) {
+    auto devices = plugin->Plugin::parse_meta_devices("GPU.0," + std::string(ov::test::utils::DEVICE_CPU), config);
+    const auto gpu0 = devices.front();
+    // a model of a higher priority holds GPU.0
+    plugin->register_priority(0, gpu0.unique_name);
+    ov::auto_plugin::DeviceSelectionPolicy policy;
+    DeviceInformation reserving;
+    OV_ASSERT_NO_THROW(reserving = plugin->Plugin::select_device(devices, "FP32", 2, policy, {}));
+    plugin->unregister_priority(2, reserving.unique_name);
+    EXPECT_EQ(reserving.device_name, ov::test::utils::DEVICE_CPU);
+
+    policy.reserve_device = false;
+    DeviceInformation ignoring;
+    OV_ASSERT_NO_THROW(ignoring = plugin->Plugin::select_device(devices, "FP32", 2, policy, {}));
+    EXPECT_EQ(ignoring.device_name, "GPU.0");
+    plugin->unregister_priority(0, gpu0.unique_name);
+}
+
 TEST_F(AutoDynamicDeviceSelectionTest, no_device_is_reserved_while_switching_devices) {
     config.erase(ov::device::priorities.name());
     config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));

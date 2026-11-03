@@ -872,8 +872,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     // save the last device first
     DeviceInformation last_device = valid_devices.back();
     {
-        // begin to filter devices
-        if (m_mtx && m_priority_map) {
+        // begin to filter devices, a selection which reserves nothing takes no part in the priority arbitration
+        if (selection_policy.reserve_device && m_mtx && m_priority_map) {
             std::lock_guard<std::mutex> lck(*m_mtx);
             for (auto&& kvp : *m_priority_map) {
                 if (kvp.first >= priority) {
