@@ -157,7 +157,7 @@ bool GroupedMatMul::isSupportedCompressedOperation(const std::shared_ptr<ov::Nod
 ov::element::TypeVector GroupedMatMul::getSupportedCompressedWeightsTypes() {
 #ifdef OPENVINO_ARCH_X86_64
     using ov::element::Type_t;
-    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
+    return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4, Type_t::u3};
 #else
     return {};
 #endif
@@ -229,6 +229,8 @@ void GroupedMatMul::initSupportedPrimitiveDescriptors() {
     descs[ARG_DST] = creators_map.at(LayoutType::ncsp)->createSharedDesc(dst_types.front(), getOutputShapeAtPort(0));
 
     auto execution_context = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
+    m_attrs.dynamic_quantization_group_size = context->getConfig().fcDynamicQuantizationGroupSize;
+
     m_factory = std::make_shared<ExecutorFactory<GroupedMatMulAttrs>>(m_attrs, execution_context, descs);
 
     const auto node_descriptors_list = m_factory->getProperMemoryDescriptors(descs);

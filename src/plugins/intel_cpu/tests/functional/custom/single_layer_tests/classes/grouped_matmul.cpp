@@ -195,7 +195,9 @@ void GroupedMatMulCompressedLayerCPUTest::SetUp() {
     GroupedMatMulTestBase::SetUp();
 
     // Dequantization adds rounding error on top of the uncompressed path
-    if (m_weights_prec == ov::element::u4 || m_weights_prec == ov::element::i4) {
+    if (m_weights_prec == ov::element::u3) {
+        abs_threshold = 0.4F;
+    } else if (m_weights_prec == ov::element::u4 || m_weights_prec == ov::element::i4) {
         abs_threshold = 0.2F;
     } else if (m_weights_prec == ov::element::u8 || m_weights_prec == ov::element::i8) {
         abs_threshold = 0.1F;
