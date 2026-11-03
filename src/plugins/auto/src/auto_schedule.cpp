@@ -5,6 +5,8 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "auto_schedule.hpp"
 
+#include <stdexcept>
+
 #include "async_infer_request.hpp"
 #include "openvino/runtime/compilation_context.hpp"
 #include "openvino/util/file_util.hpp"
@@ -686,7 +688,7 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
             m_idle_worker_requests[device_name].try_push(std::make_pair(worker->m_index, worker));
             release_execution_slot();
         }
-    } catch (...) {
+    } catch (const std::exception&) {
         m_this_worker_infer_request = nullptr;
         release_execution_slot();
         // report the failure through the pipeline, otherwise the request would never complete; the task is gone
@@ -813,13 +815,9 @@ void AutoSchedule::release_execution_slot() {
             m_gate_pending_tasks.clear();
             lock.unlock();
             if (!abandoned_tasks.empty()) {
-                std::exception_ptr cancelled;
-                // ov::Exception can only be created through OPENVINO_THROW
-                try {
-                    OPENVINO_THROW("Model is being destroyed, the request is cancelled");
-                } catch (const ov::Exception&) {
-                    cancelled = std::current_exception();
-                }
+                // it is surfaced to the caller as an ov::Exception by the scheduling stage of the pipeline
+                const auto cancelled =
+                    std::make_exception_ptr(std::runtime_error("Model is being destroyed, the request is cancelled"));
                 for (auto& abandoned : abandoned_tasks) {
                     m_this_scheduling_exception = cancelled;
                     abandoned.first();
