@@ -501,6 +501,7 @@ public:
             std::distance(new_shape.cbegin(), new_dim.base()) - 1);
 
         m_shape = std::move(new_shape);
+        update_expanded_strides();
     }
 
     size_t get_offset() const {
@@ -512,10 +513,33 @@ public:
     }
 
 protected:
+    const Strides& get_roi_strides() const {
+        return m_expanded_strides.empty() ? m_owner->get_strides() : m_expanded_strides;
+    }
+
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
     const Shape m_capacity;
     const size_t m_offset;
+
+private:
+    // set_shape() can add leading dimensions of one, but the owner's strides keep the owner's rank. Consumers such as
+    // ITensor::copy_to() walk shape and strides together, so an expanded ROI needs strides of its own rank.
+    void update_expanded_strides() {
+        const auto& owner_strides = m_owner->get_strides();
+        if (m_shape.size() <= owner_strides.size()) {
+            m_expanded_strides.clear();
+            return;
+        }
+        const auto added_dims = m_shape.size() - owner_strides.size();
+        m_expanded_strides.assign(m_shape.size(), 0);
+        std::copy(owner_strides.begin(), owner_strides.end(), m_expanded_strides.begin() + added_dims);
+        for (auto dim = added_dims; dim-- > 0;) {
+            m_expanded_strides[dim] = m_shape[dim + 1] * m_expanded_strides[dim + 1];
+        }
+    }
+
+    Strides m_expanded_strides;
 };
 
 /**
@@ -532,7 +556,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {
@@ -582,7 +606,7 @@ public:
     }
 
     const Strides& get_strides() const override {
-        return m_owner->get_strides();
+        return get_roi_strides();
     }
 
     const Shape& get_shape() const override {
