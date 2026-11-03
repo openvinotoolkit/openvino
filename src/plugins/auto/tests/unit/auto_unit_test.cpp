@@ -112,6 +112,7 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
                               const std::filesystem::path& model_path) {
             return plugin->Plugin::get_device_list(config, model, {});
         });
+    ON_CALL(*plugin, is_telemetry_available).WillByDefault(Return(true));
     ON_CALL(*plugin, parse_meta_devices)
         .WillByDefault([this](const std::string& priorityDevices, const ov::AnyMap& config) {
             return plugin->Plugin::parse_meta_devices(priorityDevices, config);

@@ -78,6 +78,11 @@ static constexpr Property<SchedulePolicy> schedule_policy{"SCHEDULE_POLICY"};
 
 /**
  * @brief Device utilization thresholds (in percent) used by AUTO for device selection.
+ * Setting it enables the per inference device selection: the target device is selected for every inference and
+ * inference is serialized per compiled model. This mode does not support startup or runtime fallback: explicitly
+ * enabling ENABLE_STARTUP_FALLBACK or ENABLE_RUNTIME_FALLBACK together with it makes the compilation fail, and
+ * more than one stream is not supported either. MODEL_PRIORITY is ignored. The thresholds are ignored, and AUTO
+ * behaves as without this property, when the telemetry backend (IPF) is not available.
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::map<std::string, unsigned>> devices_utilization_threshold{
@@ -95,6 +100,8 @@ using PerfCurveTable = std::map<std::string, std::map<unsigned, float>>;
  * AUTO for device selection when set. A lower interpolated score indicates a more preferred device: AUTO ranks
  * candidates in ascending order of score and selects the one with the lowest score for the current utilization.
  * Device key must be one of "CPU", "iGPU", "dGPU", "NPU".
+ * Setting it enables the per inference device selection, which does not support startup or runtime fallback (see
+ * devices_utilization_threshold).
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<PerfCurveTable> perf_curve_table{"PERF_CURVE_TABLE"};
@@ -105,10 +112,10 @@ static constexpr Property<PerfCurveTable> perf_curve_table{"PERF_CURVE_TABLE"};
  * devices_utilization_threshold when the platform is in low power mode. The value is matched
  * against a candidate DeviceInformation::device_name first (e.g. "GPU.0"), then against its base
  * device name (e.g. "NPU" also matches a candidate named "NPU.5010").
- * On builds without OV_AUTO_ENABLE_IPF, the telemetry backend always returns unknown, so the platform is never
- * considered to be in low power mode and the low power device is never selected. Setting this property still
- * enables the per inference device selection, with its scheduling changes
- * and its restrictions on the ENABLE_STARTUP_FALLBACK, ENABLE_RUNTIME_FALLBACK and MODEL_PRIORITY properties.
+ * On builds without OV_AUTO_ENABLE_IPF, or when the IPF backend cannot be initialized, the platform is never
+ * considered to be in low power mode, so this property has no effect.
+ * Otherwise setting it enables the per inference device selection, which does not support startup or runtime
+ * fallback (see devices_utilization_threshold).
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<std::string> low_power_device{"LOW_POWER_DEVICE"};

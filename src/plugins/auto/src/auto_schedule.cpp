@@ -134,9 +134,7 @@ void AutoSchedule::init() {
                                 m_context->m_selection_policy,
                                 (m_context->m_low_power_device_unavailable ? std::nullopt : m_context->m_low_power_device));
     if (m_context->m_dynamic_device_selection) {
-        // per inference selection does not take part in the model priority arbitration, keep no device reserved
-        m_plugin->unregister_priority(m_context->m_model_priority,
-                                      m_compile_context[ACTUALDEVICE].m_device_info.unique_name);
+        // nothing was reserved by select_device() in this mode
         m_compile_context[ACTUALDEVICE].m_priority_released = true;
     }
 
@@ -443,11 +441,10 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     } catch (const ov::Exception&) {
         return;
     }
-    // select_device() registered the reselected device, so a failure on it has to unregister it again
-    context.m_priority_released = false;
+    // select_device() registered the reselected device, so a failure on it has to unregister it again, unless
+    // the dynamic selection reserved nothing
+    context.m_priority_released = m_context->m_dynamic_device_selection;
     if (m_context->m_dynamic_device_selection) {
-        m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
-        context.m_priority_released = true;
         const auto cached = m_dynamic_compiled_models.find(context.m_device_info.device_name);
         if (cached != m_dynamic_compiled_models.end()) {
             context.m_compiled_model = cached->second;
@@ -718,8 +715,7 @@ DeviceInformation AutoSchedule::select_dynamic_device() {
                                         m_context->m_selection_policy,
                                         low_power_device);
     }
-    // select_device() registers the picked device, dynamic selection keeps no reservation
-    m_plugin->unregister_priority(m_context->m_model_priority, device.unique_name);
+    // select_device() reserves nothing in the dynamic selection
     LOG_DEBUG_TAG("[dynamic] re-selected device:%s in %lf ms",
                   device.device_name.c_str(),
                   std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count());
@@ -741,7 +737,7 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     }
     const auto candidate_devices = context.m_meta_devices;
     LOG_INFO_TAG("[dynamic] device:%s is used for the first time, compiling the model", device.device_name.c_str());
-    // select_dynamic_device() already dropped the registration of the requested device
+    // select_dynamic_device() reserved nothing for the requested device
     context.m_priority_released = true;
     try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
     const bool fell_back_to_other_device = context.m_device_info.device_name != requested_device_name;

@@ -553,11 +553,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
              return device.unique_name == low_power_info->unique_name;
          }));
     const bool is_throughput = auto_s_context->m_performance_hint == ov::hint::PerformanceMode::THROUGHPUT;
-    auto_s_context->m_dynamic_device_selection =
+    const bool is_dynamic_candidate =
         // dynamic selection requires an in-memory model and is incompatible with bind_buffer
         model_path.empty() && !is_cumulative && !is_stateful_model && !auto_s_context->m_bind_buffer &&
         !is_throughput && has_alternative_device && has_resource_aware_property;
+    // without the telemetry backend nothing could be evaluated, it would only serialize the inference
+    const bool telemetry_available = !is_dynamic_candidate || is_telemetry_available();
+    auto_s_context->m_dynamic_device_selection = is_dynamic_candidate && telemetry_available;
     if (auto_s_context->m_dynamic_device_selection) {
+        auto_s_context->m_selection_policy.reserve_device = false;
         LOG_INFO_TAG("[dynamic] per inference device selection enabled by the resource aware selection properties");
         // load_config treats every property as user set by now, so read the explicit ones from the inputs
         const auto is_enabled_by_user = [&](const auto& property) {
@@ -571,9 +575,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
                         "ENABLE_STARTUP_FALLBACK is not supported together with the resource aware device selection");
         OPENVINO_ASSERT(!is_enabled_by_user(ov::intel_auto::enable_runtime_fallback),
                         "ENABLE_RUNTIME_FALLBACK is not supported together with the resource aware device selection");
-        OPENVINO_ASSERT(!properties.count(ov::hint::model_priority.name()) &&
-                            !m_plugin_config.is_set_by_user(ov::hint::model_priority),
-                        "MODEL_PRIORITY is not supported together with the resource aware device selection");
+        if (properties.count(ov::hint::model_priority.name()) || m_plugin_config.is_set_by_user(ov::hint::model_priority)) {
+            LOG_WARNING_TAG("MODEL_PRIORITY is ignored when the resource aware device selection is active");
+        }
         const auto has_multiple_streams = [](const ov::AnyMap& config) {
             const auto iter = config.find(ov::num_streams.name());
             return iter != config.end() && iter->second.as<ov::streams::Num>().num > 1;
@@ -610,6 +614,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
             LOG_WARNING_TAG("resource aware device selection properties are ignored for THROUGHPUT performance hint");
         } else if (!has_alternative_device) {
             LOG_INFO_TAG("resource aware device selection properties are ignored, there is only one candidate device");
+        } else if (!telemetry_available) {
+            LOG_WARNING_TAG("resource aware device selection properties are ignored, the telemetry backend (IPF) is "
+                            "not available");
         }
     }
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
@@ -729,6 +736,13 @@ std::optional<bool> Plugin::get_low_power_mode() {
     return m_telemetry_client->is_low_power_mode();
 }
 
+bool Plugin::is_telemetry_available() {
+    std::call_once(m_telemetry_client_init_once, [this]() {
+        m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
+    });
+    return m_telemetry_client->is_available();
+}
+
 std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
                                                       const std::string& model_precision) const {
     if (meta_devices.empty()) {
@@ -843,7 +857,9 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
 
     // every candidate has been excluded, only a low power device outside of the list can still run
     if (meta_devices.empty() && low_power_device.has_value() && get_low_power_mode().value_or(false)) {
-        register_priority(priority, low_power_device->unique_name);
+        if (selection_policy.reserve_device) {
+            register_priority(priority, low_power_device->unique_name);
+        }
         return *low_power_device;
     }
 
@@ -977,7 +993,9 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
     }
     //recode the device priority
-    register_priority(priority, ptr_select_device->unique_name);
+    if (selection_policy.reserve_device) {
+        register_priority(priority, ptr_select_device->unique_name);
+    }
     return *ptr_select_device;
 }
 

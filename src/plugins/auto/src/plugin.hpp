@@ -89,6 +89,9 @@ public:
     // Whether the platform is currently in low power mode; see device_monitor::TelemetryClient.
     MOCKTESTMACRO std::optional<bool> get_low_power_mode();
 
+    // Whether the telemetry backend (IPF) is operational; without it the resource aware selection cannot work.
+    MOCKTESTMACRO bool is_telemetry_available();
+
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;
 

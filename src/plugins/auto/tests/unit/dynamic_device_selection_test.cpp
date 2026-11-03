@@ -680,6 +680,18 @@ TEST_F(AutoDynamicDeviceSelectionTest, throughput_hint_disables_dynamic_selectio
     run_inferences(compiled_model, 3);
 }
 
+// Without the telemetry backend the utilization cannot be evaluated, so the properties are ignored instead of
+// serializing the inference for nothing.
+TEST_F(AutoDynamicDeviceSelectionTest, resource_aware_properties_are_ignored_without_telemetry) {
+    ON_CALL(*plugin, is_telemetry_available()).WillByDefault(Return(false));
+    config.insert(ov::intel_auto::enable_startup_fallback(false));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    EXPECT_CALL(*plugin, select_device).Times(1);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 3);
+}
+
 TEST_F(AutoDynamicDeviceSelectionTest, optimal_number_of_infer_requests_is_one) {
     config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
     ON_CALL(*mockIExeNetActual.get(), get_property(StrEq(ov::optimal_number_of_infer_requests.name())))
@@ -981,10 +993,12 @@ TEST_F(AutoDynamicDeviceSelectionTest, disabled_runtime_fallback_is_accepted) {
     run_inferences(compiled_model, 1);
 }
 
-TEST_F(AutoDynamicDeviceSelectionTest, explicit_model_priority_is_rejected) {
+TEST_F(AutoDynamicDeviceSelectionTest, explicit_model_priority_is_ignored) {
     config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
     config.insert(ov::hint::model_priority(ov::hint::Priority::HIGH));
-    EXPECT_THROW(plugin->compile_model(model, config), ov::Exception);
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    run_inferences(compiled_model, 1);
 }
 
 TEST_F(AutoDynamicDeviceSelectionTest, more_than_one_stream_is_rejected) {

@@ -221,6 +221,8 @@ class Plugin;
 struct DeviceSelectionPolicy {
     std::unordered_map<std::string, unsigned> utilization_thresholds;
     ov::intel_auto::PerfCurveTable            perf_curve_table;
+    // per inference selection takes no part in the model priority arbitration, so it reserves nothing
+    bool                                      reserve_device = true;
 };
 
 class ScheduleContext : public std::enable_shared_from_this<ScheduleContext>  {
