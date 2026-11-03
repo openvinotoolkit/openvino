@@ -684,10 +684,6 @@ TEST(qsa_gr_fusion, compressed_weights_need_the_flag) {
 
 TEST(qsa_gr_fusion, compressed_rejects_unsupported_quantization) {
     const size_t cd = C * D;
-    // group 64 is not a supported u4 group size
-    auto g64 = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 64), make_decompressed(ov::element::u4, cd, LQ, 32), true);
-    ASSERT_NE(g64, nullptr);
-    EXPECT_EQ(g64->get_input_size(), 4u);
     // W_down and W_up must be compressed the same way
     auto mixed = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u8, cd, LQ, LQ), true);
     ASSERT_NE(mixed, nullptr);
@@ -696,26 +692,28 @@ TEST(qsa_gr_fusion, compressed_rejects_unsupported_quantization) {
     auto scalar = run_read_fusion(make_decompressed(ov::element::u8, LQ, cd, cd, true), make_decompressed(ov::element::u8, cd, LQ, LQ), true);
     ASSERT_NE(scalar, nullptr);
     EXPECT_EQ(scalar->get_input_size(), 4u);
-    // u4 per-channel (group == K) is not supported either
-    auto u4_pc = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, cd), make_decompressed(ov::element::u4, cd, LQ, LQ), true);
-    ASSERT_NE(u4_pc, nullptr);
-    EXPECT_EQ(u4_pc->get_input_size(), 4u);
+}
+
+TEST(qsa_gr_fusion, compressed_group_sizes_are_multiples_of_32) {
+    const size_t cd = C * D;
+    // W_down [LQ, cd] takes 32 / 64 / 128 / per-channel (K = 256); W_up [cd, LQ] has K = 32, i.e. one group of 32
+    for (const auto& wt : {ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8}) {
+        for (const size_t group : {size_t{32}, size_t{64}, size_t{128}, cd}) {
+            auto gr = run_read_fusion(make_decompressed(wt, LQ, cd, group), make_decompressed(wt, cd, LQ, 32), true);
+            expect_compressed(gr, wt, cd / group, 1);
+        }
+    }
 }
 
 TEST(qsa_gr_fusion, compressed_group_size_is_derived_from_the_shapes) {
     const size_t cd = C * D;
-    // W_down [LQ, cd] with 4 groups -> group size 64; W_up [cd, LQ] with 1 group -> group size LQ (32): only the latter is a u4 group size
-    auto g64_down = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, cd / 4), make_decompressed(ov::element::u4, cd, LQ, 32), true);
-    ASSERT_NE(g64_down, nullptr);
-    EXPECT_EQ(g64_down->get_input_size(), 4u);
-    // group size 16 is not supported either
+    // group size 16 is not a multiple of 32
     auto g16 = run_read_fusion(make_decompressed(ov::element::u4, LQ, cd, 16), make_decompressed(ov::element::u4, cd, LQ, 16), true);
     ASSERT_NE(g16, nullptr);
     EXPECT_EQ(g16->get_input_size(), 4u);
-    // u8 with a sub-K group size is not supported (only per-channel)
-    auto u8_g32 = run_read_fusion(make_decompressed(ov::element::u8, LQ, cd, 32), make_decompressed(ov::element::u8, cd, LQ, 32), true);
-    ASSERT_NE(u8_g32, nullptr);
-    EXPECT_EQ(u8_g32->get_input_size(), 4u);
+    auto u8_g16 = run_read_fusion(make_decompressed(ov::element::u8, LQ, cd, 16), make_decompressed(ov::element::u8, cd, LQ, 16), true);
+    ASSERT_NE(u8_g16, nullptr);
+    EXPECT_EQ(u8_g16->get_input_size(), 4u);
 }
 
 namespace {
@@ -800,7 +798,8 @@ TEST(gated_residual_group_size, op_validates_the_zero_point_type) {
                             param(ov::element::f16, {lq / 32, cd}),
                             param(ov::element::u4, {cd / 32, lq}),
                             param(ov::element::u4, {lq / 32, cd})};
-    EXPECT_THROW(std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, C, D, LQ, EPS, false, false), ov::NodeValidationFailure)
+    EXPECT_THROW(static_cast<void>(std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, C, D, LQ, EPS, false, false)),
+                 ov::NodeValidationFailure)
         << "the zero point must have the weight element type";
 }
 
@@ -812,52 +811,62 @@ TEST(gated_residual_group_size, derive_group_size) {
 }
 
 TEST(gated_residual_group_size, supported_group_sizes) {
-    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(4, 256, 32));
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(4, 256, 16));
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(4, 256, 64));
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(4, 256, 256)) << "u4 per-channel";
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(4, 256, 0));
-    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(8, 256, 256)) << "u8 per-channel";
-    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(8, 256, 32)) << "u8 grouped";
+    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(256, 32));
+    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(256, 64));
+    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(256, 128));
+    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(256, 256)) << "per-channel";
+    EXPECT_TRUE(op::GatedResidual::is_group_size_supported(320, 160)) << "a multiple of 32 that divides K";
+    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 16));
+    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 48)) << "not a multiple of 32";
+    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 96)) << "does not divide K";
+    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(320, 128)) << "does not divide K";
+    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 512)) << "larger than K";
+    EXPECT_FALSE(op::GatedResidual::is_group_size_supported(256, 0));
 }
 
 TEST(gated_residual_group_size, weight_compression_support_uses_k_over_g) {
     // W_down [32, 256], W_up [256, 32]
-    EXPECT_TRUE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 8, 256, 32, 1));
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 4, 256, 32, 1)) << "W_down group size 64";
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 8, 256, 32, 2)) << "W_up group size 16";
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 7, 256, 32, 1)) << "K not divisible by G";
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(4, 32, 256, 0, 256, 32, 1));
-    EXPECT_TRUE(op::GatedResidual::is_weight_compression_supported(8, 32, 256, 1, 256, 32, 1));
-    EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(8, 32, 256, 8, 256, 32, 1)) << "u8 grouped";
+    for (const size_t bits : {size_t{4}, size_t{8}}) {
+        for (const size_t g_down : {size_t{8}, size_t{4}, size_t{2}, size_t{1}}) {
+            EXPECT_TRUE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, g_down, 256, 32, 1)) << bits << " bits, " << g_down << " groups";
+        }
+        EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, 16, 256, 32, 1)) << "W_down group size 16";
+        EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, 8, 256, 32, 2)) << "W_up group size 16";
+        EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, 7, 256, 32, 1)) << "K not divisible by G";
+        EXPECT_FALSE(op::GatedResidual::is_weight_compression_supported(bits, 32, 256, 0, 256, 32, 1));
+    }
 }
 
 TEST(gated_residual_group_size, write_gate_compression_support_has_only_c_rows) {
     // W_inject [C = 4, K = 256]: N is not a multiple of 16, the group rules are those of W_down / W_up
-    EXPECT_TRUE(op::GatedResidual::is_write_gate_compression_supported(4, 4, 256, 8));
-    EXPECT_TRUE(op::GatedResidual::is_write_gate_compression_supported(8, 4, 256, 1));
-    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(4, 4, 256, 4)) << "group size 64";
-    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(4, 4, 256, 7)) << "K not divisible by G";
-    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(8, 4, 256, 8)) << "u8 grouped";
-    EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(4, 4, 48, 1)) << "K % 32";
+    for (const size_t bits : {size_t{4}, size_t{8}}) {
+        for (const size_t g : {size_t{8}, size_t{4}, size_t{2}, size_t{1}}) {
+            EXPECT_TRUE(op::GatedResidual::is_write_gate_compression_supported(bits, 4, 256, g)) << bits << " bits, " << g << " groups";
+        }
+        EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(bits, 4, 256, 16)) << "group size 16";
+        EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(bits, 4, 256, 7)) << "K not divisible by G";
+        EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(bits, 4, 48, 1)) << "K % 32";
+    }
     EXPECT_FALSE(op::GatedResidual::is_write_gate_compression_supported(2, 4, 256, 8)) << "bits";
 }
 
 TEST(gated_residual_group_size, op_accepts_supported_group_sizes) {
     const size_t cd = C * D;
-    EXPECT_NO_THROW(make_compressed_op(ov::element::u4, cd / 32, static_cast<size_t>(LQ) / 32));
-    EXPECT_NO_THROW(make_compressed_op(ov::element::u8, 1, 1));
+    for (const auto& wt : {ov::element::u4, ov::element::i4, ov::element::u8, ov::element::i8}) {
+        for (const size_t group : {size_t{32}, size_t{64}, size_t{128}, cd}) {
+            EXPECT_NO_THROW(make_compressed_op(wt, cd / group, 1)) << wt << " group " << group;
+        }
+    }
 }
 
 TEST(gated_residual_group_size, op_rejects_unsupported_group_sizes) {
     const size_t cd = C * D;
     const size_t lq = static_cast<size_t>(LQ);
-    EXPECT_THROW(make_compressed_op(ov::element::u4, cd / 64, lq / 32), ov::NodeValidationFailure) << "W_down group size 64";
-    EXPECT_THROW(make_compressed_op(ov::element::u4, cd / 16, lq / 32), ov::NodeValidationFailure) << "W_down group size 16";
-    EXPECT_THROW(make_compressed_op(ov::element::u4, cd / 32, lq / 16), ov::NodeValidationFailure) << "W_up group size 16";
-    EXPECT_THROW(make_compressed_op(ov::element::u4, 1, 1), ov::NodeValidationFailure) << "u4 per-channel";
-    EXPECT_THROW(make_compressed_op(ov::element::u8, cd / 32, 1), ov::NodeValidationFailure) << "u8 grouped";
-    EXPECT_THROW(make_compressed_op(ov::element::u4, 7, 1), ov::NodeValidationFailure) << "K not divisible by G";
+    for (const auto& wt : {ov::element::u4, ov::element::u8}) {
+        EXPECT_THROW(make_compressed_op(wt, cd / 16, 1), ov::NodeValidationFailure) << "W_down group size 16";
+        EXPECT_THROW(make_compressed_op(wt, cd / 32, lq / 16), ov::NodeValidationFailure) << "W_up group size 16";
+        EXPECT_THROW(make_compressed_op(wt, 7, 1), ov::NodeValidationFailure) << "K not divisible by G";
+    }
 }
 
 namespace {
@@ -929,9 +938,8 @@ TEST(gated_residual_write_gate_op, compressed_write_gate_rejects_inconsistent_in
         << "W_inject must have the element type of W_down / W_up";
     EXPECT_THROW(make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, cd / 32, ov::element::u4, {c + 1}), ov::NodeValidationFailure)
         << "scale_inject must have C columns";
-    EXPECT_THROW(make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, cd / 64, ov::element::u4, {c}), ov::NodeValidationFailure)
-        << "W_inject group size 64";
-    EXPECT_THROW(make_compressed_gate_op(ov::element::u8, 1, 1, cd / 32, ov::element::u8, {c}), ov::NodeValidationFailure) << "u8 grouped W_inject";
+    EXPECT_THROW(make_compressed_gate_op(ov::element::u4, cd / 32, lq / 32, cd / 16, ov::element::u4, {c}), ov::NodeValidationFailure)
+        << "W_inject group size 16";
 }
 
 TEST(gated_residual_write_gate_op, f16_write_gate_keeps_five_inputs) {
@@ -949,7 +957,8 @@ TEST(gated_residual_write_gate_op, f16_write_gate_keeps_five_inputs) {
     EXPECT_EQ(gr->get_output_partial_shape(0), (ov::PartialShape{T, D}));
     // a compressed-weight W_inject needs the full 11-input form
     inputs.back() = param(ov::element::u4, {static_cast<size_t>(C), cd});
-    EXPECT_THROW(std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, C, D, LQ, EPS, false, true), ov::NodeValidationFailure);
+    EXPECT_THROW(static_cast<void>(std::make_shared<op::GatedResidual>(inputs, op::GatedResidual::Mode::READ, C, D, LQ, EPS, false, true)),
+                 ov::NodeValidationFailure);
 }
 
 namespace {
@@ -1214,11 +1223,16 @@ TEST(qsa_gr_fusion_write_gate, compressed_read_with_f16_or_mismatched_w_inject_f
     };
     expect_gate_not_fused(run_gate_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), u8_inject, true), 8u);
     // W_inject with an unsupported group size
-    gate_fn g64_inject = [&](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
-        return build_write_gate(rbar, make_decompressed(ov::element::u4, c, cd, 64));
+    gate_fn g16_inject = [&](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
+        return build_write_gate(rbar, make_decompressed(ov::element::u4, c, cd, 16));
     };
-    expect_gate_not_fused(run_gate_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), g64_inject, true),
+    expect_gate_not_fused(run_gate_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), g16_inject, true),
                           8u);
+    // W_inject may use another group size than W_down / W_up
+    gate_fn g128_inject = [&](const ov::Output<ov::Node>&, const ov::Output<ov::Node>& rbar) {
+        return build_write_gate(rbar, make_decompressed(ov::element::u4, c, cd, 128));
+    };
+    expect_gate_fused(run_gate_fusion(make_decompressed(ov::element::u4, LQ, cd, 32), make_decompressed(ov::element::u4, cd, LQ, 32), g128_inject, true), 11u);
 }
 
 TEST(qsa_gr_fusion_write_gate, compressed_w_inject_with_f16_read_weights_uses_the_decompressed_tensor) {

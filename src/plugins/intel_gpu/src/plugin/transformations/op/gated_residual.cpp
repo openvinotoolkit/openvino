@@ -179,7 +179,7 @@ void GatedResidual::validate_and_infer_types() {
                 const size_t group_size = derive_group_size(k, g);
                 NODE_VALIDATION_CHECK(this, group_size != 0, "GatedResidual ", name, ": K = ", k, " is not divisible by the scale group count G = ", g);
                 NODE_VALIDATION_CHECK(this,
-                                      is_group_size_supported(bits, k, group_size),
+                                      is_group_size_supported(k, group_size),
                                       "GatedResidual ",
                                       name,
                                       ": unsupported group size ",
@@ -188,9 +188,9 @@ void GatedResidual::validate_and_infer_types() {
                                       k,
                                       ", G = ",
                                       g,
-                                      "); supported: ",
-                                      int4_group_size,
-                                      " for 4-bit, K (per-channel) for 8-bit.");
+                                      "); supported: a multiple of ",
+                                      group_size_step,
+                                      " that divides K.");
                 NODE_VALIDATION_CHECK(this,
                                       write_gate ? is_write_gate_compression_supported(bits, n, k, g) : is_weight_compression_supported(bits, n, k, g, n, k, g),
                                       "GatedResidual ",

@@ -192,7 +192,7 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
     for (uint i = 0; i < GR_NT * GR_MT; i++) {
         acc[i] = (float8)(0.0f);
     }
-#if GR_W_TYPE == GR_WT_U8
+#if GR_WD_PERCH
     half2 scv[GR_NT];
     half2 zpv[GR_NT];
     unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
@@ -211,12 +211,12 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
             unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
                 uint rw[GR_WQ_RAW_PER_K32];
                 GR_WQ_LOAD_RAW(rw, GR_WQ_RAW_PER_K32, brow[j_], k);
-#if GR_W_TYPE == GR_WT_U4
-                const half2 scv = GR_WQ_SCALE2(w_scale, k >> 5, GR_LOWRANK, n0 + 16 * j_);
-                const half2 zpv = GR_WQ_ZP2(w_zp, k >> 5, GR_LOWRANK, n0 + 16 * j_, lane);
-                const uint16 b = GR_WQ_DEQ32(rw, 0, zpv, scv);
-#else
+#if GR_WD_PERCH
                 const uint16 b = GR_WQ_DEQ32(rw, 0, zpv[j_], scv[j_]);
+#else
+                const half2 scv = GR_WQ_SCALE2(w_scale, GR_WQ_G(k >> 5, GR_WD_GS32), GR_LOWRANK, n0 + 16 * j_);
+                const half2 zpv = GR_WQ_ZP2(w_zp, GR_WQ_G(k >> 5, GR_WD_GS32), GR_LOWRANK, n0 + 16 * j_, lane);
+                const uint16 b = GR_WQ_DEQ32(rw, 0, zpv, scv);
 #endif
                 GR_BLOCK_WRITEN_SLM(uint, 8, sb + (tk * GR_NT + j_) * 256, 0, b.lo);
                 GR_BLOCK_WRITEN_SLM(uint, 8, sb + (tk * GR_NT + j_) * 256 + 128, 0, b.hi);
@@ -293,14 +293,20 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
 
 #define GR_DN_LDA(AT, KK) GR_RD2D(GR_DOWN_TM, rbar, GR_CD * 2, num_tokens, GR_CD * 2, (KK), t0, AT)
 
-#if GR_W_TYPE == GR_WT_U4
-// scale / zp of the u4 groups of the chunk at KK (one group per K32 slice); W_inject's [G, C] rows are too short for block reads
+#if GR_W_TYPE != GR_WT_F16 && !GR_WQ_FOLD
+// Group of K32 slice s: W_inject has its own group size (GR_WI_GS32) in the write-gate tile
+#if GR_PRODUCE_WRITE_GATE
+#define GR_DN_GRP(s) (is_wgate ? GR_WQ_G(s, GR_WI_GS32) : GR_WQ_G(s, GR_WD_GS32))
+#else
+#define GR_DN_GRP(s) GR_WQ_G(s, GR_WD_GS32)
+#endif
+// scale / zp of the groups of the chunk at KK (one entry per K32 slice); W_inject's [G, C] rows are too short for block reads
 #define GR_DN_LDSZ(SC, ZP, KK)                                                                                  \
     unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {                                                                \
         unroll_for (uint s_ = 0; s_ < GR_WD_KCH / 32; s_++) {                                                   \
-            const uint i_ = (((KK) >> 5) + s_) * qn + nrow[j_];                                                 \
+            const uint i_ = GR_DN_GRP(((KK) >> 5) + s_) * qn + nrow[j_];                                        \
             SC[j_][s_] = qs[i_];                                                                                \
-            ZP[j_][s_] = GR_HAS_ZP ? qz[i_ >> 1] : 0;                                                           \
+            ZP[j_][s_] = GR_HAS_ZP ? qz[GR_WQ_BITS == 4 ? (i_ >> 1) : i_] : 0;                                  \
         }                                                                                                       \
     }
 #endif
@@ -468,15 +474,15 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
         GR_DN_LDA(atc[s_], k_begin + 32 * s_);
     }
 #endif
-#if GR_W_TYPE == GR_WT_U4
+#if GR_W_TYPE != GR_WT_F16 && !GR_WQ_FOLD
     ushort scr[GR_NT][GR_WD_KCH / 32];
     uchar zpr[GR_NT][GR_WD_KCH / 32];
     GR_DN_LDSZ(scr, zpr, k_begin);
     uint zsh[GR_NT];
     unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
-        zsh[j_] = (nrow[j_] & 1) * 4;  // qn is even, so the nibble of (g * qn + row) only depends on the row
+        zsh[j_] = GR_WQ_BITS == 4 ? (nrow[j_] & 1) * 4 : 0;  // qn is even, so the nibble of (g * qn + row) only depends on the row
     }
-#else
+#elif GR_W_TYPE != GR_WT_F16
     float sf[GR_NT];
     float zf[GR_NT];
     unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
@@ -501,7 +507,7 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
         unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
             GR_WQ_LOAD_RAW(rwn[j_], GR_WD_NRAW, brow[j_], kn);
         }
-#if GR_W_TYPE == GR_WT_U4
+#if GR_W_TYPE != GR_WT_F16 && !GR_WQ_FOLD
         ushort scn[GR_NT][GR_WD_KCH / 32];
         uchar zpn[GR_NT][GR_WD_KCH / 32];
         GR_DN_LDSZ(scn, zpn, kn);
@@ -524,14 +530,14 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
 #if GR_WQ_FOLD
                 b0[j_] = GR_WQ_U8B32(rw[j_], s_ * GR_WQ_RAW_PER_K32);
 #else
-                b0[j_] = GR_WQ_U4M32(rw[j_], s_ * GR_WQ_RAW_PER_K32);
+                b0[j_] = GR_WQ_GB32(rw[j_], s_ * GR_WQ_RAW_PER_K32);
 #endif
             }
 #if GR_WQ_FOLD
             GR_DN_MMA(at0, b0);
             GR_DN_RS(at0);
 #else
-            // u4: the slice is one group; acc += scale * (A . (1024 + q) - (1024 + zp) * rowsum(A)), no per-weight arithmetic
+            // acc += scale * (A . (bias + q) - (bias + zp) * rowsum(A)) per group slice, no per-weight arithmetic
             float8 tq[GR_NT * GR_MT];
             float8 rs[GR_MT];
             unroll_for (uint i_ = 0; i_ < GR_NT * GR_MT; i_++) {
@@ -544,7 +550,7 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
             GR_DN_RS_TO(rs, at0);
             unroll_for (uint j_ = 0; j_ < GR_NT; j_++) {
                 const float sc = convert_float(as_half(scr[j_][s_]));
-                const float zz = 1024.0f + (float)GR_WQ_ZPNIB(zpr[j_][s_], zsh[j_]);
+                const float zz = GR_WQ_BIAS + (float)GR_WQ_ZPLD(zpr[j_][s_], zsh[j_]);
                 unroll_for (uint m_ = 0; m_ < GR_MT; m_++) {
                     acc[j_ * GR_MT + m_] = fma((float8)(sc), fma((float8)(-zz), rs[m_], tq[j_ * GR_MT + m_]), acc[j_ * GR_MT + m_]);
                 }
@@ -563,7 +569,7 @@ KERNEL(gr_down_proj_dpas)(const __global ushort* rbar,
             unroll_for (uint i_ = 0; i_ < GR_WD_NRAW; i_++) {
                 rw[j_][i_] = rwn[j_][i_];
             }
-#if GR_W_TYPE == GR_WT_U4
+#if GR_W_TYPE != GR_WT_F16 && !GR_WQ_FOLD
             unroll_for (uint s_ = 0; s_ < GR_WD_KCH / 32; s_++) {
                 scr[j_][s_] = scn[j_][s_];
                 zpr[j_][s_] = zpn[j_][s_];
@@ -708,7 +714,7 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
     for (uint i = 0; i < GR_BRANCHES * GR_MT; i++) {
         acc[i] = (float8)(0.0f);
     }
-#if GR_W_TYPE == GR_WT_U8
+#if GR_WU_PERCH
     half2 scv[GR_BRANCHES];
     half2 zpv[GR_BRANCHES];
     unroll_for (uint c_ = 0; c_ < GR_BRANCHES; c_++) {
@@ -726,12 +732,12 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
             unroll_for (uint c_ = 0; c_ < GR_BRANCHES; c_++) {
                 uint rw[GR_WQ_RAW_PER_K32];
                 GR_WQ_LOAD_RAW(rw, GR_WQ_RAW_PER_K32, brow[c_], k);
-#if GR_W_TYPE == GR_WT_U4
-                const half2 scv = GR_WQ_SCALE2(w_scale, sl, GR_CD, c_ * GR_HIDDEN + d0);
-                const half2 zpv = GR_WQ_ZP2(w_zp, sl, GR_CD, c_ * GR_HIDDEN + d0, lane);
-                const uint16 b = GR_WQ_DEQ32(rw, 0, zpv, scv);
-#else
+#if GR_WU_PERCH
                 const uint16 b = GR_WQ_DEQ32(rw, 0, zpv[c_], scv[c_]);
+#else
+                const half2 scv = GR_WQ_SCALE2(w_scale, GR_WQ_G(sl, GR_WU_GS32), GR_CD, c_ * GR_HIDDEN + d0);
+                const half2 zpv = GR_WQ_ZP2(w_zp, GR_WQ_G(sl, GR_WU_GS32), GR_CD, c_ * GR_HIDDEN + d0, lane);
+                const uint16 b = GR_WQ_DEQ32(rw, 0, zpv, scv);
 #endif
                 GR_BLOCK_WRITEN_SLM(uint, 8, sb + (tk * GR_BRANCHES + c_) * 256, 0, b.lo);
                 GR_BLOCK_WRITEN_SLM(uint, 8, sb + (tk * GR_BRANCHES + c_) * 256 + 128, 0, b.hi);
@@ -909,18 +915,18 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
     }
 #else
 #define GR_UP_LDA(AT, KK) GR_RD2D(GR_UP_TM, t_in, GR_LOWRANK * 2, num_tokens, GR_LOWRANK * 2, (KK), t0, AT)
-#if GR_W_TYPE == GR_WT_U4
-// scale / (1024 + zp) of the u4 groups of the chunk at KK (one group per K32 slice)
+#if !GR_WQ_FOLD
+// scale / (bias + zp) of the groups of the chunk at KK (one entry per K32 slice)
 #define GR_UP_LDSZ(SC, ZZ, KK)                                                                                  \
     unroll_for (uint s_ = 0; s_ < GR_WU_KCH / 32; s_++) {                                                       \
         unroll_for (uint c_ = 0; c_ < GR_BRANCHES; c_++) {                                                      \
-            const uint zb_ = (((KK) >> 5) + s_) * GR_CD + c_ * GR_HIDDEN + d0;                                   \
+            const uint zb_ = GR_WQ_G(((KK) >> 5) + s_, GR_WU_GS32) * GR_CD + c_ * GR_HIDDEN + d0;                \
             SC[c_][s_] = convert_float(as_half(intel_sub_group_block_read_us(w_scale + zb_)));                  \
-            ZZ[c_][s_] = 1024.0f + (float)GR_WQ_ZPAT(w_zp, zb_ + lane);                                           \
+            ZZ[c_][s_] = GR_WQ_BIAS + (float)GR_WQ_ZPAT(w_zp, zb_ + lane);                                      \
         }                                                                                                       \
     }
 #endif
-    // the first weight chunk, its activation tiles (and u4 scale / zp) are in flight before the loop
+    // the first weight chunk, its activation tiles (and scale / zp) are in flight before the loop
     uint rw[GR_BRANCHES][GR_WU_NRAW];
     unroll_for (uint c_ = 0; c_ < GR_BRANCHES; c_++) {
         GR_WQ_LOAD_RAW(rw[c_], GR_WU_NRAW, brow[c_], k_begin);
@@ -931,7 +937,7 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
         GR_UP_LDA(atc[s_], k_begin + 32 * s_);
     }
 #endif
-#if GR_W_TYPE == GR_WT_U4
+#if !GR_WQ_FOLD
     float scf[GR_BRANCHES][GR_WU_KCH / 32];
     float zzf[GR_BRANCHES][GR_WU_KCH / 32];
     GR_UP_LDSZ(scf, zzf, k_begin);
@@ -957,7 +963,7 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
             GR_UP_LDA(atn[s_], kn + 32 * s_);
         }
 #endif
-#if GR_W_TYPE == GR_WT_U4
+#if !GR_WQ_FOLD
         float scn[GR_BRANCHES][GR_WU_KCH / 32];
         float zzn[GR_BRANCHES][GR_WU_KCH / 32];
         GR_UP_LDSZ(scn, zzn, kn);
@@ -974,14 +980,14 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
 #if GR_WQ_FOLD
                 b0[c_] = GR_WQ_U8B32(rw[c_], s_ * GR_WQ_RAW_PER_K32);
 #else
-                b0[c_] = GR_WQ_U4M32(rw[c_], s_ * GR_WQ_RAW_PER_K32);
+                b0[c_] = GR_WQ_GB32(rw[c_], s_ * GR_WQ_RAW_PER_K32);
 #endif
             }
 #if GR_WQ_FOLD
             GR_UP_MMA(at0, b0);
             GR_UP_RS(at0);
 #else
-            // u4: the slice is one group; acc += scale * (A . (1024 + q) - (1024 + zp) * rowsum(A)), see DOWN_PROJ
+            // acc += scale * (A . (bias + q) - (bias + zp) * rowsum(A)) per group slice, see DOWN_PROJ
             float8 tq[GR_BRANCHES * GR_MT];
             float8 rs[GR_MT];
             unroll_for (uint i_ = 0; i_ < GR_BRANCHES * GR_MT; i_++) {
@@ -1006,7 +1012,7 @@ KERNEL(gr_up_proj_dpas)(const __global ushort* t_in,
                 atc[s_][i_] = atn[s_][i_];
             }
 #endif
-#if GR_W_TYPE == GR_WT_U4
+#if !GR_WQ_FOLD
             unroll_for (uint c_ = 0; c_ < GR_BRANCHES; c_++) {
                 scf[c_][s_] = scn[c_][s_];
                 zzf[c_][s_] = zzn[c_][s_];

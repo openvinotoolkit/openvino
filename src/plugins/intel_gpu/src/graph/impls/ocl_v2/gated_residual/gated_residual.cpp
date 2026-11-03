@@ -309,11 +309,20 @@ size_t gr_pd_min_rows(const cldnn::device_info& info) {
     return env >= 0 ? static_cast<size_t>(env) : 5 * static_cast<size_t>(info.execution_units_count);
 }
 
-/// GR_<prefix>_KCH / _NRAW / _RB of one weight matrix [N, K].
-void add_wq_matrix_constants(JitConstants& jit, const std::string& prefix, GrWType t, size_t kch, size_t row_k) {
+/// Group size along K (K / G) of the weight whose f16 scale is input `scale_idx`.
+size_t gr_group_size(const RuntimeParams& params, size_t scale_idx, size_t k) {
+    const auto& ps = params.get_input_layout(scale_idx).get_partial_shape();
+    OPENVINO_ASSERT(ps.rank().is_static() && ps.size() == 2 && ps[0].is_static(), "[GPU][OCL] gated_residual: the scale must be a static [G, N] tensor");
+    return GrOp::derive_group_size(k, static_cast<size_t>(ps[0].get_length()));
+}
+
+/// GR_<prefix>_KCH / _NRAW / _RB / _GS32 (group size in K32 slices) / _PERCH (one group) of one weight matrix [N, K].
+void add_wq_matrix_constants(JitConstants& jit, const std::string& prefix, GrWType t, size_t kch, size_t row_k, size_t group_size) {
     jit.make(prefix + "_KCH", kch);
     jit.make(prefix + "_NRAW", kch * gr_weight_bits(t) / 32);
     jit.make(prefix + "_RB", row_k * gr_weight_bits(t) / 8);
+    jit.make(prefix + "_GS32", group_size / gr_dpas_k_step);
+    jit.make(prefix + "_PERCH", group_size == row_k ? 1 : 0);
 }
 
 /// Weight format of a compressed kernel: bit width class, signedness and whether there are zero points.
@@ -491,8 +500,18 @@ protected:
         if (m_q) {
             const auto wtype = gr_weight_type(params);
             add_wq_format_constants(jit, params);
-            add_wq_matrix_constants(jit, "GR_WD", wtype, gr_wq_kch(wtype, desc->hidden_size, cd, gr_wq_dpas_load_bytes), cd);
-            add_wq_matrix_constants(jit, "GR_WU", wtype, gr_wq_kch(wtype, desc->lowrank, desc->lowrank, gr_wq_dpas_load_bytes), desc->lowrank);
+            add_wq_matrix_constants(jit,
+                                    "GR_WD",
+                                    wtype,
+                                    gr_wq_kch(wtype, desc->hidden_size, cd, gr_wq_dpas_load_bytes),
+                                    cd,
+                                    gr_group_size(params, GrOp::ReadInputIdx::SCALE_DOWN, cd));
+            add_wq_matrix_constants(jit,
+                                    "GR_WU",
+                                    wtype,
+                                    gr_wq_kch(wtype, desc->lowrank, desc->lowrank, gr_wq_dpas_load_bytes),
+                                    desc->lowrank,
+                                    gr_group_size(params, GrOp::ReadInputIdx::SCALE_UP, desc->lowrank));
         }
         return jit;
     }
@@ -666,12 +685,21 @@ protected:
         jit.make("GR_PRODUCE_WRITE_GATE", gate_tile(*desc, m_q, m_tier) ? 1 : 0);
         if (m_q) {
             const size_t cd = desc->hc_count * desc->hidden_size;
+            const auto layout = gr_read_layout(params);
+            const size_t gs_down = gr_group_size(params, GrOp::ReadInputIdx::SCALE_DOWN, cd);
+            const bool gate = gate_tile(*desc, m_q, m_tier);
+            const size_t gs_inject = gate ? gr_group_size(params, layout.scale_inject, cd) : cd;
             add_wq_format_constants(jit, params);
             jit.make("GR_Q_SHARE", share ? 1 : 0);
             if (share) {
                 jit.make("GR_Q_ST", qs.st);
             }
-            add_wq_matrix_constants(jit, "GR_WD", wtype, share ? 32 : gr_wq_kch(wtype, cd / tiling.ksplit, cd, gr_wq_down_load_bytes), cd);
+            // per-channel 8-bit weights (also in the write-gate tile) fold their zero point and scale into the epilogue
+            jit.make("GR_WQ_FOLD", !share && wtype == GrWType::u8 && gs_down == cd && gs_inject == cd ? 1 : 0);
+            if (gate) {
+                jit.make("GR_WI_GS32", gs_inject / gr_dpas_k_step);
+            }
+            add_wq_matrix_constants(jit, "GR_WD", wtype, share ? 32 : gr_wq_kch(wtype, cd / tiling.ksplit, cd, gr_wq_down_load_bytes), cd, gs_down);
         }
         return jit;
     }
@@ -819,16 +847,19 @@ protected:
         jit.make("GR_UP_KSPLIT", tiling.ksplit);
         if (m_q) {
             const auto wtype = gr_weight_type(params);
+            const size_t gs_up = gr_group_size(params, GrOp::ReadInputIdx::SCALE_UP, desc->lowrank);
             add_wq_format_constants(jit, params);
             jit.make("GR_Q_SHARE", share ? 1 : 0);
             if (share) {
                 jit.make("GR_Q_ST", gr_up_q_st);
             }
+            jit.make("GR_WQ_FOLD", !share && wtype == GrWType::u8 && gs_up == desc->lowrank ? 1 : 0);
             add_wq_matrix_constants(jit,
                                     "GR_WU",
                                     wtype,
                                     share ? 32 : gr_wq_kch(wtype, desc->lowrank / tiling.ksplit, desc->lowrank, gr_wq_up_load_bytes),
-                                    desc->lowrank);
+                                    desc->lowrank,
+                                    gs_up);
         }
         return jit;
     }
@@ -911,7 +942,12 @@ protected:
         add_wq_format_constants(jit, params);
         jit.make("GR_DQ_N", rows_n(*desc, m_down));
         jit.make("GR_DQ_K", k);
-        add_wq_matrix_constants(jit, "GR_DQ", wtype, gr_wq_kch(wtype, k, k, 64), k);
+        add_wq_matrix_constants(jit,
+                                "GR_DQ",
+                                wtype,
+                                gr_wq_kch(wtype, k, k, 64),
+                                k,
+                                gr_group_size(params, m_down ? GrOp::ReadInputIdx::SCALE_DOWN : GrOp::ReadInputIdx::SCALE_UP, k));
         return jit;
     }
 
@@ -953,13 +989,12 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = GrGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<gated_residual>();
-        const auto wtype = gr_weight_type(params);
         const size_t k = desc->hc_count * desc->hidden_size;
         jit.make("GR_DEQUANT_INJECT", 1);
         add_wq_format_constants(jit, params);
         jit.make("GR_DQ_N", desc->hc_count);
         jit.make("GR_DQ_K", k);
-        jit.make("GR_DQ_GS", wtype == GrWType::u4 ? GrOp::int4_group_size : k);
+        jit.make("GR_DQ_GS", gr_group_size(params, gr_read_layout(params).scale_inject, k));
         return jit;
     }
 

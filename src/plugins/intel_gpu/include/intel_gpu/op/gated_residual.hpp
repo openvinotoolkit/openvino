@@ -105,7 +105,7 @@ public:
         return read_layout(get_input_size(), m_produce_write_gate);
     }
 
-    static constexpr size_t int4_group_size = 32;  ///< the only group size along K the kernels support for 4-bit weights
+    static constexpr size_t group_size_step = 32;  ///< group sizes along K are multiples of this (one dpas K32 slice)
 
     static bool is_compressed_weight_type(const ov::element::Type& t) {
         return t == ov::element::i4 || t == ov::element::u4 || t == ov::element::i8 || t == ov::element::u8;
@@ -177,9 +177,9 @@ public:
         return (g == 0 || k % g != 0) ? 0 : k / g;
     }
 
-    /// Group sizes the kernels support: 32 for 4-bit, per-channel (group size == K) for 8-bit.
-    static constexpr bool is_group_size_supported(size_t bits, size_t k, size_t group_size) {
-        return group_size != 0 && (bits == 4 ? group_size == int4_group_size : group_size == k);
+    /// Group sizes the kernels support: a multiple of 32 that divides K (group size == K is per-channel).
+    static constexpr bool is_group_size_supported(size_t k, size_t group_size) {
+        return group_size != 0 && group_size % group_size_step == 0 && k % group_size == 0;
     }
 
     /// Shared by the fusion pass and the impl's validate_impl. N/K/G are the weight rows / columns / scale rows of W_down and
@@ -192,7 +192,7 @@ public:
             if (n == 0 || n % 16 != 0 || k == 0 || k % 32 != 0) {
                 return false;
             }
-            if (!is_group_size_supported(bits, k, derive_group_size(k, g))) {
+            if (!is_group_size_supported(k, derive_group_size(k, g))) {
                 return false;
             }
             return (k * bits / 8) % 16 == 0;
@@ -206,7 +206,7 @@ public:
         if ((bits != 4 && bits != 8) || hc_count == 0 || k == 0 || k % 32 != 0) {
             return false;
         }
-        return is_group_size_supported(bits, k, derive_group_size(k, g)) && (k * bits / 8) % 16 == 0;
+        return is_group_size_supported(k, derive_group_size(k, g)) && (k * bits / 8) % 16 == 0;
     }
 
 private:
