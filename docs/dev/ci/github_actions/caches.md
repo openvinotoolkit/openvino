@@ -214,3 +214,9 @@ Build:
     SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}_Release
 ```
 You can also set the options in the CMake configuration command.
+
+For PEP 517 builds using `py-build-cmake`, pass the launchers to CMake via
+`--config-settings=cmake.args="-DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DCMAKE_C_COMPILER_LAUNCHER=sccache"`.
+Setting the workflow environment variables alone does not ensure the wheel backend forwards them
+to its CMake configure step. Clear and print sccache statistics around the build to confirm that
+the compiler launcher is active.
