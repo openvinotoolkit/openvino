@@ -29,6 +29,8 @@
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/parallel_io.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/ov_plugin_cache.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 
@@ -201,14 +203,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),
                          CompileModelWithCacheEncryptionTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Hsm_GPU,
-                        OVCompiledModelHsmBlobTest,
-                        ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
-                                           ::testing::Values(ov::AnyMap{ov::intel_gpu::export_hsm_format(true)})),
-                        OVCompiledModelHsmBlobTest::getTestCaseName);
-
 class GPUHsmRegressionTest : public OVCompiledModelHsmBlobTest {
 public:
+    void SetUp() override {
+        std::tie(target_device, configuration) = GetParam();
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
+        APIBaseTest::SetUp();
+
+        core = ov::test::utils::create_core();
+        core.set_property(target_device, configuration);
+        model = ov::test::utils::make_conv_pool_relu({1, 3, 16, 16}, ov::element::f32);
+        cache_path = "hsm_blob_cache_" + ov::test::utils::generateTestFilePrefix();
+        input = ov::test::utils::create_and_fill_tensor(ov::element::f32, model->input().get_shape());
+        auto compiled = compile(false);
+        ASSERT_TRUE(is_hsm(export_blob(compiled)));
+        auto request = compiled.create_infer_request();
+        request.set_input_tensor(input);
+        request.infer();
+        const auto output = request.get_output_tensor();
+        reference = ov::Tensor(output.get_element_type(), output.get_shape());
+        output.copy_to(reference);
+    }
+
     void TearDown() override {
         if (!cache_path.empty()) {
             std::filesystem::remove(cache_path.string() + ".xml");
@@ -218,6 +234,29 @@ public:
         OVCompiledModelHsmBlobTest::TearDown();
     }
 };
+
+TEST_P(GPUHsmRegressionTest, CacheMissHitAndPlainImports) {
+    auto compiled = compile(true);
+    EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache));
+    const auto blob = export_blob(compiled);
+    ASSERT_TRUE(is_hsm(blob));
+
+    std::stringstream stream(blob);
+    auto from_stream = core.import_model(stream, target_device, configuration);
+    expect_same_inference(from_stream);
+
+    ov::CompiledModel from_tensor;
+    {
+        ov::Tensor tensor(ov::element::u8, ov::Shape{blob.size()});
+        std::memcpy(tensor.data(), blob.data(), blob.size());
+        from_tensor = core.import_model(tensor, target_device, configuration);
+    }
+    expect_same_inference(from_tensor);
+
+    auto cached = compile(true);
+    EXPECT_TRUE(cached.get_property(ov::loaded_from_cache));
+    expect_same_inference(cached);
+}
 
 TEST_P(GPUHsmRegressionTest, ReplacingSourceAtSamePathInvalidatesCache) {
     const auto xml = cache_path.string() + ".xml";
