@@ -216,7 +216,16 @@ void regclass_Tensor(py::module m) {
             py::arg("end"));
 
     cls.def(py::init([](py::object& image) {
-                if (!py::isinstance(image, py::module::import("PIL.Image").attr("Image"))) {
+                // Pillow is optional, without it no object can be a Pillow Image.
+                py::object pil_image_class;
+                try {
+                    pil_image_class = py::module::import("PIL.Image").attr("Image");
+                } catch (py::error_already_set& e) {
+                    if (!e.matches(PyExc_ImportError)) {
+                        throw;
+                    }
+                }
+                if (!pil_image_class || !py::isinstance(image, pil_image_class)) {
                     throw py::type_error(
                         "Input argument must be a PIL.Image.Image/numpy.array/list[int, float, str] object");
                 }

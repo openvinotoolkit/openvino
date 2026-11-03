@@ -19,6 +19,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/graph/resolve_edge_conflicts_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/memory_desc/empty_memory_desc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/nodes/reorder_node_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/nodes/tensoriterator_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/cpu_runtime_configurator.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/enforce_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/snippets_transformations/common/mul_add_to_fma.cpp
@@ -33,6 +34,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_gather_matmul_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp
@@ -259,6 +261,7 @@ if(ENABLE_UNITY_BUILD)
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_gather_matmul_to_compressed_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_to_leaky_relu_test.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/transformations/decompose_integer_divide.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/move_fc_reshape_to_weights.cpp
         ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_sequence_transposes_test.cpp

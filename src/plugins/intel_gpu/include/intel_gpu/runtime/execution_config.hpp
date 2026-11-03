@@ -35,6 +35,7 @@ struct ExecutionConfig : public ov::PluginConfig {
 
     const ov::AnyMap& get_user_properties() const { return m_user_properties; }
     bool is_cm_available() const { return m_cm_available; }
+    void apply_weightless_options();
 
 protected:
     void finalize_impl(const IRemoteContext* context) override;

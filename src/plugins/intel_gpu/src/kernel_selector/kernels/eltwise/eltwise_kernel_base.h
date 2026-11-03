@@ -59,6 +59,7 @@ struct eltwise_params : public base_params {
     struct Node {
         std::vector<InputType> inputs;
         EltwiseMode mode;
+        bool m_pythondiv = false;
     };
 
     struct UpdateInputData {
