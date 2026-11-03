@@ -171,8 +171,7 @@ ov::npuw::s11n::WeightsContext make_import_weights_ctx(const ov::AnyMap& propert
     if (is_weightless) {
         std::shared_ptr<ov::MappedMemory> mapped_memory;
         if (handle_provider) {
-            ov::FileHandle handle = handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
+            mapped_memory = mmap_weights(handle_provider);
         } else if (!weights_path.empty()) {
             mapped_memory = ov::load_mmap_object(ov::util::make_path(weights_path));
         }

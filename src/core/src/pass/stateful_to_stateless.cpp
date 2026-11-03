@@ -37,6 +37,8 @@ struct Variable {
         // cache_params.past.key.0cache_params.present.key.0)
         const std::regex lin_cache_naming_convention = std::regex(
             R"((cache_params)\.past\.(key|value|conv|ssm)\.(\d+)cache_params\.present\.(key|value|conv|ssm)\.(\d+))");
+        // Pattern 3: GGUF frontend variable ids, e.g. cache_k_l3, cache_v_l3, conv_state_l0, ssm_state_l0
+        const std::regex gguf_naming_convention = std::regex(R"((cache_k|cache_v|conv_state|ssm_state)_l(\d+))");
     };
 
     Variable(const Context& context, const std::string& variable_name) : variable_name(variable_name) {
@@ -85,6 +87,22 @@ struct Variable {
                 //     Conv and SSM caches will be placed after them in their natural order in the model.
                 index = std::stoi(past_idx) * 2 + int(past_type == "value");  // order key before value
             } else {
+                index = -1;
+            }
+        } else if (std::regex_match(variable_name, match, context.gguf_naming_convention)) {
+            const std::string type = match[1].str();
+            const std::string layer_idx = match[2].str();
+            if (type == "cache_k" || type == "cache_v") {
+                const std::string key_or_value = type == "cache_k" ? "key" : "value";
+                input_name = "past_key_values." + layer_idx + "." + key_or_value;
+                output_name = "present." + layer_idx + "." + key_or_value;
+                index = layer_idx.length() <= std::numeric_limits<int>::digits10
+                            ? std::stoi(layer_idx) * 2 + int(type == "cache_v")  // order key before value
+                            : -1;
+            } else {
+                const std::string state_type = type == "conv_state" ? "conv" : "ssm";
+                input_name = "cache_params.past." + state_type + "." + layer_idx;
+                output_name = "cache_params.present." + state_type + "." + layer_idx;
                 index = -1;
             }
         } else {
@@ -154,13 +172,15 @@ bool ov::pass::StatefulToStateless::run_on_model(const std::shared_ptr<ov::Model
             "Stateful models without `beam_idx` input are not supported in StatefulToStateless transformation");
     }
 
-    // Process ReadValues that are NOT connected via beam_idx: Conv caches in old LFM2 IRs.
+    // Process ReadValues that are NOT connected via beam_idx: Conv caches in old LFM2 IRs and
+    // recurrent states of GGUF models without beam reordering.
     for (const auto& op : model->get_ops()) {
         if (auto read_value = ov::as_type_ptr<op::util::ReadValueBase>(op)) {
             auto variable_name = read_value->get_variable_id();
             std::smatch match;
             if ((processed_variable_ids.find(variable_name) == processed_variable_ids.end()) &&
-                std::regex_match(variable_name, match, context.lin_cache_naming_convention)) {
+                (std::regex_match(variable_name, match, context.lin_cache_naming_convention) ||
+                 std::regex_match(variable_name, match, context.gguf_naming_convention))) {
                 variables.push_back(Variable(context, variable_name));
                 // For old LFM2 IR, ReadValue for Conv caches connects directly to the useful
                 // Ops after.
