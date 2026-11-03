@@ -31,7 +31,7 @@ Tested models list real checkpoints and their quantization. `—` means no check
 | `gemma3` | gemma-3-1b-it Q4_0 | Post-norms, final soft-cap, separate global/local RoPE scaling |
 | `gemma4` | gemma-4-E2B-it Q4_0 | SWA, per-layer embeddings, shared KV, dense plus routed experts |
 | `glm4moe` | GLM-4.5-Air REAP50 Q2_K | Biased sigmoid selection, shared experts, optional QK-norm |
-| `gpt-oss` | — | MoE, attention sinks, SWA, OAI gated activation; **no numerical fixture**; gpt-oss-20b Q4_0 generates incoherent text |
+| `gpt-oss` | gpt-oss-20b Q4_0 | MoE, attention sinks, SWA, OAI gated activation; **no numerical fixture**; CPU expands MXFP4 experts to F32 at compile time (about 120 GiB for 20B) |
 | `hunyuan-dense` | Hunyuan-0.5B-Instruct Q8_0 | Learned QK-norm after RoPE |
 | `hunyuan-moe` | Hunyuan-A13B-Instruct Q2_K | QK-norm after RoPE, routed and shared experts |
 | `jais2` | Jais-2-8B-Chat Q4_K_M | Biased LayerNorm, ungated ReLU² FFN |
