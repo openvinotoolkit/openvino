@@ -9,6 +9,7 @@
 #include "buffer.hpp"
 #include "buffer_metadata.hpp"
 #include "vm_runtime/npu_vm_runtime.hpp"
+#include "vm_runtime/virtual_machine.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -105,8 +106,10 @@ public:
     };
 
     class EventPool {
-        friend class ExecutionContext;
+    public :
         enum class EventType : uint32_t { DEFAULT, COUNTER_BASED };
+    private:
+        friend class ExecutionContext;
         ze_event_pool_handle_t _eventPool{nullptr};
         std::vector<ze_event_handle_t> _events;
         uint32_t _currentMaxEventCount = 0;
@@ -114,7 +117,7 @@ public:
         ze_context_handle_t _context{nullptr};
         EventType _eventType = EventType::DEFAULT;
         ExecutionMode _executionMode = ExecutionMode::TILE_BOUND;
-
+        uint32_t _eventGroupSize = 1;
         // Specifies whether the number of events is dynamic,
         // which will be used for determining whether to create a large number of events
         bool _dynamicEventCount = false;
@@ -144,7 +147,8 @@ public:
 
         result_t initialize(ze_device_handle_t deviceHandle, ze_context_handle_t context, uint32_t cmdListCount,
                             ExecutionMode executionMode, bool isCounterBasedEventSupported,
-                            bool hostSyncWithEventRequired, uint32_t concurrentJobCount, ov::ZeroApi* ddiTable);
+                            bool hostSyncWithEventRequired, npu_vm_batch_mode batchMode,
+                            uint32_t concurrentJobCount, ov::ZeroApi* ddiTable);
 
         // Returns the next event handle for synchronization.
         ze_event_handle_t getSignalEvent();
@@ -233,6 +237,10 @@ public:
             }
             return false;
         }
+
+        EventType getEventType() {
+            return _eventType;
+        }
     };
 
     class CmdListPool {
@@ -242,9 +250,21 @@ public:
         bool _dynamicCmdListCount = false;
         ze_context_handle_t _context{nullptr};
         ze_device_handle_t _device{nullptr};
+        ExecutionMode _executionMode = ExecutionMode::TILE_BOUND;
         uint32_t _groupOrdinal = 0;
         ov::ZeroApi* _ddiTable{nullptr};
+        // specifies how many command lists should be created at once
+        // when they need to be created
+        uint32_t _cmdListGroupSize = 1;
 
+        // Stores the current cmd ids
+        std::vector<uint32_t> _inferenceCmdIds;
+
+        // VM runtime V2
+        // Stores the recorded command lists for the execution context,
+        // which will be used when no tensor shape changes are detected
+        // and the recorded command lists can be reused for execution.
+        std::vector<ze_command_list_handle_t> _recordedCommandLists;
     public:
         CmdListPool() = default;
         ~CmdListPool() {
@@ -265,7 +285,13 @@ public:
                 // create CMDLIST_GROUP_SIZE command lists at a time to avoid frequent allocation
                 uint32_t startIndex = static_cast<uint32_t>(_cmdLists.size());
                 _cmdLists.resize(
-                        std::min(static_cast<uint32_t>(_cmdLists.size()) + CMDLIST_GROUP_SIZE, MAX_CMDLIST_POOL_SIZE));
+                        std::min(static_cast<uint32_t>(_cmdLists.size()) + _cmdListGroupSize, MAX_CMDLIST_POOL_SIZE));
+
+                if (_executionMode == ExecutionMode::TILE_BOUND || _executionMode == ExecutionMode::TILE_AGNOSTIC_ROUND_ROBIN_CMDLIST) {
+                    _inferenceCmdIds.resize(_cmdLists.size());
+                    std::fill(_inferenceCmdIds.begin() + startIndex, _inferenceCmdIds.end(), DEFAULT_INFERENCE_ID);
+                }
+
                 for (uint32_t i = startIndex; i < _cmdLists.size(); ++i) {
                     auto result = createCmdList(_context, _device, _groupOrdinal, _cmdLists.at(i));
                     if (result != ZE_RESULT_SUCCESS) {
@@ -285,7 +311,8 @@ public:
         }
 
         result_t initialize(ze_context_handle_t context, ze_device_handle_t device, uint32_t cmdListCount,
-                            uint32_t groupOrdinal, bool dynamicCmdListCount, ov::ZeroApi* ddiTable);
+                            uint32_t groupOrdinal, uint32_t concurrentJobCount, bool dynamicCmdListCount,
+                            ExecutionMode executionMode, ov::ZeroApi* ddiTable);
 
         ze_command_list_handle_t* getCmdListArrayPtr(uint32_t cmdListIndex) {
             return _cmdLists.data() + cmdListIndex;
@@ -293,6 +320,37 @@ public:
 
         bool destroy();
 
+        std::vector<uint32_t>& getInferenceCmdIds() {
+            return _inferenceCmdIds;
+        }
+
+        // Increases the inference command id for the given command list index,
+        // which is used for tracking the command id for each command list in the execution context.
+        void increaseInferenceCmdId(uint32_t cmdListIndex) {
+            if (cmdListIndex < _inferenceCmdIds.size()) {
+                _inferenceCmdIds.at(cmdListIndex)++;
+            }
+        }
+
+        void reset() {
+            std::fill(_inferenceCmdIds.begin(), _inferenceCmdIds.end(), DEFAULT_INFERENCE_ID);
+            _recordedCommandLists.clear();
+        }
+
+        // Returns the concurrent job count
+        bool appendRecordedCmdLists(ze_command_list_handle_t* handleArray, uint32_t count) {
+            for (size_t i = 0; i < count; ++i) {
+                if (handleArray[i] == nullptr) {
+                    return false;
+                }
+                _recordedCommandLists.push_back(handleArray[i]);
+            }
+            return true;
+        }
+
+        std::vector<ze_command_list_handle_t>& getRecordedCmdLists() {
+            return _recordedCommandLists;
+        }
     protected:
         result_t createCmdList(ze_context_handle_t context, ze_device_handle_t device, uint32_t groupOrdinal,
                                ze_command_list_handle_t& handle);
@@ -324,9 +382,6 @@ protected:
     // Manages events for synchronization.
     EventPool _eventPool;
 
-    // Stores the current cmd ids
-    std::vector<uint32_t> _inferenceCmdIds;
-
     // Specifies execution context type
     ExecutionContextType _executionContextType = ExecutionContextType::V1;
 
@@ -346,11 +401,6 @@ protected:
     npu_vm_runtime_execute_params_t* _executeParamsV1{nullptr};
     npu_vm_runtime_execute_params2_t* _executeParamsV2{nullptr};
 
-    // VM runtime V2
-    // Stores the recorded command lists for the execution context,
-    // which will be used when no tensor shape changes are detected
-    // and the recorded command lists can be reused for execution.
-    std::vector<ze_command_list_handle_t> _recordedCommandLists;
     CmdListPool _cmdListPool;
     ze_command_list_handle_t _immediateCmdList{nullptr};
 
@@ -363,6 +413,8 @@ protected:
     ze_command_queue_npu_dditable_ext_t* _commandQueueDdiTableExt{nullptr};
 
     ov::ZeroApi* _levelZeroDdiTable{nullptr};
+    npu_vm_batch_mode _batchMode = npu_vm_batch_mode_none;
+    uint64_t _batchSize = 1;
 
     // Stores whether the execution context has been initialized,
     // used for determining whether to initialize the event pool and events
@@ -375,13 +427,13 @@ protected:
     // Stores whether counter-based event is supported, which is used to configure synchronization objects.
     bool _isCounterBasedEventSupported = false;
 
-    // Specify where the recorded command list can be reused, which will be queried from the driver
+    // Specify whether the recorded command list can be reused, which will be queried from the driver
     bool _recordedCmdListReusable = false;
 
 public:
     // note: numNetworkArgs will be used in support for mutable command list in the future
     // but currently it is not used.
-    ExecutionContext();
+    ExecutionContext() = default;
     ExecutionContext(const ExecutionContext&) = delete;
     ExecutionContext& operator=(const ExecutionContext&) = delete;
     ExecutionContext(ExecutionContext&&) noexcept = delete;
@@ -401,9 +453,8 @@ public:
         _cmdListRoundIndex = 0;
         _allCmdListsUsedInGroup = false;
 
-        std::fill(_inferenceCmdIds.begin(), _inferenceCmdIds.end(), DEFAULT_INFERENCE_ID);
+        _cmdListPool.reset();
 
-        _recordedCommandLists.clear();
         return resetEvents();
     }
 
@@ -465,15 +516,13 @@ public:
     // Returns the inference command ids, which is used for tracking the command id for each command list in the
     // execution context.
     std::vector<uint32_t>& getInferenceCmdIds() {
-        return _inferenceCmdIds;
+        return _cmdListPool.getInferenceCmdIds();
     }
 
     // Increases the inference command id for the given command list index,
     // which is used for tracking the command id for each command list in the execution context.
     void increaseInferenceCmdId(uint32_t cmdListIndex) {
-        if (cmdListIndex < _inferenceCmdIds.size()) {
-            _inferenceCmdIds.at(cmdListIndex)++;
-        }
+        _cmdListPool.increaseInferenceCmdId(cmdListIndex);
     }
 
     // Returns whether optimized dynamic strides is supported,
@@ -671,13 +720,7 @@ public:
 
     // Returns the concurrent job count
     bool appendRecordedCmdLists(ze_command_list_handle_t* handleArray, uint32_t count) {
-        for (size_t i = 0; i < count; ++i) {
-            if (handleArray[i] == nullptr) {
-                return false;
-            }
-            _recordedCommandLists.push_back(handleArray[i]);
-        }
-        return true;
+        return _cmdListPool.appendRecordedCmdLists(handleArray, count);
     }
 
     // return a ddi table pointer to the level zero ddi table, which will be used for executing the graph.
@@ -702,9 +745,10 @@ public:
 
         if (_commandQueue) {
             auto pfnCommandQueueExecuteCommandLists = _levelZeroDdiTable->zeCommandQueueExecuteCommandLists;
+            auto& recordedCommandLists = _cmdListPool.getRecordedCmdLists();
             auto result = pfnCommandQueueExecuteCommandLists(_commandQueue,
-                                                            static_cast<uint32_t>(_recordedCommandLists.size()),
-                                                            _recordedCommandLists.data(), _hostSyncFence);
+                                                            static_cast<uint32_t>(recordedCommandLists.size()),
+                                                            recordedCommandLists.data(), _hostSyncFence);
             if (result != ZE_RESULT_SUCCESS) {
                 return result;
             }
@@ -723,7 +767,8 @@ public:
 
     // Initializes the execution context with the specified type, number of command lists, and concurrent job count
     bool initialize(ExecutionContextType type, uint32_t numCmdLists, uint32_t /*numNetworkArgs*/,
-                    uint32_t concurrentJobCount, bool isCounterBasedEventSupported);
+                    uint32_t concurrentJobCount, bool isCounterBasedEventSupported, npu_vm_batch_mode batchMode,
+                    uint64_t batchSize);
 
     // returns the event pool for the execution context, which will be used for managing events for synchronization.
     EventPool& getEventPool() {
