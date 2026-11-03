@@ -1,0 +1,44 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-11-03-13-07-46-000-41640114087",
+    "timestamp": "2026-11-03T13:07:46Z",
+    "run_id": "41640114087",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41640114087",
+    "workflow_name": "Manylinux 2_28",
+    "commit_sha": "569fe8d7e523e3efa9a5a454f730cc0d126416cf",
+    "pr_number": "39269",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39269",
+    "author": "wenzengc",
+    "category": "Network",
+    "title": "Manylinux 2_28 Build job fails to download pinned checkout action archive (404 from codeload.github.com)",
+    "signature": "action could not be found at uri codeload.github.com failed to download archive after 1 attempts|Network",
+    "signature_hash": "36999727fab6986e",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Build",
+            "conclusion": "failure",
+            "symptom": "Set up job step failed: could not download pinned action archive 'ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b' from codeload.github.com (404-style 'could not be found at the URI')"
+        },
+        {
+            "name": "ci/gha_overall_status_manylinux_2_28",
+            "conclusion": "failure",
+            "symptom": "Aggregate status-check job failed ('exit 1') because the Build job it depends on failed to even start"
+        }
+    ],
+    "key_errors": [
+        "2026-11-03T13:01:24.2209868Z Download action repository 'ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b' (SHA:dd591a6a2ac25618db4eda86e7e0d938f88cf01b)",
+        "2026-11-03T13:01:28.2824408Z ##[error]An action could not be found at the URI 'https://codeload.github.com/ababushk/checkout/tar.gz/dd591a6a2ac25618db4eda86e7e0d938f88cf01b' (5BC5:0AFA:117459:5C0154:6AE9DB24)",
+        "2026-11-03T13:01:28.2853796Z ##[error]Failed to download archive 'https://codeload.github.com/ababushk/checkout/tar.gz/dd591a6a2ac25618db4eda86e7e0d938f88cf01b' after 1 attempts."
+    ],
+    "root_cause": "The Manylinux 2_28 'Build' job references a third-party fork action pinned by commit SHA, `ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b` (used across job_build_linux.yml and manylinux_2_28.yml for its retry-on-checkout-failure patch). GitHub Actions' 'Set up job' step attempted to download the archive for this exact commit from codeload.github.com and received 'An action could not be found at the URI' after a single attempt - this is GitHub's not-found response, distinct from the previously observed transient 'Resource temporarily unavailable' network errors for the same fork/action family. This points to the referenced commit becoming unreachable on the `ababushk/checkout` fork (e.g. the branch/ref was force-pushed, the commit was garbage-collected after a rebase, or the fork/repo visibility changed), rather than a transient codeload.github.com outage, since only one attempt was made before giving up (GitHub does not retry 404-class errors) and the SHA is confirmed to still exist via the GitHub API at inspection time, indicating a possible transient propagation/caching issue on codeload.github.com's CDN layer for that specific object rather than the ref truly vanishing.",
+    "reproduction_steps": "N/A - not reproducible locally; this is a GitHub Actions action-resolution step failure tied to the external `ababushk/checkout` fork and GitHub's codeload.github.com archive CDN. To reproduce, trigger any workflow job that uses `uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b` (e.g. manylinux_2_28.yml, job_build_linux.yml) and observe whether codeload.github.com serves the archive for that exact commit SHA.",
+    "recommended_actions": [
+        "Re-run the failed 'Manylinux 2_28' workflow; if the commit still exists on the fork, a transient codeload.github.com resolution issue should clear on retry.",
+        "Verify the `ababushk/checkout` fork at commit dd591a6a2ac25618db4eda86e7e0d938f88cf01b is still reachable and has not been force-pushed/rebased/deleted; if the owner force-pushed the branch the pinned SHA may have been garbage-collected and the pin must be updated to a still-reachable SHA or tag.",
+        "Reduce dependence on an individual's personal fork for a core `checkout` action used across many workflows (job_build_linux.yml, manylinux_2_28.yml); vendor the retry patch into an openvinotoolkit-owned fork or a repository-local composite action to remove this single point of failure.",
+        "Add a fallback/retry wrapper (e.g. a composite action that falls back to `actions/checkout` on resolution failure) around this specific 'uses:' reference so a single bad codeload.github.com response does not fail the whole Build job."
+    ],
+    "prevention_strategies": "Avoid pinning CI-critical actions to commits on externally-owned personal forks without repository mirroring; either fork the dependency into the openvinotoolkit org (so lifecycle/retention is controlled by the org) or vendor the small retry patch as a local composite action under .github/actions/. This removes exposure to the third-party fork's branch history changing or being garbage-collected, and to any codeload.github.com-side propagation delay for objects outside the main org.",
+    "historical_context": "A related but distinct pattern (hash 85b215ebb71d16fe, 'Docker job fails to download pinned checkout action from codeload.github.com') has recurred twice (2026-10-30, runs 41011833528 and 41108445955) with a *different* symptom: codeload.github.com returning transient 'Resource temporarily unavailable' errors after 3 retries for a *different* pinned commit of the same `ababushk/checkout` fork, used by the Docker job in other workflows. The current failure is the first observed instance of the 'could not be found at the URI' (archive-not-found) variant for this fork, in the Manylinux 2_28 Build job, with only 1 attempt before failing - suggesting a related but mechanistically different failure mode (not-found vs. rate-limited/unavailable) against the same high-risk external dependency."
+}

@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "action could not be found at uri codeload.github.com failed to download archive after 1 attempts|Network",
+    "signature_hash": "36999727fab6986e",
+    "title": "Manylinux 2_28 Build job fails to download pinned checkout action archive (404 from codeload.github.com)",
+    "category": "Network",
+    "count": 1,
+    "first_seen": "2026-11-03T13:07:46Z",
+    "last_seen": "2026-11-03T13:07:46Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/41640114087"
+    ],
+    "affected_commits": [
+        "569fe8d7e523e3efa9a5a454f730cc0d126416cf"
+    ],
+    "recent_timestamps": [
+        "2026-11-03T13:07:46Z"
+    ]
+}

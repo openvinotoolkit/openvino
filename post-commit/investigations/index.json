@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 65,
+  "total": 66,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -664,6 +664,15 @@
       "category": "Flaky Test",
       "signature_hash": "c915b782819c6432",
       "commit_sha": "5dd49adcb0142ef64d1590ab7fa306d5995579e6"
+    },
+    {
+      "investigation_id": "2026-11-03-13-07-46-000-41640114087",
+      "run_id": "41640114087",
+      "timestamp": "2026-11-03T13:07:46Z",
+      "title": "Manylinux 2_28 Build job fails to download pinned checkout action archive (404 from codeload.github.com)",
+      "category": "Network",
+      "signature_hash": "36999727fab6986e",
+      "commit_sha": "569fe8d7e523e3efa9a5a454f730cc0d126416cf"
     }
   ]
 }
