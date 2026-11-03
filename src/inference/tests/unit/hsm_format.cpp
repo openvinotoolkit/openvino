@@ -591,7 +591,7 @@ TEST(IHsmSectionExtensionTest, recognizes_own_device_and_tag) {
 
     const std::byte payload[4] = {};
     RecordingExtension extension;
-    EXPECT_TRUE(extension.read_section(entry, ov::util::MemoryView{payload, 4}));
+    EXPECT_TRUE(extension.read_section(entry, ov::util::as_memory_view(payload)));
     EXPECT_EQ(extension.last_section_size, 4u);
 }
 
