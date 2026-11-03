@@ -1316,8 +1316,10 @@ static void attn_acc_value_u8_rows(float* const* out,
 }
 
 #    if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-// f16 outputs. Each element gets the operations of attn_acc_value; with SVE, whose attn_acc_value steps by the
-// vector length, elements may move between the vector loop and the scalar tail.
+// f16 outputs, with the per-element operations of attn_acc_value(ov::float16*, ov::float16, uint8_t*, ...) and its
+// step (svcntb() with SVE, 16 with NEON_FP16), so each element takes the same vector or scalar path on every vector
+// length. One difference: the vector loop rounds weight * group_scale to f16 with the hardware conversion, while
+// attn_acc_value uses ov::float16(float), which mis-rounds some f16 subnormals (#38797).
 template <size_t R>
 static void attn_acc_value_u8_rows(ov::float16* const* out,
                                    const ov::float16* weight,
@@ -1330,13 +1332,39 @@ static void attn_acc_value_u8_rows(ov::float16* const* out,
         const auto group_zp = static_cast<float16_t>(scale_zp[group_id * 2 + 1]);
         const size_t offset = group_id * group_size;
         size_t i = 0;
-#        if defined(HAVE_NEON_FP16) || defined(HAVE_SVE)
+#        if defined(HAVE_SVE) || defined(HAVE_NEON_FP16)
+        // weight * group_scale per row, rounded in hardware; memcpy reads the ov::float16 bits without type punning.
+        float16_t weighed_group_scale[R]{};
+        for (size_t r = 0; r < R; r++) {
+            float16_t w{};
+            std::memcpy(&w, weight + r, sizeof(w));
+            weighed_group_scale[r] = static_cast<float16_t>(static_cast<float>(w) * static_cast<float>(group_scale));
+        }
+#        endif
+#        if defined(HAVE_SVE)
+        const svbool_t pg_b08 = svptrue_b8();
+        const svfloat16_t v_group_zp = svdup_n_f16(group_zp);
+        for (; i + svcntb() <= group_size; i += svcntb()) {
+            const svuint8_t v_u8 = svld1_u8(pg_b08, v + offset + i);
+            const svfloat16_t v_f16_lo = svsub_f16_x(pg_b08, svcvt_f16_u16_x(pg_b08, svunpklo_u16(v_u8)), v_group_zp);
+            const svfloat16_t v_f16_hi = svsub_f16_x(pg_b08, svcvt_f16_u16_x(pg_b08, svunpkhi_u16(v_u8)), v_group_zp);
+            for (size_t r = 0; r < R; r++) {
+                // SVE vectors are sizeless and cannot be array elements, so the scale is broadcast per row.
+                const svfloat16_t v_scale = svdup_n_f16(weighed_group_scale[r]);
+                auto* dst = reinterpret_cast<float16_t*>(out[r]) + offset + i;
+                const svfloat16_t v_out_lo = svld1_f16(pg_b08, dst);
+                const svfloat16_t v_out_hi = svld1_f16(pg_b08, dst + svcnth());
+                svst1_f16(pg_b08, dst, svadd_f16_x(pg_b08, v_out_lo, svmul_f16_x(pg_b08, v_f16_lo, v_scale)));
+                svst1_f16(pg_b08,
+                          dst + svcnth(),
+                          svadd_f16_x(pg_b08, v_out_hi, svmul_f16_x(pg_b08, v_f16_hi, v_scale)));
+            }
+        }
+#        elif defined(HAVE_NEON_FP16)
         const float16x8_t v_group_zp = vdupq_n_f16(group_zp);
-        // The value of attn_acc_value's weight * group_scale, with hardware f16 conversions.
         float16x8_t v_weighed_group_scale[R];
         for (size_t r = 0; r < R; r++) {
-            const float16_t w = *reinterpret_cast<const float16_t*>(weight + r);
-            v_weighed_group_scale[r] = vdupq_n_f16(static_cast<float>(w) * static_cast<float>(group_scale));
+            v_weighed_group_scale[r] = vdupq_n_f16(weighed_group_scale[r]);
         }
         for (; i + 16 <= group_size; i += 16) {
             const uint8x16_t v_u8 = vld1q_u8(v + offset + i);
