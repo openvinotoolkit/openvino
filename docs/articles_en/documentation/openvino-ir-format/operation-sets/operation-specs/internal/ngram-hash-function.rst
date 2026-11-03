@@ -69,7 +69,7 @@ padding and sequence boundaries are handled outside the operation.
 * *head_vocab_sizes*
 
   * **Description**: the vocabulary size (modulus) of every hashed head, ``H`` values, grouped by order.
-  * **Range of values**: integers in ``[1, 2^31 - 1]``, with
+  * **Range of values**: integers in ``[1, 2^31]``, with
     ``head_offsets[h] + head_vocab_sizes[h] - 1 <= 2^31 - 1``
   * **Type**: ``int64[]``
   * **Required**: *yes*
