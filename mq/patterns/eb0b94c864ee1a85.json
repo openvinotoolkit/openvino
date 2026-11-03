@@ -2,12 +2,13 @@
   "schema_version": "1.0",
   "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
   "signature_hash": "eb0b94c864ee1a85",
-  "title": "smoke_CompareWithRefs_Mvn3D/MvnLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
+  "title": "smoke_AvgPool_CPU_4D_NotOptimized/PoolingLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
   "category": "Flaky Test",
-  "count": 6,
+  "count": 7,
   "first_seen": "2026-09-11T10:27:48Z",
-  "last_seen": "2026-11-02T10:23:47Z",
+  "last_seen": "2026-11-03T06:33:27Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41585987160",
     "https://github.com/openvinotoolkit/openvino/actions/runs/41423319664",
     "https://github.com/openvinotoolkit/openvino/actions/runs/40278519670",
     "https://github.com/openvinotoolkit/openvino/actions/runs/36963098158",
@@ -16,6 +17,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/34586539583"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/39251",
     "https://github.com/openvinotoolkit/openvino/pull/39245",
     "https://github.com/openvinotoolkit/openvino/pull/38669",
     "https://github.com/openvinotoolkit/openvino/pull/38528",
@@ -24,7 +26,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/37783"
   ],
   "recent_timestamps": [
-    "2026-11-02T10:23:47Z"
+    "2026-11-03T06:33:27Z"
   ],
   "rerun_search_string": "primType is unexpected"
 }

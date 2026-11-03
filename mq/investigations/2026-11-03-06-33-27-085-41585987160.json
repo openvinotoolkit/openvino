@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-03-06-33-27-085-41585987160",
+  "timestamp": "2026-11-03T06:33:27Z",
+  "run_id": "41585987160",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41585987160",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "39251",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39251",
+  "author": "praasz",
+  "category": "Flaky Test",
+  "title": "smoke_AvgPool_CPU_4D_NotOptimized/PoolingLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
+  "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
+  "signature_hash": "eb0b94c864ee1a85",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_AvgPool_CPU_4D_NotOptimized/PoolingLayerCPUTest.CompareWithRefs fails: primType undef_f32 instead of acl_f32 (ACL primitive not selected on ARM64)"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_AvgPool_CPU_4D_NotOptimized/PoolingLayerCPUTest.CompareWithRefs/IS=([1..10.16.8.8])_TS=(1.16.8.8)_(2.16.8.8)_Prc=f32_AvgPool_ExcludePad=0_K(2.2)_S(2.2)_PB(2.2)_PE(2.2)_Rounding=floor_AutoPad=explicit_INT8=0__primitive=acl\nsrc/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32\n[  FAILED  ] smoke_AvgPool_CPU_4D_NotOptimized/PoolingLayerCPUTest.CompareWithRefs/... (58 ms)"
+  ],
+  "root_cause": "This is a known, recurring ARM64 ACL-backend flakiness: for the dynamic-shape AvgPool case with range input (1..10,16,8,8), the CPU plugin's executor-selection logic intermittently falls back to the reference (undef) implementation instead of picking the ACL (acl_f32) primitive that the test explicitly requests via its executor hints. The same primType-mismatch symptom has recurred 6 times since 2026-09-11 across unrelated PRs (pattern eb0b94c864ee1a85, previously seen for MVN and other layers), indicating an underlying non-determinism in ACL executor selection/caching on ARM64 rather than anything introduced by this PR. The PR's changed files (CPU HSM import/export) are unrelated to pooling executor selection, confirming this is pre-existing test flakiness unrelated to the PR content.",
+  "reproduction_steps": "Build the ARM64 cross-compiled CPU plugin and run: ./ov_cpu_func_tests --gtest_filter='*smoke_AvgPool_CPU_4D_NotOptimized*CompareWithRefs*' repeatedly (dynamic-shape range-based AvgPool with ACL executor hint); the failure is intermittent and may not reproduce on every run.",
+  "recommended_actions": [
+    "Re-run the failed CPU functional tests job (transient flaky test, unrelated to the PR's changed files)",
+    "Investigate ACL executor-selection determinism for dynamic-shape pooling ops in src/plugins/intel_cpu/src/nodes/executors (track CVS ticket for the recurring eb0b94c864ee1a85 pattern, now at 6+ occurrences)",
+    "Consider temporarily marking this parameterized AvgPool case as disabled/flaky if recurrence continues to block unrelated merge-queue runs"
+  ],
+  "prevention_strategies": "Add stricter determinism/retry handling around ACL primitive selection for dynamic-shape pooling tests, or isolate ACL-specific executor selection logic with explicit logging to capture why it falls back to undef_f32 under certain input ranges.",
+  "historical_context": "Recurring pattern eb0b94c864ee1a85 ('primType is unexpected undef_f32 Expected acl_f32') has been seen 6 times since 2026-09-11 (PRs #37783, #37885, #38052, #38528, #38669, #39245), always on ARM64 cross-compilation CPU functional tests, always Flaky Test category with no established fix beyond re-running. This occurrence (PR #39251) is the 7th."
+}

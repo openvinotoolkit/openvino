@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 315,
+  "total": 316,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -3078,6 +3078,15 @@
       "category": "Code Issue",
       "signature_hash": "64286f1d490ba863",
       "pr_number": "39321"
+    },
+    {
+      "investigation_id": "2026-11-03-06-33-27-085-41585987160",
+      "run_id": "41585987160",
+      "timestamp": "2026-11-03T06:33:27Z",
+      "title": "smoke_AvgPool_CPU_4D_NotOptimized/PoolingLayerCPUTest primType is unexpected: undef_f32 Expected: acl_f32 on ARM64",
+      "category": "Flaky Test",
+      "signature_hash": "eb0b94c864ee1a85",
+      "pr_number": "39251"
     }
   ]
 }
