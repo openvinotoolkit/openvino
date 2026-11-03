@@ -15,6 +15,8 @@
 #include "builder/api/metadata_store.hpp"
 #include "builder/arch/decoder_builder.hpp"
 #include "builder/arch/dspark_builder.hpp"
+#include "builder/decoder_config.hpp"
+#include "builder/decoder_metadata.hpp"
 #include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
 #include "builder/graph_emitter.hpp"
@@ -32,6 +34,7 @@
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -49,6 +52,83 @@
 
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
+
+TEST(GGUFAFMoE, MissingAndZeroRoutingUseSigmoidDefaults) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/afmoe.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    auto& metadata = std::get<0>(loaded);
+    const auto& weights = std::get<1>(loaded);
+    metadata.erase("afmoe.attention.sliding_window_pattern");
+    metadata.erase("afmoe.expert_weights_norm");
+    for (const bool explicit_zero : {false, true}) {
+        SCOPED_TRACE(explicit_zero);
+        metadata.erase("afmoe.expert_gating_func");
+        if (explicit_zero) {
+            ov::Tensor zero(ov::element::u32, {});
+            *zero.data<uint32_t>() = 0;
+            metadata["afmoe.expert_gating_func"] = zero;
+        }
+        detail::MetadataStore store{metadata};
+        const auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Neox);
+        EXPECT_FLOAT_EQ(parameters.scales.embedding, std::sqrt(32.0f));
+        EXPECT_EQ(parameters.experts.routing, ExpertRouting::Sigmoid);
+        EXPECT_FALSE(parameters.experts.normalize_weights);
+        const DecoderConfig config(parameters, weights);
+        EXPECT_TRUE(config.has_qk_norm);
+        EXPECT_FALSE(config.qk_norm_after_rope);
+        EXPECT_TRUE(config.has_attn_gate);
+        EXPECT_TRUE(config.has_attn_post_norm);
+        EXPECT_TRUE(config.has_ffn_post_norm);
+        EXPECT_EQ(config.rope_skip_period, 4);
+        for (int layer = 0; layer < 4; ++layer) {
+            EXPECT_EQ(config.layer_is_swa(layer), layer < 3);
+            EXPECT_EQ(config.layer_is_moe(layer), layer > 0);
+        }
+    }
+}
+
+TEST(GGUFAFMoE, ExplicitRoutingWindowAndRopeOverrides) {
+    using namespace ov::frontend::gguf;
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/afmoe.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    auto loaded = get_gguf_data(temporary.path);
+    auto& metadata = std::get<0>(loaded);
+    ov::Tensor routing(ov::element::u32, {});
+    *routing.data<uint32_t>() = 1;
+    metadata["afmoe.expert_gating_func"] = routing;
+    ov::Tensor period(ov::element::u32, {});
+    *period.data<uint32_t>() = 2;
+    metadata["afmoe.attention.sliding_window_pattern"] = period;
+    ov::Tensor embedding_scale(ov::element::f32, {});
+    *embedding_scale.data<float>() = 3.0f;
+    metadata["afmoe.embedding_scale"] = embedding_scale;
+    detail::MetadataStore store{metadata};
+    DecoderOptions options;
+    options.rope_skip_period = 2;
+    auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Neox, options);
+    EXPECT_FLOAT_EQ(parameters.scales.embedding, 3.0f);
+    EXPECT_EQ(parameters.experts.routing, ExpertRouting::Softmax);
+    EXPECT_TRUE(parameters.experts.normalize_weights);
+    const DecoderConfig config(parameters, std::get<1>(loaded));
+    EXPECT_EQ(config.rope_skip_period, 2);
+    for (int layer = 0; layer < 4; ++layer)
+        EXPECT_EQ(config.layer_is_swa(layer), layer % 2 == 0);
+    parameters.attention.sliding_layers = {0, 1, 0, 1};
+    const DecoderConfig listed(parameters, std::get<1>(loaded));
+    for (int layer = 0; layer < 4; ++layer)
+        EXPECT_EQ(listed.layer_is_swa(layer), layer % 2 == 1);
+    parameters.attention.sliding_layers.clear();
+    parameters.attention.sliding_window = false;
+    parameters.attention.window_size = 0;
+    const DecoderConfig global(parameters, std::get<1>(loaded));
+    for (int layer = 0; layer < 4; ++layer)
+        EXPECT_FALSE(global.layer_is_swa(layer));
+    options.rope_skip_period = 0;
+    const auto with_rope = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Neox, options);
+    EXPECT_EQ(DecoderConfig(with_rope, std::get<1>(loaded)).rope_skip_period, 0);
+}
 
 TEST(GGUFDSparkAccuracy, ConfidenceAndMarkovHeadsAreIndependent) {
     using namespace ov::frontend::gguf;
@@ -153,7 +233,12 @@ TEST(GGUFHadamardMetadata, MissingAndMistypedFieldsNameTheInvalidKey) {
     const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/bonsai2-hadamard.npz");
     const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
     auto loaded = get_gguf_data(temporary.path);
-    const auto config = decoder_config_from_meta(std::get<0>(loaded));
+    auto& metadata = std::get<0>(loaded);
+    detail::MetadataStore store{metadata};
+    const GgufMetadata view(store);
+    const auto parameters = resolve_decoder_parameters(view, RopeMode::Normal);
+    const auto config =
+        decoder_weight_transform_metadata(view, parameters.hybrid.time_step_rank, parameters.hybrid.group_count);
     GraphEmitter valid(std::get<1>(loaded), std::get<2>(loaded), "qwen35");
     EXPECT_NO_THROW(valid.configure_hadamard(config));
     for (const std::string key : {"prism.hadamard.version",
@@ -478,6 +563,15 @@ TEST(GGUFHadamardTypes, ConstantsAreSharedWithinEachConversion) {
     auto input_model = frontend.load(temporary.path);
     const auto first = frontend.convert(input_model);
     const auto second = frontend.convert(input_model);
+    for (const auto& model : {first, second}) {
+        for (const auto& node : model->get_ops()) {
+            if (const auto gdn = ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(node)) {
+                EXPECT_EQ(gdn->get_input_partial_shape(0)[2], 2);
+                EXPECT_EQ(gdn->get_input_partial_shape(1)[2], 2);
+                EXPECT_EQ(gdn->get_input_partial_shape(2)[2], 4);
+            }
+        }
+    }
     const auto rotation_constants = [](const std::shared_ptr<ov::Model>& model) {
         std::set<ov::Node*> constants;
         size_t stages = 0;
@@ -670,8 +764,11 @@ TEST(GGUFMultimodalBackboneAdaptation, TernaryAttentionGatesRestoreRankBeforeSig
         auto& gate = weights.at("blk.0.attn_gate.weight");
         gate = ov::Tensor(type, gate.get_shape());
         const auto& metadata = std::get<0>(loaded);
-        const auto config = decoder_config_from_meta(metadata);
-        DecoderBuilder builder(config, weights, std::get<2>(loaded));
+        detail::MetadataStore store{metadata};
+        const auto parameters = resolve_decoder_parameters(GgufMetadata(store), RopeMode::Neox);
+        detail::WeightStore tensors{weights, std::get<2>(loaded)};
+        const BuildContext context{GgufMetadata(store), parameters.architecture, &tensors};
+        DecoderBuilder builder(context, parameters);
         const auto graph = builder.build();
         const auto node = std::find_if(graph->nodes.begin(), graph->nodes.end(), [](const auto& op) {
             return op.name == "blk.0.attn_gate";
@@ -737,6 +834,19 @@ TEST(GGUFMultimodalBackboneAdaptation, Rank3HeadRemainsVisibleToGenAI) {
         ASSERT_NO_THROW(ov::pass::SDPAToPagedAttention().run_on_model(model));
         ASSERT_NO_THROW(model->reshape({{"input_ids", {5}}, {"position_ids", {5}}}));
         EXPECT_EQ(model->output().get_partial_shape()[0], 5);
+    }
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, Lfm3SupportsBatchesAndBeamReordering) {
+    for (const auto* family : {"lfm3", "lfm3-attention-first", "lfm3-wide-query"}) {
+        SCOPED_TRACE(family);
+        const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        ov::frontend::gguf::FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ov::frontend::gguf::GenAIExtension>());
+        auto model = frontend.convert(frontend.load(temporary.path));
+        EXPECT_EQ(model->output("audio_hidden_states").get_partial_shape().rank().get_length(), 3);
+        check_batched_decode(model);
     }
 }
 
@@ -1001,6 +1111,30 @@ TEST(GGUFMultimodalBackboneAdaptation, Lfm2RejectsMissingOrInvalidConvolutionCac
     }
 }
 
+TEST(GGUFMultimodalBackboneAdaptation, Lfm3RejectsMissingRequiredMetadataAndWeights) {
+    const auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/lfm3.npz");
+    const auto& model = ov_gguf_test::npz_array(arrays, "model");
+    for (const auto& [key, diagnostic] : std::vector<std::pair<std::string, std::string>>{
+             {"lfm3.shortconv.l_cache", "shortconv.l_cache"},
+             {"lfm3.attention.sliding_window_pattern", "sliding-window metadata"},
+             {"lfm3.rope.freq_base_swa", "sliding-window metadata"},
+             {"blk.0.post_ffw_norm.weight", "both post norms"},
+             {"blk.1.attn_gate.weight", "attn_gate.weight"},
+             {"output_norm.weight", "output_norm.weight"},
+             {"rope_freqs.weight", "rope_freqs.weight"}}) {
+        SCOPED_TRACE(key);
+        std::vector<uint8_t> bytes(model.data<uint8_t>(), model.data<uint8_t>() + model.num_vals);
+        const auto at = std::search(bytes.begin(), bytes.end(), key.begin(), key.end());
+        ASSERT_NE(at, bytes.end());
+        at[key.size() - 1] = 'X';
+        cnpy::NpyArray patched({bytes.size()}, sizeof(uint8_t), false);
+        std::copy(bytes.begin(), bytes.end(), patched.data<uint8_t>());
+        const ov_gguf_test::TemporaryGguf temporary(patched);
+        ov::frontend::gguf::FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.convert(frontend.load(temporary.path)), ov::Exception, testing::HasSubstr(diagnostic));
+    }
+}
+
 TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
     for (const auto* family :
          {"llama-embed", "llama-embed-noncausal", "llama-embed-mean", "llama-embed-cls", "llama-embed-last"}) {
@@ -1120,8 +1254,8 @@ TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
     const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h" ||
-                       std::string(GetParam()).find("lfm2") == 0;
-    const bool lfm2 = std::string(GetParam()).find("lfm2") == 0;
+                       std::string(GetParam()).find("lfm2") == 0 || std::string(GetParam()).find("lfm3") == 0;
+    const bool lfm2 = std::string(GetParam()).find("lfm2") == 0 || std::string(GetParam()).find("lfm3") == 0;
     const auto directory = override_dir ? std::filesystem::path(override_dir)
                                         : std::filesystem::path(ov_gguf_test::test_data_dir()) / "arch_accuracy";
     ASSERT_TRUE(std::filesystem::exists(directory)) << "Missing architecture reference data: " << directory;
@@ -1205,7 +1339,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
             }))
             request.set_tensor("beam_idx", beam);
         request.infer();
-        return request.get_output_tensor();
+        return request.get_tensor("logits");
     };
     size_t past = 0;
     size_t step = 0;
@@ -1236,7 +1370,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         }
         past += tokens.size();
     }
-    if (mamba) {
+    if (mamba || std::string(GetParam()) == "afmoe") {
         const auto states = request.query_state();
         ASSERT_FALSE(states.empty());
         for (auto state : states)
@@ -1250,7 +1384,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
             EXPECT_EQ(std::max_element(actual, actual + vocab) - actual,
                       std::max_element(reference.begin(), reference.begin() + vocab) - reference.begin());
         else
-            EXPECT_LT(metric.value(), 1e-5) << "Fresh prefill after resetting recurrent states";
+            EXPECT_LT(metric.value(), 1e-5) << "Fresh prefill after resetting states";
     }
     if (real_checkpoint) {
         EXPECT_GE(matching_tokens * 10, schedule.size() * 9) << "Fewer than 90% of greedy choices match";
@@ -1259,13 +1393,19 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
 
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
-                         ::testing::Values("qwen35",
+                         ::testing::Values("afmoe",
+                                           "qwen35",
+                                           "qwen35-zero-scales",
                                            "lfm2",
                                            "lfm2-tied",
                                            "lfm2-swa",
                                            "lfm2-attention-first",
                                            "lfm2moe",
                                            "lfm2moe-all-experts",
+                                           "lfm3",
+                                           "lfm3-plain",
+                                           "lfm3-attention-first",
+                                           "lfm3-wide-query",
                                            "bonsai2-hadamard",
                                            "qwen35-mixed",
                                            "qwen35moe",
@@ -1281,6 +1421,7 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "qwen3",
                                            "phi3",
                                            "minicpm",
+                                           "minicpm-default",
                                            "olmoe",
                                            "hunyuan-dense",
                                            "hunyuan-moe",
