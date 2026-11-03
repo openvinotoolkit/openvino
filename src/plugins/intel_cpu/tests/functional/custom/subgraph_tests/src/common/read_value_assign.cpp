@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "common_test_utils/node_builders/eltwise.hpp"
+#include <algorithm>
+
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/node_builders/eltwise.hpp"
+#include "openvino/op/multiply.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
@@ -172,5 +175,71 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(CPUSpecificParams{{nchw, nchw}, {nchw}, {""}, "any_type"},
                                          CPUSpecificParams{{nhwc, nhwc}, {nhwc}, {""}, "any_type"})),
     ReadValueAssignTest::getTestCaseName);
+
+using ReadValueStateReshapeParams = std::tuple<bool, bool, size_t>;
+
+class ReadValueStateReshapeTest : public testing::TestWithParam<ReadValueStateReshapeParams> {};
+
+TEST_P(ReadValueStateReshapeTest, ReinitializeAfterSetState) {
+    const auto [fresh_request, direct_assign, replacement_batch] = GetParam();
+    auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
+    auto variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{-1, 4}, ov::element::f32, "state"});
+    auto two = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {2.f});
+    auto init = std::make_shared<ov::op::v1::Multiply>(parameter, two);
+    auto read = std::make_shared<ov::op::v6::ReadValue>(init, variable);
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(read, parameter);
+    std::shared_ptr<ov::Node> assigned_value = direct_assign ? std::static_pointer_cast<ov::Node>(read) : multiply;
+    auto assign = std::make_shared<ov::op::v6::Assign>(assigned_value, variable);
+    auto result = std::make_shared<ov::op::v0::Result>(multiply);
+    auto model =
+        std::make_shared<ov::Model>(ov::ResultVector{result}, ov::SinkVector{assign}, ov::ParameterVector{parameter});
+    auto core = ov::test::utils::PluginCache::get().core();
+    auto compiled = core->compile_model(model,
+                                        ov::test::utils::DEVICE_CPU,
+                                        {ov::hint::inference_precision(ov::element::f32), ov::num_streams(1)});
+    auto request = compiled.create_infer_request();
+
+    auto infer_and_check = [&](size_t batch, float input_value, float expected_value) {
+        ov::Tensor input(ov::element::f32, {batch, 4});
+        std::fill_n(input.data<float>(), input.get_size(), input_value);
+        request.set_input_tensor(input);
+        request.infer();
+        auto output = request.get_output_tensor();
+        ASSERT_EQ(output.get_shape(), (ov::Shape{batch, 4}));
+        for (size_t i = 0; i < output.get_size(); ++i) {
+            ASSERT_FLOAT_EQ(output.data<const float>()[i], expected_value);
+        }
+    };
+
+    for (size_t iteration = 0; iteration < 3; ++iteration) {
+        SCOPED_TRACE(iteration);
+        ASSERT_NO_FATAL_FAILURE(infer_and_check(4, 1.f, 2.f));
+        // Resetting without an external descriptor change must still recompute the initial state.
+        request.reset_state();
+        ASSERT_NO_FATAL_FAILURE(infer_and_check(4, 2.f, 8.f));
+        {
+            ov::Tensor replacement(ov::element::f32, {replacement_batch, 4});
+            std::fill_n(replacement.data<float>(), replacement.get_size(), 7.f);
+            request.query_state().front().set_state(replacement);
+        }
+        ASSERT_NO_FATAL_FAILURE(infer_and_check(replacement_batch, 1.f, 7.f));
+
+        if (fresh_request) {
+            request = compiled.create_infer_request();
+        } else {
+            request.reset_state();
+        }
+        // The initialization input is unchanged; the shared output may have been reshaped externally.
+        ASSERT_NO_FATAL_FAILURE(infer_and_check(4, 2.f, 8.f));
+        request.reset_state();
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ReadValueStateReshape,
+                         ReadValueStateReshapeTest,
+                         ::testing::Combine(::testing::Bool(),
+                                            ::testing::Bool(),
+                                            ::testing::Values(size_t{3}, size_t{4}, size_t{5})));
 }  // namespace test
 }  // namespace ov

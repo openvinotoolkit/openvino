@@ -900,6 +900,21 @@ void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
                 subgraphMemoryPtrs[i]->redefineDesc(getSrcMemoryAtPort(i)->getDescPtr());
             }
 
+            // State shape and value could be either set by the subgraph during initialization,
+            // or by set_state() directly, which by pass subgraph execution.
+            // After subgraph init and followed set_state() in one infer request,
+            // then a new infer request needs to re-initialized by subgraph as infer requests have separate state.
+            // In this case subgraph shape cache and corresponding shape_infer/executor_parameters/allocated_memory are
+            // invalidated, and needs to be recomputed in this new infer request. Note that ReadValue output shares its
+            // Memory object with the initialization subgraph output.
+            if (lastInitGraphOutputDesc && !lastInitGraphOutputDesc->isCompatible(dst->getDesc())) {
+                for (const auto& node : subGraph->GetNodes()) {
+                    if (node->isDynamicNode()) {
+                        node->invalidateShapeCache();
+                    }
+                }
+            }
+
             subGraph->ResetInferCount();
             subGraph->Infer();
             // depending on the memory sharing solution, we can return here if the memory is substituted from the
@@ -907,6 +922,8 @@ void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
             // memory
             CPU_NODE_ASSERT(subGraph->outputsNumber() == 1, "has unexpected number of outputs");
             src = subGraph->getOutputNodeByIndex(0)->getSrcMemoryAtPort(0);
+            // Keep an independent snapshot: the output memory itself is shared with the outer graph.
+            lastInitGraphOutputDesc = src->getDesc().clone();
 
             // since the shape inference(InternalDynShapeInfer, do nothing) is performed, a memory of the extra child
             // edges, attached to the output ports has to be updated after an inference of the inner graph finished
