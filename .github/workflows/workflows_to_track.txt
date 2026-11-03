@@ -48,7 +48,7 @@ name: 'Dependency Review'
 ==> ./code_snippets.yml <==
 name: Code snippets
 ==> ./linux_riscv.yml <==
-name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
+name: Linux RISC-V with Conan (Ubuntu 24.04, Python 3.12)
 ==> ./workflow_rerunner.yml <==
 name: Rerun Workflow with Known Errors
 ==> ./linux_sanitizers.yml <==
