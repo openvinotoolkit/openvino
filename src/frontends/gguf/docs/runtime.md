@@ -212,9 +212,16 @@ before `read_model`. The opt-in load test does this; Core's global IR registrati
 implementation are unchanged. Without this registration, read-back fails at that extension op.
 With it, all 13 full-vocabulary logits rows match the direct-GGUF baseline bitwise, retaining the
 original CPU-reference gates. This covers one GPU request/stream, F16 inference/KV and activation
-DQ disabled on the tested build, not default Core-only read-back, long/default-zero-point schedules,
+DQ disabled on the tested build, not default Core-only read-back, default-zero-point schedules,
 other devices/versions, LLMPipeline or general internal-op IR support. The opt-in is inactive by
 default and does not change the separate failing multi-request cache diagnostic below.
+
+A strict-long replay on the same build also passes with a 60-token prefill and 12 single-token
+decode steps. Fresh save/load processes match all 13 full-vocabulary logits rows bitwise and
+retain the original CPU gates (13/13 top-1 matches, NMSE 0.000732 to 0.005171, not CPU bitwise
+equality). Actual runtime records in each process show 229 CM FCs and four SG FCs in prefill;
+all 233 FCs use SG in every decode step. This extends only the strict single-request IR scope
+above, with explicit GatedDeltaNet registration, unchanged routing thresholds and no compiled cache.
 
 GPU GGUF implementations serialize their execution-selection state with the compiled kernels:
 OCL shuffle flags, prefill threshold and F16/DQ selection, and CM weight format and threshold.
