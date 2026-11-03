@@ -154,6 +154,9 @@ Output<Node> try_constfold(const Output<Node>& x);
 
 Output<Node> get_input_with_floating_type(const NodeContext& context, size_t idx);
 
+/// \brief Returns the input element type, falling back to the visible context and the decoder type when it is dynamic.
+element::Type get_input_element_type(const NodeContext& context, size_t idx);
+
 /// \brief Rounds toward zero, keeping infinities and NaN. Integer inputs are returned unchanged.
 Output<Node> trunc_toward_zero(const NodeContext& context, const Output<Node>& x);
 

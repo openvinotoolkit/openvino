@@ -438,6 +438,10 @@ public:
         auto sum_internal_alloc = [](const network::ptr& net) -> uint64_t {
             uint64_t total = 0;
             for (auto& pi : net->get_primitives_info()) {
+                // Take into account primitive's intermediate buffers
+                auto inst = net->get_primitive(pi.original_id);
+                for (auto &m_ptr : inst->get_intermediates_memories())
+                    total += m_ptr->get_layout().bytes_count();
                 if (pi.original_id != "input")
                     total += pi.output_layout.bytes_count();
             }
