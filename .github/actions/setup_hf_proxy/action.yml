@@ -1,0 +1,22 @@
+name: Setup Hugging Face proxy
+description: Configure proxy-backed local Hugging Face caches for subsequent steps
+runs:
+  using: composite
+  steps:
+    - name: Configure proxy and local model cache
+      shell: python3 {0}
+      env:
+        HF_ENDPOINT: http://hf-proxy.hf-proxy.svc.cluster.local
+        HF_HUB_DISABLE_XET: "1"
+        HF_HOME: ${{ runner.temp }}/hf-home
+        HF_HUB_CACHE: ${{ runner.temp }}/hf-home/hub
+        HUGGINGFACE_HUB_CACHE: ${{ runner.temp }}/hf-home/hub
+      run: |
+        import os
+        from pathlib import Path
+
+        Path(os.environ["HF_HUB_CACHE"]).mkdir(parents=True, exist_ok=True)
+        with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as environment:
+            for name in ("HF_ENDPOINT", "HF_HUB_DISABLE_XET", "HF_HOME",
+                         "HF_HUB_CACHE", "HUGGINGFACE_HUB_CACHE"):
+                environment.write(f"{name}={os.environ[name]}\n")

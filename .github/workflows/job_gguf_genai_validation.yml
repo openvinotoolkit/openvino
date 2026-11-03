@@ -24,7 +24,6 @@ env:
   INSTALL_DIR: ${{ github.workspace }}/install
   GENAI_DIR: ${{ github.workspace }}/genai
   BUILD_DIR: ${{ github.workspace }}/genai-build
-  HF_HOME: /mount/caches/huggingface/gguf-genai
   HF_TOKEN_PATH: /secrets/huggingface/token-secondary
   OMP_NUM_THREADS: 4
   OPENBLAS_NUM_THREADS: 4
@@ -92,6 +91,9 @@ jobs:
           set-pip-install-path: 'false'
           self-hosted-runner: 'true'
           use-pip-proxy: 'true'
+
+      - name: Setup Hugging Face proxy
+        uses: ./.github/actions/setup_hf_proxy
 
       - name: Install same-run OpenVINO wheel
         uses: ./.github/actions/install_ov_wheels
