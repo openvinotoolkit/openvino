@@ -201,6 +201,8 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/dynamic_schedule_section.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/cre.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/blob_sections_registry.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/isection.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/hsm_format/read_write.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/major_minor_version.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/should_use_host_compile_interpreter_test.cpp
