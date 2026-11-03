@@ -227,3 +227,10 @@ For PEP 517 builds using `py-build-cmake` 0.5.0, pass explicit launcher options 
 This backend version silently ignores the `cmake.args` config setting. It inherits environment
 variables, but explicit overrides also set the launchers when configuring an existing build directory.
 Clear and print sccache statistics around the build to confirm that the compiler launcher is active.
+
+Pip build isolation installs build dependencies under a random `pip-build-env-*` directory. When
+those dependencies provide C/C++ headers (for example, OpenVINO wheels), the changing include paths
+can prevent cache reuse. The GenAI wheel job installs the same-run OpenVINO wheel and the build
+requirements declared by GenAI's `pyproject.toml` into the container's stable Python environment,
+then builds with `--no-build-isolation`. Keep the dependency installation in sync with the checked-out
+project's build metadata rather than duplicating version pins in the workflow.
