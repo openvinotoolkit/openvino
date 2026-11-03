@@ -261,6 +261,23 @@ TEST(F8E5M2Test, emulate_f16_nan_without_f8_payload) {
     }
 }
 
+TEST(F8E5M2Test, fake_convert_reference_keeps_negative_zero) {
+    // -2^-18 is below half of the lowest f8e5m2 subnormal, so it rounds to -0
+    const std::vector<float> data{-0x1p-18f};
+    const std::vector<float> scale{1.f}, shift{0.f};
+    std::vector<float> out(data.size());
+    reference::fake_convert(data.data(),
+                            scale.data(),
+                            shift.data(),
+                            out.data(),
+                            Shape{data.size()},
+                            Shape{1},
+                            Shape{1},
+                            element::f8e5m2);
+    EXPECT_EQ(out[0], 0.f);
+    EXPECT_TRUE(std::signbit(out[0])) << "sign of negative zero must be kept";
+}
+
 template <class TContainer>
 std::vector<std::tuple<uint8_t, typename TContainer::value_type>> enumerate(const TContainer& values) {
     std::vector<std::tuple<uint8_t, typename TContainer::value_type>> enum_values;

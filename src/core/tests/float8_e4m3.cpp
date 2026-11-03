@@ -171,10 +171,10 @@ TEST(F8E4M3Test, f32_gt_zero_le_f8_half_lowest_subnormal) {
     EXPECT_EQ(f8.to_bits(), 0x00);
 }
 
-TEST(F8E4M3Test, f32_in_f16_format_le_zero_gt_f8_half_lowest_subnormal) {
+TEST(F8E4M3Test, f32_gt_f8_half_lowest_subnormal_but_tie_in_f16) {
     const auto f8 = ov::float8_e4m3(0.00097656273283064365387f);
 
-    // The value is rounded to half of f8 lowest subnormal in f16, but it is greater than it in f32
+    // The value is rounded to half of f8 lowest subnormal in f16, but it is greater than it in f32, so it rounds up
     EXPECT_EQ(f8.to_bits(), 0x01);
 }
 
