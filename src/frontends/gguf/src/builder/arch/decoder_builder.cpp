@@ -44,9 +44,10 @@ DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config
                                std::unordered_map<std::string, GgufTensorType>& qtypes,
                                std::optional<RopeMode> rope,
                                const DecoderOptions& options,
-                               const std::unordered_map<std::string, CreatorFunction>* translators)
+                                                   const std::unordered_map<std::string, CreatorFunction>* translators,
+                                                   const GGUFExternalWeights* external_weights)
     : m_cfg(config, weights, rope, options),
-      m_emit(weights, qtypes, m_cfg.arch, translators),
+                                      m_emit(weights, qtypes, m_cfg.arch, translators, external_weights),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
     m_emit.configure_hadamard(config);
     auto& graph = *m_emit.graph();

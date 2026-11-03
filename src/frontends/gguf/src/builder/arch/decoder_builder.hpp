@@ -38,7 +38,8 @@ public:
                    std::unordered_map<std::string, GgufTensorType>& qtypes,
                    std::optional<RopeMode> rope = {},
                    const DecoderOptions& options = {},
-                   const std::unordered_map<std::string, CreatorFunction>* translators = nullptr);
+                   const std::unordered_map<std::string, CreatorFunction>* translators = nullptr,
+                   const GGUFExternalWeights* external_weights = nullptr);
 
     std::shared_ptr<GgufGraph> build() override;
 

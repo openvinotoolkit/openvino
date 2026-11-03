@@ -189,6 +189,33 @@ provenance and complete-model external IR remain separate acceptance work. Other
 operations in the table do not gain IR support from this path. Compiled-model export, import and
 caching are plugin-specific; test them on the target device. In-process conversion needs no IR.
 
+The real-checkpoint architecture-accuracy test has a separate, explicit external-IR mode using
+paired `OV_GGUF_ACCURACY_IR_DIR` and `OV_GGUF_ACCURACY_IR_MODE=save/load` values. It currently
+accepts only a real Qwen3.5 GPU checkpoint, an existing caller-owned directory and no compiled
+cache. Save mode checks source annotations and exports the uncompiled graph before saving the
+direct-GGUF full-vocabulary logits; load mode reads XML/BIN instead of converting GGUF and requires
+bitwise-identical logits on the same history. Both retain the original CPU-reference gates and
+request one stream. Source GGUF files must accompany the exported BIN as described above.
+
+The first local Qwen3.5-9B attempt was blocked before serialization: the converted graph contained
+234 raw Constants, 233 raw FCs and one raw Gather, but none of its raw Constants has external-source
+annotations. The native loader supplies the existing external-weight table to WeightStore, while
+DecoderBuilder previously omitted GraphEmitter's optional external-weight argument. The minimal
+fix passes that existing pointer through the decoder factory and constructor without changing
+model calculations. The first failed attempt remains separate evidence, not a successful export.
+
+A follow-up strict short-history replay exports the graph with 194 externally referenced raw
+Constants; the other 40 unannotated raw Constants remain in ordinary BIN. Reading this hybrid
+Qwen3.5 graph also requires explicitly registering the existing internal GatedDeltaNet operation
+with `core.add_extension(std::make_shared<ov::OpExtension<ov::op::internal::GatedDeltaNet>>())`
+before `read_model`. The opt-in load test does this; Core's global IR registration and the operator
+implementation are unchanged. Without this registration, read-back fails at that extension op.
+With it, all 13 full-vocabulary logits rows match the direct-GGUF baseline bitwise, retaining the
+original CPU-reference gates. This covers one GPU request/stream, F16 inference/KV and activation
+DQ disabled on the tested build, not default Core-only read-back, long/default-zero-point schedules,
+other devices/versions, LLMPipeline or general internal-op IR support. The opt-in is inactive by
+default and does not change the separate failing multi-request cache diagnostic below.
+
 GPU GGUF implementations serialize their execution-selection state with the compiled kernels:
 OCL shuffle flags, prefill threshold and F16/DQ selection, and CM weight format and threshold.
 Import restores these values rather than using the import process's environment defaults;
@@ -279,6 +306,27 @@ and KV cache, activation DQ disabled, strict/default zero points and short/long 
 This does not validate LLMPipeline/tokenizer integration, serialized IR reload, changed full-model
 weights, repeated-request state isolation, other devices/versions, weightless/encrypted caches
 or performance. The file-level cache checks above retain their separate scope.
+
+The Qwen3.5 cache test also checks reset/replay and interleaved requests with distinct token
+histories against isolated execution baselines. This extension currently exposes a failing GPU
+request-isolation check and is not accepted support: isolated reset/replay matches bitwise, but
+some interleaved logits differ even though the peer's 64 state arrays survive the other request's
+reset unchanged. The original CPU and bitwise gates remain in force; no checkpoint fix is claimed.
+
+This checkpoint isolation issue is deferred, not waived. It does not block unrelated GGUF GPU
+migration work scoped to one InferRequest and one stream, with no interleaving between different
+requests. It does block claiming complete-checkpoint multi-request isolation, including serial
+interleaving; multi-request or concurrent deployment requires a separate fix and acceptance.
+The failing check and evidence remain intact. Small-graph or stateless multi-stream results do
+not override this restriction, and separate compiled models are not a validated workaround here.
+
+A separate local public ReadValue/Assign control also reproduced GPU request-switching failures
+without GGUF. State-object identity binding and per-execution Assign layout synchronization were
+evaluated as diagnostic probes, but did not resolve the Qwen3.5 checkpoint failure. Both generic
+GPU changes and their added memory regression have been withdrawn from this migration. Their
+small-control passes and the checkpoint's 22 bitwise failures under those probes remain historical
+evidence, not validation of the current code. No generic GPU state-management fix is retained;
+the checkpoint isolation check remains unaccepted.
 
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.

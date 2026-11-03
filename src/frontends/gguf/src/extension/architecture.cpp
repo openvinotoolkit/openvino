@@ -26,7 +26,8 @@ ArchitectureDefinition make_decoder_architecture(std::string architecture, RopeM
                                                 ctx.weights->qtypes,
                                                 rope,
                                                 overrides,
-                                                ctx.weights->translators);
+                                                ctx.weights->translators,
+                                                ctx.weights->external_weights);
     };
     return definition;
 }
