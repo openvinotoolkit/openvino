@@ -41,7 +41,7 @@ function(add_common_utils ADD_TARGET_NAME)
                         "${OpenVINO_SOURCE_DIR}/src/plugins/template/include"
     )
 
-    if(TARGET openvino_template_plugin)
+    if(ENABLE_TEMPLATE)
         add_dependencies(${ADD_TARGET_NAME} openvino_template_plugin)
     endif()
 
