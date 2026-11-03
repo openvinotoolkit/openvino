@@ -101,16 +101,19 @@ public:
     }
 
 private:
+    void export_payload(cldnn::BinaryOutputBuffer& buffer) const;
+
     RemoteContextImpl::Ptr m_context;
     ExecutionConfig m_config;
     std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
     std::string m_model_name;
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
+    // Must outlive m_graphs, whose host-USM buffers can reference this storage.
+    std::shared_ptr<ov::Tensor> _backing_tensor;
     std::vector<std::shared_ptr<Graph>> m_graphs;
     bool m_loaded_from_cache;
     std::string m_runtime_requirements;
-    std::shared_ptr<ov::Tensor> _backing_tensor;
 
     // The member m_weight_sharing_context holds the context for weight sharing currently used by cross-plugin sharing.
     // That context consists of the necessary information as source_id, constant_id, and the non-owning view of the source buffer, where the weights are stored.

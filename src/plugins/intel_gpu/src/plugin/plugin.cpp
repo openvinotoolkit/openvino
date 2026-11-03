@@ -12,6 +12,7 @@
 #include <mutex>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "common_utils/parallel_mem_streambuf.hpp"
@@ -20,6 +21,7 @@
 #include "intel_gpu/graph/serialization/utils.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
+#include "intel_gpu/plugin/hsm_reader_handler.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
@@ -61,6 +63,7 @@
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
 thread_local const size_t* g_current_tensor_base = nullptr;
+thread_local size_t g_current_tensor_size = 0;
 
 namespace ov::intel_gpu {
 
@@ -459,6 +462,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
+    const auto* tensor_base = std::exchange(g_current_tensor_base, nullptr);
+    const auto tensor_size = std::exchange(g_current_tensor_size, size_t{0});
 
     auto context_impl = get_context_impl(context);
     context_impl->initialize();
@@ -488,14 +493,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
 
-    std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr =
-        encryption_callbacks.decrypt
-            ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(model, context_impl->get_engine(), encryption_callbacks.decrypt)
-            : std::make_unique<cldnn::BinaryInputBuffer>(model, context_impl->get_engine(), g_current_tensor_base);
-    auto& ib = *ib_ptr;
-
+    hsm::ReaderHandler reader(model, context_impl->get_engine(), tensor_base, tensor_size, encryption_callbacks.decrypt);
+    std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr;
     ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
-    ib >> cldnn::make_data(&loaded_cache_mode, sizeof(ov::CacheMode));
+    if (reader.is_hsm()) {
+        loaded_cache_mode = reader.cache_mode();
+    } else {
+        ib_ptr = encryption_callbacks.decrypt
+            ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(reader.legacy_stream(), context_impl->get_engine(), encryption_callbacks.decrypt)
+            : std::make_unique<cldnn::BinaryInputBuffer>(reader.legacy_stream(), context_impl->get_engine(), tensor_base);
+        *ib_ptr >> cldnn::make_data(&loaded_cache_mode, sizeof(ov::CacheMode));
+    }
+    auto& ib = reader.is_hsm() ? reader.buffer() : *ib_ptr;
 
     if (loaded_cache_mode != cache_mode) {
         return nullptr;
@@ -522,7 +531,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         }
     }
 
-    return std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache, weight_sharing_context);
+    auto compiled_model = std::make_shared<CompiledModel>(ib, shared_from_this(), context_impl, config, loaded_from_cache, weight_sharing_context);
+    reader.finish();
+    return compiled_model;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
@@ -535,14 +546,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
-    // Store tensor base in thread-local storage
+    // Restore TLS even when importing throws or a callback imports another model.
+    struct TensorBaseGuard {
+        const size_t* previous = g_current_tensor_base;
+        size_t previous_size = g_current_tensor_size;
+        ~TensorBaseGuard() {
+            g_current_tensor_base = previous;
+            g_current_tensor_size = previous_size;
+        }
+    } guard;
     g_current_tensor_base = static_cast<const size_t*>(model.data());
+    g_current_tensor_size = model.get_byte_size();
     ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
     std::istream stream(&par_buf);
     auto compiled_model = import_model(stream, context, config);
-
-    // Clear thread-local storage
-    g_current_tensor_base = nullptr;
 
     // Ensure the tensor stays alive as long as the compiled model
     auto* gpu_model = dynamic_cast<CompiledModel*>(compiled_model.get());
@@ -633,6 +650,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] get_property: Couldn't find config for GPU with id ", device_id);
 
     const auto& c = m_configs_map.at(device_id);
+    if (name == ov::intel_gpu::export_hsm_format) {
+        const auto environment = ov::util::getenv_string("OV_GPU_EXPORT_HSM_FORMAT");
+        return environment.empty() ? c.get_export_hsm_format() : ov::Any(environment).as<bool>();
+    }
     return c.get_property(name, OptionVisibility::RELEASE);
 }
 
@@ -821,6 +842,8 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::kv_cache_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::intel_gpu::runtime_type.name(), PropertyMutability::RO},
+        // Do not reuse earlier unwrapped HSM entries, which lack source-file identity.
+        ov::PropertyName{ov::intel_gpu::export_hsm_format.name(), PropertyMutability::RW},
     };
 
     return caching_properties;
@@ -890,6 +913,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
         ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+        // Keep Core's source-freshness header: do not advertise emit_hsm_format.
+        ov::PropertyName{ov::intel_gpu::export_hsm_format.name(), ov::PropertyMutability::RW},
         ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
         ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
         ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
