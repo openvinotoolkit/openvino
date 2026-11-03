@@ -1465,7 +1465,9 @@ KERNEL(sdpa_opt)(
 
     #if IS_PAGED_ATTENTION
         #if HAS_TOKEN_TYPE_IDS
-            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(token_type_ids, 
+            // token_type_ids covers all subsequences, but the indexes below are per subsequence: move to this subsequence.
+            const __global int* subsequence_token_type_ids = token_type_ids + subsequence_begins[gws_seq_indexes_correspondence[target_seq_dim]];
+            const SEQ_RANGE bi_dir_range = FUNC_CALL(calc_bi_dir_seq_range)(subsequence_token_type_ids, 
                                                                             reduce_buffer,
                                                                             SOURCE_SEQ_LEN, 
                                                                             default_this_work_item_seq_range,
@@ -2009,9 +2011,9 @@ KERNEL(sdpa_opt)(
                     }
                     unroll_for (uint key_row_idx = 0; key_row_idx < TARGET_SEQ_LEN_BLOCK_SIZE; ++key_row_idx) {
 #ifdef BEAM_TABLE_TYPE
-                        const INPUT1_TYPE key_packed = (sglid < K_HEAD_SIZE_LEFTOVER) ? key_input[sub_group_broadcast(key_offset, key_row_idx) + head_idx_index + sglid] : INPUT1_VAL_ZERO;
+                        const INPUT1_TYPE key_packed = (sglid < K_HEAD_SIZE_LEFTOVER && key_row_idx < seq_len_calc_size) ? key_input[sub_group_broadcast(key_offset, key_row_idx) + head_idx_index + sglid] : INPUT1_VAL_ZERO;
 #else
-                        const INPUT1_TYPE key_packed = (sglid < K_HEAD_SIZE_LEFTOVER) ? key_input[key_offset + key_row_idx * key_pitch + head_idx_index + sglid] : INPUT1_VAL_ZERO;
+                        const INPUT1_TYPE key_packed = (sglid < K_HEAD_SIZE_LEFTOVER && key_row_idx < seq_len_calc_size) ? key_input[key_offset + key_row_idx * key_pitch + head_idx_index + sglid] : INPUT1_VAL_ZERO;
 #endif
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         KV_DEQUANT_TYPE key_val = (TO_KV_DEQUANT_TYPE(key_packed) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
