@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "single_op_tests/grouped_matmul.hpp"
 
 
@@ -119,6 +120,26 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_RoutingEdgeCases,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values("GroupedMatMulCompressed"),
                                             ::testing::Values(ov::AnyMap{})),
+                         GroupedMatMulCompressedLayerTest::getTestCaseName);
+
+// Dynamic quantization of activations (requires VNNI): u3 / u4 weights
+const std::vector<ov::element::Type> dyn_quant_weights_precisions = {ov::element::u4, ov::element::u3};
+const ov::AnyMap dyn_quant_config = {{ov::hint::dynamic_quantization_group_size.name(), uint64_t(32)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_DynQuant,
+                         GroupedMatMulCompressedLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::ValuesIn(dyn_quant_weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::ValuesIn(sub_decompression_types),
+                                            ::testing::Values(false),
+                                            ::testing::Values(-1, 32),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GroupedMatMulCompressed"),
+                                            ::testing::Values(dyn_quant_config)),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
 }  // namespace ov::test::grouped_matmul_compressed
