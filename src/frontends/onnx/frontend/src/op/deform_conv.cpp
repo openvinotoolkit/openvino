@@ -88,5 +88,7 @@ ov::OutputVector deform_conv(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Add>(deformable_conv, reshaped_bias)};
 }
 
-ONNX_OP("DeformConv", OPSET_SINCE(19), ai_onnx::opset_1::deform_conv);
+// DeformConv is defined since opset 19, but it is registered since opset 1,
+// because OperatorsBridge requires a translator for every version imported by a model.
+ONNX_OP("DeformConv", OPSET_SINCE(1), ai_onnx::opset_1::deform_conv);
 }  // namespace ov::frontend::onnx::ai_onnx::opset_1
