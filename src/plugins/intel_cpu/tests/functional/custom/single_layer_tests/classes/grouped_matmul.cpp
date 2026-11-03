@@ -202,6 +202,11 @@ void GroupedMatMulCompressedLayerCPUTest::SetUp() {
     } else if (m_weights_prec == ov::element::u8 || m_weights_prec == ov::element::i8) {
         abs_threshold = 0.1F;
     }
+    // Dynamic quantization of activations (s8) adds extra error
+    if (configuration.count(ov::hint::dynamic_quantization_group_size.name()) != 0U) {
+        abs_threshold = std::max(abs_threshold, 0.6);
+        rel_threshold = 0.1F;
+    }
     if (configured_inference_precision(configuration) == ov::element::bf16) {
         abs_threshold = 0.5F;
         rel_threshold = 0.1F;
