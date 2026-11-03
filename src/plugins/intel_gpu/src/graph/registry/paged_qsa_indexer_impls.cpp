@@ -6,8 +6,8 @@
 #include "primitive_inst.h"
 #include "registry.hpp"
 
-#if OV_GPU_WITH_CM
-#    include "impls/cm/qsa_indexer/paged_qsa_indexer.hpp"
+#if OV_GPU_WITH_OCL
+#    include "impls/ocl_v2/qsa_indexer/paged_qsa_indexer.hpp"
 #endif
 
 namespace ov::intel_gpu {
@@ -16,8 +16,8 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<paged_qsa_indexer>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
-#if OV_GPU_WITH_CM
-        OV_GPU_CREATE_INSTANCE_CM(cm::PagedQSAIndexerCMImplementationManager, shape_types::any)
+#if OV_GPU_WITH_OCL
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedQSAIndexerImplementationManager, shape_types::any)
 #endif
     };
 

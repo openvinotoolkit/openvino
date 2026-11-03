@@ -82,6 +82,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes() {
             Type_t::nf4,
             Type_t::f4e2m1,
             Type_t::u2,
+            Type_t::u3,
             Type_t::f8e4m3,
             Type_t::f8e5m2};
 #elif defined(OV_CPU_WITH_KLEIDIAI)

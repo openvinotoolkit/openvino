@@ -69,3 +69,5 @@ sparse_pa_inst::typed_primitive_inst(network& network, const sparse_pa_node& nod
 }
 
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::sparse_pa)

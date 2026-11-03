@@ -146,6 +146,7 @@
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
 #include "plugin/transformations/disable_fp16_comp_sin_gen.hpp"
 #include "plugin/transformations/increase_rms_input_precision.hpp"
+#include "plugin/transformations/force_fp32_selective.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -488,6 +489,33 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
     return false;
 }
 
+// QSA main KV caches are quantized when kv_cache_precision asks for an 8/4-bit type. The key cache
+// follows key_cache_quant_mode (BY_CHANNEL in groups of GPU_QSA_KEY_CACHE_GROUP_SIZE tokens or
+// BY_TOKEN), the value cache is always BY_TOKEN. Only an explicit request counts: the default precision of
+// non-systolic devices is i8, which the dense SparseSDPA cannot follow (its compression needs immad).
+KVCacheQuantConfig make_qsa_kv_cache_quant(const ExecutionConfig& config) {
+    KVCacheQuantConfig quant;
+    if (config.get_user_properties().count(ov::hint::kv_cache_precision.name()) == 0) {
+        return quant;
+    }
+    const auto precision = config.get_kv_cache_precision();
+    if (!precision.is_static() || !precision.is_integral()) {
+        return quant;
+    }
+    const auto bits = static_cast<uint8_t>(precision.bitwidth());
+    if (bits != 8 && bits != 4) {
+        return quant;
+    }
+    const bool symmetric = config.get_qsa_kv_cache_symmetric();
+    quant.value = {op::KVQuant::Mode::BY_TOKEN, bits, symmetric, 0};
+    if (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_TOKEN) {
+        quant.key = {op::KVQuant::Mode::BY_TOKEN, bits, symmetric, 0};
+    } else {
+        quant.key = {op::KVQuant::Mode::BY_CHANNEL, bits, symmetric, static_cast<uint16_t>(config.get_qsa_key_cache_group_size())};
+    }
+    return quant;
+}
+
 // LPT's Split/VariadicSplitTransformation moves the dequantization from above the split to
 // below it, once per split output. That only pays off if the moved dequantization can be
 // absorbed by one of the consumers (a layer with quantized weights). If it cannot, the plugin
@@ -616,7 +644,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
     const auto& defaultPrecisions = ov::pass::low_precision::precision_set::get_int8_support();
     const ov::element::TypeVector supported_woq_types =
-        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u2};
+        {ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4, ov::element::u3, ov::element::u2};
     bool enableInt8;
     bool unroll_loop = config.get_enable_loop_unrolling();
     auto is_model_quantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(func);
@@ -700,8 +728,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::TransposeMatMul>();
 
-        manager.register_pass<ov::pass::MarkDequantization>(std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u2},
-                                                            !device_info.supports_immad);
+        manager.register_pass<ov::pass::MarkDequantization>(
+            std::vector<ov::element::Type>{ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4, ov::element::u3, ov::element::u2},
+            !device_info.supports_immad);
         if (config.get_use_onednn() && m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe3p) {
             manager.register_pass<ov::pass::MarkDequantization>(
                 std::vector<ov::element::Type>{ov::element::f8e4m3, ov::element::f8e5m2, ov::element::f4e2m1, ov::element::f8e8m0},
@@ -718,7 +747,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
-                                                                                    ov::element::u8};
+                                                                                    ov::element::u8,
+                                                                                    ov::element::u3};
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
 
@@ -1664,8 +1694,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // The index query's RMSNorm and RoPE are fused into QSAIndexer, so this runs once RoPEFusion
         // has turned the rotation into a RoPE op.
         // Public QSAPrepare/SparseAttentionIndexer/SparseAttention/PagedQSAIndexer/PagedSparseAttention
-        // -> QSAIndexer/SparseSDPA/PagedQSAIndexer/SparsePA (CM-only primitives).
-        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>();
+        // -> QSAIndexer/SparseSDPA/PagedQSAIndexer/SparsePA (GPU primitives).
+        manager.register_pass<ov::intel_gpu::SparseAttentionFusion>(make_qsa_kv_cache_quant(config));
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
@@ -1748,14 +1778,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // Guarded by OV_GPU_MLIR_BACKEND_LINKED rather than ENABLE_MLIR_FOR_GPU: this file is also
         // compiled into ov_gpu_unit_tests, which does not link the MLIR objects providing transformMLIR().
 #ifdef OV_GPU_MLIR_BACKEND_LINKED
-        auto loweringContext = std::make_shared<ov::EvaluationContext>();
-        auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
-        if (it != m_context->get_property().end()) {
-            // We assume here that there's only one device per context and that an
-            // actual device will be extracted later by the 'mlir_op'.
-            loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
-        }
-        ov::intel_gpu::mlir::transformMLIR(func, config, loweringContext);
+        ov::intel_gpu::mlir::transformMLIR(func, config, device_info.device_id);
 #else
         OPENVINO_THROW("[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
                         "but this binary was built without Graph Compiler support. "
@@ -1996,5 +2019,17 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::Validate>();
         manager.run_passes(func);
     }
+#ifdef GPU_DEBUG_CONFIG
+    {
+        const auto& forced_types = config.get_force_fp32_layer_types();
+        const auto& forced_names = config.get_force_fp32_layer_names();
+
+        if (!forced_types.empty() || !forced_names.empty()) {
+            ov::pass::Manager fp32_manager;
+            fp32_manager.register_pass<ov::intel_gpu::ForceFP32Selective>(forced_types, forced_names);
+            fp32_manager.run_passes(func);
+        }
+    }
+#endif
 }
 }  // namespace ov::intel_gpu

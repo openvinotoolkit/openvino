@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 
+#include "builder/decoder_metadata.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 namespace ov::frontend::gguf {
@@ -23,7 +24,8 @@ public:
                         "[GGUF] noncausal LFM2 embedding models require a centered convolution builder");
         DecoderOptions options;
         options.normalize_expert_weights = true;
-        const auto dims = g.configure_decoder(RopeMode::Neox, options);
+        const auto parameters = resolve_decoder_parameters(g.metadata(), RopeMode::Neox, options);
+        const auto dims = g.configure_decoder(parameters);
         OPENVINO_ASSERT(dims.layers > 0 && dims.embedding > 0,
                         "[GGUF] LFM2 requires positive layer and embedding counts");
         g.build_inp_pos();

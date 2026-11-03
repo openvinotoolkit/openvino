@@ -10,12 +10,19 @@ a `ModelBuilder` factory and an optional metadata predicate. The built-in catalo
 promoted unchanged. Registration and packaging are covered in [extensions.md](extensions.md).
 A vision/audio branch inside an mmproj file is a [projector component](extensions.md#extend-mmproj-with-a-projector-component), not an architecture.
 
+All architecture-specific decisions belong in `src/builder/`: metadata schemas and defaults,
+topology, operation selection, model contracts and specialized adapters. Built-in and extension
+factories use the same interfaces, so an extension can override every architecture-specific
+behavior. File parsing, quantization, translators and generic adaptation code consume explicit
+parameters and contracts and remain reusable by GenAI and the llama.cpp OpenVINO backend.
+
 ## Choose the smallest implementation
 
 | Requirement | Implementation |
 |---|---|
 | Existing decoder topology, new name | Catalog row or `make_decoder_architecture(name, rope)` |
-| Decoder facts that tensors/metadata cannot determine | Add a callback returning `DecoderOptions` |
+| Complete decoder semantics or metadata defaults | Add a callback returning `DecoderParameters` |
+| Small overrides of the convenience decoder defaults | Add a callback returning `DecoderOptions` |
 | Custom layer order using existing sublayers | `ModelBuilder` with `configure_decoder`, `decoder_attention`, `decoder_ffn` |
 | Different model family | `ModelBuilder` with generic operations; follow [porting from llama.cpp](#port-from-llamacpp) |
 
@@ -60,10 +67,41 @@ describe ordering and routing facts, not execution plans. Unset fields keep nati
 callback runs before dependent SWA, RoPE and KV configuration is resolved. For example, EXAONE4's
 `post_attention_norm` is a post-norm, while GPT-OSS uses the same name for a pre-FFN norm.
 
+### Supply complete decoder parameters
+
+The typed overload bypasses built-in name policy, including for a replacement of a built-in:
+
+```cpp
+using namespace ov::frontend::gguf;
+auto definition = make_decoder_architecture("my-layernorm", [](const BuildContext& context) {
+    DecoderParameters defaults;
+    defaults.normalization.kind = NormalizationKind::Layer;
+    auto parameters = read_decoder_parameters(context.metadata, defaults);
+    parameters.scales.embedding = 2.0f;
+    parameters.activation = FfnActivation::ReluSquared;
+    return parameters;
+});
+```
+
+`DecoderParameters` groups dimensions, normalization, scaling, attention/RoPE/SWA, experts,
+recurrent layers and the model contract. `layers` is empty or describes every trunk layer
+(optionally including trailing NextN layers); each entry overrides selected layer parameters.
+A custom topology calls `configure_decoder(parameters)` before reusing decoder blocks.
+Complete parameters and overrides are validated before dependent plans are derived.
+
+`ModelContract` declares recurrent batching and image-attention semantics consumed by generic
+GenAI adaptation. Decoder configuration exports it automatically; other builders may call
+`configure_model_contract(contract)`. The common `GgufDecoder::get_model_contract()` accessor
+also lets the llama.cpp adapter supply resolved facts. Architecture names are diagnostic data.
+An explicit `batchable_recurrent` value overrides structural inference; leave it unset to infer
+batching from generic operation capabilities. All three states survive IR serialization.
+
 ### Auto-detected features
 
-`decoder_config_from_meta()` reads hyperparameters once and `DecoderConfig` resolves them; the
-topology builder never rereads metadata.
+`read_decoder_parameters()` reads generic metadata through the schema/defaults chosen by the
+architecture factory; `DecoderConfig` validates those typed inputs and derives layer and cache
+plans. Built-in family policy lives in `builder/arch/decoder_family.cpp`. The old normalized-map
+helpers remain internal migration adapters under builder. The topology never rereads metadata.
 
 | Feature | Detected from |
 |---|---|
@@ -81,6 +119,13 @@ topology builder never rereads metadata.
 | Sliding-window attention | `attention.sliding_window(_pattern)`, or sinks |
 | Per-layer KV heads | `attention.head_count_kv` as an array |
 
+MiniCPM's `logit_scale` is a divisor. When the key is absent, the builder uses
+`embedding_length / 256`, giving the model's `256 / embedding_length` output multiplier.
+This deliberately corrects the inverted fallback in unpatched llama.cpp, which defaults the
+divisor to `256 / embedding_length`. The llama.cpp branch used by frontend validation carries
+the same correction; `minicpm-default.npz` captures its CPU logits without the metadata key.
+Files with an explicit `logit_scale` retain its value.
+
 Per-layer variation goes through `DecoderConfig` accessors, not inline ternaries in `build_layer()`:
 `layer_is_swa`, `layer_is_moe`, `layer_head_size`, `layer_n_head_kv`, `layer_kq_scale`,
 `layer_rope_config` and `is_recurrent_layer`. Extend them for a new per-layer dimension.
@@ -92,8 +137,8 @@ extensions include MoE routing (`blocks::moe_ffn()`), gpt-oss sinks and OAI SwiG
 LayerNorm and ReLU² FFN, gemma2/3 post-norms and soft-caps, gemma4 per-layer embeddings and shared KV,
 and qwen35 Gated DeltaNet layers that return the same sublayer output as attention. To add one:
 
-1. Add detection in `DecoderConfig`. Prefer weight presence; use `arch == "..."` only when the tensor
-   table is ambiguous (for example GeGLU versus SwiGLU).
+1. Describe the feature in `DecoderParameters`. Select architecture-specific values in the owning
+   family helper or extension factory; retain only unambiguous structural detection in `DecoderConfig`.
 2. Emit it behind that flag in the relevant `blocks/` function, or in `DecoderBuilder::build_layer()`
    when it changes sublayer order.
 3. Add a converter only if a GGML operation is missing; see [how_to_add_op.md](how_to_add_op.md).

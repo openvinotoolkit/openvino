@@ -6506,8 +6506,8 @@ INSTANTIATE_TEST_SUITE_P(fully_connected_bf_tiled_dyn_b_accuracy,
                              // With post-op eltwise
                              std::make_tuple(16L, 256L, 1024L, true)));
 
-// Parameterized test fixture for UINT2 fully connected kernel across various matrix dimensions
-class fully_connected_gpu_u2_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, bool>> {
+// Common parameterized fixture for sub-byte (UINT2, UINT3) fully connected kernel tests across various matrix dimensions
+class fully_connected_gpu_sub_byte_validation : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, bool>> {
 public:
     static std::string GetTestCaseName(const testing::TestParamInfo<std::tuple<int, int, int, int, int, bool>>& obj) {
         int batch = std::get<0>(obj.param);
@@ -6524,6 +6524,8 @@ public:
         return name;
     }
 };
+
+class fully_connected_gpu_u2_validation : public fully_connected_gpu_sub_byte_validation {};
 
 // Validates UINT2 decompression correctness across multiple sizes using random data vs inline CPU-computed reference
 TEST_P(fully_connected_gpu_u2_validation, various_sizes) {
@@ -7007,6 +7009,119 @@ TEST(fully_connected_gpu_ternocl_int2_dynamic, non_ternary_zero_point_falls_back
     net->execute();
     ASSERT_NE(net->get_primitive("fc_prim")->get_impl()->get_kernel_name(), "ternocl_int2");
 }
+
+class fully_connected_gpu_u3_validation : public fully_connected_gpu_sub_byte_validation {};
+
+// Validates UINT3 decompression correctness in the reference kernel. u3 is a tightly packed LSB-first bit stream,
+// so values straddle byte boundaries and rows are not byte-aligned when ifm_num * 3 is not a multiple of 8
+TEST_P(fully_connected_gpu_u3_validation, various_sizes) {
+    auto& engine = get_test_engine();
+
+    const int batch_num = std::get<0>(GetParam());
+    const int ifm_num = std::get<1>(GetParam());
+    const int ofm_num = std::get<2>(GetParam());
+    const int scales_group_size = std::get<3>(GetParam());
+    const int seq_len = std::get<4>(GetParam());  // 1 = 2D path, >1 = 3D (OUTPUT_3D) path
+    const bool use_zp = std::get<5>(GetParam());
+    const bool is_3d = seq_len > 1;
+
+    ASSERT_EQ(ifm_num % scales_group_size, 0) << "ifm_num must be multiple of scales_group_size";
+
+    auto input_shape = is_3d ? ov::PartialShape{batch_num, seq_len, ifm_num} : ov::PartialShape{batch_num, ifm_num};
+    auto input_mem = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+    auto weights_mem = engine.allocate_memory({{ofm_num, ifm_num}, data_types::u3, format::bfyx});
+    auto scale_mem = engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx});
+    auto zp_mem = use_zp ? engine.allocate_memory({{ofm_num, ifm_num / scales_group_size}, data_types::f16, format::bfyx}) : nullptr;
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    const int input_elems = is_3d ? batch_num * seq_len * ifm_num : batch_num * ifm_num;
+    auto input_data = rg.generate_random_1d<ov::float16>(input_elems, -1.0f, 1.0f);
+    set_values(input_mem, input_data);
+
+    const size_t weights_count = static_cast<size_t>(ofm_num) * ifm_num;
+    auto unpacked_weights = rg.generate_random_1d<uint8_t>(weights_count, 0, 7, 1);
+    std::vector<uint8_t> packed_weights((weights_count * 3 + 7) / 8, 0);
+    for (size_t i = 0; i < weights_count; ++i) {
+        const uint32_t bits = static_cast<uint32_t>(unpacked_weights[i] & 0x7) << ((i * 3) % 8);
+        const size_t byte_idx = i * 3 / 8;
+        packed_weights[byte_idx] |= static_cast<uint8_t>(bits);
+        if (bits > 0xFF)
+            packed_weights[byte_idx + 1] |= static_cast<uint8_t>(bits >> 8);
+    }
+    ASSERT_EQ(weights_mem->size(), packed_weights.size());
+    set_values(weights_mem, packed_weights);
+
+    auto scale_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 0.5f, 2.0f);
+    set_values(scale_mem, scale_data);
+
+    std::vector<ov::float16> zp_data;
+    if (use_zp) {
+        zp_data = rg.generate_random_1d<ov::float16>(ofm_num * ifm_num / scales_group_size, 2.5f, 4.5f);
+        set_values(zp_mem, zp_data);
+    }
+
+    auto in_layout = layout{input_shape, data_types::f16, format::bfyx};
+    const int input_size = is_3d ? 3 : 2;
+
+    topology topology(input_layout("input", in_layout), data("weights", weights_mem), data("scale", scale_mem));
+    if (use_zp)
+        topology.add(data("zp", zp_mem));
+    topology.add(fully_connected("fc_prim", input_info("input"), "weights", "", "scale", use_zp ? "zp" : "", data_types::f16, input_size, 2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl_desc = {format::bfyx, "fully_connected_gpu_bfyx_ref", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl_desc}}));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(0));
+
+    network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("input", input_mem);
+
+    auto outputs = network->execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    const int outer_count = is_3d ? batch_num * seq_len : batch_num;
+    std::vector<float> expected_output(outer_count * ofm_num);
+    for (int n = 0; n < outer_count; ++n) {
+        for (int ofm = 0; ofm < ofm_num; ++ofm) {
+            float acc = 0.0f;
+            for (int ifm = 0; ifm < ifm_num; ++ifm) {
+                int group_id = ifm / scales_group_size;
+                uint8_t weight_u3 = unpacked_weights[ofm * ifm_num + ifm];
+                float scale = static_cast<float>(scale_data[ofm * (ifm_num / scales_group_size) + group_id]);
+                float zp = use_zp ? static_cast<float>(zp_data[ofm * (ifm_num / scales_group_size) + group_id]) : 0.0f;
+                float weight_f16 = (static_cast<float>(weight_u3) - zp) * scale;
+                float inp = static_cast<float>(input_data[n * ifm_num + ifm]);
+                acc += inp * weight_f16;
+            }
+            expected_output[n * ofm_num + ofm] = acc;
+        }
+    }
+
+    ASSERT_EQ(output_ptr.size(), expected_output.size());
+    for (size_t i = 0; i < expected_output.size(); ++i) {
+        ASSERT_NEAR(expected_output[i], static_cast<float>(output_ptr[i]), 2.0f) << "Mismatch at output index " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         fully_connected_gpu_u3_validation,
+                         ::testing::Values(std::make_tuple(1, 8, 4, 8, 1, false),         // minimum byte-aligned row
+                                           std::make_tuple(2, 16, 8, 4, 1, false),        // multiple batches, small group size
+                                           std::make_tuple(4, 64, 32, 32, 1, false),      // multiple groups per row
+                                           std::make_tuple(1, 512, 256, 128, 1, false),   // larger dimensions
+                                           std::make_tuple(2, 12, 7, 4, 1, false),        // rows not byte-aligned, odd ofm_num
+                                           std::make_tuple(2, 60, 63, 4, 1, false),       // rows not byte-aligned, many groups
+                                           std::make_tuple(2, 12, 4, 4, 3, false),        // 3D (OUTPUT_3D) path
+                                           std::make_tuple(2, 16, 8, 4, 1, true),         // with zero-point
+                                           std::make_tuple(1, 60, 33, 12, 1, true),       // zero-point, rows not byte-aligned
+                                           std::make_tuple(2, 12, 5, 4, 3, true)          // 3D with zero-point
+                                           ),
+                         fully_connected_gpu_u3_validation::GetTestCaseName);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 namespace {

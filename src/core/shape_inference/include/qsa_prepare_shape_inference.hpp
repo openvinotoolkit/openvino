@@ -217,6 +217,15 @@ std::vector<TRShape> shape_infer(const QSAPrepare* op,
                                    ", got: ",
                                    past_block_index_keys_shape[1]);
         }
+    } else if (is_raw_keys_rank_static && past_block_index_keys_shape.rank().is_static()) {
+        // Without the key_length values only the upper bound is known: the cached blocks plus the new tokens,
+        // as the past incomplete block contributes at most key_block_size - 1 tokens.
+        const auto upper =
+            past_block_index_keys_shape[1] +
+            ov::util::dim::ceil_div(raw_index_keys_shape[1], static_cast<typename TDim::value_type>(key_block_size));
+        if (upper.is_static()) {
+            num_blocks = TDim(0, upper.get_length());
+        }
     }
 
     return {TRShape{batch, std::move(num_blocks), head_size},

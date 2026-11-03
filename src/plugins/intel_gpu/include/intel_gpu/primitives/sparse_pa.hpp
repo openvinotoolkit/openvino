@@ -54,7 +54,10 @@ struct sparse_pa : public primitive_base<sparse_pa> {
           key_block_size(config.key_block_size),
           query_block_size(config.query_block_size),
           scale(scale),
-          causal(config.causal) {}
+          causal(config.causal),
+          page_size(config.page_size),
+          key_quant(config.key_quant),
+          value_quant(config.value_quant) {}
 
     size_t num_heads = 0;
     size_t num_kv_heads = 0;
@@ -65,6 +68,9 @@ struct sparse_pa : public primitive_base<sparse_pa> {
     size_t query_block_size = 1;
     float scale = 0.0f;
     bool causal = true;
+    size_t page_size = 0;  ///< 0 = key_cache dim 2 (f16 caches)
+    ov::intel_gpu::op::KVQuant key_quant{};
+    ov::intel_gpu::op::KVQuant value_quant{};
 
     Config get_config() const {
         Config config;
@@ -76,6 +82,9 @@ struct sparse_pa : public primitive_base<sparse_pa> {
         config.key_block_size = key_block_size;
         config.query_block_size = query_block_size;
         config.causal = causal;
+        config.page_size = page_size;
+        config.key_quant = key_quant;
+        config.value_quant = value_quant;
         return config;
     }
 
@@ -90,6 +99,13 @@ struct sparse_pa : public primitive_base<sparse_pa> {
         seed = hash_combine(seed, query_block_size);
         seed = hash_combine(seed, scale);
         seed = hash_combine(seed, causal);
+        seed = hash_combine(seed, page_size);
+        for (const auto* q : {&key_quant, &value_quant}) {
+            seed = hash_combine(seed, static_cast<size_t>(q->mode));
+            seed = hash_combine(seed, static_cast<size_t>(q->bits));
+            seed = hash_combine(seed, q->symmetric);
+            seed = hash_combine(seed, static_cast<size_t>(q->group_size));
+        }
         return seed;
     }
 
@@ -99,17 +115,27 @@ struct sparse_pa : public primitive_base<sparse_pa> {
         auto r = downcast<const sparse_pa>(rhs);
         return num_heads == r.num_heads && num_kv_heads == r.num_kv_heads && num_selection_heads == r.num_selection_heads && k_head_size == r.k_head_size &&
                v_head_size == r.v_head_size && key_block_size == r.key_block_size && query_block_size == r.query_block_size && scale == r.scale &&
-               causal == r.causal;
+               causal == r.causal && page_size == r.page_size && key_quant == r.key_quant && value_quant == r.value_quant;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<sparse_pa>::save(ob);
-        ob << num_heads << num_kv_heads << num_selection_heads << k_head_size << v_head_size << key_block_size << query_block_size << scale << causal;
+        ob << num_heads << num_kv_heads << num_selection_heads << k_head_size << v_head_size << key_block_size << query_block_size << scale << causal
+           << page_size;
+        for (const auto* q : {&key_quant, &value_quant}) {
+            ob << static_cast<uint8_t>(q->mode) << q->bits << q->symmetric << q->group_size;
+        }
     }
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<sparse_pa>::load(ib);
-        ib >> num_heads >> num_kv_heads >> num_selection_heads >> k_head_size >> v_head_size >> key_block_size >> query_block_size >> scale >> causal;
+        ib >> num_heads >> num_kv_heads >> num_selection_heads >> k_head_size >> v_head_size >> key_block_size >> query_block_size >> scale >> causal >>
+            page_size;
+        for (auto* q : {&key_quant, &value_quant}) {
+            uint8_t mode = 0;
+            ib >> mode >> q->bits >> q->symmetric >> q->group_size;
+            q->mode = static_cast<ov::intel_gpu::op::KVQuant::Mode>(mode);
+        }
     }
 };
 

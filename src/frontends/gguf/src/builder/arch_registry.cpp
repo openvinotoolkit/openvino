@@ -35,6 +35,7 @@ struct ArchitectureEntry {
     const char* id = nullptr;
 };
 const ArchitectureEntry architectures[] = {
+    {"afmoe", RopeMode::Neox},
     {"bailingmoe2", RopeMode::Neox},
     {"clip",
      make_mmproj_builder,

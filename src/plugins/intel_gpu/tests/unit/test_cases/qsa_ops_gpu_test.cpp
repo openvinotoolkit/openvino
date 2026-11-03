@@ -28,6 +28,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <fstream>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/paged_qsa_indexer.hpp>
@@ -54,7 +55,6 @@
 #include <tuple>
 #include <vector>
 
-#include "impls/ocl/kernel_selector_helper.h"
 #include "openvino/runtime/core.hpp"
 #include "primitive_inst.h"
 #include "random_generator.hpp"
@@ -70,10 +70,11 @@ using DenseIdxIn = ov::intel_gpu::op::QSAIndexer::InputIdx;
 using SparsePAIn = cldnn::sparse_pa::InputIdx;
 using SparseSDPAIn = ov::intel_gpu::op::SparseSDPA::InputIdx;
 
-bool cm_qsa_ops_available() {
+/// The QSA ops run on the OpenCL implementation, which needs the Intel subgroup extensions.
+bool qsa_ops_available() {
     auto& engine = get_test_engine();
-    ExecutionConfig config = get_test_default_config(engine);
-    return cldnn::check_cm_jit_support(engine, config) && engine.get_device_info().supports_immad;
+    const auto& info = engine.get_device_info();
+    return info.supports_intel_subgroups && info.supports_intel_subgroups_short;
 }
 
 int64_t I(size_t v) {
@@ -1056,13 +1057,13 @@ struct pair_outputs {
     std::vector<std::string> indexer_kernels, attention_kernels;
 };
 
-/// CM kernels the primitive's last execute() enqueued, in order, without the `_cm_<hash>` suffix.
+/// Kernels the primitive's last execute() enqueued, in order, without the `_ocl_<hash>` suffix.
 std::vector<std::string> executed_kernels(network& net, const primitive_id& id) {
     auto inst = net.get_primitive(id);
     std::istringstream entries(inst->get_impl()->get_kernels_dump_info(*inst->get_impl_params()).get_entries());
     std::vector<std::string> names;
     for (std::string entry; entries >> entry;) {
-        names.push_back(entry.substr(0, entry.rfind("_cm_")));
+        names.push_back(entry.substr(0, entry.rfind("_ocl_")));
     }
     return names;
 }
@@ -1100,7 +1101,8 @@ std::vector<std::string> expected_indexer_kernels(bool paged, const route& r) {
         k.insert(k.end(), {"qsa_indexer_score_dpas", "qsa_indexer_topk"});
         break;
     case IndexerPath::Fused:
-        k.push_back("qsa_indexer_score_topk_fused");
+        // There is no single-thread fused kernel: partition scorer + prefill top-k.
+        k.insert(k.end(), {"qsa_indexer_score_partition", "qsa_indexer_topk"});
         break;
     }
     return k;
@@ -1132,7 +1134,36 @@ std::vector<std::string> expected_attention_kernels(bool paged, const route& r) 
     return k;
 }
 
-void expect_route(bool paged, const pair_outputs& gpu, const route& r) {
+/// Mirrors qsa::xmx_allowed(): the systolic kernels are only routed on Xe2+ (so not on DG2) and can be switched off.
+bool xmx_routes_enabled() {
+    const char* v = std::getenv("OV_GPU_QSA_OCL_DISABLE_XMX");
+    if (v != nullptr && std::string(v) == "1") {
+        return false;
+    }
+    const auto& info = get_test_engine().get_device_info();
+    return info.arch >= gpu_arch::xe2 && info.supports_immad;
+}
+
+/// Route the plugin takes without XMX; `kv_len` is the dense key length (SparseSDPA splits decode from 2048 on).
+route resolve_route(const route& r, bool paged, size_t kv_len) {
+    if (xmx_routes_enabled()) {
+        return r;
+    }
+    constexpr size_t dense_split_min_kv = 2048;
+    route out = r;
+    if (out.indexer == IndexerPath::Dpas) {
+        out.indexer = IndexerPath::Fused;
+    }
+    if (out.attention == AttnPath::Dpas || out.attention == AttnPath::GqaDpas) {
+        out.attention = AttnPath::Scalar;
+    } else if (out.attention == AttnPath::GqaSplit) {
+        out.attention = (paged || kv_len >= dense_split_min_kv) ? AttnPath::Split : AttnPath::Scalar;
+    }
+    return out;
+}
+
+void expect_route(bool paged, const pair_outputs& gpu, const route& expected, size_t kv_len = 0) {
+    const auto r = resolve_route(expected, paged, kv_len);
     EXPECT_EQ(gpu.indexer_kernels, expected_indexer_kernels(paged, r));
     EXPECT_EQ(gpu.attention_kernels, expected_attention_kernels(paged, r));
 }
@@ -1193,12 +1224,31 @@ void print_error_stats(const char* label, const error_stats& s) {
               << " max_rel=" << s.max_rel << std::endl;
 }
 
+/// With QSA_DUMP_DIR set, writes the GPU attention output and selection plan of every validated pair so that two runs
+/// can be diffed directly.
+void dump_pair_outputs(const pair_outputs& gpu) {
+    const char* dir = std::getenv("QSA_DUMP_DIR");
+    if (dir == nullptr) {
+        return;
+    }
+    static int counter = 0;
+    const std::string base = std::string(dir) + "/" + ::testing::UnitTest::GetInstance()->current_test_info()->name() + "_" + std::to_string(counter++);
+    auto write = [&](const std::string& suffix, const auto& v) {
+        std::ofstream f(base + suffix, std::ios::binary);
+        f.write(reinterpret_cast<const char*>(v.data()), static_cast<std::streamsize>(v.size() * sizeof(v[0])));
+    };
+    write(".attn.f32", gpu.attn);
+    write(".sel.i32", gpu.plan.sel);
+    write(".count.i32", gpu.plan.count);
+}
+
 /// Checks the GPU plan against the reference scores (count exact; every selected block
 /// complete, unique, and scoring within fp16 tolerance of the k-th best), then compares
 /// attention computed by the reference over that same plan using a combined
 /// absolute+relative tolerance (`atol + rtol * |ref|`), after asserting every output
 /// element is finite.
 void validate_pair(const split_reference& ref, const pair_outputs& gpu, float atol, float rtol) {
+    dump_pair_outputs(gpu);
     const auto& d = ref.d;
     ASSERT_EQ(gpu.plan.count.size(), ref.q_len);
     ASSERT_EQ(gpu.plan.sel.size(), ref.q_len * d.block_topk);
@@ -1303,7 +1353,7 @@ void validate_dense_outputs(network& net, const dense_inputs& in, const std::vec
     attn.resize(attn_inst->get_output_layout().count());
     read_pair_outputs(net, all);
     if (r != nullptr) {
-        expect_route(false, all, *r);
+        expect_route(false, all, *r, in.kv_len);
     }
     ASSERT_EQ(all.plan.count.size(), in.batch * L);
     ASSERT_EQ(attn.size(), in.batch * d.Hq * L * d.Dv);
@@ -1375,8 +1425,8 @@ void run_pair_test(bool paged,
                    float rtol,
                    float atol = 2e-3f,
                    float scale = 1.0f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     ASSERT_GT((past_len + q_len) / d.r, d.block_topk) << "the selection must drop some complete blocks to be meaningful";
     run_pair_case(paged, d, past_len, q_len, kind, r, rtol, atol, scale);
@@ -1384,8 +1434,8 @@ void run_pair_test(bool paged,
 
 /// Short context: every query sees at most block_topk complete blocks, so top-k selects all of them.
 void run_full_selection_pair_test(bool paged, const split_dims& d, size_t past_len, size_t q_len, const route& r, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     ASSERT_LE((past_len + q_len) / d.r, d.block_topk);
     run_pair_case(paged, d, past_len, q_len, Positions::Sequential, r, rtol, atol, 1.0f);
@@ -1460,8 +1510,8 @@ void validate_slices(bool paged, const std::vector<split_reference>& refs, const
 
 /// Multi-sequence paged batch: all decode (q_len == 1 each) or mixed decode/prefill.
 void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& seqs, const route& r, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     auto& engine = get_test_engine();
     const auto refs = make_batch_references(d, seqs);
@@ -1477,8 +1527,8 @@ void run_paged_batch_test(const split_dims& d, const std::vector<std::pair<size_
 /// are left-padded to the longest row); a row with q_len below the longest q_len must have
 /// past_len == 0 and is left-padded.
 void run_dense_batch_test(const split_dims& d, const std::vector<std::pair<size_t, size_t>>& rows, const route& r, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     run_dense_rows(get_test_engine(), make_batch_references(d, rows), r, atol, rtol);
 }
@@ -1513,8 +1563,8 @@ split_reference slice_reference(const split_reference& full, size_t past_len, si
 /// and every call after the first consumes the state outputs (block_index_keys_cache, staged raw keys,
 /// RoPE row) the previous call returned, as ReadValue/Assign would carry them.
 void run_dense_state_chain_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     using Out = ov::intel_gpu::op::QSAIndexer::OutputIdx;
     auto& engine = get_test_engine();
@@ -1852,8 +1902,8 @@ TEST(qsa_ops_gpu_test, paged_pair_dominant_outlier_component_stays_accurate) {
     // One channel 40x the scale of the rest in both the first query token's index head
     // and the earliest historical index key: stresses RMSNorm's sum-of-squares reduction
     // (a single term dominating the accumulation) rather than merely scaling everything.
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     const auto d = qwen38_dims();
     auto& engine = get_test_engine();
@@ -1866,8 +1916,8 @@ TEST(qsa_ops_gpu_test, paged_pair_dominant_outlier_component_stays_accurate) {
 }
 
 TEST(qsa_ops_gpu_test, dense_pair_dominant_outlier_component_stays_accurate) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     const auto d = qwen38_dims();
     auto& engine = get_test_engine();
@@ -1902,8 +1952,8 @@ struct dynamic_step {
 };
 
 void run_dynamic_pair_test(bool paged, const split_dims& d, const std::vector<dynamic_step>& steps, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
@@ -2019,8 +2069,8 @@ void run_padded_kv_attention_test(const split_dims& d,
                                   AttnPath path,
                                   float rtol,
                                   float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     auto& engine = get_test_engine();
     tests::random_generator rg(GET_SUITE_NAME);
@@ -2061,7 +2111,7 @@ void run_padded_kv_attention_test(const split_dims& d,
 
     const auto* const attn_params = net.get_primitive("attn")->get_impl_params();
     ASSERT_TRUE(static_cast<bool>(attn_params->get_input_layout(SparseSDPAIn::KEY).data_padding)) << "SparseSDPA must see the padded key buffer";
-    EXPECT_EQ(executed_kernels(net, "attn"), expected_attention_kernels(false, route{IndexerPath::Decode, path}));
+    EXPECT_EQ(executed_kernels(net, "attn"), expected_attention_kernels(false, resolve_route(route{IndexerPath::Decode, path}, false, total)));
     const auto gpu = bhld_to_token_major(read_f16(outputs.at("attn").get_memory()), d, q_len);
     const auto expected = ref.attention(plan_selections(plan, q_len, d.block_topk));
     const auto stats = compute_error_stats(gpu, expected);
@@ -2113,9 +2163,12 @@ TEST(qsa_ops_gpu_test, qwen38_dense_attention_gqa_split_reads_padded_kv) {
 // history. KVCache pre-allocates ahead on the sequence axis, i.e. hands over padded K/V.
 // ---------------------------------------------------------------------------
 
-void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<size_t>& q_lens, float rtol, float atol = 2e-3f, bool compressed = false) {
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
+    }
+    if (compressed && !get_test_engine().get_device_info().supports_immad) {
+        GTEST_SKIP() << "KVCacheCompression of SparseSDPA needs immad (planar i8 zero points)";
     }
     ov::Core core;
     const auto f16 = ov::element::f16;
@@ -2150,8 +2203,15 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
     auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(attn)},
                                              sinks,
                                              ov::ParameterVector{query, key_new, value_new, sel, count, key_length});
-    auto compiled = core.compile_model(model, "GPU", ov::hint::inference_precision(f16));
+    auto compiled =
+        core.compile_model(model, "GPU", ov::hint::inference_precision(f16), ov::hint::kv_cache_precision(compressed ? ov::element::i8 : ov::element::f16));
     auto request = compiled.create_infer_request();
+    if (compressed) {
+        // A compressed state cannot be read back as f16, which tells that KVCacheCompression took the K/V caches.
+        for (auto& state : request.query_state()) {
+            EXPECT_ANY_THROW(state.get_state());
+        }
+    }
 
     tests::random_generator rg(GET_SUITE_NAME);
     split_reference ref;
@@ -2205,6 +2265,12 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
         const auto stats = compute_error_stats(gpu, expected);
         print_error_stats("kv_cache_model_attention", stats);
         ASSERT_EQ(stats.non_finite, 0u);
+        if (compressed) {
+            // Per-token i8 K/V with integer zero points: judge the mean error against one quantization step of the
+            // [-1, 1] inputs, since short histories average the outputs towards zero and inflate relative errors.
+            ASSERT_LT(stats.mean_abs, 2.0 / 255.0) << "compressed K/V deviates from the f16 reference";
+            continue;
+        }
         size_t mismatches = 0;
         for (size_t i = 0; i < expected.size(); i++) {
             if (std::fabs(gpu[i] - expected[i]) > atol + rtol * std::fabs(expected[i]) && mismatches++ < 8) {
@@ -2217,6 +2283,14 @@ void run_sparse_sdpa_kv_cache_model_test(const split_dims& d, const std::vector<
 
 TEST(qsa_ops_gpu_test, sparse_sdpa_reads_kv_cache_across_infer_calls) {
     run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1, 1}, 2e-3f);
+}
+
+TEST(qsa_ops_gpu_test, sparse_sdpa_reads_compressed_kv_cache_across_infer_calls) {
+    run_sparse_sdpa_kv_cache_model_test(two_kv_head_dims(), {37, 1, 1, 6, 1, 2003, 1, 1}, 0.0f, 0.0f, true);
+}
+
+TEST(qsa_ops_gpu_test, qwen38_sparse_sdpa_reads_compressed_kv_cache_across_infer_calls) {
+    run_sparse_sdpa_kv_cache_model_test(qwen38_dims(), {37, 1, 1, 9, 1}, 0.0f, 0.0f, true);
 }
 
 TEST(qsa_ops_gpu_test, qwen38_sparse_sdpa_reads_kv_cache_across_infer_calls) {
@@ -2574,7 +2648,7 @@ TEST(qsa_ops_gpu_test, sparse_sdpa_output_shape_and_optional_inputs) {
 // ---------------------------------------------------------------------------
 // Plugin-level rejection of configurations outside the v1 GPU scope
 // (H_ik == 1, num_selection_heads == 1, f16 data). Goes through ov::Core so the ProgramBuilder
-// factories are exercised; no CM support is needed since lowering fails first.
+// factories are exercised; no device support is needed since lowering fails first.
 // ---------------------------------------------------------------------------
 
 bool gpu_in_core(ov::Core& core) {
@@ -2655,8 +2729,8 @@ TEST(qsa_ops_gpu_test, plugin_lowers_sparse_pa_scale_input_and_rejects_sinks) {
     expect_compile_error(core, std::make_shared<ov::op::internal::PagedSparseAttention>(args, key_block_size), {}, "scale input must be a Constant");
 
     // Constant scale + empty sinks lowers (scale and sinks are not primitive inputs).
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     args[paged_sparse_attention_scale_idx] = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.0625f});
     auto op = std::make_shared<ov::op::internal::PagedSparseAttention>(args, key_block_size);
@@ -2742,8 +2816,8 @@ void print_perf(const char* op, const perf_case& c, const perf_timing& t, double
 class qsa_ops_perf : public ::testing::TestWithParam<perf_case> {};
 
 TEST_P(qsa_ops_perf, qwen38) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     const auto c = GetParam();
     auto d = qwen38_dims();
@@ -2752,8 +2826,13 @@ TEST_P(qsa_ops_perf, qwen38) {
         d.rotary = 8;
     }
     auto& engine = get_test_engine();
-    constexpr int warmup = 3;
-    constexpr int iterations = 20;
+    // Microsecond kernels never ramp the GPU clock in 3 warmups: QSA_PERF_WARMUP / QSA_PERF_ITERS settle it.
+    auto env_int = [](const char* name, int fallback) {
+        const char* v = std::getenv(name);
+        return v ? static_cast<int>(std::strtol(v, nullptr, 10)) : fallback;
+    };
+    const int warmup = env_int("QSA_PERF_WARMUP", 3);
+    const int iterations = env_int("QSA_PERF_ITERS", 20);
 
     const char* indexer_name = c.paged ? "PagedQSAIndexer" : "QSAIndexer";
     const char* attention_name = c.paged ? "SparsePA" : "SparseSDPA";
@@ -2809,10 +2888,10 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_qsa_ops_perf,
 // SparseSDPA) or paged (PagedQSAIndexer + SparsePA) pair with Qwen3.8 dims, configured via the
 // environment: QSA_PERF_IMPL=dense|paged, QSA_PERF_PHASE=prefill|decode, QSA_PERF_B, QSA_PERF_LEN
 // (prompt length / history length), QSA_PERF_ITERS, QSA_PERF_WARMUP, QSA_PERF_FLUSH_MB (writes
-// that many MiB between iterations to evict L2).
+// that many MiB between iterations to evict L2), QSA_PERF_STAGES (comma list of pair|indexer|attention, default pair).
 TEST(qsa_ops_perf_sweep, DISABLED_pair) {
-    if (!cm_qsa_ops_available()) {
-        GTEST_SKIP() << "CM is not supported on this device";
+    if (!qsa_ops_available()) {
+        GTEST_SKIP() << "Intel subgroup extensions are not supported on this device";
     }
     auto env_size = [](const char* name, size_t fallback) {
         const char* v = std::getenv(name);
@@ -2833,38 +2912,46 @@ TEST(qsa_ops_perf_sweep, DISABLED_pair) {
     ASSERT_TRUE(impl == "dense" || impl == "paged") << impl;
     const size_t past = phase == "prefill" ? 0 : len;
     const size_t q_len = phase == "prefill" ? len : 1;
-    std::unique_ptr<network> net;
-    if (impl == "paged") {
-        net = build_paged_network(engine, paged_inputs_synthetic(qwen38_dims(), past, q_len, batch), Stage::Pair);
-    } else {
-        net = build_dense_network(engine, dense_inputs_synthetic(qwen38_dims(), past, q_len, batch), Stage::Pair);
-    }
+    const char* stages_env = std::getenv("QSA_PERF_STAGES");
+    std::stringstream stages(stages_env ? stages_env : "pair");
     memory::ptr flush;
     if (flush_mb != 0) {
         flush = engine.allocate_memory(layout{ov::PartialShape{I(flush_mb << 20)}, data_types::u8, format::bfyx}, allocation_type::usm_device);
     }
-    auto run_once = [&]() {
-        if (flush) {
-            flush->fill(get_test_stream(), static_cast<unsigned char>(0), {}, true);
+    std::string stage_name;
+    while (std::getline(stages, stage_name, ',')) {
+        ASSERT_TRUE(stage_name == "pair" || stage_name == "indexer" || stage_name == "attention") << stage_name;
+        const Stage stage = stage_name == "pair" ? Stage::Pair : (stage_name == "indexer" ? Stage::IndexerOnly : Stage::AttentionOnly);
+        const std::string out_id = stage == Stage::IndexerOnly ? "indexer" : "attn";
+        std::unique_ptr<network> net;
+        if (impl == "paged") {
+            net = build_paged_network(engine, paged_inputs_synthetic(qwen38_dims(), past, q_len, batch), stage);
+        } else {
+            net = build_dense_network(engine, dense_inputs_synthetic(qwen38_dims(), past, q_len, batch), stage);
         }
-        const auto start = std::chrono::steady_clock::now();
-        auto outputs = net->execute();
-        outputs.at("attn").get_memory();
-        net->get_stream().finish();
-        return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
-    };
-    for (int i = 0; i < warmup; i++) {
-        run_once();
+        auto run_once = [&]() {
+            if (flush) {
+                flush->fill(get_test_stream(), static_cast<unsigned char>(0), {}, true);
+            }
+            const auto start = std::chrono::steady_clock::now();
+            auto outputs = net->execute();
+            outputs.at(out_id).get_memory();
+            net->get_stream().finish();
+            return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        };
+        for (int i = 0; i < warmup; i++) {
+            run_once();
+        }
+        double total = 0.0;
+        double best = std::numeric_limits<double>::max();
+        for (int i = 0; i < iterations; i++) {
+            const double ms = run_once();
+            total += ms;
+            best = std::min(best, ms);
+        }
+        std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " len=" << len << " calls=" << warmup + iterations
+                  << " wall_avg_ms=" << total / iterations << " wall_min_ms=" << best << " flush_mb=" << flush_mb << " stage=" << stage_name << std::endl;
     }
-    double total = 0.0;
-    double best = std::numeric_limits<double>::max();
-    for (int i = 0; i < iterations; i++) {
-        const double ms = run_once();
-        total += ms;
-        best = std::min(best, ms);
-    }
-    std::cout << "QSA_SWEEP impl=" << impl << " phase=" << phase << " B=" << batch << " len=" << len << " calls=" << warmup + iterations
-              << " wall_avg_ms=" << total / iterations << " wall_min_ms=" << best << " flush_mb=" << flush_mb << std::endl;
 }
 
 }  // namespace

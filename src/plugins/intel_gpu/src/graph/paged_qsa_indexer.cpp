@@ -63,3 +63,5 @@ paged_qsa_indexer_inst::typed_primitive_inst(network& network, const paged_qsa_i
 }
 
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::paged_qsa_indexer)

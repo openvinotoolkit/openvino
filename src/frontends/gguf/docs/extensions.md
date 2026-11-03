@@ -23,6 +23,13 @@ device backend. Extensions attached to an `ov::BaseOpExtension` and shared-libra
 unwrapped; a bare custom operation supplies no GGML converter. `TelemetryExtension` is stored but
 never invoked; other types are ignored.
 
+GenAI integration in [PR #4683](https://github.com/openvinotoolkit/openvino.genai/pull/4683)
+accepts extension objects or library paths through `ov::genai::extensions(...)` in C++, or
+library paths through `extensions=[...]` in Python. For `LLMPipeline` and
+`ContinuousBatchingPipeline`, also select `GGUF_READER="FRONTEND"`. Extensions are registered
+before loading on every GGUF frontend, including both language and projector frontends in
+`VLMPipeline`.
+
 ## Lifecycle
 
 Use one frontend instance for registration, loading and conversion:
@@ -68,6 +75,12 @@ frontend->add_extension(std::make_shared<ArchitectureExtension>(definition));
 `ArchitectureExtension(ArchitectureDefinition)` also accepts a custom `ModelBuilder` factory with no
 RoPE mode. See [architectures.md](architectures.md) for options, builders, porting and validation.
 
+A callback returning `DecoderParameters` gives full control over decoder dimensions,
+normalization, scales, layer/RoPE/SWA settings, routing and model contracts. It bypasses the
+convenience helper's built-in architecture defaults; see [complete parameters](architectures.md#supply-complete-decoder-parameters).
+A custom whole-model factory can replace topology using generic graph operations or the shared
+blocks through `configure_decoder(parameters)`.
+
 ### Matching and replacement
 
 A handler matches on `general.architecture`, then its optional predicate. Handlers with different
@@ -92,7 +105,7 @@ selects branches as described in [mmproj.md](mmproj.md#files-with-vision-and-aud
 outputs `vision.embeddings` / `audio.embeddings` and finishes the model.
 
 A `ProjectorDefinition` has `id`, `architecture`, `modality` (`vision` or `audio`),
-`projector_type`, `build` and optional `match`. `build` appends to the shared `GgufGraphContext` and
+`projector_type`, `build` and optional `match`, `genai_layout` and `genai_adapter`. `build` appends to the shared `GgufGraphContext` and
 returns `ProjectorResult`: the output and optional string configuration under the modality prefix.
 It must not call `finish()` or register the primary output; extra inputs need unique names. A
 predicate may distinguish variants of one resolved type; two matching handlers are an error.
@@ -129,6 +142,26 @@ To replace one built-in branch, reuse its id (for example `clip.vision.gemma3`) 
 `RegistrationMode::Replace`; other branches and the `clip.mmproj` coordinator stay active. The
 component list comes from `ArchRegistry::projectors().supported_projectors()`. An architecture other
 than `clip` would also need its own whole-model coordinator.
+
+The builder selects GenAI layout explicitly with `genai_layout`. Recipes describe input
+semantics (`Image`, `PaddedPatches`, `WindowedPatches`, `SplitMerger`) and are serialized with the
+model; generic adaptation never selects them by projector name. `build_builtin_projector()`
+returns the recipe matching its graph. A result's explicit recipe overrides the definition.
+
+A custom `genai_adapter` runs for both `EMBEDDINGS` and `VISION_ENCODERS` after generic extraction
+of the selected modality. It receives an independent model clone and returns `ModelAdapterResult`:
+the primary graph in `model` and optional named graphs in `models`. It can replace the entire
+input graph. `EMBEDDINGS` supports vision and audio and permits an empty map; when a map is
+returned, it must contain the primary graph. `VISION_ENCODERS` requires vision modality and a
+nonempty map containing the primary graph. Every map entry needs a nonempty name and a nonnull
+graph. All returned graphs are validated before the pass commits the result, so callback failures
+leave the supplied graph unchanged. A result callback overrides the definition callback; an
+explicitly empty result callback selects generic adaptation and, for `VISION_ENCODERS`, the recipe.
+
+Its implementation belongs to the owning builder or external extension. Callback lifetime is
+retained with the extension library, and callback attributes are removed from committed graphs.
+Callbacks are excluded from IR serialization; use a
+serializable recipe when adaptation must work after reloading an unadapted IR.
 
 ## Add or override an operation converter
 
@@ -197,3 +230,8 @@ Load the actual library, convert a matching file and compare with the reference 
 | Missing operation converter | Register the exact string on the same frontend before `convert()` |
 | Cache remains stateless | Register `GenAIExtension` for GenAI IO, or `GGUFMakeStateful` for GGUF IO, before `convert()` |
 | Outputs differ from the reference | Follow [debugging_accuracy.md](debugging_accuracy.md) |
+
+GenAI C++ callers can forward extension objects or shared-library paths using
+`ov::genai::extensions(...)`; Python uses `extensions=[...]` for library paths. Select
+`GGUF_READER="FRONTEND"` when using the language-model pipelines. These extensions are
+registered on each GGUF frontend before loading.
