@@ -1226,9 +1226,9 @@ std::vector<std::string> build_mmproj_encoders(GgufGraphContext& g,
             config[entry.first] = entry.second;
         }
         config[definition->modality + ".projector"] = definition->projector_type;
-        // An explicit Unsupported is kept so it is not replaced by the built-in fallback layout.
-        if (const auto layout = result.genai_layout ? result.genai_layout : definition->genai_layout)
-            config[definition->modality + ".genai_layout"] = projector_layout_name(*layout);
+        const auto layout =
+            result.genai_layout.value_or(definition->genai_layout.value_or(ProjectorLayout::Unsupported));
+        config[definition->modality + ".genai_layout"] = projector_layout_name(layout);
         auto callback = result.genai_adapter.value_or(definition->genai_adapter);
         if (callback) {
             auto adapter = std::make_shared<ModelAdapter>();

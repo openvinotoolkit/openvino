@@ -223,7 +223,7 @@ TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutMatchesCpuOracleAcrossGroupsAndIR
     std::filesystem::remove(fixture.path + ".bin");
 }
 
-TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutAcceptsMissingSecondPixelInput) {
+TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutRequiresMatchingFrameCount) {
     const auto path = std::filesystem::path(ov_gguf_test::test_data_dir()) / "lfm3_media_vision.npz";
     ASSERT_TRUE(std::filesystem::is_regular_file(path));
     const auto arrays = cnpy::npz_load(path.string());
@@ -244,6 +244,16 @@ TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutAcceptsMissingSecondPixelInput) {
     for (const int64_t temporal : {1, 2}) {
         auto model = native->clone();
         model->set_rt_info(std::to_string(temporal), {"gguf_mmproj", "vision.temporal_patch_size"});
+        if (temporal == 2) {
+            const auto parameters = model->get_parameters();
+            const auto results = model->get_results();
+            Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+            EXPECT_THROW(adapter.run_on_model(model), ov::Exception);
+            EXPECT_TRUE(adapter.get_vision_models().empty());
+            EXPECT_EQ(model->get_parameters(), parameters);
+            EXPECT_EQ(model->get_results(), results);
+            continue;
+        }
         ASSERT_TRUE(Adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS).run_on_model(model));
         ASSERT_EQ(model->inputs().size(), 1);
         EXPECT_EQ(model->input().get_partial_shape(), (ov::PartialShape{-1, -1, -1, 768 * temporal}));
@@ -433,6 +443,7 @@ TEST(GGUFLfm3MediaAdapter, TemporalPackedLayoutRejectsInvalidMetadataWithoutChan
     const auto native = frontend.convert(frontend.load(fixture.path));
     for (const auto& [key, value] :
          std::vector<std::pair<std::string, std::string>>{{"vision.temporal_patch_size", "0"},
+                                                          {"vision.temporal_patch_size", "1"},
                                                           {"vision.temporal_patch_size", "3"},
                                                           {"vision.patch_size", "0"},
                                                           {"vision.patch_size", "9223372036854775807"}}) {

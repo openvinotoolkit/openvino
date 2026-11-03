@@ -407,9 +407,10 @@ void temporal_packed_patch_layout(const std::shared_ptr<ov::Model>& model, int64
     auto first_pixels = find_parameter(body, "pixel_values");
     auto second_pixels = find_parameter(body, "pixel_values_1");
     auto spatial_positions = find_parameter(body, "positions");
-    OPENVINO_ASSERT(first_pixels && spatial_positions && (!second_pixels || temporal == 2) &&
-                        body->get_parameters().size() == (second_pixels ? 3u : 2u) && body->get_results().size() == 1 &&
-                        body->get_sinks().empty() && body->get_variables().empty(),
+    OPENVINO_ASSERT(bool(second_pixels) == (temporal == 2),
+                    "[GGUF] temporal packed vision input count must match vision.temporal_patch_size");
+    OPENVINO_ASSERT(first_pixels && spatial_positions && body->get_parameters().size() == (second_pixels ? 3u : 2u) &&
+                        body->get_results().size() == 1 && body->get_sinks().empty() && body->get_variables().empty(),
                     "[GGUF] temporal packed vision requires pixel inputs, positions and one embedding output");
     OPENVINO_ASSERT(spatial_positions->get_element_type() == ov::element::i32,
                     "[GGUF] temporal packed vision requires i32 spatial positions");

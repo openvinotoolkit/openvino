@@ -101,6 +101,12 @@ layout leaves the native model available for the `EMBEDDINGS` fallback. A
 [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) can declare a
 built-in layout or provide its own adapter callback.
 
+`temporal_packed_patches` requires `vision.temporal_patch_size` to match the number of frame
+inputs (one or two). The LFM3 builder declares two only when `v.patch_embd.weight.1` exists;
+otherwise it declares one. The graph encodes groups sequentially using `TensorIterator`, so
+the target device must support that operation (CPU/GPU; NPU is not supported by this layout).
+It does not rely on GenAI looping over groups externally.
+
 [`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) in `EMBEDS_TO_LOGITS`
 mode prepares the language model for media injection. The token lookup moves to
 `get_embedding_model()` and the language model takes `inputs_embeds [B,T,D]`. Depending on the
