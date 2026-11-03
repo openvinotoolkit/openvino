@@ -41,6 +41,7 @@ with the [strict accuracy settings](quantization.md#accuracy-controls) (`OV_GGUF
 | `lfm2` | LFM2 / LFM2.5 dense hybrid short convolution and GQA, QK-norm, tied head | LFM2-350M / LFM2.5-1.2B-Instruct Q4_0 | 13/13 each |
 | `lfm2.audio_vocoder` | Standalone speech component; accepts the existing publisher architecture string | LFM2.5-Audio-1.5B Q4_0 | [Component parity](mmproj.md#lfm2-audio-components) |
 | `lfm2moe` | LFM2 / LFM2.5 MoE hybrid, dense lead, biased normalized expert routing | LFM2.5-8B-A1B Q4_0 | 12/13 |
+| `lfm3` | Dense hybrid convolution/GQA, per-head output gates, paired optional post norms, tied output, mixed full/sliding RoPE | LFM3-1.7B / LFM3-VL-2B / LFM3-Audio-2B / LFM3-Omni-2B | |
 | `llama` | llama-2 / llama-3, YaRN | Devstral Small 2507 24B Q4_K_M | 13/13 |
 | `llama-embed` | Per-token embeddings; mean/first/last pooling; causal or bidirectional | Llama-Nemotron-Embed-1B-v2 Q4_K_M | NMSE 3e-6 ² |
 | `maincoder` | NORMAL RoPE, QK-norm after RoPE | Maincoder-1B Q4_K_M | 13/13 |
@@ -90,6 +91,7 @@ Bailing grouped routing; see the [fixture README](../tests/test_data/arch_accura
   `nemotron_h_moe` are not supported. See [runtime.md](runtime.md#stateful-and-genai-conversion).
 - **Multimodal:** a tested language backbone does not cover its vision or audio encoders,
   preprocessing or application pipeline.
+- **Model variants:** the `lfm3` builder supports causal autoregressive backbones; Decision/D1 variants are unsupported.
 - **Quantization and memory:** see [quantization.md](quantization.md).
 
 ## llama.cpp cgraph path
