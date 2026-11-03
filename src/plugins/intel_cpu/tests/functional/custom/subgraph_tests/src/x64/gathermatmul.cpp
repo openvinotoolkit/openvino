@@ -175,6 +175,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
 
+const std::vector<ov::test::ElementType> weights_precisions_u3 = {ov::element::u3};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_u3,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(weights_precisions_u3),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(16, 32),
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_3gemm_gelu,
                          MoECompressedWeightsSubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
@@ -189,6 +207,84 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_3gemm_gelu,
                                             ::testing::Values(16),     // decompression group size
                                             ::testing::ValuesIn(generate_additional_config()),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_3gemm_gelu_u3,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::Values(MoEType::MoE3GeMM),
+                                            ::testing::Values(MoEActivationType::GELU),
+                                            ::testing::ValuesIn(weights_precisions_u3),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(16, 32),
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+const std::vector<ov::AnyMap> config_dyn_quant_disabled = {
+    {{ov::hint::inference_precision.name(), ov::element::f32},
+     {ov::hint::dynamic_quantization_group_size.name(), uint64_t{0}}}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_u3_dyn_quant_disabled,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(weights_precisions_u3),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(32),
+                                            ::testing::ValuesIn(config_dyn_quant_disabled),
+                                            ::testing::Values(true)),
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_u3_symmetric_zp,
+                         MoECompressedWeightsU3SymmetricZpSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(weights_precisions_u3),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(16, 32),
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+const std::vector<MoeTestShapeParams> moe_params_u3_k_tail = {
+    {
+        {{-1, -1, 48}, {{1, 16, 48}, {1, 1, 48}}},  // data_shape
+        2,                                          // topk
+        4,                                          // number_of_experts
+        80                                          // intermediate_size
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_u3_k_tail,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_u3_k_tail),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(weights_precisions_u3),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(-1),
+                                            ::testing::Values(ov::AnyMap{
+                                                {ov::hint::inference_precision.name(), ov::element::f32}}),
+                                            ::testing::Values(true)),
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_long_sequences,

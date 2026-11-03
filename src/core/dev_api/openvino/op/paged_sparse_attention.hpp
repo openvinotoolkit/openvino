@@ -16,6 +16,9 @@ namespace ov::op::internal {
 /// The positional inputs are query, key, value, key_cache, value_cache, past_lens,
 /// subsequence_begins, block_indices, block_indices_begins, selected_block_indices,
 /// selected_block_count, scale, and sinks. The key/value cache inputs are updated in place.
+/// Caches are opaque backend-owned storage with ranks 2 through 5, independent of precision.
+/// Core inference derives output width from query/key/value projections, not cache dimensions.
+/// Cache layout, logical page size and head-count-dependent constraints are backend responsibilities.
 class OPENVINO_API PagedSparseAttention : public Op {
 public:
     OPENVINO_OP("PagedSparseAttention");
