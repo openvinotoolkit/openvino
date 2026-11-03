@@ -12,6 +12,7 @@
 #include <mutex>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "common_utils/parallel_mem_streambuf.hpp"
@@ -462,6 +463,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
+    const auto* tensor_base = std::exchange(g_current_tensor_base, nullptr);
+    const auto tensor_size = std::exchange(g_current_tensor_size, size_t{0});
 
     auto context_impl = get_context_impl(context);
     context_impl->initialize();
@@ -490,7 +493,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
 
-    hsm::ReaderHandler reader(model, context_impl->get_engine(), g_current_tensor_base, g_current_tensor_size, encryption_callbacks.decrypt);
+    hsm::ReaderHandler reader(model, context_impl->get_engine(), tensor_base, tensor_size, encryption_callbacks.decrypt);
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr;
     ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     if (reader.is_hsm()) {
@@ -498,7 +501,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     } else {
         ib_ptr = encryption_callbacks.decrypt
             ? std::make_unique<cldnn::EncryptedBinaryInputBuffer>(reader.legacy_stream(), context_impl->get_engine(), encryption_callbacks.decrypt)
-            : std::make_unique<cldnn::BinaryInputBuffer>(reader.legacy_stream(), context_impl->get_engine(), g_current_tensor_base);
+            : std::make_unique<cldnn::BinaryInputBuffer>(reader.legacy_stream(), context_impl->get_engine(), tensor_base);
         *ib_ptr >> cldnn::make_data(&loaded_cache_mode, sizeof(ov::CacheMode));
     }
     auto& ib = reader.is_hsm() ? reader.buffer() : *ib_ptr;
@@ -543,16 +546,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const{
-    // Store tensor base in thread-local storage
+    // Restore TLS even when importing throws or a callback imports another model.
+    struct TensorBaseGuard {
+        const size_t* previous = g_current_tensor_base;
+        size_t previous_size = g_current_tensor_size;
+        ~TensorBaseGuard() {
+            g_current_tensor_base = previous;
+            g_current_tensor_size = previous_size;
+        }
+    } guard;
     g_current_tensor_base = static_cast<const size_t*>(model.data());
     g_current_tensor_size = model.get_byte_size();
     ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
     std::istream stream(&par_buf);
     auto compiled_model = import_model(stream, context, config);
-
-    // Clear thread-local storage
-    g_current_tensor_base = nullptr;
-    g_current_tensor_size = 0;
 
     // Ensure the tensor stays alive as long as the compiled model
     auto* gpu_model = dynamic_cast<CompiledModel*>(compiled_model.get());
