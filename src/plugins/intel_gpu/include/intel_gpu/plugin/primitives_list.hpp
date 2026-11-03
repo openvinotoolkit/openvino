@@ -341,3 +341,4 @@ REGISTER_FACTORY(internal, PagedQSAIndexerGPU);
 REGISTER_FACTORY(internal, QSAIndexer);
 REGISTER_FACTORY(internal, SparsePA);
 REGISTER_FACTORY(internal, SparseSDPA);
+REGISTER_FACTORY(internal, GatedResidual);

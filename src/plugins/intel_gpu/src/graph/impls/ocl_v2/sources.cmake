@@ -9,6 +9,9 @@ set(GPU_OCL_V2_IMPL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/ctc_loss.hpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gated_delta_net_ref.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gated_residual.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gated_residual.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/gated_residual/gated_residual_stage_events.hpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gather_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gather_matmul_gen_micro.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gather_matmul/gather_matmul_gen_micro.hpp
@@ -122,6 +125,11 @@ set(GPU_OCL_V2_KERNEL_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_bfyx_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_fsv16.cl
     ${CMAKE_CURRENT_LIST_DIR}/group_normalization_ref.cl
+    ${CMAKE_CURRENT_LIST_DIR}/gr_common.cl
+    ${CMAKE_CURRENT_LIST_DIR}/gr_read.cl
+    ${CMAKE_CURRENT_LIST_DIR}/gr_read_dpas.cl
+    ${CMAKE_CURRENT_LIST_DIR}/gr_read_pipeline.cl
+    ${CMAKE_CURRENT_LIST_DIR}/gr_write.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_horizontal_fused.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_opt.cl
     ${CMAKE_CURRENT_LIST_DIR}/lora_ref.cl
