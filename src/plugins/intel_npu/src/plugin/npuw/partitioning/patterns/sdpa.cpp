@@ -253,7 +253,7 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
         return permutation[rank - 2u] == static_cast<int64_t>(rank - 1u) &&
                permutation[rank - 1u] == static_cast<int64_t>(rank - 2u);
     };
-    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), transpose1}, matmul1_pred);
+    auto matmul1 = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), transpose1});
     auto score_scale = opp::optional<ov::op::v1::Multiply>({matmul1, opp::any_input()});
     auto add = opp::wrap_type<ov::op::v1::Add>({score_scale, opp::any_input()});
     // Six-input SDPA appends a sink score before Softmax and removes its
@@ -279,6 +279,13 @@ SDPADecomposed::SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>
         const auto sink_slice_match = node_to_output.find(sink_slice);
         const bool has_sink_concat = sink_concat_match != node_to_output.end();
         const bool has_sink_slice = sink_slice_match != node_to_output.end();
+        const auto& matched_matmul1 = node_to_output.at(matmul1);
+        const bool has_key_transpose =
+            ov::is_type<ov::op::v1::Transpose>(matched_matmul1.get_node_shared_ptr()->get_input_node_shared_ptr(1));
+        if ((has_sink_concat || has_key_transpose) && !matmul1_pred(matched_matmul1)) {
+            LOG_DEBUG("Attention-sink SDPA or explicit K Transpose requires canonical QK MatMul attributes");
+            return false;
+        }
         if (has_sink_concat != has_sink_slice ||
             (has_sink_concat &&
              !ov::npuw::util::is_valid_attention_sink_slice(sink_concat_match->second.get_node_shared_ptr(),

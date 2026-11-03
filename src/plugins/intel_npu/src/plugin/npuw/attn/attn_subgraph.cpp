@@ -49,6 +49,7 @@ struct HFARequestSet {
 
     std::array<ov::SoPtr<ov::IAsyncInferRequest>, COUNT> infer_requests{};
     std::array<ov::SoPtr<ov::IAsyncInferRequest>, COUNT> pipeline_requests{};
+    bool uses_mask = false;
 };
 
 struct RuntimeState {
@@ -348,6 +349,9 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     const auto& final_tile_inputs = hfa->_compiled_final_tile_model->inputs();
     const auto& regular_indices = hfa->_sdpa_attention_info._tile_input_indices;
     const auto& final_indices = hfa->_sdpa_attention_info._final_tile_input_indices;
+    state.hfa_requests.uses_mask = std::any_of(tile_inputs.begin(), tile_inputs.end(), [](const auto& input) {
+        return input.get_names().count("MASK_TILE") != 0;
+    });
 
     const auto get_tile_index = [](const auto& indices, HFATileInputId input_id) -> std::optional<std::size_t> {
         switch (input_id) {
@@ -1057,11 +1061,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         const auto& tile_out = sdpa_info._tile_output_indices;
                         const auto n_in = hfa_desc->_compiled_tile_model->inputs().size();
                         const auto n_out = hfa_desc->_compiled_tile_model->outputs().size();
-                        const auto& regular_tile_inputs = hfa_desc->_compiled_tile_model->inputs();
-                        const bool uses_mask =
-                            std::any_of(regular_tile_inputs.begin(), regular_tile_inputs.end(), [](const auto& input) {
-                                return input.get_names().count("MASK_TILE") != 0;
-                            });
+                        const bool uses_mask = state.hfa_requests.uses_mask;
                         OPENVINO_ASSERT(regular_tile_in.q < n_in && regular_tile_in.k < n_in &&
                                             regular_tile_in.v < n_in && regular_tile_in.acc < n_in &&
                                             regular_tile_in.max < n_in && regular_tile_in.d < n_in,

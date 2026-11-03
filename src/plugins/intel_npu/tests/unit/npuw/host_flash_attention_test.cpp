@@ -19,11 +19,13 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "util.hpp"
 
 namespace {
 
@@ -344,6 +346,59 @@ TEST(HostFlashAttentionFromTest, EmbedsConstantPostQKScale) {
         return node->get_friendly_name() == "q_scaled" &&
                ov::is_type<ov::op::v0::Constant>(node->input_value(1).get_node_shared_ptr());
     }));
+}
+
+TEST(HostFlashAttentionFromTest, RejectsConstantAttentionSink) {
+    auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true);
+    auto sink = model->get_parameters().back();
+    auto constant = ov::op::v0::Constant::create(ov::element::f32, sink->get_shape(), {1.0f});
+    for (auto input : sink->output(0).get_target_inputs()) {
+        input.replace_source_output(constant);
+    }
+    model->remove_parameter(sink);
+    model->validate_nodes_and_infer_types();
+
+    ASSERT_TRUE(ov::npuw::util::find_sdpa_pattern_nodes(model).is_valid());
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, false).has_value());
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, true).has_value());
+}
+
+TEST(HostFlashAttentionFromTest, RejectsReshapedAttentionSink) {
+    auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true);
+    auto sink = model->get_parameters().back();
+    const auto consumers = sink->output(0).get_target_inputs();
+    auto shape = ov::op::v0::Constant::create(
+        ov::element::i64,
+        ov::Shape{4},
+        std::vector<int64_t>{static_cast<int64_t>(BATCH), static_cast<int64_t>(NUM_HEADS), 1, 1});
+    auto reshaped = std::make_shared<ov::op::v1::Reshape>(sink, shape, false);
+    for (auto input : consumers) {
+        input.replace_source_output(reshaped);
+    }
+    model->validate_nodes_and_infer_types();
+
+    ASSERT_TRUE(ov::npuw::util::find_sdpa_pattern_nodes(model).is_valid());
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, false).has_value());
+    EXPECT_FALSE(ov::npuw::function::HostFlashAttention::from(model, true).has_value());
+}
+
+TEST(HostFlashAttentionFromTest, AcceptsConvertedParameterAttentionSink) {
+    auto model = build_sdpa_model(QUERY_SIZE, PAST_LEN, NUM_HEADS, HEAD_DIM, true);
+    auto sink = model->get_parameters().back();
+    const auto consumers = sink->output(0).get_target_inputs();
+    auto half = std::make_shared<ov::op::v0::Convert>(sink, ov::element::f16);
+    auto converted = std::make_shared<ov::op::v0::Convert>(half, ov::element::f32);
+    for (auto input : consumers) {
+        input.replace_source_output(converted);
+    }
+    model->validate_nodes_and_infer_types();
+
+    for (const bool fused : {false, true}) {
+        auto result = ov::npuw::function::HostFlashAttention::from(model, fused);
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(result->_attention_sink_param_idx,
+                  std::optional<std::size_t>{static_cast<std::size_t>(model->get_parameter_index(sink))});
+    }
 }
 
 TEST(HostFlashAttentionFromTest, FusedScaleAndSinkMaskSkippingKeepsScaleWithoutMask) {

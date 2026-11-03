@@ -346,6 +346,30 @@ TEST(SDPAPatternMatcherTest, SDPADecomposedMatchesSingleLayerModel) {
         << "SDPADecomposed pattern should match the decomposed attention subgraph";
 }
 
+TEST(SDPAPatternMatcherTest, SDPADecomposedMatchesPretransposedRegularKeyCache) {
+    auto model = build_decomposed_sdpa_model(1, false, 4, 4, 32, 8, 8);
+    for (const auto& parameter : model->get_parameters()) {
+        const auto& name = parameter->get_friendly_name();
+        if (name == "past_key_values.0.key" || name == "new_key.0") {
+            auto shape = parameter->get_shape();
+            std::swap(shape[2], shape[3]);
+            parameter->set_partial_shape(shape);
+        }
+    }
+    for (const auto& node : model->get_ops()) {
+        if (node->get_friendly_name() == "concat_key.0") {
+            ov::as_type_ptr<ov::op::v0::Concat>(node)->set_axis(3);
+        } else if (node->get_friendly_name() == "matmul_qk.0") {
+            ov::as_type_ptr<ov::op::v0::MatMul>(node)->set_transpose_b(false);
+        }
+    }
+    model->validate_nodes_and_infer_types();
+
+    auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}});
+    auto ensemble = ov::npuw::online::buildPartitioning(model, cfg);
+    EXPECT_GE(count_groups_with_tag(ensemble, "attn"), 1u);
+}
+
 TEST(SDPAPatternMatcherTest, SDPADecomposedMatchesMultiLayerModel) {
     auto model = build_decomposed_sdpa_model(/*num_layers=*/4);
     auto cfg = make_cfg({{"NPUW_ONLINE_PIPELINE", "REP"}, {"NPUW_ONLINE_ISOLATE", "P:SDPADecomposed/attn"}});
@@ -442,7 +466,7 @@ TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsUnexpectedMatMulTransposeB) {
     EXPECT_EQ(count_groups_with_tag(ens, "attn"), 0u);
 }
 
-TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsMissingKeyTranspose) {
+TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsSinkWithMissingKeyTranspose) {
     auto model = build_decomposed_sdpa_model(/*num_layers=*/1,
                                              /*with_gqa=*/false,
                                              /*num_heads=*/4,
@@ -450,7 +474,7 @@ TEST(SDPAPatternMatcherTest, SDPADecomposedRejectsMissingKeyTranspose) {
                                              /*head_dim=*/16,
                                              /*query_len=*/8,
                                              /*past_len=*/8,
-                                             /*with_attention_sink=*/false,
+                                             /*with_attention_sink=*/true,
                                              /*transpose_key=*/false,
                                              /*scale_scores=*/false,
                                              /*sink_slice_begin=*/0,

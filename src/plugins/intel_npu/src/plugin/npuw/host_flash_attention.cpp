@@ -1089,6 +1089,12 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         return std::nullopt;
     }
 
+    if (pattern_nodes.attention_sink_node &&
+        !ov::is_type<ov::op::v0::Parameter>(skip_convert_nodes(pattern_nodes.attention_sink_node))) {
+        LOG_WARN("HFA attention sink must originate from a Parameter through optional Convert nodes");
+        return std::nullopt;
+    }
+
     auto q_input = pattern_nodes.matmul1_node->get_input_node_shared_ptr(0);
     auto k_concat = pattern_nodes.past_key_concat_node;
 

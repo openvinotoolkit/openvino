@@ -46,6 +46,33 @@ using Stream = ov::npuw::s11n::Stream;
 using ov::test::npuw::MockSubCompiledModel;
 using ov::test::npuw::NullPlugin;
 
+TEST(SerializationTest, RejectsPreviousNpuwVersion) {
+    using namespace ov::npuw::s11n;
+
+    std::stringstream current_header;
+    write_header(current_header, NPUW_LLM_COMPILED_MODEL_INDICATOR);
+    EXPECT_NO_THROW(read_and_check_header(current_header, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLMCompiledModel"));
+    current_header.seekg(0);
+
+    IndicatorType serialization_indicator{}, model_indicator{};
+    int major = 0, minor = 0, patch = 0;
+    read(current_header, serialization_indicator);
+    read(current_header, model_indicator);
+    read(current_header, major);
+    read(current_header, minor);
+    read(current_header, patch);
+
+    std::stringstream old_header;
+    write(old_header, serialization_indicator);
+    write(old_header, model_indicator);
+    write(old_header, major);
+    write(old_header, minor);
+    write(old_header, patch);
+    write(old_header, std::string("0.35"));
+    EXPECT_THROW(read_and_check_header(old_header, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLMCompiledModel"),
+                 ov::Exception);
+}
+
 namespace {
 
 std::shared_ptr<ov::Model> make_validation_model(std::size_t n_inputs) {
