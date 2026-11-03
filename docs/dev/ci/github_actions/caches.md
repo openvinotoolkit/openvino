@@ -184,6 +184,10 @@ Build:
   ...
 ```
 
+If the same step runs `sccache`, also export `SCCACHE_AZURE_CONNECTION_STRING` before invoking it.
+Writing to `GITHUB_ENV` only makes the value available to subsequent steps; a cache server started
+in the current step needs the exported value to connect to Azure.
+
 ### Providing `sccache` Prefix
 
 The folder on the remote storage where the cache for the OS/architecture will be saved is
@@ -215,8 +219,11 @@ Build:
 ```
 You can also set the options in the CMake configuration command.
 
-For PEP 517 builds using `py-build-cmake`, pass the launchers to CMake via
-`--config-settings=cmake.args="-DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DCMAKE_C_COMPILER_LAUNCHER=sccache"`.
-Setting the workflow environment variables alone does not ensure the wheel backend forwards them
-to its CMake configure step. Clear and print sccache statistics around the build to confirm that
-the compiler launcher is active.
+For PEP 517 builds using `py-build-cmake` 0.5.0, pass explicit launcher options via its supported overrides:
+```bash
+--config-settings='override=cmake.options.CMAKE_CXX_COMPILER_LAUNCHER="sccache"' \
+--config-settings='override=cmake.options.CMAKE_C_COMPILER_LAUNCHER="sccache"'
+```
+This backend version silently ignores the `cmake.args` config setting. It inherits environment
+variables, but explicit overrides also set the launchers when configuring an existing build directory.
+Clear and print sccache statistics around the build to confirm that the compiler launcher is active.
