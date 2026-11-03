@@ -537,6 +537,23 @@ TEST(cache_serialization, partial_buffer_rejects_incompatible_expert_count) {
     EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
 }
 
+TEST(cache_serialization, partial_buffer_checks_resident_expert_count_bounds) {
+    auto& engine = get_test_engine();
+    const layout full_layout({4, 1, 1, 16}, data_types::u8, format::bfyx);
+    for (uint32_t resident_experts : {uint32_t{0}, uint32_t{4}, uint32_t{5}}) {
+        SCOPED_TRACE(resident_experts);
+        program prog(engine);
+        auto memory = engine.allocate_memory(full_layout, true);
+        auto& partial = prog.get_or_create(std::make_shared<data>("partial", memory, true, resident_experts));
+        add_partial_otd_consumer(prog, partial, 3);
+        if (resident_experts == full_layout.get_shape()[0]) {
+            EXPECT_NO_THROW(program_wrapper::validate_partial_buffers(prog));
+        } else {
+            EXPECT_THROW(program_wrapper::validate_partial_buffers(prog), ov::AssertFailure);
+        }
+    }
+}
+
 TEST(cache_serialization, partial_buffer_rejects_mixed_consumers) {
     auto& engine = get_test_engine();
     program prog(engine);

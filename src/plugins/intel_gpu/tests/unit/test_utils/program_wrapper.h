@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "moe_3gemm_fused_inst.h"
 #include "pass_manager.h"
 
 namespace cldnn
@@ -55,7 +56,7 @@ namespace cldnn
         }
         static void validate_partial_buffers(const program& p)
         {
-            p.validate_partial_buffers();
+            validate_moe_partial_buffers(p);
         }
         static void update_configs_properties(program& p, const ov::AnyMap& properties) {
             auto config_copy = p._config.clone();
