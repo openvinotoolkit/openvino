@@ -19,11 +19,25 @@ import numpy as np
 from mmproj_fixtures import finish, save_npz
 
 CASES = {
+    "afmoe": {"qk": True, "moe": True, "shared": True, "lead": 1, "post": True,
+              "swa": True, "gate": True, "selection_bias": True, "sigmoid": True, "layers": 4},
+    "lfm2": {},
+    "lfm2-tied": {"architecture": "lfm2", "tied": True},
+    "lfm2-swa": {"architecture": "lfm2", "swa": True, "kernel": 4},
+    "lfm2-attention-first": {"architecture": "lfm2", "attention_first": True, "fused": True},
+    "lfm2moe": {"moe": True, "lead": 1},
+    "lfm2moe-all-experts": {"architecture": "lfm2moe", "moe": True, "sigmoid": True, "expert_scale": 2.5},
+    "lfm3": {"tied": True, "post": True},
+    "lfm3-plain": {"architecture": "lfm3"},
+    "lfm3-attention-first": {"architecture": "lfm3", "attention_first": True, "fused": True, "post": True},
+    "lfm3-wide-query": {"architecture": "lfm3", "heads": 6, "post": True},
     "qwen35": {}, "qwen35moe": {},
+    "qwen35-zero-scales": {"architecture": "qwen35", "zero_scales": True},
     "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
     # Real checkpoints quantize attn_gate apart from ssm_beta/ssm_alpha: F16 here selects the
     # frontend's beta+alpha-only merge, and an F16 beta in layer 2 selects separate projections.
     "qwen35-mixed": {"architecture": "qwen35", "f16": ("attn_gate", "blk.2.ssm_beta")},
+    "bonsai2-hadamard": {"architecture": "qwen35", "hadamard": True},
     "nemotron_h": {},
     "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
     "llama": {},
@@ -39,6 +53,7 @@ CASES = {
     "minimax-m2": {"moe": True, "full_qk": True, "selection_bias": True, "rope_dims": 4, "sigmoid": True},
     "plamo3": {"qk": True, "fused": True, "fused_ffn": True, "post": True, "bare_post": True, "swa": True}, "qwen2": {"bias": True}, "qwen3": {"qk": True},
     "phi3": {"fused": True, "fused_ffn": True}, "minicpm": {},
+    "minicpm-default": {"architecture": "minicpm", "default_logit_scale": True},
     "olmoe": {"moe": True, "full_qk": True},
     "hunyuan-dense": {"qk": True}, "hunyuan-moe": {"qk": True, "moe": True, "shared": True},
     "qwen3moe": {"qk": True, "moe": True},
@@ -81,8 +96,9 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     w.add_context_length(128)
     w.add_embedding_length(d)
     w.add_block_count(4 if hybrid else 2)
-    w.add_head_count(4 if hybrid else 0)
+    w.add_head_count([4, 4, 0, 0] if hybrid else 0)
     if hybrid:
+        w.add_layer_norm_eps(1e-5)
         w.add_head_count_kv([0, 2, 0, 0])
         w.add_feed_forward_length([0, 0, 48, 0])
         w.add_key_length(8)
@@ -130,7 +146,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     finish(w)
 
 
-def write_qwen35_model(path, arch, fused_experts=False, f16=()):
+def write_qwen35_model(path, arch, fused_experts=False, f16=(), hadamard=False, zero_scales=False):
     w = gguf.GGUFWriter(path, arch)
     d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
     state, groups, vheads, kernel = 8, 2, 4, 4
@@ -153,6 +169,25 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=()):
                        "state_size": state, "conv_kernel": kernel}.items():
         w.add_uint32(arch + ".ssm." + key, value)
     w.add_uint32(arch + ".full_attention_interval", 4)
+    if zero_scales:
+        w.add_embedding_scale(0.0)
+        w.add_residual_scale(0.0)
+    if hadamard:
+        names = ["output.weight"]
+        for layer in range(4):
+            p = f"blk.{layer}."
+            kinds = ("attn_qkv", "attn_gate", "ssm_out") if layer < 3 else ("attn_q", "attn_k", "attn_v", "attn_output")
+            names.extend(p + kind + ".weight" for kind in (*kinds, "ffn_gate", "ffn_up", "ffn_down"))
+        w.add_uint32("prism.hadamard.version", 1)
+        w.add_uint32("prism.hadamard.block_size", 8)
+        w.add_string("prism.hadamard.transform", "normalized-sylvester-walsh-hadamard")
+        w.add_string("prism.hadamard.axis", "input-last-dimension")
+        w.add_string("prism.hadamard.sign_mode", "explicit")
+        w.add_array("prism.hadamard.weight_names", names)
+        w.add_array("prism.hadamard.inverse_weight_names", ["token_embd.weight"])
+        w.add_key_value("prism.hadamard.sign_widths", [32, 48, 64], gguf.GGUFValueType.ARRAY, gguf.GGUFValueType.INT32)
+        w.add_key_value("prism.hadamard.sign_values", [(-1 if i % 3 else 1) for i in range(144)], gguf.GGUFValueType.ARRAY, gguf.GGUFValueType.INT32)
+        w.add_bool("prism.hadamard.gdn_v_grouped", True)
     moe = arch == "qwen35moe"
     if moe:
         w.add_expert_count(4)
@@ -201,8 +236,8 @@ def write_qwen35_model(path, arch, fused_experts=False, f16=()):
 
 def write_gemma4_model(path, opts):
     """Layers alternate sliding/full attention; E2B/E4B-style options add per-layer
-    embeddings (`per_layer`) and reuse earlier KV in the last `shared_kv` layers, which keep
-    their unused K/V tensors as real checkpoints do."""
+    embeddings (`per_layer`) and reuse earlier KV in the last `shared_kv` layers, which omit
+    their unused K/V tensors."""
     w = gguf.GGUFWriter(path, "gemma4")
     d, heads, layers, vocab, ff = 32, 4, opts.get("layers", 2), 32, 48
     per_layer, shared = opts.get("per_layer", 0), opts.get("shared_kv", 0)
@@ -247,9 +282,10 @@ def write_gemma4_model(path, opts):
         for name in ("attn_norm", "ffn_norm", "post_attention_norm", "post_ffw_norm"):
             tensor(p + name + ".weight", (d,), True)
         tensor(p + "attn_q.weight", (heads * head, d))
-        tensor(p + "attn_k.weight", (kv * head, d))
-        if swa:
-            tensor(p + "attn_v.weight", (kv * head, d))
+        if layer < layers - shared:
+            tensor(p + "attn_k.weight", (kv * head, d))
+            if swa:
+                tensor(p + "attn_v.weight", (kv * head, d))
         for name in ("q", "k"):
             tensor(p + f"attn_{name}_norm.weight", (head,), True)
         tensor(p + "attn_output.weight", (d, heads * head))
@@ -271,12 +307,89 @@ def write_gemma4_model(path, opts):
     finish(w)
 
 
+def write_lfm_model(path, arch, opts):
+    w = gguf.GGUFWriter(path, arch)
+    d, heads, kv, head, ff, vocab = 32, 4, 2, 8, 48, 32
+    heads = opts.get("heads", heads)
+    q_width = heads * head
+    kernel = opts.get("kernel", 3)
+    kv_layers = [kv, 0, kv, 0] if opts.get("attention_first") else [0, kv, 0, kv]
+    w.add_context_length(128)
+    w.add_embedding_length(d)
+    w.add_block_count(len(kv_layers))
+    w.add_feed_forward_length(ff)
+    w.add_head_count(heads)
+    w.add_head_count_kv(kv_layers)
+    w.add_key_length(head)
+    w.add_value_length(head)
+    w.add_rope_dimension_count(head)
+    w.add_rope_freq_base(1000000.)
+    w.add_layer_norm_rms_eps(1e-5)
+    w.add_uint32(arch + ".shortconv.l_cache", kernel)
+    w.add_vocab_size(vocab)
+    w.add_tokenizer_model("none")
+    if arch == "lfm3":
+        w.add_sliding_window(2)
+        w.add_sliding_window_pattern([i == kv_layers.index(kv) for i in range(len(kv_layers))])
+        w.add_float32(arch + ".rope.freq_base_swa", 10000.)
+    if opts.get("swa"):
+        w.add_sliding_window(2)
+    if opts.get("moe"):
+        w.add_expert_count(4)
+        w.add_expert_used_count(2)
+        w.add_expert_feed_forward_length(ff)
+        w.add_leading_dense_block_count(opts.get("lead", 0))
+        w.add_uint32(arch + ".expert_gating_func", 2 if opts.get("sigmoid") else 1)
+        if opts.get("expert_scale"):
+            w.add_expert_weights_scale(opts["expert_scale"])
+    tensor = tensor_writer(w, np.random.default_rng(20261014))
+    tensor("token_embd.weight", (vocab, d))
+    tensor("output_norm.weight" if arch == "lfm3" else "token_embd_norm.weight", (d,), True)
+    if arch == "lfm3":
+        w.add_tensor("rope_freqs.weight", np.array([1.] * (head // 4) + [1e30] * (head // 4), dtype=np.float32))
+    if not opts.get("tied"):
+        tensor("output.weight", (vocab, d))
+    for layer, layer_kv in enumerate(kv_layers):
+        p = f"blk.{layer}."
+        tensor(p + "attn_norm.weight", (d,), True)
+        tensor(p + "ffn_norm.weight", (d,), True)
+        if arch == "lfm3" and opts.get("post"):
+            tensor(p + "post_attention_norm.weight", (d,), True)
+            tensor(p + "post_ffw_norm.weight", (d,), True)
+        if layer_kv:
+            if opts.get("fused"):
+                tensor(p + "attn_qkv.weight", ((heads + 2 * kv) * head, d))
+            else:
+                for name, width in (("q", q_width), ("k", kv * head), ("v", kv * head)):
+                    tensor(p + f"attn_{name}.weight", (width, d))
+            for name in ("q", "k"):
+                tensor(p + f"attn_{name}_norm.weight", (head,), True)
+            tensor(p + "attn_output.weight", (d, q_width))
+            if arch == "lfm3":
+                tensor(p + "attn_gate.weight", (heads, d))
+        else:
+            tensor(p + "shortconv.in_proj.weight", (3 * d, d))
+            tensor(p + "shortconv.conv.weight", (d, kernel))
+            tensor(p + "shortconv.out_proj.weight", (d, d))
+        if opts.get("moe") and layer >= opts.get("lead", 0):
+            tensor(p + "ffn_gate_inp.weight", (4, d))
+            tensor(p + "exp_probs_b.bias", (4,))
+            for name, shape in (("gate", (4, ff, d)), ("up", (4, ff, d)), ("down", (4, d, ff))):
+                tensor(p + f"ffn_{name}_exps.weight", shape)
+        else:
+            for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
+                tensor(p + f"ffn_{name}.weight", shape)
+    finish(w)
+
+
 def write_model(path, arch, opts):
     arch = opts.get("architecture", arch)
+    if arch in ("lfm2", "lfm2moe", "lfm3"):
+        return write_lfm_model(path, arch, opts)
     if arch == "gemma4":
         return write_gemma4_model(path, opts)
     if arch in ("qwen35", "qwen35moe"):
-        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()))
+        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()), opts.get("hadamard", False), opts.get("zero_scales", False))
     if arch in ("mamba2", "nemotron_h"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
@@ -318,7 +431,7 @@ def write_model(path, arch, opts):
         w.add_attn_temperature_scale(opts.get("temperature", 0.0))
     if opts.get("swa"):
         w.add_sliding_window(2)
-        w.add_sliding_window_pattern(2)
+        w.add_sliding_window_pattern(4 if arch == "afmoe" else 2)
         if arch == "plamo3":
             w.add_rope_freq_base_swa(100.0)
     if opts.get("softcap"):
@@ -326,6 +439,8 @@ def write_model(path, arch, opts):
         w.add_final_logit_softcapping(3.0)
     if arch == "muse-glimmer":
         w.add_logit_scale(1.0)
+    if arch == "minicpm" and not opts.get("default_logit_scale"):
+        w.add_logit_scale(d / 256.0)
     if opts.get("moe"):
         w.add_expert_count(4)
         w.add_expert_used_count(2)
@@ -418,6 +533,7 @@ def main():
     parser.add_argument("--embedding-oracle")
     parser.add_argument("--out-dir", type=Path, default=Path(__file__).parent / "test_data/arch_accuracy")
     parser.add_argument("--architectures", nargs="+", default=list(CASES))
+    parser.add_argument("--header-dir", type=Path, help="also write header-only conversion fixtures")
     args = parser.parse_args()
     if not args.embedding_oracle and any(CASES[arch].get("embedding_output") for arch in args.architectures):
         parser.error("--embedding-oracle is required to generate embedding fixtures")
@@ -443,6 +559,16 @@ def main():
             logits = np.fromfile(reference, dtype="<f4", offset=4).reshape(3, vocab)
             assert np.isfinite(logits).all() and np.linalg.norm(logits) > 0
             save_npz(args.out_dir / f"{arch}.npz", {"model": np.fromfile(model, dtype=np.uint8), "logits": logits})
+            if args.header_dir:
+                from gen_arch_fixtures import strip_to_header
+                args.header_dir.mkdir(parents=True, exist_ok=True)
+                filename = f"{arch}.gguf.hdr"
+                _, data_bytes, _ = strip_to_header(model, args.header_dir / filename)
+                manifest = args.header_dir / "manifest.txt"
+                lines = manifest.read_text().splitlines() if manifest.exists() else []
+                lines = [line for line in lines if not line.startswith(filename + " ")]
+                lines.append(f"{filename} {data_bytes} convert")
+                manifest.write_text("\n".join(lines) + "\n")
             print(f"{arch}: {model.stat().st_size} bytes, reference logits {logits.shape}", flush=True)
 
 

@@ -102,7 +102,7 @@
                 "null"
             ],
             "minLength": 1,
-            "description": "Stable, job-agnostic substring of the raw error (with absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, and UUIDs stripped) that uniquely identifies this failure in run logs. Consumed by the workflow_rerunner (.github/scripts/workflow_rerun) to auto-rerun transient failures, similar to entries in errors_to_look_for.json. Populated only for transient, rerunnable categories (Flaky Test, Infrastructure, Network, External Service); null for all other categories where a plain rerun cannot fix the failure."
+            "description": "Stable, job-agnostic substring of the raw error (with absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, and UUIDs stripped) that uniquely identifies this failure in run logs. CANDIDATE ONLY: the workflow_rerunner (.github/scripts/workflow_rerun) does not read this field; a candidate takes effect only after the propose_rerun_pattern safe-output job opens a pull request adding it to .github/scripts/workflow_rerun/errors_to_look_for.json and a maintainer merges it. Populated only for transient, rerunnable categories (Flaky Test, Infrastructure, Network, External Service); null for all other categories where a plain rerun cannot fix the failure."
         }
     }
 }

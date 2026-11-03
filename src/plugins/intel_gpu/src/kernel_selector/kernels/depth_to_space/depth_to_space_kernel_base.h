@@ -15,8 +15,16 @@ struct depth_to_space_params : public base_params {
     depth_to_space_params()
     : base_params(KernelType::DEPTH_TO_SPACE)
     , block_size(0)
+    , factor_t(1)
+    , factor_s(1)
+    , output_channels(0)
+    , crop_begin_t(0)
     , mode(DepthToSpaceMode::DEPTH_FIRST) {}
     size_t block_size;
+    size_t factor_t;
+    size_t factor_s;
+    size_t output_channels;
+    size_t crop_begin_t;
     DepthToSpaceMode mode;
 };
 

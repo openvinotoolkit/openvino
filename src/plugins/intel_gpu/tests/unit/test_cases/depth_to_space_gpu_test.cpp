@@ -17,6 +17,54 @@
 using namespace cldnn;
 using namespace ::tests;
 
+TEST(depth_to_space_fp32_gpu, grouped_block2_with_temporal_crop) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 4, 1, 1, 1 } });
+    set_values(input, { 0.f, 1.f, 2.f, 3.f });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(
+        depth_to_space("grouped_depth_to_space", input_info("input"), 2, 2, 2, 1)
+    );
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("grouped_depth_to_space").get_memory();
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({ 1, 2, 1, 2, 2 }));
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    const std::vector<float> expected = { 1.f, 1.f, 1.f, 1.f, 3.f, 3.f, 3.f, 3.f };
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]) << "i=" << i;
+    }
+}
+
+TEST(depth_to_space_fp32_gpu, grouped_block3_anisotropic_spatial_mapping) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 1, 4, 1, 1, 1 } });
+    set_values(input, { 0.f, 1.f, 2.f, 3.f });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(
+        depth_to_space("grouped_depth_to_space", input_info("input"), 1, 2, 2, 0)
+    );
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    auto output = network.execute().at("grouped_depth_to_space").get_memory();
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({ 1, 2, 1, 2, 2 }));
+
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    const std::vector<float> expected = { 0.f, 0.f, 1.f, 1.f, 2.f, 2.f, 3.f, 3.f };
+    for (size_t i = 0; i < expected.size(); ++i) {
+        ASSERT_FLOAT_EQ(expected[i], output_ptr[i]) << "i=" << i;
+    }
+}
+
 TEST(depth_to_space_fp16_gpu, d1411_bs2) {
     //  Input  : 1x4x1x1
     //  Block size : 2
