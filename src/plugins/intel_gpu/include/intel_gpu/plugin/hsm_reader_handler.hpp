@@ -20,7 +20,7 @@ namespace ov::intel_gpu::hsm {
 // Owns HSM section streams through graph reconstruction; leaves legacy decoding to the plugin.
 class ReaderHandler {
 public:
-    ReaderHandler(std::istream& source, cldnn::engine& engine, const size_t* tensor_base, Crypt decrypt);
+    ReaderHandler(std::istream& source, cldnn::engine& engine, const size_t* tensor_base, size_t tensor_size, Crypt decrypt);
     ~ReaderHandler();
 
     bool is_hsm() const;

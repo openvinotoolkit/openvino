@@ -64,6 +64,7 @@
 using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
 using Time = std::chrono::high_resolution_clock;
 thread_local const size_t* g_current_tensor_base = nullptr;
+thread_local size_t g_current_tensor_size = 0;
 
 namespace ov::intel_gpu {
 
@@ -463,6 +464,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
                                                          const ov::AnyMap& orig_config) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork");
     const auto* tensor_base = std::exchange(g_current_tensor_base, nullptr);
+    const auto tensor_size = std::exchange(g_current_tensor_size, size_t{0});
 
     auto context_impl = get_context_impl(context);
     context_impl->initialize();
@@ -491,7 +493,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     ov::CacheMode cache_mode = config.get_cache_mode();
     ov::EncryptionCallbacks encryption_callbacks = config.get_cache_encryption_callbacks();
 
-    hsm::ReaderHandler reader(model, context_impl->get_engine(), tensor_base, encryption_callbacks.decrypt);
+    hsm::ReaderHandler reader(model, context_impl->get_engine(), tensor_base, tensor_size, encryption_callbacks.decrypt);
     std::unique_ptr<cldnn::BinaryInputBuffer> ib_ptr;
     ov::CacheMode loaded_cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
     if (reader.is_hsm()) {
@@ -547,9 +549,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     // Restore TLS even when importing throws or a callback imports another model.
     struct TensorBaseGuard {
         const size_t* previous = g_current_tensor_base;
-        ~TensorBaseGuard() { g_current_tensor_base = previous; }
+        size_t previous_size = g_current_tensor_size;
+        ~TensorBaseGuard() {
+            g_current_tensor_base = previous;
+            g_current_tensor_size = previous_size;
+        }
     } guard;
     g_current_tensor_base = static_cast<const size_t*>(model.data());
+    g_current_tensor_size = model.get_byte_size();
     ov::intel_gpu::ParallelMemStreamBuf par_buf(model.data(), model.get_byte_size());
     std::istream stream(&par_buf);
     auto compiled_model = import_model(stream, context, config);
