@@ -268,5 +268,17 @@ native raw/default transcode routes and independent FC references across payload
 It does not enable Gather, SG/CM kernels or additional streams for these formats, and
 does not extend the full-checkpoint, source-transformation or cache-compatibility claims.
 
+The existing real-checkpoint architecture-accuracy test can opt into a separate compiled-cache
+check with paired `OV_GGUF_ACCURACY_CACHE_DIR` and `OV_GGUF_ACCURACY_CACHE_HIT=0/1` values.
+The caller supplies an existing directory and serializes access, using separate directories for
+different checkpoints, reference schedules or configurations. Cold runs save the full vocabulary
+logits for each reference step; fresh-process cache hits require bitwise-identical logits and retain
+the original CPU-reference gates. The test records actual cache-hit and stream properties.
+Local Qwen3.5-9B coverage uses the stateful GenAIExtension graph, one GPU stream/request, F16 inference
+and KV cache, activation DQ disabled, strict/default zero points and short/long prefill schedules.
+This does not validate LLMPipeline/tokenizer integration, serialized IR reload, changed full-model
+weights, repeated-request state isolation, other devices/versions, weightless/encrypted caches
+or performance. The file-level cache checks above retain their separate scope.
+
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.

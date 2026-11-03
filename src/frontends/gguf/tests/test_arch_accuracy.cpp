@@ -8,6 +8,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <limits>
 #include <map>
 #include <set>
@@ -1023,11 +1024,37 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     }
     RecordProperty("device", device);
     RecordProperty("inference_precision", precision.get_type_name());
+    const auto* cache_dir_env = std::getenv("OV_GGUF_ACCURACY_CACHE_DIR");
+    const std::string cache_directory = cache_dir_env ? cache_dir_env : "";
+    const auto* cache_hit_env = std::getenv("OV_GGUF_ACCURACY_CACHE_HIT");
+    const std::string cache_hit = cache_hit_env ? cache_hit_env : "";
+    ASSERT_EQ(cache_directory.empty(), cache_hit.empty());
+    if (!cache_directory.empty()) {
+        ASSERT_TRUE(real_checkpoint);
+        ASSERT_EQ(device.rfind("GPU", 0), 0u);
+        ASSERT_GT(raw_fcs, 0u);
+        ASSERT_TRUE(std::filesystem::is_directory(cache_directory));
+        ASSERT_TRUE(cache_hit == "0" || cache_hit == "1");
+        properties.insert(ov::cache_dir(cache_directory));
+    }
     const auto route_directory = std::getenv("OV_GGUF_ACCURACY_ROUTE_DIR");
     const bool audit_routes = route_directory && *route_directory && device.rfind("GPU", 0) == 0 && raw_fcs > 0;
     if (audit_routes)
         std::filesystem::create_directories(route_directory);
     auto compiled = core.compile_model(model, device, properties);
+    std::fstream cache_logits;
+    bool loaded_from_cache = false;
+    if (!cache_directory.empty()) {
+        loaded_from_cache = compiled.get_property(ov::loaded_from_cache);
+        RecordProperty("compiled_cache_hit", loaded_from_cache ? 1 : 0);
+        EXPECT_EQ(loaded_from_cache, cache_hit == "1");
+        const auto streams = compiled.get_property(ov::num_streams);
+        RecordProperty("compiled_cache_streams", streams);
+        EXPECT_EQ(streams, 1);
+        cache_logits.open(std::filesystem::path(cache_directory) / (std::string(GetParam()) + ".logits.bin"),
+                          std::ios::binary | (cache_hit == "1" ? std::ios::in : std::ios::out | std::ios::trunc));
+        ASSERT_TRUE(cache_logits);
+    }
     auto request = compiled.create_infer_request();
     const auto infer = [&](const std::vector<int64_t>& tokens, size_t past) {
         const auto count = tokens.size();
@@ -1094,8 +1121,25 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         } else {
             EXPECT_LT(metric.value(), 1e-5) << "Normalized MSE against llama.cpp CPU";
         }
+        if (cache_logits.is_open()) {
+            const auto bytes = static_cast<std::streamsize>(vocab) * sizeof(float);
+            if (cache_hit == "0") {
+                cache_logits.write(reinterpret_cast<const char*>(actual), bytes);
+            } else {
+                std::vector<float> original(vocab);
+                cache_logits.read(reinterpret_cast<char*>(original.data()), bytes);
+                ASSERT_TRUE(cache_logits);
+                EXPECT_EQ(std::memcmp(actual, original.data(), bytes), 0) << "Cached full logits changed";
+            }
+            ASSERT_TRUE(cache_logits);
+            RecordProperty("compiled_cache_logits_step_" + std::to_string(step), cache_hit == "1" ? "matched" : "saved");
+            std::cout << "GGUF_CHECKPOINT_CACHE_STEP format=" << GetParam() << " hit=" << loaded_from_cache
+                      << " step=" << step << std::endl;
+        }
         past += tokens.size();
     }
+    if (cache_hit == "1")
+        EXPECT_EQ(cache_logits.peek(), std::char_traits<char>::eof());
     if (mamba) {
         const auto states = request.query_state();
         ASSERT_FALSE(states.empty());
