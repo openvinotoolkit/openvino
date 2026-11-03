@@ -33,6 +33,7 @@
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
+#include "npuw_transformations/restore_u2_gather_dequant.hpp"
 #include "npuw_transformations/rewrite_gqa_attention_mask.hpp"
 #include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
 #include "npuw_transformations/shrink_sliding_window_kv_cache.hpp"
@@ -1039,6 +1040,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_DEBUG("Conv state tensors re-laid out as [batch, kernel, channels]");
         }
     }
+
+    ov::npuw::RestoreU2GatherDequant().run_on_model(kvcache_model);
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
     auto prefill_model = kvcache_model->clone();
