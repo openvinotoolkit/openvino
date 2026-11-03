@@ -172,7 +172,7 @@ TEST_F(AutoFuncTests, compile_for_all_populates_cache_reused_by_later_loads) {
     core.compile_model(model_cannot_batch, "MOCK_CPU");
     core.compile_model(model_cannot_batch, "MOCK_GPU");  // need to initialize the order of plugins in mock_engine
     register_plugin_mock_gpu(core, "MOCK_3", {});
-    core.set_property(ov::cache_dir(cache_path));
+    core.set_property(ov::cache_path(cache_path));
     // distinct device ids give each device its own blob
     core.set_property("MOCK_GPU", ov::device::id("gpu"));
     core.set_property("MOCK_3", ov::device::id("3"));
@@ -194,7 +194,7 @@ TEST_F(AutoFuncTests, compile_for_all_populates_cache_reused_by_later_loads) {
         EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache)) << device;
     }
     ASSERT_EQ(ov::test::utils::listFilesWithExt(cache_path, "blob").size(), 2);
-    core.set_property(ov::cache_dir(""));
+    core.set_property(ov::cache_path(""));
 }
 
 TEST_F(AutoFuncTests, compiled_with_cache_enabled_batch_enabled) {

@@ -12,6 +12,7 @@
 #include "openvino/runtime/compilation_context.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/util/container_util.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -20,6 +21,12 @@ namespace {
 // Core keeps all blobs of a *.bin cache path in one archive. Its writes are only locked per blob ID, so a background
 // warm-up must not write into it concurrently with other compilations.
 bool is_single_file_cache(const std::filesystem::path& cache_location) {
+    std::error_code ec;
+    const auto status = std::filesystem::status(cache_location, ec);
+    if (!ec && std::filesystem::exists(status)) {
+        return !std::filesystem::is_directory(status);
+    }
+    // Core creates the cache directory on the first write and picks the storage by extension until then.
     return cache_location.extension() == ".bin";
 }
 
@@ -52,14 +59,11 @@ ov::AnyMap make_warmup_config(const ov::ICore& core, const DeviceInformation& de
     } catch (const ov::Exception&) {
         return device.config;
     }
-    const auto is_supported = [&supported](const std::string& name) {
-        return std::find(supported.begin(), supported.end(), name) != supported.end();
-    };
     auto config = device.config;
-    if (is_supported(ov::intel_gpu::hint::host_task_priority.name())) {
+    if (ov::util::contains(supported, ov::intel_gpu::hint::host_task_priority.name())) {
         config.emplace(ov::intel_gpu::hint::host_task_priority(ov::hint::Priority::LOW));
     }
-    if (is_supported(ov::compilation_num_threads.name())) {
+    if (ov::util::contains(supported, ov::compilation_num_threads.name())) {
         config.emplace(ov::compilation_num_threads(std::max(1, static_cast<int>(std::thread::hardware_concurrency()) / 4)));
     }
     if (config.size() == device.config.size()) {

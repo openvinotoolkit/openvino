@@ -61,10 +61,10 @@ public:
     void start(const std::string& actual_device, const std::vector<DeviceInformation>& candidates);
     // Skips the remaining devices and waits for the in-flight compilation; idempotent.
     void stop();
+    // Compiles the queued devices one by one; called by the CacheWarmupManager worker thread only.
+    void run();
 
 private:
-    friend class CacheWarmupManager;
-    void run();
     void request_stop_unsafe();
     const std::string& get_log_tag() const noexcept;
 
@@ -94,6 +94,8 @@ public:
     CacheWarmupManager() = default;
     CacheWarmupManager(const CacheWarmupManager&) = delete;
     CacheWarmupManager& operator=(const CacheWarmupManager&) = delete;
+    CacheWarmupManager(CacheWarmupManager&&) = delete;
+    CacheWarmupManager& operator=(CacheWarmupManager&&) = delete;
     ~CacheWarmupManager();
 
     void enqueue(std::shared_ptr<CacheWarmup> warmup);
