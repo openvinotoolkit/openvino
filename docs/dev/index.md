@@ -68,7 +68,7 @@ flowchart LR
  * How to:
      * [Add new operation](../../src/core/docs/operation_enabling_flow.md)
      * [Add new conditional compilation](../../src/common/conditional_compilation/docs/develop_cc_for_new_component.md)
-     * [Add new transformation](#todo)
+     * [Add new transformation](../../src/common/transformations/docs/README.md)
      * [Get code coverage report](./test_coverage.md)
      * [Add component developer documentation](./dev_doc_guide.md)
      * [Work with OpenVINO Public CI](./public_ci.md)
