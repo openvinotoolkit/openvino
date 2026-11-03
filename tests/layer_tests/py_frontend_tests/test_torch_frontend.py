@@ -972,6 +972,42 @@ def test_make_16bit_traceable_packed_experts_split_weights(dtype, split_with_siz
 
 
 @pytest.mark.precommit
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_make_16bit_traceable_packed_experts_dynamic_split_weights(dtype):
+    from openvino import convert_model, compile_model
+    from openvino.frontend.pytorch import patch_model
+
+    class DynamicSplitExperts(_PackedExperts):
+        def forward(self, x):
+            gate_size = x.shape[0] * 3
+            x = x.repeat(self.num_experts, 1).view(self.num_experts, -1, x.shape[-1])
+            gate_weight, up_weight = self.gate_up_proj.split([gate_size, 12 - gate_size], dim=1)
+            gate = torch.bmm(x, gate_weight.transpose(1, 2))
+            up = torch.bmm(x, up_weight.transpose(1, 2))
+            return torch.bmm(torch.nn.functional.silu(gate) * up, self.down_proj.transpose(1, 2)).sum(0) + self.offset
+
+    model = DynamicSplitExperts()
+    original_model = _packed_experts(dtype)
+    model.load_state_dict(original_model.state_dict(), assign=True)
+    model.offset = original_model.offset
+    model.eval().requires_grad_(False)
+    example = torch.linspace(-0.5, 0.5, 16).reshape(2, 8)
+    expected = _packed_experts_reference(model, example)
+    try:
+        patch_model.__make_16bit_traceable(model)
+        with torch.no_grad():
+            converted = convert_model(model, example_input=(example,))
+    finally:
+        patch_model.unpatch_model(model, "_openvino_module_extension_patch_orig_forward")
+
+    splits = [op for op in converted.get_ops() if op.get_type_name() == "VariadicSplit"]
+    assert len(splits) == 1
+    assert splits[0].input_value(0).get_node().get_type_name() == "Convert"
+    result = compile_model(converted, "CPU", default_cfg)(example.numpy())[0]
+    np.testing.assert_allclose(result, expected.numpy(), atol=1e-5, rtol=1e-5)
+
+
+@pytest.mark.precommit
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float8_e4m3fn, torch.float8_e5m2])
 def test_make_16bit_traceable_packed_experts_share_storage(tmp_path, dtype):
     from openvino import convert_model, compile_model

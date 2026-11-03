@@ -91,7 +91,6 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mish_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/moc_transformations.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/moe_transpose_weights_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/move_decompression_after_split.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/move_eltwise_up_data_movement_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mul_fake_quantize_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/multi_scale_deformable_attn_grid_sample_fusion_test.cpp

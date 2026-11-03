@@ -31,6 +31,7 @@
 #include "transforms/listconstruct_replacer.hpp"
 #include "transforms/max_pool_dynamic_kernel_resolver.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
+#include "transforms/move_decompression_after_split.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/prim_unpack_parameter_replacer.hpp"
@@ -288,7 +289,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
         // ConvertConvertLike will benefit from types inserted by ReverseShapeAndTypeInfer
         manager.register_pass<ov::pass::ConvertConvertLike>();
-        manager.register_pass<ov::pass::MoveDecompressionAfterSplit>();
+        manager.register_pass<ov::frontend::pytorch::pass::MoveDecompressionAfterSplit>();
         manager.register_pass<ov::pass::ResolveNameCollisions>(true);
         bool is_changed = manager.run_passes(model);
 
