@@ -4,8 +4,10 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include <memory>
+
 #include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov::pass {
@@ -30,7 +32,8 @@ namespace ov::pass {
  *  - the [B, H, L, D] query is transposed;
  *  - the raw keys get a head axis 2, and the block-key cache and incomplete keys get a head axis 1,
  *    which is squeezed from the matching QSAIndexer outputs;
- *  - key_length is broadcast unless its statically known length equals the raw-key batch size;
+ *  - key_length is converted to i32 and broadcast unless its statically known length equals the raw-key
+ *    batch size;
  *  - cos / sin are broadcast unless their statically known batch sizes equal the raw-key batch size;
  *    dynamic batch dimensions are not assumed equal without shape-symbol propagation;
  *  - the block-key cache is grown by zero blocks up to the complete blocks of the longest sequence, which
@@ -40,8 +43,8 @@ namespace ov::pass {
  *
  * The rewrite is applied only when the query and the raw keys have compatible sequence lengths, the query
  * head count and head size are static, RoPE and the key norm are enabled, both source ops use the same
- * key_block_size and i32 key length, and SparseAttentionIndexer consumes QSAPrepare output 0, has no index
- * weights and selects with one head. The other requirements are validated by the source ops.
+ * key_block_size and key length, and SparseAttentionIndexer consumes QSAPrepare output 0, has no index weights
+ * and selects with one head. The other requirements are validated by the source ops.
  */
 class TRANSFORMATIONS_API FuseQSAIndexerBase : public MatcherPass {
 public:
@@ -88,19 +91,18 @@ public:
  * @brief Fuses QSAPrepare and SparseAttentionIndexer into QSAIndexer, then moves the query RoPE and the query
  * RMSNorm into it.
  *
- * Run after RMSFusion and RoPEFusion, while RMS and RoPE remain separate nodes. In the GPU pipeline it runs
- * before FuseRMSRoPE combines them. The Qwen query (non-affine RMS on [B, L, H, D], then RoPE with
- * input_trans0213) gives the GPU contract, a QSAIndexer with query_norm and query_rope enabled.
+ * If the model has SparseAttentionIndexer, RoPEFusion (with 2D RoPE support) and RMSFusion (without tail Convert,
+ * with non-affine RMS) run model-wide first, so the query RoPE and RMSNorm are RoPE and RMS nodes. The nested
+ * passes keep the caller's disabled passes and callbacks. In the GPU pipeline it runs before FuseRMSRoPE
+ * combines RMS and RoPE.
+ * The Qwen query (non-affine RMS on [B, L, H, D], then RoPE with input_trans0213) gives the GPU contract, a
+ * QSAIndexer with query_norm and query_rope enabled.
  */
-class TRANSFORMATIONS_API FuseQSAIndexer : public GraphRewrite {
+class TRANSFORMATIONS_API FuseQSAIndexer : public ModelPass {
 public:
-    OPENVINO_GRAPH_REWRITE_RTTI("FuseQSAIndexer");
+    OPENVINO_MODEL_PASS_RTTI("FuseQSAIndexer");
 
-    FuseQSAIndexer() {
-        add_matcher<FuseQSAIndexerBase>();
-        add_matcher<FuseQSAIndexerQueryRoPE>();
-        add_matcher<FuseQSAIndexerQueryNorm>();
-    }
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace ov::pass
