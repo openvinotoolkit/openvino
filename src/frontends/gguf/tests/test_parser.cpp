@@ -473,17 +473,37 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
     const bool has_gather = format.type != GGUF_TYPE_Q3_K && format.type != GGUF_TYPE_IQ2_XS &&
                             format.type != GGUF_TYPE_IQ2_S && format.type != GGUF_TYPE_IQ3_XXS &&
                             format.type != GGUF_TYPE_IQ3_S;
+    const auto cache_directory_value = std::getenv("OV_GPU_GGUF_TEST_CACHE_DIR");
+    const std::string cache_directory = cache_directory_value ? cache_directory_value : "";
+    const auto cache_hit_value = std::getenv("OV_GPU_GGUF_TEST_CACHE_HIT");
+    const std::string expected_cache_hit = cache_hit_value ? cache_hit_value : "";
+    const auto weight_delta_value = std::getenv("OV_GPU_GGUF_TEST_WEIGHT_DELTA");
+    const std::string weight_delta = weight_delta_value ? weight_delta_value : "";
+    ASSERT_EQ(cache_directory.empty(), expected_cache_hit.empty());
+    ASSERT_TRUE(weight_delta.empty() || (!cache_directory.empty() && (weight_delta == "0" || weight_delta == "1")));
+    if (!cache_directory.empty()) {
+        ASSERT_TRUE(has_gather);
+        ASSERT_TRUE(std::filesystem::is_directory(cache_directory));
+        ASSERT_TRUE(expected_cache_hit == "0" || expected_cache_hit == "1");
+        const auto source_directory = std::filesystem::path(cache_directory) / "sources";
+        std::filesystem::create_directories(source_directory);
+        m_path = (source_directory / (std::string(format.name) + ".gguf")).string();
+    }
     const auto qbytes = load_npy<uint8_t>(std::string(format.name) + "_qbytes");
     const auto decoded = load_npy<float>(std::string(format.name) + "_deq");
     ASSERT_EQ(decoded.size(), 4 * 256);
     constexpr size_t channels = 64;
     constexpr size_t columns = 512;
     const auto row_bytes = qbytes.size() / 4;
+    const size_t source_row_offset = weight_delta == "1" ? 1 : 0;
+    RecordProperty("file_source_row_offset", std::to_string(source_row_offset));
+    if (source_row_offset)
+        ASSERT_NE(std::memcmp(qbytes.data(), qbytes.data() + row_bytes, row_bytes), 0);
     std::vector<uint8_t> payload(channels * 2 * row_bytes);
     for (size_t channel = 0; channel < channels; ++channel) {
         for (size_t block = 0; block < 2; ++block) {
             std::memcpy(payload.data() + (channel * 2 + block) * row_bytes,
-                        qbytes.data() + (channel % 4) * row_bytes,
+                        qbytes.data() + ((channel + source_row_offset) % 4) * row_bytes,
                         row_bytes);
         }
     }
@@ -616,8 +636,21 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             (ir_roundtrip ? "_ir" : "") + (external_reference ? "_external" : "") +
             (compiled_import ? "_import" : "") + (stream_count == 2 ? "_streams2" : "");
         SCOPED_TRACE(scenario);
+        const bool check_cache = !cache_directory.empty() && !binary_mode && !ir_roundtrip;
+        std::string model_cache_directory;
+        if (check_cache) {
+            model_cache_directory = (std::filesystem::path(cache_directory) / format.name / scenario).string();
+            std::filesystem::create_directories(model_cache_directory);
+            run_model->set_friendly_name(std::string("gguf_file_cache_") + format.name);
+        }
         auto compiled = core.compile_model(run_model, "GPU", ov::hint::inference_precision(inference_type),
-                           ov::enable_profiling(true), ov::num_streams(stream_count));
+                           ov::enable_profiling(true), ov::num_streams(stream_count),
+                           ov::cache_dir(model_cache_directory));
+        if (check_cache) {
+            const bool cache_hit = compiled.get_property(ov::loaded_from_cache);
+            EXPECT_EQ(cache_hit, expected_cache_hit == "1");
+            RecordProperty(scenario + "_cache_hit", cache_hit ? "1" : "0");
+        }
         const int compiled_streams = compiled.get_property(ov::num_streams);
         EXPECT_EQ(compiled_streams, stream_count);
         RecordProperty(scenario + "_compiled_streams", std::to_string(compiled_streams));
@@ -674,7 +707,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                         if (std::string(binary_mode) == "sum") {
                             float fc_reference = 0.f;
                             for (size_t column = 0; column < columns; ++column)
-                                fc_reference += decoded[(index % channels % 4) * 256 + column % 256] *
+                                fc_reference += decoded[((index % channels + source_row_offset) % 4) * 256 + column % 256] *
                                                 input.data<const float>()[index / channels * columns + column];
                             peer.data<float>()[index] += std::ceil(std::abs(fc_reference)) + 2.f;
                         }
@@ -752,7 +785,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                     for (size_t channel = 0; channel < channels; ++channel) {
                         float expected = 0.f;
                         for (size_t column = 0; column < columns; ++column) {
-                            const float weight = decoded[(channel % 4) * 256 + column % 256];
+                            const float weight = decoded[((channel + source_row_offset) % 4) * 256 + column % 256];
                             const float reference = !threshold_value && rows > 32
                                                         ? static_cast<float>(ov::float16(weight)) : weight;
                             expected += reference * input.data<const float>()[row * columns + column];
@@ -789,7 +822,7 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
                     for (size_t row = 0; row < rows; ++row) {
                         const auto channel = static_cast<size_t>(indices.data<const int64_t>()[row]);
                         for (size_t column = 0; column < columns; ++column) {
-                            const float expected = ov::float16(decoded[(channel % 4) * 256 + column % 256]);
+                            const float expected = ov::float16(decoded[((channel + source_row_offset) % 4) * 256 + column % 256]);
                             EXPECT_EQ(embedding.data<const float>()[row * columns + column], expected)
                                 << "iteration=" << iteration << " row=" << row << " column=" << column;
                         }
@@ -799,6 +832,10 @@ TEST_P(GGUFParserGpu, RawFileToGpuPreservesOwnerAndDynamicResults) {
             }
         }
         RecordProperty(scenario + "_completed_requests", std::to_string(row_counts.size() * requests.size()));
+        if (check_cache) {
+            std::cout << "GGUF_FILE_CACHE_CHECK format=" << format.name << " scenario=" << scenario
+                      << " hit=" << compiled.get_property(ov::loaded_from_cache) << std::endl;
+        }
         if (stream_count == 2) {
             std::cout << "GGUF_FILE_STREAM_CHECK format=" << format.name << " scenario=" << scenario
                       << " requests=" << row_counts.size() * requests.size() << std::endl;

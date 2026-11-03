@@ -755,6 +755,15 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
                 m_xml_node.append_attribute("source").set_value(m_gguf_ext_source.c_str());
                 m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(m_gguf_ext_offset));
                 m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(m_gguf_ext_size));
+                if (m_deterministic) {
+                    size_t new_size = 0;
+                    get_constant_write_handler().write(static_cast<const char*>(a->get()->get_ptr()),
+                                                       a->get()->size(),
+                                                       new_size,
+                                                       m_compress_to_fp16,
+                                                       m_output_element_type,
+                                                       m_data_is_temporary);
+                }
                 return;
             }
             const auto size = a->get()->size();

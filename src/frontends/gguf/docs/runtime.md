@@ -251,5 +251,16 @@ its stage records are completed-batch snapshots, not per-stream execution timeli
 stateless file-level coverage, not six-format state isolation, cross-process warm-cache reuse,
 physical overlap or full-checkpoint acceptance.
 
+An opt-in extension of the six-format file test reuses caller-owned cache directories across
+fresh processes: original payload miss/hit, changed payload miss/hit at the same source path,
+then the original payload again. It retains the independent FC/Gather references and one/two-stream
+checks, while verifying that changed payloads add blobs without replacing the original ones.
+Only this test mode uses stable source filenames; callers must serialize access to its cache root.
+The deterministic model-hash serializer includes external GGUF Constant contents through the existing
+ConstantWriter. Ordinary external IR serialization still stores references rather than copying these
+weights into BIN. This prevents stale compiled-cache reuse when the source path, offset, size and
+shape stay unchanged but the payload changes. It does not establish full-checkpoint cache support,
+cross-version or weightless/encrypted compatibility.
+
 A new internal-op path should keep a public-op reference path where practical, test both against
 the same oracle and update the table above. Frontend placeholders need a normalization lowering.
