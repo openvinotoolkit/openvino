@@ -1093,15 +1093,15 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                 ov::DeviceIDParser parsed{device};
                 if (parsed.get_device_name().find("CPU") != std::string::npos)
                     continue;
-                // Device-scoped settings take precedence over the global ones.
-                const auto device_config = get_core()->get_supported_property(device, properties);
-                const auto cache_location =
-                    CacheWarmupManager::get_cache_location(*get_core(), device_config, device);
-                if (cache_location.empty() || device_config.count(ov::cache_blob_id.name()))
-                    continue;
                 // check if cached model exists for other devices
                 bool is_blob_file_exist = false;
                 try {
+                    // Device-scoped settings take precedence over the global ones.
+                    const auto device_config = get_core()->get_supported_property(device, properties);
+                    const auto cache_location =
+                        CacheWarmupManager::get_cache_location(*get_core(), device_config, device);
+                    if (cache_location.empty() || device_config.count(ov::cache_blob_id.name()))
+                        continue;
                     is_blob_file_exist = CacheWarmupManager::is_blob_cached(*get_core(),
                                                                             parsed.get_device_name(),
                                                                             device_config,

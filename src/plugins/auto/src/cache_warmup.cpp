@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <map>
 #include <optional>
 
 #include "openvino/runtime/compilation_context.hpp"
@@ -32,6 +33,17 @@ ov::AnyMap create_compile_config(const ov::ICore& core, const std::string& devic
     return core.create_compile_config(parser.get_device_name(), device_config);
 }
 
+// Keys are compared as strings, like the cache hash does: ov::Any::operator== throws for values such as ov::device::UUID.
+std::map<std::string, std::string> get_cache_key(const ov::ICore& core,
+                                                 const std::string& device_name,
+                                                 const ov::AnyMap& config) {
+    std::map<std::string, std::string> key;
+    for (const auto& [name, value] : create_compile_config(core, device_name, config)) {
+        key.emplace(name, value.as<std::string>());
+    }
+    return key;
+}
+
 // Lowers the host-side cost of the background compilation without changing the cache key.
 ov::AnyMap make_warmup_config(const ov::ICore& core, const DeviceInformation& device) {
     std::vector<ov::PropertyName> supported;
@@ -53,8 +65,7 @@ ov::AnyMap make_warmup_config(const ov::ICore& core, const DeviceInformation& de
     if (config.size() == device.config.size()) {
         return config;
     }
-    if (create_compile_config(core, device.device_name, config) !=
-        create_compile_config(core, device.device_name, device.config)) {
+    if (get_cache_key(core, device.device_name, config) != get_cache_key(core, device.device_name, device.config)) {
         return device.config;
     }
     return config;

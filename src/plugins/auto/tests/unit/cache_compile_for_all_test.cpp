@@ -310,6 +310,19 @@ TEST_F(AutoCacheWarmupTest, failingCacheProbeDoesNotBreakDeviceList) {
     std::filesystem::remove_all(cache_dir);
 }
 
+TEST_F(AutoCacheWarmupTest, failingConfigLookupDoesNotBreakDeviceList) {
+    set_global_cache("");
+    // e.g. GPU.1 configured with a conflicting ov::device::id; parse_meta_devices() discards it later.
+    ON_CALL(*core, get_supported_property(StrEq("GPU.1"), _, _))
+        .WillByDefault(::testing::Invoke([](const std::string&, const ov::AnyMap&, const bool) -> ov::AnyMap {
+            OPENVINO_THROW("conflicting device id");
+        }));
+    ov::AnyMap properties = {ov::device::priorities("GPU.1,CPU")};
+    std::string devices;
+    OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(properties, model, {}));
+    EXPECT_NE(devices.find(cpu_device), std::string::npos);
+}
+
 TEST_F(AutoCacheWarmupTest, customBlobIdDoesNotPruneCpuFallback) {
     const auto cache_dir = std::filesystem::temp_directory_path() /
                            ("ov_auto_cache_blob_id_prune_" +
