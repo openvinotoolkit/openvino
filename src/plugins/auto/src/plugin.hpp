@@ -90,7 +90,7 @@ public:
     MOCKTESTMACRO std::optional<bool> get_low_power_mode();
 
     // Whether the telemetry backend (IPF) is operational; without it the resource aware selection cannot work.
-    MOCKTESTMACRO bool is_telemetry_available();
+    MOCKTESTMACRO bool is_telemetry_available() const;
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;
@@ -124,8 +124,8 @@ private:
     static std::shared_ptr<std::mutex> m_mtx;
     static std::shared_ptr<std::map<unsigned int, std::list<std::string>>> m_priority_map;
     PluginConfig m_plugin_config;
-    std::once_flag m_telemetry_client_init_once;
-    std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
+    mutable std::once_flag m_telemetry_client_init_once;
+    mutable std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
 };
 
 }  // namespace auto_plugin

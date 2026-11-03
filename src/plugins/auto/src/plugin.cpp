@@ -736,7 +736,7 @@ std::optional<bool> Plugin::get_low_power_mode() {
     return m_telemetry_client->is_low_power_mode();
 }
 
-bool Plugin::is_telemetry_available() {
+bool Plugin::is_telemetry_available() const {
     std::call_once(m_telemetry_client_init_once, [this]() {
         m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
     });
