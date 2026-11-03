@@ -797,10 +797,10 @@ TEST_F(AutoDynamicDeviceSelectionTest, out_of_list_low_power_device_first_failur
     auto infer_request = compiled_model->create_infer_request();
     OV_ASSERT_NO_THROW(infer_request->infer());
 
-    // the priority map is process-wide, do not leave the reservation of the fallback device to the following tests
+    // destroying the model must release the reservation of the fallback device as well
     infer_request.reset();
     compiled_model.reset();
-    plugin->unregister_priority(1, plugin->Plugin::parse_meta_devices("GPU.0", config).front().unique_name);
+    expect_no_device_reserved({"GPU.0", "GPU.1"});
 }
 
 // Every candidate fails to compile in turn, so the cascade runs out of devices and ends on the cached GPU.0.

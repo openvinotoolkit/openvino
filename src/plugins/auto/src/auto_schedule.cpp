@@ -53,6 +53,12 @@ bool AutoSchedule::select_other_device(const std::string& cur_dev_name) {
             m_compile_context[FALLBACKDEVICE].m_is_load_success = false;
             m_compile_context[FALLBACKDEVICE].m_worker_name = "";
             m_compile_context[FALLBACKDEVICE].m_is_reload_success = false;
+            // a previous fallback device is being replaced, drop its reservation
+            if (!m_compile_context[FALLBACKDEVICE].m_priority_released &&
+                !m_compile_context[FALLBACKDEVICE].m_device_info.unique_name.empty()) {
+                m_plugin->unregister_priority(m_context->m_model_priority,
+                                              m_compile_context[FALLBACKDEVICE].m_device_info.unique_name);
+            }
             m_compile_context[FALLBACKDEVICE].m_priority_released = false;
             m_compile_context[FALLBACKDEVICE].m_device_info =
                 m_plugin->select_device(m_context->m_device_priorities,
@@ -230,6 +236,13 @@ void AutoSchedule::init() {
             m_worker_requests[device.device_name];
             m_infer_pipeline_tasks_device_specific[device.device_name] = nullptr;
         }
+        // an out-of-list low power device is not covered above but can be compiled concurrently with CPU_HELP
+        if (m_context->m_low_power_device) {
+            const auto& low_power_name = m_context->m_low_power_device->device_name;
+            m_idle_worker_requests[low_power_name];
+            m_worker_requests[low_power_name];
+            m_infer_pipeline_tasks_device_specific[low_power_name] = nullptr;
+        }
         m_idle_worker_requests["CPU_HELP"];
         m_worker_requests["CPU_HELP"];
         m_infer_pipeline_tasks_device_specific["CPU_HELP"] = nullptr;
@@ -317,6 +330,8 @@ void AutoSchedule::init() {
         }
         m_compile_context[ACTUALDEVICE].m_task();
         if (m_context->m_dynamic_device_selection && m_compile_context[ACTUALDEVICE].m_is_already) {
+            // devices that failed to compile at startup were pruned from this copy only
+            m_context->m_device_priorities = m_compile_context[ACTUALDEVICE].m_meta_devices;
             const auto& initial_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
             m_dynamic_compiled_models[initial_device] = m_compile_context[ACTUALDEVICE].m_compiled_model;
             m_gate_current_device = initial_device;
@@ -392,10 +407,12 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
         LOG_WARNING_TAG("Device: [%s]: Compile model failure: %s", device.c_str(), e.what());
         context.m_is_load_success = false;
     }
-    if (!context.m_is_load_success) {
-        check_and_disable_if_low_power_device_failed(device);
-    }
-    if (context.m_is_load_success || cur_dev_is_cpu) {
+    const bool low_power_first_failure =
+        !context.m_is_load_success && check_and_disable_if_low_power_device_failed(device);
+    // a failed low power CPU picked at startup must still cascade to the candidates
+    const bool retry_actual_low_power_device =
+        low_power_first_failure && &context == &m_compile_context[ACTUALDEVICE];
+    if (context.m_is_load_success || (cur_dev_is_cpu && !retry_actual_low_power_device)) {
         return;
     }
     // need to recompile model, unregister it's priority
@@ -663,6 +680,12 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task& pipeline_task, con
         if (m_this_worker_infer_request && m_this_worker_infer_request->m_dispatch_failed) {
             auto* worker = m_this_worker_infer_request;
             worker->m_dispatch_failed = false;
+            // the start was recorded but the final stage never runs to record its end
+            INFO_RUN([worker]() {
+                if (worker->m_start_times.size() > worker->m_end_times.size()) {
+                    worker->m_start_times.pop_back();
+                }
+            });
             m_idle_worker_requests[device_name].try_push(std::make_pair(worker->m_index, worker));
             release_execution_slot();
         }
@@ -861,9 +884,14 @@ AutoSchedule::~AutoSchedule() {
         m_plugin->get_executor_manager()->clear("AutoDeviceAsyncCompile");
         m_executor.reset();
     }
-    if (m_plugin && !m_context->m_dynamic_device_selection)
+    if (m_plugin && !m_context->m_dynamic_device_selection) {
         m_plugin->unregister_priority(m_context->m_model_priority,
                                       m_compile_context[ACTUALDEVICE].m_device_info.unique_name);
+        const auto& fallback = m_compile_context[FALLBACKDEVICE];
+        if (!fallback.m_priority_released && !fallback.m_device_info.unique_name.empty()) {
+            m_plugin->unregister_priority(m_context->m_model_priority, fallback.m_device_info.unique_name);
+        }
+    }
     if (m_context) {
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
         m_context->m_device_priorities.clear();

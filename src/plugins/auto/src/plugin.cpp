@@ -515,9 +515,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
                         "The meta device should not be used as low_power_device: ",
                         low_power_device);
         try {
-            auto resolved_low_power_device = parse_meta_devices(low_power_device, full_property);
-            if (!resolved_low_power_device.empty())
-                auto_s_context->m_low_power_device = resolved_low_power_device.front();
+            // prefer a candidate matching by exact or base name, so "GPU" keeps resolving to the listed GPU
+            const auto candidate = std::find_if(
+                devices_with_priority.begin(),
+                devices_with_priority.end(),
+                [&low_power_device](const DeviceInformation& device) {
+                    return device.device_name == low_power_device ||
+                           ov::DeviceIDParser(device.device_name).get_device_name() == low_power_device;
+                });
+            if (candidate != devices_with_priority.end()) {
+                auto_s_context->m_low_power_device = *candidate;
+            } else {
+                auto resolved_low_power_device = parse_meta_devices(low_power_device, full_property);
+                if (!resolved_low_power_device.empty())
+                    auto_s_context->m_low_power_device = resolved_low_power_device.front();
+            }
         } catch (const ov::Exception& ex) {
             LOG_WARNING_TAG("low_power_device '%s' is not available and will be ignored: %s",
                             low_power_device.c_str(),
