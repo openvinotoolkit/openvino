@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "signature": "Snippets EltwiseTwoResults CompareWithRefImpl accuracy mismatch (dynamic shapes, CPU functional tests)|Flaky Test",
+  "signature_hash": "df5c2ed0f576f29e",
+  "title": "smoke_Snippets_Eltwise_TwoResults_Dynamic accuracy mismatch on CPU",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-11-03T00:52:15Z",
+  "last_seen": "2026-11-03T00:52:15Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/41551755117"
+  ],
+  "affected_commits": [
+    "c899536ea60e84f3f3d98c015e50050a94a310d4"
+  ],
+  "recent_timestamps": [
+    "2026-11-03T00:52:15Z"
+  ]
+}

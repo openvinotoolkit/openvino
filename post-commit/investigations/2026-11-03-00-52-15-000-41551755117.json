@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-03-00-52-15-000-41551755117",
+  "timestamp": "2026-11-03T00:52:15Z",
+  "run_id": "41551755117",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41551755117",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "commit_sha": "c899536ea60e84f3f3d98c015e50050a94a310d4",
+  "pr_number": "36556",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36556",
+  "author": "AsyaPronina",
+  "category": "Flaky Test",
+  "title": "smoke_Snippets_Eltwise_TwoResults_Dynamic accuracy mismatch on CPU",
+  "signature": "Snippets EltwiseTwoResults CompareWithRefImpl accuracy mismatch (dynamic shapes, CPU functional tests)|Flaky Test",
+  "signature_hash": "df5c2ed0f576f29e",
+  "confidence": "Low",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "1 of 72286 smoke tests failed: smoke_Snippets_Eltwise_TwoResults_Dynamic/EltwiseTwoResults.CompareWithRefImpl accuracy mismatch"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the CPU functional tests job failed"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_Snippets_Eltwise_TwoResults_Dynamic/EltwiseTwoResults.CompareWithRefImpl/IS=[?.?.?.?]_[1..2.1..64.1..10.1]_TS[0]=(1.64.10.10)_(2.8.2.1)_(1.64.10.10)_TS[1]=(1.64.10.1)_(2.1.1.1)_(1.64.10.1)_#N=2_#S=2_targetDevice=CPU",
+    "Tensor: [1,64,10,10] Mismatch: [3840/6400] Print: [0/3840]",
+    "Coordinate with max diff: [0,59,4,5] Expected: 1.64086 Actual: 0 Diff: 1.64086 abs_threshold: 0.000164206",
+    "src/tests/functional/base_func_tests/src/base/ov_subgraph.cpp:97: Failure",
+    "[ COMPARATION ] COMPARATION FAILED! abs_threshold: 0.000000 rel_threshold: 0.000100 incorrect elem counter: 3840 among 6400 shapes."
+  ],
+  "root_cause": "A single CPU functional test (smoke_Snippets_Eltwise_TwoResults_Dynamic, a Snippets dynamic-shape eltwise test using two Result outputs, defined in src/plugins/intel_cpu/tests/functional/shared_tests_instances/snippets/eltwise_two_results.cpp and src/tests/ov_helpers/ov_snippets_models/src/subgraph_simple.cpp) failed a numerical accuracy comparison: the actual output tensor had a large block of zeros (Actual: 0) where a reference value of ~1.64 was expected, with 3840 of 6400 elements mismatched (60%). The triggering commit (PR #36556, 'NPUW] Support for granite-4.0-h-micro') only touches the Intel NPU plugin's npuw LLM inference code path (llm_infer_request.cpp/hpp, cut_lm_head.cpp, insert_vocab_sub128.cpp and their unit tests) and has no overlap with CPU Snippets codegen or the eltwise two-results subgraph construction, so the change is very unlikely to be the direct cause. The magnitude and pattern of the mismatch (large contiguous zero region) is consistent with either an uninitialized/zero-filled buffer for a dynamic-shape branch of this test, or a pre-existing intermittent failure in the CPU Snippets JIT/vectorized codegen path for dynamic shapes with multiple outputs, rather than a deterministic regression from the commit under test. No prior occurrence of this exact signature was found in the post-commit knowledge base (63 investigations, 30 patterns checked), so this is recorded as a new, first-seen pattern pending confirmation of flakiness via a rerun.",
+  "reproduction_steps": "Build CPU plugin func tests (ov_cpu_func_tests) and run: ./ov_cpu_func_tests --gtest_filter='*EltwiseTwoResults.CompareWithRefImpl/IS=*1..2.1..64.1..10.1*TS[0]=(1.64.10.10)_(2.8.2.1)_(1.64.10.10)*' --gtest_repeat=20 --gtest_break_on_failure=0 to check for intermittent reproduction. If it never reproduces locally outside the parallel CI runner, treat as runner/parallel-execution-induced flake.",
+  "recommended_actions": [
+    "Re-run the CPU functional tests job for run 41551755117 (or the next master push) and check whether the same test fails again under the same shape parameters; a single non-reproducing failure confirms a flaky test rather than a code regression.",
+    "If it reproduces, bisect within the Snippets dynamic-shape eltwise code path (not the NPU/npuw files touched by PR #36556) using git bisect across recent master commits touching src/common/snippets or src/plugins/intel_cpu/src/emitters, since the failing commit's diff is unrelated to CPU codegen.",
+    "Inspect whether the test runs in a shared-memory/parallel worker pool (test_parallel_runner) that could leave a stale/zeroed buffer for dynamic-shape test instances; check for missing buffer re-initialization between parametrized instances of EltwiseTwoResults.",
+    "If flaky, consider temporarily disabling smoke_Snippets_Eltwise_TwoResults_Dynamic or adding a retry/quarantine tag, and file a tracking ticket referencing this signature_hash."
+  ],
+  "prevention_strategies": "Add CI-level automatic retry-on-failure for single, isolated smoke test failures (especially Snippets dynamic-shape tests) before failing the whole job, to distinguish flaky accuracy comparisons from genuine regressions. Periodically audit Snippets dynamic-shape multi-output tests for buffer lifecycle issues in the parallel test runner.",
+  "historical_context": "No prior post-commit investigation or pattern record for this exact test (smoke_Snippets_Eltwise_TwoResults_Dynamic) or its signature was found among 63 stored investigations and 30 stored patterns; this is the first recorded occurrence."
+}
