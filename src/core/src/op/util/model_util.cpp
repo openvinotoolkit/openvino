@@ -58,4 +58,12 @@ void set_tensors_names(const AutoTag&,
     set_output_tensor_names(AUTO, model, outputs_names);
 }
 
+std::string get_model_source_id(const Model& model) {
+    const auto key = std::string(model_source_id_rt_info_key);
+    if (model.has_rt_info(key)) {
+        return model.get_rt_info<std::string>(key);
+    }
+    return model.get_friendly_name();
+}
+
 }  // namespace ov::util

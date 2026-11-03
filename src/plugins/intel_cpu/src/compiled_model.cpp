@@ -25,6 +25,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -83,7 +84,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_model(model),
       m_plugin(plugin),
       m_cfg{std::move(cfg)},
-      m_name{model->get_name()},
+      m_name{ov::util::get_model_source_id(*model)},
       m_loaded_from_cache(loaded_from_cache),
       m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();

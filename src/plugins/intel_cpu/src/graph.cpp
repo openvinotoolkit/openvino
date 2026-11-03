@@ -55,6 +55,7 @@
 #include "nodes/tensoriterator.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/parallel.hpp"
@@ -162,7 +163,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
                       const std::vector<node::Input::OutputConfig>& outputConfigs) {
     OV_ITT_SCOPE_CHAIN(FIRST_INFERENCE, taskChain, itt::domains::ov_intel_cpu_LT, "Graph::Replicate", "ov::Model");
 
-    this->_name = model->get_friendly_name();
+    this->_name = ov::util::get_model_source_id(*model);
 
     // Map data object onto producer node
     std::map<std::shared_ptr<ov::Node>, NodePtr> op2node;

@@ -9,6 +9,7 @@
 #include "async_infer_request.hpp"
 #include "hsm_writer_handler.hpp"
 #include "itt.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
@@ -144,7 +145,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return rw_properties;
     };
     if (ov::model_name == name) {
-        auto& model_name = m_model->get_friendly_name();
+        auto model_name = ov::util::get_model_source_id(*m_model);
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::loaded_from_cache == name) {
         return m_loaded_from_cache;
