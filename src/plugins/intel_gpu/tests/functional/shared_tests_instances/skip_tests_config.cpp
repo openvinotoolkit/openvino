@@ -25,6 +25,13 @@ bool immadSupported() {
     bool support_immad = std::find(properties.begin(), properties.end(), ov::intel_gpu::capability::HW_MATMUL) != properties.end();
     return support_immad;
 }
+
+// Xe3 (e.g. Panther Lake) has IP version 30.x, reported as "arch=v30.x.y"
+bool isXe3() {
+    ov::Core ie = ov::test::utils::create_core();
+    auto arch = ie.get_property(ov::test::utils::DEVICE_GPU, ov::device::architecture);
+    return arch.find("arch=v30.") != std::string::npos;
+}
 } // namespace
 
 const std::vector<std::regex>& disabled_test_patterns() {
@@ -202,6 +209,13 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_GroupedMatMul.*)"));
             // Dynamic quantization of fp8 and mxfp8 models supported only through oneDNN (disabled for non-systolic platforms)
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_.*fp8.*)"));
+        }
+
+        if (isXe3()) {
+            // MFDNN-15824. OOB read in oneDNN JIT GEMM
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight/.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_input_4d/.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_(no_slm|fp4|fp8|mxfp4|mxfp8|scalar_wzp|precomputed_reduction_with_gs16)/.*)"));
         }
 
         return patterns;
