@@ -231,7 +231,9 @@ std::string make_nested_batched_wrapper_chain(std::size_t depth) {
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> import_nested_npuw_blob(const std::string& blob) {
-    auto [plugin, core] = make_test_plugin_with_core();
+    auto plugin_with_core = make_test_plugin_with_core();
+    auto plugin = plugin_with_core.first;
+    auto core = plugin_with_core.second;
     ON_CALL(*core, import_model(testing::A<std::istream&>(), testing::A<const std::string&>(), testing::_))
         .WillByDefault(testing::Invoke([&](std::istream& nested_stream,
                                            const std::string&,
