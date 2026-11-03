@@ -170,6 +170,7 @@ class TestHistc(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("dtype,torch_dtype", [
         (Type.f32, torch.float32), (Type.f64, torch.float64), (Type.f16, torch.float16)])
     def test_histc_preserves_input_type(self, dtype, torch_dtype, ie_device, precision, ir_version):
