@@ -395,6 +395,7 @@ TEST(GGUFWeightNormalization, RawMappedSourceSurvivesLoaderRelease) {
         node = std::make_shared<GGUFConstant>(source);
     }
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    node.reset();
     normalize(model);
     expect_values(evaluate(model)[0], generated.values);
     ASSERT_TRUE(std::filesystem::is_regular_file(path));
