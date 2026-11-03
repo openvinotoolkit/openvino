@@ -191,9 +191,12 @@ protected:
                                                          cpu_parallel);
         };
 #if OV_THREAD_USE_TBB
-        tbb::task_arena(threads).execute(call);
+        tbb::task_arena(threads).execute([&]() {
+            ASSERT_EQ(parallel_get_max_threads(), threads);
+            call();
+        });
 #else
-        (void)threads;
+        (void)threads;  // without TBB the host's thread count is used, so only one value path may run
         call();
 #endif
         std::vector<float> out(c.B * c.H * c.q_len * c.S);
@@ -210,11 +213,13 @@ protected:
 
 TEST_P(MhaSingleTokenGqaTest, MatchesReference) {
     const auto ref = reference();
+    // The plugin object library compiles the kernel once with the default ISA flags, as this file is compiled, so the
+    // macro below tells which kernel instantiation runs for f16 queries.
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-    // f16 queries keep f16 scores, weights and accumulators.
+    // f16 scores, weights and value accumulators, without the NEON_FP16 / SVE f16 loops in this build.
     constexpr double f16_tol = 5e-3;
 #else
-    // f16 queries accumulate in f32; the output is rounded to f16.
+    // f32 scores and accumulators; only the output is rounded to f16.
     constexpr double f16_tol = 2e-3;
 #endif
     // Absolute tolerance on outputs of magnitude below 1, several times the largest error measured.
@@ -235,7 +240,7 @@ const auto f16 = ov::element::f16;
 // clang-format off
 const std::vector<Case> cases = {
     //  q    B   H  Hk q_len kv_len  S  group beams  causal by_channel
-    // Group sizes 1-5 and 7: rows of up to 4 heads with remainders of 1, 2 and 3; G = 1 does not group.
+    // G = H / Hk of 1-5 and 7: tiles of up to 4 heads with remainders of 1, 2 and 3; G = 1 does not group.
     {f32, 1,  2, 2, 1,   129,  128, 128, false, false, false},
     {f32, 1,  4, 2, 1,   129,  128, 128, false, false, false},
     {f32, 1,  6, 2, 1,   129,  128, 128, false, false, false},
@@ -251,12 +256,19 @@ const std::vector<Case> cases = {
     {f32, 2,  6, 2, 3,    33,   64,  64, true,  false, false},
     {f32, 4,  6, 2, 3,    33,   64,  64, true,  false, false},
     {f32, 2,  8, 2, 3,    40,   64,  64, false, true,  false},
+    // Causal truncation with tiles that span query tokens (G = 3).
+    {f32, 2,  6, 2, 3,    40,   64,  64, false, true,  false},
     // Keys quantized per channel keep the per-head key path; values still use the grouped path.
     {f32, 1,  8, 2, 1,    64,   64,  32, false, false, true},
-    // f16 queries: converted for the grouped key path; f16 value accumulation on f16 builds.
+    // f16 queries: converted to f32 for the grouped key path (G = 1 in the third case, which does not group); f16
+    // scores and value rows when the macro above is defined (as with Apple clang), else the f32 path.
     {f16, 2,  6, 2, 3,    33,   64,  64, false, false, false},
     {f16, 4,  6, 2, 3,    33,   64,  64, true,  false, false},
     {f16, 1,  2, 2, 1,    33,   64,  64, false, false, false},
+    {f16, 2,  6, 2, 3,    40,   64,  64, false, true,  false},
+    // f16 queries over several quantization groups, with an 8-element tail in the 16-wide NEON loops; the f16 value
+    // loops of the NEON_FP16 and SVE builds are covered by smoke_ConcatSDPGQAF16Test_ValueGroups.
+    {f16, 1,  8, 2, 1,    33,   80,  40, false, false, false},
 };
 // clang-format on
 
