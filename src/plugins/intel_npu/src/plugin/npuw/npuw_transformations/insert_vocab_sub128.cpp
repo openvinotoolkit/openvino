@@ -5,7 +5,6 @@
 #include "insert_vocab_sub128.hpp"
 
 #include <memory>
-#include <optional>
 #include <vector>
 
 #include "../logging.hpp"
@@ -134,21 +133,16 @@ namespace {
 
 struct Vocab {
     std::shared_ptr<ov::op::v0::Constant> weight;
-    std::optional<std::shared_ptr<ov::op::v0::Constant>> zerop;
-    std::optional<std::shared_ptr<ov::op::v0::Constant>> scale;
+    std::shared_ptr<ov::op::v0::Constant> zerop;  // nullptr if absent
+    std::shared_ptr<ov::op::v0::Constant> scale;  // nullptr if absent
 };
 
 bool same_storage(const std::shared_ptr<ov::op::v0::Constant>& lhs, const std::shared_ptr<ov::op::v0::Constant>& rhs) {
+    if (!lhs || !rhs) {
+        return !lhs && !rhs;
+    }
     return lhs->get_element_type() == rhs->get_element_type() && lhs->get_shape() == rhs->get_shape() &&
            lhs->get_data_ptr() == rhs->get_data_ptr();
-}
-
-bool same_storage(const std::optional<std::shared_ptr<ov::op::v0::Constant>>& lhs,
-                  const std::optional<std::shared_ptr<ov::op::v0::Constant>>& rhs) {
-    if (lhs.has_value() != rhs.has_value()) {
-        return false;
-    }
-    return !lhs.has_value() || same_storage(*lhs, *rhs);
 }
 
 class CollectVocabCandidates final : public ov::pass::MatcherPass {
@@ -221,7 +215,7 @@ public:
                                  return ov::as_type_ptr<ov::op::v0::Constant>(values.at(pattern).get_node_shared_ptr());
                              };
                              if (values.count(full_precision_weight)) {
-                                 vocabs.push_back({constant(full_precision_weight), std::nullopt, std::nullopt});
+                                 vocabs.push_back({constant(full_precision_weight), nullptr, nullptr});
                              } else if (values.count(asymmetric_weight)) {
                                  const auto matched_weight = constant(asymmetric_weight);
                                  const auto matched_zerop = constant(zerop);
@@ -230,7 +224,7 @@ public:
                                  }
                                  vocabs.push_back({matched_weight, matched_zerop, constant(scale)});
                              } else {
-                                 vocabs.push_back({constant(symmetric_weight), std::nullopt, constant(scale)});
+                                 vocabs.push_back({constant(symmetric_weight), nullptr, constant(scale)});
                              }
                              return false;
                          });
@@ -239,8 +233,8 @@ public:
 
 void log_vocab_names(const char* label, const Vocab& vocab) {
     LOG_WARN(label << " weight='" << vocab.weight->get_friendly_name() << "', zero_point='"
-                   << (vocab.zerop ? (*vocab.zerop)->get_friendly_name() : "<none>") << "', scale='"
-                   << (vocab.scale ? (*vocab.scale)->get_friendly_name() : "<none>") << "'");
+                   << (vocab.zerop ? vocab.zerop->get_friendly_name() : "<none>") << "', scale='"
+                   << (vocab.scale ? vocab.scale->get_friendly_name() : "<none>") << "'");
 }
 
 }  // namespace
