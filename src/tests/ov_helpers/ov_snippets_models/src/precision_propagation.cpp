@@ -6,6 +6,8 @@
 #include <assert.h>
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/op/maximum.hpp"
+#include "snippets/op/convert_truncation.hpp"
+
 #include "snippets/op/result.hpp"
 
 namespace ov {
@@ -25,9 +27,14 @@ std::shared_ptr<ov::Model> PrecisionPropagationAddFunction::get(
     const element::Type& convertion_before_result) {
     const auto create_convert = [](std::shared_ptr<Node> parent,
                                    const element::Type convertion_type) -> std::shared_ptr<Node> {
-        return convertion_type == element::dynamic
-                   ? std::dynamic_pointer_cast<Node>(parent)
-                   : std::make_shared<ov::snippets::op::ConvertSaturation>(parent, convertion_type);
+        if (convertion_type == element::dynamic)
+            return std::dynamic_pointer_cast<Node>(parent);
+        const auto src_type = parent->get_output_element_type(0);
+        if (src_type.is_integral_number() && convertion_type.is_integral_number() &&
+            src_type.bitwidth() > convertion_type.bitwidth()) {
+            return std::make_shared<ov::snippets::op::ConvertTruncation>(parent, convertion_type);
+        }
+        return std::make_shared<ov::snippets::op::ConvertSaturation>(parent, convertion_type);
     };
 
     const auto make_branch = [&create_convert](

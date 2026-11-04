@@ -45,7 +45,7 @@ bool Negative::evaluate(TensorVector& outputs, const TensorVector& inputs) const
                                       this,
                                       outputs,
                                       inputs,
-                                      OV_PP_ET_LIST(f32, i32, i64),
+                                      OV_PP_ET_LIST(f32, i8, i16, i32, i64),
                                       negative::Evaluate,
                                       inputs[0].get_element_type(),
                                       inputs[0],
@@ -59,6 +59,8 @@ bool Negative::has_evaluate() const {
     case element::bf16:
     case element::f16:
     case element::f32:
+    case element::i8:
+    case element::i16:
     case element::i32:
     case element::i64:
         return true;

@@ -778,14 +778,20 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak::Address& op,
         }
         break;
     case ov::element::i8:
+        // Use modular truncation (not signed saturation) to preserve two's-complement
+        // wrapping semantics for operations like Abs and Negative on signed minimum values.
         if (isa == x64::avx512_core) {
-            vpmovsdb(op, vmm_dst);
+            vpmovdb(op, vmm_dst);
         } else {
+            // Bitmask the low 8 bits via shift-left/shift-right, then pack with unsigned
+            // saturation (values are already in [0, 255] range after masking).
+            uni_vpslld(vmm_dst, vmm_dst, 24);
+            uni_vpsrld(vmm_dst, vmm_dst, 24);
             uni_vpackssdw(vmm_dst, vmm_dst, vmm_dst);
             if (isa != x64::sse41) {
                 vpermq(ymm_dst, ymm_dst, 0x08);
             }
-            uni_vpacksswb(vmm_dst, vmm_dst, vmm_dst);
+            uni_vpackuswb(vmm_dst, vmm_dst, vmm_dst);
             if (isa != x64::sse41) {
                 vmovq(op, xmm_dst);
             } else {
@@ -875,8 +881,6 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
         mov(op, reg_tmp_16);
         break;
     case ov::element::i8:
-        uni_vpackssdw(xmm_dst, xmm_dst, xmm_dst);
-        uni_vpacksswb(xmm_dst, xmm_dst, xmm_dst);
         movq(reg_tmp_64, xmm_dst);
         mov(op, reg_tmp_8);
         break;
