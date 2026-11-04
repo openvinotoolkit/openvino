@@ -354,6 +354,18 @@ void GroupQueryAttention::validate_and_infer_types() {
                               "got query shape ",
                               q_shape,
                               ".");
+        // ORT's CheckQuerySeqlens requires the new key/value chunk to have the same row count as the query (the
+        // padded chunk writes all S rows); a mismatched static key length would apply the query's S rotary/mask
+        // positions to a differently-sized key chunk in the decomposition instead of being rejected here.
+        const auto& key_ps_for_qsl = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::KEY));
+        NODE_VALIDATION_CHECK(this,
+                              key_ps_for_qsl.rank().is_dynamic() || key_ps_for_qsl[2].compatible(sequence_len),
+                              "GroupQueryAttention: query_seqlens requires key/value sequence_length to equal "
+                              "query's, got key shape ",
+                              key_ps_for_qsl,
+                              " and query sequence_length ",
+                              sequence_len,
+                              ".");
     }
 
     if (m_do_rotary) {
@@ -497,11 +509,14 @@ void GroupQueryAttention::validate_and_infer_types() {
     const bool empty_past = output_kv_len.is_static() && output_kv_len.get_length() == 0;
     const bool dynamic_kv_len = key_ps.rank().is_static() && key_ps[2].is_dynamic();
     if ((!m_sliding_window_cache || empty_past) && !is_shared_kv() && !has_fixed_kv_capacity()) {
-        if (!empty_past && has_padded_query()) {
+        if (!m_sliding_window_cache && has_padded_query()) {
             // present capacity is max(past_rows, total_sequence_length) for a padded chunk (CheckInputs in
-            // onnxruntime/contrib_ops/cpu/bert/group_query_attention_helper.h); total_sequence_length can
-            // pre-allocate headroom past_rows + sequence_len no longer bounds. Fold it when constant for a tight
-            // static bound; it's optional (required only for qk_output), so an absent input is an empty Constant.
+            // onnxruntime/contrib_ops/cpu/bert/group_query_attention_helper.h), including an empty (0-row) past --
+            // total_sequence_length can pre-allocate headroom beyond the current chunk either way, so
+            // past_rows + sequence_len no longer bounds it. A windowed cache keeps the plain past_rows rule above
+            // instead (ORT never grows it to total_sequence_length). Fold a constant total_sequence_length for a
+            // tight static bound; it's optional (required only for qk_output), so an absent input is an empty
+            // Constant.
             const auto total_len_input =
                 input_value(static_cast<size_t>(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH));
             const auto total_len_const = ov::util::is_empty_constant_tensor(total_len_input)
