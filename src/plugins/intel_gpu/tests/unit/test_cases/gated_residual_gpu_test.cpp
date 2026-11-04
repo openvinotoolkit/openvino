@@ -10,8 +10,7 @@
 //  - the optional write gate produced by READ: 2 * sigmoid(W_inject * Rbar / C), and
 //    that it stays inside (0, 2);
 //  - WRITE / COMBINE: R'_c = R_c + S_c * Y for both in-place and out-of-place buffers;
-//  - FINAL_MIX: the model-tail mixer that replaces the usual final norm;
-//  - negative case: an unsupported branch count must not select any implementation.
+//  - FINAL_MIX: the model-tail mixer that replaces the usual final norm.
 
 #include <algorithm>
 #include <cmath>
@@ -214,6 +213,7 @@ struct gr_read_case {
     size_t L;
     bool produce_write_gate;
     bool gain_plus_one = false;
+    bool final_mix = false;
 };
 
 class gated_residual_read_test : public ::testing::TestWithParam<gr_read_case> {};
@@ -264,7 +264,15 @@ TEST_P(gated_residual_read_test, matches_fp32_reference) {
         inputs.emplace_back("w_inject");
     }
 
-    gated_residual prim("gr_read", inputs, gated_residual::Mode::READ, p.C, p.D, p.L, p.eps, tc.gain_plus_one, tc.produce_write_gate);
+    gated_residual prim("gr_read",
+                        inputs,
+                        tc.final_mix ? gated_residual::Mode::FINAL_MIX : gated_residual::Mode::READ,
+                        p.C,
+                        p.D,
+                        p.L,
+                        p.eps,
+                        tc.gain_plus_one,
+                        tc.produce_write_gate);
     topology.add(prim);
 
     ExecutionConfig config = get_test_default_config(engine);
@@ -341,74 +349,12 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                            gr_read_case{37, 64, 16, true},
                                            gr_read_case{100, 48, 16, false},
                                            gr_read_case{50, 64, 16, true, true},
-                                           gr_read_case{65, 2560, 16, true}));  // real width: 4 rows per work-group
-
-class gated_residual_final_mix_test : public ::testing::TestWithParam<gr_read_case> {};
-
-TEST_P(gated_residual_final_mix_test, matches_read) {
-    if (!gr_available()) {
-        GTEST_SKIP() << "no GatedResidual implementation is available on this device";
-    }
-
-    gr_ref_params p;
-    p.rows = GetParam().rows;
-    p.D = GetParam().D;
-    p.L = GetParam().L;
-
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-
-    const size_t CD = p.C * p.D;
-    const auto residual = random_vec(rg, p.rows * CD, 1.0f);
-    const auto gain = random_vec(rg, CD, 0.5f, 1.0f);
-    const auto w_down = random_vec(rg, p.L * CD, 0.1f);
-    const auto w_up = random_vec(rg, CD * p.L, 0.1f);
-
-    std::vector<float> ref_mixed;
-    std::vector<float> unused;
-    reference_read(p, residual, gain, w_down, w_up, nullptr, ref_mixed, unused);
-
-    auto& engine = get_test_engine();
-    auto residual_mem = make_f16(engine, {static_cast<int64_t>(p.rows), static_cast<int64_t>(CD)}, residual);
-
-    topology topology;
-    topology.add(input_layout("residual", residual_mem->get_layout()));
-    topology.add(data("gain", make_f16(engine, {static_cast<int64_t>(CD)}, gain)));
-    topology.add(data("w_down", make_f16(engine, {static_cast<int64_t>(p.L), static_cast<int64_t>(CD)}, w_down)));
-    topology.add(data("w_up", make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(p.L)}, w_up)));
-    // FINAL_MIX is the model tail mixer: it replaces the traditional final norm and
-    // never produces a write gate.
-    topology.add(gated_residual("gr_final",
-                                {input_info("residual"), input_info("gain"), input_info("w_down"), input_info("w_up")},
-                                gated_residual::Mode::FINAL_MIX,
-                                p.C,
-                                p.D,
-                                p.L,
-                                p.eps,
-                                false,
-                                false));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-    network.set_input_data("residual", residual_mem);
-
-    auto outputs = network.execute();
-    cldnn::mem_lock<ov::float16> out(outputs.at("gr_final").get_memory(), get_test_stream());
-    EXPECT_EQ(executed_stages(), expected_read_stages(p.rows, p.D, p.L));
-    ASSERT_EQ(out.size(), ref_mixed.size());
-    for (size_t i = 0; i < ref_mixed.size(); i++) {
-        ASSERT_NEAR(static_cast<float>(out[i]), ref_mixed[i], 2e-2f);
-    }
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke,
-                         gated_residual_final_mix_test,
-                         ::testing::Values(gr_read_case{4, 64, 16, false},       // scalar gr_read
-                                           gr_read_case{17, 64, 32, false},      // DPAS pipeline, decode tiling
-                                           gr_read_case{250, 64, 32, false},     // DPAS pipeline, mid tiling
-                                           gr_read_case{1100, 64, 32, false}));  // DPAS pipeline, wide tiling
+                                           gr_read_case{65, 2560, 16, true},  // real width: 4 rows per work-group
+                                           // FINAL_MIX: the model tail mixer, never produces a write gate.
+                                           gr_read_case{4, 64, 16, false, false, true},       // scalar gr_read
+                                           gr_read_case{17, 64, 32, false, false, true},      // DPAS pipeline, decode tiling
+                                           gr_read_case{250, 64, 32, false, false, true},     // DPAS pipeline, mid tiling
+                                           gr_read_case{1100, 64, 32, false, false, true}));  // DPAS pipeline, wide tiling
 
 // --- compressed weights: u4 (group 32) / u8 (per-channel), asymmetric ------------------------------------------------------
 
@@ -834,6 +780,12 @@ std::vector<gr_quant_case> group_size_cases() {
     for (const size_t group : {size_t{32}, size_t{64}, size_t{128}, kPerChannel}) {
         for (const bool u4 : {true, false}) {
             for (const auto& s : shapes) {
+                // The bit width's default group size is already exercised by the main list, except for these two shapes.
+                const bool is_default = (group == 32 && u4) || (group == kPerChannel && !u4);
+                const bool in_main_list = is_default && !(s.rows == 33 && !u4) && !(s.rows == 257 && u4);
+                if (in_main_list) {
+                    continue;
+                }
                 cases.push_back({s.rows, s.D, s.L, u4, false, s.write_gate, false, true, group});
             }
         }
@@ -851,14 +803,40 @@ std::vector<gr_quant_case> group_size_cases() {
 
 INSTANTIATE_TEST_SUITE_P(smoke_group_sizes, gated_residual_quant_test, ::testing::ValuesIn(group_size_cases()));
 
-TEST(gated_residual_gpu_test, write_combines_branches) {
+/// R'_c = R_c + S_c * Y
+std::vector<float> reference_write(size_t rows,
+                                   size_t C,
+                                   size_t D,
+                                   const std::vector<float>& residual,
+                                   const std::vector<float>& y,
+                                   const std::vector<float>& gate) {
+    const size_t CD = C * D;
+    std::vector<float> ref(rows * CD, 0.0f);
+    for (size_t row = 0; row < rows; row++) {
+        for (size_t c = 0; c < C; c++) {
+            for (size_t d = 0; d < D; d++) {
+                ref[row * CD + c * D + d] = residual[row * CD + c * D + d] + gate[row * C + c] * y[row * D + d];
+            }
+        }
+    }
+    return ref;
+}
+
+struct gr_write_case {
+    size_t rows;
+    size_t D;
+};
+
+class gated_residual_write_test : public ::testing::TestWithParam<gr_write_case> {};
+
+TEST_P(gated_residual_write_test, combines_branches) {
     if (!gr_available()) {
         GTEST_SKIP() << "no GatedResidual implementation is available on this device";
     }
 
-    const size_t rows = 5;
+    const size_t rows = GetParam().rows;
     const size_t C = kBranches;
-    const size_t D = 64;
+    const size_t D = GetParam().D;
     const size_t CD = C * D;
 
     tests::random_generator rg;
@@ -868,14 +846,7 @@ TEST(gated_residual_gpu_test, write_combines_branches) {
     const auto y = random_vec(rg, rows * D, 1.0f);
     const auto gate = random_vec(rg, rows * C, 1.0f, 1.0f);
 
-    std::vector<float> ref(rows * CD, 0.0f);
-    for (size_t row = 0; row < rows; row++) {
-        for (size_t c = 0; c < C; c++) {
-            for (size_t d = 0; d < D; d++) {
-                ref[row * CD + c * D + d] = residual[row * CD + c * D + d] + gate[row * C + c] * y[row * D + d];
-            }
-        }
-    }
+    const auto ref = reference_write(rows, C, D, residual, y, gate);
 
     auto& engine = get_test_engine();
     auto residual_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, residual);
@@ -906,198 +877,52 @@ TEST(gated_residual_gpu_test, write_combines_branches) {
     }
 }
 
-// D=48 is a multiple of 16 but not of 32 or 64, so the generator's gr_best_tile() falls
-// back to GR_WRITE_TILE=16. This
-// exercises that fallback path (the smoke test above only ever hits GR_WRITE_TILE=64).
-TEST(gated_residual_gpu_test, write_combines_branches_narrow_tile) {
-    if (!gr_available()) {
-        GTEST_SKIP() << "no GatedResidual implementation is available on this device";
-    }
+// D=48 is a multiple of 16 but not of 32 or 64, so gr_best_tile() falls back to GR_WRITE_TILE=16; D=64 and 256 use the wide tile.
+INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_write_test, ::testing::Values(gr_write_case{5, 64}, gr_write_case{9, 48}, gr_write_case{37, 256}));
 
-    const size_t rows = 9;
-    const size_t C = kBranches;
-    const size_t D = 48;
-    const size_t CD = C * D;
-
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-
-    const auto residual = random_vec(rg, rows * CD, 1.0f);
-    const auto y = random_vec(rg, rows * D, 1.0f);
-    const auto gate = random_vec(rg, rows * C, 1.0f, 1.0f);
-
-    std::vector<float> ref(rows * CD, 0.0f);
-    for (size_t row = 0; row < rows; row++) {
-        for (size_t c = 0; c < C; c++) {
-            for (size_t d = 0; d < D; d++) {
-                ref[row * CD + c * D + d] = residual[row * CD + c * D + d] + gate[row * C + c] * y[row * D + d];
-            }
-        }
-    }
-
-    auto& engine = get_test_engine();
-    auto residual_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, residual);
-    auto y_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(D)}, y);
-    auto gate_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(C)}, gate);
-
-    topology topology;
-    topology.add(input_layout("residual", residual_mem->get_layout()));
-    topology.add(input_layout("y", y_mem->get_layout()));
-    topology.add(input_layout("gate", gate_mem->get_layout()));
-    topology.add(gated_residual("gr_write_narrow",
-                                {input_info("residual"), input_info("y"), input_info("gate")},
-                                gated_residual::Mode::WRITE,
-                                C,
-                                D,
-                                0,
-                                1e-6f,
-                                false,
-                                false));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    network network(engine, topology, config);
-    network.set_input_data("residual", residual_mem);
-    network.set_input_data("y", y_mem);
-    network.set_input_data("gate", gate_mem);
-
-    auto outputs = network.execute();
-    cldnn::mem_lock<ov::float16> out(outputs.at("gr_write_narrow").get_memory(), get_test_stream());
-    EXPECT_EQ(executed_stages(), std::vector<std::string>{"WRITE"});
-    ASSERT_EQ(out.size(), ref.size());
-    for (size_t i = 0; i < ref.size(); i++) {
-        ASSERT_NEAR(static_cast<float>(out[i]), ref[i], 1e-2f) << "residual update mismatch at " << i;
-    }
-}
-
-TEST(gated_residual_gpu_test, unsupported_branch_count_is_rejected) {
-    // C != 4 is outside the first supported configuration; the implementation
-    // manager must reject it instead of silently producing wrong results.
-    gated_residual prim("gr", {input_info("a"), input_info("b"), input_info("c"), input_info("d")}, gated_residual::Mode::READ, 3, 64, 16, 1e-6f, false, false);
-    ASSERT_EQ(prim.hc_count, 3u);
-    gated_residual
-        supported("gr", {input_info("a"), input_info("b"), input_info("c"), input_info("d")}, gated_residual::Mode::READ, 4, 64, 16, 1e-6f, false, false);
-    ASSERT_FALSE(prim == supported);
-}
-
-// --- ov::Model / ov::Core level reproduction (direct-construction WRITE mode) ----------
+// --- ov::Model / ov::Core level tests (plugin pipeline, dynamic rows) ----------
 //
-// Every other test above goes through the raw cldnn::topology/network API directly, i.e.
-// it bypasses ov::Model -> ProgramBuilder -> CreateGatedResidualOp entirely. This test
-// instead builds a tiny ov::Model containing a directly-constructed
-// ov::intel_gpu::op::GatedResidual(Mode::WRITE) node (no pattern-fusion involved) and
-// runs it through ov::Core::compile_model("GPU") + ov::InferRequest::infer(), mirroring
-// how a real model reaches this op after GatedResidualWriteFusion, to check whether the
-// WRITE-mode kernel segfaults when reached via the full plugin pipeline instead of the
-// raw topology API above.
-TEST(gated_residual_gpu_test, ov_model_write_mode_direct_construction) {
+// The tests above go through the raw cldnn::topology/network API, i.e. they bypass
+// ov::Model -> ProgramBuilder -> CreateGatedResidualOp. The tests below build a tiny ov::Model with a directly-constructed
+// ov::intel_gpu::op::GatedResidual node (no pattern fusion involved) and run it through ov::Core::compile_model("GPU") and
+// ov::InferRequest::infer() with changing row counts on one compiled model.
+// Dynamic row counts on one compiled model / infer request: the dispatch data must be recomputed for every shape.
+struct gr_dynamic_read_case {
+    size_t L;
+    bool write_gate;
+    std::vector<size_t> rows;
+};
+
+class gated_residual_dynamic_read_test : public ::testing::TestWithParam<gr_dynamic_read_case> {};
+
+TEST_P(gated_residual_dynamic_read_test, ov_model_reuses_dispatch_data) {
     if (!gr_available()) {
         GTEST_SKIP() << "no GatedResidual implementation is available on this device";
     }
 
     ov::Core core;
-    std::vector<std::string> available_devices;
-    try {
-        available_devices = core.get_available_devices();
-    } catch (...) {
-    }
-    const bool has_gpu = std::any_of(available_devices.begin(), available_devices.end(), [](const std::string& device) {
-        return device.rfind("GPU", 0) == 0;
-    });
-    if (!has_gpu) {
-        GTEST_SKIP() << "GPU plugin is not available in ov::Core (unit test binary may lack plugin discovery).";
-    }
-
-    const size_t rows = 37;
-    const size_t C = kBranches;
-    const size_t D = 256;  // matches the real Qwen4-Exp model's hidden_size/C (hc_norm.weight = 1024 = 4*256)
-    const size_t CD = C * D;
-
-    auto residual_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, CD});
-    auto y_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, D});
-    auto gate_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, C});
-
-    auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(ov::OutputVector{residual_p, y_p, gate_p},
-                                                                 ov::intel_gpu::op::GatedResidual::Mode::WRITE,
-                                                                 C,
-                                                                 D,
-                                                                 /*lowrank=*/0,
-                                                                 /*epsilon=*/0.0f,
-                                                                 /*norm_gain_plus_one=*/false,
-                                                                 /*produce_write_gate=*/false);
-    auto result = std::make_shared<ov::op::v0::Result>(gr);
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{residual_p, y_p, gate_p});
-
-    ov::CompiledModel compiled;
-    OV_ASSERT_NO_THROW(compiled = core.compile_model(model, "GPU"));
-
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-    const auto residual = random_vec(rg, rows * CD, 1.0f);
-    const auto y = random_vec(rg, rows * D, 1.0f);
-    const auto gate = random_vec(rg, rows * C, 1.0f, 1.0f);
-
-    std::vector<float> ref(rows * CD, 0.0f);
-    for (size_t row = 0; row < rows; row++) {
-        for (size_t c = 0; c < C; c++) {
-            for (size_t d = 0; d < D; d++) {
-                ref[row * CD + c * D + d] = residual[row * CD + c * D + d] + gate[row * C + c] * y[row * D + d];
-            }
-        }
-    }
-
-    auto infer_request = compiled.create_infer_request();
-
-    auto fill_tensor = [&](size_t idx, const std::vector<float>& data) {
-        auto tensor = infer_request.get_input_tensor(idx);
-        auto* dst = tensor.data<ov::float16>();
-        for (size_t i = 0; i < data.size(); i++) {
-            dst[i] = ov::float16(data[i]);
-        }
-    };
-    fill_tensor(0, residual);
-    fill_tensor(1, y);
-    fill_tensor(2, gate);
-
-    OV_ASSERT_NO_THROW(infer_request.infer());
-
-    auto out_tensor = infer_request.get_output_tensor(0);
-    const auto* out = out_tensor.data<ov::float16>();
-    for (size_t i = 0; i < ref.size(); i++) {
-        ASSERT_NEAR(static_cast<float>(out[i]), ref[i], 1e-2f) << "residual update mismatch at " << i;
-    }
-}
-
-TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_data) {
-    if (!gr_available()) {
-        GTEST_SKIP() << "no GatedResidual implementation is available on this device";
-    }
-
-    ov::Core core;
+    const auto& tc = GetParam();
     const size_t C = kBranches;
     const size_t D = 64;
-    const size_t L = 32;
+    const size_t L = tc.L;
     const size_t CD = C * D;
 
     auto residual_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, static_cast<int64_t>(CD)});
     auto gain_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{CD});
     auto w_down_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{L, CD});
     auto w_up_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{CD, L});
-    auto w_inject_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{C, CD});
+    ov::ParameterVector params{residual_p, gain_p, w_down_p, w_up_p};
+    if (tc.write_gate) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{C, CD}));
+    }
 
-    auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(ov::OutputVector{residual_p, gain_p, w_down_p, w_up_p, w_inject_p},
-                                                                 ov::intel_gpu::op::GatedResidual::Mode::READ,
-                                                                 C,
-                                                                 D,
-                                                                 L,
-                                                                 1e-6f,
-                                                                 false,
-                                                                 true);
-    auto mixed_result = std::make_shared<ov::op::v0::Result>(gr->output(0));
-    auto gate_result = std::make_shared<ov::op::v0::Result>(gr->output(1));
-    auto model =
-        std::make_shared<ov::Model>(ov::ResultVector{mixed_result, gate_result}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p, w_inject_p});
+    ov::OutputVector inputs(params.begin(), params.end());
+    auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(inputs, ov::intel_gpu::op::GatedResidual::Mode::READ, C, D, L, 1e-6f, false, tc.write_gate);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(gr->output(0))};
+    if (tc.write_gate) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(gr->output(1)));
+    }
+    auto model = std::make_shared<ov::Model>(results, params);
 
     ov::CompiledModel compiled;
     OV_ASSERT_NO_THROW(compiled = core.compile_model(model, "GPU"));
@@ -1108,7 +933,7 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_da
     const auto gain = random_vec(rg, CD, 0.5f, 1.0f);
     const auto w_down = random_vec(rg, L * CD, 0.1f);
     const auto w_up = random_vec(rg, CD * L, 0.1f);
-    const auto w_inject = random_vec(rg, C * CD, 0.1f);
+    const auto w_inject = tc.write_gate ? random_vec(rg, C * CD, 0.1f) : std::vector<float>{};
 
     auto fill_tensor = [](ov::Tensor tensor, const std::vector<float>& data) {
         auto* dst = tensor.data<ov::float16>();
@@ -1120,10 +945,11 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_da
     fill_tensor(infer_request.get_input_tensor(1), gain);
     fill_tensor(infer_request.get_input_tensor(2), w_down);
     fill_tensor(infer_request.get_input_tensor(3), w_up);
-    fill_tensor(infer_request.get_input_tensor(4), w_inject);
+    if (tc.write_gate) {
+        fill_tensor(infer_request.get_input_tensor(4), w_inject);
+    }
 
-    // Walks the dynamic impl through the decode, mid and wide tilings and back again.
-    for (const size_t rows : {size_t{5}, size_t{37}, size_t{1}, size_t{300}, size_t{1500}, size_t{2}}) {
+    for (const size_t rows : tc.rows) {
         tests::random_generator input_rg;
         input_rg.set_seed(static_cast<uint32_t>(rows));
         const auto residual = random_vec(input_rg, rows * CD, 1.0f);
@@ -1138,94 +964,7 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_reuses_dispatch_da
         p.L = L;
         std::vector<float> ref_mixed;
         std::vector<float> ref_gate;
-        reference_read(p, residual, gain, w_down, w_up, &w_inject, ref_mixed, ref_gate);
-
-        OV_ASSERT_NO_THROW(infer_request.infer());
-        const auto mixed = infer_request.get_output_tensor(0);
-        const auto gate = infer_request.get_output_tensor(1);
-        const auto* mixed_data = mixed.data<ov::float16>();
-        const auto* gate_data = gate.data<ov::float16>();
-        ASSERT_EQ(mixed.get_size(), ref_mixed.size());
-        ASSERT_EQ(gate.get_size(), ref_gate.size());
-        for (size_t i = 0; i < ref_mixed.size(); i++) {
-            ASSERT_NEAR(static_cast<float>(mixed_data[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
-        }
-        for (size_t i = 0; i < ref_gate.size(); i++) {
-            ASSERT_NEAR(static_cast<float>(gate_data[i]), ref_gate[i], 2e-2f) << "write gate mismatch at rows=" << rows << " index=" << i;
-        }
-    }
-}
-
-// Companion to ov_model_read_mode_dynamic_rows_reuses_dispatch_data above, but for the
-// scalar (non-DPAS) gr_read.cl kernel: L=16 fails the dpas path's "lowrank must
-// be a multiple of 32" check, so GatedResidualImpl selects the single-kernel gr_read
-// stage instead of the rbar/down/up dpas pipeline. Exercises the SAME
-// dispatch-data bug (the unconditional `if (params.is_dynamic()) return;` guard) in the
-// one generator the DPAS-path test above never reaches.
-TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_scalar_kernel) {
-    if (!gr_available()) {
-        GTEST_SKIP() << "no GatedResidual implementation is available on this device";
-    }
-
-    ov::Core core;
-    const size_t C = kBranches;
-    const size_t D = 64;
-    const size_t L = 16;  // not a multiple of 32 -> forces the scalar gr_read.cl path
-    const size_t CD = C * D;
-
-    auto residual_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, static_cast<int64_t>(CD)});
-    auto gain_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{CD});
-    auto w_down_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{L, CD});
-    auto w_up_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{CD, L});
-
-    auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(ov::OutputVector{residual_p, gain_p, w_down_p, w_up_p},
-                                                                 ov::intel_gpu::op::GatedResidual::Mode::READ,
-                                                                 C,
-                                                                 D,
-                                                                 L,
-                                                                 1e-6f,
-                                                                 false,
-                                                                 false);
-    auto result = std::make_shared<ov::op::v0::Result>(gr);
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p});
-
-    ov::CompiledModel compiled;
-    OV_ASSERT_NO_THROW(compiled = core.compile_model(model, "GPU"));
-    auto infer_request = compiled.create_infer_request();
-
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-    const auto gain = random_vec(rg, CD, 0.5f, 1.0f);
-    const auto w_down = random_vec(rg, L * CD, 0.1f);
-    const auto w_up = random_vec(rg, CD * L, 0.1f);
-
-    auto fill_tensor = [](ov::Tensor tensor, const std::vector<float>& data) {
-        auto* dst = tensor.data<ov::float16>();
-        ASSERT_EQ(tensor.get_size(), data.size());
-        for (size_t i = 0; i < data.size(); i++) {
-            dst[i] = ov::float16(data[i]);
-        }
-    };
-    fill_tensor(infer_request.get_input_tensor(1), gain);
-    fill_tensor(infer_request.get_input_tensor(2), w_down);
-    fill_tensor(infer_request.get_input_tensor(3), w_up);
-
-    for (const size_t rows : {size_t{3}, size_t{41}, size_t{1}, size_t{100}, size_t{2}}) {
-        tests::random_generator input_rg;
-        input_rg.set_seed(static_cast<uint32_t>(rows) + 1000);
-        const auto residual = random_vec(input_rg, rows * CD, 1.0f);
-        ov::Tensor residual_tensor(ov::element::f16, ov::Shape{rows, CD});
-        fill_tensor(residual_tensor, residual);
-        infer_request.set_tensor(residual_p, residual_tensor);
-
-        gr_ref_params p;
-        p.rows = rows;
-        p.C = C;
-        p.D = D;
-        p.L = L;
-        std::vector<float> ref_mixed;
-        std::vector<float> unused_gate;
-        reference_read(p, residual, gain, w_down, w_up, nullptr, ref_mixed, unused_gate);
+        reference_read(p, residual, gain, w_down, w_up, tc.write_gate ? &w_inject : nullptr, ref_mixed, ref_gate);
 
         OV_ASSERT_NO_THROW(infer_request.infer());
         const auto mixed = infer_request.get_output_tensor(0);
@@ -1234,20 +973,40 @@ TEST(gated_residual_gpu_test, ov_model_read_mode_dynamic_rows_scalar_kernel) {
         for (size_t i = 0; i < ref_mixed.size(); i++) {
             ASSERT_NEAR(static_cast<float>(mixed_data[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
         }
+        if (tc.write_gate) {
+            const auto gate = infer_request.get_output_tensor(1);
+            const auto* gate_data = gate.data<ov::float16>();
+            ASSERT_EQ(gate.get_size(), ref_gate.size());
+            for (size_t i = 0; i < ref_gate.size(); i++) {
+                ASSERT_NEAR(static_cast<float>(gate_data[i]), ref_gate[i], 2e-2f) << "write gate mismatch at rows=" << rows << " index=" << i;
+            }
+        }
     }
 }
 
-// Companion covering GrWriteGenerator's dispatch-data path (the gr_write.cl
-// stage, used both for WRITE and reached whenever `desc->mode == Mode::WRITE`) under a
-// dynamic row count on the SAME compiled model / infer request.
-TEST(gated_residual_gpu_test, ov_model_write_mode_dynamic_rows_reuses_dispatch_data) {
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         gated_residual_dynamic_read_test,
+                         ::testing::Values(
+                             // DPAS pipeline: walks the decode, mid and wide tilings and back again
+                             gr_dynamic_read_case{32, true, {5, 37, 1, 300, 1500, 2}},
+                             // L=16 is not a multiple of 32, so the scalar gr_read.cl stage runs instead
+                             gr_dynamic_read_case{16, false, {3, 41, 1, 100, 2}}));
+
+// Dynamic row counts on one compiled model / infer request for GrWriteGenerator's dispatch-data path (gr_write.cl).
+struct gr_dynamic_write_case {
+    size_t D;
+};
+
+class gated_residual_dynamic_write_test : public ::testing::TestWithParam<gr_dynamic_write_case> {};
+
+TEST_P(gated_residual_dynamic_write_test, ov_model_reuses_dispatch_data) {
     if (!gr_available()) {
         GTEST_SKIP() << "no GatedResidual implementation is available on this device";
     }
 
     ov::Core core;
     const size_t C = kBranches;
-    const size_t D = 64;
+    const size_t D = GetParam().D;
     const size_t CD = C * D;
 
     auto residual_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, static_cast<int64_t>(CD)});
@@ -1294,14 +1053,7 @@ TEST(gated_residual_gpu_test, ov_model_write_mode_dynamic_rows_reuses_dispatch_d
         infer_request.set_tensor(y_p, y_tensor);
         infer_request.set_tensor(gate_p, gate_tensor);
 
-        std::vector<float> ref(rows * CD, 0.0f);
-        for (size_t row = 0; row < rows; row++) {
-            for (size_t c = 0; c < C; c++) {
-                for (size_t d = 0; d < D; d++) {
-                    ref[row * CD + c * D + d] = residual[row * CD + c * D + d] + gate[row * C + c] * y[row * D + d];
-                }
-            }
-        }
+        const auto ref = reference_write(rows, C, D, residual, y, gate);
 
         OV_ASSERT_NO_THROW(infer_request.infer());
         const auto out_tensor = infer_request.get_output_tensor(0);
@@ -1312,6 +1064,9 @@ TEST(gated_residual_gpu_test, ov_model_write_mode_dynamic_rows_reuses_dispatch_d
         }
     }
 }
+
+// D=256 is the real Qwen4-Exp width (hidden_size / C).
+INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_dynamic_write_test, ::testing::Values(gr_dynamic_write_case{64}, gr_dynamic_write_case{256}));
 
 // --- roofline perf harness (token_size sweep) ------------------------------
 //
@@ -1625,7 +1380,10 @@ TEST(gated_residual_quant_ab, DISABLED_weights) {
         residual_mem->copy_from(get_test_stream(), residual_f16.data(), true);
 
         const bool long_rows = rows >= 8192;
-        const size_t nl = long_rows ? 1 : (rows <= 4 * eu ? 16 : 4);
+        size_t nl = long_rows ? 1 : (rows <= 4 * eu ? 16 : 4);
+        if (const char* layers_env = std::getenv("GR_AB_LAYERS")) {  // 1 keeps the weights resident in cache
+            nl = std::max<size_t>(1, std::stoull(layers_env));
+        }
         std::vector<quant_ab::ab_config> configs;
         configs.push_back({"f16", 0, false, {}});
         configs.push_back({"u4", 1, false, {}});
@@ -1748,10 +1506,15 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_roofline,
 // Equivalence of the decomposed source graph and the fused kernel: the decomposed READ/MIX
 // model is compiled through the normal plugin pipeline (which must fuse it into a single
 // gated_residual node) and compared against the FP32 reference of the *decomposed* math.
-TEST(gated_residual_gpu_test, decomposed_read_graph_fuses_and_matches_reference) {
+// With the write gate (2 * sigmoid(Rbar . W_inject^T / C), on the same Rbar as the READ) the gate branch is fused into the READ as well:
+// one gated_residual node with two outputs, no MatMul left, and both outputs match the FP32 reference.
+class gated_residual_decomposed_read_test : public ::testing::TestWithParam<bool> {};
+
+TEST_P(gated_residual_decomposed_read_test, fuses_and_matches_reference) {
     if (!gr_available()) {
         GTEST_SKIP() << "no GatedResidual implementation is available on this device";
     }
+    const bool with_write_gate = GetParam();
 
     const size_t C = kBranches;
     const size_t D = 64;
@@ -1765,6 +1528,7 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_fuses_and_matches_reference)
     const auto gain_w = random_vec(rg, CD, 0.25f);
     const auto w_down = random_vec(rg, L * CD, 0.1f);
     const auto w_up = random_vec(rg, CD * L, 0.1f);
+    const auto w_inject = with_write_gate ? random_vec(rg, C * CD, 0.1f) : std::vector<float>{};
 
     auto i64 = [](std::vector<int64_t> v) {
         return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
@@ -1782,125 +1546,7 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_fuses_and_matches_reference)
     auto gain_p = f16_param(ov::Shape{CD});
     auto w_down_p = f16_param(ov::Shape{L, CD});
     auto w_up_p = f16_param(ov::Shape{CD, L});
-    auto r3 = std::make_shared<ov::op::v1::Reshape>(residual_p, i64({-1, static_cast<int64_t>(C), static_cast<int64_t>(D)}), false);
-    auto sq = std::make_shared<ov::op::v1::Power>(r3, scalar(2.0f));
-    auto mean = std::make_shared<ov::op::v1::ReduceMean>(sq, i64({-1}), true);
-    auto rms = std::make_shared<ov::op::v0::Sqrt>(std::make_shared<ov::op::v1::Add>(mean, scalar(eps)));
-    auto inv_rms = std::make_shared<ov::op::v1::Divide>(scalar(1.0f), rms);
-    auto normalized = std::make_shared<ov::op::v1::Multiply>(r3, inv_rms);
-    auto normalized_flat = std::make_shared<ov::op::v1::Reshape>(normalized, i64({-1, static_cast<int64_t>(CD)}), false);
-    auto gain = std::make_shared<ov::op::v1::Add>(gain_p, scalar(1.0f));
-    auto rbar = std::make_shared<ov::op::v1::Multiply>(normalized_flat, gain);
-
-    auto low = std::make_shared<ov::op::v0::MatMul>(rbar, w_down_p, false, true);
-    auto act = std::make_shared<ov::op::v4::Swish>(std::make_shared<ov::op::v1::Multiply>(low, scalar(1.0f / static_cast<float>(C))));
-    auto up = std::make_shared<ov::op::v0::MatMul>(act, w_up_p, false, true);
-    auto weighted = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(up), rbar);
-    auto weighted3 = std::make_shared<ov::op::v1::Reshape>(weighted, i64({-1, static_cast<int64_t>(C), static_cast<int64_t>(D)}), false);
-    auto mixed =
-        std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::ReduceSum>(weighted3, i64({1}), false), scalar(1.0f / static_cast<float>(C)));
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p});
-
-    ov::Core core;
-    ov::CompiledModel compiled;
-    OV_ASSERT_NO_THROW(compiled = core.compile_model(model, "GPU"));
-    size_t fused_nodes = 0;
-    std::string runtime_layers;
-    for (const auto& op : compiled.get_runtime_model()->get_ops()) {
-        const auto it = op->get_rt_info().find("layerType");
-        const auto layer_type = it != op->get_rt_info().end() ? it->second.as<std::string>() : std::string("?");
-        // Fused nodes whose primitive id differs from the op name are recorded with the primitive
-        // type string ("gated_residual") instead of the op type name ("GatedResidual").
-        if (layer_type == "GatedResidual" || layer_type == "gated_residual") {
-            fused_nodes++;
-        }
-        runtime_layers += layer_type + " ";
-    }
-    EXPECT_EQ(fused_nodes, 1u) << "decomposed READ graph was not fused into gated_residual; runtime layers: " << runtime_layers;
-
-    auto infer_request = compiled.create_infer_request();
-    auto fill = [](ov::Tensor tensor, const std::vector<float>& data) {
-        auto* dst = tensor.data<ov::float16>();
-        ASSERT_EQ(tensor.get_size(), data.size());
-        for (size_t i = 0; i < data.size(); i++) {
-            dst[i] = ov::float16(data[i]);
-        }
-    };
-    fill(infer_request.get_input_tensor(1), gain_w);
-    fill(infer_request.get_input_tensor(2), w_down);
-    fill(infer_request.get_input_tensor(3), w_up);
-    for (const size_t rows : {size_t{3}, size_t{64}, size_t{700}}) {
-        tests::random_generator input_rg;
-        input_rg.set_seed(static_cast<uint32_t>(rows));
-        const auto residual = random_vec(input_rg, rows * CD, 1.0f);
-        ov::Tensor residual_tensor(et, ov::Shape{rows, CD});
-        auto* dst = residual_tensor.data<ov::float16>();
-        for (size_t i = 0; i < residual.size(); i++) {
-            dst[i] = ov::float16(residual[i]);
-        }
-        infer_request.set_tensor(residual_p, residual_tensor);
-
-        // The model applies the gain as `1 + w`, so the reference sees the folded gain.
-        std::vector<float> gain_folded(gain_w);
-        for (auto& g : gain_folded) {
-            g += 1.0f;
-        }
-        gr_ref_params p;
-        p.rows = rows;
-        p.C = C;
-        p.D = D;
-        p.L = L;
-        p.eps = eps;
-        std::vector<float> ref_mixed;
-        std::vector<float> ref_gate;
-        reference_read(p, residual, gain_folded, w_down, w_up, nullptr, ref_mixed, ref_gate);
-
-        OV_ASSERT_NO_THROW(infer_request.infer());
-        const auto out_tensor = infer_request.get_output_tensor(0);
-        const auto* out = out_tensor.data<ov::float16>();
-        ASSERT_EQ(out_tensor.get_size(), ref_mixed.size());
-        for (size_t i = 0; i < ref_mixed.size(); i++) {
-            ASSERT_NEAR(static_cast<float>(out[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
-        }
-    }
-}
-
-// The write-gate branch of the decomposed graph (2 * sigmoid(Rbar . W_inject^T / C), on the same Rbar as the READ) is fused into the
-// READ: one gated_residual node with two outputs, no MatMul left, and both outputs match the FP32 reference.
-TEST(gated_residual_gpu_test, decomposed_read_graph_with_write_gate_fuses_and_matches_reference) {
-    if (!gr_available()) {
-        GTEST_SKIP() << "no GatedResidual implementation is available on this device";
-    }
-
-    const size_t C = kBranches;
-    const size_t D = 64;
-    const size_t L = 32;
-    const size_t CD = C * D;
-    const float eps = 1e-5f;
-    const auto et = ov::element::f16;
-
-    tests::random_generator rg;
-    rg.set_seed(GET_SUITE_NAME);
-    const auto gain_w = random_vec(rg, CD, 0.25f);
-    const auto w_down = random_vec(rg, L * CD, 0.1f);
-    const auto w_up = random_vec(rg, CD * L, 0.1f);
-    const auto w_inject = random_vec(rg, C * CD, 0.1f);
-
-    auto i64 = [](std::vector<int64_t> v) {
-        return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{v.size()}, v);
-    };
-    auto scalar = [&](float v) {
-        return ov::op::v0::Constant::create(et, ov::Shape{}, {v});
-    };
-    auto f16_param = [&](const ov::Shape& shape) {
-        return std::make_shared<ov::op::v0::Parameter>(et, shape);
-    };
-
-    auto residual_p = std::make_shared<ov::op::v0::Parameter>(et, ov::PartialShape{-1, static_cast<int64_t>(CD)});
-    auto gain_p = f16_param(ov::Shape{CD});
-    auto w_down_p = f16_param(ov::Shape{L, CD});
-    auto w_up_p = f16_param(ov::Shape{CD, L});
-    auto w_inject_p = f16_param(ov::Shape{C, CD});
+    ov::ParameterVector params{residual_p, gain_p, w_down_p, w_up_p};
     auto r3 = std::make_shared<ov::op::v1::Reshape>(residual_p, i64({-1, static_cast<int64_t>(C), static_cast<int64_t>(D)}), false);
     auto sq = std::make_shared<ov::op::v1::Power>(r3, scalar(2.0f));
     auto mean = std::make_shared<ov::op::v1::ReduceMean>(sq, i64({-1}), true);
@@ -1919,10 +1565,15 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_with_write_gate_fuses_and_ma
     auto mixed =
         std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v1::ReduceSum>(weighted3, i64({1}), false), scalar(1.0f / static_cast<float>(C)));
 
-    auto inject = std::make_shared<ov::op::v0::MatMul>(rbar, w_inject_p, false, true);
-    auto inject_scaled = std::make_shared<ov::op::v1::Multiply>(inject, scalar(1.0f / static_cast<float>(C)));
-    auto write_gate = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(inject_scaled), scalar(2.0f));
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{mixed, write_gate}, ov::ParameterVector{residual_p, gain_p, w_down_p, w_up_p, w_inject_p});
+    ov::OutputVector outputs{mixed};
+    if (with_write_gate) {
+        auto w_inject_p = f16_param(ov::Shape{C, CD});
+        params.push_back(w_inject_p);
+        auto inject = std::make_shared<ov::op::v0::MatMul>(rbar, w_inject_p, false, true);
+        auto inject_scaled = std::make_shared<ov::op::v1::Multiply>(inject, scalar(1.0f / static_cast<float>(C)));
+        outputs.push_back(std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::Sigmoid>(inject_scaled), scalar(2.0f)));
+    }
+    auto model = std::make_shared<ov::Model>(outputs, params);
 
     ov::Core core;
     ov::CompiledModel compiled;
@@ -1941,8 +1592,8 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_with_write_gate_fuses_and_ma
         }
         runtime_layers += layer_type + " ";
     }
-    EXPECT_EQ(fused_nodes, 1u) << "READ with its write gate was not fused into one gated_residual; runtime layers: " << runtime_layers;
-    EXPECT_EQ(gemm_nodes, 0u) << "a MatMul of the write-gate branch is left; runtime layers: " << runtime_layers;
+    EXPECT_EQ(fused_nodes, 1u) << "decomposed READ graph was not fused into one gated_residual; runtime layers: " << runtime_layers;
+    EXPECT_EQ(gemm_nodes, 0u) << "a MatMul is left; runtime layers: " << runtime_layers;
 
     auto infer_request = compiled.create_infer_request();
     auto fill = [](ov::Tensor tensor, const std::vector<float>& data) {
@@ -1955,7 +1606,9 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_with_write_gate_fuses_and_ma
     fill(infer_request.get_input_tensor(1), gain_w);
     fill(infer_request.get_input_tensor(2), w_down);
     fill(infer_request.get_input_tensor(3), w_up);
-    fill(infer_request.get_input_tensor(4), w_inject);
+    if (with_write_gate) {
+        fill(infer_request.get_input_tensor(4), w_inject);
+    }
     for (const size_t rows : {size_t{3}, size_t{64}, size_t{700}}) {
         tests::random_generator input_rg;
         input_rg.set_seed(static_cast<uint32_t>(rows));
@@ -1976,22 +1629,26 @@ TEST(gated_residual_gpu_test, decomposed_read_graph_with_write_gate_fuses_and_ma
         p.eps = eps;
         std::vector<float> ref_mixed;
         std::vector<float> ref_gate;
-        reference_read(p, residual, gain_folded, w_down, w_up, &w_inject, ref_mixed, ref_gate);
+        reference_read(p, residual, gain_folded, w_down, w_up, with_write_gate ? &w_inject : nullptr, ref_mixed, ref_gate);
 
         OV_ASSERT_NO_THROW(infer_request.infer());
         const auto mixed_tensor = infer_request.get_output_tensor(0);
-        const auto gate_tensor = infer_request.get_output_tensor(1);
         const auto* mixed_data = mixed_tensor.data<ov::float16>();
-        const auto* gate_data = gate_tensor.data<ov::float16>();
         ASSERT_EQ(mixed_tensor.get_size(), ref_mixed.size());
-        ASSERT_EQ(gate_tensor.get_size(), ref_gate.size());
         for (size_t i = 0; i < ref_mixed.size(); i++) {
             ASSERT_NEAR(static_cast<float>(mixed_data[i]), ref_mixed[i], 2e-2f) << "mixed mismatch at rows=" << rows << " index=" << i;
         }
-        for (size_t i = 0; i < ref_gate.size(); i++) {
-            ASSERT_NEAR(static_cast<float>(gate_data[i]), ref_gate[i], 2e-2f) << "write gate mismatch at rows=" << rows << " index=" << i;
+        if (with_write_gate) {
+            const auto gate_tensor = infer_request.get_output_tensor(1);
+            const auto* gate_data = gate_tensor.data<ov::float16>();
+            ASSERT_EQ(gate_tensor.get_size(), ref_gate.size());
+            for (size_t i = 0; i < ref_gate.size(); i++) {
+                ASSERT_NEAR(static_cast<float>(gate_data[i]), ref_gate[i], 2e-2f) << "write gate mismatch at rows=" << rows << " index=" << i;
+            }
         }
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke, gated_residual_decomposed_read_test, ::testing::Bool());
 
 }  // namespace

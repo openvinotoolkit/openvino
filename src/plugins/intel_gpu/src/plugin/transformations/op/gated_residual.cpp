@@ -59,6 +59,7 @@ void GatedResidual::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, m_hc_count > 0, "GatedResidual requires a positive branch count C.");
     NODE_VALIDATION_CHECK(this, m_hidden_size > 0, "GatedResidual requires a positive hidden size D.");
+    NODE_VALIDATION_CHECK(this, out_et.is_dynamic() || out_et.is_real(), "GatedResidual residual must have a floating-point element type, got ", out_et);
 
     const auto& residual_ps = get_input_partial_shape(0);
     NODE_VALIDATION_CHECK(this,
@@ -81,14 +82,14 @@ void GatedResidual::validate_and_infer_types() {
                               last_dim_matches(get_input_partial_shape(WriteInputIdx::WRITE_GATE), m_hc_count),
                               "GatedResidual (WRITE) write gate last dimension must be C = ",
                               m_hc_count);
+        auto merged_et = out_et;
         for (size_t i = 1; i < input_size; ++i) {
-            NODE_VALIDATION_CHECK(
-                this,
-                get_input_element_type(i).is_dynamic() || get_input_element_type(0).is_dynamic() || get_input_element_type(i) == get_input_element_type(0),
-                "GatedResidual (WRITE) inputs must share the residual element type.");
+            NODE_VALIDATION_CHECK(this,
+                                  ov::element::Type::merge(merged_et, merged_et, get_input_element_type(i)),
+                                  "GatedResidual (WRITE) inputs must share the residual element type.");
         }
         // R' has exactly the residual layout.
-        set_output_type(0, out_et, residual_ps);
+        set_output_type(0, merged_et, residual_ps);
         return;
     }
 
