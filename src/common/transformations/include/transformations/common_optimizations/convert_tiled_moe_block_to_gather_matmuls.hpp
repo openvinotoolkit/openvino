@@ -16,6 +16,7 @@ namespace ov::pass {
 // BGM-producing passes (IR → GatherMatmul)
 class TRANSFORMATIONS_API ConvertTiledMoeBlockTo2GatherMatmuls;
 class TRANSFORMATIONS_API ConvertTiledMoeBlockTo3GatherMatmuls;
+class TRANSFORMATIONS_API ConvertPackedMoeMatMulToGatherMatmul;
 
 class TRANSFORMATIONS_API ConvertTiledMoeBlockToGatherMatmuls;
 
@@ -161,6 +162,12 @@ public:
                                              ov::element::bf16});
 };
 
+class ov::pass::ConvertPackedMoeMatMulToGatherMatmul : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ConvertPackedMoeMatMulToGatherMatmul");
+    ConvertPackedMoeMatMulToGatherMatmul();
+};
+
 // CPU uses BGM-producing passes only (stops at BGMs)
 // supported_weights_types: if not empty, only blocks with compressed expert weights of these types are converted.
 // supported_activation_types: only blocks with experts_input of these types are converted.
@@ -176,5 +183,6 @@ public:
                                                                     supported_activation_types);
         add_matcher<ov::pass::ConvertTiledMoeBlockTo3GatherMatmuls>(supported_weights_types,
                                                                     supported_activation_types);
+        add_matcher<ov::pass::ConvertPackedMoeMatMulToGatherMatmul>();
     }
 };

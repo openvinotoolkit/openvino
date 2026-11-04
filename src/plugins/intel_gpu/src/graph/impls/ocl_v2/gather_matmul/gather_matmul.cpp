@@ -74,6 +74,8 @@ inline dnnl::memory::data_type convert_data_type(cldnn::data_types dt) {
         return dnnl::memory::data_type::s4;
     case cldnn::data_types::u4:
         return dnnl::memory::data_type::u4;
+    case cldnn::data_types::f4e2m1:
+        return dnnl::memory::data_type::f4_e2m1;
     default:
         throw std::invalid_argument("[GPU] gather_matmul: unsupported cldnn->onednn type conversion");
     }
@@ -308,7 +310,8 @@ private:
         const dnnl::memory::dim N = static_cast<dnnl::memory::dim>(wshape[1]);
         const dnnl::memory::dim K = wshape.size() == 4 ? static_cast<dnnl::memory::dim>(wshape[2] * wshape[3]) : static_cast<dnnl::memory::dim>(wshape[2]);
 
-        static const std::vector<cldnn::data_types> quantized_types = {cldnn::data_types::u4,
+        static const std::vector<cldnn::data_types> quantized_types = {cldnn::data_types::f4e2m1,
+                                                                       cldnn::data_types::u4,
                                                                        cldnn::data_types::i4,
                                                                        cldnn::data_types::u8,
                                                                        cldnn::data_types::i8};
