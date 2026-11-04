@@ -139,6 +139,7 @@ enum class Type : uint8_t {
     RMS,
     SearchSorted,
     SegmentMax,
+    Histc,
     LoRA,
     GatherMatmul,
     GatedDeltaNet,

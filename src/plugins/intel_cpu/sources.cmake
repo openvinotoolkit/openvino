@@ -299,6 +299,8 @@ set(CPU_PLUGIN_SRCS
     ${CPU_SRC_DIR}/nodes/grid_sample.hpp
     ${CPU_SRC_DIR}/nodes/grn.cpp
     ${CPU_SRC_DIR}/nodes/grn.h
+    ${CPU_SRC_DIR}/nodes/histc.cpp
+    ${CPU_SRC_DIR}/nodes/histc.h
     ${CPU_SRC_DIR}/nodes/identity.cpp
     ${CPU_SRC_DIR}/nodes/identity.hpp
     ${CPU_SRC_DIR}/nodes/if.cpp

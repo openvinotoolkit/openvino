@@ -116,6 +116,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/group_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/gru_sequence.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/bitwise_shift.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/col2im.cpp
