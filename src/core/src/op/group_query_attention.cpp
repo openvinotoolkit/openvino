@@ -498,10 +498,21 @@ void GroupQueryAttention::validate_and_infer_types() {
     const bool dynamic_kv_len = key_ps.rank().is_static() && key_ps[2].is_dynamic();
     if ((!m_sliding_window_cache || empty_past) && !is_shared_kv() && !has_fixed_kv_capacity()) {
         if (!empty_past && has_padded_query()) {
-            // A right-padded chunk's write offset is max(0, total - query_len): a runtime value derived from
-            // seqlens_k/query_seqlens data, not just shapes. The growing-cache capacity (max(past_rows, write
-            // offset + S)) is therefore data-dependent and cannot be bounded by past_rows + S here.
-            output_kv_len = Dimension::dynamic();
+            // present capacity is max(past_rows, total_sequence_length) for a padded chunk (CheckInputs in
+            // onnxruntime/contrib_ops/cpu/bert/group_query_attention_helper.h); total_sequence_length can
+            // pre-allocate headroom past_rows + sequence_len no longer bounds. Fold it when constant for a tight
+            // static bound; it's optional (required only for qk_output), so an absent input is an empty Constant.
+            const auto total_len_input =
+                input_value(static_cast<size_t>(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH));
+            const auto total_len_const = ov::util::is_empty_constant_tensor(total_len_input)
+                                             ? nullptr
+                                             : ov::util::get_constant_from_source(total_len_input);
+            if (total_len_const && output_kv_len.is_static()) {
+                output_kv_len =
+                    Dimension(std::max(output_kv_len.get_length(), total_len_const->cast_vector<int64_t>().at(0)));
+            } else {
+                output_kv_len = Dimension::dynamic();
+            }
         } else {
             output_kv_len += dynamic_kv_len ? key_ps[2] : sequence_len;
         }

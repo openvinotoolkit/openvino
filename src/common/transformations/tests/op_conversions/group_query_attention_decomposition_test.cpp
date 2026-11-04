@@ -39,6 +39,7 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "ov_ops/rms.hpp"
 #include "transformations/common_optimizations/rms_fusion.hpp"
 
@@ -900,6 +901,110 @@ TEST(GroupQueryAttentionValues, batched_cache_update_is_per_batch) {
             EXPECT_EQ(count_decomposed_ops(batch, past, is_flat_scatter_update), 2u) << batch << " " << past;
             EXPECT_EQ(count_decomposed_ops(batch, past, is_axis_scatter_update), 0u) << batch << " " << past;
         }
+    }
+}
+
+// ORT sizes a growing cache's public present to max(past_rows, total_sequence_length) (CheckInputs in
+// onnxruntime/contrib_ops/cpu/bert/group_query_attention_helper.h), not to the write window a padded chunk
+// actually touches. A sliced present output would hide an undersized buffer, so this evaluates the raw
+// (unsliced) decomposed graph with the exact P=3/S=4/Q=2/past_rows=5/total_sequence_length=10 scenario where the
+// two differ (write end = 3 + 4 = 7, but ORT's declared capacity is max(5, 10) = 10), and checks both the
+// resulting shape and that the unwritten past prefix survives untouched.
+TEST(GroupQueryAttentionValues, padded_query_growing_cache_present_keeps_total_sequence_length_capacity) {
+    const auto f32 = element::f32;
+    constexpr int64_t S = 4;
+    constexpr int64_t past_rows = 5;
+    constexpr int64_t total_sequence_length = 10;
+    constexpr int64_t kept_past = 3;  // P = max(total - Q, 0) = max((seqlens_k + 1) - query_seqlens, 0) = max(5-2,0)
+
+    auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), NUM_HEADS, S, HEAD_SIZE});
+    auto k = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto v = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+    auto past_key = std::make_shared<op::v0::Parameter>(
+        f32,
+        PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto past_value = std::make_shared<op::v0::Parameter>(
+        f32,
+        PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+    auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    auto total_seq = op::v0::Constant::create(element::i32, Shape{}, {total_sequence_length});
+    const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+    OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+    args.resize(16, empty);
+    auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+    args.push_back(query_seqlens);
+
+    auto gqa = std::make_shared<GroupQueryAttention>(args,
+                                                     NUM_HEADS,
+                                                     KV_NUM_HEADS,
+                                                     /*scale*/ 0.0f,
+                                                     /*do_rotary*/ false,
+                                                     /*rotary_interleaved*/ false);
+    ASSERT_TRUE(gqa->has_padded_query());
+    ASSERT_FALSE(gqa->has_fixed_kv_capacity());
+
+    // Only present_key/present_value are checked, so only they are declared as Results: they don't depend on the
+    // attention output, and Model::evaluate only evaluates a Result's ancestors.
+    ResultVector results{std::make_shared<op::v0::Result>(gqa->output(1)),
+                         std::make_shared<op::v0::Result>(gqa->output(2))};
+    ParameterVector params{q, k, v, past_key, past_value, seqlens_k, query_seqlens};
+    auto model = std::make_shared<Model>(results, params);
+    decompose(model);
+
+    const auto batch = Shape{1};
+    const auto q_shape = Shape{1, static_cast<size_t>(NUM_HEADS), S, HEAD_SIZE};
+    const auto kv_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), S, HEAD_SIZE};
+    const auto past_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), past_rows, HEAD_SIZE};
+
+    std::vector<float> q_data(shape_size(q_shape), 0.5f);
+    std::vector<float> new_k_data(shape_size(kv_shape));
+    std::vector<float> new_v_data(shape_size(kv_shape));
+    for (int64_t row = 0; row < S; ++row)
+        for (int64_t col = 0; col < HEAD_SIZE; ++col) {
+            new_k_data[row * HEAD_SIZE + col] = 100.0f + static_cast<float>(row);
+            new_v_data[row * HEAD_SIZE + col] = 200.0f + static_cast<float>(row);
+        }
+    std::vector<float> past_k_data(shape_size(past_shape));
+    std::vector<float> past_v_data(shape_size(past_shape));
+    for (int64_t row = 0; row < past_rows; ++row)
+        for (int64_t col = 0; col < HEAD_SIZE; ++col) {
+            past_k_data[row * HEAD_SIZE + col] = static_cast<float>(row);
+            past_v_data[row * HEAD_SIZE + col] = static_cast<float>(row);
+        }
+    std::vector<int32_t> seqlens_k_data{4};
+    std::vector<int32_t> query_seqlens_data{2};
+
+    ov::TensorVector inputs{ov::Tensor(f32, q_shape, q_data.data()),
+                            ov::Tensor(f32, kv_shape, new_k_data.data()),
+                            ov::Tensor(f32, kv_shape, new_v_data.data()),
+                            ov::Tensor(f32, past_shape, past_k_data.data()),
+                            ov::Tensor(f32, past_shape, past_v_data.data()),
+                            ov::Tensor(element::i32, batch, seqlens_k_data.data()),
+                            ov::Tensor(element::i32, batch, query_seqlens_data.data())};
+    ov::TensorVector outputs(model->get_output_size());
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+    const auto expected_present_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), total_sequence_length, HEAD_SIZE};
+    EXPECT_EQ(outputs[0].get_shape(), expected_present_shape)
+        << "unsliced present_key must follow total_sequence_length";
+    EXPECT_EQ(outputs[1].get_shape(), expected_present_shape)
+        << "unsliced present_value must follow total_sequence_length";
+
+    const auto* present_key = outputs[0].data<float>();
+    const auto* present_value = outputs[1].data<float>();
+    // Rows before the write window (the unwritten past prefix) must survive untouched.
+    for (int64_t row = 0; row < kept_past; ++row) {
+        EXPECT_FLOAT_EQ(present_key[row * HEAD_SIZE], static_cast<float>(row))
+            << "past prefix row " << row << " clobbered";
+        EXPECT_FLOAT_EQ(present_value[row * HEAD_SIZE], static_cast<float>(row))
+            << "past prefix row " << row << " clobbered";
+    }
+    // [kept_past, kept_past + S) must hold the new chunk, overwriting any stale past rows in the overlap.
+    for (int64_t row = 0; row < S; ++row) {
+        EXPECT_FLOAT_EQ(present_key[(kept_past + row) * HEAD_SIZE], 100.0f + static_cast<float>(row))
+            << "new chunk row " << row << " not written at kept_past + row";
+        EXPECT_FLOAT_EQ(present_value[(kept_past + row) * HEAD_SIZE], 200.0f + static_cast<float>(row))
+            << "new chunk row " << row << " not written at kept_past + row";
     }
 }
 
