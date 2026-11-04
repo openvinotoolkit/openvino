@@ -320,6 +320,7 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_test_params{64, 8, 3, 4096, 2, true},
         sdpa_test_params{128, 8, 4, 1024, 1, false},
         sdpa_test_params{128, 8, 5, 1024, 1, false},
+        sdpa_test_params{64, 8, 3, 33024, 1, false},  // 129 key partitions: more than the finalization stage merges
         sdpa_test_params{64, 32, 128, 128, 2, true, data_types::bf16},   // bf16 dynamic
         sdpa_test_params{64, 32, 128, 128, 2, false, data_types::bf16},  // bf16 static
         sdpa_test_params{64, 10, 77, 77, 1, true, data_types::bf16}      // bf16 two ranks mask
@@ -494,21 +495,23 @@ TEST(sdpa_gpu_causal_mask, decode_32q_8kv_1024seq) {
 // against a host reference. Sink logits dominate the softmax denominator, so a missing renormalization
 // shows up as an output scale error that is checked element-wise (cosine similarity is scale-invariant).
 // The scalar mask keeps micro SDPA out, so the regular multi-token sdpa_opt kernel is exercised.
-struct sdpa_gpu_sink_test : public ::testing::TestWithParam<std::tuple<bool, int>> {
+// A few query rows over several key partitions must not take the partitioned single-token kernel, which adds the sink
+// once per partition.
+struct sdpa_gpu_sink_test : public ::testing::TestWithParam<std::tuple<bool, int, int>> {
     static std::string PrintToStringParamName(const testing::TestParamInfo<ParamType>& info) {
-        const auto [use_flashattn_v2, seq_kv] = info.param;
-        return std::string(use_flashattn_v2 ? "flashattn_v2" : "no_flashattn_v2") + "_kv" + std::to_string(seq_kv);
+        const auto [use_flashattn_v2, seq_q, seq_kv] = info.param;
+        return std::string(use_flashattn_v2 ? "flashattn_v2" : "no_flashattn_v2") + "_q" + std::to_string(seq_q) + "_kv" +
+               std::to_string(seq_kv);
     }
 };
 
 TEST_P(sdpa_gpu_sink_test, matches_independent_reference) {
-    const auto [use_flashattn_v2, seq_kv] = GetParam();
+    const auto [use_flashattn_v2, seq_q, seq_kv] = GetParam();
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
     constexpr int num_heads = 4;
-    constexpr int seq_q = 32;
     constexpr int head_size = 64;
 
     const layout q_layout({1, num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
@@ -606,7 +609,7 @@ TEST_P(sdpa_gpu_sink_test, matches_independent_reference) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_sink,
                          sdpa_gpu_sink_test,
-                         ::testing::Combine(::testing::Bool(), ::testing::Values(32, 300)),
+                         ::testing::Combine(::testing::Bool(), ::testing::Values(32, 3), ::testing::Values(32, 300)),
                          sdpa_gpu_sink_test::PrintToStringParamName);
 
 struct micro_sdpa_prefetch_k_params {
@@ -2003,7 +2006,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_channel,
                                            sdpa_test_params{128, 40, 10, 512, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 10, 1, 512, 1, 8, true},
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 8, true},
-                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true},
+                                           // Few query rows (stacked GQA heads at decode) need the micro kernel too
+                                           sdpa_test_params{128, 40, 10, 3, 512, 1, 4, false},
+                                           sdpa_test_params{128, 40, 10, 3, 512, 1, 8, false}),
                          sdpa_gpu_compressed_kv_per_channel_test::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_token,

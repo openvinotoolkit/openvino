@@ -32,8 +32,17 @@ namespace {
 // Single-token kernel reads the keys once per row (Arc B390, 4K keys: +0.3% at 6 rows, -9% at 8, -26% at 16).
 constexpr int64_t max_single_token_rows = 4;
 
+// Several query rows stay on the multi-token kernels where the single-token stages are not exact for them:
+// per-channel compressed KV needs the micro kernel, every key partition adds the sink to its softmax sum,
+// and the finalization stage merges at most get_max_partitions_num() partitions.
+bool single_token_supports_query_rows(const RuntimeParams& params) {
+    return !SDPAOpt::has_per_channel_compressed_kv(params) && !params.typed_desc<scaled_dot_product_attention>()->has_sink_input &&
+           get_partitions_num(params, SDPAStage::SINGLE_TOKEN) <= get_max_partitions_num();
+}
+
 bool use_multi_token_stage(const RuntimeParams& params) {
-    return get_target_seq_len(params) > max_single_token_rows;
+    const auto query_rows = get_target_seq_len(params);
+    return query_rows > max_single_token_rows || (query_rows > 1 && !single_token_supports_query_rows(params));
 }
 
 // Micro single-token kernel has no key partitions, so it is used for one query row only.
@@ -193,14 +202,13 @@ public:
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
         std::vector<BufferDescriptor> internal_buffers;
-        auto desc = params.typed_desc<scaled_dot_product_attention>();
-        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
         auto params_canonicalization = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
-        const auto head_size = get_head_size(params_canonicalization.get_input_layout(0), extended_input_q_transpose_order);
+        // exp_sums and max_logits hold one value per output row and partition; the output is V_HEAD_SIZE wide
+        const auto v_head_size = SDPABase::get_effective_v_head_size(params_canonicalization);
 
         const auto num_of_partitions = get_partitions_num(params_canonicalization, SDPAStage::SINGLE_TOKEN);
         const auto multi_token_rows = use_multi_token_stage(params_canonicalization);
-        const size_t buf_elements_count = (num_of_partitions == 1 || multi_token_rows) ? 1 : params.output_layouts[0].count() / head_size * num_of_partitions;
+        const size_t buf_elements_count = (num_of_partitions == 1 || multi_token_rows) ? 1 : params.output_layouts[0].count() / v_head_size * num_of_partitions;
         const size_t tmp_out_elements_count = (num_of_partitions == 1 || multi_token_rows) ? 2 : params.output_layouts[0].count() * num_of_partitions;
 
         internal_buffers.emplace_back(buf_elements_count, ov::element::f32);

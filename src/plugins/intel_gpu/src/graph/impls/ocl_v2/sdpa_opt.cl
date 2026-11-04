@@ -2845,8 +2845,6 @@ KERNEL(sdpa_opt)(
 // max_logits    [batch, heads_num, q_len, partition_idx]
 // tmp_out       [batch, heads_num, q_len, partition_idx, head_size]
 
-#define MAX_PARTITIONS_NUM 128
-
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 KERNEL(sdpa_opt_finalization_stage)(
     OPTIONAL_SHAPE_INFO_ARG
