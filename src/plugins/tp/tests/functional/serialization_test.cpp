@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/runtime/core.hpp"
 #include "tp_test_models.hpp"
 
@@ -277,6 +278,58 @@ TEST_F(TPSerializationTest, ImportRejectsTruncatedHeader) {
     std::stringstream truncated(full.substr(0, 14));
 
     EXPECT_THROW(core.import_model(truncated, tp_device(world_size), tp_config()), ov::Exception);
+}
+
+// A property that changes the rank blobs, given for the rank devices only,
+// must still lead to a cache entry of its own.
+TEST_F(TPSerializationTest, CacheKeyCoversRankDeviceProperties) {
+    auto model = make_transformer_block(BlockConfig{});
+    core.set_property(ov::cache_dir(cache_dir()));
+    for (const auto precision : {ov::element::f32, ov::element::f16}) {
+        auto compiled = core.compile_model(model,
+                                           tp_device(world_size),
+                                           ov::device::properties("GPU", ov::hint::inference_precision(precision)));
+        EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache)) << precision;
+        EXPECT_EQ(compiled.get_property(ov::hint::inference_precision), precision);
+    }
+    core.set_property(ov::cache_dir(""));
+}
+
+// The same for a property set on the TP plugin, which forwards it to the ranks.
+TEST_F(TPSerializationTest, CacheKeyCoversPropertiesSetOnTP) {
+    auto model = make_transformer_block(BlockConfig{});
+    core.set_property(ov::cache_dir(cache_dir()));
+    for (const auto precision : {ov::element::f32, ov::element::f16}) {
+        core.set_property("TP", ov::hint::inference_precision(precision));
+        auto compiled = core.compile_model(model, tp_device(world_size));
+        EXPECT_FALSE(compiled.get_property(ov::loaded_from_cache)) << precision;
+        EXPECT_EQ(compiled.get_property(ov::hint::inference_precision), precision);
+    }
+    core.set_property(ov::cache_dir(""));
+}
+
+// Weightless caching keeps the weights out of the blob and reads them back from
+// the model's .bin, where they are whole; every rank needs its own slice.
+TEST_F(TPSerializationTest, WeightlessCacheRestoresTheRankWeights) {
+    BlockConfig config;
+    const auto input = make_input(config);
+    const auto xml = std::filesystem::path(cache_dir()) / "model" / "block.xml";
+    ov::save_model(make_transformer_block(config), xml.string(), /*compress_to_fp16=*/false);
+
+    ov::Tensor reference;
+    {
+        auto compiled = core.compile_model(xml.string(), tp_device(world_size), tp_config());
+        reference = infer_to_host(compiled, input);
+    }
+
+    auto config_with_cache = tp_config();
+    config_with_cache[ov::cache_dir.name()] = (std::filesystem::path(cache_dir()) / "blobs").string();
+    config_with_cache[ov::cache_mode.name()] = ov::CacheMode::OPTIMIZE_SIZE;
+    for (int pass = 0; pass < 2; ++pass) {
+        auto compiled = core.compile_model(xml.string(), tp_device(world_size), config_with_cache);
+        EXPECT_EQ(compiled.get_property(ov::loaded_from_cache), pass == 1) << "pass " << pass;
+        expect_identical(reference, infer_to_host(compiled, input));
+    }
 }
 
 }  // namespace

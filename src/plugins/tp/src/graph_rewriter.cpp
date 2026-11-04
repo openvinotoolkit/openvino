@@ -16,6 +16,7 @@
 
 #include "ov_ops/tp_collective.hpp"
 #include "tp/tp_debug.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
@@ -590,6 +591,20 @@ std::shared_ptr<ov::op::v0::Constant> pre_slice_constant(const std::shared_ptr<o
     }
 
     sliced->get_rt_info() = c->get_rt_info();  // preserve decompression markers
+
+    // The weightless cache reads a constant back from the model's .bin, where
+    // only a contiguous slice of an unconverted constant is found as it is.
+    auto& rt_info = sliced->get_rt_info();
+    if (const auto it = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static()); it != rt_info.end()) {
+        const auto attr = it->second.as<ov::WeightlessCacheAttribute>();
+        if (outer == 1 && attr.original_dtype == et && attr.original_size == c->get_byte_size()) {
+            it->second = ov::WeightlessCacheAttribute(elems_to_bytes(shard_elems),
+                                                      attr.bin_offset + elems_to_bytes(offset_elems),
+                                                      et);
+        } else {
+            rt_info.erase(it);
+        }
+    }
     return sliced;
 }
 

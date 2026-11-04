@@ -467,6 +467,10 @@ std::vector<ov::PropertyName> Plugin::rank_caching_properties(const ov::AnyMap& 
 }
 
 ov::Any Plugin::aggregate_rank_property(const std::string& name, const ov::AnyMap& arguments) const {
+    // Set on TP, the value reaches every rank in place of the device plugin's own.
+    if (const auto it = m_device_config.find(name); it != m_device_config.end()) {
+        return it->second;
+    }
     // A TP blob is a container of one device-plugin blob per rank, so anything
     // that makes a single rank's blob unique makes the whole thing unique.
     // Values are joined across ranks so a heterogeneous set of devices cannot
@@ -488,6 +492,8 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::capabilities.name(), ov::PropertyMutability::RO},
+            // The core hands it over on a weightless cache load; the ranks read their weights from it.
+            ov::PropertyName{ov::weights_path.name(), ov::PropertyMutability::RW},
         };
 
         const auto own = m_config.supported_properties();
@@ -505,7 +511,15 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         auto properties = rank_caching_properties(arguments);
         properties.emplace_back(ov::device::priorities.name(), ov::PropertyMutability::RW);
         properties.emplace_back(ov::tp::tp_strategy.name(), ov::PropertyMutability::RW);
+        // Properties for single rank devices change their blobs as well.
+        properties.emplace_back(ov::device::properties.name(), ov::PropertyMutability::RW);
         return properties;
+    } else if (name == ov::device::properties.name()) {
+        const auto it = m_device_config.find(name);
+        return it != m_device_config.end() ? it->second : ov::Any{ov::AnyMap{}};
+    } else if (name == ov::weights_path.name()) {
+        const auto it = m_device_config.find(name);
+        return it != m_device_config.end() ? it->second : ov::Any{std::string{}};
     } else if (m_config.owns(name)) {
         // Unset options answer with their default rather than refusing: the
         // cache hash queries every caching property before any topology has

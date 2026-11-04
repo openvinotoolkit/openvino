@@ -181,8 +181,13 @@ Things to know:
   their own: the TP entry already contains them.
 - **It is not portable.** Like any GPU blob, it is tied to the driver and
   hardware it was compiled on.
-- **Weights are stored in full.** Weightless caching is not wired up, so the
-  entry is roughly the size of the model.
+- **Weightless caching works** (`ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE)`
+  with a model read from IR). A rank weight that is a contiguous slice of a
+  weight in the model's `.bin` is read back from there; the others (slices
+  across rows) stay in the entry. Llama-3.1-8B int4: 1.37 GB on two ranks,
+  1.39 GB on four, instead of 6.05 / 7.12 GB.
+- **Properties for the rank devices are part of the cache key**, whether given
+  in the call (`ov::device::properties(...)`) or set on `TP`.
 - `compiled.get_property(ov::loaded_from_cache)` tells you which path was
   taken.
 

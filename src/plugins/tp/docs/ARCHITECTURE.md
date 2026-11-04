@@ -652,9 +652,17 @@ importing it against a different device set is rejected.
 `ov::cache_dir` works because the plugin advertises
 `ov::device::capability::EXPORT_IMPORT` and answers
 `ov::internal::caching_properties` — the rank device plugin's list plus the
-device list (`ov::device::priorities`) and `TP_STRATEGY`, so two topologies
-cannot collide on one hash. Values of the device plugin's
-caching properties are aggregated across the rank devices and joined with `;`.
+device list (`ov::device::priorities`), `TP_STRATEGY` and
+`ov::device::properties`, so two topologies, or two configurations of the
+rank devices, cannot collide on one hash. A device plugin's caching property
+set on `TP` is taken as it is; otherwise the device plugin's values are
+aggregated across the rank devices and joined with `;`.
+
+Weightless caching (`OPTIMIZE_SIZE`): the rewriter gives a rank weight that is
+a contiguous slice of an unconverted constant its own offset and size in the
+model's `.bin` (`WeightlessCacheAttribute`), and drops the attribute from any
+other slice, which then stays in the blob. On import the core passes
+`ov::weights_path`, which the plugin supports and forwards to the ranks.
 
 ## Lifetime and Threading
 
@@ -738,7 +746,8 @@ Dev properties: [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables)
   always creates the rank contexts itself. The compiled model's own context
   gives out host tensors only; a device tensor would be one model-level
   tensor on one rank.
-- Weightless caching is not wired up, so a cache entry carries the full weights.
+- Weightless caching stores only the rank weights that are not a contiguous
+  slice of a weight in the model's `.bin` (slices across rows).
 - `ov::num_streams` must be 1: a collective call is matched across the ranks
   by the channel of the rank model's stream, and the stream that runs a
   request is picked per request. Anything else is rejected.
