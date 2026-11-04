@@ -8,18 +8,15 @@
 #include <vector>
 
 #include "../logging.hpp"
+#include "cut_lm_head.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/tanh.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -30,9 +27,22 @@ namespace opp = ov::pass::pattern;
 
 namespace {
 
+// `subtract` is the dequantization Subtract(Convert(W_u8), Convert(Z_u8)) of the LM head.
 void insert_sub128_shifts(const std::shared_ptr<ov::op::v1::Subtract>& subtract) {
     const auto weight_convert = subtract->input_value(0);
     const auto zerop_convert = subtract->input_value(1);
+    const auto is_u8_convert = [](const ov::Output<ov::Node>& value) {
+        const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(value.get_node_shared_ptr());
+        return convert && convert->get_input_element_type(0) == ov::element::u8;
+    };
+    OPENVINO_ASSERT(is_u8_convert(weight_convert) && is_u8_convert(zerop_convert),
+                    "InsertVocabSub128: both inputs of '",
+                    subtract->get_friendly_name(),
+                    "' must be Convert ops from u8");
+    OPENVINO_ASSERT(weight_convert.get_element_type() == zerop_convert.get_element_type(),
+                    "InsertVocabSub128: weight and zero point of '",
+                    subtract->get_friendly_name(),
+                    "' must be converted to one element type");
     const auto compute_type = weight_convert.get_element_type();
     const auto shift = ov::op::v0::Constant::create(compute_type, ov::Shape{}, {128});
 
@@ -69,21 +79,9 @@ public:
         const auto hidden = opp::any_input();
         const auto matmul = opp::wrap_type<ov::op::v0::MatMul>({hidden, qconvert});
 
-        // Keep this terminal pattern aligned with CutLMHead: only vocabulary MatMuls
-        // that form an LM-head result are eligible for Sub128 insertion.
-        const auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
-        const auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-        const auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
-        const auto matmul_divide = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-        const auto tanh = opp::wrap_type<ov::op::v0::Tanh>({matmul_divide});
-        const auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
-        const auto lm_head_output = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
-                                                                                   matmul_add->output(0),
-                                                                                   matmul_transpose->output(0),
-                                                                                   matmul_convert->output(0),
-                                                                                   matmul_multiply->output(0),
-                                                                                   matmul_divide->output(0)});
-        const auto result = opp::wrap_type<ov::op::v0::Result>({lm_head_output->output(0)});
+        // Only vocabulary MatMuls that form an LM-head result are eligible for Sub128 insertion.
+        const ov::npuw::patterns::LMHeadTerminal terminal(matmul);
+        const auto result = opp::wrap_type<ov::op::v0::Result>({terminal.output});
 
         auto callback = [=](opp::Matcher& matcher) {
             const auto& values = matcher.get_pattern_value_map();
@@ -100,14 +98,14 @@ public:
                 return false;
             }
 
+            // Only the [V, H] layout (transpose_b, scale [V, 1]) can share storage with the
+            // embedding table, so DetectVocabSharing never opens the gate for another layout.
             const auto scale_shape = std::static_pointer_cast<ov::op::v0::Constant>(scale)->get_shape();
-            const bool standard_layout = scale_shape.size() == 2 && scale_shape[1] == 1 &&
-                                         !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b();
-            const bool pretransposed_layout = scale_shape.size() == 2 && scale_shape[0] == 1 &&
-                                              !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b();
+            const bool vocab_layout = scale_shape.size() == 2 && scale_shape[1] == 1 &&
+                                      !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b();
 
             if (weight->get_element_type() != ov::element::u8 || zerop->get_element_type() != ov::element::u8 ||
-                weight->get_shape().size() != 2 || (!standard_layout && !pretransposed_layout)) {
+                weight->get_shape().size() != 2 || !vocab_layout) {
                 return false;
             }
 
@@ -185,15 +183,8 @@ public:
                     const auto node = ov::as_type_ptr<ov::op::v0::MatMul>(output.get_node_shared_ptr());
                     return !node->get_transpose_a();
                 });
-            const auto add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
-            const auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-            const auto convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
-            const auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-            const auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
-            const auto gated = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
-            const auto terminal =
-                std::make_shared<opp::op::Or>(ov::OutputVector{matmul, add, transpose, convert, div, gated});
-            root = opp::wrap_type<ov::op::v0::Result>({terminal}, [](const ov::Output<ov::Node>& output) {
+            const ov::npuw::patterns::LMHeadTerminal terminal(matmul);
+            root = opp::wrap_type<ov::op::v0::Result>({terminal.output}, [](const ov::Output<ov::Node>& output) {
                 return output.get_node_shared_ptr()->get_rt_info().count("manually_added_output") == 0;
             });
         } else {

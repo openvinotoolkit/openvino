@@ -22,6 +22,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "partitioning/partitioning.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "transformations/rt_info/decompression.hpp"
@@ -447,6 +448,40 @@ TEST(DetectVocabSharingTest, RejectsSeparateQuantizedVocabularies) {
     EXPECT_FALSE(shared);
 }
 
+TEST(DetectVocabSharingTest, DetectsDistinctConstantsOverOneBuffer) {
+    // A tied vocabulary read from IR: the embedding and the LM head get two different Constant
+    // nodes, which view one buffer.
+    ov::Tensor weight(ov::element::u8, ov::Shape{4, 2});
+    ov::Tensor zero_point(ov::element::u8, ov::Shape{4, 1});
+    ov::Tensor scale(ov::element::f32, ov::Shape{4, 1});
+    std::fill_n(weight.data<uint8_t>(), weight.get_size(), uint8_t{200});
+    std::fill_n(zero_point.data<uint8_t>(), zero_point.get_size(), uint8_t{128});
+    std::fill_n(scale.data<float>(), scale.get_size(), 1.0f);
+    const auto embedding_weight = std::make_shared<ov::opset10::Constant>(weight);
+    const auto lm_head_weight = std::make_shared<ov::opset10::Constant>(weight);
+    ASSERT_NE(embedding_weight, lm_head_weight);
+    ASSERT_EQ(embedding_weight->get_data_ptr(), lm_head_weight->get_data_ptr());
+    const auto embedding_vocab = make_u8_dequantization(embedding_weight,
+                                                        std::make_shared<ov::opset10::Constant>(zero_point),
+                                                        std::make_shared<ov::opset10::Constant>(scale));
+    const auto lm_head_vocab = make_u8_dequantization(lm_head_weight,
+                                                      std::make_shared<ov::opset10::Constant>(zero_point),
+                                                      std::make_shared<ov::opset10::Constant>(scale));
+
+    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1});
+    auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
+    auto embedding = std::make_shared<ov::opset10::Gather>(embedding_vocab, ids, axis);
+    auto lm_head = std::make_shared<ov::opset10::MatMul>(hidden, lm_head_vocab, false, true);
+    const auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::opset10::Result>(embedding),
+                                                                    std::make_shared<ov::opset10::Result>(lm_head)},
+                                                   ov::ParameterVector{ids, hidden});
+    bool shared = false;
+
+    EXPECT_FALSE(ov::npuw::DetectVocabSharing(shared).run_on_model(model));
+    EXPECT_TRUE(shared);
+}
+
 TEST(DetectVocabSharingTest, DetectsSharedSymmetricI4Vocabulary) {
     bool shared = false;
     ov::npuw::DetectVocabSharing pass(shared);
@@ -736,21 +771,15 @@ TEST(ConvertDQVocabTest, ReplacesMarkedShiftsWithLazySources) {
     EXPECT_EQ(count_sub128_shifts(model), 0u);
 }
 
-using VocabSub128TestParams = std::tuple<bool, bool>;
-
-class InsertVocabSub128PrePostProcessingTest : public ::testing::TestWithParam<VocabSub128TestParams> {
+class InsertVocabSub128PrePostProcessingTest : public ::testing::TestWithParam<bool> {
 public:
-    static std::string getTestCaseName(const ::testing::TestParamInfo<VocabSub128TestParams>& info) {
-        const auto [pretransposed_layout, convert_before_matmul] = info.param;
-        return std::string(pretransposed_layout ? "Pretransposed" : "Standard") +
-               (convert_before_matmul ? "WithConvert" : "DirectMatMul");
+    static std::string getTestCaseName(const ::testing::TestParamInfo<bool>& info) {
+        return info.param ? "WithConvert" : "DirectMatMul";
     }
 };
 
 TEST_P(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
-    const auto [pretransposed_layout, convert_before_matmul] = GetParam();
-    const auto model = pretransposed_layout ? make_pretransposed_vocab_matmul_model(convert_before_matmul)
-                                            : make_vocab_matmul_model(convert_before_matmul);
+    const auto model = make_vocab_matmul_model(GetParam());
     EXPECT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
     EXPECT_EQ(count_subtracts(model), 3u);
     EXPECT_EQ(count_sub128_shifts(model), 2u);
@@ -773,13 +802,19 @@ TEST_P(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
     EXPECT_TRUE(contains_node(model, "vocab_zero_point_convert"));
 }
 
-INSTANTIATE_TEST_SUITE_P(LayoutAndConversion,
+INSTANTIATE_TEST_SUITE_P(Conversion,
                          InsertVocabSub128PrePostProcessingTest,
-                         ::testing::Values(std::make_tuple(false, false),
-                                           std::make_tuple(false, true),
-                                           std::make_tuple(true, false),
-                                           std::make_tuple(true, true)),
+                         ::testing::Bool(),
                          InsertVocabSub128PrePostProcessingTest::getTestCaseName);
+
+TEST(InsertVocabSub128Test, SkipsPretransposedLayout) {
+    // A [H, V] LM head cannot share storage with the [V, H] embedding table.
+    for (const bool convert_before_matmul : {false, true}) {
+        const auto model = make_pretransposed_vocab_matmul_model(convert_before_matmul);
+        EXPECT_FALSE(ov::npuw::InsertVocabSub128().run_on_model(model));
+        EXPECT_EQ(count_sub128_shifts(model), 0u);
+    }
+}
 
 class InsertVocabSub128LmHeadTerminalTest : public ::testing::TestWithParam<VocabMatMulTerminal> {
 public:

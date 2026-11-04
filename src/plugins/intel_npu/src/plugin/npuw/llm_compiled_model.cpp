@@ -922,7 +922,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (shared_vocab) {
             ov::npuw::InsertVocabSub128 pass;
             if (!pass.run_on_model(kvcache_model)) {
-                LOG_WARN("No asymmetric u8 vocab found - vocab sharing is skipped.");
+                // Sharing was detected, but the shared vocabulary is not u8 asymmetric (e.g. f16 or i4).
+                LOG_INFO("Shared vocabulary is not asymmetric u8 - graph Sub128 insertion is skipped.");
             }
         }
     }
