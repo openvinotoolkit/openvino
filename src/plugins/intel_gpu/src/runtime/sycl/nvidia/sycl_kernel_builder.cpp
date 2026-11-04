@@ -58,9 +58,11 @@ namespace {
 // (1) '.param .u64 .ptr .shared .align N' parameters
 //     The NVIDIA OCL compiler (NVVM) emits this decoration for __local pointer
 //     arguments.  cuModuleLoadData rejects modules that contain it with
-//     CUDA_ERROR_INVALID_IMAGE.  Strip the '.ptr .shared .align N' part so the
-//     parameter becomes a plain .u64.  The host-side launch code already passes
-//     the correct byte offset into dynamic shared memory as the argument value.
+//     CUDA_ERROR_INVALID_IMAGE, so the decoration is turned into a comment and
+//     the parameter becomes a plain .u64.  The comment keeps N - the alignment
+//     the kernel assumes for that argument (16, or more for wide vector types) -
+//     in the PTX, cached binaries included, so the launch can place the argument
+//     at an offset into shared memory that honours it.
 //
 // (2) '%envreg[0-8]' special registers
 //     The NVIDIA OCL compiler (NVVM) maps OpenCL work-item functions to a set
@@ -80,12 +82,12 @@ namespace {
 //       %envreg6     → %nctaid.x (grid X dimension set by cuLaunchKernel)
 //       %envreg7     → %nctaid.y
 //       %envreg8     → %nctaid.z
-// Strip '.ptr .shared .align N' — cuModuleLoadData rejects it (CUDA_ERROR_INVALID_IMAGE).
-// NVVM emits it for __local pointer parameters.
+// Turn '.ptr .shared .align N' into a comment - cuModuleLoadData rejects it (CUDA_ERROR_INVALID_IMAGE) - keeping
+// the alignment for the launch (see ptx_program in sycl_ptx_kernel.hpp). NVVM emits it for __local pointer parameters.
 static void patch_ptx_local(std::string& ptx) {
     static const std::regex shared_param_re(
-        R"(\.param \.u64 \.ptr \.shared \.align \d+)");
-    ptx = std::regex_replace(ptx, shared_param_re, ".param .u64");
+        R"(\.param \.u64 \.ptr \.shared \.align (\d+))");
+    ptx = std::regex_replace(ptx, shared_param_re, ".param .u64 /* .ptr .shared .align $1 */");
 }
 
 // Replace '%envreg[0-5]' with 0 and '%envreg[6-8]' with the corresponding

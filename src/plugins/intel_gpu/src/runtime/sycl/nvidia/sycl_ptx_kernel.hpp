@@ -42,6 +42,9 @@ struct cuda_function {
     std::shared_ptr<cuda_module> module;
     void* cu_function{nullptr};    // CUfunction
     int max_threads_per_block{0};  // CU_FUNC_ATTRIBUTE_MAX_THREADS_PER_BLOCK of cu_function
+    // CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES of cu_function: its static .shared variables, which sit at the start of the
+    // .shared window, ahead of the dynamic shared memory the __local arguments are placed in.
+    int static_shared_bytes{0};
 };
 
 // The PTX of one compiled batch and the CUDA modules loaded from it, shared by every entry point of
@@ -53,9 +56,18 @@ public:
     // so a kernel launched through a non-identity mapping needs its own rewritten module.
     static constexpr size_t mapping_count = 6;
 
-    explicit ptx_program(std::string ptx) : _ptx(std::move(ptx)) {}
+    // The largest alignment an OpenCL type needs (double16, long16), used for a __local parameter whose alignment
+    // the PTX does not record: binaries cached before patch_ptx_local kept it.
+    static constexpr uint32_t default_local_alignment = 128;
+
+    explicit ptx_program(std::string ptx);
 
     const std::string& source() const { return _ptx; }
+
+    // Alignment, by parameter index, that each __local pointer parameter of entry point `kernel_name` needs: the
+    // N of the '.align N' NVVM declares, which patch_ptx_local keeps as a comment. Entries for other parameters are
+    // 0, and the vector is empty for an entry point the PTX does not have.
+    const std::vector<uint32_t>& local_param_alignments(const std::string& kernel_name) const;
 
     // Module for the given dimension mapping, loaded on first use (inside host_task).  requested_by
     // names the kernel that asked for it in error messages.
@@ -68,6 +80,8 @@ public:
 
 private:
     const std::string _ptx;
+    // local_param_alignments of every entry point, read from the PTX once.
+    std::map<std::string, std::vector<uint32_t>> _local_alignments;
 
     std::array<std::once_flag, mapping_count> _module_once;
     std::array<std::shared_ptr<cuda_module>, mapping_count> _modules;
@@ -93,6 +107,8 @@ struct ptx_kernel_state {
 
     const std::shared_ptr<ptx_program> program;
     const std::string kernel_name;
+    // ptx_program::local_param_alignments for this entry point, looked up once rather than at every launch.
+    const std::vector<uint32_t> local_alignments;
 
 private:
     std::array<std::once_flag, ptx_program::mapping_count> _function_once;
