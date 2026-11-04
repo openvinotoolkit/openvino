@@ -566,7 +566,7 @@ void GridSampleKernel<x64::avx512_core>::zerosPadding(const Vmask& kDst, const V
     zerosPaddingH(kDst, vHCoord, kDst);
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::zerosPaddingW(const Vmask& kDst, const Vmm& vCoord) {
     auto vAux = getVmm();
     Vmm vZerosTmp;
@@ -591,7 +591,7 @@ void GridSampleKernel<isa>::zerosPaddingW(const Vmask& kDst, const Vmm& vCoord) 
     uni_vandps(kDst, kDst, vAux);                    // vZeros <= vWCoord < vSrcWidthF
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::zerosPaddingH(const Vmask& kDst, const Vmm& vCoord, const Vmask& kMaskW) {
     auto vAux = getVmm();
     Vmm vZerosTmp;
@@ -617,7 +617,7 @@ void GridSampleKernel<isa>::zerosPaddingH(const Vmask& kDst, const Vmm& vCoord, 
     uni_vandps(kDst, kDst, vAux);
 }
 
-template <x64::cpu_isa_t isa>  // Works for AVX2, AVX
+template <x64::cpu_isa_t isa>  // Works for AVX2
 void GridSampleKernel<isa>::zerosPadding(const Vmask& kDst, const Vmm& vHCoord, const Vmm& vWCoord) {
     bool releaseZeroVec = false;
     if (!vZeros.isInitialized()) {
@@ -914,53 +914,6 @@ void GridSampleKernel<x64::avx2>::bicubicCoefficients(const Vmm& vCoef, const Vm
         uni_vmulps(vCoef, vDDim, ptr[rAux]);
         uni_vmulps(vCoef, vCoef, vDDim);
         uni_vfnmadd132ps(vCoef, vCoef, vDDim);
-    }
-}
-
-template <>
-void GridSampleKernel<x64::avx>::bicubicCoefficients(const Vmm& vCoef, const Vmm& vDDim, const uint8_t idx) {
-    static const size_t elPerVec = x64::cpu_isa_traits_t<x64::avx>::vlen / sizeof(float);
-    static const float const_0_75[elPerVec] = {-0.75F, -0.75F, -0.75F, -0.75F, -0.75F, -0.75F, -0.75F, -0.75F};
-    static const float const_1_25[elPerVec] = {1.25F, 1.25F, 1.25F, 1.25F, 1.25F, 1.25F, 1.25F, 1.25F};
-    static const float const_1_50[elPerVec] = {1.5F, 1.5F, 1.5F, 1.5F, 1.5F, 1.5F, 1.5F, 1.5F};
-    static const float const_2_00[elPerVec] = {2.F, 2.F, 2.F, 2.F, 2.F, 2.F, 2.F, 2.F};
-    static const float const_2_25[elPerVec] = {2.25F, 2.25F, 2.25F, 2.25F, 2.25F, 2.25F, 2.25F, 2.25F};
-
-    auto rAux = getReg64();
-    auto vAux = getVmm();
-
-    if (idx == 0) {
-        uni_vmovups(vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_2_00));
-        uni_vfnmadd132ps(vCoef, vOnesF, ptr[rAux]);
-        uni_vmulps(vAux, vDDim, vDDim);
-        uni_vaddps(vCoef, vCoef, vAux);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_0_75));
-        uni_vmulps(vCoef, vCoef, ptr[rAux]);
-    } else if (idx == 1) {
-        mov(rAux, reinterpret_cast<uintptr_t>(const_1_25));
-        uni_vmulps(vCoef, vDDim, ptr[rAux]);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_2_25));
-        uni_vsubps(vCoef, vCoef, ptr[rAux]);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        uni_vfmadd132ps(vCoef, vOnesF, vDDim);
-    } else if (idx == 2) {
-        mov(rAux, reinterpret_cast<uintptr_t>(const_1_25));
-        uni_vmulps(vAux, vDDim, ptr[rAux]);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_1_50));
-        uni_vmovups(vCoef, ptr[rAux]);
-        uni_vsubps(vCoef, vCoef, vAux);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        mov(rAux, reinterpret_cast<uintptr_t>(const_0_75));
-        uni_vsubps(vCoef, vCoef, ptr[rAux]);
-        uni_vmulps(vCoef, vCoef, vDDim);
-    } else if (idx == 3) {
-        mov(rAux, reinterpret_cast<uintptr_t>(const_0_75));
-        uni_vmulps(vCoef, vDDim, ptr[rAux]);
-        uni_vmulps(vCoef, vCoef, vDDim);
-        uni_vmulps(vAux, vCoef, vDDim);
-        uni_vsubps(vCoef, vCoef, vAux);
     }
 }
 
@@ -1332,12 +1285,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         if (jcp.inDataPrc == ov::element::i32) {
             uni_vcvtdq2ps(vAux, vAux);
         }
-        if (isa == x64::avx2) {
-            uni_vfmsub231ps(vQ0, vAux, vDX);  // q0 = -q0 + dx * v01
-        } else {
-            uni_vmulps(vAux, vAux, vDX);
-            uni_vaddps(vQ0, vQ0, vAux);
-        }
+        uni_vfmsub231ps(vQ0, vAux, vDX);  // q0 = -q0 + dx * v01
 
         // (y + 1; x + 1)
         if (jcp.paddingMode == GridSamplePaddingMode::ZEROS) {
@@ -1378,17 +1326,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         }
 
         // q1 = -(v10 - dx * v10)
-        if (isa == x64::avx2) {
-            uni_vfmsub213ps(vQ1, vDX, vQ1);
-        } else {
-            uni_vmulps(vGatherMask, vQ1, vDX);
-            if (isa == x64::avx) {
-                uni_vsubps(vQ1, vGatherMask, vQ1);
-            } else {
-                uni_vsubps(vGatherMask, vGatherMask, vQ1);
-                uni_vmovups(vQ1, vGatherMask);
-            }
-        }
+        uni_vfmsub213ps(vQ1, vDX, vQ1);
         uni_vfmsub231ps(vQ1, vAux, vDX);  // q1 = -q1 + dx * v11
         // Res = q0 + dy * (q1 - q0)
         uni_vsubps(vQ1, vQ1, vQ0);
@@ -1844,59 +1782,26 @@ void GridSampleKernel<isa>::dataTypeShiftPs2Dq(const Vmm& vDst, const Vmm& vSrc)
         return;
     }
 
-    if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
-        auto rAux = getReg64();
-        static const auto val = static_cast<float>(dataTypeSize);
-        static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
-        mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
-        uni_vmulps(vDst, vSrc, ptr[rAux]);
-        uni_vcvtps2dq(vDst, vDst);
-    } else {
-        uni_vcvtps2dq(vDst, vSrc);
-        if (dataTypeSize > 1) {
-            uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
-        }
-    }
+    uni_vcvtps2dq(vDst, vSrc);
+    uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
 }
 
 template <x64::cpu_isa_t isa>
 void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, const Vmm& vWCoord, const Vmm& vWidth) {
     if (vDst.getIdx() == vWCoord.getIdx()) {
-        if (any_of(isa, x64::avx512_core, x64::avx2)) {
-            uni_vfmadd231ps(vDst, vHCoord, vWidth);
-        } else {
-            auto vTmp = getVmm();
-            uni_vmulps(vTmp, vHCoord, vWidth);
-            uni_vaddps(vDst, vWCoord, vTmp);
-        }
+        uni_vfmadd231ps(vDst, vHCoord, vWidth);
     } else if (vDst.getIdx() == vHCoord.getIdx()) {
         uni_vfmadd132ps(vDst, vWCoord, vWidth);
     } else if (vDst.getIdx() == vWidth.getIdx()) {
         uni_vfmadd132ps(vDst, vWCoord, vHCoord);
     } else {
-        if (any_of(isa, x64::avx2, x64::avx512_core)) {
-            uni_vmovups(vDst, vWCoord);
-            uni_vfmadd231ps(vDst, vHCoord, vWidth);
-        } else {
-            uni_vmulps(vDst, vHCoord, vWidth);
-            uni_vaddps(vDst, vDst, vWCoord);
-        }
+        uni_vmovups(vDst, vWCoord);
+        uni_vfmadd231ps(vDst, vHCoord, vWidth);
     }
 
-    if (isa == x64::avx) {  // vpslld works just with XMM for AVX, so use vmulps for YMM
-        if (dataTypeSize > 1) {
-            auto rAux = getReg64();
-            const auto val = static_cast<float>(dataTypeSize);
-            static const float dataTypeSizeArr[8] = {val, val, val, val, val, val, val, val};
-            mov(rAux, reinterpret_cast<uintptr_t>(dataTypeSizeArr));
-            uni_vmulps(vDst, vDst, ptr[rAux]);
-        }
-        uni_vcvtps2dq(vDst, vDst);
-    } else {
-        uni_vcvtps2dq(vDst, vDst);
-        if (dataTypeSize > 1) {
-            uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
-        }
+    uni_vcvtps2dq(vDst, vDst);
+    if (dataTypeSize > 1) {
+        uni_vpslld(vDst, vDst, dataTypeShift);  // multiply by source data type size.
     }
 }
 
