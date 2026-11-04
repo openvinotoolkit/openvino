@@ -497,7 +497,14 @@ void GroupQueryAttention::validate_and_infer_types() {
     const bool empty_past = output_kv_len.is_static() && output_kv_len.get_length() == 0;
     const bool dynamic_kv_len = key_ps.rank().is_static() && key_ps[2].is_dynamic();
     if ((!m_sliding_window_cache || empty_past) && !is_shared_kv() && !has_fixed_kv_capacity()) {
-        output_kv_len += dynamic_kv_len ? key_ps[2] : sequence_len;
+        if (!empty_past && has_padded_query()) {
+            // A right-padded chunk's write offset is max(0, total - query_len): a runtime value derived from
+            // seqlens_k/query_seqlens data, not just shapes. The growing-cache capacity (max(past_rows, write
+            // offset + S)) is therefore data-dependent and cannot be bounded by past_rows + S here.
+            output_kv_len = Dimension::dynamic();
+        } else {
+            output_kv_len += dynamic_kv_len ? key_ps[2] : sequence_len;
+        }
     }
 
     set_output_type(0, q_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
