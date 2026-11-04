@@ -533,6 +533,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_compile_for_all = load_config.get_property(ov::intel_auto::compile_for_all);
     if (auto_s_context->m_compile_for_all) {
+        std::vector<const DeviceInformation*> warmup_candidates;
+        for (const auto& device : auto_s_context->m_device_priorities_initial) {
+            if (ov::DeviceIDParser(device.device_name).get_device_name() != "CPU")
+                warmup_candidates.push_back(&device);
+        }
         // A user blob ID does not identify a device, so blobs warmed up for other devices would overwrite each other.
         const bool has_blob_id =
             full_property.count(ov::cache_blob_id.name()) != 0 ||
@@ -555,15 +560,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
                                 })) {
             // Independent of how many devices the host has, so the contract of an explicit true is the same everywhere.
             OPENVINO_THROW(ov::intel_auto::compile_for_all.name(), " requires ov::cache_dir or ov::cache_path to be set");
-        } else if (auto_s_context->m_device_priorities_initial.size() < 2) {
+        } else if (warmup_candidates.empty() || auto_s_context->m_device_priorities_initial.size() < 2) {
             LOG_WARNING_TAG("compile_for_all is ignored: no other candidate device to compile");
             auto_s_context->m_compile_for_all = false;
-        }
-        if (auto_s_context->m_compile_for_all) {
-            // Fallbacks switch devices non-deterministically and would overlap with the background warm-up.
-            LOG_INFO_TAG("compile_for_all disables startup and runtime fallback");
-            auto_s_context->m_startup_fallback = false;
-            auto_s_context->m_runtime_fallback = false;
         }
     }
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
@@ -1068,17 +1067,34 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         get_device_name() != "AUTO" ||
         (properties.count(ov::hint::performance_mode.name()) &&
          properties.at(ov::hint::performance_mode.name()).as<std::string>() == "CUMULATIVE_THROUGHPUT");
-    // The CPU is a warm-up candidate then, so the fallback-driven pruning below must not remove it.
-    const bool keep_cpu_for_warmup = !is_cumulative_tput && properties.count(ov::cache_blob_id.name()) == 0 &&
-                                     properties.count(ov::intel_auto::compile_for_all.name()) &&
-                                     properties.at(ov::intel_auto::compile_for_all.name()).as<bool>();
+    const bool preserve_cpu_for_compile_retry = !is_cumulative_tput &&
+                                                properties.count(ov::cache_blob_id.name()) == 0 &&
+                                                properties.count(ov::intel_auto::compile_for_all.name()) &&
+                                                properties.at(ov::intel_auto::compile_for_all.name()).as<bool>();
     if (device_list_config != properties.end() && !(device_list_config->second.as<std::string>().empty())) {
         auto priorities = device_list_config->second;
         // parsing the string and splitting the comma-separated tokens
         std::vector<std::string> devices_to_be_merged =
             m_plugin_config.parse_priorities_devices(priorities.as<std::string>());
+        bool can_preserve_cpu_for_compile_retry = preserve_cpu_for_compile_retry;
+        if (can_preserve_cpu_for_compile_retry) {
+            for (const auto& device : devices_to_be_merged) {
+                if (device.front() == '-')
+                    continue;
+                try {
+                    const auto device_config = get_core()->get_supported_property(device, properties);
+                    if (device_config.count(ov::cache_blob_id.name())) {
+                        can_preserve_cpu_for_compile_retry = false;
+                        break;
+                    }
+                } catch (const std::exception&) {
+                    can_preserve_cpu_for_compile_retry = false;
+                    break;
+                }
+            }
+        }
         std::size_t num_blob_files = 0;
-        bool if_need_cache_check = !is_cumulative_tput && enable_startup_cpu && !keep_cpu_for_warmup &&
+        bool if_need_cache_check = !is_cumulative_tput && enable_startup_cpu && !can_preserve_cpu_for_compile_retry &&
                                    (model || !model_path.empty()) && properties.count(ov::cache_blob_id.name()) == 0;
         if (if_need_cache_check) {
             for (auto&& device : devices_to_be_merged) {
@@ -1176,7 +1192,7 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
                             continue;
                         }
                         // Disable CPU if enable_startup_cpu and enable_runtime_cpu are both disabled
-                        if (!enable_startup_cpu && !enable_runtime_cpu && !keep_cpu_for_warmup) {
+                        if (!enable_startup_cpu && !enable_runtime_cpu && !can_preserve_cpu_for_compile_retry) {
                             continue;
                         }
                     }

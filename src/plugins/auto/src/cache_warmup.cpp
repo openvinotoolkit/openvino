@@ -96,7 +96,7 @@ const std::string& CacheWarmup::get_log_tag() const noexcept {
 void CacheWarmup::start(const std::string& actual_device, const std::vector<DeviceInformation>& candidates) {
     std::vector<DeviceInformation> devices;
     for (const auto& device : candidates) {
-        if (device.device_name != actual_device) {
+        if (device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU") {
             devices.push_back(device);
         }
     }
@@ -164,14 +164,6 @@ void CacheWarmup::run() {
                                     "supported",
                                     device.device_name.c_str(),
                                     cache_location.string().c_str());
-                } else if (CacheWarmupManager::is_blob_cached(*core,
-                                                              device.device_name,
-                                                              config,
-                                                              model,
-                                                              m_model_path,
-                                                              cache_location)) {
-                    LOG_INFO_TAG("cache pre-compilation skipped for device: %s, cache blob already exists",
-                                 device.device_name.c_str());
                 } else {
                     auto compiled = model ? core->compile_model(model, device.device_name, config)
                                           : core->compile_model(m_model_path, device.device_name, config);

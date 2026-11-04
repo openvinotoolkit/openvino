@@ -205,8 +205,8 @@ the following setup options:
 |                                              | Compiles the model to the remaining candidate devices in the       |
 |                                              | background, after the actual device is ready, to populate cache    |
 |                                              | blobs for faster device switching later. Devices whose cache blob  |
-|                                              | already exists are skipped. The CPU is compiled too when it is     |
-|                                              | not the actual device.                                             |
+|                                              | already exists are skipped. CPU candidates are excluded from       |
+|                                              | background pre-compilation.                                        |
 |                                              |                                                                    |
 |                                              | Enabling it disables ``ov::intel_auto::enable_startup_fallback``   |
 |                                              | and ``ov::intel_auto::enable_runtime_fallback``.                   |

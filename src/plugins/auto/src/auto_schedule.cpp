@@ -87,21 +87,10 @@ void AutoSchedule::init() {
     }
     // initialize cpuHelpReleasetime
     m_cpuhelp_release_time = std::chrono::steady_clock::now();
-    if (m_context->m_compile_for_all) {
-        // Captured now since Plugin releases m_context->m_model once the actual device is ready.
-        m_cache_warmup = std::make_shared<CacheWarmup>(m_plugin->get_cache_warmup_manager(),
-                                                       m_context->m_ov_core,
-                                                       m_context->m_model,
-                                                       m_context->m_model_path,
-                                                       get_log_tag());
-    }
     std::string profilingTask = "AutoSchedule::AutoSchedule:AutoMode";
     // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     m_compile_context[ACTUALDEVICE].m_is_enabled = true;
-    if (m_context->m_runtime_fallback) {
-        m_compile_context[FALLBACKDEVICE].m_is_enabled = true;
-    }
     m_compile_context[ACTUALDEVICE].m_model_precision = m_context->m_model_precision;
     m_compile_context[ACTUALDEVICE].m_meta_devices = m_context->m_device_priorities;
     m_compile_context[ACTUALDEVICE].m_device_info =
@@ -110,6 +99,31 @@ void AutoSchedule::init() {
                                 m_context->m_model_priority,
                                 m_context->m_selection_policy,
                                 m_context->m_low_power_device);
+    if (m_context->m_compile_for_all) {
+        const auto& actual_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+        const auto& candidates = m_compile_context[ACTUALDEVICE].m_meta_devices;
+        const bool has_warmup_candidate = std::any_of(candidates.begin(), candidates.end(), [&](const auto& device) {
+            return device.device_name != actual_device && ov::DeviceIDParser(device.device_name).get_device_name() != "CPU";
+        });
+        if (!has_warmup_candidate) {
+            LOG_WARNING_TAG("compile_for_all is ignored: no other non-CPU candidate device to compile");
+            m_context->m_compile_for_all = false;
+        } else {
+            // Fallbacks switch devices non-deterministically and would overlap with the background warm-up.
+            LOG_INFO_TAG("compile_for_all disables startup and runtime fallback");
+            m_context->m_startup_fallback = false;
+            m_context->m_runtime_fallback = false;
+            // Capture before the actual-device task releases the model.
+            m_cache_warmup = std::make_shared<CacheWarmup>(m_plugin->get_cache_warmup_manager(),
+                                                           m_context->m_ov_core,
+                                                           m_context->m_model,
+                                                           m_context->m_model_path,
+                                                           get_log_tag());
+        }
+    }
+    if (m_context->m_runtime_fallback) {
+        m_compile_context[FALLBACKDEVICE].m_is_enabled = true;
+    }
 
     auto load_device_task = [&](AutoCompileContext* context_ptr, const std::shared_ptr<ov::Model>& model) {
         try_to_compile_model(*context_ptr, model);

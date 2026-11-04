@@ -199,16 +199,43 @@ TEST_F(AutoCacheWarmupTest, ignoredWhenNoOtherCandidateDevice) {
     OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
 }
 
-TEST_F(AutoCacheWarmupTest, warmsUpCpuWhenItIsNotTheActualDevice) {
+TEST_F(AutoCacheWarmupTest, excludesCpuFromBackgroundPreCompilation) {
     set_global_cache("test_cache_dir");
-    set_devices({cpu_device, actual_device});
+    set_devices({cpu_device, "GPU.0", actual_device});
     std::atomic<int> cpu_count{0};
+    std::atomic<int> warmup_count{0};
     on_compile(cpu_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
         cpu_count++;
         return {mockIExeNet, {}};
     });
     on_compile(actual_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
         return {mockIExeNetActual, {}};
+    });
+    auto warmup_compiled_model = make_compiled_model();
+    on_compile("GPU.0", [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        warmup_count++;
+        return {warmup_compiled_model, {}};
+    });
+    config.insert(ov::intel_auto::compile_for_all(true));
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    EXPECT_TRUE(wait_until([&] {
+        return warmup_count.load() == 1;
+    }));
+    EXPECT_FALSE(wait_until([&] {
+        return cpu_count.load() > 0;
+    }, std::chrono::milliseconds(200)));
+}
+
+TEST_F(AutoCacheWarmupTest, doesNotDisableCpuHelperWhenOnlyCpuWouldBeWarmedUp) {
+    set_global_cache("test_cache_dir");
+    set_devices({cpu_device, actual_device});
+    use_default_startup_compilation();
+    std::atomic<int> cpu_count{0};
+    on_compile(cpu_device, [&]() -> ov::SoPtr<ov::ICompiledModel> {
+        cpu_count++;
+        return {mockIExeNet, {}};
     });
     config.insert(ov::intel_auto::compile_for_all(true));
 
@@ -255,11 +282,11 @@ TEST_F(AutoCacheWarmupTest, disablesStartupAndRuntimeFallback) {
     EXPECT_TRUE(wait_until([&] {
         return warmup_count.load() == 1;
     }));
-    // No startup fallback: only the warm-up compiles the CPU, not a CPU helper in addition to it.
-    EXPECT_EQ(cpu_count.load(), 1);
+    // The CPU helper and CPU background pre-compilation are both disabled.
+    EXPECT_EQ(cpu_count.load(), 0);
 }
 
-TEST_F(AutoCacheWarmupTest, skipsDeviceWithCachedBlob) {
+TEST_F(AutoCacheWarmupTest, delegatesCachedBlobValidationToCore) {
     const auto cache_dir = std::filesystem::temp_directory_path() /
                            ("ov_auto_cache_warmup_" +
                             std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -280,7 +307,7 @@ TEST_F(AutoCacheWarmupTest, skipsDeviceWithCachedBlob) {
         npu_count++;
         return {warmup_compiled_model, {}};
     });
-    // Only GPU.0 has a cached blob in this test; make NPU miss by giving it a different compile config.
+    // Core decides whether the existing GPU.0 blob is usable; NPU has a different cache key and also compiles.
     ON_CALL(*core, create_compile_config(StrEq("NPU"), _)).WillByDefault(Return(ov::AnyMap{{"NPU_KEY", "1"}}));
     config.insert(ov::intel_auto::compile_for_all(true));
 
@@ -289,7 +316,7 @@ TEST_F(AutoCacheWarmupTest, skipsDeviceWithCachedBlob) {
     EXPECT_TRUE(wait_until([&] {
         return npu_count.load() == 1;
     }));
-    EXPECT_EQ(gpu_count.load(), 0);
+    EXPECT_EQ(gpu_count.load(), 1);
     compiled_model.reset();
     std::filesystem::remove_all(cache_dir);
 }
@@ -402,7 +429,7 @@ TEST_F(AutoCacheWarmupTest, customBlobIdDoesNotPruneCpuFallback) {
     std::filesystem::remove_all(cache_dir);
 }
 
-TEST_F(AutoCacheWarmupTest, compileForAllKeepsCpuWhenCandidateHasCachedBlob) {
+TEST_F(AutoCacheWarmupTest, compileForAllKeepsCpuRetryCandidateWhenOtherDeviceHasCachedBlob) {
     const auto cache_dir = std::filesystem::temp_directory_path() /
                            ("ov_auto_cache_keep_cpu_blob_" +
                             std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -420,7 +447,7 @@ TEST_F(AutoCacheWarmupTest, compileForAllKeepsCpuWhenCandidateHasCachedBlob) {
     std::filesystem::remove_all(cache_dir);
 }
 
-TEST_F(AutoCacheWarmupTest, compileForAllKeepsCpuWhenBothFallbacksAreDisabled) {
+TEST_F(AutoCacheWarmupTest, compileForAllKeepsCpuRetryCandidateWhenBothFallbacksAreDisabled) {
     set_global_cache("test_cache_dir");
     ov::AnyMap properties = {ov::device::priorities("CPU,GPU"),
                              ov::intel_auto::compile_for_all(true),
@@ -435,6 +462,22 @@ TEST_F(AutoCacheWarmupTest, compileForAllKeepsCpuWhenBothFallbacksAreDisabled) {
                                     ov::intel_auto::enable_runtime_fallback(false)};
     OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(legacy_properties, model, {}));
     EXPECT_EQ(devices.find(cpu_device), std::string::npos);
+}
+
+TEST_F(AutoCacheWarmupTest, deviceScopedBlobIdKeepsLegacyCpuPruning) {
+    ON_CALL(*core, get_supported_property(StrEq("GPU"), _, _))
+        .WillByDefault(Return(ov::AnyMap{{ov::cache_blob_id.name(), std::string{"746352"}}}));
+    ov::AnyMap properties = {ov::device::priorities("CPU,GPU"),
+                             ov::cache_path("test_cache_dir"),
+                             ov::intel_auto::compile_for_all(true),
+                             ov::intel_auto::enable_startup_fallback(false),
+                             ov::intel_auto::enable_runtime_fallback(false),
+                             ov::device::properties(
+                                 ov::AnyMap{{"GPU", ov::AnyMap{{ov::cache_blob_id.name(), std::string{"746352"}}}}})};
+    std::string devices;
+    OV_ASSERT_NO_THROW(devices = plugin->Plugin::get_device_list(properties, model, {}));
+    EXPECT_EQ(devices.find(cpu_device), std::string::npos);
+    EXPECT_NE(devices.find("GPU"), std::string::npos);
 }
 
 class AutoCacheWarmupSharedManagerTest : public AutoCacheWarmupTestBase, public ::testing::Test {
