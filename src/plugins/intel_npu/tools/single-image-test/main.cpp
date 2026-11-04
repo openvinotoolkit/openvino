@@ -1022,6 +1022,8 @@ static ov::Layout getLayoutByRank(const size_t rank) {
         return ov::Layout("NCHW");
     case 5:
         return ov::Layout("NCDHW");
+    case 6:
+        return ov::Layout("NTDCHW");
     }
     throw std::logic_error("Failed to get layout for rank equal to " + std::to_string(rank));
 }
