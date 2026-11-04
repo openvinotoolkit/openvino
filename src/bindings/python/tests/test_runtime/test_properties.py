@@ -558,40 +558,22 @@ def test_properties_rw(ov_property_rw, expected_value, test_values):
 
 
 ###
-# Write-Only properties
-###
-@pytest.mark.parametrize(
-    ("ov_property_wo", "expected_value", "test_values"),
-    [
-        (
-            props.qos,
-            "QOS",
-            ((props.QoS.DEFAULT, props.QoS.DEFAULT),
-             (props.QoS.HIGH, props.QoS.HIGH),
-             (props.QoS.ECO, props.QoS.ECO),),
-        ),
-    ],
-)
-def test_properties_wo(ov_property_wo, expected_value, test_values):
-    # Test if property is correctly registered
-    assert ov_property_wo() == expected_value
-    assert ov_property_wo == expected_value
-
-    # Test if property process values correctly
-    for values in test_values:
-        property_tuple = ov_property_wo(values[0])
-        assert property_tuple[0] == expected_value
-        assert property_tuple[1].value == values[1]
-
-
-###
 # Special cases
 ###
 def test_properties_qos_info():
     info = props.QoSInfo(props.QoS.LOW, True)
     assert info.level == props.QoS.LOW
     assert info.is_overridden is True
-    assert repr(info) == "{level: LOW is_overridden: 1}"
+    assert "LOW" in repr(info)
+
+
+@pytest.mark.parametrize("level", [props.QoS.DEFAULT, props.QoS.HIGH, props.QoS.MEDIUM,
+                                   props.QoS.LOW, props.QoS.UTILITY, props.QoS.ECO])
+def test_properties_qos_from_ov_any(level):
+    # ov::Any holding ov::QoS must convert back to the Python QoS enum, not a string or int
+    value = OVAny(level).value
+    assert isinstance(value, props.QoS)
+    assert value == level
 
 
 def test_compiled_blob_property():

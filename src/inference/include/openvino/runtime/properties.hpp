@@ -932,6 +932,14 @@ struct QoSInfo {
      * @brief True if the level was requested by the application, false if it is the driver/OS-selected default
      */
     bool is_overridden;
+
+    bool operator==(const QoSInfo& other) const {
+        return level == other.level && is_overridden == other.is_overridden;
+    }
+
+    bool operator!=(const QoSInfo& other) const {
+        return !(*this == other);
+    }
 };
 
 /** @cond INTERNAL */
