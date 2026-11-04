@@ -218,11 +218,8 @@ OutputVector translate_im2col_3d(const NodeContext& context) {
                                                                             static_cast<int64_t>(IW)});
     auto image_5d = std::make_shared<ov::op::v1::Reshape>(image, image_5d_shape, false);
 
-    auto pads_begin =
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 0, p2, p1, p0});
-    auto pads_end =
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 0, p2, p1, p0});
-    auto pad_3d = std::make_shared<ov::op::v1::Pad>(image_5d, pads_begin, pads_end, ov::op::PadMode::CONSTANT);
+    auto pads = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 0, p2, p1, p0});
+    auto pad_3d = std::make_shared<ov::op::v1::Pad>(image_5d, pads, pads, ov::op::PadMode::CONSTANT);
 
     const ov::Shape patch_sizes = {KH, KW};
     const ov::Strides strides = {static_cast<size_t>(s1), static_cast<size_t>(s0)};

@@ -345,6 +345,24 @@ int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
     return 0;
 }
 
+ov::Output<ov::Node> make_alibi_slopes(const ov::element::Type& type,
+                                       size_t rank,
+                                       size_t head_axis,
+                                       uint32_t n_head,
+                                       float max_bias) {
+    const uint32_t n_head_log2 = 1u << static_cast<uint32_t>(std::floor(std::log2(n_head)));
+    const float m0 = std::pow(2.0f, -max_bias / static_cast<float>(n_head_log2));
+    const float m1 = std::pow(2.0f, -(max_bias / 2.0f) / static_cast<float>(n_head_log2));
+    std::vector<float> slopes(n_head);
+    for (uint32_t h = 0; h < n_head; ++h) {
+        slopes[h] = h < n_head_log2 ? std::pow(m0, static_cast<float>(h + 1))
+                                    : std::pow(m1, static_cast<float>(2 * (h - n_head_log2) + 1));
+    }
+    ov::Shape slope_shape(rank, 1);
+    slope_shape[head_axis] = n_head;
+    return std::make_shared<ov::op::v0::Constant>(type, slope_shape, slopes);
+}
+
 ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps) {
     const auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
     ov::Output<ov::Node> value = x;

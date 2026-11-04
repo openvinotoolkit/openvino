@@ -4410,13 +4410,9 @@ TEST(GGUFOps, ViewKvCacheRuntimeBounds) {
         for (auto bounds : {std::pair<int64_t, int64_t>{2, 1}, {3, 0}, {1, 1}}) {
             const int64_t length = bounds.first, first = bounds.second;
             SCOPED_TRACE(length);
-            ov::Tensor length_tensor(ov::element::i64, {1});
-            ov::Tensor first_tensor(ov::element::i64, {1});
-            length_tensor.data<int64_t>()[0] = length;
-            first_tensor.data<int64_t>()[0] = first;
             request.set_tensor("cache", make_f32_tensor({1, streams, cells, width}, cache));
-            request.set_tensor("length", length_tensor);
-            request.set_tensor("first", first_tensor);
+            request.set_tensor("length", make_i64_tensor({1}, {length}));
+            request.set_tensor("first", make_i64_tensor({1}, {first}));
             request.infer();
             const auto at = [&](size_t c, size_t h, size_t d) {
                 const size_t base = static_cast<size_t>(first) * cells * width;
@@ -4470,11 +4466,10 @@ TEST(GGUFOps, ScaleRangeComesFromOperands) {
                      .attr("scale", 2.0f)
                      .attr("bias", 1.0f)
                      .build();
-    ov::Tensor begin(ov::element::i64, {1});
-    ov::Tensor length(ov::element::i64, {1});
-    begin.data<int64_t>()[0] = 1;
-    length.data<int64_t>()[0] = 3;
-    expect_near(run_on_cpu(model, {{"x", make_f32_tensor({5}, {1, 2, 3, 4, 5})}, {"begin", begin}, {"length", length}}),
+    expect_near(run_on_cpu(model,
+                           {{"x", make_f32_tensor({5}, {1, 2, 3, 4, 5})},
+                            {"begin", make_i64_tensor({1}, {1})},
+                            {"length", make_i64_tensor({1}, {3})}}),
                 {1, 5, 7, 9, 5});
 }
 
@@ -5315,8 +5310,7 @@ TEST(GGUFOps, CpyUpdateRebindsDestinationStorage) {
     ov::Core core;
     auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
     auto request = compiled.create_infer_request();
-    ov::Tensor begin(ov::element::i64, {1});
-    begin.data<int64_t>()[0] = 5;
+    const auto begin = make_i64_tensor({1}, {5});
     request.set_tensor("value", make_f32_tensor({1, 1, 1, 2}, {7, 9}));
     request.set_tensor("buffer", make_f32_tensor(buffer_shape, {0, 1, 2, 3, 4, 5, 6, 7}));
     request.set_tensor("begin", begin);

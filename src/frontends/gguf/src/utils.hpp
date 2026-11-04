@@ -66,6 +66,13 @@ std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, con
 // x / max(sqrt(sum(x^2, -1)), eps), matching ggml's l2_norm.
 ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps);
 
+// ggml's per-head ALiBi slopes as a rank-`rank` constant with `n_head` values along `head_axis`.
+ov::Output<ov::Node> make_alibi_slopes(const ov::element::Type& type,
+                                       size_t rank,
+                                       size_t head_axis,
+                                       uint32_t n_head,
+                                       float max_bias);
+
 ov::Output<ov::Node> apply_hadamard(const NodeContext& context, ov::Output<ov::Node> input, bool matrix_form = false);
 void decompose_hadamard(ov::Output<ov::Node> input);
 

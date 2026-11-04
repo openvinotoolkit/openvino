@@ -22,14 +22,6 @@ namespace ov::frontend::gguf::op {
 
 namespace {
 
-// ggml convolutions accumulate and return f32.
-ov::Output<ov::Node> as_f32(ov::Output<ov::Node> value) {
-    if (value.get_element_type() != ov::element::f32) {
-        value = std::make_shared<ov::op::v0::Convert>(value, ov::element::f32);
-    }
-    return value;
-}
-
 std::vector<int64_t> conv_params(const NodeContext& context, size_t count, const char* op) {
     const auto params = context.get_attribute<std::vector<int64_t>>("conv_params");
     FRONT_END_OP_CONVERSION_CHECK(params.size() == count, op, " requires ", count, " conv_params");
@@ -55,10 +47,10 @@ OutputVector translate_conv_2d_dw(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(p[0] > 0 && p[1] > 0 && p[2] >= 0 && p[3] >= 0 && p[4] > 0 && p[5] > 0,
                                   "Invalid CONV_2D_DW parameters");
     // [C, 1, KH, KW] -> GroupConvolution filter [C, 1, 1, KH, KW].
-    auto kernel = std::make_shared<ov::op::v0::Unsqueeze>(as_f32(context.get_input(0)),
+    auto kernel = std::make_shared<ov::op::v0::Unsqueeze>(context.get_f32_activation(context.get_input(0)),
                                                           ov::op::v0::Constant::create(ov::element::i64, {1}, {1}));
     auto res =
-        std::make_shared<ov::op::v1::GroupConvolution>(as_f32(context.get_input(1)),
+        std::make_shared<ov::op::v1::GroupConvolution>(context.get_f32_activation(context.get_input(1)),
                                                        kernel,
                                                        ov::Strides{size_t(p[1]), size_t(p[0])},
                                                        ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
@@ -79,11 +71,11 @@ OutputVector translate_conv_transpose_1d(const NodeContext& context) {
     const int64_t Cin = inner_dim(kernel_shape, 3, "CONV_TRANSPOSE_1D");
     const int64_t L = inner_dim(context.get_input(1).get_partial_shape(), 1, "CONV_TRANSPOSE_1D");
     auto kernel = std::make_shared<ov::op::v1::Reshape>(
-        as_f32(context.get_input(0)),
+        context.get_f32_activation(context.get_input(0)),
         ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{Cin, Cout, K}),
         false);
     auto input = std::make_shared<ov::op::v1::Reshape>(
-        as_f32(context.get_input(1)),
+        context.get_f32_activation(context.get_input(1)),
         ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{-1, Cin, L}),
         false);
     auto conv = std::make_shared<ov::op::v1::ConvolutionBackpropData>(input,
@@ -102,8 +94,8 @@ OutputVector translate_conv_transpose_2d(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     const auto p = conv_params(context, 1, "CONV_TRANSPOSE_2D");
     FRONT_END_OP_CONVERSION_CHECK(p[0] > 0, "Invalid CONV_TRANSPOSE_2D stride");
-    auto res = std::make_shared<ov::op::v1::ConvolutionBackpropData>(as_f32(context.get_input(1)),
-                                                                     as_f32(context.get_input(0)),
+    auto res = std::make_shared<ov::op::v1::ConvolutionBackpropData>(context.get_f32_activation(context.get_input(1)),
+                                                                     context.get_f32_activation(context.get_input(0)),
                                                                      ov::Strides{size_t(p[0]), size_t(p[0])},
                                                                      ov::CoordinateDiff{0, 0},
                                                                      ov::CoordinateDiff{0, 0},
@@ -139,11 +131,11 @@ OutputVector translate_conv_3d(const NodeContext& context) {
         return rename_outputs_with_suffix({zero}, context.get_name());
     }
     auto kernel = std::make_shared<ov::op::v1::Reshape>(
-        as_f32(context.get_input(0)),
+        context.get_f32_activation(context.get_input(0)),
         ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{oc, c, KD, KH, KW}),
         false);
     auto input = std::make_shared<ov::op::v1::Reshape>(
-        as_f32(context.get_input(1)),
+        context.get_f32_activation(context.get_input(1)),
         ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{n, c, ID, IH, IW}),
         false);
     auto conv = std::make_shared<ov::op::v1::Convolution>(

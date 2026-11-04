@@ -766,61 +766,6 @@ OutputVector translate_view(const NodeContext& context) {
         }
 
         if (src_shape.size() == dst_shape.size() && src_shape.size() == src_strides.size() &&
-            src_strides == dst_strides && byte_offset >= 0) {
-            std::vector<int64_t> starts(src_shape.size(), 0);
-            std::vector<size_t> dims(src_shape.size());
-            std::iota(dims.begin(), dims.end(), 0);
-            std::sort(dims.begin(), dims.end(), [&](size_t a, size_t b) {
-                return src_strides[a] > src_strides[b];
-            });
-
-            int64_t remaining = byte_offset;
-            bool valid = true;
-            for (size_t d : dims) {
-                if (src_shape[src_shape.size() - 1 - d] == 1 && dst_shape[dst_shape.size() - 1 - d] == 1) {
-                    continue;
-                }
-                if (src_strides[d] <= 0) {
-                    valid = false;
-                    break;
-                }
-                starts[d] = remaining / src_strides[d];
-                remaining %= src_strides[d];
-                if (starts[d] < 0 || starts[d] + static_cast<int64_t>(dst_shape[src_shape.size() - 1 - d]) >
-                                         static_cast<int64_t>(src_shape[src_shape.size() - 1 - d])) {
-                    valid = false;
-                    break;
-                }
-            }
-            valid = valid && remaining == 0;
-
-            if (valid) {
-                std::vector<int64_t> begin(src_shape.size());
-                std::vector<int64_t> end(src_shape.size());
-                std::vector<int64_t> axes(src_shape.size());
-                std::vector<int64_t> step(src_shape.size(), 1);
-                for (size_t ov_axis = 0; ov_axis < src_shape.size(); ++ov_axis) {
-                    const size_t ggml_dim = src_shape.size() - 1 - ov_axis;
-                    begin[ov_axis] = starts[ggml_dim];
-                    end[ov_axis] = begin[ov_axis] + static_cast<int64_t>(dst_shape[ov_axis]);
-                    if (static_cast<int>(ov_axis) == dynamic_axis) {
-                        FRONT_END_OP_CONVERSION_CHECK(begin[ov_axis] == 0 && dst_shape[ov_axis] == src_shape[ov_axis],
-                                                      "Dynamic VIEW crop requires explicit runtime slice bounds");
-                        end[ov_axis] = std::numeric_limits<int64_t>::max();
-                    }
-                    axes[ov_axis] = static_cast<int64_t>(ov_axis);
-                }
-                auto result = std::make_shared<ov::op::v8::Slice>(
-                    raw_input,
-                    ov::op::v0::Constant::create(ov::element::i64, {begin.size()}, begin),
-                    ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end),
-                    ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step),
-                    ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes));
-                return rename_outputs_with_suffix({std::move(result)}, context.get_name());
-            }
-        }
-
-        if (src_shape.size() == dst_shape.size() && src_shape.size() == src_strides.size() &&
             src_strides.size() == dst_strides.size() && byte_offset >= 0) {
             std::vector<int64_t> starts(src_shape.size(), 0);
             std::vector<int64_t> steps(src_shape.size(), 1);

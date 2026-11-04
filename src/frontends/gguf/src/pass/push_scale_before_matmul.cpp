@@ -30,12 +30,11 @@ constexpr float min_scale = 1.0f / 64.0f;
 // of it (SCALE emits Multiply(x, ConvertLike(c, x))) and the shape-only ops that give it the rank of the tensor
 // it scales (Unsqueeze of a scalar, as the residual multiplier is emitted). Null when `value` is anything else.
 std::shared_ptr<ov::op::v0::Constant> scalar_constant(ov::Output<ov::Node> value) {
-    const auto is_transparent = [](const ov::Node* node) {
-        return ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::ConvertLike>(node) ||
-               ov::is_type<ov::op::v0::Unsqueeze>(node) || ov::is_type<ov::op::v0::Squeeze>(node) ||
-               ov::is_type<ov::op::v1::Reshape>(node);
-    };
-    while (is_transparent(value.get_node())) {
+    while (ov::is_type_any_of<ov::op::v0::Convert,
+                              ov::op::v1::ConvertLike,
+                              ov::op::v0::Unsqueeze,
+                              ov::op::v0::Squeeze,
+                              ov::op::v1::Reshape>(value.get_node())) {
         value = value.get_node()->input_value(0);
     }
     auto constant = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr());
@@ -55,9 +54,6 @@ PushScaleBeforeMatMul::PushScaleBeforeMatMul() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(pattern_map.at(matmul_pattern).get_node_shared_ptr());
         auto multiply = pattern_map.at(multiply_pattern).get_node_shared_ptr();
-        if (!matmul) {
-            return false;
-        }
         const size_t scale_input = multiply->input_value(0).get_node() == matmul.get() ? 1 : 0;
         const auto scale_const = scalar_constant(multiply->input_value(scale_input));
         if (!scale_const) {

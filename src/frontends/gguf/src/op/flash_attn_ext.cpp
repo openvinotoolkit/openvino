@@ -218,18 +218,11 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
                                   "FLASH_ATTN_EXT requires matching K/V heads dividing the query heads");
     if (max_bias > 0.0f && has_mask) {
         // ALiBi: ggml scales the additive mask by a per-head slope (ggml_compute_forward_flash_attn_ext).
-        const uint32_t n_head = static_cast<uint32_t>(q_shape[head_axis].get_length());
-        const uint32_t n_head_log2 = 1u << static_cast<uint32_t>(std::floor(std::log2(n_head)));
-        const float m0 = std::pow(2.0f, -max_bias / static_cast<float>(n_head_log2));
-        const float m1 = std::pow(2.0f, -(max_bias / 2.0f) / static_cast<float>(n_head_log2));
-        std::vector<float> slopes(n_head);
-        for (uint32_t h = 0; h < n_head; ++h) {
-            slopes[h] = h < n_head_log2 ? std::pow(m0, static_cast<float>(h + 1))
-                                        : std::pow(m1, static_cast<float>(2 * (h - n_head_log2) + 1));
-        }
-        ov::Shape slope_shape(4, 1);
-        slope_shape[head_axis] = n_head;
-        auto slope_node = std::make_shared<ov::op::v0::Constant>(sdpa_type, slope_shape, slopes);
+        const auto slope_node = make_alibi_slopes(sdpa_type,
+                                                  4,
+                                                  head_axis,
+                                                  static_cast<uint32_t>(q_shape[head_axis].get_length()),
+                                                  max_bias);
         mask_sliced = std::make_shared<ov::op::v1::Multiply>(mask_sliced, slope_node);
     }
     // K/V can arrive longer than the active attention window (a full-size cache bound for a sliding window
@@ -287,6 +280,15 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
                             n_head_kv > 1 && shared_head_mask && kq_soft_cap == 0.0f && !has_sinks &&
                             k_shape[3] == q_shape[3] && v_shape[3] == q_shape[3];
 
+    // The GPU plugin's fused SDPA kernel works on blocks of keys: a block fully masked with -inf for a row gives
+    // exp(-inf - -inf) = NaN, which spreads through the row (garbage output after a few decode steps). A large
+    // finite value masks identically (exp underflows to 0) without the NaN.
+    if ((op_case != 100 || manual_gqa) && has_mask && kq_soft_cap == 0.0f) {
+        mask_sliced = std::make_shared<ov::op::v1::Maximum>(
+            mask_sliced,
+            ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
+    }
+
     ov::Output<ov::Node> sdpa;
     if (manual_gqa) {
         const int64_t head_size = q_shape[3].get_length();
@@ -311,13 +313,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         ov::Output<Node> scores = std::make_shared<ov::op::v0::MatMul>(q_r, prepare_gqa_kv(k), false, true);
         scores = std::make_shared<ov::op::v1::Multiply>(scores, scale_node);
         if (has_mask) {
-            // A finite mask value: the fused SDPA kernel works on blocks of keys and a block fully masked with -inf
-            // gives NaN.
-            auto mask_finite = std::make_shared<ov::op::v1::Maximum>(
-                mask_sliced,
-                ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
             auto mask_tiled = std::make_shared<ov::op::v0::Tile>(
-                mask_finite,
+                mask_sliced,
                 ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, gqa_factor, 1}));
             scores = std::make_shared<ov::op::v1::Add>(scores, mask_tiled);
         }
@@ -332,26 +329,15 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         v = prepare_kv(v, v_shape[head_axis].get_length(), v_shape[3].get_length());
     }
 
-    ov::Output<ov::Node> q_t = q, k_t = k, v_t = v;
-
-    // The GPU plugin's fused SDPA kernel works on blocks of keys: a block fully masked with -inf for a row gives
-    // exp(-inf - -inf) = NaN, which spreads through the row (garbage output after a few decode steps). A large
-    // finite value masks identically (exp underflows to 0) without the NaN.
-    if (op_case != 100 && has_mask && kq_soft_cap == 0.0f) {
-        mask_sliced = std::make_shared<ov::op::v1::Maximum>(
-            mask_sliced,
-            ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
-    }
-
     if (manual_gqa) {
         // Attention is already computed above.
     } else if (kq_soft_cap != 0.0f) {
         // Gemma2 attention soft-cap: tanh(QK^T * scale * (1/cap)) * cap + mask -> softmax -> *V.
         // OV SDPA v13 has no native softcap parameter, so decompose the attention in f32.
         using namespace ov::op;
-        auto q_f32_t = std::make_shared<v0::Convert>(q_t, element::f32);
-        auto k_f32_t = std::make_shared<v0::Convert>(k_t, element::f32);
-        auto v_f32_t = std::make_shared<v0::Convert>(v_t, element::f32);
+        auto q_f32_t = std::make_shared<v0::Convert>(q, element::f32);
+        auto k_f32_t = std::make_shared<v0::Convert>(k, element::f32);
+        auto v_f32_t = std::make_shared<v0::Convert>(v, element::f32);
         auto mask_f32 = mask_sliced.get_element_type() != element::f32
                             ? std::make_shared<v0::Convert>(mask_sliced, element::f32)->output(0)
                             : mask_sliced;
@@ -398,13 +384,13 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
 
         sdpa = attn_out_caps;
     } else if (!has_sinks && (has_mask || !context.get_attribute_as_any("has_mask").empty())) {
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_t, k_t, v_t, mask_sliced, scale_node, false);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask_sliced, scale_node, false);
     } else if (!has_sinks) {
         const float compensation = (prescale_q ? 1.0f : scale) * std::sqrt(static_cast<float>(q_shape[3].get_length()));
         auto q_scaled = std::make_shared<ov::op::v1::Multiply>(
-            q_t,
+            q,
             ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, {compensation}));
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_scaled, k_t, v_t, false);
+        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_scaled, k, v, false);
     } else {
         // gpt-oss attention sinks: a learned per-head logit participates in the softmax
         // denominator (so the attention weights do not sum to 1) but contributes no value. OV
@@ -419,13 +405,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
                                                {4},
                                                std::vector<int64_t>{1, (int64_t)q_shape[head_axis].get_length(), 1, 1});
         auto sink_r = std::make_shared<v1::Reshape>(sink_converted, sink_shape, false);
-        sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_t,
-                                                                        k_t,
-                                                                        v_t,
-                                                                        mask_sliced,
-                                                                        scale_node,
-                                                                        sink_r,
-                                                                        false);
+        sdpa =
+            std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask_sliced, scale_node, sink_r, false);
     }
     // [B, H, L, S] -> [B, L, H, S] (ggml-natural layout expected by caller).
     res = std::make_shared<ov::op::v1::Transpose>(sdpa,

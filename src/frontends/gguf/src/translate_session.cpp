@@ -123,7 +123,7 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
                     std::shared_ptr<TensorMap>& tensor_map,
                     const std::unordered_map<std::string, CreatorFunction>& translators,
                     const std::shared_ptr<ConstantCache>& constant_cache,
-                    std::map<std::string, std::string>* storage_aliases) {
+                    std::unordered_map<std::string, std::string>* storage_aliases) {
     const auto& operation_type = decoder->get_op_type();
     if (operation_type == "GGML_OP_NONE") {
         const bool is_builder_weight = decoder->get_attribute("gguf_source").is<GgufWeight>();
@@ -228,7 +228,7 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
     }
     for (size_t i = 0; i < node_output_names.size(); ++i) {
         const auto& output_name = node_output_names[i];
-        if (i < converted_outputs.size() && converted_outputs[i].get_node_shared_ptr() != nullptr) {
+        if (converted_outputs[i].get_node_shared_ptr()) {
             (*tensor_map)[output_name] = converted_outputs[i];
         }
         storage_aliases->erase(output_name);
@@ -300,7 +300,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
     const auto constant_cache = std::make_shared<ConstantCache>();
-    std::map<std::string, std::string> storage_aliases;
+    std::unordered_map<std::string, std::string> storage_aliases;
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
         translate_node(decoder, tensor_map, m_translator_map, constant_cache, &storage_aliases);
     };
