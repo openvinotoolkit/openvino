@@ -63,7 +63,7 @@ bool Abs::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
                                       this,
                                       outputs,
                                       inputs,
-                                      OV_PP_ET_LIST(f32, i32, i64, u32, u64),
+                                      OV_PP_ET_LIST(f32, i8, i32, i64, u32, u64),
                                       abs::Evaluate,
                                       inputs[0].get_element_type(),
                                       inputs[0],
@@ -77,6 +77,7 @@ bool Abs::has_evaluate() const {
     case element::bf16:
     case element::f16:
     case element::f32:
+    case element::i8:
     case element::i32:
     case element::i64:
     case element::u32:
