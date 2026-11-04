@@ -301,6 +301,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/network_test.h
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/opencl_helper_instance.hpp
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/parallel_mem_streambuf_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_utils/prefetch_streambuf_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/primitive_inst_test_helper.h
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/program_wrapper.h
     ${CMAKE_CURRENT_LIST_DIR}/test_utils/random_gen.h
