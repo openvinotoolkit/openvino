@@ -7,7 +7,6 @@
 #include "compiler_schedule_instance_evaluator.hpp"
 #include "intel_npu/common/blob_source.hpp"
 #include "intel_npu/common/runtime_requirements.hpp"
-#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "metadata.hpp"
 
 namespace {
@@ -46,13 +45,7 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
     }
 
     // Build the section type & instance evaluators
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators;
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators;
-
-    for (const SectionType& type : ALREADY_SUPPORTED_SECTION_TYPES) {
-        // This evaluator can be shared, since all it does is to return "true"
-        type_evaluators[type] = SupportedSectionTypeEvaluator::get_instance();
-    }
 
     const auto compiler_schedules_instance_evaluator =
         CompilerScheduleInstanceEvaluator::get_instance(backend, optionSupportHelper);
@@ -61,7 +54,7 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
 
     try {
         return runtimeRequirementsSection->get_runtime_requirements()
-            .get_compatibility_check_result(type_evaluators, instance_evaluators)
+            .get_compatibility_check_result({}, instance_evaluators)
             .final_result;
     } catch (...) {
         // Since the same checks would be performed at import time, a throw now means a throw while importing

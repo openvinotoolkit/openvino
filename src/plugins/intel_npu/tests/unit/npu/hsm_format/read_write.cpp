@@ -286,7 +286,7 @@ TEST_P(HSMReadWriteTest, UnsupportedSectionInstanceSkipped) {
 }
 
 TEST_P(HSMReadWriteTest, UnsupportedSectionTypeSkipped) {
-    type_evaluators.erase(SectionTypeCode::IO_LAYOUTS);
+    type_evaluators[SectionTypeCode::IO_LAYOUTS] = MOCK_TYPE_EVALUATOR_FALSE;
     section_readers[SectionTypeCode::IO_LAYOUTS] =
         [](const ov::runtime::hsm::Section&) -> std::optional<std::shared_ptr<ISection>> {
         OPENVINO_NOT_IMPLEMENTED;

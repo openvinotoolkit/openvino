@@ -16,7 +16,6 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/parser_factory.hpp"
 #include "intel_npu/common/runtime_requirements.hpp"
-#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/tensor_decryption.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -470,10 +469,8 @@ public:
                                   const std::shared_ptr<CompilerOptionSupportHelper>& option_helper,
                                   const Config& config)
         : IBlobFormatImporter(original_model, backend, config, Logger("BlobFormatV2Importer", config.get<LOG_LEVEL>())),
-          m_blob_sections_registry(hsm::read_from(base_reader,
-                                                  get_readers(),
-                                                  create_type_evaluators(),
-                                                  create_instance_evaluators(option_helper))) {
+          m_blob_sections_registry(
+              hsm::read_from(base_reader, get_readers(), {}, create_instance_evaluators(option_helper))) {
         verify_valid_sections();
     }
 
@@ -521,15 +518,6 @@ private:
             {SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, EncryptedSchedulesFlagSection::decode},
             {SectionTypeCode::COMPILER_VERSION, CompilerVersionSection::decode},
         };
-    }
-
-    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> create_type_evaluators() const {
-        std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> result;
-        for (const SectionType& type : ALREADY_SUPPORTED_SECTION_TYPES) {
-            // This evaluator can be shared, since all it does is to return "true"
-            result[type] = SupportedSectionTypeEvaluator::get_instance();
-        }
-        return result;
     }
 
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> create_instance_evaluators(

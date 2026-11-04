@@ -156,29 +156,30 @@ TEST_F(RuntimeRequirementsTest, EvaluationResultWithMissingEvaluators) {
                                              section_id_to_type);
 
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators{
-        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_TYPE_EVALUATOR_TRUE}};
+        {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_TYPE_EVALUATOR_FALSE}};
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators{
         {SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE), MOCK_INSTANCE_EVALUATOR}};
 
     RuntimeRequirementsEvaluationResult evaluation_result =
         runtime_requirements.get_compatibility_check_result(type_evaluators, {});
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
+
+    evaluation_result = runtime_requirements.get_compatibility_check_result({}, instance_evaluators);
+    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::NOT_APPLICABLE);
+    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
+    ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::NOT_APPLICABLE);
+
+    evaluation_result = runtime_requirements.get_compatibility_check_result({}, {});
     ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::SUPPORTED);
     ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
     ASSERT_TRUE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
     ASSERT_TRUE(evaluation_result.instance_evaluations.count(0));
     ASSERT_EQ(evaluation_result.instance_evaluations.at(0), ov::CompatibilityCheck::SUPPORTED);
-
-    evaluation_result = runtime_requirements.get_compatibility_check_result({}, instance_evaluators);
-    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
-    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
-    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
-    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
-
-    evaluation_result = runtime_requirements.get_compatibility_check_result({}, {});
-    ASSERT_EQ(evaluation_result.final_result, ov::CompatibilityCheck::UNSUPPORTED);
-    ASSERT_TRUE(evaluation_result.type_evaluations.count(SectionTypeCode::ELF_MAIN_SCHEDULE));
-    ASSERT_FALSE(evaluation_result.type_evaluations.at(SectionTypeCode::ELF_MAIN_SCHEDULE));
-    ASSERT_FALSE(evaluation_result.instance_evaluations.count(0));
 }
 
 TEST_F(RuntimeRequirementsTest, MoreComplexEvaluation) {
