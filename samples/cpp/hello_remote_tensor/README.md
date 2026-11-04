@@ -92,15 +92,14 @@ top 10 classification results and returns a nonzero exit code on failure.
    (Level Zero plugin on a driver without LEO), the same property already holds the native
    `ze_context_handle_t`.
 3. Read the model and the image, and configure preprocessing as in Hello Classification.
-4. Compile the model in the Level Zero context.
+4. Compile the model using default OpenVINO context.
 5. Allocate input and output remote tensors using `USM_DEVICE_BUFFER` and obtain
-   their Level Zero USM pointers through `ov::intel_gpu::mem_handle`.
+   their USM pointers through `ov::intel_gpu::mem_handle`.
 6. Query the input allocation's device with `zeMemGetAllocProperties` so the
    application's command list uses the same device as OpenVINO.
-7. Upload the image through a Level Zero immediate command list, run synchronous
-   inference, and download the output through Level Zero. Transfers use host
-   staging buffers allocated with `zeMemAllocHost` in the same context, because
-   Level Zero copies require memory accessible by the device. Each copy waits
+7. Copy the image through a Level Zero immediate command list, run synchronous
+   inference, and copy the output through Level Zero. Transfers use host
+   staging buffers allocated with `zeMemAllocHost` in the same context. Each copy waits
    with `zeCommandListHostSynchronize` before the data are used.
 
 ## Smoke tests

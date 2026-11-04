@@ -9,6 +9,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 
@@ -29,10 +30,15 @@
 #include "level_zero_api.hpp"
 // clang-format on
 
+#define ZE_CHECK(fn_call) check_ze_call((fn_call), #fn_call)
+
 namespace {
 
-void check_ze(ze_result_t result, const char* operation) {
-    OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS, operation, " failed with Level Zero error ", result);
+void check_ze_call(ze_result_t result, std::string_view fn_call) {
+    if (result != ZE_RESULT_SUCCESS) {
+        std::string_view fn_name = fn_call.substr(0, fn_call.find('('));
+        OPENVINO_THROW("Level Zero function failed, ", fn_name, " returned ", result);
+    }
 }
 
 void initialize_level_zero() {
@@ -40,7 +46,7 @@ void initialize_level_zero() {
     desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
     desc.flags = ZE_INIT_DRIVER_TYPE_FLAG_GPU;
     uint32_t driver_count = 0;
-    check_ze(ze::zeInitDrivers(&driver_count, nullptr, &desc), "zeInitDrivers");
+    ZE_CHECK(ze::zeInitDrivers(&driver_count, nullptr, &desc));
     OPENVINO_ASSERT(driver_count > 0, "No Level Zero GPU driver found");
 }
 
@@ -57,14 +63,12 @@ using CommandList = std::unique_ptr<std::remove_pointer_t<ze_command_list_handle
 
 CommandList create_command_list(ze_context_handle_t context, ze_device_handle_t device) {
     uint32_t count = 0;
-    check_ze(ze::zeDeviceGetCommandQueueGroupProperties(device, &count, nullptr),
-             "zeDeviceGetCommandQueueGroupProperties");
+    ZE_CHECK(ze::zeDeviceGetCommandQueueGroupProperties(device, &count, nullptr));
     std::vector<ze_command_queue_group_properties_t> groups(count);
     for (auto& group : groups) {
         group.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES;
     }
-    check_ze(ze::zeDeviceGetCommandQueueGroupProperties(device, &count, groups.data()),
-             "zeDeviceGetCommandQueueGroupProperties");
+    ZE_CHECK(ze::zeDeviceGetCommandQueueGroupProperties(device, &count, groups.data()));
 
     for (uint32_t ordinal = 0; ordinal < count; ++ordinal) {
         if (groups[ordinal].numQueues > 0 && (groups[ordinal].flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY)) {
@@ -73,7 +77,7 @@ CommandList create_command_list(ze_context_handle_t context, ze_device_handle_t 
             desc.ordinal = ordinal;
             desc.mode = ZE_COMMAND_QUEUE_MODE_SYNCHRONOUS;
             ze_command_list_handle_t handle = nullptr;
-            check_ze(ze::zeCommandListCreateImmediate(context, device, &desc, &handle), "zeCommandListCreateImmediate");
+            ZE_CHECK(ze::zeCommandListCreateImmediate(context, device, &desc, &handle));
             return CommandList(handle);
         }
     }
@@ -92,21 +96,18 @@ struct HostMemoryDeleter {
 
 using HostMemory = std::unique_ptr<void, HostMemoryDeleter>;
 
-// Level Zero copies require memory accessible by the device; pageable host memory is not guaranteed to be.
 HostMemory allocate_host_memory(ze_context_handle_t context, size_t bytes) {
     ze_host_mem_alloc_desc_t desc = {};
     desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
     void* pointer = nullptr;
-    check_ze(ze::zeMemAllocHost(context, &desc, bytes, 0, &pointer), "zeMemAllocHost");
+    ZE_CHECK(ze::zeMemAllocHost(context, &desc, bytes, 0, &pointer));
     return HostMemory(pointer, HostMemoryDeleter{context});
 }
 
 void copy_memory(ze_command_list_handle_t command_list, void* destination, const void* source, size_t bytes) {
-    check_ze(ze::zeCommandListAppendMemoryCopy(command_list, destination, source, bytes, nullptr, 0, nullptr),
-             "zeCommandListAppendMemoryCopy");
+    ZE_CHECK(ze::zeCommandListAppendMemoryCopy(command_list, destination, source, bytes, nullptr, 0, nullptr));
     // Wait explicitly so the data is complete before OpenVINO or the host uses it.
-    check_ze(ze::zeCommandListHostSynchronize(command_list, std::numeric_limits<uint64_t>::max()),
-             "zeCommandListHostSynchronize");
+    ZE_CHECK(ze::zeCommandListHostSynchronize(command_list, std::numeric_limits<uint64_t>::max()));
 }
 
 void* get_usm_pointer(const ov::RemoteTensor& tensor) {
@@ -247,8 +248,7 @@ int tmain(int argc, tchar* argv[]) {
         ze_memory_allocation_properties_t allocation = {};
         allocation.stype = ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES;
         ze_device_handle_t ze_device = nullptr;
-        check_ze(ze::zeMemGetAllocProperties(ze_context, input_pointer, &allocation, &ze_device),
-                 "zeMemGetAllocProperties");
+        ZE_CHECK(ze::zeMemGetAllocProperties(ze_context, input_pointer, &allocation, &ze_device));
         OPENVINO_ASSERT(allocation.type == ZE_MEMORY_TYPE_DEVICE && ze_device != nullptr,
                         "Expected a Level Zero device allocation");
 
