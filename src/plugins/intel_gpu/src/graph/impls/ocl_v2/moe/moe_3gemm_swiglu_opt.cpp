@@ -1077,9 +1077,9 @@ public:
         return decode_impl == MoeGemmImpl::grouped_gemm || (prefill_impl == MoeGemmImpl::grouped_gemm && force_gpu_mask_gen_prefill);
     }
 
-    // Single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
+    // Resident single-token decode on the batched GEMV path uses none of the gather/scatter scratch buffers
     bool needs_gather_scratch(size_t token_num) const {
-        return token_num > 1 || decode_impl == MoeGemmImpl::grouped_gemm;
+        return token_num > 1 || decode_impl == MoeGemmImpl::grouped_gemm || (token_num == 1 && _weight_provider->is_offloaded());
     }
 
     static bool is_batched_gemv_supported(data_types weight_dt) {
@@ -1393,10 +1393,8 @@ public:
 
         auto up_mem_dnnl = convert2dnnl(scratch.up, {batch, _shared_intermediate_size}, dnnl::memory::format_tag::ab);
         auto gate_mem_dnnl = convert2dnnl(scratch.gate, {batch, _shared_intermediate_size}, dnnl::memory::format_tag::ab);
-        // Reuse routing weights or topk_weights buffer as temp for scalar gate [Batch, 1]
-        // This buffer is usually [Batch, MaxTopK]. Check if big enough. Batch=1 -> TopK. Batch>1 -> Batch*TopK.
-        // We only use [Batch, 1] part.
-        auto scalar_gate_mem = scratch.topk_weights;
+        // Routed computation is complete; reuse its scratch without modifying the routing input.
+        auto scalar_gate_mem = scratch.routing_weights;
         auto scalar_gate_dnnl = convert2dnnl(scalar_gate_mem, {batch, 1}, dnnl::memory::format_tag::ab);
 
         // 1. Up Proj
@@ -1826,6 +1824,12 @@ public:
                                                  size_t token_num) {
         auto final_hidden_states_mem_ptr = instance.output_memory_ptr(0);
         final_hidden_states_mem_ptr->fill(stream, 0u);
+        for (const auto& ev : events) {
+            if (ev) {
+                ev->wait();
+            }
+        }
+        update_rt_params(instance);
         auto ret_event = exec_per_expert_onednn_linear(events, stream, instance, scratch);
         if (_has_shared_expert) {
             // The shared expert's down projection adds to the output: the in-order queue runs it after the experts
@@ -1836,6 +1840,8 @@ public:
                                   final_hidden_states_mem_ptr,
                                   scratch);
         }
+        // Include the shared expert and all OneDNN work before returning the completion event
+        on_after_exec_sync(stream);
         return ret_event;
     }
 
