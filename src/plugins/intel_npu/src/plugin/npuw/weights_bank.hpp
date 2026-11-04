@@ -52,8 +52,8 @@ public:
         std::shared_ptr<ov::weight_sharing::Context> context;
 
     private:
-        Handle(std::mutex& m, std::shared_ptr<ov::weight_sharing::Context> ctx) : lock(m), context(ctx) {}
-        std::lock_guard<std::mutex> lock;
+        Handle(std::mutex& m, std::shared_ptr<ov::weight_sharing::Context> ctx) : context(ctx), lock(m) {}
+        std::unique_lock<std::mutex> lock;
     };
 
     Handle get_handle() {
