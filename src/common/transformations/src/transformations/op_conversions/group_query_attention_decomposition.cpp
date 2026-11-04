@@ -186,8 +186,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Right-padded chunk (query_seqlens): only the first Q of the S query rows are real tokens, so the past is
     // total - Q. All S rows are still written at [past, past + S) to keep shapes static; the padded tail lands at or
     // beyond total, where no query reads it and the next step overwrites it (ORT requires past + S <= capacity).
-    // Q is clamped to [1, S] (as ORT CUDA does), so a single-token step ignores the input (Q = S = 1).
-    const bool has_query_seqlens = node->has_query_seqlens();
+    // Q is clamped to [1, S] (as ORT CUDA does); a statically single-token step skips it (same graph as without it).
+    const bool has_query_seqlens = node->has_padded_query();
     const auto clamp_query_len = [&](const ov::Output<ov::Node>& query_len) -> std::shared_ptr<ov::Node> {
         return register_new_node<v1::Minimum>(register_new_node<v1::Maximum>(query_len, one), current_seqlen);
     };
@@ -629,9 +629,8 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
             // A right-padded chunk (query_seqlens) has only Q = total - past valid rows: its padded tail stays
             // in the temp buffer (masked for the valid queries) but is never written back.
             const ov::Output<ov::Node> new_rows =
-                node->has_query_seqlens()
-                    ? register_new_node<v1::Subtract>(abs_total_scalar, abs_past_scalar)->output(0)
-                    : current_seqlen_scalar;
+                node->has_padded_query() ? register_new_node<v1::Subtract>(abs_total_scalar, abs_past_scalar)->output(0)
+                                         : current_seqlen_scalar;
             const auto temp_len = register_new_node<v1::Add>(end_before, new_rows);
             const auto tail_start = register_new_node<v1::Subtract>(temp_len, end_after);
             const auto tail_start_1d = register_new_node<v0::Unsqueeze>(tail_start, zero);
@@ -672,7 +671,7 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
             return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
         };
         // A padded chunk (query_seqlens) carries full S-row keys starting at the query past.
-        const ov::Output<ov::Node> kept_past = independent_kv_len && !node->has_query_seqlens()
+        const ov::Output<ov::Node> kept_past = independent_kv_len && !node->has_padded_query()
                                                    ? register_new_node<v1::Subtract>(seqlens_1d, kv_seqlen)->output(0)
                                                    : past_seqlen->output(0);
         const auto sliced_past_key = register_new_node<v8::Slice>(past_key, zero, kept_past, one, two);
