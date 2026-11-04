@@ -132,13 +132,28 @@ std::vector<FloorModParams> generateParamsForFloorModNonIntegerDivisor() {
     // clang-format on
 }
 
+// x / y is beyond double precision for the first three, where the previous reference,
+// x - y * floor(x / y), gave 0. The last two round up to a whole multiple in float.
+template <element::Type_t IN_ET>
+std::vector<FloorModParams> generateParamsForFloorModLargeQuotients() {
+    using T = typename element_type_traits<IN_ET>::value_type;
+    // clang-format off
+    return {FloorModParams(ov::PartialShape{5}, ov::PartialShape{5}, ov::Shape{5}, IN_ET,
+                std::vector<T>{1.2089258e24f, 1e30f, -3.4e38f, 4.2f, -4.2f},
+                std::vector<T>{3.0f, 7.0f, 3.0f, 1.4f, 1.4f},
+                std::vector<T>{1.0f, 1.0f, 1.0f, 1.3999999f, 1.1920929e-07f})};
+    // clang-format on
+}
+
 std::vector<FloorModParams> generateCombinedParamsForFloorMod() {
-    const std::vector<std::vector<FloorModParams>> allTypeParams{generateParamsForFloorMod<element::Type_t::f32>(),
-                                                                 generateParamsForFloorMod<element::Type_t::f16>(),
-                                                                 generateParamsForFloorMod<element::Type_t::bf16>(),
-                                                                 generateParamsForFloorMod<element::Type_t::i64>(),
-                                                                 generateParamsForFloorMod<element::Type_t::i32>(),
-                                                                 generateParamsForFloorMod<element::Type_t::i8>()};
+    const std::vector<std::vector<FloorModParams>> allTypeParams{
+        generateParamsForFloorMod<element::Type_t::f32>(),
+        generateParamsForFloorModLargeQuotients<element::Type_t::f32>(),
+        generateParamsForFloorMod<element::Type_t::f16>(),
+        generateParamsForFloorMod<element::Type_t::bf16>(),
+        generateParamsForFloorMod<element::Type_t::i64>(),
+        generateParamsForFloorMod<element::Type_t::i32>(),
+        generateParamsForFloorMod<element::Type_t::i8>()};
 
     std::vector<FloorModParams> combinedParams;
 
