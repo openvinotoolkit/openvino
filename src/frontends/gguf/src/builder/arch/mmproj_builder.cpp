@@ -20,6 +20,7 @@
 #include "lfm3_audio_generator.hpp"
 #include "lfm3_projector_builder.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "openvino/op/constant.hpp"
 #include "projector_adapter.hpp"
 
 namespace ov::frontend::gguf {
@@ -87,7 +88,7 @@ constexpr ProjectorTopology projector_catalog[] = {
     {"vision", "janus_pro", EncoderTopology::SIGLIP},
     {"vision", "mlp", EncoderTopology::CLIP, SWAPPED_FFN},
     {"vision", "internvl", EncoderTopology::INTERNVL},
-    {"vision", "resampler", EncoderTopology::RESAMPLER},
+    {"vision", "resampler", EncoderTopology::RESAMPLER, SWAPPED_FFN},
     {"vision", "qwen2vl_merger", EncoderTopology::QWEN, SWAPPED_FFN},
     {"vision", "qwen2.5vl_merger", EncoderTopology::QWEN, RMS_NORM | SWAPPED_FFN},
     {"vision", "qwen3vl_merger", EncoderTopology::QWEN},
@@ -1321,6 +1322,24 @@ public:
         auto graph = g.finish();
         graph->model_adapters = std::move(adapters);
         write_mmproj_config(*graph, ctx.metadata, config);
+        for (const auto& name : {"v.image_newline", "v.view_seperator"}) {
+            const auto found = ctx.weights->weights.find(name);
+            if (found == ctx.weights->weights.end())
+                continue;
+            const auto& tensor = found->second;
+            OPENVINO_ASSERT(tensor.get_element_type().is_real(),
+                            "[GGUF] image separator must have floating-point weights: ",
+                            name);
+            const auto values = ov::op::v0::Constant(tensor).cast_vector<float>();
+            std::ostringstream stream;
+            stream.precision(std::numeric_limits<float>::max_digits10);
+            for (size_t i = 0; i < values.size(); ++i) {
+                if (i)
+                    stream << ',';
+                stream << values[i];
+            }
+            graph->mmproj_config[name] = stream.str();
+        }
         return graph;
     }
 
