@@ -221,6 +221,9 @@ public:
         multi_supported_configKeys.erase(std::remove(
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::low_power_device.name()),
                                 multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::compile_for_all.name()),
+                                multi_supported_configKeys.end());
         return plugin_name == "AUTO" ? supported_configKeys : multi_supported_configKeys;
     }
 
@@ -248,6 +251,9 @@ public:
                                                      multi_supported_properties.end(),
                                                      ov::intel_auto::low_power_device),
                                          multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(
+                                multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::compile_for_all),
+                                multi_supported_properties.end());
         return plugin_name == "AUTO" ? supported_properties : multi_supported_properties;
     }
 
