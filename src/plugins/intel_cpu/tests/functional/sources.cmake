@@ -116,6 +116,7 @@ set(CPU_FUNC_TESTS_CUSTOM_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/group_convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/gru_cell.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/gru_sequence.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/histc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/activation.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/bitwise_shift.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/single_layer_tests/instances/common/col2im.cpp
@@ -410,6 +411,7 @@ set(CPU_FUNC_TESTS_X64_SRCS
 set(CPU_FUNC_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/compatibility_string.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/export_import.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/hsm_blob.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/concurent_release_memory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/input_tensor_initialization.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/behavior/ov_executable_network/properties.cpp

@@ -90,4 +90,33 @@ INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_CornerCases,
                                             ::testing::Values(kleidiai_compressed_config)),
                          GroupedMatMulCompressedLayerTest::getTestCaseName);
 
+// INT8 KleidiAI experts run a 1-row GEMV kernel when an expert gets one row and a 16x4 GEMM
+// kernel otherwise. Each expert keeps its executor across iterations, so its row count goes
+// 1 -> many -> 1. N % 4 != 0. In 2D x 3D entries every T must be distinct (the routing row is
+// looked up by input shape) and each routing row must sum to T.
+const std::vector<GroupedMatMulShapeParams> shapes_kernel_switch = {
+    // 3D x 3D: every expert gets M rows; M: 1 -> 17 -> 1 -> 3
+    {{ov::PartialShape{4, -1, 64}, {{4, 1, 64}, {4, 17, 64}, {4, 1, 64}, {4, 3, 64}}}, {4, 30, 64}, {}},
+    // 2D x 3D: rows per expert e0: 1, 1, 0; e1: 1, 2, 1; e2: 1, 17, 0; e3: 1, 17, 1
+    {{ov::PartialShape{-1, 77}, {{4, 77}, {37, 77}, {2, 77}}},
+     {4, 30, 77},
+     TokensPerExpert{{1, 1, 1, 1}, {1, 2, 17, 17}, {0, 1, 0, 1}}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GroupedMatMul_Compressed_KernelSwitch,
+                         GroupedMatMulCompressedLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(shapes_kernel_switch),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::i8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::Values(-1),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values("GatherMatmulCompressed"),
+                                            ::testing::Values(kleidiai_compressed_config)),
+                         GroupedMatMulCompressedLayerTest::getTestCaseName);
+
 }  // namespace
