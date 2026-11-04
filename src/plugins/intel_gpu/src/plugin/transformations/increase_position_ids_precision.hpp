@@ -62,4 +62,10 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("DisableFP16ComForROPEPattern");
     DisableFP16ComForGPTOSSROPEPattern();
 };
+
+class DisableFP16ComForRoPEFreqConst : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("DisableFP16ComForRoPEFreqConst");
+    DisableFP16ComForRoPEFreqConst();
+};
 }   // namespace ov::intel_gpu
