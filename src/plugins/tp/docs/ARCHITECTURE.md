@@ -32,14 +32,17 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 │       parameters of the collective contract: device group +  │
 │       the rank's endpoint of an InProcessExchange. Each      │
 │       context publishes its setup payload and returns.       │
-│    3. Analyze the model: walk back from every attention op   │
-│       to find the Q/K/V/O projections and the MLP            │
-│       gate/up/down — produces a ShardingPlan.                │
-│    4. For each rank: clone the model, slice weight Constants │
-│       column- or row-parallel, patch num_kv_heads constants  │
-│       and reshape shapes, insert TPAllReduce after each      │
-│       row-parallel MatMul and a TPGather after the sharded   │
-│       vocabulary projection, validate the cloned graph.      │
+│    3. Analyze a clone of the model once (TPLayerAnalyzer):   │
+│       block passes annotate the projections, shape constants │
+│       and KV-cache variables of every attention and MLP      │
+│       block; TPShardingVerifier proves the annotations or    │
+│       fails the compilation naming the node.                 │
+│    4. For each rank: clone the analyzed model,               │
+│       TPWeightShardingPass cuts the annotated constants and  │
+│       gives shape constants the rank's sizes,                │
+│       TPInsertCollectives inserts TPAllReduce after each     │
+│       row-parallel MatMul and a TPGather after the split     │
+│       vocabulary projection; annotations are stripped.       │
 │    5. Compile each per-rank model with its rank context. The │
 │       GPU plugin binds the model to the context's            │
 │       communicator; the first binding collects the payloads  │
@@ -89,17 +92,34 @@ collective contract (`openvino/runtime/tp/collective_contract.hpp`).
 
 For a standard Llama-family decoder block with hidden size `H`,
 `num_heads` query heads, `num_kv_heads` (GQA), and intermediate size `I`,
-the rewriter shards the following MatMul weights:
+the analysis shards the following MatMul weights:
 
 | MatMul        | Parallel kind     | Weight slice axis | Shard size                         | Notes                                        |
 |---------------|-------------------|-------------------|------------------------------------|----------------------------------------------|
-| `q_proj`      | column-parallel   | output (axis 0)   | `H × (num_heads/N · head_dim)`     | each rank computes `num_heads/N` query heads |
-| `k_proj`      | column-parallel   | output (axis 0)   | `H × (num_kv_heads/N · head_dim)`  | requires `num_kv_heads % N == 0`             |
+| `q_proj`      | column-parallel   | output (axis 0)   | `H × (num_heads/N · head_dim)`     | whole query groups per rank                  |
+| `k_proj`      | column-parallel   | output (axis 0)   | `H × (num_kv_heads/N · head_dim)`  | the KV heads of the rank's query heads       |
 | `v_proj`      | column-parallel   | output (axis 0)   | `H × (num_kv_heads/N · head_dim)`  |                                              |
 | `o_proj`      | row-parallel      | input (axis 1)    | `(num_heads/N · head_dim) × H`     | output → **AllReduce(sum)**                  |
 | `gate_proj`   | column-parallel   | output (axis 0)   | `H × I/N`                          |                                              |
 | `up_proj`     | column-parallel   | output (axis 0)   | `H × I/N`                          |                                              |
 | `down_proj`   | row-parallel      | input (axis 1)    | `I/N × H`                          | output → **AllReduce(sum)**                  |
+
+Splits are in whole units: query groups (or, with fewer KV heads than ranks, equal shares of one
+group), KV heads, and for the MLP the coarsest step any of its weights needs (quantization groups,
+packed sub-byte elements). Units that do not divide by `N` go one extra to each of the first ranks
+(e.g. 5 KV heads on 2 ranks: 3 and 2); the busiest rank paces the group, so the plugin warns when
+the imbalance is large.
+
+**Fewer KV heads than ranks** (`N % num_kv_heads == 0` and `num_heads % N == 0`): every rank
+keeps the one KV head its query heads use, `r / (N / num_kv_heads)`, and an equal share of that
+head's query group. The `N / num_kv_heads` ranks sharing a KV head compute its K/V projections
+alike and keep it in their own KV caches; the GQA expansion of a rank goes to its share of the
+group only. Any other configuration with fewer KV heads than ranks is rejected.
+
+**Fused projections** (one `qkv_proj` split into Q, K and V; one `gate_up_proj` split into gate
+and up, as in Phi-3): the weight is cut per part, so every rank holds its share of every part,
+and the `VariadicSplit` lengths or `Slice` bounds after it are the rank's; equal chunks (`Split`)
+stay equal.
 
 Operations that remain replicated on every rank (cheap relative to MatMul):
 LayerNorm/RMSNorm, RoPE, attention softmax, residual add, SiLU, embedding lookup.
@@ -111,13 +131,15 @@ The vocabulary projection is sharded too, along the vocabulary axis, and its
 slices are collected into rank 0 by a `TPGather` rather than summed:
 each rank owns a distinct band of logits, so there is nothing to reduce.
 Only rank 0's buffer is written, because that is the only rank whose outputs the infer
-request reads. `TP_DISABLE_LM_HEAD_SHARDING` turns this off.
+request reads. `TP_DISABLE_LM_HEAD_SHARDING` turns this off. When the LM head shares its weight
+with the embedding (tied weights), the embedding table stays whole and the LM head gets a copy of
+the chain to cut: the split costs `table / N` more device memory per rank and saves 6-9 % of the
+decode time (Llama-3.2-3B).
 
 **Collectives per inference**: `2 × num_layers` AllReduce calls — one after
 attention `o_proj`, one after MLP `down_proj` — plus one Gather for the
-vocabulary projection when it is sharded. The exact count comes from `GraphRewriter::count_collectives`
-and is recorded in the compiled blob; the GPU plugin counts the collectives of each rank model itself when it
-binds the model.
+vocabulary projection when it is sharded. The device plugin counts the collectives of each rank
+model itself when it binds the model.
 The AllReduce count is the lower bound for Megatron-style TP and cannot be reduced without changing the parallelism scheme.
 
 ## Data Flow Inside a Decoder Layer
@@ -154,6 +176,42 @@ The AllReduce count is the lower bound for Megatron-style TP and cannot be reduc
    ▼                              ▼
  (next layer)                   (next layer)
 ```
+
+## Transformations (L1)
+
+The graph work is a static library, `src/transformations/` (`openvino_tp_transformations`),
+that depends on OpenVINO core and the collective ops only. It runs in three stages:
+
+1. **`TPLayerAnalyzer`**, once per model, on a clone of it. Block passes, one per block type,
+   recognize a block structurally and annotate it in `rt_info`:
+   `TPPagedAttentionBlock`, `TPStatefulSDPABlock` (both also for a fused `qkv_proj`),
+   `TPGatedMLPBlock`, `TPFusedGateUpMLPBlock`, `TPDenseMLPBlock`, `TPVocabParallelBlock`.
+   A projection gets a `tp_role` (column- or row-parallel, the collective after it); every
+   constant to cut gets a `tp_shard` (axis and segments; a segment is split in whole units, can
+   be shared by consecutive ranks or split into shares of a group); shape constants get the
+   elements that hold a split size, a fused part's length or a fused part's bound; KV-cache
+   variables and PagedAttention head counts get the KV-head split. A weight shared with another
+   reader (a tied embedding) is given a source of its own first, so cutting it leaves the other
+   reader whole. A linear layer no pass claims stays whole on every rank, with a warning naming it
+   and its size. A weight whose decompression chain cannot be cut at the rank boundaries
+   (quantization groups, packed sub-byte elements) is cut by a `Slice` at run time, with a
+   warning; the device plugin folds it at compile time.
+2. **`TPShardingVerifier`**, the last pass of the analysis, propagates a state through every
+   tensor: Replicated, Split (per-rank ranges along one or more axes), Partial (the sum over
+   ranks is the value) or rank-dependent sizes (a shape vector from `ShapeOf` of a split tensor
+   or an annotated shape constant, tracked per element). Each op type has a rule; a row-parallel
+   role must produce a Partial sum, which becomes Replicated at its `TPAllReduce`; a model output
+   must be Replicated. A Split, VariadicSplit or Slice along a split axis is proven by simulating
+   every rank with its own lengths or bounds. Anything it cannot prove fails the compilation with
+   the node, its type, the input shapes and states, and where each state came from.
+3. **Per rank**, on a clone of the analyzed model: `TPWeightShardingPass(rank, N)` cuts the
+   annotated constants (a zero-copy view of a single contiguous range, a copy otherwise), gives
+   the annotated shape elements, variable shapes and `rt_info` head counts the rank's values, and
+   inserts the runtime `Slice`s; `TPInsertCollectives(rank, N)` inserts the collectives the roles
+   name. The annotations are then stripped.
+
+The analysis also reports what the plugin logs and keeps: the block counts, the geometry, the
+KV-cache variables split by head and how many ranks share each KV head.
 
 ## Component Map
 
@@ -245,13 +303,17 @@ src/plugins/tp/
 │   ├── infer_request.{hpp,cpp}             ← ISyncInferRequest, rank fan-out
 │   ├── rank_workers.hpp                    ← persistent worker thread per rank
 │   ├── cache_controller.{hpp,cpp}          ← KV-cache control inputs per rank
-│   ├── graph_rewriter.{hpp,cpp}            ← analyze + per-rank rewrite
+│   ├── transformations/                    ← L1, static library openvino_tp_transformations
+│   │   ├── include/tp_transformations/     ← annotations, analyzer, verifier, rank passes
+│   │   └── src/                            ← block passes (attention, MLP, vocabulary),
+│   │                                         block utilities, verifier, rank passes
 │   ├── tp_blob.hpp                         ← blob container format helpers
 │   ├── tp_config.cpp                       ← device-name resolution
 │   └── version.cpp                         ← plugin version
 └── tests/
     ├── common/tp_test_models.hpp           ← synthetic blocks, shared by suites
-    ├── unit/                               ← ov_tp_unit_tests: rewriter
+    ├── unit/                               ← ov_tp_unit_tests: annotations, analysis,
+    │                                         verifier, rank models (no GPU)
     └── functional/                         ← ov_tp_func_tests: accuracy,
                                               paged attention, serialization,
                                               TP contexts
@@ -615,7 +677,7 @@ silently degrading.
 ## Compiled Blob
 
 `CompiledModel::export_model` writes a container around one device-plugin
-blob per rank (version 2):
+blob per rank (version 3):
 
 ```
 char[8]              "OVTPBLOB"
@@ -623,6 +685,7 @@ uint32               version
 uint32               world_size
 uint32               strategy         (TP_STRATEGY)
 uint32               num_sharded_states
+uint32               state_replicas   (consecutive ranks holding the same slice of those states)
 [world_size]         device name      : string
 [num_sharded_states] variable id      : string
 uint32 + [..]        input ports      : node name, element type, partial shape, tensor names
@@ -633,8 +696,10 @@ uint32 + [..]        output ports     : same
 A string is a uint32 length + bytes. The weight shards are already baked
 into each rank's blob, so no shard metadata is stored, and the device plugin
 counts the collectives of each imported rank model when it binds it. The
-sharded state ids are there because the infer request has to know which
-states are per-rank slices rather than replicas. The ports are the
+sharded state ids and the replica count are there because the infer request has to know which
+states are per-rank slices rather than replicas, and which ranks hold the same slice (fewer KV
+heads than ranks): `get_state` reads one copy of each, `set_state` writes it to all of them. The
+ports are the
 model-level ports the compiled model reported, so an imported model reports
 the same ones (rank 0's would carry its sharded cache shapes).
 
@@ -658,7 +723,7 @@ rank devices, cannot collide on one hash. A device plugin's caching property
 set on `TP` is taken as it is; otherwise the device plugin's values are
 aggregated across the rank devices and joined with `;`.
 
-Weightless caching (`OPTIMIZE_SIZE`): the rewriter gives a rank weight that is
+Weightless caching (`OPTIMIZE_SIZE`): the weight sharding pass gives a rank weight that is
 a contiguous slice of an unconverted constant its own offset and size in the
 model's `.bin` (`WeightlessCacheAttribute`), and drops the attribute from any
 other slice, which then stays in the blob. On import the core passes
@@ -738,10 +803,13 @@ Dev properties: [DEVELOPER_GUIDE.md § Tunables](DEVELOPER_GUIDE.md#tunables)
 
 ## Known Limitations
 
-- The rewriter anchors on `PagedAttentionExtension` or
+- The analysis anchors on `PagedAttentionExtension` or
   `ScaledDotProductAttention` and requires the projections to be MatMuls
-  over constant-derived weights. Architectures that fuse QKV differently,
-  or feed a weight from a live parameter, are not recognized.
+  over constant-derived weights. A block it recognizes only partly, or an op
+  without a sharding rule on a split tensor, fails the compilation; a weight
+  fed by a live parameter (a LoRA adapter) is not supported.
+- Fewer KV heads than ranks is supported only when the ranks divide by the KV
+  heads and the query heads by the ranks.
 - Remote contexts supplied by the user are not supported: the plugin
   always creates the rank contexts itself. The compiled model's own context
   gives out host tensors only; a device tensor would be one model-level

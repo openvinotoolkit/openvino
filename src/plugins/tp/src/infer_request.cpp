@@ -29,7 +29,7 @@ namespace {
 // alone and the other ranks keep accumulating their KV cache across calls --
 // wrong numerics from the second inference on.
 //
-// For variables the graph rewriter sharded by kv head, get_state()/set_state()
+// For variables split by kv head, get_state()/set_state()
 // also gather and scatter along that axis, so a caller that reads a whole
 // state tensor, edits it and writes it back sees the unsharded model's state
 // rather than rank 0's slice. With fewer KV heads than ranks, `replicas`
@@ -151,12 +151,12 @@ public:
     }
 
 private:
-    /// KV cache states are [batch, kv_heads, seq, head_dim] and the graph
-    /// rewriter splits dimension 1 across ranks.
+    /// KV cache states are [batch, kv_heads, seq, head_dim] and the rank
+    /// passes split dimension 1 across ranks.
     static constexpr size_t kHeadAxis = 1;
 
     /// How many kv heads each rank owns. Fixed for the life of the request --
-    /// the rewriter baked the split into every rank's variable -- so it is read
+    /// the split is baked into every rank's variable -- so it is read
     /// once and remembered. Reading it costs a state round-trip, which is why
     /// it is not repeated on every scatter.
     const std::vector<size_t>& rank_head_counts() const {

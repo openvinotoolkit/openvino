@@ -53,8 +53,8 @@ for the current file layout. Key entry points:
 
 | File                            | Role                                                                                                                                                                             |
 |---------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `src/plugin.cpp`                | `Plugin::compile_model` — config parse, rank context creation, per-rank `GraphRewriter::rewrite` and per-rank intel_gpu compilation; `import_blob` for the cached path.         |
-| `src/graph_rewriter.cpp`        | `analyze` (finds shardable MatMuls structurally and reads the model dimensions off them) and `rewrite` (per-rank weight slicing, KV-cache shape patching, collective insertion). |
+| `src/plugin.cpp`                | `Plugin::compile_model` — config parse, rank context creation, the analysis once and the rank passes per rank (L1), per-rank intel_gpu compilation; `import_blob` for the cached path. |
+| `src/transformations/`          | L1, the static library `openvino_tp_transformations`: `annotations.*` (`tp_shard` / `tp_role`, rank ranges), `attention_blocks.cpp` / `mlp_blocks.cpp` (block passes), `block_utils.*` (projection, weight-chain and shape-constant helpers), `analyzer.cpp` (`TPLayerAnalyzer`), `verifier.cpp` (`TPShardingVerifier`), `rank_passes.cpp` (`TPWeightShardingPass`, `TPInsertCollectives`). |
 | `src/infer_request.cpp`         | Rank fan-out, input replication, output collection from rank 0.                                                                                                                  |
 | `src/rank_workers.hpp`          | The persistent worker thread per rank.                                                                                                                                      |
 | `src/cache_controller.cpp`      | Per-rank KV-cache control inputs.                                                                                                                                                |
@@ -105,7 +105,7 @@ so the guarded code folds away instead of costing a branch.
 
 | Environment variable          | Effect                                                                                                                                                      | When to enable                                       |
 |-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------|
-| `OV_TP_VERBOSE=LOG_INFO`      | One-line summaries per compile: sharding plan, rank contexts, per-rank op counts.                                                                           | First thing to reach for when something looks wrong. |
+| `OV_TP_VERBOSE=LOG_INFO`      | One-line summaries per compile: the analysis (blocks, geometry, collectives), rank contexts, per-rank op counts.                                            | First thing to reach for when something looks wrong. |
 | `OV_GPU_TP_VERBOSE=LOG_INFO`  | The collectives: group set-up, scratch growth, which queue the collective rides.                                                                            | Together with the above.                             |
 | `OV_GPU_TP_VERBOSE=LOG_TRACE` | Per-call `[TP][L0]` step-by-step tracing.                                                                                                                   | Only when chasing a hang or a correctness crash.     |
 | `OV_TP_PROFILING=HOST`        | The plugin's dispatch: per-stage infer breakdown, per-rank dispatch time.                                                                                   | The default choice when measuring.                   |
@@ -131,7 +131,7 @@ should; they exist to price a part of the pipeline by removing it.
 | `OV_GPU_TP_FORCE_SYNC_COLLECTIVE=1`  | Take collectives off the spliced model queue onto their own queue with a full drain.                                                                          |
 |                                      | Results stay correct; this is the one switch here that does not break them. Use it to measure what splicing buys.                                             |
 | `OV_TP_DISABLE_LM_HEAD_SHARDING=1`   | Leave the vocabulary projection unsharded, dropping the gather.                                                                                               |
-|                                      | Results stay correct, but the collective count baked into an exported blob changes, so blobs are not interchangeable across this setting.                     |
+|                                      | Results stay correct; the setting is part of the configuration a cache entry is keyed by.                                                                    |
 | `OV_TP_SHARD_ONLY=1`                 | **Wrong by construction.** Compile one rank's shard with every collective stripped, to measure the upper bound a rank could reach if communication were free. |
 | `OV_GPU_TP_SKIP_COLLECTIVE=1`        | **Wrong by construction.** Return from every AllReduce without doing anything. The difference against a normal run is the whole cost of the collective.       |
 
@@ -221,10 +221,11 @@ Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 
 | Suite                                     | What it covers                                                                                                                          | Needs GPUs |
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `TPGraphRewriterAnalyze`                  | Structural analysis of a synthetic transformer block                                                                                    | no         |
-| `TPGraphRewriter/TPGraphRewriterSharding` | Per-rank sharding for world sizes 2/3/4, collective insertion, bias, KV-cache localization                                              | no         |
-| `TPGraphRewriterLMHead`                   | Vocabulary projection split and the gather that collects it                                                                             | no         |
-| `TPGraphRewriterPagedAttention`           | PagedAttention anchor and its rt_info                                                                                                   | no         |
+| `TPAnnotationsTest`                       | `tp_shard` / `tp_role`: set twice, serialization, rank ranges (uneven, shared, partial shares)                                         | no         |
+| `TPAnalyzerTest`                          | The analysis of the synthetic blocks: roles, geometry, bias, LM head, KV-cache variables, refusals, tied embeddings                     | no         |
+| `TPShardingVerifierTest`                  | The verifier's rules on hand-annotated graphs and its refusals, each with the error text                                               | no         |
+| `TPRankPasses/*`                          | Rank models on 2/3/4 ranks: weights, collectives, KV-cache variables, PagedAttention head counts, fewer KV heads than ranks, fused projections | no |
+| `TPAnalyzerModels`                        | Real IRs listed in `OV_TP_TEST_MODELS` (paths separated by `:`): every rank model on 2 and 4 ranks; skipped without the variable      | no         |
 
 ### `ov_gpu_unit_tests` (intel_gpu, built with `ENABLE_TP`)
 
@@ -248,7 +249,7 @@ Two binaries under `tests/`, plus the collectives' own suite in intel_gpu.
 |                           | a collective without a TP context, a collective of another rank, a second model on the channel, a context on the wrong device,           |
 |                           | unsupported parameters, an unknown backend, a device listed twice; the backend and support queries; a fixed staging; device memory statistics |
 
-The graph-rewriter suites need no GPU at all; `TPCollectivesTest` and
+The unit suites need no GPU at all; `TPCollectivesTest` and
 every functional suite skip when the machine has fewer GPUs than the world size they ask for.
 
 ### Running them
@@ -269,7 +270,8 @@ narrow with the usual gtest flags:
 cd bin/intel64/Release
 
 ./ov_tp_unit_tests --gtest_list_tests
-./ov_tp_unit_tests --gtest_filter='TPGraphRewriter*:-*PagedAttention*'
+./ov_tp_unit_tests --gtest_filter='TPRankPasses*:-*Fused*'
+OV_TP_TEST_MODELS=/path/a.xml:/path/b.xml ./ov_tp_unit_tests --gtest_filter='TPAnalyzerModels*'
 ./ov_gpu_unit_tests --gtest_filter='TPCollectivesTest.*'
 ./ov_gpu_unit_tests --gtest_filter='TPCollectivesTest.RingAndHalvingAgree'
 
@@ -284,8 +286,8 @@ cd bin/intel64/Release
 The binaries are set up differently, which matters when a run fails to
 start at all:
 
-- `ov_tp_unit_tests` compiles `graph_rewriter.cpp` **into itself** -- the
-  plugin is a MODULE and exports nothing -- so it never loads
+- `ov_tp_unit_tests` links the L1 library `openvino_tp_transformations` --
+  the plugin is a MODULE and exports nothing -- so it never loads
   `libopenvino_tp_plugin.so` and does not care about `plugins.xml`.
 - `ov_gpu_unit_tests` links the intel_gpu runtime statically and talks to
   Level Zero and OpenCL directly; `TPCollectivesTest` is in it only in a
@@ -413,34 +415,29 @@ Read the report before changing anything:
 
 ## Adding a New Sharding Pattern
 
-The rewriter is **structural**, not name-driven: `analyze()` finds every
-`PagedAttentionExtension` or `ScaledDotProductAttention` in the model, then
-walks backward from each attention input to the MatMul that produced it.
-Friendly names are read off the ops it found, for logging and for the LM head,
-but they do not drive detection. An architecture with unusual layer naming
-works as-is; one with an unusual pattern does not.
+The analysis is **structural**, not name-driven: each block pass is a MatcherPass (or anchors on
+an attention op and walks from it) and annotates what it recognizes; names are read only for the
+log. An architecture with unusual layer naming works as-is; one with an unusual pattern needs a
+block pass, and usually nothing else, because it is built from op types that already have
+verifier rules.
 
 To support a new pattern:
 
-1. Extend the backward walk in `analyze()` if the projection is not a direct
-   MatMul producer of an attention input -- for example when QKV is fused into
-   one MatMul and split afterwards.
-2. Update the shape-constant patching in `rewrite()`. In particular:
-   - `local_q_heads` / `local_kv_heads` are derived assuming a
-     `[B, S, num_heads, head_dim]` reshape after Q. Custom reshapes need
-     custom predicates.
-   - The KV-cache shape patch looks for a `Constant` feeding the state
-     initializer; different state-init topologies need their own pattern.
-   - PagedAttention carries its head counts in `rt_info` rather than in
-     constants, which is a separate step.
-3. Add a case to `tests/unit/graph_rewriter_test.cpp`, extending
-   `BlockConfig` in `tests/common/tp_test_models.hpp` when the new
-   pattern needs a different synthetic block.
+1. Add a block pass next to the existing ones (`attention_blocks.cpp`, `mlp_blocks.cpp`) and
+   register it in `TPLayerAnalyzer`. Annotate with the helpers of `block_utils.hpp`:
+   `annotate_projection` (role, weight chain, column-parallel bias), `annotate_shape_input`
+   (shape constants: a split size, the lengths or bounds of a fused split), `annotate_chain`.
+   Choose the segments' units so that every rank gets whole heads / groups.
+2. Run the verifier on the new block (it runs inside the analyzer). If it names an op type
+   without a rule, add the rule to `verifier.cpp` with a unit test of both a proof and a refusal.
+3. Add the block to `BlockConfig` in `tests/common/tp_test_models.hpp`, a rank-model test in
+   `tests/unit/rank_passes_test.cpp`, and a GPU accuracy test in
+   `tests/functional/accuracy_test.cpp` -- the only test that shows the numbers are right.
 
 ## Adding a New TP Op
 
 The plugin defines exactly two ops, `TPAllReduce` and `TPGather`, and
-both are emitted by the rewriter. To add a third:
+both are inserted by `TPInsertCollectives`. To add a third:
 
 1. Declare it in `src/common/transformations/include/ov_ops/tp_collective.hpp`
    (source in `src/common/transformations/src/ov_ops/tp_collective.cpp`) and
@@ -467,8 +464,8 @@ both are emitted by the rewriter. To add a third:
 
 - Headers under `include/tp/` belong to this plugin alone; nothing in
   intel_gpu includes them, and this plugin includes nothing of intel_gpu.
-- Internal headers (e.g. `compiled_model.hpp`, `plugin.hpp`,
-  `graph_rewriter.hpp`) stay in `src/`.
+- Internal headers (e.g. `compiled_model.hpp`, `plugin.hpp`) stay in `src/`; the L1 library
+  exports its own under `src/transformations/include/tp_transformations/`.
 - What the two plugins share is the private collective contract in
   `src/inference/dev_api/openvino/runtime/tp/collective_contract.hpp` and the
   ops in `ov_ops/tp_collective.hpp`. The communicator, the group state and
@@ -489,7 +486,7 @@ remaining headroom:
    the lever is there rather than in the collective.
 2. **Sequence Parallel.** Replace AllReduce with ReduceScatter+AllGather around
    the layer norms, which parallelizes the replicated norms as well.
-   A significant rewrite in `graph_rewriter`.
+   A new block pass in L1 and verifier rules for the scatter and gather.
 3. **Recording ahead of time.** Recordings are currently laid down on the
    calling thread when the signature moves, which lands in time to first token.
    `record breakdown` prices it.

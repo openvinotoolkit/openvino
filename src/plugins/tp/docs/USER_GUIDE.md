@@ -13,8 +13,8 @@ two or more Intel discrete GPUs using **Megatron-style tensor parallelism**:
   slices are gathered into rank 0, whose outputs the caller reads.
 - LayerNorm, RoPE, attention softmax, residual add, and embedding lookup
   are replicated on every rank.
-- KV-cache shape constants are patched so each rank only stores its
-  share of `num_kv_heads`.
+- KV-cache shapes and head counts are adjusted so each rank only stores the
+  KV heads its query heads use.
 
 The cross-device sum is performed directly on device USM via a shared
 Level Zero context — no host round-trip and no copy through CPU memory.
@@ -43,9 +43,11 @@ Level Zero context — no host round-trip and no copy through CPU memory.
 
 - A decoder whose attention is `PagedAttentionExtension` or
   `ScaledDotProductAttention`, with the Q/K/V/O and MLP projections being
-  MatMuls over constant-derived weights.
-- The number of rank devices may not exceed the model's KV head count:
-  attention is split by KV head, so there is nothing left to give the extra ranks.
+  MatMuls over constant-derived weights. Fused projections (one `qkv_proj`,
+  one `gate_up_proj`, as in Phi-3) are supported.
+- More ranks than KV heads only when the ranks divide by the KV heads and the
+  query heads by the ranks (e.g. 2 KV heads and 32 query heads on 4 GPUs: two
+  ranks share each KV head). Fewer ranks than KV heads work for any count.
 
 ## Is It Worth It
 
@@ -193,13 +195,16 @@ Things to know:
 
 ## Limitations
 
-- **Architecture coverage.** The rewriter anchors on the attention op
-  (`PagedAttentionExtension` or `ScaledDotProductAttention`) and walks back to
-  the projections. What it does not handle is a different *shape*:
-  fused QKV, or a weight fed from a live parameter rather than a constant.
-- **Quantized weights.** A quantized weight can only be cut on a
-  quantization-group boundary. A group size that does not line up with the
-  split is rejected rather than silently mis-sliced.
+- **Architecture coverage.** The plugin recognizes attention and MLP blocks by
+  their structure, then proves that the split computes what the model does. A
+  block it recognizes only partly fails the compilation with a message naming
+  the node (`TP sharding verification failed at node ...`) instead of producing
+  wrong output. A weight fed from a live parameter rather than a constant (a LoRA
+  adapter) is not supported.
+- **Quantized weights.** A quantized weight is cut on quantization-group
+  boundaries. When the split does not line up with them (or with the bytes of
+  packed 4-bit data), the weight is cut at run time instead; the plugin warns,
+  names the weight, and the compilation takes longer.
 - **Single-process.** All ranks execute in the same process on plugin-owned
   threads. Multi-process / multi-host configurations are out of scope.
 - **One TP request at a time per device.** TP requests of every TP model in
@@ -237,7 +242,8 @@ Only one Intel GPU is visible. Verify with `clinfo -l` or the L0 sysman tools.
 
 The current sharding divides the weights of the column- and row-parallel
 MatMuls and the vocabulary projection across ranks, but does **not** shard
-the embedding table or activation memory. Effective memory per rank is
+the embedding table or activation memory (a vocabulary projection that shares
+its weights with the embedding adds its slice on top of the whole table). Effective memory per rank is
 roughly `(sharded weights / N) + (unsharded weights) + (full activation
 budget)`. If a single GPU does not have enough VRAM for that, TP cannot fit
 it either.
@@ -269,6 +275,20 @@ whole model moves at their pace. The percentage in the message is how much
 longer those ranks have to work; the warning only appears past roughly 10%.
 
 Choose a number of devices that divides the KV head count to make it go away.
+
+### `[TP] Model has H Q heads and K KV heads; world size N does not divide them evenly`
+
+With more ranks than KV heads, every rank needs one whole KV head and an equal
+share of its query heads, so N has to be a multiple of the KV head count and
+divide the query head count. Use fewer devices, or a number that fits.
+
+### `[TP] Sharding verification failed at node ...`
+
+The plugin could not prove that the split model computes what the original
+does: a block of the model is recognized only partly, or an operation on split
+data has no sharding rule. The message names the node, its type, the input
+shapes and states, and where each state came from. The model is not supported
+as it is; please report it with the message.
 
 ### A collective times out or the group aborts
 
