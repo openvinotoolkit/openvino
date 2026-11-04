@@ -332,7 +332,9 @@ void GroupQueryAttention::validate_and_infer_types() {
     // allows a padded chunk (sequence_length > 1) only for batch_size == 1; a single-token step ignores the input.
     check_input(GroupQueryAttentionInputs::QUERY_SEQLENS, {1}, integral_types, false);
     if (has_query_seqlens()) {
-        NODE_VALIDATION_CHECK(this, has_past, "GroupQueryAttention: query_seqlens requires past_key and past_value.");
+        NODE_VALIDATION_CHECK(this,
+                              has_past_layout,
+                              "GroupQueryAttention: query_seqlens requires past_key and past_value.");
         NODE_VALIDATION_CHECK(this, m_causal, "GroupQueryAttention: query_seqlens requires causal=1.");
         NODE_VALIDATION_CHECK(this,
                               !is_shared_kv(),
