@@ -10,10 +10,12 @@
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/maximum.hpp"
@@ -191,8 +193,26 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
     const int64_t window_size = sliding_window ? node->get_local_window_size() : 0;
     // StatelessKV takes the present length and writes the S new rows at present - S. A right-padded chunk writes them
     // at its past P = total - Q, so it passes P + S; SDPA's lower-right causal mask then lets row s see keys <= P + s.
-    const ov::Output<ov::Node> present_len =
-        query_seqlens ? register_new_node<v1::Add>(past_seqlen, current_seqlen_scalar)->output(0) : seqlens_1d;
+    // present_len is purely a view/offset param (StatelessKV never copies), so honoring a declared capacity bigger
+    // than P + S here is free: max(P + S, total_sequence_length), matching the common decomposition's growing-cache
+    // capacity rule (ORT's max(past_rows, total_sequence_length)).
+    using GQAInputs = ov::op::internal::GroupQueryAttentionInputs;
+    const auto total_seqlen_pos = static_cast<size_t>(GQAInputs::TOTAL_SEQUENCE_LENGTH);
+    const bool has_total_sequence_length =
+        query_seqlens && total_seqlen_pos < node->get_input_size() &&
+        !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos));
+    ov::Output<ov::Node> present_len = seqlens_1d;
+    if (query_seqlens) {
+        present_len = register_new_node<v1::Add>(past_seqlen, current_seqlen_scalar)->output(0);
+        if (has_total_sequence_length) {
+            const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+            const auto total_sequence_length = register_new_node<v1::Reshape>(
+                register_new_node<v0::Convert>(node->input_value(total_seqlen_pos), ov::element::i64),
+                one,
+                false);
+            present_len = register_new_node<v1::Maximum>(present_len, total_sequence_length);
+        }
+    }
     const auto make_stateless_kv = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current, int64_t concat_axis) {
         return register_new_node<op::StatelessKV>(past, current, present_len, concat_axis, true, window_size);
     };
