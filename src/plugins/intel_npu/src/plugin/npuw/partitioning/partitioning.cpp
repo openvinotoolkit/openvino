@@ -351,7 +351,6 @@ private:
     // the same repeated block family. We need to keep them counted for sanity checks.
     // Matches a pair of {func_name, layer_name} to it's counter.
     std::map<std::pair<std::string, std::string>, size_t> dup_scalars;
-    std::unordered_map<PPtr, std::shared_ptr<ov::op::v0::Constant>> generated_parameter_constants;
 
     using Match = std::function<bool(const std::shared_ptr<ov::Node>& node)>;
     void propagate(const std::string& func_name, const Match& test, ov::npuw::RepeatedBlock::MatchedBank& bank);
@@ -650,7 +649,7 @@ void Partitioner::identifySubgraphs() {
                            ov::op::util::is_constant(input_node->input(0).get_source_output().get_node_shared_ptr())) {
                     // "Just-an-op" case, popped here again
                     // FIXME: Finally introduce my own test routine for that!
-                    // Don't modify the source graph here; function-local cut-off handles this case.
+                    // Don't do anything here too.
                     continue;
                 } else if ((ov::is_type<ov::op::v8::Slice>(input_node) ||
                             ov::is_type<ov::op::v0::Convert>(input_node)) &&
@@ -1789,7 +1788,6 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
         part_ctx.subgraph_patterns->apply(function);
     }
     std::size_t new_param_idx = function._param_offset;
-    std::unordered_map<PPtr, std::size_t> local_parameters;
 
     for (auto&& node_ptr : function._model->get_ordered_ops()) {
         if (ov::op::util::is_parameter(node_ptr) || ov::op::util::is_constant(node_ptr) ||
@@ -1797,7 +1795,6 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
             // Skip Parameter, Const, and Result layers from bank matching
             continue;
         }
-
         const auto& this_layer_name = node_ptr->get_friendly_name();
         LOG_DEBUG("Processing " << this_layer_name);
 
@@ -1815,13 +1812,10 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(prod_output.get_element_type(),
                                                                          prod_output.get_partial_shape());
                 input_desc.replace_source_output(new_param);  // (n)/1/i/a
-                function._model->add_parameters({new_param});
+                function._model->add_parameters({std::move(new_param)});
                 LOG_DEBUG("Register Parameter[" << new_param_idx << "] as input to " << iport.first << " / "
                                                 << iport.second);
                 function._param_mapping[iport] = new_param_idx;  // (n)/1/i/b
-                local_parameters.emplace(new_param, new_param_idx);
-                generated_parameter_constants.emplace(new_param,
-                                                      std::static_pointer_cast<ov::op::v0::Constant>(input_node));
                 new_param_idx++;
 
                 LOG_DEBUG("Register " << prod_output << " in the function closure");
@@ -1831,32 +1825,15 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
                 LOG_DEBUG("Handling a Parameter input " << prod_output);
                 LOG_BLOCK();
 
-                // Resolve original subgraph inputs and parameters added while building this function.
+                // Record that this node also reads a parameter.
+                // Parameter must be already defined (originally)
                 auto param_iter = std::find(body_sg._parameters.begin(),
                                             body_sg._parameters.end(),
                                             std::static_pointer_cast<ov::op::v0::Parameter>(input_node));
-                std::size_t existing_param_idx = 0;
-                if (param_iter != body_sg._parameters.end()) {
-                    existing_param_idx = std::distance(body_sg._parameters.begin(), param_iter);
-                } else {
-                    auto local_param_iter =
-                        local_parameters.find(std::static_pointer_cast<ov::op::v0::Parameter>(input_node));
-                    if (local_param_iter != local_parameters.end()) {
-                        existing_param_idx = local_param_iter->second;
-                    } else {
-                        // A shared Convert may have been cut while creating another function, so this
-                        // function's local_parameters map cannot resolve its generated Parameter.
-                        const auto parameter = std::static_pointer_cast<ov::op::v0::Parameter>(input_node);
-                        auto generated_param_iter = generated_parameter_constants.find(parameter);
-                        if (generated_param_iter == generated_parameter_constants.end()) {
-                            OPENVINO_THROW("NPUW:", input_node, " is not found in the subgraph's parameters");
-                        }
-                        existing_param_idx = new_param_idx++;
-                        function._model->add_parameters({parameter});
-                        local_parameters.emplace(parameter, existing_param_idx);
-                        funcall._lazy_closure.push_back(LazyTensor(generated_param_iter->second));
-                    }
+                if (param_iter == body_sg._parameters.end()) {
+                    OPENVINO_THROW("NPUW:", input_node, " is not found in the subgraph's parameters");
                 }
+                const auto existing_param_idx = std::distance(body_sg._parameters.begin(), param_iter);
                 LOG_DEBUG("Register Parameter[" << existing_param_idx << "] as input to " << iport.first << " / "
                                                 << iport.second);
                 function._param_mapping[iport] = existing_param_idx;
