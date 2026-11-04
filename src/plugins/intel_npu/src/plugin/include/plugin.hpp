@@ -11,7 +11,6 @@
 #include "backends_registry.hpp"
 #include "blob_source.hpp"
 #include "compiler_option_support_helper.hpp"
-#include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -91,12 +90,6 @@ private:
 
     // Defers VCL loading until compiler construction or profiling decoder creation needs it.
     std::shared_ptr<VCLLoaderHolder> _vclLoaderHolder;
-
-    // PREFER_PLUGIN probes compiler availability once and remembers whether to use the plugin or driver compiler.
-    // The outcome depends on this plugin's VCL provider, so it must not be shared across plugin instances.
-    // The factory is not copyable. Compile and query operations, property queries and option support checks
-    // share this single instance, so a failed probe is not repeated. Explicit PLUGIN requests still retry.
-    std::shared_ptr<const CompilerAdapterFactory> _compilerAdapterFactory;
 
     mutable Logger _logger;
     std::unique_ptr<PluginPropertyManager> _propertiesManager;

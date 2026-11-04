@@ -101,19 +101,16 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
 
 namespace intel_npu {
 
-PluginPropertyManager::PluginPropertyManager(
-    const std::shared_ptr<OptionsDesc>& options,
-    const ov::SoPtr<IEngineBackend>& backend,
-    const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
-    const std::shared_ptr<const CompilerAdapterFactory>& compilerAdapterFactory,
-    Logger& logger)
+PluginPropertyManager::PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
+                                             const ov::SoPtr<IEngineBackend>& backend,
+                                             const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
+                                             const VCLFunctionTableProvider& vclFunctions,
+                                             Logger& logger)
     : _config(options),
       _backend(backend),
       _compilerOptionSupportHelper(optionSupportHelper),
-      _compilerAdapterFactory(compilerAdapterFactory),
+      _vclFunctions(vclFunctions),
       _logger(logger) {
-    OPENVINO_ASSERT(_compilerAdapterFactory != nullptr,
-                    "PluginPropertyManager requires a non-null CompilerAdapterFactory");
     if (_backend == nullptr) {
         _logger.info("No backend is available. Backend/device-dependent properties will be unavailable.");
     }
@@ -400,7 +397,8 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
                                                                  getPlatformOrDefault(arguments),
                                                                  device == nullptr ? deviceId : device->getName());
 
-        _compilerAdapterFactory->decideCompilerType(compilerType.value(), device, compilationPlatform);
+        CompilerAdapterFactory factory{_vclFunctions};
+        factory.decideCompilerType(compilerType.value(), device, compilationPlatform);
         return compilerType;
     } catch (const std::exception& ex) {
         _logger.warning("Failed to resolve compiler type: %s. Compiler-dependent properties will be unsupported.",
@@ -952,7 +950,8 @@ void PluginPropertyManager::registerProperties() {
             }
 
             try {
-                return _compilerAdapterFactory->getCompiler(_backend, compilerType.value(), compilationPlatform) != nullptr;
+                CompilerAdapterFactory factory{_vclFunctions};
+                return factory.getCompiler(_backend, compilerType.value(), compilationPlatform) != nullptr;
             } catch (...) {
                 return false;
             }
@@ -970,7 +969,8 @@ void PluginPropertyManager::registerProperties() {
                     device == nullptr ? deviceId : device->getName());
             }
 
-            return _compilerAdapterFactory->getCompiler(_backend, compilerType.value(), compilationPlatform)->get_version();
+            CompilerAdapterFactory factory{_vclFunctions};
+            return factory.getCompiler(_backend, compilerType.value(), compilationPlatform)->get_version();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key: ", ov::intel_npu::compiler_version.name());

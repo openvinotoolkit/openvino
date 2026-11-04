@@ -8,9 +8,12 @@
 #include <atomic>
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
 #include <future>
 #include <memory>
+#include <random>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <vector>
 
@@ -36,6 +39,44 @@ TEST(VCLLoaderHolderTests, Functions_WithMissingLibrary_Throws) {
 TEST(VCLLoaderHolderTests, Functions_WithEmptyLibraryDir_Throws) {
     const ::intel_npu::VCLLoaderHolder holder{std::string{}};
     EXPECT_THROW(holder.functions(), ov::Exception);
+}
+
+class VCLLoaderHolderFailedLoadTests : public ::testing::Test {
+protected:
+    void SetUp() override {
+        directory = std::filesystem::temp_directory_path() /
+                    ("npu_vcl_loader_holder_" + std::to_string(std::random_device{}()));
+        std::filesystem::create_directories(directory);
+    }
+
+    void TearDown() override {
+        std::error_code ignored;
+        std::filesystem::remove_all(directory, ignored);
+    }
+
+    std::filesystem::path directory;
+};
+
+TEST_F(VCLLoaderHolderFailedLoadTests, Functions_AfterFailedLoad_RethrowsFirstErrorWithoutLoadingAgain) {
+    const ::intel_npu::VCLLoaderHolder holder(ov::util::path_to_string(directory));
+    std::string firstError;
+    try {
+        holder.functions();
+        FAIL() << "The library is missing, the first call must throw";
+    } catch (const ov::Exception& ex) {
+        firstError = ex.what();
+    }
+
+    // A new load attempt would now fail on the invalid file with a different error than on the missing one.
+    const auto library = ov::util::make_plugin_library_name(directory, "openvino_intel_npu_compiler_loader");
+    std::ofstream(library) << "not a shared library";
+
+    try {
+        holder.functions();
+        FAIL() << "A failed load must be remembered, the second call must throw";
+    } catch (const ov::Exception& ex) {
+        EXPECT_EQ(firstError, ex.what());
+    }
 }
 
 TEST(VCLLoaderHolderTests, Functions_CalledConcurrentlyWithMissingLibrary_EveryCallThrows) {

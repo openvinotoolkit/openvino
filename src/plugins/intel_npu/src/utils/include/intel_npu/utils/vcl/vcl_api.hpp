@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <exception>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -114,20 +115,21 @@ private:
 /**
  * @brief Obtains the VCL entry points on demand.
  *
- * Providers defer loading until the entry points are requested for compiler construction or
- * profiling decoder creation. Profiling imports can request them even when using the driver compiler.
+ * Providers defer loading until the entry points are requested to resolve or construct a compiler-in-plugin,
+ * or to create a profiling decoder. Profiling imports can request them even when using the driver compiler.
+ * A provider should remember a failed load, so that callers do not repeat it.
  */
 using VCLFunctionTableProvider = std::function<std::shared_ptr<const VCLFunctionTable>()>;
 
 /**
  * @brief Owns one lazily loaded VCL compiler library.
  *
- * Caches the first successful load. The returned tables keep the library loaded even after the
+ * Caches the outcome of the first load. The returned tables keep the library loaded even after the
  * plugin releases its holder.
  *
- * @note A failed load is not remembered, so a later call tries again. CompilerAdapterFactory caches
- * availability only for PREFER_PLUGIN resolution. Explicit PLUGIN requests and profiling imports
- * can retry after a failure.
+ * @note A failed load is remembered: every later call throws the same error without loading again. The
+ * library is therefore looked up at most once per holder, whichever component asks first (compiler
+ * resolution, PLUGIN compilation or profiling imports).
  */
 class VCLLoaderHolder final {
 public:
@@ -149,14 +151,16 @@ public:
      * @brief Returns the entry points, loading the library on the first call.
      *
      * The returned table keeps the library loaded, even after this holder is destroyed.
-     * @throws ov::Exception when the library cannot be loaded.
+     * @throws ov::Exception when the library cannot be loaded. Later calls rethrow the same error.
      */
     std::shared_ptr<const VCLFunctionTable> functions() const;
 
 private:
     std::optional<std::string> _library_dir;
     mutable std::mutex _mutex;
+    // Loaded library, or the error of the load that failed. Both stay empty until the first call.
     mutable std::shared_ptr<const VCLLoader> _loader;
+    mutable std::exception_ptr _loadFailure;
 };
 
 }  // namespace intel_npu

@@ -170,7 +170,6 @@ namespace intel_npu {
 
 Plugin::Plugin()
     : _vclLoaderHolder(std::make_shared<VCLLoaderHolder>()),
-      _compilerAdapterFactory(std::make_shared<const CompilerAdapterFactory>(vcl_functions())),
       _logger("NPUPlugin", Logger::global().level()) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::Plugin");
     set_device_name("NPU");
@@ -197,11 +196,12 @@ Plugin::Plugin()
 
     /// Init and register properties
     OV_ITT_TASK_NEXT(PLUGIN, "RegisterProperties");
-    _compilerOptionSupportHelper = std::make_shared<CompilerOptionSupportHelper>(_backend, _compilerAdapterFactory);
+    _compilerOptionSupportHelper =
+        std::make_shared<CompilerOptionSupportHelper>(_backend, CompilerAdapterFactory{vcl_functions()});
     _propertiesManager = std::make_unique<PluginPropertyManager>(options,
                                                                  _backend,
                                                                  _compilerOptionSupportHelper,
-                                                                 _compilerAdapterFactory,
+                                                                 vcl_functions(),
                                                                  _logger);
 }
 
@@ -284,10 +284,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                       device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto compiler = _compilerAdapterFactory->getCompiler(_backend,
-                                                         compilerType,
-                                                         compilationPlatform,
-                                                         _compilerOptionSupportHelper->getOptionSupportCache());
+    CompilerAdapterFactory factory{vcl_functions()};
+    auto compiler = factory.getCompiler(_backend,
+                                        compilerType,
+                                        compilationPlatform,
+                                        _compilerOptionSupportHelper->getOptionSupportCache());
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -662,10 +663,11 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                       device == nullptr ? std::move(deviceId) : device->getName());
 
     ov::intel_npu::CompilerType compilerType = _propertiesManager->determineCompilerType(localProperties);
-    auto compiler = _compilerAdapterFactory->getCompiler(_backend,
-                                                         compilerType,
-                                                         compilationPlatform,
-                                                         _compilerOptionSupportHelper->getOptionSupportCache());
+    CompilerAdapterFactory factory{vcl_functions()};
+    auto compiler = factory.getCompiler(_backend,
+                                        compilerType,
+                                        compilationPlatform,
+                                        _compilerOptionSupportHelper->getOptionSupportCache());
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {

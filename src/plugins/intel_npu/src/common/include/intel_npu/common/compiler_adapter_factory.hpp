@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <atomic>
-#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -24,43 +21,40 @@ class CompilerAdapterFactory final {
 public:
     /**
      * @param vclFunctions Supplies the VCL entry points. This factory calls it only to build or probe a
-     *        compiler-in-plugin. Driver compilation never calls it.
+     *        compiler-in-plugin. Driver compilation never calls it. The factory keeps no availability state:
+     *        the provider owns it and should remember a failed load (VCLLoaderHolder does).
      */
     explicit CompilerAdapterFactory(const VCLFunctionTableProvider& vclFunctions);
 
-    CompilerAdapterFactory(const CompilerAdapterFactory&) = delete;
-    CompilerAdapterFactory& operator=(const CompilerAdapterFactory&) = delete;
-
+    /**
+     * @brief Creates the compiler adapter and writes the resolved type back to `compilerType`.
+     *
+     * A PREFER_PLUGIN request that the driver compiler can serve (online compilation) falls back to it when the
+     * plugin compiler cannot be loaded or created. An explicit PLUGIN request and offline compilation throw.
+     */
     std::unique_ptr<ICompilerAdapter> getCompiler(
         const ov::SoPtr<IEngineBackend>& engineBackend,
         ov::intel_npu::CompilerType& compilerType,
         std::string_view platform,
         const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr) const;
 
+    /**
+     * @brief Resolves PREFER_PLUGIN to PLUGIN or DRIVER without creating a compiler.
+     *
+     * Only checks that the VCL library can be loaded. A compiler that loads but fails to be created is detected
+     * by getCompiler(), which then falls back to the driver compiler.
+     */
     void decideCompilerType(ov::intel_npu::CompilerType& compilerType,
                             const std::shared_ptr<intel_npu::IDevice>& device,
-                            std::string_view platform) const;
+                            std::string_view platform);
 
     static const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes();
 
 private:
     ov::intel_npu::CompilerType determineAppropriateCompilerTypeBasedOnPlatform(std::string_view platform) const;
 
-    std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType> resolvePreferPluginCompiler(
-        const ov::SoPtr<IEngineBackend>& engineBackend,
-        const std::shared_ptr<OptionSupportCache>& optionSupportCache,
-        const std::shared_ptr<intel_npu::IDevice>& device,
-        std::string_view platform) const;
-
-    enum class PluginCompilerPresence : std::uint8_t {
-        UNKNOWN = 0,
-        PRESENT = 1,
-        ABSENT = 2,
-    };
-
-    // Outcome of the compiler-in-plugin availability probe for this provider. The factory is not copyable, so
-    // everything sharing one instance sees the same outcome and another plugin instance probes on its own.
-    mutable std::atomic<PluginCompilerPresence> _pluginCompilerPresence{PluginCompilerPresence::UNKNOWN};
+    ov::intel_npu::CompilerType resolvePreferPluginCompiler(const std::shared_ptr<intel_npu::IDevice>& device,
+                                                            std::string_view platform) const;
 
     VCLFunctionTableProvider _vclFunctions;
 };

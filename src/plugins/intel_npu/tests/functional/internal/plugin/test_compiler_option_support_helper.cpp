@@ -29,16 +29,11 @@ namespace test {
 namespace behavior {
 
 namespace {
-// All tests of a process share one holder, so the compiler library loads at most once.
 ::intel_npu::VCLFunctionTableProvider testVclFunctions() {
     static const auto holder = std::make_shared<::intel_npu::VCLLoaderHolder>();
     return [] {
         return holder->functions();
     };
-}
-
-std::shared_ptr<const ::intel_npu::CompilerAdapterFactory> makeTestCompilerAdapterFactory() {
-    return std::make_shared<const ::intel_npu::CompilerAdapterFactory>(testVclFunctions());
 }
 
 // Log markers emitted once per adapter, when its constructor runs (see driver_compiler_adapter.cpp /
@@ -83,7 +78,9 @@ protected:
 
         compilerType = GetParam();
         backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
-        helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, makeTestCompilerAdapterFactory());
+        helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(
+            backend,
+            ::intel_npu::CompilerAdapterFactory{testVclFunctions()});
     }
 
     void TearDown() override {
@@ -346,7 +343,9 @@ protected:
         OVPluginTestBase::SetUp();
 
         backend = ov::SoPtr<::intel_npu::IEngineBackend>(std::make_shared<::intel_npu::ZeroEngineBackend>());
-        helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(backend, makeTestCompilerAdapterFactory());
+        helper = std::make_unique<::intel_npu::CompilerOptionSupportHelper>(
+            backend,
+            ::intel_npu::CompilerAdapterFactory{testVclFunctions()});
     }
 
     void TearDown() override {

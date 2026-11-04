@@ -47,12 +47,11 @@ namespace ov {
 namespace test {
 namespace behavior {
 namespace {
-// All tests of a process share one holder, so the compiler library loads at most once.
-std::shared_ptr<const ::intel_npu::CompilerAdapterFactory> makeTestCompilerAdapterFactory() {
+::intel_npu::VCLFunctionTableProvider testVclFunctions() {
     static const auto holder = std::make_shared<::intel_npu::VCLLoaderHolder>();
-    return std::make_shared<const ::intel_npu::CompilerAdapterFactory>([] {
+    return [] {
         return holder->functions();
-    });
+    };
 }
 }  // namespace
 
@@ -167,12 +166,12 @@ public:
             REGISTER_OPTION(Opt);
         });
 
-        const auto compilerAdapterFactory = makeTestCompilerAdapterFactory();
         propertiesManager = std::make_unique<PluginPropertyManager>(
             options,
             backend,
-            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, compilerAdapterFactory),
-            compilerAdapterFactory,
+            std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend,
+                                                                       CompilerAdapterFactory{testVclFunctions()}),
+            testVclFunctions(),
             ::intel_npu::Logger::global());
     }
 
@@ -695,12 +694,13 @@ TEST_P(CompatibilityCheckTests, CheckUnsupportedConfigWithGetMergedConfigAndUnkn
 
     std::shared_ptr<::intel_npu::OptionsDesc> localOptions = std::make_shared<::intel_npu::OptionsDesc>();
     localOptions->add<::intel_npu::COMPILER_TYPE>();
-    const auto compilerAdapterFactory = makeTestCompilerAdapterFactory();
     auto localPropertiesManager = std::make_unique<::intel_npu::PluginPropertyManager>(
         localOptions,
         backend,
-        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(backend, compilerAdapterFactory),
-        compilerAdapterFactory,
+        std::make_shared<::intel_npu::CompilerOptionSupportHelper>(
+            backend,
+            ::intel_npu::CompilerAdapterFactory{testVclFunctions()}),
+        testVclFunctions(),
         ::intel_npu::Logger::global());
 
     {

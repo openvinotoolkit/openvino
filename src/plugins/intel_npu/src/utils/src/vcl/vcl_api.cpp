@@ -4,6 +4,7 @@
 
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 
+#include <exception>
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
@@ -49,11 +50,21 @@ VCLLoaderHolder::VCLLoaderHolder(const std::string& library_dir) : _library_dir(
 
 std::shared_ptr<const VCLFunctionTable> VCLLoaderHolder::functions() const {
     std::lock_guard<std::mutex> lock(_mutex);
+    if (_loadFailure) {
+        std::rethrow_exception(_loadFailure);
+    }
     if (_loader == nullptr) {
-        const auto library_dir = _library_dir ? *_library_dir : ov::util::path_to_string(ov::util::get_ov_lib_path());
-        OPENVINO_ASSERT(!library_dir.empty(), "Cannot load the VCL compiler library: no library directory was given");
-        // The constructor is private, so make_shared is not an option here.
-        _loader = std::shared_ptr<const VCLLoader>(new VCLLoader(library_dir));
+        try {
+            const auto library_dir =
+                _library_dir ? *_library_dir : ov::util::path_to_string(ov::util::get_ov_lib_path());
+            OPENVINO_ASSERT(!library_dir.empty(),
+                            "Cannot load the VCL compiler library: no library directory was given");
+            // The constructor is private, so make_shared is not an option here.
+            _loader = std::shared_ptr<const VCLLoader>(new VCLLoader(library_dir));
+        } catch (...) {
+            _loadFailure = std::current_exception();
+            throw;
+        }
     }
     return _loader->sharedFunctions();
 }
