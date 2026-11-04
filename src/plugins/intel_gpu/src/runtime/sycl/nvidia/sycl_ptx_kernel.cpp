@@ -284,16 +284,17 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
     const auto& gws = args_desc.workGroups.global;
     const auto& lws = args_desc.workGroups.local;
 
-    // Compute grid dimensions (ceiling division)
-    auto ceil_div = [](size_t a, size_t b) -> unsigned int {
-        return b ? static_cast<unsigned int>((a + b - 1) / b) : 1u;
-    };
-    unsigned int gx = (lws.size() > 0 && lws[0] > 0) ? ceil_div(gws.size() > 0 ? gws[0] : 1, lws[0]) : static_cast<unsigned int>(gws.size() > 0 ? gws[0] : 1u);
-    unsigned int gy = (lws.size() > 1 && lws[1] > 0) ? ceil_div(gws.size() > 1 ? gws[1] : 1, lws[1]) : static_cast<unsigned int>(gws.size() > 1 ? gws[1] : 1u);
-    unsigned int gz = (lws.size() > 2 && lws[2] > 0) ? ceil_div(gws.size() > 2 ? gws[2] : 1, lws[2]) : static_cast<unsigned int>(gws.size() > 2 ? gws[2] : 1u);
-    unsigned int bx = (lws.size() > 0 && lws[0] > 0) ? static_cast<unsigned int>(lws[0]) : 1u;
-    unsigned int by = (lws.size() > 1 && lws[1] > 0) ? static_cast<unsigned int>(lws[1]) : 1u;
-    unsigned int bz = (lws.size() > 2 && lws[2] > 0) ? static_cast<unsigned int>(lws[2]) : 1u;
+    // Work-group size and count per NDRange dimension. They stay in size_t until they are checked against the CUDA
+    // limits: narrowing first would wrap an extent of 2^32 + 1 to 1 and run only part of the NDRange. A dimension
+    // without a local size runs one work-item per block.
+    size_t block_extent[3];
+    size_t grid_extent[3];
+    for (size_t d = 0; d < 3; ++d) {
+        const size_t global = d < gws.size() ? gws[d] : 1;
+        const size_t local = (d < lws.size() && lws[d] > 0) ? lws[d] : 1;
+        block_extent[d] = local;
+        grid_extent[d] = global / local + (global % local != 0 ? 1 : 0);
+    }
 
     // CUDA caps the three axes asymmetrically (block.z <= 64, grid.y and grid.z <= 65535),
     // while OpenCL work-groups routinely put the only non-unit extent last, e.g. lws = {1, 1, 192}.
@@ -301,18 +302,32 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
     // kernel built from reqd_work_group_size carries a .reqntid the driver rejects the launch
     // over.  Carrying the NDRange dimensions on different axes keeps the work-group whole; the
     // PTX of the selected mapping is rewritten to read the matching special registers.
-    const unsigned int block_per_dim[3] = {bx, by, bz};
-    const unsigned int grid_per_dim[3] = {gx, gy, gz};
+    //
+    // No mapping fits an extent beyond the largest per-axis limits (block.x/y, grid.x), and anything within them is
+    // representable as unsigned int, so the search only runs on extents that pass this check.
+    bool within_cuda_range = true;
+    for (size_t d = 0; d < 3; ++d) {
+        within_cuda_range = within_cuda_range && block_extent[d] <= CUDA_MAX_BLOCK_XY &&
+                            grid_extent[d] <= CUDA_MAX_GRID_X;
+    }
 
+    unsigned int block_per_dim[3] = {1u, 1u, 1u};
+    unsigned int grid_per_dim[3] = {1u, 1u, 1u};
     size_t mapping_idx = 0;
     bool mapping_found = false;
-    for (size_t i = 0; i < dim_mapping_count; ++i) {
-        const dim_mapping& candidate = dim_mappings()[i];
-        if (preserves_local_id_order(block_per_dim, candidate) &&
-            dims_fit_cuda_limits(block_per_dim, grid_per_dim, candidate)) {
-            mapping_idx = i;
-            mapping_found = true;
-            break;
+    if (within_cuda_range) {
+        for (size_t d = 0; d < 3; ++d) {
+            block_per_dim[d] = static_cast<unsigned int>(block_extent[d]);
+            grid_per_dim[d] = static_cast<unsigned int>(grid_extent[d]);
+        }
+        for (size_t i = 0; i < dim_mapping_count; ++i) {
+            const dim_mapping& candidate = dim_mappings()[i];
+            if (preserves_local_id_order(block_per_dim, candidate) &&
+                dims_fit_cuda_limits(block_per_dim, grid_per_dim, candidate)) {
+                mapping_idx = i;
+                mapping_found = true;
+                break;
+            }
         }
     }
 
@@ -320,24 +335,24 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         // Resizing the work-group to fit would change get_local_size/get_group_id and split
         // barriers and __local sharing, so an unmappable launch is rejected instead.
         OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _program->kernel_name, "' cannot be launched: work-group (",
-                       block_per_dim[0], ", ", block_per_dim[1], ", ", block_per_dim[2],
+                       block_extent[0], ", ", block_extent[1], ", ", block_extent[2],
                        ") with work-group count (",
-                       grid_per_dim[0], ", ", grid_per_dim[1], ", ", grid_per_dim[2],
+                       grid_extent[0], ", ", grid_extent[1], ", ", grid_extent[2],
                        ") does not fit the CUDA launch limits (block <= 1024 threads, block.x/y <= 1024, "
-                       "block.z <= 64, grid.y/z <= 65535) under any dimension mapping that keeps the "
-                       "local id order");
+                       "block.z <= 64, grid.x <= 2147483647, grid.y/z <= 65535) under any dimension mapping "
+                       "that keeps the local id order");
     }
 
     unsigned int block[3];
     unsigned int grid[3];
     apply_dim_mapping(block_per_dim, dim_mappings()[mapping_idx], block);
     apply_dim_mapping(grid_per_dim, dim_mappings()[mapping_idx], grid);
-    bx = block[0];
-    by = block[1];
-    bz = block[2];
-    gx = grid[0];
-    gy = grid[1];
-    gz = grid[2];
+    const unsigned int bx = block[0];
+    const unsigned int by = block[1];
+    const unsigned int bz = block[2];
+    const unsigned int gx = grid[0];
+    const unsigned int gy = grid[1];
+    const unsigned int gz = grid[2];
 
     // Categorize args: gpu_buffer (need SYCL accessors) vs gpu_usm (direct pointer)
     std::vector<size_t> buf_arg_indices;
