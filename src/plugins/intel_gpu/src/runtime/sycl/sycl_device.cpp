@@ -363,15 +363,24 @@ memory_capabilities init_memory_caps(const ::sycl::device& device, const device_
 }
 
 #ifdef OV_GPU_VENDOR_NVIDIA
-// Finds the OpenCL device that is the same GPU as the SYCL device described by info, matching them by UUID.
-// Returns nullptr when there is none, e.g. when no OpenCL runtime is installed: that must not keep the SYCL device
+// Finds the OpenCL device that is the same GPU as the SYCL device described by info: the same vendor and the same
+// UUID. Both device-info initializers leave the UUID all zero when the runtime does not report one, so an unknown
+// UUID matches nothing rather than whichever UUID-less device comes first - possibly another vendor's, whose compiler
+// would not produce PTX.
+// Returns nullptr when there is no match, e.g. when no OpenCL runtime is installed: that must not keep the SYCL device
 // from being created, and the kernel builder reports it once an OpenCL kernel is actually built.
 std::shared_ptr<ocl::ocl_device> find_matching_ocl_device(const device_info& info) {
+    const auto& uuid = info.uuid.uuid;
+    if (std::all_of(uuid.begin(), uuid.end(), [](uint8_t byte) { return byte == 0; })) {
+        GPU_DEBUG_LOG << "[GPU][NVIDIA] The SYCL device " << info.dev_name
+                      << " reports no UUID, so no OpenCL device can be matched to it" << std::endl;
+        return nullptr;
+    }
     try {
         ocl::ocl_device_detector detector;
         for (const auto& [key, dev] : detector.get_available_devices(nullptr, nullptr)) {
             auto ocl_dev = std::dynamic_pointer_cast<ocl::ocl_device>(dev);
-            if (ocl_dev && ocl_dev->get_info().uuid.uuid == info.uuid.uuid)
+            if (ocl_dev && ocl_dev->get_info().vendor_id == info.vendor_id && ocl_dev->get_info().uuid.uuid == uuid)
                 return ocl_dev;
         }
     } catch (const std::exception& e) {
