@@ -15,7 +15,7 @@ if (Test-Path -Path "$Env:OpenVINO_DIR/OpenVINOGenAIConfig.cmake")
     $Env:OpenVINOGenAI_DIR = $Env:OpenVINO_DIR
 }
 
-$arch = if ($Env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "intel64" }
+$arch = if (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/bin/arm64") { "arm64" } else { "intel64" }
 
 $Env:OPENVINO_LIB_PATHS = "$Env:INTEL_OPENVINO_DIR/runtime/bin/$arch/Release;$Env:INTEL_OPENVINO_DIR/runtime/bin/$arch/Debug;$Env:OPENVINO_LIB_PATHS"
 
@@ -35,11 +35,11 @@ if (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb")
     $prefix = ""
     if (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/redist")
     {
-        $prefix = "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/redist/$arch/vc14"
+        $prefix = "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/redist/intel64/vc14"
     }
-    elseif (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin/$arch/vc14")
+    elseif (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin/intel64/vc14")
     {
-        $prefix = "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin/$arch/vc14"
+        $prefix = "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin/intel64/vc14"
     }
     elseif (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb/bin")
     {
@@ -95,13 +95,12 @@ catch
 if (-not $python_version)
 {
     $installed_python_version_major = [int](py -c "import sys; print(f'{sys.version_info[0]}')")
-    $installed_python_version_minor = [int](py -c "import sys; print(f'{sys.version_info[1] }')")
+    $installed_python_version_minor = [int](py -c "import sys; print(f'{sys.version_info[1]}')")
 }
 else
 {
     $version_parts = $python_version.Split('.')
     $installed_python_version_major = [int]$version_parts[0]
-
     # Strip non-numeric suffix from minor version (e.g., 14t -> 14)
     $minor_version_string = $version_parts[1] -replace '[^0-9].*$', ''
     $installed_python_version_minor = [int]$minor_version_string
@@ -113,6 +112,7 @@ if (-not ($PYTHON_VERSION_MAJOR -eq $installed_python_version_major -and $instal
     # Python is not mandatory so we can safely exit with 0
     Exit 0
 }
+
 
 # Check Python bitness
 try
