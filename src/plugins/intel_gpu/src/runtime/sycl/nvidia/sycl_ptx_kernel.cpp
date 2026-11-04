@@ -238,14 +238,53 @@ std::shared_ptr<cuda_function> get_cuda_function(const std::shared_ptr<cuda_modu
                        "': ", err ? err : "unknown");
     }
 
+    int static_shared_bytes = 0;
+    r = cuFuncGetAttribute(&static_shared_bytes, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, func);
+    if (r != CUDA_SUCCESS) {
+        const char* err = nullptr;
+        cuGetErrorString(r, &err);
+        OPENVINO_THROW("[GPU][NVIDIA] cuFuncGetAttribute(SHARED_SIZE_BYTES) failed for '", kernel_name,
+                       "': ", err ? err : "unknown");
+    }
+
     auto function = std::make_shared<cuda_function>();
     function->module = module;
     function->cu_function = static_cast<void*>(func);
     function->max_threads_per_block = max_threads;
+    function->static_shared_bytes = static_shared_bytes;
     return function;
 }
 
 }  // anonymous namespace
+
+ptx_program::ptx_program(std::string ptx) : _ptx(std::move(ptx)) {
+    // A parameter list holds no ')', so it ends at the first one after '.entry name('; parameters are separated by
+    // ',', which neither a declaration nor the comment patch_ptx_local leaves contains.
+    static const std::regex entry_re(R"(\.entry\s+([\w.$]+)\s*\(([^)]*)\))");
+    static const std::regex local_align_re(R"(/\*\s*\.ptr\s+\.shared\s+\.align\s+(\d+)\s*\*/)");
+    for (std::sregex_iterator it(_ptx.begin(), _ptx.end(), entry_re), end; it != end; ++it) {
+        auto& alignments = _local_alignments[(*it)[1].str()];
+        const std::string params = (*it)[2].str();
+        size_t start = 0;
+        while (true) {
+            const size_t comma = params.find(',', start);
+            const std::string param = params.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+            std::smatch m;
+            alignments.push_back(std::regex_search(param, m, local_align_re)
+                                     ? static_cast<uint32_t>(std::stoul(m[1].str()))
+                                     : 0u);
+            if (comma == std::string::npos)
+                break;
+            start = comma + 1;
+        }
+    }
+}
+
+const std::vector<uint32_t>& ptx_program::local_param_alignments(const std::string& kernel_name) const {
+    static const std::vector<uint32_t> none;
+    const auto it = _local_alignments.find(kernel_name);
+    return it != _local_alignments.end() ? it->second : none;
+}
 
 std::shared_ptr<cuda_module> ptx_program::module(size_t mapping_idx, const std::string& requested_by) {
     OPENVINO_ASSERT(mapping_idx < mapping_count,
@@ -269,7 +308,8 @@ std::shared_ptr<cuda_module> ptx_program::capped_module(size_t mapping_idx,
 
 ptx_kernel_state::ptx_kernel_state(std::shared_ptr<ptx_program> program, std::string kernel_name)
     : program(std::move(program))
-    , kernel_name(std::move(kernel_name)) {}
+    , kernel_name(std::move(kernel_name))
+    , local_alignments(this->program->local_param_alignments(this->kernel_name)) {}
 
 std::shared_ptr<cuda_function> ptx_kernel_state::function_for_launch(size_t mapping_idx, unsigned int block_threads) {
     OPENVINO_ASSERT(mapping_idx < ptx_program::mapping_count,
@@ -430,11 +470,11 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         std::vector<std::vector<uint8_t>> param_storage;
         std::vector<void*> params;
 
-        // First pass: accumulate total shared memory so we can compute offsets in order.
-        // LOCAL_MEM args map to .param .u64 .ptr .shared in NVIDIA OCL-compiled PTX.
-        // The parameter value is the byte offset from the start of dynamic shared memory
-        // (address 0 in the .shared address space, no static smem in OCL kernels).
-        uint64_t smem_offset = 0;
+        // __local pointer arguments are .shared addresses (.param .u64 .ptr .shared in NVVM's PTX). The static
+        // .shared variables of the function - __local arrays declared in the kernel, the work-group collectives'
+        // buffer of compat_wg.cl - take the start of the .shared window and the dynamic shared memory follows them,
+        // so the arguments are placed from the end of the static ones, each at the alignment it needs.
+        uint64_t smem_offset = static_cast<uint64_t>(function->static_shared_bytes);
 
         for (size_t i = 0; i < args.size(); ++i) {
             const auto& arg = args[i];
@@ -482,9 +522,12 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
                 std::memcpy(param_storage.back().data(), &arg.scalar.v, sz);
                 params.push_back(param_storage.back().data());
             } else if (arg.kind == sycl_ptx_kernel::arg_t::kind_t::LOCAL_MEM) {
-                // NVIDIA OCL-compiled PTX uses .param .u64 .ptr .shared for __local args.
-                // Pass the cumulative byte offset within dynamic shared memory as the
-                // parameter value (address in .shared address space, starting at 0).
+                // The parameter value is the argument's address in the .shared window, rounded up to the
+                // alignment the kernel was compiled to assume for it.
+                const uint64_t align = (i < state->local_alignments.size() && state->local_alignments[i] > 0)
+                                           ? state->local_alignments[i]
+                                           : ptx_program::default_local_alignment;
+                smem_offset = (smem_offset + align - 1) / align * align;
                 param_storage.emplace_back(sizeof(uint64_t));
                 std::memcpy(param_storage.back().data(), &smem_offset, sizeof(uint64_t));
                 params.push_back(param_storage.back().data());
@@ -492,12 +535,10 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
             }
         }
 
-        unsigned int shared_mem = 0;
-        for (const auto& arg : args) {
-            if (arg.kind == sycl_ptx_kernel::arg_t::kind_t::LOCAL_MEM) {
-                shared_mem += static_cast<unsigned int>(arg.local_size);
-            }
-        }
+        // The dynamic shared memory to request: everything past the static variables up to the end of the last
+        // __local argument, alignment padding included.
+        const unsigned int shared_mem =
+            static_cast<unsigned int>(smem_offset - static_cast<uint64_t>(function->static_shared_bytes));
 
         // The launch shape, for error messages: a kernel is launched with many shapes, and a failure is only
         // reproducible with the one that failed.
