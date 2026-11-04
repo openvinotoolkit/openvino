@@ -435,14 +435,16 @@ protected:
 #    define N_BLOCK      4
 #    define SUBGROUP_NUM 8
 
-static size_t get_gate_up_group_size(const MOECompressed::Config& config) {
-    return config.group_size == std::numeric_limits<size_t>::max() ? config.hidden_size : config.group_size;
+// group_size == SIZE_MAX means per-channel compression: a single group spans the whole K
+static size_t get_group_size(const MOECompressed::Config& config, size_t k) {
+    return config.group_size == std::numeric_limits<size_t>::max() ? k : config.group_size;
 }
 
 // Validate GEMV kernel compatibility: ELEMS_PER_LANE = FAKE_GROUP_SIZE / SUBGROUP_SIZE must be >= 2.
 // Smaller values have no kernel branch and would silently produce wrong results.
 static void check_gemv_group_size(const RuntimeParams& params) {
-    const auto gate_up_group_size = get_gate_up_group_size(params.typed_desc<moe_3gemm_fused_compressed>()->_config);
+    const auto& config = params.typed_desc<moe_3gemm_fused_compressed>()->_config;
+    const auto gate_up_group_size = get_group_size(config, config.hidden_size);
     const size_t sg = (params.get_device_info().arch >= gpu_arch::xe2) ? 32u : 16u;
     const size_t fake_gs = std::min(gate_up_group_size, size_t{128});
     OPENVINO_ASSERT(fake_gs >= 2 * sg,
@@ -459,11 +461,8 @@ static void add_common_consts(const RuntimeParams& params, JitConstants& jit) {
     auto desc = params.typed_desc<moe_3gemm_fused_compressed>();
     auto& engine = params.prog->get_engine();
     const auto& info = engine.get_device_info();
-    auto gate_up_group_size = get_gate_up_group_size(desc->_config);
-    auto down_group_size = desc->_config.group_size;
-    if (desc->_config.group_size == std::numeric_limits<size_t>::max()) {
-        down_group_size = desc->_config.inter_size;
-    }
+    const auto gate_up_group_size = get_group_size(desc->_config, desc->_config.hidden_size);
+    const auto down_group_size = get_group_size(desc->_config, desc->_config.inter_size);
 
     GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt: group_size=" << desc->_config.group_size << ", gate_up_group_size=" << gate_up_group_size
                            << ", down_group_size=" << down_group_size << std::endl;
@@ -1185,14 +1184,9 @@ public:
     void init(const std::shared_ptr<const moe_3gemm_fused_compressed>& cur_moe) {
         _hidden_size = static_cast<int>(cur_moe->_config.hidden_size);
         _intermediate_size = static_cast<int>(cur_moe->_config.inter_size);
-        _gate_up_group_size = static_cast<int>(cur_moe->_config.group_size);
-        _down_group_size = static_cast<int>(cur_moe->_config.group_size);
+        _gate_up_group_size = static_cast<int>(get_group_size(cur_moe->_config, cur_moe->_config.hidden_size));
+        _down_group_size = static_cast<int>(get_group_size(cur_moe->_config, cur_moe->_config.inter_size));
         _activation_type = cur_moe->_config.activation_type;
-
-        if (cur_moe->_config.group_size == std::numeric_limits<size_t>::max()) {
-            _gate_up_group_size = static_cast<int>(cur_moe->_config.hidden_size);
-            _down_group_size = static_cast<int>(cur_moe->_config.inter_size);
-        }
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] moe_3gemm_swiglu_opt prefill: group_size=" << cur_moe->_config.group_size
                                << ", gate_up_group_size=" << _gate_up_group_size << ", down_group_size=" << _down_group_size << std::endl;
     }

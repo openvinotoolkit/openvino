@@ -1775,13 +1775,14 @@ TEST_P(moe_3gemm_compressed_gpu_u3, moe_accuracy_test_u3) {
     auto outputs = network->execute();
     auto output_mem = outputs.at("moe").get_memory();
 
-    const auto kernels = network->get_primitive("moe")->get_impl()->get_kernels();
-    const auto has_kernel = [&](const std::string& stage) {
-        return std::any_of(kernels.begin(), kernels.end(), [&](const kernel::ptr& kernel) {
-            return kernel->get_id().find("moe_3gemm_int3_" + stage) != std::string::npos;
-        });
-    };
-    ASSERT_TRUE(has_kernel("gemv_gate_up") && has_kernel("gemv_down"));
+    const auto moe_inst = network->get_primitive("moe");
+    const auto executed_kernels = moe_inst->get_impl()->get_kernels_dump_info(*moe_inst->get_impl_params()).get_entries();
+    // Threshold 0 selects the per-device default, which is at least 6 tokens
+    const size_t threshold = param.batched_gemv_threshold != 0 ? param.batched_gemv_threshold : 6;
+    const bool expect_gemv = param.seq_len <= threshold;
+    for (const char* kernel_name : {"moe_3gemm_int3_gemv_gate_up", "moe_3gemm_int3_gemv_down"}) {
+        ASSERT_EQ(executed_kernels.find(kernel_name) != std::string::npos, expect_gemv) << kernel_name << ", executed kernels: " << executed_kernels;
+    }
 
     auto ref_output = ref.run_reference_softmax(hidden_states, routing_weights, w_qdq[0], w_qdq[1], w_qdq[2], s_qdq[0], s_qdq[1], s_qdq[2], s_gate_scalar);
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
