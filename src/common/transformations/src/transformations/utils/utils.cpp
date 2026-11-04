@@ -114,9 +114,9 @@ ov::AnyMap get_comparable_attributes(const std::shared_ptr<ov::Node>& node) {
     return NodeComparingVisitor().visit_attributes(node);
 }
 
-bool constants_are_equal(const v0::Constant& lhs, const v0::Constant& rhs) {
-    return lhs.get_element_type() == rhs.get_element_type() && lhs.get_shape() == rhs.get_shape() &&
-           std::memcmp(lhs.get_data_ptr(), rhs.get_data_ptr(), lhs.get_byte_size()) == 0;
+bool constants_are_equal(const std::shared_ptr<v0::Constant>& lhs, const std::shared_ptr<v0::Constant>& rhs) {
+    return lhs && rhs && lhs->get_element_type() == rhs->get_element_type() && lhs->get_shape() == rhs->get_shape() &&
+           std::memcmp(lhs->get_data_ptr(), rhs->get_data_ptr(), lhs->get_byte_size()) == 0;
 }
 
 void visit_path(ov::Node* node,

@@ -25,9 +25,8 @@ bool inputs_from_same_source_or_equal_constants(const std::shared_ptr<Node>& lhs
     for (size_t i = 0; i < input_size; ++i) {
         if (op_util::input_sources_are_equal(lhs, rhs, i))
             continue;
-        auto lhs_constant = as_type<v0::Constant>(lhs->get_input_node_ptr(i));
-        auto rhs_constant = as_type<v0::Constant>(rhs->get_input_node_ptr(i));
-        if (!lhs_constant || !rhs_constant || !op_util::constants_are_equal(*lhs_constant, *rhs_constant))
+        if (!op_util::constants_are_equal(ov::as_type_ptr<v0::Constant>(lhs->get_input_node_shared_ptr(i)),
+                                          ov::as_type_ptr<v0::Constant>(rhs->get_input_node_shared_ptr(i))))
             return false;
     }
     return true;

@@ -52,14 +52,14 @@ public:
         const auto branch_node = has_static_shape() && shape_matches("[1, ?, ?, ?]") && consumers_count(1) &&
                                  Predicate(
                                      [](const ov::Output<ov::Node>& output) {
-                                         const auto node = output.get_node();
+                                         const auto* node = output.get_node();
                                          return !is_type_relaxed(node) && node->get_control_dependencies().empty() && node->get_control_dependents().empty();
                                      },
                                      "batchable_branch_node");
         // MaxPool indices are not batched, so they must be unused
         const auto indices_unused = Predicate(
             [](const ov::Output<ov::Node>& output) {
-                const auto node = output.get_node();
+                const auto* node = output.get_node();
                 return output.get_index() == 0 && (node->get_output_size() < 2 || node->output(1).get_target_inputs().empty());
             },
             "max_pool_indices_unused");
@@ -122,7 +122,7 @@ bool all_equal(const std::vector<std::optional<ov::Output<ov::Node>>>& lhs, cons
 
 bool branches_are_equal(const MatchedBranch& lhs, const MatchedBranch& rhs) {
     const auto constants_are_equal = [](const std::shared_ptr<ov::Node>& lhs, const std::shared_ptr<ov::Node>& rhs) {
-        return ov::op::util::constants_are_equal(*ov::as_type_ptr<ov::op::v0::Constant>(lhs), *ov::as_type_ptr<ov::op::v0::Constant>(rhs));
+        return ov::op::util::constants_are_equal(ov::as_type_ptr<ov::op::v0::Constant>(lhs), ov::as_type_ptr<ov::op::v0::Constant>(rhs));
     };
     // The pattern fixes the branch ops, and all of them have comparable attributes
     const auto attributes_are_equal = [](const std::shared_ptr<ov::Node>& lhs, const std::shared_ptr<ov::Node>& rhs) {

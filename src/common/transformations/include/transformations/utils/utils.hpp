@@ -249,8 +249,11 @@ TRANSFORMATIONS_API ov::AnyMap get_comparable_attributes(const std::shared_ptr<o
 
 /**
  * \brief Checks that two constants have the same element type, shape and data.
+ *
+ * \return false if any of the constants is nullptr or if they differ.
  */
-TRANSFORMATIONS_API bool constants_are_equal(const ov::op::v0::Constant& lhs, const ov::op::v0::Constant& rhs);
+TRANSFORMATIONS_API bool constants_are_equal(const std::shared_ptr<ov::op::v0::Constant>& lhs,
+                                             const std::shared_ptr<ov::op::v0::Constant>& rhs);
 
 /**
  * \brief Traverses a shapeOf subgraph starting from the node and not including the ShapeOf nodes,
