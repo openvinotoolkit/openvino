@@ -312,7 +312,7 @@ void NonMaxSuppression<isa>::suppressed_by_iou(bool is_scalar) {
             kandw(k_mask, k_mask, k_mask_one);
         }
         kortestw(k_mask, k_mask);  // bitwise check if all zero
-    } else if (x64::mayiuse(x64::avx)) {
+    } else if (x64::mayiuse(x64::avx2)) {
         // vex instructions with xmm on avx and ymm on avx2
         vcmpps(vmm_temp4, vmm_temp3, vmm_iou_threshold, 0x0D);  // xmm and ymm only on V1.
         if (is_scalar) {
@@ -349,7 +349,7 @@ void NonMaxSuppression<isa>::suppressed_by_score() {
                0x02);  // vcmpps w/ kmask only on V5, w/o kmask version N/A on V5
         kandw(k_mask, k_mask, k_mask_one);
         kortestw(k_mask, k_mask);  // bitwise check if all zero
-    } else if (x64::mayiuse(x64::avx)) {
+    } else if (x64::mayiuse(x64::avx2)) {
         vcmpps(vmm_temp4, vmm_temp3, vmm_score_threshold, 0x02);
         uni_vpextrd(reg_temp_32, Xbyak::Xmm(vmm_temp4.getIdx()), 0);
         test(reg_temp_32, reg_temp_32);
