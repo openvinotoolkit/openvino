@@ -160,11 +160,13 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
 
 TranslateSession::TranslateSession(const frontend::InputModel::Ptr& input_model,
                                    const std::unordered_map<std::string, CreatorFunction>& translator_map,
-                                   const std::vector<DecoderTransformationExtension::Ptr>& transformation_extensions)
+                                   const std::vector<DecoderTransformationExtension::Ptr>& transformation_extensions,
+                                   std::shared_ptr<SharedWeights> shared_weights)
     : m_input_model(input_model),
       m_translator_map(translator_map),
       m_ov_model(nullptr),
-      m_transformation_extensions(transformation_extensions) {}
+      m_transformation_extensions(transformation_extensions),
+      m_shared_weights(std::move(shared_weights)) {}
 
 std::shared_ptr<Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -371,7 +373,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
 
 std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<Model> model) {
     ov::pass::Manager weight_normalization;
-    weight_normalization.register_pass<pass::MaterializeGGUFWeights>();
+    weight_normalization.register_pass<pass::MaterializeGGUFWeights>(m_shared_weights);
     weight_normalization.run_passes(model);
     ov::pass::Manager manager;
     manager.set_per_pass_validation(true);
