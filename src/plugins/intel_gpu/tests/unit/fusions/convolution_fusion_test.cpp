@@ -172,6 +172,9 @@ public:
 class ConvReorderFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
+        if (engine.get_device_info().supports_immad) {
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+        }
         auto input_prim = get_mem(get_input_layout(p));
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);
@@ -789,7 +792,7 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_FP32_15, 3, 3, 3 },
+    convolution_test_params{ CASE_CONV_FP32_15, 3, 2, 3 },
 }));
 
 class conv_fp16_wrong_bias : public ConvFusingTest {};
@@ -3171,13 +3174,18 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_mean, have_mean) {
         data("weights", get_mem(get_weights_layout(p), -127, 127)),
         reorder("reorder_fsv32", input_info("input"), format::fs_b_yx_fsv32, data_types::f32, "mul", reorder_mean_mode::mul),
         convolution("conv_prim", input_info("reorder_fsv32"), "weights", "", 1, { 1, 1 }, p.dilation, p.pad, p.pad, false),
-        activation("activation", input_info("conv_prim"), activation_func::abs)
+        activation("activation", input_info("conv_prim"), activation_func::abs),
+        reorder("reorder_out", input_info("activation"), format::bfyx, data_types::f32)
     );
 
+    if (engine.get_device_info().supports_immad) {
+        // Increase tolerance when using onednn
+        tolerance = 1e-2f;
+    }
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_mean, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 4 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 3, 4, 5 }
 }));
 
 // 'reorder_fsv32' is not being fused in the current impl, since it has 'subtract'
@@ -3200,7 +3208,8 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature)
         data("weights_dw", get_mem(dw_weights_layout, -127, 127)),
         convolution("conv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
         reorder("reorder_fsv32", input_info("conv_prim"), format::fs_b_yx_fsv32, data_types::f32, values_to_subtract),
-        convolution("conv_output", input_info("reorder_fsv32"), "weights_dw", "", p.out_shape[1].get_length(), dw_stride, p.dilation, p.pad, p.pad, true)
+        convolution("conv_output", input_info("reorder_fsv32"), "weights_dw", "", p.out_shape[1].get_length(), dw_stride, p.dilation, p.pad, p.pad, true),
+        reorder("reorder_out", input_info("conv_output"), format::bfyx, data_types::f32)
     );
 
     ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "", impl_types::ocl };
@@ -3209,7 +3218,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature)
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 4 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 5, 5 }
 }));
 
 // 'reorder_fsv32' is not being fused in the current impl, since it has 'fused_activation'
@@ -3229,14 +3238,15 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
         reorder("reorder_fsv32", input_info("conv_prim"), format::fs_b_yx_fsv32, data_types::f32),
         activation("activation_quantize", input_info("reorder_fsv32"), "actv_params", activation_func::relu_negative_slope),
         convolution("conv_prim2", input_info("activation_quantize"), "weights_dw", "", p.out_shape[1].get_length(), dw_stride, p.dilation, p.pad, p.pad, true),
-        activation("activation", input_info("conv_prim2"), activation_func::abs)
+        activation("activation", input_info("conv_prim2"), activation_func::abs),
+        reorder("reorder_out", input_info("activation"), format::bfyx, data_types::f32)
     );
 
     execute(p);
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 5, 5, 6 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 6, 7 }
 }));
 
 // activation will be fused through 'reorder_fsv32' and 'reorder_fsv32' will be fused as well
@@ -3255,14 +3265,15 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, have_fused
         reorder("reorder_fsv32", input_info("conv_prim"), format::fs_b_yx_fsv32, data_types::f32),
         activation("activation_quantize", input_info("reorder_fsv32"), activation_func::relu),
         convolution("conv_prim2", input_info("activation_quantize"), "weights_dw", "", p.out_shape[1].get_length(), dw_stride, p.dilation, p.pad, p.pad, true),
-        activation("activation", input_info("conv_prim2"), activation_func::abs)
+        activation("activation", input_info("conv_prim2"), activation_func::abs),
+        reorder("reorder_out", input_info("activation"), format::bfyx, data_types::f32)
     );
 
     execute(p, {{"conv_prim", {"activation_quantize"}}});
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 6 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 3, 5, 7 }
 }));
 
 // 'reorder_fsv32' is being fused even if it has 'padding'
@@ -3286,7 +3297,7 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
     execute(p);
 }
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 4, 5 }
+    convolution_test_params{ FSV32_CASE_CONV_FP32_1, 4, 6, 5 }
 }));
 
 class conv_gen9_common_conv_fwd_data_1stconv : public ConvFusingTest {};

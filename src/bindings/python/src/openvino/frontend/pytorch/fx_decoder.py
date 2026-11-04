@@ -25,6 +25,8 @@ from openvino import PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
     to_ov_float_type, torch_tensor_to_ov_const)
+    torch_tensor_to_ov_const)
+from openvino.frontend.pytorch.vmap_lowering import lower_vmap_regions
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +227,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         super().__init__(mark_node_callback)
         # torch dtype the model was built with, e.g. torch.bfloat16; see TorchDecoderBase.get_default_float_type.
         self._set_default_float_type(to_ov_float_type(default_float_type))
+        if isinstance(pt_module, torch.fx.GraphModule):
+            lowered = lower_vmap_regions(pt_module)
+            fx_gm = lowered if fx_gm is pt_module else fx_gm
+            pt_module = lowered
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
@@ -532,8 +538,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         if arg.op != "get_attr":
             return False, None
 
-        # Get the attribute from the root graph module
-        subgraph = getattr(self.fx_gm, arg.target, None)
+        subgraph = fetch_attr(self.fx_gm, arg.target)
         if subgraph is not None and isinstance(subgraph, torch.fx.GraphModule):
             return True, subgraph
         # Also handle callables with graph attribute (lambda-wrapped GraphModules)

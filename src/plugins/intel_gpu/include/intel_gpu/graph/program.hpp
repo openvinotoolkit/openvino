@@ -19,6 +19,7 @@
 #include <memory>
 #include <mutex>
 #include <map>
+#include <optional>
 #include <utility>
 #include <set>
 
@@ -146,7 +147,8 @@ public:
             std::set<std::shared_ptr<program_node>> const& nodes,
             const ExecutionConfig& config,
             std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-            bool is_internal);
+            bool is_internal,
+            std::optional<std::map<primitive_type_id, bool>> onednn_impls = std::nullopt);
 
     explicit program(engine& engine,
                 const ExecutionConfig& config = {});
@@ -276,7 +278,8 @@ public:
                              const std::set<std::shared_ptr<program_node>>& nodes,
                              const ExecutionConfig& config,
                              std::shared_ptr<ov::threading::IStreamsExecutor> task_executor,
-                             bool is_internal);
+                             bool is_internal,
+                             std::optional<std::map<primitive_type_id, bool>> onednn_impls = std::nullopt);
     static void init_primitives();
     kernels_cache& get_kernels_cache() const;
     std::shared_ptr<tensor_conversion> get_tensor_conversion(bool create_if_not_exist = true) const;
@@ -331,6 +334,8 @@ private:
     std::unique_ptr<pass_manager> pm;
     std::unique_ptr<layout_optimizer> _layout_optimizer;
     bool is_internal = false;
+    // Forced oneDNN impls optimization attribute
+    std::optional<std::map<primitive_type_id, bool>> _onednn_impls;
     bool _is_body_program = false;
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;

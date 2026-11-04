@@ -20,12 +20,14 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
+#include "openvino/runtime/hsm_format.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/container_util.hpp"
+#include "openvino/util/log.hpp"
 #include "perf_log.hpp"
 #include "properties.hpp"
 #include "remote_context.hpp"
@@ -125,6 +127,13 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::compile_model(const std:
     }
 
     auto config = Configuration{properties, m_cfg};
+    // Core decides on its blob header from the plugin-level flag, so a per-compile false must not override a true.
+    if (m_cfg.export_hsm_format && !config.export_hsm_format) {
+        OPENVINO_DEBUG("[HETERO] Ignoring per-compile ",
+                       ov::hetero::export_hsm_format.name(),
+                       "=false: it is on at the plugin level");
+        config.export_hsm_format = true;
+    }
 
     if (perf_logging_enabled) {
         t_clone_start = clock::now();
@@ -200,18 +209,21 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
                                                                      const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
+
+namespace {
+// Removes ov::loaded_from_cache from the properties: it is not a device property.
+bool get_loaded_from_cache(ov::AnyMap& properties) {
+    const auto node = properties.extract(ov::loaded_from_cache.name());
+    return !node.empty() && node.mapped().as<bool>();
+}
+}  // namespace
+
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istream& model,
                                                                      const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::Hetero, "Plugin::import_model");
 
-    // check ov::loaded_from_cache property and erase it due to not needed any more.
     auto _properties = properties;
-    const auto& it = _properties.find(ov::loaded_from_cache.name());
-    bool loaded_from_cache = false;
-    if (it != _properties.end()) {
-        loaded_from_cache = it->second.as<bool>();
-        _properties.erase(it);
-    }
+    const auto loaded_from_cache = get_loaded_from_cache(_properties);
 
     auto config = Configuration{_properties, m_cfg};
     auto compiled_model = std::make_shared<CompiledModel>(model, shared_from_this(), config, loaded_from_cache);
@@ -220,6 +232,16 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
 
 std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(const ov::Tensor& model,
                                                                      const ov::AnyMap& properties) const {
+    if (model.get_byte_size() >= sizeof(ov::runtime::hsm::Header) &&
+        ov::runtime::hsm::Header::view(model.data()).magic == ov::runtime::hsm::BlobMagic::single) {
+        auto _properties = properties;
+        const auto loaded_from_cache = get_loaded_from_cache(_properties);
+        return std::make_shared<CompiledModel>(model,
+                                               shared_from_this(),
+                                               Configuration{_properties, m_cfg},
+                                               loaded_from_cache);
+    }
+
     ov::SharedStreamBuffer buffer{model.data(), model.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, properties);
@@ -590,12 +612,20 @@ ov::Any ov::hetero::Plugin::get_property(const std::string& name, const ov::AnyM
         supported_properties.insert(supported_properties.end(), rw_properties.begin(), rw_properties.end());
         return decltype(ov::supported_properties)::value_type(std::move(supported_properties));
     } else if (ov::internal::supported_properties == name) {
-        return decltype(ov::internal::supported_properties)::value_type{
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO}};
+        decltype(ov::internal::supported_properties)::value_type internal_properties{
+            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::internal::emit_hsm_format.name(), ov::PropertyMutability::RO}};
+        if (full_config.export_hsm_format) {
+            // Core then hands over a mapped cache blob, which the sub-devices can import without a copy.
+            internal_properties.emplace_back(ov::internal::caching_with_mmap.name(), ov::PropertyMutability::RO);
+        }
+        return internal_properties;
     } else if (ov::device::full_name == name) {
         return decltype(ov::device::full_name)::value_type{get_device_name()};
     } else if (ov::internal::caching_properties == name) {
         return decltype(ov::internal::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
+    } else if (ov::internal::emit_hsm_format == name) {
+        return decltype(ov::internal::emit_hsm_format)::value_type{full_config.export_hsm_format};
     } else if (ov::hetero::caching_device_properties == name) {
         return caching_device_properties(full_config.device_priorities);
     } else if (ov::device::capabilities == name) {
