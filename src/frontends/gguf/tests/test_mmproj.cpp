@@ -182,6 +182,67 @@ TEST_F(GGUFMMProj, ExtensionReusesBuiltinProjectorAndReplacementIsExplicit) {
                  ov::Exception);
 }
 
+TEST_F(GGUFMMProj, ReplacementProjectorKeepsExplicitUnsupportedGenAILayout) {
+    using namespace ov::frontend::gguf;
+    using Adapter = pass::AdaptMmprojToGenAI;
+    encoder("vision", "gemma3");
+    ASSERT_TRUE(writer.write(path));
+    ProjectorDefinition definition{"clip.vision.gemma3",
+                                   "clip",
+                                   "vision",
+                                   "gemma3",
+                                   [](GgufGraphContext& graph) {
+                                       auto result = build_builtin_projector(graph, "vision", "gemma3");
+                                       result.genai_layout = ProjectorLayout::Unsupported;
+                                       return result;
+                                   },
+                                   {}};
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace));
+    auto model = frontend.convert(frontend.load(path));
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "unsupported");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+    OV_EXPECT_THROW(adapter.run_on_model(restored), ov::Exception, testing::HasSubstr("no GenAI vision layout"));
+    EXPECT_TRUE(adapter.get_vision_models().empty());
+}
+
+TEST_F(GGUFMMProj, ReplacementProjectorWithoutGenAILayoutDoesNotInheritBuiltinRecipe) {
+    using namespace ov::frontend::gguf;
+    using Adapter = pass::AdaptMmprojToGenAI;
+    encoder("vision", "gemma3");
+    ASSERT_TRUE(writer.write(path));
+    ProjectorDefinition definition{
+        "clip.vision.gemma3",
+        "clip",
+        "vision",
+        "gemma3",
+        [](GgufGraphContext& graph) {
+            return ProjectorResult{graph.add_input("vision.custom", ov::element::f32, {1, 1, 2, 3}), {}};
+        },
+        {}};
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace));
+    auto model = frontend.convert(frontend.load(path));
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "unsupported");
+    ov::serialize(model, path + ".xml", path + ".bin");
+    auto restored = ov::Core{}.read_model(path + ".xml");
+    for (const auto& source : {model, restored}) {
+        const auto parameters = source->get_parameters();
+        const auto results = source->get_results();
+        Adapter adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS);
+        OV_EXPECT_THROW(adapter.run_on_model(source),
+                        ov::Exception,
+                        testing::HasSubstr("no GenAI vision layout for mmproj contract 'unsupported'"));
+        EXPECT_TRUE(adapter.get_vision_models().empty());
+        EXPECT_EQ(source->get_parameters(), parameters);
+        EXPECT_EQ(source->get_results(), results);
+        EXPECT_NO_THROW(Adapter(Adapter::Modality::VISION).run_on_model(source));
+        EXPECT_EQ(source->input().get_any_name(), "custom");
+    }
+}
+
 TEST_F(GGUFMMProj, CustomProjectorOverridesSerializableGenAILayout) {
     using namespace ov::frontend::gguf;
     using Adapter = pass::AdaptMmprojToGenAI;
@@ -230,6 +291,41 @@ TEST_F(GGUFMMProj, CustomProjectorOverridesSerializableGenAILayout) {
     EXPECT_EQ(replacement->get_rt_info<std::string>({"gguf_mmproj", "vision.genai_layout"}), "image");
     ASSERT_TRUE(adapter.run_on_model(replacement));
     EXPECT_EQ(replacement->input().get_any_name(), "replacement");
+}
+
+TEST_F(GGUFMMProj, Lfm3BuilderDeclaresSingleFrameWithoutSecondPatchWeight) {
+    writer.kv_bool("clip.has_vision_encoder", true);
+    writer.kv_str("clip.vision.projector_type", "lfm3vl");
+    for (const auto& [key, value] : std::map<std::string, uint32_t>{{"embedding_length", 8},
+                                                                    {"block_count", 1},
+                                                                    {"attention.head_count", 2},
+                                                                    {"attention.head_count_kv", 1},
+                                                                    {"patch_size", 16}})
+        writer.kv_u32("clip.vision." + key, value);
+    writer.kv_f32("clip.vision.attention.layer_norm_epsilon", 1e-5f);
+    weight("v.patch_embd.weight", {16, 16, 3, 8});
+    for (const auto* name : {"v.embedding_norm", "v.blk.0.ln1", "v.blk.0.ln2", "mm.input_norm"})
+        weight(std::string(name) + ".weight", {8}, true);
+    weight("mm.input_norm.bias", {8});
+    for (const auto* name : {"attn_q", "attn_out"})
+        weight(std::string("v.blk.0.") + name + ".weight", {8, 8});
+    for (const auto* name : {"attn_k", "attn_v"})
+        weight(std::string("v.blk.0.") + name + ".weight", {8, 4});
+    for (const auto* name : {"attn_q_norm", "attn_k_norm"})
+        weight(std::string("v.blk.0.") + name + ".weight", {4}, true);
+    for (const auto* name : {"ffn_gate", "ffn_up"})
+        weight(std::string("v.blk.0.") + name + ".weight", {8, 12});
+    weight("v.blk.0.ffn_down.weight", {12, 8});
+    weight("mm.0.weight", {32, 12});
+    weight("mm.0.bias", {12});
+    weight("mm.2.weight", {12, 6});
+    weight("mm.2.bias", {6});
+    auto model = convert();
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.temporal_patch_size"}), "1");
+    EXPECT_EQ(model->get_parameters().size(), 2);
+    using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+    ASSERT_TRUE(Adapter(Adapter::Modality::VISION, Adapter::Layout::VISION_ENCODERS).run_on_model(model));
+    EXPECT_EQ(model->input().get_partial_shape(), (ov::PartialShape{-1, -1, -1, 768}));
 }
 
 TEST_F(GGUFMMProj, ArbitraryProjectorCallbacksOverrideRecipesAndDefinitions) {
