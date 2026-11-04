@@ -84,7 +84,6 @@ public:
     bool input() const;
     bool output() const;
     bool memory() const;
-    bool has_remaining_limit() const;
     std::size_t remaining() const;
 
     // Dispatches to value.serialize(*this) when the type provides a member serialize,
