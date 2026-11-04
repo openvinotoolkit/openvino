@@ -77,14 +77,8 @@ const ov::auto_plugin::SoAsyncInferRequest& ov::auto_plugin::InferRequest::get_s
     return m_shared_request;
 }
 
-void ov::auto_plugin::InferRequest::set_profiling_info(std::vector<ov::ProfilingInfo> profiling_info) {
-    m_profiling_info = std::move(profiling_info);
-    m_profiling_error = nullptr;
-}
-
-void ov::auto_plugin::InferRequest::set_profiling_error(std::exception_ptr error) {
-    m_profiling_info.clear();
-    m_profiling_error = std::move(error);
+void ov::auto_plugin::InferRequest::set_scheduled_request(SoAsyncInferRequest request) {
+    m_scheduled_request = request;
 }
 
 void ov::auto_plugin::InferRequest::set_tensors_to_another_request(const SoAsyncInferRequest& req) {
@@ -126,11 +120,9 @@ void ov::auto_plugin::InferRequest::infer() {
 std::vector<ov::ProfilingInfo> ov::auto_plugin::InferRequest::get_profiling_info() const {
     if (m_shared_request)
         return m_shared_request->get_profiling_info();
-    if (!get_compiled_model()->get_property(ov::enable_profiling.name()).as<bool>())
-        OPENVINO_NOT_IMPLEMENTED;
-    if (m_profiling_error)
-        std::rethrow_exception(m_profiling_error);
-    return m_profiling_info;
+    if (m_scheduled_request)
+        return m_scheduled_request->get_profiling_info();
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
 ov::auto_plugin::InferRequest::~InferRequest() = default;

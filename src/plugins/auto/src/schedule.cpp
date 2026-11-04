@@ -255,11 +255,7 @@ Pipeline Schedule::get_async_pipeline(const ISyncInferPtr& infer_request, Worker
                     if (m_context->m_need_perf_counters) {
                         auto auto_request = std::dynamic_pointer_cast<InferRequest>
                             (infer_request);
-                        try {
-                            auto_request->set_profiling_info((*worker_infer_request)->m_inferrequest->get_profiling_info());
-                        } catch (const std::exception&) {
-                            auto_request->set_profiling_error(std::current_exception());
-                        }
+                        auto_request->set_scheduled_request((*worker_infer_request)->m_inferrequest);
                     }
                 }}
         };

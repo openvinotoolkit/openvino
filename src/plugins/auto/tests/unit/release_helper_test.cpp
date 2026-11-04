@@ -184,8 +184,7 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
                               _))
             .WillByDefault(Return(mockExeNetwork));
         if (accSuccess) {
-            // Both the CPU_HELP context and m_hw_compiled_model drop their references once CPU_HELP is released.
-            decreaseExeNetworkCount += 2;
+            decreaseExeNetworkCount++;
             // will be at least 2 infer requests for mocked CPU/GPU
             decreaseInferReqCount += 2;
         }

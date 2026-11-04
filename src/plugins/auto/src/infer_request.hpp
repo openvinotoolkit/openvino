@@ -30,18 +30,14 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
     const SoAsyncInferRequest& get_shared_request();
-    void set_profiling_info(std::vector<ov::ProfilingInfo> profiling_info);
-    void set_profiling_error(std::exception_ptr error);
+    void set_scheduled_request(SoAsyncInferRequest request);
     // Auto-Device impl specific: sets the data (tensors from the device-less requests to the specific device request)
     void set_tensors_to_another_request(const SoAsyncInferRequest& req);
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
 private:
     SoAsyncInferRequest m_shared_request;
-    // Profiling data snapshot taken when the scheduled request completes.
-    std::vector<ov::ProfilingInfo> m_profiling_info;
-    // Error raised by the backend profiling query, rethrown by get_profiling_info().
-    std::exception_ptr m_profiling_error;
+    SoAsyncInferRequest m_scheduled_request;
 };
 } // namespace auto_plugin
 } // namespace ov

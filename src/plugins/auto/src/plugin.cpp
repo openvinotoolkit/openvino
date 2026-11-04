@@ -586,15 +586,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     scheduler->launch(auto_s_context);
     ov::SoPtr<ov::IRemoteContext> device_context;
     try {
-        SoCompiledModel hw_compiled_model;
-        {
-            std::lock_guard<std::mutex> lock(auto_s_context->m_mutex);
-            hw_compiled_model = auto_s_context->m_hw_compiled_model;
-        }
-        OPENVINO_ASSERT(hw_compiled_model, "no valid compiled model available");
-        device_context = hw_compiled_model->get_context();
+        OPENVINO_ASSERT(auto_s_context->m_hw_compiled_model, "no valid compiled model available");
+        device_context = auto_s_context->m_hw_compiled_model->get_context();
         if (!device_context._so)
-            device_context._so = hw_compiled_model._so;
+            device_context._so = auto_s_context->m_hw_compiled_model._so;
     } catch (ov::NotImplemented&) {
         LOG_INFO_TAG("underlying hardware does not support hardware context");
     }

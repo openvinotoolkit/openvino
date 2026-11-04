@@ -268,9 +268,6 @@ void AutoSchedule::init() {
                     });
                     LOG_INFO_TAG("release all work requests of CPU_HELP");
                     m_worker_requests["CPU_HELP"].clear();
-                    if (m_context->m_hw_compiled_model._ptr == m_compile_context[CPU].m_compiled_model._ptr) {
-                        m_context->m_hw_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
-                    }
                     m_compile_context[CPU].m_compiled_model._ptr.reset();
                     m_compile_context[CPU].m_compiled_model._so.reset();
                     m_compile_context[CPU].m_is_already = false;
@@ -302,16 +299,7 @@ void AutoSchedule::init() {
             m_infer_pipeline_tasks_device_specific.clear();
         }
     }
-    auto first_compiled_model = wait_first_compiled_model_ready();
-    {
-        std::lock_guard<std::mutex> lock(m_context->m_mutex);
-        // The recycle task may have released CPU_HELP already; never pin its compiled model.
-        if (!m_compile_context[CPU].m_is_already &&
-            first_compiled_model._ptr != m_compile_context[ACTUALDEVICE].m_compiled_model._ptr) {
-            first_compiled_model = m_compile_context[ACTUALDEVICE].m_compiled_model;
-        }
-        m_context->m_hw_compiled_model = std::move(first_compiled_model);
-    }
+    m_context->m_hw_compiled_model = wait_first_compiled_model_ready();
     // compile_for_all disables the CPU helper, so the warm-up can start as soon as the actual device is ready.
     if (m_cache_warmup && m_compile_context[ACTUALDEVICE].m_is_already) {
         // Failed startup devices were already removed from the actual context's candidates.
