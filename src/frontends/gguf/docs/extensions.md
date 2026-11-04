@@ -148,6 +148,12 @@ semantics (`Image`, `PaddedPatches`, `WindowedPatches`, `SplitMerger`) and are s
 model; generic adaptation never selects them by projector name. `build_builtin_projector()`
 returns the recipe matching its graph. A result's explicit recipe overrides the definition.
 
+A projector may declare its components with `configure_model_contract()`. For `lfm3vl`, `lfm3a`
+and `lfm3a_gen` models the coordinator reads that declaration through `model_contract()` and
+adds built-in component groups only where the projector declared none; declared recurrent
+batching, outputs and state prefixes are preserved. `build_builtin_projector()` also builds
+`lfm3vl` (vision) and `lfm3a` (audio).
+
 A custom `genai_adapter` runs for both `EMBEDDINGS` and `VISION_ENCODERS` after generic extraction
 of the selected modality. It receives an independent model clone and returns `ModelAdapterResult`:
 the primary graph in `model` and optional named graphs in `models`. It can replace the entire

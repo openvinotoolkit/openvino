@@ -54,14 +54,15 @@ public:
         const auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
         const auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
         const auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
-        const auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-        const auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+        const auto matmul_divide = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
+        const auto tanh = opp::wrap_type<ov::op::v0::Tanh>({matmul_divide});
         const auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
         const auto lm_head_output = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
                                                                                    matmul_add->output(0),
                                                                                    matmul_transpose->output(0),
                                                                                    matmul_convert->output(0),
-                                                                                   matmul_multiply->output(0)});
+                                                                                   matmul_multiply->output(0),
+                                                                                   matmul_divide->output(0)});
         const auto result = opp::wrap_type<ov::op::v0::Result>({lm_head_output->output(0)});
 
         auto callback = [=](opp::Matcher& matcher) {
