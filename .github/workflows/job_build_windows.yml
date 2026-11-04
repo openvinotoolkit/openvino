@@ -56,12 +56,16 @@ jobs:
     runs-on: ${{ inputs.runner }}
     env:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}"
-      CCACHE_DIR: ${{ github.workspace }}\\ccache
-      CCACHE_MAXSIZE: 3G
-      CCACHE_SLOPPINESS: pch_defines,time_macros
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_VERSION: 'v0.19.0'
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_IDLE_TIMEOUT: 0
+      SCCACHE_ERROR_LOG: "${{ github.workspace }}\\sccache_log.txt"
+      SCCACHE_LOG: warn
+      SCCACHE_AZURE_KEY_PREFIX: windows_${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}
+      SCCACHE_CONNECTION_STRING_PATH: "C:\\mount\\secrets\\sccache\\connection-string"
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -155,17 +159,41 @@ jobs:
       # Build
       #
 
-      - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
-        if: ${{ inputs.build-type != 'Debug' }}
-        with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        run: |
+          if (-not $env:SCCACHE_AZURE_BLOB_CONTAINER) {
+            Write-Error "SCCACHE_AZURE_BLOB_CONTAINER is not set on the runner"
+            exit 1
+          }
+          $connectionString = (Get-Content -Raw -ErrorAction Stop -Path $env:SCCACHE_CONNECTION_STRING_PATH).Trim()
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
+          Write-Output "::add-mask::$connectionString"
+          Add-Content -Path $env:GITHUB_ENV -Value "SCCACHE_AZURE_CONNECTION_STRING=$connectionString"
+          Write-Output "Connection string loaded and masked"
+
+      - name: Install sccache
+        run: |
+          $archiveName = "sccache-$env:SCCACHE_VERSION-x86_64-pc-windows-msvc"
+          $baseUrl = "https://github.com/mozilla/sccache/releases/download/$env:SCCACHE_VERSION"
+          $downloadDir = "${{ runner.temp }}\sccache_download"
+          $installDir = "${{ runner.temp }}\sccache"
+          New-Item -ItemType Directory -Force -Path $downloadDir, $installDir | Out-Null
+
+          Invoke-WebRequest -Uri "$baseUrl/$archiveName.zip" -OutFile "$downloadDir\$archiveName.zip"
+          Invoke-WebRequest -Uri "$baseUrl/$archiveName.zip.sha256" -OutFile "$downloadDir\$archiveName.zip.sha256"
+
+          $expectedHash = (Get-Content -Raw "$downloadDir\$archiveName.zip.sha256").Trim().Split(" ")[0]
+          $actualHash = (Get-FileHash -Algorithm SHA256 "$downloadDir\$archiveName.zip").Hash
+          if ($actualHash -ne $expectedHash) {
+            Write-Error "sccache archive checksum mismatch: expected $expectedHash, got $actualHash"
+            exit 1
+          }
+
+          Expand-Archive -Path "$downloadDir\$archiveName.zip" -DestinationPath $downloadDir -Force
+          Move-Item -Path "$downloadDir\$archiveName\sccache.exe" -Destination "$installDir\sccache.exe" -Force
+          Add-Content -Path $env:GITHUB_PATH -Value $installDir
+          Add-Content -Path $env:GITHUB_ENV -Value "SCCACHE_PATH=$installDir\sccache.exe"
+          & "$installDir\sccache.exe" --version
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -184,23 +212,25 @@ jobs:
 
       - name: CMake configure
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
+          # sccache cannot cache /Zi (shared PDB) compilations, so embed debug info into objects (/Z7) for Debug builds
+          CMAKE_OPTIONS: >-
+            ${{ inputs.cmake-options }}
+            -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
+            ${{ inputs.build-type == 'Debug' && '-DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded' || '' }}
         run: |
           $cmakeOptions = "$env:CMAKE_OPTIONS"
           $splitCmakeOptions = $cmakeOptions.Split(" ")
           $cmakeCommand = "cmake $splitCmakeOptions -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}"
           Invoke-Expression $cmakeCommand
 
-      - name: Clean ccache stats
-        if: ${{ inputs.build-type != 'Debug' }}
-        run: '& ccache --zero-stats'
+      - name: Clean sccache stats
+        run: '& "$env:SCCACHE_PATH" --zero-stats'
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL -- --quiet
 
-      - name: Show ccache stats
-        if: ${{ inputs.build-type != 'Debug' }}
-        run: '& ccache --show-stats'
+      - name: Show sccache stats
+        run: '& "$env:SCCACHE_PATH" --show-stats'
 
       - name: Cmake install - OpenVINO
         run: |
@@ -274,7 +304,7 @@ jobs:
             }
           }
         env:
-          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
+          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by sccache
 
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.14t
@@ -311,7 +341,7 @@ jobs:
             exit 1
           }
         env:
-          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
+          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by sccache
 
       - name: Pack Artifacts
         run: |
@@ -402,6 +432,14 @@ jobs:
       #
       # Upload build artifacts and logs
       #
+
+      - name: Upload build logs
+        if: always()
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: build_logs_windows_${{ inputs.build-variant }}_${{ inputs.build-type }}
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
 
       - name: Upload compile_commands
         if: always()
