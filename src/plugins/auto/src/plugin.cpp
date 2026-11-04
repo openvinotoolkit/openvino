@@ -547,26 +547,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
                         [](const DeviceInformation& device) {
                             return device.config.count(ov::cache_blob_id.name()) != 0;
                         });
-        if (is_cumulative || has_blob_id || warmup_candidates.empty() ||
-            auto_s_context->m_device_priorities_initial.size() < 2) {
+        if (is_cumulative || has_blob_id) {
             LOG_WARNING_TAG("compile_for_all is ignored: %s",
-                            is_cumulative   ? "not supported in cumulative mode"
-                            : has_blob_id   ? "not supported with ov::cache_blob_id"
-                                            : "no other candidate device to compile");
+                            is_cumulative ? "not supported in cumulative mode" : "not supported with ov::cache_blob_id");
             auto_s_context->m_compile_for_all = false;
-        } else if (!std::any_of(warmup_candidates.begin(),
-                                warmup_candidates.end(),
-                                [this](const DeviceInformation* device) {
+        } else if (!std::any_of(auto_s_context->m_device_priorities_initial.begin(),
+                                auto_s_context->m_device_priorities_initial.end(),
+                                [this](const DeviceInformation& device) {
                                     return !CacheWarmupManager::get_cache_location(*get_core(),
-                                                                                   device->config,
-                                                                                   device->device_name)
+                                                                                   device.config,
+                                                                                   device.device_name)
                                                 .empty();
                                 })) {
-            // A single non-CPU candidate is warmed up only if the CPU ends up as the actual device.
-            if (warmup_candidates.size() >= 2) {
-                OPENVINO_THROW(ov::intel_auto::compile_for_all.name(), " requires ov::cache_dir or ov::cache_path to be set");
-            }
-            LOG_WARNING_TAG("compile_for_all is ignored: neither ov::cache_dir nor ov::cache_path is set");
+            // Independent of how many devices the host has, so the contract of an explicit true is the same everywhere.
+            OPENVINO_THROW(ov::intel_auto::compile_for_all.name(), " requires ov::cache_dir or ov::cache_path to be set");
+        } else if (warmup_candidates.empty() || auto_s_context->m_device_priorities_initial.size() < 2) {
+            LOG_WARNING_TAG("compile_for_all is ignored: no other candidate device to compile");
             auto_s_context->m_compile_for_all = false;
         }
         if (auto_s_context->m_compile_for_all) {

@@ -192,7 +192,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
 class AutoCacheWarmupTest : public AutoCacheWarmupTestBase, public ::testing::Test {};
 
 TEST_F(AutoCacheWarmupTest, ignoredWhenNoOtherCandidateDevice) {
-    set_global_cache("");
+    set_global_cache("test_cache_dir");
     set_devices({cpu_device, actual_device});
     use_default_startup_compilation();
     config.insert(ov::intel_auto::compile_for_all(true));
@@ -592,7 +592,7 @@ TEST_F(AutoCacheWarmupTest, warmsUpOtherDeviceWhenCpuIsActualDevice) {
     }));
 }
 
-TEST_F(AutoCacheWarmupTest, singleNonCpuCandidateWithoutCacheIsIgnored) {
+TEST_F(AutoCacheWarmupTest, singleNonCpuCandidateWithoutCacheThrows) {
     set_global_cache("");
     set_devices({"GPU.0", cpu_device});
     on_compile(cpu_device, [this]() -> ov::SoPtr<ov::ICompiledModel> {
@@ -602,7 +602,15 @@ TEST_F(AutoCacheWarmupTest, singleNonCpuCandidateWithoutCacheIsIgnored) {
         return {mockIExeNetActual, {}};
     });
     config.insert(ov::intel_auto::compile_for_all(true));
-    OV_ASSERT_NO_THROW(plugin->compile_model(model, config));
+    EXPECT_THROW(plugin->compile_model(model, config), ov::Exception);
+}
+
+TEST_F(AutoCacheWarmupTest, noOtherCandidateWithoutCacheThrows) {
+    set_global_cache("");
+    set_devices({cpu_device, actual_device});
+    use_default_startup_compilation();
+    config.insert(ov::intel_auto::compile_for_all(true));
+    EXPECT_THROW(plugin->compile_model(model, config), ov::Exception);
 }
 
 TEST_F(AutoCacheWarmupTest, ignoredWhenCacheBlobIdIsSet) {

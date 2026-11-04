@@ -34,8 +34,8 @@ static constexpr Property<bool> enable_runtime_fallback{"ENABLE_RUNTIME_FALLBACK
  * @brief auto device setting that enables compiling the model to the remaining candidate devices in the background,
  * after the actual device is ready, to populate cache blobs for faster device switching.
  * Enabling it disables ov::intel_auto::enable_startup_fallback and ov::intel_auto::enable_runtime_fallback.
- * Requires ov::cache_dir or ov::cache_path, otherwise compiling the model throws when at least two non-CPU candidate
- * devices exist. Ignored in cumulative throughput mode, when there is no other candidate device, and when
+ * Requires ov::cache_dir or ov::cache_path, otherwise compiling the model throws on every host. Ignored in
+ * cumulative throughput mode, when there is no other candidate device, and when
  * ov::cache_blob_id is set. Devices are skipped when the cache path is a single-file cache (*.bin).
  *
  * When ov::device::priorities (or a device string such as "AUTO:GPU,NPU") is set, it determines the candidates;

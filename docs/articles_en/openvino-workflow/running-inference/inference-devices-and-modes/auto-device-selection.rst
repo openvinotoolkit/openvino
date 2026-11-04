@@ -211,10 +211,9 @@ the following setup options:
 |                                              | and ``ov::intel_auto::enable_runtime_fallback``.                   |
 |                                              |                                                                    |
 |                                              | Requires ``ov::cache_dir`` or ``ov::cache_path``. Without them,    |
-|                                              | compiling the model throws if at least two non-CPU candidate       |
-|                                              | devices exist; otherwise the property is ignored.                  |
+|                                              | compiling the model throws on every host.                          |
 |                                              |                                                                    |
-|                                              | Also ignored in cumulative throughput mode, when there is no       |
+|                                              | Ignored in cumulative throughput mode, when there is no            |
 |                                              | other candidate device to compile, and when ``ov::cache_blob_id``  |
 |                                              | is set for AUTO or for any candidate device.                       |
 |                                              |                                                                    |
