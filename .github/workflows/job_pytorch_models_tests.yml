@@ -175,6 +175,8 @@ jobs:
       - name: PyTorch Torchbench Tests
         if: ${{ inputs.model_scope == 'nightly_scope2' }}
         run: |
+          # kernels from LLM tests requires a newer huggingface-hub than TorchBench's transformers.
+          python3 -m pip uninstall -y kernels
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/test_torchbench.py -m nightly --html=${INSTALL_TEST_DIR}/TEST-torch_model_torchbench_nightly_tests.html --self-contained-html -v
         env:

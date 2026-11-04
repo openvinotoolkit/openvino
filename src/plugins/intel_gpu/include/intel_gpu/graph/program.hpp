@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <map>
 #include <utility>
 #include <set>
@@ -30,7 +31,9 @@ class pass_manager;
 class base_pass;
 class program_wrapper;
 class kernels_cache;
+class tensor_conversion;
 class ICompilationContext;
+using tensor_conversion_key = std::pair<data_types, data_types>;
 
 
 struct program {
@@ -276,6 +279,8 @@ public:
                              bool is_internal);
     static void init_primitives();
     kernels_cache& get_kernels_cache() const;
+    std::shared_ptr<tensor_conversion> get_tensor_conversion(bool create_if_not_exist = true) const;
+    void prepare_tensor_conversions(const std::vector<tensor_conversion_key>& keys);
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
@@ -283,6 +288,16 @@ public:
     using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher>;
 
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
+    // Primitive types that ever had a static impl added to the implementations cache (entries may be evicted later,
+    // the type stays). A cache lookup for any other type cannot hit.
+    void add_static_impl_type(primitive_type_id type) {
+        std::lock_guard<std::mutex> lock(_static_impl_types_mutex);
+        _static_impl_types.insert(type);
+    }
+    bool has_static_impl_type(primitive_type_id type) const {
+        std::lock_guard<std::mutex> lock(_static_impl_types_mutex);
+        return _static_impl_types.count(type) != 0;
+    }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     std::shared_ptr<ICompilationContext> get_compilation_context_ptr() const { return _compilation_context; }
     void cancel_compilation_context();
@@ -305,6 +320,8 @@ private:
     stream::ptr _stream;
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
+    mutable std::shared_ptr<tensor_conversion> _tensor_conversion;
+    mutable std::mutex _tensor_conversion_mutex;
     ExecutionConfig _config;
     std::shared_ptr<ov::threading::IStreamsExecutor> _task_executor = nullptr;
     std::list<program_node*> inputs;
@@ -318,6 +335,8 @@ private:
     // if subgraph can be optimized if it consists of only inputs and corresponding outputs
     bool _can_be_optimized;
     std::unique_ptr<ImplementationsCache> _impls_cache;
+    mutable std::mutex _static_impl_types_mutex;
+    std::set<primitive_type_id> _static_impl_types;
     std::shared_ptr<ICompilationContext> _compilation_context;
     bool _loaded_from_cache = false;
 

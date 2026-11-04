@@ -69,9 +69,15 @@ public:
     typed_primitive_inst(network& network, const stateless_kv_node& desc);
     typed_primitive_inst(network& network) : parent(network) {}
 
+    // Kept across executions while present can't be written into the Result buffer in place.
+    memory::ptr& private_present() {
+        return m_private_present;
+    }
+
 private:
     void on_execute() override;
     bool m_is_inplace = false;
+    memory::ptr m_private_present;
 };
 
 using stateless_kv_inst = typed_primitive_inst<stateless_kv>;

@@ -14,8 +14,10 @@
 
 namespace intel_npu {
 
-Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
+Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+               const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
     : _zeroInitStruct(zeroInitStruct),
+      _profilingDecoder(profilingDecoder),
       _logger("Parser", Logger::global().level()) {
     _logger.info("initialize Parser start");
 
@@ -37,7 +39,7 @@ std::shared_ptr<IGraph> Parser::parse(
 
     const void* data = mainBlob.data();
     size_t size = mainBlob.get_byte_size();
-    if (blobType.has_value() && (blobType.value() == BlobType::LLVM || blobType.value() == BlobType::BYTECODE)) {
+    if (blobType.has_value() && (blobType.value() == BlobType::BYTECODE)) {
         OPENVINO_ASSERT(
             config.get<ALLOW_BYTECODE>(),
             "The blob declares a payload that runs in-process on the host VM runtime instead of being parsed by the "
@@ -73,7 +75,8 @@ std::shared_ptr<IGraph> Parser::parse(
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
                                        compatibilityDescriptor,
-                                       blobIsPersistent);
+                                       blobIsPersistent,
+                                       _profilingDecoder);
     }
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
@@ -103,7 +106,8 @@ std::shared_ptr<IGraph> Parser::parse(
                                              initBlobs,
                                              std::move(weightsSource),
                                              blobIsPersistent,
-                                             compatibilityDescriptor);
+                                             compatibilityDescriptor,
+                                             _profilingDecoder);
 }
 
 }  // namespace intel_npu

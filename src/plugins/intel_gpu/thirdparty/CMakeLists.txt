@@ -24,7 +24,10 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build${SUFFIX}")
         set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install${SUFFIX}")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root${SUFFIX}")
-        set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;GATED_MLP;MATMUL;REORDER;POOLING;REDUCTION;RNN")
+        set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;MATMUL;REORDER;POOLING;REDUCTION;RNN")
+        if(ENABLE_GPU_DEBUG_CAPS)
+            list(APPEND ONEDNN_ENABLED_PRIMITIVES "SDPA")
+        endif()
         set(ONEDNN_ENABLED_ISA "XELP;XEHP;XEHPG;XE2;XE3;XE3P")
         set(onednn_lib_name "${DNNL_GPU_LIBRARY_NAME}${SUFFIX}")
 
@@ -219,7 +222,8 @@ if(ENABLE_ONEDNN_FOR_GPU)
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/ngen"
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/jit/config"
                              "${ONEDNN_GPU_DIR}/src/gpu/intel/gemm/jit/include"
-                             "${ONEDNN_GPU_DIR}/third_party/ngen")
+                             "${ONEDNN_GPU_DIR}/third_party/ngen"
+                             "${ONEDNN_GPU_DIR}/third_party/level_zero")
         set(LIB_DEFINITIONS ENABLE_ONEDNN_FOR_GPU
                             DNNL_DLL
                             DNNL_DLL_EXPORTS

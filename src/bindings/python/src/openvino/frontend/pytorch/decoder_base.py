@@ -85,6 +85,9 @@ class TorchDecoderBase(Decoder):
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
         return False
 
+    def get_input_sequences(self) -> dict:
+        return {}
+
     def get_rt_info(self):
         return {}
 

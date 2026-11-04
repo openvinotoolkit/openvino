@@ -23,6 +23,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     REPLACE_WORD(brg_conv, brgconv);
     REPLACE_WORD(brdgmm, brgconv);
     REPLACE_WORD(avx10_1_512, avx512);
+    REPLACE_WORD(avx10_2, avx512);
     REPLACE_WORD(brg_matmul, brgemm);
 
     REPLACE_WORD(simple, ref);

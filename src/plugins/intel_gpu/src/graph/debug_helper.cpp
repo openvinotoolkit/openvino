@@ -14,6 +14,7 @@
 
 #    include <sys/stat.h>
 
+#    include <atomic>
 #    include <fstream>
 #    include <iomanip>
 
@@ -336,6 +337,55 @@ std::string get_file_path_for_binary_dump(cldnn::layout layout, const std::strin
     return filename;
 }
 
+void dump_sincos_tensor(memory::ptr mem, const layout& data_layout, stream& stream, const std::string& head, const std::string& tail) {
+    if (mem == nullptr) {
+        GPU_DEBUG_COUT << " Sin/Cos dump: memory is nullptr for " << head << std::endl;
+        return;
+    }
+    if (data_layout.data_padding) {
+        GPU_DEBUG_COUT << " Sin/Cos dump: padded layout is not supported for " << head << std::endl;
+        return;
+    }
+    std::string shape;
+    for (const auto dim : data_layout.get_shape()) {
+        shape += (shape.empty() ? "" : "x") + std::to_string(dim);
+    }
+    const std::string data_type = ov::element::Type(data_layout.data_type).get_type_name();
+    const std::string filename = head + data_type + "__" + shape + tail;
+    const size_t bytes = std::min(mem->size(), data_layout.bytes_count());
+    mem_lock<char, mem_lock_type::read> lock(mem, stream);
+    std::ofstream file(filename, std::ios::binary);
+    if (!file) {
+        GPU_DEBUG_COUT << "Sin/Cos dump: failed to open " << filename << std::endl;
+        return;
+    }
+    file.write(lock.data(), static_cast<std::streamsize>(bytes));
+}
+
+// Saves input/output of each Sin/Cos activation execution as
+// SINCOS__<seq>__p<program>_n<network>_i<iteration>__<sin|cos>__<src0|dst0>__<dtype>__<AxBxC>__<layer>.bin
+void dump_sincos(const primitive_inst& inst, stream& stream, const std::string& dump_path, uint32_t prog_id, uint32_t net_id, int64_t iter) {
+    if (inst.desc()->type != activation::type_id()) {
+        return;
+    }
+    const auto func = std::static_pointer_cast<const activation>(inst.desc())->activation_function;
+    if (func != activation_func::sin && func != activation_func::cos) {
+        return;
+    }
+
+    static std::atomic<uint64_t> sincos_seq{0};
+    std::ostringstream seq;
+    seq << std::setw(8) << std::setfill('0') << sincos_seq++;
+    const std::string prefix = dump_path + "SINCOS__" + seq.str() + "__p" + std::to_string(prog_id) + "_n" + std::to_string(net_id) + "_i" + std::to_string(iter) + "__" +
+                               (func == activation_func::sin ? "sin" : "cos") + "__";
+    const std::string suffix = "__" + get_name_for_dump(inst.id()) + ".bin";
+
+    stream.finish();  // Wait for stream completion before reading Sin/Cos buffers
+    auto dep = inst.dependencies().at(0);
+    dump_sincos_tensor(inst.dep_memory_ptr(0), dep.first->get_output_layout(dep.second), stream, prefix + "src0__", suffix);
+    dump_sincos_tensor(inst.output_memory_ptr(0), inst.get_output_layout(0), stream, prefix + "dst0__", suffix);
+}
+
 bool is_target_iteration(int64_t iteration, const std::set<int64_t> dump_iteration) {
     if (iteration < 0) {
         return true;
@@ -544,6 +594,11 @@ NodeDebugHelper::NodeDebugHelper(const primitive_inst& inst)
 
 NodeDebugHelper::~NodeDebugHelper() {
     const auto& config = m_network.get_config();
+
+    // Dump before output validation, which may throw on detection
+    if (!config.get_dump_sincos_path().empty()) {
+        dump_sincos(m_inst, m_stream, config.get_dump_sincos_path(), (m_program != nullptr) ? m_program->get_id() : 0, m_network.get_id(), m_iter);
+    }
 
     if (config.get_validate_output_buffer() && !m_network.is_internal()) {
         const bool throw_for_error = config.get_validate_output_buffer() >= 2;
