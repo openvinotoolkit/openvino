@@ -280,9 +280,12 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     const int64_t n_head = q_shape[head_axis].get_length();
     const int64_t n_head_kv = k_shape[head_axis].get_length();
     const int64_t gqa_factor = n_head / n_head_kv;
+    const auto mask_shape = mask_sliced.get_partial_shape();
+    const bool shared_head_mask = !has_mask || (mask_shape.rank().is_static() && mask_shape.rank().get_length() == 4 &&
+                                                mask_shape[head_axis] == 1);
     const bool manual_gqa = context.get_attribute<bool>("manual_gqa_attention", false) && gqa_factor > 1 &&
-                            n_head_kv > 1 && kq_soft_cap == 0.0f && !has_sinks && k_shape[3] == q_shape[3] &&
-                            v_shape[3] == q_shape[3];
+                            n_head_kv > 1 && shared_head_mask && kq_soft_cap == 0.0f && !has_sinks &&
+                            k_shape[3] == q_shape[3] && v_shape[3] == q_shape[3];
 
     ov::Output<ov::Node> sdpa;
     if (manual_gqa) {

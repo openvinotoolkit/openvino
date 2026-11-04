@@ -63,6 +63,11 @@ PushScaleBeforeMatMul::PushScaleBeforeMatMul() {
         if (!scale_const) {
             return false;
         }
+        const auto scale_rank = multiply->input_value(scale_input).get_partial_shape().rank();
+        const auto matmul_rank = matmul->get_output_partial_shape(0).rank();
+        if (scale_rank.is_dynamic() || matmul_rank.is_dynamic() || scale_rank.get_length() > matmul_rank.get_length()) {
+            return false;
+        }
         const float scale = scale_const->cast_vector<float>()[0];
         if (!(std::abs(scale) >= min_scale && std::abs(scale) < 1.0f)) {
             return false;

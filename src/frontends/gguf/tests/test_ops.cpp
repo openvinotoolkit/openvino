@@ -4713,6 +4713,47 @@ TEST(GGUFOps, FlashAttnExtAlibiScalesMaskPerHead) {
     expect_near(out, expected, 2e-3f, 2e-3f);
 }
 
+TEST(GGUFOps, FlashAttnExtManualGqaWithAlibi) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FLASH_ATTN_EXT")
+                     .input("q", ov::element::f32, {1, 4, 2, 2})
+                     .input("k", ov::element::f32, {1, 2, 3, 2})
+                     .input("v", ov::element::f32, {1, 2, 3, 2})
+                     .input("mask", ov::element::f32, {1, 1, 2, 3})
+                     .output("out", ov::element::f32, {1, 2, 4, 2})
+                     .attr("scale", 1.0f)
+                     .attr("max_bias", 8.0f)
+                     .attr("has_mask", true)
+                     .attr("f32_attention", true)
+                     .attr("manual_gqa_attention", true)
+                     .build();
+    const std::vector<float> values{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
+    const std::vector<float> mask{0, -4, -16, -1, 0, -8};
+    auto result = run_on_cpu(model,
+                             {{"q", make_f32_tensor({1, 4, 2, 2}, std::vector<float>(16, 0.0f))},
+                              {"k", make_f32_tensor({1, 2, 3, 2}, std::vector<float>(12, 0.0f))},
+                              {"v", make_f32_tensor({1, 2, 3, 2}, values)},
+                              {"mask", make_f32_tensor({1, 1, 2, 3}, mask)}});
+    std::vector<float> expected;
+    for (size_t t = 0; t < 2; ++t) {
+        for (size_t h = 0; h < 4; ++h) {
+            const float slope = std::pow(0.25f, static_cast<float>(h + 1));
+            const float weights[]{std::exp(slope * mask[t * 3]),
+                                  std::exp(slope * mask[t * 3 + 1]),
+                                  std::exp(slope * mask[t * 3 + 2])};
+            const float sum = weights[0] + weights[1] + weights[2];
+            for (size_t d = 0; d < 2; ++d) {
+                float value = 0.0f;
+                for (size_t key = 0; key < 3; ++key) {
+                    value += weights[key] / sum * values[(h / 2 * 3 + key) * 2 + d];
+                }
+                expected.push_back(value);
+            }
+        }
+    }
+    expect_near(result, expected, 1e-4f);
+}
+
 TEST(GGUFOps, CpyDoesNotReshapeToCapturedOutputMetadata) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_CPY")

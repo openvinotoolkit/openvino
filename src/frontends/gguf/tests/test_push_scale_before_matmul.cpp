@@ -140,3 +140,16 @@ TEST(PushScaleBeforeMatMul, MatMulWithAnotherConsumerIsLeftAlone) {
     EXPECT_TRUE(ov::is_type<ov::op::v1::Multiply>(outer->get_input_node_shared_ptr(0)));
     EXPECT_TRUE(ov::is_type<ov::op::v0::MatMul>(outer->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0)));
 }
+
+TEST(PushScaleBeforeMatMul, RankExpandingScaleIsLeftAlone) {
+    const auto build = [](const Output<ov::Node>&, const Output<ov::Node>& matmul) -> Output<ov::Node> {
+        return std::make_shared<ov::op::v1::Multiply>(matmul,
+                                                      Constant::create(ov::element::f32, {1, 1, 1, 1}, {0.25f}));
+    };
+    auto reference = make_model(build);
+    auto model = make_model(build);
+    run_pass(model);
+    ASSERT_EQ(model->get_output_partial_shape(0), reference->get_output_partial_shape(0));
+    EXPECT_TRUE(ov::is_type<ov::op::v1::Multiply>(result_producer(model)));
+    expect_near(run(model), run_vector(reference), 1e-6f);
+}
