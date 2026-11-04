@@ -33,14 +33,16 @@ std::vector<std::string> extract_ptx_entry_points(const std::string& ptx) {
     return names;
 }
 
-// Build sycl_ptx_kernel objects from a compiled PTX string, one per entry point.
+// Build sycl_ptx_kernel objects from a compiled PTX string, one per entry point. They share one ptx_program, so
+// the PTX is kept and JIT-compiled into a module once for the whole batch.
 void create_ptx_kernels(const std::string& ptx, std::vector<kernel::ptr>& out) {
     const auto entry_points = extract_ptx_entry_points(ptx);
     if (entry_points.empty())
         OPENVINO_THROW("[GPU][NVIDIA] No entry points found in PTX");
 
+    const auto program = std::make_shared<ptx_program>(ptx);
     for (const auto& ep : entry_points)
-        out.push_back(std::make_shared<sycl_ptx_kernel>(ptx, ep, ep));
+        out.push_back(std::make_shared<sycl_ptx_kernel>(program, ep, ep));
 }
 
 }  // namespace

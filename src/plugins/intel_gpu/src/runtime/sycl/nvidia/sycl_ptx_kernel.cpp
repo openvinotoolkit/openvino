@@ -160,37 +160,43 @@ const std::array<dim_mapping, 6>& dim_mappings() {
     return table;
 }
 
-cuda_module_state::~cuda_module_state() {
+cuda_module::~cuda_module() {
     if (cu_module) {
         (void)cuModuleUnload(static_cast<CUmodule>(cu_module));
         cu_module = nullptr;
-        cu_function = nullptr;
     }
 }
 
-std::shared_ptr<kernel> sycl_ptx_kernel::clone(bool /*reuse_kernel_handle*/) const {
-    return std::make_shared<sycl_ptx_kernel>(_program->ptx_source, _program->kernel_name, _kernel_id);
+std::shared_ptr<kernel> sycl_ptx_kernel::clone(bool reuse_kernel_handle) const {
+    // The PTX and the modules loaded from it are shared either way. Reusing the handle shares the looked-up
+    // functions as well; otherwise the clone looks them up again, which is cheap. Arguments stay per kernel.
+    if (reuse_kernel_handle) {
+        return std::make_shared<sycl_ptx_kernel>(_state, _kernel_id);
+    }
+    return std::make_shared<sycl_ptx_kernel>(_state->program, _state->kernel_name, _kernel_id);
 }
 
 bool sycl_ptx_kernel::is_same(const kernel& other) const {
     const auto* o = dynamic_cast<const sycl_ptx_kernel*>(&other);
     if (!o) return false;
-    return _program->ptx_source == o->_program->ptx_source && _program->kernel_name == o->_program->kernel_name;
+    return _state->kernel_name == o->_state->kernel_name &&
+           (_state->program == o->_state->program ||
+            _state->program->source() == o->_state->program->source());
 }
 
 std::vector<uint8_t> sycl_ptx_kernel::get_binary() const {
-    return std::vector<uint8_t>(_program->ptx_source.begin(), _program->ptx_source.end());
+    const auto& ptx = _state->program->source();
+    return std::vector<uint8_t>(ptx.begin(), ptx.end());
 }
 
 namespace {
 
-// Loads `ptx` into `state` and looks up `kernel_name` in it.  A non-zero `min_threads` tells the JIT
-// the block size the kernel has to launch with (CU_JIT_THREADS_PER_BLOCK), so that ptxas gives each
-// work-item no more registers than that many work-items can share.
-void load_module(cuda_module_state& state,
-                 const std::string& ptx,
-                 const std::string& kernel_name,
-                 unsigned int min_threads) {
+// Loads `ptx` as a module.  A non-zero `min_threads` tells the JIT the block size the kernels have to
+// launch with (CU_JIT_THREADS_PER_BLOCK), so that ptxas gives each work-item no more registers than
+// that many work-items can share.  `requested_by` names the kernel that asked for it in error messages.
+std::shared_ptr<cuda_module> load_cuda_module(const std::string& ptx,
+                                              unsigned int min_threads,
+                                              const std::string& requested_by) {
     CUmodule mod = nullptr;
     CUresult load_res;
     if (min_threads == 0) {
@@ -205,16 +211,21 @@ void load_module(cuda_module_state& state,
         cuGetErrorString(load_res, &err_str);
         OPENVINO_THROW("[GPU][NVIDIA] CUDA error ", static_cast<int>(load_res),
                        min_threads == 0 ? " in cuModuleLoadData" : " in cuModuleLoadDataEx",
-                       " for kernel '", kernel_name, "': ", err_str ? err_str : "unknown");
+                       " for kernel '", requested_by, "': ", err_str ? err_str : "unknown");
     }
+    auto module = std::make_shared<cuda_module>();
+    module->cu_module = static_cast<void*>(mod);
+    return module;
+}
 
+// Looks up `kernel_name` in `module`.
+std::shared_ptr<cuda_function> get_cuda_function(const std::shared_ptr<cuda_module>& module,
+                                                 const std::string& kernel_name) {
     CUfunction func = nullptr;
-    CUresult r = cuModuleGetFunction(&func, mod, kernel_name.c_str());
+    CUresult r = cuModuleGetFunction(&func, static_cast<CUmodule>(module->cu_module), kernel_name.c_str());
     if (r != CUDA_SUCCESS) {
         const char* err = nullptr;
         cuGetErrorString(r, &err);
-        // Unload module to avoid leaking on failure
-        cuModuleUnload(mod);
         OPENVINO_THROW("[GPU][NVIDIA] cuModuleGetFunction failed for '", kernel_name,
                        "': ", err ? err : "unknown");
     }
@@ -224,49 +235,58 @@ void load_module(cuda_module_state& state,
     if (r != CUDA_SUCCESS) {
         const char* err = nullptr;
         cuGetErrorString(r, &err);
-        cuModuleUnload(mod);
         OPENVINO_THROW("[GPU][NVIDIA] cuFuncGetAttribute(MAX_THREADS_PER_BLOCK) failed for '", kernel_name,
                        "': ", err ? err : "unknown");
     }
 
-    state.cu_module = static_cast<void*>(mod);
-    state.cu_function = static_cast<void*>(func);
-    state.max_threads_per_block = max_threads;
+    auto function = std::make_shared<cuda_function>();
+    function->module = module;
+    function->cu_function = static_cast<void*>(func);
+    function->max_threads_per_block = max_threads;
+    return function;
 }
 
 }  // anonymous namespace
 
-ptx_program_state::ptx_program_state(std::string ptx, std::string name)
-    : ptx_source(std::move(ptx))
-    , kernel_name(std::move(name)) {
-    for (auto& state : module_state)
-        state = std::make_shared<cuda_module_state>();
-}
-
-void ptx_program_state::ensure_loaded(size_t mapping_idx) {
+std::shared_ptr<cuda_module> ptx_program::module(size_t mapping_idx, const std::string& requested_by) {
     OPENVINO_ASSERT(mapping_idx < mapping_count,
-                    "[GPU][NVIDIA] Invalid dimension mapping index ", mapping_idx, " for kernel '", kernel_name, "'");
-    std::call_once(module_once[mapping_idx], [this, mapping_idx]() {
-        load_module(*module_state[mapping_idx],
-                    remap_ptx_dims(ptx_source, dim_mappings()[mapping_idx]),
-                    kernel_name,
-                    0);
+                    "[GPU][NVIDIA] Invalid dimension mapping index ", mapping_idx, " for kernel '", requested_by, "'");
+    std::call_once(_module_once[mapping_idx], [&]() {
+        _modules[mapping_idx] = load_cuda_module(remap_ptx_dims(_ptx, dim_mappings()[mapping_idx]), 0, requested_by);
     });
+    return _modules[mapping_idx];
 }
 
-std::shared_ptr<cuda_module_state> ptx_program_state::module_for_launch(size_t mapping_idx,
-                                                                        unsigned int block_threads) {
-    ensure_loaded(mapping_idx);
-    const auto& plain = module_state[mapping_idx];
+std::shared_ptr<cuda_module> ptx_program::capped_module(size_t mapping_idx,
+                                                        unsigned int block_threads,
+                                                        const std::string& requested_by) {
+    std::lock_guard<std::mutex> lock(_capped_mutex);
+    auto& capped = _capped_modules[{mapping_idx, block_threads}];
+    if (!capped) {
+        capped = load_cuda_module(remap_ptx_dims(_ptx, dim_mappings()[mapping_idx]), block_threads, requested_by);
+    }
+    return capped;
+}
+
+ptx_kernel_state::ptx_kernel_state(std::shared_ptr<ptx_program> program, std::string kernel_name)
+    : program(std::move(program))
+    , kernel_name(std::move(kernel_name)) {}
+
+std::shared_ptr<cuda_function> ptx_kernel_state::function_for_launch(size_t mapping_idx, unsigned int block_threads) {
+    OPENVINO_ASSERT(mapping_idx < ptx_program::mapping_count,
+                    "[GPU][NVIDIA] Invalid dimension mapping index ", mapping_idx, " for kernel '", kernel_name, "'");
+    std::call_once(_function_once[mapping_idx], [&]() {
+        _functions[mapping_idx] = get_cuda_function(program->module(mapping_idx, kernel_name), kernel_name);
+    });
+    const auto& plain = _functions[mapping_idx];
     if (block_threads <= static_cast<unsigned int>(plain->max_threads_per_block))
         return plain;
 
-    std::lock_guard<std::mutex> lock(capped_mutex);
-    auto& capped = capped_modules[{mapping_idx, block_threads}];
+    // Lock order is always this state, then the program: the program never calls back into a kernel's state.
+    std::lock_guard<std::mutex> lock(_capped_mutex);
+    auto& capped = _capped_functions[{mapping_idx, block_threads}];
     if (!capped) {
-        auto state = std::make_shared<cuda_module_state>();
-        load_module(*state, remap_ptx_dims(ptx_source, dim_mappings()[mapping_idx]), kernel_name, block_threads);
-        capped = std::move(state);
+        capped = get_cuda_function(program->capped_module(mapping_idx, block_threads, kernel_name), kernel_name);
     }
 
     if (block_threads > static_cast<unsigned int>(capped->max_threads_per_block)) {
@@ -334,7 +354,7 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
     if (!mapping_found) {
         // Resizing the work-group to fit would change get_local_size/get_group_id and split
         // barriers and __local sharing, so an unmappable launch is rejected instead.
-        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _program->kernel_name, "' cannot be launched: work-group (",
+        OPENVINO_THROW("[GPU][NVIDIA] Kernel '", _state->kernel_name, "' cannot be launched: work-group (",
                        block_extent[0], ", ", block_extent[1], ", ", block_extent[2],
                        ") with work-group count (",
                        grid_extent[0], ", ", grid_extent[1], ", ", grid_extent[2],
@@ -396,17 +416,17 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
     }
 
     // The task runs once the dependencies complete, possibly after the caller has released this
-    // kernel, so it holds the PTX and module state it needs rather than a pointer to the kernel.
+    // kernel, so it holds the entry point state it needs rather than a pointer to the kernel.
     cldnn::sycl::host_task(cgh, [buf_infos = std::move(buf_infos),
                                  args = std::move(args),
                                  buf_arg_indices,
                                  usm_ptrs,
-                                 program = _program,
+                                 state = _state,
                                  mapping_idx,
                                  gx, gy, gz, bx, by, bz](::sycl::interop_handle ih) {
-        const auto module_state = program->module_for_launch(mapping_idx, bx * by * bz);
+        const auto function = state->function_for_launch(mapping_idx, bx * by * bz);
         auto cu_stream = ih.get_native_queue<::sycl::backend::ext_oneapi_cuda>();
-        auto cu_func = static_cast<CUfunction>(module_state->cu_function);
+        auto cu_func = static_cast<CUfunction>(function->cu_function);
 
         std::vector<std::vector<uint8_t>> param_storage;
         std::vector<void*> params;
@@ -499,7 +519,7 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         if (res != CUDA_SUCCESS) {
             const char* err_str = nullptr;
             cuGetErrorString(res, &err_str);
-            OPENVINO_THROW("[GPU][NVIDIA] cuLaunchKernel failed for '", program->kernel_name, "' with ",
+            OPENVINO_THROW("[GPU][NVIDIA] cuLaunchKernel failed for '", state->kernel_name, "' with ",
                            launch_shape(), ": ", err_str ? err_str : "unknown error");
         }
 
@@ -511,7 +531,7 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         if (sync_res != CUDA_SUCCESS) {
             const char* err_str = nullptr;
             cuGetErrorString(sync_res, &err_str);
-            OPENVINO_THROW("[GPU][NVIDIA] cuStreamSynchronize failed for '", program->kernel_name, "' with ",
+            OPENVINO_THROW("[GPU][NVIDIA] cuStreamSynchronize failed for '", state->kernel_name, "' with ",
                            launch_shape(), ": ", err_str ? err_str : "unknown error");
         }
 #endif
