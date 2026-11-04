@@ -58,6 +58,8 @@ jobs:
       SETUPVARS: ${{ github.workspace }}/install/${{ contains(inputs.runner, 'win') && 'setupvars.ps1' || 'setupvars.sh' }}
       # skip flaky short/long path mismatch on Win ARM64
       GTEST_FILTER: ${{ inputs.runner == 'windows-11-arm' && '--gtest_filter=-SanitizePathTest.valid_nested_relative_path' || '' }}
+      # Precision issues on ARM CPU (Windows ARM64 only) - Ticket 122663
+      ONNX_FE_GTEST_FILTER: ${{ inputs.runner == 'windows-11-arm' && '-*IE_GPU*:*attention_extra_add:*lp_pool_p3_dilations:*lstm_fwd_with_clip_const:*rnn_rev_clip_const:*rnn_fwd_bias_initial_h_const:*rnn_bidirectional:*rnn_bidirectional_layout_1' || '-*IE_GPU*' }}
     steps:
       - name: Download OpenVINO artifacts (package)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -160,7 +162,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && (runner.arch != 'ARM64' || runner.os == 'Windows') }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161. Enabled for Windows ARM64.
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorEnabled.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=${{ env.ONNX_FE_GTEST_FILTER }} --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorEnabled.xml
 
       - name: ONNX frontend tests ONNX_ITERATOR=disabled (legacy implementation)
         if: ${{ fromJSON(inputs.affected-components).ONNX_FE.test && (runner.arch != 'ARM64' || runner.os == 'Windows') }} # Ticket for macOS ARM64: 122663, for Linux ARM64: 126280, 153161. Enabled for Windows ARM64.
@@ -168,7 +170,7 @@ jobs:
           ONNX_ITERATOR: "0"
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
-          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=-*IE_GPU* --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorDisabled.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_onnx_frontend_tests --gtest_print_time=1 --gtest_filter=${{ env.ONNX_FE_GTEST_FILTER }} --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-ONNXFrontend-GraphIteratorDisabled.xml
 
       - name: TensorFlow frontend tests
         if: fromJSON(inputs.affected-components).TF_FE.test && !(runner.os == 'Windows' && runner.arch == 'ARM64')

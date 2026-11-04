@@ -39,7 +39,7 @@ if exist "%OpenVINO_DIR%\OpenVINOGenAIConfig.cmake" (
    set "OpenVINOGenAI_DIR=%OpenVINO_DIR%"
 )
 
-if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" (
+if exist "%INTEL_OPENVINO_DIR%\runtime\bin\arm64" (
     set "ARCHDIR=arm64"
 ) else (
     set "ARCHDIR=intel64"
@@ -55,9 +55,9 @@ if exist "%INTEL_OPENVINO_DIR%\runtime\bin\%ARCHDIR%\MinSizeRel" set "OPENVINO_L
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
 
    if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist (
-      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist\%ARCHDIR%\vc14;%OPENVINO_LIB_PATHS%"
-   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\%ARCHDIR%\vc14 (
-      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\%ARCHDIR%\vc14;%OPENVINO_LIB_PATHS%"
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\redist\intel64\vc14;%OPENVINO_LIB_PATHS%"
+   ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\intel64\vc14 (
+      set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin\intel64\vc14;%OPENVINO_LIB_PATHS%"
    ) else if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin (
       set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb\bin;%OPENVINO_LIB_PATHS%"
    )
