@@ -13,8 +13,11 @@
 #include <vector>
 
 #include "compiled_model.hpp"
-#include "graph_rewriter.hpp"
 #include "tp_blob.hpp"
+#include "tp_transformations/analyzer.hpp"
+#include "tp_transformations/annotations.hpp"
+#include "tp_transformations/rank_passes.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_ops/tp_collective.hpp"
 #include "tp/tp_config.hpp"
 #include "tp/tp_debug.hpp"
@@ -182,36 +185,58 @@ protected:
     }
 };
 
-void log_sharding_plan(const ShardingPlan& plan, int num_collectives) {
-    const auto biased = std::count_if(plan.linears.begin(), plan.linears.end(), [](const auto& l) {
-        return l.has_bias;
-    });
-    TP_LOG_INFO << "[TP] Sharding plan: layers=" << plan.num_layers
-                << " linears=" << plan.linears.size()
-                << " (column=" << (plan.linears.size() - static_cast<size_t>(num_collectives))
-                << " row=" << num_collectives << " biased=" << biased << ")"
-                << " heads=" << plan.num_heads
-                << " kv_heads=" << plan.num_kv_heads
-                << " head_dim=" << plan.head_dim
-                << " hidden=" << plan.hidden_size
-                << " intermediate=" << plan.intermediate_size << std::endl;
+void log_analysis(const TPAnalysisReport& report, size_t num_collectives) {
+    TP_LOG_INFO << "[TP] Analysis: attention blocks=" << report.attention_blocks
+                << " mlp blocks=" << report.mlp_blocks
+                << " lm head=" << (report.lm_head ? "split" : "whole")
+                << " collectives=" << num_collectives
+                << " heads=" << report.num_heads
+                << " kv_heads=" << report.num_kv_heads
+                << " head_dim=" << report.head_dim
+                << " intermediate=" << report.intermediate_size
+                << " sharded variables=" << report.sharded_variables.size() << std::endl;
+
+    // Neither is an error, but both cost: whoever hits them needs to know without having
+    // been told to look.
+    if (!report.runtime_slices.empty()) {
+        TP_WARN_ALWAYS << "[TP] Warning: " << report.runtime_slices.size()
+                       << " weights cannot be cut at the rank boundaries at compile time and are sliced at run "
+                          "time, which dominates compile time; the first is '"
+                       << report.runtime_slices.front() << "'";
+    }
+    if (!report.unclaimed.empty()) {
+        TP_WARN_ALWAYS << "[TP] Warning: " << report.unclaimed.size()
+                       << " linear layers are not part of a recognized block and stay whole on every rank ("
+                       << report.unclaimed_bytes / (1024 * 1024) << " MiB each rank); the first is '"
+                       << report.unclaimed.front() << "'";
+    }
+}
+
+size_t count_collectives(const ov::Model& model) {
+    size_t count = 0;
+    for (const auto& node : model.get_ops()) {
+        const auto* role = get_role(*node);
+        count += role && role->collective != Collective::NONE ? 1 : 0;
+    }
+    return count;
 }
 
 /// Attention is split by KV head. An uneven split gives the first ranks one
 /// extra each, and since every layer ends in a collective the slowest rank
 /// paces the whole model -- worth saying out loud, because the model still runs
 /// and the cost is invisible otherwise.
-void warn_on_kv_imbalance(const ShardingPlan& plan, uint32_t shard_degree) {
-    const int remainder = plan.num_kv_heads % static_cast<int>(shard_degree);
+void warn_on_kv_imbalance(const TPAnalysisReport& report, uint32_t shard_degree) {
+    const auto kv_heads = static_cast<int>(report.num_kv_heads);
+    const int remainder = kv_heads % static_cast<int>(shard_degree);
     if (remainder == 0) {
         return;
     }
-    const int base = plan.num_kv_heads / static_cast<int>(shard_degree);
+    const int base = kv_heads / static_cast<int>(shard_degree);
     const int imbalance_pct = 100 / (base + 1);
     if (imbalance_pct <= 10) {
         return;
     }
-    TP_WARN_ALWAYS << "[TP] Warning: " << plan.num_kv_heads << " KV heads do not divide evenly across "
+    TP_WARN_ALWAYS << "[TP] Warning: " << kv_heads << " KV heads do not divide evenly across "
                    << shard_degree << " ranks (" << remainder << " rank(s) get " << (base + 1) << ", the rest "
                    << base << "), about " << imbalance_pct << "% load imbalance.";
 }
@@ -393,13 +418,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const auto rank_count = static_cast<uint32_t>(device_names.size());
     auto device_keys = device_uuids(device_names);
 
-    auto sharding_plan = GraphRewriter::analyze(model);
-    const int num_collectives =
-        shard_only ? 0
-                   : GraphRewriter::count_collectives(sharding_plan, static_cast<int>(shard_degree), cfg);
-
-    log_sharding_plan(sharding_plan, num_collectives);
-    warn_on_kv_imbalance(sharding_plan, shard_degree);
+    // Pass 1, once: annotations proven for the whole model.
+    auto analyzed = model->clone();
+    auto report = std::make_shared<TPAnalysisReport>();
+    {
+        ov::pass::Manager manager("TP analysis");
+        manager.register_pass<TPLayerAnalyzer>(TPAnalyzerConfig{shard_degree, !cfg.disable_lm_head_sharding()},
+                                               report);
+        manager.run_passes(analyzed);
+    }
+    const size_t num_collectives = shard_only ? 0 : count_collectives(*analyzed);
+    log_analysis(*report, num_collectives);
+    warn_on_kv_imbalance(*report, shard_degree);
 
     // A shard stripped of its collectives runs alone, on an ordinary context.
     const auto rank_contexts =
@@ -407,10 +437,18 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::vector<ov::SoPtr<ov::ICompiledModel>> rank_compiled(rank_count);
     for (uint32_t rank = 0; rank < rank_count; ++rank) {
-        auto rank_model = GraphRewriter::rewrite(model, sharding_plan, rank, shard_degree, cfg);
+        // Passes 2 and 3 on a clone that shares the constant data.
+        auto rank_model = analyzed->clone();
+        {
+            ov::pass::Manager manager("TP rank " + std::to_string(rank));
+            manager.register_pass<TPWeightShardingPass>(rank, shard_degree);
+            manager.register_pass<TPInsertCollectives>(rank, shard_degree);
+            manager.run_passes(rank_model);
+        }
+        strip_annotations(*rank_model);
 
         TP_LOG_INFO << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size() << " ops, "
-                    << num_collectives << " AllReduce points" << std::endl;
+                    << num_collectives << " collectives" << std::endl;
 
         if (shard_only) {
             strip_collectives(rank_model);
@@ -424,7 +462,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                            std::move(rank_compiled),
                                            std::move(device_names),
                                            std::move(device_keys),
-                                           GraphRewriter::sharded_state_ids(model, sharding_plan),
+                                           std::move(report->sharded_variables),
                                            /*loaded_from_cache=*/false,
                                            cfg);
 }

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <iostream>
 #include <sstream>
 #include <map>
 #include <set>
@@ -21,6 +22,9 @@
 #include "tp_test_models.hpp"
 #include "tp_transformations/analyzer.hpp"
 #include "tp_transformations/annotations.hpp"
+#include "tp_transformations/rank_passes.hpp"
+#include "common_test_utils/graph_comparator.hpp"
+#include "openvino/op/paged_attention.hpp"
 
 namespace ov::tp::tests {
 namespace {
@@ -137,7 +141,79 @@ void expect_rewriter_claims(const std::shared_ptr<ov::Model>& original, size_t w
     EXPECT_EQ(variables, expected_variables);
 }
 
+/// The rank model the L1 passes build.
+std::shared_ptr<ov::Model> l1_rank_model(const std::shared_ptr<const ov::Model>& analyzed, size_t rank, size_t world_size) {
+    auto rank_model = analyzed->clone();
+    TPWeightShardingPass(rank, world_size).run_on_model(rank_model);
+    TPInsertCollectives(rank, world_size).run_on_model(rank_model);
+    strip_annotations(*rank_model);
+    return rank_model;
+}
+
+std::map<std::string, std::string> paged_attention_heads(const std::shared_ptr<ov::Model>& model) {
+    std::map<std::string, std::string> heads;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::PagedAttentionExtension>(node))
+            continue;
+        for (const auto* key : {"num_k_heads", "num_v_heads"}) {
+            const auto it = node->get_rt_info().find(key);
+            if (it != node->get_rt_info().end())
+                heads[node->get_friendly_name() + "." + key] = it->second.as<std::string>();
+        }
+    }
+    return heads;
+}
+
+/// The data shape of every Gather over a static 2D table (an embedding), by name.
+std::map<std::string, ov::PartialShape> gather_tables(const std::shared_ptr<ov::Model>& model) {
+    std::map<std::string, ov::PartialShape> tables;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (!ov::is_type<ov::op::util::GatherBase>(node))
+            continue;
+        const auto& shape = node->get_input_partial_shape(0);
+        if (shape.is_static() && shape.size() == 2)
+            tables[node->get_friendly_name()] = shape;
+    }
+    return tables;
+}
+
+/// Every rank model of the L1 passes against the rewriter's.
+void expect_rewriter_rank_models(const std::shared_ptr<ov::Model>& original, size_t world_size) {
+    const auto plan = GraphRewriter::analyze(original);
+    auto analyzed = original->clone();
+    TPLayerAnalyzer(TPAnalyzerConfig{world_size, true}).run_on_model(analyzed);
+
+    const auto tables = gather_tables(original);
+    const auto comparator = FunctionsComparator::with_default()
+                                .enable(FunctionsComparator::CONST_VALUES)
+                                .enable(FunctionsComparator::ATTRIBUTES)
+                                .enable(FunctionsComparator::CONSUMERS_COUNT);
+    for (size_t rank = 0; rank < world_size; ++rank) {
+        SCOPED_TRACE("rank " + std::to_string(rank) + " of " + std::to_string(world_size));
+        const auto expected =
+            GraphRewriter::rewrite(original, plan, static_cast<uint32_t>(rank), static_cast<uint32_t>(world_size));
+        const auto actual = l1_rank_model(analyzed, rank, world_size);
+        // An embedding table is never cut, also when it shares its weights with the LM head.
+        EXPECT_EQ(gather_tables(actual), tables);
+        if (gather_tables(expected) != tables) {
+            // The rewriter cuts a weight chain shared with the LM head in place, the embedding
+            // table with it: its rank models are wrong there and are no reference.
+            std::cout << "[ INFO     ] the rewriter cuts the tied embedding table, rank " << rank
+                      << " is not compared\n";
+            continue;
+        }
+        const auto result = comparator.compare(actual, expected);
+        EXPECT_TRUE(result.valid) << result.message;
+        EXPECT_EQ(paged_attention_heads(actual), paged_attention_heads(expected));
+    }
+}
+
 class TPAnalyzerGoldenTest : public ::testing::TestWithParam<std::tuple<Variant, size_t>> {};
+
+TEST_P(TPAnalyzerGoldenTest, BuildsTheRewritersRankModels) {
+    const auto& [variant, world_size] = GetParam();
+    expect_rewriter_rank_models(build(variant), world_size);
+}
 
 TEST_P(TPAnalyzerGoldenTest, ClaimsWhatTheRewriterClaims) {
     const auto& [variant, world_size] = GetParam();
@@ -157,6 +233,7 @@ TEST(TPAnalyzerGoldenModels, ClaimWhatTheRewriterClaims) {
         for (const size_t world_size : {2u, 4u}) {
             SCOPED_TRACE(path + " on " + std::to_string(world_size) + " ranks");
             expect_rewriter_claims(model, world_size);
+            expect_rewriter_rank_models(model, world_size);
         }
     }
 }
@@ -167,6 +244,15 @@ INSTANTIATE_TEST_SUITE_P(TPAnalyzer,
                          [](const ::testing::TestParamInfo<std::tuple<Variant, size_t>>& info) {
                              return std::get<0>(info.param).name + "_world" + std::to_string(std::get<1>(info.param));
                          });
+
+// Control for the comparisons above: two ranks hold different slices, and the comparator sees it.
+TEST(TPAnalyzerTest, ComparisonSeesDifferentSlices) {
+    auto analyzed = make_transformer_block(BlockConfig{});
+    TPLayerAnalyzer(TPAnalyzerConfig{2, true}).run_on_model(analyzed);
+    const auto comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::CONST_VALUES).enable(FunctionsComparator::ATTRIBUTES);
+    EXPECT_FALSE(comparator.compare(l1_rank_model(analyzed, 0, 2), l1_rank_model(analyzed, 1, 2)).valid);
+}
 
 TEST(TPAnalyzerTest, RejectsAModelWithoutAttention) {
     auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 256});
@@ -194,6 +280,38 @@ TEST(TPAnalyzerTest, CutsASharedWeightForTheProjectionOnly) {
     TPLayerAnalyzer(TPAnalyzerConfig{2, true}).run_on_model(model);
     EXPECT_EQ(get_shard(*other->get_input_node_ptr(0)), nullptr) << "the other reader's weight was claimed";
     EXPECT_NE(lm_head->get_input_node_ptr(1), other->get_input_node_ptr(0));
+}
+
+// A tied embedding: the table the Gather reads stays whole on every rank, the LM head is cut.
+TEST(TPAnalyzerTest, KeepsATiedEmbeddingTableWhole) {
+    constexpr size_t vocab = 1024;
+    auto model = make_block_with_lm_head(BlockConfig{}, vocab);
+    std::shared_ptr<ov::Node> lm_head;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_friendly_name() == "lm_head")
+            lm_head = node;
+    }
+    ASSERT_NE(lm_head, nullptr);
+    auto ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+    auto embedding = std::make_shared<ov::op::v8::Gather>(lm_head->input_value(1), ids, axis);
+    embedding->set_friendly_name("embedding");
+    model->add_parameters({ids});
+    model->add_results({std::make_shared<ov::op::v0::Result>(embedding)});
+
+    const auto tables = gather_tables(model);
+    ASSERT_EQ(tables.at("embedding"), (ov::PartialShape{vocab, BlockConfig{}.hidden}));
+    auto report = std::make_shared<TPAnalysisReport>();
+    TPLayerAnalyzer(TPAnalyzerConfig{2, true}, report).run_on_model(model);
+    ASSERT_TRUE(report->lm_head);
+    for (size_t rank = 0; rank < 2; ++rank) {
+        const auto rank_model = l1_rank_model(model, rank, 2);
+        EXPECT_EQ(gather_tables(rank_model), tables) << "rank " << rank;
+        for (const auto& node : rank_model->get_ordered_ops()) {
+            if (node->get_friendly_name() == "lm_head")
+                EXPECT_EQ(node->get_input_partial_shape(1), (ov::PartialShape{vocab / 2, BlockConfig{}.hidden}));
+        }
+    }
 }
 
 }  // namespace
