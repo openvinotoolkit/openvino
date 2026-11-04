@@ -394,18 +394,22 @@ void EltwiseRefExecutor<T, Enable>::execFloatingPoint(const jit_eltwise_call_arg
             case Algorithm::EltwiseNegative:
                 *dst_ptr_f = -src_f[0];
                 break;
-            case Algorithm::EltwiseFloorMod:
+            case Algorithm::EltwiseFloorMod: {
                 if constexpr (std::is_integral_v<T>) {
                     *dst_ptr_f = ov::reference::func::floor_mod(src_f[0], src_f[1]);
                 } else {
-                    *dst_ptr_f = src_f[0] - floorf(src_f[0] / src_f[1]) * src_f[1];
+                    // std::fmod is exact. x - floor(x / y) * y gave 0 instead of nearly y when x / y
+                    // rounded up to a whole number.
+                    const float r = std::fmod(src_f[0], src_f[1]);
+                    *dst_ptr_f = (r != 0.0F && ((r < 0.0F) != (src_f[1] < 0.0F))) ? r + src_f[1] : r;
                 }
                 break;
+            }
             case Algorithm::EltwiseMod:
                 if constexpr (std::is_integral_v<T>) {
                     *dst_ptr_f = ov::reference::func::mod(src_f[0], src_f[1]);
                 } else {
-                    *dst_ptr_f = src_f[0] - truncf(src_f[0] / src_f[1]) * src_f[1];
+                    *dst_ptr_f = std::fmod(src_f[0], src_f[1]);
                 }
                 break;
             case Algorithm::EltwiseMaximum:

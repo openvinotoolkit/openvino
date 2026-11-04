@@ -189,8 +189,10 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
 
     size_t aux_vecs_count() const override;
+    size_t aux_gprs_count() const override;
 };
 
 class jit_mod_emitter : public jit_emitter {
@@ -212,8 +214,10 @@ private:
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
 
     size_t aux_vecs_count() const override;
+    size_t aux_gprs_count() const override;
 };
 
 class jit_maximum_emitter : public jit_emitter {

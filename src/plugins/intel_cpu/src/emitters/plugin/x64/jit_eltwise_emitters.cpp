@@ -488,16 +488,153 @@ void jit_ceiling_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->uni_vroundps(vmm_dst, vmm_src, 2);
 }
 
+namespace {
+
+/// The exact float remainder, for Mod and FloorMod: r = x - n * y for a whole number n, with |r| < |y| and the
+/// sign not yet adjusted. Each step takes q = trunc(r / y) and subtracts q * y with a single rounding, which is
+/// exact. One step is enough unless |r / y| is beyond float precision (2^24); then each step shrinks |r| by about
+/// 2^24, so float values need at most a dozen. Where r / y overflows (y tiny, |x / y| up to about 2^277), the step
+/// divides by y * 2^127 or y * 2^254 instead: a whole multiple of y, so r stays exact. NaN lanes (x infinite, y zero,
+/// NaN inputs) end the loop at once. Lanes with q == 0 keep r, so x mod inf is x, as with std::fmod.
+template <x64::cpu_isa_t isa, typename Vmm>
+void emit_remainder_steps(x64::jit_generator_t* h,
+                          const Vmm& x,
+                          const Vmm& y,
+                          const Vmm& r,
+                          const Vmm& q,
+                          const Vmm& t,
+                          const Vmm& d,
+                          const Vmm& e,
+                          const Reg64& steps,
+                          const Address& zero,
+                          const Address& abs_mask,
+                          const Address& inf,
+                          const Address& one,
+                          const Address& pow127,
+                          const Opmask& k) {
+    Label l_step;
+    Label l_scaled;
+    Label l_done;
+    h->uni_vmovups(r, x);
+    h->mov(steps, 32);  // a safety bound; float inputs need far fewer steps
+    h->L(l_step);
+    h->uni_vmovups(t, y);
+    h->uni_vdivps(q, r, t);
+    for (int i = 0; i < 2; ++i) {
+        // Where r / t overflowed, multiply t by 2^127: 1.0f is 0x3f800000, and adding that to its bits gives 2^127.
+        h->uni_vandps(d, q, abs_mask);
+        if constexpr (isa == x64::avx512_core) {
+            h->vcmpps(k, d, inf, x64::jit_generator_t::_cmp_eq_oq);
+            if (i == 0) {
+                h->kortestw(k, k);
+                h->jz(l_scaled, x64::jit_generator_t::T_NEAR);  // the usual case: no lane overflowed
+            }
+            h->vmulps(t | k, t, pow127);
+        } else {
+            h->uni_vcmpps(d, d, inf, x64::jit_generator_t::_cmp_eq_oq);
+            if (i == 0) {
+                h->uni_vtestps(d, d);
+                h->jz(l_scaled, x64::jit_generator_t::T_NEAR);  // the usual case: no lane overflowed
+            }
+            h->uni_vandps(d, d, one);
+            h->uni_vpaddd(d, d, one);
+            h->uni_vmulps(t, t, d);
+        }
+        h->uni_vdivps(q, r, t);
+    }
+    h->L(l_scaled);
+    h->uni_vroundps(q, q, 3);  // truncate
+    // t stays where q != 0, else 0
+    if constexpr (isa == x64::avx512_core) {
+        h->vcmpps(k, q, zero, x64::jit_generator_t::_cmp_neq_uq);
+        h->vmovups(t | k | h->T_z, t);
+    } else {
+        h->uni_vcmpps(d, q, zero, x64::jit_generator_t::_cmp_neq_uq);
+        h->uni_vandps(t, t, d);
+    }
+    if constexpr (isa == x64::sse41) {
+        // No FMA: q and t have 24-bit significands, so q * t is exact in double, and r - q * t, which is
+        // representable as a float, comes out exact as well. Two lanes at a time.
+        h->cvtps2pd(d, q);
+        h->cvtps2pd(e, t);
+        h->mulpd(d, e);
+        h->cvtps2pd(e, r);
+        h->subpd(e, d);
+        h->cvtpd2ps(e, e);  // lanes 0 and 1
+        h->movhlps(q, q);
+        h->movhlps(t, t);
+        h->movhlps(d, r);
+        h->cvtps2pd(q, q);
+        h->cvtps2pd(t, t);
+        h->mulpd(q, t);
+        h->cvtps2pd(d, d);
+        h->subpd(d, q);
+        h->cvtpd2ps(d, d);  // lanes 2 and 3
+        h->movlhps(e, d);
+        h->movups(r, e);
+    } else {
+        h->vfnmadd231ps(r, q, t);
+    }
+    h->dec(steps);
+    h->jz(l_done, x64::jit_generator_t::T_NEAR);
+    // Another step while any lane has |y| <= |r|; the ordered compare is false for NaN.
+    h->uni_vandps(q, r, abs_mask);
+    h->uni_vandps(t, y, abs_mask);
+    if constexpr (isa == x64::avx512_core) {
+        h->vcmpps(k, t, q, x64::jit_generator_t::_cmp_le_os);
+        h->kortestw(k, k);
+    } else {
+        h->uni_vcmpps(t, t, q, x64::jit_generator_t::_cmp_le_os);
+        h->uni_vtestps(t, t);
+    }
+    h->jnz(l_step, x64::jit_generator_t::T_NEAR);
+    h->L(l_done);
+}
+
+/// dst = r + add in the lanes where r != 0 and the signs of r and s differ, else dst = r.
+template <x64::cpu_isa_t isa, typename Vmm>
+void emit_sign_fix(x64::jit_generator_t* h,
+                   const Vmm& dst,
+                   const Vmm& r,
+                   const Vmm& s,
+                   const Vmm& add,
+                   const Vmm& t,
+                   const Address& zero,
+                   const Opmask& k) {
+    h->uni_vxorps(t, r, s);
+    if constexpr (isa == x64::sse41) {
+        h->psrad(t, 31);
+    } else {
+        h->vpsrad(t, t, 31);  // all ones where the signs differ
+    }
+    h->uni_vandps(add, add, t);
+    if constexpr (isa == x64::avx512_core) {
+        h->vcmpps(k, r, zero, x64::jit_generator_t::_cmp_neq_uq);
+        h->vmovups(dst, r);
+        h->vaddps(dst | k, r, add);
+    } else {
+        h->uni_vcmpps(t, r, zero, x64::jit_generator_t::_cmp_neq_uq);
+        h->uni_vandps(add, add, t);
+        h->uni_vaddps(dst, r, add);
+    }
+}
+
+}  // namespace
+
 /// FLOOR_MOD ///
 jit_floor_mod_emitter::jit_floor_mod_emitter(x64::jit_generator_t* host,
                                              x64::cpu_isa_t host_isa,
                                              [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                              ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 jit_floor_mod_emitter::jit_floor_mod_emitter(x64::jit_generator_t* host,
                                              x64::cpu_isa_t host_isa,
                                              ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_floor_mod_emitter::get_inputs_num() const {
     return 2;
@@ -528,30 +665,49 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto vmm_src0 = Vmm(in_vec_idxs[0]);
     auto vmm_src1 = Vmm(in_vec_idxs[1]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
+    auto vmm_r = Vmm(aux_vec_idxs[0]);
+    auto vmm_q = Vmm(aux_vec_idxs[1]);
+    auto vmm_t = Vmm(aux_vec_idxs[2]);
+    auto vmm_d = Vmm(aux_vec_idxs[3]);
+    auto vmm_e = isa == x64::sse41 ? Vmm(aux_vec_idxs[4]) : vmm_d;
 
-    if (isa == x64::sse41) {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
-            h->uni_vmovups(vmm_dst, vmm_src0);
-        }
-        h->uni_vmovups(vmm_aux0, vmm_src0);
-        h->uni_vdivps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 1);  // rounding down
-        h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
-    } else {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
-            h->uni_vmovups(vmm_dst, vmm_src0);
-        }
-        h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 1);  // rounding down
-        h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
-    }
+    // x - floor(x / y) * y computed directly gave 0 instead of nearly y when x / y rounded up to a whole
+    // number (4.2f / 1.4f is 3.0f), and was far off when x / y was beyond float precision. Take the exact
+    // remainder, then give it the sign of y.
+    emit_remainder_steps<isa>(h,
+                              vmm_src0,
+                              vmm_src1,
+                              vmm_r,
+                              vmm_q,
+                              vmm_t,
+                              vmm_d,
+                              vmm_e,
+                              Reg64(aux_gpr_idxs[0]),
+                              table_val("zero"),
+                              table_val("abs_mask"),
+                              table_val("inf"),
+                              table_val("one"),
+                              table_val("pow127"),
+                              k_mask);
+    h->uni_vmovups(vmm_q, vmm_src1);
+    emit_sign_fix<isa>(h, vmm_dst, vmm_r, vmm_src1, vmm_q, vmm_t, table_val("zero"), k_mask);
+}
+
+void jit_floor_mod_emitter::register_table_entries() {
+    push_arg_entry_of("zero", 0x00000000, true);
+    push_arg_entry_of("abs_mask", 0x7fffffff, true);
+    push_arg_entry_of("inf", 0x7f800000, true);
+    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("pow127", 0x7f000000, true);
 }
 
 size_t jit_floor_mod_emitter::aux_vecs_count() const {
-    return 1;
+    return host_isa_ == x64::sse41 ? 5 : 4;
+}
+
+size_t jit_floor_mod_emitter::aux_gprs_count() const {
+    // One for the step counter, plus the table address
+    return (entry_map_.empty() ? 0 : 1) + 1;
 }
 
 /// MOD ///
@@ -559,9 +715,13 @@ jit_mod_emitter::jit_mod_emitter(x64::jit_generator_t* host,
                                  x64::cpu_isa_t host_isa,
                                  [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                  ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 jit_mod_emitter::jit_mod_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
-    : jit_emitter(host, host_isa, exec_prc) {}
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
 
 size_t jit_mod_emitter::get_inputs_num() const {
     return 2;
@@ -590,30 +750,53 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     auto vmm_src0 = Vmm(in_vec_idxs[0]);
     auto vmm_src1 = Vmm(in_vec_idxs[1]);
     auto vmm_dst = Vmm(out_vec_idxs[0]);
-    auto vmm_aux0 = Vmm(aux_vec_idxs[0]);
+    auto vmm_r = Vmm(aux_vec_idxs[0]);
+    auto vmm_q = Vmm(aux_vec_idxs[1]);
+    auto vmm_t = Vmm(aux_vec_idxs[2]);
+    auto vmm_d = Vmm(aux_vec_idxs[3]);
+    auto vmm_e = isa == x64::sse41 ? Vmm(aux_vec_idxs[4]) : vmm_d;
 
-    if (isa == x64::sse41) {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
-            h->uni_vmovups(vmm_dst, vmm_src0);
-        }
-        h->uni_vmovups(vmm_aux0, vmm_src0);
-        h->uni_vdivps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 3);  // truncate
-        h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
-    } else {
-        if (vmm_dst.getIdx() != vmm_src0.getIdx()) {
-            h->uni_vmovups(vmm_dst, vmm_src0);
-        }
-        h->uni_vdivps(vmm_aux0, vmm_src0, vmm_src1);
-        h->uni_vroundps(vmm_aux0, vmm_aux0, 3);  // truncate
-        h->uni_vmulps(vmm_aux0, vmm_aux0, vmm_src1);
-        h->uni_vsubps(vmm_dst, vmm_dst, vmm_aux0);
-    }
+    // x - trunc(x / y) * y computed directly gave 0 instead of nearly y when x / y rounded up to a whole
+    // number (4.2f / 1.4f is 3.0f), and was far off when x / y was beyond float precision. Take the exact
+    // remainder, then give it the sign of x.
+    emit_remainder_steps<isa>(h,
+                              vmm_src0,
+                              vmm_src1,
+                              vmm_r,
+                              vmm_q,
+                              vmm_t,
+                              vmm_d,
+                              vmm_e,
+                              Reg64(aux_gpr_idxs[0]),
+                              table_val("zero"),
+                              table_val("abs_mask"),
+                              table_val("inf"),
+                              table_val("one"),
+                              table_val("pow127"),
+                              k_mask);
+    // |y| with the sign of x
+    h->uni_vandps(vmm_q, vmm_src1, table_val("abs_mask"));
+    h->uni_vandps(vmm_d, vmm_src0, table_val("sign_mask"));
+    h->uni_vorps(vmm_q, vmm_q, vmm_d);
+    emit_sign_fix<isa>(h, vmm_dst, vmm_r, vmm_src0, vmm_q, vmm_t, table_val("zero"), k_mask);
+}
+
+void jit_mod_emitter::register_table_entries() {
+    push_arg_entry_of("zero", 0x00000000, true);
+    push_arg_entry_of("abs_mask", 0x7fffffff, true);
+    push_arg_entry_of("sign_mask", 0x80000000, true);
+    push_arg_entry_of("inf", 0x7f800000, true);
+    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("pow127", 0x7f000000, true);
 }
 
 size_t jit_mod_emitter::aux_vecs_count() const {
-    return 1;
+    return host_isa_ == x64::sse41 ? 5 : 4;
+}
+
+size_t jit_mod_emitter::aux_gprs_count() const {
+    // One for the step counter, plus the table address
+    return (entry_map_.empty() ? 0 : 1) + 1;
 }
 
 /// MAXIMUM ///
