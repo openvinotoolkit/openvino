@@ -518,5 +518,10 @@
         "error_text": "Request timeout: /twirp/github.actions.results.api.v1.ArtifactService/ListArtifacts",
         "ticket": 9999999,
         "category": "Infrastructure"
+    },
+    {
+        "error_text": "httpx.ConnectError: [Errno -2] Name or service not known",
+        "ticket": 9999999,
+        "category": "Network"
     }
 ]
