@@ -177,11 +177,10 @@ std::shared_ptr<kernel> sycl_ptx_kernel::clone(bool reuse_kernel_handle) const {
 }
 
 bool sycl_ptx_kernel::is_same(const kernel& other) const {
+    // Like the OpenCL kernel handle this compares, the entry point state is shared only by kernels that reuse a
+    // handle (clone(true)); kernels built or cloned separately load their own functions even from equal PTX.
     const auto* o = dynamic_cast<const sycl_ptx_kernel*>(&other);
-    if (!o) return false;
-    return _state->kernel_name == o->_state->kernel_name &&
-           (_state->program == o->_state->program ||
-            _state->program->source() == o->_state->program->source());
+    return o != nullptr && _state == o->_state;
 }
 
 std::vector<uint8_t> sycl_ptx_kernel::get_binary() const {
