@@ -603,7 +603,15 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
                            err_str ? err_str : "unknown error");
         }
 
-        if (cuda_launch_sync_enabled()) {
+        // An ordinary host_task's event completes when this callback returns, so without the
+        // native-command extension the stream is always synchronised to keep the event from
+        // completing while the kernel still accesses its buffers.
+#ifndef SYCL_EXT_ONEAPI_ENQUEUE_NATIVE_COMMAND
+        const bool synchronize_launch = true;
+#else
+        const bool synchronize_launch = cuda_launch_sync_enabled();
+#endif
+        if (synchronize_launch) {
             CUresult sync_res = cuStreamSynchronize(cu_stream);
             if (sync_res != CUDA_SUCCESS) {
                 const char* err_str = nullptr;
