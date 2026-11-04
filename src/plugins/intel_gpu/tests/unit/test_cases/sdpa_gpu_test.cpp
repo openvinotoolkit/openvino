@@ -331,6 +331,74 @@ TEST_P(sdpa_gpu_test, basic_caching) {
     execute(p, true);
 }
 
+TEST(sdpa_gpu_micro, masked_key_blocks_and_empty_query_rows) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "Micro SDPA requires matrix instructions";
+    }
+
+    constexpr size_t q_len = 16;
+    constexpr size_t kv_len = 1024;
+    constexpr size_t head_size = 64;
+    const layout q_layout({1, 1, q_len, head_size}, data_types::f16, format::bfyx);
+    const layout kv_layout({1, 1, kv_len, head_size}, data_types::f16, format::bfyx);
+    const layout mask_layout({1, 1, q_len, kv_len}, data_types::f16, format::bfyx);
+    auto q = engine.allocate_memory(q_layout);
+    auto k = engine.allocate_memory(kv_layout);
+    auto v = engine.allocate_memory(kv_layout);
+    auto mask = engine.allocate_memory(mask_layout);
+    set_values(q, std::vector<ov::float16>(q_len * head_size, ov::float16(0.0f)));
+    set_values(k, std::vector<ov::float16>(kv_len * head_size, ov::float16(0.0f)));
+    std::vector<ov::float16> values(kv_len * head_size);
+    for (size_t key = 0; key < kv_len; ++key) {
+        std::fill_n(values.begin() + key * head_size, head_size, ov::float16(key < kv_len / 2 ? 2.0f : 4.0f));
+    }
+    set_values(v, values);
+    std::vector<ov::float16> masks(q_len * kv_len, ov::float16(0.0f));
+    const ov::float16 masked(-std::numeric_limits<float>::infinity());
+    std::fill_n(masks.begin(), kv_len, masked);
+    std::fill_n(masks.begin() + kv_len, kv_len / 2, masked);
+    std::fill_n(masks.begin() + 2 * kv_len + kv_len / 2, kv_len / 2, masked);
+    std::fill_n(masks.begin() + 4 * kv_len, 3 * kv_len / 4, masked);
+    set_values(mask, masks);
+
+    topology topo;
+    topo.add(input_layout("q", q_layout));
+    topo.add(input_layout("k", kv_layout));
+    topo.add(input_layout("v", kv_layout));
+    topo.add(input_layout("mask", mask_layout));
+    topo.add(scaled_dot_product_attention("sdpa",
+                                          {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                          false,
+                                          -1,
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {0, 1, 2, 3},
+                                          {},
+                                          false));
+    topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+    auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+    network->set_input_data("q", q);
+    network->set_input_data("k", k);
+    network->set_input_data("v", v);
+    network->set_input_data("mask", mask);
+    auto output = network->execute().at("result").get_memory();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> result(output, get_test_stream());
+    const std::array<float, 5> expected{0.0f, 4.0f, 2.0f, 3.0f, 4.0f};
+    for (size_t query = 0; query < q_len; ++query) {
+        const float reference = query < expected.size() ? expected[query] : 3.0f;
+        for (size_t d = 0; d < head_size; ++d) {
+            const float actual = static_cast<float>(result[query * head_size + d]);
+            ASSERT_TRUE(std::isfinite(actual)) << "query " << query << ", feature " << d;
+            EXPECT_NEAR(actual, reference, 1e-2f) << "query " << query << ", feature " << d;
+        }
+    }
+}
+
 // Test that an explicit causal attention mask produces the same result as is_causal=true.
 static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
                                  int seq_q, int seq_kv, int head_size, bool causal_lower_right = true) {

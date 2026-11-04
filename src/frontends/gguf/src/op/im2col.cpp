@@ -84,6 +84,8 @@ OutputVector translate_im2col(const NodeContext& context) {
     ov::Output<Node> image = context.get_input(kernel_input ? 1 : 0);
     const ov::Shape kernel_shape =
         kernel_input ? context.get_input(0).get_shape() : context.get_attribute<ov::Shape>("kernel_shape");
+    FRONT_END_OP_CONVERSION_CHECK(kernel_shape.size() == 4 && image.get_partial_shape().rank() == 4,
+                                  "IM2COL requires rank-4 kernel and image shapes");
 
     const size_t IC = is_2D ? kernel_shape[1] : kernel_shape[2];
     const size_t KH = is_2D ? kernel_shape[2] : 1;
@@ -180,10 +182,19 @@ OutputVector translate_im2col_3d(const NodeContext& context) {
     int32_t d2 = params[8];
     int32_t IC = params[9];
     const auto output_type = context.get_attribute<ov::element::Type>("dst_type", ov::element::f32);
+    FRONT_END_OP_CONVERSION_CHECK(IC > 0 && s0 > 0 && s1 > 0 && s2 > 0,
+                                  "IM2COL_3D requires positive channels and strides");
+    FRONT_END_OP_CONVERSION_CHECK(d0 > 0 && d1 > 0 && d2 > 0 && p0 >= 0 && p1 >= 0 && p2 >= 0,
+                                  "IM2COL_3D requires positive dilations and non-negative padding");
 
     ov::Output<Node> image = context.get_input(1);
     const ov::Shape kernel_shape = context.get_input(0).get_shape();
     const ov::Shape image_shape = image.get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(kernel_shape.size() == 4 && image_shape.size() == 4,
+                                  "IM2COL_3D requires rank-4 kernel and image shapes");
+    FRONT_END_OP_CONVERSION_CHECK(kernel_shape[1] > 0 && kernel_shape[2] > 0 && kernel_shape[3] > 0 &&
+                                      image_shape[0] % static_cast<size_t>(IC) == 0,
+                                  "IM2COL_3D requires nonzero kernel dimensions and complete input channels");
 
     const size_t KD = kernel_shape[1];
     const size_t KH = kernel_shape[2];

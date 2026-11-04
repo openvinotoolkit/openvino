@@ -9,6 +9,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
@@ -26,18 +27,31 @@ namespace ov::frontend::gguf::pass {
 namespace {
 constexpr float min_scale = 1.0f / 64.0f;
 
-// The scalar constant behind `value`, looking through the precision conversions a translator puts in front
-// of it (SCALE emits Multiply(x, ConvertLike(c, x))) and the shape-only ops that give it the rank of the tensor
-// it scales (Unsqueeze of a scalar, as the residual multiplier is emitted). Null when `value` is anything else.
-std::shared_ptr<ov::op::v0::Constant> scalar_constant(ov::Output<ov::Node> value) {
-    while (ov::is_type_any_of<ov::op::v0::Convert,
-                              ov::op::v1::ConvertLike,
-                              ov::op::v0::Unsqueeze,
-                              ov::op::v0::Squeeze,
-                              ov::op::v1::Reshape>(value.get_node())) {
-        value = value.get_node()->input_value(0);
+std::shared_ptr<ov::op::v0::Constant> fold_scale_expression(const ov::Output<ov::Node>& value) {
+    const auto node = value.get_node_shared_ptr();
+    const auto convert_like = ov::as_type_ptr<ov::op::v1::ConvertLike>(node);
+    if (convert_like && value.get_element_type().is_static()) {
+        const auto source = fold_scale_expression(convert_like->input_value(0));
+        if (source) {
+            return ov::util::constantfold_subgraph(
+                std::make_shared<ov::op::v0::Convert>(source, value.get_element_type()));
+        }
+    } else if (ov::is_type<ov::op::v0::Convert>(node)) {
+        const auto source = fold_scale_expression(node->input_value(0));
+        if (source) {
+            return ov::util::constantfold_subgraph(node->clone_with_new_inputs({source}));
+        }
+    } else if (ov::is_type_any_of<ov::op::v0::Unsqueeze, ov::op::v0::Squeeze, ov::op::v1::Reshape>(node)) {
+        return fold_scale_expression(node->input_value(0));
+    } else {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        return constant && ov::shape_size(constant->get_shape()) == 1 ? constant : nullptr;
     }
-    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr());
+    return nullptr;
+}
+
+std::shared_ptr<ov::op::v0::Constant> scalar_constant(ov::Output<ov::Node> value) {
+    auto constant = fold_scale_expression(value);
     if (!constant || ov::shape_size(constant->get_shape()) != 1 || !constant->get_element_type().is_real()) {
         return nullptr;
     }
@@ -64,7 +78,7 @@ PushScaleBeforeMatMul::PushScaleBeforeMatMul() {
         if (scale_rank.is_dynamic() || matmul_rank.is_dynamic() || scale_rank.get_length() > matmul_rank.get_length()) {
             return false;
         }
-        const float scale = scale_const->cast_vector<float>()[0];
+        const double scale = scale_const->cast_vector<double>()[0];
         if (!(std::abs(scale) >= min_scale && std::abs(scale) < 1.0f)) {
             return false;
         }

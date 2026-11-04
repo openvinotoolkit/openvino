@@ -11,8 +11,10 @@
 #include "op_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/frontend/gguf/push_scale_before_matmul.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -26,6 +28,27 @@ namespace {
 
 using ov::Output;
 using ov::op::v0::Constant;
+
+class CountingConvert : public ov::op::v0::Convert {
+public:
+    OPENVINO_OP("CountingConvert", "test", ov::op::v0::Convert);
+
+    CountingConvert(const Output<ov::Node>& input, size_t& evaluations)
+        : ov::op::v0::Convert(input, ov::element::f32),
+          m_evaluations(evaluations) {}
+
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
+        ++m_evaluations;
+        return ov::op::v0::Convert::evaluate(outputs, inputs);
+    }
+
+    std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
+        return std::make_shared<CountingConvert>(inputs.at(0), m_evaluations);
+    }
+
+private:
+    size_t& m_evaluations;
+};
 
 // Parameter a [1, 3, 8] and a constant weight [8, 6]; `build` wires the MatMul(a, w) into a result.
 std::shared_ptr<ov::Model> make_model(
@@ -92,6 +115,66 @@ TEST(PushScaleBeforeMatMul, ScaleBehindUnsqueezeIsFound) {
 
     EXPECT_TRUE(ov::is_type<ov::op::v0::MatMul>(result_producer(model)));
     expect_near(run(model), run_vector(reference), 1e-6f);
+}
+
+TEST(PushScaleBeforeMatMul, ScaleUsesTheConvertedValue) {
+    const auto build = [](const Output<ov::Node>&, const Output<ov::Node>& matmul) -> Output<ov::Node> {
+        auto as_integer =
+            std::make_shared<ov::op::v0::Convert>(Constant::create(ov::element::f32, {}, {0.25f}), ov::element::i32);
+        auto scale = std::make_shared<ov::op::v0::Convert>(as_integer, ov::element::f32);
+        return std::make_shared<ov::op::v1::Multiply>(matmul, scale);
+    };
+    auto reference = make_model(build);
+    auto model = make_model(build);
+    run_pass(model);
+    EXPECT_TRUE(ov::is_type<ov::op::v1::Multiply>(result_producer(model)));
+    expect_near(run(model), run_vector(reference), 0.0f);
+}
+
+TEST(PushScaleBeforeMatMul, ScaleConvertLikePreservesEffectivePrecision) {
+    for (const bool unsqueeze : {false, true}) {
+        const auto build = [unsqueeze](const Output<ov::Node>&, const Output<ov::Node>& matmul) -> Output<ov::Node> {
+            auto rounded = std::make_shared<ov::op::v0::Convert>(Constant::create(ov::element::f32, {}, {0.263f}),
+                                                                 ov::element::f16);
+            Output<ov::Node> scale = std::make_shared<ov::op::v1::ConvertLike>(rounded, matmul);
+            if (unsqueeze) {
+                scale = std::make_shared<ov::op::v0::Unsqueeze>(scale, Constant::create(ov::element::i64, {1}, {0}));
+            }
+            return std::make_shared<ov::op::v1::Multiply>(matmul, scale);
+        };
+        auto reference = make_model(build);
+        auto model = make_model(build);
+        run_pass(model);
+        EXPECT_TRUE(ov::is_type<ov::op::v0::MatMul>(result_producer(model))) << "unsqueeze " << unsqueeze;
+        expect_near(run(model), run_vector(reference), 1e-6f);
+    }
+}
+
+TEST(PushScaleBeforeMatMul, NonScaleOperandsAreNotConstantFolded) {
+    size_t evaluations = 0;
+    auto model = make_model([&](const Output<ov::Node>&, const Output<ov::Node>& matmul) -> Output<ov::Node> {
+        auto weights = Constant::create(ov::element::f16, {6}, {0.25f});
+        auto converted = std::make_shared<CountingConvert>(weights, evaluations);
+        auto gate = std::make_shared<ov::op::v4::Swish>(std::make_shared<ov::op::v1::Add>(converted, matmul));
+        return std::make_shared<ov::op::v1::Multiply>(matmul, gate);
+    });
+    evaluations = 0;
+    run_pass(model);
+    EXPECT_EQ(evaluations, 0);
+    EXPECT_TRUE(ov::is_type<ov::op::v1::Multiply>(result_producer(model)));
+}
+
+TEST(PushScaleBeforeMatMul, NonScalarConstantConvertsAreNotFolded) {
+    size_t evaluations = 0;
+    auto model = make_model([&](const Output<ov::Node>&, const Output<ov::Node>& matmul) -> Output<ov::Node> {
+        auto weights = Constant::create(ov::element::f16, {6}, {0.25f});
+        auto converted = std::make_shared<CountingConvert>(weights, evaluations);
+        return std::make_shared<ov::op::v1::Multiply>(matmul, converted);
+    });
+    evaluations = 0;
+    run_pass(model);
+    EXPECT_EQ(evaluations, 0);
+    EXPECT_TRUE(ov::is_type<ov::op::v1::Multiply>(result_producer(model)));
 }
 
 TEST(PushScaleBeforeMatMul, GatedProductScalesTheNonSwishFactor) {

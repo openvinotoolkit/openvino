@@ -4,11 +4,14 @@
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/hard_sigmoid.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
@@ -62,7 +65,20 @@ OutputVector translate_unary_expm1(const NodeContext& context) {
             std::make_shared<ov::op::v1::Select>(std::make_shared<ov::op::v1::Greater>(x, one),
                                                  std::make_shared<ov::op::v1::Multiply>(exp_half, exp_half),
                                                  std::make_shared<ov::op::v0::Exp>(x));
-        return std::make_shared<ov::op::v1::Subtract>(exponential, one);
+        ov::Output<ov::Node> polynomial = ov::op::v0::Constant::create(ov::element::f32, {}, {1.0f / 720.0f});
+        for (const float coefficient : {1.0f / 120.0f, 1.0f / 24.0f, 1.0f / 6.0f, 0.5f}) {
+            polynomial =
+                std::make_shared<ov::op::v1::Add>(ov::op::v0::Constant::create(ov::element::f32, {}, {coefficient}),
+                                                  std::make_shared<ov::op::v1::Multiply>(x, polynomial));
+        }
+        auto small_result = std::make_shared<ov::op::v1::Multiply>(
+            x,
+            std::make_shared<ov::op::v1::Add>(one, std::make_shared<ov::op::v1::Multiply>(x, polynomial)));
+        return std::make_shared<ov::op::v1::Select>(
+            std::make_shared<ov::op::v1::Less>(std::make_shared<ov::op::v0::Abs>(x),
+                                               ov::op::v0::Constant::create(ov::element::f32, {}, {0.125f})),
+            small_result,
+            std::make_shared<ov::op::v1::Subtract>(exponential, one));
     });
     return rename_outputs_with_suffix({res}, context.get_name());
 }

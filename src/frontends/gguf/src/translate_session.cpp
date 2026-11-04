@@ -176,11 +176,12 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
         updated_input = 0;
     }
     std::string output_storage;
+    ov::Output<Node> updated_root;
     if (updated_input >= 0) {
         const auto destination = node_context.get_input(updated_input);
         output_storage = storage_name(decoder->get_input_names().at(updated_input));
         const auto previous_root = tensor_map->at(output_storage);
-        const ov::Output<Node> updated_root =
+        updated_root =
             previous_root == destination
                 ? converted_outputs.at(0)
                 : std::make_shared<v1::Reshape>(converted_outputs.at(0),
@@ -229,7 +230,8 @@ void translate_node(const std::shared_ptr<GgufDecoder>& decoder,
     for (size_t i = 0; i < node_output_names.size(); ++i) {
         const auto& output_name = node_output_names[i];
         if (converted_outputs[i].get_node_shared_ptr()) {
-            (*tensor_map)[output_name] = converted_outputs[i];
+            (*tensor_map)[output_name] =
+                updated_input >= 0 && output_name == output_storage ? updated_root : converted_outputs[i];
         }
         storage_aliases->erase(output_name);
         if (!output_storage.empty() && output_storage != output_name) {

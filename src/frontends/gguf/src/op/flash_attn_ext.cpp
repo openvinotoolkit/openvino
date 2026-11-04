@@ -17,13 +17,15 @@
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
+#include "openvino/op/is_inf.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/subtract.hpp"
@@ -280,15 +282,6 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
                             n_head_kv > 1 && shared_head_mask && kq_soft_cap == 0.0f && !has_sinks &&
                             k_shape[3] == q_shape[3] && v_shape[3] == q_shape[3];
 
-    // The GPU plugin's fused SDPA kernel works on blocks of keys: a block fully masked with -inf for a row gives
-    // exp(-inf - -inf) = NaN, which spreads through the row (garbage output after a few decode steps). A large
-    // finite value masks identically (exp underflows to 0) without the NaN.
-    if ((op_case != 100 || manual_gqa) && has_mask && kq_soft_cap == 0.0f) {
-        mask_sliced = std::make_shared<ov::op::v1::Maximum>(
-            mask_sliced,
-            ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, std::vector<float>{-30000.0f}));
-    }
-
     ov::Output<ov::Node> sdpa;
     if (manual_gqa) {
         const int64_t head_size = q_shape[3].get_length();
@@ -313,10 +306,21 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         ov::Output<Node> scores = std::make_shared<ov::op::v0::MatMul>(q_r, prepare_gqa_kv(k), false, true);
         scores = std::make_shared<ov::op::v1::Multiply>(scores, scale_node);
         if (has_mask) {
-            auto mask_tiled = std::make_shared<ov::op::v0::Tile>(
-                mask_sliced,
-                ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, gqa_factor, 1}));
-            scores = std::make_shared<ov::op::v1::Add>(scores, mask_tiled);
+            ov::Output<Node> grouped_mask = mask_sliced;
+            if (mask_shape[token_axis].is_dynamic()) {
+                auto target_shape =
+                    std::make_shared<ov::op::v0::Concat>(ov::OutputVector{get_dimensions(mask_sliced, {0, 1}),
+                                                                          get_dimensions(q, {token_axis}),
+                                                                          get_dimensions(mask_sliced, {3})},
+                                                         0);
+                grouped_mask = std::make_shared<ov::op::v3::Broadcast>(grouped_mask, target_shape);
+            }
+            if (mask_shape[token_axis].is_dynamic() || mask_shape[token_axis].get_length() != 1) {
+                grouped_mask = std::make_shared<ov::op::v0::Tile>(
+                    grouped_mask,
+                    ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, gqa_factor, 1}));
+            }
+            scores = std::make_shared<ov::op::v1::Add>(scores, grouped_mask);
         }
         auto weights = std::make_shared<ov::op::v8::Softmax>(scores, -1);
         auto attn = std::make_shared<ov::op::v0::MatMul>(weights, prepare_gqa_kv(v));
@@ -407,6 +411,15 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         auto sink_r = std::make_shared<v1::Reshape>(sink_converted, sink_shape, false);
         sdpa =
             std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask_sliced, scale_node, sink_r, false);
+    }
+    if (has_mask && (op_case != 100 || manual_gqa) && kq_soft_cap == 0.0f) {
+        const auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
+        const auto masked =
+            std::make_shared<ov::op::v10::IsInf>(mask_sliced, ov::op::v10::IsInf::Attributes(true, false));
+        const auto fully_masked = std::make_shared<ov::op::v1::ReduceLogicalAnd>(masked, axis, true);
+        sdpa = std::make_shared<ov::op::v1::Select>(fully_masked,
+                                                    ov::op::v0::Constant::create(sdpa.get_element_type(), {}, {0.0f}),
+                                                    sdpa);
     }
     // [B, H, L, S] -> [B, L, H, S] (ggml-natural layout expected by caller).
     res = std::make_shared<ov::op::v1::Transpose>(sdpa,

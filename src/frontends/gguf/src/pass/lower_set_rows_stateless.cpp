@@ -36,7 +36,17 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
         // the same way translate_set_rows flattened the updates; with a one-token cache the two
         // layouts happen to coincide, which previously hid this mismatch until the second step.
         const auto dst_shape = dst.get_partial_shape();
-        if (is_kvcache_4d_shape(dst_shape)) {
+        const auto flatten = ov::as_type_ptr<ov::op::v1::Reshape>(data.get_node_shared_ptr());
+        const auto original_shape = flatten ? flatten->input_value(0).get_partial_shape() : ov::PartialShape::dynamic();
+        const auto original_rank = original_shape.rank();
+        const bool has_static_row = original_rank.is_static() && original_rank.get_length() > 0 &&
+                                    original_shape[original_rank.get_length() - 1].is_static();
+        const int64_t row_width = has_static_row ? original_shape[original_rank.get_length() - 1].get_length() : 0;
+        const bool full_token_rows = is_kvcache_4d_shape(dst_shape) && dst_shape[2].get_length() > 0 &&
+                                     dst_shape[3].get_length() > 0 && has_static_row &&
+                                     row_width % dst_shape[3].get_length() == 0 &&
+                                     row_width / dst_shape[3].get_length() == dst_shape[2].get_length();
+        if (full_token_rows) {
             // Cache [1, ctx, n_heads_kv, head_size], one token per row: write whole tokens on axis 1. This is the
             // pattern of the GPU plugin's StatelessKVFusion (read back with VariadicSplit, see translate_kv_view),
             // which writes the new rows in place instead of copying the whole cache first. Indices are per token.
@@ -44,9 +54,7 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
             const int64_t head_size = dst_shape[3].get_length();
             // translate_set_rows flattened the rows to [.., 1, tokens * n_heads_kv, head_size]; regroup them from the
             // rows it started with, in one reshape.
-            if (const auto flatten = ov::as_type_ptr<ov::op::v1::Reshape>(data.get_node_shared_ptr())) {
-                data = flatten->input_value(0);
-            }
+            data = flatten->input_value(0);
             auto tokens = std::make_shared<ov::op::v1::Reshape>(
                 data,
                 ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, n_heads_kv, head_size}),

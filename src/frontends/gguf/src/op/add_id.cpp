@@ -24,8 +24,7 @@ namespace ov::frontend::gguf::op {
 namespace {
 // Collapse a 4D [1, 1, a, b] input to 2D [a, b] when it isn't already 2D. Bias/id constants may
 // already be stored 2D, hence the early-outs.
-ov::Output<ov::Node> reshape_add_id_input_to_2d(const ov::Output<ov::Node>& input,
-                                                const std::vector<int>& dims) {
+ov::Output<ov::Node> reshape_add_id_input_to_2d(const ov::Output<ov::Node>& input, const std::vector<int>& dims) {
     const auto& actual_shape = input.get_partial_shape();
     if (actual_shape.rank().is_static() && actual_shape.rank().get_length() == 2) {
         return input;
