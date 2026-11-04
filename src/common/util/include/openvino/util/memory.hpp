@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <future>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -141,6 +142,9 @@ struct MemoryProperties {
     size_t offset = 0;  //!< Offset of this buffer within the allocation identified by IBuffer::get_id().
 };
 
+/** @brief Handle to wait for a background prefetch; an invalid handle means there is nothing to wait for. */
+using PrefetchToken = std::shared_future<void>;
+
 /** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
 class MemoryView {
 public:
@@ -187,8 +191,11 @@ public:
 
     /** @brief Hint to release the underlying memory if possible (e.g. unmaps/decommits). */
     virtual void hint_evict() noexcept = 0;
-    /** @brief Hint to fetch the data to memory. */
-    virtual void hint_prefetch() noexcept = 0;
+    /**
+     * @brief Hint to start fetching the data to memory in the background, returns immediately.
+     * @return A handle to wait for the data to be resident; an invalid handle means there is nothing to wait for.
+     */
+    virtual PrefetchToken hint_prefetch() noexcept = 0;
 };
 
 /**

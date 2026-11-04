@@ -39,11 +39,12 @@ static void CreatePagedCausalConv1DOp(ProgramBuilder& p, const std::shared_ptr<o
         }
     }
     if (state_ps.rank().is_static() && state_ps.rank().get_length() == 3) {
-        const auto kernel = state_ps[2];
-        if (kernel.is_static()) {
-            prim.kernel_size = kernel.get_length();
+        const auto causal_window = state_ps[2];
+        if (causal_window.is_static()) {
+            prim.causal_window = causal_window.get_length();
         }
     }
+    prim.dilation = op->get_dilation();
 
     prim.num_outputs = 1;
     p.add_primitive(*op, prim);
