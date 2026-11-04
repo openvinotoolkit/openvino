@@ -31,6 +31,15 @@ struct Eagle3LayerNames {
 bool matchEagle3HiddenStatesString(const std::string& input);
 bool matchEagle3TreeMaskString(const std::string& input);
 
+namespace util {
+void pad_eagle3_hidden_state(const ov::SoPtr<ov::ITensor>& hidden_state,
+                             const ov::SoPtr<ov::ITensor>& padded_hidden_state);
+void copy_eagle3_chunk_output(const ov::SoPtr<ov::ITensor>& chunk_output,
+                              const ov::SoPtr<ov::ITensor>& accumulated_output,
+                              uint32_t chunk_token_count,
+                              uint32_t accumulated_offset);
+}  // namespace util
+
 // Model roles for Eagle3 speculative decoding
 enum class Eagle3ModelRole {
     None,    ///< Not an Eagle3 model
@@ -186,6 +195,28 @@ public:
                                   const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                                   uint32_t chunk_start_token,
                                   uint32_t chunk_token_count);
+
+    // Retrieve and store last_hidden_state output tensor for draft and target models.
+    void update_last_hidden_state(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                  const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports);
+
+    // Accumulate last_hidden_state from the current chunk during chunked prefill.
+    void accumulate_chunk_last_hidden_state(
+        const std::shared_ptr<ov::IAsyncInferRequest>& request,
+        const std::unordered_map<std::string, ov::Output<const ov::Node>>& out_ports,
+        uint32_t chunk_token_count,
+        uint32_t total_seq_len);
+
+    // Reset the assembled chunked-prefill output before a new prefill session.
+    void reset_chunked_prefill_state() {
+        m_last_hidden_state = {};
+        m_chunked_seq_offset = 0;
+    }
+
+    // Return the most recent output, assembled across chunks for chunked prefill.
+    ov::SoPtr<ov::ITensor> get_last_hidden_state() const {
+        return m_last_hidden_state;
+    }
 
     // Returns the Eagle3SamplingState VariableState exposed via query_state().
     // External pipelines write sampling results into this state; the plugin reads

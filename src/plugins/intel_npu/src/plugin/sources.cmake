@@ -167,6 +167,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/rewrite_gqa_attention_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/propagate_slice.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/select_last_chunk_logits.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/select_last_chunk_logits.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/slice_out_embeds.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/sliding_window_mask.cpp
