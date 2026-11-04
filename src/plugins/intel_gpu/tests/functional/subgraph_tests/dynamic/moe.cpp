@@ -286,8 +286,27 @@ protected:
     }
 
     void compile_model() override {
+        // The experts that are offloaded must not be allocated: compare with the same model fully resident
+        auto resident_configuration = configuration;
+        resident_configuration[ov::intel_gpu::offload_ratio.name()] = size_t{0};
+        auto before = get_memory_usage();
+        auto resident_model = core->compile_model(function, targetDevice, resident_configuration);
+        const auto resident_usage = get_memory_usage() - before;
+        resident_model = {};
+
+        before = get_memory_usage();
         ov::test::SubgraphBaseTest::compile_model();
+        const auto offloaded_usage = get_memory_usage() - before;
+        ASSERT_LT(offloaded_usage, resident_usage) << "The experts were not offloaded";
         ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_3gemm_fused_compressed", 1);
+    }
+
+    uint64_t get_memory_usage() {
+        uint64_t total = 0;
+        for (const auto& [type, bytes] : core->get_property(targetDevice, ov::intel_gpu::memory_statistics)) {
+            total += bytes;
+        }
+        return total;
     }
 
     void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
@@ -317,7 +336,7 @@ TEST_P(MoECompressedOffloadTest, Inference) {
 }
 
 // OFFLOAD_RATIO 50 keeps 4 of the 8 experts resident (= top_k), 75 keeps 2, so every step falls back.
-// A scalar zero point is supported for u3 weights only. Per-group u3 zero points are not supported (see skip_tests_config.cpp).
+// A scalar zero point is supported for u3 weights only
 INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
                          MoECompressedOffloadTest,
                          ::testing::Combine(::testing::Values(size_t{50}, size_t{75}),
