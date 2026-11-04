@@ -186,11 +186,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Right-padded chunk (query_seqlens): only the first Q of the S query rows are real tokens, so the past is
     // total - Q. All S rows are still written at [past, past + S) to keep shapes static; the padded tail lands at or
     // beyond total, where no query reads it and the next step overwrites it (ORT requires past + S <= capacity).
-    // Q is clamped to [1, S] (as ORT CUDA does); a statically single-token step skips it (same graph as without it).
+    // Like seqlens_k, Q is taken as given (ORT: 1 <= Q <= min(S, total)); a statically single-token step skips it.
     const bool has_query_seqlens = node->has_padded_query();
-    const auto clamp_query_len = [&](const ov::Output<ov::Node>& query_len) -> std::shared_ptr<ov::Node> {
-        return register_new_node<v1::Minimum>(register_new_node<v1::Maximum>(query_len, one), current_seqlen);
-    };
     const auto query_seqlens_i64 =
         has_query_seqlens
             ? register_new_node<v0::Convert>(get_input(GQAInputs::QUERY_SEQLENS), ov::element::i64)->output(0)
@@ -213,9 +210,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                              register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 1}))},
             0);
         total_b = register_new_node<v1::Reshape>(real_seqlens, per_batch, false);
-        query_len_b = has_query_seqlens
-                          ? clamp_query_len(register_new_node<v1::Reshape>(query_seqlens_i64, per_batch, false))
-                          : current_seqlen;
+        query_len_b =
+            has_query_seqlens ? register_new_node<v1::Reshape>(query_seqlens_i64, per_batch, false) : current_seqlen;
         q_past_b = register_new_node<v1::Maximum>(register_new_node<v1::Subtract>(total_b, query_len_b), zero);
         // A padded chunk carries full S-row keys (ORT), so its keys start at the query past as well.
         kv_past_b = independent_kv_len && !has_query_seqlens
@@ -226,8 +222,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     std::shared_ptr<ov::Node> seqlens_1d, past_seqlen, query_len;
     if (!batched) {
         seqlens_1d = register_new_node<v1::Reshape>(real_seqlens, one, false);
-        query_len = has_query_seqlens ? clamp_query_len(register_new_node<v1::Reshape>(query_seqlens_i64, one, false))
-                                      : current_seqlen;
+        query_len = has_query_seqlens ? register_new_node<v1::Reshape>(query_seqlens_i64, one, false) : current_seqlen;
         past_seqlen = register_new_node<v1::Subtract>(seqlens_1d, query_len);
     }
     const auto curr_seqlen_scalar = register_new_node<v0::Squeeze>(current_seqlen);
@@ -262,11 +257,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                 position_ids =
                     register_new_node<v1::Add>(register_new_node<v1::Reshape>(q_past_b, column, false), rows);
                 if (has_query_seqlens) {
-                    // Padded rows take position 0, always a valid rotary-cache row (ORT).
-                    position_ids = register_new_node<v1::Select>(
-                        register_new_node<v1::Less>(rows, register_new_node<v1::Reshape>(query_len_b, column, false)),
-                        position_ids,
-                        zero);
+                    // Padded rows (P + s >= total) are capped at the last valid position, a valid rotary-cache row;
+                    // their outputs are unspecified (ORT) and valid rows are unchanged.
+                    position_ids =
+                        register_new_node<v1::Minimum>(position_ids,
+                                                       register_new_node<v1::Reshape>(seqlens_elemi64, column, false));
                 }
             }
         } else if (has_input(GQAInputs::POSITION_IDS)) {
@@ -275,10 +270,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             const auto neg_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
             position_ids = register_new_node<v1::Reshape>(get_input(GQAInputs::POSITION_IDS), neg_one, false);
         } else if (has_query_seqlens) {
-            // Padded rows take position 0, always a valid rotary-cache row (ORT).
-            position_ids = register_new_node<v1::Select>(register_new_node<v1::Less>(position_ids, query_len),
-                                                         register_new_node<v1::Add>(position_ids, past_seqlen),
-                                                         zero);
+            // Padded rows (P + s >= total) are capped at the last valid position, a valid rotary-cache row; their
+            // outputs are unspecified (ORT) and valid rows are unchanged.
+            position_ids = register_new_node<v1::Minimum>(register_new_node<v1::Add>(position_ids, past_seqlen),
+                                                          register_new_node<v1::Reshape>(seqlens_elemi64, one, false));
         } else {
             position_ids = register_new_node<v1::Add>(position_ids, past_seqlen);
         }
