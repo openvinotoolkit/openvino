@@ -10,6 +10,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include <memory>
 #include <cmath>
+#include <numeric>
 
 #define LOG_AND_RETURN_FALSE(node) do {                                         \
     GPU_DEBUG_TRACE << (node).id() << " :  Do not select onednn" << std::endl;  \
@@ -89,6 +90,22 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
                                                     ov::element::Type_t::u8, ov::element::Type_t::i8});
                 if (!is_wei_compressed || !is_zp_compressed) {
                     LOG_AND_RETURN_FALSE(node);
+                }
+            }
+
+            // oneDNN requires every non-unit stride of a sub-byte weights descriptor to hold a whole number of bytes.
+            // The row stride equals the innermost (padded) dimension, so reject weights whose innermost dimension
+            // doesn't fill whole bytes and let another FC implementation handle them.
+            if (const auto wei_bits = ov::element::Type(wei_dt).bitwidth(); wei_bits < 8) {
+                const auto wei_layout = fc_node.weights().get_output_layout(false);
+                if (wei_layout.is_static()) {
+                    const auto elems_per_byte = std::lcm<size_t>(wei_bits, 8) / wei_bits;
+                    const auto last = static_cast<size_t>(get_compressed_weights_rank(wei_layout) - 1);
+                    const auto& padding = wei_layout.data_padding;
+                    const size_t innermost = wei_layout.get_dim(last) + padding._lower_size[last] + padding._upper_size[last];
+                    if (innermost > 1 && innermost % elems_per_byte != 0) {
+                        LOG_AND_RETURN_FALSE(node);
+                    }
                 }
             }
 
