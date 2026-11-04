@@ -92,8 +92,7 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
 #endif
 
 #if IS_INT4_COMPRESSED
-    // 4-bit unsigned quantization with adjacent head packing; symmetric codes are biased by 8 (q in [-7, 7])
-#if ASYMMETRIC_QUANTIZATION
+    // 4-bit unsigned asymmetric quantization with adjacent head packing
     min_value = work_group_reduce_min(min_value);
     max_value = work_group_reduce_max(max_value);
 
@@ -101,19 +100,11 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
                                                          : (ACCUMULATOR_TYPE)(max_value - min_value);
     ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / diff_value);
     ACCUMULATOR_TYPE zp_tmp    = (ACCUMULATOR_TYPE)(-min_value * scale_tmp);
-#else
-    max_value = work_group_reduce_max(max_value);
-    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)(7.0f / max_value);
-#endif
 
     // Quantize all values to u4 range
     uchar qval[INNERMOST_DIM_VALUE / SUBGROUP_SIZE];
     unroll_for (uint i = 0; i < INNERMOST_DIM_VALUE / SUBGROUP_SIZE; i++) {
-#if ASYMMETRIC_QUANTIZATION
         qval[i] = (uchar)clamp(convert_int_rte((float)val[i] * scale_tmp + zp_tmp), 0, UINT4_RANGE);
-#else
-        qval[i] = (uchar)(clamp(convert_int_rte((float)val[i] * scale_tmp), -7, 7) + 8);
-#endif
     }
 
     // Pack adjacent head dimensions
@@ -153,7 +144,7 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     #else
         output_zp[scale_idx] = convert_char_rte(zp_tmp);
     #endif
-#elif ASYMMETRIC_QUANTIZATION
+#else
         output_scale[scale_idx + 1] = TO_OUTPUT1_TYPE(zp_tmp);           // zero-point (interleaved)
 #endif
     }
