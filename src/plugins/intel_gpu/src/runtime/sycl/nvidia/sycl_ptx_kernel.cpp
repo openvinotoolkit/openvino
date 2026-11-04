@@ -11,10 +11,7 @@
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -38,64 +35,6 @@ namespace cldnn {
 namespace sycl {
 
 namespace {
-
-bool is_env_enabled(const char* name) {
-    const char* v = std::getenv(name);
-    return v && v[0] != '\0' && v[0] != '0';
-}
-
-bool cuda_launch_trace_enabled() {
-    static const bool enabled = is_env_enabled("OV_SYCL_CUDA_LAUNCH_TRACE");
-    return enabled;
-}
-
-bool cuda_launch_sync_enabled() {
-    static const bool enabled = is_env_enabled("OV_SYCL_CUDA_LAUNCH_SYNC");
-    return enabled;
-}
-
-std::atomic<uint64_t>& cuda_launch_counter() {
-    static std::atomic<uint64_t> counter{0};
-    return counter;
-}
-
-void print_launch_trace(uint64_t launch_id,
-                        const std::string& kernel_name,
-                        unsigned int gx,
-                        unsigned int gy,
-                        unsigned int gz,
-                        unsigned int bx,
-                        unsigned int by,
-                        unsigned int bz,
-                        unsigned int shared_mem,
-                        size_t num_args,
-                        size_t num_buffer_args,
-                        size_t num_scalar_args,
-                        size_t num_local_args,
-                        size_t mapping_idx,
-                        const char* phase,
-                        const char* err) {
-    std::fprintf(stderr,
-                 "[OV_SYCL][CUDA_LAUNCH][%s] id=%llu kernel=%s grid=(%u,%u,%u) block=(%u,%u,%u) "
-                 "shared=%u args=%zu buffers=%zu scalars=%zu local=%zu dim_map=%zu err=%s\n",
-                 phase,
-                 static_cast<unsigned long long>(launch_id),
-                 kernel_name.c_str(),
-                 gx,
-                 gy,
-                 gz,
-                 bx,
-                 by,
-                 bz,
-                 shared_mem,
-                 num_args,
-                 num_buffer_args,
-                 num_scalar_args,
-                 num_local_args,
-                 mapping_idx,
-                 err ? err : "none");
-    std::fflush(stderr);
-}
 
 // CUDA launch limits.  The axes are capped asymmetrically, which is what makes the
 // NDRange-to-axis assignment matter: an extent of 192 is fine on x or y but not on z.
@@ -295,12 +234,6 @@ void load_module(cuda_module_state& state,
     state.max_threads_per_block = max_threads;
 }
 
-int function_attribute(const cuda_module_state& state, CUfunction_attribute attribute) {
-    int value = -1;
-    (void)cuFuncGetAttribute(&value, attribute, static_cast<CUfunction>(state.cu_function));
-    return value;
-}
-
 }  // anonymous namespace
 
 ptx_program_state::ptx_program_state(std::string ptx, std::string name)
@@ -333,21 +266,6 @@ std::shared_ptr<cuda_module_state> ptx_program_state::module_for_launch(size_t m
     if (!capped) {
         auto state = std::make_shared<cuda_module_state>();
         load_module(*state, remap_ptx_dims(ptx_source, dim_mappings()[mapping_idx]), kernel_name, block_threads);
-        if (cuda_launch_trace_enabled()) {
-            std::fprintf(stderr,
-                         "[OV_SYCL][CUDA_LAUNCH][capped_module] kernel=%s block_threads=%u dim_map=%zu "
-                         "max_threads=%d->%d regs=%d->%d local_bytes=%d->%d\n",
-                         kernel_name.c_str(),
-                         block_threads,
-                         mapping_idx,
-                         plain->max_threads_per_block,
-                         state->max_threads_per_block,
-                         function_attribute(*plain, CU_FUNC_ATTRIBUTE_NUM_REGS),
-                         function_attribute(*state, CU_FUNC_ATTRIBUTE_NUM_REGS),
-                         function_attribute(*plain, CU_FUNC_ATTRIBUTE_LOCAL_SIZE_BYTES),
-                         function_attribute(*state, CU_FUNC_ATTRIBUTE_LOCAL_SIZE_BYTES));
-            std::fflush(stderr);
-        }
         capped = std::move(state);
     }
 
@@ -506,13 +424,6 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
                         std::memcpy(param_storage.back().data(), &cu_ptr, sizeof(CUdeviceptr));
                         params.push_back(param_storage.back().data());
                     } else {
-                        if (cuda_launch_trace_enabled()) {
-                            std::fprintf(stderr,
-                                         "[OV_SYCL][CUDA_LAUNCH][null_buffer] kernel=%s arg_index=%zu\n",
-                                         program->kernel_name.c_str(),
-                                         i);
-                            std::fflush(stderr);
-                        }
                         CUdeviceptr cu_ptr = 0;
                         param_storage.emplace_back(sizeof(CUdeviceptr));
                         std::memcpy(param_storage.back().data(), &cu_ptr, sizeof(CUdeviceptr));
@@ -548,34 +459,20 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         }
 
         unsigned int shared_mem = 0;
-        size_t num_buffer_args = 0;
-        size_t num_scalar_args = 0;
-        size_t num_local_args = 0;
         for (const auto& arg : args) {
-            if (arg.kind == sycl_ptx_kernel::arg_t::kind_t::BUFFER) {
-                ++num_buffer_args;
-            } else if (arg.kind == sycl_ptx_kernel::arg_t::kind_t::SCALAR) {
-                ++num_scalar_args;
-            } else if (arg.kind == sycl_ptx_kernel::arg_t::kind_t::LOCAL_MEM) {
-                ++num_local_args;
+            if (arg.kind == sycl_ptx_kernel::arg_t::kind_t::LOCAL_MEM) {
                 shared_mem += static_cast<unsigned int>(arg.local_size);
             }
         }
 
-        const uint64_t launch_id = ++cuda_launch_counter();
-        if (cuda_launch_trace_enabled()) {
-            print_launch_trace(launch_id,
-                               program->kernel_name,
-                               gx, gy, gz, bx, by, bz,
-                               shared_mem,
-                               args.size(),
-                               num_buffer_args,
-                               num_scalar_args,
-                               num_local_args,
-                               mapping_idx,
-                               "begin",
-                               nullptr);
-        }
+        // The launch shape, for error messages: a kernel is launched with many shapes, and a failure is only
+        // reproducible with the one that failed.
+        const auto launch_shape = [&]() {
+            return "grid (" + std::to_string(gx) + ", " + std::to_string(gy) + ", " + std::to_string(gz) +
+                   "), block (" + std::to_string(bx) + ", " + std::to_string(by) + ", " + std::to_string(bz) +
+                   "), " + std::to_string(shared_mem) + " bytes of shared memory, dimension mapping " +
+                   std::to_string(mapping_idx);
+        };
 
         CUresult res = cuLaunchKernel(cu_func,
                                       gx, gy, gz,
@@ -587,64 +484,22 @@ void sycl_ptx_kernel::launch(::sycl::handler& cgh,
         if (res != CUDA_SUCCESS) {
             const char* err_str = nullptr;
             cuGetErrorString(res, &err_str);
-            print_launch_trace(launch_id,
-                               program->kernel_name,
-                               gx, gy, gz, bx, by, bz,
-                               shared_mem,
-                               args.size(),
-                               num_buffer_args,
-                               num_scalar_args,
-                               num_local_args,
-                               mapping_idx,
-                               "cuLaunchKernel_fail",
-                               err_str);
-            OPENVINO_THROW("[GPU][NVIDIA] cuLaunchKernel failed for '",
-                           program->kernel_name, "': ",
-                           err_str ? err_str : "unknown error");
+            OPENVINO_THROW("[GPU][NVIDIA] cuLaunchKernel failed for '", program->kernel_name, "' with ",
+                           launch_shape(), ": ", err_str ? err_str : "unknown error");
         }
 
-        // An ordinary host_task's event completes when this callback returns, so without the
-        // native-command extension the stream is always synchronised to keep the event from
-        // completing while the kernel still accesses its buffers.
 #ifndef SYCL_EXT_ONEAPI_ENQUEUE_NATIVE_COMMAND
-        const bool synchronize_launch = true;
-#else
-        const bool synchronize_launch = cuda_launch_sync_enabled();
-#endif
-        if (synchronize_launch) {
-            CUresult sync_res = cuStreamSynchronize(cu_stream);
-            if (sync_res != CUDA_SUCCESS) {
-                const char* err_str = nullptr;
-                cuGetErrorString(sync_res, &err_str);
-                print_launch_trace(launch_id,
-                                   program->kernel_name,
-                                   gx, gy, gz, bx, by, bz,
-                                   shared_mem,
-                                   args.size(),
-                                   num_buffer_args,
-                                   num_scalar_args,
-                                   num_local_args,
-                                   mapping_idx,
-                                   "cuStreamSynchronize_fail",
-                                   err_str);
-                OPENVINO_THROW("[GPU][NVIDIA] cuStreamSynchronize failed for '",
-                               program->kernel_name, "': ",
-                               err_str ? err_str : "unknown error");
-            }
-            if (cuda_launch_trace_enabled()) {
-                print_launch_trace(launch_id,
-                                   program->kernel_name,
-                                   gx, gy, gz, bx, by, bz,
-                                   shared_mem,
-                                   args.size(),
-                                   num_buffer_args,
-                                   num_scalar_args,
-                                   num_local_args,
-                                   mapping_idx,
-                                   "sync_ok",
-                                   nullptr);
-            }
+        // An ordinary host_task's event completes when this callback returns, so without the native-command
+        // extension the stream is synchronised to keep the event from completing while the kernel still accesses
+        // its buffers. A native command's event covers the work it enqueues, so that path needs no wait.
+        CUresult sync_res = cuStreamSynchronize(cu_stream);
+        if (sync_res != CUDA_SUCCESS) {
+            const char* err_str = nullptr;
+            cuGetErrorString(sync_res, &err_str);
+            OPENVINO_THROW("[GPU][NVIDIA] cuStreamSynchronize failed for '", program->kernel_name, "' with ",
+                           launch_shape(), ": ", err_str ? err_str : "unknown error");
         }
+#endif
     });
 }
 
