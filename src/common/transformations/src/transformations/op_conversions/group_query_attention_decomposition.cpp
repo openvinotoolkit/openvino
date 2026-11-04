@@ -495,13 +495,28 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         qga_output = attention[0];
         if (qk_output != ov::op::internal::GroupQueryAttentionQKOutput::NONE) {
             // ONNX Runtime lays output_qk out over the total_sequence_length input, which a static or shared cache
-            // does not tie to seqlens_k; the per-batch lengths only mask. Extra cache rows are dropped here.
+            // does not tie to seqlens_k; the per-batch lengths only mask. Extra attention columns are dropped by
+            // the Slice; a padded chunk's total_sequence_length can instead exceed the tight attention buffer
+            // (it pre-allocates present-cache headroom), so pad the shortfall with zero filler columns to match.
             const auto three = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
             const auto total_cols = register_new_node<v1::Reshape>(
                 register_new_node<v0::Convert>(get_input(GQAInputs::TOTAL_SEQUENCE_LENGTH), ov::element::i64),
                 one,
                 false);
             qk_scores = register_new_node<v8::Slice>(attention[1], zero, total_cols, one, three);
+            if (node->has_padded_query()) {
+                const auto attention_shape = register_new_node<v3::ShapeOf>(attention[1]);
+                const auto attention_cols = get_dimensions(attention_shape, {3});
+                const auto extra =
+                    register_new_node<v1::Maximum>(register_new_node<v1::Subtract>(total_cols, attention_cols), zero);
+                const auto filler_shape =
+                    register_new_node<v0::Concat>(ov::OutputVector{get_dimensions(attention_shape, {0, 1, 2}), extra},
+                                                  0);
+                const auto filler = register_new_node<v3::Broadcast>(
+                    register_new_node(v0::Constant::create(attention[1].get_element_type(), ov::Shape{}, {0})),
+                    filler_shape);
+                qk_scores = register_new_node<v0::Concat>(ov::OutputVector{qk_scores, filler}, 3)->output(0);
+            }
         }
     } else if (sink.get_node_shared_ptr()) {
         // SDPA's 6-input form requires an explicit scale.
@@ -524,6 +539,29 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         return {output, present_k, present_v, qk_scores};
     }
     return {output, present_k, present_v};
+}
+
+ov::Output<ov::Node> ov::pass::GroupQueryAttentionDecomposition::resize_kv_to_capacity(
+    const ov::Output<ov::Node>& past,
+    const ov::Output<ov::Node>& buffer,
+    const ov::Output<ov::Node>& total_sequence_length) {
+    const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+    const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const auto past_rows = get_dimensions(register_new_node<v3::ShapeOf>(past), {2});
+    const auto buffer_shape = register_new_node<v3::ShapeOf>(buffer);
+    const auto buffer_rows = get_dimensions(buffer_shape, {2});
+    const auto capacity = register_new_node<v1::Maximum>(past_rows, total_sequence_length);
+    const auto trimmed =
+        register_new_node<v8::Slice>(buffer, zero, register_new_node<v1::Minimum>(capacity, buffer_rows), one, two);
+    const auto extra = register_new_node<v1::Maximum>(register_new_node<v1::Subtract>(capacity, buffer_rows), zero);
+    const auto filler_shape = register_new_node<v0::Concat>(
+        ov::OutputVector{get_dimensions(buffer_shape, {0, 1}), extra, get_dimensions(buffer_shape, {3})},
+        0);
+    const auto filler = register_new_node<v3::Broadcast>(
+        register_new_node(v0::Constant::create(buffer.get_element_type(), ov::Shape{}, {0})),
+        filler_shape);
+    return register_new_node<v0::Concat>(ov::OutputVector{trimmed, filler}, 2)->output(0);
 }
 
 ov::pass::GroupQueryAttentionDecomposition::KVCacheOutputs
@@ -677,47 +715,17 @@ ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
         const bool has_total_sequence_length = total_seqlen_pos < node->get_input_size() &&
                                                !ov::util::is_empty_constant_tensor(node->input_value(total_seqlen_pos));
         if (node->has_padded_query() && has_total_sequence_length) {
-            // present capacity is max(past_rows, total_sequence_length), independent of the sdpa write window
-            // above (total_sequence_length is optional -- required only for qk_output -- so present stays
+            // sdpa_key/value already hold the chunk correctly placed at [kept_past, kept_past + rows(current)),
+            // with no overlap to fix up (sliced_past_key/value are trimmed to exactly kept_past). present only
+            // needs resizing to ORT's max(past_rows, total_sequence_length) capacity, independent of that write
+            // window (total_sequence_length is optional -- required only for qk_output -- so present stays
             // sdpa-sized when it's absent).
             const auto total_sequence_length = register_new_node<v1::Reshape>(
                 register_new_node<v0::Convert>(node->input_value(total_seqlen_pos), ov::element::i64),
                 one,
                 false);
-            const auto extend = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
-                // Trim the plain append when capacity is smaller (overlap in past's tail), or pad with zero
-                // filler when it pre-allocates headroom beyond past+current; scatter the chunk into
-                // [kept_past, kept_past + rows(current)) of the result either way.
-                const auto base = register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
-                const auto past_rows = get_dimensions(register_new_node<v3::ShapeOf>(past), {2});
-                const auto current_rows = get_dimensions(register_new_node<v3::ShapeOf>(current), {2});
-                const auto base_rows = register_new_node<v1::Add>(past_rows, current_rows);
-                const auto capacity = register_new_node<v1::Maximum>(past_rows, total_sequence_length);
-                const auto trimmed = register_new_node<v8::Slice>(base,
-                                                                  zero,
-                                                                  register_new_node<v1::Minimum>(capacity, base_rows),
-                                                                  one,
-                                                                  two);
-                const auto extra =
-                    register_new_node<v1::Maximum>(register_new_node<v1::Subtract>(capacity, base_rows), zero);
-                const auto base_shape = register_new_node<v3::ShapeOf>(base);
-                const auto filler_shape = register_new_node<v0::Concat>(
-                    ov::OutputVector{get_dimensions(base_shape, {0, 1}), extra, get_dimensions(base_shape, {3})},
-                    0);
-                const auto filler = register_new_node<v3::Broadcast>(
-                    register_new_node(v0::Constant::create(current.get_element_type(), ov::Shape{}, {0})),
-                    filler_shape);
-                const auto padded = register_new_node<v0::Concat>(ov::OutputVector{trimmed, filler}, 2);
-                const auto scatter_idx = register_new_node<v1::Add>(
-                    register_new_node<v4::Range>(zero_without_shape,
-                                                 register_new_node<v0::Squeeze>(current_rows),
-                                                 one_without_shape,
-                                                 ov::element::i64),
-                    kept_past);
-                return register_new_node<v3::ScatterUpdate>(padded, scatter_idx, current, two);
-            };
-            outputs.present_key = extend(past_key, key);
-            outputs.present_value = extend(past_value, value);
+            outputs.present_key = resize_kv_to_capacity(past_key, outputs.sdpa_key, total_sequence_length);
+            outputs.present_value = resize_kv_to_capacity(past_value, outputs.sdpa_value, total_sequence_length);
         } else {
             outputs.present_key = outputs.sdpa_key;
             outputs.present_value = outputs.sdpa_value;
@@ -777,7 +785,6 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
                                                                     ov::element::i64),
                                        as_shape({1, 1, -1, 1}),
                                        false));  // [B, 1, S_kv, 1]
-    const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
     // ORT's growing-cache present capacity is max(past_rows, total_sequence_length) (CheckInputs in
     // onnxruntime/contrib_ops/cpu/bert/group_query_attention_helper.h), a caller-declared value independent of
     // this step's write. Only a padded chunk can disagree with the plain past+kv_rows append below -- an ordinary
@@ -813,30 +820,10 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
     };
     outputs.sdpa_key = write(past_key, key);
     outputs.sdpa_value = write(past_value, value);
-    // Attention stays on the tight scatter-corrected buffer above; present is separately resized to capacity,
-    // trimming an overlap or padding headroom with unspecified filler rows.
-    const auto resize_to_capacity = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& tight_buffer) {
-        const auto past_rows = get_dimensions(register_new_node<v3::ShapeOf>(past), {2});
-        const auto buffer_rows = get_dimensions(register_new_node<v3::ShapeOf>(tight_buffer), {2});
-        const auto capacity = register_new_node<v1::Maximum>(past_rows, total_sequence_length);
-        const auto trimmed = register_new_node<v8::Slice>(tight_buffer,
-                                                          zero,
-                                                          register_new_node<v1::Minimum>(capacity, buffer_rows),
-                                                          one,
-                                                          two);
-        const auto extra = register_new_node<v1::Maximum>(register_new_node<v1::Subtract>(capacity, buffer_rows), zero);
-        const auto buffer_shape = register_new_node<v3::ShapeOf>(tight_buffer);
-        const auto filler_shape = register_new_node<v0::Concat>(
-            ov::OutputVector{get_dimensions(buffer_shape, {0, 1}), extra, get_dimensions(buffer_shape, {3})},
-            0);
-        const auto filler = register_new_node<v3::Broadcast>(
-            register_new_node(v0::Constant::create(tight_buffer.get_element_type(), ov::Shape{}, {0})),
-            filler_shape);
-        return register_new_node<v0::Concat>(ov::OutputVector{trimmed, filler}, 2)->output(0);
-    };
+    // Attention stays on the tight scatter-corrected buffer above; present is separately resized to capacity.
     if (!is_static_input && has_total_sequence_length) {
-        outputs.present_key = resize_to_capacity(past_key, outputs.sdpa_key);
-        outputs.present_value = resize_to_capacity(past_value, outputs.sdpa_value);
+        outputs.present_key = resize_kv_to_capacity(past_key, outputs.sdpa_key, total_sequence_length);
+        outputs.present_value = resize_kv_to_capacity(past_value, outputs.sdpa_value, total_sequence_length);
     } else {
         outputs.present_key = outputs.sdpa_key;
         outputs.present_value = outputs.sdpa_value;
