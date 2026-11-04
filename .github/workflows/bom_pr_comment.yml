@@ -13,20 +13,20 @@ on:
       - 'Windows (VS 2022, Python 3.11, Debug)'
       - 'Windows (VS 2022, Python 3.11, Release)'
       - 'Windows (VS 2026, Python 3.11, Release)'
-    types: [completed]
+    types: [requested, in_progress, completed]
 
 permissions: {}
 
 # Serialize updates, including reruns, without cancelling a comment being written.
 concurrency:
-  group: bom-pr-comment-${{ github.event.workflow_run.workflow_id }}-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
+  group: bom-pr-comment-${{ github.event.workflow_run.head_repository.id }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 jobs:
   comment:
     if: github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       actions: read
       checks: read
@@ -40,9 +40,49 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
-          sparse-checkout: .github/scripts/bom_comments
+          sparse-checkout: |
+            .github/scripts/bom_comments
+            .github/workflows
+
+      - name: Set up trusted data parser
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+
+      # The same pinned YAML parser is already used by the Smart CI action.
+      - name: Install YAML parser
+        run: python -m pip install PyYAML==6.0.1
+
+      - name: Prepare unified GOLD patch
+        id: prepare
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const {Aggregator} = require('./.github/scripts/bom_comments/aggregate.js');
+            await new Aggregator({github, context, core}).prepare();
+
+      - name: Upload complete GOLD patch
+        if: steps.prepare.outputs.upload == 'true'
+        id: patch
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gold-bom-patch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: bom-gold-output/*.patch
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Publish unified GOLD state
+        if: always() && steps.prepare.outputs.upload == 'true'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          PATCH_ARTIFACT_ID: ${{ steps.patch.outputs.artifact-id }}
+        with:
+          script: |
+            const {Aggregator} = require('./.github/scripts/bom_comments/aggregate.js');
+            await new Aggregator({github, context, core}).publish(process.env.PATCH_ARTIFACT_ID);
 
       - name: Update platform BOM comment
+        if: always() && github.event.action == 'completed'
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |

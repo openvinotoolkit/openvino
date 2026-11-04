@@ -136,10 +136,56 @@ successful BOM check updates it to show that the differences have been resolved.
 Setup failures and missing GOLD configurations remain job errors, but are not
 reported as detected file-layout changes.
 
-This notifier runs on `workflow_run` using trusted default-branch code and
-GitHub API metadata, without executing PR code or downloading PR artifacts.
-It supports fork PRs and becomes active after the notifier workflow is merged
-into the default branch.
+The same workflow maintains **one Unified GOLD BOM update comment** per PR.
+It offers one downloadable, git-applicable patch covering all affected product
+PR configurations, including added/removed components and missing GOLD
+configuration directories. Existing per-platform diagnostic comments remain.
+
+The unified patch is **not** published until every expected platform has a
+completed run and a successful Build job, with a verified successful BOM upload
+and a complete, valid manifest archive. The overall workflow and BOM comparison
+may fail: those failures do not prevent proposing an intentional GOLD update.
+Missing/not-yet-started workflows, pending/failed/cancelled Builds, missing or
+expired artifacts, API errors, and invalid manifests block the whole proposal.
+The comment reports waiting/blocked states rather than offering a partial patch.
+When everything matches, it reports all-clear without uploading an artifact.
+
+Expected platforms are derived from the trusted product workflows' PR triggers
+and the complete changed-file list, not just runs that happen to have finished.
+Currently seven platforms normally run on PRs; Windows VS 2026 Release additionally
+runs when its workflow file changes. macOS ARM64 and Ubuntu 26.04 do not currently
+have PR triggers and are not awaited. At GitHub's 300-file path-filter boundary,
+the notifier conservatively awaits path-filtered platforms rather than risking a
+partial proposal. Smart CI exclusions require a skipped Build and BOM job,
+successful Build prerequisites, and a successful Smart CI calculation; a skipped
+Build caused by a failed prerequisite does not qualify.
+
+This notifier runs on requested/in-progress/completed `workflow_run` events with
+trusted **default-branch code only**. It never checks out or executes PR code,
+including on forks. PR workflow files and exact GOLD blobs are read through the
+GitHub API as data at the current PR head. Generated BOM ZIPs are also downloaded
+as data: they are never extracted or executed. Paths, regular-file types,
+component names, JSON schema, duplicate entries, archive sizes, and expansion
+limits are checked before patch generation. The patch can modify only
+`boms/<allowlisted-configuration>/<safe-component>.json`.
+
+Aggregation is serialized across platforms for the source branch. It verifies
+live source/base repository and PR identities, current head SHA, workflow/run/job
+identities, the latest run/attempt, and artifact provenance. Rerunning failed
+tests can reuse a successful earlier Build and its original artifact; a new
+failed or running Build cannot reuse an old successful result. State is
+revalidated before upload preparation and again before publishing the real
+uploaded artifact link. New events supersede old patch links, including after a
+push or rerun. An already downloaded patch cannot be revoked: always check its
+head SHA and the latest unified comment before using it.
+
+The notifier fails closed if PR trigger/job gating differs from default-branch
+policy, a workflow cannot be interpreted safely, API pagination is incomplete,
+or multiple open target PRs share the same source branch (fork run associations
+can be empty and cannot safely distinguish those bases). These require CI
+maintainer investigation, not omitting a platform. API/setup/upload failures
+remain visible in the notifier workflow; rerun it after resolving the failure.
+It becomes active only after these changes are merged into the default branch.
 
 Coverage and Linux Level Zero builds are excluded from BOM tests because they
 are special-purpose, non-product builds whose packages are not distributed
@@ -166,6 +212,30 @@ The `generate-bom` input defaults to `true` for other Linux and Windows builds.
 5. Repeat for every affected CI configuration and rerun the checks.
 
 The test never overwrites GOLD manifests automatically.
+
+### Applying the Unified GOLD Patch
+
+Instead of copying each platform's manifests manually, use the artifact linked
+from the **Unified GOLD BOM update** comment once it says the combined patch is
+ready. The artifact is retained for seven days and contains
+`pr-<number>-gold.patch`. Download and extract it, switch to a clean checkout of
+the exact PR head SHA shown in the comment, and review the full patch.
+
+```sh
+git apply --check pr-123-gold.patch
+git apply pr-123-gold.patch
+git diff -- boms
+```
+
+Inspect added/untracked GOLD files as well as `git diff`, then commit the reviewed
+changes in the PR and rerun CI. Do not apply a superseded patch, or one from an
+older head or before the latest Build rerun. If the artifact expired, rerun the
+notifier to generate a freshly validated proposal.
+
+**Accepting GOLD is engineering approval of the public package layout, not merely
+clearing red CI.** Investigate unexpected additions, removals, and renames before
+accepting them. The notifier neither applies the patch nor approves or commits
+the GOLD change for you.
 
 ## Initializing a New Configuration
 
