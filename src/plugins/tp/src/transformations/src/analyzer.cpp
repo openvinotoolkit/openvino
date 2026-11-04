@@ -9,6 +9,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/pass/manager.hpp"
 #include "tp_transformations/analyzer.hpp"
+#include "tp_transformations/verifier.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov {
@@ -63,6 +64,7 @@ bool TPLayerAnalyzer::run_on_model(const std::shared_ptr<ov::Model>& model) {
             m_report->unclaimed_bytes += weight_bytes(node);
         }
     }
+    TPShardingVerifier(m_config.world_size).run_on_model(model);
     return true;
 }
 
