@@ -1079,6 +1079,8 @@ std::string Plugin::get_device_list(ov::AnyMap& properties,
         bool can_preserve_cpu_for_compile_retry = preserve_cpu_for_compile_retry;
         if (can_preserve_cpu_for_compile_retry) {
             for (const auto& device : devices_to_be_merged) {
+                if (device.empty())
+                     continue;
                 if (device.front() == '-')
                     continue;
                 try {

@@ -97,7 +97,11 @@ public:
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
 
-    CacheWarmupManager& get_cache_warmup_manager() const {
+    CacheWarmupManager& get_cache_warmup_manager() {
+        return *m_cache_warmup_manager;
+    }
+
+    const CacheWarmupManager& get_cache_warmup_manager() const {
         return *m_cache_warmup_manager;
     }
 

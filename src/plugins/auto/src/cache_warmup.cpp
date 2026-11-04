@@ -112,7 +112,7 @@ void CacheWarmup::start(const std::string& actual_device, const std::vector<Devi
         }
         m_state = State::Idle;
         m_devices = std::move(devices);
-        LOG_INFO_TAG("start cache pre-compilation for %lu device(s)", static_cast<unsigned long>(m_devices.size()));
+        LOG_INFO_TAG("start cache pre-compilation for %zu device(s)", m_devices.size());
     }
     m_manager.enqueue(shared_from_this());
 }
@@ -165,8 +165,12 @@ void CacheWarmup::run() {
                                     device.device_name.c_str(),
                                     cache_location.string().c_str());
                 } else {
-                    auto compiled = model ? core->compile_model(model, device.device_name, config)
-                                          : core->compile_model(m_model_path, device.device_name, config);
+                    // The compiled model is dropped on purpose: Core writes the cache blob as a side effect.
+                    if (model) {
+                        core->compile_model(model, device.device_name, config);
+                    } else {
+                        core->compile_model(m_model_path, device.device_name, config);
+                    }
                     LOG_INFO_TAG("cache pre-compilation finished for device: %s, compile time: %lf ms",
                                  device.device_name.c_str(),
                                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - begin)
