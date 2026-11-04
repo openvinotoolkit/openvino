@@ -44,7 +44,11 @@ struct Moe3GemmReference {
     std::vector<uint8_t> pack(const std::vector<uint8_t>& unpacked) {
         if (!config.is_u4)
             return unpacked;
+        return pack_u4(unpacked);
+    }
 
+    // u4 is 2 values per byte, low nibble first.
+    static std::vector<uint8_t> pack_u4(const std::vector<uint8_t>& unpacked) {
         std::vector<uint8_t> packed;
         packed.reserve((unpacked.size() + 1) / 2);
         for (size_t i = 0; i < unpacked.size(); i += 2) {
@@ -53,6 +57,91 @@ struct Moe3GemmReference {
             packed.push_back(val1 | (val2 << 4));
         }
         return packed;
+    }
+
+    // u2 is 4 values per byte, LSB-first.
+    static std::vector<uint8_t> pack_u2(const std::vector<uint8_t>& unpacked) {
+        std::vector<uint8_t> packed((unpacked.size() + 3) / 4, 0);
+        for (size_t i = 0; i < unpacked.size(); ++i) {
+            packed[i / 4] |= static_cast<uint8_t>((unpacked[i] & 0x3) << ((i % 4) * 2));
+        }
+        return packed;
+    }
+
+    // u2 quantization that also returns the exact dequantized weights: at 4 levels the quantization error would
+    // swamp a kernel bug. `fixed_zp >= 0` forces one broadcast (scalar) zp. Layouts match quantize(); dequant is
+    // [E, rows, cols] row-major for run_reference_softmax. `bits` = 4 does the same on the u4 grid.
+    struct QuantU2 {
+        std::vector<uint8_t> q;
+        std::vector<ov::float16> scale;
+        std::vector<uint8_t> zp;
+        std::vector<float> dequant;
+    };
+
+    static QuantU2 quantize_u2(const std::vector<float>& data,
+                               size_t expert_num,
+                               size_t rows,
+                               size_t cols,
+                               size_t group_size,
+                               int fixed_zp,
+                               int bits = 2) {
+        const float max_range = static_cast<float>((1 << bits) - 1);
+        const size_t num_groups_per_row = rows / group_size;
+        const size_t num_groups = cols * num_groups_per_row;
+
+        QuantU2 out;
+        out.q.resize(expert_num * rows * cols);
+        out.scale.resize(expert_num * num_groups);
+        out.zp.resize(expert_num * num_groups);
+        out.dequant.resize(expert_num * rows * cols);
+
+        for (size_t e = 0; e < expert_num; ++e) {
+            const size_t offset = e * rows * cols;
+            for (size_t c = 0; c < cols; ++c) {
+                for (size_t g = 0; g < num_groups_per_row; ++g) {
+                    float min_val = std::numeric_limits<float>::max();
+                    float max_val = std::numeric_limits<float>::lowest();
+                    const size_t group_start = g * group_size;
+                    for (size_t i = 0; i < group_size; ++i) {
+                        const float val = data[offset + (group_start + i) * cols + c];
+                        min_val = std::min(min_val, val);
+                        max_val = std::max(max_val, val);
+                    }
+
+                    uint8_t zp_val;
+                    float scale;
+                    if (fixed_zp >= 0) {
+                        // The zp is not ours to choose, so pick the scale that keeps the group
+                        // inside 0..3 around it.
+                        zp_val = static_cast<uint8_t>(fixed_zp);
+                        const float lo = -static_cast<float>(zp_val);
+                        const float hi = max_range - static_cast<float>(zp_val);
+                        scale = std::max(max_val / std::max(hi, 1e-5f), min_val / std::min(lo, -1e-5f));
+                        scale = std::max(scale, 1e-5f);
+                    } else {
+                        scale = std::max((max_val - min_val) / max_range, 1e-5f);
+                        zp_val = static_cast<uint8_t>(
+                            std::round(std::max(0.0f, std::min(max_range, -min_val / scale))));
+                    }
+
+                    // Round-trip the scale through f16: that is the value the kernel reads.
+                    const float scale_f16 = static_cast<float>(static_cast<ov::float16>(scale));
+                    out.scale[e * num_groups + g * cols + c] = static_cast<ov::float16>(scale);
+                    out.zp[e * num_groups + g * cols + c] = zp_val;
+
+                    for (size_t i = 0; i < group_size; ++i) {
+                        const size_t r = group_start + i;
+                        const float val = data[offset + r * cols + c];
+                        const float q_f = val / scale_f16 + static_cast<float>(zp_val);
+                        const uint8_t q = static_cast<uint8_t>(std::round(std::max(0.0f, std::min(max_range, q_f))));
+                        out.q[offset + c * rows + r] = q;
+                        out.dequant[offset + r * cols + c] =
+                            (static_cast<float>(q) - static_cast<float>(zp_val)) * scale_f16;
+                    }
+                }
+            }
+        }
+        return out;
     }
 
     std::tuple<std::vector<uint8_t>, std::vector<ov::float16>, std::vector<uint8_t>> quantize(const std::vector<float>& data,
@@ -1620,3 +1709,797 @@ TEST(moe_3gemm_expert_mask, shape_predictor_overflow_regression) {
         total += static_cast<int>(result.batch[e].size());
     ASSERT_EQ(total, actual_tokens * top_k);
 }
+
+// ============================================================================
+// Mixed weight dtypes across the three expert GEMMs.
+//
+// Each GEMM must be decoded with its own dtype. gate and up still have to agree on whether they are
+// u4, because they read one SLM copy of the activations whose layout the gate dtype picks; down
+// stages its own copy and is free.
+//
+// The reference uses the exact dequantized weights, so the tolerance only has to absorb f16
+// accumulation, and a GEMM decoded with the other dtype's stride is far outside it.
+// ============================================================================
+
+struct MoeMixedDtypeParams {
+    size_t seq_len;
+    bool gate_up_u4;
+    bool down_u4;
+};
+
+class moe_3gemm_compressed_gpu_mixed_dtype : public ::testing::TestWithParam<MoeMixedDtypeParams> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<MoeMixedDtypeParams>& obj) {
+        const auto& p = obj.param;
+        return std::string(p.gate_up_u4 ? "gate_up_u4" : "gate_up_u8") + (p.down_u4 ? "_down_u4" : "_down_u8") + "_seq" +
+               std::to_string(p.seq_len);
+    }
+};
+
+TEST_P(moe_3gemm_compressed_gpu_mixed_dtype, per_gemm_decode_accuracy) {
+    const auto& param = GetParam();
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "No immad support";
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    Moe3GemmConfig config;
+    config.batch_size = 1;
+    config.seq_len = param.seq_len;
+    config.hidden_size = 128;
+    config.inter_size = 256;
+    config.num_experts = 4;
+    config.top_k = 2;
+    config.group_size = 128;
+    // quantize(), pack() and dequantize() all key on config.is_u4, so each dtype gets its own reference.
+    config.is_u4 = param.gate_up_u4;
+    Moe3GemmReference gate_up_ref(config, rg);
+    config.is_u4 = param.down_u4;
+    Moe3GemmReference down_ref(config, rg);
+
+    auto hidden_states = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000);
+    auto routing_weights = rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.num_experts, 0.0f, 1.0f, 1000);
+
+    auto w0_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto w1_data = rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 0.0f, 1000);
+    auto w2_data = rg.generate_random_1d<float>(config.num_experts * config.inter_size * config.hidden_size, -1.0f, 0.0f, 1000);
+    for (size_t i = 0; i < config.num_experts * config.hidden_size * config.inter_size; ++i) {
+        w0_data[i] /= 7.0f;
+        w1_data[i] /= 11.0f;
+        w2_data[i] /= 7.0f;
+    }
+    auto [w0_q, w0_scale, w0_zp] = gate_up_ref.quantize(w0_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto [w1_q, w1_scale, w1_zp] = gate_up_ref.quantize(w1_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto [w2_q, w2_scale, w2_zp] = down_ref.quantize(w2_data, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
+    auto w0_qdq = gate_up_ref.dequantize(w0_q, w0_scale, w0_zp, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto w1_qdq = gate_up_ref.dequantize(w1_q, w1_scale, w1_zp, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto w2_qdq = down_ref.dequantize(w2_q, w2_scale, w2_zp, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
+
+    const int64_t E = static_cast<int64_t>(config.num_experts);
+    const int64_t group_num = static_cast<int64_t>(config.hidden_size / config.group_size);
+    const int64_t group_num2 = static_cast<int64_t>(config.inter_size / config.group_size);
+
+    auto make_weight = [&](Moe3GemmReference& r, const std::vector<uint8_t>& q, int64_t ofm, int64_t G) {
+        auto dt = r.config.is_u4 ? data_types::u4 : data_types::u8;
+        auto mem = engine.allocate_memory({dt, format::bfyx, {E, ofm, static_cast<int64_t>(config.group_size), G}});
+        set_values(mem, r.pack(q));
+        get_test_stream().finish();
+        return mem;
+    };
+    // Logical [E, ofm, G]; physical [E, G, ofm] via byfx for G>1, plain bfyx for per-channel.
+    auto make_scale = [&](const std::vector<ov::float16>& v, int64_t ofm, int64_t G) {
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, data_types::f16, fmt});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_zp = [&](Moe3GemmReference& r, const std::vector<uint8_t>& v, int64_t ofm, int64_t G) {
+        auto dt = r.config.is_u4 ? data_types::u4 : data_types::u8;
+        auto fmt = G > 1 ? format::byfx : format::bfyx;
+        auto shape = G > 1 ? ov::PartialShape{E, ofm, G, 1} : ov::PartialShape{E, ofm, 1};
+        auto mem = engine.allocate_memory(layout{shape, dt, fmt});
+        set_values(mem, r.pack(v));
+        get_test_stream().finish();
+        return mem;
+    };
+    auto create_f16_tensor_3d = [&](const std::vector<ov::float16>& values, int64_t d0, int64_t d1, int64_t d2) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{d0, d1, d2}, data_types::f16, format::bfyx});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto hidden_states_mem = create_f16_tensor_3d(hidden_states, config.batch_size, config.seq_len, config.hidden_size);
+    auto routing_weights_mem = create_f16_tensor_3d(routing_weights, config.batch_size, config.seq_len, config.num_experts);
+
+    const int64_t inter = static_cast<int64_t>(config.inter_size);
+    const int64_t hidden = static_cast<int64_t>(config.hidden_size);
+
+    topology topology;
+    topology.add(input_layout("hidden_states", hidden_states_mem->get_layout()));
+    topology.add(input_layout("routing_weights", routing_weights_mem->get_layout()));
+    topology.add(data("w0_weight", make_weight(gate_up_ref, w0_q, inter, group_num)));
+    topology.add(data("w0_scale", make_scale(w0_scale, inter, group_num)));
+    topology.add(data("w0_zp", make_zp(gate_up_ref, w0_zp, inter, group_num)));
+    topology.add(data("w1_weight", make_weight(gate_up_ref, w1_q, inter, group_num)));
+    topology.add(data("w1_scale", make_scale(w1_scale, inter, group_num)));
+    topology.add(data("w1_zp", make_zp(gate_up_ref, w1_zp, inter, group_num)));
+    topology.add(data("w2_weight", make_weight(down_ref, w2_q, hidden, group_num2)));
+    topology.add(data("w2_scale", make_scale(w2_scale, hidden, group_num2)));
+    topology.add(data("w2_zp", make_zp(down_ref, w2_zp, hidden, group_num2)));
+
+    MoERouterFused::Config router_config;
+    router_config.num_expert = config.num_experts;
+    router_config.top_k = config.top_k;
+    router_config.routing_type = MoERouterFused::RoutingType::SOFTMAX;
+    topology.add(moe_router_fused("router", std::vector<input_info>{input_info("routing_weights")}, router_config));
+
+    cldnn::MOECompressed::Config moe_config;
+    moe_config.hidden_size = config.hidden_size;
+    moe_config.inter_size = config.inter_size;
+    moe_config.num_expert = config.num_experts;
+    moe_config.top_k = config.top_k;
+    moe_config.group_size = config.group_size;
+    moe_config.out_type = data_types::f16;
+    moe_config.has_zp = true;
+
+    std::vector<input_info> moe_inputs{input_info("hidden_states"),
+                                       input_info("router", 0),
+                                       input_info("router", 1),
+                                       input_info("w0_weight"),
+                                       input_info("w0_scale"),
+                                       input_info("w0_zp"),
+                                       input_info("w1_weight"),
+                                       input_info("w1_scale"),
+                                       input_info("w1_zp"),
+                                       input_info("w2_weight"),
+                                       input_info("w2_scale"),
+                                       input_info("w2_zp")};
+    topology.add(moe_3gemm_fused_compressed("moe", moe_inputs, moe_config));
+
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, net_config);
+    network.set_input_data("hidden_states", hidden_states_mem);
+    network.set_input_data("routing_weights", routing_weights_mem);
+
+    auto outputs = network.execute();
+    auto output_prim = outputs.begin()->second.get_memory();
+    get_test_stream().flush();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
+
+    auto ref_output = gate_up_ref.run_reference_softmax(hidden_states, routing_weights, w0_qdq, w1_qdq, w2_qdq);
+    const float tolerance = 0.15f;
+    bool all_zero = true;
+    for (size_t i = 0; i < ref_output.size(); ++i) {
+        if (static_cast<float>(output_ptr[i]) != 0.0f)
+            all_zero = false;
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance) << "i = " << i;
+    }
+    ASSERT_FALSE(all_zero) << "output is all zeros - the MoE stage was silently skipped";
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         moe_3gemm_compressed_gpu_mixed_dtype,
+                         ::testing::Values(
+                             // Decode GEMV, single token.
+                             MoeMixedDtypeParams{1, false, true},
+                             MoeMixedDtypeParams{1, true, false},
+                             // Batched GEMV (MTP-style token counts).
+                             MoeMixedDtypeParams{4, false, true},
+                             MoeMixedDtypeParams{16, true, false},
+                             // Just above the 32-token batched-GEMV threshold: the prefill GEMM path.
+                             MoeMixedDtypeParams{33, false, true},
+                             MoeMixedDtypeParams{33, true, false}),
+                         moe_3gemm_compressed_gpu_mixed_dtype::GetTestCaseName);
+// ============================================================================
+// u2 (UINT2) MoE with per-GEMM zero-point forms.
+//
+// gate and up share one compiled gate_up_gemv_n2x_u2 body, but a mixed layer can pair a scalar zp
+// (INT2_SYM) with a per-group one (INT2_ASYM), so the zp form must be resolved per GEMM. The reference
+// uses the exact dequantized weights: u2 quantization error alone would hide a mis-read zero point.
+// `down_u4` makes down u4 with a per-group zp while gate/up stay u2; down stages its own activation
+// copy, which u4 wants interleaved and u2 plain. `gate_u4` / `up_u4` do the same for gate / up.
+// ============================================================================
+
+struct MoeU2ZpParams {
+    size_t seq_len;
+    size_t hidden_size;
+    size_t inter_size;
+    size_t group_size;
+    bool gate_zp_scalar;
+    bool up_zp_scalar;
+    bool down_zp_scalar;
+    bool down_u4;
+    const char* name;
+    bool gate_u4 = false;
+    bool up_u4 = false;
+};
+
+class moe_3gemm_compressed_gpu_u2 : public ::testing::TestWithParam<MoeU2ZpParams> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<MoeU2ZpParams>& obj) {
+        const auto& p = obj.param;
+        return std::string(p.name) + "_seq" + std::to_string(p.seq_len) + "_gs" + std::to_string(p.group_size) + "_h" +
+               std::to_string(p.hidden_size) + "_i" + std::to_string(p.inter_size);
+    }
+};
+
+TEST_P(moe_3gemm_compressed_gpu_u2, mixed_zp_form_accuracy) {
+    const auto& param = GetParam();
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "No immad support";
+    }
+    // A non-zero scalar zp exists only for u2 weights (the fusion pass declines it for anything else).
+    ASSERT_FALSE(param.down_u4 && param.down_zp_scalar) << "a u4 down projection takes a per-group zp";
+    ASSERT_FALSE(param.gate_u4 && param.gate_zp_scalar) << "a u4 gate projection takes a per-group zp";
+    ASSERT_FALSE(param.up_u4 && param.up_zp_scalar) << "a u4 up projection takes a per-group zp";
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    Moe3GemmConfig config;
+    config.batch_size = 1;
+    config.seq_len = param.seq_len;
+    config.hidden_size = param.hidden_size;
+    config.inter_size = param.inter_size;
+    config.num_experts = 4;
+    config.top_k = 2;
+    // ELEMS_PER_LANE is group_size / SUBGROUP_SIZE, so on xe2 (SUBGROUP_SIZE 32) the three group
+    // sizes below select the kernel's three unpack arms: 32 -> 1, 64 -> 2, 128 -> 4. There is no
+    // arm for 8, which is what group_size 128 would ask for below xe2.
+    config.group_size = param.group_size;
+    config.is_u4 = false;
+
+    Moe3GemmReference ref(config, rg);
+
+    auto hidden_states =
+        rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000);
+    auto routing_weights =
+        rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.num_experts, 0.0f, 1.0f, 1000);
+
+    auto w0_data =
+        rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 1.0f, 1000);
+    auto w1_data =
+        rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 1.0f, 1001);
+    auto w2_data =
+        rg.generate_random_1d<float>(config.num_experts * config.inter_size * config.hidden_size, -1.0f, 1.0f, 1002);
+    for (auto& v : w0_data)
+        v /= 7.0f;
+    for (auto& v : w1_data)
+        v /= 11.0f;
+    for (auto& v : w2_data)
+        v /= 7.0f;
+
+    // A scalar zp has to be non-zero: zp 0 decodes identically under both rules and would make the
+    // test blind to the bug it exists to catch.
+    constexpr int kScalarZp = 2;
+    auto q0 = Moe3GemmReference::quantize_u2(w0_data,
+                                             config.num_experts,
+                                             config.hidden_size,
+                                             config.inter_size,
+                                             config.group_size,
+                                             param.gate_zp_scalar ? kScalarZp : -1,
+                                             param.gate_u4 ? 4 : 2);
+    auto q1 = Moe3GemmReference::quantize_u2(w1_data,
+                                             config.num_experts,
+                                             config.hidden_size,
+                                             config.inter_size,
+                                             config.group_size,
+                                             param.up_zp_scalar ? kScalarZp : -1,
+                                             param.up_u4 ? 4 : 2);
+    auto q2 = Moe3GemmReference::quantize_u2(w2_data,
+                                             config.num_experts,
+                                             config.inter_size,
+                                             config.hidden_size,
+                                             config.group_size,
+                                             param.down_zp_scalar ? kScalarZp : -1,
+                                             param.down_u4 ? 4 : 2);
+
+    const int64_t E = static_cast<int64_t>(config.num_experts);
+    const int64_t group_num = static_cast<int64_t>(config.hidden_size / config.group_size);
+    const int64_t group_num2 = static_cast<int64_t>(config.inter_size / config.group_size);
+
+    auto make_u2_weight = [&](const std::vector<uint8_t>& q, int64_t ofm, int64_t gnum) {
+        auto mem = engine.allocate_memory(
+            {data_types::u2, format::bfyx, {E, ofm, static_cast<int64_t>(config.group_size), gnum}});
+        set_values(mem, Moe3GemmReference::pack_u2(q));
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_scale = [&](const std::vector<ov::float16>& v, int64_t ofm, int64_t G) {
+        auto mem = engine.allocate_memory(
+            layout{ov::PartialShape{E, ofm, G, 1}, data_types::f16, format::byfx});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+    // A per-group zp for a u2 GEMM must itself be u2, packed 4 channels per byte along the
+    // innermost (channel) dimension of the byfx [E, G, N] physical layout.
+    auto make_u2_zp = [&](const std::vector<uint8_t>& v, int64_t ofm, int64_t G) {
+        auto mem =
+            engine.allocate_memory(layout{ov::PartialShape{E, ofm, G, 1}, data_types::u2, format::byfx});
+        set_values(mem, Moe3GemmReference::pack_u2(v));
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_scalar_zp = [&]() {
+        auto mem = engine.allocate_memory(cldnn::layout(ov::PartialShape{1}, data_types::u8, format::bfyx), false);
+        set_values<uint8_t>(mem, {static_cast<uint8_t>(kScalarZp)});
+        get_test_stream().finish();
+        return mem;
+    };
+    // u4 counterparts for the down_u4 case: same shapes, 2 values per byte.
+    auto make_u4_weight = [&](const std::vector<uint8_t>& q, int64_t ofm, int64_t gnum) {
+        auto mem = engine.allocate_memory(
+            {data_types::u4, format::bfyx, {E, ofm, static_cast<int64_t>(config.group_size), gnum}});
+        set_values(mem, Moe3GemmReference::pack_u4(q));
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_u4_zp = [&](const std::vector<uint8_t>& v, int64_t ofm, int64_t G) {
+        auto mem =
+            engine.allocate_memory(layout{ov::PartialShape{E, ofm, G, 1}, data_types::u4, format::byfx});
+        set_values(mem, Moe3GemmReference::pack_u4(v));
+        get_test_stream().finish();
+        return mem;
+    };
+    auto create_f16_tensor_3d = [&](const std::vector<ov::float16>& values, int64_t d0, int64_t d1, int64_t d2) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{d0, d1, d2}, data_types::f16, format::bfyx});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    auto hidden_states_mem = create_f16_tensor_3d(hidden_states, config.batch_size, config.seq_len, config.hidden_size);
+    auto routing_weights_mem =
+        create_f16_tensor_3d(routing_weights, config.batch_size, config.seq_len, config.num_experts);
+
+    const int64_t inter = static_cast<int64_t>(config.inter_size);
+    const int64_t hidden = static_cast<int64_t>(config.hidden_size);
+
+    topology topology;
+    topology.add(input_layout("hidden_states", hidden_states_mem->get_layout()));
+    topology.add(input_layout("routing_weights", routing_weights_mem->get_layout()));
+    topology.add(data("w0_weight", param.gate_u4 ? make_u4_weight(q0.q, inter, group_num) : make_u2_weight(q0.q, inter, group_num)));
+    topology.add(data("w0_scale", make_scale(q0.scale, inter, group_num)));
+    topology.add(data("w0_zp",
+                      param.gate_zp_scalar ? make_scalar_zp()
+                      : param.gate_u4      ? make_u4_zp(q0.zp, inter, group_num)
+                                           : make_u2_zp(q0.zp, inter, group_num)));
+    topology.add(data("w1_weight", param.up_u4 ? make_u4_weight(q1.q, inter, group_num) : make_u2_weight(q1.q, inter, group_num)));
+    topology.add(data("w1_scale", make_scale(q1.scale, inter, group_num)));
+    topology.add(data("w1_zp",
+                      param.up_zp_scalar ? make_scalar_zp()
+                      : param.up_u4      ? make_u4_zp(q1.zp, inter, group_num)
+                                         : make_u2_zp(q1.zp, inter, group_num)));
+    topology.add(data("w2_weight",
+                      param.down_u4 ? make_u4_weight(q2.q, hidden, group_num2) : make_u2_weight(q2.q, hidden, group_num2)));
+    topology.add(data("w2_scale", make_scale(q2.scale, hidden, group_num2)));
+    topology.add(data("w2_zp",
+                      param.down_zp_scalar ? make_scalar_zp()
+                      : param.down_u4      ? make_u4_zp(q2.zp, hidden, group_num2)
+                                           : make_u2_zp(q2.zp, hidden, group_num2)));
+
+    MoERouterFused::Config router_config;
+    router_config.num_expert = config.num_experts;
+    router_config.top_k = config.top_k;
+    router_config.routing_type = MoERouterFused::RoutingType::SOFTMAX;
+    topology.add(moe_router_fused("router", std::vector<input_info>{input_info("routing_weights")}, router_config));
+
+    cldnn::MOECompressed::Config moe_config;
+    moe_config.hidden_size = config.hidden_size;
+    moe_config.inter_size = config.inter_size;
+    moe_config.num_expert = config.num_experts;
+    moe_config.top_k = config.top_k;
+    moe_config.group_size = config.group_size;
+    moe_config.out_type = data_types::f16;
+    moe_config.has_zp = true;
+
+    std::vector<input_info> moe_inputs{input_info("hidden_states"),
+                                       input_info("router", 0),
+                                       input_info("router", 1),
+                                       input_info("w0_weight"),
+                                       input_info("w0_scale"),
+                                       input_info("w0_zp"),
+                                       input_info("w1_weight"),
+                                       input_info("w1_scale"),
+                                       input_info("w1_zp"),
+                                       input_info("w2_weight"),
+                                       input_info("w2_scale"),
+                                       input_info("w2_zp")};
+    topology.add(moe_3gemm_fused_compressed("moe", moe_inputs, moe_config));
+
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, net_config);
+    network.set_input_data("hidden_states", hidden_states_mem);
+    network.set_input_data("routing_weights", routing_weights_mem);
+
+    auto outputs = network.execute();
+    auto output_prim = outputs.begin()->second.get_memory();
+    get_test_stream().flush();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
+
+    auto ref_output = ref.run_reference_softmax(hidden_states, routing_weights, q0.dequant, q1.dequant, q2.dequant);
+
+    // Tight because the reference decodes exactly what the kernel decodes; what is left is f16
+    // accumulation over hidden_size and then inter_size terms.
+    const float tolerance = 0.05f;
+    bool all_zero = true;
+    for (size_t i = 0; i < ref_output.size(); ++i) {
+        if (static_cast<float>(output_ptr[i]) != 0.0f)
+            all_zero = false;
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance) << "i = " << i;
+    }
+    // An all-zero output (e.g. a skipped MoE stage) would otherwise satisfy every tolerance check
+    // above.
+    ASSERT_FALSE(all_zero) << "output is all zeros - the MoE stage was silently skipped";
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    moe_3gemm_compressed_gpu_u2,
+    ::testing::Values(
+        // Controls: all three GEMMs agree, so a layer-wide flag happens to be right.
+        MoeU2ZpParams{1, 128, 256, 64, true, true, true, false, "all_scalar"},
+        MoeU2ZpParams{1, 128, 256, 64, false, false, false, false, "all_per_group"},
+        // gate and up disagree, and they share one compiled gate_up_gemv_n2x_u2 body.
+        MoeU2ZpParams{1, 128, 256, 64, true, false, false, false, "gate_scalar_up_per_group"},
+        MoeU2ZpParams{1, 128, 256, 64, false, true, false, false, "gate_per_group_up_scalar"},
+        // down disagrees with gate/up, so a layer-wide flag set from the gate mis-decodes
+        // down_gemv_n2x_u2's own zp.
+        MoeU2ZpParams{1, 128, 256, 64, true, true, false, false, "down_per_group_rest_scalar"},
+        MoeU2ZpParams{1, 128, 256, 64, false, false, true, false, "down_scalar_rest_per_group"},
+        // Batched GEMV (small token counts).
+        MoeU2ZpParams{4, 128, 256, 64, true, false, false, false, "gate_scalar_up_per_group"},
+        MoeU2ZpParams{16, 128, 256, 64, false, false, false, false, "all_per_group"},
+        // The other two unpack arms: group_size 32 is ELEMS_PER_LANE 1 on xe2, 128 is 4.
+        MoeU2ZpParams{1, 128, 256, 32, false, false, true, false, "down_scalar_rest_per_group"},
+        MoeU2ZpParams{1, 128, 256, 128, false, false, true, false, "down_scalar_rest_per_group"},
+        MoeU2ZpParams{16, 128, 256, 32, false, false, false, false, "all_per_group"},
+        // Above the 32-token batched-GEMV threshold, i.e. the prefill GEMM rather than the GEMV
+        // kernels. inter_size 256 keeps the down GEMM's N below DPAS_N_PER_WG, so this is the
+        // FMA variant; the square case below is the one that qualifies for DPAS.
+        MoeU2ZpParams{64, 128, 256, 64, false, false, false, false, "prefill_all_per_group"},
+        MoeU2ZpParams{64, 128, 256, 64, true, true, true, false, "prefill_all_scalar"},
+        // hidden == inter == 256 makes N a multiple of DPAS_N_PER_WG for all three GEMMs, which is
+        // what selects the DPAS variant of the u2 GEMM.
+        MoeU2ZpParams{64, 256, 256, 64, false, false, false, false, "prefill_dpas_all_per_group"},
+        MoeU2ZpParams{64, 256, 256, 32, false, false, false, false, "prefill_dpas_gs32"},
+        // u4 down with u2 gate/up. No group_size 32 here: a layer that is not all-u2 needs
+        // FAKE_GROUP_SIZE >= 2 * SUBGROUP_SIZE, which 32 does not meet on xe2.
+        MoeU2ZpParams{1, 128, 256, 64, true, true, false, true, "down_u4_rest_scalar"},
+        MoeU2ZpParams{1, 128, 256, 64, false, false, false, true, "down_u4_rest_per_group"},
+        MoeU2ZpParams{1, 128, 256, 128, true, true, false, true, "down_u4_rest_scalar"},
+        // Batched GEMV (small token counts).
+        MoeU2ZpParams{4, 128, 256, 64, true, true, false, true, "down_u4_rest_scalar"},
+        MoeU2ZpParams{16, 128, 256, 64, false, false, false, true, "down_u4_rest_per_group"},
+        // Prefill, mixed layer: each u2 GEMM takes the native u2 GEMM (gate/up here) and each u4 GEMM
+        // the oneDNN grouped GEMM (down here); nothing is unpacked.
+        MoeU2ZpParams{64, 128, 256, 64, true, true, false, true, "prefill_down_u4_rest_scalar"},
+        MoeU2ZpParams{64, 256, 256, 64, false, false, false, true, "prefill_down_u4_rest_per_group"},
+        // down native, gate/up oneDNN.
+        MoeU2ZpParams{64, 128, 256, 64, false, false, false, false, "prefill_down_u2_gate_up_u4", true, true},
+        // gate native only; up and down oneDNN.
+        MoeU2ZpParams{64, 128, 256, 64, false, false, false, true, "prefill_gate_u2_only", false, true},
+        // up native only: gate oneDNN reads the native up output through its binary post-op.
+        MoeU2ZpParams{64, 128, 256, 64, false, false, false, true, "prefill_up_u2_only", true, false},
+        // up and down native, gate oneDNN.
+        MoeU2ZpParams{64, 128, 256, 64, false, true, true, false, "prefill_gate_u4_up_down_u2", true, false},
+        // Same handoff on the DPAS variant.
+        MoeU2ZpParams{64, 256, 256, 64, false, false, false, true, "prefill_dpas_up_u2_only", true, false}),
+    moe_3gemm_compressed_gpu_u2::GetTestCaseName);
+
+// ============================================================================
+// u2 shared expert.
+//
+// A u2 shared-expert projection is unpacked into u4 scratch for the oneDNN primitives, per projection:
+// any subset of the three can be u2.
+// The routed experts are all u2, so these cases also check that the routed GEMMs are left packed.
+// ============================================================================
+
+struct MoeU2SharedParams {
+    bool gate_u2;
+    bool up_u2;
+    bool down_u2;
+    size_t seq_len;
+    size_t group_size;
+    const char* name;
+};
+
+class moe_3gemm_compressed_gpu_u2_shared : public ::testing::TestWithParam<MoeU2SharedParams> {
+public:
+    static std::string GetTestCaseName(const testing::TestParamInfo<MoeU2SharedParams>& obj) {
+        const auto& p = obj.param;
+        return std::string(p.name) + "_seq" + std::to_string(p.seq_len) + "_gs" + std::to_string(p.group_size);
+    }
+};
+
+TEST_P(moe_3gemm_compressed_gpu_u2_shared, mixed_u2_shared_projections) {
+    const auto& param = GetParam();
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "No immad support";
+    }
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    Moe3GemmConfig config;
+    config.batch_size = 1;
+    config.seq_len = param.seq_len;
+    config.hidden_size = 128;
+    config.inter_size = 256;
+    config.num_experts = 4;
+    config.top_k = 2;
+    config.group_size = param.group_size;
+    config.is_u4 = false;  // the projections this case does not make u2 are u8
+    config.has_shared_expert = true;
+
+    Moe3GemmReference ref(config, rg);
+
+    auto hidden_states =
+        rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.hidden_size, -1.0f, 1.0f, 1000);
+    auto routing_weights =
+        rg.generate_random_1d<ov::float16>(config.batch_size * config.seq_len * config.num_experts, 0.0f, 1.0f, 1000);
+
+    auto w0_data =
+        rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 1.0f, 1000);
+    auto w1_data =
+        rg.generate_random_1d<float>(config.num_experts * config.hidden_size * config.inter_size, -1.0f, 1.0f, 1001);
+    auto w2_data =
+        rg.generate_random_1d<float>(config.num_experts * config.inter_size * config.hidden_size, -1.0f, 1.0f, 1002);
+    auto s_gate_data = rg.generate_random_1d<float>(config.hidden_size * config.inter_size, -1.0f, 1.0f, 1003);
+    auto s_up_data = rg.generate_random_1d<float>(config.hidden_size * config.inter_size, -1.0f, 1.0f, 1004);
+    auto s_down_data = rg.generate_random_1d<float>(config.inter_size * config.hidden_size, -1.0f, 1.0f, 1005);
+    auto s_gate_scalar_data = rg.generate_random_1d<float>(config.hidden_size, -1.0f, 0.0f, 1006);
+    for (auto& v : w0_data)
+        v /= 7.0f;
+    for (auto& v : w1_data)
+        v /= 11.0f;
+    for (auto& v : w2_data)
+        v /= 7.0f;
+    for (auto& v : s_gate_data)
+        v /= 7.0f;
+    for (auto& v : s_up_data)
+        v /= 11.0f;
+    for (auto& v : s_down_data)
+        v /= 7.0f;
+
+    const int64_t E = static_cast<int64_t>(config.num_experts);
+    const int64_t group_num = static_cast<int64_t>(config.hidden_size / config.group_size);
+    const int64_t group_num2 = static_cast<int64_t>(config.inter_size / config.group_size);
+    const int64_t inter = static_cast<int64_t>(config.inter_size);
+    const int64_t hidden = static_cast<int64_t>(config.hidden_size);
+
+    auto q0 = Moe3GemmReference::quantize_u2(w0_data,
+                                             config.num_experts,
+                                             config.hidden_size,
+                                             config.inter_size,
+                                             config.group_size,
+                                             -1);
+    auto q1 = Moe3GemmReference::quantize_u2(w1_data,
+                                             config.num_experts,
+                                             config.hidden_size,
+                                             config.inter_size,
+                                             config.group_size,
+                                             -1);
+    auto q2 = Moe3GemmReference::quantize_u2(w2_data,
+                                             config.num_experts,
+                                             config.inter_size,
+                                             config.hidden_size,
+                                             config.group_size,
+                                             -1);
+
+    auto make_weight = [&](const std::vector<uint8_t>& q, bool u2, int64_t e, int64_t ofm, int64_t gnum) {
+        auto mem = engine.allocate_memory({u2 ? data_types::u2 : data_types::u8,
+                                           format::bfyx,
+                                           {e, ofm, static_cast<int64_t>(config.group_size), gnum}});
+        set_values(mem, u2 ? Moe3GemmReference::pack_u2(q) : q);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_scale = [&](const std::vector<ov::float16>& v, int64_t e, int64_t ofm, int64_t G) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{e, ofm, G, 1}, data_types::f16, format::byfx});
+        set_values(mem, v);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_zp = [&](const std::vector<uint8_t>& v, bool u2, int64_t e, int64_t ofm, int64_t G) {
+        auto mem = engine.allocate_memory(
+            layout{ov::PartialShape{e, ofm, G, 1}, u2 ? data_types::u2 : data_types::u8, format::byfx});
+        set_values(mem, u2 ? Moe3GemmReference::pack_u2(v) : v);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto create_f16_tensor_3d = [&](const std::vector<ov::float16>& values, int64_t d0, int64_t d1, int64_t d2) {
+        auto mem = engine.allocate_memory(layout{ov::PartialShape{d0, d1, d2}, data_types::f16, format::bfyx});
+        set_values(mem, values);
+        get_test_stream().finish();
+        return mem;
+    };
+    auto make_scalar_gate = [&](const std::vector<float>& v) {
+        std::vector<ov::float16> h;
+        h.reserve(v.size());
+        for (float f : v)
+            h.push_back(static_cast<ov::float16>(f));
+        auto mem = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, static_cast<int64_t>(v.size())}});
+        set_values(mem, h);
+        get_test_stream().finish();
+        return mem;
+    };
+
+    // Reconstruct the exact dequantized weights (quantize() does not return them): the u8 quantization error
+    // alone would exceed the u2 tolerance. Layouts follow quantize(); expert_num is 1 here.
+    auto dequantize_u8 = [&](const std::vector<uint8_t>& q,
+                             const std::vector<ov::float16>& scale,
+                             const std::vector<uint8_t>& zp,
+                             size_t rows,
+                             size_t cols) {
+        const size_t groups_per_row = rows / config.group_size;
+        std::vector<float> out(rows * cols);
+        for (size_t c = 0; c < cols; ++c) {
+            for (size_t g = 0; g < groups_per_row; ++g) {
+                // The kernel reads an f16 scale, so dequantize with the f16-rounded value.
+                const float s = static_cast<float>(scale[g * cols + c]);
+                const float z = static_cast<float>(zp[g * cols + c]);
+                for (size_t i = 0; i < config.group_size; ++i) {
+                    const size_t r = g * config.group_size + i;
+                    out[r * cols + c] = (static_cast<float>(q[c * rows + r]) - z) * s;
+                }
+            }
+        }
+        return out;
+    };
+
+    // One shared projection, quantized as u2 or u8; the reference uses the exact dequantized weights.
+    struct SharedProj {
+        cldnn::memory::ptr weight;
+        cldnn::memory::ptr scale;
+        cldnn::memory::ptr zp;
+        std::vector<float> ref;
+    };
+    auto make_shared = [&](const std::vector<float>& data, bool u2, size_t rows, size_t cols, int64_t gnum) {
+        SharedProj p;
+        const int64_t ofm = static_cast<int64_t>(cols);
+        if (u2) {
+            auto q = Moe3GemmReference::quantize_u2(data, 1, rows, cols, config.group_size, -1);
+            p.weight = make_weight(q.q, true, 1, ofm, gnum);
+            p.scale = make_scale(q.scale, 1, ofm, gnum);
+            p.zp = make_zp(q.zp, true, 1, ofm, gnum);
+            p.ref = q.dequant;
+        } else {
+            auto [q, scale, zp] = ref.quantize(data, 1, rows, cols, config.group_size);
+            p.weight = make_weight(q, false, 1, ofm, gnum);
+            p.scale = make_scale(scale, 1, ofm, gnum);
+            p.zp = make_zp(zp, false, 1, ofm, gnum);
+            p.ref = dequantize_u8(q, scale, zp, rows, cols);
+        }
+        return p;
+    };
+
+    auto sg = make_shared(s_gate_data, param.gate_u2, config.hidden_size, config.inter_size, group_num);
+    auto su = make_shared(s_up_data, param.up_u2, config.hidden_size, config.inter_size, group_num);
+    auto sd = make_shared(s_down_data, param.down_u2, config.inter_size, config.hidden_size, group_num2);
+
+    auto hidden_states_mem = create_f16_tensor_3d(hidden_states, config.batch_size, config.seq_len, config.hidden_size);
+    auto routing_weights_mem =
+        create_f16_tensor_3d(routing_weights, config.batch_size, config.seq_len, config.num_experts);
+
+    topology topology;
+    topology.add(input_layout("hidden_states", hidden_states_mem->get_layout()));
+    topology.add(input_layout("routing_weights", routing_weights_mem->get_layout()));
+    topology.add(data("w0_weight", make_weight(q0.q, true, E, inter, group_num)));
+    topology.add(data("w0_scale", make_scale(q0.scale, E, inter, group_num)));
+    topology.add(data("w0_zp", make_zp(q0.zp, true, E, inter, group_num)));
+    topology.add(data("w1_weight", make_weight(q1.q, true, E, inter, group_num)));
+    topology.add(data("w1_scale", make_scale(q1.scale, E, inter, group_num)));
+    topology.add(data("w1_zp", make_zp(q1.zp, true, E, inter, group_num)));
+    topology.add(data("w2_weight", make_weight(q2.q, true, E, hidden, group_num2)));
+    topology.add(data("w2_scale", make_scale(q2.scale, E, hidden, group_num2)));
+    topology.add(data("w2_zp", make_zp(q2.zp, true, E, hidden, group_num2)));
+    topology.add(data("s_gate_weight", sg.weight));
+    topology.add(data("s_gate_scale", sg.scale));
+    topology.add(data("s_gate_zp", sg.zp));
+    topology.add(data("s_up_weight", su.weight));
+    topology.add(data("s_up_scale", su.scale));
+    topology.add(data("s_up_zp", su.zp));
+    topology.add(data("s_down_weight", sd.weight));
+    topology.add(data("s_down_scale", sd.scale));
+    topology.add(data("s_down_zp", sd.zp));
+    topology.add(data("s_gate_scalar", make_scalar_gate(s_gate_scalar_data)));
+
+    MoERouterFused::Config router_config;
+    router_config.num_expert = config.num_experts;
+    router_config.top_k = config.top_k;
+    router_config.routing_type = MoERouterFused::RoutingType::SOFTMAX;
+    topology.add(moe_router_fused("router", std::vector<input_info>{input_info("routing_weights")}, router_config));
+
+    cldnn::MOECompressed::Config moe_config;
+    moe_config.hidden_size = config.hidden_size;
+    moe_config.inter_size = config.inter_size;
+    moe_config.num_expert = config.num_experts;
+    moe_config.top_k = config.top_k;
+    moe_config.group_size = config.group_size;
+    moe_config.out_type = data_types::f16;
+    moe_config.num_shared_expert = 1;
+    moe_config.has_zp = true;
+
+    topology.add(moe_3gemm_fused_compressed("moe",
+                                            {input_info("hidden_states"),
+                                             input_info("router", 0),
+                                             input_info("router", 1),
+                                             input_info("w0_weight"),
+                                             input_info("w0_scale"),
+                                             input_info("w0_zp"),
+                                             input_info("w1_weight"),
+                                             input_info("w1_scale"),
+                                             input_info("w1_zp"),
+                                             input_info("w2_weight"),
+                                             input_info("w2_scale"),
+                                             input_info("w2_zp"),
+                                             input_info("s_gate_weight"),
+                                             input_info("s_gate_scale"),
+                                             input_info("s_gate_zp"),
+                                             input_info("s_up_weight"),
+                                             input_info("s_up_scale"),
+                                             input_info("s_up_zp"),
+                                             input_info("s_down_weight"),
+                                             input_info("s_down_scale"),
+                                             input_info("s_down_zp"),
+                                             input_info("s_gate_scalar")},
+                                            moe_config));
+
+    auto net_config = get_test_default_config(engine);
+    net_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, net_config);
+    network.set_input_data("hidden_states", hidden_states_mem);
+    network.set_input_data("routing_weights", routing_weights_mem);
+
+    auto outputs = network.execute();
+    auto output_prim = outputs.begin()->second.get_memory();
+    get_test_stream().flush();
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
+
+    auto ref_output = ref.run_reference_softmax(hidden_states,
+                                                routing_weights,
+                                                q0.dequant,
+                                                q1.dequant,
+                                                q2.dequant,
+                                                sg.ref,
+                                                su.ref,
+                                                sd.ref,
+                                                s_gate_scalar_data);
+
+    const float tolerance = 0.1f;
+    bool all_zero = true;
+    for (size_t i = 0; i < ref_output.size(); ++i) {
+        if (static_cast<float>(output_ptr[i]) != 0.0f)
+            all_zero = false;
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), static_cast<float>(ref_output[i]), tolerance) << "i = " << i;
+    }
+    // An all-zero output (e.g. a skipped MoE stage) would satisfy
+    // every tolerance check above.
+    ASSERT_FALSE(all_zero) << "output is all zeros - the MoE stage was silently skipped";
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke,
+    moe_3gemm_compressed_gpu_u2_shared,
+    ::testing::Values(
+        // Decode (batched GEMV, shared expert fused in-kernel): only all-u2 is listed. The GEMV picks one decode
+        // rule per compiled body from the routed experts' dtype, so a shared projection with another dtype would
+        // be mis-decoded; the mixed cases below are prefill-only.
+        MoeU2SharedParams{true, true, true, 1, 64, "all_u2"},
+        // Above the 32-token batched-GEMV threshold the shared expert goes through the oneDNN
+        // primitives, which do resolve its dtype per projection. The routed experts take the native
+        // u2 GEMM here, so these are also the cases where only the shared
+        // weights are unpacked. down has the transposed shape of gate/up, so it is covered on its own.
+        MoeU2SharedParams{true, true, true, 64, 64, "all_u2_prefill"},
+        MoeU2SharedParams{false, false, false, 64, 64, "none_u2_prefill"},
+        MoeU2SharedParams{true, false, false, 64, 64, "gate_u2_prefill"},
+        MoeU2SharedParams{false, false, true, 64, 64, "down_u2_prefill"},
+        MoeU2SharedParams{true, false, true, 64, 64, "gate_down_u2_prefill"}),
+    moe_3gemm_compressed_gpu_u2_shared::GetTestCaseName);
+
