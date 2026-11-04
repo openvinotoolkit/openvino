@@ -40,6 +40,8 @@ struct Configuration {
 
     EncryptionCallbacks encryption_callbacks;
 
+    bool export_hsm_format = false;
+
     ov::AnyMap device_properties;
 };
 }  // namespace hetero

@@ -1087,6 +1087,16 @@ TEST(HsmReaderStreamTest, rejects_container_size_exceeding_available_stream_byte
     EXPECT_FALSE(hsm::Reader::open(stream).has_value());
 }
 
+TEST(HsmReaderStreamTest, rejects_container_size_that_overflows_stream_offsets) {
+    auto blob = make_sample_reader_container();
+    auto header = hsm::Header::view(blob.data());
+    header.container_size = std::numeric_limits<uint64_t>::max();
+    std::memcpy(blob.data(), &header, sizeof(header));
+
+    auto stream = make_stream(blob, /*prefix_size=*/2);
+    EXPECT_FALSE(hsm::Reader::open(stream).has_value());
+}
+
 TEST(HsmReaderStreamTest, rejects_invalid_section_offset) {
     auto blob = make_sample_reader_container();
     const auto header = hsm::Header::view(blob.data());
