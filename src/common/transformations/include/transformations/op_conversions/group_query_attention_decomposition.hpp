@@ -96,6 +96,11 @@ protected:
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
     std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims);
+    // Resizes a rank-4 KV cache buffer (axis 2) to ORT's max(past_rows, total_sequence_length) capacity: trims an
+    // overlap in the buffer's tail, or pads headroom past it with unspecified (zero) filler rows.
+    ov::Output<ov::Node> resize_kv_to_capacity(const ov::Output<ov::Node>& past,
+                                               const ov::Output<ov::Node>& buffer,
+                                               const ov::Output<ov::Node>& total_sequence_length);
     std::shared_ptr<ov::Node> rotaryEmbedding(ov::Output<ov::Node> input,
                                               ov::Output<ov::Node> cos,
                                               ov::Output<ov::Node> sin,

@@ -1008,6 +1008,100 @@ TEST(GroupQueryAttentionValues, padded_query_growing_cache_present_keeps_total_s
     }
 }
 
+// qk_output is laid out over total_sequence_length too: a padded chunk's total_sequence_length can exceed the
+// tight attention buffer the same way it can exceed the present cache, so the shared QK scores need the same
+// zero-padded tail instead of Slice silently returning fewer columns than declared.
+TEST(GroupQueryAttentionValues, padded_query_qk_output_keeps_total_sequence_length_capacity) {
+    for (const auto mode : {op::internal::GroupQueryAttentionQKOutput::BEFORE_SOFTMAX,
+                            op::internal::GroupQueryAttentionQKOutput::AFTER_SOFTMAX}) {
+        const auto f32 = element::f32;
+        constexpr int64_t S = 4;
+        constexpr int64_t past_rows = 5;
+        constexpr int64_t total_sequence_length = 10;
+        constexpr int64_t attention_cols = 7;  // kept_past(3) + S(4): the tight attention buffer this step writes
+
+        auto q = std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), NUM_HEADS, S, HEAD_SIZE});
+        auto k =
+            std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+        auto v =
+            std::make_shared<op::v0::Parameter>(f32, PartialShape{Dimension::dynamic(), KV_NUM_HEADS, S, HEAD_SIZE});
+        auto past_key = std::make_shared<op::v0::Parameter>(
+            f32,
+            PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+        auto past_value = std::make_shared<op::v0::Parameter>(
+            f32,
+            PartialShape{Dimension::dynamic(), KV_NUM_HEADS, Dimension::dynamic(), HEAD_SIZE});
+        auto seqlens_k = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{Dimension::dynamic()});
+        auto total_seq = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
+        const auto empty = op::v0::Constant::create(element::dynamic, Shape{0}, {});
+        OutputVector args{q, k, v, past_key, past_value, seqlens_k, total_seq};
+        args.resize(16, empty);
+        auto query_seqlens = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{1});
+        args.push_back(query_seqlens);
+
+        auto gqa = std::make_shared<GroupQueryAttention>(args,
+                                                         NUM_HEADS,
+                                                         KV_NUM_HEADS,
+                                                         /*scale*/ 0.0f,
+                                                         /*do_rotary*/ false,
+                                                         /*rotary_interleaved*/ false,
+                                                         /*kv_cache_bit_width*/ 0,
+                                                         op::internal::GroupQueryAttentionQuantType::NONE,
+                                                         op::internal::GroupQueryAttentionQuantType::NONE,
+                                                         /*local_window_size*/ -1,
+                                                         /*sliding_window_cache*/ false,
+                                                         /*smooth_softmax*/ false,
+                                                         /*causal*/ true,
+                                                         /*softcap*/ 0.0f,
+                                                         /*qk_norm_epsilon*/ 1e-6f,
+                                                         mode);
+        ASSERT_TRUE(gqa->has_padded_query());
+
+        // Only the QK scores output is checked, so only it is declared as a Result.
+        ResultVector results{std::make_shared<op::v0::Result>(gqa->output(3))};
+        ParameterVector params{q, k, v, past_key, past_value, seqlens_k, total_seq, query_seqlens};
+        auto model = std::make_shared<Model>(results, params);
+        decompose(model);
+
+        const auto q_shape = Shape{1, static_cast<size_t>(NUM_HEADS), S, HEAD_SIZE};
+        const auto kv_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), S, HEAD_SIZE};
+        const auto past_shape = Shape{1, static_cast<size_t>(KV_NUM_HEADS), past_rows, HEAD_SIZE};
+        std::vector<float> q_data(shape_size(q_shape), 0.1f);
+        std::vector<float> k_data(shape_size(kv_shape), 0.1f);
+        std::vector<float> v_data(shape_size(kv_shape), 0.1f);
+        std::vector<float> past_k_data(shape_size(past_shape), 0.1f);
+        std::vector<float> past_v_data(shape_size(past_shape), 0.1f);
+        std::vector<int32_t> seqlens_k_data{4};
+        std::vector<int32_t> total_seq_data{total_sequence_length};
+        std::vector<int32_t> query_seqlens_data{2};
+
+        ov::TensorVector inputs{ov::Tensor(f32, q_shape, q_data.data()),
+                                ov::Tensor(f32, kv_shape, k_data.data()),
+                                ov::Tensor(f32, kv_shape, v_data.data()),
+                                ov::Tensor(f32, past_shape, past_k_data.data()),
+                                ov::Tensor(f32, past_shape, past_v_data.data()),
+                                ov::Tensor(element::i32, Shape{1}, seqlens_k_data.data()),
+                                ov::Tensor(element::i32, Shape{}, total_seq_data.data()),
+                                ov::Tensor(element::i32, Shape{1}, query_seqlens_data.data())};
+        ov::TensorVector outputs(1);
+        ASSERT_TRUE(model->evaluate(outputs, inputs));
+
+        const auto expected_shape = Shape{1, static_cast<size_t>(NUM_HEADS), S, total_sequence_length};
+        EXPECT_EQ(outputs[0].get_shape(), expected_shape) << "qk_output must follow total_sequence_length";
+
+        const auto* scores = outputs[0].data<float>();
+        for (int64_t head = 0; head < NUM_HEADS; ++head) {
+            for (int64_t row = 0; row < S; ++row) {
+                for (int64_t col = attention_cols; col < total_sequence_length; ++col) {
+                    const auto idx = ((head * S + row) * total_sequence_length) + col;
+                    EXPECT_FLOAT_EQ(scores[idx], 0.0f)
+                        << "qk_output column " << col << " beyond the attention buffer must be zero-padded";
+                }
+            }
+        }
+    }
+}
+
 // A preallocated cache with a dynamic batch is written in place: the decomposed present keeps the op's inferred
 // capacity (no Concat growth).
 TEST(GroupQueryAttentionValues, batched_fixed_capacity_cache_keeps_capacity) {
