@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/node_builders/moe_builders.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -230,6 +234,103 @@ TEST_P(MoECompressedFusionTest, Inference) {
     run();
 }
 
+using MoECompressedOffloadParams = std::tuple<size_t, ov::element::Type, ov::test::utils::DecompressionType>;
+
+// The experts are streamed from the weights file on demand, so the model has to be read from a file.
+class MoECompressedOffloadTest : public testing::WithParamInterface<MoECompressedOffloadParams>, virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<MoECompressedOffloadParams>& info) {
+        const auto& [offload_ratio, wp, ds] = info.param;
+        std::ostringstream result;
+        result << "OR=" << offload_ratio << "_WP=" << wp << "_DS=" << ds;
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        const auto& [offload_ratio, wp, ds] = GetParam();
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        const auto caps = core->get_property(targetDevice, ov::device::capabilities);
+        if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
+            GTEST_SKIP() << "MoE pipeline requires a systolic GPU (HW_MATMUL capability)";
+        }
+        inType = outType = inference_precision = ov::element::f16;
+        abs_threshold = 1e-3;
+        rel_threshold = 0.025;
+        const ov::test::MoePatternParams moe_params{{-1, -1, 256}, 4, 8, 512};
+        init_input_shapes({{moe_params.data_shape, {{1, 40, 256}}}});
+        function = ov::test::initMoE3GeMMSubgraph(moe_params,
+                                                  ov::element::f16,
+                                                  wp,
+                                                  true,
+                                                  ov::element::f16,
+                                                  ov::element::f16,
+                                                  ov::test::utils::DecompressionType::full,
+                                                  ds,
+                                                  false,  // Keep serialized scales/ZPs in their broadcast shapes.
+                                                  128);
+        functionRefs = function->clone();
+
+        const auto file_prefix = ov::test::utils::generateTestFilePrefix();
+        xml_path = file_prefix + ".xml";
+        bin_path = file_prefix + ".bin";
+        ov::pass::Serialize(xml_path, bin_path).run_on_model(function);
+        function = core->read_model(xml_path);
+        configuration = {ov::hint::inference_precision(ov::element::f16),
+                         ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+                         ov::hint::dynamic_quantization_group_size(0),
+                         ov::intel_gpu::offload_ratio(offload_ratio),
+                         ov::weights_path(bin_path)};
+    }
+
+    void compile_model() override {
+        ov::test::SubgraphBaseTest::compile_model();
+        ov::test::CheckNumberOfNodesWithType(compiledModel, "moe_3gemm_fused_compressed", 1);
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& target_input_static_shapes) override {
+        inputs.clear();
+        const auto& parameter = function->get_parameters().at(0);
+        // Bound FP16 accumulation error so this test isolates offloaded constant loading.
+        inputs.insert(
+            {parameter, ov::test::utils::create_and_fill_tensor_normal_distribution(ov::element::f16, target_input_static_shapes.at(0), 0.0f, 0.05f, 1234)});
+    }
+
+    void TearDown() override {
+        ov::test::SubgraphBaseTest::TearDown();
+        // The model and the compiled model keep the weights file mapped/open, which blocks its removal on Windows
+        inferRequest = {};
+        compiledModel = {};
+        function.reset();
+        ov::test::utils::removeIRFiles(xml_path, bin_path);
+    }
+
+private:
+    std::string xml_path;
+    std::string bin_path;
+};
+
+TEST_P(MoECompressedOffloadTest, Inference) {
+    run();
+}
+
+// A scalar zero point is supported for u3 weights only. Per-group u3 zero points are not supported (see skip_tests_config.cpp).
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload_u3,
+                         MoECompressedOffloadTest,
+                         ::testing::Combine(::testing::Values(size_t{50}),
+                                            ::testing::Values(ov::element::u3),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::scalar,
+                                                              ov::test::utils::DecompressionType::empty)),
+                         MoECompressedOffloadTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedOffload,
+                         MoECompressedOffloadTest,
+                         ::testing::Combine(::testing::Values(size_t{50}),
+                                            ::testing::Values(ov::element::u8, ov::element::u4),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full, ov::test::utils::DecompressionType::empty)),
+                         MoECompressedOffloadTest::getTestCaseName);
+
 // GatherMatmul and fused MoE kernels support only f16 activations, so the MoE pipeline must be applied
 // only if the activations are f16 after ConvertPrecision, regardless of OV_GPU_MOE_DISABLE_FUSION.
 // Note: with dynamic inference precision, the model precision is kept.
@@ -353,6 +454,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                                             ::testing::Values(false),   // use_per_expert_scale
                                             ::testing::Values(false),   // use_layernorm_multiply
                                             ::testing::Values(true)),   // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
+
+// u3 has no batched GEMV kernel: decode (<= 32 tokens) and prefill both run OneDNN grouped GEMM.
+// Scalar zp is the NNCF int3 layout (symmetric u3 with zp = 4 for all experts).
+const std::vector<MoeTestShapeParams> moe_params_smoke_u3 = {
+    {
+        {{-1, -1, 256}, {{1, 40, 256}, {1, 1, 256}, {1, 3, 256}, {1, 40, 256}}},  // prefill > gemv threshold + decode
+        4,                                                                        // topk
+        8,                                                                        // number_of_experts
+        512                                                                       // intermediate_size
+    },
+    {
+        {{-1, -1, 2048}, {{1, 4, 2048}, {1, 1, 2048}}},  // prefill + decode
+        4,                                               // topk
+        8,                                               // number_of_experts
+        512                                              // intermediate_size
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion_u3,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke_u3),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::ValuesIn(routing_types),
+                                            ::testing::Values(ov::element::u3),
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::scalar,
+                                                              ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),  // use_per_expert_scale
+                                            ::testing::Values(false),  // use_layernorm_multiply
+                                            ::testing::Values(true)),  // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
 // GPT-OSS 2-GEMM pattern (combined gate/up MatMul + Slice/Clamp/Add/Swish).
