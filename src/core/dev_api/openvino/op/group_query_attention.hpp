@@ -28,6 +28,7 @@ enum class GroupQueryAttentionInputs : size_t {
     V_SCALE = 13,               // Quantization scale for V (optional, required if kv_cache_bit_width != 0)
     Q_NORM_WEIGHT = 14,         // Per-head Q RMSNorm weight [head_size] (optional, paired with K_NORM_WEIGHT)
     K_NORM_WEIGHT = 15,         // Per-head K RMSNorm weight [head_size] (optional, paired with Q_NORM_WEIGHT)
+    QUERY_SEQLENS = 16,         // Valid (non-padded) rows of a right-padded query chunk [batch] (optional)
 };
 
 enum class GroupQueryAttentionQuantType {
@@ -175,6 +176,9 @@ public:
     // QK-Norm (Qwen3/Gemma3-style): when q_norm_weight/k_norm_weight are present, the new Q and K heads are
     // RMS-normalized over head_size before RoPE: x * rsqrt(mean(x^2) + qk_norm_epsilon) * weight.
     bool has_qk_norm() const;
+    // Right-padded query chunk (ONNX query_seqlens): only the first query_seqlens[b] of the S query rows are real
+    // tokens, so the past length is seqlens_k + 1 - query_seqlens[b] instead of seqlens_k + 1 - S.
+    bool has_query_seqlens() const;
     float get_qk_norm_epsilon() const {
         return m_qk_norm_epsilon;
     }
