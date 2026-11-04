@@ -591,7 +591,8 @@ void emit_remainder_steps(x64::jit_generator_t* h,
     h->L(l_done);
 }
 
-/// dst = r + add in the lanes where r != 0 and the signs of r and s differ, else dst = r.
+/// dst = r + add in the lanes where r != 0 and the signs of r and s differ, else dst = r. A zero result takes the
+/// sign of s: x for Mod, as with std::fmod, and y for FloorMod, as with Python's %.
 template <x64::cpu_isa_t isa, typename Vmm>
 void emit_sign_fix(x64::jit_generator_t* h,
                    const Vmm& dst,
@@ -599,8 +600,19 @@ void emit_sign_fix(x64::jit_generator_t* h,
                    const Vmm& s,
                    const Vmm& add,
                    const Vmm& t,
+                   const Vmm& z,
                    const Address& zero,
+                   const Address& sign_mask,
                    const Opmask& k) {
+    // z = the sign of s in the lanes where r is zero; computed first, as dst may be the same register as s.
+    if constexpr (isa == x64::avx512_core) {
+        h->vcmpps(k, r, zero, x64::jit_generator_t::_cmp_eq_oq);
+        h->vandps(z | k | h->T_z, s, sign_mask);
+    } else {
+        h->uni_vcmpps(z, r, zero, x64::jit_generator_t::_cmp_eq_oq);
+        h->uni_vandps(z, z, s);
+        h->uni_vandps(z, z, sign_mask);
+    }
     h->uni_vxorps(t, r, s);
     if constexpr (isa == x64::sse41) {
         h->psrad(t, 31);
@@ -617,6 +629,7 @@ void emit_sign_fix(x64::jit_generator_t* h,
         h->uni_vandps(add, add, t);
         h->uni_vaddps(dst, r, add);
     }
+    h->uni_vorps(dst, dst, z);
 }
 
 }  // namespace
@@ -690,12 +703,14 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                               table_val("pow127"),
                               k_mask);
     h->uni_vmovups(vmm_q, vmm_src1);
-    emit_sign_fix<isa>(h, vmm_dst, vmm_r, vmm_src1, vmm_q, vmm_t, table_val("zero"), k_mask);
+    emit_sign_fix<
+        isa>(h, vmm_dst, vmm_r, vmm_src1, vmm_q, vmm_t, vmm_d, table_val("zero"), table_val("sign_mask"), k_mask);
 }
 
 void jit_floor_mod_emitter::register_table_entries() {
     push_arg_entry_of("zero", 0x00000000, true);
     push_arg_entry_of("abs_mask", 0x7fffffff, true);
+    push_arg_entry_of("sign_mask", 0x80000000, true);
     push_arg_entry_of("inf", 0x7f800000, true);
     push_arg_entry_of("one", 0x3f800000, true);
     push_arg_entry_of("pow127", 0x7f000000, true);
@@ -778,7 +793,8 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
     h->uni_vandps(vmm_q, vmm_src1, table_val("abs_mask"));
     h->uni_vandps(vmm_d, vmm_src0, table_val("sign_mask"));
     h->uni_vorps(vmm_q, vmm_q, vmm_d);
-    emit_sign_fix<isa>(h, vmm_dst, vmm_r, vmm_src0, vmm_q, vmm_t, table_val("zero"), k_mask);
+    emit_sign_fix<
+        isa>(h, vmm_dst, vmm_r, vmm_src0, vmm_q, vmm_t, vmm_d, table_val("zero"), table_val("sign_mask"), k_mask);
 }
 
 void jit_mod_emitter::register_table_entries() {

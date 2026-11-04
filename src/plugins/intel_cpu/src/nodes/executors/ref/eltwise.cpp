@@ -399,9 +399,13 @@ void EltwiseRefExecutor<T, Enable>::execFloatingPoint(const jit_eltwise_call_arg
                     *dst_ptr_f = ov::reference::func::floor_mod(src_f[0], src_f[1]);
                 } else {
                     // std::fmod is exact. x - floor(x / y) * y gave 0 instead of nearly y when x / y
-                    // rounded up to a whole number.
+                    // rounded up to a whole number. The result has the sign of y, zero included.
                     const float r = std::fmod(src_f[0], src_f[1]);
-                    *dst_ptr_f = (r != 0.0F && ((r < 0.0F) != (src_f[1] < 0.0F))) ? r + src_f[1] : r;
+                    if (r == 0.0F) {
+                        *dst_ptr_f = std::copysign(0.0F, src_f[1]);
+                    } else {
+                        *dst_ptr_f = ((r < 0.0F) != (src_f[1] < 0.0F)) ? r + src_f[1] : r;
+                    }
                 }
                 break;
             }
