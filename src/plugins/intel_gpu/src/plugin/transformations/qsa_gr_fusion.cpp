@@ -184,7 +184,7 @@ struct CompressedWeight {
     ov::Output<ov::Node> weights;  // Constant u4/u8 [N, K], K contiguous (a metadata-only reshape of the checkpoint constant)
     ov::Output<ov::Node> scale;    // Constant f16 [G, N]
     ov::Output<ov::Node> zp;       // Constant of the weight type (u4 packed / u8) [G, N]
-    size_t bits = 0;               // 4 (group 32, 64, 128) or 8 (per-channel)
+    size_t bits = 0;               // 4 (group 32) or 8 (per-channel)
     size_t groups = 0;
 };
 
@@ -192,7 +192,7 @@ struct CompressedWeight {
 /// returns nullopt and the caller keeps feeding the decompressed f16 tensor (then a plain f16 GatedResidual).
 /// Rejected, with the TODO that would lift it (see the design doc, section 13):
 ///   transposed [K, N] weights (T11), an extra scale multiply, non-Constant weights / scale / zp (T11), a missing zero point
-///   (symmetric i4 / i8, T7), scalar scale / zp (T8), group sizes other than 32, 64, 128 for u4 / per-channel for u8 (T6).
+///   (symmetric i4 / i8, T7), scalar scale / zp (T8), group sizes other than 32 for u4 / per-channel for u8 (T6).
 std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Node>& w, size_t N, size_t K) {
     using namespace ov::pass::pattern;
     FC_COMPRESSED_WEIGHT_PATTERN
@@ -265,23 +265,12 @@ std::optional<CompressedWeight> match_compressed_weight(const ov::Output<ov::Nod
     return result;
 }
 
-/// Appends `count` zero rows (axis 0) or columns (axis 1) to a [N, K] weight.
-ov::Output<ov::Node> pad_with_zeros(const ov::Output<ov::Node>& w, size_t axis, size_t count, ov::NodeVector& new_ops) {
-    auto shape = w.get_shape();
-    shape[axis] = count;
-    auto zeros = ov::op::v0::Constant::create(w.get_element_type(), shape, {0.0f});
-    auto padded = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{w, zeros}, static_cast<int64_t>(axis));
-    new_ops.push_back(zeros);
-    new_ops.push_back(padded);
-    return padded->output(0);
-}
-
 }  // namespace
 
 // ===========================================================================
 // GR READ / MIX
 // ===========================================================================
-GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
+GatedResidualReadFusion::GatedResidualReadFusion(bool allow_compressed_weights) {
     using namespace ov::pass::pattern;
 
     auto residual = any_input();
@@ -384,27 +373,15 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
         size_t C = 0;
         size_t D = 0;
         if (!get_branch_split(pm.at(residual_3d), C, D)) {
-            // The paged attention transformation leaves the first residual without a static width, so the split has no
-            // static C either; W_down [L, C*D] proves it.
-            const auto& split_ps = pm.at(residual_3d).get_partial_shape();
-            const auto& w_down_shape = low_mm->get_input_partial_shape(1);
-            if (split_ps.rank().is_dynamic() || split_ps.size() < 3 || split_ps[split_ps.size() - 1].is_dynamic() || w_down_shape.rank().is_dynamic() ||
-                w_down_shape.size() != 2 || w_down_shape[1].is_dynamic()) {
-                return false;
-            }
-            D = static_cast<size_t>(split_ps[split_ps.size() - 1].get_length());
-            if (D == 0 || static_cast<size_t>(w_down_shape[1].get_length()) % D != 0) {
-                return false;
-            }
-            C = static_cast<size_t>(w_down_shape[1].get_length()) / D;
+            return false;
         }
         if (C != supported_branch_count || D == 0) {
             return false;
         }
 
-        // The paged attention transformation leaves the first residual without a static width; the static split proves it.
         const auto& residual_ps = residual_out.get_partial_shape();
-        if (residual_ps.rank().is_dynamic() || !residual_ps[residual_ps.size() - 1].compatible(static_cast<int64_t>(C * D))) {
+        if (residual_ps.rank().is_dynamic() || residual_ps[residual_ps.size() - 1].is_dynamic() ||
+            static_cast<size_t>(residual_ps[residual_ps.size() - 1].get_length()) != C * D) {
             return false;
         }
 
@@ -467,25 +444,14 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             static_cast<size_t>(w_up_ps[1].get_length()) != L) {
             return false;
         }
-        // A low rank the kernels cannot execute is padded with zero projections: SiLU(0) = 0, so the extra channels of T add
-        // nothing to the read gate.
-        size_t kernel_lowrank = L;
-        if (!op::GatedResidual::is_geometry_supported(op::GatedResidual::Mode::READ, C, D, L, systolic)) {
-            const size_t step = systolic ? 32 : 16;
-            kernel_lowrank = (L + step - 1) / step * step;
-            if (!op::GatedResidual::is_geometry_supported(op::GatedResidual::Mode::READ, C, D, kernel_lowrank, systolic)) {
-                return false;
-            }
+        if (!op::GatedResidual::is_geometry_supported(op::GatedResidual::Mode::READ, C, D, L)) {
+            return false;
         }
 
-        ov::NodeVector new_ops;
-
-        // u4 (group 32, 64, 128) / u8 (per-channel) asymmetric weights are fed to the kernels as they are; W_down and W_up must
-        // be compressed the same way, otherwise the decompressed f16 tensors are used.
+        // u4 (group 32) / u8 (per-channel) asymmetric weights are fed to the kernels as they are; W_down and W_up must be
+        // compressed the same way, otherwise the decompressed f16 tensors are used.
         ov::OutputVector weight_inputs = {w_down, w_up};
-        if (kernel_lowrank != L) {
-            weight_inputs = {pad_with_zeros(w_down, 0, kernel_lowrank - L, new_ops), pad_with_zeros(w_up, 1, kernel_lowrank - L, new_ops)};
-        } else if (systolic) {
+        if (allow_compressed_weights) {
             const auto cd = match_compressed_weight(w_down, L, C * D);
             const auto cu = match_compressed_weight(w_up, C * D, L);
             if (cd && cu && cd->bits == cu->bits &&
@@ -494,6 +460,7 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             }
         }
 
+        ov::NodeVector new_ops;
         ov::Output<ov::Node> gain_flat;
         float epsilon = 0.0f;
 
@@ -565,20 +532,13 @@ GatedResidualReadFusion::GatedResidualReadFusion(bool systolic) {
             }
         }
 
-        // The normalized residual of a hyper connection also feeds the W_inject projection of its write gate (which stays
-        // outside the fused op); without one this is the terminal mixer.
-        bool has_write_gate = false;
-        for (const auto& consumer : low_mm->input_value(0).get_target_inputs()) {
-            has_write_gate |= consumer.get_node() != low_mm.get() && ov::is_type<ov::op::v0::MatMul>(consumer.get_node());
-        }
-
         ov::OutputVector gr_inputs{residual_out, gain_flat};
         gr_inputs.insert(gr_inputs.end(), weight_inputs.begin(), weight_inputs.end());
         auto gr = std::make_shared<op::GatedResidual>(gr_inputs,
-                                                      has_write_gate ? op::GatedResidual::Mode::READ : op::GatedResidual::Mode::FINAL_MIX,
+                                                      op::GatedResidual::Mode::READ,
                                                       C,
                                                       D,
-                                                      kernel_lowrank,
+                                                      L,
                                                       epsilon,
                                                       /*norm_gain_plus_one=*/false,
                                                       /*produce_write_gate=*/false,
@@ -701,9 +661,9 @@ GatedResidualWriteFusion::GatedResidualWriteFusion() {
             return false;
         }
 
-        // See GatedResidualReadFusion: a residual without a static width is proven by Y and the gate here.
         const auto& residual_ps = residual_out.get_partial_shape();
-        if (residual_ps.rank().is_dynamic() || !residual_ps[residual_ps.size() - 1].compatible(static_cast<int64_t>(C * D))) {
+        if (residual_ps.rank().is_dynamic() || residual_ps[residual_ps.size() - 1].is_dynamic() ||
+            static_cast<size_t>(residual_ps[residual_ps.size() - 1].get_length()) != C * D) {
             return false;
         }
 

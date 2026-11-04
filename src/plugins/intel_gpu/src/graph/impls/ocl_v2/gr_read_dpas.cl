@@ -17,7 +17,7 @@
 //      GR_PRODUCE_WRITE_GATE, GR_WG_SIZE (subgroups), GR_RD_TM (8/16/32), GR_RD_NT, GR_NV_KD (phase 1 chunk halves / 16),
 //      GR_RD_SLM_GAIN (0 = gain from global, 1 = padded SLM copy, 2 = duplicated SLM copy), GR_P3_GB (optional: branches per
 //      phase-3 K loop).
-// Compressed weights (GR_W_TYPE u4 group 32, 64, 128 / u8 per-channel, gr_common.cl; no write gate): GR_WD_KCH / GR_WD_NRAW / GR_WD_RB and
+// Compressed weights (GR_W_TYPE u4 group 32 / u8 per-channel, gr_common.cl; no write gate): GR_WD_KCH / GR_WD_NRAW / GR_WD_RB and
 //      GR_WU_KCH / GR_WU_NRAW / GR_WU_RB give the k values per raw load, its dwords and the row bytes of W_down / W_up.
 // Dispatch: gws = [WG * 16, ceil(rows / TM), 1], lws = [WG * 16, 1, 1].
 
@@ -292,8 +292,8 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
                     GR_P2_GAIN(ge0, gs0, k + 32 * s_);
                     unroll_for (uint j_ = 0; j_ < GR_RD_NT; j_++) {
 #if GR_W_TYPE == GR_WT_U4
-                        const half2 scv = GR_WQ_SCALE2(scale_down, ((k >> 5) + s_) >> GR_WD_GSL, GR_LOWRANK, n0 + 16 * j_);
-                        const half2 zpv = GR_WQ_ZP2(zp_down, ((k >> 5) + s_) >> GR_WD_GSL, GR_LOWRANK, n0 + 16 * j_, lane);
+                        const half2 scv = GR_WQ_SCALE2(scale_down, (k >> 5) + s_, GR_LOWRANK, n0 + 16 * j_);
+                        const half2 zpv = GR_WQ_ZP2(zp_down, (k >> 5) + s_, GR_LOWRANK, n0 + 16 * j_, lane);
                         b0[j_] = GR_WQ_DEQ32(rw[j_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
 #else
                         b0[j_] = GR_WQ_DEQ32(rw[j_], s_ * GR_WQ_RAW_PER_K32, zpv[j_], scv[j_]);
@@ -415,8 +415,8 @@ KERNEL(gr_read_dpas)(const __global ushort* residual,
                     uint16 b[GR_P3_GB];
                     unroll_for (uint g_ = 0; g_ < GR_P3_GB; g_++) {
 #if GR_W_TYPE == GR_WT_U4
-                        const half2 scv = GR_WQ_SCALE2(scale_up, ((kb >> 1) + s_) >> GR_WU_GSL, GR_CD, (cg + g_) * GR_HIDDEN + d0);
-                        const half2 zpv = GR_WQ_ZP2(zp_up, ((kb >> 1) + s_) >> GR_WU_GSL, GR_CD, (cg + g_) * GR_HIDDEN + d0, lane);
+                        const half2 scv = GR_WQ_SCALE2(scale_up, (kb >> 1) + s_, GR_CD, (cg + g_) * GR_HIDDEN + d0);
+                        const half2 zpv = GR_WQ_ZP2(zp_up, (kb >> 1) + s_, GR_CD, (cg + g_) * GR_HIDDEN + d0, lane);
                         b[g_] = GR_WQ_DEQ32(rw[g_], s_ * GR_WQ_RAW_PER_K32, zpv, scv);
 #else
                         b[g_] = GR_WQ_DEQ32(rw[g_], s_ * GR_WQ_RAW_PER_K32, zpv[g_], scv[g_]);

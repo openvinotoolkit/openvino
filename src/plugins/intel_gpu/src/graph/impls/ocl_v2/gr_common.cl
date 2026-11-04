@@ -105,7 +105,7 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
     return as_float8(BLOCK_READN_SLM(uint, 8, (const __local uint*)p, 0));
 }
 
-// Compressed-weight (asymmetric u4 group 32, 64, 128 / u8 per-channel) helpers of the GatedResidual dpas kernels.
+// Compressed-weight (asymmetric u4 group 32 / u8 per-channel) helpers of the GatedResidual dpas kernels.
 //
 // A dpas B operand is b[j] = pack(B[2j][n = lane], B[2j+1][n = lane]): the two k values of one lane share a dword. W is
 // [N, K] with K contiguous, so a lane that owns row n reads its raw bytes and unpacks them in registers:
@@ -114,7 +114,6 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 // 0x6400 | v (v < 1024) is the half 1024 + v, so a pair becomes two halves with one mask/or; (pair - (1024 + zp)) * scale then
 // equals half(half(q - zp) * scale) of the decompression graph bit for bit (q - zp is exact in half, one RNE multiply).
 // scale / zp are [G, N] with N contiguous: one sub-group block read gives every lane the scale of its own output channel.
-// One u4 scale / zp row covers 1 << GR_<matrix>_GSL K32 slices.
 //
 // JIT of the including kernel: GR_W_TYPE (0 f16, 1 u4, 2 u8).
 
@@ -188,12 +187,12 @@ inline float8 FUNC(gr_ld8)(const __local float* p) {
 #define GR_WQ_FOLD (GR_W_TYPE == GR_WT_U8)
 
 #if GR_DEQUANT_WEIGHTS
-// Dequantizes one compressed GatedResidual weight matrix [N, K] (u4 group 32, 64, 128 / u8 per-channel, scale / zp [G, N]) into a
+// Dequantizes one compressed GatedResidual weight matrix [N, K] (u4 group 32 / u8 per-channel, scale / zp [G, N]) into a
 // row-major f16 scratch matrix with the arithmetic of the decompression graph, see the helpers above. The f16 GEMM kernels then run on
 // the scratch (experiment: compared against dequantizing inside the GEMM kernels, see OV_GPU_GR_PD_MIN_ROWS).
 //
 // One subgroup owns 16 rows x GR_DQ_KCH columns; lane l owns row 16 * tile + l.
-// JIT: GR_DEQUANT_WEIGHTS, GR_W_TYPE, GR_DQ_N, GR_DQ_K, GR_DQ_KCH, GR_DQ_NRAW (dwords per raw load), GR_DQ_RB (row bytes), GR_DQ_GSL.
+// JIT: GR_DEQUANT_WEIGHTS, GR_W_TYPE, GR_DQ_N, GR_DQ_K, GR_DQ_KCH, GR_DQ_NRAW (dwords per raw load), GR_DQ_RB (row bytes).
 // Dispatch: gws = [N / 16 * 16, K / GR_DQ_KCH, 1], lws = [16, 1, 1].
 
 #if GR_W_TYPE == GR_WT_F16
@@ -215,8 +214,8 @@ KERNEL(gr_dequant_weights)(const __global uchar* w, const __global ushort* scale
 #endif
     unroll_for (uint s_ = 0; s_ < GR_DQ_KCH / 32; s_++) {
 #if GR_W_TYPE == GR_WT_U4
-        const half2 scv = GR_WQ_SCALE2(scale, ((k >> 5) + s_) >> GR_DQ_GSL, GR_DQ_N, n0);
-        const half2 zpv = GR_WQ_ZP2(zp, ((k >> 5) + s_) >> GR_DQ_GSL, GR_DQ_N, n0, lane);
+        const half2 scv = GR_WQ_SCALE2(scale, (k >> 5) + s_, GR_DQ_N, n0);
+        const half2 zpv = GR_WQ_ZP2(zp, (k >> 5) + s_, GR_DQ_N, n0, lane);
 #endif
         const uint16 b = GR_WQ_DEQ32(rw, s_ * GR_WQ_RAW_PER_K32, zpv, scv);
         // the B operand dwords are (k, k + 1) pairs in k order, i.e. already the row-major f16 layout

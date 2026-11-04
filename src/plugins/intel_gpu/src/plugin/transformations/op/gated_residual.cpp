@@ -90,13 +90,9 @@ void GatedResidual::validate_and_infer_types() {
                 get_input_element_type(i).is_dynamic() || get_input_element_type(0).is_dynamic() || get_input_element_type(i) == get_input_element_type(0),
                 "GatedResidual (WRITE) inputs must share the residual element type.");
         }
-        // R' has exactly the residual layout, its width is known even when the residual's is not.
-        auto output_ps = residual_ps;
-        if (output_ps.rank().is_static()) {
-            output_ps[output_ps.size() - 1] = static_cast<int64_t>(m_hc_count * m_hidden_size);
-        }
+        // R' has exactly the residual layout.
         set_output_size(1);
-        set_output_type(0, out_et, output_ps);
+        set_output_type(0, out_et, residual_ps);
         return;
     }
 
@@ -190,7 +186,9 @@ void GatedResidual::validate_and_infer_types() {
                                       k,
                                       ", G = ",
                                       g,
-                                      "); supported: 32, 64 or 128 for u4, K (per-channel) for u8.");
+                                      "); supported: ",
+                                      int4_group_size,
+                                      " for u4, K (per-channel) for u8.");
                 NODE_VALIDATION_CHECK(this,
                                       is_weight_compression_supported(bits, n, k, g, n, k, g, false),
                                       "GatedResidual ",

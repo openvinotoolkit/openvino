@@ -60,8 +60,7 @@ public:
     };
 
     static constexpr size_t compressed_input_count = 8;
-    static constexpr size_t min_int4_group_size = 32;   ///< K32 slices of the kernels share a scale / zp row at this group size
-    static constexpr size_t max_int4_group_size = 128;  ///< u4 group sizes are powers of two in [32, 128]
+    static constexpr size_t int4_group_size = 32;  ///< the only group size along K the kernels support for u4 weights
 
     /// @brief Input indices for Mode::WRITE
     struct WriteInputIdx {
@@ -114,21 +113,13 @@ public:
     /// Geometry the kernels can execute; shared by the fusion pass and the impl's validate_impl.
     static constexpr size_t supported_hc_count = 4;
     static constexpr size_t max_lowrank = 512;        // kept in registers by gr_read.cl
-    static constexpr size_t max_total_width = 16384;  // C*D must fit into SLM as f16 in gr_read.cl
+    static constexpr size_t max_total_width = 16384;  // C*D must fit into SLM as f16
 
-    /// @param systolic the device runs the dpas READ kernels (is_compression_arch_supported), which keep Rbar and T in scratch
-    ///        buffers and are bound only by L being a multiple of 32; the two limits above belong to the scalar gr_read.cl.
-    static constexpr bool is_geometry_supported(Mode mode, size_t hc_count, size_t hidden_size, size_t lowrank, bool systolic = false) {
-        if (hc_count != supported_hc_count || hidden_size == 0 || hidden_size % 16 != 0) {
+    static constexpr bool is_geometry_supported(Mode mode, size_t hc_count, size_t hidden_size, size_t lowrank) {
+        if (hc_count != supported_hc_count || hidden_size == 0 || hidden_size % 16 != 0 || hc_count * hidden_size > max_total_width) {
             return false;
         }
-        if (mode == Mode::WRITE) {
-            return true;
-        }
-        if (systolic && lowrank != 0 && lowrank % 32 == 0) {
-            return true;
-        }
-        return hc_count * hidden_size <= max_total_width && lowrank != 0 && lowrank % 16 == 0 && lowrank <= max_lowrank;
+        return mode == Mode::WRITE || (lowrank != 0 && lowrank % 16 == 0 && lowrank <= max_lowrank);
     }
 
     /// Compressed weights run on the systolic path only.
@@ -141,15 +132,9 @@ public:
         return (g == 0 || k % g != 0) ? 0 : k / g;
     }
 
-    /// Group sizes the kernels support: 32, 64 or 128 for u4, per-channel (group size == K) for u8.
+    /// Group sizes the kernels support: 32 for u4, per-channel (group size == K) for u8.
     static constexpr bool is_group_size_supported(size_t bits, size_t k, size_t group_size) {
-        if (group_size == 0) {
-            return false;
-        }
-        if (bits != 4) {
-            return group_size == k;
-        }
-        return group_size >= min_int4_group_size && group_size <= max_int4_group_size && (group_size & (group_size - 1)) == 0;
+        return group_size != 0 && (bits == 4 ? group_size == int4_group_size : group_size == k);
     }
 
     /// Shared by the fusion pass and the impl's validate_impl. N/K/G are the weight rows / columns / scale rows of W_down and
