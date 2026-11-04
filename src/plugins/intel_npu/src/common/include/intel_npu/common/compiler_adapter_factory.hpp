@@ -41,8 +41,10 @@ public:
     /**
      * @brief Resolves PREFER_PLUGIN to PLUGIN or DRIVER without creating a compiler.
      *
-     * Only checks that the VCL library can be loaded. A compiler that loads but fails to be created is detected
-     * by getCompiler(), which then falls back to the driver compiler.
+     * Unlike the previous compiler construction probe, this decision checks only whether the provider can
+     * supply VCL entry points. Obtaining the entry points does not guarantee that a VCL compiler can be created.
+     * getCompiler() performs construction and falls back to the driver compiler for an eligible PREFER_PLUGIN
+     * request if construction fails.
      */
     void decideCompilerType(ov::intel_npu::CompilerType& compilerType,
                             const std::shared_ptr<intel_npu::IDevice>& device,

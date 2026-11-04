@@ -19,11 +19,10 @@
 
 namespace {
 
-using ::intel_npu::CompilerAdapterFactory;
-using ::intel_npu::VCLFunctionTable;
+using namespace ::intel_npu;
 using CompilerType = ov::intel_npu::CompilerType;
 
-class FactoryDevice final : public ::intel_npu::IDevice {
+class FactoryDevice final : public IDevice {
 public:
     explicit FactoryDevice(std::string name = "4000") : _name(std::move(name)) {}
 
@@ -33,9 +32,8 @@ public:
     std::string getFullDeviceName() const override {
         return "Factory test device";
     }
-    std::shared_ptr<::intel_npu::InferRequest> createInferRequest(
-        const std::shared_ptr<const ::intel_npu::ICompiledModel>&,
-        const ::intel_npu::Config&) override {
+    std::shared_ptr<InferRequest> createInferRequest(const std::shared_ptr<const ICompiledModel>&,
+                                                     const Config&) override {
         return nullptr;
     }
     void updateInfo(const ov::AnyMap&) override {}
@@ -54,13 +52,13 @@ private:
 // requests them first, without one.
 const std::string kDriverBranchReached = "Driver branch reached";
 
-class FactoryBackend final : public ::intel_npu::IEngineBackend {
+class FactoryBackend final : public IEngineBackend {
 public:
-    FactoryBackend(std::shared_ptr<::intel_npu::IDevice> device, bool throwOnInitStructs)
+    FactoryBackend(std::shared_ptr<IDevice> device, bool throwOnInitStructs)
         : _device(std::move(device)),
           _throwOnInitStructs(throwOnInitStructs) {}
 
-    const std::shared_ptr<::intel_npu::IDevice> getDevice() const override {
+    const std::shared_ptr<IDevice> getDevice() const override {
         return _device;
     }
     const std::string getName() const override {
@@ -76,7 +74,7 @@ public:
         return false;
     }
     void updateInfo(const ov::AnyMap&) override {}
-    const std::shared_ptr<::intel_npu::ZeroInitStructsHolder> getInitStructs() const override {
+    const std::shared_ptr<ZeroInitStructsHolder> getInitStructs() const override {
         if (_throwOnInitStructs) {
             OPENVINO_THROW(kDriverBranchReached);
         }
@@ -84,12 +82,12 @@ public:
     }
 
 private:
-    std::shared_ptr<::intel_npu::IDevice> _device;
+    std::shared_ptr<IDevice> _device;
     bool _throwOnInitStructs;
 };
 
-ov::SoPtr<::intel_npu::IEngineBackend> makeBackend(bool withDevice, bool throwOnInitStructs = false) {
-    return ov::SoPtr<::intel_npu::IEngineBackend>(
+ov::SoPtr<IEngineBackend> makeBackend(bool withDevice, bool throwOnInitStructs = false) {
+    return ov::SoPtr<IEngineBackend>(
         std::make_shared<FactoryBackend>(withDevice ? std::make_shared<FactoryDevice>() : nullptr, throwOnInitStructs));
 }
 

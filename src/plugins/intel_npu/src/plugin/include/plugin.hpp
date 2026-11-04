@@ -88,7 +88,7 @@ private:
     //  Appropriate checks are needed in plugin/metrics/properties when actions depend on a backend.
     ov::SoPtr<IEngineBackend> _backend;
 
-    // Defers VCL loading until compiler construction or profiling decoder creation needs it.
+    // Delays VCL loading until compiler construction or profiling decoder creation needs it.
     std::shared_ptr<VCLLoaderHolder> _vclLoaderHolder;
 
     mutable Logger _logger;

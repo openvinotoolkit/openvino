@@ -24,20 +24,22 @@
 
 namespace {
 
+using namespace ::intel_npu;
+
 const std::string kMissingLibraryDir = "npu_vcl_loader_holder_missing_dir";
 
 TEST(VCLLoaderHolderTests, Construction_WithMissingLibrary_DoesNotLoad) {
-    EXPECT_NO_THROW(::intel_npu::VCLLoaderHolder{kMissingLibraryDir});
-    EXPECT_NO_THROW(::intel_npu::VCLLoaderHolder{});
+    EXPECT_NO_THROW(VCLLoaderHolder{kMissingLibraryDir});
+    EXPECT_NO_THROW(VCLLoaderHolder{});
 }
 
 TEST(VCLLoaderHolderTests, Functions_WithMissingLibrary_Throws) {
-    const ::intel_npu::VCLLoaderHolder holder(kMissingLibraryDir);
+    const VCLLoaderHolder holder(kMissingLibraryDir);
     EXPECT_THROW(holder.functions(), ov::Exception);
 }
 
 TEST(VCLLoaderHolderTests, Functions_WithEmptyLibraryDir_Throws) {
-    const ::intel_npu::VCLLoaderHolder holder{std::string{}};
+    const VCLLoaderHolder holder{std::string{}};
     EXPECT_THROW(holder.functions(), ov::Exception);
 }
 
@@ -58,7 +60,7 @@ protected:
 };
 
 TEST_F(VCLLoaderHolderFailedLoadTests, Functions_AfterFailedLoad_RethrowsFirstErrorWithoutLoadingAgain) {
-    const ::intel_npu::VCLLoaderHolder holder(ov::util::path_to_string(directory));
+    const VCLLoaderHolder holder(ov::util::path_to_string(directory));
     std::string firstError;
     try {
         holder.functions();
@@ -80,7 +82,7 @@ TEST_F(VCLLoaderHolderFailedLoadTests, Functions_AfterFailedLoad_RethrowsFirstEr
 }
 
 TEST(VCLLoaderHolderTests, Functions_CalledConcurrentlyWithMissingLibrary_EveryCallThrows) {
-    const ::intel_npu::VCLLoaderHolder holder(kMissingLibraryDir);
+    const VCLLoaderHolder holder(kMissingLibraryDir);
     constexpr size_t threadCount = 8;
     std::atomic<size_t> throwCount{0};
     std::promise<void> startSignal;
@@ -120,13 +122,13 @@ protected:
 };
 
 TEST_F(VCLLoaderHolderLibraryTests, Functions_AfterHolderDestroyed_LibraryRemainsCallableUntilTableReleased) {
-    std::shared_ptr<const ::intel_npu::VCLFunctionTable> functions;
+    std::shared_ptr<const VCLFunctionTable> functions;
     {
-        const ::intel_npu::VCLLoaderHolder holder(directory);
+        const VCLLoaderHolder holder(directory);
         functions = holder.functions();
     }
     ASSERT_NE(functions, nullptr);
-    std::weak_ptr<const ::intel_npu::VCLFunctionTable> owner = functions;
+    std::weak_ptr<const VCLFunctionTable> owner = functions;
     vcl_version_info_t compilerVersion{};
     vcl_version_info_t profilingVersion{};
     ASSERT_NE(functions->vclGetVersion, nullptr);
@@ -136,11 +138,11 @@ TEST_F(VCLLoaderHolderLibraryTests, Functions_AfterHolderDestroyed_LibraryRemain
 }
 
 TEST_F(VCLLoaderHolderLibraryTests, Functions_ConcurrentFirstCalls_ReturnSameTable) {
-    const ::intel_npu::VCLLoaderHolder holder(directory);
+    const VCLLoaderHolder holder(directory);
     constexpr size_t threadCount = 8;
     std::promise<void> startSignal;
     const auto start = startSignal.get_future().share();
-    std::array<std::future<std::shared_ptr<const ::intel_npu::VCLFunctionTable>>, threadCount> calls;
+    std::array<std::future<std::shared_ptr<const VCLFunctionTable>>, threadCount> calls;
     for (auto& call : calls) {
         call = std::async(std::launch::async, [&holder, start] {
             start.wait();

@@ -130,8 +130,6 @@ ov::intel_npu::CompilerType CompilerAdapterFactory::resolvePreferPluginCompiler(
         return ov::intel_npu::CompilerType::DRIVER;
     }
 
-    // The actual compiler will be created in getCompiler(). The provider remembers a failed load, so asking
-    // again does not repeat it.
     try {
         _vclFunctions();
     } catch (const std::exception& ex) {

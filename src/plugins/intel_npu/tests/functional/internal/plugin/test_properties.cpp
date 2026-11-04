@@ -47,8 +47,10 @@ namespace ov {
 namespace test {
 namespace behavior {
 namespace {
-::intel_npu::VCLFunctionTableProvider testVclFunctions() {
-    static const auto holder = std::make_shared<::intel_npu::VCLLoaderHolder>();
+using namespace ::intel_npu;
+
+VCLFunctionTableProvider testVclFunctions() {
+    static const auto holder = std::make_shared<VCLLoaderHolder>();
     return [] {
         return holder->functions();
     };
