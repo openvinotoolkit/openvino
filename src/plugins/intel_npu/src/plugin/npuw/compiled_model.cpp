@@ -222,7 +222,8 @@ void validate_closure_metadata_sizes(std::size_t closure_size,
 
 std::shared_ptr<ov::weight_sharing::Context> extract_model_sharing_context(ov::AnyMap& config) {
     if (auto it = config.find(ov::internal::model_sharing_context.name()); it != config.end()) {
-        if (auto shared_ctx_ptr = it->second.as<std::shared_ptr<ov::weight_sharing::Context>>(); shared_ctx_ptr != nullptr) {
+        if (auto shared_ctx_ptr = it->second.as<std::shared_ptr<ov::weight_sharing::Context>>();
+            shared_ctx_ptr != nullptr) {
             return shared_ctx_ptr;
         }
     }
