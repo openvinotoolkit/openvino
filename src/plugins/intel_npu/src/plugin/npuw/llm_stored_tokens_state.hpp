@@ -13,7 +13,6 @@ namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
-class WhisperInferRequest;
 
 // Special VariableState for already processed/stored tokens in LLM.
 // Allows external pipelines to call reset on that state where needed.
@@ -34,7 +33,6 @@ class WhisperInferRequest;
 class StoredTokensState : public ov::IVariableState {
 public:
     friend class ov::npuw::LLMInferRequest;
-    friend class ov::npuw::WhisperInferRequest;
 
     // External pipelines find this state by name, so the name is part of the contract.
     static constexpr const char* state_name = "npuw_stored_tokens_state";
