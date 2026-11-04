@@ -544,6 +544,13 @@ bool GroupQueryAttention::has_query_seqlens() const {
     return pos < get_input_size() && !ov::util::is_empty_constant_tensor(input_value(pos));
 }
 
+bool GroupQueryAttention::has_padded_query() const {
+    const auto& q_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::QUERY));
+    const bool single_token =
+        q_ps.rank().is_static() && q_ps.rank().get_length() == 4 && q_ps[2].is_static() && q_ps[2].get_length() == 1;
+    return has_query_seqlens() && !single_token;
+}
+
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(GroupQueryAttention_visit_attributes);
     visitor.on_attribute("causal", m_causal);

@@ -885,6 +885,17 @@ TEST(type_prop, group_query_attention_query_seqlens) {
     const auto plain =
         std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
     EXPECT_FALSE(plain->has_query_seqlens());
+    EXPECT_TRUE(op->has_padded_query());
+    EXPECT_FALSE(plain->has_padded_query());
+
+    // A single-token step ignores query_seqlens, so it lowers as if the input were absent.
+    auto decode_args = make_gqa_query_seqlens_args();
+    for (size_t i = 0; i < 3; ++i) {
+        decode_args[i] = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{1, i == 0 ? 6 : 2, 1, 8});
+    }
+    const auto decode = std::make_shared<op::internal::GroupQueryAttention>(decode_args, 6, 2, 1.0f, false, false);
+    EXPECT_TRUE(decode->has_query_seqlens());
+    EXPECT_FALSE(decode->has_padded_query());
 }
 
 TEST(type_prop, group_query_attention_query_seqlens_invalid) {

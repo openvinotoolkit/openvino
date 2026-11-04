@@ -145,7 +145,7 @@ GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecompositio
 
     // StatelessKV rolls a windowed cache by its present length, which a right-padded chunk (query_seqlens) would
     // overstate; the generic staging path writes back only the valid rows.
-    const bool query_seqlens = node->has_query_seqlens();
+    const bool query_seqlens = node->has_padded_query();
     if (query_seqlens && node->get_sliding_window_cache()) {
         // GPU SDPA broadcasts the KV heads natively; the explicit chain groups them itself.
         metadata.should_broadcast_kv = false;
