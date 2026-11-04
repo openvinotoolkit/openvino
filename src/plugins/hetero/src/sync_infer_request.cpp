@@ -52,6 +52,9 @@ ov::hetero::InferRequest::InferRequest(const std::shared_ptr<const ov::hetero::C
         m_subrequests[submodel_idx_out]->set_tensor(output_port, temp_tensor_map[output_port]);
         const auto& input_port = m_subrequests[submodel_idx_in]->get_compiled_model()->inputs()[port_idx_in];
         m_subrequests[submodel_idx_in]->set_tensor(input_port, temp_tensor_map[output_port]);
+
+        // Cache the connection for dynamic shape propagation in infer()
+        m_submodel_connections.push_back({submodel_idx_out, output_port, submodel_idx_in, input_port});
     }
 }
 
