@@ -95,6 +95,60 @@ TPGatedMLPBlock::TPGatedMLPBlock(const TPAnalyzerConfig& config, TPAnalysisRepor
     });
 }
 
+TPFusedGateUpMLPBlock::TPFusedGateUpMLPBlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report) {
+    auto gate = any_input();
+    auto up = any_input();
+    auto act = activation(gate);
+    auto mul = wrap_type<ov::op::v1::Multiply>({act, up}) | wrap_type<ov::op::v1::Multiply>({up, act});
+    auto down = wrap_type<ov::op::v0::MatMul>({mul, any_input()});
+
+    register_matcher(std::make_shared<Matcher>(down, get_type_info().name), [=](Matcher& m) {
+        const auto& map = m.get_pattern_value_map();
+        const auto d = map.at(down).get_node_shared_ptr();
+        const auto g = map.at(gate);
+        const auto u = map.at(up);
+        // Both parts split off one projection's output.
+        const auto split = g.get_node_shared_ptr();
+        if (!is_linear_layer(d.get()) || claimed(d) || split->get_input_size() == 0)
+            return false;
+        const auto fused_output = split->input_value(0);
+        const auto producers = nearest_producer_matmuls(fused_output);
+        if (producers.size() != 1 || claimed(producers.front()) || projection_output(producers.front()) != fused_output)
+            return false;
+        const auto parts = feature_parts(fused_output);
+        if (parts.size() != 2 || (parts[0] != g && parts[1] != g) || (parts[0] != u && parts[1] != u) || g == u)
+            return false;
+
+        const auto gate_up = producers.front();
+        const int64_t size = weight_dim(d, weight_axes(d).in_features);
+        for (const auto& part : parts) {
+            const auto& shape = part.get_partial_shape();
+            const auto& dim = shape[shape.rank().get_length() - 1];
+            OPENVINO_ASSERT(dim.is_static() && dim.get_length() == size,
+                            "[TP] '", gate_up->get_friendly_name(), "' is split into parts of ", dim, " features where '",
+                            d->get_friendly_name(), "' takes ", size);
+        }
+        int64_t unit = 1;
+        for (const auto& [matmul, axis, full] : {std::tuple{gate_up, weight_axes(gate_up).out_features, 2 * size},
+                                                 std::tuple{d, weight_axes(d).in_features, size}}) {
+            const int64_t step = chain_granularity(matmul->input_value(1), axis, full);
+            if (step > 0 && size % step == 0)
+                unit = std::lcm(unit, step);
+        }
+        const Segment segment{static_cast<size_t>(size), static_cast<size_t>(size % unit == 0 ? unit : 1)};
+        const std::string block = "TPFusedGateUpMLPBlock";
+        if (!annotate_projection(gate_up, ShardStrategy::COLUMN_PARALLEL, {segment, segment}, Collective::NONE, config.world_size, block))
+            report->runtime_slices.push_back(gate_up->get_friendly_name());
+        annotate_feature_parts(fused_output, {segment, segment}, block);
+        if (!annotate_projection(d, ShardStrategy::ROW_PARALLEL, {segment}, Collective::ALL_REDUCE, config.world_size, block))
+            report->runtime_slices.push_back(d->get_friendly_name());
+        ++report->mlp_blocks;
+        if (report->intermediate_size == 0)
+            report->intermediate_size = size;
+        return false;
+    });
+}
+
 TPDenseMLPBlock::TPDenseMLPBlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report) {
     auto up = wrap_type<ov::op::v0::MatMul>({any_input(), any_input()});
     auto down = wrap_type<ov::op::v0::MatMul>({activation(with_bias(up)), any_input()});

@@ -41,8 +41,8 @@ enum class Collective { NONE, ALL_REDUCE, GATHER };
 /// rt_info["tp_shard"]: how a rank-dependent node is cut per rank.
 ///
 /// On a Constant without `elements`: the tensor is sliced along `axis`.
-/// On a Constant with `elements`: a shape constant; those elements hold the
-/// split dimension's global size and get the rank's size.
+/// On a Constant with `elements`: a shape constant whose listed elements get rank values, as
+/// `element_mode` says.
 /// On a ReadValue: its variable's shape is cut along `axis`.
 /// On any node with `input` >= 0: that input is sliced along `axis` at run time
 /// (a weight chain that cannot be cut at compile time).
@@ -51,6 +51,13 @@ enum class Collective { NONE, ALL_REDUCE, GATHER };
 class ShardAnnotation : public ov::RuntimeAttribute {
 public:
     OPENVINO_RTTI("tp_shard", "0", ov::RuntimeAttribute);
+
+    /// What the listed elements of a shape constant hold.
+    enum class Elements {
+        SIZE,           ///< the split dimension's size: the rank's size of all segments
+        SEGMENT_SIZES,  ///< listed element i: the size of segment i (split lengths of a fused projection)
+        BOUNDS,         ///< a boundary between segments: the rank's boundary (slice bounds of a fused projection)
+    };
 
     ShardAnnotation() = default;
     ShardAnnotation(ShardStrategy strategy, int64_t axis, std::vector<Segment> segments, std::string block)
@@ -64,6 +71,7 @@ public:
     std::vector<Segment> segments;
     std::string block;  ///< block pass that set it
     std::vector<size_t> elements;
+    Elements element_mode = Elements::SIZE;
     std::vector<std::string> rt_keys;
     int64_t input = -1;
 
@@ -134,6 +142,9 @@ std::vector<Range> rank_ranges(const std::vector<Segment>& segments, size_t rank
 
 /// Total length of `rank`'s ranges.
 size_t rank_length(const std::vector<Segment>& segments, size_t rank, size_t world_size);
+
+/// The rank's value of the `listed`-th element of an annotated shape constant whose global value is `global`.
+int64_t localize(const ShardAnnotation& annotation, size_t listed, int64_t global, size_t rank, size_t world_size);
 
 }  // namespace tp
 }  // namespace ov

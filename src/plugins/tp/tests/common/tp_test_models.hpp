@@ -7,7 +7,9 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -26,6 +28,14 @@ inline std::string tp_device(size_t world_size) {
     }
     return name;
 }
+
+/// How a fused projection's output is split into its parts, the way checkpoints export them.
+enum class Fused {
+    NONE,            ///< separate projections
+    SPLIT,           ///< equal chunks: torch.chunk
+    VARIADIC_SPLIT,  ///< torch.split with sizes
+    SLICES,          ///< x[..., a:b] per part, the last one open-ended (Phi-3's qkv)
+};
 
 /// Geometry of the synthetic transformer block.
 ///
@@ -49,6 +59,10 @@ struct BlockConfig {
     bool gated_mlp = true;
     /// Wrap K and V in a ReadValue/Assign KV cache.
     bool stateful = false;
+    /// One qkv_proj split into Q, K and V (VARIADIC_SPLIT or SLICES).
+    Fused qkv = Fused::NONE;
+    /// One gate_up_proj split into gate and up (SPLIT or VARIADIC_SPLIT).
+    Fused gate_up = Fused::NONE;
 };
 
 /// A linear layer with a decompressed weight, matching how PyTorch exports one:
@@ -97,6 +111,69 @@ inline std::shared_ptr<ov::Node> reshape_to_heads(const ov::Output<ov::Node>& in
 inline std::shared_ptr<ov::Node> transpose_heads(const ov::Output<ov::Node>& input) {
     auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 1, 3});
     return std::make_shared<ov::op::v1::Transpose>(input, order);
+}
+
+/// Splits the last axis of `x` into parts of `lengths`, the way `how` says.
+inline ov::OutputVector split_features(const ov::Output<ov::Node>& x, const std::vector<int64_t>& lengths, Fused how) {
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{-1});
+    switch (how) {
+    case Fused::SPLIT:
+        return std::make_shared<ov::op::v1::Split>(x, axis, lengths.size())->outputs();
+    case Fused::VARIADIC_SPLIT:
+        return std::make_shared<ov::op::v1::VariadicSplit>(
+                   x, axis, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{lengths.size()}, lengths))
+            ->outputs();
+    case Fused::SLICES: {
+        ov::OutputVector parts;
+        int64_t start = 0;
+        for (size_t i = 0; i < lengths.size(); ++i) {
+            const int64_t stop = i + 1 == lengths.size() ? std::numeric_limits<int64_t>::max() : start + lengths[i];
+            auto bound = [](int64_t v) {
+                return ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{v});
+            };
+            parts.push_back(std::make_shared<ov::op::v8::Slice>(x, bound(start), bound(stop), bound(1), bound(-1)));
+            start += lengths[i];
+        }
+        return parts;
+    }
+    case Fused::NONE:
+        break;
+    }
+    return {x};
+}
+
+/// The Q, K and V projections of `data`: three MatMuls, or one qkv_proj split as `config.qkv` says.
+inline std::array<ov::Output<ov::Node>, 3> make_qkv(const ov::Output<ov::Node>& data, const BlockConfig& config) {
+    const auto q_features = config.num_heads * config.head_dim;
+    const auto kv_features = config.num_kv_heads * config.head_dim;
+    if (config.qkv == Fused::NONE) {
+        return {make_projection(data, config.hidden, q_features, config, config.with_bias, 1)->output(0),
+                make_projection(data, config.hidden, kv_features, config, config.with_bias, 2)->output(0),
+                make_projection(data, config.hidden, kv_features, config, config.with_bias, 3)->output(0)};
+    }
+    auto qkv = make_projection(data, config.hidden, q_features + 2 * kv_features, config, config.with_bias, 1);
+    qkv->set_friendly_name("qkv_proj");
+    const auto parts = split_features(qkv,
+                                      {static_cast<int64_t>(q_features), static_cast<int64_t>(kv_features),
+                                       static_cast<int64_t>(kv_features)},
+                                      config.qkv);
+    return {parts[0], parts[1], parts[2]};
+}
+
+/// What the down projection reads: act(up(x)), act(gate(x)) * up(x), or the same with one gate_up_proj.
+inline ov::Output<ov::Node> make_mlp_body(const ov::Output<ov::Node>& x, const BlockConfig& config) {
+    if (config.gate_up != Fused::NONE) {
+        auto gate_up = make_projection(x, config.hidden, 2 * config.intermediate, config, false, 5);
+        gate_up->set_friendly_name("gate_up_proj");
+        const auto size = static_cast<int64_t>(config.intermediate);
+        const auto parts = split_features(gate_up, {size, size}, config.gate_up);
+        return std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v4::Swish>(parts[0]), parts[1]);
+    }
+    auto up = make_projection(x, config.hidden, config.intermediate, config, false, 6);
+    if (!config.gated_mlp)
+        return std::make_shared<ov::op::v4::Swish>(up);
+    auto gate = make_projection(x, config.hidden, config.intermediate, config, false, 5);
+    return std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v4::Swish>(gate), up);
 }
 
 /// Expands KV heads up to the query head count the way exported models do:
@@ -158,16 +235,13 @@ inline std::shared_ptr<ov::Node> make_kv_cache(const ov::Output<ov::Node>& curre
 /// One transformer block: grouped-query attention followed by an MLP.
 inline std::shared_ptr<ov::Model> make_transformer_block(const BlockConfig& config) {
     const auto q_features = config.num_heads * config.head_dim;
-    const auto kv_features = config.num_kv_heads * config.head_dim;
 
     auto data = std::make_shared<ov::op::v0::Parameter>(
         ov::element::f32,
         ov::PartialShape{1, ov::Dimension::dynamic(), static_cast<int64_t>(config.hidden)});
     data->set_friendly_name("input");
 
-    auto q = make_projection(data, config.hidden, q_features, config, config.with_bias, 1);
-    auto k = make_projection(data, config.hidden, kv_features, config, config.with_bias, 2);
-    auto v = make_projection(data, config.hidden, kv_features, config, config.with_bias, 3);
+    const auto [q, k, v] = make_qkv(data, config);
 
     auto q_heads = transpose_heads(reshape_to_heads(q, config.num_heads, config.head_dim));
     std::shared_ptr<ov::Node> k_heads = transpose_heads(reshape_to_heads(k, config.num_kv_heads, config.head_dim));
@@ -192,14 +266,7 @@ inline std::shared_ptr<ov::Model> make_transformer_block(const BlockConfig& conf
 
     auto out_proj = make_projection(attention_out, q_features, config.hidden, config, false, 4);
     auto residual = std::make_shared<ov::op::v1::Add>(data, out_proj);
-
-    auto up = make_projection(residual, config.hidden, config.intermediate, config, false, 6);
-    std::shared_ptr<ov::Node> mlp_body = std::make_shared<ov::op::v4::Swish>(up);
-    if (config.gated_mlp) {
-        auto gate = make_projection(residual, config.hidden, config.intermediate, config, false, 5);
-        mlp_body = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v4::Swish>(gate), up);
-    }
-    auto down = make_projection(mlp_body, config.intermediate, config.hidden, config, false, 7);
+    auto down = make_projection(make_mlp_body(residual, config), config.intermediate, config.hidden, config, false, 7);
 
     auto result = std::make_shared<ov::op::v1::Add>(residual, down);
     return std::make_shared<ov::Model>(ov::OutputVector{result}, sinks, ov::ParameterVector{data}, "TPTestBlock");
@@ -236,7 +303,6 @@ inline std::shared_ptr<ov::Model> make_block_with_lm_head(const BlockConfig& con
 /// model leaves them: whoever allocates the cache decides both.
 inline std::shared_ptr<ov::Model> make_paged_attention_block(const BlockConfig& config) {
     const auto q_features = config.num_heads * config.head_dim;
-    const auto kv_features = config.num_kv_heads * config.head_dim;
 
     // Tokens come first and the batch axis sits second, which is the layout a
     // converted model carries: continuous batching flattens every sequence of
@@ -251,9 +317,7 @@ inline std::shared_ptr<ov::Model> make_paged_attention_block(const BlockConfig& 
     // ports have no meaningful order to a caller.
     data->output(0).set_names({"input"});
 
-    auto q = make_projection(data, config.hidden, q_features, config, config.with_bias, 1);
-    auto k = make_projection(data, config.hidden, kv_features, config, config.with_bias, 2);
-    auto v = make_projection(data, config.hidden, kv_features, config, config.with_bias, 3);
+    const auto [q, k, v] = make_qkv(data, config);
 
     // Heads are formed and transposed exactly as in the SDPA block -- that is
     // where rotary embeddings would sit -- and only then flattened for the op.
@@ -369,14 +433,7 @@ inline std::shared_ptr<ov::Model> make_paged_attention_block(const BlockConfig& 
 
     auto out_proj = make_projection(attention_out, q_features, config.hidden, config, false, 4);
     auto residual = std::make_shared<ov::op::v1::Add>(data, out_proj);
-
-    auto up = make_projection(residual, config.hidden, config.intermediate, config, false, 6);
-    std::shared_ptr<ov::Node> mlp_body = std::make_shared<ov::op::v4::Swish>(up);
-    if (config.gated_mlp) {
-        auto gate = make_projection(residual, config.hidden, config.intermediate, config, false, 5);
-        mlp_body = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v4::Swish>(gate), up);
-    }
-    auto down = make_projection(mlp_body, config.intermediate, config.hidden, config, false, 7);
+    auto down = make_projection(make_mlp_body(residual, config), config.intermediate, config.hidden, config, false, 7);
 
     auto result = std::make_shared<ov::op::v1::Add>(residual, down);
     return std::make_shared<ov::Model>(ov::OutputVector{result},

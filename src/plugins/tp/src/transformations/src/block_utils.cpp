@@ -4,7 +4,9 @@
 
 #include "block_utils.hpp"
 
+#include <algorithm>
 #include <numeric>
+#include <optional>
 #include <unordered_set>
 
 #include "openvino/core/except.hpp"
@@ -131,8 +133,8 @@ int64_t weight_dim(const std::shared_ptr<ov::Node>& matmul, int64_t axis) {
     return dim.is_static() ? dim.get_length() : 0;
 }
 
-bool read_head_layout(const std::shared_ptr<ov::Node>& projection, int64_t& heads, int64_t& head_dim) {
-    for (const auto& target : projection_output(projection).get_target_inputs()) {
+bool read_head_layout(const ov::Output<ov::Node>& projection, int64_t& heads, int64_t& head_dim) {
+    for (const auto& target : projection.get_target_inputs()) {
         auto consumer = target.get_node()->shared_from_this();
         if (!ov::is_type<ov::op::v1::Reshape>(consumer))
             continue;
@@ -421,15 +423,106 @@ bool annotate_shape_input(const std::shared_ptr<ov::Node>& node,
                           size_t port,
                           std::vector<size_t> elements,
                           const std::vector<Segment>& segments,
-                          const std::string& block) {
+                          const std::string& block,
+                          ShardAnnotation::Elements mode) {
     if (!ov::is_type<ov::op::v0::Constant>(node->get_input_node_ptr(port)))
         return false;
     privatize(node->input(port));
     auto shape = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(port));
     ShardAnnotation annotation(ShardStrategy::COLUMN_PARALLEL, -1, segments, block);
     annotation.elements = std::move(elements);
+    annotation.element_mode = mode;
     set_shard(shape, annotation);
     return true;
+}
+
+namespace {
+
+int64_t last_axis(const ov::Output<ov::Node>& output) {
+    const auto& shape = output.get_partial_shape();
+    return shape.rank().is_static() ? shape.rank().get_length() - 1 : -1;
+}
+
+std::optional<int64_t> scalar_axis(const ov::Output<ov::Node>& axis, int64_t rank) {
+    const auto c = ov::as_type_ptr<ov::op::v0::Constant>(axis.get_node_shared_ptr());
+    if (!c || ov::shape_size(c->get_shape()) != 1)
+        return std::nullopt;
+    const auto value = c->cast_vector<int64_t>()[0];
+    return value < 0 ? value + rank : value;
+}
+
+/// A Slice of `output`'s last axis with constant bounds and step 1: its start, else nullopt.
+std::optional<int64_t> feature_slice_start(const ov::Node* node, int64_t last) {
+    if (!ov::is_type<ov::op::v8::Slice>(node) || node->get_input_size() < 5)
+        return std::nullopt;
+    const auto axes = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(4));
+    const auto start = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+    const auto stop = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(2));
+    const auto step = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(3));
+    if (!axes || !start || !stop || !step || ov::shape_size(axes->get_shape()) != 1)
+        return std::nullopt;
+    const auto axis = axes->cast_vector<int64_t>()[0];
+    if ((axis < 0 ? axis + last + 1 : axis) != last || step->cast_vector<int64_t>()[0] != 1)
+        return std::nullopt;
+    return start->cast_vector<int64_t>()[0];
+}
+
+}  // namespace
+
+std::vector<ov::Output<ov::Node>> feature_parts(const ov::Output<ov::Node>& output) {
+    const int64_t last = last_axis(output);
+    if (last < 0)
+        return {};
+    const auto targets = output.get_target_inputs();
+    if (targets.size() == 1) {
+        const auto node = targets.begin()->get_node()->shared_from_this();
+        if (ov::is_type_any_of<ov::op::v1::Split, ov::op::v1::VariadicSplit>(node) &&
+            scalar_axis(node->input_value(1), last + 1) == last)
+            return node->outputs();
+    }
+    std::vector<std::pair<int64_t, ov::Output<ov::Node>>> slices;
+    for (const auto& target : targets) {
+        if (ov::is_type_any_of<ov::op::v0::ShapeOf, ov::op::v3::ShapeOf>(target.get_node()))
+            continue;
+        const auto start = feature_slice_start(target.get_node(), last);
+        if (!start || target.get_index() != 0)
+            return {};
+        slices.emplace_back(*start, target.get_node()->output(0));
+    }
+    std::sort(slices.begin(), slices.end(), [](const auto& a, const auto& b) {
+        return a.first < b.first;
+    });
+    std::vector<ov::Output<ov::Node>> parts;
+    for (const auto& slice : slices)
+        parts.push_back(slice.second);
+    return parts.size() > 1 ? parts : std::vector<ov::Output<ov::Node>>{};
+}
+
+void annotate_feature_parts(const ov::Output<ov::Node>& output, const std::vector<Segment>& segments, const std::string& block) {
+    const auto parts = feature_parts(output);
+    OPENVINO_ASSERT(parts.size() == segments.size(),
+                    "[TP] The fused projection output '", output.get_node()->get_friendly_name(), "' is split into ",
+                    parts.size(), " parts where ", segments.size(), " are expected");
+    const auto node = parts.front().get_node_shared_ptr();
+    if (ov::is_type<ov::op::v1::Split>(node)) {
+        // Equal chunks stay equal on every rank only if the segments split alike.
+        for (const auto& segment : segments)
+            OPENVINO_ASSERT(segment == segments.front(),
+                            "[TP] '", node->get_friendly_name(), "' splits equal chunks of segments that do not split alike");
+        return;
+    }
+    if (ov::is_type<ov::op::v1::VariadicSplit>(node)) {
+        std::vector<size_t> elements(segments.size());
+        std::iota(elements.begin(), elements.end(), size_t{0});
+        OPENVINO_ASSERT(annotate_shape_input(node, 2, elements, segments, block, ShardAnnotation::Elements::SEGMENT_SIZES),
+                        "[TP] The split lengths of '", node->get_friendly_name(), "' are not constant");
+        return;
+    }
+    for (const auto& part : parts) {
+        const auto slice = part.get_node_shared_ptr();
+        for (const size_t port : {1, 2})
+            annotate_shape_input(slice, port, {0}, segments, block, ShardAnnotation::Elements::BOUNDS);
+    }
 }
 
 }  // namespace blocks

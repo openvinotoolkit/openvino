@@ -222,4 +222,20 @@ TEST(TPShardingVerifierTest, FailsTheAnalysisOfAnUnadjustedComputedShape) {
                     AllOf(HasSubstr("Sharding verification failed"), HasSubstr("holds 256 for the split output axis 2")));
 }
 
+// A fused gate_up_proj split with the global lengths would hand rank 0 only gate features and
+// rank 1 only up features.
+TEST(TPShardingVerifierTest, RejectsAFusedSplitWithGlobalLengths) {
+    BlockConfig config;
+    config.gate_up = Fused::VARIADIC_SPLIT;
+    auto model = make_transformer_block(config);
+    analyze(model, 2);
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v1::VariadicSplit>(node))
+            node->get_input_node_ptr(2)->get_rt_info().erase(ShardAnnotation::get_type_info_static());
+    }
+    OV_EXPECT_THROW(TPShardingVerifier(2).run_on_model(model),
+                    ov::Exception,
+                    AllOf(HasSubstr("(VariadicSplit)"), HasSubstr("is not its share of the global part")));
+}
+
 }  // namespace ov::tp::tests

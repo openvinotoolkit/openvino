@@ -294,11 +294,15 @@ TEST_F(TPPagedAttentionTest, MatchesSingleGpuOnAPrefill) {
 }
 
 TEST_F(TPPagedAttentionTest, MatchesSingleGpuAcrossTwoSteps) {
-    // One KV head: both ranks keep it and half of its query heads each.
+    // One KV head: both ranks keep it and half of its query heads each. Fused projections: one
+    // weight per fused projection, cut per part.
     BlockConfig one_kv_head;
     one_kv_head.num_kv_heads = 1;
-    for (const auto& config : {BlockConfig{}, one_kv_head}) {
-        SCOPED_TRACE(std::to_string(config.num_kv_heads) + " KV heads");
+    BlockConfig fused;
+    fused.qkv = Fused::VARIADIC_SPLIT;
+    fused.gate_up = Fused::SPLIT;
+    for (const auto& config : {BlockConfig{}, one_kv_head, fused}) {
+        SCOPED_TRACE(std::to_string(config.num_kv_heads) + " KV heads, fused " + std::to_string(config.qkv != Fused::NONE));
         auto model = make_paged_attention_block(config);
 
         auto reference_model = core.compile_model(model, "GPU", gpu_config());

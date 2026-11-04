@@ -84,12 +84,35 @@ Geometry annotate_attention(const std::shared_ptr<ov::Node>& attention,
                     "[TP] Could not find the out projection following '", attention->get_friendly_name(),
                     "'. Model may not be supported.");
 
+    // A fused qkv_proj: one MatMul whose output is split into Q, K and V.
+    const bool fused = qkv[0] == qkv[1] && qkv[1] == qkv[2];
+    ov::Output<ov::Node> parts[3];
+    if (fused) {
+        const auto split = feature_parts(projection_output(qkv[0]));
+        OPENVINO_ASSERT(split.size() == 3,
+                        "[TP] The fused projection '", qkv[0]->get_friendly_name(), "' feeding '",
+                        attention->get_friendly_name(), "' is not split into Q, K and V along its features");
+        std::copy(split.begin(), split.end(), parts);
+    } else {
+        OPENVINO_ASSERT(qkv[0] != qkv[1] && qkv[1] != qkv[2] && qkv[0] != qkv[2],
+                        "[TP] '", attention->get_friendly_name(), "' takes two of its inputs from one projection");
+        for (size_t i = 0; i < 3; ++i)
+            parts[i] = projection_output(qkv[i]);
+    }
+    auto features = [](const ov::Output<ov::Node>& part) -> int64_t {
+        const auto& shape = part.get_partial_shape();
+        const auto& dim = shape[shape.rank().get_length() - 1];
+        return dim.is_static() ? dim.get_length() : 0;
+    };
+
     Geometry g;
-    OPENVINO_ASSERT(read_head_layout(qkv[0], g.heads, g.head_dim),
+    OPENVINO_ASSERT(read_head_layout(parts[0], g.heads, g.head_dim),
                     "[TP] Could not determine the head layout of '", attention->get_friendly_name(),
                     "': its query projection is not followed by a Reshape with a static shape constant");
-    const int64_t q_features = weight_dim(qkv[0], weight_axes(qkv[0]).out_features);
-    const int64_t kv_features = weight_dim(qkv[1], weight_axes(qkv[1]).out_features);
+    const int64_t q_features = features(parts[0]);
+    const int64_t kv_features = features(parts[1]);
+    OPENVINO_ASSERT(features(parts[2]) == kv_features,
+                    "[TP] '", attention->get_friendly_name(), "': the key and value projections differ in size");
     OPENVINO_ASSERT(g.heads > 0 && g.head_dim > 0 && kv_features > 0 && kv_features % g.head_dim == 0,
                     "[TP] '", attention->get_friendly_name(), "': ", g.heads, " heads of ", g.head_dim,
                     " and a key projection of ", kv_features, " features do not form a head layout");
@@ -128,14 +151,21 @@ Geometry annotate_attention(const std::shared_ptr<ov::Node>& attention,
         if (!annotate_projection(matmul, strategy, segments, collective, config.world_size, block))
             report.runtime_slices.push_back(matmul->get_friendly_name());
     };
-    project(qkv[0], ShardStrategy::COLUMN_PARALLEL, q_features_split, Collective::NONE);
-    project(qkv[1], ShardStrategy::COLUMN_PARALLEL, kv_features_split, Collective::NONE);
-    project(qkv[2], ShardStrategy::COLUMN_PARALLEL, kv_features_split, Collective::NONE);
     project(out, ShardStrategy::ROW_PARALLEL, q_features_split, Collective::ALL_REDUCE);
+    if (fused) {
+        // Every rank's weight is its Q heads, then its K head(s), then its V head(s).
+        const std::vector<Segment> qkv_split{q_features_split[0], kv_features_split[0], kv_features_split[0]};
+        project(qkv[0], ShardStrategy::COLUMN_PARALLEL, qkv_split, Collective::NONE);
+        annotate_feature_parts(projection_output(qkv[0]), qkv_split, block);
+    } else {
+        project(qkv[0], ShardStrategy::COLUMN_PARALLEL, q_features_split, Collective::NONE);
+        project(qkv[1], ShardStrategy::COLUMN_PARALLEL, kv_features_split, Collective::NONE);
+        project(qkv[2], ShardStrategy::COLUMN_PARALLEL, kv_features_split, Collective::NONE);
+    }
 
     // [.., features] -> [.., heads, head_dim] after every projection.
     for (size_t i = 0; i < 3; ++i) {
-        for (const auto& target : projection_output(qkv[i]).get_target_inputs()) {
+        for (const auto& target : parts[i].get_target_inputs()) {
             const auto reshape = target.get_node()->shared_from_this();
             if (!ov::is_type<ov::op::v1::Reshape>(reshape))
                 continue;

@@ -283,6 +283,88 @@ INSTANTIATE_TEST_SUITE_P(TPRankPasses,
                              return "kv" + std::to_string(info.param.kv_heads) + "_world" + std::to_string(info.param.world_size);
                          });
 
+// Fused qkv_proj / gate_up_proj: one MatMul whose output is split; every rank's weight holds its
+// share of every part, and the split takes the rank's parts.
+struct FusedCase {
+    std::string name;
+    BlockConfig config;
+};
+
+static std::vector<FusedCase> fused_cases() {
+    std::vector<FusedCase> cases;
+    for (const auto qkv : {Fused::VARIADIC_SPLIT, Fused::SLICES}) {
+        for (const auto gate_up : {Fused::SPLIT, Fused::VARIADIC_SPLIT}) {
+            BlockConfig c;
+            c.qkv = qkv;
+            c.gate_up = gate_up;
+            cases.push_back({std::string(qkv == Fused::SLICES ? "slices" : "variadic") +
+                                 (gate_up == Fused::SPLIT ? "_chunk" : "_variadic"),
+                             c});
+        }
+    }
+    BlockConfig c;
+    c.qkv = Fused::SLICES;
+    c.gate_up = Fused::SPLIT;
+    c.with_bias = true;
+    c.stateful = true;
+    cases.push_back({"bias_stateful", c});
+    c = BlockConfig{};
+    c.qkv = Fused::SLICES;
+    c.num_heads = 24;  // an even number of quantization groups per rank on 2, 3 and 4 ranks
+    c.num_kv_heads = 1;
+    cases.push_back({"one_kv_head", c});
+    return cases;
+}
+
+class TPRankPassesFusedTest : public ::testing::TestWithParam<std::tuple<FusedCase, size_t>> {};
+
+TEST_P(TPRankPassesFusedTest, GivesEveryRankItsShareOfEveryPart) {
+    const auto& [fused, world_size] = GetParam();
+    const auto& c = fused.config;
+    auto analyzed = make_transformer_block(c);
+    const auto report = analyze(analyzed, world_size);
+    EXPECT_EQ(report->attention_blocks, 1u);
+    EXPECT_EQ(report->mlp_blocks, 1u);
+    EXPECT_TRUE(report->runtime_slices.empty()) << report->runtime_slices.front();
+    EXPECT_EQ(roles(analyzed).size(), c.gate_up != Fused::NONE ? 4u : 5u);  // qkv, o, gate_up or gate + up, down
+
+    const auto replicas = world_size > c.num_kv_heads ? world_size / c.num_kv_heads : 1;
+    const auto group = c.num_heads / c.num_kv_heads;
+    const auto hd = static_cast<int64_t>(c.head_dim);
+    for (size_t rank = 0; rank < world_size; ++rank) {
+        SCOPED_TRACE("rank " + std::to_string(rank));
+        const auto model = rank_model(analyzed, rank, world_size);
+        const auto q_heads = static_cast<int64_t>(rank_length({{c.num_heads, group / replicas}}, rank, world_size));
+        const auto kv_heads = replicas > 1 ? 1 : static_cast<int64_t>(rank_length({{c.num_kv_heads, 1}}, rank, world_size));
+        int64_t fused_qkv = -1, fused_gate_up = -1, down_in = -1;
+        for (const auto& op : model->get_ordered_ops()) {
+            const auto out = op->get_output_partial_shape(0);
+            if (op->get_friendly_name() == "qkv_proj")
+                fused_qkv = out[2].get_length();
+            if (op->get_friendly_name() == "gate_up_proj")
+                fused_gate_up = out[2].get_length();
+            if (ov::is_type<ov::op::v0::MatMul>(op) && ov::is_type<ov::op::v1::Multiply>(op->get_input_node_ptr(0)))
+                down_in = op->get_input_partial_shape(0)[2].get_length();
+            if (const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op)) {
+                for (size_t i = 0; i < 3; ++i)
+                    EXPECT_EQ(sdpa->get_input_partial_shape(i)[1].get_length(), q_heads) << "input " << i;
+            }
+        }
+        EXPECT_EQ(fused_qkv, (q_heads + 2 * kv_heads) * hd);
+        if (c.gate_up != Fused::NONE) {
+            EXPECT_EQ(fused_gate_up, 2 * down_in);
+        }
+        EXPECT_EQ(count_ops_of_type(model, all_reduce), 2u);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(TPRankPasses,
+                         TPRankPassesFusedTest,
+                         ::testing::Combine(::testing::ValuesIn(fused_cases()), ::testing::Values(2u, 3u, 4u)),
+                         [](const ::testing::TestParamInfo<std::tuple<FusedCase, size_t>>& info) {
+                             return std::get<0>(info.param).name + "_world" + std::to_string(std::get<1>(info.param));
+                         });
+
 TEST(TPRankPassesTest, RejectsKvHeadsThatDoNotDivideTheRanks) {
     BlockConfig c;
     c.num_heads = 12;

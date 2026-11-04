@@ -77,6 +77,13 @@ public:
     TPGatedMLPBlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report);
 };
 
+/// down(act(gate) * up) where gate and up are the two parts of one gate_up_proj output.
+class TPFusedGateUpMLPBlock : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TPFusedGateUpMLPBlock");
+    TPFusedGateUpMLPBlock(const TPAnalyzerConfig& config, TPAnalysisReportPtr report);
+};
+
 /// down(act(up(x))).
 class TPDenseMLPBlock : public ov::pass::MatcherPass {
 public:

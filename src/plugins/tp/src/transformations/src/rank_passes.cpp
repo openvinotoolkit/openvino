@@ -146,8 +146,10 @@ bool TPWeightShardingPass::run_on_model(const std::shared_ptr<ov::Model>& model)
         std::shared_ptr<ov::op::v0::Constant> replacement;
         if (!annotation->elements.empty()) {
             auto data = constant->cast_vector<int64_t>();
-            for (const auto element : annotation->elements)
-                data.at(element) = local;
+            for (size_t i = 0; i < annotation->elements.size(); ++i) {
+                auto& value = data.at(annotation->elements[i]);
+                value = localize(*annotation, i, value, m_rank, m_world_size);
+            }
             replacement = ov::op::v0::Constant::create(constant->get_element_type(), constant->get_shape(), data);
         } else {
             replacement = slice_constant(constant, annotation->axis, rank_ranges(annotation->segments, m_rank, m_world_size));

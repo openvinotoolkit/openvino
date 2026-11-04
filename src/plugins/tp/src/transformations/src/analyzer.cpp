@@ -47,6 +47,7 @@ bool TPLayerAnalyzer::run_on_model(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<TPPagedAttentionBlock>(m_config, m_report);
     manager.register_pass<TPStatefulSDPABlock>(m_config, m_report);
     manager.register_pass<TPGatedMLPBlock>(m_config, m_report);
+    manager.register_pass<TPFusedGateUpMLPBlock>(m_config, m_report);
     manager.register_pass<TPDenseMLPBlock>(m_config, m_report);
     if (m_config.shard_lm_head)
         manager.register_pass<TPVocabParallelBlock>(m_config, m_report);

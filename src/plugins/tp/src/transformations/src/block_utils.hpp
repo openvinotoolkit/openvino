@@ -50,8 +50,8 @@ WeightAxes weight_axes(const std::shared_ptr<ov::Node>& matmul);
 /// Static size of a weight axis, 0 when dynamic.
 int64_t weight_dim(const std::shared_ptr<ov::Node>& matmul, int64_t axis);
 
-/// Head count and head size from the Reshape [.., heads, head_dim] after a projection.
-bool read_head_layout(const std::shared_ptr<ov::Node>& projection, int64_t& heads, int64_t& head_dim);
+/// Head count and head size from the Reshape [.., heads, head_dim] after a projection output.
+bool read_head_layout(const ov::Output<ov::Node>& projection, int64_t& heads, int64_t& head_dim);
 
 /// Coarsest step a split along `axis` of the decompression chain at `output` has to respect
 /// (quantization groups, packed sub-byte elements), or 0 when the chain cannot be cut at all.
@@ -81,7 +81,15 @@ bool annotate_shape_input(const std::shared_ptr<ov::Node>& node,
                           size_t port,
                           std::vector<size_t> elements,
                           const std::vector<Segment>& segments,
-                          const std::string& block);
+                          const std::string& block,
+                          ShardAnnotation::Elements mode = ShardAnnotation::Elements::SIZE);
+
+/// The parts of a fused projection's output split along its last axis, in order: the outputs of a
+/// Split / VariadicSplit, or of Slices with constant bounds. Empty when the output is not split so.
+std::vector<ov::Output<ov::Node>> feature_parts(const ov::Output<ov::Node>& output);
+
+/// Gives the split of `output` (see feature_parts) the rank's lengths or bounds of `segments`, one per part.
+void annotate_feature_parts(const ov::Output<ov::Node>& output, const std::vector<Segment>& segments, const std::string& block);
 
 }  // namespace blocks
 }  // namespace tp

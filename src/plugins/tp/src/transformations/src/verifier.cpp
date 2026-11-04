@@ -684,10 +684,6 @@ private:
     }
 
     State slice(const ov::Node& node, const std::vector<State>& in) {
-        for (size_t i = 1; i < in.size(); ++i) {
-            if (in[i].kind != State::REPLICATED)
-                fail(node, "a Slice bound is not Replicated");
-        }
         const auto rank = rank_of(node.get_input_partial_shape(0));
         std::vector<int64_t> axes;
         if (node.get_input_size() > 4) {
@@ -723,33 +719,153 @@ private:
         }
         if (in[0].kind != State::SPLIT)
             fail(node, "no sharding rule for slicing a Partial sum");
-        const auto step = constant_values(node.input_value(3));
+        std::vector<int64_t> sliced;
         for (const auto& [axis, l] : in[0].axes) {
-            const auto it = std::find(axes.begin(), axes.end(), axis);
-            if (it == axes.end())
-                continue;
-            // Along a split axis only when the whole axis is taken, in order.
-            const auto& in_dim = node.get_input_partial_shape(0)[axis];
-            const auto& out_dim = node.get_output_partial_shape(0)[axis];
-            if (!(in_dim.is_static() && in_dim == out_dim && step && (*step)[it - axes.begin()] == 1))
-                fail(node, "a Slice along the split axis " + std::to_string(axis));
+            if (std::find(axes.begin(), axes.end(), axis) != axes.end())
+                sliced.push_back(axis);
         }
-        return in[0];
+        for (size_t i = 1; i < in.size(); ++i) {
+            if (in[i].kind != State::REPLICATED && sliced.empty())
+                fail(node, "a Slice bound is rank-dependent but the Slice does not cut a split axis");
+        }
+        if (sliced.size() > 1)
+            fail(node, "no sharding rule for a Slice along more than one split axis");
+        if (sliced.empty())
+            return in[0];
+
+        // Along a split axis: every rank's slice, with its own bounds, is its share of the global slice.
+        const int64_t axis = sliced.front();
+        const size_t position = std::find(axes.begin(), axes.end(), axis) - axes.begin();
+        const auto& dim = node.get_input_partial_shape(0)[axis];
+        const auto global_start = constant_values(node.input_value(1));
+        const auto global_stop = constant_values(node.input_value(2));
+        const auto step = constant_values(node.input_value(3));
+        if (!dim.is_static() || !global_start || !global_stop || !step || (*step)[position] != 1)
+            fail(node, "a Slice along the split axis " + std::to_string(axis) + " needs constant bounds and step 1");
+        auto clamp = [](int64_t v, int64_t length) {
+            return std::clamp(v < 0 ? v + length : v, int64_t{0}, length);
+        };
+        const auto length = dim.get_length();
+        const auto begin = clamp((*global_start)[position], length);
+        const auto end = clamp((*global_stop)[position], length);
+        const auto& l = in[0].axes.at(axis);
+        Layout out(l.size());
+        for (size_t r = 0; r < l.size(); ++r) {
+            const auto held = static_cast<int64_t>(sizes(Layout{l[r]})[0]);
+            const auto local_start = local_values(node, 1, r);
+            const auto local_stop = local_values(node, 2, r);
+            const auto part = part_of(l[r], begin, end, clamp((*local_start)[position], held), clamp((*local_stop)[position], held));
+            if (!part)
+                fail(node, "rank " + std::to_string(r) + " slices other elements than its share of [" +
+                               std::to_string(begin) + ", " + std::to_string(end) + ") along the split axis " +
+                               std::to_string(axis));
+            out[r] = *part;
+        }
+        auto state = in[0];
+        state.axes[axis] = out;
+        return state;
     }
 
     std::vector<State> split(const ov::Node& node, const std::vector<State>& in) {
         if (in[0].kind != State::SPLIT)
             fail(node, "no sharding rule for splitting " + describe(in[0]));
-        for (size_t i = 1; i < in.size(); ++i) {
-            if (in[i].kind != State::REPLICATED)
-                fail(node, "a split parameter is not Replicated");
-        }
-        const auto axis = constant_values(node.input_value(1));
-        if (!axis)
+        if (in[1].kind != State::REPLICATED)
+            fail(node, "the split axis is not Replicated");
+        const auto axis_value = constant_values(node.input_value(1));
+        if (!axis_value)
             fail(node, "the split axis is not constant");
-        if (in[0].axes.count(normalize((*axis)[0], rank_of(node.get_input_partial_shape(0)))))
-            fail(node, "a split along the split axis");
-        return std::vector<State>(node.get_output_size(), in[0]);
+        const auto axis = normalize((*axis_value)[0], rank_of(node.get_input_partial_shape(0)));
+        if (!in[0].axes.count(axis)) {
+            if (in.size() > 2 && in[2].kind != State::REPLICATED)
+                fail(node, "the split lengths are rank-dependent but the split does not cut a split axis");
+            return std::vector<State>(node.get_output_size(), in[0]);
+        }
+
+        // Along a split axis: every rank's part, with its own lengths, is its share of the global part.
+        const auto& l = in[0].axes.at(axis);
+        const auto outputs = node.get_output_size();
+        std::vector<int64_t> global_bounds{0};
+        for (size_t o = 0; o < outputs; ++o) {
+            const auto& dim = node.get_output_partial_shape(o)[axis];
+            if (!dim.is_static())
+                fail(node, "a split along the split axis " + std::to_string(axis) + " into parts of unknown size");
+            global_bounds.push_back(global_bounds.back() + dim.get_length());
+        }
+        std::vector<State> result(outputs, in[0]);
+        for (size_t r = 0; r < l.size(); ++r) {
+            const auto held = static_cast<int64_t>(sizes(Layout{l[r]})[0]);
+            std::vector<int64_t> lengths;
+            if (ov::is_type<ov::op::v1::VariadicSplit>(&node)) {
+                const auto values = local_values(node, 2, r);
+                if (!values)
+                    fail(node, "the split lengths are not constant");
+                lengths = *values;
+                int64_t known = 0;
+                for (const auto v : lengths)
+                    known += v < 0 ? 0 : v;
+                for (auto& v : lengths)
+                    v = v < 0 ? held - known : v;
+            } else {
+                if (held % static_cast<int64_t>(outputs) != 0)
+                    fail(node, "rank " + std::to_string(r) + " holds " + std::to_string(held) +
+                                   " elements, which do not split into " + std::to_string(outputs) + " equal parts");
+                lengths.assign(outputs, held / static_cast<int64_t>(outputs));
+            }
+            int64_t local = 0;
+            for (size_t o = 0; o < outputs; ++o) {
+                const auto part = part_of(l[r], global_bounds[o], global_bounds[o + 1], local, local + lengths[o]);
+                if (!part)
+                    fail(node, "rank " + std::to_string(r) + "'s part " + std::to_string(o) +
+                                   " is not its share of the global part along the split axis " + std::to_string(axis));
+                if (result[o].axes[axis].size() != l.size())
+                    result[o].axes[axis] = Layout(l.size());
+                result[o].axes[axis][r] = *part;
+                local += lengths[o];
+            }
+        }
+        return result;
+    }
+
+    /// The rank's values of an integer input: its constant, with annotated elements given the rank's values.
+    std::optional<std::vector<int64_t>> local_values(const ov::Node& node, size_t port, size_t rank) const {
+        auto values = constant_values(node.input_value(port));
+        const auto* source = node.get_input_node_ptr(port);
+        if (!values || !ov::is_type<ov::op::v0::Constant>(source))
+            return values;
+        if (const auto* shard = get_shard(*source)) {
+            for (size_t i = 0; i < shard->elements.size(); ++i) {
+                auto& value = values->at(shard->elements[i]);
+                value = localize(*shard, i, value, rank, m_world_size);
+            }
+        }
+        return values;
+    }
+
+    /// The rank's elements of global [begin, end) along an axis it holds as `ranges`, when its own
+    /// [local_begin, local_end) takes exactly those; positions relative to `begin`.
+    static std::optional<std::vector<Range>> part_of(const std::vector<Range>& ranges,
+                                                     int64_t begin,
+                                                     int64_t end,
+                                                     int64_t local_begin,
+                                                     int64_t local_end) {
+        std::vector<int64_t> held;
+        for (const auto& range : ranges) {
+            for (size_t i = range.offset; i < range.offset + range.length; ++i)
+                held.push_back(static_cast<int64_t>(i));
+        }
+        local_begin = std::clamp<int64_t>(local_begin, 0, static_cast<int64_t>(held.size()));
+        local_end = std::clamp<int64_t>(local_end, local_begin, static_cast<int64_t>(held.size()));
+        std::vector<int64_t> wanted;
+        for (const auto e : held) {
+            if (e >= begin && e < end)
+                wanted.push_back(e);
+        }
+        if (!std::equal(held.begin() + local_begin, held.begin() + local_end, wanted.begin(), wanted.end()))
+            return std::nullopt;
+        std::vector<Range> part;
+        for (const auto e : wanted)
+            part.push_back({static_cast<size_t>(e - begin), 1});
+        return coalesce(part);
     }
 
     State gather(const ov::Node& node, const std::vector<State>& in) {

@@ -317,6 +317,58 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuWithOneKvHeadAfterKvCacheTrim) {
     expect_close(reference.get_output_tensor(0), parallel.get_output_tensor(0));
 }
 
+// Fused qkv_proj / gate_up_proj (Phi-3): one weight per fused projection, cut per part, and the
+// split after it taking the rank's parts. A contiguous cut gives rank 0 only gate features.
+TEST_P(TPAccuracyTest, MatchesSingleGpuOnFusedProjections) {
+    BlockConfig config;
+    config.qkv = Fused::SLICES;
+    config.gate_up = Fused::SPLIT;
+    auto model = make_transformer_block(config);
+
+    auto [reference, parallel] = run_both(model, make_input(config));
+    expect_close(reference, parallel);
+}
+
+TEST_P(TPAccuracyTest, MatchesSingleGpuOnFusedProjectionsWithVariadicSplitsAndBias) {
+    BlockConfig config;
+    config.qkv = Fused::VARIADIC_SPLIT;
+    config.gate_up = Fused::VARIADIC_SPLIT;
+    config.with_bias = true;
+    auto model = make_transformer_block(config);
+
+    auto [reference, parallel] = run_both(model, make_input(config));
+    expect_close(reference, parallel);
+}
+
+TEST_P(TPAccuracyTest, MatchesSingleGpuOnAFusedQkvWithOneKvHeadAfterKvCacheTrim) {
+    BlockConfig config;
+    config.qkv = Fused::SLICES;
+    config.gate_up = Fused::SPLIT;
+    config.num_heads = 24;
+    config.num_kv_heads = 1;
+    config.stateful = true;
+    auto model = make_transformer_block(config);
+
+    auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
+    auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
+
+    auto prefill = make_input(config, sequence_length, 1);
+    reference.set_input_tensor(prefill);
+    parallel.set_input_tensor(prefill);
+    reference.infer();
+    parallel.infer();
+    expect_close(reference.get_output_tensor(0), parallel.get_output_tensor(0));
+
+    trim_kv_cache(reference, 4);
+    trim_kv_cache(parallel, 4);
+    auto next = make_input(config, 1, 2);
+    reference.set_input_tensor(next);
+    parallel.set_input_tensor(next);
+    reference.infer();
+    parallel.infer();
+    expect_close(reference.get_output_tensor(0), parallel.get_output_tensor(0));
+}
+
 // The vocabulary projection is split by output feature and the bands are
 // copied back into rank 0 -- the only rank whose outputs anyone reads. A band
 // written at the wrong offset, or a rank whose slice never arrives, shows up

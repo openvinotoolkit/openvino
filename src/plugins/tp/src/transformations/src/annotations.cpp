@@ -101,6 +101,7 @@ bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
     for (const auto element : elements) {
         element_list.push_back(static_cast<int64_t>(element));
     }
+    auto mode = static_cast<int64_t>(element_mode);
     visitor.on_attribute("strategy", strategy_name);
     visitor.on_attribute("axis", axis);
     visitor.on_attribute("lengths", lengths);
@@ -108,6 +109,7 @@ bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("steps", steps);
     visitor.on_attribute("counts", counts);
     visitor.on_attribute("elements", element_list);
+    visitor.on_attribute("element_mode", mode);
     visitor.on_attribute("rt_keys", rt_keys);
     visitor.on_attribute("input", input);
     visitor.on_attribute("block", block);
@@ -124,6 +126,8 @@ bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
                             static_cast<size_t>(counts[i])});
     }
     elements.assign(element_list.begin(), element_list.end());
+    OPENVINO_ASSERT(mode >= 0 && mode <= static_cast<int64_t>(Elements::BOUNDS), "[TP] tp_shard: element mode ", mode);
+    element_mode = static_cast<Elements>(mode);
     return true;
 }
 
@@ -144,6 +148,10 @@ std::string ShardAnnotation::to_string() const {
             out << (i ? ", " : "") << elements[i];
         }
         out << "]";
+        if (element_mode == Elements::SEGMENT_SIZES)
+            out << " (segment sizes)";
+        else if (element_mode == Elements::BOUNDS)
+            out << " (segment bounds)";
     }
     for (const auto& key : rt_keys) {
         out << " rt_info '" << key << "'";
@@ -157,7 +165,8 @@ std::string ShardAnnotation::to_string() const {
 
 bool ShardAnnotation::operator==(const ShardAnnotation& other) const {
     return strategy == other.strategy && axis == other.axis && segments == other.segments &&
-           elements == other.elements && rt_keys == other.rt_keys && input == other.input;
+           elements == other.elements && element_mode == other.element_mode && rt_keys == other.rt_keys &&
+           input == other.input;
 }
 
 bool ProjectionRole::visit_attributes(ov::AttributeVisitor& visitor) {
@@ -237,6 +246,34 @@ size_t rank_length(const std::vector<Segment>& segments, size_t rank, size_t wor
         total += range.length;
     }
     return total;
+}
+
+int64_t localize(const ShardAnnotation& annotation, size_t listed, int64_t global, size_t rank, size_t world_size) {
+    const auto& segments = annotation.segments;
+    switch (annotation.element_mode) {
+    case ShardAnnotation::Elements::SIZE:
+        return static_cast<int64_t>(rank_length(segments, rank, world_size));
+    case ShardAnnotation::Elements::SEGMENT_SIZES:
+        OPENVINO_ASSERT(listed < segments.size(), "[TP] element ", listed, " of ", segments.size(), " segments");
+        // -1: the remainder, inferred on the rank as well.
+        return global < 0 ? global : static_cast<int64_t>(rank_length({segments[listed]}, rank, world_size));
+    case ShardAnnotation::Elements::BOUNDS: {
+        int64_t boundary = 0;
+        int64_t local = 0;
+        for (size_t k = 0;; ++k) {
+            if (global == boundary)
+                return local;
+            if (k == segments.size())
+                break;
+            boundary += static_cast<int64_t>(segments[k].length);
+            local += static_cast<int64_t>(rank_length({segments[k]}, rank, world_size));
+        }
+        // Past the end (INT64_MAX as "to the end"): clamped on the rank as well.
+        OPENVINO_ASSERT(global > boundary, "[TP] ", global, " is not a boundary between the segments of ", annotation.to_string());
+        return global;
+    }
+    }
+    OPENVINO_THROW("[TP] unknown element mode");
 }
 
 }  // namespace tp
