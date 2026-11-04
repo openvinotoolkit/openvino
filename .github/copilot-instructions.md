@@ -12,6 +12,15 @@ load the component references selected by its path-routing table. Ownership
 and automatic maintainer review requests are defined separately in
 `.github/CODEOWNERS`.
 
+## Package layout reviews
+
+For installed-file changes or reported BOM failures, follow the
+[BOM review instructions](instructions/bom.instructions.md), even without GOLD changes
+in the diff. Propose GOLD updates only from verified BOMs or complete comparison
+results for the current PR revision. Accepting GOLD records engineering approval
+of the public package layout, not merely a CI fix. Link the
+[BOM documentation](../docs/dev/ci/github_actions/bom_tests.md) in related review comments.
+
 ## Repository practices
 
 - Inspect the relevant implementation, tests, build files, and documentation
