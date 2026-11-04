@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-11-04-08-30-35-122-41778802313",
+  "timestamp": "2026-11-04T08:30:35Z",
+  "run_id": "41778802313",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/41778802313",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "39341",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/39341",
+  "author": "praasz",
+  "category": "Flaky Test",
+  "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
+  "signature": "test keras lstm flags numerical mismatch with dropout float32|Flaky Test",
+  "signature_hash": "a284d27dfee44614",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "test_keras_lstm_flags_float32 fails with small numerical mismatch vs TensorFlow reference output"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because an upstream required job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED ../../../home/runner/_work/openvino/openvino/install/tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[ ie_device:CPU - precision: - params:{'input_names': ['x'], 'input_shapes': [[4, 8, 3]], 'input_type': tf.float32, 'dropouts': (0.1, 0.3), 'units': 3, 'activation': 'relu', 'use_bias': False, 'recurrent_activation': 'tanh', 'flags': True} ] - AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[ 0.03704789, -0.18716171,  1.4223349 ], [-0. , 0. , -3.0922716 ], [ 3.7083998 , -0.49887288, 1.55191 ], [ 0.18021235, 3.0989003, 0.22738735]], dtype=float32)}; framework_res={'output_0': <tf.Tensor: shape=(4, 3), dtype=float32, numpy= array([[ 0.03683527, -0.18714288, 1.4231913 ], [-0. , 0. , -3.3732054 ], [ 3.707688 , -0.49926117, 1.5526044 ], [ 0.18001223, 3.0968213, 0.22735538]], dtype=float32)>}.",
+    "= 1 failed, 2113 passed, 111 skipped, 6 xfailed, 27 xpassed, 248 warnings in 567.29s (0:09:27) ="
+  ],
+  "root_cause": "The LSTM layer in this model uses a dropout rate (dropouts=(0.1, 0.3)), which makes the TensorFlow reference computation stochastic across runs unless a fixed random seed is pinned. OpenVINO's CPU inference path for this LSTM configuration produces results that are numerically close to, but not bit-identical with, the TensorFlow reference (differences up to ~0.28 in one element), so the test's comparison tolerance is occasionally exceeded. This signature has recurred 6 times since 2026-08-27 across unrelated PRs with no shared code change, confirming it is an inherent test flakiness issue in the layer test rather than a regression introduced by PR #39341 (whose changes are confined to src/plugins/hetero/ and do not touch the TensorFlow frontend, LSTM op implementation, or CPU plugin RNN kernels).",
+  "reproduction_steps": "cd src/frontends/tensorflow/tests/ (or wherever test_tf2_keras_lstm.py is installed) and run: pytest install/tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k flags_float32 --ie_device=CPU (may require several repeated runs to reproduce due to dropout-induced randomness).",
+  "recommended_actions": [
+    "Pin the TensorFlow dropout RNG seed in the test fixture so framework_res is deterministic across runs, or loosen the comparison tolerance (rtol/atol) specifically for LSTM cases that include dropout.",
+    "Consider marking this specific parametrization as xfail/flaky-retry (e.g., via pytest-rerunfailures) until the tolerance is fixed, since it has recurred 6 times without a code-level fix.",
+    "Submit the already-verified `rerun_search_string` candidate for human review via propose_rerun_pattern so the workflow rerunner can automatically retry this known-flaky test."
+  ],
+  "prevention_strategies": "Avoid relying on dropout layers in deterministic layer-test comparisons without fixing all RNG seeds (TF's dropout seed as well as any numpy/OpenVINO random state). Where dropout is intentionally exercised, either compare statistical properties (e.g., mean/variance) instead of exact values, or set a generous, documented tolerance for that specific test case.",
+  "historical_context": "Pattern a284d27dfee44614 has now been observed 6 times since first appearing 2026-08-27, most recently on PRs #39286, #39121, #38168, #37654, #37611, and now #39341. A related but distinct pattern (134f01149f41adcc) covers a 2026-06/07 occurrence of the same symptom; both point to the same root cause (unseeded dropout flakiness in the Keras LSTM layer test) and have not been resolved despite recurring over several months."
+}
