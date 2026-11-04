@@ -17,10 +17,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_SET writes src[1] into a contiguous region of src[0] and returns the updated tensor.
 // ggml stores the destination byte offset in op_params[3]; the decoder converts it to an element
@@ -63,7 +60,4 @@ OutputVector translate_set(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

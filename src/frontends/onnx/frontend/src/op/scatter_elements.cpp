@@ -7,11 +7,7 @@
 #include "openvino/op/scatter_elements_update.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector scatter_elements(const ov::frontend::onnx::Node& node) {
     const auto data = node.get_ov_inputs().at(0);
     const auto indices = node.get_ov_inputs().at(1);
@@ -52,8 +48,4 @@ static bool register_multiple_translators(void) {
 }
 
 static bool registered = register_multiple_translators();
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

@@ -13,7 +13,7 @@
 using namespace cldnn;
 using namespace ze;
 
-void ze_events::wait_impl() {
+void ze_events::ze_wait_impl() {
     if (_last_ze_event) {
         OV_ZE_EXPECT(ze::zeEventHostSynchronize(_last_ze_event, endless_wait));
     }

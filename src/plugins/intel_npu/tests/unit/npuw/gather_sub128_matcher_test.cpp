@@ -4,18 +4,24 @@
 
 #include <gtest/gtest.h>
 
-#include <cstdint>
-#include <memory>
 #include <algorithm>
+#include <array>
+#include <cstdint>
+#include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <tuple>
 #include <vector>
 
+#include "intel_npu/config/npuw.hpp"
+#include "lazy_tensor.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "partitioning/partitioning.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "transformations/rt_info/decompression.hpp"
 
@@ -63,12 +69,14 @@ bool run_lift(const std::shared_ptr<ov::Model>& model) {
 }
 
 std::shared_ptr<ov::Model> make_parameter_gather_model(std::optional<float> weight_shift,
-                                                       std::optional<float> zero_point_shift) {
+                                                       std::optional<float> zero_point_shift,
+                                                       ov::element::Type weight_type = ov::element::u8,
+                                                       ov::element::Type zero_point_type = ov::element::u8) {
     constexpr std::size_t vocab_size = 4096;
     constexpr std::size_t hidden_size = 2048;
     auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
-    auto weights = std::make_shared<ov::opset10::Parameter>(ov::element::u8, ov::Shape{vocab_size, hidden_size});
-    auto zero_point = std::make_shared<ov::opset10::Parameter>(ov::element::u8, ov::Shape{vocab_size, hidden_size});
+    auto weights = std::make_shared<ov::opset10::Parameter>(weight_type, ov::Shape{vocab_size, hidden_size});
+    auto zero_point = std::make_shared<ov::opset10::Parameter>(zero_point_type, ov::Shape{vocab_size, hidden_size});
     auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f16, ov::Shape{vocab_size, hidden_size});
     auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
 
@@ -105,22 +113,45 @@ std::shared_ptr<ov::Model> make_parameter_gather_model(float shift_value) {
     return make_parameter_gather_model(shift_value, shift_value);
 }
 
+std::shared_ptr<ov::Model> make_parameter_vocab_dq_model() {
+    auto weights = std::make_shared<ov::opset10::Parameter>(ov::element::u8, ov::Shape{4, 2});
+    auto zero_point = std::make_shared<ov::opset10::Parameter>(ov::element::u8, ov::Shape{4, 1});
+    auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f16, ov::Shape{4, 1});
+
+    auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, ov::element::f16);
+    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, ov::element::f16);
+    auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {128.0f});
+    auto shifted_weight = std::make_shared<ov::opset10::Subtract>(weight_convert, shift);
+    auto shifted_zero_point = std::make_shared<ov::opset10::Subtract>(zero_point_convert, shift);
+    shifted_weight->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+    shifted_zero_point->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+
+    auto dequantized = std::make_shared<ov::opset10::Subtract>(shifted_weight, shifted_zero_point);
+    auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, scale);
+    auto result = std::make_shared<ov::opset10::Result>(scaled);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{weights, zero_point, scale});
+}
+
 bool run_host_gather(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns::opt::Context& context) {
     ov::pass::GraphRewrite rewrite;
     rewrite.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<>>(std::ref(context));
     return rewrite.run_on_model(model);
 }
 
-enum class VocabMatMulTerminal { Add, Transpose, Convert, Gated };
+enum class VocabMatMulTerminal { Add, Transpose, Convert, Gated, Divide };
 
 std::shared_ptr<ov::Model> make_vocab_matmul_model(bool convert_before_matmul,
-                                                   std::optional<VocabMatMulTerminal> terminal = std::nullopt) {
+                                                   std::optional<VocabMatMulTerminal> terminal = std::nullopt,
+                                                   std::size_t vocab_size = 4) {
     auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2});
-    auto weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2}, std::vector<uint8_t>(8, 200));
+    auto weights = ov::opset10::Constant::create(ov::element::u8,
+                                                 ov::Shape{vocab_size, 2},
+                                                 std::vector<uint8_t>(vocab_size * 2, 200));
     auto zero_point =
-        ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1}, std::vector<uint8_t>(4, 128));
+        ov::opset10::Constant::create(ov::element::u8, ov::Shape{vocab_size, 1}, std::vector<uint8_t>(vocab_size, 128));
     const auto scale_type = convert_before_matmul ? ov::element::f16 : ov::element::f32;
-    auto scale = ov::opset10::Constant::create(scale_type, ov::Shape{4, 1}, std::vector<float>(4, 1.0f));
+    auto scale =
+        ov::opset10::Constant::create(scale_type, ov::Shape{vocab_size, 1}, std::vector<float>(vocab_size, 1.0f));
     auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, scale_type);
     weight_convert->set_friendly_name("vocab_weight_convert");
     auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, scale_type);
@@ -134,7 +165,9 @@ std::shared_ptr<ov::Model> make_vocab_matmul_model(bool convert_before_matmul,
     auto matmul = std::make_shared<ov::opset10::MatMul>(hidden, matmul_weights, false, true);
     ov::Output<ov::Node> output = matmul;
     if (terminal == VocabMatMulTerminal::Add) {
-        auto bias = ov::opset10::Constant::create(ov::element::f32, ov::Shape{1, 4}, std::vector<float>(4, 1.0f));
+        auto bias = ov::opset10::Constant::create(ov::element::f32,
+                                                  ov::Shape{1, vocab_size},
+                                                  std::vector<float>(vocab_size, 1.0f));
         output = std::make_shared<ov::opset10::Add>(matmul, bias);
     } else if (terminal == VocabMatMulTerminal::Transpose) {
         auto order = ov::opset10::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
@@ -147,17 +180,24 @@ std::shared_ptr<ov::Model> make_vocab_matmul_model(bool convert_before_matmul,
         auto tanh = std::make_shared<ov::opset10::Tanh>(div);
         auto multiplier = ov::opset10::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
         output = std::make_shared<ov::opset10::Multiply>(tanh, multiplier);
+    } else if (terminal == VocabMatMulTerminal::Divide) {
+        auto divisor = ov::opset10::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
+        output = std::make_shared<ov::opset10::Divide>(matmul, divisor);
     }
     return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{hidden});
 }
 
-std::shared_ptr<ov::Model> make_pretransposed_vocab_matmul_model(bool convert_before_matmul) {
+std::shared_ptr<ov::Model> make_pretransposed_vocab_matmul_model(bool convert_before_matmul,
+                                                                 std::size_t vocab_size = 4) {
     auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2});
-    auto weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{2, 4}, std::vector<uint8_t>(8, 200));
+    auto weights = ov::opset10::Constant::create(ov::element::u8,
+                                                 ov::Shape{2, vocab_size},
+                                                 std::vector<uint8_t>(vocab_size * 2, 200));
     auto zero_point =
-        ov::opset10::Constant::create(ov::element::u8, ov::Shape{1, 4}, std::vector<uint8_t>(4, 128));
+        ov::opset10::Constant::create(ov::element::u8, ov::Shape{1, vocab_size}, std::vector<uint8_t>(vocab_size, 128));
     const auto scale_type = convert_before_matmul ? ov::element::f16 : ov::element::f32;
-    auto scale = ov::opset10::Constant::create(scale_type, ov::Shape{1, 4}, std::vector<float>(4, 1.0f));
+    auto scale =
+        ov::opset10::Constant::create(scale_type, ov::Shape{1, vocab_size}, std::vector<float>(vocab_size, 1.0f));
     auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, scale_type);
     weight_convert->set_friendly_name("vocab_weight_convert");
     auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, scale_type);
@@ -233,25 +273,106 @@ TEST(DQLiftGatherAsymCWTest, RejectsUnmarked128Subtractions) {
 }
 
 TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
-    ov::npuw::patterns::opt::Context context;
-    EXPECT_TRUE(run_host_gather(make_parameter_gather_model(128.0f), context));
+    const auto model = make_parameter_gather_model(128.0f);
+    ov::npuw::patterns::opt::Context context(model, 0);
+    EXPECT_TRUE(run_host_gather(model, context));
     ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
     ASSERT_EQ(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.size(), 1);
 }
 
+TEST(HostGatherQuantAsymmTest, MarksPairedSub128Sources) {
+    const auto model = make_parameter_gather_model(128.0f);
+    ov::npuw::patterns::opt::Context context(model, 0);
+
+    EXPECT_TRUE(run_host_gather(model, context));
+    ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
+    const auto& gather = context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.begin()->second;
+    ASSERT_EQ(gather.w->get_element_type(), ov::element::i8);
+    ASSERT_EQ(gather.z->get_element_type(), ov::element::i8);
+    ASSERT_EQ(context.closures_to_subtract_128.size(), 2);
+    for (const auto& shifted_and_source : context.closures_to_subtract_128) {
+        EXPECT_EQ(shifted_and_source.first->get_element_type(), ov::element::i8);
+        EXPECT_TRUE(shifted_and_source.second == model->get_parameters().at(1) ||
+                    shifted_and_source.second == model->get_parameters().at(2));
+    }
+    // Simulating partitioning behavior
+    for (const auto& shifted_and_source : context.closures_to_subtract_128) {
+        model->add_parameters({shifted_and_source.first});
+        if (shifted_and_source.second->output(0).get_target_inputs().empty()) {
+            model->remove_parameter(shifted_and_source.second);
+        }
+    }
+
+    std::size_t i8_parameter_count = 0;
+    std::size_t u8_parameter_count = 0;
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_element_type() == ov::element::i8) {
+            ++i8_parameter_count;
+        } else if (parameter->get_element_type() == ov::element::u8) {
+            ++u8_parameter_count;
+        }
+    }
+    EXPECT_EQ(i8_parameter_count, 2u);
+    EXPECT_EQ(u8_parameter_count, 0u);
+}
+
+TEST(HostGatherQuantAsymmTest, KeepsRawSourcesWithoutMarkedPattern) {
+    const auto model = make_parameter_gather_model(std::nullopt,
+                                                   std::nullopt,
+                                                   ov::element::u8,
+                                                   ov::element::u8);
+    ov::npuw::patterns::opt::Context context(model, 0);
+
+    EXPECT_TRUE(run_host_gather(model, context));
+    ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
+    const auto& gather = context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.begin()->second;
+    ASSERT_EQ(gather.w->get_element_type(), ov::element::u8);
+    ASSERT_EQ(gather.z->get_element_type(), ov::element::u8);
+    EXPECT_TRUE(context.closures_to_subtract_128.empty());
+}
+
 TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
-    ov::npuw::patterns::opt::Context context;
-    EXPECT_FALSE(run_host_gather(make_parameter_gather_model(127.0f), context));
+    const auto model = make_parameter_gather_model(127.0f);
+    ov::npuw::patterns::opt::Context context(model, 0);
+    EXPECT_FALSE(run_host_gather(model, context));
 }
 
 TEST(HostGatherQuantAsymmTest, RejectsUnmarked128Subtractions) {
     const auto model = make_parameter_gather_model(128.0f);
     clear_sub128_shift_markers(model);
-    ov::npuw::patterns::opt::Context context;
+    ov::npuw::patterns::opt::Context context(model, 0);
 
     EXPECT_FALSE(run_host_gather(model, context));
     EXPECT_FALSE(context.params_to_quant_gather_unpack.has_value());
     EXPECT_EQ(count_subtracts(model), 3);
+}
+
+TEST(ConvertDQVocabTest, ReplacesMarkedShiftsWithLazySources) {
+    const auto model = make_parameter_vocab_dq_model();
+    ov::npuw::patterns::opt::Context context(model, 0);
+
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<ov::npuw::patterns::opt::ConvertDQVocab>(std::ref(context));
+
+    EXPECT_TRUE(rewrite.run_on_model(model));
+    ASSERT_EQ(context.closures_to_subtract_128.size(), 2);
+    for (const auto& shifted_and_source : context.closures_to_subtract_128) {
+        EXPECT_EQ(shifted_and_source.first->get_element_type(), ov::element::i8);
+        EXPECT_TRUE(shifted_and_source.second == model->get_parameters().at(0) ||
+                    shifted_and_source.second == model->get_parameters().at(1));
+        EXPECT_EQ(model->get_parameter_index(shifted_and_source.first), -1);
+    }
+
+    std::size_t reachable_i8_parameter_count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(node);
+        if (parameter && parameter->get_element_type() == ov::element::i8) {
+            ++reachable_i8_parameter_count;
+        }
+    }
+    EXPECT_EQ(reachable_i8_parameter_count, 2u);
+
+    EXPECT_EQ(count_sub128_shifts(model), 0u);
 }
 
 using VocabSub128TestParams = std::tuple<bool, bool>;
@@ -267,8 +388,8 @@ public:
 
 TEST_P(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
     const auto [pretransposed_layout, convert_before_matmul] = GetParam();
-    const auto model = pretransposed_layout ? make_pretransposed_vocab_matmul_model(convert_before_matmul) :
-                                              make_vocab_matmul_model(convert_before_matmul);
+    const auto model = pretransposed_layout ? make_pretransposed_vocab_matmul_model(convert_before_matmul)
+                                            : make_vocab_matmul_model(convert_before_matmul);
     EXPECT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
     EXPECT_EQ(count_subtracts(model), 3u);
     EXPECT_EQ(count_sub128_shifts(model), 2u);
@@ -291,14 +412,13 @@ TEST_P(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
     EXPECT_TRUE(contains_node(model, "vocab_zero_point_convert"));
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    LayoutAndConversion,
-    InsertVocabSub128PrePostProcessingTest,
-    ::testing::Values(std::make_tuple(false, false),
-                      std::make_tuple(false, true),
-                      std::make_tuple(true, false),
-                      std::make_tuple(true, true)),
-    InsertVocabSub128PrePostProcessingTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(LayoutAndConversion,
+                         InsertVocabSub128PrePostProcessingTest,
+                         ::testing::Values(std::make_tuple(false, false),
+                                           std::make_tuple(false, true),
+                                           std::make_tuple(true, false),
+                                           std::make_tuple(true, true)),
+                         InsertVocabSub128PrePostProcessingTest::getTestCaseName);
 
 class InsertVocabSub128LmHeadTerminalTest : public ::testing::TestWithParam<VocabMatMulTerminal> {
 public:
@@ -312,6 +432,8 @@ public:
             return "Convert";
         case VocabMatMulTerminal::Gated:
             return "Gated";
+        case VocabMatMulTerminal::Divide:
+            return "Divide";
         }
         return "Unknown";
     }
@@ -330,7 +452,8 @@ INSTANTIATE_TEST_SUITE_P(LmHeadTerminal,
                          ::testing::Values(VocabMatMulTerminal::Add,
                                            VocabMatMulTerminal::Transpose,
                                            VocabMatMulTerminal::Convert,
-                                           VocabMatMulTerminal::Gated),
+                                           VocabMatMulTerminal::Gated,
+                                           VocabMatMulTerminal::Divide),
                          InsertVocabSub128LmHeadTerminalTest::getTestCaseName);
 
 TEST(InsertVocabSub128LmHeadTerminalTest, SkipsManuallyAddedOutput) {
@@ -342,3 +465,47 @@ TEST(InsertVocabSub128LmHeadTerminalTest, SkipsManuallyAddedOutput) {
     EXPECT_EQ(count_sub128_shifts(model), 0u);
 }
 
+TEST(LazySubtract128Test, CoversEveryU8ValueWithoutChangingSource) {
+    std::vector<uint8_t> values(256);
+    for (std::size_t index = 0; index < values.size(); ++index) {
+        values[index] = static_cast<uint8_t>(index);
+    }
+    const auto constant = ov::opset10::Constant::create(ov::element::u8, ov::Shape{16, 16}, values);
+    ov::npuw::weights::LazyTensor source(constant);
+    const auto shifted = source.subtract_128();
+    EXPECT_EQ(shifted.eval_meta().shape, constant->get_shape());
+    EXPECT_EQ(shifted.eval_meta().type, ov::element::i8);
+    EXPECT_EQ(shifted, source.subtract_128());
+    EXPECT_NE(shifted, source);
+    const auto result = shifted.eval();
+    for (std::size_t index = 0; index < values.size(); ++index) {
+        EXPECT_EQ(result.data<const int8_t>()[index], static_cast<int>(index) - 128);
+    }
+    EXPECT_EQ(constant->cast_vector<uint8_t>(), values);
+}
+
+TEST(LazySubtract128Test, HandlesVectorAndTailSizes) {
+    const std::array<std::size_t, 8> sizes{1, 31, 32, 33, 63, 64, 65, 257};
+    for (const auto size : sizes) {
+        std::vector<uint8_t> values(size);
+        for (std::size_t index = 0; index < size; ++index) {
+            values[index] = static_cast<uint8_t>(index);
+        }
+
+        const auto constant = ov::opset10::Constant::create(ov::element::u8, ov::Shape{size}, values);
+        const auto result = ov::npuw::weights::LazyTensor(constant).subtract_128().eval();
+
+        ASSERT_EQ(result.get_shape(), (ov::Shape{size}));
+        ASSERT_EQ(result.get_element_type(), ov::element::i8);
+        for (std::size_t index = 0; index < size; ++index) {
+            EXPECT_EQ(result.data<const int8_t>()[index], static_cast<int>(values[index]) - 128);
+        }
+    }
+}
+
+TEST(LazySubtract128Test, RejectsNonU8Input) {
+    const auto constant = ov::opset10::Constant::create(ov::element::i8, ov::Shape{1}, {0});
+    const auto shifted = ov::npuw::weights::LazyTensor(constant).subtract_128();
+    EXPECT_THROW(shifted.eval(), ov::Exception);
+    EXPECT_THROW(shifted.eval_meta(), ov::Exception);
+}

@@ -11,10 +11,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     default_op_checks(node, 2, {"DepthwiseConv2dNative", "DEPTHWISE_CONV_2D"});
@@ -63,7 +60,4 @@ OutputVector translate_depthwise_conv_2d_native_op(const NodeContext& node) {
     ov::frontend::tensorflow::set_node_name(node.get_name(), group_conv.get_node_shared_ptr());
     return {group_conv};
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

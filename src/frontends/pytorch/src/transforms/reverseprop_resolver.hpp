@@ -3,25 +3,18 @@
 //
 
 #pragma once
-
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 /**
  * Replace sequence of reverseprop operations with ScatterNdUpdate.
  */
-class ReversepropResolver : public ov::pass::MatcherPass {
+class ReversepropResolver : public ov::pass::GraphRewrite {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("ov::frontend::pytorch::pass::ReversepropResolver");
+    OPENVINO_GRAPH_REWRITE_RTTI("ov::frontend::pytorch::pass::ReversepropResolver");
     ReversepropResolver();
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

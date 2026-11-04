@@ -8,11 +8,7 @@
 #include "exceptions.hpp"
 #include "utils/common.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_18 {
+namespace ov::frontend::onnx::ai_onnx::opset_18 {
 ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
     // 1. get inputs
     common::default_op_checks(node, 3);
@@ -62,8 +58,4 @@ ov::OutputVector col2im(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("Col2Im", OPSET_SINCE(1), ai_onnx::opset_18::col2im);
-}  // namespace opset_18
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_18

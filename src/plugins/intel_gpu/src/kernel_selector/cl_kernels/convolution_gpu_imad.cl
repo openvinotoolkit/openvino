@@ -222,7 +222,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                     uint valid_ifm_in_pack_input = (kd + 1) * PACK <= FILTER_IFM_NUM ? PACK : (FILTER_IFM_NUM % PACK);
                     for (uint v = 0; v < valid_ifm_in_pack_input; v++) {
                         int f_addr = ((feature_location + v) / FSV + INPUT0_PAD_BEFORE_FEATURE_NUM / FSV) * \
-                                      INPUT0_FEATURE_PITCH * FSV  + (feature_location + v) % FSV;
+                                      INPUT0_FEATURE_PITCH * FSV + (feature_location + v) % FSV;
                         input_int8_arr[v] = conv_input[in_addr + f_addr];
                     }
                     for (uint v = valid_ifm_in_pack_input; v < PACK; v++) {
@@ -239,7 +239,7 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
                     #endif
                         in[reg] = *(__global PACKED_TYPE*)(conv_input + in_addr);
                         in_addr += (INPUT0_SIZE_X + IWPAD) * 16;
-                 #endif
+                #endif
             #else
                 #ifdef BLOCK_LOAD_INPUTS
                     in[reg] = AS_PACKED_TYPE(_sub_group_block_read((const __global uint*) &conv_input[in_addr]));
@@ -267,17 +267,6 @@ KERNEL (fused_convolution_eltwise_gpu_imad)(
             for(int pf = 0; pf < NUM_FILTERS; pf++) {
                 w[pf] = weights[weight_addr];
                 weight_addr += SIMD_SIZE;
-            }
-        #endif
-
-        #if FILTER_IFM_NUM % PACK != 0
-            if ((kd + 1) * PACK >= ALIGN(FILTER_IFM_NUM, PACK)) {
-                for (int pf = 0; pf < NUM_FILTERS; pf++) {
-                    FILTER_TYPE* w_p = (FILTER_TYPE*)&w[pf];
-                    unroll_for (uint in_f = FILTER_IFM_NUM % PACK; in_f < PACK; in_f++) {
-                        w_p[in_f] = 0;
-                    }
-                }
             }
         #endif
 

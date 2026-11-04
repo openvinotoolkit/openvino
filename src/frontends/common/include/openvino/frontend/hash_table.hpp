@@ -9,8 +9,7 @@
 #include "openvino/frontend/variable.hpp"
 #include "openvino/frontend/visibility.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 /// \brief HashTable is a special type of Variable that has a complex value including keys and values.
 /// Keys and values are represented with two separate graph at each time step
@@ -131,5 +130,4 @@ private:
     std::set<ov::Output<ov::Node>> m_other_values;
 };
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

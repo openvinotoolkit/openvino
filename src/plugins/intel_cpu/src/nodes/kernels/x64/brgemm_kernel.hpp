@@ -106,7 +106,6 @@ protected:
         dnnl_data_type_t dt_in1 = dnnl_data_type_undef;
         char palette[64] = {};
         bool is_with_amx = false;
-        bool has_post_ops = false;
         bool transpose_a = false;
         bool transpose_b = false;
         float beta = 0.0F;

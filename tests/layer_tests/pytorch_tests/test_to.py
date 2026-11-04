@@ -99,6 +99,7 @@ class TestAtenTo(PytorchLayerTest):
                    precision, ir_version, kwargs_to_prepare_input={"input_shape": input_shape})
 
 
+@pytest.mark.precommit_torch_export
 class TestAtenToDevice(PytorchLayerTest):
     def _prepare_input(self):
         return (self.random.uniform(low=0.0, high=50.0, size=(3,)), self.random.uniform(low=0.0, high=50.0, size=(3,)))
@@ -122,6 +123,7 @@ class TestAtenToDevice(PytorchLayerTest):
                    ir_version, trace_model=use_trace)
 
 
+@pytest.mark.precommit_torch_export
 class TestAtenToDeviceConst(PytorchLayerTest):
     def _prepare_input(self):
         return (self.random.uniform(low=0.0, high=50.0, size=(3,)),)

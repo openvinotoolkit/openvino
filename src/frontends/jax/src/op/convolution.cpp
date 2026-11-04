@@ -21,10 +21,7 @@
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
-namespace op {
+namespace ov::frontend::jax::op {
 
 using namespace ov::op;
 
@@ -136,7 +133,4 @@ OutputVector translate_convolution(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace op
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax::op

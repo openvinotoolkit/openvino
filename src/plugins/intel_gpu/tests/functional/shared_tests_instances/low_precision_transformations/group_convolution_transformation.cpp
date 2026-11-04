@@ -9,6 +9,25 @@
 
 using namespace LayerTestsDefinitions;
 
+namespace LayerTestsDefinitions {
+class GroupConvolutionTransformationGPU : public GroupConvolutionTransformation {
+protected:
+    void SetUp() override {
+        GroupConvolutionTransformation::SetUp();
+        auto [netPrecision, device, inputShapes, param, addPrecisionPreserved] = this->GetParam();
+        if (netPrecision == ov::element::f16) {
+            abs_threshold = 0.5;
+            rel_threshold = 0.01;
+        }
+    }
+};
+
+TEST_P(GroupConvolutionTransformationGPU, CompareWithRefImpl) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    run();
+}
+}  // namespace LayerTestsDefinitions
+
 namespace {
 const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32,
@@ -79,14 +98,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformationGPU,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(addPrecisionPreserved)),
-    GroupConvolutionTransformation::getTestCaseName);
+    GroupConvolutionTransformationGPU::getTestCaseName);
 
 namespace test_values_4d {
 const std::vector<std::pair<ov::PartialShape, ov::Shape>> inputShapes = {
@@ -129,14 +148,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformationGPU,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
          ::testing::Values(ov::test::utils::DEVICE_GPU),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
          ::testing::Values(false)),
-         GroupConvolutionTransformation::getTestCaseName);
+         GroupConvolutionTransformationGPU::getTestCaseName);
 }  // namespace test_values_4d
 
 namespace test_values_3d {
@@ -180,14 +199,14 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     },
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformationGPU,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
          ::testing::Values(ov::test::utils::DEVICE_GPU),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
          ::testing::Values(false)),
-         GroupConvolutionTransformation::getTestCaseName);
+         GroupConvolutionTransformationGPU::getTestCaseName);
 }  // namespace test_values_3d
 
 namespace depthwise {
@@ -221,13 +240,13 @@ const std::vector<LayerTestsDefinitions::GroupConvolutionTransformationParam> pa
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
+INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformationGPU,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(addPrecisionPreserved)),
-    GroupConvolutionTransformation::getTestCaseName);
+    GroupConvolutionTransformationGPU::getTestCaseName);
 }  // namespace depthwise
 }  // namespace

@@ -16,10 +16,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace {
 template <typename T>
 std::vector<T> get_dense_vector(const std::vector<T>& values, const std::vector<int64_t>& indices, const size_t size) {
@@ -116,8 +113,7 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
 ONNX_OP("Constant", OPSET_RANGE(1, 12), ai_onnx::opset_1::constant);
 }  // namespace opset_1
 
-namespace opset_13 {
-namespace detail {
+namespace opset_13::detail {
 ov::OutputVector constant_legacy(const ov::frontend::onnx::Node& node) {
     auto attributes_names = node.get_attribute_names();
     FRONT_END_GENERAL_CHECK(attributes_names.size() == 1,
@@ -248,7 +244,9 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     auto tensor = node.get_attribute_value<Tensor>("value");
     return {tensor.get_ov_constant()};
 }
-}  // namespace detail
+}  // namespace opset_13::detail
+
+namespace opset_13 {
 ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
     if (!node.has_decoder()) {
         return detail::constant_legacy(node);
@@ -259,7 +257,4 @@ ov::OutputVector constant(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Constant", OPSET_SINCE(13), ai_onnx::opset_13::constant);
 }  // namespace opset_13
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

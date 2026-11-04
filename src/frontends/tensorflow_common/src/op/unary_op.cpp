@@ -43,10 +43,7 @@ using namespace std;
 using namespace ov::frontend::tensorflow;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_unary_op(const NodeContext& op,
                                 const function<shared_ptr<Node>(Output<Node>)>& create_unary_op) {
@@ -110,7 +107,4 @@ OutputVector translate_selu_op(const NodeContext& node) {
     return {selu};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

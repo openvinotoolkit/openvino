@@ -11,9 +11,7 @@
 #include "openvino/frontend/gguf/builder/value.hpp"
 #include "openvino/util/common_util.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 int64_t GgufValue::ne(size_t i) const {
     if (empty() || shape().rank().is_dynamic()) {
@@ -44,7 +42,7 @@ GgufValue GgufTensors::operator()(const std::string& gguf_name) const {
         if (ov::util::ends_with(gguf_name, ".weight")) {
             e.add_weight(gguf_name);
         } else {
-            e.add_named_weight(gguf_name);
+            e.add_weight(gguf_name);
         }
     }
     return GgufValue(gguf_name, e.value(gguf_name));
@@ -65,6 +63,4 @@ GgufValue GgufTensors::layer(int il, const std::string& suffix) const {
     return (*this)("blk." + std::to_string(il) + "." + suffix);
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

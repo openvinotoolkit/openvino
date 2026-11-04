@@ -6,10 +6,7 @@
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_pythonop(const NodeContext& context) {
     auto decoder = context.get_decoder();
@@ -44,7 +41,4 @@ OutputVector translate_pythonop(const NodeContext& context) {
     return outputs;
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

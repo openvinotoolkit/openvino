@@ -221,7 +221,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::cache_encryption_callbacks`/</br>`CACHE_ENCRYPTION_CALLBACKS` | WO | Encryption/Decryption functions called when exporting or reading the blob. | ov::EncryptionCallbacks structures populated with any function respecting signature `std::string(const std::string&)` for both encryption and decryption callbacks | ov::EncryptionCallbacks{nullptr, nullptr} |
 | `ov::cache_mode`/</br>`CACHE_MODE` | RW | If `CACHE_DIR` has been set, then this option indicates whether or not the size of the compiled model binary object will be reduced by decoupling a portion of the weights. | `OPTIMIZE_SIZE` /</br>`OPTIMIZE_SPEED` | `OPTIMIZE_SPEED` |
 | `ov::available_devices`/</br>`AVAILABLE_DEVICES` | RO | Returns the list of enumerated NPU devices. </br> NPU plugin does not currently support multiple devices. | `N/A`| `N/A` |
-| `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3720`/</br> `4000`/</br> `5010`/</br> `5020`/</br> `6010` | empty |
+| `ov::device::id`/</br>`DEVICE_ID` | RW | The property for setting the required device to execute on.</br>**Note:** Besides the device index, `DEVICE_ID` also accepts a platform name known by the NPU plugin (e.g. `3720`, `5010`). In that case, the first available device matching that platform is selected.</br>If `NPU_PLATFORM` is also set, `NPU_PLATFORM` takes precedence for compilation, while `DEVICE_ID` is used only to select the device for runtime. | Device ID starts from `0` for the first device, `1` for the second device, and so on. | `0` |
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |
@@ -319,7 +319,7 @@ Supported values:
 
 ### ov::intel_npu::max_tiles and ov::intel_npu::tiles
 
-For on-device compilation, the plugin queries the driver for the available number of tiles and sets `ov::intel_npu::max_tiles`.  
+For on-device compilation, the plugin queries the driver for the available number of tiles and reports it through `ov::intel_npu::max_tiles`.  
 `ov::intel_npu::max_tiles` is a read-only property, and it will not be listed as supported in cases where no device is present.
 Note that `ov::intel_npu::max_tiles` represents the maximum number of tiles available, but the compiler may target a lower number of tiles depending on other properties. Users can set ``ov::intel_npu::tiles`` to override the number of tiles selected by the compiler based on other properties.  
 
@@ -345,7 +345,7 @@ Users can set ``ov::intel_npu::compiler_type`` to ``PLUGIN`` to force ``Compiler
 If any condition is not met, the plugin automatically falls back to using ``Compiler-In-Driver``.  
 The compiler type used to compile a model can be queried from the resulting ``CompiledModel`` by reading the ``ov::intel_npu::compiler_type`` property.  
 Notes regarding on-device vs offline compilation:
-- For on-device compilation with ``Compiler-In-Plugin``, the plugin is responsible for querying the platform information from the driver and for passing the mandatory configs to the compiler (platform ID, available number of tiles, stepping information). Such compiled models are compatible with all the drivers released for that platform.
+- For on-device compilation with ``Compiler-In-Plugin``, the plugin queries the platform information from the driver and passes it to the compiler via the device descriptor supplied at compiler creation. With ``Compiler-In-Driver``, the driver provides the same device descriptor to the compiler on the plugin's behalf. Such compiled models are compatible with all the drivers released for that platform.
 - For offline compilation, users must explicitly set the ``ov::intel_npu::platform`` property to one of the supported values (see table above).  
 Setting extra properties during offline compilation may result in compiled models that cannot be executed on SKUs with fewer resources or on drivers that do not support those features.  
 Example: Setting ``performance-hint-override=latency`` through ``ov::intel_npu::compilation_mode_params`` instructs the compiler to use all available resources for the given platform. If ``ov::intel_npu::max_tiles`` is not provided, the compiler falls back to a fixed lookup table embedded in the library to determine available resources, which might not be representative of all SKUs.

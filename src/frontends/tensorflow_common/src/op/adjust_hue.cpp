@@ -13,10 +13,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_adjust_hue_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AdjustHue"});
@@ -43,7 +40,4 @@ OutputVector translate_adjust_hue_op(const NodeContext& node) {
     return {new_images_adjust_hue};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

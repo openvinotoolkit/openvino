@@ -27,8 +27,13 @@ struct depth_to_space_impl : typed_primitive_impl_ocl<depth_to_space> {
         auto params = get_default_params<kernel_selector::depth_to_space_params>(impl_param);
 
         params.block_size = primitive->block_size;
-        params.mode = primitive->mode == depth_to_space_mode::blocks_first ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
-                                                                           : kernel_selector::depth_to_space_mode::DEPTH_FIRST;
+        params.mode = primitive->mode == depth_to_space_mode::blocks_first  ? kernel_selector::depth_to_space_mode::BLOCKS_FIRST
+                      : primitive->mode == depth_to_space_mode::depth_first ? kernel_selector::depth_to_space_mode::DEPTH_FIRST
+                                                                            : kernel_selector::depth_to_space_mode::GROUPED_DEPTH_FIRST;
+        params.factor_t = primitive->factor_t;
+        params.factor_s = primitive->factor_s;
+        params.output_channels = primitive->output_channels;
+        params.crop_begin_t = primitive->crop_begin_t;
         return params;
     }
 };

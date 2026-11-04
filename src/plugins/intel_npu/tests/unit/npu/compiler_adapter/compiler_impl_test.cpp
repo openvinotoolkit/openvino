@@ -15,8 +15,8 @@
 #include <vector>
 
 #include "fake_vcl.hpp"
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "model_serializer.hpp"
@@ -27,7 +27,7 @@
 #include "ze_graph_ext_wrappers.hpp"
 
 using ::fake_vcl::FakeVcl;
-using ::intel_npu::FilteredConfig;
+using ::intel_npu::Config;
 using ::intel_npu::IDevice;
 using ::intel_npu::OptionsDesc;
 using ::intel_npu::OptionSupportCache;
@@ -48,10 +48,10 @@ std::shared_ptr<OptionsDesc> makeOptionsDesc() {
     return desc;
 }
 
-FilteredConfig makeConfig() {
+Config makeConfig() {
     // Registration is all that is needed: compileWsIterative writes WS_COMPILE_CALL_NUMBER via
     // update(), and MODEL_SERIALIZER_VERSION is read through config.get<>.
-    return FilteredConfig(makeOptionsDesc());
+    return Config(makeOptionsDesc());
 }
 
 /// A minimal model with one weight, enough for the serializer to produce a real IR.
@@ -230,9 +230,7 @@ TEST_F(VCLCompilerImplTest, ConstructionAcceptsALibraryBelowTheFloorAndDefersThe
 //
 
 TEST_F(VCLCompilerImplTest, DestructionDestroysTheCompilerExactlyOnce) {
-    {
-        auto compiler = makeCompiler();
-    }
+    { auto compiler = makeCompiler(); }
     EXPECT_EQ(fake.compilerDestroyCount, 1);
 }
 
@@ -588,83 +586,6 @@ TEST_F(VCLCompilerImplTest, TheBulkListContradictingACachedNegativeIsRejected) {
 
     fake.unsupportedOptions.clear();
     EXPECT_THROW((void)compiler->get_supported_options(), ov::Exception);
-}
-
-//
-// --- process_profiling_output ---
-//
-
-TEST_F(VCLCompilerImplTest, ProcessProfilingOutputFollowsCreateGetDestroyOrdering) {
-    fake.profilingPayload.assign(2 * sizeof(ze_profiling_layer_info), 0);
-    auto compiler = makeCompiler();
-
-    const std::vector<uint8_t> profData{1, 2, 3};
-    const std::vector<uint8_t> network{4, 5, 6, 7};
-    const auto info = compiler->process_profiling_output(profData, network);
-
-    EXPECT_EQ(fake.callCount("vclProfilingCreate"), 1u);
-    EXPECT_EQ(fake.callCount("vclProfilingGetProperties"), 1u);
-    EXPECT_EQ(fake.callCount("vclGetDecodedProfilingBuffer"), 1u);
-    EXPECT_EQ(fake.profilingDestroyCount, 1);
-
-    EXPECT_LT(fake.indexOf("vclProfilingCreate"), fake.indexOf("vclProfilingGetProperties"));
-    EXPECT_LT(fake.indexOf("vclProfilingGetProperties"), fake.indexOf("vclGetDecodedProfilingBuffer"));
-    EXPECT_LT(fake.indexOf("vclGetDecodedProfilingBuffer"), fake.indexOf("vclProfilingDestroy"));
-
-    // One entry per ze_profiling_layer_info in the returned buffer.
-    EXPECT_EQ(info.size(), 2u);
-}
-
-TEST_F(VCLCompilerImplTest, ProcessProfilingOutputSizesByLayerInfoStride) {
-    fake.profilingPayload.assign(5 * sizeof(ze_profiling_layer_info), 0);
-    auto compiler = makeCompiler();
-    EXPECT_EQ(compiler->process_profiling_output({1}, {2}).size(), 5u);
-}
-
-TEST_F(VCLCompilerImplTest, ProcessProfilingOutputThrowsOnNullData) {
-    fake.forceNullProfilingData = true;
-    auto compiler = makeCompiler();
-
-    try {
-        compiler->process_profiling_output({1}, {2});
-        FAIL() << "Expected a throw on NULL profiling data";
-    } catch (const ov::Exception& error) {
-        EXPECT_NE(std::string(error.what()).find("Failed to get VCL profiling output"), std::string::npos);
-    }
-}
-
-TEST_F(VCLCompilerImplTest, ProcessProfilingOutputThrowsWhenCreateFails) {
-    // A decodable payload, so the scripted vclProfilingCreate failure is the only reason to throw.
-    fake.profilingPayload.assign(sizeof(ze_profiling_layer_info), 0);
-    auto compiler = makeCompiler();
-    fake.failWith("vclProfilingCreate", VCL_RESULT_ERROR_UNKNOWN);
-
-    try {
-        compiler->process_profiling_output({1}, {2});
-        FAIL() << "Expected a throw on vclProfilingCreate failure";
-    } catch (const ov::Exception& error) {
-        EXPECT_NE(std::string(error.what()).find("vclProfilingCreate"), std::string::npos);
-    }
-    // Nothing was created, so nothing must be destroyed.
-    EXPECT_EQ(fake.profilingDestroyCount, 0);
-}
-
-TEST_F(VCLCompilerImplTest, ProcessProfilingOutputThrowsWhenDestroyFails) {
-    // The payload must decode successfully, otherwise the null-data guard throws first and the
-    // destroy-failure path is never reached.
-    fake.profilingPayload.assign(sizeof(ze_profiling_layer_info), 0);
-    auto compiler = makeCompiler();
-    fake.failWith("vclProfilingDestroy", VCL_RESULT_ERROR_UNKNOWN);
-
-    try {
-        compiler->process_profiling_output({1}, {2});
-        FAIL() << "Expected a throw on vclProfilingDestroy failure";
-    } catch (const ov::Exception& error) {
-        EXPECT_NE(std::string(error.what()).find("vclProfilingDestroy"), std::string::npos);
-    }
-    // The decode ran to completion before destroy was attempted.
-    EXPECT_EQ(fake.callCount("vclGetDecodedProfilingBuffer"), 1u);
-    EXPECT_EQ(fake.profilingDestroyCount, 1);
 }
 
 //

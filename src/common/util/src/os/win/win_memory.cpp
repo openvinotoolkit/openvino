@@ -20,10 +20,11 @@
 namespace ov::util {
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
-    if (alignment == 0) {
+    if (alignment < alignof(std::max_align_t)) {
         alignment = alignof(std::max_align_t);
     }
-    return _aligned_malloc(size, alignment);
+    const auto aligned_size = align_size_up_overflow(size, alignment);
+    return aligned_size ? _aligned_malloc(*aligned_size, alignment) : nullptr;
 }
 
 void aligned_free(void* ptr) noexcept {
@@ -63,8 +64,8 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     if (num_threads == 0) {
         WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
         ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
-    } else {
-        PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads)).wait();
+    } else if (const auto done = submit_page_toucher_tasks(ptr, size, num_threads); done.valid()) {
+        done.wait();
     }
 }
 
@@ -75,7 +76,7 @@ PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noex
         ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
         return {};
     }
-    return PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads));
+    return submit_page_toucher_tasks(ptr, size, num_threads);
 }
 
 }  // namespace ov::util

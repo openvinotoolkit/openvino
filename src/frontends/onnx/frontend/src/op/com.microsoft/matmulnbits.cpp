@@ -4,13 +4,17 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <numeric>
 #include <optional>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
@@ -28,19 +32,20 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 namespace {
 // MatMulNBits repacks B/scales/zero_point initializers into new low-bit Constants. Preserve the
-// original ONNX initializer's friendly name and tensor names on the repacked Constant so weight
-// sharing / weights-as-input can still identify it as the same external weight.
+// original ONNX initializer's friendly name and tensor names, optionally with a suffix for a
+// differently shaped representation.
 void preserve_initializer_name(const std::shared_ptr<v0::Constant>& repacked,
-                               const std::shared_ptr<v0::Constant>& original) {
-    repacked->set_friendly_name(original->get_friendly_name());
-    repacked->get_output_tensor(0).set_names(original->get_output_tensor(0).get_names());
+                               const std::shared_ptr<v0::Constant>& original,
+                               const std::string& suffix = {}) {
+    repacked->set_friendly_name(original->get_friendly_name() + suffix);
+    std::unordered_set<std::string> names;
+    for (const auto& name : original->get_output_tensor(0).get_names()) {
+        names.insert(name + suffix);
+    }
+    repacked->get_output_tensor(0).set_names(names);
 }
 
 // A static shape carries an explicit 2-axis order hint when it is rank 2, or rank 3 with a trailing
@@ -403,6 +408,23 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
                 ov::Shape casted_zp_shape =
                     ov::Shape{static_cast<size_t>(outer_dim), static_cast<size_t>(num_elements_aligned), 1};
+                if (!b_is_reordered) {
+                    // Standard layout: the Constant below copies required_zp_bytes from the source pointer;
+                    // reject an undersized initializer to avoid reading past it (a larger source is fine).
+                    // The reordered layout is already size-validated above.
+                    const auto required_zp_bytes = ov::util::get_memory_size_safe(zp_element_type, casted_zp_shape);
+                    CHECK_VALID_NODE(node,
+                                     required_zp_bytes.has_value(),
+                                     "MatMulNBits limitation: cannot compute packed uint8 zero_points size for shape ",
+                                     casted_zp_shape);
+                    CHECK_VALID_NODE(node,
+                                     zero_points_const->get_byte_size() >= *required_zp_bytes,
+                                     "MatMulNBits limitation: packed uint8 zero_points is too small for shape "
+                                     "[N][CeilDiv(n_blocks_per_col * bits, 8)], need at least ",
+                                     *required_zp_bytes,
+                                     " bytes, got: ",
+                                     zero_points_const->get_byte_size());
+                }
                 auto casted_zp_org =
                     std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
                 // Preserve the original zero_point name on the repacked Constant (as done for B) so
@@ -412,12 +434,30 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 preserve_initializer_name(casted_zp_org, zero_points_const);
                 converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
                 if (pack_dim != num_elements_aligned) {
-                    // if not aligned, e.g. pack_dim is 13, bits is 2, num_per_byte is 4: packed into 4
-                    // bytes, so make a constant {outer_dim, 16} then slice to {outer_dim, 13}
-                    const auto num_elements =
-                        std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(pack_dim));
-                    converted_zero_points =
-                        std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
+                    // The ONNX buffer byte-aligns each row. Unpack only the valid values and let Constant
+                    // repack them contiguously, so the graph does not need a padding-trimming Slice.
+                    const auto packed_data = static_cast<const uint8_t*>(zero_points_const->get_data_ptr());
+                    const auto value_mask = (1u << bits) - 1;
+                    std::vector<uint8_t> zero_point_values(static_cast<size_t>(outer_dim * pack_dim));
+                    for (uint64_t outer = 0; outer < outer_dim; ++outer) {
+                        for (uint64_t i = 0; i < pack_dim; ++i) {
+                            const auto byte_index = outer * num_byte + i / num_per_byte;
+                            const auto bit_shift = (i % num_per_byte) * bits;
+                            zero_point_values[static_cast<size_t>(outer * pack_dim + i)] =
+                                static_cast<uint8_t>((packed_data[byte_index] >> bit_shift) & value_mask);
+                        }
+                    }
+                    auto unpacked_zp = std::make_shared<v0::Constant>(
+                        zp_element_type,
+                        ov::Shape{static_cast<size_t>(outer_dim), static_cast<size_t>(pack_dim), 1},
+                        zero_point_values);
+                    // This Constant omits the ONNX per-row byte padding, so give it a distinct name
+                    // from the packed initializer used by consumers that promote weights by name.
+                    preserve_initializer_name(unpacked_zp, zero_points_const, "_aligned");
+                    converted_zero_points = std::make_shared<v0::Convert>(unpacked_zp, a.get_element_type());
+                } else {
+                    preserve_initializer_name(casted_zp_org, zero_points_const);
+                    converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
                 }
             } else {
                 FRONT_END_THROW("Unexpected zero point type");
@@ -522,8 +562,4 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("MatMulNBits", OPSET_SINCE(1), com_microsoft::opset_1::matmulnbits, MICROSOFT_DOMAIN);
 
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

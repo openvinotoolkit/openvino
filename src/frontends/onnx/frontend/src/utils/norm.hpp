@@ -7,9 +7,7 @@
 
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace op {
-namespace util {
+namespace ov::op::util {
 /// \brief      Creates node which calculates L-p norm on input tensor.
 ///
 /// \param[in]  value           The input tensor.
@@ -25,6 +23,4 @@ std::shared_ptr<Node> lp_norm(const Output<Node>& value,
                               std::size_t p_norm = 2,
                               float bias = 0.f,
                               bool keep_dims = false);
-}  // namespace util
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::util

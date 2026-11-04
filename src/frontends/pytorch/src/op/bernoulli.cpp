@@ -10,10 +10,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov;
 using namespace ov::op;
@@ -76,7 +73,4 @@ OutputVector translate_bernoulli(const NodeContext& context) {
     }
     return {bernoulli_samples};
 };
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

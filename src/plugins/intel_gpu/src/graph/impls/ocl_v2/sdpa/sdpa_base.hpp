@@ -52,6 +52,10 @@ struct sdpa_configuration {
     bool has_score_aggregation = false;
     bool has_rotated_blocks = false;
 
+    // Sliding-window attention size in tokens: 0 = disabled (matches kernel guards `SLIDING_WINDOW_SIZE != 0`),
+    // > 0 = window size. GQA's -1 "disabled" sentinel is normalized to 0 at the SDPA op boundary.
+    int64_t sliding_window = 0;
+
     int64_t input_num;
 };
 
@@ -66,6 +70,17 @@ struct SDPABase : public KernelGenerator {
                                                      const std::vector<int64_t>& input_v_transpose_order);
 
     static bool is_int4_kv_cache(const kernel_impl_params& params);
+
+    // Returns the effective K head size as actually used by SDPA-family OCL kernels (SDPAOpt/SDPAMicro
+    // and PagedAttentionOpt share this via SDPABase). For PagedAttention this is simply the descriptor
+    // field; for SDPA it is derived from the K input layout (honoring the transpose order), with the
+    // int4 KV-cache override (physical K layout is packed to half size; use the logical, un-halved
+    // head size taken from the query layout instead).
+    static int64_t get_effective_k_head_size(const kernel_impl_params& params);
+    // Returns the effective V head size. See get_effective_k_head_size() for details; the only
+    // difference is that this is derived from the V input layout / v_head_size descriptor field.
+    static int64_t get_effective_v_head_size(const kernel_impl_params& params);
+
     static bool requires_shape_canonicalization(const kernel_impl_params& impl_params);
     static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params);
 

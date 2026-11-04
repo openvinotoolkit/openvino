@@ -19,10 +19,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pass {
-namespace sal_detail {
+namespace ov::frontend::pass::sal_detail {
 
 using Slots = std::vector<ov::Output<ov::Node>>;
 
@@ -118,10 +115,10 @@ private:
     // possible. Returns false when the branch cannot be safely expanded (opaque-
     // forward with no mirrorable Parameters).
     bool expand_branch_to_n_slots(const std::shared_ptr<ov::op::util::MultiSubGraphOp>& msg,
-                                   size_t b,
-                                   size_t ref,
-                                   size_t N,
-                                   std::vector<Slots>& per_body_slots);
+                                  size_t b,
+                                  size_t ref,
+                                  size_t N,
+                                  std::vector<Slots>& per_body_slots);
     std::optional<LengthTemplate> find_template_via_chain(const ov::Output<ov::Node>& root_value, ov::Node* exclude_p);
 
     std::shared_ptr<ov::Model> root_;
@@ -133,7 +130,4 @@ private:
     bool changed_ = false;
 };
 
-}  // namespace sal_detail
-}  // namespace pass
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pass::sal_detail

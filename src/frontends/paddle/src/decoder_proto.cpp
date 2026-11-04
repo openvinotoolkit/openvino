@@ -15,9 +15,7 @@
 
 #include "framework.pb.h"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
+namespace ov::frontend::paddle {
 
 using namespace ::paddle::framework;
 
@@ -250,6 +248,4 @@ std::map<std::string, OutputVector> DecoderProto::map_for_each_output(
     return map_for_each_input_impl(get_place()->get_desc().outputs(), func);
 }
 
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle

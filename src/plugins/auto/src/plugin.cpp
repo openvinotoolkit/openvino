@@ -490,11 +490,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     if (!device_utilization_thresholds.empty()) {
         auto_s_context->m_selection_policy.utilization_thresholds.insert(device_utilization_thresholds.begin(),
                                                                         device_utilization_thresholds.end());
+        for (const auto& item : device_utilization_thresholds) {
+            LOG_DEBUG_TAG("Device: %s. Utilization threshold: %s",
+                          item.first.c_str(),
+                          std::to_string(item.second).c_str());
+        }
     }
     // Values are already validated by PerfCurveTableValidator when the property is set, so no re-check here.
     auto perf_curve_table = load_config.get_property(ov::intel_auto::perf_curve_table);
     if (!perf_curve_table.empty()) {
         auto_s_context->m_selection_policy.perf_curve_table = perf_curve_table;
+        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves", std::to_string(perf_curve_table.size()).c_str());
+        for (const auto& [device_key, curve] : perf_curve_table) {
+            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %s points", device_key.c_str(), std::to_string(curve.size()).c_str());
+            for (const auto& [utilization, score] : curve) {
+                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%lf", device_key.c_str(), utilization, score);
+            }
+        }
     }
     auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
     if (!low_power_device.empty()) {
@@ -593,18 +605,23 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::optional<float> Plugin::get_device_utilization(const std::string& device_name,
-                                                    const std::string& device_type) {
+std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std::list<DeviceInformation>& devices) {
     std::call_once(m_telemetry_client_init_once, [this]() {
         m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
     });
-    auto result = m_telemetry_client->utilization(device_name, device_type);
-    if (result.has_value()) {
-        LOG_DEBUG_TAG("[IPF] Device %s utilization: %s",
-                      device_name.c_str(),
-                      std::to_string(result.value()).c_str());
-    } else {
-        LOG_DEBUG_TAG("[IPF] Device %s utilization query failed/unavailable", device_name.c_str());
+    std::vector<std::pair<std::string, std::string>> device_name_and_type;
+    device_name_and_type.reserve(devices.size());
+    for (const auto& device : devices) {
+        device_name_and_type.emplace_back(device.device_name, resolve_device_key(device.device_name).device_type);
+    }
+    const auto result = m_telemetry_client->utilizations(device_name_and_type);
+    for (const auto& device : devices) {
+        const auto it = result.find(device.device_name);
+        if (it != result.end()) {
+            LOG_DEBUG_TAG("[IPF] Device %s utilization: %s", device.device_name.c_str(), std::to_string(it->second).c_str());
+        } else {
+            LOG_DEBUG_TAG("[IPF] Device %s utilization query failed/unavailable", device.device_name.c_str());
+        }
     }
     return result;
 }
@@ -732,22 +749,6 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     const auto& perf_curve_table = selection_policy.perf_curve_table;
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
 
-    if (!perf_curve_table.empty()) {
-        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves",
-                      std::to_string(perf_curve_table.size()).c_str());
-        for (const auto& [device_key, curve] : perf_curve_table) {
-            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %s points",
-                          device_key.c_str(),
-                          std::to_string(curve.size()).c_str());
-            for (const auto& [utilization, score] : curve) {
-                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%lf",
-                              device_key.c_str(),
-                              utilization,
-                              score);
-            }
-        }
-    }
-
     // all available Devices are in valid_devices now
     // need to remove higher priority devices
     // save the last device first
@@ -796,10 +797,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
         return std::nullopt;
     };
-    // low_power_device (driven by IPF/DTT OnEpoGearChanged) takes precedence over
-    // devices_utilization_threshold whenever the platform is in low power mode.
-    // Match by exact device name (e.g. "NPU.5010") first, then fall back to the
-    // base device name (e.g. "NPU"), mirroring find_utilization_threshold.
+    // Finds the configured low-power device by exact or base device name.
     auto find_low_power_device = [&]() -> DeviceInformation* {
         if (low_power_device.empty()) {
             return nullptr;
@@ -822,34 +820,32 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     } else if (auto* low_power_selected = find_low_power_device()) {
         ptr_select_device = low_power_selected;
     } else {
-        // When both properties are configured, apply utilization thresholds first.
+        std::unordered_map<std::string, float> device_utilizations;
+        if (!utilization_thresholds.empty() || !perf_curve_table.empty()) {
+            device_utilizations = get_device_utilizations(valid_devices);
+        }
+        // Apply utilization thresholds before performance-curve ranking.
         if (!utilization_thresholds.empty()) {
             last_device = valid_devices.front();
             std::list<DeviceInformation> threshold_filtered_devices;
-            for (const auto& item : utilization_thresholds)
-                LOG_DEBUG_TAG("Device: %s. Utilization threshold: %s", item.first.c_str(), std::to_string(item.second).c_str());
 
             for (const auto& device : valid_devices) {
                 bool is_excluded = false;
                 const auto base_name = ov::DeviceIDParser(device.device_name).get_device_name();
                 const auto device_threshold = find_utilization_threshold(device.device_name, base_name);
                 if (device_threshold.has_value()) {
-                    std::string device_type;
-                    if (base_name == "GPU") {
-                        device_type = resolve_device_key(device.device_name).device_type;
-                    }
-                    const auto device_utilization = get_device_utilization(device.device_name, device_type);
-                    if (!device_utilization.has_value()) {
+                    const auto utilization_it = device_utilizations.find(device.device_name);
+                    if (utilization_it == device_utilizations.end()) {
                         LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list", device.device_name.c_str());
                     } else {
                         LOG_DEBUG_TAG("Device: %s\tutilization: %s",
                                       device.device_name.c_str(),
-                                      std::to_string(device_utilization.value()).c_str());
-                        if (device_utilization.value() >= device_threshold.value()) {
+                                      std::to_string(utilization_it->second).c_str());
+                        if (utilization_it->second >= device_threshold.value()) {
                             is_excluded = true;
                             LOG_DEBUG_TAG("[%s] Current utilization [%s] exceeds the threshold[%s]",
                                           device.device_name.c_str(),
-                                          std::to_string(device_utilization.value()).c_str(),
+                                          std::to_string(utilization_it->second).c_str(),
                                           std::to_string(device_threshold.value()).c_str());
                         }
                     }
@@ -860,7 +856,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
             }
 
             if (threshold_filtered_devices.empty()) {
-                // All candidates were filtered by threshold: keep previous fallback behavior.
+                // Fall back when all candidates exceed their thresholds.
                 ptr_select_device = &last_device;
             } else {
                 valid_devices = std::move(threshold_filtered_devices);
@@ -868,10 +864,10 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
 
         if (!ptr_select_device && !perf_curve_table.empty()) {
-            // perf_curve_table ranks only candidates that already passed threshold filtering;
-            // scored_count > 0 confirms at least one candidate resolved to a curve entry.
+            // Rank candidates with performance curves.
             size_t scored_count = 0;
-            perf_curve_sorted_devices = sort_device_by_perf_curve(valid_devices, perf_curve_table, &scored_count);
+            perf_curve_sorted_devices =
+                sort_device_by_perf_curve(device_utilizations, valid_devices, perf_curve_table, &scored_count);
             if (scored_count > 0) {
                 ptr_select_device = &perf_curve_sorted_devices.front();
             }
@@ -920,6 +916,7 @@ float Plugin::interpolate_perf_score(const std::map<unsigned, float>& curve, flo
 }
 
 std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
+        const std::unordered_map<std::string, float>& device_utilizations,
         const std::list<DeviceInformation>& valid_devices,
         const ov::intel_auto::PerfCurveTable& perf_curve_table,
         size_t* out_scored_count) {
@@ -950,17 +947,17 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
                           device_key.logical_key.c_str());
             continue;  // no curve entry for this device -> unscored
         }
-        const auto utilization = get_device_utilization(device.device_name, device_key.device_type);
-        if (!utilization.has_value()) {
+        const auto utilization_it = device_utilizations.find(device.device_name);
+        if (utilization_it == device_utilizations.end()) {
             LOG_DEBUG_TAG("Cannot get utilization for %s via perf_curve_table lookup", device.device_name.c_str());
             continue;
         }
         try {
-            scores[i] = interpolate_perf_score(curve_it->second, utilization.value());
+            scores[i] = interpolate_perf_score(curve_it->second, utilization_it->second);
             LOG_DEBUG_TAG("[%s] perf_curve_table: key=%s, utilization=%lf, performance_score=%lf",
                           device.device_name.c_str(),
                           device_key.logical_key.c_str(),
-                          utilization.value(),
+                          utilization_it->second,
                           scores[i].value());
         } catch (const ov::Exception& ex) {
             LOG_DEBUG_TAG("[%s] perf_curve_table score computation failed: %s. Treat as no-score",

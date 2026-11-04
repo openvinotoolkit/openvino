@@ -3,14 +3,8 @@
 //
 #include "slice_ops.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs slice(const NodeContext& node) {
     return slice_op(node, false);
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

@@ -8,6 +8,11 @@
 #include "openvino/op/depth_to_space.hpp"
 
 #include "intel_gpu/primitives/depth_to_space.hpp"
+#include "intel_gpu/op/grouped_depth_to_space.hpp"
+
+namespace ov::op::internal {
+using GroupedDepthToSpace = ov::intel_gpu::op::GroupedDepthToSpace;
+}
 
 namespace ov {
 namespace intel_gpu {
@@ -40,6 +45,17 @@ static void CreateDepthToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
 }
 
 REGISTER_FACTORY_IMPL(v0, DepthToSpace);
+
+static void CreateGroupedDepthToSpaceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::GroupedDepthToSpace>& op) {
+    validate_inputs_count(op, {1});
+    auto inputs = p.GetInputInfo(op);
+    auto prim =
+        cldnn::depth_to_space(layer_type_name_ID(op), inputs[0], op->get_factor_t(), op->get_factor_s(), op->get_output_channels(), op->get_crop_begin_t());
+    prim.output_data_types = get_output_data_types(op);
+    p.add_primitive(*op, prim);
+}
+
+REGISTER_FACTORY_IMPL(internal, GroupedDepthToSpace);
 
 }  // namespace intel_gpu
 }  // namespace ov

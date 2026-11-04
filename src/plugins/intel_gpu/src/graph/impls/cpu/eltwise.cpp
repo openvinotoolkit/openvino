@@ -5,6 +5,7 @@
 #include "eltwise_inst.h"
 #include "impls/cpu/cpu_impl_helpers.hpp"
 #include "registry/implementation_map.hpp"
+#include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
@@ -204,7 +205,8 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
 
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
-        OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
+        OPENVINO_ASSERT(ov::util::evaluate_node_with_unsupported_precision(op.get(), output_host_tensors, input_host_tensors) ||
+                        op->evaluate(output_host_tensors, input_host_tensors),
                         "[GPU] Couldn't execute eltwise primitive with id ", instance.id());
 
         for (size_t i = 0; i < input_mem_ptrs.size(); i++) {

@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <type_traits>
+
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/op/util/arithmetic_reduction.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 
 template <typename T>
 NamedOutputs reduce_ops(const NodeContext& node) {
@@ -54,6 +54,19 @@ NamedOutputs reduce_ops(const NodeContext& node) {
         }
     }
 
+    // Take the target type from the op's output variable, which already folds in the explicit
+    // `out_dtype` and the promotion SumRawInferMeta applies when it is unset (BOOL and INT32 become
+    // INT64, every other input keeps its dtype). Paddle accumulates in that type, so convert the
+    // input before reducing.
+    constexpr bool is_arithmetic = std::is_base_of<ov::op::util::ArithmeticReduction, T>::value;
+    if (is_arithmetic) {
+        const auto input_type = x.get_element_type();
+        const auto output_type = node.get_out_port_type("Out");
+        if (input_type.is_static() && output_type.is_static() && output_type != input_type) {
+            x = std::make_shared<default_opset::Convert>(x, output_type);
+        }
+    }
+
     auto reduce_node = std::make_shared<T>(x, axes_node, keep_dim);
     const auto output_info = node.get_output_port_infos("Out");
     size_t output_size = output_info[0].second.size();
@@ -66,7 +79,4 @@ NamedOutputs reduce_ops(const NodeContext& node) {
     return node.default_single_output_mapping({result}, {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

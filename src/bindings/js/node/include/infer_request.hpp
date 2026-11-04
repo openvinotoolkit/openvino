@@ -11,14 +11,16 @@
 #include "openvino/runtime/infer_request.hpp"
 
 struct TsfnContext {
-    TsfnContext(Napi::Env env) : deferred(Napi::Promise::Deferred::New(env)), _ir(nullptr) {};
+    TsfnContext(Napi::Env env, const ov::InferRequest& infer_request)
+        : deferred(Napi::Promise::Deferred::New(env)),
+          _ir(infer_request) {};
 
     std::thread native_thread;
 
     Napi::Promise::Deferred deferred;
     Napi::ThreadSafeFunction tsfn;
 
-    ov::InferRequest* _ir;
+    ov::InferRequest _ir;
     ParsedInputData _inputs;
     std::map<std::string, ov::Tensor> result;
 };

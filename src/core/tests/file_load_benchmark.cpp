@@ -199,14 +199,14 @@ namespace strategy {
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
 void sync_vm_prefetch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch();
+    mapped->hint_prefetch(0, ov::auto_size);
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
 void loop_touch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
     volatile uint8_t sink = 0;
-    for (auto first = mapped->data(), last = first + mapped->size(); first < last; first += page_size) {
+    for (auto *first = mapped->data_as<uint8_t>(), *last = first + mapped->size(); first < last; first += page_size) {
         sink += *first;
     }
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
@@ -241,7 +241,7 @@ void mmap_then_compute(const std::filesystem::path& path, size_t /*file_size*/) 
 
 void mmap_prefetch_then_compute(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    mapped->hint_prefetch();
+    mapped->hint_prefetch(0, ov::auto_size);
     compute_over_mapped(mapped);
 }
 

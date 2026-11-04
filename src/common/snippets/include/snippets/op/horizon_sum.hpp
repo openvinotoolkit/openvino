@@ -6,11 +6,9 @@
 
 #include <memory>
 
-#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
-#include "openvino/op/op.hpp"
+#include "snippets/op/horizon.hpp"
 
 namespace ov::snippets::op {
 
@@ -19,16 +17,14 @@ namespace ov::snippets::op {
  * @brief The operation calculates a horizon sum of a vector register
  * @ingroup snippets
  */
-class HorizonSum : public ov::op::Op {
+class HorizonSum : public HorizonBase {
 public:
-    OPENVINO_OP("HorizonSum", "SnippetsOpset");
+    OPENVINO_OP("HorizonSum", "SnippetsOpset", HorizonBase);
 
-    explicit HorizonSum(const Output<Node>& x);
-    explicit HorizonSum(const OutputVector& x);
+    using HorizonBase::HorizonBase;
     HorizonSum() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-    void validate_and_infer_types() override;
 };
 
 }  // namespace ov::snippets::op

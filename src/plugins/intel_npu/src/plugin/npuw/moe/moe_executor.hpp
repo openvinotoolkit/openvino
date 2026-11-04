@@ -205,6 +205,9 @@ private:
     std::optional<MoEProfile>
         m_profile;  // Performance statistics (always collects, reports based on profiling_enabled())
 
+    // Chunk padding stats, EXPERT_ITERATIVE mode only (see MoEChunkStats)
+    MoEChunkStats m_chunk_stats;
+
     // === Weight unpacking methods ===
     /**
      * @brief Unpack single expert's closure (expert-specific weights)
