@@ -25,6 +25,9 @@
   "dependencies": {
     "@actions/core": "^3.0.1"
   },
+  "overrides": {
+    "undici": "6.29.0"
+  },
   "devDependencies": {
     "@vercel/ncc": "^0.44.1",
     "prettier": "^3.9.6"
