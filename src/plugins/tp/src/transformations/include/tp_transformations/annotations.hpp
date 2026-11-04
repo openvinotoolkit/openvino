@@ -18,12 +18,18 @@ class Model;
 namespace tp {
 
 /// A part of a split dimension that is split on its own (one per fused segment).
+///
+/// Rank r owns share (r / step) % count of the segment's units, count 0 meaning world_size: step R
+/// gives R consecutive ranks the same share (KV heads shared by fewer heads than ranks), count R
+/// splits the segment in R shares repeated over the ranks (a KV head's query group).
 struct Segment {
     size_t length = 0;  ///< elements along the split dimension
     size_t unit = 1;    ///< split granularity: a head (group), a quantization group, or 1
+    size_t step = 1;
+    size_t count = 0;
 
     bool operator==(const Segment& other) const {
-        return length == other.length && unit == other.unit;
+        return length == other.length && unit == other.unit && step == other.step && count == other.count;
     }
 };
 

@@ -218,7 +218,7 @@ std::vector<Segment> coarsen(const std::vector<Segment>& segments, int64_t trail
         const size_t unit = std::lcm(segment.unit, step) / step;
         if ((segment.length / step) % unit != 0)
             return {};
-        result.push_back({segment.length / step, unit});
+        result.push_back({segment.length / step, unit, segment.step, segment.count});
     }
     std::vector<size_t> scaled;
     for (const auto b : boundaries(result, world_size))

@@ -227,6 +227,11 @@ size_t count_collectives(const ov::Model& model) {
 /// and the cost is invisible otherwise.
 void warn_on_kv_imbalance(const TPAnalysisReport& report, uint32_t shard_degree) {
     const auto kv_heads = static_cast<int>(report.num_kv_heads);
+    if (report.kv_replicas > 1) {
+        TP_LOG_INFO << "[TP] " << kv_heads << " KV heads on " << shard_degree << " ranks: " << report.kv_replicas
+                    << " ranks share each KV head and compute its K/V projections alike" << std::endl;
+        return;
+    }
     const int remainder = kv_heads % static_cast<int>(shard_degree);
     if (remainder == 0) {
         return;
@@ -251,6 +256,7 @@ struct BlobHeader {
     TPStrategy strategy = TPStrategy::COLUMN_ROW;
     std::vector<std::string> device_names;
     std::vector<std::string> sharded_state_ids;
+    uint32_t state_replicas = 1;
     ImportedPorts ports;
 };
 
@@ -295,6 +301,11 @@ BlobHeader read_blob_header(std::istream& blob) {
     OPENVINO_ASSERT(num_sharded_states <= tp_blob::max_sharded_states,
                     "[TP] compiled blob declares ", num_sharded_states,
                     " sharded states, which is not plausible; the cache entry is corrupted");
+
+    header.state_replicas = tp_blob::read_trivial<uint32_t>(blob);
+    OPENVINO_ASSERT(header.state_replicas >= 1 && header.world_size % header.state_replicas == 0,
+                    "[TP] compiled blob declares ", header.state_replicas, " ranks per state slice for ",
+                    header.world_size, " ranks; the cache entry is corrupted");
 
     header.device_names.resize(header.world_size);
     for (auto& name : header.device_names) {
@@ -463,6 +474,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                            std::move(device_names),
                                            std::move(device_keys),
                                            std::move(report->sharded_variables),
+                                           static_cast<uint32_t>(report->kv_replicas),
                                            /*loaded_from_cache=*/false,
                                            cfg);
 }
@@ -655,6 +667,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
                                            std::move(header.device_names),
                                            std::move(device_keys),
                                            std::move(header.sharded_state_ids),
+                                           header.state_replicas,
                                            /*loaded_from_cache=*/true,
                                            cfg,
                                            header.ports);

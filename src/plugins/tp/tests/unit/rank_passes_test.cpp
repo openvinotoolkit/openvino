@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "l1_test_utils.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -214,5 +215,80 @@ INSTANTIATE_TEST_SUITE_P(TPRankPasses,
                          [](const ::testing::TestParamInfo<size_t>& info) {
                              return "world" + std::to_string(info.param);
                          });
+
+// Fewer KV heads than ranks: every rank keeps the one KV head its query heads use.
+struct FewKvHeads {
+    size_t kv_heads;
+    size_t world_size;
+};
+
+class TPRankPassesFewKvHeadsTest : public ::testing::TestWithParam<FewKvHeads> {
+protected:
+    static BlockConfig config() {
+        BlockConfig c;
+        c.num_heads = 12;  // divides by 2, 3 and 4
+        c.num_kv_heads = GetParam().kv_heads;
+        return c;
+    }
+};
+
+TEST_P(TPRankPassesFewKvHeadsTest, ReportsTheRanksSharingAKvHead) {
+    auto model = make_transformer_block(config());
+    const auto report = analyze(model, GetParam().world_size);
+    EXPECT_EQ(report->kv_replicas, GetParam().world_size / GetParam().kv_heads);
+}
+
+TEST_P(TPRankPassesFewKvHeadsTest, KeepsOneKvHeadAndAShareOfItsGroup) {
+    const auto [kv_heads, world_size] = GetParam();
+    auto c = config();
+    c.stateful = true;
+    const auto models = rank_models(make_transformer_block(c), world_size);
+    const auto head_dim = static_cast<int64_t>(c.head_dim);
+    for (size_t rank = 0; rank < world_size; ++rank) {
+        SCOPED_TRACE("rank " + std::to_string(rank));
+        for (const auto& variable : models[rank]->get_variables())
+            EXPECT_EQ(variable->get_info().data_shape[1].get_length(), 1);
+        for (const auto& op : models[rank]->get_ordered_ops()) {
+            if (const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op)) {
+                // The query heads of the rank, and its KV head expanded to as many.
+                const auto local_q = static_cast<int64_t>(c.num_heads / world_size);
+                for (size_t i = 0; i < 3; ++i)
+                    EXPECT_EQ(sdpa->get_input_partial_shape(i)[1].get_length(), local_q) << "input " << i;
+                EXPECT_EQ(sdpa->get_input_partial_shape(1)[3].get_length(), head_dim);
+            }
+        }
+    }
+}
+
+TEST_P(TPRankPassesFewKvHeadsTest, LocalizesThePagedAttentionHeads) {
+    const auto [kv_heads, world_size] = GetParam();
+    auto c = config();
+    const auto models = rank_models(make_paged_attention_block(c), world_size);
+    for (size_t rank = 0; rank < world_size; ++rank) {
+        const auto attention = paged_attention(models[rank]);
+        ASSERT_NE(attention, nullptr);
+        EXPECT_EQ(attention->get_rt_info().at("num_k_heads").as<int64_t>(), 1);
+        EXPECT_EQ(attention->get_rt_info().at("num_v_heads").as<int64_t>(), 1);
+        const auto head_dim = static_cast<int64_t>(c.head_dim);
+        EXPECT_EQ(attention->get_input_partial_shape(0)[1].get_length(),
+                  static_cast<int64_t>(c.num_heads / world_size) * head_dim);
+        EXPECT_EQ(attention->get_input_partial_shape(1)[1].get_length(), head_dim);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(TPRankPasses,
+                         TPRankPassesFewKvHeadsTest,
+                         ::testing::Values(FewKvHeads{1, 2}, FewKvHeads{1, 3}, FewKvHeads{1, 4}, FewKvHeads{2, 4}),
+                         [](const ::testing::TestParamInfo<FewKvHeads>& info) {
+                             return "kv" + std::to_string(info.param.kv_heads) + "_world" + std::to_string(info.param.world_size);
+                         });
+
+TEST(TPRankPassesTest, RejectsKvHeadsThatDoNotDivideTheRanks) {
+    BlockConfig c;
+    c.num_heads = 12;
+    c.num_kv_heads = 2;
+    auto model = make_transformer_block(c);
+    OV_EXPECT_THROW(analyze(model, 3), ov::Exception, ::testing::HasSubstr("world size 3 does not divide them evenly"));
+}
 
 }  // namespace ov::tp::tests

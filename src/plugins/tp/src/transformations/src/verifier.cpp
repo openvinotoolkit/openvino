@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <map>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <unordered_map>
 
@@ -30,27 +31,30 @@ namespace tp {
 
 namespace {
 
+/// Per rank, the elements of one axis it holds, in order.
+using Layout = std::vector<std::vector<Range>>;
+
 struct State {
     enum Kind { REPLICATED, SPLIT, PARTIAL, SIZES };
     Kind kind = REPLICATED;
-    int64_t axis = -1;                ///< SPLIT
-    std::vector<Segment> segments;    ///< SPLIT, SIZES: the split dimension
-    std::vector<int64_t> elements;    ///< SIZES: rank-dependent elements of a 1-D shape vector (0 for a scalar)
-    std::string origin;               ///< the node that created the state
+    std::map<int64_t, Layout> axes;      ///< SPLIT: split axes
+    std::map<int64_t, Layout> elements;  ///< SIZES: elements of a shape vector holding the rank's size of a split axis
+    std::string origin;                  ///< the node that created the state
 
-    static State split(int64_t axis, std::vector<Segment> segments, std::string origin) {
+    static State split(std::map<int64_t, Layout> axes, std::string origin) {
         State s;
         s.kind = SPLIT;
-        s.axis = axis;
-        s.segments = std::move(segments);
+        s.axes = std::move(axes);
         s.origin = std::move(origin);
         return s;
     }
-    static State sizes(std::vector<int64_t> elements, std::vector<Segment> segments, std::string origin) {
+    static State split(int64_t axis, Layout layout, std::string origin) {
+        return split(std::map<int64_t, Layout>{{axis, std::move(layout)}}, std::move(origin));
+    }
+    static State sizes(std::map<int64_t, Layout> elements, std::string origin) {
         State s;
         s.kind = elements.empty() ? REPLICATED : SIZES;
         s.elements = std::move(elements);
-        s.segments = std::move(segments);
         s.origin = std::move(origin);
         return s;
     }
@@ -60,36 +64,44 @@ struct State {
         s.origin = std::move(origin);
         return s;
     }
+
+    bool operator==(const State& other) const {
+        return kind == other.kind && axes == other.axes && elements == other.elements;
+    }
 };
 
 std::string node_name(const ov::Node& node) {
     return std::string(node.get_type_name()) + " \"" + node.get_friendly_name() + "\"";
 }
 
+std::string describe(const Layout& layout) {
+    std::ostringstream out;
+    for (size_t rank = 0; rank < layout.size(); ++rank) {
+        out << (rank ? " " : "") << "r" << rank << ":";
+        for (const auto& range : layout[rank])
+            out << "[" << range.offset << "," << range.offset + range.length << ")";
+    }
+    return out.str();
+}
+
 std::string describe(const State& s) {
     std::ostringstream out;
-    auto segments = [&] {
-        out << " [";
-        for (size_t i = 0; i < s.segments.size(); ++i)
-            out << (i ? ", " : "") << s.segments[i].length << "/" << s.segments[i].unit;
-        out << "]";
-    };
     switch (s.kind) {
     case State::REPLICATED:
         return "Replicated";
     case State::SPLIT:
-        out << "Split(axis " << s.axis << ",";
-        segments();
+        out << "Split(";
+        for (auto it = s.axes.begin(); it != s.axes.end(); ++it)
+            out << (it == s.axes.begin() ? "" : "; ") << "axis " << it->first << " " << describe(it->second);
         out << ")";
         break;
     case State::PARTIAL:
         out << "Partial";
         break;
     case State::SIZES:
-        out << "rank-dependent sizes at element(s)";
-        for (const auto e : s.elements)
-            out << " " << e;
-        segments();
+        out << "rank-dependent sizes at";
+        for (const auto& [element, layout] : s.elements)
+            out << " element " << element << " (" << describe(layout) << ")";
         break;
     }
     out << " from " << s.origin;
@@ -98,6 +110,77 @@ std::string describe(const State& s) {
 
 int64_t normalize(int64_t axis, int64_t rank) {
     return axis < 0 ? axis + rank : axis;
+}
+
+int64_t rank_of(const ov::PartialShape& shape) {
+    return shape.rank().is_static() ? shape.rank().get_length() : -1;
+}
+
+std::vector<size_t> sizes(const Layout& layout) {
+    std::vector<size_t> result;
+    for (const auto& ranges : layout) {
+        size_t total = 0;
+        for (const auto& range : ranges)
+            total += range.length;
+        result.push_back(total);
+    }
+    return result;
+}
+
+/// Adjacent ranges joined.
+std::vector<Range> coalesce(const std::vector<Range>& ranges) {
+    std::vector<Range> result;
+    for (const auto& range : ranges) {
+        if (range.length == 0)
+            continue;
+        if (!result.empty() && result.back().offset + result.back().length == range.offset)
+            result.back().length += range.length;
+        else
+            result.push_back(range);
+    }
+    return result;
+}
+
+/// `layout` measured in steps of `den / num` old elements, or nullopt when a range does not map to whole ones.
+std::optional<Layout> rescale(const Layout& layout, int64_t num, int64_t den) {
+    Layout result;
+    for (const auto& ranges : layout) {
+        std::vector<Range> scaled;
+        for (const auto& range : ranges) {
+            const auto offset = static_cast<int64_t>(range.offset) * num;
+            const auto length = static_cast<int64_t>(range.length) * num;
+            if (offset % den != 0 || length % den != 0)
+                return std::nullopt;
+            scaled.push_back({static_cast<size_t>(offset / den), static_cast<size_t>(length / den)});
+        }
+        result.push_back(coalesce(scaled));
+    }
+    return result;
+}
+
+/// Two adjacent split axes merged into one: element (i, j) of `outer` x `inner` becomes i * inner_size + j.
+Layout merge(const Layout& outer, const Layout& inner, size_t inner_size) {
+    Layout result;
+    for (size_t rank = 0; rank < outer.size(); ++rank) {
+        std::vector<Range> merged;
+        for (const auto& o : outer[rank]) {
+            for (size_t i = o.offset; i < o.offset + o.length; ++i) {
+                for (const auto& r : inner[rank])
+                    merged.push_back({i * inner_size + r.offset, r.length});
+            }
+        }
+        result.push_back(coalesce(merged));
+    }
+    return result;
+}
+
+std::set<size_t> elements_of(const std::vector<Range>& ranges) {
+    std::set<size_t> result;
+    for (const auto& range : ranges) {
+        for (size_t i = range.offset; i < range.offset + range.length; ++i)
+            result.insert(i);
+    }
+    return result;
 }
 
 std::optional<std::vector<int64_t>> constant_values(const ov::Output<ov::Node>& output) {
@@ -130,19 +213,6 @@ std::vector<std::optional<int64_t>> known_values(const ov::Output<ov::Node>& out
     return result;
 }
 
-/// `segments` measured in steps of `den / num` of the old elements, or nullopt when a unit does not map to whole ones.
-std::optional<std::vector<Segment>> rescale(const std::vector<Segment>& segments, int64_t num, int64_t den) {
-    std::vector<Segment> result;
-    for (const auto& segment : segments) {
-        const auto length = static_cast<int64_t>(segment.length) * num;
-        const auto unit = static_cast<int64_t>(segment.unit) * num;
-        if (length % den != 0 || unit % den != 0)
-            return std::nullopt;
-        result.push_back({static_cast<size_t>(length / den), static_cast<size_t>(unit / den)});
-    }
-    return result;
-}
-
 std::optional<int64_t> static_product(const ov::PartialShape& shape, int64_t begin, int64_t end) {
     int64_t product = 1;
     for (int64_t d = begin; d < end; ++d) {
@@ -153,23 +223,15 @@ std::optional<int64_t> static_product(const ov::PartialShape& shape, int64_t beg
     return product;
 }
 
-/// Where a reshape (Reshape, Squeeze, Unsqueeze) moves split `axis`: one output axis holding it as its
-/// outermost component, shard boundaries on whole elements of that axis.
-std::optional<std::pair<int64_t, std::vector<Segment>>> map_reshape(const ov::PartialShape& in,
-                                                                    const ov::PartialShape& out,
-                                                                    int64_t axis,
-                                                                    const std::vector<Segment>& segments) {
-    if (in.rank().is_dynamic() || out.rank().is_dynamic())
-        return std::nullopt;
+/// map_reshape with the first `lead` and the last `trail` axes of both shapes equal and left out.
+std::optional<std::pair<int64_t, Layout>> map_reshape_middle(const ov::PartialShape& in,
+                                                             const ov::PartialShape& out,
+                                                             int64_t axis,
+                                                             const Layout& layout,
+                                                             int64_t lead,
+                                                             int64_t trail) {
     const int64_t n = in.rank().get_length();
     const int64_t m = out.rank().get_length();
-    int64_t lead = 0;
-    while (lead < axis && lead < m && in[lead] == out[lead])
-        ++lead;
-    int64_t trail = 0;
-    while (n - 1 - trail > axis && m - 1 - trail >= lead && in[n - 1 - trail] == out[m - 1 - trail])
-        ++trail;
-
     const auto before = static_product(in, lead, axis);
     const auto after = static_product(in, axis + 1, n - trail);
     if (!before || !after)
@@ -182,25 +244,45 @@ std::optional<std::pair<int64_t, std::vector<Segment>>> map_reshape(const ov::Pa
         product *= out[b].get_length();
         ++b;
     }
-    if (product != *before || b >= m - trail || !out[b].is_static())
+    if (product != *before || b >= m - trail)
         return std::nullopt;
-    // Size-1 axes in front of the split one hold nothing of it.
-    while (b + 1 < m - trail && out[b].is_static() && out[b].get_length() == 1)
-        ++b;
-    if (!out[b].is_static())
+    // A size-1 axis in front of the split one holds it only when every rank's part fits on it.
+    for (;; ++b) {
+        if (!out[b].is_static())
+            return std::nullopt;
+        const auto out_after = static_product(out, b + 1, m - trail);
+        if (out_after && in[axis].get_length() * *after == out[b].get_length() * *out_after) {
+            if (auto mapped = rescale(layout, *after, *out_after))
+                return std::make_pair(b, *mapped);
+        }
+        if (out[b].get_length() != 1 || b + 1 >= m - trail)
+            return std::nullopt;
+    }
+}
+
+/// Where a reshape moves split `axis` of `in`: one output axis holding it as its outermost component,
+/// every rank's elements whole elements of that axis.
+std::optional<std::pair<int64_t, Layout>> map_reshape(const ov::PartialShape& in,
+                                                      const ov::PartialShape& out,
+                                                      int64_t axis,
+                                                      const Layout& layout) {
+    if (in.rank().is_dynamic() || out.rank().is_dynamic() || !in[axis].is_static())
         return std::nullopt;
-    const auto out_after = static_product(out, b + 1, m - trail);
-    if (!out_after)
-        return std::nullopt;
-    int64_t total = 0;
-    for (const auto& segment : segments)
-        total += static_cast<int64_t>(segment.length);
-    if (total * *after != out[b].get_length() * *out_after)
-        return std::nullopt;
-    auto mapped = rescale(segments, *after, *out_after);
-    if (!mapped)
-        return std::nullopt;
-    return std::make_pair(b, *mapped);
+    const int64_t n = in.rank().get_length();
+    const int64_t m = out.rank().get_length();
+    int64_t lead = 0;
+    while (lead < axis && lead < m && in[lead] == out[lead])
+        ++lead;
+    int64_t max_trail = 0;
+    while (n - 1 - max_trail > axis && m - 1 - max_trail >= lead && in[n - 1 - max_trail] == out[m - 1 - max_trail])
+        ++max_trail;
+
+    // Equal trailing axes are skipped, unless one of them is where the split axis lands.
+    for (int64_t trail = max_trail; trail >= 0; --trail) {
+        if (auto mapped = map_reshape_middle(in, out, axis, layout, lead, trail))
+            return mapped;
+    }
+    return std::nullopt;
 }
 
 class Verifier {
@@ -223,11 +305,20 @@ private:
 
     // ---- helpers ---------------------------------------------------------------------------------
 
+    Layout layout(const std::vector<Segment>& segments) const {
+        Layout result;
+        for (size_t rank = 0; rank < m_world_size; ++rank)
+            result.push_back(coalesce(rank_ranges(segments, rank, m_world_size)));
+        return result;
+    }
+
     State input(const ov::Node& node, size_t port) const {
         // A weight cut by a Slice at run time is the rank's slice from that input on.
         if (const auto* shard = get_shard(node)) {
             if (shard->input == static_cast<int64_t>(port))
-                return State::split(shard->axis, shard->segments, "a runtime Slice of input " + std::to_string(port) + " of " + node_name(node));
+                return State::split(shard->axis,
+                                    layout(shard->segments),
+                                    "a runtime Slice of input " + std::to_string(port) + " of " + node_name(node));
         }
         const auto source = node.input_value(port);
         return m_states.at(source.get_node()).at(source.get_index());
@@ -244,69 +335,42 @@ private:
         OPENVINO_THROW(message.str());
     }
 
-    std::vector<size_t> boundaries(const std::vector<Segment>& segments) const {
-        std::vector<size_t> result;
-        for (size_t rank = 0; rank < m_world_size; ++rank) {
-            for (const auto& range : rank_ranges(segments, rank, m_world_size)) {
-                result.push_back(range.offset);
-                result.push_back(range.offset + range.length);
-            }
-        }
-        return result;
-    }
-
-    /// Same elements on every rank.
-    bool same_split(const std::vector<Segment>& a, const std::vector<Segment>& b) const {
-        return boundaries(a) == boundaries(b);
-    }
-
-    /// Same units on every rank, whatever a unit spans (query heads in groups against KV heads).
-    bool aligned(const std::vector<Segment>& a, const std::vector<Segment>& b) const {
-        if (a.size() != b.size())
-            return false;
-        for (size_t i = 0; i < a.size(); ++i) {
-            if (a[i].length / a[i].unit != b[i].length / b[i].unit)
-                return false;
-        }
-        const auto ba = boundaries(a);
-        const auto bb = boundaries(b);
-        for (size_t i = 0; i < ba.size(); ++i) {
-            // Proportional boundaries within one segment.
-            const auto& sa = a[(i / 2) % a.size()];
-            const auto& sb = b[(i / 2) % b.size()];
-            if (ba[i] * sb.unit != bb[i] * sa.unit)
-                return false;
-        }
-        return true;
-    }
-
     State source_state(const ov::Node& node) const {
         const auto* shard = get_shard(node);
         if (!shard || shard->input >= 0 || !shard->rt_keys.empty())
             return {};
         if (!shard->elements.empty()) {
-            std::vector<int64_t> elements(shard->elements.begin(), shard->elements.end());
-            return State::sizes(elements, shard->segments, "the annotated shape " + node_name(node));
+            std::map<int64_t, Layout> elements;
+            for (const auto e : shard->elements)
+                elements[static_cast<int64_t>(e)] = layout(shard->segments);
+            return State::sizes(elements, "the annotated shape " + node_name(node));
         }
-        return State::split(shard->axis, shard->segments, node_name(node));
+        return State::split(shard->axis, layout(shard->segments), node_name(node));
     }
 
-    /// A shape input must give axis `b` the rank's size: annotated, inferred (-1), copied (0), or kept (1).
+    /// The only split axis of `s`, or a failure naming `what`.
+    std::pair<int64_t, Layout> single_axis(const ov::Node& node, const State& s, const std::string& what) const {
+        if (s.kind != State::SPLIT || s.axes.size() != 1)
+            fail(node, what + " must be split along exactly one axis");
+        return *s.axes.begin();
+    }
+
+    /// A shape input must give output axis `b` the rank's size: annotated, inferred (-1), copied (0), or kept (1).
     void check_size_input(const ov::Node& node,
                           size_t port,
                           int64_t b,
-                          const std::vector<Segment>& segments,
+                          const Layout& expected,
                           bool zero_copies_split,
                           bool one_keeps) const {
         const auto state = input(node, port);
-        if (state.kind == State::SIZES) {
-            const bool only_b = state.elements == std::vector<int64_t>{b};
-            if (!only_b || !same_split(state.segments, segments))
-                fail(node, "the shape input sets rank-dependent sizes at other elements or splits than output axis " +
-                               std::to_string(b));
+        if (state.kind == State::SIZES && state.elements.count(b)) {
+            if (sizes(state.elements.at(b)) != sizes(expected))
+                fail(node, "the shape input gives output axis " + std::to_string(b) +
+                               " other rank sizes than its split: " + describe(state.elements.at(b)) + " against " +
+                               describe(expected));
             return;
         }
-        if (state.kind != State::REPLICATED)
+        if (state.kind != State::REPLICATED && state.kind != State::SIZES)
             fail(node, "the shape input is neither Replicated nor a rank-dependent size vector");
         const auto values = known_values(node.input_value(port));
         if (static_cast<size_t>(b) < values.size() && values[b]) {
@@ -317,6 +381,16 @@ private:
                            ": a global size that is not annotated to be adjusted per rank");
         }
         fail(node, "the size the shape input gives the split output axis " + std::to_string(b) + " is not known at compile time");
+    }
+
+    /// Every rank-dependent element of a shape input must be one the op checked.
+    void check_no_other_sizes(const ov::Node& node, size_t port, const std::set<int64_t>& checked) const {
+        const auto state = input(node, port);
+        for (const auto& [element, l] : state.elements) {
+            if (!checked.count(element))
+                fail(node, "the shape input sets a rank-dependent size at element " + std::to_string(element) +
+                               ", which is not a split axis of the output");
+        }
     }
 
     // ---- rules -----------------------------------------------------------------------------------
@@ -354,8 +428,9 @@ private:
                                    describe(result.at(0)));
                 result[0] = State{};
             } else if (role->collective == Collective::GATHER) {
-                const auto rank = node.get_output_partial_shape(0).rank().get_length();
-                if (result.at(0).kind != State::SPLIT || result[0].axis != rank - 1)
+                const auto rank = rank_of(node.get_output_partial_shape(0));
+                if (result.at(0).kind != State::SPLIT || result[0].axes.size() != 1 ||
+                    result[0].axes.begin()->first != rank - 1)
                     fail(node, "a gathered projection must produce a Split of its last axis, it produces " +
                                    describe(result.at(0)));
                 result[0] = State{};
@@ -416,82 +491,89 @@ private:
                                   ov::op::v4::SoftPlus>(&node);
     }
 
+    /// `true` when input `port` has size 1 (or no axis) at output axis `out_axis`.
+    bool broadcasts(const ov::Node& node, size_t port, int64_t out_axis, int64_t out_rank) const {
+        const auto& shape = node.get_input_partial_shape(port);
+        const int64_t d = out_axis - (out_rank - rank_of(shape));
+        return d < 0 || (shape[d].is_static() && shape[d].get_length() == 1);
+    }
+
     State elementwise(const ov::Node& node, const std::vector<State>& in) {
         if (ov::is_type<ov::op::v0::Convert>(&node) && in[0].kind == State::SIZES)
             return in[0];
-        const auto out_rank = node.get_output_partial_shape(0).rank();
-        if (out_rank.is_dynamic())
+        const int64_t m = rank_of(node.get_output_partial_shape(0));
+        if (m < 0)
             fail(node, "the output rank is dynamic");
-        const int64_t m = out_rank.get_length();
-        std::optional<State> split;
+        std::map<int64_t, Layout> axes;
+        std::string origin;
         for (size_t i = 0; i < in.size(); ++i) {
             if (in[i].kind == State::PARTIAL)
                 fail(node, "input " + std::to_string(i) + " is a Partial sum, which may only enter a TPAllReduce");
             if (in[i].kind == State::SIZES)
                 fail(node, "input " + std::to_string(i) + " holds rank-dependent sizes, which may only enter a shape input");
-            if (in[i].kind != State::SPLIT)
-                continue;
-            const int64_t axis = in[i].axis + m - node.get_input_partial_shape(i).rank().get_length();
-            if (split && (split->axis != axis || !same_split(split->segments, in[i].segments)))
-                fail(node, "the inputs are split differently");
-            if (!split)
-                split = State::split(axis, in[i].segments, in[i].origin);
+            for (const auto& [axis, l] : in[i].axes) {
+                const int64_t out_axis = axis + m - rank_of(node.get_input_partial_shape(i));
+                const auto it = axes.find(out_axis);
+                if (it != axes.end() && it->second != l)
+                    fail(node, "the inputs are split differently along output axis " + std::to_string(out_axis));
+                axes[out_axis] = l;
+                if (origin.empty())
+                    origin = in[i].origin;
+            }
         }
-        for (size_t i = 0; i < in.size(); ++i) {
-            if (in[i].kind != State::REPLICATED)
-                continue;
-            const auto& shape = node.get_input_partial_shape(i);
-            const int64_t d = split->axis - (m - shape.rank().get_length());
-            if (d >= 0 && !(shape[d].is_static() && shape[d].get_length() == 1))
-                fail(node, "Replicated input " + std::to_string(i) + " does not broadcast along the split axis " +
-                               std::to_string(split->axis));
+        // An input not split along an axis must broadcast along it.
+        for (const auto& [axis, l] : axes) {
+            for (size_t i = 0; i < in.size(); ++i) {
+                const int64_t own = axis - (m - rank_of(node.get_input_partial_shape(i)));
+                if (in[i].axes.count(own) == 0 && !broadcasts(node, i, axis, m))
+                    fail(node, "input " + std::to_string(i) + " is not split along output axis " + std::to_string(axis) +
+                                   " and does not broadcast along it");
+            }
         }
-        return *split;
+        return State::split(axes, origin);
     }
 
     State matmul(const ov::Node& node, const std::vector<State>& in) {
         const auto& mm = static_cast<const ov::op::v0::MatMul&>(node);
-        const int64_t na = node.get_input_partial_shape(0).rank().get_length();
-        const int64_t nb = node.get_input_partial_shape(1).rank().get_length();
-        const int64_t m = node.get_output_partial_shape(0).rank().get_length();
+        const int64_t na = rank_of(node.get_input_partial_shape(0));
+        const int64_t nb = rank_of(node.get_input_partial_shape(1));
+        const int64_t m = rank_of(node.get_output_partial_shape(0));
         if (na < 2 || nb < 2)
             fail(node, "no sharding rule for a MatMul over a vector");
+        for (const auto& s : in) {
+            if (s.kind == State::PARTIAL || s.kind == State::SIZES)
+                fail(node, "a MatMul input is a Partial sum or rank-dependent sizes");
+            if (s.axes.size() > 1)
+                fail(node, "a MatMul input is split along more than one axis");
+        }
         const int64_t rows = mm.get_transpose_a() ? na - 1 : na - 2;
         const int64_t ka = mm.get_transpose_a() ? na - 2 : na - 1;
         const int64_t kb = mm.get_transpose_b() ? nb - 1 : nb - 2;
         const int64_t cols = mm.get_transpose_b() ? nb - 2 : nb - 1;
         const auto& a = in[0];
         const auto& b = in[1];
-        if (a.kind == State::PARTIAL || b.kind == State::PARTIAL || a.kind == State::SIZES || b.kind == State::SIZES)
-            fail(node, "a MatMul input is a Partial sum or rank-dependent sizes");
+        const int64_t axis_a = a.axes.empty() ? -1 : a.axes.begin()->first;
+        const int64_t axis_b = b.axes.empty() ? -1 : b.axes.begin()->first;
 
-        if (a.kind == State::SPLIT && b.kind == State::SPLIT && a.axis == ka && b.axis == kb) {
-            if (!same_split(a.segments, b.segments))
+        if (axis_a == ka && axis_b == kb) {
+            if (a.axes.begin()->second != b.axes.begin()->second)
                 fail(node, "the contraction axis is split differently in the two inputs");
             return State::partial(node_name(node) + ", a contraction over a split axis");
         }
-        if (a.kind == State::REPLICATED && b.kind == State::SPLIT && b.axis == cols)
-            return State::split(m - 1, b.segments, b.origin);
-        if (a.kind == State::SPLIT && b.kind == State::REPLICATED && a.axis == rows)
-            return State::split(m - 2, a.segments, a.origin);
+        if (axis_a < 0 && axis_b == cols)
+            return State::split(m - 1, b.axes.begin()->second, b.origin);
+        if (axis_a == rows && axis_b < 0)
+            return State::split(m - 2, a.axes.begin()->second, a.origin);
 
         // Batch axes: split the same way in both, or broadcast in the Replicated one.
-        auto batch_axis = [&](const State& s, int64_t rank) -> int64_t {
-            return s.kind == State::SPLIT && s.axis < rank - 2 ? s.axis + m - rank : -1;
-        };
-        const int64_t oa = batch_axis(a, na);
-        const int64_t ob = batch_axis(b, nb);
-        if (oa >= 0 && ob >= 0 && oa == ob && same_split(a.segments, b.segments))
-            return State::split(oa, a.segments, a.origin);
-        auto broadcasts = [&](size_t port, int64_t out_axis) {
-            const auto& shape = node.get_input_partial_shape(port);
-            const int64_t d = out_axis - (m - shape.rank().get_length());
-            return d < 0 || (shape[d].is_static() && shape[d].get_length() == 1);
-        };
-        if (oa >= 0 && b.kind == State::REPLICATED && broadcasts(1, oa))
-            return State::split(oa, a.segments, a.origin);
-        if (ob >= 0 && a.kind == State::REPLICATED && broadcasts(0, ob))
-            return State::split(ob, b.segments, b.origin);
+        const int64_t oa = axis_a >= 0 && axis_a < na - 2 ? axis_a + m - na : -1;
+        const int64_t ob = axis_b >= 0 && axis_b < nb - 2 ? axis_b + m - nb : -1;
+        if (oa >= 0 && ob >= 0 && oa == ob && a.axes.begin()->second == b.axes.begin()->second)
+            return State::split(oa, a.axes.begin()->second, a.origin);
+        if (oa >= 0 && axis_b < 0 && broadcasts(node, 1, oa, m))
+            return State::split(oa, a.axes.begin()->second, a.origin);
+        if (ob >= 0 && axis_a < 0 && broadcasts(node, 0, ob, m))
+            return State::split(ob, b.axes.begin()->second, b.origin);
         fail(node, "no sharding rule for this combination of MatMul input states");
     }
 
@@ -500,27 +582,44 @@ private:
         const bool is_reshape = ov::is_type<ov::op::v1::Reshape>(&node);
         if (data.kind == State::SIZES)
             return reshape_sizes(node, data);
-        if (data.kind == State::REPLICATED) {
-            // Only a Reshape target can carry sizes; Replicated data reshaped to a rank's size is not proven.
+        if (data.kind == State::REPLICATED)
             fail(node, "Replicated data reshaped with a rank-dependent target shape");
-        }
         if (data.kind == State::PARTIAL)
             fail(node, "input 0 is a Partial sum, which may only enter a TPAllReduce");
         for (size_t i = 1; i < in.size(); ++i) {
             if (!is_reshape && in[i].kind != State::REPLICATED)
                 fail(node, "the axes input is not Replicated");
         }
-        const auto mapped =
-            map_reshape(node.get_input_partial_shape(0), node.get_output_partial_shape(0), data.axis, data.segments);
+
+        auto in_shape = node.get_input_partial_shape(0);
+        int64_t axis = data.axes.begin()->first;
+        Layout l = data.axes.begin()->second;
+        if (data.axes.size() == 2) {
+            // Two adjacent split axes merged into one: a KV head and its rank's share of the query group.
+            const auto inner = std::next(data.axes.begin());
+            if (inner->first != axis + 1 || !in_shape[axis].is_static() || !in_shape[inner->first].is_static())
+                fail(node, "no sharding rule for reshaping a tensor split along two axes that are not adjacent");
+            const auto inner_size = static_cast<size_t>(in_shape[inner->first].get_length());
+            l = merge(l, inner->second, inner_size);
+            std::vector<ov::Dimension> dims(in_shape.begin(), in_shape.end());
+            dims[axis] = dims[axis].get_length() * static_cast<int64_t>(inner_size);
+            dims.erase(dims.begin() + inner->first);
+            in_shape = ov::PartialShape(dims);
+        } else if (data.axes.size() > 2) {
+            fail(node, "no sharding rule for reshaping a tensor split along more than two axes");
+        }
+
+        const auto mapped = map_reshape(in_shape, node.get_output_partial_shape(0), axis, l);
         if (!mapped)
-            fail(node, "the split axis " + std::to_string(data.axis) +
-                           " does not map to one output axis as its outermost component on whole units");
-        const auto [axis, segments] = *mapped;
+            fail(node, "the split axis " + std::to_string(axis) +
+                           " does not map to one output axis as its outermost component on whole elements");
+        const auto& [out_axis, out_layout] = *mapped;
         if (is_reshape) {
             const auto special_zero = static_cast<const ov::op::v1::Reshape&>(node).get_special_zero();
-            check_size_input(node, 1, axis, segments, special_zero && axis == data.axis, false);
+            check_size_input(node, 1, out_axis, out_layout, special_zero && out_axis == axis && data.axes.size() == 1, false);
+            check_no_other_sizes(node, 1, {out_axis});
         }
-        return State::split(axis, segments, data.origin);
+        return State::split(out_axis, out_layout, data.origin);
     }
 
     State reshape_sizes(const ov::Node& node, const State& data) {
@@ -540,53 +639,48 @@ private:
         const auto order = constant_values(node.input_value(1));
         if (!order)
             fail(node, "the transpose order is not constant");
-        const auto it = std::find(order->begin(), order->end(), in[0].axis);
-        if (it == order->end())
-            fail(node, "the transpose order does not contain the split axis");
-        return State::split(it - order->begin(), in[0].segments, in[0].origin);
+        std::map<int64_t, Layout> axes;
+        for (const auto& [axis, l] : in[0].axes) {
+            const auto it = std::find(order->begin(), order->end(), axis);
+            if (it == order->end())
+                fail(node, "the transpose order does not contain the split axis");
+            axes[it - order->begin()] = l;
+        }
+        return State::split(axes, in[0].origin);
     }
 
     State concat(const ov::Node& node, const std::vector<State>& in) {
         const auto& c = static_cast<const ov::op::v0::Concat&>(node);
-        const int64_t rank = node.get_output_partial_shape(0).rank().get_length();
+        const int64_t rank = rank_of(node.get_output_partial_shape(0));
         const int64_t axis = normalize(c.get_axis(), rank);
-        bool sizes = false;
+        bool sizes_in = false;
         for (const auto& s : in)
-            sizes = sizes || s.kind == State::SIZES;
-        if (sizes) {
+            sizes_in = sizes_in || s.kind == State::SIZES;
+        if (sizes_in) {
             // Shape vectors: the rank-dependent elements move by the lengths in front of them.
-            std::vector<int64_t> elements;
-            std::vector<Segment> segments;
+            std::map<int64_t, Layout> elements;
             int64_t offset = 0;
             for (size_t i = 0; i < in.size(); ++i) {
                 const auto& shape = node.get_input_partial_shape(i);
                 if (rank != 1 || !shape.is_static())
                     fail(node, "no sharding rule for concatenating rank-dependent sizes beyond static vectors");
-                if (in[i].kind == State::SIZES) {
-                    if (!segments.empty() && !same_split(segments, in[i].segments))
-                        fail(node, "the inputs carry sizes of differently split dimensions");
-                    segments = in[i].segments;
-                    for (const auto e : in[i].elements)
-                        elements.push_back(e + offset);
-                } else if (in[i].kind != State::REPLICATED) {
+                if (in[i].kind != State::SIZES && in[i].kind != State::REPLICATED)
                     fail(node, "a shape vector is concatenated with a split tensor");
-                }
+                for (const auto& [e, l] : in[i].elements)
+                    elements[e + offset] = l;
                 offset += static_cast<int64_t>(ov::shape_size(shape.to_shape()));
             }
-            return State::sizes(elements, segments, in[0].kind == State::SIZES ? in[0].origin : node_name(node));
+            return State::sizes(elements, in[0].kind == State::SIZES ? in[0].origin : node_name(node));
         }
-        std::optional<State> split;
         for (size_t i = 0; i < in.size(); ++i) {
             if (in[i].kind != State::SPLIT)
                 fail(node, "input " + std::to_string(i) + " is " + describe(in[i]) + " while another is Split");
-            if (in[i].axis == axis)
+            if (in[i].axes.count(axis))
                 fail(node, "concatenation along the split axis");
-            if (split && (split->axis != in[i].axis || !same_split(split->segments, in[i].segments)))
+            if (in[i].axes != in[0].axes)
                 fail(node, "the inputs are split differently");
-            if (!split)
-                split = in[i];
         }
-        return *split;
+        return in[0];
     }
 
     State slice(const ov::Node& node, const std::vector<State>& in) {
@@ -594,7 +688,7 @@ private:
             if (in[i].kind != State::REPLICATED)
                 fail(node, "a Slice bound is not Replicated");
         }
-        const auto rank = node.get_input_partial_shape(0).rank().get_length();
+        const auto rank = rank_of(node.get_input_partial_shape(0));
         std::vector<int64_t> axes;
         if (node.get_input_size() > 4) {
             const auto values = constant_values(node.input_value(4));
@@ -619,26 +713,28 @@ private:
             auto clamp = [&](int64_t v) {
                 return std::clamp(v < 0 ? v + length : v, int64_t{0}, length);
             };
-            std::vector<int64_t> elements;
+            std::map<int64_t, Layout> elements;
             int64_t out = 0;
             for (int64_t i = clamp((*start)[0]); i < clamp((*stop)[0]); i += (*step)[0], ++out) {
-                if (std::find(in[0].elements.begin(), in[0].elements.end(), i) != in[0].elements.end())
-                    elements.push_back(out);
+                if (in[0].elements.count(i))
+                    elements[out] = in[0].elements.at(i);
             }
-            return State::sizes(elements, in[0].segments, in[0].origin);
+            return State::sizes(elements, in[0].origin);
         }
         if (in[0].kind != State::SPLIT)
             fail(node, "no sharding rule for slicing a Partial sum");
-        if (std::find(axes.begin(), axes.end(), in[0].axis) == axes.end())
-            return in[0];
-        // Along the split axis only when the whole axis is taken, in order.
-        const auto& in_dim = node.get_input_partial_shape(0)[in[0].axis];
-        const auto& out_dim = node.get_output_partial_shape(0)[in[0].axis];
         const auto step = constant_values(node.input_value(3));
-        const auto position = std::find(axes.begin(), axes.end(), in[0].axis) - axes.begin();
-        if (in_dim.is_static() && in_dim == out_dim && step && (*step)[position] == 1)
-            return in[0];
-        fail(node, "a Slice along the split axis");
+        for (const auto& [axis, l] : in[0].axes) {
+            const auto it = std::find(axes.begin(), axes.end(), axis);
+            if (it == axes.end())
+                continue;
+            // Along a split axis only when the whole axis is taken, in order.
+            const auto& in_dim = node.get_input_partial_shape(0)[axis];
+            const auto& out_dim = node.get_output_partial_shape(0)[axis];
+            if (!(in_dim.is_static() && in_dim == out_dim && step && (*step)[it - axes.begin()] == 1))
+                fail(node, "a Slice along the split axis " + std::to_string(axis));
+        }
+        return in[0];
     }
 
     std::vector<State> split(const ov::Node& node, const std::vector<State>& in) {
@@ -651,7 +747,7 @@ private:
         const auto axis = constant_values(node.input_value(1));
         if (!axis)
             fail(node, "the split axis is not constant");
-        if (normalize((*axis)[0], node.get_input_partial_shape(0).rank().get_length()) == in[0].axis)
+        if (in[0].axes.count(normalize((*axis)[0], rank_of(node.get_input_partial_shape(0)))))
             fail(node, "a split along the split axis");
         return std::vector<State>(node.get_output_size(), in[0]);
     }
@@ -660,7 +756,7 @@ private:
         const auto& g = static_cast<const ov::op::util::GatherBase&>(node);
         if (in[1].kind != State::REPLICATED || in[2].kind != State::REPLICATED)
             fail(node, "the Gather indices or axis are not Replicated");
-        const auto data_rank = node.get_input_partial_shape(0).rank().get_length();
+        const auto data_rank = rank_of(node.get_input_partial_shape(0));
         const auto axis = normalize(g.get_axis(), data_rank);
 
         if (in[0].kind == State::SIZES) {
@@ -668,23 +764,26 @@ private:
             if (!indices || data_rank != 1)
                 fail(node, "rank-dependent sizes gathered by indices unknown at compile time");
             const auto length = node.get_input_partial_shape(0)[0].get_length();
-            std::vector<int64_t> elements;
+            std::map<int64_t, Layout> elements;
             for (size_t k = 0; k < indices->size(); ++k) {
                 const auto index = (*indices)[k] < 0 ? (*indices)[k] + length : (*indices)[k];
-                if (std::find(in[0].elements.begin(), in[0].elements.end(), index) != in[0].elements.end())
-                    elements.push_back(static_cast<int64_t>(k));
+                if (in[0].elements.count(index))
+                    elements[static_cast<int64_t>(k)] = in[0].elements.at(index);
             }
-            return State::sizes(elements, in[0].segments, in[0].origin);
+            return State::sizes(elements, in[0].origin);
         }
         if (in[0].kind != State::SPLIT)
             fail(node, "no sharding rule for gathering a Partial sum");
-        if (in[0].axis == axis)
-            fail(node, "a Gather along the split axis");
-        if (g.get_batch_dims() != 0 && in[0].axis < g.get_batch_dims())
-            fail(node, "a Gather with batch dimensions over the split axis");
-        const auto indices_rank = node.get_input_partial_shape(1).rank().get_length();
-        const int64_t out_axis = in[0].axis < axis ? in[0].axis : in[0].axis - 1 + indices_rank - g.get_batch_dims();
-        return State::split(out_axis, in[0].segments, in[0].origin);
+        const auto indices_rank = rank_of(node.get_input_partial_shape(1));
+        std::map<int64_t, Layout> axes;
+        for (const auto& [a, l] : in[0].axes) {
+            if (a == axis)
+                fail(node, "a Gather along the split axis");
+            if (a < g.get_batch_dims())
+                fail(node, "a Gather with batch dimensions over the split axis");
+            axes[a < axis ? a : a - 1 + indices_rank - g.get_batch_dims()] = l;
+        }
+        return State::split(axes, in[0].origin);
     }
 
     State broadcast(const ov::Node& node, const std::vector<State>& in) {
@@ -700,24 +799,35 @@ private:
         }
         if (in.size() > 2 && in[2].kind != State::REPLICATED)
             fail(node, "the axes mapping is not Replicated");
-        const int64_t m = node.get_output_partial_shape(0).rank().get_length();
         const auto& data = in[0];
         const auto& target = in[1];
-        if (data.kind == State::REPLICATED) {
-            // A Replicated value broadcast to a rank's size: the KV-cache initializer.
-            if (target.kind != State::SIZES || target.elements.size() != 1)
-                fail(node, "no sharding rule for this combination of Broadcast input states");
-            const auto& shape = node.get_input_partial_shape(0);
-            const int64_t d = target.elements[0] - (m - shape.rank().get_length());
-            if (d >= 0 && !(shape[d].is_static() && shape[d].get_length() == 1))
-                fail(node, "Replicated data broadcast to a rank-dependent size along an axis it already has");
-            return State::split(target.elements[0], target.segments, target.origin);
-        }
-        if (data.kind != State::SPLIT)
+        if (data.kind == State::PARTIAL || data.kind == State::SIZES)
             fail(node, "no sharding rule for broadcasting " + describe(data));
-        const int64_t axis = data.axis + m - node.get_input_partial_shape(0).rank().get_length();
-        check_size_input(node, 1, axis, data.segments, false, bidirectional);
-        return State::split(axis, data.segments, data.origin);
+        if (target.kind != State::REPLICATED && target.kind != State::SIZES)
+            fail(node, "the target shape is neither Replicated nor a rank-dependent size vector");
+
+        const int64_t m = rank_of(node.get_output_partial_shape(0));
+        const int64_t shift = m - rank_of(node.get_input_partial_shape(0));
+        std::map<int64_t, Layout> axes;
+        std::set<int64_t> checked;
+        for (const auto& [axis, l] : data.axes) {
+            const int64_t out_axis = axis + shift;
+            check_size_input(node, 1, out_axis, l, false, bidirectional);
+            axes[out_axis] = l;
+            checked.insert(out_axis);
+        }
+        // A size-1 axis broadcast to a rank's size: the KV-cache initializer, a rank's share of a query group.
+        for (const auto& [element, l] : target.elements) {
+            if (checked.count(element))
+                continue;
+            if (!broadcasts(node, 0, element, m))
+                fail(node, "the target gives output axis " + std::to_string(element) +
+                               " a rank-dependent size the data already has in full");
+            axes[element] = l;
+            checked.insert(element);
+        }
+        check_no_other_sizes(node, 1, checked);
+        return State::split(axes, data.kind == State::SPLIT ? data.origin : target.origin);
     }
 
     State shape_of(const ov::Node& node, const std::vector<State>& in) {
@@ -725,83 +835,119 @@ private:
             return {};
         if (in[0].kind != State::SPLIT)
             fail(node, "no sharding rule for the shape of " + describe(in[0]));
-        return State::sizes({in[0].axis}, in[0].segments, node_name(node) + " of a tensor " + describe(in[0]));
+        return State::sizes(in[0].axes, node_name(node) + " of a tensor " + describe(in[0]));
     }
 
     State reduction(const ov::Node& node, const std::vector<State>& in) {
         if (in[0].kind != State::SPLIT || in[1].kind != State::REPLICATED)
             fail(node, "no sharding rule for reducing " + describe(in[0]));
-        const auto rank = node.get_input_partial_shape(0).rank().get_length();
-        auto axes = constant_values(node.input_value(1));
-        if (!axes)
+        const auto rank = rank_of(node.get_input_partial_shape(0));
+        auto reduced = constant_values(node.input_value(1));
+        if (!reduced)
             fail(node, "the reduction axes are not constant");
-        for (auto& a : *axes)
+        for (auto& a : *reduced)
             a = normalize(a, rank);
-        if (std::find(axes->begin(), axes->end(), in[0].axis) != axes->end())
-            fail(node, "a reduction over the split axis " + std::to_string(in[0].axis));
         bool keep_dims = false;
         if (const auto* r = ov::as_type<const ov::op::util::ArithmeticReductionKeepDims>(&node))
             keep_dims = r->get_keep_dims();
         if (const auto* r = ov::as_type<const ov::op::util::LogicalReductionKeepDims>(&node))
             keep_dims = r->get_keep_dims();
-        const auto removed = keep_dims ? 0 : std::count_if(axes->begin(), axes->end(), [&](int64_t a) {
-            return a < in[0].axis;
-        });
-        return State::split(in[0].axis - removed, in[0].segments, in[0].origin);
+        std::map<int64_t, Layout> axes;
+        for (const auto& [axis, l] : in[0].axes) {
+            if (std::find(reduced->begin(), reduced->end(), axis) != reduced->end())
+                fail(node, "a reduction over the split axis " + std::to_string(axis));
+            const auto removed = keep_dims ? 0 : std::count_if(reduced->begin(), reduced->end(), [&](int64_t a) {
+                return a < axis;
+            });
+            axes[axis - removed] = l;
+        }
+        return State::split(axes, in[0].origin);
     }
 
     State softmax(const ov::Node& node, const std::vector<State>& in) {
         if (in[0].kind != State::SPLIT)
             fail(node, "no sharding rule for the softmax of " + describe(in[0]));
-        const auto rank = node.get_input_partial_shape(0).rank().get_length();
+        const auto rank = rank_of(node.get_input_partial_shape(0));
         int64_t axis = 0;
         if (const auto* v8 = ov::as_type<const ov::op::v8::Softmax>(&node))
             axis = normalize(v8->get_axis(), rank);
         else
             axis = static_cast<int64_t>(static_cast<const ov::op::v1::Softmax&>(node).get_axis());
-        if (axis == in[0].axis)
+        if (in[0].axes.count(axis))
             fail(node, "a softmax over the split axis");
         return in[0];
     }
 
-    State sdpa(const ov::Node& node, const std::vector<State>& in) {
-        const int64_t rank = node.get_input_partial_shape(0).rank().get_length();
-        const int64_t heads = rank - 3;
-        for (size_t i = 0; i < 3; ++i) {
-            if (in[i].kind != State::SPLIT || in[i].axis != heads)
-                fail(node, std::string("the ") + (i == 0 ? "query" : i == 1 ? "key" : "value") +
-                               " must be Split along the head axis");
+    /// Every rank's query heads use exactly the KV heads it holds.
+    void check_heads(const ov::Node& node, const Layout& q, size_t q_heads, const Layout& kv, size_t kv_heads, const std::string& what) const {
+        if (q_heads == 0 || kv_heads == 0 || q_heads % kv_heads != 0)
+            fail(node, "the query and " + what + " head counts do not form groups");
+        const size_t group = q_heads / kv_heads;
+        for (size_t rank = 0; rank < q.size(); ++rank) {
+            std::set<size_t> used;
+            for (const auto h : elements_of(q[rank]))
+                used.insert(h / group);
+            if (used != elements_of(kv[rank]))
+                fail(node, "rank " + std::to_string(rank) + " holds " + what + " heads " + describe(Layout{kv[rank]}) +
+                               " but its query heads " + describe(Layout{q[rank]}) + " use others");
         }
-        if (!aligned(in[0].segments, in[1].segments) || !aligned(in[0].segments, in[2].segments))
-            fail(node, "the query heads of a rank do not match its key / value heads");
+    }
+
+    State sdpa(const ov::Node& node, const std::vector<State>& in) {
+        const int64_t rank = rank_of(node.get_input_partial_shape(0));
+        const int64_t heads = rank - 3;
+        Layout layouts[3];
+        size_t counts[3];
+        for (size_t i = 0; i < 3; ++i) {
+            const auto [axis, l] = single_axis(node, in[i], i == 0 ? "the query" : i == 1 ? "the key" : "the value");
+            const auto& dim = node.get_input_partial_shape(i)[heads];
+            if (axis != heads || !dim.is_static())
+                fail(node, "the attention inputs must be split along a static head axis");
+            layouts[i] = l;
+            counts[i] = static_cast<size_t>(dim.get_length());
+        }
+        check_heads(node, layouts[0], counts[0], layouts[1], counts[1], "key");
+        check_heads(node, layouts[0], counts[0], layouts[2], counts[2], "value");
         for (size_t i = 3; i < in.size(); ++i) {
             if (in[i].kind != State::REPLICATED)
                 fail(node, "input " + std::to_string(i) + " must be Replicated");
-            const auto& shape = node.get_input_partial_shape(i);
-            if (i == 3 && shape.rank().is_static()) {
-                const int64_t d = heads - (rank - shape.rank().get_length());
-                if (d >= 0 && !(shape[d].is_static() && shape[d].get_length() == 1))
-                    fail(node, "the attention mask does not broadcast along the head axis");
-            }
+            if (i == 3 && rank_of(node.get_input_partial_shape(i)) >= 0 && !broadcasts(node, i, heads, rank))
+                fail(node, "the attention mask does not broadcast along the head axis");
         }
-        return State::split(heads, in[0].segments, in[0].origin);
+        return State::split(heads, layouts[0], in[0].origin);
     }
 
     std::vector<State> paged_attention(const ov::Node& node, const std::vector<State>& in) {
+        const auto& rt_info = node.get_rt_info();
+        const auto head_size = [&](const char* key) -> size_t {
+            const auto it = rt_info.find(key);
+            if (it == rt_info.end())
+                fail(node, std::string("the head size '") + key + "' is not recorded in rt_info");
+            return static_cast<size_t>(it->second.as<int64_t>());
+        };
+        const size_t sizes_of[3] = {head_size("k_head_size"), head_size("k_head_size"), head_size("v_head_size")};
+        Layout heads[3];
+        size_t counts[3];
         for (size_t i = 0; i < 3; ++i) {
-            if (in[i].kind != State::SPLIT || in[i].axis != 1)
-                fail(node, std::string("the ") + (i == 0 ? "query" : i == 1 ? "key" : "value") +
-                               " must be Split along the feature axis");
+            const auto [axis, l] = single_axis(node, in[i], i == 0 ? "the query" : i == 1 ? "the key" : "the value");
+            const auto& dim = node.get_input_partial_shape(i)[1];
+            if (axis != 1 || !dim.is_static())
+                fail(node, "the attention inputs must be split along a static feature axis");
+            const auto per_head = rescale(l, 1, static_cast<int64_t>(sizes_of[i]));
+            if (!per_head)
+                fail(node, "the split of input " + std::to_string(i) + " cuts through a head");
+            heads[i] = *per_head;
+            counts[i] = static_cast<size_t>(dim.get_length()) / sizes_of[i];
         }
-        if (!aligned(in[0].segments, in[1].segments) || !aligned(in[0].segments, in[2].segments))
-            fail(node, "the query heads of a rank do not match its key / value heads");
+        check_heads(node, heads[0], counts[0], heads[1], counts[1], "key");
+        check_heads(node, heads[0], counts[0], heads[2], counts[2], "value");
         // Inputs 3 and 4 are the caches, allocated per rank by the plugin that runs it.
         for (size_t i = 3; i < in.size(); ++i) {
             if (in[i].kind != State::REPLICATED)
                 fail(node, "input " + std::to_string(i) + " must be Replicated");
         }
         std::vector<State> result(node.get_output_size());
-        result[0] = State::split(1, in[0].segments, in[0].origin);
+        result[0] = State::split(1, in[0].axes.begin()->second, in[0].origin);
         for (size_t i = 1; i < node.get_output_size(); ++i) {
             if (!node.output(i).get_target_inputs().empty())
                 fail(node, "no sharding rule for PagedAttention output " + std::to_string(i));
@@ -814,9 +960,7 @@ private:
         const auto state = m_variables.at(read.get_variable_id());
         if (node.get_input_size() > 0) {
             const auto init = input(node, 0);
-            const bool same = init.kind == state.kind &&
-                              (state.kind != State::SPLIT || (init.axis == state.axis && same_split(init.segments, state.segments)));
-            if (!same)
+            if (!(init == state))
                 fail(node, "the initializer is " + describe(init) + " but the variable is " + describe(state));
         }
         return state;
@@ -826,10 +970,7 @@ private:
         const auto& assign = static_cast<const ov::op::util::AssignBase&>(node);
         const auto it = m_variables.find(assign.get_variable_id());
         const State expected = it == m_variables.end() ? State{} : it->second;
-        const bool same = in[0].kind == expected.kind &&
-                          (expected.kind != State::SPLIT ||
-                           (in[0].axis == expected.axis && same_split(in[0].segments, expected.segments)));
-        if (!same)
+        if (!(in[0] == expected))
             fail(node, "what one inference writes must be what the next one reads: the variable is " + describe(expected));
         return in[0];
     }

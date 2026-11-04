@@ -55,6 +55,10 @@ struct Geometry {
     int64_t heads = 0;
     int64_t kv_heads = 0;
     int64_t head_dim = 0;
+    /// Ranks sharing one KV head: world_size / kv_heads when there are fewer KV heads than ranks.
+    size_t replicas = 1;
+    std::vector<Segment> q_heads;
+    std::vector<Segment> kv_heads_split;
 };
 
 /// The parts every attention block shares: projections, their head Reshapes and the O-side Reshape.
@@ -95,17 +99,27 @@ Geometry annotate_attention(const std::shared_ptr<ov::Node>& attention,
     OPENVINO_ASSERT(q_features == g.heads * g.head_dim,
                     "[TP] The query projection produces ", q_features, " features, which does not match ", g.heads,
                     " heads x ", g.head_dim, " head_dim");
-    OPENVINO_ASSERT(static_cast<int64_t>(config.world_size) <= g.kv_heads,
-                    "[TP] The model has ", g.kv_heads, " KV heads, so it can be split across at most that many ranks; ",
-                    config.world_size, " devices were requested. Replicating KV heads across ranks is not supported yet.");
+    const auto world_size = static_cast<int64_t>(config.world_size);
+    if (world_size > g.kv_heads) {
+        OPENVINO_ASSERT(world_size % g.kv_heads == 0 && g.heads % world_size == 0,
+                        "[TP] Model has ", g.heads, " Q heads and ", g.kv_heads, " KV heads; world size ", world_size,
+                        " does not divide them evenly (required with fewer KV heads than ranks: Q heads % N == 0 "
+                        "and N % KV heads == 0).");
+        g.replicas = static_cast<size_t>(world_size / g.kv_heads);
+    }
 
-    // Query heads follow their KV head, so every rank owns whole query groups.
+    // Every rank owns whole query groups, or with fewer KV heads than ranks an equal share of one
+    // group, next to the KV head(s) that group uses.
     const auto group = static_cast<size_t>(g.heads / g.kv_heads);
+    const auto q_unit = group / g.replicas;
     const auto head_dim = static_cast<size_t>(g.head_dim);
-    const std::vector<Segment> q_features_split{{static_cast<size_t>(q_features), group * head_dim}};
-    const std::vector<Segment> kv_features_split{{static_cast<size_t>(kv_features), head_dim}};
-    const std::vector<Segment> q_heads{{static_cast<size_t>(g.heads), group}};
-    const std::vector<Segment> kv_heads{{static_cast<size_t>(g.kv_heads), 1}};
+    const size_t kv_count = g.replicas > 1 ? config.world_size / g.replicas : 0;
+    const std::vector<Segment> q_features_split{{static_cast<size_t>(q_features), q_unit * head_dim}};
+    const std::vector<Segment> kv_features_split{{static_cast<size_t>(kv_features), head_dim, g.replicas, kv_count}};
+    g.q_heads = {{static_cast<size_t>(g.heads), q_unit}};
+    g.kv_heads_split = {{static_cast<size_t>(g.kv_heads), 1, g.replicas, kv_count}};
+    const auto& q_heads = g.q_heads;
+    const auto& kv_heads = g.kv_heads_split;
 
     auto project = [&](const std::shared_ptr<ov::Node>& matmul,
                        ShardStrategy strategy,
@@ -151,8 +165,97 @@ Geometry annotate_attention(const std::shared_ptr<ov::Node>& attention,
         report.num_heads = g.heads;
         report.num_kv_heads = g.kv_heads;
         report.head_dim = g.head_dim;
+        report.kv_replicas = g.replicas;
     }
     return g;
+}
+
+/// Annotates element `element` of the shape vector feeding `consumer`'s input `port`, following Concats.
+void annotate_size(const std::shared_ptr<ov::Node>& consumer,
+                   size_t port,
+                   size_t element,
+                   int64_t expected,
+                   const std::vector<Segment>& segments,
+                   const std::string& block) {
+    const auto source = consumer->get_input_node_shared_ptr(port);
+    if (const auto c = ov::as_type_ptr<ov::op::v0::Constant>(source)) {
+        const auto data = c->cast_vector<int64_t>();
+        OPENVINO_ASSERT(element < data.size() && data[element] == expected,
+                        "[TP] '", consumer->get_friendly_name(), "' expects ", expected, " at element ", element,
+                        " of its shape input");
+        annotate_shape_input(consumer, port, {element}, segments, block);
+        return;
+    }
+    if (ov::is_type<ov::op::v0::Concat>(source)) {
+        size_t offset = 0;
+        for (size_t i = 0; i < source->get_input_size(); ++i) {
+            const auto& shape = source->get_input_partial_shape(i);
+            if (!shape.is_static() || shape.size() != 1)
+                break;
+            const auto length = static_cast<size_t>(shape[0].get_length());
+            if (element < offset + length) {
+                annotate_size(source, i, element - offset, expected, segments, block);
+                return;
+            }
+            offset += length;
+        }
+    }
+    OPENVINO_THROW("[TP] The GQA expansion at '", consumer->get_friendly_name(), "' takes its group size from ",
+                   source->get_type_name(), " '", source->get_friendly_name(),
+                   "', which cannot be given each rank's share of the group");
+}
+
+/// The axis where `node` expands a size-1 axis of input 0 to `group`.
+int64_t expanded_axis(const std::shared_ptr<ov::Node>& node, size_t group) {
+    const auto& in = node->get_input_partial_shape(0);
+    const auto& out = node->get_output_partial_shape(0);
+    if (in.rank().is_static() && out.rank().is_static() && in.size() == out.size()) {
+        for (size_t a = 0; a < in.size(); ++a) {
+            if (in[a].is_static() && in[a].get_length() == 1 && out[a].is_static() &&
+                out[a].get_length() == static_cast<int64_t>(group))
+                return static_cast<int64_t>(a);
+        }
+    }
+    OPENVINO_THROW("[TP] Could not find the axis the GQA expansion '", node->get_friendly_name(), "' expands to ",
+                   group, " query heads per KV head");
+}
+
+using MultiQueryBcst = decltype(ov::op::util::match_multi_query_bcst(nullptr));
+
+/// With fewer KV heads than ranks, every rank expands its KV head to its share of the group only.
+void annotate_group_expansion(const ov::pass::pattern::PatternValueMap& map,
+                              const MultiQueryBcst& pattern,
+                              size_t group,
+                              const std::vector<Segment>& share,
+                              const TPAnalyzerConfig& config,
+                              const std::string& block) {
+    const auto& computed_bcst = std::get<3>(pattern);
+    const auto& multiply = std::get<4>(pattern);
+    const auto& computed_bcst3 = std::get<5>(pattern);
+
+    if (map.count(computed_bcst3)) {
+        const auto bcst = map.at(computed_bcst3).get_node_shared_ptr();
+        annotate_size(bcst, 1, static_cast<size_t>(expanded_axis(bcst, group)), static_cast<int64_t>(group), share, block);
+        return;
+    }
+    OPENVINO_ASSERT(map.count(multiply), "[TP] Unexpected form of the GQA expansion");
+    const auto mul = map.at(multiply).get_node_shared_ptr();
+    if (map.count(computed_bcst)) {
+        const auto bcst = map.at(computed_bcst).get_node_shared_ptr();
+        const auto& out = bcst->get_output_partial_shape(0);
+        for (size_t a = 0; a < out.size(); ++a) {
+            if (out[a].is_static() && out[a].get_length() == static_cast<int64_t>(group)) {
+                annotate_size(bcst, 1, a, static_cast<int64_t>(group), share, block);
+                return;
+            }
+        }
+        OPENVINO_THROW("[TP] Could not find the group axis of the GQA expansion '", bcst->get_friendly_name(), "'");
+    }
+    // Multiply by a tensor of ones shaped [.., group, ..]: every rank keeps its share of it.
+    const auto& ones = mul->get_input_partial_shape(1);
+    const auto axis = expanded_axis(mul, group) - static_cast<int64_t>(mul->get_output_partial_shape(0).size() - ones.size());
+    OPENVINO_ASSERT(axis >= 0 && annotate_chain(mul->input(1), axis, share, ShardStrategy::COLUMN_PARALLEL, config.world_size, block),
+                    "[TP] Could not give every rank its share of the GQA expansion '", mul->get_friendly_name(), "'");
 }
 
 }  // namespace
@@ -166,7 +269,7 @@ TPPagedAttentionBlock::TPPagedAttentionBlock(const TPAnalyzerConfig& config, TPA
 
                          // The conversion records the KV head count in rt_info, where the cache sizing
                          // and the device plugin read it.
-                         ShardAnnotation heads(ShardStrategy::COLUMN_PARALLEL, -1, {{static_cast<size_t>(g.kv_heads), 1}},
+                         ShardAnnotation heads(ShardStrategy::COLUMN_PARALLEL, -1, g.kv_heads_split,
                                                "TPPagedAttentionBlock");
                          for (const auto* key : {"num_k_heads", "num_v_heads"}) {
                              const auto it = attention->get_rt_info().find(key);
@@ -192,8 +295,11 @@ TPStatefulSDPABlock::TPStatefulSDPABlock(const TPAnalyzerConfig& config, TPAnaly
             const auto attention = m.get_match_root();
             const std::string block = "TPStatefulSDPABlock";
             const auto g = annotate_attention(attention, config, *report, block);
-            const std::vector<Segment> q_heads{{static_cast<size_t>(g.heads), static_cast<size_t>(g.heads / g.kv_heads)}};
-            const std::vector<Segment> kv_heads{{static_cast<size_t>(g.kv_heads), 1}};
+            const auto& q_heads = g.q_heads;
+            const auto& kv_heads = g.kv_heads_split;
+            const auto group = static_cast<size_t>(g.heads / g.kv_heads);
+            // A rank expands its KV head to its share of the group only.
+            const std::vector<Segment> group_share{{group, group / g.replicas, 1, g.replicas}};
 
             auto kv_bcst = ov::op::util::match_multi_query_bcst(ov::pass::pattern::any_input());
             ov::pass::pattern::Matcher broadcast(std::get<0>(kv_bcst), "TPMultiQueryBcst");
@@ -213,6 +319,8 @@ TPStatefulSDPABlock::TPStatefulSDPABlock(const TPAnalyzerConfig& config, TPAnaly
                                 ++broadcasts;
                             }
                         }
+                        if (g.replicas > 1)
+                            annotate_group_expansion(broadcast.get_pattern_value_map(), kv_bcst, group, group_share, config, block);
                     }
 
                     // The KV cache: ReadValue -> [Gather(beam_idx)] -> Concat(past, new) -> Assign.
@@ -229,20 +337,13 @@ TPStatefulSDPABlock::TPStatefulSDPABlock(const TPAnalyzerConfig& config, TPAnaly
                         report->sharded_variables.end())
                         report->sharded_variables.push_back(id);
 
-                    // Its initializer: Broadcast(0, Concat(.., Constant{kv_heads}, ..)).
+                    // Its initializer: Broadcast(0, Concat(.., Constant{kv_heads}, ..)), the KV-head axis at element 1.
                     if (read->get_input_size() == 0)
                         continue;
                     const auto init = read->get_input_node_shared_ptr(0);
                     if (!ov::is_type_any_of<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(init))
                         continue;
-                    const auto concat = init->get_input_node_shared_ptr(1);
-                    if (!ov::is_type<ov::op::v0::Concat>(concat))
-                        continue;
-                    for (size_t port = 0; port < concat->get_input_size(); ++port) {
-                        const auto c = ov::as_type_ptr<ov::op::v0::Constant>(concat->get_input_node_shared_ptr(port));
-                        if (c && c->get_shape() == ov::Shape{1} && c->cast_vector<int64_t>()[0] == g.kv_heads)
-                            annotate_shape_input(concat, port, {0}, kv_heads, block);
-                    }
+                    annotate_size(init, 1, 1, g.kv_heads, kv_heads, block);
                 }
             }
             OPENVINO_ASSERT(g.kv_heads == g.heads || broadcasts > 0,

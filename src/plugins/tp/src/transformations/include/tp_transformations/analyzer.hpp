@@ -38,6 +38,8 @@ struct TPAnalysisReport {
     int64_t intermediate_size = 0;
     /// Variables split along the KV-head axis.
     std::vector<std::string> sharded_variables;
+    /// Consecutive ranks sharing one KV head: world_size / num_kv_heads with fewer KV heads than ranks.
+    size_t kv_replicas = 1;
 };
 
 using TPAnalysisReportPtr = std::shared_ptr<TPAnalysisReport>;

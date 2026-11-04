@@ -32,17 +32,21 @@ namespace {
 // For variables the graph rewriter sharded by kv head, get_state()/set_state()
 // also gather and scatter along that axis, so a caller that reads a whole
 // state tensor, edits it and writes it back sees the unsharded model's state
-// rather than rank 0's slice.
+// rather than rank 0's slice. With fewer KV heads than ranks, `replicas`
+// consecutive ranks hold the same slice: it is read from the first of them and
+// written to all of them.
 class FanOutVariableState : public ov::IVariableState {
 public:
     FanOutVariableState(const std::string& name,
                         std::vector<ov::SoPtr<ov::IVariableState>> per_rank,
                         bool sharded,
+                        size_t replicas,
                         bool profiling,
                         std::size_t dump_period)
         : ov::IVariableState(name),
           m_per_rank(std::move(per_rank)),
           m_sharded(sharded),
+          m_replicas(replicas),
           m_profiling(profiling),
           m_period(dump_period) {}
 
@@ -96,8 +100,8 @@ public:
         const auto* src = static_cast<const uint8_t*>(state->data());
 
         size_t head_offset = 0;
-        for (size_t r = 0; r < m_per_rank.size(); ++r) {
-            const size_t heads = heads_per_rank[r];
+        for (size_t slice_index = 0; slice_index < heads_per_rank.size(); ++slice_index) {
+            const size_t heads = heads_per_rank[slice_index];
             auto rank_shape = full_shape;
             rank_shape[kHeadAxis] = heads;
 
@@ -108,7 +112,8 @@ public:
                             src + (b * heads_total + head_offset) * head_bytes,
                             heads * head_bytes);
             }
-            m_per_rank[r]->set_state(slice);
+            for (size_t r = slice_index * m_replicas; r < (slice_index + 1) * m_replicas; ++r)
+                m_per_rank[r]->set_state(slice);
             head_offset += heads;
         }
     }
@@ -168,11 +173,12 @@ private:
             m_rank_heads.push_back(shard->get_shape()[kHeadAxis]);
     }
 
+    /// One shard per distinct slice: the first rank of every group sharing one.
     std::vector<ov::SoPtr<ov::ITensor>> collect_shards() const {
         std::vector<ov::SoPtr<ov::ITensor>> shards;
-        shards.reserve(m_per_rank.size());
-        for (const auto& s : m_per_rank)
-            shards.push_back(s->get_state());
+        shards.reserve(m_per_rank.size() / m_replicas);
+        for (size_t r = 0; r < m_per_rank.size(); r += m_replicas)
+            shards.push_back(m_per_rank[r]->get_state());
         return shards;
     }
 
@@ -211,6 +217,7 @@ private:
 
     std::vector<ov::SoPtr<ov::IVariableState>> m_per_rank;
     bool m_sharded;
+    size_t m_replicas;
     bool m_profiling;
     NS m_reset;
     DumpPeriod m_period;
@@ -525,6 +532,7 @@ std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
                         " of ", m_rank_requests.size(), " ranks");
         m_fanout_states.emplace_back(std::make_shared<FanOutVariableState>(
             kv.first, std::move(kv.second), sharded.count(kv.first) != 0,
+            m_compiled_model->get_state_replicas(),
             m_profiling, m_dump_period.period()));
     }
     return m_fanout_states;

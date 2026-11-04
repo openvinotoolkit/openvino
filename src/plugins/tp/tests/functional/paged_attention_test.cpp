@@ -294,68 +294,73 @@ TEST_F(TPPagedAttentionTest, MatchesSingleGpuOnAPrefill) {
 }
 
 TEST_F(TPPagedAttentionTest, MatchesSingleGpuAcrossTwoSteps) {
-    BlockConfig config;
-    auto model = make_paged_attention_block(config);
+    // One KV head: both ranks keep it and half of its query heads each.
+    BlockConfig one_kv_head;
+    one_kv_head.num_kv_heads = 1;
+    for (const auto& config : {BlockConfig{}, one_kv_head}) {
+        SCOPED_TRACE(std::to_string(config.num_kv_heads) + " KV heads");
+        auto model = make_paged_attention_block(config);
 
-    auto reference_model = core.compile_model(model, "GPU", gpu_config());
-    auto reference = reference_model.create_infer_request();
+        auto reference_model = core.compile_model(model, "GPU", gpu_config());
+        auto reference = reference_model.create_infer_request();
 
-    auto parallel_model = core.compile_model(model, tp_device(world_size), tp_config());
-    auto parallel = parallel_model.create_infer_request();
+        auto parallel_model = core.compile_model(model, tp_device(world_size), tp_config());
+        auto parallel = parallel_model.create_infer_request();
 
-    auto controller = controller_of(parallel_model);
-    const size_t block_size = controller->get_block_size();
-    const size_t blocks = (prompt_tokens + block_size) / block_size + 1;
+        auto controller = controller_of(parallel_model);
+        const size_t block_size = controller->get_block_size();
+        const size_t blocks = (prompt_tokens + block_size) / block_size + 1;
 
-    auto reference_cache = allocate_reference_cache(reference_model, reference, blocks);
-    controller->allocate_cache_if_needed(blocks);
+        auto reference_cache = allocate_reference_cache(reference_model, reference, blocks);
+        controller->allocate_cache_if_needed(blocks);
 
-    // Prefill, then one generated token attending over what the prefill wrote.
-    // A cache sharded inconsistently with the query heads is still fine on the
-    // first step and wrong on the second.
-    auto prefill = make_input(config, prompt_tokens, 1);
-    reference.set_tensor("input", prefill);
-    parallel.set_tensor("input", prefill);
-    set_prefill_metadata(reference, prompt_tokens, block_size);
-    set_prefill_metadata(parallel, prompt_tokens, block_size);
-    reference.infer();
-    parallel.infer();
+        // Prefill, then one generated token attending over what the prefill wrote.
+        // A cache sharded inconsistently with the query heads is still fine on the
+        // first step and wrong on the second.
+        auto prefill = make_input(config, prompt_tokens, 1);
+        reference.set_tensor("input", prefill);
+        parallel.set_tensor("input", prefill);
+        set_prefill_metadata(reference, prompt_tokens, block_size);
+        set_prefill_metadata(parallel, prompt_tokens, block_size);
+        reference.infer();
+        parallel.infer();
 
-    auto step = make_input(config, 1, 2);
-    const size_t used_blocks = (prompt_tokens + block_size) / block_size;
-    for (ov::InferRequest* request : {&reference, &parallel}) {
-        request->set_tensor("input", step);
+        auto step = make_input(config, 1, 2);
+        const size_t used_blocks = (prompt_tokens + block_size) / block_size;
+        for (ov::InferRequest* request : {&reference, &parallel}) {
+            request->set_tensor("input", step);
 
-        auto past_lens = ov::Tensor(ov::element::i32, ov::Shape{1});
-        past_lens.data<int32_t>()[0] = static_cast<int32_t>(prompt_tokens);
-        request->set_tensor("past_lens", past_lens);
+            auto past_lens = ov::Tensor(ov::element::i32, ov::Shape{1});
+            past_lens.data<int32_t>()[0] = static_cast<int32_t>(prompt_tokens);
+            request->set_tensor("past_lens", past_lens);
 
-        auto begins = ov::Tensor(ov::element::i32, ov::Shape{2});
-        begins.data<int32_t>()[0] = 0;
-        begins.data<int32_t>()[1] = 1;
-        request->set_tensor("subsequence_begins", begins);
+            auto begins = ov::Tensor(ov::element::i32, ov::Shape{2});
+            begins.data<int32_t>()[0] = 0;
+            begins.data<int32_t>()[1] = 1;
+            request->set_tensor("subsequence_begins", begins);
 
-        auto indices = ov::Tensor(ov::element::i32, ov::Shape{used_blocks});
-        std::iota(indices.data<int32_t>(), indices.data<int32_t>() + used_blocks, 0);
-        request->set_tensor("block_indices", indices);
+            auto indices = ov::Tensor(ov::element::i32, ov::Shape{used_blocks});
+            std::iota(indices.data<int32_t>(), indices.data<int32_t>() + used_blocks, 0);
+            request->set_tensor("block_indices", indices);
 
-        auto index_begins = ov::Tensor(ov::element::i32, ov::Shape{2});
-        index_begins.data<int32_t>()[0] = 0;
-        index_begins.data<int32_t>()[1] = static_cast<int32_t>(used_blocks);
-        request->set_tensor("block_indices_begins", index_begins);
+            auto index_begins = ov::Tensor(ov::element::i32, ov::Shape{2});
+            index_begins.data<int32_t>()[0] = 0;
+            index_begins.data<int32_t>()[1] = static_cast<int32_t>(used_blocks);
+            request->set_tensor("block_indices_begins", index_begins);
 
-        auto context_len = ov::Tensor(ov::element::i32, ov::Shape{});
-        context_len.data<int32_t>()[0] = static_cast<int32_t>(prompt_tokens + 1);
-        request->set_tensor("max_context_len", context_len);
+            auto context_len = ov::Tensor(ov::element::i32, ov::Shape{});
+            context_len.data<int32_t>()[0] = static_cast<int32_t>(prompt_tokens + 1);
+            request->set_tensor("max_context_len", context_len);
+        }
+
+        reference.infer();
+        parallel.infer();
+
+        ov::test::utils::compare(to_host(reference.get_output_tensor(0)),
+                                 to_host(parallel.get_output_tensor(0)),
+                                 1e-2,
+                                 1e-2);
     }
-
-    reference.infer();
-    parallel.infer();
-
-    ov::test::utils::compare(to_host(reference.get_output_tensor(0)),
-                             to_host(parallel.get_output_tensor(0)),
-                             1e-2,
-                             1e-2);
 }
 
 }  // namespace

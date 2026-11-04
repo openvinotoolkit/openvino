@@ -38,6 +38,7 @@ public:
                   std::vector<std::string>&& device_names,
                   std::vector<std::string> device_keys,
                   std::vector<std::string>&& sharded_state_ids = {},
+                  uint32_t state_replicas = 1,
                   bool loaded_from_cache = false,
                   const TPConfig& config = TPConfig{},
                   const ImportedPorts& imported_ports = {});
@@ -69,6 +70,9 @@ public:
     /// tensors has to see them gathered and scattered; every other variable is
     /// replicated and can be fanned out as is.
     const std::vector<std::string>& get_sharded_state_ids() const { return m_sharded_state_ids; }
+
+    /// Consecutive ranks holding the same slice of those states (fewer KV heads than ranks).
+    uint32_t get_state_replicas() const { return m_state_replicas; }
 
     /// The paged-attention cache this model owns, or null when the model does
     /// not use one. Shared by every infer request of this model: one cache,
@@ -103,6 +107,7 @@ private:
     std::vector<ov::SoPtr<ov::ICompiledModel>> m_rank_compiled;
     std::vector<std::string> m_device_names;
     std::vector<std::string> m_sharded_state_ids;
+    uint32_t m_state_replicas = 1;
     std::vector<ov::Output<const ov::Node>> m_imported_inputs;
     std::vector<ov::Output<const ov::Node>> m_imported_outputs;
     CacheControllerPtr m_cache_controller;

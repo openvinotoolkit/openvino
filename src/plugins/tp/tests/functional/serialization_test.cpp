@@ -150,7 +150,25 @@ TEST_F(TPSerializationTest, ImportedModelWithAGatherMatchesExportedOne) {
     expect_identical(exported, infer_to_host(imported, input));
 }
 
-// The imported model has no IR behind it; the blob records the model-level
+// With fewer KV heads than ranks the ranks share their KV-cache slices; an imported model reads
+// and writes the whole state with one copy of each head, like the compiled one.
+TEST_F(TPSerializationTest, ImportedModelKeepsTheSharedKvCacheSlices) {
+    BlockConfig config;
+    config.num_kv_heads = 1;
+    config.stateful = true;
+    auto model = make_transformer_block(config);
+
+    std::stringstream blob;
+    core.compile_model(model, tp_device(world_size), tp_config()).export_model(blob);
+    auto request = core.import_model(blob, tp_device(world_size), tp_config()).create_infer_request();
+    request.set_input_tensor(make_input(config));
+    request.infer();
+    for (auto&& state : request.query_state()) {
+        auto whole = state.get_state();
+        EXPECT_EQ(whole.get_shape()[1], 1u) << state.get_name();
+        EXPECT_NO_THROW(state.set_state(whole));
+    }
+}
 // ports, so a caller that binds tensors by name or by index against the
 // exported model keeps working against the imported one. With paged attention
 // rank 0's cache ports hold only its share of the KV heads, so they cannot

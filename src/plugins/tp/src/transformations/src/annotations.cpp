@@ -91,10 +91,12 @@ const T* get_annotation(const ov::Node& node) {
 
 bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
     auto strategy_name = std::string(to_cstr(strategy));
-    std::vector<int64_t> lengths, units, element_list;
+    std::vector<int64_t> lengths, units, steps, counts, element_list;
     for (const auto& segment : segments) {
         lengths.push_back(static_cast<int64_t>(segment.length));
         units.push_back(static_cast<int64_t>(segment.unit));
+        steps.push_back(static_cast<int64_t>(segment.step));
+        counts.push_back(static_cast<int64_t>(segment.count));
     }
     for (const auto element : elements) {
         element_list.push_back(static_cast<int64_t>(element));
@@ -103,16 +105,23 @@ bool ShardAnnotation::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("axis", axis);
     visitor.on_attribute("lengths", lengths);
     visitor.on_attribute("units", units);
+    visitor.on_attribute("steps", steps);
+    visitor.on_attribute("counts", counts);
     visitor.on_attribute("elements", element_list);
     visitor.on_attribute("rt_keys", rt_keys);
     visitor.on_attribute("input", input);
     visitor.on_attribute("block", block);
 
     strategy = from_string(strategy_name);
-    OPENVINO_ASSERT(lengths.size() == units.size(), "[TP] tp_shard: ", lengths.size(), " lengths, ", units.size(), " units");
+    OPENVINO_ASSERT(lengths.size() == units.size() && lengths.size() == steps.size() && lengths.size() == counts.size(),
+                    "[TP] tp_shard: ", lengths.size(), " lengths, ", units.size(), " units, ", steps.size(), " steps, ",
+                    counts.size(), " counts");
     segments.clear();
     for (size_t i = 0; i < lengths.size(); ++i) {
-        segments.push_back({static_cast<size_t>(lengths[i]), static_cast<size_t>(units[i])});
+        segments.push_back({static_cast<size_t>(lengths[i]),
+                            static_cast<size_t>(units[i]),
+                            static_cast<size_t>(steps[i]),
+                            static_cast<size_t>(counts[i])});
     }
     elements.assign(element_list.begin(), element_list.end());
     return true;
@@ -123,6 +132,10 @@ std::string ShardAnnotation::to_string() const {
     out << to_cstr(strategy) << " axis " << axis << " segments [";
     for (size_t i = 0; i < segments.size(); ++i) {
         out << (i ? ", " : "") << segments[i].length << "/" << segments[i].unit;
+        if (segments[i].step != 1)
+            out << " step " << segments[i].step;
+        if (segments[i].count != 0)
+            out << " count " << segments[i].count;
     }
     out << "]";
     if (!elements.empty()) {
@@ -204,10 +217,14 @@ std::vector<Range> rank_ranges(const std::vector<Segment>& segments, size_t rank
                         " elements in units of ",
                         segment.unit);
         const size_t units = segment.length / segment.unit;
-        const size_t base = units / world_size;
-        const size_t remainder = units % world_size;
-        const size_t offset = (rank * base + std::min(rank, remainder)) * segment.unit;
-        const size_t length = (base + (rank < remainder ? 1 : 0)) * segment.unit;
+        const size_t shares = segment.count ? segment.count : world_size;
+        OPENVINO_ASSERT(segment.step > 0 && shares * segment.step <= world_size && world_size % segment.step == 0,
+                        "[TP] ", shares, " shares of ", segment.step, " ranks each do not fit ", world_size, " ranks");
+        const size_t share = (rank / segment.step) % shares;
+        const size_t base = units / shares;
+        const size_t remainder = units % shares;
+        const size_t offset = (share * base + std::min(share, remainder)) * segment.unit;
+        const size_t length = (base + (share < remainder ? 1 : 0)) * segment.unit;
         ranges.push_back({segment_offset + offset, length});
         segment_offset += segment.length;
     }

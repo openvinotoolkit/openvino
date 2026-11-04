@@ -90,7 +90,7 @@ TEST(TPShardingVerifierTest, RejectsASplitModelOutput) {
     auto x = input();
     OV_EXPECT_THROW(verify({column(x)}, {x}),
                     ov::Exception,
-                    AllOf(HasSubstr("a model output must be Replicated"), HasSubstr("Split(axis 2, [32/8])")));
+                    AllOf(HasSubstr("a model output must be Replicated"), HasSubstr("Split(axis 2 r0:[0,16) r1:[16,32))")));
 }
 
 TEST(TPShardingVerifierTest, RejectsARowParallelRoleWithoutAPartialSum) {

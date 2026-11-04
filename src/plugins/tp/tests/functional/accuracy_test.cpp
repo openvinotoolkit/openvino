@@ -260,6 +260,63 @@ TEST_P(TPAccuracyTest, MatchesSingleGpuOnUnevenHeadSplit) {
     expect_close(reference, parallel);
 }
 
+// Fewer KV heads than ranks: every rank keeps the one KV head and its share of the query heads,
+// and the KV-cache state read and written whole takes one copy of each head.
+BlockConfig one_kv_head() {
+    BlockConfig config;
+    config.num_kv_heads = 1;
+    config.num_heads = 12;  // divides by every world size under test
+    return config;
+}
+
+TEST_P(TPAccuracyTest, MatchesSingleGpuWithOneKvHead) {
+    auto config = one_kv_head();
+    auto model = make_transformer_block(config);
+
+    auto [reference, parallel] = run_both(model, make_input(config));
+    expect_close(reference, parallel);
+}
+
+// Two KV heads on four ranks: ranks 0-1 keep head 0, ranks 2-3 head 1.
+TEST_P(TPAccuracyTest, MatchesSingleGpuWithTwoKvHeadsOnMoreRanks) {
+    if (world_size() % 2 != 0)
+        GTEST_SKIP() << "2 KV heads do not divide " << world_size() << " ranks";
+    auto config = one_kv_head();
+    config.num_kv_heads = 2;
+    auto model = make_transformer_block(config);
+
+    auto [reference, parallel] = run_both(model, make_input(config));
+    expect_close(reference, parallel);
+}
+
+TEST_P(TPAccuracyTest, MatchesSingleGpuWithOneKvHeadAfterKvCacheTrim) {
+    auto config = one_kv_head();
+    config.stateful = true;
+    auto model = make_transformer_block(config);
+
+    auto reference = core.compile_model(model, "GPU", precision_config()).create_infer_request();
+    auto parallel = core.compile_model(model, tp_device(world_size()), tp_config()).create_infer_request();
+
+    auto prefill = make_input(config, sequence_length, 1);
+    reference.set_input_tensor(prefill);
+    parallel.set_input_tensor(prefill);
+    reference.infer();
+    parallel.infer();
+    expect_close(reference.get_output_tensor(0), parallel.get_output_tensor(0));
+
+    trim_kv_cache(reference, 4);
+    trim_kv_cache(parallel, 4);
+    for (auto&& state : parallel.query_state())
+        EXPECT_EQ(state.get_state().get_shape()[1], 1u) << state.get_name();
+
+    auto next = make_input(config, 1, 2);
+    reference.set_input_tensor(next);
+    parallel.set_input_tensor(next);
+    reference.infer();
+    parallel.infer();
+    expect_close(reference.get_output_tensor(0), parallel.get_output_tensor(0));
+}
+
 // The vocabulary projection is split by output feature and the bands are
 // copied back into rank 0 -- the only rank whose outputs anyone reads. A band
 // written at the wrong offset, or a rank whose slice never arrives, shows up

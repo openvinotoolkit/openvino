@@ -30,6 +30,7 @@ namespace tp {
 ///     uint32    world_size
 ///     uint32    strategy
 ///     uint32    num_sharded_states
+///     uint32    state_replicas      (consecutive ranks holding the same slice of the sharded states)
 ///     [world_size]         device name       : string
 ///     [num_sharded_states] variable id       : string
 ///     uint32 num_inputs,  [num_inputs]  port
@@ -50,7 +51,7 @@ inline constexpr char magic[8] = {'O', 'V', 'T', 'P', 'B', 'L', 'O', 'B'};
 /// Bump on any layout or semantic change. The version is the only field a
 /// reader can act on before it has parsed anything else, so an older blob
 /// must never be handed to a newer runtime.
-inline constexpr uint32_t version = 2;
+inline constexpr uint32_t version = 3;
 
 /// Device names are short identifiers such as "GPU.0"; anything longer means
 /// the stream is not what we think it is.

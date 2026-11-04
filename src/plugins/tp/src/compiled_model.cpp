@@ -54,6 +54,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              std::vector<std::string>&& device_names,
                              std::vector<std::string> device_keys,
                              std::vector<std::string>&& sharded_state_ids,
+                             uint32_t state_replicas,
                              bool loaded_from_cache,
                              const TPConfig& config,
                              const ImportedPorts& imported_ports)
@@ -61,6 +62,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
       m_rank_compiled(std::move(rank_compiled)),
       m_device_names(std::move(device_names)),
       m_sharded_state_ids(std::move(sharded_state_ids)),
+      m_state_replicas(state_replicas),
       m_imported_inputs(make_inputs(imported_ports.inputs)),
       m_imported_outputs(make_outputs(imported_ports.outputs)),
       m_loaded_from_cache(loaded_from_cache),
@@ -100,6 +102,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     tp_blob::write_trivial<uint32_t>(stream, static_cast<uint32_t>(m_rank_compiled.size()));
     tp_blob::write_trivial<uint32_t>(stream, static_cast<uint32_t>(m_config.get_tp_strategy()));
     tp_blob::write_trivial<uint32_t>(stream, static_cast<uint32_t>(m_sharded_state_ids.size()));
+    tp_blob::write_trivial<uint32_t>(stream, m_state_replicas);
 
     for (const auto& name : m_device_names) {
         tp_blob::write_string(stream, name);
