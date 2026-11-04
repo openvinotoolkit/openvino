@@ -35,6 +35,7 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<fully
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::dynamic_shape)
         OV_GPU_CREATE_INSTANCE_TERNOCL(cldnn::ocl::TernoclInt2FCImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::static_shape)
+        OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::FullyConnectedImplementationManager, shape_types::dynamic_shape)
         OV_GPU_GET_INSTANCE_OCL(fully_connected, shape_types::static_shape,
             [](const program_node& node) {
                 return ocl_supports_weights_layout(node) && no_hadamard_input(node);

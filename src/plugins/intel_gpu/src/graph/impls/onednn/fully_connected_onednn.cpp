@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (C) 2026 FUJITSU LIMITED
+//
 
 #include "fully_connected_onednn.hpp"
 #include "fully_connected_inst.h"
@@ -16,6 +18,74 @@
 #include <cmath>
 namespace cldnn {
 namespace onednn {
+
+// Helper to construct the weights memory descriptor, handling padded i4/u4/u2 layouts.
+static dnnl::memory::desc make_weights_md(const layout& weights_layout, dnnl::memory::format_tag fmt) {
+    if (weights_layout.data_padding
+        && format::is_default_format(weights_layout.format)
+        && one_of(weights_layout.data_type, {data_types::i4, data_types::u4, data_types::u2})) {
+        return onednn::layout_to_memory_desc_strides(weights_layout, fmt);
+    }
+    return onednn::layout_to_memory_desc(weights_layout, fmt);
+}
+
+static std::pair<dnnl::memory::format_tag, dnnl::memory::format_tag>
+get_matmul_formats(size_t prim_input_size, bool weights_transposed = true) {
+    if (prim_input_size == 3) {
+        return {dnnl::memory::format_tag::abc,
+                weights_transposed ? dnnl::memory::format_tag::acb : dnnl::memory::format_tag::abc};
+    } else if (prim_input_size == 4) {
+        return {dnnl::memory::format_tag::abcd,
+                weights_transposed ? dnnl::memory::format_tag::abdc : dnnl::memory::format_tag::abcd};
+    } else if (prim_input_size == 5) {
+        return {dnnl::memory::format_tag::abcde,
+                weights_transposed ? dnnl::memory::format_tag::abced : dnnl::memory::format_tag::abcde};
+    } else if (prim_input_size == 6) {
+        return {dnnl::memory::format_tag::abcdef,
+                weights_transposed ? dnnl::memory::format_tag::abcdfe : dnnl::memory::format_tag::abcdef};
+    }
+
+    return {dnnl::memory::format_tag::ab,
+            weights_transposed ? dnnl::memory::format_tag::ba : dnnl::memory::format_tag::ab};
+}
+
+static layout trim_matmul_output_layout(layout output_layout, size_t prim_input_size) {
+    if (prim_input_size < 4) {
+        auto output_pshape = output_layout.get_partial_shape();
+        if (output_pshape.rank().is_static() && output_pshape.size() > prim_input_size) {
+            output_pshape.resize(prim_input_size);
+            output_layout.set_partial_shape(output_pshape);
+        }
+    }
+
+    return output_layout;
+}
+
+static layout expand_matmul_weights_layout(layout weights_layout,
+                                          const layout& input_layout,
+                                          size_t prim_input_size,
+                                          size_t prim_weights_rank) {
+    ov::PartialShape new_weights_pshape;
+    std::vector<ov::Dimension::value_type> lower_sizes;
+    std::vector<ov::Dimension::value_type> upper_sizes;
+
+    for (size_t i = 0; i < (prim_input_size - prim_weights_rank); i++) {
+        new_weights_pshape.push_back(1);
+        lower_sizes.push_back(0);
+        upper_sizes.push_back(0);
+    }
+
+    for (size_t i = 0; i < prim_weights_rank; i++) {
+        new_weights_pshape.push_back(weights_layout.get_partial_shape()[i]);
+        lower_sizes.push_back(weights_layout.data_padding._lower_size[i]);
+        upper_sizes.push_back(weights_layout.data_padding._upper_size[i]);
+    }
+
+    weights_layout.set_partial_shape(new_weights_pshape);
+    weights_layout.data_padding = cldnn::padding(lower_sizes, upper_sizes);
+    weights_layout.format = input_layout.format;
+    return weights_layout;
+}
 
 struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
     using parent = typed_primitive_onednn_impl<fully_connected>;
@@ -36,11 +106,43 @@ protected:
     }
 
     std::unordered_map<int, dnnl::memory> get_arguments(fully_connected_inst& instance) const override {
-        std::unordered_map<int, dnnl::memory> args = parent::get_arguments(instance);
+        std::unordered_map<int, dnnl::memory> args;
+
+        bool is_dynamic = instance.get_node().is_dynamic();
+
+        auto input_layout = instance.get_input_layout(0);
+        auto output_layout = instance.get_output_layout();
+
+        dnnl::memory::desc in0_md, out_md;
+
+        if (is_dynamic) {
+            const auto& input_shape = input_layout.get_shape();
+
+            auto target_fmt = get_matmul_formats(input_shape.size()).first;
+            auto trimmed_output = trim_matmul_output_layout(output_layout, input_shape.size());
+
+            in0_md = onednn::layout_to_memory_desc_dynamic(input_layout, target_fmt);
+            out_md = onednn::layout_to_memory_desc_dynamic(trimmed_output, target_fmt);
+        } else {
+            // Static impl path: use primitive descriptor's memory descriptors
+            in0_md = _pd.dnnl::primitive_desc_base::src_desc(0);
+            out_md = _pd.dnnl::primitive_desc_base::dst_desc(0);
+        }
+
+        {
+            auto& input0 = instance.input_memory(0);
+            auto offset0 = onednn::get_offset(input_layout, in0_md);
+            args.insert({DNNL_ARG_SRC, input0.get_onednn_memory(in0_md, offset0)});
+        }
         {
             auto weights = instance.weights_memory();
             auto offset = onednn::get_offset(instance.get_input_layout(1), _pd.dnnl::primitive_desc_base::weights_desc(0));
             args.insert({DNNL_ARG_WEIGHTS, weights->get_onednn_memory(_pd.weights_desc(0), offset)});
+        }
+        {
+            auto& output = instance.output_memory();
+            auto offset = onednn::get_offset(output_layout, out_md);
+            args.insert({DNNL_ARG_DST, output.get_onednn_memory(out_md, offset)});
         }
 
         if (instance.bias_term()) {
@@ -48,6 +150,17 @@ protected:
             auto offset = onednn::get_offset(instance.get_input_layout(2), _pd.dnnl::primitive_desc_base::weights_desc(1));
             args.insert({DNNL_ARG_BIAS, bias->get_onednn_memory(_pd.weights_desc(1), offset)});
         }
+
+        if (_scratchpad_md.get_size() != 0) {
+            const auto& intermediates = instance.get_intermediates_memories();
+            OPENVINO_ASSERT(!intermediates.empty(),
+                            "[GPU] oneDNN primitive ", instance.id(), " requires scratchpad of size ",
+                            _scratchpad_md.get_size(), " bytes, but intermediates memory is missing");
+            auto scratchpad = intermediates[0];
+            args.insert({DNNL_ARG_SCRATCHPAD, scratchpad->get_onednn_memory(_scratchpad_md, 0)});
+        }
+
+        configure_post_ops_arguments(instance, args);
 
         const auto& prim = instance.get_impl_params()->typed_desc<fully_connected>();
         if (prim->compressed_weights) {
@@ -108,75 +221,29 @@ protected:
         auto input_layout = impl_params.get_input_layout(0);
         auto weights_layout = impl_params.get_input_layout(1);
         auto output_layout = impl_params.get_output_layout();
+        const bool weights_transposed = impl_params.typed_desc<fully_connected>()->weights_transposed;
 
-        dnnl::memory::format_tag target_fmt;
-        dnnl::memory::format_tag weights_fmt;
-        bool weights_transposed = impl_params.typed_desc<fully_connected>()->weights_transposed;
+        bool is_dynamic_shape = input_layout.is_dynamic() || output_layout.is_dynamic();
 
-        if (prim_input_size == 3) {
-            target_fmt = dnnl::memory::format_tag::abc;
-            weights_fmt = weights_transposed ? dnnl::memory::format_tag::acb : dnnl::memory::format_tag::abc;
-        } else if (prim_input_size == 4) {
-            target_fmt = dnnl::memory::format_tag::abcd;
-            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abdc : dnnl::memory::format_tag::abcd;
-        } else if (prim_input_size == 5) {
-            target_fmt = dnnl::memory::format_tag::abcde;
-            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abced : dnnl::memory::format_tag::abcde;
-        } else if (prim_input_size == 6) {
-            target_fmt = dnnl::memory::format_tag::abcdef;
-            weights_fmt = weights_transposed ? dnnl::memory::format_tag::abcdfe : dnnl::memory::format_tag::abcdef;
-        } else {
-            target_fmt = dnnl::memory::format_tag::ab;
-            weights_fmt = weights_transposed ? dnnl::memory::format_tag::ba : dnnl::memory::format_tag::ab;
-        }
-
-        if (prim_input_size < 4) {
-            auto output_pshape = output_layout.get_partial_shape();
-            if (output_pshape.size() > prim_input_size) {
-                output_pshape.resize(prim_input_size);
-                output_layout.set_partial_shape(output_pshape);
+        if (is_dynamic_shape) {
+            if (prim_weights_rank != 2) {
+                OPENVINO_THROW("[GPU] oneDNN fully_connected dynamic shape path supports only 2D weights (weights_rank=",
+                               prim_weights_rank, ")");
             }
         }
 
-        // Transform weights_layout according to input layout
-        {
-            ov::PartialShape new_weights_pshape;
-            std::vector<ov::Dimension::value_type> lower_sizes;
-            std::vector<ov::Dimension::value_type> upper_sizes;
+        output_layout = trim_matmul_output_layout(output_layout, prim_input_size);
+        weights_layout = expand_matmul_weights_layout(weights_layout, input_layout, prim_input_size, prim_weights_rank);
+        auto [target_fmt, weights_fmt] = get_matmul_formats(prim_input_size, weights_transposed);
 
-            for (size_t i = 0; i < (prim_input_size - prim_weights_rank); i++) {
-                new_weights_pshape.push_back(1);
-                lower_sizes.push_back(0);
-                upper_sizes.push_back(0);
-            }
-
-            for (size_t i = 0; i < prim_weights_rank; i++) {
-                new_weights_pshape.push_back(weights_layout.get_partial_shape()[i]);
-                lower_sizes.push_back(weights_layout.data_padding._lower_size[i]);
-                upper_sizes.push_back(weights_layout.data_padding._upper_size[i]);
-            }
-
-            weights_layout.set_partial_shape(new_weights_pshape);
-            weights_layout.data_padding = cldnn::padding(lower_sizes, upper_sizes);
-            weights_layout.format = input_layout.format;
-        }
-
-        dnnl::memory::desc weights_md;
-        if (weights_layout.data_padding
-            && format::is_default_format(weights_layout.format)
-            && one_of(weights_layout.data_type, {data_types::i4, data_types::u4, data_types::u2})) {
-            weights_md = onednn::layout_to_memory_desc_strides(weights_layout, weights_fmt);
-        } else {
-            weights_md = onednn::layout_to_memory_desc(weights_layout, weights_fmt);
-        }
-
+        dnnl::memory::desc weights_md = make_weights_md(weights_layout, weights_fmt);
         dnnl::memory::desc input_md;
-        if (input_layout.data_padding && format::is_default_format(input_layout.format)) {
+        if (input_layout.data_padding && format::is_default_format(input_layout.format) && !input_layout.is_dynamic()) {
             input_md = onednn::layout_to_memory_desc_strides(input_layout, target_fmt);
         } else {
-            input_md = onednn::layout_to_memory_desc(input_layout, target_fmt);
+            input_md = onednn::layout_to_memory_desc_dynamic(input_layout, target_fmt);
         }
-        dnnl::memory::desc output_md = onednn::layout_to_memory_desc(output_layout, target_fmt);
+        dnnl::memory::desc output_md = onednn::layout_to_memory_desc_dynamic(output_layout, target_fmt);
 
         if (has_bias) {
             auto bias_l = impl_params.get_input_layout(2);

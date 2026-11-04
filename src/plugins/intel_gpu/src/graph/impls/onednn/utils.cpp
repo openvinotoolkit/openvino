@@ -1,6 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+// Copyright (C) 2026 FUJITSU LIMITED
+//
 
 #include "utils.hpp"
 
@@ -306,7 +308,7 @@ cldnn::format convert_data_format(dnnl::memory::format_tag fmt) {
     return ret->first;
 }
 
-int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
+int64_t get_offset(const cldnn::layout& l, const dnnl::memory::desc& desc) {
     int64_t offset = 0;
     auto b_padding = l.data_padding._lower_size[0];
     auto f_padding = l.data_padding._lower_size[1];
@@ -371,6 +373,51 @@ static const std::map<cldnn::format::type, dnnl::memory::format_tag> format_map_
     {cldnn::format::oxiy, dnnl::memory::format_tag::acb},
 };
 
+namespace {
+
+int64_t partial_dim(const ov::PartialShape& pshape, size_t idx, int64_t missing_value = 1) {
+    if (!pshape.rank().is_static()) {
+        return DNNL_RUNTIME_DIM_VAL;
+    }
+
+    if (idx >= pshape.size()) {
+        return missing_value;
+    }
+
+    const auto& dim = pshape[idx];
+    return dim.is_static() ? dim.get_length() : DNNL_RUNTIME_DIM_VAL;
+}
+
+int64_t partial_batch(const cldnn::layout& layout) {
+    return partial_dim(layout.get_partial_shape(), 0);
+}
+
+int64_t partial_feature(const cldnn::layout& layout) {
+    return partial_dim(layout.get_partial_shape(), 1);
+}
+
+int64_t partial_spatial(const cldnn::layout& layout, size_t spatial_idx) {
+    if (spatial_idx >= layout.format.spatial_num()) {
+        return 1;
+    }
+
+    const size_t dim_idx = (format::is_grouped(layout.format) ? 3 : 2) + (layout.format.spatial_num() - 1 - spatial_idx);
+    return partial_dim(layout.get_partial_shape(), dim_idx);
+}
+
+// Convert PartialShape directly to dnnl::memory::dims for a given target rank.
+// Pads with 1 if pshape has fewer dims than target_rank.
+dnnl::memory::dims partial_shape_to_dims(const ov::PartialShape& pshape, size_t target_rank) {
+    dnnl::memory::dims dims;
+    dims.reserve(target_rank);
+    for (size_t i = 0; i < target_rank; ++i) {
+        dims.push_back(partial_dim(pshape, i));
+    }
+    return dims;
+}
+
+}  // namespace
+
 // Internal builder class for memory descriptor construction
 class MemoryDescriptorBuilder {
 public:
@@ -379,7 +426,8 @@ public:
           _target_fmt(target_fmt),
           _flatten(false),
           _use_strides(false),
-          _keep_rank(false) {}
+          _keep_rank(false),
+          _dynamic_support(false) {}
 
     // Enables flattening mode to create a 1D memory descriptor
     MemoryDescriptorBuilder& as_flattened() {
@@ -400,8 +448,15 @@ public:
         return *this;
     }
 
+    MemoryDescriptorBuilder& with_dynamic_support() {
+        _dynamic_support = true;
+        return *this;
+    }
+
     dnnl::memory::desc build() const {
-        auto [dims, updated_fmt] = calculate_dims();
+        auto [dims, updated_fmt] = (_dynamic_support && _layout.is_dynamic())
+                                       ? calculate_dims_dynamic()
+                                       : calculate_dims();
         auto dt = convert_data_type(_layout.data_type);
 
         if (_use_strides) {
@@ -420,6 +475,7 @@ private:
     bool _flatten;
     bool _use_strides;
     bool _keep_rank;
+    bool _dynamic_support;
 
     // Calculates dimensions and determines the appropriate format tag
     std::pair<dnnl::memory::dims, dnnl::memory::format_tag> calculate_dims() const {
@@ -496,6 +552,79 @@ private:
                 auto rank = cldnn::format::dimension(_layout.format);
                 dims = convert_tensor(_layout.get_tensor(), rank, cldnn::format::is_grouped(_layout.format));
             }
+        }
+        return {dims, fmt_tag};
+    }
+
+    // Calculates dimensions for dynamic (partial-shape) layouts. Kept separate from
+    // calculate_dims() so the static path stays unchanged. Only reached from build()
+    // when dynamic support is enabled and the layout is actually dynamic (so _flatten,
+    // which is never combined with dynamic support, does not need handling here).
+    std::pair<dnnl::memory::dims, dnnl::memory::format_tag> calculate_dims_dynamic() const {
+        dnnl::memory::dims dims;
+        auto fmt_tag = _target_fmt;
+
+        auto count_except = [this](size_t skip_idx) -> int64_t {
+            const auto& pshape = _layout.get_partial_shape();
+            if (!pshape.rank().is_static()) {
+                return DNNL_RUNTIME_DIM_VAL;
+            }
+
+            int64_t result = 1;
+            for (size_t i = 0; i < pshape.size(); ++i) {
+                if (i == skip_idx)
+                    continue;
+
+                auto dim = partial_dim(pshape, i);
+                if (dim == DNNL_RUNTIME_DIM_VAL)
+                    return DNNL_RUNTIME_DIM_VAL;
+
+                result *= dim;
+            }
+
+            return result;
+        };
+
+        if (fmt_tag == dnnl::memory::format_tag::ab) {
+            dims.push_back(partial_batch(_layout));
+            dims.push_back(count_except(0));
+        } else if (fmt_tag == dnnl::memory::format_tag::abc) {
+            dims.push_back(partial_batch(_layout));
+            dims.push_back(partial_feature(_layout));
+            dims.push_back(partial_spatial(_layout, 1));
+        } else if (fmt_tag == dnnl::memory::format_tag::acb) {
+            dims.push_back(partial_batch(_layout));
+            dims.push_back(partial_spatial(_layout, 1));
+            dims.push_back(partial_feature(_layout));
+        } else if (fmt_tag == dnnl::memory::format_tag::abdc) {
+            dims.push_back(partial_batch(_layout));
+            dims.push_back(partial_feature(_layout));
+            dims.push_back(partial_spatial(_layout, 0));
+            dims.push_back(partial_spatial(_layout, 1));
+        } else if (fmt_tag == dnnl::memory::format_tag::abced) {
+            dims.push_back(partial_batch(_layout));
+            dims.push_back(partial_feature(_layout));
+            dims.push_back(partial_spatial(_layout, 2));
+            dims.push_back(partial_spatial(_layout, 0));
+            dims.push_back(partial_spatial(_layout, 1));
+        } else if (fmt_tag == dnnl::memory::format_tag::abcdfe) {
+            dims.push_back(partial_batch(_layout));
+            dims.push_back(partial_feature(_layout));
+            dims.push_back(partial_spatial(_layout, 3));
+            dims.push_back(partial_spatial(_layout, 2));
+            dims.push_back(partial_spatial(_layout, 0));
+            dims.push_back(partial_spatial(_layout, 1));
+        } else if (fmt_tag == dnnl::memory::format_tag::ba) {
+            dims.push_back(partial_feature(_layout));
+            dims.push_back(count_except(1));
+        } else if (fmt_tag == dnnl::memory::format_tag::abcd ||
+                   fmt_tag == dnnl::memory::format_tag::abcde ||
+                   fmt_tag == dnnl::memory::format_tag::abcdef) {
+            size_t target_rank = (fmt_tag == dnnl::memory::format_tag::abcd) ? 4 :
+                                 (fmt_tag == dnnl::memory::format_tag::abcde) ? 5 : 6;
+            dims = partial_shape_to_dims(_layout.get_partial_shape(), target_rank);
+        } else {
+            OPENVINO_THROW("[GPU] Unsupported format_tag for dynamic layout " + _layout.to_short_string());
         }
         return {dims, fmt_tag};
     }
@@ -580,6 +709,10 @@ dnnl::memory::desc layout_to_memory_desc_blocked(const cldnn::layout& l, dnnl::m
 
 dnnl::memory::desc layout_to_memory_desc_strides(const cldnn::layout& l, dnnl::memory::format_tag target_fmt) {
     return MemoryDescriptorBuilder(l, target_fmt).with_strides().build();
+}
+
+dnnl::memory::desc layout_to_memory_desc_dynamic(const cldnn::layout& l, dnnl::memory::format_tag target_fmt) {
+    return MemoryDescriptorBuilder(l, target_fmt).with_dynamic_support().build();
 }
 
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, bool use_default_format, bool is_output_blocked) {
