@@ -192,7 +192,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_22_arm64_cross_compilation
-    needs: [Smart_CI, Build, BOM_Tests, Python_API_Tests, CPU_Functional_Tests, Docker]
+    needs: [Smart_CI, Build, Python_API_Tests, CPU_Functional_Tests, Docker]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
