@@ -54,6 +54,7 @@ public:
     static std::string to_string(const moe_node& node);
     typed_primitive_inst(network& network, const moe_node& node);
     cldnn::moe_weights _weights;
+    memory::ptr _expert_index_buffer;
 };
 
 using moe_inst = typed_primitive_inst<moe_3gemm_fused_compressed>;

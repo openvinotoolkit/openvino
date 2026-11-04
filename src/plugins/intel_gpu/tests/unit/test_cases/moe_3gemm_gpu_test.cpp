@@ -1754,6 +1754,38 @@ void build_expert_mask_cpu(const int32_t* topk_id_buf, int max_tokens, int max_t
 }
 }  // namespace
 
+TEST(moe_3gemm_otd, expert_index_buffer_is_instance_local) {
+    auto& engine = get_test_engine();
+    auto prog = std::make_shared<program>(engine);
+    network first_network(prog);
+    network second_network(prog);
+    moe_inst first_instance(first_network);
+    moe_inst second_instance(second_network);
+    EXPECT_EQ(first_instance._expert_index_buffer, nullptr);
+    EXPECT_EQ(second_instance._expert_index_buffer, nullptr);
+
+    const layout slot_layout({1, 1, 1, 2}, data_types::i32, format::bfyx);
+    first_instance._expert_index_buffer = engine.allocate_memory(slot_layout, allocation_type::usm_host, false);
+    second_instance._expert_index_buffer = engine.allocate_memory(slot_layout, allocation_type::usm_host, false);
+    ASSERT_NE(first_instance._expert_index_buffer, second_instance._expert_index_buffer);
+
+    const std::vector<uint32_t> first_slots{0, 2};
+    const std::vector<uint32_t> second_slots{3, 1};
+    first_instance._expert_index_buffer->copy_from(first_network.get_stream(), first_slots.data(), 0, 0, slot_layout.bytes_count(), true);
+    second_instance._expert_index_buffer->copy_from(second_network.get_stream(), second_slots.data(), 0, 0, slot_layout.bytes_count(), true);
+    auto first_buffer = first_instance._expert_index_buffer;
+    std::vector<uint32_t> actual_slots(2);
+    first_buffer->copy_to(first_network.get_stream(), actual_slots.data(), 0, 0, slot_layout.bytes_count(), true);
+    EXPECT_EQ(actual_slots, first_slots);
+    second_instance._expert_index_buffer->copy_to(second_network.get_stream(), actual_slots.data(), 0, 0, slot_layout.bytes_count(), true);
+    EXPECT_EQ(actual_slots, second_slots);
+
+    second_instance._expert_index_buffer = engine.allocate_memory(layout({1, 1, 1, 4}, data_types::i32, format::bfyx), allocation_type::usm_host, false);
+    EXPECT_EQ(first_instance._expert_index_buffer, first_buffer);
+    first_buffer->copy_to(first_network.get_stream(), actual_slots.data(), 0, 0, slot_layout.bytes_count(), true);
+    EXPECT_EQ(actual_slots, first_slots);
+}
+
 TEST(moe_3gemm_expert_mask, shape_predictor_overflow_regression) {
     // Simulates Gemma4-26b MoE: 128 experts, top_k=8, 274 tokens in prefill
     constexpr int num_experts = 128;
