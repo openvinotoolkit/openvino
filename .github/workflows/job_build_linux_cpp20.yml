@@ -35,6 +35,7 @@ jobs:
   Build:
     name: Build
     timeout-minutes: 150
+    continue-on-error: true # non-blocking C++20 check (CVS-189849)
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}

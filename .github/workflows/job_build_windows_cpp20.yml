@@ -38,6 +38,7 @@ jobs:
   Build:
     name: Build
     timeout-minutes: 180
+    continue-on-error: true # non-blocking C++20 check (CVS-189849)
     defaults:
       run:
         shell: pwsh

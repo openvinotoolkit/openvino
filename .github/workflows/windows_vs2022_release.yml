@@ -91,7 +91,6 @@ jobs:
     name: Build (C++20)
     needs: [ Smart_CI ]
     if: "!needs.smart_ci.outputs.skip_workflow"
-    continue-on-error: true
     uses: ./.github/workflows/job_build_windows_cpp20.yml
     with:
       runner: 'aks-win-16-cores-32gb-build'
