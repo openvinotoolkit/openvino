@@ -37,6 +37,7 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/round.hpp"
@@ -691,6 +692,7 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
     [[maybe_unused]] KVCacheMetadata& metadata) {
     const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
     const auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
     const auto kv_num_heads = node->get_kv_num_heads();
     const auto is_static_input = node->has_fixed_kv_capacity();
@@ -729,9 +731,28 @@ ov::pass::GroupQueryAttentionDecomposition::construct_batched_kvcache(
                                                                     ov::element::i64),
                                        as_shape({1, 1, -1, 1}),
                                        false));  // [B, 1, S_kv, 1]
+    const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
     const auto write = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
-        const ov::Output<ov::Node> buffer =
-            is_static_input ? past : register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2)->output(0);
+        ov::Output<ov::Node> buffer;
+        if (is_static_input) {
+            buffer = past;
+        } else {
+            // ORT sizes a growing cache to max(past_rows, write_offset + S_kv); a padded chunk's write window
+            // (kv_past_b, per batch) can land inside `past`'s tail instead of right after it, so appending the
+            // full S_kv-row `current` after `past` would over-allocate. Append only the non-overlapping tail of
+            // `current` -> one Concat at the exact ORT capacity, no throwaway rows and no extra Slice pass.
+            const auto past_rows = get_dimensions(register_new_node<v3::ShapeOf>(past), {2});
+            const auto kv_past_max =
+                register_new_node<v1::ReduceMax>(register_new_node<v1::Reshape>(kv_past_b, as_shape({-1}), false),
+                                                 zero_without_shape,
+                                                 true);  // [1]
+            const auto write_end = register_new_node<v1::Add>(kv_past_max, kv_rows);
+            const auto capacity = register_new_node<v1::Maximum>(past_rows, write_end);
+            const auto new_rows = register_new_node<v1::Subtract>(capacity, past_rows);
+            const auto tail_start = register_new_node<v1::Subtract>(kv_rows, new_rows);
+            const auto current_tail = register_new_node<v8::Slice>(current, tail_start, kv_rows, one, two);
+            buffer = register_new_node<v0::Concat>(ov::OutputVector{past, current_tail}, 2)->output(0);
+        }
         const auto buffer_shape = register_new_node<v3::ShapeOf>(buffer);
         const auto rows_per_head = get_dimensions(buffer_shape, {2});
         const auto flat_idx = register_new_node<v1::Reshape>(
