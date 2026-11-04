@@ -100,3 +100,10 @@ jobs:
       - name: Show sccache stats
         if: always()
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Report non-blocking failure
+        if: failure()
+        run: |
+          msg="C++20 build failed. This check is non-blocking (CVS-189849), the failure does not fail the workflow."
+          echo "::warning title=C++20 build failed (non-blocking)::${msg}"
+          echo "${msg}" >> "${GITHUB_STEP_SUMMARY}"

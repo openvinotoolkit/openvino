@@ -126,7 +126,7 @@ jobs:
 
   # Non-blocking C++20 compile check (CVS-189849): promote to a required check when done.
   Build_CPP20:
-    name: Build (C++20)
+    name: Build (C++20, non-blocking)
     needs: [Docker, Smart_CI]
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux_cpp20.yml
